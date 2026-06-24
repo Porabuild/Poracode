@@ -12,6 +12,8 @@ import {
 } from "./procedureMap";
 import type { BrowserEvent, SupervisorEvent, UpdateStatus } from "./events";
 
+export type LightcodeWindowKind = "main" | "browserExtract";
+
 type ProcedureArgs<Name extends IpcProcedureName> =
   (typeof ipcProcedureMap)[Name]["__types"]["args"];
 
@@ -25,6 +27,7 @@ export type LightcodeBridge = LightcodeInvokeBridge & {
   arch: string;
   chromeVersion: string;
   isDev: boolean;
+  windowKind: LightcodeWindowKind;
   channel: LightcodeChannel;
   electronVersion: string;
   nodeVersion: string;

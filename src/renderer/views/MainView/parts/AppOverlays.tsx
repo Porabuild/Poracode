@@ -36,7 +36,7 @@ import { Button } from "@/renderer/components/common/Button";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import type { UsageLoginConfirmationAction } from "@/shared/contracts";
 import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
-import { BrowserOverlay } from "@/renderer/views/MainView/parts/BrowserOverlay";
+import { BrowserHost } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost";
 import { LoginTerminalOverlay } from "@/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay";
 import { CreateProjectModal } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectModal";
 import { CloneProjectModal } from "@/renderer/views/MainView/parts/CreateProject/CloneProjectModal";
@@ -60,7 +60,6 @@ export function AppOverlays() {
     ? projects.find((p) => p.id === prReviewContext.projectId)
     : undefined;
   const prReviewVisible = !!prReviewContext && !!prReviewProject;
-  const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
 
   return (
     <>
@@ -180,7 +179,7 @@ export function AppOverlays() {
           </Suspense>
         ) : null}
       </OverlayShell>
-      <BrowserOverlay open={browserOverlayOpen} />
+      <BrowserHost />
       <UsageLoginConfirmationDialog />
       <LoginTerminalOverlay />
       <CreateProjectModal />

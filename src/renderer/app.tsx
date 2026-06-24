@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { PixelLoader } from "./components/common";
 import { msg } from "@/shared/messages";
 import type { RuntimeEvent } from "@/shared/contracts";
+import type { SupervisorEvent, UpdateStatus } from "@/shared/ipc";
 import { readBridge } from "./bridge";
 import {
   handleThreadStateNotification,
@@ -38,6 +39,8 @@ import {
   runWorktreeSetupScript,
 } from "@/renderer/views/MainView/parts/AppContent/AppContent";
 import { CommandPalette } from "@/renderer/commands/CommandPalette";
+import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel";
+import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";
 import {
   captureAppStarted,
   flushProductAnalytics,
@@ -54,6 +57,7 @@ import {
 // so that Vite HMR can tear them down before re-executing the module.
 
 let threadStateNotificationsArmed = false;
+const isBrowserExtractWindow = readBridge().windowKind === "browserExtract";
 
 // ── Runtime event rAF batcher ───────────────────────────────────
 // With 6-8 concurrent streaming chats, the supervisor produces ~500
@@ -102,7 +106,7 @@ function flushPendingRuntimeEventsSync(): void {
   if (pendingRuntimeEvents.size > 0) flushPendingRuntimeEvents();
 }
 
-const unsubSupervisor = readBridge().onSupervisorEvent((event) => {
+function handleSupervisorEvent(event: SupervisorEvent): void {
   if ("threadId" in event && event.threadId.startsWith("shell:")) {
     if (event.type === "thread-output") {
       useDevTerminalStore.getState().noteShellOutput(event.threadId);
@@ -199,9 +203,9 @@ const unsubSupervisor = readBridge().onSupervisorEvent((event) => {
       store.setWslAgentStatuses(event.statuses);
     }
   }
-});
+}
 
-const unsubUpdate = readBridge().onUpdateStatus((status) => {
+function handleUpdateStatus(status: UpdateStatus): void {
   const store = useUpdateStore.getState();
   switch (status.type) {
     case "checking":
@@ -228,73 +232,77 @@ const unsubUpdate = readBridge().onUpdateStatus((status) => {
       toast.danger(msg("update.error", { detail: status.message }));
       break;
   }
-});
+}
 
-// Thread-metadata commands issued from paired remote clients (mobile PWA).
-// They run through the same actions as local edits so persistence and
-// side effects (unload on archive, …) stay identical.
-const unsubRemoteThreadCommand = readBridge().onRemoteThreadCommand((command) => {
-  const thread = useAppStore.getState().threads.find((t) => t.id === command.threadId);
-  if (!thread) return;
-  switch (command.kind) {
-    case "rename":
-      renameThread(command.threadId, command.title);
-      break;
-    case "set-done":
-      if (thread.done !== command.done) toggleMarkThreadDone(command.threadId);
-      break;
-    case "set-starred":
-      if ((thread.starred ?? false) !== command.starred) toggleStarThread(command.threadId);
-      break;
-    case "set-worktree": {
-      useAppStore
-        .getState()
-        .setThreadWorktree(command.threadId, command.worktreePath, command.worktreeBranch);
-      // A freshly-created remote worktree needs the same desktop-side follow-up
-      // a local "new thread in worktree" gets: prime its git state and run the
-      // project setup script.
-      if (command.isNewWorktree) {
-        const project = useAppStore.getState().projects.find((p) => p.id === thread.projectId);
-        if (project) {
-          void primeWorktreeGitState(project, command.worktreePath);
-          const setupScript = project.scripts?.setupScript;
-          if (setupScript) runWorktreeSetupScript(project, command.worktreePath, setupScript);
+// The browser-extract window renders a standalone BrowserPanel; it has no use
+// for supervisor/update streams, remote-client bridges, or runtime persistence,
+// so only the main window wires these up (and tears them down on HMR dispose).
+const mainWindowCleanups: Array<() => void> = isBrowserExtractWindow
+  ? []
+  : [
+      readBridge().onSupervisorEvent(handleSupervisorEvent),
+      readBridge().onUpdateStatus(handleUpdateStatus),
+      // Thread-metadata commands issued from paired remote clients (mobile PWA).
+      // They run through the same actions as local edits so persistence and
+      // side effects (unload on archive, …) stay identical.
+      readBridge().onRemoteThreadCommand((command) => {
+        const thread = useAppStore.getState().threads.find((t) => t.id === command.threadId);
+        if (!thread) return;
+        switch (command.kind) {
+          case "rename":
+            renameThread(command.threadId, command.title);
+            break;
+          case "set-done":
+            if (thread.done !== command.done) toggleMarkThreadDone(command.threadId);
+            break;
+          case "set-starred":
+            if ((thread.starred ?? false) !== command.starred) toggleStarThread(command.threadId);
+            break;
+          case "set-worktree": {
+            useAppStore
+              .getState()
+              .setThreadWorktree(command.threadId, command.worktreePath, command.worktreeBranch);
+            // A freshly-created remote worktree needs the same desktop-side follow-up
+            // a local "new thread in worktree" gets: prime its git state and run the
+            // project setup script.
+            if (command.isNewWorktree) {
+              const project = useAppStore
+                .getState()
+                .projects.find((p) => p.id === thread.projectId);
+              if (project) {
+                void primeWorktreeGitState(project, command.worktreePath);
+                const setupScript = project.scripts?.setupScript;
+                if (setupScript) runWorktreeSetupScript(project, command.worktreePath, setupScript);
+              }
+            }
+            break;
+          }
+          case "archive":
+            archiveThread(command.threadId);
+            break;
+          case "unarchive":
+            useAppStore.getState().unarchiveThread(command.threadId);
+            break;
+          case "delete":
+            // Thread-only delete: remote clients never trigger worktree removal.
+            deleteThread(command.threadId);
+            break;
         }
-      }
-      break;
-    }
-    case "archive":
-      archiveThread(command.threadId);
-      break;
-    case "unarchive":
-      useAppStore.getState().unarchiveThread(command.threadId);
-      break;
-    case "delete":
-      // Thread-only delete: remote clients never trigger worktree removal.
-      deleteThread(command.threadId);
-      break;
-  }
-});
-
-// Settings rewritten outside this renderer (remote clients editing desktop
-// settings over the remote API) — apply without echoing a persist.
-const unsubSharedSettingsChanged = readBridge().onSharedSettingsChanged((settings) => {
-  applyExternalSharedSettings(normalizeSharedSettings(settings));
-});
-
-const uninstallRuntimePersister = installRuntimeItemsPersister();
-const uninstallRemoteGitSummaries = installRemoteGitSummaryPublisher();
+      }),
+      // Settings rewritten outside this renderer (remote clients editing desktop
+      // settings over the remote API) — apply without echoing a persist.
+      readBridge().onSharedSettingsChanged((settings) => {
+        applyExternalSharedSettings(normalizeSharedSettings(settings));
+      }),
+      installRuntimeItemsPersister(),
+      installRemoteGitSummaryPublisher(),
+    ];
 let uninstallProductAnalytics: (() => void) | null = null;
 let productAnalyticsStarted = false;
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    unsubSupervisor();
-    unsubUpdate();
-    unsubRemoteThreadCommand();
-    unsubSharedSettingsChanged();
-    uninstallRuntimePersister();
-    uninstallRemoteGitSummaries();
+    for (const cleanup of mainWindowCleanups) cleanup();
     if (runtimeFlushHandle !== null) {
       cancelAnimationFrame(runtimeFlushHandle);
       runtimeFlushHandle = null;
@@ -307,6 +315,25 @@ if (import.meta.hot) {
 }
 
 export function App() {
+  if (isBrowserExtractWindow) {
+    return <BrowserExtractApp />;
+  }
+  return <MainApp />;
+}
+
+function BrowserExtractApp() {
+  useBrowserSync();
+
+  return (
+    <AppProvider contentReady syncWindowChrome={false}>
+      <div className="flex h-screen w-screen overflow-hidden bg-[var(--content-background)] text-foreground">
+        <BrowserPanel visible surface="window" />
+      </div>
+    </AppProvider>
+  );
+}
+
+function MainApp() {
   const { initialLoading, storeHydrated, loadT0 } = useAppHydration();
 
   useEffect(() => {

@@ -128,6 +128,13 @@ export const usageSnapshotSchema = z.object({
   credits: usageCreditsSchema.optional(),
   /** Epoch milliseconds when this snapshot was produced. */
   fetchedAt: z.number().int().nonnegative(),
+  /**
+   * Epoch milliseconds before which a rate-limited provider must not be
+   * re-polled — derived from a 429's `Retry-After` (or a default cooldown).
+   * Lets the poller honor the server's backoff instead of re-hitting a throttled
+   * endpoint every cycle, and lets the UI show a real "retry in …" countdown.
+   */
+  rateLimitedUntil: z.number().int().nonnegative().optional(),
   /** Short, non-sensitive diagnostic for non-ok statuses. Never contains secrets. */
   error: z.string().optional(),
 });

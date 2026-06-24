@@ -2,7 +2,11 @@ import { useRef } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel";
+import { BrowserDockSlot } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot";
+import {
+  extractBrowserToWindow,
+  injectBrowserToMain,
+} from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/browserWindowActions";
 import { DevTerminalPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel";
 import {
   UnifiedRightPanel,
@@ -13,6 +17,7 @@ import { NotesPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/Not
 import { UsagePanel } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel";
 import { UsagePanelHeaderActions } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore, type FileEditorRootContext } from "@/renderer/state/fileEditorStore";
 import {
@@ -73,7 +78,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
   const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
   const setRightPanelTab = usePanelStore((s) => s.setRightPanelTab);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
-  const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
+  const browserExtracted = useBrowserPanelStore((s) => s.extracted);
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const setUsagePanelOpen = usePanelStore((s) => s.setUsagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
@@ -195,7 +200,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
   const renderTerminalContent = props.includeTerminal && terminalOpen;
   const renderGitContent = gitPanelOpen;
   const renderFilesContent = filesPanelOpen;
-  const renderBrowserContent = browserPanelOpen && !browserOverlayOpen;
+  const renderBrowserContent = browserPanelOpen;
   const renderUsageContent = usagePanelOpen;
   const renderNotesContent = notesPanelOpen && notesProjectId !== undefined;
 
@@ -218,7 +223,15 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
           <ProjectFilesPanel rootContext={resolvedFilesPanelContext} />
         ) : undefined
       }
-      browserContent={renderBrowserContent ? <BrowserPanel visible /> : undefined}
+      browserContent={
+        renderBrowserContent ? (
+          <BrowserDockSlot
+            extracted={browserExtracted}
+            onBringBack={injectBrowserToMain}
+            onFocusWindow={extractBrowserToWindow}
+          />
+        ) : undefined
+      }
       usageContent={renderUsageContent ? <UsagePanel /> : undefined}
       notesContent={
         renderNotesContent && notesProjectId ? (
@@ -239,10 +252,15 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
         setBrowserOverlayMaximized(true);
         setBrowserOverlayOpen(true);
       }}
+      onExtractBrowserToWindow={extractBrowserToWindow}
       onOpenGit={handleOpenGit}
       onOpenFiles={handleOpenFiles}
       {...(props.includeTerminal ? { onOpenTerminal: handleOpenTerminal } : {})}
       onOpenBrowser={() => {
+        if (browserExtracted) {
+          extractBrowserToWindow();
+          return;
+        }
         setBrowserPanelOpen(true);
         setRightPanelTab("browser");
       }}

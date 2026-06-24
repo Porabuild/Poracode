@@ -39,6 +39,13 @@ const USAGE_CACHE_VERSION = 2;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;
+/**
+ * Fallback backoff for a provider reporting `rate-limited` without an explicit
+ * `rateLimitedUntil` deadline (e.g. a 429 with no Retry-After, or a non-Claude
+ * collector). Longer than the 2-min floor so a throttled endpoint is given room
+ * to recover instead of being re-hit every cycle.
+ */
+const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 5 * 60_000;
 
 export interface UsageServiceOptions {
   emit(event: SupervisorEvent): void;
@@ -152,10 +159,35 @@ export class UsageService {
     return this.enabledProviderIds(this.readUsageSettings().disabledProviders);
   }
 
+  /**
+   * Epoch ms before which a snapshot should not be re-polled because the
+   * provider is rate-limited: its explicit `rateLimitedUntil` (from a 429's
+   * Retry-After) when present, else a default cooldown after a bare
+   * `rate-limited` status. Undefined when no backoff applies.
+   */
+  private rateLimitDeadline(snap: UsageSnapshot): number | undefined {
+    if (snap.rateLimitedUntil !== undefined) return snap.rateLimitedUntil;
+    if (snap.status === "rate-limited") return snap.fetchedAt + DEFAULT_RATE_LIMIT_COOLDOWN_MS;
+    return undefined;
+  }
+
+  /** True while a provider is inside its rate-limit backoff window. */
+  private isRateLimited(snap: UsageSnapshot | undefined, now: number): boolean {
+    if (!snap) return false;
+    const deadline = this.rateLimitDeadline(snap);
+    return deadline !== undefined && deadline > now;
+  }
+
   private isStale(id: string): boolean {
     const snap = this.snapshots.get(id);
     if (!snap) return true;
-    return this.host.now() - snap.fetchedAt >= MIN_REFRESH_INTERVAL_MS;
+    const now = this.host.now();
+    // Honor a server-requested backoff: a rate-limited provider is not "stale",
+    // so a cache read won't kick off a background refresh that just re-hits the
+    // throttled endpoint. A user-initiated refresh bypasses this (it goes
+    // straight to refreshProviderUsage, not through here).
+    if (this.isRateLimited(snap, now)) return false;
+    return now - snap.fetchedAt >= MIN_REFRESH_INTERVAL_MS;
   }
 
   /**
@@ -168,8 +200,11 @@ export class UsageService {
       .map((id) => this.snapshots.get(id))
       .filter((snap): snap is UsageSnapshot => snap !== undefined);
 
-    if (ids.some((id) => this.isStale(id))) {
-      void this.refreshProviderUsage({ providerIds: ids }).catch((error) => {
+    // Refresh only the stale ids — never the whole requested set — so a single
+    // stale provider doesn't drag a still-rate-limited sibling back into a 429.
+    const stale = ids.filter((id) => this.isStale(id));
+    if (stale.length > 0) {
+      void this.refreshProviderUsage({ providerIds: stale }).catch((error) => {
         // Errors surface as per-provider error snapshots; log for diagnostics.
         console.warn("[usage] background refresh failed:", error);
       });
@@ -235,8 +270,21 @@ export class UsageService {
   private preserveOnTransientFailure(snap: UsageSnapshot): UsageSnapshot {
     if (snap.status !== "rate-limited" && snap.status !== "error") return snap;
     const prev = this.snapshots.get(snap.providerId);
-    if (prev && prev.windows.length > 0) return prev;
-    return snap;
+    if (!prev || prev.windows.length === 0) return snap;
+    // Rate-limited: keep showing the last good windows, but adopt the new fetch
+    // time and rate-limit deadline so the poller still honors the backoff —
+    // otherwise the preserved snapshot's old `fetchedAt` would read as "due" and
+    // immediately re-hit the 429.
+    if (snap.status === "rate-limited") {
+      return {
+        ...prev,
+        status: snap.status,
+        fetchedAt: snap.fetchedAt,
+        ...(snap.rateLimitedUntil !== undefined ? { rateLimitedUntil: snap.rateLimitedUntil } : {}),
+      };
+    }
+    // Plain transient error: keep the prior snapshot unchanged.
+    return prev;
   }
 
   /** Collect a supervisor-local (SQLite/process-backed) provider; never throws into the refresh. */
@@ -353,6 +401,9 @@ export class UsageService {
     return this.enabledProviderIds(settings.disabledProviders).filter((id) => {
       const snap = this.snapshots.get(id);
       if (!snap) return true;
+      // Skip providers inside their rate-limit backoff so the auto-refresh tick
+      // doesn't re-hit a throttled endpoint before its Retry-After clears.
+      if (this.isRateLimited(snap, now)) return false;
       return now - snap.fetchedAt >= this.effectiveIntervalMs(settings, id);
     });
   }

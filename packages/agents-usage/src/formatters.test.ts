@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatResetCountdown,
   normalizePercent,
+  parseRetryAfter,
   projectWindowUsage,
   toEpochMs,
   usageTone,
@@ -71,6 +72,27 @@ describe("toEpochMs", () => {
     expect(toEpochMs("1700000000000")).toBe(1_700_000_000_000);
     expect(toEpochMs("1700000000")).toBe(1_700_000_000_000);
     expect(toEpochMs("  1700000000000  ")).toBe(1_700_000_000_000);
+  });
+});
+
+describe("parseRetryAfter", () => {
+  const now = 1_700_000_000_000;
+  it("parses delta-seconds relative to now", () => {
+    expect(parseRetryAfter("0", now)).toBe(now);
+    expect(parseRetryAfter("1800", now)).toBe(now + 1800 * 1000);
+    expect(parseRetryAfter("  120  ", now)).toBe(now + 120 * 1000);
+  });
+
+  it("parses an absolute HTTP-date", () => {
+    const when = "Wed, 21 Oct 2026 07:28:00 GMT";
+    expect(parseRetryAfter(when, now)).toBe(Date.parse(when));
+  });
+
+  it("returns undefined for absent or unparseable values", () => {
+    expect(parseRetryAfter(undefined, now)).toBeUndefined();
+    expect(parseRetryAfter(null, now)).toBeUndefined();
+    expect(parseRetryAfter("", now)).toBeUndefined();
+    expect(parseRetryAfter("soon", now)).toBeUndefined();
   });
 });
 

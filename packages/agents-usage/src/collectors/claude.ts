@@ -1,5 +1,5 @@
 import { DEFAULT_CLIENT_VERSIONS } from "../clientVersions";
-import { toEpochMs } from "../formatters";
+import { parseRetryAfter, toEpochMs } from "../formatters";
 import type { CollectOptions, HostPort, HttpClient, HttpResponse } from "../host";
 import type { UsageSnapshot, UsageWindow, UsageWindowId } from "../types";
 
@@ -12,6 +12,12 @@ import type { UsageSnapshot, UsageWindow, UsageWindowId } from "../types";
 
 export const CLAUDE_USAGE_ENDPOINT = "https://api.anthropic.com/api/oauth/usage";
 export const CLAUDE_OAUTH_BETA = "oauth-2025-04-20";
+/**
+ * Fallback backoff when a 429 carries no (parseable) `Retry-After` header. The
+ * endpoint typically does send one (~30 min observed), but when it doesn't we
+ * still gate re-polling for a while rather than hammering every cycle.
+ */
+export const CLAUDE_RATE_LIMIT_COOLDOWN_MS = 5 * 60_000;
 
 interface ClaudeWindowRaw {
   utilization?: number;
@@ -156,7 +162,19 @@ export async function collectClaude(
     };
   }
   if (res.status === 429) {
-    return { providerId: "claude", status: "rate-limited", windows: [], fetchedAt: now };
+    // Honor the server's backoff: capture Retry-After (delta-seconds or
+    // HTTP-date) so the poller stops re-hitting the throttled endpoint until it
+    // clears. Read the header case-insensitively (hosts may not lower-case it).
+    const retryAfter = res.headers["retry-after"] ?? res.headers["Retry-After"];
+    const rateLimitedUntil =
+      parseRetryAfter(retryAfter, now) ?? now + CLAUDE_RATE_LIMIT_COOLDOWN_MS;
+    return {
+      providerId: "claude",
+      status: "rate-limited",
+      windows: [],
+      fetchedAt: now,
+      rateLimitedUntil,
+    };
   }
   if (res.status < 200 || res.status >= 300) {
     return {

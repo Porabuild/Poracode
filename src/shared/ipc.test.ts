@@ -49,6 +49,8 @@ describe("ipcProcedureMap", () => {
         startUpdateDownload: vi.fn<() => Promise<void>>(),
         installUpdate: vi.fn<() => void>(),
       },
+      extractBrowserToWindow: vi.fn<() => void>(),
+      injectBrowserToMain: vi.fn<() => void>(),
       requestRelaunch: vi.fn<() => void>(),
     });
 

@@ -7,6 +7,7 @@ import {
   Maximize2,
   NotebookPen,
   PanelRightClose,
+  PictureInPicture2,
   TerminalSquare,
 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
@@ -40,6 +41,7 @@ export function UnifiedRightPanel(props: {
   onExpandGitToOverlay?: () => void;
   onExpandFilesToOverlay?: () => void;
   onExpandBrowserToOverlay?: () => void;
+  onExtractBrowserToWindow?: () => void;
   onOpenGit?: () => void;
   onOpenTerminal?: () => void;
   onOpenFiles?: () => void;
@@ -67,6 +69,7 @@ export function UnifiedRightPanel(props: {
     onExpandGitToOverlay,
     onExpandFilesToOverlay,
     onExpandBrowserToOverlay,
+    onExtractBrowserToWindow,
     onOpenGit,
     onOpenTerminal,
     onOpenFiles,
@@ -132,6 +135,16 @@ export function UnifiedRightPanel(props: {
             onClick={onExpandBrowserToOverlay}
           >
             <Maximize2 className="size-3" />
+          </button>
+        )}
+        {activeTab === "browser" && onExtractBrowserToWindow && (
+          <button
+            type="button"
+            className={`${dragCtl} ${panelHeaderIconButtonClass}`}
+            title={t`Move browser to window`}
+            onClick={onExtractBrowserToWindow}
+          >
+            <PictureInPicture2 className="size-3" />
           </button>
         )}
         {activeTab === "usage" ? usageHeaderActions : null}

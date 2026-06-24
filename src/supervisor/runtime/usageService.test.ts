@@ -336,4 +336,140 @@ describe("UsageService", () => {
     });
     expect(result.snapshots[0]?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
   });
+
+  it("does not re-poll a rate-limited provider until its Retry-After backoff clears", async () => {
+    let now = NOW;
+    let calls = 0;
+    const host: HostPort = {
+      now: () => now,
+      credentials: {
+        getOAuthToken: (id) =>
+          Promise.resolve(id === "claude" ? { accessToken: "tok" } : undefined),
+        getSecret: () => Promise.resolve(undefined),
+      },
+      http: {
+        request: () => {
+          calls += 1;
+          // 30-minute Retry-After, far beyond the 2-minute refresh floor.
+          return Promise.resolve({
+            status: 429,
+            headers: { "retry-after": "1800" },
+            body: "{}",
+          });
+        },
+      },
+    };
+    const service = new UsageService({ emit: () => {}, cachePath: tempCachePath(), host });
+
+    await service.refreshProviderUsage({ providerIds: ["claude"] });
+    expect(calls).toBe(1);
+
+    // +5 min: past the 2-min floor but inside the 30-min backoff — no re-poll.
+    now = NOW + 5 * 60_000;
+    await service.getProviderUsage({ providerIds: ["claude"] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls).toBe(1);
+
+    // +31 min: the backoff has cleared, so a cache read kicks off a refresh.
+    now = NOW + 31 * 60_000;
+    await service.getProviderUsage({ providerIds: ["claude"] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls).toBeGreaterThan(1);
+  });
+
+  it("preserves last-good windows on a 429 while still carrying the backoff", async () => {
+    let now = NOW;
+    let status = 200;
+    const host: HostPort = {
+      now: () => now,
+      credentials: {
+        getOAuthToken: (id) =>
+          Promise.resolve(id === "claude" ? { accessToken: "tok" } : undefined),
+        getSecret: () => Promise.resolve(undefined),
+      },
+      http: {
+        request: () =>
+          Promise.resolve(
+            status === 200
+              ? { status: 200, headers: {}, body: CLAUDE_BODY }
+              : { status: 429, headers: { "retry-after": "1800" }, body: "{}" },
+          ),
+      },
+    };
+    const service = new UsageService({ emit: () => {}, cachePath: tempCachePath(), host });
+
+    await service.refreshProviderUsage({ providerIds: ["claude"] });
+    status = 429;
+    now = NOW + 3 * 60_000;
+    await service.refreshProviderUsage({ providerIds: ["claude"] });
+
+    const cached = await service.getProviderUsage({ providerIds: ["claude"] });
+    const snap = cached.snapshots.find((s) => s.providerId === "claude");
+    // Last good windows survive the transient 429...
+    expect(snap?.status).toBe("rate-limited");
+    expect(snap?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
+    // ...and the new backoff deadline is carried so polling stays gated.
+    expect(snap?.rateLimitedUntil).toBe(NOW + 3 * 60_000 + 1800 * 1000);
+  });
+
+  it("applies the default cooldown when preserving a bare rate-limited snapshot", async () => {
+    let now = NOW;
+    let calls = 0;
+    let rateLimited = false;
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      host: {
+        now: () => now,
+        credentials: {
+          getOAuthToken: () => Promise.resolve(undefined),
+          getSecret: () => Promise.resolve(undefined),
+        },
+        http: {
+          request: () => Promise.resolve({ status: 200, headers: {}, body: "{}" }),
+        },
+      },
+      localCollectors: [
+        {
+          id: "opencode",
+          collect: (nowMs): Promise<UsageSnapshot> => {
+            calls += 1;
+            return Promise.resolve(
+              rateLimited
+                ? { providerId: "opencode", status: "rate-limited", windows: [], fetchedAt: nowMs }
+                : {
+                    providerId: "opencode",
+                    status: "ok",
+                    windows: [
+                      {
+                        id: "monthly",
+                        label: "Monthly",
+                        usedPercent: 42,
+                        unit: "percent",
+                      },
+                    ],
+                    fetchedAt: nowMs,
+                  },
+            );
+          },
+        },
+      ],
+    });
+
+    await service.refreshProviderUsage({ providerIds: ["opencode"] });
+    rateLimited = true;
+    now = NOW + 3 * 60_000;
+    await service.refreshProviderUsage({ providerIds: ["opencode"] });
+    expect(calls).toBe(2);
+
+    now = NOW + 7 * 60_000;
+    await service.getProviderUsage({ providerIds: ["opencode"] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls).toBe(2);
+
+    now = NOW + 9 * 60_000;
+    await service.getProviderUsage({ providerIds: ["opencode"] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls).toBeGreaterThan(2);
+  });
 });

@@ -16,6 +16,7 @@ export {
   defineSupervisorIpcHandlers,
   IPC_EVENT_CHANNELS,
   parseIpcProcedureArgs,
+  type LightcodeWindowKind,
   type LightcodeBridge,
   type LightcodeInvokeBridge,
   type MainLocalIpcHandlerMap,
@@ -32,10 +33,13 @@ export {
   browserPickResultSchema,
   browserStateSchema,
   browserTabSchema,
+  type BrowserBookmarkInfo,
+  type BrowserHistoryEntryInfo,
   type BrowserPickResult,
   type BrowserRect,
   type BrowserState,
   type BrowserStartPickerResult,
+  type BrowserSuggestResult,
   type BrowserTabInfo,
 } from "./procedures/browser";
 export {

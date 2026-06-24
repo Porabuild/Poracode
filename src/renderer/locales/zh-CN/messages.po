@@ -1042,6 +1042,14 @@ msgstr "已阻止："
 msgid "Bold"
 msgstr "加粗"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmark this page"
+msgstr "将此页加入书签"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmarks"
+msgstr "书签"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
 msgstr "底部"
@@ -1068,6 +1076,14 @@ msgstr "分支保护规则阻止了这次合并。"
 msgid "Branches"
 msgstr "分支"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring back to panel"
+msgstr "移回面板"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring it back into this panel, or jump to the window it’s running in."
+msgstr "将其移回此面板，或跳转到正在运行它的窗口。"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Browse for parent folder"
@@ -1092,6 +1108,10 @@ msgstr "浏览您的 GitHub 存储库或粘贴克隆 URL。"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "浏览器"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Browser is open in a separate window"
+msgstr "浏览器已在单独的窗口中打开"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 msgid "Browser MCP"
@@ -1351,6 +1371,10 @@ msgstr "Claude 配置文件已删除。"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
 msgstr "清理脚本"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Clear browsing history"
+msgstr "清除浏览历史记录"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear Browsing History"
@@ -2727,6 +2751,10 @@ msgstr "聚焦浏览器地址栏"
 msgid "Focus the in-app browser address bar"
 msgstr "聚焦应用内浏览器地址栏"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Focus window"
+msgstr "切换到窗口"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "文件夹名称"
@@ -2994,6 +3022,10 @@ msgstr "隐藏侧边栏"
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
 msgstr "隐藏终端"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "History"
+msgstr "历史记录"
 
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -3652,6 +3684,15 @@ msgstr "最常用思考级别"
 msgid "Move"
 msgstr "移动"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Move browser back to main window"
+msgstr "将浏览器移回主窗口"
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Move browser to window"
+msgstr "将浏览器移到窗口"
+
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Move changes to a new worktree"
 msgstr "将更改移至新工作树"
@@ -3866,6 +3907,10 @@ msgstr "暂未记录任何AI提交、PR或冲突解决。"
 msgid "No archived threads."
 msgstr "没有存档的线程。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+msgid "No bookmarks yet — add the current page with the star."
+msgstr "暂无书签——点击星标添加当前页面。"
+
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "No branches found"
 msgstr "未找到分支"
@@ -3949,6 +3994,10 @@ msgstr "没有文件匹配“{0}”。"
 msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or "
 "<1>paste a clone URL</1>."
 msgstr "未找到 GitHub CLI 帐户。使用<0>gh auth login</0>登录，或<1>粘贴克隆网址</1>。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "No history yet"
+msgstr "暂无历史记录"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -4815,6 +4864,10 @@ msgid "Rate limited"
 msgstr "已限速"
 
 #: src/renderer/components/providers/usageFormat.ts
+msgid "Rate limited · retry in {retry}"
+msgstr "已限速 · {retry} 后重试"
+
+#: src/renderer/components/providers/usageFormat.ts
 msgid "Rate limited. Try again shortly."
 msgstr "已限速。请稍后重试。"
 
@@ -4956,6 +5009,11 @@ msgstr "删除{pattern}"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Remove action"
 msgstr "删除动作"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Remove bookmark"
+msgstr "移除书签"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
@@ -5109,7 +5167,7 @@ msgstr "将侧边栏磨砂效果重置为默认"
 msgid "Reset to default"
 msgstr "重置为默认"
 
-#: src/renderer/components/layout/BrowserDrawerShell.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "调整浏览器抽屉的大小"
 
@@ -5445,7 +5503,7 @@ msgid "Search models..."
 msgstr "搜索模型..."
 
 #: src/mobile/views/BrowserView.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "搜索或输入地址"
 
@@ -5564,6 +5622,7 @@ msgstr "设置快捷键"
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/MoreView.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
@@ -5600,6 +5659,10 @@ msgstr "为操作系统级别的代理会话显示一个无项目的主页范围
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Show all"
 msgstr "显示全部"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Show bookmark bar"
+msgstr "显示书签栏"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Show Bookmark Bar"

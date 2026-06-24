@@ -36,6 +36,12 @@ const ghGetPrDetailsMock =
   >();
 
 const location: ProjectLocation = { kind: "posix", path: "/repo" };
+const wslLocation: ProjectLocation = {
+  kind: "wsl",
+  distro: "Ubuntu",
+  linuxPath: "/repo",
+  uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+};
 
 const project: Project = {
   id: "p1",
@@ -515,6 +521,115 @@ describe("watcher git status refresh", () => {
     });
     expect(gitWorktreeStatusBatch).not.toHaveBeenCalled();
     expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(cachedWorktreeStatus);
+  });
+
+  it("refreshes WSL worktree diff stats during fetch refreshes", async () => {
+    const worktreeStatus: GitStatusResult = {
+      ...status,
+      branch: "feature/wt",
+      unstaged: [
+        {
+          path: "src/changed.ts",
+          status: "M",
+          staged: false,
+          insertions: 3,
+          deletions: 1,
+        },
+      ],
+      totalInsertions: 3,
+      totalDeletions: 1,
+    };
+    const gitWatchWorktrees = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const gitWorktreeStatusBatch = vi
+      .fn<
+        (payload: {
+          projectLocation: ProjectLocation;
+          worktreePaths: string[];
+          detail?: "summary" | "full";
+        }) => Promise<{ statuses: Record<string, GitStatusResult> }>
+      >()
+      .mockResolvedValue({ statuses: { "/repo-wt": worktreeStatus } });
+    const gitProjectSnapshot = vi
+      .fn<
+        () => Promise<{
+          status: GitStatusResult;
+          branches: { current: string; branches: unknown[] };
+          worktrees: { path: string; branch: string; commit: string; isMain: boolean }[];
+          ghAvailable: boolean;
+        }>
+      >()
+      .mockResolvedValue({
+        status,
+        branches: { current: "feature/pr-checks", branches: [] },
+        worktrees: [{ path: "/repo", branch: "feature/pr-checks", commit: "abc123", isMain: true }],
+        ghAvailable: false,
+      });
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      value: {
+        platform: "darwin",
+        gitProjectSnapshot,
+        gitWatchWorktrees,
+        gitWorktreeStatusBatch,
+      },
+    });
+    useGitStore.getState().setWorktreeStatus("/repo-wt", { ...status });
+    useAppStore.setState({ threads: [worktreeThread] });
+
+    await refreshGitProject({ ...project, location: wslLocation }, "fetch", "full");
+
+    expect(gitWorktreeStatusBatch).toHaveBeenCalledWith({
+      projectLocation: wslLocation,
+      worktreePaths: ["/repo-wt"],
+      detail: "full",
+    });
+    expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(worktreeStatus);
+  });
+
+  it("uses full worktree status for WSL poll refreshes", async () => {
+    const getGitStatus = vi.fn<() => Promise<GitStatusResult>>().mockResolvedValue(status);
+    const worktreeStatus: GitStatusResult = {
+      ...status,
+      branch: "feature/wt",
+      unstaged: [
+        {
+          path: "src/changed.ts",
+          status: "M",
+          staged: false,
+          insertions: 2,
+          deletions: 1,
+        },
+      ],
+      totalInsertions: 2,
+      totalDeletions: 1,
+    };
+    const gitWorktreeStatusBatch = vi
+      .fn<
+        (payload: {
+          projectLocation: ProjectLocation;
+          worktreePaths: string[];
+          detail?: "summary" | "full";
+        }) => Promise<{ statuses: Record<string, GitStatusResult> }>
+      >()
+      .mockResolvedValue({ statuses: { "/repo-wt": worktreeStatus } });
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      value: {
+        platform: "darwin",
+        getGitStatus,
+        gitWorktreeStatusBatch,
+      },
+    });
+    useAppStore.setState({ threads: [worktreeThread] });
+
+    await refreshGitProject({ ...project, location: wslLocation }, "poll", "status");
+
+    expect(gitWorktreeStatusBatch).toHaveBeenCalledWith({
+      projectLocation: wslLocation,
+      worktreePaths: ["/repo-wt"],
+      detail: "full",
+    });
+    expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(worktreeStatus);
   });
 
   it("promotes watcher refresh to a full snapshot after a project becomes a Git repo", async () => {

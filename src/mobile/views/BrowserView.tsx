@@ -684,7 +684,7 @@ export function BrowserView() {
             typingEnabled={mirrorActive}
             onToggleTyping={() => setTyping((current) => !current)}
           />
-          <BrowserTabStrip />
+          <BrowserTabStrip onCreateTab={createTab} />
         </>
       ) : null}
       <div className="m-browser__stage">

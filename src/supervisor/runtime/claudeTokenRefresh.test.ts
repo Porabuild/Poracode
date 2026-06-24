@@ -106,10 +106,21 @@ describe("refreshClaudeFileTokenIfExpired", () => {
     expect(deps.refresh).not.toHaveBeenCalled();
   });
 
-  it("returns the token untouched when there is no refresh token", async () => {
+  it("returns a still-valid token even when it has no refresh token", async () => {
+    const noRefValid: OAuthToken = { accessToken: "A1", expiresAt: NOW + 5 * 60_000 };
+    const deps = makeDeps({ file: credsFile(noRefValid) });
+    expect(
+      await refreshClaudeFileTokenIfExpired(PATH, credsFile(noRefValid), noRefValid, deps),
+    ).toBe(noRefValid);
+    expect(deps.refresh).not.toHaveBeenCalled();
+  });
+
+  it("reports signed-out (undefined) when expired with no refresh token", async () => {
     const noRef: OAuthToken = { accessToken: "A1", expiresAt: NOW - 5 * 60_000 };
     const deps = makeDeps({ file: credsFile(noRef) });
-    expect(await refreshClaudeFileTokenIfExpired(PATH, credsFile(noRef), noRef, deps)).toBe(noRef);
+    expect(
+      await refreshClaudeFileTokenIfExpired(PATH, credsFile(noRef), noRef, deps),
+    ).toBeUndefined();
     expect(deps.refresh).not.toHaveBeenCalled();
   });
 
@@ -123,11 +134,11 @@ describe("refreshClaudeFileTokenIfExpired", () => {
     const out = await refreshClaudeFileTokenIfExpired(PATH, credsFile(expired), expired, deps);
 
     expect(deps.refresh).toHaveBeenCalledWith("R1", NOW);
-    expect(out.accessToken).toBe("A2");
-    expect(out.refreshToken).toBe("R2");
-    expect(out.expiresAt).toBe(refreshed.expiresAt);
+    expect(out?.accessToken).toBe("A2");
+    expect(out?.refreshToken).toBe("R2");
+    expect(out?.expiresAt).toBe(refreshed.expiresAt);
     // subscriptionType from the original token is preserved.
-    expect(out.subscriptionType).toBe("max");
+    expect(out?.subscriptionType).toBe("max");
     // The file was rewritten with the rotated token.
     expect(JSON.parse(deps.written.content ?? "{}").claudeAiOauth).toMatchObject({
       accessToken: "A2",
@@ -163,15 +174,37 @@ describe("refreshClaudeFileTokenIfExpired", () => {
       },
     };
     const out = await refreshClaudeFileTokenIfExpired(PATH, credsFile(expired), expired, deps);
-    expect(out.accessToken).toBe("WIN");
+    expect(out?.accessToken).toBe("WIN");
     expect(written).toBeUndefined();
   });
 
-  it("keeps the original token when the refresh fails", async () => {
+  it("reports signed-out (undefined) when the refresh fails — never the stale token", async () => {
+    // The whole point of the fix: an idle account whose refresh token is dead
+    // must not keep firing the expired token at the (rate-limited) usage
+    // endpoint. Returning undefined lets the collector report auth-missing.
     const deps = makeDeps({ file: credsFile(expired), refreshed: undefined });
     const out = await refreshClaudeFileTokenIfExpired(PATH, credsFile(expired), expired, deps);
-    expect(out).toStrictEqual(expired);
+    expect(out).toBeUndefined();
     expect(deps.written.content).toBeUndefined();
+  });
+
+  it("defers to a CLI-rotated valid token when our own refresh fails", async () => {
+    // Our refresh POST fails (e.g. the refresh token was already consumed by the
+    // live CLI), but the on-disk file now holds the CLI's freshly rotated token.
+    const winner = credsFile({
+      accessToken: "WIN",
+      refreshToken: "RWIN",
+      expiresAt: NOW + 5 * 60_000,
+    });
+    const store = { content: winner };
+    const deps: ClaudeRefreshDeps = {
+      now: () => NOW,
+      readFile: () => store.content,
+      writeFile: () => {},
+      refresh: async () => undefined,
+    };
+    const out = await refreshClaudeFileTokenIfExpired(PATH, credsFile(expired), expired, deps);
+    expect(out?.accessToken).toBe("WIN");
   });
 
   it("still returns the fresh token when persisting fails", async () => {
@@ -185,6 +218,6 @@ describe("refreshClaudeFileTokenIfExpired", () => {
       throw new Error("EROFS");
     };
     const out = await refreshClaudeFileTokenIfExpired(PATH, credsFile(expired), expired, deps);
-    expect(out.accessToken).toBe("A2");
+    expect(out?.accessToken).toBe("A2");
   });
 });

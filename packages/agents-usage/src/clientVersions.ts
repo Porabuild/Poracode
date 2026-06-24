@@ -5,10 +5,10 @@
  * one), so these values rot. Bump them here when a provider starts rejecting
  * requests; the host can also override via `HostPort.clientVersions`.
  *
- * Last reviewed: 2026-05-29.
+ * Last reviewed: 2026-06-23.
  */
 export const DEFAULT_CLIENT_VERSIONS = {
-  claudeCode: "2.1.69",
+  claudeCode: "2.1.186",
   codex: "0.50.0",
   copilotChat: "0.26.7",
   editor: "vscode/1.96.2",

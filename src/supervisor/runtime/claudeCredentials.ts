@@ -94,9 +94,15 @@ export async function resolveClaudeToken(
       // path so the base "claude" resolver and a profile aliasing the same file
       // share one refresh instead of both POSTing (and burning) the refresh token.
       if (token) {
-        return await coalesceByKey(claudeRefreshInFlight, path, () =>
+        const resolved = await coalesceByKey(claudeRefreshInFlight, path, () =>
           refreshClaudeFileTokenIfExpired(path, content, token, deps),
         );
+        // A live, usable token wins. A dead one (expired + unrefreshable) yields
+        // undefined: fall through to the platform stores below — the live token
+        // may instead live in the Keychain/Vault/WSL — and ultimately to
+        // auth-missing rather than returning the stale token and pinning the
+        // usage card on "Rate limited".
+        if (resolved) return resolved;
       }
     } catch {
       // try the next candidate dir
@@ -215,23 +221,49 @@ function prodClaudeRefreshDeps(): ClaudeRefreshDeps {
 }
 
 /** In-flight refresh per resolved creds path, so same-tick callers share one POST. */
-const claudeRefreshInFlight = new Map<string, Promise<OAuthToken>>();
+const claudeRefreshInFlight = new Map<string, Promise<OAuthToken | undefined>>();
 
 /**
  * Given the credentials file content the caller just read and its parsed token,
  * refresh + persist when the access token is (grace-)expired. Returns the token
- * the collector should use: the rotated one on success, the original otherwise.
+ * the collector should use: the still-valid token, the freshly rotated one on a
+ * successful refresh, or `undefined` when the token is expired and cannot be
+ * refreshed.
+ *
+ * Returning `undefined` (rather than the stale expired token) on a failed
+ * refresh is deliberate: an idle account whose refresh token is dead/rotated
+ * otherwise keeps firing an expired token at the usage endpoint every cycle,
+ * which the server answers with a 429 — leaving the card stuck on "Rate limited"
+ * instead of the truthful "Not signed in". Signaling absence lets the collector
+ * report `auth-missing` and the user re-auth.
  */
 export async function refreshClaudeFileTokenIfExpired(
   path: string,
   originalContent: string,
   token: OAuthToken,
   deps: ClaudeRefreshDeps,
-): Promise<OAuthToken> {
-  if (!token.refreshToken || !isClaudeTokenExpired(token, deps.now())) return token;
+): Promise<OAuthToken | undefined> {
+  // Still valid (or no expiry recorded) — use as-is. Covers tokens without a
+  // refresh token, which a live CLI keeps fresh.
+  if (!isClaudeTokenExpired(token, deps.now())) return token;
+
+  // Expired with no way to refresh: treat as signed out.
+  if (!token.refreshToken) return undefined;
 
   const refreshed = await deps.refresh(token.refreshToken, deps.now());
-  if (!refreshed) return token;
+  if (!refreshed) {
+    // Refresh failed (revoked/rotated refresh token, or the OAuth endpoint is
+    // itself rate-limiting us). A live CLI may have rotated the on-disk token
+    // while we were in flight — defer to that if it is now valid; otherwise
+    // report signed-out instead of returning the stale expired token.
+    try {
+      const after = parseClaudeCredentials(deps.readFile(path));
+      if (after?.accessToken && !isClaudeTokenExpired(after, deps.now())) return after;
+    } catch {
+      // Re-read failed — fall through to signed-out.
+    }
+    return undefined;
+  }
 
   // Re-read after the network round-trip (up to ~15s): if another writer rotated
   // the token while we were in flight, return theirs rather than clobbering it

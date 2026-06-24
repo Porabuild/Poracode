@@ -144,6 +144,7 @@ export function sharedWindowResetLabel(
 export function usageStatusText(
   snapshot: UsageSnapshot | undefined,
   providerLabel?: string,
+  now: number = Date.now(),
 ): string {
   if (!snapshot) return i18n._(msg`No data yet`);
   switch (snapshot.status) {
@@ -164,8 +165,17 @@ export function usageStatusText(
       const appName = providerLabel ?? i18n._(msg`the app`);
       return i18n._(msg`Start ${appName} to see usage`);
     }
-    case "rate-limited":
-      return i18n._(msg`Rate limited. Try again shortly.`);
+    case "rate-limited": {
+      // Prefer a concrete countdown from the server's Retry-After when we have
+      // one, so the user sees when it recovers instead of an open-ended hint.
+      const retry =
+        snapshot.rateLimitedUntil !== undefined
+          ? formatResetCountdown(snapshot.rateLimitedUntil, now)
+          : undefined;
+      return retry && retry !== "now"
+        ? i18n._(msg`Rate limited · retry in ${retry}`)
+        : i18n._(msg`Rate limited. Try again shortly.`);
+    }
     case "quota-hit":
       return i18n._(msg`Quota reached`);
     case "unsupported":

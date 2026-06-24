@@ -7,6 +7,7 @@ import {
   IPC_EVENT_CHANNELS,
   type BrowserEvent,
   type LightcodeBridge,
+  type LightcodeWindowKind,
   type SupervisorEvent,
   type UpdateStatus,
 } from "@/shared/ipc";
@@ -46,6 +47,10 @@ function resolveChannel(): LightcodeChannel {
   return "stable";
 }
 
+function resolveWindowKind(): LightcodeWindowKind {
+  return resolveArgValue("--lc-window-kind=") === "browserExtract" ? "browserExtract" : "main";
+}
+
 function resolveSentryEnabled(): boolean {
   const prefix = "--lc-sentry-enabled=";
   for (const arg of process.argv) {
@@ -80,6 +85,7 @@ const bridge: LightcodeBridge = {
   arch: process.arch,
   chromeVersion: process.versions.chrome ?? "unknown",
   isDev: resolveIsDev(),
+  windowKind: resolveWindowKind(),
   channel: resolveChannel(),
   electronVersion: process.versions.electron ?? "unknown",
   nodeVersion: process.versions.node,

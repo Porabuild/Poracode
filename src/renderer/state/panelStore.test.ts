@@ -128,24 +128,37 @@ describe("browserOverlayMaximized lifecycle", () => {
     expect(usePanelStore.getState().browserOverlayMaximized).toBe(false);
   });
 
-  it("is reset when the browser panel is closed entirely", () => {
+  it("survives hiding the right-panel browser (overlay is independent)", () => {
     const { setBrowserOverlayOpen, setBrowserOverlayMaximized, setBrowserPanelOpen } =
       usePanelStore.getState();
+    setBrowserPanelOpen(true);
     setBrowserOverlayOpen(true);
     setBrowserOverlayMaximized(true);
 
+    // Hiding the docked panel must not tear down a maximized overlay, otherwise
+    // the fullscreen page would vanish when the right panel is hidden.
     setBrowserPanelOpen(false);
-    expect(usePanelStore.getState().browserOverlayMaximized).toBe(false);
-    expect(usePanelStore.getState().browserOverlayOpen).toBe(false);
+    expect(usePanelStore.getState().browserPanelOpen).toBe(false);
+    expect(usePanelStore.getState().browserOverlayMaximized).toBe(true);
+    expect(usePanelStore.getState().browserOverlayOpen).toBe(true);
   });
 
-  it("is reset by closeAllPanels", () => {
-    const { setBrowserOverlayOpen, setBrowserOverlayMaximized, closeAllPanels } =
-      usePanelStore.getState();
+  it("survives closeAllPanels (e.g. the narrow-viewport right-panel auto-hide)", () => {
+    const {
+      setBrowserPanelOpen,
+      setBrowserOverlayOpen,
+      setBrowserOverlayMaximized,
+      closeAllPanels,
+    } = usePanelStore.getState();
+    setBrowserPanelOpen(true);
     setBrowserOverlayOpen(true);
     setBrowserOverlayMaximized(true);
 
+    // closeAllPanels backs the right-panel auto-hide on resize; it must close
+    // the docked panel but leave the standalone browser overlay intact.
     closeAllPanels();
-    expect(usePanelStore.getState().browserOverlayMaximized).toBe(false);
+    expect(usePanelStore.getState().browserPanelOpen).toBe(false);
+    expect(usePanelStore.getState().browserOverlayOpen).toBe(true);
+    expect(usePanelStore.getState().browserOverlayMaximized).toBe(true);
   });
 });

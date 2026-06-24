@@ -15,22 +15,36 @@ export function useBrowserSync(): void {
 
   useEffect(() => {
     let cancelled = false;
+    const isMainWindow = readBridge().windowKind === "main";
+    // Overlay/panel presentation side-effects belong to the main window alone,
+    // and never while the browser is extracted to its own window — the extract
+    // window subscribes purely to mirror tab/bookmark state.
+    const reactsToPresentation = () => isMainWindow && !useBrowserPanelStore.getState().extracted;
     const unsub = readBridge().onBrowserEvent((event) => {
       if (event.type === "state") {
         const hadTabs = useBrowserPanelStore.getState().tabs.length > 0;
         setState(event.state);
+        if (event.state.extracted && isMainWindow) {
+          usePanelStore.getState().setBrowserOverlayOpen(false);
+        }
         if (hadTabs && event.state.tabs.length === 0) {
-          // Closing the last tab dismisses the browser panel and overlay.
-          usePanelStore.getState().setBrowserPanelOpen(false);
+          // Closing the last tab dismisses the browser entirely. The panel and
+          // overlay are independent (hiding the panel no longer closes the
+          // overlay), so dismiss both explicitly here.
+          const panel = usePanelStore.getState();
+          panel.setBrowserOverlayOpen(false);
+          panel.setBrowserPanelOpen(false);
         }
       } else if (event.type === "tab-updated") {
         upsertTab(event.tab);
       } else if (event.type === "tab-attention") {
         setAttention(event.tabId);
       } else if (event.type === "open-panel") {
+        if (!reactsToPresentation()) return;
         const panel = usePanelStore.getState();
         const wantsFullscreen = event.mode === "overlay";
         if (wantsFullscreen || selectAnyObstructingOverlayOpen()) {
+          if (panel.browserPanelOpen) panel.setRightPanelTab("browser");
           // Float the overlay above any active z-50 surface. Fullscreen when the
           // user explicitly chose "overlay" presentation, drawer (z-60) when
           // forced because an obstructing overlay would otherwise hide the page.

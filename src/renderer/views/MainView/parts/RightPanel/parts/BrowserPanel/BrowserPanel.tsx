@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Check, Copy, Maximize2, Minimize2, X } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Maximize2,
+  Minimize2,
+  PanelRightOpen,
+  PictureInPicture2,
+  X,
+} from "lucide-react";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -10,14 +18,16 @@ import {
   overlayHeaderStyle,
   panelHeaderIconButtonClass,
 } from "@/renderer/components/layout/sidebarChrome";
+import { BrowserBookmarkBar } from "./parts/BrowserBookmarkBar";
 import { BrowserEmptyState } from "./parts/BrowserEmptyState";
 import { BrowserTabStrip } from "./parts/BrowserTabStrip";
 import { BrowserToolbar } from "./parts/BrowserToolbar";
+import { extractBrowserToWindow, injectBrowserToMain } from "./browserWindowActions";
 import { useElementPicker } from "./hooks/useElementPicker";
 
-const DEFAULT_HOME = "https://www.google.com";
+const DEFAULT_HOME = "https://duckduckgo.com";
 
-export function BrowserPanel(props: { visible: boolean }) {
+export function BrowserPanel(props: { visible: boolean; surface?: "main" | "window" }) {
   const { t } = useLingui();
   const tabs = useBrowserPanelStore((s) => s.tabs);
   const activeTabId = useBrowserPanelStore((s) => s.activeTabId);
@@ -28,7 +38,8 @@ export function BrowserPanel(props: { visible: boolean }) {
   const setBrowserOverlayOpen = usePanelStore((s) => s.setBrowserOverlayOpen);
   const setBrowserOverlayMaximized = usePanelStore((s) => s.setBrowserOverlayMaximized);
   const setRightPanelTab = usePanelStore((s) => s.setRightPanelTab);
-  const visible = props.visible || browserOverlayOpen;
+  const isWindowSurface = props.surface === "window";
+  const visible = props.visible || browserOverlayOpen || isWindowSurface;
   const [menuPreviewDataUrl, setMenuPreviewDataUrl] = useState<string | null>(null);
   const {
     pickerActive,
@@ -82,8 +93,9 @@ export function BrowserPanel(props: { visible: boolean }) {
   }, [createTab, visible, tabs.length]);
 
   const isFullscreenOverlay = browserOverlayOpen && browserOverlayMaximized;
+  const hasWindowHeader = isFullscreenOverlay || isWindowSurface;
   const headerButtonClass = `${
-    isFullscreenOverlay ? "lightcode-overlay-header__controls " : ""
+    hasWindowHeader ? "lightcode-overlay-header__controls " : ""
   }${panelHeaderIconButtonClass}`;
   const restoreToPanel = () => {
     setBrowserOverlayMaximized(false);
@@ -91,41 +103,69 @@ export function BrowserPanel(props: { visible: boolean }) {
     setBrowserPanelOpen(true);
     setRightPanelTab("browser");
   };
+  const extractButton = (
+    <button
+      type="button"
+      className={headerButtonClass}
+      title={t`Move browser to window`}
+      aria-label={t`Move browser to window`}
+      onClick={extractBrowserToWindow}
+    >
+      <PictureInPicture2 className="size-3.5" />
+    </button>
+  );
   return (
     <div
       data-lightcode-browser=""
       role="group"
       aria-label={t`Browser`}
-      className="flex h-full min-h-0 flex-col bg-[var(--content-background)]"
+      className="flex h-full w-full min-h-0 flex-col bg-[var(--content-background)]"
       onKeyDown={onKeyDown}
     >
-      {browserOverlayOpen ? (
+      {browserOverlayOpen || isWindowSurface ? (
         <div
           className={`${
-            isFullscreenOverlay
+            hasWindowHeader
               ? "lightcode-overlay-header"
               : "lightcode-overlay-header lightcode-overlay-header--no-drag"
-          } flex shrink-0 items-center gap-1.5 border-b border-[color:var(--border)] bg-[var(--content-background)] px-2`}
-          style={isFullscreenOverlay ? overlayHeaderStyle() : { height: "32px" }}
+          } flex shrink-0 items-center gap-1 border-b border-[color:var(--border)] bg-[var(--content-background)] px-2`}
+          style={hasWindowHeader ? overlayHeaderStyle() : { height: "32px" }}
         >
-          {isMac() && isFullscreenOverlay ? (
+          {isMac() && hasWindowHeader ? (
             <div className={macosTrafficLightGutterClass} aria-hidden />
           ) : null}
-          <div className="text-xs font-medium text-foreground">
-            <Trans>Browser</Trans>
-          </div>
+          {hasWindowHeader ? (
+            <BrowserTabStrip variant="header" onCreateTab={createTab} />
+          ) : (
+            <div className="text-xs font-medium text-foreground">
+              <Trans>Browser</Trans>
+            </div>
+          )}
           <BrowserDeviceCodeButton />
-          <div className="flex-1" />
-          {browserPanelOpen ? (
+          {hasWindowHeader ? null : <div className="flex-1" />}
+          {isWindowSurface ? (
             <button
               type="button"
               className={headerButtonClass}
-              title={t`Minimize to panel`}
-              aria-label={t`Minimize browser to right panel`}
-              onClick={restoreToPanel}
+              title={t`Move browser back to main window`}
+              aria-label={t`Move browser back to main window`}
+              onClick={injectBrowserToMain}
             >
-              <Minimize2 className="size-3.5" />
+              <PanelRightOpen className="size-3.5" />
             </button>
+          ) : browserPanelOpen ? (
+            <>
+              {extractButton}
+              <button
+                type="button"
+                className={headerButtonClass}
+                title={t`Minimize to panel`}
+                aria-label={t`Minimize browser to right panel`}
+                onClick={restoreToPanel}
+              >
+                <Minimize2 className="size-3.5" />
+              </button>
+            </>
           ) : (
             <>
               {browserOverlayMaximized ? (
@@ -149,6 +189,7 @@ export function BrowserPanel(props: { visible: boolean }) {
                   <Maximize2 className="size-3.5" />
                 </button>
               )}
+              {extractButton}
               <button
                 type="button"
                 className={headerButtonClass}
@@ -164,7 +205,6 @@ export function BrowserPanel(props: { visible: boolean }) {
       ) : null}
       <BrowserToolbar
         onPick={onPick}
-        onCreateTab={createTab}
         pickerActive={pickerActive}
         pickerTargets={threadTargets}
         hasPendingPick={pendingPickerAttachment !== null}
@@ -179,7 +219,8 @@ export function BrowserPanel(props: { visible: boolean }) {
         onCancelPendingPick={cancelPendingPick}
         onMenuPreviewChange={setMenuPreviewDataUrl}
       />
-      <BrowserTabStrip />
+      {hasWindowHeader ? null : <BrowserTabStrip onCreateTab={createTab} />}
+      <BrowserBookmarkBar />
       <div className="relative flex-1 overflow-hidden bg-[var(--content-background)]">
         {tabs.map((tab) => (
           <BrowserTabWebview
@@ -307,6 +348,21 @@ function BrowserTabWebview(props: { tabId: string; initialSrc: string; visible: 
       el.removeEventListener("dom-ready", onDomReady);
     };
   }, [props.tabId]);
+
+  useEffect(() => {
+    if (!props.visible) return;
+    const el = ref.current;
+    if (!el) return;
+    let webContentsId: number;
+    try {
+      webContentsId = el.getWebContentsId();
+    } catch {
+      return;
+    }
+    readBridge()
+      .browserAttachWebContents({ tabId: props.tabId, webContentsId })
+      .catch(() => {});
+  }, [props.tabId, props.visible]);
 
   return (
     <webview

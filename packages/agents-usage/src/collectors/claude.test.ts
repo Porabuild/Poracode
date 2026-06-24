@@ -4,6 +4,7 @@ import {
   CLAUDE_OAUTH_BETA,
   CLAUDE_OAUTH_CLIENT_ID,
   CLAUDE_OAUTH_TOKEN_ENDPOINT,
+  CLAUDE_RATE_LIMIT_COOLDOWN_MS,
   CLAUDE_USAGE_ENDPOINT,
   collectClaude,
   formatClaudePlan,
@@ -112,6 +113,8 @@ describe("collectClaude", () => {
       }),
     );
     expect(rate.status).toBe("rate-limited");
+    // No Retry-After header → fall back to the default cooldown from now.
+    expect(rate.rateLimitedUntil).toBe(FAKE_NOW_MS + CLAUDE_RATE_LIMIT_COOLDOWN_MS);
 
     const unauth = await collectClaude(
       createFakeHost({
@@ -120,6 +123,19 @@ describe("collectClaude", () => {
       }),
     );
     expect(unauth.status).toBe("auth-missing");
+  });
+
+  it("honors a Retry-After header on a 429 (backoff until the server says)", async () => {
+    const rate = await collectClaude(
+      createFakeHost({
+        tokens: { claude: { accessToken: "tok" } },
+        routes: {
+          [CLAUDE_USAGE_ENDPOINT]: { status: 429, headers: { "retry-after": "1800" } },
+        },
+      }),
+    );
+    expect(rate.status).toBe("rate-limited");
+    expect(rate.rateLimitedUntil).toBe(FAKE_NOW_MS + 1800 * 1000);
   });
 });
 

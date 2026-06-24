@@ -78,6 +78,30 @@ export function normalizePercent(value: number | undefined): number | undefined 
   return Math.min(100, Math.max(0, Math.round(pct * 10) / 10));
 }
 
+/**
+ * Parse an HTTP `Retry-After` header into the epoch-ms instant a caller may
+ * retry. RFC 9110 allows two forms: `delta-seconds` (a non-negative integer
+ * count of seconds from now) or an `HTTP-date` (an absolute instant). Returns
+ * undefined for an absent, empty, or unparseable value so the caller can fall
+ * back to its own default cooldown.
+ */
+export function parseRetryAfter(
+  value: string | null | undefined,
+  nowMs: number,
+): number | undefined {
+  if (value === null || value === undefined) return undefined;
+  const trimmed = value.trim();
+  if (trimmed === "") return undefined;
+  // delta-seconds: a bare non-negative integer.
+  if (/^\d+$/.test(trimmed)) {
+    const seconds = Number(trimmed);
+    return Number.isFinite(seconds) ? nowMs + seconds * 1000 : undefined;
+  }
+  // HTTP-date: an absolute instant.
+  const ms = Date.parse(trimmed);
+  return Number.isFinite(ms) ? ms : undefined;
+}
+
 /** Parse an ISO-8601 timestamp (or epoch seconds/ms, numeric or string) to epoch ms. */
 export function toEpochMs(value: string | number | null | undefined): number | undefined {
   if (value === null || value === undefined) return undefined;

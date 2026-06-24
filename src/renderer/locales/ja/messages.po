@@ -1046,6 +1046,14 @@ msgstr "ブロックされました:"
 msgid "Bold"
 msgstr "太字"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmark this page"
+msgstr "このページをブックマーク"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Bookmarks"
+msgstr "ブックマーク"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
 msgstr "下"
@@ -1072,6 +1080,14 @@ msgstr "ブランチ保護ルールにより、このマージがブロックさ
 msgid "Branches"
 msgstr "ブランチ"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring back to panel"
+msgstr "パネルに戻す"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Bring it back into this panel, or jump to the window it’s running in."
+msgstr "このパネルに戻すか、実行中のウィンドウに移動します。"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Browse for parent folder"
@@ -1096,6 +1112,10 @@ msgstr "GitHub リポジトリを参照するか、クローン URL を貼り付
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "ブラウザ"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Browser is open in a separate window"
+msgstr "ブラウザは別のウィンドウで開いています"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 msgid "Browser MCP"
@@ -1355,6 +1375,10 @@ msgstr "Claude プロファイルが削除されました。"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Cleanup script"
 msgstr "クリーンアップスクリプト"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Clear browsing history"
+msgstr "閲覧履歴を消去"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Clear Browsing History"
@@ -2732,6 +2756,10 @@ msgstr "ブラウザのアドレスバーをフォーカス"
 msgid "Focus the in-app browser address bar"
 msgstr "組み込みブラウザのアドレスバーをフォーカス"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
+msgid "Focus window"
+msgstr "ウィンドウに切り替え"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "フォルダ名"
@@ -3002,6 +3030,10 @@ msgstr "サイドバーを隠す"
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
 msgstr "ターミナルを隠す"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "History"
+msgstr "履歴"
 
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -3662,6 +3694,15 @@ msgstr "よく使う推論レベル"
 msgid "Move"
 msgstr "移動"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Move browser back to main window"
+msgstr "ブラウザーをメインウィンドウに戻す"
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+msgid "Move browser to window"
+msgstr "ブラウザーをウィンドウに移動"
+
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Move changes to a new worktree"
 msgstr "変更を新しいワークツリーに移動する"
@@ -3876,6 +3917,10 @@ msgstr "AIによるコミット、PR、競合解決はまだ記録されてい�
 msgid "No archived threads."
 msgstr "アーカイブされたスレッドはありません。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+msgid "No bookmarks yet — add the current page with the star."
+msgstr "ブックマークはまだありません。星アイコンで現在のページを追加できます。"
+
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "No branches found"
 msgstr "ブランチが見つかりませんでした"
@@ -3960,6 +4005,10 @@ msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or "
 "<1>paste a clone URL</1>."
 msgstr "GitHub CLI アカウントが見つかりません。 <0>gh auth login</0>でサインインするか、<1>クローン URL "
 "を貼り付け</1>ます。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "No history yet"
+msgstr "履歴はまだありません"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -4827,6 +4876,10 @@ msgid "Rate limited"
 msgstr "レート制限あり"
 
 #: src/renderer/components/providers/usageFormat.ts
+msgid "Rate limited · retry in {retry}"
+msgstr "レート制限あり · {retry}後に再試行"
+
+#: src/renderer/components/providers/usageFormat.ts
 msgid "Rate limited. Try again shortly."
 msgstr "レート制限あり。しばらくしてからもう一度お試しください。"
 
@@ -4969,6 +5022,11 @@ msgstr "{pattern}を削除"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Remove action"
 msgstr "アクションの削除"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserBookmarkBar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Remove bookmark"
+msgstr "ブックマークを削除"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
@@ -5122,7 +5180,7 @@ msgstr "サイドバーのすりガラス効果をデフォルトに戻す"
 msgid "Reset to default"
 msgstr "デフォルトに戻す"
 
-#: src/renderer/components/layout/BrowserDrawerShell.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "ブラウザドロワーのサイズを変更する"
 
@@ -5458,7 +5516,7 @@ msgid "Search models..."
 msgstr "モデルを検索..."
 
 #: src/mobile/views/BrowserView.tsx
-#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "アドレスを検索または入力"
 
@@ -5579,6 +5637,7 @@ msgstr "ショートカットを設定"
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/MoreView.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
@@ -5615,6 +5674,10 @@ msgstr "OS レベルのエージェント セッション用に、プロジェ�
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Show all"
 msgstr "すべて表示"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+msgid "Show bookmark bar"
+msgstr "ブックマークバーを表示"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Show Bookmark Bar"

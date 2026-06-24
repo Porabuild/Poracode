@@ -1,4 +1,4 @@
-import { Globe, X } from "lucide-react";
+import { Globe, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
@@ -29,8 +29,17 @@ function TabFavicon(props: { faviconUrl?: string; loading: boolean }) {
   return <Globe className="size-3.5 shrink-0 text-foreground/50" />;
 }
 
-export function BrowserTabStrip() {
+/**
+ * Tab strip with an always-present "new tab" affordance.
+ *
+ * `variant="row"` — standalone row below the toolbar (docked / drawer).
+ * `variant="header"` — embedded into the window/fullscreen drag-region header,
+ * so individual tabs opt out of the drag region (`__controls`) while empty
+ * strip space stays draggable, browser-style.
+ */
+export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row" | "header" }) {
   const { t } = useLingui();
+  const variant = props.variant ?? "row";
   const tabs = useBrowserPanelStore((s) => s.tabs);
   const activeTabId = useBrowserPanelStore((s) => s.activeTabId);
   const attentionTabId = useBrowserPanelStore((s) => s.attentionTabId);
@@ -40,8 +49,18 @@ export function BrowserTabStrip() {
     return null;
   }
 
+  const isHeader = variant === "header";
+  const noDrag = isHeader ? "lightcode-overlay-header__controls" : "";
+  const containerClass = isHeader
+    ? // Stretch tabs to the full titlebar height so their hit area reaches the
+      // very top pixel: in fullscreen the cursor can slam to the top edge and
+      // still land on a tab (Fitts's law). Empty strip space stays a window-drag
+      // region; tabs themselves opt out via `__controls`.
+      "flex h-full min-w-0 flex-1 items-stretch gap-1 overflow-x-auto"
+    : "flex items-center gap-1 overflow-x-auto border-b border-border bg-[var(--content-background)] px-1 py-0.5";
+
   return (
-    <div className="flex items-center gap-1 overflow-x-auto border-b border-border bg-[var(--content-background)] px-1 py-1">
+    <div className={containerClass}>
       {tabs.map((tab) => {
         const active = tab.tabId === activeTabId;
         const attention = !active && tab.tabId === attentionTabId;
@@ -58,9 +77,11 @@ export function BrowserTabStrip() {
             role="button"
             tabIndex={0}
             draggable
-            className={`group flex max-w-[180px] min-w-[80px] cursor-pointer items-center gap-1 rounded px-2 py-1 text-left text-[12px] ${
+            className={`group flex w-40 min-w-[48px] shrink cursor-pointer items-center gap-1 rounded-md px-2 text-left text-[12px] ${
+              isHeader ? "" : "py-0.5"
+            } ${noDrag} ${
               active
-                ? "bg-[var(--surface-tertiary)] font-medium text-foreground"
+                ? "bg-[var(--surface-tertiary)] text-foreground"
                 : "bg-transparent text-foreground/60 hover:bg-[var(--surface-secondary)] hover:text-foreground/80"
             } ${attention ? "ring-1 ring-amber-400/60" : ""} ${draggingTabId === tab.tabId ? "opacity-50" : ""}`}
             onDragStart={(e) => {
@@ -124,6 +145,15 @@ export function BrowserTabStrip() {
           </div>
         );
       })}
+      <button
+        type="button"
+        aria-label={t`New tab`}
+        title={t`New tab`}
+        className={`flex size-6 shrink-0 self-center items-center justify-center rounded text-foreground/60 hover:bg-[var(--surface-secondary)] hover:text-foreground ${noDrag}`}
+        onClick={props.onCreateTab}
+      >
+        <Plus className="size-3.5" />
+      </button>
     </div>
   );
 }
