@@ -8,7 +8,7 @@ allowed-tools: Bash(gh:*), Bash(git:*), Bash(pnpm:*), Bash(node:*), Read, Edit, 
 
 Turn a release's raw, machine-generated PR list into a **curated, human-readable changelog entry** that reads like a person wrote it — and keep every release in the changelog consistent in voice, shape, and length.
 
-Lightcode's changelog is **curated data**, not auto-generated. GitHub already auto-lists merged PRs on the Release page; this skill produces the *hand-written* layer that ships inside the app (Settings → Changelog, the "What's New" dialog) and on the marketing site.
+Lightcode's changelog is **curated data**, not auto-generated. GitHub already auto-lists merged PRs on the Release page; this skill produces the _hand-written_ layer that ships inside the app (Settings → Changelog, the "What's New" dialog) and on the marketing site.
 
 ## When to use
 
@@ -18,7 +18,7 @@ Lightcode's changelog is **curated data**, not auto-generated. GitHub already au
 
 ## When NOT to use
 
-- Editing the *mechanics* of the changelog feature (the React surfaces, the seen-state gate) — that's normal code work, not this skill.
+- Editing the _mechanics_ of the changelog feature (the React surfaces, the seen-state gate) — that's normal code work, not this skill.
 - Writing a single commit message or a GitHub Release body (GitHub generates that).
 
 ## The one file you edit
@@ -65,30 +65,34 @@ Then collect, for the target version:
   ```bash
   git log --no-merges --pretty='%s' <previousTag>..v<X.Y.Z>
   ```
-- **The maintainer's highlight notes**, if they pasted any (Telegram/X-style bullets, "now with: …"). These are authoritative for *what matters most* — lead with them. If the user didn't provide notes and the release is large, ask once whether they have highlights; otherwise proceed from the PR list.
+- **The maintainer's highlight notes**, if they pasted any (Telegram/X-style bullets, "now with: …"). These are authoritative for _what matters most_ — lead with them. If the user didn't provide notes and the release is large, ask once whether they have highlights; otherwise proceed from the PR list.
 
 ## Step 2 — Distill into ONE curated entry (house style)
 
 This is the consistency contract. Match the voice of the existing entries (read a couple from `website/public/changelog.json` first).
 
 **title**
+
 - Short, punchy, **no version number**, sentence case. ~3–8 words.
 - Name the 2–3 headline features, joined with commas / `&`. E.g. `"Multiple Claude profiles, a usage dashboard & glass sidebar"`.
 
 **summary**
+
 - 1–2 sentences, benefit-first, the release's "elevator pitch".
 - Big releases may open with `"A big feature release: …"`. Patches stay factual and short.
 
 **changes**
-- Each is **one complete, user-facing sentence**. Prefer second person and present tense: *"You can now…"*, *"Sessions are saved automatically…"*.
+
+- Each is **one complete, user-facing sentence**. Prefer second person and present tense: _"You can now…"_, _"Sessions are saved automatically…"_.
 - `kind`: `added` (new capability) · `improved` (better/faster/refined existing) · `fixed` (bug fix). Order them added → improved → fixed.
 - **Distill, don't dump.** Merge related PRs into one bullet. A 70-PR release yields ~6–9 bullets, never 70. Patches: ~2–4.
 - Lead the `added` bullets with the maintainer's highlights when present.
 
 **Hard rules (what makes it look hand-written)**
+
 - ❌ No PR numbers, no `by @handle`, no `dependabot`/CI/chore/`build(deps)` items, no raw PR-title phrasing.
 - ❌ No version number inside `title`.
-- ✅ Vary sentence openings — don't write "Added X. Added Y. Added Z." Describe the *benefit*, not the implementation or the commit.
+- ✅ Vary sentence openings — don't write "Added X. Added Y. Added Z." Describe the _benefit_, not the implementation or the commit.
 - ✅ Keep product nouns literal: `Lightcode, Claude, Codex, Gemini, Grok, Command Code, WSL, ACP, Opus 4.8, Ultracode, Fable 5, Git, GitHub, macOS, Windows, Linux`.
 - ✅ Each feature appears in the release that introduced it — don't repeat it in a later patch.
 
