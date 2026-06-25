@@ -302,6 +302,11 @@ msgstr "{original}ワークツリーのクリーンアップも失敗しまし�
 msgid "{percent}% full"
 msgstr "{percent}% 使用"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName} がv{0}に更新されました。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation}(無効)"
@@ -1126,6 +1131,8 @@ msgstr "ユーザーの変更"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "変更履歴"
 
@@ -1744,6 +1751,11 @@ msgstr "プロジェクトを作成できませんでした。"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "リポジトリを一覧表示できませんでした。"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "変更履歴を読み込めませんでした。接続を確認するか、GitHub でご覧ください。"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2505,6 +2517,10 @@ msgstr "Lightcode のネイティブ SDK ランタイムを使用したファー
 msgid "Fix in Agent"
 msgstr "エージェントで修正する"
 
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "修正"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "ブラウザのアドレスバーをフォーカス"
@@ -2692,6 +2708,10 @@ msgstr "目標"
 msgid "Goals set"
 msgstr "設定した目標数"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "了解"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "グループ"
@@ -2724,6 +2744,7 @@ msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
 msgstr "非表示の再開可能なスレッドは 5 分ごとにスイープされ、このアイドル時間が経過するとアンロードされます。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "隠す"
 
@@ -2807,6 +2828,10 @@ msgstr "画像"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "画像プレビュー"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "改善"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
@@ -3450,6 +3475,10 @@ msgstr "注意が必要 · 返信が必要です"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "返信が必要です"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "New"
+msgstr "新機能"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -6377,6 +6406,18 @@ msgstr "{0}経由"
 msgid "View"
 msgstr "表示"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "GitHubですべてのリリースを表示"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "変更履歴をすべて表示"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "変更履歴を表示"
+
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Visible {0} models"
@@ -6481,6 +6522,16 @@ msgid "What the Create PR button does by default: open a dialog to edit the "
 "one click. You can also switch this from the button's menu."
 msgstr "[PR の作成] ボタンのデフォルトの機能: ダイアログを開いて最初にタイトルと説明を編集するか、それらを自動生成してワンクリックで PR "
 "を作成します。ボタンのメニューからも切り替えることができます。"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "新着情報"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "Lightcodeの新着情報（新しい順）。"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."

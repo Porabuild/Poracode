@@ -73,6 +73,10 @@ export function openUsageSettings(): void {
   usePanelStore.getState().openSettingsSection("usage");
 }
 
+export function openChangelogSettings(): void {
+  usePanelStore.getState().openSettingsSection("changelog");
+}
+
 /** Open the docked usage panel, or close all right-side panels if it is already active. */
 export function openUsagePanel(): void {
   const panelStore = usePanelStore.getState();

@@ -102,6 +102,10 @@ export function SidebarButton(props: {
       onContextMenu={onContextMenu}
       onKeyDown={(e) => {
         if (isDisabled) return;
+        // Ignore key events bubbling from a focusable suffix control (e.g. a
+        // dismiss button) — only the row itself should activate onPress, so a
+        // keyboard user pressing Enter/Space on the suffix doesn't also fire it.
+        if (e.target !== e.currentTarget) return;
         handleKeyActivate(e, () => onPress?.());
       }}
     >

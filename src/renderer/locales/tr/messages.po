@@ -303,6 +303,11 @@ msgstr "{original}\n"
 msgid "{percent}% full"
 msgstr "%{percent} dolu"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName} v{0} sürümüne güncellendi."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation} (devre dışı)"
@@ -1138,6 +1143,8 @@ msgstr "Kullanıcıyı Değiştir"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "Değişiklik günlüğü"
 
@@ -1762,6 +1769,12 @@ msgstr "Proje oluşturulamadı."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Depolar listelenemedi."
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "Değişiklik günlüğü yüklenemedi. Bağlantını kontrol et ya da GitHub'da "
+"görüntüle."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2541,6 +2554,10 @@ msgstr "Lightcode'un yerel SDK çalışma zamanını kullanan birinci sınıf Op
 msgid "Fix in Agent"
 msgstr "Aracıda Düzelt"
 
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "Düzeltildi"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Tarayıcı adres çubuğuna odakla"
@@ -2733,6 +2750,10 @@ msgstr "Hedef"
 msgid "Goals set"
 msgstr "Belirlenen hedefler"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "Anladım"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "Grup"
@@ -2766,6 +2787,7 @@ msgstr "Gizli devam ettirilebilir konular her 5 dakikada bir taranır ve bu "
 "boşta kalma süresinden sonra bellekten kaldırılır."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "Gizle"
 
@@ -2849,6 +2871,10 @@ msgstr "Resim"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Resim önizlemesi"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "İyileştirildi"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
@@ -3500,6 +3526,10 @@ msgstr "Dikkat Edilmesi Gerekiyor · Yanıt gerekli"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "Yanıt gerekiyor"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "New"
+msgstr "Yeni"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -6463,6 +6493,18 @@ msgstr "{0} aracılığıyla"
 msgid "View"
 msgstr "Görüntüle"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "Tüm sürümleri GitHub'da görüntüle"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "Tüm değişiklik günlüğünü görüntüle"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "Değişiklik günlüğünü görüntüle"
+
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Visible {0} models"
@@ -6573,6 +6615,16 @@ msgstr "PR Oluştur düğmesinin varsayılan olarak yaptığı şey: Önce başl
 "açıklamayı düzenlemek için bir iletişim kutusu açın veya bunları "
 "otomatik olarak oluşturun ve tek tıklamayla PR oluşturun. Bunu düğmenin "
 "menüsünden de değiştirebilirsiniz."
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "Yenilikler"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "Lightcode'daki yenilikler, en yeniden başlayarak."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."

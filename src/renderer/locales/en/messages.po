@@ -302,6 +302,11 @@ msgstr "{original}\n"
 msgid "{percent}% full"
 msgstr "{percent}% full"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName} was updated to v{0}."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation} (disabled)"
@@ -1133,6 +1138,8 @@ msgstr "Change User"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "Changelog"
 
@@ -1754,6 +1761,12 @@ msgstr "Couldn't create the project."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Couldn't list repositories."
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2525,6 +2538,10 @@ msgstr "First-class OpenCode integration using Lightcode's native SDK runtime."
 msgid "Fix in Agent"
 msgstr "Fix in Agent"
 
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "Fixed"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Focus browser address bar"
@@ -2714,6 +2731,10 @@ msgstr "Goal"
 msgid "Goals set"
 msgstr "Goals set"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "Got it"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "Group"
@@ -2747,6 +2768,7 @@ msgstr "Hidden resumable threads are swept every 5 minutes and unloaded after "
 "this idle age."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "Hide"
 
@@ -2830,6 +2852,10 @@ msgstr "Image"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Image preview"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "Improved"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
@@ -3479,6 +3505,10 @@ msgstr "Needs Attention · Reply required"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "Needs reply"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "New"
+msgstr "New"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -6427,6 +6457,18 @@ msgstr "via {0}"
 msgid "View"
 msgstr "View"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "View all releases on GitHub"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "View full changelog"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "View the changelog"
+
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Visible {0} models"
@@ -6536,6 +6578,16 @@ msgid "What the Create PR button does by default: open a dialog to edit the "
 msgstr "What the Create PR button does by default: open a dialog to edit the "
 "title and description first, or auto-generate them and create the PR in "
 "one click. You can also switch this from the button's menu."
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "What's New"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "What's new in Lightcode, newest first."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."

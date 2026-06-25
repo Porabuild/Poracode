@@ -1,0 +1,272 @@
+{
+  "releases": [
+    {
+      "version": "1.3.1",
+      "date": "2026-06-17",
+      "title": "One-click setups for Z.ai, DeepSeek, and MiniMax",
+      "summary": "Claude Code Profiles gain ready-made presets that let you set up Z.ai (GLM), DeepSeek, and MiniMax with a single click. This release also keeps provider-specific model IDs intact and tidies up agent status when you remove a profile.",
+      "changes": [
+        {
+          "kind": "added",
+          "text": "You can now configure Z.ai (GLM), DeepSeek, and MiniMax with one click thanks to ready-made presets in your Claude Code Profiles."
+        },
+        {
+          "kind": "improved",
+          "text": "Claude Code Profiles now seed a provider's environment and model configuration from a single menu, so you no longer have to enter it by hand."
+        },
+        {
+          "kind": "fixed",
+          "text": "External-provider model IDs such as glm-5.2 are now preserved exactly when launching Claude, so provider-specific suffixes are no longer stripped away."
+        },
+        {
+          "kind": "fixed",
+          "text": "Deleting a Claude profile now clears its agent status across native, WSL, and discovery lists, keeping what Lightcode detects in sync with your saved profiles."
+        }
+      ]
+    },
+    {
+      "version": "1.3.0",
+      "date": "2026-06-16",
+      "title": "Multiple Claude profiles, a usage dashboard & glass sidebar",
+      "summary": "This release lets you run multiple Claude profiles with their own logins, models, and environments, adds a usage dashboard with a year-long activity heatmap, and gives the sidebar a translucent glass look. It also brings GitHub repo cloning, inline agent images, and smarter commit and PR actions.",
+      "changes": [
+        {
+          "kind": "added",
+          "text": "Set up multiple Claude profiles, each with its own login, model, reasoning effort, and environment variables, so you can switch between separate accounts and configurations."
+        },
+        {
+          "kind": "added",
+          "text": "Start a new project by cloning any GitHub repository directly from Lightcode."
+        },
+        {
+          "kind": "added",
+          "text": "Track your activity in a new usage dashboard featuring a 52-week heatmap, per-account filtering, and a breakdown of skill usage."
+        },
+        {
+          "kind": "added",
+          "text": "See images that agents generate rendered inline in the chat, with a hover toolbar for quick actions."
+        },
+        {
+          "kind": "added",
+          "text": "Enjoy a translucent glass sidebar with macOS vibrancy and tunable Windows acrylic frosting."
+        },
+        {
+          "kind": "added",
+          "text": "Choose how pull requests are created with a configurable PR creation mode, and refresh PR status on demand from the Git Review sidebar."
+        },
+        {
+          "kind": "improved",
+          "text": "Commit and create PRs more easily with sticky commit actions in Git Review and clearer loading states for PR actions."
+        },
+        {
+          "kind": "improved",
+          "text": "Work more smoothly in non-git projects and new worktrees, which now carry over your gitignored and uncommitted files."
+        },
+        {
+          "kind": "fixed",
+          "text": "Improved Command Code reliability by syncing its model picker with live models, fixing session resume, and quieting background updates during detection."
+        }
+      ]
+    },
+    {
+      "version": "1.2.1",
+      "date": "2026-06-09",
+      "title": "Projects without git, notes panel, and Claude Fable 5",
+      "summary": "This release lets you create and open projects even when there's no git repository yet, adds a per-project notes and to-do panel, and brings support for Claude Fable 5. It also sharpens reliability for Claude on Windows and Codex turn handling.",
+      "changes": [
+        {
+          "kind": "added",
+          "text": "You can now create or open a project even when it isn't a git repository yet, with a unified setup flow that can initialize git for you on the spot."
+        },
+        {
+          "kind": "added",
+          "text": "A new per-project notes and to-do panel gives you a dedicated place to jot down reminders and track tasks alongside your work."
+        },
+        {
+          "kind": "added",
+          "text": "Lightcode now supports Claude Fable 5, so you can run the latest Claude model directly in your sessions."
+        },
+        {
+          "kind": "improved",
+          "text": "Built-in browser windows now present a Chrome-like identity, so more websites load and behave correctly."
+        },
+        {
+          "kind": "improved",
+          "text": "The git review panel now keeps its state as you move around the app, so you no longer lose your place when it remounts."
+        },
+        {
+          "kind": "fixed",
+          "text": "Starting Claude on Windows is far more reliable, with fixes for npm shim paths, slower job-helper startup, and stray startup errors."
+        },
+        {
+          "kind": "fixed",
+          "text": "Codex turns now complete cleanly even when the completion notification arrives without details, and pending output is flushed before a turn is marked idle."
+        }
+      ]
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-06-05",
+      "title": "Provider usage tracking, Command Code, and rebuilt themes",
+      "summary": "A big feature release: track your provider quotas and usage for Claude Code, Codex, and more in one place, run the new Command Code CLI entirely inside Lightcode, and enjoy fully rebuilt light and dark themes. Git worktrees are faster with inline diffs and live status, and WSL and Windows support is stronger across the board.",
+      "changes": [
+        {
+          "kind": "added",
+          "text": "A new usage panel tracks your provider quotas and consumption across Claude Code, Codex, Command Code, Grok, and other providers so you always know where you stand."
+        },
+        {
+          "kind": "added",
+          "text": "Command Code joins as a built-in CLI provider that you can install, update, log in to, and resume sessions with entirely inside Lightcode."
+        },
+        {
+          "kind": "added",
+          "text": "You can now drag and drop file attachments straight into the composer instead of browsing for them."
+        },
+        {
+          "kind": "added",
+          "text": "Selectable theme presets let you pick a look you like, with the terminal palette automatically synced to match."
+        },
+        {
+          "kind": "added",
+          "text": "Live subagent progress and token usage now appear in the UI so you can follow exactly what your agents are doing."
+        },
+        {
+          "kind": "improved",
+          "text": "Light and dark themes have been rebuilt from the ground up with better contrast and refined, theme-aware colors throughout."
+        },
+        {
+          "kind": "improved",
+          "text": "Git worktrees are faster and richer, with inline diffs when opening changed files, live status summaries, and the ability to merge right from the Create PR flow."
+        },
+        {
+          "kind": "improved",
+          "text": "WSL and Windows support is stronger for running agents, installing providers, and applying updates, including native Grok Build installs and npm-installed command shims."
+        },
+        {
+          "kind": "fixed",
+          "text": "Stuck or prematurely ended turns now recover reliably instead of leaving the conversation hung."
+        },
+        {
+          "kind": "fixed",
+          "text": "Codex sessions are more stable, with deduplicated errors, quieter resumes, and correct service-tier handling each turn."
+        },
+        {
+          "kind": "fixed",
+          "text": "Grok login and usage collection have been fixed so account status reports correctly."
+        }
+      ]
+    },
+    {
+      "version": "1.1.1",
+      "date": "2026-05-30",
+      "title": "Smoother microphone access and wider file reach",
+      "summary": "A focused patch that smooths out microphone permissions and lets Lightcode open files beyond your active project, plus a fix for links to deeply nested paths.",
+      "changes": [
+        {
+          "kind": "improved",
+          "text": "Lightcode now handles OS-level microphone permission gracefully and gives you a direct link to system settings when access needs to be granted."
+        },
+        {
+          "kind": "added",
+          "text": "You can now open and read files that live outside your active project root, so reference material elsewhere on your machine is just a click away."
+        },
+        {
+          "kind": "fixed",
+          "text": "Links to files with long or deeply nested paths no longer get truncated and now open the correct location every time."
+        }
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-05-29",
+      "title": "Grok Build, Opus 4.8 workflows, voice input & thread rollback",
+      "summary": "A big feature release: install and run Grok Build straight from the app, drive Claude Opus 4.8 with Ultracode effort and workflows, talk to your agents with local voice input, and undo an agent's work with thread rollback. Plus one-click agent installs, live GitHub PRs in-app, and more than 70 improvements and fixes.",
+      "changes": [
+        {
+          "kind": "added",
+          "text": "You can now install and run Grok Build directly from the app, no separate setup required."
+        },
+        {
+          "kind": "added",
+          "text": "Claude Opus 4.8 is available with the new Ultracode effort level and a redesigned workflow runner with trigger chips."
+        },
+        {
+          "kind": "added",
+          "text": "Local voice input lets you dictate prompts to your agents using on-device Whisper speech recognition, with audio settings to tune it."
+        },
+        {
+          "kind": "added",
+          "text": "Coding agents like Grok, Antigravity, and others now install with a single click using platform-native install paths."
+        },
+        {
+          "kind": "added",
+          "text": "Thread rollback lets you undo an agent's work and retry from an earlier point, with the agent session and file watchers automatically restored."
+        },
+        {
+          "kind": "added",
+          "text": "GitHub pull requests are now shown live inside the app, with check status that refreshes automatically as your PRs run."
+        },
+        {
+          "kind": "added",
+          "text": "You can install and uninstall hook plugins for your CLI agents straight from the settings UI."
+        },
+        {
+          "kind": "added",
+          "text": "An expanded built-in browser, available via an @Browser mention, lets agents navigate and extract pages, and a resizable browser drawer keeps it handy."
+        },
+        {
+          "kind": "improved",
+          "text": "Settings have been reorganized into focused pages, and the sidebar now shows installed agent icons, completion states, and animated terminal activity at a glance."
+        },
+        {
+          "kind": "improved",
+          "text": "Chat now renders Markdown tables, clickable links, read results, and subagent progress more clearly across Claude, Codex, and ACP agents."
+        },
+        {
+          "kind": "improved",
+          "text": "Git and worktree workflows are smoother, with stashing on pull, automatic status refresh, randomized branch names, and cleaner branch and worktree cleanup."
+        },
+        {
+          "kind": "fixed",
+          "text": "Sign-in, install, and update flows for agents are more reliable, including terminal login handoff, version detection, and update progress."
+        },
+        {
+          "kind": "fixed",
+          "text": "Interrupted or replayed Claude turns no longer surface false failure states after a reconnect."
+        },
+        {
+          "kind": "fixed",
+          "text": "Terminal paste from the clipboard and pressing Escape to dismiss overlays now work as expected."
+        }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-05-22",
+      "title": "Lightcode reaches its first stable release",
+      "summary": "The first stable public release of Lightcode, graduating from the 0.9.x betas into a polished build with refreshed chrome, smoother Browser MCP controls, and better multi-agent diff handling.",
+      "changes": [
+        {
+          "kind": "added",
+          "text": "Lightcode reaches its first stable public release, bringing the workspace-native experience for orchestrating Claude, Codex, Gemini, Grok, Command Code, and other coding agents out of beta."
+        },
+        {
+          "kind": "improved",
+          "text": "The thread, home, and welcome screens have a refreshed look with cleaner rounded tabs, smoother project switching, and a more polished overall presentation."
+        },
+        {
+          "kind": "improved",
+          "text": "Browser MCP controls now live right in the message composer with a clearer header-style indicator, so you can toggle browser access without leaving your conversation."
+        },
+        {
+          "kind": "improved",
+          "text": "OpenCode threads now render multi-file unified diffs inline, making it easier to review changes that span several files at once."
+        },
+        {
+          "kind": "fixed",
+          "text": "Cancelling a request mid-stream no longer surfaces a spurious error in the composer, so stopping an agent stays quiet and clean."
+        }
+      ]
+    }
+  ]
+}

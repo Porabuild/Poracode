@@ -48,6 +48,7 @@ import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useUpdateStore } from "@/renderer/state/updateStore";
 import { SidebarProjectThreadList } from "./parts/SidebarProjectThreadList";
+import { WhatsNewButton } from "./parts/WhatsNewButton";
 
 function UpdateButtons(props: { iconOnly?: boolean }) {
   const { iconOnly = false } = props;
@@ -260,6 +261,7 @@ export function Sidebar() {
           <div className="flex flex-col gap-1 border-t border-[var(--hairline)] pt-2 pb-2 pr-2">
             <ProviderUsageRail orientation="column" />
             <UpdateButtons iconOnly />
+            <WhatsNewButton iconOnly />
             <SidebarButton
               iconOnly
               icon={<Settings2 className="size-4" />}
@@ -336,6 +338,7 @@ export function Sidebar() {
         <ProviderUsageRail orientation="row" />
         <div className={sidebarFooterNavClass}>
           <UpdateButtons />
+          <WhatsNewButton />
           <SidebarButton
             icon={<Settings2 className="size-4" />}
             label={t`Settings`}

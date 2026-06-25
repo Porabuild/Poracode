@@ -36,6 +36,7 @@ import { Button } from "@/renderer/components/common/Button";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import type { UsageLoginConfirmationAction } from "@/shared/contracts";
 import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
+import { WhatsNewOverlay } from "@/renderer/views/WhatsNewOverlay";
 import { BrowserHost } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost";
 import { LoginTerminalOverlay } from "@/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay";
 import { CreateProjectModal } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectModal";
@@ -64,6 +65,7 @@ export function AppOverlays() {
   return (
     <>
       <WelcomeOverlay />
+      <WhatsNewOverlay />
       <OverlayShell open={settingsOpen} onExited={() => usePanelStore.getState().closeSettings()}>
         <SettingsOverlay onClose={() => usePanelStore.getState().closeSettings()} />
       </OverlayShell>

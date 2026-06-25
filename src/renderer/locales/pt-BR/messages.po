@@ -304,6 +304,11 @@ msgstr "{original}\n"
 msgid "{percent}% full"
 msgstr "{percent}% cheio"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName} foi atualizado para a v{0}."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation} (desativado)"
@@ -1141,6 +1146,8 @@ msgstr "Alterar usuário"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "Registro de alterações"
 
@@ -1764,6 +1771,12 @@ msgstr "Não foi possível criar o projeto."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Não foi possível listar os repositórios."
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "Não foi possível carregar o registro de alterações. Verifique sua "
+"conexão ou veja no GitHub."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2545,6 +2558,10 @@ msgstr "Integração OpenCode de primeira classe usando o tempo de execução SD
 msgid "Fix in Agent"
 msgstr "Correção no agente"
 
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "Corrigido"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Acessar barra de endereços do navegador"
@@ -2737,6 +2754,10 @@ msgstr "Objetivo"
 msgid "Goals set"
 msgstr "Metas definidas"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "Entendi"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "Grupo"
@@ -2770,6 +2791,7 @@ msgstr "Tópicos recuperáveis ocultos são varridos a cada 5 minutos e "
 "descarregados após esse período ocioso."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "Esconder"
 
@@ -2854,6 +2876,10 @@ msgstr "Imagem"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Visualização da imagem"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "Melhorado"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
@@ -3506,6 +3532,10 @@ msgstr "Precisa de atenção · Resposta obrigatória"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "Precisa de resposta"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "New"
+msgstr "Novo"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -6473,6 +6503,18 @@ msgstr "via {0}"
 msgid "View"
 msgstr "Visualizar"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "Ver todas as versões no GitHub"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "Ver o registro de alterações completo"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "Ver o registro de alterações"
+
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Visible {0} models"
@@ -6582,6 +6624,16 @@ msgid "What the Create PR button does by default: open a dialog to edit the "
 msgstr "O que o botão Criar PR faz por padrão: abra uma caixa de diálogo para "
 "editar primeiro o título e a descrição ou gere-os automaticamente e "
 "crie o PR com um clique. Você também pode mudar isso no menu do botão."
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "Novidades"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "Novidades no Lightcode, das mais recentes primeiro."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."

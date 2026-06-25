@@ -301,6 +301,11 @@ msgstr "{original}\n"
 msgid "{percent}% full"
 msgstr "{percent}% 满"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName} 已更新到 v{0}。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation}（已禁用）"
@@ -1124,6 +1129,8 @@ msgstr "更改用户"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "变更日志"
 
@@ -1742,6 +1749,11 @@ msgstr "无法创建项目。"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "无法列出存储库。"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "无法加载变更日志。请检查网络连接，或在 GitHub 上查看。"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2502,6 +2514,10 @@ msgstr "使用 Lightcode 的本机 SDK 运行时进行一流的 OpenCode 集成�
 msgid "Fix in Agent"
 msgstr "在代理中修复"
 
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "已修复"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "聚焦浏览器地址栏"
@@ -2686,6 +2702,10 @@ msgstr "目标"
 msgid "Goals set"
 msgstr "已设目标"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "知道了"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "分组"
@@ -2718,6 +2738,7 @@ msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
 msgstr "隐藏的可恢复线程每 5 分钟清理一次，并在此空闲期限后卸载。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "隐藏"
 
@@ -2801,6 +2822,10 @@ msgstr "图片"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "图片预览"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "已改进"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
@@ -3443,6 +3468,10 @@ msgstr "需要关注 · 需要回复"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "需要回复"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "New"
+msgstr "新增"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -6362,6 +6391,18 @@ msgstr "通过{0}"
 msgid "View"
 msgstr "查看"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "在 GitHub 上查看所有版本"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "查看完整变更日志"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "查看变更日志"
+
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Visible {0} models"
@@ -6465,6 +6506,16 @@ msgid "What the Create PR button does by default: open a dialog to edit the "
 "title and description first, or auto-generate them and create the PR in "
 "one click. You can also switch this from the button's menu."
 msgstr "默认情况下，“创建 PR”按钮的作用是：打开一个对话框，首先编辑标题和描述，或者自动生成它们并一键创建 PR。您也可以从按钮的菜单中进行切换。"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "新功能"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "Lightcode 的新功能，最新优先。"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."

@@ -302,6 +302,11 @@ msgstr "{original}\n"
 msgid "{percent}% full"
 msgstr "{percent}% 가득 참"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName}이(가) v{0}(으)로 업데이트되었습니다."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation}(비활성화)"
@@ -1126,6 +1131,8 @@ msgstr "사용자 변경"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "변경 내역"
 
@@ -1744,6 +1751,11 @@ msgstr "프로젝트를 생성할 수 없습니다."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "저장소를 나열할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "변경 내역을 불러오지 못했습니다. 연결을 확인하거나 GitHub에서 확인하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2505,6 +2517,10 @@ msgstr "Lightcode의 기본 SDK 런타임을 사용한 최고 수준의 OpenCode
 msgid "Fix in Agent"
 msgstr "에이전트에서 수정"
 
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "수정됨"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "브라우저 주소 표시줄에 포커스"
@@ -2692,6 +2708,10 @@ msgstr "목표"
 msgid "Goals set"
 msgstr "설정한 목표"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "확인"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "그룹"
@@ -2724,6 +2744,7 @@ msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
 msgstr "숨겨진 재개 가능 스레드는 5분마다 청소되고 이 유휴 기간이 지나면 언로드됩니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "숨기기"
 
@@ -2807,6 +2828,10 @@ msgstr "이미지"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "이미지 미리보기"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "개선됨"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
@@ -3451,6 +3476,10 @@ msgstr "주의 필요 · 답변 필요"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "답장이 필요함"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "New"
+msgstr "신규"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -6376,6 +6405,18 @@ msgstr "{0}을(를) 통해"
 msgid "View"
 msgstr "보기"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "GitHub에서 모든 릴리스 보기"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "전체 변경 내역 보기"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "변경 내역 보기"
+
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Visible {0} models"
@@ -6480,6 +6521,16 @@ msgid "What the Create PR button does by default: open a dialog to edit the "
 "one click. You can also switch this from the button's menu."
 msgstr "PR 만들기 버튼의 기본 기능: 대화 상자를 열어 제목과 설명을 먼저 편집하거나 자동 생성하여 한 번의 클릭으로 PR을 "
 "만듭니다. 버튼 메뉴에서 전환할 수도 있습니다."
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "새 소식"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "Lightcode의 새 소식, 최신순."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."

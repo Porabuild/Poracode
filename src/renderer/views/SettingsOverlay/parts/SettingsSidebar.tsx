@@ -12,6 +12,7 @@ import {
   Globe,
   Info,
   Keyboard,
+  Megaphone,
   Mic,
   MessageSquare,
   PanelLeft,
@@ -182,6 +183,7 @@ export function SettingsSidebar(props: {
     { id: "browser", icon: <Globe className="size-4" />, label: t`Browser` },
     { id: "usage", icon: <Gauge className="size-4" />, label: t`Usage` },
     { id: "archived", icon: <Archive className="size-4" />, label: t`Archived Threads` },
+    { id: "changelog", icon: <Megaphone className="size-4" />, label: t`Changelog` },
     { id: "about", icon: <Info className="size-4" />, label: t`About` },
   ];
 
@@ -434,6 +436,13 @@ export function SettingsSidebar(props: {
               label={t`Archived Threads`}
               isActive={activeSection === "archived"}
               onPress={() => onSectionChange("archived")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Megaphone className="size-4" />}
+              label={t`Changelog`}
+              isActive={activeSection === "changelog"}
+              onPress={() => onSectionChange("changelog")}
             />
             <SidebarButton
               iconOnly

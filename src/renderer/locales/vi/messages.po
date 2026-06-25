@@ -304,6 +304,11 @@ msgstr "{original}\n"
 msgid "{percent}% full"
 msgstr "{percent}% đầy"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName} đã được cập nhật lên v{0}."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation} (bị vô hiệu hóa)"
@@ -1137,6 +1142,8 @@ msgstr "Thay đổi người dùng"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "Nhật ký thay đổi"
 
@@ -1760,6 +1767,12 @@ msgstr "Không thể tạo dự án."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Không thể liệt kê các kho lưu trữ."
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "Không thể tải nhật ký thay đổi. Hãy kiểm tra kết nối hoặc xem trên "
+"GitHub."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2536,6 +2549,10 @@ msgstr "Tích hợp OpenCode hạng nhất bằng thời gian chạy SDK gốc c
 msgid "Fix in Agent"
 msgstr "Sửa trong Tác nhân"
 
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "Đã sửa"
+
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
 msgstr "Tập trung vào thanh địa chỉ trình duyệt"
@@ -2726,6 +2743,10 @@ msgstr "Mục tiêu"
 msgid "Goals set"
 msgstr "Mục tiêu đã đặt"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "Đã hiểu"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "Nhóm"
@@ -2759,6 +2780,7 @@ msgstr "Các chủ đề tiếp tục ẩn sẽ được quét 5 phút một l�
 "tuổi nhàn rỗi này."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "Ẩn"
 
@@ -2843,6 +2865,10 @@ msgstr "Hình ảnh"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Xem trước hình ảnh"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "Cải thiện"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
@@ -3494,6 +3520,10 @@ msgstr "Cần chú ý · Cần trả lời"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "Cần trả lời"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "New"
+msgstr "Mới"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -6453,6 +6483,18 @@ msgstr "qua {0}"
 msgid "View"
 msgstr "Xem"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "Xem tất cả bản phát hành trên GitHub"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "Xem toàn bộ nhật ký thay đổi"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "Xem nhật ký thay đổi"
+
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Visible {0} models"
@@ -6562,6 +6604,16 @@ msgid "What the Create PR button does by default: open a dialog to edit the "
 msgstr "Chức năng của nút Tạo PR theo mặc định: mở hộp thoại để chỉnh sửa tiêu "
 "đề và mô tả trước hoặc tự động tạo chúng và tạo PR chỉ bằng một cú nhấp "
 "chuột. Bạn cũng có thể chuyển đổi điều này từ menu của nút."
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "Có gì mới"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "Có gì mới trong Lightcode, mới nhất trước."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."
