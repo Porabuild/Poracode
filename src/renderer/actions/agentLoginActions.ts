@@ -378,7 +378,8 @@ function appendCompletionSignal(command: string, project: Project, token: string
   if (project.location.kind === "windows") {
     return `${command}; $lcExit = if ($LASTEXITCODE -ne $null) { $LASTEXITCODE } else { 0 }; Write-Host "$([char]27)]777;lightcode-login-complete=${token}:$lcExit$([char]7)" -NoNewline`;
   }
-  return `${command}; __lc_exit=$?; printf '\\033]777;lightcode-login-complete=${token}:%s\\007' "$__lc_exit"`;
+  const bashCommand = `${command}; __lc_exit=$?; printf '\\033]777;lightcode-login-complete=${token}:%s\\007' "$__lc_exit"`;
+  return `command bash -lc ${quotePosixShellArg(bashCommand)}`;
 }
 
 function watchCommandCompletion(

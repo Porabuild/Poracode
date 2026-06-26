@@ -66,7 +66,7 @@ vi.mock("@/renderer/utils/shellUtils", () => ({
 }));
 
 import { toast } from "@heroui/react";
-import { runAgentLoginCommand } from "./agentLoginActions";
+import { runAgentInstallCommand, runAgentLoginCommand } from "./agentLoginActions";
 
 const wslProject: Project = {
   id: "project",
@@ -90,8 +90,27 @@ const windowsProject: Project = {
   createdAt: new Date(0).toISOString(),
 };
 
+const posixProject: Project = {
+  id: "posix-project",
+  name: "Posix Project",
+  location: {
+    kind: "posix",
+    path: "/Users/demo/project",
+  },
+  createdAt: new Date(0).toISOString(),
+};
+
 function emit(event: SupervisorEvent) {
   for (const handler of supervisorHandlers) handler(event);
+}
+
+function unwrapBashScript(script: string): string {
+  const prefix = "command bash -lc ";
+  expect(script.startsWith(prefix)).toBe(true);
+  const quoted = script.slice(prefix.length);
+  expect(quoted.startsWith("'")).toBe(true);
+  expect(quoted.endsWith("'")).toBe(true);
+  return quoted.slice(1, -1).replaceAll("'\\''", "'");
 }
 
 describe("runAgentLoginCommand", () => {
@@ -126,8 +145,9 @@ describe("runAgentLoginCommand", () => {
     const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
     expect(shellId).toBeTruthy();
     const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
+    const innerScript = unwrapBashScript(script);
     expect(script).not.toContain("cmd.exe /c start");
-    expect(script).toContain("clear; BROWSER='/bin/true' grok login");
+    expect(innerScript).toContain("clear; BROWSER='/bin/true' grok login");
 
     emit({
       type: "thread-output",
@@ -162,7 +182,7 @@ describe("runAgentLoginCommand", () => {
     const url =
       "https://auth.x.ai/oauth2/authorize?response_type=code&client_id=b1a00492-073a-47ea-816f-4c329264a828&redirect_uri=http%3A%2F%2F127.0.0.1%3A45417%2Fcallback&scope=openid%20profile%20email%20offline_access%20grok-cli%3Aaccess%20api%3Aaccess&code_challenge=MDPixKrsA5K4QIgvDtSEPlQniofqpd2Rr8wT5HEzo5I&code_challenge_method=S256&state=019e5ddb-3198-7542-8504-714899198f01&nonce=019e5ddb-3198-7542-8504-7154a7bf6c98";
 
-    expect(writeScriptToShellMock.mock.calls[0]?.[1] ?? "").toContain(
+    expect(unwrapBashScript(writeScriptToShellMock.mock.calls[0]?.[1] ?? "")).toContain(
       "clear; BROWSER='/bin/true' grok login",
     );
 
@@ -202,7 +222,7 @@ describe("runAgentLoginCommand", () => {
     });
 
     const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
-    expect(script).toContain(
+    expect(unwrapBashScript(script)).toContain(
       "clear; BROWSER='/bin/true' CLAUDE_CONFIG_DIR='/home/demo/.claude-profiles/home' claude auth login",
     );
   });
@@ -332,7 +352,7 @@ describe("runAgentLoginCommand", () => {
     });
 
     const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
-    expect(writeScriptToShellMock.mock.calls[0]?.[1] ?? "").toContain(
+    expect(unwrapBashScript(writeScriptToShellMock.mock.calls[0]?.[1] ?? "")).toContain(
       "clear; BROWSER='/bin/true' gemini /auth",
     );
 
@@ -394,5 +414,22 @@ describe("runAgentLoginCommand", () => {
     expect(loginTerminalStore.close).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1200);
     expect(loginTerminalStore.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("wraps non-Windows install commands in bash so fish does not parse POSIX syntax", () => {
+    runAgentInstallCommand({
+      label: "OpenCode",
+      command:
+        "if command -v curl >/dev/null 2>&1; then curl -fsSL https://opencode.ai/install | bash; elif command -v brew >/dev/null 2>&1; then brew install anomalyco/tap/opencode; elif command -v npm >/dev/null 2>&1; then npm install -g opencode-ai; fi",
+      project: posixProject,
+    });
+
+    const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
+    expect(script).toMatch(/^command bash -lc '/u);
+
+    const innerScript = unwrapBashScript(script);
+    expect(innerScript).toContain("https://opencode.ai/install | bash");
+    expect(innerScript).toContain("printf '\\033]777;lightcode-login-complete=lc_");
+    expect(innerScript).toContain('"$__lc_exit"');
   });
 });

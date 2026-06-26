@@ -2,9 +2,15 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { allUsageProviderDescriptors } from "@lightcode/agents-usage";
 import type { AgentInstanceConfig } from "@/shared/contracts";
 import { isEncryptedSecret } from "@/shared/secretStorage";
-import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
+import {
+  DEFAULT_USAGE_DISABLED_PROVIDER_IDS,
+  DEFAULT_USAGE_ENABLED_PROVIDER_IDS,
+  defaultSharedSettings,
+  type SharedSettings,
+} from "@/shared/settings";
 import {
   applyClaudeProfileEnvironment,
   readSharedSettingsFile,
@@ -243,6 +249,17 @@ describe("sharedSettingsFile", () => {
   it("returns defaults when the settings file does not exist", () => {
     const settingsPath = join(makeTempDir(), "missing.json");
     expect(readSharedSettingsFile(settingsPath)).toEqual(defaultSharedSettings);
+    expect(readSharedSettingsFile(settingsPath).usage.disabledProviders).toEqual([
+      ...DEFAULT_USAGE_DISABLED_PROVIDER_IDS,
+    ]);
+  });
+
+  it("defaults usage tracking to Claude and Codex only", () => {
+    const defaultEnabled = allUsageProviderDescriptors()
+      .map((provider) => provider.id)
+      .filter((id) => !DEFAULT_USAGE_DISABLED_PROVIDER_IDS.includes(id));
+
+    expect(defaultEnabled).toEqual([...DEFAULT_USAGE_ENABLED_PROVIDER_IDS]);
   });
 
   it("returns defaults when the settings file contains invalid JSON", () => {
@@ -342,6 +359,28 @@ describe("sharedSettingsFile", () => {
       transcriptionLanguage: "en",
       transcriptionModel: "tiny",
       useWebGpu: true,
+    });
+  });
+
+  it("keeps usage providers enabled for existing settings without usage opt-outs", () => {
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeFileSync(settingsPath, JSON.stringify({ themeMode: "dark" }), "utf8");
+
+    expect(readSharedSettingsFile(settingsPath).usage.disabledProviders).toEqual([]);
+  });
+
+  it("keeps usage providers enabled for existing usage settings without disabled providers", () => {
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({ usage: { autoRefresh: false, refreshIntervalMinutes: 15 } }),
+      "utf8",
+    );
+
+    expect(readSharedSettingsFile(settingsPath).usage).toMatchObject({
+      autoRefresh: false,
+      refreshIntervalMinutes: 15,
+      disabledProviders: [],
     });
   });
 
