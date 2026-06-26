@@ -103,15 +103,37 @@ export function releasesSince(
 }
 
 /**
- * Whether `current` is newer than `lastSeen` AND there is changelog content
- * newer than `lastSeen` to show. Gates the post-update "What's New" dialog.
+ * Whether to flag an unread changelog on the sidebar.
+ *
+ * Decoupled from the changelog *content* on purpose, so the badge is correct no
+ * matter when the notes for a release land on the marketing site relative to the
+ * binary reaching users (the two ship through independent pipelines):
+ *
+ *  - **Version bump** — `current` moved past the version the user last
+ *    acknowledged. The badge lights up the moment they update, even before the
+ *    notes for `current` have been published. This is the common case.
+ *  - **Late content** — the user already acknowledged `current`, but a release
+ *    note at or below `current` is newer than anything they have actually seen
+ *    (its publish lagged the binary). The badge returns so they do not miss it.
+ *
+ * Notes for versions newer than `current` (a release announced before its build
+ * ships) are intentionally ignored, so pushing the changelog early is harmless.
+ *
+ * `lastSeen` tracks the newest content seen; `acknowledged` tracks the version
+ * the user last dismissed at. Both are null only on a not-yet-initialized
+ * profile, where there is nothing to announce.
  */
 export function hasUnseenChangelog(
   releases: readonly ChangelogRelease[],
   current: string,
   lastSeen: string | null,
+  acknowledged: string | null,
 ): boolean {
-  if (!lastSeen) return false;
-  if (compareVersions(current, lastSeen) <= 0) return false;
-  return releases.some((release) => compareVersions(release.version, lastSeen) > 0);
+  if (lastSeen === null || acknowledged === null) return false;
+  if (compareVersions(current, acknowledged) > 0) return true;
+  return releases.some(
+    (release) =>
+      compareVersions(release.version, lastSeen) > 0 &&
+      compareVersions(release.version, current) <= 0,
+  );
 }
