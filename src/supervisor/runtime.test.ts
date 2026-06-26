@@ -1094,7 +1094,7 @@ describe("SupervisorRuntime thread input", () => {
     ).handlePtyData(session, "second");
 
     expect(appendFileMock).not.toHaveBeenCalled();
-    await vi.runAllTimersAsync();
+    await vi.advanceTimersByTimeAsync(25);
     expect(appendFileMock).toHaveBeenCalledTimes(1);
     expect(appendFileMock.mock.calls[0]?.[1]).toBe("firstsecond");
     delete process.env.VITE_DEV_SERVER_URL;
