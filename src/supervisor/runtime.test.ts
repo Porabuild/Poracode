@@ -1094,7 +1094,11 @@ describe("SupervisorRuntime thread input", () => {
     ).handlePtyData(session, "second");
 
     expect(appendFileMock).not.toHaveBeenCalled();
-    await vi.runAllTimersAsync();
+    // Only drain the timers pending right now (the 25ms dev-log buffer flush).
+    // The runtime's UsageService auto-refresh loop re-schedules itself on every
+    // tick, so `runAllTimersAsync` would chase that recurring timer forever and
+    // abort with "Aborting after running 10000 timers" (flaky under CI load).
+    await vi.runOnlyPendingTimersAsync();
     expect(appendFileMock).toHaveBeenCalledTimes(1);
     expect(appendFileMock.mock.calls[0]?.[1]).toBe("firstsecond");
     delete process.env.VITE_DEV_SERVER_URL;
