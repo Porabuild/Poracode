@@ -4936,6 +4936,10 @@ msgstr "Derecha"
 msgid "Right panel"
 msgstr "Panel derecho"
 
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Right-click to switch ring"
+msgstr ""
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5254,6 +5258,11 @@ msgstr "Comparte tu actividad"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
 msgstr "Atajos"
+
+#. placeholder {0}: g.label
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Show {0}"
+msgstr ""
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"

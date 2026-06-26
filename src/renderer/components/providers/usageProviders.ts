@@ -1,4 +1,8 @@
-import { allUsageProviderDescriptors, type UsageWindow } from "@lightcode/agents-usage";
+import {
+  allUsageProviderDescriptors,
+  antigravityWindowId,
+  type UsageWindow,
+} from "@lightcode/agents-usage";
 import {
   baseAgentKind,
   claudeProfileKind,
@@ -14,6 +18,19 @@ import {
  * `RENDERER_META`, so adding a provider means adding a package descriptor plus an
  * optional entry here.
  */
+/**
+ * One selectable ring layout for a provider whose circle can show different
+ * subsets of its windows (e.g. Antigravity's Gemini vs Claude+GPT groups). The
+ * user swaps between groups by right-clicking the circle; `key` is the persisted
+ * selection and `label` names it in the swap menu.
+ */
+export type UsageRingGroup = {
+  key: string;
+  label: string;
+  outer: readonly string[];
+  inner: readonly string[];
+};
+
 export type UsageProvider = {
   id: string;
   label: string;
@@ -33,10 +50,36 @@ export type UsageProvider = {
    * unset, a single ring is drawn on the most-constrained window.
    */
   rings?: { outer: readonly string[]; inner: readonly string[] };
+  /**
+   * Multiple selectable ring layouts (e.g. Antigravity shows one quota group at
+   * a time). When set, the circle renders the user-selected group (default: the
+   * first) and offers a right-click swap. Takes precedence over `rings`.
+   */
+  ringGroups?: readonly UsageRingGroup[];
 };
 
 /** Renderer-only presentation, keyed by provider id; merged onto the catalog. */
 const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
+  // Antigravity reports two quota groups (Gemini, Claude+GPT), each with a 5h
+  // (outer) and weekly (inner) window. The circle shows one group at a time —
+  // Gemini by default — and right-click swaps to the other. All four windows
+  // still render as bars in the expanded usage card.
+  antigravity: {
+    ringGroups: [
+      {
+        key: "gemini",
+        label: "Gemini",
+        outer: [antigravityWindowId("gemini", "session-5h")],
+        inner: [antigravityWindowId("gemini", "weekly")],
+      },
+      {
+        key: "claude",
+        label: "Claude & GPT",
+        outer: [antigravityWindowId("claude", "session-5h")],
+        inner: [antigravityWindowId("claude", "weekly")],
+      },
+    ],
+  },
   claude: {
     rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "weekly-opus", "weekly-sonnet"] },
   },
@@ -143,24 +186,53 @@ function firstWindowMatching(
   return undefined;
 }
 
+/** The selectable ring groups for a provider, or [] when it has none. */
+export function usageRingGroups(providerId: string): readonly UsageRingGroup[] {
+  return rendererMeta(providerId)?.ringGroups ?? [];
+}
+
+/** Resolve the selected ring group for a provider, defaulting to the first. */
+function resolveRingGroup(
+  groups: readonly UsageRingGroup[],
+  selectedKey: string | undefined,
+): UsageRingGroup | undefined {
+  return groups.find((g) => g.key === selectedKey) ?? groups[0];
+}
+
+function ringsFromSpec(
+  windows: readonly UsageWindow[],
+  spec: { outer: readonly string[]; inner: readonly string[] },
+): { outer?: UsageWindow; inner?: UsageWindow } | undefined {
+  const outer = firstWindowMatching(windows, spec.outer);
+  const inner = firstWindowMatching(windows, spec.inner);
+  if (outer && inner) return { outer, inner };
+  if (outer) return { outer };
+  if (inner) return { outer: inner };
+  return undefined;
+}
+
 /**
- * Pick the ring(s) for a provider circle. Providers with a real short-vs-long
- * split (per their `rings` spec) render the faster window as the outer ring and
- * the slower one as the inner ring — like a clock's hands. Everyone else renders
- * a single ring on the most-constrained window.
+ * Pick the ring(s) for a provider circle. Providers with selectable ring groups
+ * (Antigravity) render the user-selected group; providers with a real
+ * short-vs-long split (per their `rings` spec) render the faster window as the
+ * outer ring and the slower one as the inner ring — like a clock's hands.
+ * Everyone else renders a single ring on the most-constrained window.
  */
 export function pickUsageRings(
   providerId: string,
   windows: readonly UsageWindow[] | undefined,
+  selectedRingGroup?: string,
 ): { outer?: UsageWindow; inner?: UsageWindow } {
   if (!windows || windows.length === 0) return {};
-  const spec = rendererMeta(providerId)?.rings;
-  if (spec) {
-    const outer = firstWindowMatching(windows, spec.outer);
-    const inner = firstWindowMatching(windows, spec.inner);
-    if (outer && inner) return { outer, inner };
-    if (outer) return { outer };
-    if (inner) return { outer: inner };
+  const meta = rendererMeta(providerId);
+  const groups = meta?.ringGroups;
+  if (groups && groups.length > 0) {
+    const group = resolveRingGroup(groups, selectedRingGroup);
+    const fromGroup = group ? ringsFromSpec(windows, group) : undefined;
+    if (fromGroup) return fromGroup;
+  } else if (meta?.rings) {
+    const fromSpec = ringsFromSpec(windows, meta.rings);
+    if (fromSpec) return fromSpec;
   }
   const worst = [...windows].sort((a, b) => b.usedPercent - a.usedPercent)[0];
   return worst ? { outer: worst } : {};

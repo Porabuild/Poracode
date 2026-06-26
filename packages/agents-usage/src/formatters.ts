@@ -79,6 +79,16 @@ export function normalizePercent(value: number | undefined): number | undefined 
 }
 
 /**
+ * Convert a 0-1 *remaining* fraction (as several quota APIs report, e.g.
+ * Antigravity / Gemini Code Assist) into a 0-100 *used* percent, clamped and
+ * rounded to 0.1%. The complement of "how much is left".
+ */
+export function usedPercentFromRemaining(remainingFraction: number): number {
+  const clamped = Math.min(1, Math.max(0, remainingFraction));
+  return Math.round((1 - clamped) * 1000) / 10;
+}
+
+/**
  * Parse an HTTP `Retry-After` header into the epoch-ms instant a caller may
  * retry. RFC 9110 allows two forms: `delta-seconds` (a non-negative integer
  * count of seconds from now) or an `HTTP-date` (an absolute instant). Returns
@@ -161,9 +171,10 @@ export function windowDurationMs(windowId: string, resetsAt: number): number | u
   // Factory's legacy per-cycle "premium" pool is calendar-month aligned, not a
   // rolling-cadence window.
   if (windowId === "factory:premium") return calendarMonthBeforeMs(resetsAt);
-  // Namespaced rate-limit ids (codex:<limit>:<cadence>, factory:<pool>:<cadence>)
-  // carry their cadence as the trailing `:`-segment. Antigravity pools name a
-  // model family there (never a cadence word), so they fall through to undefined.
+  // Namespaced rate-limit ids (codex:<limit>:<cadence>, factory:<pool>:<cadence>,
+  // antigravity:<group>:<cadence>) carry their cadence as the trailing
+  // `:`-segment. The legacy Antigravity pool ids (`antigravity:gemini-pro`, ...)
+  // name a model family there instead, so they fall through to undefined.
   switch (windowId.slice(windowId.lastIndexOf(":") + 1)) {
     case "session-5h":
       return 5 * HOUR_MS;

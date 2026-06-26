@@ -6,6 +6,7 @@ import { Tooltip } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
+import { Check } from "lucide-react";
 import {
   formatResetCountdown,
   type UsageSnapshot,
@@ -13,6 +14,7 @@ import {
 } from "@lightcode/agents-usage";
 import { openUsagePanel } from "@/renderer/actions/panelActions";
 import { readBridge } from "@/renderer/bridge";
+import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common";
 import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderUsageCircle } from "./ProviderUsageCircle";
@@ -23,7 +25,11 @@ import {
   formatWindowValue,
   sharedWindowResetLabel,
 } from "./usageFormat";
-import { resolveDisplayedProviders, usesSharedWindowReset } from "./usageProviders";
+import {
+  resolveDisplayedProviders,
+  usageRingGroups,
+  usesSharedWindowReset,
+} from "./usageProviders";
 
 function statusText(snapshot: UsageSnapshot | undefined): MessageDescriptor | null {
   if (!snapshot) return msg`No data yet`;
@@ -49,8 +55,9 @@ function UsageTooltipBody(props: {
   id: string;
   label: string;
   snapshot: UsageSnapshot | undefined;
+  swappable?: boolean;
 }) {
-  const { id, label, snapshot } = props;
+  const { id, label, snapshot, swappable } = props;
   const { t } = useLingui();
   const now = Date.now();
   const message = statusText(snapshot);
@@ -95,6 +102,11 @@ function UsageTooltipBody(props: {
       ) : (
         <div className="text-muted">{message ? t(message) : null}</div>
       )}
+      {swappable ? (
+        <div className="pt-0.5 text-[10px] text-muted/70">
+          <Trans>Right-click to switch ring</Trans>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -103,6 +115,8 @@ function ProviderUsageRailItem(props: { id: string; label: string; index: number
   const { id, label, index, group } = props;
   const { t } = useLingui();
   const snapshot = useProviderUsage(id);
+  const selectedRingGroups = useSharedSettings((s) => s.usage.selectedRingGroups);
+  const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
   const { ref, isDragging } = useSortable({
     id: `${group}:${id}`,
     index,
@@ -112,7 +126,12 @@ function ProviderUsageRailItem(props: { id: string; label: string; index: number
     data: { id },
   });
 
-  return (
+  // Providers with more than one selectable ring group (e.g. Antigravity's
+  // Gemini vs Claude+GPT) get a right-click swap; the chosen key persists.
+  const ringGroups = usageRingGroups(id);
+  const selectedRingGroup = selectedRingGroups[id] ?? ringGroups[0]?.key;
+
+  const item = (
     <div ref={ref} className={isDragging ? "opacity-40" : ""}>
       <Tooltip delay={150}>
         <Tooltip.Trigger>
@@ -122,14 +141,41 @@ function ProviderUsageRailItem(props: { id: string; label: string; index: number
             onClick={openUsagePanel}
             className="cursor-grab rounded-full outline-none focus-visible:focus-ring active:cursor-grabbing"
           >
-            <ProviderUsageCircle kind={id} windows={snapshot?.windows} />
+            <ProviderUsageCircle
+              kind={id}
+              windows={snapshot?.windows}
+              ringGroup={selectedRingGroup}
+            />
           </button>
         </Tooltip.Trigger>
         <Tooltip.Content placement="top" offset={8} className="px-2 py-1.5 text-xs">
-          <UsageTooltipBody id={id} label={label} snapshot={snapshot} />
+          <UsageTooltipBody
+            id={id}
+            label={label}
+            snapshot={snapshot}
+            swappable={ringGroups.length > 1}
+          />
         </Tooltip.Content>
       </Tooltip>
     </div>
+  );
+
+  if (ringGroups.length <= 1) return item;
+
+  const swapItems: ContextMenuEntry[] = ringGroups.map((g) => ({
+    id: g.key,
+    label: t`Show ${g.label}`,
+    ...(g.key === selectedRingGroup ? { icon: <Check className="size-3.5" /> } : {}),
+  }));
+  return (
+    <ContextMenu
+      items={swapItems}
+      onAction={(key) =>
+        setUsageSetting("selectedRingGroups", { ...selectedRingGroups, [id]: key })
+      }
+    >
+      {item}
+    </ContextMenu>
   );
 }
 

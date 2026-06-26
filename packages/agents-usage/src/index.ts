@@ -91,5 +91,14 @@ export {
   ZAI_BIGMODEL_QUOTA_ENDPOINT,
 } from "./collectors/zai";
 export type { ZaiQuotaResponse } from "./collectors/zai";
-export { antigravityPool, antigravityPoolWindows } from "./collectors/antigravity";
-export type { AntigravityModelQuota } from "./collectors/antigravity";
+export {
+  antigravityPool,
+  antigravityPoolWindows,
+  antigravityQuotaSummaryWindows,
+  antigravityWindowId,
+} from "./collectors/antigravity";
+export type {
+  AntigravityCadence,
+  AntigravityGroupKey,
+  AntigravityModelQuota,
+} from "./collectors/antigravity";

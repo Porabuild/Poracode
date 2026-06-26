@@ -9,11 +9,12 @@ import { usageToneColor } from "./usageTone";
  * rings — like a clock's hands, the faster session is the OUTER ring and the
  * slower weekly/monthly is the INNER ring, so a full inner ring flags "weekly
  * almost gone" even when the session is idle. Cursor renders Auto + Composer
- * outside and API inside. Every other provider renders a SINGLE ring on its
- * most-constrained window — an at-a-glance "closest to the limit" read. Which
- * windows map to which ring is a per-provider descriptor in `usageProviders.ts`
- * (see {@link pickUsageRings}). Each ring is colored by its own tone. Reuses the
- * ring math from ThreadContextIndicator.
+ * outside and API inside. Antigravity shows one of its two quota groups (Gemini
+ * vs Claude+GPT), selected via `ringGroup`. Every other provider renders a
+ * SINGLE ring on its most-constrained window — an at-a-glance "closest to the
+ * limit" read. Which windows map to which ring is a per-provider descriptor in
+ * `usageProviders.ts` (see {@link pickUsageRings}). Each ring is colored by its
+ * own tone. Reuses the ring math from ThreadContextIndicator.
  */
 
 function Ring(props: { window: UsageWindow; radius: number }) {
@@ -50,9 +51,11 @@ export function ProviderUsageCircle(props: {
   kind: string;
   windows: readonly UsageWindow[] | undefined;
   size?: number;
+  /** Selected ring group for multi-group providers (e.g. Antigravity). */
+  ringGroup?: string | undefined;
 }) {
-  const { kind, windows, size = 28 } = props;
-  const { outer, inner } = pickUsageRings(kind, windows);
+  const { kind, windows, size = 28, ringGroup } = props;
+  const { outer, inner } = pickUsageRings(kind, windows, ringGroup);
   const outerRadius = 11;
   const innerRadius = 7.5;
 

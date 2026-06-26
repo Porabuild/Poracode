@@ -4857,6 +4857,10 @@ msgstr "右"
 msgid "Right panel"
 msgstr "右面板"
 
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Right-click to switch ring"
+msgstr ""
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5167,6 +5171,11 @@ msgstr "分享你的活动"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
 msgstr "快捷键"
+
+#. placeholder {0}: g.label
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Show {0}"
+msgstr ""
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"

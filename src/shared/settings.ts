@@ -125,6 +125,13 @@ const usageSettingsSchema = z.object({
   providerOrder: z.array(z.string()).default([]),
   /** Provider ids the user collapsed to a compact row in the usage panel. */
   collapsedProviders: z.array(z.string()).default([]),
+  /**
+   * For providers whose circle can show one of several ring groups (e.g.
+   * Antigravity's Gemini vs Claude+GPT quota groups), the group key the user
+   * picked, keyed by provider id. Absent = the provider's default (first) group.
+   * Right-clicking the sidebar circle swaps this.
+   */
+  selectedRingGroups: z.record(z.string(), z.string()).default({}),
 });
 export type UsageSettings = z.infer<typeof usageSettingsSchema>;
 
@@ -464,6 +471,7 @@ export const defaultSharedSettings: SharedSettings = {
     disabledProviders: [],
     providerOrder: [],
     collapsedProviders: [],
+    selectedRingGroups: {},
   },
 };
 

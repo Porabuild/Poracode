@@ -131,6 +131,7 @@ describe("sharedSettingsFile", () => {
         disabledProviders: [],
         providerOrder: [],
         collapsedProviders: [],
+        selectedRingGroups: {},
       },
     });
 
@@ -233,6 +234,7 @@ describe("sharedSettingsFile", () => {
         disabledProviders: [],
         providerOrder: [],
         collapsedProviders: [],
+        selectedRingGroups: {},
       },
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');

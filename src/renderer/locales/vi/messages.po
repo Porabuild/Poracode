@@ -4921,6 +4921,10 @@ msgstr "Phải"
 msgid "Right panel"
 msgstr "Bảng bên phải"
 
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Right-click to switch ring"
+msgstr ""
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -5237,6 +5241,11 @@ msgstr "Chia sẻ hoạt động của bạn"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
 msgstr "Phím tắt"
+
+#. placeholder {0}: g.label
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Show {0}"
+msgstr ""
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"
