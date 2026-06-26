@@ -2485,8 +2485,8 @@ msgstr "Pliki pasujące do tych globów są ukryte przed wyszukiwaniem wzmianek 
 "@file."
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Filtruj ustawienia"
+#~ msgid "Filter settings"
+#~ msgstr "Filtruj ustawienia"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -5126,6 +5126,10 @@ msgstr "Przeszukaj repozytoria…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Wyszukaj elementy środowiska wykonawczego…"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Szukaj ustawień"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"

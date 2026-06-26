@@ -2484,8 +2484,8 @@ msgstr "Файли, що відповідають цим glob-шаблонам, 
 "@file."
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Фільтрувати налаштування"
+#~ msgid "Filter settings"
+#~ msgstr "Фільтрувати налаштування"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -5123,6 +5123,10 @@ msgstr "Пошук репозиторіїв…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Пошук runtime-елементів…"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Шукати налаштування"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"

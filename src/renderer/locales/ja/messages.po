@@ -2453,8 +2453,8 @@ msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "これらのグロブに一致するファイルは、@file メンション検索から非表示になります。"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "設定を絞り込む"
+#~ msgid "Filter settings"
+#~ msgstr "設定を絞り込む"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -5056,6 +5056,10 @@ msgstr "リポジトリを検索…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "ランタイム項目を検索…"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "設定を検索"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"

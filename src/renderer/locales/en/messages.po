@@ -2469,8 +2469,8 @@ msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Files matching these globs are hidden from the @file mention search."
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Filter settings"
+#~ msgid "Filter settings"
+#~ msgstr "Filter settings"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -5095,6 +5095,10 @@ msgstr "Search repositories…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Search runtime items…"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Search settings"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"

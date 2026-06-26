@@ -2453,8 +2453,8 @@ msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "이러한 glob과 일치하는 파일은 @file 멘션 검색에서 숨겨집니다."
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "설정 필터링"
+#~ msgid "Filter settings"
+#~ msgstr "설정 필터링"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -5056,6 +5056,10 @@ msgstr "저장소 검색…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "런타임 항목 검색…"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "설정 검색"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
