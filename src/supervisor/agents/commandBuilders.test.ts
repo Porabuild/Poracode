@@ -59,7 +59,7 @@ import {
 import { createClaudeAdapter } from "./claude";
 import { createCopilotAdapter } from "./copilot";
 import { buildCodexAppServerCommand, createCodexAdapter } from "./codex";
-import { primeCodexGoalsSupport } from "./codex/argv";
+import { buildCodexArgvFor, primeCodexGoalsSupport } from "./codex/argv";
 import { createCursorAdapter } from "./cursor";
 import { createGrokAdapter } from "./grok";
 
@@ -176,6 +176,17 @@ describe("agent command builders", () => {
     expect(cmdArgs).not.toContain("--listen");
     expect(cmdArgs).not.toContain("--remote");
     expect(cmdArgs).not.toContain("--session-source");
+  });
+
+  it("passes the Codex approvals reviewer override to terminal sessions", () => {
+    const spec = buildCodexArgvFor(
+      windowsProject,
+      { ...config, approvalsReviewer: "auto_review" },
+      "hello",
+    );
+
+    expect(spec.args).toContain("-c");
+    expect(spec.args).toContain('approvals_reviewer="auto_review"');
   });
 
   it("injects Codex browser MCP config when enabled, using a token env var", () => {

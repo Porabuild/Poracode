@@ -770,6 +770,10 @@ msgstr "Запитайте {0} про що завгодно в цьому роб
 msgid "Ask each time"
 msgstr "Питати щоразу"
 
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Запитувати підтвердження"
+
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Поставити запитання"
@@ -4398,6 +4402,7 @@ msgstr "Перевизначення для конкретного проєкт�
 msgid "Prompt"
 msgstr "Промпт"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Запити"
@@ -4930,7 +4935,7 @@ msgstr "Права панель"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
-msgstr ""
+msgstr "Клацніть правою кнопкою, щоб перемкнути кільце"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5254,7 +5259,7 @@ msgstr "Комбінації клавіш"
 #. placeholder {0}: g.label
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Show {0}"
-msgstr ""
+msgstr "Показати {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"

@@ -766,6 +766,10 @@ msgstr "Ask {0} anything about this workspace"
 msgid "Ask each time"
 msgstr "Ask each time"
 
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Ask for approval"
+
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Ask Question"
@@ -4372,6 +4376,7 @@ msgstr "Project-specific overrides on top of the global search settings."
 msgid "Prompt"
 msgstr "Prompt"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Prompts"

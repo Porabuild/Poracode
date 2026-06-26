@@ -9,6 +9,7 @@ const threadConfigShape = {
   thinking: z.boolean().optional(),
   mode: threadModeSchema.optional(),
   approvalPolicy: z.string().optional(),
+  approvalsReviewer: z.string().optional(),
   sandboxMode: z.string().optional(),
   browserMcp: z.boolean().optional(),
 } as const;
@@ -50,6 +51,7 @@ export function isThreadConfigEqual(
     left.thinking === right.thinking &&
     left.mode === right.mode &&
     left.approvalPolicy === right.approvalPolicy &&
+    left.approvalsReviewer === right.approvalsReviewer &&
     left.sandboxMode === right.sandboxMode &&
     left.browserMcp === right.browserMcp
   );

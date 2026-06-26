@@ -352,6 +352,36 @@ describe("CodexStructuredSession", () => {
     });
   });
 
+  it("passes the approvals reviewer override to Codex app-server threads and turns", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const config = {
+      model: "gpt-5.4",
+      approvalPolicy: "on-request",
+      approvalsReviewer: "auto_review",
+      sandboxMode: "workspace-write",
+    };
+
+    await structuredSession.openThread(config);
+    await structuredSession.startTurn("hello", config);
+
+    expect(requests[0]).toMatchObject({
+      method: "thread/start",
+      params: {
+        approvalPolicy: "on-request",
+        approvalsReviewer: "auto_review",
+        sandbox: "workspace-write",
+      },
+    });
+    expect(requests[1]).toMatchObject({
+      method: "turn/start",
+      params: {
+        approvalPolicy: "on-request",
+        approvalsReviewer: "auto_review",
+      },
+    });
+  });
+
   it("forces serviceTier each turn: null when Fast is off (incl. the first turn), 'fast' when on", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);

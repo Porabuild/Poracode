@@ -763,6 +763,10 @@ msgstr "このワークスペースについて{0}に何でも質問してくだ
 msgid "Ask each time"
 msgstr "毎回尋ねる"
 
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "承認を求める"
+
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "質問する"
@@ -4337,6 +4341,7 @@ msgstr "グローバル検索設定に加えてプロジェクト固有のオー
 msgid "Prompt"
 msgstr "プロンプト"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "プロンプト"
@@ -4868,7 +4873,7 @@ msgstr "右パネル"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
-msgstr ""
+msgstr "右クリックでリングを切り替え"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5186,7 +5191,7 @@ msgstr "ショートカット"
 #. placeholder {0}: g.label
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Show {0}"
-msgstr ""
+msgstr "{0}を表示"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"

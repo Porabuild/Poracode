@@ -770,6 +770,10 @@ msgstr "{0} öğesine bu çalışma alanıyla ilgili her şeyi sorun"
 msgid "Ask each time"
 msgstr "Her seferinde sor"
 
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Onay iste"
+
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Soru Sor"
@@ -4394,6 +4398,7 @@ msgstr "Genel arama ayarlarının yanı sıra projeye özel geçersiz kılmalar.
 msgid "Prompt"
 msgstr "İstem"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "İstemler"
@@ -4928,7 +4933,7 @@ msgstr "Sağ panel"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
-msgstr ""
+msgstr "Halkayı değiştirmek için sağ tıklayın"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5253,7 +5258,7 @@ msgstr "Kısayollar"
 #. placeholder {0}: g.label
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Show {0}"
-msgstr ""
+msgstr "{0} öğesini göster"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"
