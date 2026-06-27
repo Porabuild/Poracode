@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { readBridge } from "@/renderer/bridge";
 import {
   CHANGELOG_URL,
+  compareVersions,
   hasUnseenChangelog,
   parseChangelogDocument,
   releasesSince,
@@ -15,6 +16,7 @@ import {
 } from "@/renderer/utils/localStorage";
 
 const SEEN_VERSION_KEY = "lightcode-changelog-seen-version";
+const ACK_VERSION_KEY = "lightcode-changelog-ack-version";
 const HIDDEN_KEY = "lightcode-whatsnew-hidden";
 const CACHE_KEY = "lightcode-changelog-cache";
 
@@ -26,12 +28,39 @@ function currentAppVersion(): string {
   }
 }
 
-/** Persist "seen up to the current version" + "hidden", returning that version. */
-function persistSeenAndHidden(): string {
+/**
+ * The newest release the user can have actually read right now: the latest entry
+ * at or below the running version, never older than what they have already seen.
+ * Crucially it does NOT jump to `current` when the notes for `current` have not
+ * been published yet — leaving the seen marker behind is what lets a
+ * late-arriving entry re-flag as unseen instead of being silently skipped.
+ */
+function advanceSeenVersion(
+  releases: readonly ChangelogRelease[],
+  current: string,
+  prevSeen: string | null,
+): string | null {
+  let best = prevSeen;
+  for (const release of releases) {
+    if (compareVersions(release.version, current) > 0) continue;
+    if (best === null || compareVersions(release.version, best) > 0) best = release.version;
+  }
+  return best;
+}
+
+/**
+ * Acknowledge the running version: record it as acknowledged (clears the
+ * version-bump flag) and advance the seen marker over any now-readable notes.
+ * Persists both and returns the state patch.
+ */
+function acknowledgeCurrent(
+  state: ChangelogState,
+): Pick<ChangelogState, "lastSeenVersion" | "acknowledgedVersion"> {
   const current = currentAppVersion();
-  writeStoredString(SEEN_VERSION_KEY, current);
-  writeStoredBoolean(HIDDEN_KEY, true);
-  return current;
+  const nextSeen = advanceSeenVersion(state.releases, current, state.lastSeenVersion);
+  writeStoredString(ACK_VERSION_KEY, current);
+  if (nextSeen !== null) writeStoredString(SEEN_VERSION_KEY, nextSeen);
+  return { lastSeenVersion: nextSeen, acknowledgedVersion: current };
 }
 
 /**
@@ -53,10 +82,17 @@ interface ChangelogState {
   /** Current releases, newest-first (cache → freshly fetched). Empty until first load. */
   releases: ChangelogRelease[];
   /**
-   * Newest version whose changelog the user has acknowledged. `null` only until
-   * the first launch initializes it (see {@link bootstrapSeenState}).
+   * Newest release version whose *content* the user has seen. Drives the
+   * dialog's unread list and the late-content badge. `null` only until the first
+   * launch initializes it (see {@link bootstrapSeenState}).
    */
   lastSeenVersion: string | null;
+  /**
+   * The app version the user last dismissed the "What's New" prompt at. Drives
+   * the version-bump badge independently of whether the notes have loaded yet.
+   * `null` only until the first launch initializes it.
+   */
+  acknowledgedVersion: string | null;
   /** Whether the "What's New" dialog is currently shown. */
   whatsNewOpen: boolean;
   /**
@@ -95,9 +131,10 @@ interface ChangelogState {
 // Changelog at the same time share one request instead of both hitting the net.
 let inFlightLoad: Promise<void> | null = null;
 
-export const useChangelogStore = create<ChangelogState>((set) => ({
+export const useChangelogStore = create<ChangelogState>((set, get) => ({
   releases: loadCachedReleases(),
   lastSeenVersion: readStoredString(SEEN_VERSION_KEY),
+  acknowledgedVersion: readStoredString(ACK_VERSION_KEY),
   whatsNewOpen: false,
   whatsNewHidden: readStoredBoolean(HIDDEN_KEY, false),
 
@@ -120,34 +157,53 @@ export const useChangelogStore = create<ChangelogState>((set) => ({
   },
 
   bootstrapSeenState: () => {
-    const lastSeen = readStoredString(SEEN_VERSION_KEY);
-    // Only initialize on a fresh profile. Existing users keep their last-seen
-    // marker so a real version bump still lights up the sidebar flag.
-    if (lastSeen !== null) return;
     const current = currentAppVersion();
-    writeStoredString(SEEN_VERSION_KEY, current);
-    set({ lastSeenVersion: current });
+    const storedSeen = readStoredString(SEEN_VERSION_KEY);
+    // Fresh profile: catch the user up to the current version so the next real
+    // update is detected, and nothing is flagged on the very first launch.
+    if (storedSeen === null) {
+      writeStoredString(SEEN_VERSION_KEY, current);
+      writeStoredString(ACK_VERSION_KEY, current);
+      set({ lastSeenVersion: current, acknowledgedVersion: current });
+      return;
+    }
+    // Existing profile upgrading into the acknowledged-version model: seed it
+    // from the last-seen content version so the update that introduced this
+    // still lights the badge.
+    if (readStoredString(ACK_VERSION_KEY) === null) {
+      writeStoredString(ACK_VERSION_KEY, storedSeen);
+      set({ acknowledgedVersion: storedSeen });
+    }
   },
 
-  openWhatsNew: () => set((state) => (state.whatsNewOpen ? {} : { whatsNewOpen: true })),
-
-  hideWhatsNew: () => set({ lastSeenVersion: persistSeenAndHidden(), whatsNewHidden: true }),
-
-  markCurrentSeen: () => {
-    const current = currentAppVersion();
-    writeStoredString(SEEN_VERSION_KEY, current);
-    set((state) => (state.lastSeenVersion === current ? {} : { lastSeenVersion: current }));
+  openWhatsNew: () => {
+    // Refresh from the source as the dialog opens, so a release whose notes
+    // landed after launch shows the latest content rather than the stale cache.
+    void get().loadChangelog();
+    set((state) => (state.whatsNewOpen ? {} : { whatsNewOpen: true }));
   },
+
+  hideWhatsNew: () =>
+    set((state) => {
+      writeStoredBoolean(HIDDEN_KEY, true);
+      return { ...acknowledgeCurrent(state), whatsNewHidden: true };
+    }),
+
+  markCurrentSeen: () => set((state) => acknowledgeCurrent(state)),
 
   dismissWhatsNew: () =>
-    set({ lastSeenVersion: persistSeenAndHidden(), whatsNewOpen: false, whatsNewHidden: true }),
+    set((state) => {
+      writeStoredBoolean(HIDDEN_KEY, true);
+      return { ...acknowledgeCurrent(state), whatsNewOpen: false, whatsNewHidden: true };
+    }),
 }));
 
 /** True when there is changelog content the user has not acknowledged yet. */
 export function useHasUnseenChangelog(): boolean {
   const releases = useChangelogStore((s) => s.releases);
   const lastSeenVersion = useChangelogStore((s) => s.lastSeenVersion);
-  return hasUnseenChangelog(releases, currentAppVersion(), lastSeenVersion);
+  const acknowledgedVersion = useChangelogStore((s) => s.acknowledgedVersion);
+  return hasUnseenChangelog(releases, currentAppVersion(), lastSeenVersion, acknowledgedVersion);
 }
 
 /** Releases the user has not seen yet (newest first); empty when caught up. */

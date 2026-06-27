@@ -63,6 +63,43 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
+      # The desktop app reads website/public/changelog.json (served by the
+      # marketing site) for the in-app "What's New" entry. Require a well-formed
+      # entry for this version BEFORE tagging, so the binary never ships ahead of
+      # its notes. Write the changelog first (use the release-notes skill) and
+      # push it to master, then run this release.
+      - name: Require changelog entry
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = '${{ steps.resolve.outputs.version }}';
+            const path = 'website/public/changelog.json';
+            let doc;
+            try {
+              doc = JSON.parse(fs.readFileSync(path, 'utf8'));
+            } catch (err) {
+              console.error('::error::Could not read ' + path + ': ' + err.message);
+              process.exit(1);
+            }
+            const releases = Array.isArray(doc.releases) ? doc.releases : [];
+            const entry = releases.find((r) => r && r.version === version);
+            if (!entry) {
+              console.error('::error::No changelog entry for ' + version + ' in ' + path + '. Add the release notes and push to master before releasing (the desktop app reads this file for the in-app changelog).');
+              process.exit(1);
+            }
+            const isoDate = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(entry.date || '');
+            const wellFormed =
+              typeof entry.title === 'string' && entry.title.trim().length > 0 &&
+              typeof entry.summary === 'string' && entry.summary.trim().length > 0 &&
+              Array.isArray(entry.changes) && entry.changes.length > 0 &&
+              isoDate;
+            if (!wellFormed) {
+              console.error('::error::Changelog entry for ' + version + ' is incomplete; it needs a title, summary, an ISO (YYYY-MM-DD) date, and at least one change.');
+              process.exit(1);
+            }
+            console.log('Changelog entry for ' + version + ' is present and well-formed.');
+          "
+
       - name: Bump package.json if needed
         run: |
           node -e "

@@ -67,17 +67,39 @@ describe("releasesSince", () => {
 });
 
 describe("hasUnseenChangelog", () => {
-  it("never fires on a fresh install", () => {
-    expect(hasUnseenChangelog(releases, releases[0]!.version, null)).toBe(false);
+  const newest = () => releases[0]!.version;
+  const prior = () => releases[1]!.version;
+
+  it("never fires on a not-yet-initialized profile", () => {
+    expect(hasUnseenChangelog(releases, newest(), null, null)).toBe(false);
+    expect(hasUnseenChangelog(releases, newest(), newest(), null)).toBe(false);
+    expect(hasUnseenChangelog(releases, newest(), null, newest())).toBe(false);
   });
 
-  it("fires when the current version moved past the last-seen version", () => {
-    expect(hasUnseenChangelog(releases, releases[0]!.version, releases[1]!.version)).toBe(true);
+  it("fires when the current version moved past the acknowledged version", () => {
+    expect(hasUnseenChangelog(releases, newest(), prior(), prior())).toBe(true);
   });
 
-  it("does not fire when the user has already seen the current version", () => {
-    const latest = releases[0]!.version;
-    expect(hasUnseenChangelog(releases, latest, latest)).toBe(false);
+  it("fires on a version bump even when no changelog entry for it has landed yet", () => {
+    // The binary updated ahead of its notes — the badge still appears.
+    expect(hasUnseenChangelog(releases, "999.0.0", prior(), prior())).toBe(true);
+  });
+
+  it("does not fire when the user is caught up to the current version", () => {
+    expect(hasUnseenChangelog(releases, newest(), newest(), newest())).toBe(false);
+  });
+
+  it("re-fires when notes land after the version was already acknowledged", () => {
+    // Acknowledged at the current version, but `seen` lagged because the notes
+    // for it had not been published yet; now that the entry is present (≤
+    // current and newer than seen), the badge returns.
+    expect(hasUnseenChangelog(releases, newest(), prior(), newest())).toBe(true);
+  });
+
+  it("ignores notes for versions newer than the running version", () => {
+    // Running `prior` and caught up; the newer `newest` entry is a release
+    // announced ahead of its build and must not light the badge.
+    expect(hasUnseenChangelog(releases, prior(), prior(), prior())).toBe(false);
   });
 });
 

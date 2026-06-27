@@ -770,6 +770,10 @@ msgstr "Pergunte a {0} qualquer coisa sobre este espaço de trabalho"
 msgid "Ask each time"
 msgstr "Pergunte sempre"
 
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Pedir aprovação"
+
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Faça uma pergunta"
@@ -2488,8 +2492,8 @@ msgstr "Os arquivos que correspondem a esses globs ficam ocultos na pesquisa de 
 "menção @file."
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Filtrar configurações"
+#~ msgid "Filter settings"
+#~ msgstr "Filtrar configurações"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -4403,6 +4407,7 @@ msgstr "Substituições específicas do projeto nas configurações de pesquisa 
 msgid "Prompt"
 msgstr "Prompt"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Prompts"
@@ -4937,7 +4942,7 @@ msgstr "Painel direito"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
-msgstr ""
+msgstr "Clique com o botão direito para trocar o anel"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5132,6 +5137,10 @@ msgstr "Pesquisar repositórios…"
 msgid "Search runtime items…"
 msgstr "Pesquisar itens de tempo de execução…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Pesquisar configurações"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "Pesquisar atalhos"
@@ -5261,7 +5270,7 @@ msgstr "Atalhos"
 #. placeholder {0}: g.label
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Show {0}"
-msgstr ""
+msgstr "Mostrar {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"

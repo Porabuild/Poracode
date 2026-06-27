@@ -770,6 +770,10 @@ msgstr "Спросите {0} о чём угодно в этом рабочем �
 msgid "Ask each time"
 msgstr "Спрашивать каждый раз"
 
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Запрашивать подтверждение"
+
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Задать вопрос"
@@ -2485,8 +2489,8 @@ msgstr "Файлы, соответствующие этим glob-шаблона�
 "@file."
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Фильтр настроек"
+#~ msgid "Filter settings"
+#~ msgstr "Фильтр настроек"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -4399,6 +4403,7 @@ msgstr "Переопределения для конкретного проек�
 msgid "Prompt"
 msgstr "Промпт"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Запросы"
@@ -4931,7 +4936,7 @@ msgstr "Панель справа"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
-msgstr ""
+msgstr "Щелкните правой кнопкой, чтобы переключить кольцо"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5125,6 +5130,10 @@ msgstr "Поиск репозиториев…"
 msgid "Search runtime items…"
 msgstr "Поиск runtime-элементов…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Поиск настроек"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "Поиск сочетаний клавиш"
@@ -5254,7 +5263,7 @@ msgstr "Сочетания клавиш"
 #. placeholder {0}: g.label
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Show {0}"
-msgstr ""
+msgstr "Показать {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"

@@ -1524,6 +1524,7 @@ export class SupervisorRuntime {
   }
 
   async disposeAsync(): Promise<void> {
+    this.usageService.stop();
     this.lspManager.dispose();
     await this._projectWatcher?.dispose();
     await this.threadSessionManager.dispose();

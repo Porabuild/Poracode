@@ -761,6 +761,10 @@ msgstr "向{0}询问有关此工作区的任何信息"
 msgid "Ask each time"
 msgstr "每次都询问"
 
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "请求批准"
+
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "提问"
@@ -2450,8 +2454,8 @@ msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "与这些 glob 匹配的文件在 @file 提及搜索中隐藏。"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "筛选设置"
+#~ msgid "Filter settings"
+#~ msgstr "筛选设置"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -4329,6 +4333,7 @@ msgstr "在全局搜索设置基础上的项目特定覆盖。"
 msgid "Prompt"
 msgstr "提示"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "提示"
@@ -4859,7 +4864,7 @@ msgstr "右面板"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
-msgstr ""
+msgstr "右键点击以切换环"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5048,6 +5053,10 @@ msgstr "搜索存储库..."
 msgid "Search runtime items…"
 msgstr "搜索运行时项目..."
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "搜索设置"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "搜索快捷键"
@@ -5175,7 +5184,7 @@ msgstr "快捷键"
 #. placeholder {0}: g.label
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Show {0}"
-msgstr ""
+msgstr "显示 {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"

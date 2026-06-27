@@ -771,6 +771,10 @@ msgstr "Fragen Sie {0} etwas zu diesem Arbeitsbereich"
 msgid "Ask each time"
 msgstr "Fragen Sie jedes Mal"
 
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Genehmigung anfordern"
+
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Frage stellen"
@@ -2495,8 +2499,8 @@ msgstr "Dateien, die mit diesen Globs übereinstimmen, werden bei der "
 "@file-Erwähnungssuche ausgeblendet."
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Einstellungen filtern"
+#~ msgid "Filter settings"
+#~ msgstr "Einstellungen filtern"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -4411,6 +4415,7 @@ msgstr "Projektspezifische Überschreibungen zusätzlich zu den globalen "
 msgid "Prompt"
 msgstr "Prompt"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Prompts"
@@ -4946,7 +4951,7 @@ msgstr "Rechtes Panel"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
-msgstr ""
+msgstr "Rechtsklicken, um den Ring zu wechseln"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5141,6 +5146,10 @@ msgstr "Repositories durchsuchen…"
 msgid "Search runtime items…"
 msgstr "Laufzeitelemente durchsuchen…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Einstellungen durchsuchen"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "Tastenkürzel suchen"
@@ -5272,7 +5281,7 @@ msgstr "Tastenkürzel"
 #. placeholder {0}: g.label
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Show {0}"
-msgstr ""
+msgstr "{0} anzeigen"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"

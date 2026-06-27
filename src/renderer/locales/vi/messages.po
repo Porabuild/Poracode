@@ -770,6 +770,10 @@ msgstr "Hỏi {0} bất cứ điều gì về không gian làm việc này"
 msgid "Ask each time"
 msgstr "Hỏi mỗi lần"
 
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Yêu cầu phê duyệt"
+
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Đặt câu hỏi"
@@ -2480,8 +2484,8 @@ msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "Các tệp khớp với các mẫu glob này sẽ bị ẩn khỏi tìm kiếm @file."
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Lọc cài đặt"
+#~ msgid "Filter settings"
+#~ msgstr "Lọc cài đặt"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -4389,6 +4393,7 @@ msgstr "Ghi đè dành riêng cho dự án ở đầu cài đặt tìm kiếm ch
 msgid "Prompt"
 msgstr "Lời nhắc"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Prompt"
@@ -4923,7 +4928,7 @@ msgstr "Bảng bên phải"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
-msgstr ""
+msgstr "Nhấp chuột phải để đổi vòng"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5116,6 +5121,10 @@ msgstr "Tìm kiếm kho lưu trữ…"
 msgid "Search runtime items…"
 msgstr "Tìm kiếm các mục thời gian chạy…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Tìm kiếm cài đặt"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "Tìm kiếm phím tắt"
@@ -5245,7 +5254,7 @@ msgstr "Phím tắt"
 #. placeholder {0}: g.label
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Show {0}"
-msgstr ""
+msgstr "Hiển thị {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"

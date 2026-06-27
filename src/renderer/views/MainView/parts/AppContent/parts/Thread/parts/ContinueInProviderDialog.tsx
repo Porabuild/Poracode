@@ -109,6 +109,8 @@ function resolveDefaultConfig(agent: AgentStatus, savedConfig?: ProjectDraftConf
   const policies = agent.capabilities.approvalPolicies;
   const savedApproval =
     savedConfig?.agentKind === agent.kind ? savedConfig.approvalPolicy : undefined;
+  const savedReviewer =
+    savedConfig?.agentKind === agent.kind ? savedConfig.approvalsReviewer : undefined;
   const approvalPolicy =
     savedApproval && policies.some((p) => p.id === savedApproval) ? savedApproval : policies[0]?.id;
 
@@ -116,6 +118,7 @@ function resolveDefaultConfig(agent: AgentStatus, savedConfig?: ProjectDraftConf
     model,
     ...(effort ? { effort } : {}),
     ...(approvalPolicy ? { approvalPolicy } : {}),
+    ...(savedReviewer ? { approvalsReviewer: savedReviewer } : {}),
   };
 }
 

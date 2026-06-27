@@ -80,13 +80,23 @@ const CODEX_PERMISSION_PRESETS = [
     label: msg`Default permissions`,
     hint: msg`Use config`,
     approvalPolicies: [],
+    approvalsReviewer: "",
     sandboxModes: [],
+  },
+  {
+    id: "review-on-request",
+    label: msg`Ask for approval`,
+    hint: msg`Prompts`,
+    approvalPolicies: ["on-request"],
+    approvalsReviewer: "user",
+    sandboxModes: ["workspace-write"],
   },
   {
     id: "auto-review",
     label: msg`Auto-review`,
     hint: msg`Review on request`,
     approvalPolicies: ["on-request"],
+    approvalsReviewer: "auto_review",
     sandboxModes: ["workspace-write"],
   },
   {
@@ -94,35 +104,52 @@ const CODEX_PERMISSION_PRESETS = [
     label: msg`Full access`,
     hint: msg`No prompts`,
     approvalPolicies: ["never"],
+    approvalsReviewer: "",
     sandboxModes: ["danger-full-access"],
   },
 ] as const;
 
 type CodexPermissionPreset = (typeof CODEX_PERMISSION_PRESETS)[number];
+type ResolvedCodexPermissionPreset = Omit<CodexPermissionPreset, "approvalsReviewer"> & {
+  approvalPolicy: string;
+  approvalsReviewer: string;
+  sandboxMode: string;
+};
 
 function resolveCodexPermissionPreset(
   preset: CodexPermissionPreset,
   approvalIds: Set<string>,
   sandboxIds: Set<string>,
-): { approvalPolicy: string; sandboxMode: string } | undefined {
+): { approvalPolicy: string; approvalsReviewer: string; sandboxMode: string } | undefined {
   if (preset.approvalPolicies.length === 0 && preset.sandboxModes.length === 0) {
-    return { approvalPolicy: "", sandboxMode: "" };
+    return { approvalPolicy: "", approvalsReviewer: preset.approvalsReviewer, sandboxMode: "" };
   }
 
   const approvalPolicy = preset.approvalPolicies.find((id) => approvalIds.has(id));
   const sandboxMode = preset.sandboxModes.find((id) => sandboxIds.has(id));
-  return approvalPolicy && sandboxMode ? { approvalPolicy, sandboxMode } : undefined;
+  return approvalPolicy && sandboxMode
+    ? { approvalPolicy, approvalsReviewer: preset.approvalsReviewer, sandboxMode }
+    : undefined;
 }
 
 function isCodexPermissionPresetSelected(
-  preset: CodexPermissionPreset & { approvalPolicy: string; sandboxMode: string },
-  config: { approvalPolicy?: string | undefined; sandboxMode?: string | undefined },
+  preset: ResolvedCodexPermissionPreset,
+  config: {
+    approvalPolicy?: string | undefined;
+    approvalsReviewer?: string | undefined;
+    sandboxMode?: string | undefined;
+  },
 ): boolean {
   if (!preset.approvalPolicy && !preset.sandboxMode) {
-    return !config.approvalPolicy && !config.sandboxMode;
+    return !config.approvalPolicy && !config.approvalsReviewer && !config.sandboxMode;
   }
+  const effectiveReviewer = config.approvalsReviewer || "user";
+  const reviewerMatches =
+    !preset.approvalsReviewer || preset.approvalsReviewer === effectiveReviewer;
   return (
-    preset.approvalPolicy === config.approvalPolicy && preset.sandboxMode === config.sandboxMode
+    preset.approvalPolicy === config.approvalPolicy &&
+    reviewerMatches &&
+    preset.sandboxMode === config.sandboxMode
   );
 }
 
@@ -134,10 +161,12 @@ function buildCodexPermissionControl(
 ): ComposerControl | null {
   const approvalIds = new Set(capabilities.approvalPolicies.map((policy) => policy.id));
   const sandboxIds = new Set(capabilities.sandboxModes.map((mode) => mode.id));
-  const permissionPresets = CODEX_PERMISSION_PRESETS.flatMap((preset) => {
-    const resolved = resolveCodexPermissionPreset(preset, approvalIds, sandboxIds);
-    return resolved ? [{ ...preset, ...resolved }] : [];
-  });
+  const permissionPresets: ResolvedCodexPermissionPreset[] = CODEX_PERMISSION_PRESETS.flatMap(
+    (preset) => {
+      const resolved = resolveCodexPermissionPreset(preset, approvalIds, sandboxIds);
+      return resolved ? [{ ...preset, ...resolved }] : [];
+    },
+  );
   if (permissionPresets.length === 0) return null;
   const current =
     permissionPresets.find((preset) => isCodexPermissionPresetSelected(preset, config)) ??
@@ -157,6 +186,7 @@ function buildCodexPermissionControl(
       if (!preset) return;
       onConfigChange({
         approvalPolicy: preset.approvalPolicy,
+        approvalsReviewer: preset.approvalsReviewer,
         sandboxMode: preset.sandboxMode,
       });
     },

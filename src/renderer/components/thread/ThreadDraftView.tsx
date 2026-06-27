@@ -205,6 +205,7 @@ export function ThreadDraftView(props: {
   const [thinking, setThinking] = useState(false);
   const [mode, setMode] = useState<"agent" | "plan" | "autopilot">("agent");
   const [approvalPolicy, setApprovalPolicy] = useState("");
+  const [approvalsReviewer, setApprovalsReviewer] = useState("");
   const [sandboxMode, setSandboxMode] = useState("");
   // Not persisted across drafts — each new thread starts off.
   const [browserMcp, setBrowserMcp] = useState(false);
@@ -354,6 +355,7 @@ export function ThreadDraftView(props: {
     const nextThinking = resolved.thinking ?? false;
     const nextMode = (resolved.mode ?? "agent") as "agent" | "plan" | "autopilot";
     const nextApproval = resolved.approvalPolicy ?? "";
+    const nextReviewer = resolved.approvalsReviewer ?? "";
     const nextSandbox = resolved.sandboxMode ?? "";
 
     setModel(nextModel);
@@ -363,6 +365,7 @@ export function ThreadDraftView(props: {
     setThinking(nextThinking);
     setMode(nextMode);
     setApprovalPolicy(nextApproval);
+    setApprovalsReviewer(nextReviewer);
     setSandboxMode(nextSandbox);
     lastAppliedAgentKindRef.current = effectiveAgentKind;
 
@@ -380,6 +383,7 @@ export function ThreadDraftView(props: {
       ...(nextThinking ? { thinking: nextThinking } : {}),
       mode: nextMode,
       approvalPolicy: nextApproval,
+      approvalsReviewer: nextReviewer,
       sandboxMode: nextSandbox,
       worktreeMode: effectiveWorktreeMode,
     });
@@ -442,6 +446,7 @@ export function ThreadDraftView(props: {
         ...(nextThinking ? { thinking: nextThinking } : {}),
         mode,
         approvalPolicy,
+        approvalsReviewer,
         sandboxMode,
         worktreeMode: effectiveWorktreeMode,
       });
@@ -456,6 +461,7 @@ export function ThreadDraftView(props: {
     effectiveAgentKind,
     mode,
     approvalPolicy,
+    approvalsReviewer,
     sandboxMode,
     effectiveWorktreeMode,
     isHomeScope,
@@ -489,6 +495,7 @@ export function ThreadDraftView(props: {
     const nextThinking = resolved.thinking ?? false;
     const nextMode = (resolved.mode ?? "agent") as "agent" | "plan" | "autopilot";
     const nextApproval = resolved.approvalPolicy ?? "";
+    const nextReviewer = resolved.approvalsReviewer ?? "";
     const nextSandbox = resolved.sandboxMode ?? "";
 
     if (
@@ -499,6 +506,7 @@ export function ThreadDraftView(props: {
       nextThinking === thinking &&
       nextMode === mode &&
       nextApproval === approvalPolicy &&
+      nextReviewer === approvalsReviewer &&
       nextSandbox === sandboxMode
     ) {
       return;
@@ -511,6 +519,7 @@ export function ThreadDraftView(props: {
     setThinking(nextThinking);
     setMode(nextMode);
     setApprovalPolicy(nextApproval);
+    setApprovalsReviewer(nextReviewer);
     setSandboxMode(nextSandbox);
     lastAppliedAgentKindRef.current = effectiveAgentKind;
 
@@ -522,6 +531,7 @@ export function ThreadDraftView(props: {
       saved.thinking !== nextThinking ||
       saved.mode !== nextMode ||
       saved.approvalPolicy !== nextApproval ||
+      saved.approvalsReviewer !== nextReviewer ||
       saved.sandboxMode !== nextSandbox
     ) {
       providerConfigsRef.current[effectiveAgentKind] = resolved;
@@ -537,6 +547,7 @@ export function ThreadDraftView(props: {
       ...(nextThinking ? { thinking: nextThinking } : {}),
       mode: nextMode,
       approvalPolicy: nextApproval,
+      approvalsReviewer: nextReviewer,
       sandboxMode: nextSandbox,
       worktreeMode: effectiveWorktreeMode,
     });
@@ -552,6 +563,7 @@ export function ThreadDraftView(props: {
     thinking,
     mode,
     approvalPolicy,
+    approvalsReviewer,
     sandboxMode,
     project.id,
     effectiveWorktreeMode,
@@ -609,6 +621,7 @@ export function ThreadDraftView(props: {
       ...(patch.thinking !== undefined ? { thinking: patch.thinking } : { thinking }),
       mode: patch.mode ?? mode,
       approvalPolicy: patch.approvalPolicy ?? approvalPolicy,
+      approvalsReviewer: patch.approvalsReviewer ?? approvalsReviewer,
       sandboxMode: patch.sandboxMode ?? sandboxMode,
     });
 
@@ -619,6 +632,7 @@ export function ThreadDraftView(props: {
     setThinking(resolved.thinking ?? false);
     setMode((resolved.mode ?? "agent") as "agent" | "plan" | "autopilot");
     setApprovalPolicy(resolved.approvalPolicy ?? "");
+    setApprovalsReviewer(resolved.approvalsReviewer ?? "");
     setSandboxMode(resolved.sandboxMode ?? "");
 
     // Keep local state and persisted config in one transaction so menu
@@ -637,6 +651,7 @@ export function ThreadDraftView(props: {
         ...(resolved.thinking ? { thinking: resolved.thinking } : {}),
         mode: resolved.mode,
         approvalPolicy: resolved.approvalPolicy,
+        approvalsReviewer: resolved.approvalsReviewer,
         sandboxMode: resolved.sandboxMode,
         worktreeMode: effectiveWorktreeMode,
       });
@@ -669,6 +684,7 @@ export function ThreadDraftView(props: {
           ...(thinking ? { thinking } : {}),
           mode,
           approvalPolicy,
+          approvalsReviewer,
           sandboxMode,
         };
         persistProviderConfig(effectiveAgentKind, snapshot);
@@ -686,6 +702,7 @@ export function ThreadDraftView(props: {
       setThinking(resolved.thinking ?? false);
       setMode((resolved.mode ?? "agent") as "agent" | "plan" | "autopilot");
       setApprovalPolicy(resolved.approvalPolicy ?? "");
+      setApprovalsReviewer(resolved.approvalsReviewer ?? "");
       setSandboxMode(resolved.sandboxMode ?? "");
       lastAppliedAgentKindRef.current = nextKind as AgentStatus["kind"];
       setAgentKind(nextKind as AgentStatus["kind"]);
@@ -698,6 +715,7 @@ export function ThreadDraftView(props: {
         ...(resolved.thinking ? { thinking: resolved.thinking } : {}),
         mode: resolved.mode,
         approvalPolicy: resolved.approvalPolicy,
+        approvalsReviewer: resolved.approvalsReviewer,
         sandboxMode: resolved.sandboxMode,
         worktreeMode: effectiveWorktreeMode,
       });
@@ -749,6 +767,7 @@ export function ThreadDraftView(props: {
         ...(thinking ? { thinking } : {}),
         mode,
         approvalPolicy,
+        approvalsReviewer,
         sandboxMode,
       },
       presentationMode,
@@ -766,6 +785,7 @@ export function ThreadDraftView(props: {
     thinking,
     mode,
     approvalPolicy,
+    approvalsReviewer,
     sandboxMode,
     presentationMode,
   ]);
@@ -855,6 +875,7 @@ export function ThreadDraftView(props: {
         ...(thinking ? { thinking } : {}),
         mode,
         approvalPolicy,
+        approvalsReviewer,
         sandboxMode,
       },
       presentationMode: next,
@@ -928,6 +949,7 @@ export function ThreadDraftView(props: {
               ...(thinking ? { thinking } : {}),
               ...(mode ? { mode } : {}),
               ...(approvalPolicy ? { approvalPolicy } : {}),
+              ...(approvalsReviewer ? { approvalsReviewer } : {}),
               ...(sandboxMode ? { sandboxMode } : {}),
               ...(browserMcp ? { browserMcp: true } : {}),
             }}

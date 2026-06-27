@@ -771,6 +771,10 @@ msgstr "Zapytaj {0} o cokolwiek na temat tego obszaru roboczego"
 msgid "Ask each time"
 msgstr "Zapytaj za każdym razem"
 
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Poproś o zatwierdzenie"
+
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Zadaj pytanie"
@@ -2485,8 +2489,8 @@ msgstr "Pliki pasujące do tych globów są ukryte przed wyszukiwaniem wzmianek 
 "@file."
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Filtruj ustawienia"
+#~ msgid "Filter settings"
+#~ msgstr "Filtruj ustawienia"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -4400,6 +4404,7 @@ msgstr "Zastąpienia specyficzne dla projektu ponad globalnymi ustawieniami "
 msgid "Prompt"
 msgstr "Prompt"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Prompty"
@@ -4933,7 +4938,7 @@ msgstr "Prawy panel"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
-msgstr ""
+msgstr "Kliknij prawym przyciskiem, aby przełączyć pierścień"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5127,6 +5132,10 @@ msgstr "Przeszukaj repozytoria…"
 msgid "Search runtime items…"
 msgstr "Wyszukaj elementy środowiska wykonawczego…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Szukaj ustawień"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "Wyszukaj skróty"
@@ -5256,7 +5265,7 @@ msgstr "Skróty klawiszowe"
 #. placeholder {0}: g.label
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Show {0}"
-msgstr ""
+msgstr "Pokaż {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"

@@ -771,6 +771,10 @@ msgstr "Posez n'importe quelle question à {0} à propos de cet espace de travai
 msgid "Ask each time"
 msgstr "Demander à chaque fois"
 
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Demander une approbation"
+
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Poser une question"
@@ -2494,8 +2498,8 @@ msgstr "Les fichiers correspondant à ces globs sont masqués dans la recherche 
 "de mention @file."
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Filtrer les paramètres"
+#~ msgid "Filter settings"
+#~ msgstr "Filtrer les paramètres"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -4412,6 +4416,7 @@ msgstr "Remplacements spécifiques au projet en plus des paramètres de recherch
 msgid "Prompt"
 msgstr "Invite"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Prompts"
@@ -4946,7 +4951,7 @@ msgstr "Panneau droit"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
-msgstr ""
+msgstr "Clic droit pour changer d'anneau"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5142,6 +5147,10 @@ msgstr "Rechercher des dépôts…"
 msgid "Search runtime items…"
 msgstr "Rechercher des éléments d'exécution…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Rechercher dans les paramètres"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "Rechercher des raccourcis"
@@ -5272,7 +5281,7 @@ msgstr "Raccourcis"
 #. placeholder {0}: g.label
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Show {0}"
-msgstr ""
+msgstr "Afficher {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"

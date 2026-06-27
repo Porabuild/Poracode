@@ -763,6 +763,10 @@ msgstr "이 작업 공간에 대해 {0}에게 무엇이든 물어보세요"
 msgid "Ask each time"
 msgstr "매번 물어보세요"
 
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "승인 요청"
+
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "질문하기"
@@ -2453,8 +2457,8 @@ msgid "Files matching these globs are hidden from the @file mention search."
 msgstr "이러한 glob과 일치하는 파일은 @file 멘션 검색에서 숨겨집니다."
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "설정 필터링"
+#~ msgid "Filter settings"
+#~ msgstr "설정 필터링"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -4338,6 +4342,7 @@ msgstr "전역 검색 설정 위에 프로젝트별 재정의가 적용됩니다
 msgid "Prompt"
 msgstr "프롬프트"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "프롬프트"
@@ -4868,7 +4873,7 @@ msgstr "오른쪽 패널"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
-msgstr ""
+msgstr "마우스 오른쪽 버튼을 클릭해 링 전환"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -5057,6 +5062,10 @@ msgstr "저장소 검색…"
 msgid "Search runtime items…"
 msgstr "런타임 항목 검색…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "설정 검색"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "단축키 검색"
@@ -5185,7 +5194,7 @@ msgstr "단축키"
 #. placeholder {0}: g.label
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Show {0}"
-msgstr ""
+msgstr "{0} 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"

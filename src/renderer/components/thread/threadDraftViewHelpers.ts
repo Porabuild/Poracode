@@ -191,6 +191,9 @@ export function resolveProviderDraftConfig(
     ...(nextThinking ? { thinking: nextThinking } : {}),
     mode: nextMode,
     approvalPolicy: nextApproval,
+    ...(normalizedPreferred?.approvalsReviewer !== undefined
+      ? { approvalsReviewer: normalizedPreferred.approvalsReviewer }
+      : {}),
     sandboxMode: nextSandbox,
   };
 }
