@@ -170,6 +170,20 @@ const registry: AcpRegistryListResult = {
       distribution: { npx: { package: "cursor-acp" } },
     },
     {
+      id: "gemini",
+      name: "Gemini",
+      version: "1.0.0",
+      description: "Gemini through ACP",
+      distribution: { npx: { package: "gemini-acp" } },
+    },
+    {
+      id: "github-copilot",
+      name: "GitHub Copilot",
+      version: "1.0.0",
+      description: "Copilot through ACP",
+      distribution: { npx: { package: "copilot-acp" } },
+    },
+    {
       id: "grok-build",
       name: "Grok Build",
       version: "0.2.11",
@@ -246,18 +260,17 @@ describe("AcpRegistrySettings", () => {
     expect(within(codexCard as HTMLElement).queryByRole("button", { name: "Install" })).toBeNull();
   });
 
-  it("hides native-preferred ACP wrappers and tags app-supported ACP agents", async () => {
+  it("hides native-preferred ACP wrappers", async () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     expect(screen.queryByText("Codex ACP")).not.toBeInTheDocument();
+    expect(screen.queryByText("Cursor through ACP")).not.toBeInTheDocument();
+    expect(screen.queryByText("Gemini through ACP")).not.toBeInTheDocument();
+    expect(screen.queryByText("Copilot through ACP")).not.toBeInTheDocument();
     expect(screen.queryByText("xAI's coding agent and CLI")).not.toBeInTheDocument();
     expect(screen.getAllByText("GLM Agent").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Show advanced ACP" })).toBeNull();
-
-    const cursorCard = screen.getAllByText("Cursor")[0]?.closest(".rounded-lg");
-    expect(cursorCard).toBeTruthy();
-    expect(within(cursorCard as HTMLElement).getByText("Native support")).toBeInTheDocument();
   });
 
   it("opens native install commands in the terminal", async () => {
@@ -315,6 +328,33 @@ describe("AcpRegistrySettings", () => {
         }),
       ),
     ).toContain("https://antigravity.google/cli/install.sh");
+  });
+
+  it("offers app-supported providers as native installs", async () => {
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+
+    const cases = [
+      { pattern: /First-class Cursor Agent integration/u, label: "Cursor" },
+      { pattern: /First-class Gemini CLI integration/u, label: "Gemini" },
+      { pattern: /First-class GitHub Copilot CLI integration/u, label: "GitHub Copilot" },
+    ];
+
+    for (const expected of cases) {
+      const card = screen.getByText(expected.pattern).closest(".rounded-lg");
+      expect(card).toBeTruthy();
+
+      fireEvent.click(within(card as HTMLElement).getByRole("button", { name: "Install" }));
+
+      await waitFor(() => {
+        expect(runAgentInstallCommandMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            label: expected.label,
+          }),
+        );
+      });
+    }
   });
 
   it("offers Grok Build as a native Windows install", async () => {
@@ -393,6 +433,16 @@ describe("AcpRegistrySettings", () => {
     expect(entries.get("grok")?.installCommand(wslProject)).toContain(
       "curl -fsSL https://x.ai/cli/install.sh | bash",
     );
+    expect(entries.get("cursor")?.installCommand(wslProject)).toContain(
+      "curl https://cursor.com/install -fsS | bash",
+    );
+    expect(entries.get("gemini")?.installCommand(wslProject)).toContain(
+      "npm install -g @google/gemini-cli",
+    );
+    expect(entries.get("copilot")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://gh.io/copilot-install | bash",
+    );
+    expect(entries.get("copilot")?.installCommand(wslProject)).not.toContain("brew install");
 
     withHostPlatform("darwin", () => {
       expect(entries.get("codex")?.installCommand(macProject)).toContain(
@@ -404,18 +454,31 @@ describe("AcpRegistrySettings", () => {
       expect(entries.get("opencode")?.installCommand(macProject)).toContain(
         "brew install anomalyco/tap/opencode",
       );
+      expect(entries.get("gemini")?.installCommand(macProject)).not.toContain("brew install");
+      expect(entries.get("copilot")?.installCommand(macProject)).toContain(
+        "brew install --cask copilot-cli",
+      );
     });
 
     withHostPlatform("win32", () => {
-      expect(
-        entries.get("grok")?.installCommand(
-          makeProject({
-            id: "windows-project",
-            name: "Windows Project",
-            location: { kind: "windows", path: "C:\\repo" },
-          }),
-        ),
-      ).toContain("irm https://x.ai/cli/install.ps1 | iex");
+      const windowsProject = makeProject({
+        id: "windows-project",
+        name: "Windows Project",
+        location: { kind: "windows", path: "C:\\repo" },
+      });
+
+      expect(entries.get("grok")?.installCommand(windowsProject)).toContain(
+        "irm https://x.ai/cli/install.ps1 | iex",
+      );
+      expect(entries.get("cursor")?.installCommand(windowsProject)).toContain(
+        "https://cursor.com/install?win32=true",
+      );
+      expect(entries.get("gemini")?.installCommand(windowsProject)).toContain(
+        "npm install -g @google/gemini-cli",
+      );
+      expect(entries.get("copilot")?.installCommand(windowsProject)).toContain(
+        "winget install GitHub.Copilot",
+      );
     });
   });
 
@@ -577,7 +640,7 @@ describe("AcpRegistrySettings", () => {
     ).toBeNull();
   });
 
-  it("shows WSL detection for app-supported ACP registry agents", async () => {
+  it("shows WSL detection for app-supported native providers", async () => {
     statusesState.agentStatuses = [
       makeStatus("cursor", {
         label: "Cursor",
@@ -595,10 +658,13 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const cursorCard = screen.getByText("Cursor through ACP").closest(".rounded-lg");
+    const cursorCard = screen
+      .getByText(/First-class Cursor Agent integration/u)
+      .closest(".rounded-lg");
     expect(cursorCard).toBeTruthy();
-    expect(within(cursorCard as HTMLElement).getByText("(Windows)")).toBeInTheDocument();
-    expect(within(cursorCard as HTMLElement).getByText("(WSL (Ubuntu))")).toBeInTheDocument();
+    expect(within(cursorCard as HTMLElement).getByText("(local)")).toBeInTheDocument();
+    expect(within(cursorCard as HTMLElement).getByText("WSL (Ubuntu)")).toBeInTheDocument();
+    expect(screen.queryByText("Cursor through ACP")).not.toBeInTheDocument();
   });
 
   it("does not label generic ACP registry agent statuses as detected", async () => {

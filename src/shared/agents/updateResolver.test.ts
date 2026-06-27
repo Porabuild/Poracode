@@ -15,6 +15,12 @@ const codexUpdate = {
 
 const geminiUpdate = {
   npm: "@google/gemini-cli",
+  brew: "gemini-cli",
+};
+
+const cursorUpdate = {
+  builtIn: { binary: "cursor-agent", args: ["update"] },
+  homebrewCask: "cursor-cli",
 };
 
 describe("resolveSharedUpdateCommand", () => {
@@ -93,6 +99,46 @@ describe("resolveSharedUpdateCommand", () => {
       args: ["install", "-g", "@google/gemini-cli@latest"],
       strategy: "npm-global",
     });
+  });
+
+  it("uses brew when a formula-backed executable lives under Homebrew", () => {
+    expect(
+      resolveSharedUpdateCommand({
+        update: geminiUpdate,
+        executablePath: "/opt/homebrew/bin/gemini",
+        envKind: "posix",
+      }),
+    ).toEqual({
+      binary: "brew",
+      args: ["upgrade", "gemini-cli"],
+      strategy: "brew",
+    });
+  });
+
+  it("uses brew cask when a cask-backed executable lives under Homebrew", () => {
+    expect(
+      resolveSharedUpdateCommand({
+        update: cursorUpdate,
+        executablePath: "/opt/homebrew/bin/cursor-agent",
+        envKind: "posix",
+        skipBuiltIn: true,
+      }),
+    ).toEqual({
+      binary: "brew",
+      args: ["upgrade", "--cask", "cursor-cli"],
+      strategy: "brew",
+    });
+  });
+
+  it("does not guess a cask updater when the path is not Homebrew-managed", () => {
+    expect(
+      resolveSharedUpdateCommand({
+        update: cursorUpdate,
+        executablePath: "/home/user/.local/bin/cursor-agent",
+        envKind: "posix",
+        skipBuiltIn: true,
+      }),
+    ).toBeUndefined();
   });
 
   it("falls back to npm-global when path is unrecognised but provider publishes on npm", () => {

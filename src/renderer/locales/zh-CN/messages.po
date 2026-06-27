@@ -2507,6 +2507,19 @@ msgid "First-class Command Code CLI integration using Lightcode's native "
 msgstr "使用 Lightcode 的本机运行时实现一流的 Command Code CLI 集成。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "使用 Lightcode 原生运行时的一流 Cursor Agent 集成。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "使用 Lightcode 原生运行时的一流 Gemini CLI 集成。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "使用 Lightcode 原生运行时的一流 GitHub Copilot CLI 集成。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "使用 Lightcode 的本机运行时进行一流的 Grok Build CLI 集成。"
 

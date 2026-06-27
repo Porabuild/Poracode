@@ -2541,6 +2541,19 @@ msgstr "Tích hợp CLI Command Code hạng nhất bằng thời gian chạy g�
 "Lightcode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "Tích hợp Cursor Agent hạng nhất bằng runtime gốc của Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "Tích hợp Gemini CLI hạng nhất bằng runtime gốc của Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "Tích hợp GitHub Copilot CLI hạng nhất bằng runtime gốc của Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "Tích hợp Grok Build CLI hạng nhất bằng cách sử dụng thời gian chạy gốc "
 "của Lightcode."

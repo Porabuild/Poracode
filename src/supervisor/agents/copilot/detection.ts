@@ -295,6 +295,8 @@ export const copilotDetectionSpec: DetectionSpec = {
   update: {
     builtIn: { binary: "copilot", args: ["update"] },
     npm: "@github/copilot",
+    homebrewCask: "copilot-cli",
+    winget: "GitHub.Copilot",
   },
   authProbes: [envVarAuthProbe(["COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"]), ghAuthProbe],
   async capabilitiesProbe(ctx) {

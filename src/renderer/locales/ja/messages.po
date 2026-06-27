@@ -2510,6 +2510,19 @@ msgid "First-class Command Code CLI integration using Lightcode's native "
 msgstr "Lightcode のネイティブ ランタイムを使用したファーストクラスの Command Code CLI 統合。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "Lightcode のネイティブ ランタイムを使用したファーストクラスの Cursor Agent 統合。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "Lightcode のネイティブ ランタイムを使用したファーストクラスの Gemini CLI 統合。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "Lightcode のネイティブ ランタイムを使用したファーストクラスの GitHub Copilot CLI 統合。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "Lightcode のネイティブ ランタイムを使用したファーストクラスの Grok Build CLI 統合。"
 

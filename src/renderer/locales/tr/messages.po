@@ -2545,6 +2545,22 @@ msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Comman
 "CLI entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Cursor Agent "
+"entegrasyonu."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Gemini CLI "
+"entegrasyonu."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf GitHub "
+"Copilot CLI entegrasyonu."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Grok Build "
 "CLI entegrasyonu."

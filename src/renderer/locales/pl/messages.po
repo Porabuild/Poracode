@@ -2546,6 +2546,22 @@ msgstr "Pierwszorzędna integracja Command Code CLI przy użyciu natywnego "
 "środowiska wykonawczego Lightcode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "Pierwszorzędna integracja Cursor Agent z wykorzystaniem natywnego "
+"środowiska uruchomieniowego Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "Pierwszorzędna integracja Gemini CLI z wykorzystaniem natywnego "
+"środowiska uruchomieniowego Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "Pierwszorzędna integracja GitHub Copilot CLI z wykorzystaniem natywnego "
+"środowiska uruchomieniowego Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "Pierwszorzędna integracja Grok Build CLI przy użyciu natywnego "
 "środowiska wykonawczego Lightcode."

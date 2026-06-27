@@ -2545,6 +2545,22 @@ msgstr "Першокласна інтеграція Command Code CLI з вико
 "середовища виконання Lightcode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "Першокласна інтеграція Cursor Agent із використанням нативного "
+"середовища виконання Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "Першокласна інтеграція Gemini CLI із використанням нативного середовища "
+"виконання Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "Першокласна інтеграція GitHub Copilot CLI із використанням нативного "
+"середовища виконання Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "Першокласна інтеграція Grok Build CLI з використанням нативного "
 "середовища виконання Lightcode."

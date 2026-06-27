@@ -2510,6 +2510,19 @@ msgid "First-class Command Code CLI integration using Lightcode's native "
 msgstr "Lightcode의 네이티브 런타임을 사용한 최고 수준의 Command Code CLI 통합."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "Lightcode의 네이티브 런타임을 사용하는 일급 Cursor Agent 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "Lightcode의 네이티브 런타임을 사용하는 일급 Gemini CLI 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "Lightcode의 네이티브 런타임을 사용하는 일급 GitHub Copilot CLI 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "Lightcode의 기본 런타임을 사용하는 최고 수준의 Grok Build CLI 통합."
 

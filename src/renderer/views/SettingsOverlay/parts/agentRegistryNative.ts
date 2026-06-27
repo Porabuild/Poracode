@@ -25,6 +25,8 @@ const MAC_MISSING_CURL_BREW_MESSAGE =
   "printf 'No supported installer found. Install curl or Homebrew first, then refresh detected agents.\\n'";
 const POSIX_MISSING_CURL_MESSAGE =
   "printf 'curl is required to install this agent. Install curl, then refresh detected agents.\\n'";
+const POSIX_MISSING_NPM_MESSAGE =
+  "printf 'npm is required to install this agent. Install Node.js/npm first, then refresh detected agents.\\n'";
 
 function isWslProject(project: Project): boolean {
   return project.location.kind === "wsl";
@@ -155,11 +157,65 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
           "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g command-code@latest } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
       }),
   },
+  {
+    id: "cursor",
+    label: "Cursor",
+    description: msg`First-class Cursor Agent integration using Lightcode's native runtime.`,
+    docsUrl: "https://cursor.com/docs/cli/installation",
+    installCommand: (project) =>
+      posixOrWindows(
+        project,
+        "if command -v curl >/dev/null 2>&1; then curl https://cursor.com/install -fsS | bash; " +
+          "else printf 'curl is required to install Cursor. Install curl, then refresh detected agents.\\n'; fi",
+        "if (Get-Command irm -ErrorAction SilentlyContinue) { irm 'https://cursor.com/install?win32=true' | iex } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod first, then refresh detected agents.' }",
+      ),
+  },
+  {
+    id: "gemini",
+    label: "Gemini",
+    description: msg`First-class Gemini CLI integration using Lightcode's native runtime.`,
+    docsUrl: "https://github.com/google-gemini/gemini-cli",
+    installCommand: (project) =>
+      posixOrWindows(
+        project,
+        "if command -v npm >/dev/null 2>&1; then npm install -g @google/gemini-cli; else " +
+          POSIX_MISSING_NPM_MESSAGE +
+          "; fi",
+        "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @google/gemini-cli } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
+      ),
+  },
+  {
+    id: "copilot",
+    label: "GitHub Copilot",
+    description: msg`First-class GitHub Copilot CLI integration using Lightcode's native runtime.`,
+    docsUrl:
+      "https://docs.github.com/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli",
+    installCommand: (project) =>
+      nativeInstallCommand(project, {
+        mac:
+          "if command -v curl >/dev/null 2>&1; then curl -fsSL https://gh.io/copilot-install | bash; " +
+          "elif command -v brew >/dev/null 2>&1; then brew install --cask copilot-cli; " +
+          "elif command -v npm >/dev/null 2>&1; then npm install -g @github/copilot; else " +
+          MAC_MISSING_CURL_BREW_NPM_MESSAGE +
+          "; fi",
+        posix:
+          "if command -v curl >/dev/null 2>&1; then curl -fsSL https://gh.io/copilot-install | bash; " +
+          "elif command -v npm >/dev/null 2>&1; then npm install -g @github/copilot; else " +
+          POSIX_MISSING_CURL_NPM_MESSAGE +
+          "; fi",
+        windows:
+          "if (Get-Command winget -ErrorAction SilentlyContinue) { winget install GitHub.Copilot } elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @github/copilot } else { Write-Host 'No supported installer found. Install WinGet or Node.js/npm first, then refresh detected agents.' }",
+      }),
+  },
 ];
 
 export const KNOWN_NATIVE_FAMILY_ACP_AGENT_IDS = new Set([
   "claude-acp",
   "codex-acp",
+  "cursor",
+  "gemini",
+  "github-copilot",
+  "github-copilot-cli",
   "grok-build",
   "opencode",
 ]);
