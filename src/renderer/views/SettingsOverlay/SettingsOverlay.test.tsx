@@ -423,7 +423,7 @@ describe("SettingsOverlay", () => {
     render(<SettingsOverlay onClose={() => undefined} />);
 
     // "sleep" matches no section label, but a setting under General.
-    fireEvent.change(screen.getByPlaceholderText("Filter settings"), {
+    fireEvent.change(screen.getByPlaceholderText("Search settings"), {
       target: { value: "sleep" },
     });
 
@@ -435,7 +435,7 @@ describe("SettingsOverlay", () => {
   it("surfaces the description snippet when only the description matches", () => {
     render(<SettingsOverlay onClose={() => undefined} />);
 
-    fireEvent.change(screen.getByPlaceholderText("Filter settings"), {
+    fireEvent.change(screen.getByPlaceholderText("Search settings"), {
       target: { value: "awake" },
     });
 
@@ -447,7 +447,7 @@ describe("SettingsOverlay", () => {
   it("navigates to the section when a setting result is clicked", () => {
     render(<SettingsOverlay onClose={() => undefined} />);
 
-    fireEvent.change(screen.getByPlaceholderText("Filter settings"), {
+    fireEvent.change(screen.getByPlaceholderText("Search settings"), {
       target: { value: "sleep" },
     });
     fireEvent.click(screen.getByText("Prevent sleep while working"));
@@ -457,7 +457,7 @@ describe("SettingsOverlay", () => {
 
   it("restores the section list when the query is cleared", () => {
     render(<SettingsOverlay onClose={() => undefined} />);
-    const input = screen.getByPlaceholderText("Filter settings");
+    const input = screen.getByPlaceholderText("Search settings");
 
     fireEvent.change(input, { target: { value: "sleep" } });
     expect(screen.queryByRole("button", { name: "Audio" })).not.toBeInTheDocument();

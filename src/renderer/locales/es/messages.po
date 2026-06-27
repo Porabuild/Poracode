@@ -2489,8 +2489,8 @@ msgstr "Los archivos que coinciden con estos globs se ocultan de la búsqueda de
 "menciones @file."
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Filtrar ajustes"
+#~ msgid "Filter settings"
+#~ msgstr "Filtrar ajustes"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -5137,6 +5137,10 @@ msgstr "Buscar repositorios…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Buscar elementos de runtime…"
+
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Buscar ajustes"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
