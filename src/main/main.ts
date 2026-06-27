@@ -18,7 +18,7 @@ import {
   installPickerProtocolHandler,
   registerPickerProtocolScheme,
 } from "./browser";
-import { buildChromeLikeUserAgent } from "./browser/userAgent";
+import { buildBrowserUserAgent } from "./browser/userAgent";
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { createMainWindow } from "./window/createMainWindow";
@@ -49,8 +49,8 @@ if (process.platform === "win32") {
   app.commandLine.appendSwitch("force-color-profile", "srgb");
 }
 
-const chromeLikeUserAgent = buildChromeLikeUserAgent(app.userAgentFallback);
-app.userAgentFallback = chromeLikeUserAgent;
+const browserUserAgent = buildBrowserUserAgent(app.userAgentFallback);
+app.userAgentFallback = browserUserAgent;
 
 if (baseDirOverride) {
   app.setPath("userData", join(baseDirOverride, "userData"));
@@ -190,7 +190,7 @@ function createBrowserExtractWindow(): BrowserWindow {
     posthogKey,
     sentryEnabled,
     windowChromeHeight: WINDOW_CHROME_HEIGHT,
-    browserUserAgent: chromeLikeUserAgent,
+    browserUserAgent,
     appearance: windowChrome.appearance,
     sidebarTranslucency: windowChrome.sidebarTranslucency,
     openDevTools: false,
@@ -291,7 +291,7 @@ if (!hasSingleInstanceLock) {
 
     installLocalFileProtocolHandler();
     installPickerProtocolHandler();
-    electronSession.fromPartition("persist:lightcode-browser").setUserAgent(chromeLikeUserAgent);
+    electronSession.fromPartition("persist:lightcode-browser").setUserAgent(browserUserAgent);
 
     lightcodePaths = prepareLightcodeDataRoot(
       baseDirOverride ??
@@ -366,7 +366,7 @@ if (!hasSingleInstanceLock) {
       },
     );
 
-    browserPanelManager = new BrowserPanelManager(lightcodePaths, chromeLikeUserAgent, {
+    browserPanelManager = new BrowserPanelManager(lightcodePaths, browserUserAgent, {
       isExtracted: () => browserExtractWindow !== null && !browserExtractWindow.isDestroyed(),
       focusExtractedWindow: focusBrowserExtractWindow,
     });
@@ -411,7 +411,7 @@ if (!hasSingleInstanceLock) {
       posthogKey,
       sentryEnabled,
       windowChromeHeight: WINDOW_CHROME_HEIGHT,
-      browserUserAgent: chromeLikeUserAgent,
+      browserUserAgent,
       appearance: windowChrome.appearance,
       sidebarTranslucency: windowChrome.sidebarTranslucency,
       ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
@@ -502,7 +502,7 @@ if (!hasSingleInstanceLock) {
           posthogKey,
           sentryEnabled,
           windowChromeHeight: WINDOW_CHROME_HEIGHT,
-          browserUserAgent: chromeLikeUserAgent,
+          browserUserAgent,
           appearance: reopenChrome.appearance,
           sidebarTranslucency: reopenChrome.sidebarTranslucency,
           ...(process.env.VITE_DEV_SERVER_URL
