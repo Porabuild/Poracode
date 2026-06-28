@@ -14,6 +14,7 @@ import {
 import { isIgnorableRejection, isIgnorableWindowError } from "./rendererGlobalErrors";
 import { bootstrapAppThemeFromCache } from "./theme/applyAppTheme";
 import { bootstrapAppLocaleFromCache } from "./i18n/i18n";
+import { installDevBridge } from "./devBridge";
 
 if (import.meta.env.DEV) {
   const warn = console.warn.bind(console);
@@ -35,6 +36,10 @@ if (import.meta.env.DEV) {
 
 document.title = getAppName(readBridge().channel, import.meta.env.DEV);
 initializeRendererSentry();
+
+// DEV-only: expose stores + nav/state helpers on window for CDP smoke tests.
+// No-op (dead-code eliminated) in production builds.
+installDevBridge();
 
 document.documentElement.dataset.platform =
   typeof window !== "undefined" && "lightcode" in window ? readBridge().platform : "unknown";

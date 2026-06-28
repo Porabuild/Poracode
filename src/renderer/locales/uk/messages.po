@@ -2160,6 +2160,11 @@ msgid "Downloading into “{0}”. This can take a moment for large repositories
 msgstr "Завантаження до «{0}». Для великих репозиторіїв це може зайняти деякий "
 "час."
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "Завантаження оновлення"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2170,12 +2175,12 @@ msgid "Downloading voice model..."
 msgstr "Завантаження голосової моделі..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "Завантаження{v} — {percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "Завантаження{v} — {percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "Завантаження{versionLabel}"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "Завантаження{versionLabel}"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"

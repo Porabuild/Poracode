@@ -2137,6 +2137,11 @@ msgstr "画像をダウンロード"
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
 msgstr "「{0}」にダウンロード中です。大規模なリポジトリの場合、これには時間がかかることがあります。"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "アップデートをダウンロード中"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2147,12 +2152,12 @@ msgid "Downloading voice model..."
 msgstr "音声モデルをダウンロードしています..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "ダウンロード中{v} — {percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "ダウンロード中{v} — {percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "{versionLabel}をダウンロード中"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "{versionLabel}をダウンロード中"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"

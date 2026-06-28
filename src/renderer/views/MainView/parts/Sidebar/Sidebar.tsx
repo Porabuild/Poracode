@@ -58,55 +58,48 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
   const downloadPercent = useUpdateStore((s) => s.downloadPercent);
   const transferred = useUpdateStore((s) => s.downloadTransferred);
   const total = useUpdateStore((s) => s.downloadTotal);
-  const bytesPerSecond = useUpdateStore((s) => s.downloadBytesPerSecond);
 
   if (updatePhase !== "downloading" && updatePhase !== "downloaded") {
     return null;
   }
 
   if (updatePhase === "downloading") {
-    const versionLabel = updateVersion ? ` v${updateVersion}` : "";
+    const percent = Math.min(100, Math.max(0, Math.round(downloadPercent)));
     const byteLine =
       transferred != null && total != null && total > 0
         ? `${formatBytes(transferred)} / ${formatBytes(total)}`
         : null;
-    const speedLine =
-      bytesPerSecond != null && bytesPerSecond > 0 ? `${formatBytes(bytesPerSecond)}/s` : null;
 
     if (iconOnly) {
       return (
         <Tooltip delay={150}>
           <Tooltip.Trigger>
             <div className="flex h-8 w-8 shrink-0 items-center justify-center">
-              <Download className="size-4 animate-pulse text-accent" />
+              <Download className="size-4 animate-pulse text-muted" />
             </div>
           </Tooltip.Trigger>
           <Tooltip.Content placement="right">
-            <Trans>Downloading{versionLabel}</Trans> — {Math.round(downloadPercent)}%
-            {byteLine ? ` · ${byteLine}` : ""}
-            {speedLine ? ` · ${speedLine}` : ""}
+            <Trans>Downloading update</Trans> — {percent}%{byteLine ? ` · ${byteLine}` : ""}
           </Tooltip.Content>
         </Tooltip>
       );
     }
 
+    // Compact, fixed-height status: one line (bytes + percent) over a thin bar.
+    // The long target version is omitted — it overflowed/clipped and the About
+    // page already surfaces it. `tabular-nums` keeps the digits from reflowing.
     return (
       <div className="flex w-full items-center gap-2 rounded-3xl px-2 py-1.5 text-muted">
-        <Download className="size-4 shrink-0 animate-pulse text-accent" />
+        <Download className="size-4 shrink-0 animate-pulse text-muted" />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="truncate text-xs">
-            <Trans>Downloading{versionLabel}</Trans>
-          </span>
-          <div className="flex min-w-0 items-center justify-between gap-2 text-xs opacity-80">
-            <span className="truncate">{byteLine ?? ""}</span>
-            <span className="shrink-0 whitespace-nowrap">
-              {Math.round(downloadPercent)}%{speedLine ? ` · ${speedLine}` : ""}
-            </span>
+          <div className="flex min-w-0 items-center justify-between gap-2 text-xs tabular-nums">
+            <span className="truncate">{byteLine ?? <Trans>Downloading update</Trans>}</span>
+            <span className="shrink-0">{percent}%</span>
           </div>
-          <div className="h-1 w-full rounded-full bg-[var(--row-active)]">
+          <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--row-active)]">
             <div
-              className="h-1 rounded-full bg-accent transition-[width] duration-300"
-              style={{ width: `${Math.round(downloadPercent)}%` }}
+              className="h-1 rounded-full bg-foreground transition-[width] duration-300"
+              style={{ width: `${percent}%` }}
             />
           </div>
         </div>
@@ -117,7 +110,7 @@ function UpdateButtons(props: { iconOnly?: boolean }) {
   return (
     <SidebarButton
       iconOnly={iconOnly}
-      icon={<RefreshCw className="size-4 text-accent" />}
+      icon={<RefreshCw className="size-4" />}
       label={updateVersion ? t`Install v${updateVersion}` : t`Install update`}
       onPress={() => void readBridge().installUpdate()}
     />

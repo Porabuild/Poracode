@@ -2161,6 +2161,11 @@ msgid "Downloading into “{0}”. This can take a moment for large repositories
 msgstr "Descargando en «{0}». Esto puede tardar un momento en repositorios "
 "grandes."
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "Descargando actualización"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2171,12 +2176,12 @@ msgid "Downloading voice model..."
 msgstr "Descargando modelo de voz..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "Descargando{v} — {percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "Descargando{v} — {percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "Descargando{versionLabel}"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "Descargando{versionLabel}"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"

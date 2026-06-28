@@ -2138,6 +2138,11 @@ msgstr "이미지 다운로드"
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
 msgstr "“{0}”에 다운로드 중입니다. 대규모 리포지토리의 경우 시간이 걸릴 수 있습니다."
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "업데이트 다운로드 중"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2148,12 +2153,12 @@ msgid "Downloading voice model..."
 msgstr "음성 모델 다운로드 중..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "{v} 다운로드 중 — {percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "{v} 다운로드 중 — {percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "{versionLabel} 다운로드 중"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "{versionLabel} 다운로드 중"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"

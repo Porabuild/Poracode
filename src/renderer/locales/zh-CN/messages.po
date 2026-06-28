@@ -2135,6 +2135,11 @@ msgstr "下载图片"
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
 msgstr "下载到“{0}”。对于大型存储库，这可能需要一些时间。"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "正在下载更新"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2145,12 +2150,12 @@ msgid "Downloading voice model..."
 msgstr "正在下载语音模型..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "下载{v}—{percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "下载{v}—{percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "正在下载{versionLabel}"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "正在下载{versionLabel}"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"

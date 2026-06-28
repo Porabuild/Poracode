@@ -2161,6 +2161,11 @@ msgstr "Görseli indir"
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
 msgstr "“{0}” içine indiriliyor. Büyük depolar için bu biraz zaman alabilir."
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "Güncelleme indiriliyor"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2171,12 +2176,12 @@ msgid "Downloading voice model..."
 msgstr "Ses modeli indiriliyor..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "İndiriliyor{v} — {percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "İndiriliyor{v} — {percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "{versionLabel} indiriliyor"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "{versionLabel} indiriliyor"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"

@@ -2160,6 +2160,11 @@ msgid "Downloading into “{0}”. This can take a moment for large repositories
 msgstr "Đang tải xuống “{0}”. Việc này có thể mất một chút thời gian đối với "
 "các kho lưu trữ lớn."
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "Đang tải xuống bản cập nhật"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2170,12 +2175,12 @@ msgid "Downloading voice model..."
 msgstr "Đang tải xuống mẫu giọng nói..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "Đang tải xuống {v} — {percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "Đang tải xuống {v} — {percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "Đang tải xuống {versionLabel}"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "Đang tải xuống {versionLabel}"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"
