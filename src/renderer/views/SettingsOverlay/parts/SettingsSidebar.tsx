@@ -17,6 +17,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Palette,
+  Plug,
   RefreshCw,
   Search,
   Settings2,
@@ -180,6 +181,7 @@ export function SettingsSidebar(props: {
   ];
   const sectionsAfterAgents: { id: SettingsSection; icon: ReactNode; label: string }[] = [
     { id: "browser", icon: <Globe className="size-4" />, label: t`Browser` },
+    { id: "mcp", icon: <Plug className="size-4" />, label: t`MCP Servers` },
     { id: "usage", icon: <Gauge className="size-4" />, label: t`Usage` },
     { id: "archived", icon: <Archive className="size-4" />, label: t`Archived Threads` },
     { id: "about", icon: <Info className="size-4" />, label: t`About` },
@@ -420,6 +422,13 @@ export function SettingsSidebar(props: {
               label={t`Browser`}
               isActive={activeSection === "browser"}
               onPress={() => onSectionChange("browser")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Plug className="size-4" />}
+              label={t`MCP Servers`}
+              isActive={activeSection === "mcp"}
+              onPress={() => onSectionChange("mcp")}
             />
             <SidebarButton
               iconOnly

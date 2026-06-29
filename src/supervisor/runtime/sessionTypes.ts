@@ -2,6 +2,7 @@ import type { IPty } from "node-pty";
 import type {
   AgentKind,
   AgentSlashCommand,
+  McpServer,
   ProjectLocation,
   PromptSegment,
   SessionRef,
@@ -46,6 +47,8 @@ export interface SessionRuntime {
   projectLocation: ProjectLocation;
   config: ThreadConfig;
   sessionRef?: SessionRef;
+  /** Lightcode-managed MCP servers resolved at launch; reused on reopen/restart. */
+  userMcpServers?: McpServer[];
   slashCommands?: AgentSlashCommand[];
   status: ThreadStatus;
   attention: ThreadAttention;

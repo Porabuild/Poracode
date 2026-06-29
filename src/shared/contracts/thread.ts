@@ -10,6 +10,7 @@ import {
   threadStatusSchema,
 } from "./common";
 import { threadConfigSchema } from "./config";
+import { mcpServerSchema } from "./mcpServer";
 
 /** How thread status/attention is derived for terminal agents (supervisor → renderer). */
 export const threadStatusSourceSchema = z.enum(["cli_hook", "terminal_parse", "server"]);
@@ -97,6 +98,13 @@ export const startThreadPayloadSchema = z.object({
    * the duplicate. Only set for GUI threads with a fresh prompt.
    */
   userMessageItemId: z.string().min(1).optional(),
+  /**
+   * Lightcode-managed MCP servers (global merged with project-scoped) resolved
+   * by the renderer at launch. The supervisor narrows this to the enabled
+   * entries that apply to `agentKind` and projects them into the agent's native
+   * MCP config alongside the built-in browser server.
+   */
+  userMcpServers: z.array(mcpServerSchema).optional(),
 });
 export type StartThreadPayload = z.infer<typeof startThreadPayloadSchema>;
 

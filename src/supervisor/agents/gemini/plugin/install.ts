@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { toWslUncPath } from "@/shared/wsl";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import { buildGeminiBrowserMcpServers } from "../mcpBrowser";
+import { buildGeminiUserMcpServers } from "@/supervisor/agents/userMcp";
 import type { AgentEnvContext } from "../../base";
 import {
   FORWARD_RUNTIME_FILE,
@@ -55,6 +56,7 @@ interface GeminiSettings {
       args?: string[];
       env?: Record<string, string>;
       httpUrl?: string;
+      url?: string;
       headers?: Record<string, string>;
       timeout?: number;
     }
@@ -148,14 +150,21 @@ export function syncGeminiBrowserMcpSettings(
   const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
   try {
     const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as GeminiSettings;
+    const userServers = buildGeminiUserMcpServers(ctx.userMcpServers ?? []);
+    let browserServers: Record<string, unknown> | undefined;
     if (ctx.browserMcpEnabled && browserMcp) {
       const location = isWslPluginContext(ctx)
         ? ({ kind: "wsl", distro: ctx.wslDistro } as const)
         : process.platform === "win32"
           ? ({ kind: "windows" } as const)
           : ({ kind: "posix" } as const);
-      const servers = buildGeminiBrowserMcpServers(location, browserMcp);
-      if (servers) settings.mcpServers = servers;
+      browserServers = buildGeminiBrowserMcpServers(location, browserMcp);
+    }
+    // Browser MCP is Lightcode-provided and wins on a name clash, so a user
+    // server named "browser" can't shadow the built-in one.
+    const merged = { ...userServers, ...(browserServers ?? {}) };
+    if (Object.keys(merged).length > 0) {
+      settings.mcpServers = merged as NonNullable<GeminiSettings["mcpServers"]>;
     } else {
       delete settings.mcpServers;
     }

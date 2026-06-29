@@ -13,6 +13,7 @@ import type {
   AgentInstanceConfig,
   CommitDefaultAction,
   InstalledAcpRegistryAgent,
+  McpServer,
   NewThreadMode,
   NotificationFilter,
   PrCreateMode,
@@ -110,6 +111,8 @@ interface SharedSettingsState extends SharedSettings {
     error?: boolean;
   }) => void;
   setNotifyL2Cli: (value: boolean) => void;
+  /** Replace the global Lightcode-managed MCP server list. */
+  setMcpServers: (servers: McpServer[]) => void;
   toggleFavoriteModel: (
     agentKind: string,
     modelId: string,
@@ -570,6 +573,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ notifyL2Cli });
     persistSettings(selectSharedSettings(get()));
   },
+  setMcpServers: (mcpServers) => {
+    set({ mcpServers });
+    persistSettings(selectSharedSettings(get()));
+  },
   toggleFavoriteModel: (agentKind, modelId, presentationMode) => {
     const current = get().favoriteModels;
     const idx = current.findIndex(
@@ -704,6 +711,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     browser: state.browser,
     audio: state.audio,
     usage: state.usage,
+    mcpServers: state.mcpServers,
   };
 }
 

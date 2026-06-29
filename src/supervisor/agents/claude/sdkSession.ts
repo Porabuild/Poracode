@@ -28,6 +28,7 @@ import type {
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { buildClaudeBrowserMcpServers } from "./mcpBrowser";
+import { buildClaudeUserMcpServers } from "@/supervisor/agents/userMcp";
 import {
   createKnownSessionRef,
   buildAgentCommand,
@@ -947,6 +948,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         this.currentConfig.browserMcp === true,
         this.input.browserMcp,
       );
+      const userMcpServers = buildClaudeUserMcpServers(this.input.userMcpServers ?? []);
+      const mcpServers =
+        Object.keys(userMcpServers).length > 0 || browserMcpServers
+          ? { ...userMcpServers, ...(browserMcpServers ?? {}) }
+          : undefined;
       let spawnClaudeCodeProcess: ((spawnOptions: SpawnOptions) => SpawnedProcess) | undefined;
       switch (this.input.projectLocation.kind) {
         case "wsl": {
@@ -990,9 +996,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             }
           : {}),
         ...(claudeExecutablePath ? { pathToClaudeCodeExecutable: claudeExecutablePath } : {}),
-        ...(browserMcpServers
-          ? ({ mcpServers: browserMcpServers } as Partial<ClaudeQueryOptions>)
-          : {}),
+        ...(mcpServers ? ({ mcpServers } as Partial<ClaudeQueryOptions>) : {}),
         ...(spawnClaudeCodeProcess ? { spawnClaudeCodeProcess } : {}),
       };
 

@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   agentInstanceConfigMapSchema,
   installedAcpRegistryAgentSchema,
+  mcpServerSchema,
   gitReviewModeSchema,
   prCreateModeSchema,
   commitDefaultActionSchema,
@@ -352,6 +353,12 @@ export const sharedSettingsSchema = z.object({
   audio: audioSettingsSchema,
   /** Provider usage tracking (auto-refresh cadence, per-provider opt-out, cost). */
   usage: usageSettingsSchema,
+  /**
+   * Global, Lightcode-managed MCP servers projected into every agent at launch
+   * (unless scoped via `agentKinds`). Per-project servers live on the project
+   * record and are merged on top. See `contracts/mcpServer`.
+   */
+  mcpServers: z.array(mcpServerSchema).default([]),
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -465,6 +472,7 @@ export const defaultSharedSettings: SharedSettings = {
     providerOrder: [],
     collapsedProviders: [],
   },
+  mcpServers: [],
 };
 
 function parseSettingOrDefault<T>(schema: z.ZodType<T>, value: unknown, fallback: T): T {

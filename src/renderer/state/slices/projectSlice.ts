@@ -1,4 +1,5 @@
 import type {
+  McpServer,
   Project,
   ProjectDraftConfig,
   ProjectLocation,
@@ -40,6 +41,7 @@ export interface ProjectSlice {
   deleteProject: (projectId: string) => void;
   updateProjectDraftConfig: (projectId: string, draftConfig: ProjectDraftConfig) => void;
   updateProjectScripts: (projectId: string, scripts: ProjectScripts) => void;
+  updateProjectMcpServers: (projectId: string, mcpServers: McpServer[]) => void;
   updateProjectSearchSettings: (
     projectId: string,
     searchSettings: ProjectSearchSettings | undefined,
@@ -177,6 +179,12 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
     set((state) => ({
       projects: state.projects.map((project) =>
         project.id === projectId ? { ...project, scripts } : project,
+      ),
+    })),
+  updateProjectMcpServers: (projectId, mcpServers) =>
+    set((state) => ({
+      projects: state.projects.map((project) =>
+        project.id === projectId ? { ...project, mcpServers } : project,
       ),
     })),
   updateProjectSearchSettings: (projectId, searchSettings) =>

@@ -4,6 +4,7 @@ import { dbProcedures } from "./procedures/db";
 import { githubProcedures } from "./procedures/github";
 import { gitProcedures } from "./procedures/git";
 import { lspProcedures } from "./procedures/lsp";
+import { mcpProcedures } from "./procedures/mcp";
 import { profileProcedures } from "./procedures/profile";
 import { projectTreeProcedures } from "./procedures/projectTree";
 import { settingsProcedures } from "./procedures/settings";
@@ -23,6 +24,7 @@ export const groupedIpcProcedures = {
   lsp: lspProcedures,
   browser: browserProcedures,
   usage: usageProcedures,
+  mcp: mcpProcedures,
   profile: profileProcedures,
 } as const;
 
@@ -38,6 +40,7 @@ export const ipcProcedureMap = {
   ...lspProcedures,
   ...browserProcedures,
   ...usageProcedures,
+  ...mcpProcedures,
   ...profileProcedures,
 } as const;
 
@@ -125,6 +128,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "setProfileIdentity",
   "copyShareImage",
   "appendUsageEvents",
+  "getDetectedMcpServers",
 ] as const satisfies readonly IpcProcedureName[];
 
 export type MainLocalProcedureName = (typeof MAIN_LOCAL_PROCEDURE_NAMES)[number];

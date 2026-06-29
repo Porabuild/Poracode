@@ -44,6 +44,7 @@ import {
   writeSharedSettingsFile,
 } from "../sharedSettingsFile";
 import { readKeybindingsFile, writeKeybindingsFile } from "../keybindingsFile";
+import { detectMcpServers } from "../mcp/detectMcpServers";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
 import {
   defineMainLocalIpcHandlers,
@@ -186,6 +187,7 @@ export function createLocalIpcHandlers(
     getKeybindings: () => readKeybindingsFile(options.requireLightcodePaths().keybindingsPath),
     setKeybindings: (file) =>
       writeKeybindingsFile(options.requireLightcodePaths().keybindingsPath, file),
+    getDetectedMcpServers: (payload) => detectMcpServers(payload?.projectPath),
     revealProjectEntry: async (payload) => {
       shell.showItemInFolder(resolveProjectFsPath(payload));
     },

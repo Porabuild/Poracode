@@ -132,6 +132,7 @@ describe("sharedSettingsFile", () => {
         providerOrder: [],
         collapsedProviders: [],
       },
+      mcpServers: [],
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -234,6 +235,7 @@ describe("sharedSettingsFile", () => {
         providerOrder: [],
         collapsedProviders: [],
       },
+      mcpServers: [],
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');
   });

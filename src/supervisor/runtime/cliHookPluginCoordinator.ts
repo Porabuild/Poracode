@@ -11,6 +11,7 @@ import type {
   AgentHookPluginMutationResult,
   AgentHookPluginStatus,
   GetAgentHookPluginStatusesPayload,
+  McpServer,
   ProjectLocation,
 } from "@/shared/contracts";
 import {
@@ -189,6 +190,7 @@ export class CliHookPluginCoordinator {
     projectLocation?: ProjectLocation;
     browserMcpEnabled?: boolean;
     browserMcp?: BrowserMcpHttpConfig;
+    userMcpServers?: McpServer[];
   }): Promise<{ env: Record<string, string>; extraArgs: string[] } | undefined> {
     // The `disableCliHookPlugin` dev toggle is handled in the supervisor's
     // hook dispatcher (envelopes are dropped on receive). Install, launch
@@ -212,6 +214,8 @@ export class CliHookPluginCoordinator {
     const ctx = this.envContext(input.agentKind, input.projectLocation);
     if (input.browserMcpEnabled !== undefined) ctx.browserMcpEnabled = input.browserMcpEnabled;
     if (input.browserMcp) ctx.browserMcp = input.browserMcp;
+    if (input.userMcpServers && input.userMcpServers.length > 0)
+      ctx.userMcpServers = input.userMcpServers;
     const outcome = await this.ensureInstalledOrUpdated(adapter, slice, ctx);
     if (!outcome.ok) {
       return undefined;

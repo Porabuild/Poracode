@@ -11,6 +11,7 @@ import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import { ProfileSettings } from "./parts/ProfileSettings";
 import { AppearanceSettings } from "./parts/AppearanceSettings";
 import { BrowserSettings } from "./parts/BrowserSettings";
+import { McpServersSettings } from "./parts/McpServersSettings";
 import { UsageSettings } from "./parts/UsageSettings";
 import { AudioSettings } from "./parts/AudioSettings";
 import { GeneralSettings } from "./parts/GeneralSettings";
@@ -47,6 +48,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   agents: () => <AgentSettingsEmpty />,
   agentsGeneral: () => <AgentsGeneralSettings />,
   browser: () => <BrowserSettings />,
+  mcp: () => <McpServersSettings />,
   usage: () => <UsageSettings />,
   archived: () => <ArchivedThreadsSettings />,
   about: () => <AboutSettings />,

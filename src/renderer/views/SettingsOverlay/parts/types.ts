@@ -15,6 +15,7 @@ export type SettingsSection =
   | "shortcuts"
   | "agents"
   | "browser"
+  | "mcp"
   | "usage"
   | "archived"
   | "about"

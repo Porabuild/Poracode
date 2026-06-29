@@ -1,6 +1,6 @@
 import { dirname as posixDirname } from "node:path/posix";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
-import type { ProjectLocation, SessionRef, ThreadConfig } from "@/shared/contracts";
+import type { McpServer, ProjectLocation, SessionRef, ThreadConfig } from "@/shared/contracts";
 import {
   buildAgentCommand,
   DEFAULT_WSL_EXEC_PATH,
@@ -16,9 +16,19 @@ import {
 } from "./plugin/install";
 import { buildCodexBrowserMcpArgs, buildCodexBrowserMcpEnv } from "./mcpBrowser";
 import { resolveCodexWindowsLaunchBinary } from "./windowsExecutable";
+import { buildCodexUserMcp } from "@/supervisor/agents/userMcp";
 
 const CODEX_GOALS_FEATURE_FLAG = "goals";
 const codexGoalsSupportCache = new Map<string, boolean>();
+
+/** Merge the browser + user MCP bearer-token env Codex needs at spawn time. */
+function mergeCodexMcpEnv(
+  browserMcpEnv: Record<string, string> | undefined,
+  userMcpEnv: Record<string, string>,
+): { env: Record<string, string>; hasEnv: boolean } {
+  const env = { ...(browserMcpEnv ?? {}), ...userMcpEnv };
+  return { env, hasEnv: Object.keys(env).length > 0 };
+}
 
 interface BuildCodexArgsOptions {
   config: ThreadConfig;
@@ -51,6 +61,10 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
     args.push(
       ...buildCodexBrowserMcpArgs(location, config.browserMcp === true, launchOptions?.browserMcp),
     );
+  }
+
+  if (launchOptions?.userMcpServers && launchOptions.userMcpServers.length > 0) {
+    args.push(...buildCodexUserMcp(launchOptions.userMcpServers).args);
   }
 
   if (!launchOptions?.suppressResumeConfigOverrides) {
@@ -86,7 +100,10 @@ export function buildCodexArgvFor(
   launchOptions?: AgentLaunchOptions,
 ): AgentArgvSpec {
   const binary = resolveCodexWindowsLaunchBinary(location) ?? "codex";
-  const browserMcpEnv = buildCodexBrowserMcpEnv(launchOptions?.browserMcp);
+  const { env: mcpEnv, hasEnv: hasMcpEnv } = mergeCodexMcpEnv(
+    buildCodexBrowserMcpEnv(launchOptions?.browserMcp),
+    buildCodexUserMcp(launchOptions?.userMcpServers ?? []).env,
+  );
   const enableGoals = isCodexGoalsSupported(location);
   const baseArgsOptions: BuildCodexArgsOptions = {
     config,
@@ -110,7 +127,7 @@ export function buildCodexArgvFor(
     return {
       binary,
       args,
-      ...(browserMcpEnv ? { env: browserMcpEnv } : {}),
+      ...(hasMcpEnv ? { env: mcpEnv } : {}),
     };
   }
 
@@ -127,7 +144,7 @@ export function buildCodexArgvFor(
   return {
     binary,
     args,
-    ...(browserMcpEnv ? { env: browserMcpEnv } : {}),
+    ...(hasMcpEnv ? { env: mcpEnv } : {}),
   };
 }
 
@@ -138,6 +155,7 @@ export function buildCodexAppServerCommand(
     wslNodePath?: string;
     browserMcpEnabled?: boolean;
     browserMcp?: BrowserMcpHttpConfig;
+    userMcpServers?: McpServer[];
   },
 ): CommandSpec {
   const wslExecPath = options?.wslExecPath;
@@ -147,10 +165,15 @@ export function buildCodexAppServerCommand(
     options?.browserMcpEnabled === true,
     options?.browserMcp,
   );
-  const browserMcpEnv = buildCodexBrowserMcpEnv(options?.browserMcp);
+  const userMcp = buildCodexUserMcp(options?.userMcpServers ?? []);
+  const { env: mcpEnv, hasEnv: hasMcpEnv } = mergeCodexMcpEnv(
+    buildCodexBrowserMcpEnv(options?.browserMcp),
+    userMcp.env,
+  );
   const args = [
     ...(isCodexGoalsSupported(location, wslExecPath) ? ["--enable", CODEX_GOALS_FEATURE_FLAG] : []),
     ...browserMcpArgs,
+    ...userMcp.args,
     "app-server",
   ];
   if (location.kind === "wsl") {
@@ -169,9 +192,7 @@ export function buildCodexAppServerCommand(
         "--",
         "/usr/bin/env",
         `PATH=${pathSegments.join(":")}`,
-        ...(browserMcpEnv
-          ? Object.entries(browserMcpEnv).map(([name, value]) => `${name}=${value}`)
-          : []),
+        ...(hasMcpEnv ? Object.entries(mcpEnv).map(([name, value]) => `${name}=${value}`) : []),
         wslExecPath ?? "codex",
         ...args,
       ],
@@ -182,7 +203,7 @@ export function buildCodexAppServerCommand(
     "codex",
     args,
     resolveCodexWindowsLaunchBinary(location) ?? wslExecPath,
-    browserMcpEnv,
+    hasMcpEnv ? mcpEnv : undefined,
   );
 }
 

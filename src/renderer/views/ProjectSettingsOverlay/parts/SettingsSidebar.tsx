@@ -4,6 +4,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Play,
+  Plug,
   Search,
   Settings2,
 } from "lucide-react";
@@ -32,6 +33,7 @@ export function SettingsSidebar(props: {
     { id: "general", icon: <Settings2 className="size-4" />, label: t`General` },
     { id: "worktrees", icon: <GitFork className="size-4" />, label: t`Worktrees` },
     { id: "actions", icon: <Play className="size-4" />, label: t`Actions` },
+    { id: "mcp", icon: <Plug className="size-4" />, label: t`MCP Servers` },
     { id: "search", icon: <Search className="size-4" />, label: t`Search` },
   ];
 

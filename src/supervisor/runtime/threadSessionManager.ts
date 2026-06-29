@@ -33,10 +33,13 @@ import {
   areAgentSlashCommandsEqual,
   isClaudeProfileKind,
   isThreadConfigEqual,
+  resolveMcpServersForAgent,
+  type McpServer,
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { terminateProcessTree } from "@/shared/processTree";
 import {
+  BROWSER_MCP_SERVER_NAME,
   resolveBrowserMcpHttpConfigForLaunch,
   type BrowserMcpHttpConfig,
 } from "@/supervisor/agents/browserMcp";
@@ -1106,6 +1109,7 @@ export class ThreadSessionManager {
     projectLocation: ProjectLocation,
     config: ThreadConfig,
     browserMcp: BrowserMcpHttpConfig | undefined,
+    userMcpServers: McpServer[],
   ): Promise<{ env: Record<string, string>; extraArgs: string[] }> {
     const adapter = this.options.adapters.get(agentKind);
     const liveInputMode = adapter?.capabilities.liveInputMode ?? "terminal";
@@ -1128,6 +1132,7 @@ export class ThreadSessionManager {
         projectLocation,
         browserMcpEnabled: this.isBrowserMcpEnabledForLaunch(adapter, config),
         ...(browserMcp !== undefined ? { browserMcp } : {}),
+        ...(userMcpServers.length > 0 ? { userMcpServers } : {}),
       });
       const merged = resolved ?? { env: {}, extraArgs: [] };
       const hookUrl = merged.env.LIGHTCODE_HOOK_URL;
@@ -1301,6 +1306,13 @@ export class ThreadSessionManager {
       payload.projectLocation,
       payload.config,
     );
+    const userMcpServers = resolveMcpServersForAgent(
+      payload.userMcpServers ?? [],
+      payload.agentKind,
+    ).filter(
+      (server) =>
+        !browserMcp || server.name.toLowerCase() !== BROWSER_MCP_SERVER_NAME.toLowerCase(),
+    );
     const structuredSession = await this.createStructuredSession(
       adapter,
       payload.threadId,
@@ -1308,6 +1320,7 @@ export class ThreadSessionManager {
       payload.projectLocation,
       payload.config,
       browserMcp,
+      userMcpServers,
       payload.sessionRef,
       requestedPresentation,
     );
@@ -1367,6 +1380,7 @@ export class ThreadSessionManager {
         config: payload.config,
         initialSize: payload.initialSize,
         launchPrompt: "",
+        ...(userMcpServers.length > 0 ? { userMcpServers } : {}),
         structuredSession,
         ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
         presentationMode: requestedPresentation,
@@ -1436,21 +1450,24 @@ export class ThreadSessionManager {
       adapter,
       structuredSession?.launchOptions,
     );
-    const launchOptionsWithBrowserMcp = this.launchOptionsWithBrowserMcp(launchOptions, browserMcp);
+    const launchOptionsResolved: AgentLaunchOptions = {
+      ...this.launchOptionsWithBrowserMcp(launchOptions, browserMcp),
+      ...(userMcpServers.length > 0 ? { userMcpServers } : {}),
+    };
     const argv = payload.sessionRef
       ? adapter.buildResumeArgv(
           payload.projectLocation,
           payload.config,
           launchPrompt,
           payload.sessionRef,
-          launchOptionsWithBrowserMcp,
+          launchOptionsResolved,
         )
       : adapter.buildLaunchArgv(
           payload.projectLocation,
           payload.config,
           launchPrompt,
           payload.sessionRef,
-          launchOptionsWithBrowserMcp,
+          launchOptionsResolved,
         );
 
     // Append CLI hook plugin args (e.g. Claude `--settings <path>`); env vars
@@ -1466,6 +1483,7 @@ export class ThreadSessionManager {
       payload.projectLocation,
       payload.config,
       browserMcp,
+      userMcpServers,
     );
     if (cliHookExtras.extraArgs.length > 0) {
       argv.args = this.mergeCliHookExtraArgs(
@@ -1508,6 +1526,7 @@ export class ThreadSessionManager {
       config: payload.config,
       initialSize: payload.initialSize,
       launchPrompt,
+      ...(userMcpServers.length > 0 ? { userMcpServers } : {}),
       command,
       ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
       ...(keepStructuredSession ? { structuredSession } : {}),
@@ -1536,6 +1555,7 @@ export class ThreadSessionManager {
     projectLocation: ProjectLocation,
     config: ThreadConfig,
     browserMcp: BrowserMcpHttpConfig | undefined,
+    userMcpServers: McpServer[],
     sessionRef?: SessionRef,
     presentationMode?: import("@/shared/contracts").ThreadPresentationMode,
   ): Promise<StructuredSessionHandle | undefined> {
@@ -1549,6 +1569,7 @@ export class ThreadSessionManager {
         config,
         agentSettings: this.resolveAgentSettings(adapter),
         ...(browserMcp ? { browserMcp } : {}),
+        ...(userMcpServers.length > 0 ? { userMcpServers } : {}),
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),
       });
@@ -1591,6 +1612,7 @@ export class ThreadSessionManager {
     extraEnv?: Record<string, string>;
     structuredSession?: StructuredSessionHandle;
     sessionRef?: SessionRef;
+    userMcpServers?: McpServer[];
     pendingLaunchPrompt?: string;
     pendingTerminalPreInputs?: string[][];
     pendingTerminalPrompt?: string;
@@ -1686,6 +1708,10 @@ export class ThreadSessionManager {
       attention: input.initialAttention ?? "none",
       canResumeWithConfig: input.sessionRef !== undefined,
       outputLength: 0,
+      // On restart/reopen the call sites don't re-resolve servers; fall back to
+      // the prior session (still in the map until we replace it below).
+      userMcpServers:
+        input.userMcpServers ?? this.sessions.get(input.threadId)?.userMcpServers ?? [],
       pendingLaunchPrompt: input.pendingLaunchPrompt,
       pendingTerminalPreInputs: input.pendingTerminalPreInputs,
       pendingTerminalPrompt: input.pendingTerminalPrompt,
@@ -1997,6 +2023,7 @@ export class ThreadSessionManager {
       session.projectLocation,
       config,
       browserMcp,
+      session.userMcpServers ?? [],
       session.sessionRef,
       session.presentationMode,
     );
@@ -2068,6 +2095,7 @@ export class ThreadSessionManager {
       session.projectLocation,
       config,
       browserMcp,
+      session.userMcpServers ?? [],
     );
     if (!this.isCurrentSession(session)) {
       await structuredSession?.dispose();
@@ -2169,6 +2197,7 @@ export class ThreadSessionManager {
         session.projectLocation,
         session.config,
         browserMcp,
+        session.userMcpServers ?? [],
       );
       if (!this.isCurrentSession(session)) {
         return;

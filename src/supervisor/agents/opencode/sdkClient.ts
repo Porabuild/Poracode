@@ -1,6 +1,7 @@
 import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
-import type { ProjectLocation } from "@/shared/contracts";
+import type { McpServer, ProjectLocation } from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
+import { buildOpenCodeUserMcp } from "@/supervisor/agents/userMcp";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { BROWSER_MCP_SERVER_NAME } from "../browserMcp";
 import { buildOpenCodeServerCommand } from "./argv";
@@ -156,6 +157,7 @@ export interface AcquireOpenCodeServerInput {
   projectLocation: ProjectLocation;
   browserMcpEnabled?: boolean;
   browserMcp?: BrowserMcpHttpConfig;
+  userMcpServers?: McpServer[];
   /**
    * If set, the server stays alive for this many milliseconds after the last
    * release before being torn down. A re-acquire within the window reuses the
@@ -188,6 +190,27 @@ async function syncBrowserMcp(
       if (isOpenCodeConnectionLoss(err)) throw err;
     });
   await client.mcp.connect({ directory, name: BROWSER_MCP_SERVER_NAME });
+}
+
+async function syncUserMcp(
+  input: Pick<AcquireOpenCodeServerInput, "projectLocation" | "userMcpServers">,
+  client: OpencodeClient,
+): Promise<void> {
+  const servers = input.userMcpServers ?? [];
+  if (servers.length === 0) return;
+  const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
+  const configs = buildOpenCodeUserMcp(servers);
+  // Servers are independent — add/connect them concurrently, keeping add→connect
+  // ordered within each server. A connection-loss rejection propagates to the
+  // acquire retry path just as the browser-MCP sync above does.
+  await Promise.all(
+    Object.entries(configs).map(async ([name, config]) => {
+      await client.mcp.add({ directory, name, config }).catch((err) => {
+        if (isOpenCodeConnectionLoss(err)) throw err;
+      });
+      await client.mcp.connect({ directory, name }).catch(() => undefined);
+    }),
+  );
 }
 
 export async function acquireOpenCodeServer(
@@ -246,9 +269,10 @@ async function acquireOpenCodeServerInner(
   const idleCloseDelayMs = input.idleCloseDelayMs;
   try {
     await syncBrowserMcp(input, snapshot.client);
+    await syncUserMcp(input, snapshot.client);
   } catch (error) {
     if (!retryMcpConnectionLoss || !isOpenCodeConnectionLoss(error)) {
-      console.warn("[opencode] failed to sync Browser MCP:", error);
+      console.warn("[opencode] failed to sync MCP servers:", error);
     } else {
       released = true;
       acquiringEntry.refCount -= 1;

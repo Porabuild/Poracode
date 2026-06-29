@@ -7,6 +7,7 @@ import type {
   AgentStatus,
   AgentUpdateInfo,
   AuthState,
+  McpServer,
   ProjectLocation,
   PromptSegment,
   RuntimeEvent,
@@ -45,6 +46,8 @@ export interface AgentEnvContext {
   baseDir?: string;
   browserMcpEnabled?: boolean;
   browserMcp?: BrowserMcpHttpConfig;
+  /** Lightcode-managed user MCP servers that apply to this agent (enabled). */
+  userMcpServers?: McpServer[];
 }
 
 export interface AgentLaunchOptions {
@@ -52,6 +55,8 @@ export interface AgentLaunchOptions {
   resumeThreadId?: string;
   agentSettings?: Record<string, boolean | string>;
   browserMcp?: BrowserMcpHttpConfig;
+  /** Lightcode-managed user MCP servers that apply to this agent (enabled). */
+  userMcpServers?: McpServer[];
 }
 
 export interface StructuredSessionUpdate {
@@ -115,6 +120,8 @@ export interface CreateStructuredSessionInput {
   agentSettings?: Record<string, boolean | string>;
   env?: Record<string, string>;
   browserMcp?: BrowserMcpHttpConfig;
+  /** Lightcode-managed user MCP servers that apply to this agent (enabled). */
+  userMcpServers?: McpServer[];
   sessionRef?: SessionRef;
   presentationMode?: ThreadPresentationMode;
   loadSessionErrorRewriter?: (error: unknown, sessionId: string) => Error;

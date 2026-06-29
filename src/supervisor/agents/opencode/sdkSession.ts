@@ -424,6 +424,9 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         projectLocation: this.input.projectLocation,
         browserMcpEnabled: this.browserMcpEnabled,
         ...(this.input.browserMcp !== undefined ? { browserMcp: this.input.browserMcp } : {}),
+        ...(this.input.userMcpServers !== undefined
+          ? { userMcpServers: this.input.userMcpServers }
+          : {}),
       });
     } catch (cause) {
       // Surface server-startup failures (sandbox blocks, ENOENT, port races,

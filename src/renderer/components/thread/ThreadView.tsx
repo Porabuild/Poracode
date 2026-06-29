@@ -12,6 +12,7 @@ import type {
   ThreadPresentationMode,
   ThreadServerRequestId,
 } from "@/shared/contracts";
+import { mergeMcpServers } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { isOpenCodeBrowserMcpEnabled } from "@/shared/opencodeSettings";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -293,6 +294,10 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
           projectLocation,
         });
       }
+      const globalMcpServers = useSharedSettings.getState().mcpServers;
+      const projectMcpServers =
+        useAppStore.getState().projects.find((p) => p.id === thread.projectId)?.mcpServers ?? [];
+      const userMcpServers = mergeMcpServers(globalMcpServers, projectMcpServers);
       await readBridge().startThread({
         threadId: thread.id,
         projectLocation,
@@ -300,6 +305,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
         config: thread.config,
         prompt: pendingLaunchPrompt,
+        ...(userMcpServers.length > 0 ? { userMcpServers } : {}),
         ...(pendingLaunchSegments ? { segments: pendingLaunchSegments } : {}),
         initialSize: launchTerminalSize,
         ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),

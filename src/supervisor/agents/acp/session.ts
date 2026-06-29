@@ -52,6 +52,7 @@ import {
 import type {
   AgentSlashCommand,
   ProjectLocation,
+  McpServer,
   PromptSegment,
   RuntimeEvent,
   SessionRef,
@@ -61,6 +62,7 @@ import type {
   ThreadStatus,
 } from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
+import { buildAcpUserMcpServers } from "@/supervisor/agents/userMcp";
 import { areAgentSlashCommandsEqual, isThreadConfigEqual } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import {
@@ -445,6 +447,7 @@ export interface AcpStructuredSessionOptions {
    */
   sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
   browserMcp?: BrowserMcpHttpConfig;
+  userMcpServers?: McpServer[];
 }
 
 export class AcpStructuredSession implements StructuredSessionHandle {
@@ -460,6 +463,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly cwd: string;
   private readonly projectLocation: ProjectLocation;
   private readonly browserMcp: BrowserMcpHttpConfig | undefined;
+  private readonly userMcpServers: McpServer[];
   /** Lightcode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
   private readonly stderrChunks: string[] = [];
@@ -545,6 +549,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.sessionUpdateTransform = options.sessionUpdateTransform;
     }
     this.browserMcp = options?.browserMcp;
+    this.userMcpServers = options?.userMcpServers ?? [];
   }
 
   private shouldAutoApproveSyntheticPermissionRequest(): boolean {
@@ -933,11 +938,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     let configOptions: unknown[] = [];
     this.currentConfig = undefined;
     this.currentSlashCommands = undefined;
-    const mcpServers = await buildAcpBrowserMcpServers(
+    const browserMcpServers = await buildAcpBrowserMcpServers(
       this.projectLocation,
       config.browserMcp === true,
       this.browserMcp,
     );
+    const mcpServers = [...browserMcpServers, ...buildAcpUserMcpServers(this.userMcpServers ?? [])];
 
     if (sessionRef) {
       if (this.agentSessionCapabilities?.resume !== undefined) {
@@ -1826,6 +1832,7 @@ export function createAcpStructuredSession(
       ? { sessionUpdateTransform: input.acpSessionUpdateTransform }
       : {}),
     ...(input.browserMcp !== undefined ? { browserMcp: input.browserMcp } : {}),
+    ...(input.userMcpServers !== undefined ? { userMcpServers: input.userMcpServers } : {}),
   });
 }
 
