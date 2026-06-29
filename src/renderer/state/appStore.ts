@@ -3,6 +3,7 @@ import { persist, subscribeWithSelector } from "zustand/middleware";
 import type { Thread } from "@/shared/contracts";
 import { createDbStorage } from "./dbStorage";
 import { createDraftSlice } from "./slices/draftSlice";
+import { createExperimentSlice } from "./slices/experimentSlice";
 import { normalizeStoredThreadStatus } from "./slices/helpers";
 import { createLaunchSlice } from "./slices/launchSlice";
 import { createPendingSteerSlice } from "./slices/pendingSteerSlice";
@@ -29,6 +30,7 @@ export const useAppStore = create<AppStoreState>()(
         ...createRuntimeEventSlice(...a),
         ...createPendingSteerSlice(...a),
         ...createSubAgentOverlaySlice(...a),
+        ...createExperimentSlice(...a),
       }),
       {
         name: "lightcode-app-v2",
@@ -58,6 +60,7 @@ export const useAppStore = create<AppStoreState>()(
           threads: state.threads,
           view: state.view,
           groupLayouts: state.groupLayouts,
+          experiments: state.experiments,
         }),
       },
     ),

@@ -13,6 +13,7 @@ export function getCurrentProjectId(): string | undefined {
   const s = useAppStore.getState();
   const v = s.view;
   if (v.kind === "draft") return v.projectId;
+  if (v.kind === "experiment") return s.experiments[v.experimentId]?.projectId;
   if (v.kind === "thread") {
     const paneId = resolveActivePaneId(v.panes, s.focusedPaneId);
     const draftProjectId = parseDraftProjectId(paneId);

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Tooltip, toast } from "@heroui/react";
-import { Download, Webhook, X } from "lucide-react";
+import { Download, FlaskConical, Webhook, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentHookPluginStatus,
@@ -37,6 +37,7 @@ import {
 } from "@/renderer/components/common";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useExperimentLauncherStore } from "@/renderer/state/experimentLauncherStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
@@ -636,6 +637,34 @@ export function ThreadDraftComposerArea(props: {
         }}
         afterControls={() => (
           <>
+            {!isHomeScope ? (
+              <Tooltip delay={0}>
+                <Tooltip.Trigger>
+                  <button
+                    type="button"
+                    aria-label="Run as experiment"
+                    className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted/70 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                    onClick={() => {
+                      const segments = mentionRef.current?.serializeSegments() ?? [];
+                      const text = flattenSegments(segments) || prompt;
+                      useExperimentLauncherStore.getState().openLauncher({
+                        projectId: props.project.id,
+                        prompt: text,
+                        segments,
+                        candidate: {
+                          agentKind: props.selectedAgent.kind,
+                          config: props.config,
+                          model: props.config.model,
+                        },
+                      });
+                    }}
+                  >
+                    <FlaskConical className="size-4" />
+                  </button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>Run as experiment — fan out to multiple agents</Tooltip.Content>
+              </Tooltip>
+            ) : null}
             <ComposerAddMenu
               browserMcpEnabled={props.config.browserMcp === true}
               showBrowserOption={browserMcpScope !== "none"}

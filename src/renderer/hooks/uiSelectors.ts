@@ -15,6 +15,7 @@ const EMPTY_THREADS: Thread[] = [];
 function selectCurrentProjectId(s: ReturnType<typeof useAppStore.getState>) {
   const v = s.view;
   if (v.kind === "draft") return v.projectId;
+  if (v.kind === "experiment") return s.experiments[v.experimentId]?.projectId;
   if (v.kind === "thread") {
     const firstPaneId = v.panes[0];
     if (!firstPaneId) return undefined;

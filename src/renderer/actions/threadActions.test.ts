@@ -4,11 +4,14 @@ import type { Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import {
   deleteThread,
   openThread,
+  openThreadStandalone,
   reopenStoredThread,
+  sweepStaleThreads,
   switchToAdjacentThread,
   toggleMarkThreadDone,
 } from "./threadActions";
@@ -41,6 +44,7 @@ vi.mock("@/renderer/state/chatRuntimePersister", () => ({
 
 describe("threadActions", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
     localStorage.clear();
     hasHydratedThreadRuntimeItems.mockReturnValue(false);
@@ -55,7 +59,9 @@ describe("threadActions", () => {
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
       runtimeCompletedTurnsByThread: {},
+      experiments: {},
     }));
+    useSharedSettings.setState({ staleThreadUnloadMinutes: 0 });
     useDevTerminalStore.setState({
       isOpen: false,
       activeProjectId: null,
@@ -153,6 +159,32 @@ describe("threadActions", () => {
     });
   });
 
+  it("hydrates only the selected GUI thread when opening a standalone grouped thread", async () => {
+    const firstThread = makeThread({
+      id: "thread-group-a",
+      groupId: "group-1",
+      presentationMode: "gui",
+    });
+    const secondThread = makeThread({
+      id: "thread-group-b",
+      groupId: "group-1",
+      presentationMode: "gui",
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [firstThread, secondThread] }));
+
+    openThreadStandalone(firstThread.id);
+
+    expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(firstThread.id);
+    expect(hydrateThreadRuntimeItems).not.toHaveBeenCalledWith(secondThread.id);
+
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({
+        kind: "thread",
+        panes: [firstThread.id],
+      });
+    });
+  });
+
   it("queues terminal reconnects as launching when reopening", () => {
     const thread = makeThread({
       status: "inactive",
@@ -188,6 +220,49 @@ describe("threadActions", () => {
     expect(reopened?.status).toBe("idle");
     expect(reopened?.attention).toBe("none");
     expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
+  });
+
+  it("does not sweep idle experiment candidates while the board is open", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-15T12:00:00.000Z"));
+    useSharedSettings.setState({ staleThreadUnloadMinutes: 1 });
+    const candidate = makeThread({
+      id: "thread-candidate",
+      status: "idle",
+      updatedAt: "2026-06-15T11:00:00.000Z",
+      sessionRef: {
+        providerSessionId: "session-1",
+        discoveredAt: "2026-06-15T11:00:00.000Z",
+      },
+    });
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [candidate],
+      view: { kind: "experiment", experimentId: "exp-1" },
+      experiments: {
+        "exp-1": {
+          id: "exp-1",
+          projectId: candidate.projectId,
+          title: "Experiment",
+          prompt: "try",
+          candidates: [
+            {
+              threadId: candidate.id,
+              agentKind: candidate.agentKind,
+              worktreePath: "/repo/.worktrees/exp",
+              worktreeBranch: "exp/test",
+            },
+          ],
+          status: "running",
+          createdAt: "2026-06-15T11:00:00.000Z",
+          updatedAt: "2026-06-15T11:00:00.000Z",
+        },
+      },
+    }));
+
+    sweepStaleThreads();
+
+    expect(bridge.closeThread).not.toHaveBeenCalledWith({ threadId: candidate.id });
   });
 
   it("closes a live CLI thread when marking done even before a session ref is known", async () => {

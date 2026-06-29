@@ -1,6 +1,7 @@
 import { appProcedures } from "./procedures/app";
 import { browserProcedures } from "./procedures/browser";
 import { dbProcedures } from "./procedures/db";
+import { experimentProcedures } from "./procedures/experiment";
 import { githubProcedures } from "./procedures/github";
 import { gitProcedures } from "./procedures/git";
 import { lspProcedures } from "./procedures/lsp";
@@ -15,6 +16,7 @@ export const groupedIpcProcedures = {
   app: appProcedures,
   thread: threadProcedures,
   git: gitProcedures,
+  experiment: experimentProcedures,
   github: githubProcedures,
   projectTree: projectTreeProcedures,
   settings: settingsProcedures,
@@ -30,6 +32,7 @@ export const ipcProcedureMap = {
   ...appProcedures,
   ...threadProcedures,
   ...gitProcedures,
+  ...experimentProcedures,
   ...githubProcedures,
   ...projectTreeProcedures,
   ...settingsProcedures,

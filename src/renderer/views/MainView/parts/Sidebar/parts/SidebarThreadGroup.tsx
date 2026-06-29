@@ -1,6 +1,15 @@
 import { Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Archive, Check, ChevronRight, CircleCheck, Columns2, Pencil, Trash2 } from "lucide-react";
+import {
+  Archive,
+  Check,
+  ChevronRight,
+  CircleCheck,
+  Columns2,
+  FlaskConical,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import type { Project } from "@/shared/contracts";
 import { ContextMenu } from "@/renderer/components/common";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
@@ -21,6 +30,16 @@ export function SidebarThreadGroup(props: {
   const { entry, editingThreadId, setEditingThreadId } = props;
   const { t } = useLingui();
   const groupKey = entry.group.groupId;
+  // Experiment groups (same groupId as an experiment record) open the compact
+  // comparison board instead of fanning every candidate into split panes.
+  const isExperiment = useAppStore((s) => groupKey in s.experiments);
+  const openGroup = () => {
+    if (isExperiment) {
+      useAppStore.getState().openExperiment(groupKey);
+    } else {
+      useAppStore.getState().openGroupView(groupKey);
+    }
+  };
   const collapseKey = `group:${groupKey}`;
   const isGroupCollapsed = useIsWorktreeCollapsed(collapseKey);
   const toggleWorktreeCollapsed = useSidebarUiStore((s) => s.toggleWorktreeCollapsed);
@@ -57,9 +76,13 @@ export function SidebarThreadGroup(props: {
         items={[
           {
             id: "open-all",
-            label: t`Open All`,
-            icon: <Columns2 className="size-3.5" />,
-            isDisabled: activeThreads.length < 2,
+            label: isExperiment ? t`Open Experiment` : t`Open All`,
+            icon: isExperiment ? (
+              <FlaskConical className="size-3.5" />
+            ) : (
+              <Columns2 className="size-3.5" />
+            ),
+            isDisabled: !isExperiment && activeThreads.length < 2,
           },
           {
             id: "rename-group",
@@ -83,7 +106,7 @@ export function SidebarThreadGroup(props: {
         ]}
         onAction={(key) => {
           if (key === "open-all") {
-            useAppStore.getState().openGroupView(entry.group.groupId);
+            openGroup();
           }
           if (key === "rename-group") {
             setEditingThreadId(collapseKey);
@@ -131,6 +154,7 @@ export function SidebarThreadGroup(props: {
               />
             ) : (
               <>
+                {isExperiment && <FlaskConical className="size-3 shrink-0 text-amber-500" />}
                 <span className={`truncate ${isDone ? "opacity-50 line-through" : ""}`}>
                   {entry.group.groupName}
                 </span>
@@ -140,19 +164,25 @@ export function SidebarThreadGroup(props: {
               </>
             )}
           </button>
-          {!isRenamingGroup && activeThreads.length >= 2 && (
+          {!isRenamingGroup && (isExperiment || activeThreads.length >= 2) && (
             <Tooltip delay={300}>
               <button
                 type="button"
                 className={`flex h-[18px] shrink-0 items-center justify-center rounded text-muted/40 transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground ${hiddenGroupActionClass}`}
-                onClick={() => {
-                  useAppStore.getState().openGroupView(entry.group.groupId);
-                }}
+                onClick={openGroup}
               >
-                <Columns2 className="size-3" />
+                {isExperiment ? (
+                  <FlaskConical className="size-3" />
+                ) : (
+                  <Columns2 className="size-3" />
+                )}
               </button>
               <Tooltip.Content>
-                <Trans>Open all in group</Trans>
+                {isExperiment ? (
+                  <Trans>Open experiment board</Trans>
+                ) : (
+                  <Trans>Open all in group</Trans>
+                )}
               </Tooltip.Content>
             </Tooltip>
           )}
@@ -198,13 +228,22 @@ export function SidebarThreadGroup(props: {
 
 function clearThreadGroup(groupKey: string) {
   useAppStore.setState((state) => {
-    const updatedThreads = state.threads.map((t) =>
-      t.groupId === groupKey ? { ...t, groupId: undefined, groupName: undefined } : t,
-    );
+    const updatedThreads = state.threads.map((t) => {
+      if (t.groupId !== groupKey) return t;
+      const { groupId: _groupId, groupName: _groupName, ...thread } = t;
+      return thread;
+    });
     const view =
-      state.view.kind === "thread" && state.view.activeGroupId === groupKey
-        ? { kind: "thread" as const, panes: [state.view.panes[0]] as [string] }
-        : state.view;
-    return { threads: updatedThreads, view };
+      state.view.kind === "experiment" && state.view.experimentId === groupKey
+        ? ({ kind: "home" } as const)
+        : state.view.kind === "thread" && state.view.activeGroupId === groupKey
+          ? { kind: "thread" as const, panes: [state.view.panes[0]] as [string] }
+          : state.view;
+    if (!(groupKey in state.experiments)) {
+      return { threads: updatedThreads, view };
+    }
+    const { [groupKey]: _removedExperiment, ...experiments } = state.experiments;
+    const { [groupKey]: _removedLayout, ...groupLayouts } = state.groupLayouts;
+    return { threads: updatedThreads, view, experiments, groupLayouts };
   });
 }

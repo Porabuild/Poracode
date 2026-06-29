@@ -1,5 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { DraftSlice } from "./draftSlice";
+import type { ExperimentSlice } from "./experimentSlice";
 import type { LaunchSlice } from "./launchSlice";
 import type { PendingSteerSlice } from "./pendingSteerSlice";
 import type { ProjectSlice } from "./projectSlice";
@@ -15,6 +16,7 @@ export type AppStoreState = ProjectSlice &
   ViewSlice &
   RuntimeEventSlice &
   PendingSteerSlice &
-  SubAgentOverlaySlice;
+  SubAgentOverlaySlice &
+  ExperimentSlice;
 
 export type SliceCreator<T> = StateCreator<AppStoreState, [], [], T>;

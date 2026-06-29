@@ -100,9 +100,21 @@ export function useAppHydration() {
           return;
         }
 
-        const currentView = useAppStore.getState().view;
-        const selectedIds = new Set(currentView.kind === "thread" ? currentView.panes : []);
-        const storeThreadIds = new Set(useAppStore.getState().threads.map((t) => t.id));
+        const store = useAppStore.getState();
+        const currentView = store.view;
+        // Threads referenced by the current view stay attached on reload;
+        // everything else gets its supervisor session closed. An experiment view
+        // references its candidate threads (which are still running), so include
+        // them — otherwise reloading the board would kill every candidate.
+        const viewThreadIds =
+          currentView.kind === "thread"
+            ? currentView.panes
+            : currentView.kind === "experiment"
+              ? (store.experiments[currentView.experimentId]?.candidates.map((c) => c.threadId) ??
+                [])
+              : [];
+        const selectedIds = new Set(viewThreadIds);
+        const storeThreadIds = new Set(store.threads.map((t) => t.id));
 
         for (const snapshot of snapshots) {
           if (!selectedIds.has(snapshot.threadId) && storeThreadIds.has(snapshot.threadId)) {

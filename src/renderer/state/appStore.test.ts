@@ -251,6 +251,45 @@ describe("appStore runtime config sync", () => {
     expect(view).toEqual({ kind: "thread", panes: [thread.id] });
   });
 
+  it("createThreadsBatch seeds launching threads without changing the current view", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    useAppStore.getState().openHome();
+
+    const threads = useAppStore.getState().createThreadsBatch([
+      {
+        projectId: project.id,
+        agentKind: "codex",
+        config: { model: "gpt-5.4", effort: "low" },
+        prompt: "try one",
+        title: "Candidate A",
+        groupId: "exp-1",
+        groupName: "Experiment",
+      },
+      {
+        projectId: project.id,
+        agentKind: "claude",
+        config: { model: "claude-test", effort: "high" },
+        prompt: "try one",
+        title: "Candidate B",
+        groupId: "exp-1",
+        groupName: "Experiment",
+      },
+    ]);
+
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    expect(useAppStore.getState().threads.map((thread) => thread.title)).toEqual([
+      "Candidate A",
+      "Candidate B",
+    ]);
+    expect(useAppStore.getState().lastRuntimeConfigByThreadId[threads[0]!.id]).toEqual({
+      model: "gpt-5.4",
+      effort: "low",
+    });
+  });
+
   it("openThread replaces panes[0] and keeps secondary panes", () => {
     const project = useAppStore.getState().addProject({
       kind: "windows",
@@ -299,6 +338,43 @@ describe("appStore runtime config sync", () => {
     useAppStore.getState().openThread(threadThree.id);
     const view = useAppStore.getState().view;
     expect(view).toEqual({ kind: "thread", panes: [threadThree.id, t2.id] });
+  });
+
+  it("openThreadStandalone opens one grouped thread without restoring the group split", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const groupId = "exp-1";
+    const t1 = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+      groupId,
+      groupName: "Experiment",
+    });
+    const t2 = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "b",
+      groupId,
+      groupName: "Experiment",
+    });
+    useAppStore.setState((state) => ({
+      ...state,
+      groupLayouts: {
+        [groupId]: {
+          panes: [t1.id, t2.id],
+        },
+      },
+      view: { kind: "experiment", experimentId: groupId },
+    }));
+
+    useAppStore.getState().openThreadStandalone(t2.id);
+
+    expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [t2.id] });
   });
 
   it("openThread is no-op when thread is already in panes", () => {

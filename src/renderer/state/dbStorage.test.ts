@@ -36,29 +36,91 @@ describe("createDbStorage", () => {
       threads: unknown[];
       view: { kind: "home" };
       groupLayouts: Record<string, unknown>;
+      experiments: Record<string, unknown>;
     }>();
     const projects: unknown[] = [];
     const threads: unknown[] = [];
     const view = { kind: "home" as const };
     const groupLayouts = {};
+    const experiments = {};
 
     await storage.setItem("lightcode-app-v2", {
-      state: { projects, threads, view, groupLayouts },
+      state: { projects, threads, view, groupLayouts, experiments },
       version: 4,
     });
     await storage.setItem("lightcode-app-v2", {
-      state: { projects, threads, view, groupLayouts },
+      state: { projects, threads, view, groupLayouts, experiments },
       version: 4,
     });
 
     expect(bridge.dbSyncAll).toHaveBeenCalledTimes(1);
 
     await storage.setItem("lightcode-app-v2", {
-      state: { projects, threads: [...threads], view, groupLayouts },
+      state: { projects, threads: [...threads], view, groupLayouts, experiments },
       version: 4,
     });
 
     expect(bridge.dbSyncAll).toHaveBeenCalledTimes(2);
+  });
+
+  it("loads experiment records from app state storage", async () => {
+    bridge.dbGetState.mockImplementation(async (key) => {
+      if (key === "view") return JSON.stringify({ kind: "experiment", experimentId: "exp-1" });
+      if (key === "experiments") {
+        return JSON.stringify({
+          "exp-1": {
+            id: "exp-1",
+            projectId: "project-1",
+            title: "Try things",
+            prompt: "fix it",
+            candidates: [],
+            status: "running",
+            createdAt: "2026-06-15T00:00:00.000Z",
+            updatedAt: "2026-06-15T00:00:00.000Z",
+          },
+        });
+      }
+      return null;
+    });
+    const storage = createDbStorage();
+
+    const value = await storage.getItem("lightcode-app-v2");
+
+    expect(value?.state).toMatchObject({
+      view: { kind: "experiment", experimentId: "exp-1" },
+      experiments: {
+        "exp-1": expect.objectContaining({ title: "Try things" }),
+      },
+    });
+  });
+
+  it("persists experiment records with app metadata", async () => {
+    const storage = createDbStorage();
+    const experiments = {
+      "exp-1": {
+        id: "exp-1",
+        projectId: "project-1",
+        title: "Try things",
+        prompt: "fix it",
+        candidates: [],
+        status: "running",
+        createdAt: "2026-06-15T00:00:00.000Z",
+        updatedAt: "2026-06-15T00:00:00.000Z",
+      },
+    };
+
+    await storage.setItem("lightcode-app-v2", {
+      state: {
+        projects: [],
+        threads: [],
+        view: { kind: "home" },
+        groupLayouts: {},
+        experiments,
+      },
+      version: 4,
+    } as never);
+
+    expect(bridge.dbSetState).toHaveBeenCalledWith("experiments", JSON.stringify(experiments));
   });
 
   it("still deduplicates generic persisted stores by serialized value", async () => {

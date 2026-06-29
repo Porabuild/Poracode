@@ -57,6 +57,28 @@ export interface ThreadSlice {
     replacePaneId?: string;
     presentationMode?: ThreadPresentationMode;
   }) => Thread;
+  /**
+   * Create several threads at once (e.g. experiment candidates) without
+   * touching `view` — the caller decides what to show next (the experiment
+   * board, not the threads). Each thread is created in `launching` status and
+   * its config is seeded into `lastRuntimeConfigByThreadId`, exactly as
+   * `createThread` does for a single thread.
+   */
+  createThreadsBatch: (
+    inputs: {
+      projectId: string;
+      agentKind: Thread["agentKind"];
+      agentInstanceId?: AgentInstanceId;
+      config: ThreadConfig;
+      prompt: string;
+      title?: string;
+      worktreePath?: string;
+      worktreeBranch?: string;
+      groupId?: string;
+      groupName?: string;
+      presentationMode?: ThreadPresentationMode;
+    }[],
+  ) => Thread[];
   deleteThread: (threadId: string) => void;
   renameThread: (threadId: string, title: string) => void;
   updateThreadConfig: (threadId: string, config: ThreadConfig) => void;
@@ -201,6 +223,50 @@ function deriveTurnTiming(
   };
 }
 
+interface BuildThreadInput {
+  projectId: string;
+  agentKind: Thread["agentKind"];
+  agentInstanceId?: AgentInstanceId;
+  config: ThreadConfig;
+  prompt: string;
+  /** Overrides the title derived from `prompt` (used for experiment candidates). */
+  title?: string;
+  worktreePath?: string;
+  worktreeBranch?: string;
+  groupId?: string;
+  groupName?: string;
+  presentationMode?: ThreadPresentationMode;
+}
+
+/** Construct a fresh `launching` thread. Shared by createThread/createThreadsBatch. */
+function buildThread(input: BuildThreadInput): Thread {
+  const now = new Date().toISOString();
+  const presentationMode = input.presentationMode ?? "terminal";
+  return {
+    id: crypto.randomUUID(),
+    projectId: input.projectId,
+    title: input.title ?? makeThreadTitle(input.prompt),
+    agentKind: input.agentKind,
+    ...(input.agentInstanceId ? { agentInstanceId: input.agentInstanceId } : {}),
+    config: input.config,
+    status: "launching",
+    attention: "none",
+    canResumeWithConfig: false,
+    archived: false,
+    done: false,
+    starred: false,
+    presentationMode,
+    threadStatusSource: presentationMode !== "terminal" ? "server" : undefined,
+    ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
+    ...(input.worktreeBranch ? { worktreeBranch: input.worktreeBranch } : {}),
+    ...(input.groupId ? { groupId: input.groupId } : {}),
+    ...(input.groupName ? { groupName: input.groupName } : {}),
+    createdAt: now,
+    updatedAt: now,
+    activeTurnStartedAt: now,
+  };
+}
+
 export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   threads: [],
   lastRuntimeConfigByThreadId: {},
@@ -224,43 +290,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
 
       return changed ? { threads } : {};
     }),
-  createThread: ({
-    projectId,
-    agentKind,
-    agentInstanceId,
-    config,
-    prompt,
-    worktreePath,
-    worktreeBranch,
-    groupId,
-    groupName,
-    replacePaneId: replacePaneIdParam,
-    presentationMode,
-  }) => {
-    const now = new Date().toISOString();
-    const thread: Thread = {
-      id: crypto.randomUUID(),
-      projectId,
-      title: makeThreadTitle(prompt),
-      agentKind,
-      ...(agentInstanceId ? { agentInstanceId } : {}),
-      config,
-      status: "launching",
-      attention: "none",
-      canResumeWithConfig: false,
-      archived: false,
-      done: false,
-      starred: false,
-      presentationMode: presentationMode ?? "terminal",
-      threadStatusSource: (presentationMode ?? "terminal") !== "terminal" ? "server" : undefined,
-      ...(worktreePath ? { worktreePath } : {}),
-      ...(worktreeBranch ? { worktreeBranch } : {}),
-      ...(groupId ? { groupId } : {}),
-      ...(groupName ? { groupName } : {}),
-      createdAt: now,
-      updatedAt: now,
-      activeTurnStartedAt: now,
-    };
+  createThread: ({ replacePaneId: replacePaneIdParam, ...input }) => {
+    const thread = buildThread(input);
 
     set((state) => {
       let nextView: AppView;
@@ -287,6 +318,19 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     // Durable "thread started" usage fact (survives later delete/archive).
     recordThreadStarted(thread);
     return thread;
+  },
+  createThreadsBatch: (inputs) => {
+    const threads = inputs.map(buildThread);
+
+    set((state) => ({
+      threads: [...threads, ...state.threads],
+      lastRuntimeConfigByThreadId: {
+        ...state.lastRuntimeConfigByThreadId,
+        ...Object.fromEntries(threads.map((t) => [t.id, t.config])),
+      },
+    }));
+
+    return threads;
   },
   deleteThread: (threadId) =>
     set((state) => {

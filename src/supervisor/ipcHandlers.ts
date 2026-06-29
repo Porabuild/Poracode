@@ -62,6 +62,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     generateCommitMessage: (payload) => runtime.generateCommitMessage(payload),
     generateTitle: (payload) => runtime.generateTitle(payload),
     generatePrSummary: (payload) => runtime.generatePrSummary(payload),
+    judgeExperiment: (payload) => runtime.judgeExperiment(payload),
     gitListBranches: (payload) => runtime.gitListBranches(payload),
     gitFetch: (payload) => runtime.gitFetch(payload),
     gitListWorktrees: (payload) => runtime.gitListWorktrees(payload),

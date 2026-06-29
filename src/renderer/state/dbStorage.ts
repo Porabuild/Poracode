@@ -1,7 +1,7 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
 import { readBridge } from "../bridge";
 import { captureRendererException } from "../diagnostics/sentry";
-import type { Project, Thread, AppView } from "@/shared/contracts";
+import type { AppView, Experiment, Project, Thread } from "@/shared/contracts";
 
 /**
  * Surface a persistence failure instead of silently dropping it. These writes
@@ -73,13 +73,21 @@ export function createDbStorage<S>(): PersistStorage<S> {
 
 /** Load projects + threads + view from SQLite and assemble into Zustand persist format. */
 async function loadAppStore(): Promise<StorageValue<unknown> | null> {
-  const [projects, threads, viewJson] = await Promise.all([
+  const [projects, threads, viewJson, groupLayoutsJson, experimentsJson] = await Promise.all([
     readBridge().dbGetProjects(),
     readBridge().dbGetThreads(),
     readBridge().dbGetState("view"),
+    readBridge().dbGetState("groupLayouts"),
+    readBridge().dbGetState("experiments"),
   ]);
 
-  if (projects.length === 0 && threads.length === 0 && !viewJson) {
+  if (
+    projects.length === 0 &&
+    threads.length === 0 &&
+    !viewJson &&
+    !groupLayoutsJson &&
+    !experimentsJson
+  ) {
     return null;
   }
 
@@ -93,7 +101,6 @@ async function loadAppStore(): Promise<StorageValue<unknown> | null> {
   }
 
   let groupLayouts: Record<string, unknown> = {};
-  const groupLayoutsJson = await readBridge().dbGetState("groupLayouts");
   if (groupLayoutsJson) {
     try {
       groupLayouts = JSON.parse(groupLayoutsJson) as Record<string, unknown>;
@@ -102,8 +109,17 @@ async function loadAppStore(): Promise<StorageValue<unknown> | null> {
     }
   }
 
+  let experiments: Record<string, Experiment> = {};
+  if (experimentsJson) {
+    try {
+      experiments = JSON.parse(experimentsJson) as Record<string, Experiment>;
+    } catch {
+      // corrupt — ignore
+    }
+  }
+
   return rememberStorageValue(APP_STORE_NAME, {
-    state: { projects, threads, view, groupLayouts },
+    state: { projects, threads, view, groupLayouts, experiments },
     version: 4,
   });
 }
@@ -117,6 +133,7 @@ async function saveAppStore(value: StorageValue<unknown>): Promise<void> {
           threads?: Thread[];
           view?: AppView;
           groupLayouts?: Record<string, unknown>;
+          experiments?: Record<string, Experiment>;
         }
       | undefined;
     if (!state || typeof state !== "object") return;
@@ -132,6 +149,11 @@ async function saveAppStore(value: StorageValue<unknown>): Promise<void> {
       readBridge()
         .dbSetState("groupLayouts", JSON.stringify(state.groupLayouts))
         .catch((error) => reportPersistError("group layouts", error));
+    }
+    if (state.experiments) {
+      readBridge()
+        .dbSetState("experiments", JSON.stringify(state.experiments))
+        .catch((error) => reportPersistError("experiments", error));
     }
   } catch (error) {
     // Synchronous failure (e.g. JSON.stringify on a circular structure).
@@ -182,6 +204,7 @@ function isSameAppStoreValue(
         threads?: Thread[];
         view?: AppView;
         groupLayouts?: Record<string, unknown>;
+        experiments?: Record<string, Experiment>;
       }
     | undefined;
   const nextState = next.state as
@@ -190,6 +213,7 @@ function isSameAppStoreValue(
         threads?: Thread[];
         view?: AppView;
         groupLayouts?: Record<string, unknown>;
+        experiments?: Record<string, Experiment>;
       }
     | undefined;
   if (!prevState || !nextState) return false;
@@ -197,6 +221,7 @@ function isSameAppStoreValue(
     prevState.projects === nextState.projects &&
     prevState.threads === nextState.threads &&
     prevState.view === nextState.view &&
-    prevState.groupLayouts === nextState.groupLayouts
+    prevState.groupLayouts === nextState.groupLayouts &&
+    prevState.experiments === nextState.experiments
   );
 }

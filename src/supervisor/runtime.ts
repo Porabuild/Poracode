@@ -28,6 +28,8 @@ import type {
   GeneratePrSummaryResult,
   GenerateTitlePayload,
   GenerateTitleResult,
+  JudgeExperimentPayload,
+  JudgeExperimentResult,
   GetAgentStatusesPayload,
   GetAgentHookPluginStatusesPayload,
   GetGitBranchesPayload,
@@ -201,6 +203,7 @@ import {
   extractContext as extractContextFn,
   extractContextFromScrollback,
 } from "./contextExtractor";
+import { judgeExperiment } from "./experimentJudge";
 import { FileIndexService } from "./fileIndex";
 import { GitService, resolveBuiltInWorktreeRoot } from "./git";
 import { resolveWorktreePlacement } from "@/shared/worktree";
@@ -1001,6 +1004,18 @@ export class SupervisorRuntime {
       payload.model,
       payload.effort,
       payload.language,
+    );
+  }
+
+  async judgeExperiment(payload: JudgeExperimentPayload): Promise<JudgeExperimentResult> {
+    const adapter = this.requireAdapter(payload.agentKind);
+    return judgeExperiment(
+      payload.projectLocation,
+      adapter,
+      payload.prompt,
+      payload.candidates,
+      payload.model,
+      payload.effort,
     );
   }
 

@@ -145,6 +145,41 @@ export function switchToAdjacentThread(current: Thread, direction: "next" | "pre
   if (nextId && nextId !== current.id) openThread(nextId);
 }
 
+export function openThreadStandalone(
+  threadId: string,
+  options?: { focusComposer?: boolean },
+): void {
+  const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
+  const requestId = ++openThreadRequestId;
+  const shouldHydrate =
+    thread?.presentationMode === "gui" && !hasHydratedThreadRuntimeItems(thread.id);
+
+  const applyOpen = () => {
+    if (requestId !== openThreadRequestId) return;
+
+    startTransition(() => {
+      useAppStore.getState().openThreadStandalone(threadId);
+      if (options?.focusComposer) {
+        useAppStore.getState().requestComposerFocus(threadId);
+      }
+      if (thread?.presentationMode === "gui") {
+        useAppStore.getState().requestChatScrollToBottom(threadId);
+      }
+    });
+
+    if (thread?.status === "inactive") {
+      reopenStoredThread(threadId);
+    }
+  };
+
+  if (shouldHydrate) {
+    void hydrateThreadRuntimeItems(thread.id).then(applyOpen, applyOpen);
+    return;
+  }
+
+  applyOpen();
+}
+
 function getGuiThreadIdsToHydrateBeforeOpen(threadId: string): string[] {
   const state = useAppStore.getState();
   const clickedThread = state.threads.find((thread) => thread.id === threadId);
@@ -216,7 +251,7 @@ export function sweepStaleThreads(): void {
   if (staleThreadUnloadMinutes <= 0) return;
 
   const store = useAppStore.getState();
-  const visibleThreadIds = new Set(store.view.kind === "thread" ? store.view.panes : []);
+  const visibleThreadIds = new Set(getCurrentViewThreadIds(store));
   const staleBefore = Date.now() - staleThreadUnloadMinutes * 60_000;
 
   for (const thread of store.threads) {
@@ -232,6 +267,14 @@ export function sweepStaleThreads(): void {
 
     void unloadStoredThread(thread.id).catch(() => undefined);
   }
+}
+
+function getCurrentViewThreadIds(store: ReturnType<typeof useAppStore.getState>): string[] {
+  if (store.view.kind === "thread") return store.view.panes;
+  if (store.view.kind === "experiment") {
+    return store.experiments[store.view.experimentId]?.candidates.map((c) => c.threadId) ?? [];
+  }
+  return [];
 }
 
 export function archiveThread(threadId: string): void {

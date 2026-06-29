@@ -44,6 +44,7 @@ import {
 } from "@/renderer/utils/shellUtils";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { HomeView } from "@/renderer/views/HomeView";
+import { ExperimentView } from "@/renderer/views/ExperimentView/ExperimentView";
 import { buildProjectDraftConfig } from "./draftConfig";
 import { ThreadPane } from "./parts/ThreadPane";
 import { DraftPane } from "./parts/DraftPane";
@@ -289,6 +290,14 @@ export function AppContent() {
           lastDraftConfig={draftLastDraftConfig}
           onStart={(input) => handleDraftStart(draftProject, input)}
         />
+      </div>
+    );
+  }
+
+  if (view.kind === "experiment") {
+    return (
+      <div className="h-full">
+        <ExperimentView experimentId={view.experimentId} />
       </div>
     );
   }

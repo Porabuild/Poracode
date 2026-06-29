@@ -4,6 +4,7 @@ export * from "./contracts/agent";
 export * from "./contracts/project";
 export * from "./contracts/thread";
 export * from "./contracts/git";
+export * from "./contracts/experiment";
 export * from "./contracts/projectTree";
 export * from "./contracts/github";
 export * from "./contracts/appView";

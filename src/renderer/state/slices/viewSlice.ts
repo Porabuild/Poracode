@@ -41,9 +41,17 @@ export interface ViewSlice {
   openDraftSideBySide: (projectId: string) => void;
   openHome: () => void;
   openThread: (threadId: string) => void;
+  /**
+   * Open a single thread full-screen, ignoring any group it belongs to (unlike
+   * {@link openThread}, which restores the thread's group split). Used by the
+   * experiment board to inspect one candidate without fanning in its siblings.
+   */
+  openThreadStandalone: (threadId: string) => void;
   openThreadSideBySide: (threadId: string) => void;
   openGroupView: (groupId: string) => void;
   closeGroupView: () => void;
+  openExperiment: (experimentId: string) => void;
+  closeExperiment: () => void;
   replaceSecondPane: (threadId: string) => void;
   replacePaneAtIndex: (threadId: string, index: number) => void;
   insertPaneAtIndex: (
@@ -212,6 +220,18 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const cleared = clearFinishedAndDone(state.threads, [threadId]);
       return cleared ? { view: nextView, threads: cleared } : { view: nextView };
     }),
+  openThreadStandalone: (threadId) =>
+    set((state) => {
+      // Save the active group's layout (mirrors openExperiment/openGroupView) so
+      // returning to it later restores the panes, then show just this thread.
+      const groupLayouts =
+        state.view.kind === "thread" && state.view.activeGroupId
+          ? saveGroupLayout(state)
+          : state.groupLayouts;
+      const cleared = clearFinishedAndDone(state.threads, [threadId]);
+      const view: AppView = { kind: "thread", panes: [threadId] };
+      return cleared ? { groupLayouts, view, threads: cleared } : { groupLayouts, view };
+    }),
   openThreadSideBySide: (threadId) =>
     set((state) => {
       if (state.view.kind !== "thread") {
@@ -286,6 +306,18 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       if (state.view.kind !== "thread" || !state.view.activeGroupId) return {};
       return { groupLayouts: saveGroupLayout(state), view: { kind: "home" } };
     }),
+  openExperiment: (experimentId) =>
+    set((state) => {
+      // Preserve any active group's split layout before leaving the thread view
+      // so returning to it later restores the panes (mirrors openGroupView).
+      const groupLayouts =
+        state.view.kind === "thread" && state.view.activeGroupId
+          ? saveGroupLayout(state)
+          : state.groupLayouts;
+      return { groupLayouts, view: { kind: "experiment", experimentId } };
+    }),
+  closeExperiment: () =>
+    set((state) => (state.view.kind === "experiment" ? { view: { kind: "home" } } : {})),
   replaceSecondPane: (threadId) =>
     set((state) => {
       if (state.view.kind !== "thread" || state.view.panes.length < 2) {
