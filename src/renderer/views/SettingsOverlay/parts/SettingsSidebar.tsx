@@ -12,6 +12,7 @@ import {
   Globe,
   Info,
   Keyboard,
+  Lightbulb,
   Mic,
   MessageSquare,
   PanelLeft,
@@ -175,6 +176,7 @@ export function SettingsSidebar(props: {
       icon: <Sparkles className="size-4" />,
       label: t({ message: "AI", comment: "Settings section: AI / assistant configuration" }),
     },
+    { id: "skills", icon: <Lightbulb className="size-4" />, label: t`Skills` },
     { id: "search", icon: <Search className="size-4" />, label: t`Search` },
     { id: "shortcuts", icon: <Keyboard className="size-4" />, label: t`Shortcuts` },
   ];
@@ -313,6 +315,13 @@ export function SettingsSidebar(props: {
               })}
               isActive={activeSection === "ai"}
               onPress={() => onSectionChange("ai")}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<Lightbulb className="size-4" />}
+              label={t`Skills`}
+              isActive={activeSection === "skills"}
+              onPress={() => onSectionChange("skills")}
             />
             <SidebarButton
               iconOnly

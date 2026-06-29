@@ -22,6 +22,7 @@ import { AcpRegistrySettings } from "./parts/AcpRegistrySettings";
 import { AgentsGeneralSettings } from "./parts/AgentsGeneralSettings";
 import { SearchSettings } from "./parts/SearchSettings";
 import { ShortcutsSettings } from "./parts/ShortcutsSettings";
+import { SkillsSettings } from "./parts/SkillsSettings";
 import { TerminalSettings } from "./parts/TerminalSettings";
 import { ThreadSettings } from "./parts/ThreadSettings";
 import { ArchivedThreadsSettings } from "./parts/ArchivedThreadsSettings";
@@ -42,6 +43,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   worktrees: () => <WorktreeSettings />,
   notifications: () => <NotificationSettings />,
   ai: () => <AISettings />,
+  skills: () => <SkillsSettings />,
   search: () => <SearchSettings />,
   shortcuts: () => <ShortcutsSettings />,
   agents: () => <AgentSettingsEmpty />,

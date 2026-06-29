@@ -9,6 +9,7 @@ export type SettingsSection =
   | "worktrees"
   | "notifications"
   | "ai"
+  | "skills"
   | "acpRegistry"
   | "agentsGeneral"
   | "search"

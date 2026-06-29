@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { dirname } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { clipboard, dialog, nativeImage, shell, type BrowserWindow } from "electron";
 import type { BrowserPanelManager } from "../browser";
 import { openMicrophoneSettings } from "../browser/permissions";
@@ -52,8 +52,10 @@ import {
   type WindowChromeResult,
 } from "@/shared/ipc";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
-import type { AgentInstanceConfig } from "@/shared/contracts";
+import type { AgentInstanceConfig, ProjectLocation, RevealSkillPayload } from "@/shared/contracts";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
+import { SKILL_ROOTS } from "@/shared/skills";
+import { getProjectFsPath } from "@/shared/wsl";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 
 interface CreateLocalIpcHandlersOptions {
@@ -107,6 +109,36 @@ function assertSafeExternalUrl(rawUrl: string): string {
     throw new Error(`External URL protocol is not allowed: ${parsed.protocol}`);
   }
   return parsed.toString();
+}
+
+function assertRevealSkillPath(payload: RevealSkillPayload): string {
+  if (!isAbsolute(payload.absolutePath)) {
+    throw new Error("Skill path must be absolute.");
+  }
+  const absolutePath = resolve(payload.absolutePath);
+  const parentPath = dirname(absolutePath);
+  const allowed = skillScopeDirs(payload.projectLocation);
+  if (
+    !allowed.some(
+      (scopeDir) => sameFsPath(absolutePath, scopeDir) || sameFsPath(parentPath, scopeDir),
+    )
+  ) {
+    throw new Error("Refusing to reveal a path outside a skills directory.");
+  }
+  return absolutePath;
+}
+
+function skillScopeDirs(projectLocation?: ProjectLocation): string[] {
+  const bases = [homedir()];
+  if (projectLocation) bases.push(getProjectFsPath(projectLocation));
+  return bases.flatMap((base) =>
+    SKILL_ROOTS.map((root) => resolve(join(base, ...root.dirName.split("/")))),
+  );
+}
+
+function sameFsPath(left: string, right: string): boolean {
+  if (process.platform === "win32") return left.toLowerCase() === right.toLowerCase();
+  return left === right;
 }
 
 export function createLocalIpcHandlers(
@@ -188,6 +220,9 @@ export function createLocalIpcHandlers(
       writeKeybindingsFile(options.requireLightcodePaths().keybindingsPath, file),
     revealProjectEntry: async (payload) => {
       shell.showItemInFolder(resolveProjectFsPath(payload));
+    },
+    revealSkill: async (payload) => {
+      shell.showItemInFolder(assertRevealSkillPath(payload));
     },
     getSharedSettings: () => readSharedSettingsFile(options.requireLightcodePaths().settingsPath),
     setSharedSettings: (settings) => {

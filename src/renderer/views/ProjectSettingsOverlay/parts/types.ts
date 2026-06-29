@@ -1,1 +1,1 @@
-export type ProjectSettingsSection = "general" | "worktrees" | "actions" | "search";
+export type ProjectSettingsSection = "general" | "worktrees" | "actions" | "search" | "skills";

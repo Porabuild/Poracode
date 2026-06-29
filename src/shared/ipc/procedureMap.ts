@@ -7,6 +7,7 @@ import { lspProcedures } from "./procedures/lsp";
 import { profileProcedures } from "./procedures/profile";
 import { projectTreeProcedures } from "./procedures/projectTree";
 import { settingsProcedures } from "./procedures/settings";
+import { skillsProcedures } from "./procedures/skills";
 import { threadProcedures } from "./procedures/thread";
 import { updatesProcedures } from "./procedures/updates";
 import { usageProcedures } from "./procedures/usage";
@@ -18,6 +19,7 @@ export const groupedIpcProcedures = {
   github: githubProcedures,
   projectTree: projectTreeProcedures,
   settings: settingsProcedures,
+  skills: skillsProcedures,
   db: dbProcedures,
   updates: updatesProcedures,
   lsp: lspProcedures,
@@ -33,6 +35,7 @@ export const ipcProcedureMap = {
   ...githubProcedures,
   ...projectTreeProcedures,
   ...settingsProcedures,
+  ...skillsProcedures,
   ...dbProcedures,
   ...updatesProcedures,
   ...lspProcedures,
@@ -69,6 +72,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "getKeybindings",
   "setKeybindings",
   "revealProjectEntry",
+  "revealSkill",
   "getSharedSettings",
   "setSharedSettings",
   "setClaudeProfileEnvironment",

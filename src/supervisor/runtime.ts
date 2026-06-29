@@ -152,6 +152,21 @@ import type {
   StartThreadResult,
   StageThreadInputPayload,
   ThreadRuntimeSnapshot,
+  ScanSkillsPayload,
+  SkillScan,
+  ReadSkillPayload,
+  SkillDetail,
+  WriteSkillPayload,
+  CreateSkillPayload,
+  DeleteSkillPayload,
+  RenameSkillPayload,
+  TransferSkillPayload,
+  TransferSkillResult,
+  OptimizeSkillsPayload,
+  OptimizeSkillsResult,
+  InstallMarketplaceSkillPayload,
+  InstallMarketplaceSkillResult,
+  InstallSkillFromGitPayload,
   WriteExternalFilePayload,
   WriteExternalFileResult,
   WriteProjectFilePayload,
@@ -209,6 +224,7 @@ import { GitHubService } from "./github";
 import { ProjectWatcher } from "./projectWatcher";
 import { LanguageServerManager } from "./lsp";
 import { ProjectTreeService } from "./projectTree";
+import { SkillsService } from "./skills";
 import { generatePrSummary } from "./prSummaryGenerator";
 import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
 import { generateTitle } from "./titleGenerator";
@@ -241,6 +257,7 @@ export class SupervisorRuntime {
   private readonly githubService = new GitHubService();
   private readonly fileIndexService = new FileIndexService();
   private readonly projectTreeService = new ProjectTreeService();
+  private readonly skillsService = new SkillsService();
   private readonly adapters = new Map<AgentKind, AgentAdapter>();
   private readonly windowsShell: WindowsShellPreference;
   private readonly agentStatusService: AgentStatusService;
@@ -1467,6 +1484,50 @@ export class SupervisorRuntime {
 
   async deleteProjectEntry(payload: DeleteProjectEntryPayload): Promise<void> {
     return this.projectTreeService.deleteProjectEntry(payload);
+  }
+
+  async scanSkills(payload: ScanSkillsPayload): Promise<SkillScan> {
+    return this.skillsService.scanSkills(payload);
+  }
+
+  async readSkill(payload: ReadSkillPayload): Promise<SkillDetail> {
+    return this.skillsService.readSkill(payload);
+  }
+
+  async writeSkill(payload: WriteSkillPayload): Promise<void> {
+    return this.skillsService.writeSkill(payload);
+  }
+
+  async createSkill(payload: CreateSkillPayload): Promise<TransferSkillResult> {
+    return this.skillsService.createSkill(payload);
+  }
+
+  async deleteSkill(payload: DeleteSkillPayload): Promise<void> {
+    return this.skillsService.deleteSkill(payload);
+  }
+
+  async renameSkill(payload: RenameSkillPayload): Promise<TransferSkillResult> {
+    return this.skillsService.renameSkill(payload);
+  }
+
+  async transferSkill(payload: TransferSkillPayload): Promise<TransferSkillResult> {
+    return this.skillsService.transferSkill(payload);
+  }
+
+  async optimizeSkills(payload: OptimizeSkillsPayload): Promise<OptimizeSkillsResult> {
+    return this.skillsService.optimizeSkills(payload);
+  }
+
+  async installMarketplaceSkill(
+    payload: InstallMarketplaceSkillPayload,
+  ): Promise<InstallMarketplaceSkillResult> {
+    return this.skillsService.installMarketplaceSkill(payload);
+  }
+
+  async installSkillFromGit(
+    payload: InstallSkillFromGitPayload,
+  ): Promise<InstallMarketplaceSkillResult> {
+    return this.skillsService.installSkillFromGit(payload);
   }
 
   async detectSetupScript(payload: DetectSetupScriptPayload): Promise<DetectSetupScriptResult> {

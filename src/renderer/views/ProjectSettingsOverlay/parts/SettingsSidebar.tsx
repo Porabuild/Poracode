@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   GitFork,
+  Lightbulb,
   PanelLeft,
   PanelLeftClose,
   Play,
@@ -33,6 +34,7 @@ export function SettingsSidebar(props: {
     { id: "worktrees", icon: <GitFork className="size-4" />, label: t`Worktrees` },
     { id: "actions", icon: <Play className="size-4" />, label: t`Actions` },
     { id: "search", icon: <Search className="size-4" />, label: t`Search` },
+    { id: "skills", icon: <Lightbulb className="size-4" />, label: t`Skills` },
   ];
 
   return (

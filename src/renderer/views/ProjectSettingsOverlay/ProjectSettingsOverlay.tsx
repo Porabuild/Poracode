@@ -7,6 +7,7 @@ import { GeneralSection } from "./parts/GeneralSection";
 import { ScriptsSection } from "./parts/ScriptsSection";
 import { ActionsSection } from "./parts/ActionsSection";
 import { SearchSection } from "./parts/SearchSection";
+import { SkillsSection } from "./parts/SkillsSection";
 import type { ProjectSettingsSection } from "./parts/types";
 
 export { resolveActionIcon } from "@/renderer/utils/actionIcons";
@@ -38,6 +39,8 @@ export function ProjectSettingsOverlay(props: { projectId: string; onClose: () =
           <ActionsSection projectId={projectId} />
         ) : activeSection === "search" ? (
           <SearchSection projectId={projectId} />
+        ) : activeSection === "skills" ? (
+          <SkillsSection projectId={projectId} />
         ) : null
       }
     />
