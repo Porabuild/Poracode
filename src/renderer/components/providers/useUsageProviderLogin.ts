@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import {
@@ -20,9 +20,10 @@ export function useUsageProviderLogin(id: string) {
   const [signingIn, setSigningIn] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [apiKey, setApiKey] = useState("");
+  const isRemote = isRemoteSession();
 
   const isApiKeyLogin = supportsApiKeyLogin(id);
-  const supportsLogin = supportsBrowserLogin(id) || isApiKeyLogin;
+  const supportsLogin = !isRemote && (supportsBrowserLogin(id) || isApiKeyLogin);
   // A stored session the latest fetch reports as rejected (expired cookie) still
   // warrants a "Sign in" to re-auth; an unauthenticated provider always does. But
   // never prompt sign-in once a fetch succeeds ("ok"): a provider authenticated

@@ -12,6 +12,7 @@ vi.mock("../../state/sharedSettingsStore", () => ({
 }));
 
 vi.mock("@/renderer/bridge", () => ({
+  isRemoteSession: () => false,
   readBridge: () => ({
     setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   }),

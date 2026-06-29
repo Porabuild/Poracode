@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ChevronLeft, GitBranch, RefreshCw } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import type { GitStatusResult, Project, ProjectLocation } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { SidebarContext } from "@/renderer/views/MainView/parts/AppShell/AppShell";
@@ -12,6 +14,7 @@ import {
   type GitTouchFileTarget,
   type GitTouchGroupTarget,
 } from "@/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/gitTouchContext";
+import type { ConflictResolverLaunchInput } from "@/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useConflictResolver";
 import { SingleFileDiff } from "@/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/SingleFileDiff";
 import { GitActionSheet, type GitSheetTarget } from "./GitActionSheet";
 import { DIFF_MODE, DiffModeToggle, useSheet } from "../components";
@@ -33,14 +36,44 @@ export interface GitTarget {
   readonly worktreePath?: string | undefined;
 }
 
+/** Read the cached git status for a target straight from the shared store. */
+export function useGitTargetStatus(target: GitTarget | null): GitStatusResult | undefined {
+  return useGitStore((s) =>
+    target
+      ? target.statusKey
+        ? s.worktreeStatuses[target.statusKey]
+        : s.statuses[target.project.id]
+      : undefined,
+  ) as GitStatusResult | undefined;
+}
+
 /**
- * Fullscreen git panel for the PWA. Reuses the desktop GitReviewSidebar (file
- * list, commit/sync, PR actions, create-PR) and SingleFileDiff, composed into a
- * single-column mobile layout: the file list fills the screen and tapping a
- * file drills into its diff. File/group actions move from desktop hover into a
- * long-press bottom sheet via the git touch context.
+ * The "Changes" tab of the unified workspace panel. Reuses the desktop
+ * GitReviewSidebar (file list, commit/sync, PR actions, create-PR) and
+ * SingleFileDiff, composed into a single-column mobile layout: the file list
+ * fills the pane and tapping a file drills into its diff. File/group actions
+ * move from desktop hover into a long-press bottom sheet via the git touch
+ * context.
+ *
+ * The pane owns no top chrome of its own — its branch line, refresh control and
+ * back button live in the {@link WorkspaceView} shell. It reports its busy and
+ * immersive (a diff is open) state up so the shell can drive the shared header.
  */
-export function GitView(props: { target: GitTarget; onClose: () => void }) {
+export function GitView(props: {
+  readonly target: GitTarget;
+  readonly onClose: () => void;
+  /** Bumped by the shell's refresh button to trigger a fetch + rehydrate. */
+  readonly refreshSignal: number;
+  readonly onRefreshingChange?: (refreshing: boolean) => void;
+  /** True while a single-file diff is open (the shell hides its chrome then). */
+  readonly onImmersiveChange?: (immersive: boolean) => void;
+  /** Open a changed file in the PWA Files editor. */
+  readonly onOpenFile?: (path: string) => void;
+  /** Start an agent-backed conflict resolver through the paired desktop. */
+  readonly onLaunchConflictResolverThread?:
+    | ((input: ConflictResolverLaunchInput) => void)
+    | undefined;
+}) {
   const { target, onClose } = props;
   const { t } = useLingui();
   const { project, statusKey, locationOverride, worktreeBranch, worktreePath } = target;
@@ -57,9 +90,7 @@ export function GitView(props: { target: GitTarget; onClose: () => void }) {
   const singleFileScrollRef = useRef<HTMLDivElement>(null);
   const sheet = useSheet<GitSheetTarget>();
 
-  const gitStatus = useGitStore((s) =>
-    statusKey ? s.worktreeStatuses[statusKey] : s.statuses[project.id],
-  ) as GitStatusResult | undefined;
+  const gitStatus = useGitTargetStatus(target);
 
   async function refetchStatus() {
     const status = await readBridge()
@@ -98,11 +129,6 @@ export function GitView(props: { target: GitTarget; onClose: () => void }) {
     }
   }
 
-  useEffect(() => {
-    void hydrate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot per target
-  }, [storeKey]);
-
   async function handleRefresh() {
     setRefreshing(true);
     try {
@@ -112,13 +138,36 @@ export function GitView(props: { target: GitTarget; onClose: () => void }) {
           remote: "origin",
           prune: false,
         })
-        .catch(() => undefined);
+        .catch((error: unknown) => {
+          toast.danger(friendlyError(error));
+        });
       await hydrate();
     } finally {
       setRefreshing(false);
       setRefreshKey((k) => k + 1);
     }
   }
+
+  useEffect(() => {
+    void hydrate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot per target
+  }, [storeKey]);
+
+  // The shell's shared refresh button bumps refreshSignal; skip the initial 0.
+  useEffect(() => {
+    if (props.refreshSignal > 0) void handleRefresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- driven only by the signal
+  }, [props.refreshSignal]);
+
+  useEffect(() => {
+    props.onRefreshingChange?.(refreshing);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mirror local busy state up
+  }, [refreshing]);
+
+  useEffect(() => {
+    props.onImmersiveChange?.(selectedFile !== null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mirror drill-down state up
+  }, [selectedFile]);
 
   function openDiff(path: string, staged: boolean) {
     setSelectedStaged(staged);
@@ -130,88 +179,59 @@ export function GitView(props: { target: GitTarget; onClose: () => void }) {
     openGroupMenu: (group: GitTouchGroupTarget) => sheet.open({ kind: "group", group }),
   };
 
-  const headBranch = gitStatus?.branch ?? worktreeBranch ?? "";
-
   return (
     <SidebarContext.Provider value={ALWAYS_EXPANDED}>
       <GitTouchProvider value={touchActions}>
-        <section className="m-git-overlay">
-          <header className="m-git-head">
-            <button className="m-back" type="button" aria-label={t`Back`} onClick={onClose}>
-              <ChevronLeft className="size-5" />
-            </button>
-            <span className="m-git-head__title">
-              <GitBranch className="size-3.5 shrink-0 text-muted/60" />
-              <span className="m-git-head__branch">{headBranch || project.name}</span>
-              {gitStatus && (gitStatus.ahead > 0 || gitStatus.behind > 0) ? (
-                <span className="shrink-0 text-xs text-muted/70">
-                  {gitStatus.ahead > 0 ? `↑${gitStatus.ahead}` : ""}
-                  {gitStatus.behind > 0 ? ` ↓${gitStatus.behind}` : ""}
+        <div className="m-ws-pane">
+          <GitReviewSidebar
+            project={effectiveProject}
+            gitStatus={gitStatus}
+            selectedFile={selectedFile}
+            selectedStaged={selectedStaged}
+            worktreeBranch={worktreeBranch}
+            worktreePath={worktreePath}
+            onSelectFile={(path, staged) => {
+              if (path) openDiff(path, staged);
+            }}
+            onClose={onClose}
+            refreshKey={refreshKey}
+            onRefresh={() => void handleRefresh()}
+            statusKey={statusKey}
+            mode="overlay"
+            hideFooterNav
+            onLaunchConflictResolverThread={props.onLaunchConflictResolverThread}
+          />
+
+          {selectedFile ? (
+            <div className="m-git-diff">
+              <header className="m-git-head">
+                <button
+                  className="m-back"
+                  type="button"
+                  aria-label={t`Back to changes`}
+                  onClick={() => setSelectedFile(null)}
+                >
+                  <ChevronLeft className="size-5" />
+                </button>
+                <span className="m-git-diff__path" title={selectedFile}>
+                  {selectedFile}
                 </span>
-              ) : null}
-            </span>
-            <span className="m-git-head__actions">
-              <button
-                type="button"
-                className="m-git-head__btn"
-                aria-label={t`Refresh`}
-                onClick={() => void handleRefresh()}
-              >
-                <RefreshCw className={`size-4 ${refreshing ? "m-spin" : ""}`} />
-              </button>
-            </span>
-          </header>
-
-          <div className="m-git-overlay__body">
-            <GitReviewSidebar
-              project={effectiveProject}
-              gitStatus={gitStatus}
-              selectedFile={selectedFile}
-              selectedStaged={selectedStaged}
-              worktreeBranch={worktreeBranch}
-              worktreePath={worktreePath}
-              onSelectFile={(path, staged) => {
-                if (path) openDiff(path, staged);
-              }}
-              onClose={onClose}
-              refreshKey={refreshKey}
-              onRefresh={() => void handleRefresh()}
-              statusKey={statusKey}
-              mode="overlay"
-              hideFooterNav
-            />
-
-            {selectedFile ? (
-              <div className="m-git-diff">
-                <header className="m-git-head">
-                  <button
-                    className="m-back"
-                    type="button"
-                    aria-label={t`Back to files`}
-                    onClick={() => setSelectedFile(null)}
-                  >
-                    <ChevronLeft className="size-5" />
-                  </button>
-                  <span className="m-git-diff__path" title={selectedFile}>
-                    {selectedFile}
-                  </span>
-                  <span className="m-git-head__actions">
-                    <DiffModeToggle mode={diffMode} onChange={setDiffMode} />
-                  </span>
-                </header>
-                <div className="m-git-diff__body">
-                  <SingleFileDiff
-                    project={effectiveProject}
-                    filePath={selectedFile}
-                    staged={selectedStaged}
-                    diffMode={diffMode}
-                    refreshKey={refreshKey}
-                    containerRef={singleFileScrollRef}
-                  />
-                </div>
+                <span className="m-git-head__actions">
+                  <DiffModeToggle mode={diffMode} onChange={setDiffMode} />
+                </span>
+              </header>
+              <div className="m-git-diff__body">
+                <SingleFileDiff
+                  project={effectiveProject}
+                  filePath={selectedFile}
+                  staged={selectedStaged}
+                  diffMode={diffMode}
+                  refreshKey={refreshKey}
+                  containerRef={singleFileScrollRef}
+                />
               </div>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
 
           {sheet.target ? (
             <GitActionSheet
@@ -221,11 +241,12 @@ export function GitView(props: { target: GitTarget; onClose: () => void }) {
               storeKey={storeKey}
               isWorktree={isWorktree}
               onViewDiff={openDiff}
+              {...(props.onOpenFile ? { onOpenFile: props.onOpenFile } : {})}
               onRefetch={refetchStatus}
               onClose={sheet.close}
             />
           ) : null}
-        </section>
+        </div>
       </GitTouchProvider>
     </SidebarContext.Provider>
   );

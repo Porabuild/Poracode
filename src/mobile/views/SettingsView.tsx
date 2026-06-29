@@ -10,8 +10,6 @@ import {
   Bot,
   Gauge,
   GitFork,
-  Globe,
-  MessageSquare,
   Palette,
   Settings2,
   Sparkles,
@@ -22,13 +20,11 @@ import type { Project, Thread } from "@/shared/contracts";
 import { AISettings } from "@/renderer/views/SettingsOverlay/parts/AISettings";
 import { AppearanceSettings } from "@/renderer/views/SettingsOverlay/parts/AppearanceSettings";
 import { AgentsGeneralSettings } from "@/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings";
-import { BrowserSettings } from "@/renderer/views/SettingsOverlay/parts/BrowserSettings";
 import { GeneralSettings } from "@/renderer/views/SettingsOverlay/parts/GeneralSettings";
 import { GitSettings } from "@/renderer/views/SettingsOverlay/parts/GitSettings";
 import { NotificationSettings } from "@/renderer/views/SettingsOverlay/parts/NotificationSettings";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
 import { TerminalSettings } from "@/renderer/views/SettingsOverlay/parts/TerminalSettings";
-import { ThreadSettings } from "@/renderer/views/SettingsOverlay/parts/ThreadSettings";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import { UsageSettings } from "@/renderer/views/SettingsOverlay/parts/UsageSettings";
 import { MoreRow } from "../components";
@@ -156,25 +152,11 @@ const SECTION_GROUPS: readonly SectionGroup[] = [
         render: () => <TerminalSettings />,
       },
       {
-        id: "threads",
-        label: MOBILE_SETTINGS_SECTION_LABELS.threads,
-        hint: msg`Removal behavior`,
-        icon: <MessageSquare className="size-4" />,
-        render: () => <ThreadSettings />,
-      },
-      {
         id: "git",
         label: MOBILE_SETTINGS_SECTION_LABELS.git,
         hint: msg`Review presentation`,
         icon: <GitFork className="size-4" />,
         render: () => <GitSettings />,
-      },
-      {
-        id: "browser",
-        label: MOBILE_SETTINGS_SECTION_LABELS.browser,
-        hint: msg`Links and page behavior`,
-        icon: <Globe className="size-4" />,
-        render: () => <BrowserSettings />,
       },
       {
         id: "usage",
@@ -216,9 +198,8 @@ const SECTION_GROUPS: readonly SectionGroup[] = [
 
 const ALL_SECTIONS: readonly SectionDef[] = SECTION_GROUPS.flatMap((group) => group.sections);
 
-/** Phone settings: a fullscreen section list, with each section opening as
- * its own page behind a back button (the desktop overlay keeps its sidebar
- * layout in the wide shell). */
+/** PWA settings: a remote-safe section list, with each section opening as
+ * its own page behind a back button. */
 export function SettingsView(
   props: SettingsThreadHandlers & {
     /** Open section; the app header renders the back affordance and title. */

@@ -119,6 +119,9 @@ export class RemoteBrowserGateway {
       case "activate-tab":
         manager.setActiveTab(command.tabId);
         break;
+      case "move-tab":
+        manager.moveTab(command.tabId, command.targetTabId, command.position);
+        break;
       case "navigate":
         await manager.navigate(command.tabId, command.url);
         break;

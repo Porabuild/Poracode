@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
 import {
   REMOTE_STANDARD_SCOPES,
   remoteAgentStatusesSchema,
@@ -25,6 +27,7 @@ import {
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
 import {
+  DEFAULT_TERMINAL_SIZE,
   sendThreadInputPayloadSchema,
   type ProjectLocation,
   type PromptSegment,
@@ -34,6 +37,9 @@ import {
   type SendThreadInputPayload,
   type SetPendingSteerPayload,
   type StartShellPayload,
+  type StartThreadPayload,
+  type StartThreadResult,
+  type TerminalSize,
   type ThreadConfig,
   type ThreadPresentationMode,
   type ThreadServerRequestId,
@@ -50,13 +56,38 @@ export class RemoteClientError extends Error {
   }
 }
 
+function parseJsonResponse(text: string, response: Response): unknown {
+  const trimmed = text.trim();
+  if (!trimmed) return {};
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    const contentType = response.headers.get("content-type") ?? "";
+    const htmlLike = contentType.includes("text/html") || trimmed.startsWith("<");
+    throw new RemoteClientError(
+      htmlLike
+        ? i18n._(
+            msg`That endpoint opened the mobile app instead of the desktop API. Use the desktop endpoint from Settings → Remote Access.`,
+          )
+        : "Remote request failed.",
+      response.status,
+      "invalid_response",
+    );
+  }
+}
+
 export interface StartRemoteThreadInput {
+  readonly threadId?: StartThreadPayload["threadId"] | undefined;
   readonly projectLocation: ProjectLocation;
-  readonly agentKind: string;
+  readonly agentKind: StartThreadPayload["agentKind"];
+  readonly agentInstanceId?: StartThreadPayload["agentInstanceId"] | undefined;
   readonly config: ThreadConfig;
   readonly prompt: string;
-  readonly segments?: readonly PromptSegment[];
-  readonly presentationMode: ThreadPresentationMode;
+  readonly segments?: readonly PromptSegment[] | undefined;
+  readonly initialSize?: TerminalSize | undefined;
+  readonly sessionRef?: StartThreadPayload["sessionRef"] | undefined;
+  readonly presentationMode?: ThreadPresentationMode | undefined;
+  readonly userMessageItemId?: StartThreadPayload["userMessageItemId"] | undefined;
 }
 
 export class RemoteDesktopClient {
@@ -147,17 +178,21 @@ export class RemoteDesktopClient {
     );
   }
 
-  async startThread(input: StartRemoteThreadInput): Promise<{ readonly threadId: string }> {
+  async startThread(input: StartRemoteThreadInput): Promise<StartThreadResult> {
     const result = await this.requestJson("/api/threads/start", {
       method: "POST",
       body: {
+        ...(input.threadId ? { threadId: input.threadId } : {}),
         projectLocation: input.projectLocation,
         agentKind: input.agentKind,
+        ...(input.agentInstanceId ? { agentInstanceId: input.agentInstanceId } : {}),
         config: input.config,
         prompt: input.prompt,
         ...(input.segments && input.segments.length > 0 ? { segments: input.segments } : {}),
-        initialSize: { cols: 80, rows: 24 },
-        presentationMode: input.presentationMode,
+        initialSize: input.initialSize ?? DEFAULT_TERMINAL_SIZE,
+        ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
+        ...(input.presentationMode ? { presentationMode: input.presentationMode } : {}),
+        ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
       },
     });
     const parsed = z.object({ threadId: z.string() }).safeParse(result);
@@ -186,6 +221,12 @@ export class RemoteDesktopClient {
 
   async interruptThread(threadId: string): Promise<void> {
     await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/interrupt`, {
+      method: "POST",
+    });
+  }
+
+  async closeThread(threadId: string): Promise<void> {
+    await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/close`, {
       method: "POST",
     });
   }
@@ -261,10 +302,11 @@ export class RemoteDesktopClient {
   }
 
   /**
-   * Generic git/GitHub passthrough to the paired desktop. The reused desktop
-   * git-review components call the bridge's git/gh methods, which the remote
-   * bridge shim forwards here (see bridge.ts). `procedure` is one of the
-   * allowlisted names in GIT_REMOTE_PROCEDURE_SCOPES; the server validates it.
+   * Generic supervisor passthrough to the paired desktop. The reused desktop
+   * git-review components and the mobile file tree call bridge methods, which
+   * the remote bridge shim forwards here (see bridge.ts). `procedure` is one of
+   * the allowlisted names in GIT_REMOTE_PROCEDURE_SCOPES; the server validates
+   * it.
    */
   async gitCall(procedure: string, payload: unknown): Promise<unknown> {
     const result = (await this.requestJson("/api/git/call", {
@@ -314,7 +356,7 @@ export class RemoteDesktopClient {
       ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
     });
     const text = await response.text();
-    const parsed = text.trim().length > 0 ? (JSON.parse(text) as unknown) : {};
+    const parsed = parseJsonResponse(text, response);
     if (!response.ok) {
       const error = remoteHttpErrorSchema.safeParse(parsed);
       throw new RemoteClientError(

@@ -210,8 +210,8 @@ export function ThreadDraftComposerArea(props: {
   // either binary, which is a confusing state to debug.
   const [agentUpdating, setAgentUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const showVoiceInputButton =
-    useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSession();
+  const isRemote = isRemoteSession();
+  const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemote;
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const attachments = useAttachments();
@@ -527,15 +527,19 @@ export function ThreadDraftComposerArea(props: {
             {authRequired ? (
               <ThreadAuthRequiredDock agentStatus={props.selectedAgent} project={props.project} />
             ) : null}
-            <ThreadAgentUpdateDock
-              agentStatus={props.selectedAgent}
-              onUpdatingChange={setAgentUpdating}
-            />
-            <HookInstallProposal
-              project={props.project}
-              selectedAgent={props.selectedAgent}
-              presentationMode={props.presentationMode}
-            />
+            {!isRemote ? (
+              <>
+                <ThreadAgentUpdateDock
+                  agentStatus={props.selectedAgent}
+                  onUpdatingChange={setAgentUpdating}
+                />
+                <HookInstallProposal
+                  project={props.project}
+                  selectedAgent={props.selectedAgent}
+                  presentationMode={props.presentationMode}
+                />
+              </>
+            ) : null}
             {showCommandPanel ? (
               <ThreadCommandPanel
                 commands={filteredCommands}
@@ -581,9 +585,13 @@ export function ThreadDraftComposerArea(props: {
             showBrowserMention={browserMcpScope !== "none" && props.config.browserMcp !== true}
             onBrowserMentionSelect={() => props.onConfigChange({ browserMcp: true })}
             triggerWords={getTriggerWords(props.selectedAgent.kind, props.config.model)}
-            onPasteImage={(file) => {
-              void attachments.addClipboardImage(file, `draft:${props.project.id}`);
-            }}
+            {...(!isRemote
+              ? {
+                  onPasteImage: (file: File) => {
+                    void attachments.addClipboardImage(file, `draft:${props.project.id}`);
+                  },
+                }
+              : {})}
             onSubmit={(segments) => {
               submitSegments([...attachments.toSegments(), ...segments]);
             }}
@@ -630,7 +638,7 @@ export function ThreadDraftComposerArea(props: {
         submitPending={isSubmitting}
         submitLabel={t`Launch thread`}
         onPromptChange={setPrompt}
-        onAttachFiles={attachments.addFiles}
+        {...(!isRemote ? { onAttachFiles: attachments.addFiles } : {})}
         onSubmit={() => {
           const segments = mentionRef.current?.serializeSegments() ?? [];
           submitSegments([...attachments.toSegments(), ...segments], prompt);
@@ -639,6 +647,7 @@ export function ThreadDraftComposerArea(props: {
           <>
             <ComposerAddMenu
               browserMcpEnabled={props.config.browserMcp === true}
+              showFileOption={!isRemote}
               showBrowserOption={browserMcpScope !== "none"}
               onPickFiles={() => {
                 void readBridge()

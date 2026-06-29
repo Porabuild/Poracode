@@ -49,9 +49,11 @@ import type { SettingsSection } from "./types";
 // source of truth for both the collapsed icon rail and the expanded list.
 const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
   "search",
+  "threads",
   "shortcuts",
   "remoteAccess",
   "agents",
+  "browser",
   "archived",
   "about",
 ]);

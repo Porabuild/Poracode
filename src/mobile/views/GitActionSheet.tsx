@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { FileDiff, Minus, Plus, Undo2 } from "lucide-react";
+import { FileDiff, FileEdit, Minus, Plus, Undo2 } from "lucide-react";
 import type { ProjectLocation } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import type {
@@ -27,6 +29,7 @@ export function GitActionSheet(props: {
   readonly storeKey: string;
   readonly isWorktree: boolean;
   readonly onViewDiff: (path: string, staged: boolean) => void;
+  readonly onOpenFile?: (path: string) => void;
   readonly onRefetch: () => Promise<void>;
   readonly onClose: () => void;
 }) {
@@ -43,47 +46,60 @@ export function GitActionSheet(props: {
   } = props;
   const [confirmingRevert, setConfirmingRevert] = useState(false);
 
+  async function recoverFromMutationError(error: unknown) {
+    toast.danger(friendlyError(error));
+    await onRefetch();
+  }
+
   async function toggleStageFile(file: GitTouchFileTarget) {
     const store = useGitStore.getState();
     if (file.staged) {
       store.optimisticUnstageFile(storeKey, file.path, isWorktree);
       await readBridge()
         .gitUnstage({ projectLocation: effectiveLocation, filePath: file.path })
-        .catch(onRefetch);
+        .catch(recoverFromMutationError);
     } else {
       store.optimisticStageFile(storeKey, file.path, isWorktree);
       await readBridge()
         .gitStage({ projectLocation: effectiveLocation, filePath: file.path })
-        .catch(onRefetch);
+        .catch(recoverFromMutationError);
     }
     onClose();
   }
 
   async function revertFile(file: GitTouchFileTarget) {
-    await readBridge()
-      .gitRevert({ projectLocation: effectiveLocation, filePath: file.path })
-      .catch(() => undefined);
-    await onRefetch();
+    try {
+      await readBridge().gitRevert({ projectLocation: effectiveLocation, filePath: file.path });
+      await onRefetch();
+    } catch (error) {
+      await recoverFromMutationError(error);
+    }
     onClose();
   }
 
   async function stageAll() {
     useGitStore.getState().optimisticStageAll(storeKey, isWorktree);
-    await readBridge().gitStageAll({ projectLocation: effectiveLocation }).catch(onRefetch);
+    await readBridge()
+      .gitStageAll({ projectLocation: effectiveLocation })
+      .catch(recoverFromMutationError);
     onClose();
   }
 
   async function unstageAll() {
     useGitStore.getState().optimisticUnstageAll(storeKey, isWorktree);
-    await readBridge().gitUnstageAll({ projectLocation: effectiveLocation }).catch(onRefetch);
+    await readBridge()
+      .gitUnstageAll({ projectLocation: effectiveLocation })
+      .catch(recoverFromMutationError);
     onClose();
   }
 
   async function revertAll() {
-    await readBridge()
-      .gitRevertAll({ projectLocation: effectiveLocation })
-      .catch(() => undefined);
-    await onRefetch();
+    try {
+      await readBridge().gitRevertAll({ projectLocation: effectiveLocation });
+      await onRefetch();
+    } catch (error) {
+      await recoverFromMutationError(error);
+    }
     onClose();
   }
 
@@ -148,6 +164,19 @@ export function GitActionSheet(props: {
             <FileDiff className="size-4" />
             <Trans>View diff</Trans>
           </button>
+          {props.onOpenFile ? (
+            <button
+              type="button"
+              className="m-sheet-action"
+              onClick={() => {
+                props.onOpenFile?.(target.file.path);
+                onClose();
+              }}
+            >
+              <FileEdit className="size-4" />
+              <Trans>Open in editor</Trans>
+            </button>
+          ) : null}
           <button
             type="button"
             className="m-sheet-action"

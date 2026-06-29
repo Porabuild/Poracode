@@ -94,6 +94,16 @@ export const XTermSurface = forwardRef<
     className?: string;
     baseFontSize?: number;
     openLinksInNativeBrowser?: boolean;
+    /** Mobile browsers are more reliable with xterm's default DOM renderer. */
+    preferDomRenderer?: boolean;
+    /** Keep xterm's local buffer at the canonical PTY size instead of fitting. */
+    fixedTerminalSize?: TerminalSize;
+    /** Whether a visual fit should resize the backing PTY. */
+    resizeTerminalOnFit?: boolean;
+    /** Translate touch drags into xterm wheel events for mobile/PWA terminals. */
+    touchScrollEnabled?: boolean;
+    /** Keep touch gestures from focusing xterm's hidden textarea. */
+    suppressTouchKeyboard?: boolean;
     /**
      * Pluggable output feed. When provided (the remote PWA), the surface gets
      * PTY bytes / reset / exit through this subscription instead of the local
@@ -124,6 +134,11 @@ export const XTermSurface = forwardRef<
     className,
     baseFontSize = 12,
     openLinksInNativeBrowser = false,
+    preferDomRenderer = false,
+    fixedTerminalSize,
+    resizeTerminalOnFit = true,
+    touchScrollEnabled = false,
+    suppressTouchKeyboard = false,
     outputSource,
     initialScrollback,
   } = props;
@@ -415,6 +430,19 @@ export const XTermSurface = forwardRef<
       // no-op there.
       const wasPinnedToBottom = terminal.buffer.active.viewportY >= terminal.buffer.active.baseY;
 
+      if (fixedTerminalSize) {
+        if (terminal.cols !== fixedTerminalSize.cols || terminal.rows !== fixedTerminalSize.rows) {
+          terminal.resize(fixedTerminalSize.cols, fixedTerminalSize.rows);
+        }
+        lastCols = fixedTerminalSize.cols;
+        lastRows = fixedTerminalSize.rows;
+        onTerminalResizeRef.current?.(fixedTerminalSize);
+        if (wasPinnedToBottom) {
+          terminal.scrollToBottom();
+        }
+        return;
+      }
+
       fit.fit();
 
       if (wasPinnedToBottom) {
@@ -429,7 +457,9 @@ export const XTermSurface = forwardRef<
         clearTimeout(ptyResizeTimer);
         ptyResizeTimer = 0;
       }
-      if (terminal.buffer.normal.length < RESIZE_DEBOUNCE_BUFFER_THRESHOLD) {
+      if (!resizeTerminalOnFit) {
+        onTerminalResizeRef.current?.({ cols: terminal.cols, rows: terminal.rows });
+      } else if (terminal.buffer.normal.length < RESIZE_DEBOUNCE_BUFFER_THRESHOLD) {
         flushPtyResize();
       } else {
         ptyResizeTimer = window.setTimeout(() => {
@@ -477,6 +507,77 @@ export const XTermSurface = forwardRef<
     terminal.loadAddon(new ClipboardAddon());
 
     terminal.open(mount);
+    const focusTerminalOnPointerDown = (event: PointerEvent) => {
+      if (suppressTouchKeyboard && event.pointerType === "touch") {
+        event.stopPropagation();
+        return;
+      }
+      terminal.focus();
+    };
+    mount.addEventListener("pointerdown", focusTerminalOnPointerDown, { capture: true });
+
+    let touchScrollY: number | null = null;
+    let touchScrollRemainder = 0;
+    // Resolved once: xterm creates the viewport synchronously in open() and keeps
+    // it for the surface's lifetime, so we skip a DOM query per touchmove.
+    const touchWheelTarget =
+      mount.querySelector(".xterm-viewport") ?? mount.querySelector(".xterm") ?? mount;
+    const dispatchWheelFromTouch = (touch: Touch, deltaY: number) => {
+      const wheelEvent = new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+        deltaY,
+      });
+      return !touchWheelTarget.dispatchEvent(wheelEvent);
+    };
+    const onTouchStart = (event: TouchEvent) => {
+      if (!touchScrollEnabled) return;
+      event.stopPropagation();
+      if (suppressTouchKeyboard) {
+        event.preventDefault();
+      }
+      if (event.touches.length !== 1) {
+        touchScrollY = null;
+        touchScrollRemainder = 0;
+        return;
+      }
+      touchScrollY = event.touches[0]?.clientY ?? null;
+      touchScrollRemainder = 0;
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      if (!touchScrollEnabled) return;
+      if (touchScrollY === null || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const deltaY = touchScrollY - touch.clientY;
+      touchScrollY = touch.clientY;
+      if (deltaY === 0) return;
+      if (dispatchWheelFromTouch(touch, deltaY)) return;
+
+      const rowHeight = terminal.rows > 0 ? mount.clientHeight / terminal.rows : 0;
+      if (rowHeight <= 0) return;
+      const rawLines = deltaY / rowHeight + touchScrollRemainder;
+      const lines = rawLines > 0 ? Math.floor(rawLines) : Math.ceil(rawLines);
+      touchScrollRemainder = rawLines - lines;
+      if (lines === 0) return;
+
+      terminal.scrollLines(lines);
+      checkScrollPosition();
+    };
+    const onTouchEnd = () => {
+      touchScrollY = null;
+      touchScrollRemainder = 0;
+    };
+    mount.addEventListener("touchstart", onTouchStart, { capture: true, passive: false });
+    mount.addEventListener("touchmove", onTouchMove, { capture: true, passive: false });
+    mount.addEventListener("touchend", onTouchEnd, { capture: true });
+    mount.addEventListener("touchcancel", onTouchEnd, { capture: true });
 
     // ── WebGL renderer with DOM fallback ────────────────────────
     // Match VSCode: prefer the GPU renderer, fall back to the DOM renderer
@@ -484,17 +585,19 @@ export const XTermSurface = forwardRef<
     // a healthy WebGL context (it relies on the GPU compositor).
     let webglAddon: WebglAddon | null = null;
     let webglContextLossDisposable: { dispose(): void } | null = null;
-    try {
-      webglAddon = new WebglAddon();
-      webglContextLossDisposable = webglAddon.onContextLoss(() => {
+    if (!preferDomRenderer) {
+      try {
+        webglAddon = new WebglAddon();
+        webglContextLossDisposable = webglAddon.onContextLoss(() => {
+          webglAddon?.dispose();
+          webglAddon = null;
+        });
+        terminal.loadAddon(webglAddon);
+        terminal.loadAddon(new ImageAddon());
+      } catch {
         webglAddon?.dispose();
         webglAddon = null;
-      });
-      terminal.loadAddon(webglAddon);
-      terminal.loadAddon(new ImageAddon());
-    } catch {
-      webglAddon?.dispose();
-      webglAddon = null;
+      }
     }
 
     terminal.onBell(() => {
@@ -686,6 +789,11 @@ export const XTermSurface = forwardRef<
       webglAddon?.dispose();
       linkDisposable.dispose();
       searchResultsDisposable.dispose();
+      mount.removeEventListener("pointerdown", focusTerminalOnPointerDown, { capture: true });
+      mount.removeEventListener("touchstart", onTouchStart, { capture: true });
+      mount.removeEventListener("touchmove", onTouchMove, { capture: true });
+      mount.removeEventListener("touchend", onTouchEnd, { capture: true });
+      mount.removeEventListener("touchcancel", onTouchEnd, { capture: true });
       mount.removeEventListener("focusin", onTerminalFocusIn);
       clearActiveTerminalFind(findController);
       unsubscribe();
@@ -696,7 +804,7 @@ export const XTermSurface = forwardRef<
       searchRef.current = null;
       requestRefitRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once: terminal is created once, readOnly/terminalId/appearance are captured at init
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once: terminal is created once, readOnly/terminalId/appearance/touch behavior are captured at init
   }, []);
 
   useEffect(() => {
@@ -830,7 +938,12 @@ export const XTermSurface = forwardRef<
           } as CSSProperties
         }
       >
-        <div ref={mountRef} className="lightcode-terminal-pane h-full min-w-0 overflow-hidden" />
+        <div
+          ref={mountRef}
+          className={`lightcode-terminal-pane h-full ${
+            fixedTerminalSize ? "min-w-max overflow-visible" : "min-w-0 overflow-hidden"
+          }`}
+        />
         {findOpen ? (
           <div className="pointer-events-auto absolute right-2 top-2 z-20">
             <FindBar

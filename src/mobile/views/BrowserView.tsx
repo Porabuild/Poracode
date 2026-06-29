@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ArrowLeft, ArrowRight, Globe, Keyboard, Loader2, Plus, RotateCw, X } from "lucide-react";
 import type {
@@ -8,6 +8,7 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from "react";
 import type { RemoteBrowserKey, RemoteBrowserTab } from "@/shared/remote";
+import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
 import { BrowserEmptyState } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserEmptyState";
@@ -26,6 +27,12 @@ import {
 } from "../browserMirror";
 
 const DEFAULT_HOME = "https://www.google.com";
+
+function runBrowserAction(action: Promise<unknown>): void {
+  void action.catch((error: unknown) => {
+    toast.danger(friendlyError(error));
+  });
+}
 
 const LOCALHOST_PATTERN =
   /^(localhost|(?:\d{1,3}\.){3}\d{1,3}|\[(?:[0-9a-f:]+)\])(?::\d+)?(?:[/?#]|$)/i;
@@ -343,9 +350,9 @@ function AddressPill(props: { readonly activeTab: RemoteBrowserTab | null }) {
     if (!url) return;
     const bridge = readBridge();
     if (activeTab) {
-      bridge.browserNavigate({ tabId: activeTab.tabId, url }).catch(() => {});
+      runBrowserAction(bridge.browserNavigate({ tabId: activeTab.tabId, url }));
     } else {
-      bridge.browserCreateTab({ url, activate: true }).catch(() => {});
+      runBrowserAction(bridge.browserCreateTab({ url, activate: true }));
     }
   }
 
@@ -392,10 +399,7 @@ function AddressPill(props: { readonly activeTab: RemoteBrowserTab | null }) {
         aria-label={t`Reload`}
         disabled={!activeTab}
         onClick={() =>
-          activeTab &&
-          readBridge()
-            .browserReload({ tabId: activeTab.tabId })
-            .catch(() => {})
+          activeTab && runBrowserAction(readBridge().browserReload({ tabId: activeTab.tabId }))
         }
       >
         <RotateCw className="size-3.5" />
@@ -434,9 +438,7 @@ function TabSheet(props: {
 }) {
   const { t } = useLingui();
   function createTab() {
-    readBridge()
-      .browserCreateTab({ url: DEFAULT_HOME, activate: true })
-      .catch(() => {});
+    runBrowserAction(readBridge().browserCreateTab({ url: DEFAULT_HOME, activate: true }));
     props.onClose();
   }
 
@@ -470,9 +472,7 @@ function TabSheet(props: {
                 type="button"
                 className="m-tab-row__main"
                 onClick={() => {
-                  readBridge()
-                    .browserActivateTab({ tabId: tab.tabId })
-                    .catch(() => {});
+                  runBrowserAction(readBridge().browserActivateTab({ tabId: tab.tabId }));
                   props.onClose();
                 }}
               >
@@ -491,11 +491,7 @@ function TabSheet(props: {
                 aria-label={closeLabel}
                 size="sm"
                 variant="tertiary"
-                onPress={() =>
-                  readBridge()
-                    .browserCloseTab({ tabId: tab.tabId })
-                    .catch(() => {})
-                }
+                onPress={() => runBrowserAction(readBridge().browserCloseTab({ tabId: tab.tabId }))}
               >
                 <X className="size-4" />
               </Button>
@@ -541,9 +537,9 @@ function DesktopBrowserToolbar(props: {
     if (!url) return;
     const bridge = readBridge();
     if (activeTab) {
-      bridge.browserNavigate({ tabId: activeTab.tabId, url }).catch(() => {});
+      runBrowserAction(bridge.browserNavigate({ tabId: activeTab.tabId, url }));
     } else {
-      bridge.browserCreateTab({ url, activate: true }).catch(() => {});
+      runBrowserAction(bridge.browserCreateTab({ url, activate: true }));
     }
   };
 
@@ -555,10 +551,7 @@ function DesktopBrowserToolbar(props: {
         title={t`Back`}
         disabled={disabled || !activeTab?.canGoBack}
         onClick={() =>
-          activeTab &&
-          readBridge()
-            .browserBack({ tabId: activeTab.tabId })
-            .catch(() => {})
+          activeTab && runBrowserAction(readBridge().browserBack({ tabId: activeTab.tabId }))
         }
       >
         <ArrowLeft className="size-3.5" />
@@ -569,10 +562,7 @@ function DesktopBrowserToolbar(props: {
         title={t`Forward`}
         disabled={disabled || !activeTab?.canGoForward}
         onClick={() =>
-          activeTab &&
-          readBridge()
-            .browserForward({ tabId: activeTab.tabId })
-            .catch(() => {})
+          activeTab && runBrowserAction(readBridge().browserForward({ tabId: activeTab.tabId }))
         }
       >
         <ArrowRight className="size-3.5" />
@@ -583,10 +573,7 @@ function DesktopBrowserToolbar(props: {
         title={t`Reload`}
         disabled={disabled}
         onClick={() =>
-          activeTab &&
-          readBridge()
-            .browserReload({ tabId: activeTab.tabId })
-            .catch(() => {})
+          activeTab && runBrowserAction(readBridge().browserReload({ tabId: activeTab.tabId }))
         }
       >
         <RotateCw className="size-3.5" />
@@ -625,9 +612,7 @@ function DesktopBrowserToolbar(props: {
         className={desktopToolbarButtonClass}
         title={t`New tab`}
         onClick={() =>
-          readBridge()
-            .browserCreateTab({ url: DEFAULT_HOME, activate: true })
-            .catch(() => {})
+          runBrowserAction(readBridge().browserCreateTab({ url: DEFAULT_HOME, activate: true }))
         }
       >
         <Plus className="size-3.5" />
@@ -667,9 +652,7 @@ export function BrowserView() {
   }, []);
 
   function createTab() {
-    readBridge()
-      .browserCreateTab({ url: DEFAULT_HOME, activate: true })
-      .catch(() => {});
+    runBrowserAction(readBridge().browserCreateTab({ url: DEFAULT_HOME, activate: true }));
   }
 
   const mirrorActive = status?.status === "active" && frame !== null;
@@ -729,10 +712,7 @@ export function BrowserView() {
               aria-label={t`Back`}
               disabled={!activeTab?.canGoBack}
               onClick={() =>
-                activeTab &&
-                readBridge()
-                  .browserBack({ tabId: activeTab.tabId })
-                  .catch(() => {})
+                activeTab && runBrowserAction(readBridge().browserBack({ tabId: activeTab.tabId }))
               }
             >
               <ArrowLeft className="size-5" />
@@ -744,9 +724,7 @@ export function BrowserView() {
               disabled={!activeTab?.canGoForward}
               onClick={() =>
                 activeTab &&
-                readBridge()
-                  .browserForward({ tabId: activeTab.tabId })
-                  .catch(() => {})
+                runBrowserAction(readBridge().browserForward({ tabId: activeTab.tabId }))
               }
             >
               <ArrowRight className="size-5" />

@@ -109,6 +109,34 @@ describe("searchSettings", () => {
     const anchors = searchSettings("auto", t, { remoteSession: true }).map((r) => r.anchor);
     expect(anchors).not.toContain("threads.autoArchiveDoneAfter");
     expect(anchors).not.toContain("usage.autoRefreshMinutes");
+    expect(anchors).not.toContain("terminal.autoShowTerminalPanel");
+    expect(
+      searchSettings("side-by-side", t, { remoteSession: true }).map((r) => r.anchor),
+    ).not.toContain("general.defaultNewThread");
+    expect(
+      searchSettings("home scope", t, { remoteSession: true }).map((r) => r.anchor),
+    ).not.toContain("general.homeScope");
+    expect(searchSettings("lsp", t, { remoteSession: true }).map((r) => r.anchor)).not.toContain(
+      "general.editorLsp",
+    );
+    expect(
+      searchSettings("quick remove", t, { remoteSession: true }).map((r) => r.anchor),
+    ).not.toContain("threads.defaultThreadRemoval");
+    expect(searchSettings("panel", t, { remoteSession: true }).map((r) => r.anchor)).not.toContain(
+      "terminal.terminalPosition",
+    );
+    expect(searchSettings("picker", t, { remoteSession: true }).map((r) => r.anchor)).not.toContain(
+      "terminal.cliPickerTarget",
+    );
+    expect(searchSettings("glass", t, { remoteSession: true }).map((r) => r.anchor)).not.toContain(
+      "appearance.translucentSidebar",
+    );
+    expect(
+      searchSettings("review mode", t, { remoteSession: true }).map((r) => r.anchor),
+    ).not.toContain("git.gitReviewMode");
+    expect(
+      searchSettings("cookies", t, { remoteSession: true }).map((r) => r.anchor),
+    ).not.toContain("browser.allowDataAccess");
   });
 
   it("truncates long description snippets", () => {

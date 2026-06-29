@@ -3,9 +3,10 @@ import { Button, toast } from "@heroui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import { ChevronLeft, Ellipsis, Home, Plus, Server } from "lucide-react";
+import { ChevronLeft, Ellipsis, Gauge, Home, Plus, Server } from "lucide-react";
 import type { ReactNode } from "react";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { PullFromSourceDialog } from "@/renderer/views/MainView/parts/PullFromSourceDialog";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { ConnectionBanner, ConnectionPill } from "./components";
 import { preselectWorktreeDraft, runThreadAction, threadIdFromPath } from "./navHelpers";
@@ -19,7 +20,7 @@ import { ThreadsView } from "./views/ThreadsView";
 
 const PROJECT_FILTER_PREF = "threads.projectFilter";
 
-type TabKey = "threads" | "new" | "desktops" | "more";
+type TabKey = "threads" | "new" | "desktops" | "usage" | "more";
 
 /** Route-derived narrow-layout chrome: which top bar + tab bar to render. */
 type Chrome =
@@ -35,7 +36,7 @@ type Chrome =
 
 function getChrome(pathname: string): Chrome {
   if (pathname.startsWith("/thread/")) return { layout: "thread" };
-  if (pathname.startsWith("/git/") || pathname.startsWith("/pr/")) {
+  if (pathname.startsWith("/workspace/") || pathname.startsWith("/pr/")) {
     return { layout: "fullscreen" };
   }
   const sectionMatch = /^\/more\/settings\/(.+)$/.exec(pathname);
@@ -51,9 +52,7 @@ function getChrome(pathname: string): Chrome {
   if (pathname === "/more/settings") {
     return { layout: "subscreen", title: msg`Settings`, backTo: "/more", tab: "more" };
   }
-  if (pathname === "/more/usage") {
-    return { layout: "subscreen", title: msg`Usage`, backTo: "/more", tab: "more" };
-  }
+  if (pathname === "/more/usage") return { layout: "tab", tab: "usage" };
   if (pathname === "/more/browser") {
     return { layout: "subscreen", title: msg`Browser`, backTo: "/more", tab: "more" };
   }
@@ -64,9 +63,8 @@ function getChrome(pathname: string): Chrome {
 }
 
 function Brand(props: { readonly subtitle?: string | undefined; readonly onPress: () => void }) {
-  // Desktop labels default to "Lightcode on <host>"; the header only needs the
-  // "on <host>" part.
-  const label = props.subtitle?.replace(/^Lightcode\s+/i, "");
+  // Desktop labels default to "Lightcode on <host>"; the header only needs the host.
+  const label = props.subtitle?.replace(/^Lightcode\s+on\s+/i, "");
   return (
     <button className="m-brand" type="button" onClick={props.onPress}>
       <span className="m-brand__title">{label || "Lightcode"}</span>
@@ -152,6 +150,14 @@ function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly ch
                     () => void navigate({ to: "/threads" }),
                   )
                 }
+                onNewThreadInWorktree={(input) => {
+                  preselectWorktreeDraft(input);
+                  void navigate({ to: "/new" });
+                }}
+                onDeleteWorktreeGroup={(input) => {
+                  void remote.deleteWorktreeGroup(input);
+                  void navigate({ to: "/threads" });
+                }}
               />
             ) : (
               <span className="m-topbar__thread">
@@ -194,6 +200,12 @@ function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly ch
             icon={<Home className="size-4" />}
             label={t`Threads`}
             onPress={() => void navigate({ to: "/threads" })}
+          />
+          <TabButton
+            active={activeTab === "usage"}
+            icon={<Gauge className="size-4" />}
+            label={t`Usage`}
+            onPress={() => void navigate({ to: "/more/usage" })}
           />
           <TabButton
             active={activeTab === "new"}
@@ -252,6 +264,16 @@ function WideShell(props: {
             <Trans>New thread</Trans>
           </Button>
           <Button
+            aria-label={t`Usage`}
+            className="text-foreground"
+            size="sm"
+            variant="secondary"
+            isIconOnly
+            onPress={() => void navigate({ to: "/more/usage" })}
+          >
+            <Gauge className="size-4" />
+          </Button>
+          <Button
             aria-label={t`More`}
             className="text-foreground"
             size="sm"
@@ -277,6 +299,9 @@ function WideShell(props: {
             onThreadAction={(thread, action) => {
               void remote.applyThreadAction(thread, action);
             }}
+            onDeleteWorktreeGroup={(input) => {
+              void remote.deleteWorktreeGroup(input);
+            }}
             onNew={() => void navigate({ to: "/new" })}
             onNewThreadInWorktree={(input) => {
               preselectWorktreeDraft(input);
@@ -287,6 +312,16 @@ function WideShell(props: {
                 to: "/terminal/$projectId",
                 params: { projectId: input.projectId },
                 search: input.worktreePath ? { worktree: input.worktreePath } : {},
+              })
+            }
+            onRunProjectAction={(input) =>
+              void navigate({
+                to: "/terminal/$projectId",
+                params: { projectId: input.projectId },
+                search: {
+                  action: input.actionId,
+                  ...(input.worktreePath ? { worktree: input.worktreePath } : {}),
+                },
               })
             }
           />
@@ -388,10 +423,43 @@ export function RootLayout() {
       search: {
         project: prReviewContext.projectId,
         ...(prReviewContext.worktreePath ? { worktree: prReviewContext.worktreePath } : {}),
+        ...(prReviewContext.prKey ? { prKey: prReviewContext.prKey } : {}),
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- navigate is stable; guarded by ref
   }, [prReviewContext]);
+
+  // Some reused desktop git actions open the git review overlay/panel through
+  // panelStore. Route that signal into the mobile workspace changes screen.
+  const gitReviewContext = usePanelStore((state) => state.gitReviewContext);
+  const gitOverlayOpen = usePanelStore((state) => state.gitOverlayOpen);
+  const gitReviewAsPanel = usePanelStore((state) => state.gitReviewAsPanel);
+  const handledGitContextRef = useRef<typeof gitReviewContext>(null);
+  useEffect(() => {
+    if (!gitReviewContext || (!gitOverlayOpen && !gitReviewAsPanel)) {
+      handledGitContextRef.current = null;
+      return;
+    }
+    if (handledGitContextRef.current === gitReviewContext) return;
+    const thread = remote.threads.find((entry) => {
+      if (entry.projectId !== gitReviewContext.projectId) return false;
+      return gitReviewContext.worktreePath
+        ? entry.worktreePath === gitReviewContext.worktreePath
+        : !entry.worktreePath;
+    });
+    if (!thread) return;
+    handledGitContextRef.current = gitReviewContext;
+    const panelStore = usePanelStore.getState();
+    panelStore.setGitOverlayOpen(false);
+    panelStore.setGitReviewAsPanel(false);
+    panelStore.setGitReviewContext(null);
+    void navigate({
+      to: "/workspace/$threadId",
+      params: { threadId: thread.id },
+      search: { tab: "changes" },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- navigate is stable; guarded by ref
+  }, [gitReviewContext, gitOverlayOpen, gitReviewAsPanel, remote.threads]);
 
   const context: MobileAppContextValue = {
     remote,
@@ -411,6 +479,7 @@ export function RootLayout() {
       ) : (
         <NarrowShell remote={remote} chrome={getChrome(pathname)} />
       )}
+      <PullFromSourceDialog />
     </MobileAppProvider>
   );
 }

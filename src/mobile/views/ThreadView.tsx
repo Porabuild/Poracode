@@ -1,30 +1,43 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { MessageCircle } from "lucide-react";
-import type {
-  PromptSegment,
-  Thread,
-  ThreadConfig,
-  ThreadServerRequestId,
+import { MessageCircle, SquareTerminal } from "lucide-react";
+import {
+  DEFAULT_TERMINAL_SIZE,
+  type PromptSegment,
+  type TerminalSize,
+  type Thread,
+  type ThreadConfig,
+  type ThreadServerRequestId,
 } from "@/shared/contracts";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import { friendlyError } from "@/shared/messages";
+import { readBridge } from "@/renderer/bridge";
+import type { XTermSurfaceHandle } from "@/renderer/components/terminal/XTermSurface";
+import { SubAgentOverlay } from "@/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay";
 import { GuiThreadContent } from "@/renderer/components/thread/ThreadContent";
 import { ThreadComposerSection } from "@/renderer/components/thread/ThreadComposerSection";
+import { useThreadDockState } from "@/renderer/components/thread/useThreadDockState";
 import type { TerminalPaneHandle } from "@/renderer/components/thread/TerminalPane";
 import { useProjectAgentStatuses } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useProject } from "@/renderer/state/useThread";
 import { MobileTerminal } from "../MobileTerminal";
 import { EmptyState } from "../components";
-import { ThreadGitBar } from "../GitSummaryParts";
+import { WorkspaceChip } from "../GitSummaryParts";
+import { TerminalAccessory } from "../TerminalAccessory";
 import { ThreadTitleRow } from "../ThreadTitleRow";
 import type { ThreadAction } from "../useRemoteDesktop";
+import type { WorkspaceTab } from "./WorkspaceView";
 
 export interface ThreadViewProps {
   readonly thread: Thread | null;
   /** Terminal scrollback text from the latest remote thread snapshot. */
   readonly terminalScrollback: string | undefined;
+  /** Canonical PTY size from the desktop supervisor, if the thread is live. */
+  readonly terminalSize?: TerminalSize | undefined;
   /** Hide the inline title row (the narrow layout shows it in the top bar). */
   readonly hideHeader?: boolean;
   /** History for this thread is still being fetched; show a top progress bar. */
@@ -36,23 +49,33 @@ export interface ThreadViewProps {
     method: string;
     response: unknown;
   }) => Promise<void>;
-  /** Open the fullscreen git panel for this thread. */
-  readonly onOpenGit?: () => void;
+  /** Open the unified workspace panel (Changes/Files) for this thread. */
+  readonly onOpenWorkspace?: (tab: WorkspaceTab) => void;
+  /** Open a project/worktree file from a shared chat file chip. */
+  readonly onOpenWorkspaceFile?: ((path: string, lineNumber?: number) => void) | undefined;
+  /** Reveal a project/worktree folder from a shared chat folder chip. */
+  readonly onOpenWorkspaceFolder?: ((path: string) => void) | undefined;
+  /** Open a terminal scoped to this thread's project/worktree. */
+  readonly onOpenTerminal?: () => void;
+  /** Opens the new-thread composer pre-targeted at this thread's worktree. */
+  readonly onNewThreadInWorktree?:
+    | ((input: {
+        readonly projectId: string;
+        readonly worktreePath: string;
+        readonly worktreeBranch: string;
+      }) => void)
+    | undefined;
+  /** Removes this thread's worktree through the paired desktop cleanup path. */
+  readonly onDeleteWorktreeGroup?:
+    | ((input: {
+        readonly projectId: string;
+        readonly worktreePath: string;
+        readonly threadIds: readonly string[];
+      }) => void)
+    | undefined;
 }
 
-const emptyTodoComposerProps = {
-  todoDockCollapsed: false,
-  todoDockPlacement: "composer" as const,
-  todoDockState: null,
-  goalDockState: null,
-  errorDockStates: [],
-  onGoalDockDismiss: () => undefined,
-  onTodoDockCollapsedChange: () => undefined,
-  onTodoDockPlacementChange: () => undefined,
-  onDismissError: () => undefined,
-};
-
-/** Read-only scrollback for terminal sessions (no remote PTY stream yet). */
+/** Read-only scrollback shown while the live terminal snapshot is loading. */
 function TerminalScrollbackPane(props: { readonly scrollback: string }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -72,6 +95,22 @@ export function ThreadView(props: ThreadViewProps) {
   const project = useProject(thread?.projectId);
   const projectAgentStatuses = useProjectAgentStatuses(project?.location);
   const terminalPaneRef = useRef<TerminalPaneHandle | null>(null);
+  const terminalSurfaceRef = useRef<XTermSurfaceHandle | null>(null);
+  const [terminalReloadKey, setTerminalReloadKey] = useState(0);
+  const [terminalSize, setTerminalSize] = useState<TerminalSize | null>(null);
+  const agentTerminalFontSize = useSharedSettings((state) => state.agentTerminalFontSize);
+  const dockState = useThreadDockState(thread?.id ?? "");
+
+  useEffect(() => {
+    terminalPaneRef.current = {
+      focus() {
+        terminalSurfaceRef.current?.focus();
+      },
+    };
+    return () => {
+      terminalPaneRef.current = null;
+    };
+  }, []);
 
   if (!thread) {
     return (
@@ -93,6 +132,41 @@ export function ThreadView(props: ThreadViewProps) {
   const isTerminal = (thread.presentationMode ?? "terminal") === "terminal";
 
   if (!projectLocation) return null;
+  // Captured into stable locals so the narrowed (non-null) types survive into
+  // the reloadTerminal closure below.
+  const liveThread = thread;
+  const liveProjectLocation = projectLocation;
+
+  function reloadTerminal(): void {
+    setTerminalReloadKey((key) => key + 1);
+    if (!isTerminal) return;
+
+    const bridge = readBridge();
+    void bridge
+      .closeThread({ threadId: liveThread.id })
+      .catch(() => undefined)
+      .finally(() => {
+        window.setTimeout(() => {
+          void bridge
+            .startThread({
+              threadId: liveThread.id,
+              projectLocation: liveProjectLocation,
+              agentKind: liveThread.agentKind,
+              ...(liveThread.agentInstanceId
+                ? { agentInstanceId: liveThread.agentInstanceId }
+                : {}),
+              config: liveThread.config,
+              prompt: "",
+              initialSize: props.terminalSize ?? terminalSize ?? DEFAULT_TERMINAL_SIZE,
+              ...(liveThread.sessionRef ? { sessionRef: liveThread.sessionRef } : {}),
+              presentationMode: "terminal",
+            })
+            .catch((error: unknown) => {
+              toast.danger(friendlyError(error));
+            });
+        }, 250);
+      });
+  }
 
   const handleConfigChange = (config: ThreadConfig) => {
     const store = useAppStore.getState();
@@ -119,6 +193,11 @@ export function ThreadView(props: ThreadViewProps) {
     onConfigChange: handleConfigChange,
     onResolveServerRequest: props.onResolveServerRequest,
     onSubmitInput: props.onSubmitInput,
+    ...(props.onOpenWorkspaceFile ? { onOpenProjectRelativePath: props.onOpenWorkspaceFile } : {}),
+    ...(props.onOpenWorkspaceFolder
+      ? { onRevealProjectFolderInTree: props.onOpenWorkspaceFolder }
+      : {}),
+    canShowProjectEntryInExplorer: false,
   };
 
   return (
@@ -128,29 +207,75 @@ export function ThreadView(props: ThreadViewProps) {
       ) : null}
       {props.hideHeader ? null : (
         <header className="mx-auto flex w-full max-w-[920px] items-center gap-2 px-3 py-1">
-          <ThreadTitleRow thread={thread} onAction={props.onThreadAction} />
+          <ThreadTitleRow
+            thread={thread}
+            onAction={props.onThreadAction}
+            onNewThreadInWorktree={props.onNewThreadInWorktree}
+            onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
+          />
         </header>
       )}
-      <ThreadGitBar threadId={thread.id} onOpen={props.onOpenGit} />
+      {props.onOpenWorkspace || props.onOpenTerminal ? (
+        <div className="m-thread-bar">
+          {props.onOpenWorkspace ? (
+            <WorkspaceChip
+              threadId={thread.id}
+              projectLabel={project?.name ?? ""}
+              onOpen={props.onOpenWorkspace}
+            />
+          ) : null}
+          {props.onOpenTerminal ? (
+            <button
+              type="button"
+              className="m-thread-bar__btn"
+              aria-label={t`Open terminal`}
+              onClick={props.onOpenTerminal}
+            >
+              <SquareTerminal className="size-4" />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {/* Same shell classes as the desktop ThreadView pane. */}
       <div className="relative mx-auto flex min-h-0 w-full max-w-[1040px] flex-1 flex-col px-3 pb-2">
         <div className="mx-auto flex min-h-0 w-full max-w-[920px] flex-1 flex-col pt-2">
           {isTerminal ? (
             <>
               {/* Live, interactive terminal once the snapshot (its scrollback)
-                  is in hand; a read-only snapshot pane covers the brief load. */}
+                  is in hand; a read-only pane covers the brief load. */}
               {props.loading ? (
                 <TerminalScrollbackPane scrollback={props.terminalScrollback ?? ""} />
               ) : (
-                <div className="m-terminal-live">
-                  <MobileTerminal
-                    key={thread.id}
-                    terminalId={thread.id}
-                    initialScrollback={props.terminalScrollback ?? ""}
-                  />
+                <div className="m-terminal-stack">
+                  <div className="m-terminal-live m-terminal-live--shared">
+                    <MobileTerminal
+                      ref={terminalSurfaceRef}
+                      key={`${thread.id}:${terminalReloadKey}:${props.terminalSize?.cols ?? "auto"}x${props.terminalSize?.rows ?? "auto"}`}
+                      terminalId={thread.id}
+                      initialScrollback={props.terminalScrollback ?? ""}
+                      baseFontSize={agentTerminalFontSize}
+                      resizeTerminalOnFit={false}
+                      onTerminalResize={setTerminalSize}
+                      {...(props.terminalSize ? { fixedTerminalSize: props.terminalSize } : {})}
+                    />
+                  </div>
+                  <TerminalAccessory terminalId={thread.id} onReload={reloadTerminal} />
                 </div>
               )}
-              <ThreadComposerSection {...commonProps} {...emptyTodoComposerProps} />
+              <ThreadComposerSection
+                {...commonProps}
+                todoDockCollapsed={dockState.todoDockCollapsed}
+                todoDockPlacement={dockState.todoDockPlacement}
+                todoDockState={dockState.todoDockState}
+                goalDockState={dockState.goalDockState}
+                errorDockStates={dockState.errorDockStates}
+                onGoalDockDismiss={dockState.onGoalDockDismiss}
+                onDismissError={dockState.onDismissError}
+                onTodoDockCollapsedChange={dockState.onTodoDockCollapsedChange}
+                onTodoDockPlacementChange={dockState.onTodoDockPlacementChange}
+                onTodoDockRetire={dockState.onTodoDockRetire}
+              />
+              <SubAgentOverlay threadId={thread.id} projectLocation={projectLocation} />
             </>
           ) : (
             <GuiThreadContent {...commonProps} runtimeDebugOpen={false} />

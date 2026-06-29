@@ -10,7 +10,6 @@ import { RootLayout } from "./RootLayout";
 import {
   BrowserRoute,
   DesktopsRoute,
-  GitRoute,
   MoreRoute,
   NewThreadRoute,
   SettingsListRoute,
@@ -19,6 +18,7 @@ import {
   ThreadRoute,
   ThreadsRoute,
   UsageRoute,
+  WorkspaceRoute,
 } from "./routeComponents";
 import { PrChangesPage } from "./views/pr/PrChangesPage";
 import { PrChecksPage } from "./views/pr/PrChecksPage";
@@ -95,24 +95,44 @@ const settingsSectionRoute = createRoute({
   component: SettingsSectionRoute,
 });
 
-const gitRoute = createRoute({
+const workspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/git/$threadId",
-  component: GitRoute,
+  path: "/workspace/$threadId",
+  component: WorkspaceRoute,
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    readonly tab: "changes" | "files";
+    readonly file?: string;
+    readonly folder?: string;
+    readonly line?: number;
+  } => {
+    const line = typeof search.line === "number" ? search.line : Number(search.line);
+    return {
+      tab: search.tab === "files" ? "files" : "changes",
+      ...(typeof search.file === "string" && search.file ? { file: search.file } : {}),
+      ...(typeof search.folder === "string" && search.folder ? { folder: search.folder } : {}),
+      ...(Number.isInteger(line) && line > 0 ? { line } : {}),
+    };
+  },
 });
 
 const terminalRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/terminal/$projectId",
   component: TerminalRoute,
-  validateSearch: (search: Record<string, unknown>): { readonly worktree?: string } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { readonly worktree?: string; readonly action?: string } => ({
     ...(typeof search.worktree === "string" ? { worktree: search.worktree } : {}),
+    ...(typeof search.action === "string" ? { action: search.action } : {}),
   }),
 });
 
 interface PrSearch {
   readonly project: string;
   readonly worktree?: string;
+  readonly prKey?: string;
 }
 
 // PR review is a layout route (loads the PR once) with deep child pages.
@@ -123,6 +143,7 @@ const prLayoutRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): PrSearch => ({
     project: typeof search.project === "string" ? search.project : "",
     ...(typeof search.worktree === "string" ? { worktree: search.worktree } : {}),
+    ...(typeof search.prKey === "string" && search.prKey ? { prKey: search.prKey } : {}),
   }),
 });
 
@@ -171,7 +192,7 @@ const routeTree = rootRoute.addChildren([
   browserRoute,
   settingsRoute,
   settingsSectionRoute,
-  gitRoute,
+  workspaceRoute,
   terminalRoute,
   prRouteTree,
 ]);

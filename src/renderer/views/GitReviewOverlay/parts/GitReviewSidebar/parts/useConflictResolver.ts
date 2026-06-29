@@ -1,5 +1,11 @@
 import { useShallow } from "zustand/shallow";
-import type { GitFileChange, Project, ThreadPresentationMode } from "@/shared/contracts";
+import type {
+  AgentStatus,
+  GitFileChange,
+  Project,
+  ThreadConfig,
+  ThreadPresentationMode,
+} from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import {
   getConflictResolverCandidatesForLaunch,
@@ -11,6 +17,15 @@ import { recordAiAction } from "@/renderer/state/usageRecorder";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+
+export interface ConflictResolverLaunchInput {
+  readonly agentKind: AgentStatus["kind"];
+  readonly config: ThreadConfig;
+  readonly prompt: string;
+  readonly presentationMode: ThreadPresentationMode;
+  readonly existingWorktreePath?: string;
+  readonly worktreeBranch?: string;
+}
 
 function resolvePresentationMode(
   preferred: ThreadPresentationMode,
@@ -28,6 +43,7 @@ export function useConflictResolver(params: {
   mergeConflictFiles: GitFileChange[];
   worktreePath: string | undefined;
   worktreeBranch: string | undefined;
+  onLaunchResolverThread?: ((input: ConflictResolverLaunchInput) => void) | undefined;
 }) {
   const { project, mergeConflictFiles, worktreePath, worktreeBranch } = params;
 
@@ -102,9 +118,7 @@ export function useConflictResolver(params: {
     );
 
     const bypass = provider.capabilities.bypassPermissions;
-    const store = useAppStore.getState();
-    const thread = store.createThread({
-      projectId: project.id,
+    const launchInput: ConflictResolverLaunchInput = {
       agentKind: provider.kind,
       config: {
         model,
@@ -113,6 +127,22 @@ export function useConflictResolver(params: {
         approvalPolicy: bypass?.approvalPolicy ?? "bypassPermissions",
         ...(bypass?.sandboxMode ? { sandboxMode: bypass.sandboxMode } : {}),
       },
+      prompt,
+      presentationMode,
+      ...(worktreePath ? { existingWorktreePath: worktreePath } : {}),
+      ...(worktreeBranch ? { worktreeBranch } : {}),
+    };
+    if (params.onLaunchResolverThread) {
+      params.onLaunchResolverThread(launchInput);
+      recordAiAction("conflict", provider.kind, model || "default");
+      return;
+    }
+
+    const store = useAppStore.getState();
+    const thread = store.createThread({
+      projectId: project.id,
+      agentKind: launchInput.agentKind,
+      config: launchInput.config,
       prompt,
       presentationMode,
       ...(worktreePath ? { worktreePath } : {}),

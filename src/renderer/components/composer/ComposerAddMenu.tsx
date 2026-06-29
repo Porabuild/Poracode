@@ -6,13 +6,22 @@ import { Button } from "@/renderer/components/common";
 
 export function ComposerAddMenu(props: {
   browserMcpEnabled: boolean;
+  showFileOption?: boolean;
   showBrowserOption: boolean;
   onPickFiles: () => void;
   onToggleBrowserMcp: (next: boolean) => void;
 }) {
-  const { browserMcpEnabled, showBrowserOption, onPickFiles, onToggleBrowserMcp } = props;
+  const {
+    browserMcpEnabled,
+    showFileOption = true,
+    showBrowserOption,
+    onPickFiles,
+    onToggleBrowserMcp,
+  } = props;
   const { t } = useLingui();
   const [isOpen, setIsOpen] = useState(false);
+
+  if (!showFileOption && !showBrowserOption) return null;
 
   const handleSelect = (id: string) => {
     setIsOpen(false);
@@ -56,15 +65,17 @@ export function ComposerAddMenu(props: {
               selectionMode="none"
               onAction={(key) => handleSelect(String(key))}
             >
-              <ListBox.Item id="file" textValue={t`File`} className="focus-visible:outline-none">
-                <Paperclip className="size-4 text-muted" />
-                <Label className="flex-1 truncate">
-                  <Trans>File</Trans>
-                </Label>
-                <span className="ms-auto truncate text-xs text-muted">
-                  <Trans>Attach</Trans>
-                </span>
-              </ListBox.Item>
+              {showFileOption ? (
+                <ListBox.Item id="file" textValue={t`File`} className="focus-visible:outline-none">
+                  <Paperclip className="size-4 text-muted" />
+                  <Label className="flex-1 truncate">
+                    <Trans>File</Trans>
+                  </Label>
+                  <span className="ms-auto truncate text-xs text-muted">
+                    <Trans>Attach</Trans>
+                  </span>
+                </ListBox.Item>
+              ) : null}
               {showBrowserOption ? (
                 <ListBox.Item
                   id="browser"

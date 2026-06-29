@@ -43,6 +43,7 @@ export interface DesktopsViewProps {
   readonly activeDesktopId: string | null;
   readonly manualEndpoint: string;
   readonly manualToken: string;
+  readonly canPair: boolean;
   readonly showPairingHint: boolean;
   /** A pairing handshake is in flight; disable inputs and show progress. */
   readonly pairing?: boolean;
@@ -260,7 +261,7 @@ export function DesktopsView(props: DesktopsViewProps) {
             className="m-form__submit text-foreground"
             size="sm"
             variant="tertiary"
-            isDisabled={pairing || !props.manualEndpoint || !props.manualToken}
+            isDisabled={pairing || !props.canPair}
             onPress={props.onPair}
           >
             {pairing ? <Loader2 className="size-4 m-spin" /> : <Smartphone className="size-4" />}

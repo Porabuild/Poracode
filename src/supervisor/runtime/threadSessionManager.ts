@@ -980,6 +980,10 @@ export class ThreadSessionManager {
     return this.outputPipeline.readTerminalScrollback(this.sessions.get(threadId));
   }
 
+  readTerminalSize(threadId: string): TerminalSize | null {
+    return this.sessions.get(threadId)?.terminalSize ?? null;
+  }
+
   handlePtyDataForTests(session: SessionRuntime, data: string): void {
     this.outputPipeline.handlePtyData(session, data);
   }

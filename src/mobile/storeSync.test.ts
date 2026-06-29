@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shouldReplaceRuntimeItemsFromSnapshot } from "./storeSync";
+import { shouldReplaceRuntimeItemsFromSnapshot } from "./storeSyncGuards";
 
 describe("shouldReplaceRuntimeItemsFromSnapshot", () => {
   it("accepts a newer snapshot for an active thread", () => {

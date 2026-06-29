@@ -72,6 +72,9 @@ export const terminalSizeSchema = z.object({
 });
 export type TerminalSize = z.infer<typeof terminalSizeSchema>;
 
+/** Fallback PTY geometry used when a terminal is launched before its surface has measured. */
+export const DEFAULT_TERMINAL_SIZE: TerminalSize = { cols: 120, rows: 30 };
+
 export const promptSegmentSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), content: z.string() }),
   z.object({ kind: z.literal("file"), path: z.string() }),
@@ -182,6 +185,16 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     worktreePath: z.string().min(1),
     worktreeBranch: z.string().optional(),
     isNewWorktree: z.boolean().optional(),
+  }),
+  // Removes a worktree group from a remote client. The desktop renderer handles
+  // this through its existing worktree cleanup path so scripts, terminals,
+  // linked threads, git state, and persistence stay consistent with desktop.
+  z.object({
+    kind: z.literal("delete-worktree-group"),
+    threadId: z.string().min(1),
+    projectId: z.string().min(1),
+    worktreePath: z.string().min(1),
+    threadIds: z.array(z.string().min(1)).min(1),
   }),
   z.object({ kind: z.literal("archive"), threadId: z.string().min(1) }),
   z.object({ kind: z.literal("unarchive"), threadId: z.string().min(1) }),

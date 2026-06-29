@@ -1,20 +1,14 @@
 import { Trans } from "@lingui/react/macro";
-import { Gauge, Globe, Settings } from "lucide-react";
+import { Globe, Settings } from "lucide-react";
 import { MoreRow } from "../components";
 
-export type MoreDestination = "usage" | "browser" | "settings";
+export type MoreDestination = "browser" | "settings";
 
 /** The "More" tab: entry points that don't warrant their own tab-bar slot. */
 export function MoreView(props: { readonly onOpen: (destination: MoreDestination) => void }) {
   return (
     <div className="m-page">
       <div className="m-more-list">
-        <MoreRow
-          icon={<Gauge className="size-4" />}
-          label={<Trans>Usage</Trans>}
-          hint={<Trans>Provider limits and spend</Trans>}
-          onPress={() => props.onOpen("usage")}
-        />
         <MoreRow
           icon={<Globe className="size-4" />}
           label={<Trans>Browser</Trans>}

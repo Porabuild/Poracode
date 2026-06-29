@@ -56,6 +56,7 @@ export function BranchListBox(props: {
   worktreeBranches: Set<string>;
   branchWorktreePath: Map<string, string>;
   threadsByBranch: Map<string, Thread[]>;
+  allowWorktreeDelete?: boolean;
   onSelect: (branchName: string) => void;
   onDelete: (branch: { name: string; remote?: string; isRemote?: boolean }) => void;
   onOpenPrReview: (args: OpenPrReviewArgs) => void;
@@ -74,6 +75,7 @@ export function BranchListBox(props: {
     worktreeBranches,
     branchWorktreePath,
     threadsByBranch,
+    allowWorktreeDelete = true,
     onSelect,
     onDelete,
     onOpenPrReview,
@@ -154,6 +156,7 @@ export function BranchListBox(props: {
                 {...(worktreePath ? { worktreePath } : {})}
                 threads={threads}
                 isDeleting={isDeleting}
+                allowWorktreeDelete={allowWorktreeDelete}
                 onDelete={onDelete}
                 onOpenPrReview={onOpenPrReview}
               />
@@ -174,6 +177,7 @@ function BranchRowBody(props: {
   worktreePath?: string;
   threads: Thread[];
   isDeleting: boolean;
+  allowWorktreeDelete: boolean;
   onDelete: (branch: { name: string; remote?: string; isRemote?: boolean }) => void;
   onOpenPrReview: (args: OpenPrReviewArgs) => void;
 }) {
@@ -186,11 +190,12 @@ function BranchRowBody(props: {
     worktreePath,
     threads,
     isDeleting,
+    allowWorktreeDelete,
     onDelete,
     onOpenPrReview,
   } = props;
   const { t } = useLingui();
-  const canDelete = !isCurrent;
+  const canDelete = !isCurrent && (allowWorktreeDelete || !worktreePath);
 
   const prKey = worktreePath ?? buildBranchNamePrKey(projectId, branch.name);
   const prState = usePrState(prKey);
@@ -276,7 +281,7 @@ function BranchRowBody(props: {
             <button
               type="button"
               aria-label={t`Delete ${branch.name}`}
-              className="flex items-center justify-center rounded border-0 bg-transparent p-0 text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100"
+              className="flex items-center justify-center rounded border-0 bg-transparent p-0 text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:opacity-100"
               onPointerDown={(e) => e.stopPropagation()}
               onPointerUp={(e) => e.stopPropagation()}
               onClick={(e) => {

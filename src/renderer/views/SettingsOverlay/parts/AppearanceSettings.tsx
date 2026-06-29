@@ -3,7 +3,7 @@ import { ChevronDown, RotateCcw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Slider, SliderFill, SliderOutput, SliderThumb, SliderTrack, Switch } from "@heroui/react";
 import type { ThemeMode } from "@/shared/contracts";
-import { isMac } from "@/renderer/bridge";
+import { isMac, isRemoteSession } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
 import { getThemePreset } from "@/renderer/theme/themePresets";
@@ -31,6 +31,7 @@ export function AppearanceSettings() {
   const setSidebarTranslucency = useSharedSettings((state) => state.setSidebarTranslucency);
   const sidebarGlassTint = useSharedSettings((state) => state.sidebarGlassTint);
   const setSidebarGlassTint = useSharedSettings((state) => state.setSidebarGlassTint);
+  const remote = isRemoteSession();
 
   // Frosting slider: tunes the active appearance's glass tint. Applies on the
   // native-material platforms (Windows 11 acrylic, macOS vibrancy), which both
@@ -40,7 +41,7 @@ export function AppearanceSettings() {
   // where the token isn't consumed (Windows 10 / Linux use the fallback
   // gradient and report no native material).
   const nativeMaterialActive = useNativeMaterialActive();
-  const showGlassTintSlider = nativeMaterialActive;
+  const showGlassTintSlider = !remote && nativeMaterialActive;
   const glassTintOverride = sidebarGlassTint[appearance];
   const glassTintDefault = sidebarGlassTintDefault(appearance);
   const [glassTint, setGlassTint] = useState(glassTintOverride ?? glassTintDefault);
@@ -144,28 +145,30 @@ export function AppearanceSettings() {
         />
       </SettingRow>
 
-      <SettingRow
-        anchorId="appearance.translucentSidebar"
-        title={t`Translucent sidebar`}
-        description={
-          isMac()
-            ? t`Frost the sidebar with the system blur material (vibrancy), echoing recent macOS. Falls back to a translucent tint where unsupported.`
-            : t`Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere.`
-        }
-      >
-        <Switch
-          isSelected={sidebarTranslucency}
-          onChange={(selected) => {
-            startTransition(() => {
-              setSidebarTranslucency(selected);
-            });
-          }}
+      {!remote && (
+        <SettingRow
+          anchorId="appearance.translucentSidebar"
+          title={t`Translucent sidebar`}
+          description={
+            isMac()
+              ? t`Frost the sidebar with the system blur material (vibrancy), echoing recent macOS. Falls back to a translucent tint where unsupported.`
+              : t`Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere.`
+          }
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
-      </SettingRow>
+          <Switch
+            isSelected={sidebarTranslucency}
+            onChange={(selected) => {
+              startTransition(() => {
+                setSidebarTranslucency(selected);
+              });
+            }}
+          >
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch>
+        </SettingRow>
+      )}
 
       {showGlassTintSlider ? (
         <SettingRow

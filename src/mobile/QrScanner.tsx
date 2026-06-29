@@ -132,7 +132,15 @@ export function QrScanner(props: {
         const video = videoRef.current;
         if (video) {
           video.srcObject = stream;
-          await video.play().catch(() => undefined);
+          try {
+            await video.play();
+          } catch {
+            stream.getTracks().forEach((track) => track.stop());
+            stream = null;
+            setError("error");
+            setStarting(false);
+            return;
+          }
         }
         setStarting(false);
         raf = requestAnimationFrame(scanFrame);

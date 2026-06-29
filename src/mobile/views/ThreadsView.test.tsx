@@ -53,12 +53,23 @@ function renderView(
       worktreePath: string;
       worktreeBranch: string;
     }) => void;
+    onDeleteWorktreeGroup?: (input: {
+      projectId: string;
+      worktreePath: string;
+      threadIds: readonly string[];
+    }) => void;
     onOpenTerminal?: (input: { projectId: string; worktreePath?: string }) => void;
+    onRunProjectAction?: (input: {
+      projectId: string;
+      actionId: string;
+      worktreePath?: string;
+    }) => void;
+    projects?: Project[];
   },
 ) {
   return render(
     <ThreadsView
-      projects={[PROJECT]}
+      projects={handlers?.projects ?? [PROJECT]}
       threads={threads}
       selectedThreadId={null}
       projectFilter={null}
@@ -67,7 +78,9 @@ function renderView(
       onThreadAction={handlers?.onThreadAction ?? (() => {})}
       onNew={() => {}}
       onNewThreadInWorktree={handlers?.onNewThreadInWorktree ?? (() => {})}
+      onDeleteWorktreeGroup={handlers?.onDeleteWorktreeGroup ?? (() => {})}
       onOpenTerminal={handlers?.onOpenTerminal ?? (() => {})}
+      onRunProjectAction={handlers?.onRunProjectAction ?? (() => {})}
     />,
   );
 }
@@ -118,6 +131,60 @@ describe("ThreadsView grouping", () => {
     expect(container.querySelector("[aria-expanded]")).toBeNull();
     expect(screen.getByText("Alpha")).toBeTruthy();
     expect(screen.getByText("Charlie")).toBeTruthy();
+  });
+
+  it("offers a new-thread handoff from a single-thread worktree row menu", () => {
+    const onNewThreadInWorktree =
+      vi.fn<(input: { projectId: string; worktreePath: string; worktreeBranch: string }) => void>();
+    renderView(
+      [
+        makeThread({
+          id: "a",
+          title: "Alpha",
+          worktreePath: "/repo/wt",
+          worktreeBranch: "feature/x",
+        }),
+      ],
+      { onNewThreadInWorktree },
+    );
+
+    fireEvent.contextMenu(screen.getByText("Alpha").closest("button")!);
+    fireEvent.click(screen.getByText("New thread in worktree"));
+
+    expect(onNewThreadInWorktree).toHaveBeenCalledTimes(1);
+    expect(onNewThreadInWorktree).toHaveBeenCalledWith({
+      projectId: "p1",
+      worktreePath: "/repo/wt",
+      worktreeBranch: "feature/x",
+    });
+  });
+
+  it("deletes a single-thread worktree from its row menu with the linked thread id", () => {
+    const onDeleteWorktreeGroup =
+      vi.fn<
+        (input: { projectId: string; worktreePath: string; threadIds: readonly string[] }) => void
+      >();
+    renderView(
+      [
+        makeThread({
+          id: "a",
+          title: "Alpha",
+          worktreePath: "/repo/wt",
+          worktreeBranch: "feature/x",
+        }),
+      ],
+      { onDeleteWorktreeGroup },
+    );
+
+    fireEvent.contextMenu(screen.getByText("Alpha").closest("button")!);
+    fireEvent.click(screen.getByText("Delete Worktree"));
+
+    expect(onDeleteWorktreeGroup).toHaveBeenCalledTimes(1);
+    expect(onDeleteWorktreeGroup).toHaveBeenCalledWith({
+      projectId: "p1",
+      worktreePath: "/repo/wt",
+      threadIds: ["a"],
+    });
   });
 
   it("collapses and re-expands the group when its header is tapped", () => {
@@ -187,6 +254,38 @@ describe("ThreadsView grouping", () => {
     // ...and each member keeps its own.
     expect(screen.getByTestId("row-git-d")).toBeTruthy();
     expect(screen.getByTestId("row-git-e")).toBeTruthy();
+  });
+
+  it("filters threads from the touch search box", () => {
+    renderView([
+      makeThread({ id: "a", title: "Alpha" }),
+      makeThread({
+        id: "b",
+        title: "Bravo",
+        worktreePath: "/repo/wt",
+        worktreeBranch: "feature/mobile",
+      }),
+    ]);
+
+    fireEvent.change(screen.getByLabelText("Search threads"), {
+      target: { value: "mobile" },
+    });
+
+    expect(screen.queryByText("Alpha")).toBeNull();
+    expect(screen.getByText("Bravo")).toBeTruthy();
+  });
+
+  it("shows a recoverable empty state when search has no matches", () => {
+    renderView([makeThread({ id: "a", title: "Alpha" }), makeThread({ id: "b", title: "Bravo" })]);
+
+    fireEvent.change(screen.getByLabelText("Search threads"), {
+      target: { value: "zzz" },
+    });
+
+    expect(screen.getByText("No matching threads")).toBeTruthy();
+    fireEvent.click(screen.getByText("Clear search"));
+    expect(screen.getByText("Alpha")).toBeTruthy();
+    expect(screen.getByText("Bravo")).toBeTruthy();
   });
 
   it("remembers a collapsed group across a remount within the session", () => {
@@ -363,6 +462,99 @@ describe("ThreadsView grouping", () => {
     fireEvent.contextMenu(screen.getByRole("button", { expanded: true }));
     fireEvent.click(screen.getByText("Open terminal"));
     expect(onOpenTerminal).toHaveBeenCalledWith({ projectId: "p1", worktreePath: "/repo/wt" });
+  });
+
+  it("deletes a worktree through the group menu with all linked thread ids", () => {
+    const onDeleteWorktreeGroup =
+      vi.fn<
+        (input: { projectId: string; worktreePath: string; threadIds: readonly string[] }) => void
+      >();
+    renderView(
+      [
+        makeThread({
+          id: "a",
+          title: "Alpha",
+          worktreePath: "/repo/wt",
+          worktreeBranch: "feature/x",
+        }),
+        makeThread({
+          id: "b",
+          title: "Bravo",
+          worktreePath: "/repo/wt",
+          worktreeBranch: "feature/x",
+        }),
+      ],
+      { onDeleteWorktreeGroup },
+    );
+
+    fireEvent.contextMenu(screen.getByRole("button", { expanded: true }));
+    fireEvent.click(screen.getByText("Delete Worktree"));
+
+    expect(onDeleteWorktreeGroup).toHaveBeenCalledWith({
+      projectId: "p1",
+      worktreePath: "/repo/wt",
+      threadIds: ["a", "b"],
+    });
+  });
+
+  it("runs a configured project action in a worktree terminal from the group menu", () => {
+    const onRunProjectAction =
+      vi.fn<(input: { projectId: string; actionId: string; worktreePath?: string }) => void>();
+    const projectWithAction = {
+      ...PROJECT,
+      scripts: {
+        actions: [{ id: "test", name: "Run Tests", command: "pnpm test", icon: "test-tube" }],
+      },
+    } as Project;
+    renderView(
+      [
+        makeThread({
+          id: "a",
+          title: "Alpha",
+          worktreePath: "/repo/wt",
+          worktreeBranch: "feature/x",
+        }),
+        makeThread({
+          id: "b",
+          title: "Bravo",
+          worktreePath: "/repo/wt",
+          worktreeBranch: "feature/x",
+        }),
+      ],
+      { projects: [projectWithAction], onRunProjectAction },
+    );
+
+    fireEvent.contextMenu(screen.getByRole("button", { expanded: true }));
+    fireEvent.click(screen.getByText("Run Tests"));
+
+    expect(onRunProjectAction).toHaveBeenCalledWith({
+      projectId: "p1",
+      actionId: "test",
+      worktreePath: "/repo/wt",
+    });
+  });
+
+  it("runs a configured project action from a standalone thread menu", () => {
+    const onRunProjectAction =
+      vi.fn<(input: { projectId: string; actionId: string; worktreePath?: string }) => void>();
+    const projectWithAction = {
+      ...PROJECT,
+      scripts: {
+        actions: [{ id: "build", name: "Build", command: "pnpm build", icon: "hammer" }],
+      },
+    } as Project;
+    renderView([makeThread({ id: "c", title: "Charlie" })], {
+      projects: [projectWithAction],
+      onRunProjectAction,
+    });
+
+    fireEvent.contextMenu(screen.getByText("Charlie").closest("button")!);
+    fireEvent.click(screen.getByText("Build"));
+
+    expect(onRunProjectAction).toHaveBeenCalledWith({
+      projectId: "p1",
+      actionId: "build",
+    });
   });
 
   it("opens a terminal for a standalone thread's project from its row menu", () => {

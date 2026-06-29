@@ -10,12 +10,15 @@ import {
   History,
   Pencil,
   Plus,
+  Search,
   Star,
   Terminal,
   Trash2,
+  X,
 } from "lucide-react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { Project, Thread } from "@/shared/contracts";
+import { getBasename } from "@/shared/pathUtils";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { ThreadProviderIcon, getStatusTone } from "@/renderer/components/providers";
 import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput";
@@ -23,6 +26,7 @@ import {
   groupThreads,
   type ThreadListEntry,
 } from "@/renderer/views/MainView/parts/Sidebar/parts/groupThreads";
+import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { BottomSheet, EmptyState, SheetMenu, Skeleton, useSheet } from "../components";
 import { GitSummaryBadge, WorktreeGitSummaryBadge } from "../GitSummaryParts";
 import type { ThreadAction } from "../useRemoteDesktop";
@@ -45,9 +49,21 @@ export interface ThreadsViewProps {
     readonly worktreePath: string;
     readonly worktreeBranch: string;
   }) => void;
+  /** Removes a worktree group through the paired desktop's cleanup path. */
+  readonly onDeleteWorktreeGroup: (input: {
+    readonly projectId: string;
+    readonly worktreePath: string;
+    readonly threadIds: readonly string[];
+  }) => void;
   /** Opens a live shell for a project (or worktree, when a path is given). */
   readonly onOpenTerminal: (input: {
     readonly projectId: string;
+    readonly worktreePath?: string;
+  }) => void;
+  /** Opens a terminal and runs one configured project action. */
+  readonly onRunProjectAction: (input: {
+    readonly projectId: string;
+    readonly actionId: string;
     readonly worktreePath?: string;
   }) => void;
 }
@@ -72,6 +88,29 @@ function ThreadListSkeleton() {
 
 const LONG_PRESS_MS = 450;
 const LONG_PRESS_SLOP_PX = 10;
+
+function normalizeSearchText(value: string | undefined): string {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function threadMatchesSearch(
+  thread: Thread,
+  projectName: string | undefined,
+  query: string,
+): boolean {
+  const haystack = [
+    thread.title,
+    projectName,
+    thread.worktreeBranch,
+    thread.worktreePath,
+    thread.agentKind,
+    thread.groupName,
+  ]
+    .map(normalizeSearchText)
+    .filter(Boolean)
+    .join(" ");
+  return haystack.includes(query);
+}
 
 /**
  * Touch long-press / right-click → context menu, shared by thread rows and
@@ -139,9 +178,13 @@ function useLongPress(onLongPress: () => void) {
 /** Long-press (touch) or right-click context menu for a thread row. */
 function ThreadActionsSheet(props: {
   readonly thread: Thread;
+  readonly project?: Project | undefined;
   readonly closing?: boolean;
   readonly onAction: (action: ThreadAction) => void;
+  readonly onNewThreadInWorktree: ThreadsViewProps["onNewThreadInWorktree"];
+  readonly onDeleteWorktreeGroup: ThreadsViewProps["onDeleteWorktreeGroup"];
   readonly onOpenTerminal: ThreadsViewProps["onOpenTerminal"];
+  readonly onRunProjectAction: ThreadsViewProps["onRunProjectAction"];
   readonly onClose: () => void;
 }) {
   const { thread } = props;
@@ -152,6 +195,10 @@ function ThreadActionsSheet(props: {
     props.onAction(action);
     props.onClose();
   };
+  const runAndClose = (run: () => void) => {
+    run();
+    props.onClose();
+  };
 
   const openTerminal = () => {
     props.onOpenTerminal({
@@ -160,6 +207,8 @@ function ThreadActionsSheet(props: {
     });
     props.onClose();
   };
+  const worktreePath = thread.worktreePath;
+  const worktreeBranch = worktreePath && (thread.worktreeBranch || getBasename(worktreePath));
 
   return (
     <BottomSheet
@@ -176,6 +225,45 @@ function ThreadActionsSheet(props: {
           <Terminal className="size-4 shrink-0 text-muted" />
           <span>{thread.worktreePath ? t`Open terminal in worktree` : t`Open terminal`}</span>
         </button>
+        {worktreePath && worktreeBranch ? (
+          <button
+            type="button"
+            className="m-sheet-action"
+            onClick={() =>
+              runAndClose(() =>
+                props.onNewThreadInWorktree({
+                  projectId: thread.projectId,
+                  worktreePath,
+                  worktreeBranch,
+                }),
+              )
+            }
+          >
+            <Plus className="size-4 shrink-0 text-muted" />
+            <span>
+              <Trans>New thread in worktree</Trans>
+            </span>
+          </button>
+        ) : null}
+        {props.project?.scripts?.actions?.map((action) => (
+          <button
+            type="button"
+            key={action.id}
+            className="m-sheet-action"
+            onClick={() =>
+              runAndClose(() =>
+                props.onRunProjectAction({
+                  projectId: thread.projectId,
+                  actionId: action.id,
+                  ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
+                }),
+              )
+            }
+          >
+            <span className="size-4 shrink-0 text-muted">{resolveActionIcon(action.icon)}</span>
+            <span>{action.name}</span>
+          </button>
+        ))}
         {renaming ? (
           <div className="m-sheet-action" data-static="true">
             <Pencil className="size-4 shrink-0 text-muted" />
@@ -222,13 +310,35 @@ function ThreadActionsSheet(props: {
         <button
           type="button"
           className="m-sheet-action text-danger"
-          onClick={() => act({ kind: "delete" })}
+          onClick={() =>
+            worktreePath
+              ? runAndClose(() =>
+                  props.onDeleteWorktreeGroup({
+                    projectId: thread.projectId,
+                    worktreePath,
+                    threadIds: [thread.id],
+                  }),
+                )
+              : act({ kind: "delete" })
+          }
         >
           <Trash2 className="size-4 shrink-0" />
           <span>
-            <Trans>Delete Thread</Trans>
+            {worktreePath ? <Trans>Delete Worktree</Trans> : <Trans>Delete Thread</Trans>}
           </span>
         </button>
+        {worktreePath ? (
+          <button
+            type="button"
+            className="m-sheet-action text-danger"
+            onClick={() => act({ kind: "delete" })}
+          >
+            <Trash2 className="size-4 shrink-0" />
+            <span>
+              <Trans>Delete Thread</Trans>
+            </span>
+          </button>
+        ) : null}
       </div>
     </BottomSheet>
   );
@@ -254,7 +364,8 @@ function ThreadRow(props: {
   const { t } = useLingui();
   const tone = getStatusTone(thread);
   const live = tone !== "inactive" && tone !== "done";
-  const worktreeName = props.hideWorktree ? undefined : thread.worktreePath?.split(/[\\/]/).pop();
+  const worktreeName =
+    !props.hideWorktree && thread.worktreePath ? getBasename(thread.worktreePath) : undefined;
   const { pressHandlers, onClick, onContextMenu } = useLongPress(props.onMenu);
 
   return (
@@ -310,7 +421,7 @@ function groupEntryTitle(entry: GroupEntry): string {
   if (entry.kind === "worktree-group") {
     const { worktreeBranch, worktreePath } = entry.group;
     if (worktreeBranch && worktreeBranch !== worktreePath) return worktreeBranch;
-    return worktreePath.split(/[\\/]/).pop() ?? worktreePath;
+    return getBasename(worktreePath);
   }
   return entry.group.groupName;
 }
@@ -394,10 +505,13 @@ function ThreadGroupHeader(props: {
  */
 function GroupActionsSheet(props: {
   readonly entry: GroupEntry;
+  readonly project?: Project | undefined;
   readonly closing?: boolean;
   readonly onThreadAction: (thread: Thread, action: ThreadAction) => void;
   readonly onNewThreadInWorktree: ThreadsViewProps["onNewThreadInWorktree"];
+  readonly onDeleteWorktreeGroup: ThreadsViewProps["onDeleteWorktreeGroup"];
   readonly onOpenTerminal: ThreadsViewProps["onOpenTerminal"];
+  readonly onRunProjectAction: ThreadsViewProps["onRunProjectAction"];
   readonly onClose: () => void;
 }) {
   const { entry } = props;
@@ -463,6 +577,27 @@ function GroupActionsSheet(props: {
             </span>
           </button>
         ) : null}
+        {entry.kind === "worktree-group"
+          ? props.project?.scripts?.actions?.map((action) => (
+              <button
+                type="button"
+                key={action.id}
+                className="m-sheet-action"
+                onClick={() =>
+                  act(() =>
+                    props.onRunProjectAction({
+                      projectId: entry.group.threads[0]!.projectId,
+                      actionId: action.id,
+                      worktreePath: entry.group.worktreePath,
+                    }),
+                  )
+                }
+              >
+                <span className="size-4 shrink-0 text-muted">{resolveActionIcon(action.icon)}</span>
+                <span>{action.name}</span>
+              </button>
+            ))
+          : null}
         {allDone ? (
           <button
             type="button"
@@ -517,6 +652,26 @@ function GroupActionsSheet(props: {
             <Trans>Archive all threads</Trans>
           </span>
         </button>
+        {entry.kind === "worktree-group" ? (
+          <button
+            type="button"
+            className="m-sheet-action text-danger"
+            onClick={() =>
+              act(() =>
+                props.onDeleteWorktreeGroup({
+                  projectId: entry.group.threads[0]!.projectId,
+                  worktreePath: entry.group.worktreePath,
+                  threadIds: entry.group.threads.map((thread) => thread.id),
+                }),
+              )
+            }
+          >
+            <Trash2 className="size-4 shrink-0" />
+            <span>
+              <Trans>Delete Worktree</Trans>
+            </span>
+          </button>
+        ) : null}
       </div>
     </BottomSheet>
   );
@@ -528,6 +683,7 @@ export function ThreadsView(props: ThreadsViewProps) {
   // slide-out still plays even when the action removes it from the list.
   const threadMenu = useSheet<Thread>();
   const groupMenu = useSheet<GroupEntry>();
+  const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
     () => new Set(collapsedGroupCache),
   );
@@ -546,6 +702,7 @@ export function ThreadsView(props: ThreadsViewProps) {
     counts.set(thread.projectId, (counts.get(thread.projectId) ?? 0) + 1);
   }
   const projectNames = new Map(props.projects.map((project) => [project.id, project.name]));
+  const projectsById = new Map(props.projects.map((project) => [project.id, project]));
   const pickerProjects = props.projects.filter(
     (project) => !project.disabled || counts.has(project.id),
   );
@@ -553,47 +710,77 @@ export function ThreadsView(props: ThreadsViewProps) {
   const currentProjectLabel = props.projectFilter
     ? (projectNames.get(props.projectFilter) ?? t`Project`)
     : t`All projects`;
-  const picker =
+  const projectPicker =
     pickerProjects.length > 1 ? (
-      <div className="m-threads__picker">
-        <SheetMenu
-          label={t`Filter by project`}
-          closeLabel={t`Close project filter`}
-          items={[
-            {
-              id: "all",
-              label: t`All projects`,
-              hint: String(props.threads.length),
-              selected: !props.projectFilter,
-            },
-            ...pickerProjects.map((project) => ({
-              id: project.id,
-              label: project.name,
-              hint: String(counts.get(project.id) ?? 0),
-              selected: props.projectFilter === project.id,
-            })),
-          ]}
-          onSelect={(id) => props.onProjectFilterChange(id === "all" ? null : id)}
-          trigger={({ open, isOpen }) => (
-            <Button
-              aria-label={t`Project`}
-              aria-expanded={isOpen}
-              className="text-foreground"
-              size="sm"
-              variant="ghost"
-              onPress={open}
-            >
-              <span className="truncate">{currentProjectLabel}</span>
-              <ChevronDown className="size-3.5 text-muted" />
-            </Button>
-          )}
-        />
-      </div>
+      <SheetMenu
+        label={t`Filter by project`}
+        closeLabel={t`Close project filter`}
+        items={[
+          {
+            id: "all",
+            label: t`All projects`,
+            hint: String(props.threads.length),
+            selected: !props.projectFilter,
+          },
+          ...pickerProjects.map((project) => ({
+            id: project.id,
+            label: project.name,
+            hint: String(counts.get(project.id) ?? 0),
+            selected: props.projectFilter === project.id,
+          })),
+        ]}
+        onSelect={(id) => props.onProjectFilterChange(id === "all" ? null : id)}
+        trigger={({ open, isOpen }) => (
+          <Button
+            aria-label={t`Project`}
+            aria-expanded={isOpen}
+            className="m-threads__project-btn text-foreground"
+            size="sm"
+            variant="ghost"
+            onPress={open}
+          >
+            <span className="truncate">{currentProjectLabel}</span>
+            <ChevronDown className="size-3.5 text-muted" />
+          </Button>
+        )}
+      />
     ) : null;
 
-  const visibleThreads = props.projectFilter
+  const projectFilteredThreads = props.projectFilter
     ? props.threads.filter((thread) => thread.projectId === props.projectFilter)
     : props.threads;
+  const searchQuery = normalizeSearchText(query);
+  const visibleThreads = searchQuery
+    ? projectFilteredThreads.filter((thread) =>
+        threadMatchesSearch(thread, projectNames.get(thread.projectId), searchQuery),
+      )
+    : projectFilteredThreads;
+  const controls =
+    props.threads.length > 0 || projectPicker ? (
+      <div className="m-threads__picker">
+        {props.threads.length > 0 ? (
+          <label className="m-thread-search">
+            <Search className="size-3.5 shrink-0 text-muted" />
+            <input
+              aria-label={t`Search threads`}
+              placeholder={t`Search threads`}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            {query ? (
+              <button
+                type="button"
+                aria-label={t`Clear thread search`}
+                onClick={() => setQuery("")}
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : null}
+          </label>
+        ) : null}
+        {projectPicker}
+      </div>
+    ) : null;
 
   if (visibleThreads.length === 0 && props.loading) {
     return (
@@ -604,18 +791,36 @@ export function ThreadsView(props: ThreadsViewProps) {
   }
 
   if (visibleThreads.length === 0) {
+    const filteredOut = projectFilteredThreads.length > 0 && searchQuery.length > 0;
     return (
       <div className="m-threads">
-        {picker}
+        {controls}
         <EmptyState
           icon={<History className="size-5" />}
-          title={props.projectFilter ? t`No threads in this project` : t`No threads yet`}
-          hint={t`Start a new thread to put an agent to work from this device.`}
+          title={
+            filteredOut
+              ? t`No matching threads`
+              : props.projectFilter
+                ? t`No threads in this project`
+                : t`No threads yet`
+          }
+          hint={
+            filteredOut
+              ? t`Try a different search or project filter.`
+              : t`Start a new thread to put an agent to work from this device.`
+          }
           action={
-            <Button size="sm" variant="secondary" onPress={props.onNew}>
-              <Plus className="size-4" />
-              <Trans>New thread</Trans>
-            </Button>
+            filteredOut ? (
+              <Button size="sm" variant="secondary" onPress={() => setQuery("")}>
+                <X className="size-4" />
+                <Trans>Clear search</Trans>
+              </Button>
+            ) : (
+              <Button className="text-white" size="sm" variant="secondary" onPress={props.onNew}>
+                <Plus className="size-4" />
+                <Trans>New thread</Trans>
+              </Button>
+            )
           }
         />
       </div>
@@ -647,7 +852,7 @@ export function ThreadsView(props: ThreadsViewProps) {
 
   return (
     <div className="m-threads">
-      {picker}
+      {controls}
       <div className="m-thread-list">
         {entries.map((entry) => {
           if (entry.kind === "thread") return renderThreadRow(entry.thread);
@@ -682,9 +887,13 @@ export function ThreadsView(props: ThreadsViewProps) {
         <ThreadActionsSheet
           key={menuThread.id}
           thread={menuThread}
+          project={projectsById.get(menuThread.projectId)}
           closing={threadMenu.closing}
           onAction={(action) => props.onThreadAction(menuThread, action)}
+          onNewThreadInWorktree={props.onNewThreadInWorktree}
+          onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
           onOpenTerminal={props.onOpenTerminal}
+          onRunProjectAction={props.onRunProjectAction}
           onClose={threadMenu.close}
         />
       ) : null}
@@ -692,10 +901,13 @@ export function ThreadsView(props: ThreadsViewProps) {
         <GroupActionsSheet
           key={groupEntryKey(menuGroupEntry)}
           entry={menuGroupEntry}
+          project={projectsById.get(menuGroupEntry.group.threads[0]!.projectId)}
           closing={groupMenu.closing}
           onThreadAction={props.onThreadAction}
           onNewThreadInWorktree={props.onNewThreadInWorktree}
+          onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
           onOpenTerminal={props.onOpenTerminal}
+          onRunProjectAction={props.onRunProjectAction}
           onClose={groupMenu.close}
         />
       ) : null}

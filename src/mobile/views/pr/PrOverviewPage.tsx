@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { toast } from "@heroui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
@@ -9,11 +11,16 @@ import {
   ExternalLink,
   FileDiff,
   GitCommit,
+  GitMerge,
+  Loader2,
   MessageSquare,
   RefreshCw,
   XCircle,
 } from "lucide-react";
+import type { PrMergeMethod } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { useGitStore } from "@/renderer/state/gitStore";
 import {
   usePrMergeable,
@@ -21,11 +28,14 @@ import {
   usePrState,
   usePrTitle,
   usePrUrl,
+  usePrViewerDidAuthor,
 } from "@/renderer/state/gitSelectors";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { PrHeaderCard } from "@/renderer/views/PrReviewOverlay/parts/PrHeaderCard";
 import { PrMetaRow } from "@/renderer/views/PrReviewOverlay/parts/PrMetaRow";
+import { SubmitReviewPopover } from "@/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover";
+import { SheetMenu } from "../../components";
 import { usePr } from "./prContext";
 import { PrPageHeader } from "./PrPageHeader";
 
@@ -76,9 +86,11 @@ export function PrOverviewPage() {
   const title = usePrTitle(pr.prKey) || details?.title || t`Pull request #${pr.prNumber}`;
   const url = usePrUrl(pr.prKey);
   const state = usePrState(pr.prKey);
+  const viewerDidAuthor = usePrViewerDidAuthor(pr.prKey);
   const checksStatus = usePrCombinedChecksStatus(pr.prKey, pr.cacheKey);
   const mergeStateStatus = usePrMergeStateStatus(pr.prKey);
   const mergeable = usePrMergeable(pr.prKey);
+  const [mergingMethod, setMergingMethod] = useState<PrMergeMethod | null>(null);
 
   const filesCount = files?.length ?? details?.changedFiles ?? 0;
   const additions = details?.additions ?? 0;
@@ -101,6 +113,44 @@ export function PrOverviewPage() {
     reasonKey !== "DRAFT" &&
     reasonKey !== "UNKNOWN";
   const blockReason = reasonKey ? BLOCK_REASON[reasonKey] : undefined;
+  const canMerge = state === "open" && !isBlocked;
+  const canReview =
+    viewerDidAuthor !== true &&
+    state !== "merged" &&
+    state !== "closed" &&
+    details?.mergedAt == null &&
+    details?.closedAt == null;
+
+  async function handleMerge(method: PrMergeMethod) {
+    if (mergingMethod !== null) return;
+    setMergingMethod(method);
+    try {
+      await readBridge().ghMergePr({
+        projectLocation: pr.projectLocation,
+        prNumber: pr.prNumber,
+        method,
+        admin: false,
+      });
+      const current = useGitStore.getState().prData[pr.prKey];
+      if (current) {
+        useGitStore.getState().setPrData(pr.prKey, {
+          ...current,
+          state: "merged",
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      toast.success(t`Pull request merged`);
+      pr.reload();
+    } catch (err) {
+      toast.danger(friendlyError(err));
+    } finally {
+      setMergingMethod(null);
+    }
+  }
+
+  function openOnGitHub(nextUrl: string) {
+    openExternalWithFeedback(nextUrl);
+  }
 
   return (
     <>
@@ -115,7 +165,7 @@ export function PrOverviewPage() {
                 type="button"
                 className="m-git-head__btn"
                 aria-label={t`Open on GitHub`}
-                onClick={() => void readBridge().openExternal(url)}
+                onClick={() => openOnGitHub(url)}
               >
                 <ExternalLink className="size-4" />
               </button>
@@ -218,6 +268,79 @@ export function PrOverviewPage() {
               </div>
             ) : null}
           </div>
+
+          {canReview || canMerge ? (
+            <div className="m-pr-section">
+              <div className="m-pr-section__head">
+                <Trans>Actions</Trans>
+              </div>
+              {canReview ? (
+                <SubmitReviewPopover
+                  projectLocation={pr.projectLocation}
+                  prNumber={pr.prNumber}
+                  hidden={false}
+                  triggerPresentation="touch"
+                  onSubmitted={pr.reload}
+                />
+              ) : null}
+              {canMerge ? (
+                <div className="m-pr-actions">
+                  <button
+                    type="button"
+                    className="m-more-row"
+                    disabled={mergingMethod !== null}
+                    onClick={() => void handleMerge("squash")}
+                  >
+                    <span className="m-more-row__icon">
+                      {mergingMethod === "squash" ? (
+                        <Loader2 className="size-4 m-spin" />
+                      ) : (
+                        <GitMerge className="size-4" />
+                      )}
+                    </span>
+                    <span className="m-more-row__body">
+                      <strong>
+                        <Trans>Merge PR: Squash</Trans>
+                      </strong>
+                      <span>
+                        <Trans>Merge this pull request with one squashed commit.</Trans>
+                      </span>
+                    </span>
+                  </button>
+                  <SheetMenu
+                    label={t`Merge method`}
+                    closeLabel={t`Close merge options`}
+                    items={[
+                      {
+                        id: "merge",
+                        label: <Trans>Merge PR: Commit</Trans>,
+                        icon: <GitMerge className="size-4" />,
+                        disabled: mergingMethod !== null,
+                      },
+                      {
+                        id: "rebase",
+                        label: <Trans>Merge PR: Rebase</Trans>,
+                        icon: <GitMerge className="size-4" />,
+                        disabled: mergingMethod !== null,
+                      },
+                    ]}
+                    onSelect={(method) => void handleMerge(method as PrMergeMethod)}
+                    trigger={({ open }) => (
+                      <button
+                        type="button"
+                        className="m-git-head__btn"
+                        aria-label={t`Merge options`}
+                        disabled={mergingMethod !== null}
+                        onClick={open}
+                      >
+                        <ChevronRight className="size-4 rotate-90" />
+                      </button>
+                    )}
+                  />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     </>

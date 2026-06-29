@@ -2,9 +2,9 @@ import { CheckCircle2, Clock, ExternalLink, XCircle } from "lucide-react";
 import { Link } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { PR_CHECK_FAILURE_CONCLUSIONS, type PrCheck } from "@/shared/contracts";
-import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 
 type CheckTone = "success" | "danger" | "warning" | "neutral";
 
@@ -91,7 +91,7 @@ export function PrChecksTab(props: { cacheKey: string; loading: boolean }) {
                 <Link
                   aria-label={t`Open check`}
                   className="shrink-0 text-muted hover:text-foreground"
-                  onPress={() => void readBridge().openExternal(check.url!)}
+                  onPress={() => openExternalWithFeedback(check.url!)}
                 >
                   <ExternalLink className="size-3.5" />
                 </Link>

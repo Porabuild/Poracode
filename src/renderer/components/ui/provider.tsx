@@ -12,7 +12,7 @@ import { Copy } from "lucide-react";
 import { resolveThemeMode } from "@/shared/themeMode";
 import { applyAppTheme, persistThemeBoot, systemPrefersDark } from "@/renderer/theme/applyAppTheme";
 import { applySidebarGlassTint } from "@/renderer/theme/sidebarGlass";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { i18n, dynamicActivate } from "@/renderer/i18n/i18n";
@@ -139,8 +139,10 @@ export function AppProvider(props: {
   }, []);
 
   const appearance = resolveThemeMode(themeMode, prefersDark);
-  // The opt-in translucent sidebar, suppressed when the OS asks for reduced transparency.
-  const glassEnabled = sidebarTranslucency && !reducedTransparency;
+  // The opt-in translucent sidebar, suppressed when the OS asks for reduced
+  // transparency or when viewing over a remote session.
+  const remoteSession = isRemoteSession();
+  const effectiveGlassEnabled = !remoteSession && sidebarTranslucency && !reducedTransparency;
 
   useEffect(() => {
     const root = document.documentElement;
@@ -154,17 +156,22 @@ export function AppProvider(props: {
   // Gates the in-app CSS sidebar tint/fallback. Held off until content is ready
   // so the loading screen stays opaque.
   useEffect(() => {
-    document.documentElement.dataset.sidebarGlass = glassEnabled && contentReady ? "on" : "off";
-  }, [glassEnabled, contentReady]);
+    document.documentElement.dataset.sidebarGlass =
+      effectiveGlassEnabled && contentReady ? "on" : "off";
+  }, [effectiveGlassEnabled, contentReady]);
 
   useEffect(() => {
+    if (remoteSession) {
+      document.documentElement.dataset.nativeMaterial = "off";
+      return;
+    }
     if (!syncWindowChrome || typeof window === "undefined" || !("lightcode" in window)) {
       return;
     }
 
     const root = document.documentElement;
     const styles = window.getComputedStyle(root);
-    const wantMaterial = glassEnabled && contentReady;
+    const wantMaterial = effectiveGlassEnabled && contentReady;
 
     void readBridge()
       .setWindowChrome({
@@ -184,7 +191,7 @@ export function AppProvider(props: {
         captureRendererException(error, { featureArea: "window-chrome" });
         // Keep renderer boot resilient if Electron rejects a color value.
       });
-  }, [appearance, glassEnabled, contentReady, syncWindowChrome]);
+  }, [appearance, effectiveGlassEnabled, contentReady, syncWindowChrome, remoteSession]);
 
   // User-tuned sidebar frosting (Appearance slider): override the glass tint
   // alpha for the active appearance. No-op on platforms without a native blur
@@ -194,9 +201,9 @@ export function AppProvider(props: {
     applySidebarGlassTint(
       document.documentElement,
       sidebarGlassTint[appearance],
-      glassEnabled && contentReady,
+      effectiveGlassEnabled && contentReady,
     );
-  }, [appearance, glassEnabled, contentReady, sidebarGlassTint]);
+  }, [appearance, effectiveGlassEnabled, contentReady, sidebarGlassTint]);
 
   return (
     <I18nProvider i18n={i18n}>

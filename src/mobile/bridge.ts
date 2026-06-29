@@ -1,12 +1,16 @@
 import type {
   ClearPendingSteerPayload,
   CloseThreadPayload,
+  RefreshAgentScope,
   InterruptThreadPayload,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
+  SearchProjectFilesPayload,
+  SearchProjectFilesResult,
   SendThreadInputPayload,
   SetPendingSteerPayload,
   StartShellPayload,
+  StartThreadPayload,
   WriteTerminalPayload,
 } from "@/shared/contracts";
 import type { BrowserState, BrowserTabInfo, LightcodeBridge } from "@/shared/ipc";
@@ -19,6 +23,7 @@ import type { SharedSettingsInput } from "@/shared/settings";
 import { useBrowserMirrorStore } from "./browserMirror";
 import type { RemoteDesktopClient } from "./remoteClient";
 import { pushDesktopSettingsDiff } from "./settingsSync";
+import { applyAgentStatuses } from "./storeSync";
 
 /**
  * Remote-session implementation of `window.lightcode`. The desktop renderer
@@ -84,8 +89,9 @@ const remoteBridge = {
     requireClient().interruptThread(payload.threadId),
   writeTerminal: (payload: WriteTerminalPayload) => requireClient().writeTerminal(payload),
   resizeTerminal: (payload: ResizeTerminalPayload) => requireClient().resizeTerminal(payload),
+  startThread: (payload: StartThreadPayload) => requireClient().startThread(payload),
   startShell: (payload: StartShellPayload) => requireClient().startShell(payload),
-  closeThread: (payload: CloseThreadPayload) => requireClient().closeShell(payload),
+  closeThread: (payload: CloseThreadPayload) => requireClient().closeThread(payload.threadId),
   // Live PTY bytes arrive over the WebSocket (terminalFeed); the surface gets
   // its initial scrollback via prop, so the bridge read is a no-op here.
   readTerminalScrollback: () => Promise.resolve(""),
@@ -99,7 +105,16 @@ const remoteBridge = {
   // Login state stays unknown (no remote secrets); login actions are
   // desktop-only and fall through to the rejecting proxy below.
   getProviderUsage: () => requireClient().providerUsage(),
+  refreshProviderUsage: () => requireClient().providerUsage(),
   getUsageLoginState: () => Promise.resolve({ stored: {} }),
+  refreshAgentStatuses: async (_wslDistros?: string[], _scope?: RefreshAgentScope) => {
+    const statuses = await requireClient().agentStatuses();
+    applyAgentStatuses(statuses);
+    return {
+      windows: statuses.windows,
+      wsl: statuses.wsl,
+    };
+  },
 
   // Shared settings persist per device via the store's localStorage fallback.
   // Remote-editable keys (the desktop's AI helpers) are additionally diffed
@@ -121,7 +136,8 @@ const remoteBridge = {
   },
   getDroppedFilePaths: () => [],
   pickFiles: () => Promise.resolve(null),
-  searchProjectFiles: () => Promise.resolve({ entries: [], totalIndexed: 0 }),
+  searchProjectFiles: (payload: SearchProjectFilesPayload) =>
+    requireClient().gitCall("searchProjectFiles", payload) as Promise<SearchProjectFilesResult>,
   getAgentHookPluginStatuses: () => Promise.resolve([]),
 
   // Runtime history hydration is fed by the remote sync layer instead of the
@@ -172,8 +188,18 @@ const remoteBridge = {
   browserReload: async (payload: { tabId: string }) => {
     await runBrowserCommand({ kind: "reload", tabId: payload.tabId });
   },
-  // Tab reordering is desktop-only; swallow so drag interactions stay inert.
-  browserMoveTab: () => Promise.resolve(),
+  browserMoveTab: async (payload: {
+    tabId: string;
+    targetTabId: string;
+    position: "before" | "after";
+  }) => {
+    await runBrowserCommand({
+      kind: "move-tab",
+      tabId: payload.tabId,
+      targetTabId: payload.targetTabId,
+      position: payload.position,
+    });
+  },
 
   // Event subscriptions: remote events arrive over the WebSocket instead.
   onSupervisorEvent: () => () => undefined,
@@ -191,8 +217,8 @@ export function installRemoteBridge(): void {
         return Reflect.get(target, prop, receiver) as unknown;
       }
       if (typeof prop !== "string") return undefined;
-      // The reused desktop git-review components call git/gh bridge methods
-      // directly; forward each to the paired desktop over the passthrough API.
+      // Reused/mobile desktop-backed surfaces call bridge methods directly;
+      // forward allowlisted git/gh/project-tree calls to the paired desktop.
       if (isGitRemoteProcedure(prop)) {
         return (payload: unknown) => requireClient().gitCall(prop, payload);
       }

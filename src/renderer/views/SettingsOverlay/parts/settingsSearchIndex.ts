@@ -60,6 +60,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Default new thread`,
     description: msg`Open new threads as a full page or a side-by-side panel.`,
     keywords: "thread mode full page panel side-by-side layout",
+    desktopOnly: true,
   },
   {
     section: "general",
@@ -67,6 +68,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Home scope`,
     description: msg`Show a projectless Home scope for OS-level agent sessions.`,
     keywords: "projectless os-level agent session global",
+    desktopOnly: true,
   },
   {
     section: "general",
@@ -90,6 +92,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Editor LSP`,
     description: msg`Enable language server support for type checking, completions, and diagnostics. Requires a language server installed.`,
     keywords: "language server protocol type checking completion diagnostics intellisense",
+    desktopOnly: true,
   },
 
   // Audio
@@ -162,12 +165,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     anchor: "appearance.translucentSidebar",
     title: msg`Translucent sidebar`,
     keywords: "transparency blur vibrancy acrylic glass frosted material translucent",
+    desktopOnly: true,
   },
   {
     section: "appearance",
     anchor: "appearance.sidebarFrosting",
     title: msg`Sidebar frosting`,
     keywords: "tint glass blur opacity translucency slider acrylic vibrancy",
+    desktopOnly: true,
     conditional: true,
   },
 
@@ -178,6 +183,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Terminal position`,
     description: msg`Where the terminal panel appears.`,
     keywords: "terminal panel location placement layout bottom right",
+    desktopOnly: true,
   },
   {
     section: "terminal",
@@ -185,6 +191,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Auto-show terminal panel`,
     description: msg`Automatically show the terminal panel when running commands or creating worktrees.`,
     keywords: "auto open reveal terminal panel commands worktree automatic",
+    desktopOnly: true,
   },
   {
     section: "terminal",
@@ -199,6 +206,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Browser pick target (CLI threads)`,
     description: msg`Where a browser element-picker selection goes in terminal-native threads. A collapsed composer always routes to the terminal.`,
     keywords: "browser pick target cli element picker selection terminal",
+    desktopOnly: true,
   },
   {
     section: "terminal",
@@ -245,6 +253,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Default thread removal`,
     description: msg`Action for the quick-remove button on sidebar threads.`,
     keywords: "default thread removal delete archive quick remove sidebar",
+    desktopOnly: true,
   },
 
   // Git
@@ -254,6 +263,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Git review mode`,
     description: msg`Open git review as a right-side panel or a full page.`,
     keywords: "diff code review panel page layout",
+    desktopOnly: true,
   },
   {
     section: "git",
@@ -390,6 +400,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Open links in`,
     description: msg`Choose whether links from Lightcode and browser popups stay in Lightcode or open externally.`,
     keywords: "open links target app system external default browser",
+    desktopOnly: true,
   },
   {
     section: "browser",
@@ -397,18 +408,21 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Show opened links in`,
     description: msg`When links open in a Lightcode browser tab, choose where the browser is revealed.`,
     keywords: "presentation panel overlay fullscreen reveal browser tab layout",
+    desktopOnly: true,
   },
   {
     section: "browser",
     anchor: "browser.allowEval",
     title: msg`Allow eval`,
     keywords: "eval javascript execute run code arbitrary agent security",
+    desktopOnly: true,
   },
   {
     section: "browser",
     anchor: "browser.allowDataAccess",
     title: msg`Allow agents to read/write cookies and storage`,
     keywords: "cookies storage localstorage session tokens auth data access read write agent",
+    desktopOnly: true,
   },
 
   // Usage

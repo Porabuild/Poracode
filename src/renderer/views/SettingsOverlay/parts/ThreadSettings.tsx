@@ -94,23 +94,25 @@ export function ThreadSettings() {
         </SettingRow>
       )}
 
-      <SettingRow
-        anchorId="threads.defaultThreadRemoval"
-        title={t`Default thread removal`}
-        description={<Trans>Action for the quick-remove button on sidebar threads.</Trans>}
-      >
-        <Select
-          aria-label={t`Default thread removal`}
-          className="w-[160px] shrink-0"
-          options={threadRemoveActionOpts}
-          value={threadRemoveAction}
-          onChange={(value) => {
-            startTransition(() => {
-              setThreadRemoveAction(value as ThreadRemoveAction);
-            });
-          }}
-        />
-      </SettingRow>
+      {!remote && (
+        <SettingRow
+          anchorId="threads.defaultThreadRemoval"
+          title={t`Default thread removal`}
+          description={<Trans>Action for the quick-remove button on sidebar threads.</Trans>}
+        >
+          <Select
+            aria-label={t`Default thread removal`}
+            className="w-[160px] shrink-0"
+            options={threadRemoveActionOpts}
+            value={threadRemoveAction}
+            onChange={(value) => {
+              startTransition(() => {
+                setThreadRemoveAction(value as ThreadRemoveAction);
+              });
+            }}
+          />
+        </SettingRow>
+      )}
     </SettingsPage>
   );
 }

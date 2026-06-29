@@ -1,8 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { buildGitAddWorktreePayload, selectDraftProject } from "./navHelpers";
+
+vi.mock("@/renderer/state/appStore", () => ({
+  useAppStore: {
+    getState: () => ({
+      setPendingDraftWorktreeSelection: () => undefined,
+      openDraft: () => undefined,
+    }),
+  },
+}));
+
+vi.mock("./gitSummaries", () => ({
+  useGitSummariesStore: {
+    getState: () => ({ byThread: {} }),
+  },
+}));
 
 function makeProject(id: string, overrides: Partial<Project> = {}): Project {
   return {

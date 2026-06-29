@@ -1,13 +1,15 @@
 import { useLingui } from "@lingui/react/macro";
-import { ChevronRight, GitBranch, GitPullRequest } from "lucide-react";
+import { ChevronRight, Folder, GitBranch, GitPullRequest } from "lucide-react";
 import { getPrStatusTone, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
 import type { RemoteThreadGitSummary } from "@/shared/remote";
+import type { WorkspaceTab } from "./views/WorkspaceView";
 import { useGitSummariesStore } from "./gitSummaries";
 
 /**
  * Git/PR affordances fed by the desktop's per-thread summaries: a compact badge
- * for thread rows, and a tappable bar inside an open thread that opens the
- * fullscreen git panel (file list, diffs, commit/sync, and PR actions).
+ * for thread rows, and a tappable chip in the thread title bar that opens the
+ * unified workspace panel (changes, diffs, commit/sync, PR actions, and the
+ * project file tree) — all behind a single entry point.
  */
 
 function DiffCounts(props: { readonly summary: RemoteThreadGitSummary }) {
@@ -66,24 +68,57 @@ export function WorktreeGitSummaryBadge(props: { readonly threadIds: readonly st
   );
 }
 
-/** Subheader bar inside an open thread; tapping opens the fullscreen git panel. */
-export function ThreadGitBar(props: {
+/**
+ * The single full-width bar — its own row under the thread header — that is the
+ * one entry point to the unified workspace panel. It surfaces the project,
+ * branch, diffstat and PR (its number tinted by status) at a glance, and opens
+ * the panel on the Changes tab for a repo or the Files tab otherwise. Non-git
+ * threads show just the project so the file tree stays reachable.
+ */
+export function WorkspaceChip(props: {
   readonly threadId: string;
-  readonly onOpen?: (() => void) | undefined;
+  readonly projectLabel: string;
+  readonly onOpen: (tab: WorkspaceTab) => void;
 }) {
   const { t } = useLingui();
   const summary = useGitSummariesStore((s) => s.byThread[props.threadId]);
-  if (!summary || !summary.isRepo) return null;
+  const isRepo = summary?.isRepo === true;
 
   return (
-    <button type="button" className="m-git-bar" onClick={props.onOpen} disabled={!props.onOpen}>
-      <GitBranch className="size-3.5 shrink-0 text-muted" />
-      <span className="m-git-bar__branch">{summary.branch || t`(no branch)`}</span>
-      {summary.ahead > 0 ? <span className="text-accent">↑{summary.ahead}</span> : null}
-      {summary.behind > 0 ? <span className="text-accent">↓{summary.behind}</span> : null}
-      <DiffCounts summary={summary} />
-      <PrGlyph summary={summary} withNumber />
-      <ChevronRight className="ml-auto size-3.5 shrink-0 text-muted" />
+    <button
+      type="button"
+      className="m-ws-chip"
+      onClick={() => props.onOpen(isRepo ? "changes" : "files")}
+    >
+      {isRepo ? (
+        <GitBranch className="size-4 shrink-0 text-muted" />
+      ) : (
+        <Folder className="size-4 shrink-0 text-muted" />
+      )}
+      <span className="m-ws-chip__main">
+        {props.projectLabel ? (
+          <span className="m-ws-chip__project">{props.projectLabel}</span>
+        ) : null}
+        {isRepo ? (
+          <>
+            {props.projectLabel ? <span className="m-ws-chip__sep">/</span> : null}
+            <span className="m-ws-chip__branch">{summary.branch || t`(no branch)`}</span>
+          </>
+        ) : null}
+      </span>
+      {isRepo ? (
+        <span className="m-ws-chip__meta">
+          {summary.ahead > 0 ? (
+            <span className="shrink-0 text-accent">↑{summary.ahead}</span>
+          ) : null}
+          {summary.behind > 0 ? (
+            <span className="shrink-0 text-accent">↓{summary.behind}</span>
+          ) : null}
+          <DiffCounts summary={summary} />
+          <PrGlyph summary={summary} withNumber />
+        </span>
+      ) : null}
+      <ChevronRight className="m-ws-chip__chevron size-4 shrink-0" />
     </button>
   );
 }

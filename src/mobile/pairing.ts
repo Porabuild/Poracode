@@ -3,12 +3,26 @@ export interface PairingLaunch {
   readonly credential: string | null;
 }
 
+const VITE_DEV_SERVER_PORT = "3100";
+const DEFAULT_REMOTE_ACCESS_PORT = "38987";
+
 function normalizeEndpoint(value: string): string {
   const url = new URL(value);
   url.hash = "";
   url.search = "";
   url.pathname = "/";
   return url.toString();
+}
+
+export function normalizePairingEndpoint(value: string): string {
+  const url = new URL(value.trim());
+  const hostParam = url.searchParams.get("host");
+  if (hostParam) return normalizeEndpoint(hostParam);
+
+  if (url.port === VITE_DEV_SERVER_PORT) {
+    url.port = DEFAULT_REMOTE_ACCESS_PORT;
+  }
+  return normalizeEndpoint(url.toString());
 }
 
 let captured: PairingLaunch | null = null;
@@ -26,7 +40,7 @@ export function capturePairingLaunch(location: Location = window.location): Pair
   const query = new URLSearchParams(location.search);
   const hash = new URLSearchParams(location.hash.slice(1));
   captured = {
-    endpoint: normalizeEndpoint(query.get("host") ?? location.origin),
+    endpoint: normalizePairingEndpoint(query.get("host") ?? location.origin),
     credential: hash.get("token"),
   };
   if (captured.credential) {
@@ -57,7 +71,7 @@ export function parsePairingUrl(value: string): PairingLaunch | null {
   if (!credential) return null;
   const host = url.searchParams.get("host");
   try {
-    return { endpoint: normalizeEndpoint(host ?? url.origin), credential };
+    return { endpoint: normalizePairingEndpoint(host ?? url.toString()), credential };
   } catch {
     return null;
   }

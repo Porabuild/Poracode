@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { toast } from "@heroui/react";
 import { FileEdit, Lock, Minus, MoreVertical, Plus, Undo2 } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useGitFile } from "@/renderer/state/gitSelectors";
@@ -67,12 +69,18 @@ export function FileRow(props: {
       store.optimisticUnstageFile(storeKey, path, isWorktree);
       await readBridge()
         .gitUnstage({ projectLocation: project.location, filePath: path })
-        .catch(() => onRefresh());
+        .catch((error: unknown) => {
+          toast.danger(friendlyError(error));
+          onRefresh();
+        });
     } else {
       store.optimisticStageFile(storeKey, path, isWorktree);
       await readBridge()
         .gitStage({ projectLocation: project.location, filePath: path })
-        .catch(() => onRefresh());
+        .catch((error: unknown) => {
+          toast.danger(friendlyError(error));
+          onRefresh();
+        });
     }
   }
 
@@ -156,7 +164,7 @@ export function FileRow(props: {
             <span
               role="button"
               tabIndex={0}
-              aria-label="File actions"
+              aria-label={t`File actions`}
               className="-mr-1 rounded p-1 text-muted/70 active:bg-[var(--row-hover)]"
               onClick={(e) => {
                 e.stopPropagation();

@@ -53,6 +53,9 @@ interface ChatPaneProps {
   hiddenRuntimeItemId?: string | undefined;
   hasSupplementaryContent?: boolean;
   layoutChangeToken?: string | null;
+  onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
+  onRevealProjectFolderInTree?: ((path: string) => void) | undefined;
+  canShowProjectEntryInExplorer?: boolean | undefined;
 }
 
 const USER_SCROLL_INTENT_MS = 750;
@@ -76,7 +79,15 @@ const EMPTY_FILE_CHECKPOINTS: NonNullable<
  * composer (see `ThreadRuntimeRequestPanel`), not in the chat list.
  */
 export function ChatPane(props: ChatPaneProps) {
-  const { thread, hiddenRuntimeItemId, hasSupplementaryContent = false, layoutChangeToken } = props;
+  const {
+    thread,
+    hiddenRuntimeItemId,
+    hasSupplementaryContent = false,
+    layoutChangeToken,
+    onOpenProjectRelativePath,
+    onRevealProjectFolderInTree,
+    canShowProjectEntryInExplorer,
+  } = props;
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
@@ -116,16 +127,19 @@ export function ChatPane(props: ChatPaneProps) {
     if (!project || !targetContext || isHomeScope) return null;
     return {
       openProjectRelativePath: (path, lineNumber) => {
-        void openFileInEditor(
-          project,
-          worktreePath,
-          branch,
-          normalizeChatProjectPath(path, targetContext.projectLocation),
-          lineNumber,
-        );
+        const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
+        if (onOpenProjectRelativePath) {
+          onOpenProjectRelativePath(normalized, lineNumber);
+          return;
+        }
+        void openFileInEditor(project, worktreePath, branch, normalized, lineNumber);
       },
       revealProjectFolderInTree: (path) => {
         const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
+        if (onRevealProjectFolderInTree) {
+          onRevealProjectFolderInTree(normalized);
+          return;
+        }
         const fileEditor = useFileEditorStore.getState();
         const currentRoot = fileEditor.rootContext;
         const isSameContext =
@@ -140,13 +154,17 @@ export function ChatPane(props: ChatPaneProps) {
         const ancestors = collectPathAncestors(normalized);
         useProjectTreeStore.getState().expandMany(ancestors);
       },
-      showProjectEntryInExplorer: (path) => {
-        const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
-        void readBridge().revealProjectEntry({
-          projectLocation: targetContext.projectLocation,
-          path: normalized,
-        });
-      },
+      ...(canShowProjectEntryInExplorer === false
+        ? {}
+        : {
+            showProjectEntryInExplorer: (path: string) => {
+              const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
+              void readBridge().revealProjectEntry({
+                projectLocation: targetContext.projectLocation,
+                path: normalized,
+              });
+            },
+          }),
       onContentHeightChange: () => scrollControlsRef.current?.onContentHeightChange(),
       isStickToBottom: () => scrollControlsRef.current?.isStickToBottom() ?? false,
       registerVirtualScrollToBottom: (handler) => {
@@ -155,7 +173,17 @@ export function ChatPane(props: ChatPaneProps) {
       projectLocation: targetContext.projectLocation,
       projectRootNames,
     };
-  }, [project, targetContext, isHomeScope, branch, worktreePath, projectRootNames]);
+  }, [
+    project,
+    targetContext,
+    isHomeScope,
+    branch,
+    worktreePath,
+    projectRootNames,
+    onOpenProjectRelativePath,
+    onRevealProjectFolderInTree,
+    canShowProjectEntryInExplorer,
+  ]);
 
   useEffect(() => {
     void hydrateThreadRuntimeItems(threadId);

@@ -4,7 +4,7 @@ import { ChevronDown, GitBranch, GitFork, Search } from "lucide-react";
 import { Popover, toast, Tooltip } from "@heroui/react";
 import type { GitBranchInfo } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { prefetchBranchPrData, refreshGitProject } from "@/renderer/state/gitRefresh";
@@ -55,6 +55,8 @@ export interface BranchSelectorProps {
   hideTriggerIcon?: boolean;
   /** Render a shorter trigger for secondary control rows. */
   compact?: boolean;
+  /** Override PR badge navigation when the selector is embedded outside the desktop shell. */
+  onOpenPrReview?: (args: OpenPrReviewArgs) => void;
   className?: string;
 }
 
@@ -80,10 +82,12 @@ export function BranchSelector(props: BranchSelectorProps) {
     iconOnly = false,
     hideTriggerIcon = false,
     compact = false,
+    onOpenPrReview,
   } = props;
   const triggerIconSize = compact ? "size-3" : "size-3.5";
   const hideLabelOnWrap = collapseTier !== undefined;
   const { t } = useLingui();
+  const isRemote = isRemoteSession();
 
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -180,6 +184,10 @@ export function BranchSelector(props: BranchSelectorProps) {
 
   function handleOpenPrReview(args: OpenPrReviewArgs) {
     setIsOpen(false);
+    if (onOpenPrReview) {
+      onOpenPrReview(args);
+      return;
+    }
     usePanelStore.getState().setPrReviewContext({
       projectId,
       prNumber: args.prNumber,
@@ -359,6 +367,7 @@ export function BranchSelector(props: BranchSelectorProps) {
                 worktreeBranches={worktreeBranches}
                 branchWorktreePath={branchWorktreePath}
                 threadsByBranch={threadsByBranch}
+                allowWorktreeDelete={!isRemote}
                 onSelect={handleSelectBranch}
                 onDelete={(b) => handleRequestDelete(b as GitBranchInfo)}
                 onOpenPrReview={handleOpenPrReview}
@@ -381,7 +390,7 @@ export function BranchSelector(props: BranchSelectorProps) {
               isWorktree={isWorktree}
               branchWorktreePath={branchWorktreePath}
               onSelect={onSelect}
-              showMoveBranch={showMoveBranchAction}
+              showMoveBranch={showMoveBranchAction && !isRemote}
               isMovingBranch={isMovingBranch}
               onMoveBranchToWorktree={() => void handleMoveBranchToWorktree()}
             />

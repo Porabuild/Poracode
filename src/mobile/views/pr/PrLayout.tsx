@@ -47,7 +47,7 @@ async function fetchPr(
  */
 export function PrLayout() {
   const { prNumber: prNumberParam } = prLayoutApi.useParams();
-  const { project: projectId, worktree } = prLayoutApi.useSearch();
+  const { project: projectId, worktree, prKey: explicitPrKey } = prLayoutApi.useSearch();
   const { remote } = useMobileApp();
   const navigate = useNavigate();
   const router = useRouter();
@@ -63,8 +63,12 @@ export function PrLayout() {
       : project.location
     : null;
   const cacheKey = project ? `${project.id}#${prNumber}` : "";
-  const prKey = project ? (worktree ?? buildBranchPrKey(project.id)) : "";
-  const search = { project: projectId, ...(worktree ? { worktree } : {}) };
+  const prKey = project ? (explicitPrKey ?? worktree ?? buildBranchPrKey(project.id)) : "";
+  const search = {
+    project: projectId,
+    ...(worktree ? { worktree } : {}),
+    ...(explicitPrKey ? { prKey: explicitPrKey } : {}),
+  };
 
   const load = useCallback(() => {
     if (!projectLocation || !validPr) return;

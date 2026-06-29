@@ -2,11 +2,11 @@ import { ExternalLink, GitCommit } from "lucide-react";
 import { Link } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { PrCommitSummary } from "@/shared/contracts";
-import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePrUrl } from "@/renderer/state/gitSelectors";
 import { formatShortDateTime } from "@/renderer/utils/formatTime";
+import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 
 export function PrCommitsTab(props: { cacheKey: string; prKey: string; loading: boolean }) {
   const { cacheKey, prKey, loading } = props;
@@ -73,7 +73,7 @@ function PrCommitRow(props: { commit: PrCommitSummary; prUrl: string | undefined
           <Link
             aria-label={t`Open commit on GitHub`}
             className="text-muted hover:text-foreground"
-            onPress={() => void readBridge().openExternal(commitUrl)}
+            onPress={() => openExternalWithFeedback(commitUrl)}
           >
             <ExternalLink className="size-3.5" />
           </Link>

@@ -1,13 +1,14 @@
 import { useId, useState } from "react";
-import { Button } from "@heroui/react";
-import { useLingui } from "@lingui/react/macro";
+import { Button, toast } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { FileText, HelpCircle, ListChecks, Plug, ShieldAlert } from "lucide-react";
 import {
   asPermissionRequestDetails,
   type RequestOutcome,
   type ThreadServerRequestId,
 } from "@/shared/contracts";
-import { useAppStore } from "@/renderer/state/appStore";
+import { friendlyError } from "@/shared/messages";
+import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
 import { ThreadDockSection } from "../ThreadDockUI";
 import {
@@ -63,18 +64,15 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
   function submitRaw(response: unknown, outcome: RequestOutcome) {
     if (resolving) return;
     setResolving(true);
-    useAppStore.getState().applyRuntimeEvent(threadId, {
-      type: "request.resolved",
-      threadId,
-      requestId: request.requestId,
-      outcome,
-    });
+    const rollback = applyOptimisticRequestResolution(threadId, request, outcome);
     void onResolve({
       requestId: request.requestId,
       method: "requestPermission",
       response,
     }).catch((err) => {
       console.error("[chat] request resolution failed", err);
+      rollback();
+      toast.danger(friendlyError(err));
       setResolving(false);
     });
   }
@@ -127,11 +125,11 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
     !permissionDetails && !opencodePermission && !isCustomForm && !isQuestion
       ? formatRawDetails(request.payload.details)
       : undefined;
-  const agentLead = agentLabel ?? "The agent";
+  const agentLead = agentLabel ?? t`The agent`;
   const contextLine = structuredElicitation
-    ? `${structuredElicitation.sourceText} needs input.`
+    ? t`${structuredElicitation.sourceText} needs input.`
     : isQuestion
-      ? `${agentLead} needs your input to continue.`
+      ? t`${agentLead} needs your input to continue.`
       : undefined;
   const summary = request.payload.summary;
   const planFileAction =
@@ -143,7 +141,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
         onPress={() => onOpenPlanFile(planFilePath)}
       >
         <FileText className="size-3.5" />
-        Open plan
+        <Trans>Open plan</Trans>
       </Button>
     ) : null;
   const approvalActions =
@@ -167,7 +165,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
         className="text-muted"
         onPress={() => submitRaw({ action: "cancel" }, "cancelled")}
       >
-        Cancel
+        <Trans>Cancel</Trans>
       </Button>
       <Button
         form={formId}
@@ -177,7 +175,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
         variant="tertiary"
         className="text-white"
       >
-        Submit
+        <Trans>Submit</Trans>
       </Button>
     </div>
   ) : null;

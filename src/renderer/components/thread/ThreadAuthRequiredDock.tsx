@@ -3,7 +3,7 @@ import { toast } from "@heroui/react";
 import { KeyRound, LogIn, RefreshCw, Settings } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus, Project } from "@/shared/contracts";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { openSettings } from "@/renderer/actions/panelActions";
 import { Button } from "@/renderer/components/common";
@@ -41,6 +41,7 @@ function shouldPreferTerminalLogin(status: AgentStatus): boolean {
 export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; project?: Project }) {
   const { agentStatus, project } = props;
   const { t } = useLingui();
+  const isRemote = isRemoteSession();
   const [pendingAction, setPendingAction] = useState<"login" | "refresh" | undefined>();
   const agentAuthMethod = findAgentAuthMethodForStatus(agentStatus);
   const terminalAuthMethod = findTerminalAuthMethodForStatus(agentStatus);
@@ -49,11 +50,13 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
   const hasDirectLogin = canUseAgentAuth || canUseTerminalLogin;
   const preferTerminalLogin = shouldPreferTerminalLogin(agentStatus);
   const useTerminalLogin = canUseTerminalLogin && (preferTerminalLogin || !canUseAgentAuth);
-  const description = useTerminalLogin
-    ? t`Run ${agentStatus.loginCommand} before this thread can run.`
-    : agentAuthMethod
-      ? t`Complete ${agentAuthMethod.name} sign-in before this thread can run.`
-      : t`Add credentials before this thread can run.`;
+  const description = isRemote
+    ? t`Sign in on the paired desktop, then refresh this status.`
+    : useTerminalLogin
+      ? t`Run ${agentStatus.loginCommand} before this thread can run.`
+      : agentAuthMethod
+        ? t`Complete ${agentAuthMethod.name} sign-in before this thread can run.`
+        : t`Add credentials before this thread can run.`;
 
   async function handleLogin() {
     if (pendingAction) return;
@@ -134,7 +137,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
         title={t`Sign in required`}
         actions={
           <div className="flex shrink-0 items-center gap-1">
-            {hasDirectLogin ? (
+            {!isRemote && hasDirectLogin ? (
               <Button
                 size="sm"
                 variant="ghost"
@@ -147,7 +150,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
                 <LogIn className="size-3.5" />
                 <Trans>Login</Trans>
               </Button>
-            ) : (
+            ) : !isRemote ? (
               <Button
                 size="sm"
                 variant="ghost"
@@ -158,7 +161,7 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
                 <Settings className="size-3.5" />
                 <Trans>Settings</Trans>
               </Button>
-            )}
+            ) : null}
             <Button
               isIconOnly
               aria-label={t`Refresh ${agentStatus.label} authentication`}

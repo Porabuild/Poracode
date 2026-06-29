@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { AlertDialog, Button } from "@heroui/react";
+import { AlertDialog, Button, toast } from "@heroui/react";
 import { ChevronDown, ChevronRight, Minus, MoreVertical, Plus, Undo2 } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitFileChange, Project } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { compareFilesByDirThenName } from "@/renderer/utils/gitHelpers";
@@ -58,14 +59,20 @@ export function FileGroup(props: {
     useGitStore.getState().optimisticStageAll(storeKey, isWorktree);
     await readBridge()
       .gitStageAll({ projectLocation: project.location })
-      .catch(() => onRefresh());
+      .catch((error: unknown) => {
+        toast.danger(friendlyError(error));
+        onRefresh();
+      });
   }
 
   async function handleUnstageAll() {
     useGitStore.getState().optimisticUnstageAll(storeKey, isWorktree);
     await readBridge()
       .gitUnstageAll({ projectLocation: project.location })
-      .catch(() => onRefresh());
+      .catch((error: unknown) => {
+        toast.danger(friendlyError(error));
+        onRefresh();
+      });
   }
 
   async function handleRevertAll() {

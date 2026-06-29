@@ -143,6 +143,11 @@ msgstr "{0} вийшов із системи."
 msgid "{0} needs authentication."
 msgstr "{0} потребує автентифікації."
 
+#. placeholder {0}: structuredElicitation.sourceText
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "{0} needs input."
+msgstr "{0} потребує введення."
+
 #. placeholder {0}: currentIndex + 1
 #: src/renderer/components/find/FindBar.tsx
 msgid "{0} of {matchCount}"
@@ -228,6 +233,10 @@ msgstr "{0} міс. тому"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "{agentLabel}: {statusLabel}. Hover for status details."
 msgstr "{agentLabel}: {statusLabel}. Наведіть для деталей статусу."
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "{agentLead} needs your input to continue."
+msgstr "{agentLead} потребує вашого введення, щоб продовжити."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
@@ -473,13 +482,17 @@ msgstr "Дія для кнопки швидкого видалення тред�
 msgid "Action name"
 msgstr "Назва дії"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Actions"
 msgstr "Дії"
 
+#. placeholder {0}: props.entry.name
 #. placeholder {0}: thread.title
+#: src/mobile/views/FilesView.tsx
 #: src/mobile/views/ThreadsView.tsx
 msgid "Actions for {0}"
 msgstr "Дії для {0}"
@@ -955,15 +968,19 @@ msgid "Avatar color {color}"
 msgstr "Колір аватара {color}"
 
 #: src/mobile/views/BrowserView.tsx
-#: src/mobile/views/GitView.tsx
 #: src/mobile/views/pr/PrPageHeader.tsx
 #: src/mobile/views/TerminalView.tsx
+#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Назад"
 
 #: src/mobile/views/GitView.tsx
+msgid "Back to changes"
+msgstr "Назад до змін"
+
+#: src/mobile/views/FilesView.tsx
 msgid "Back to files"
 msgstr "Назад до файлів"
 
@@ -1043,6 +1060,7 @@ msgstr "Двійковий файл — попередній перегляд н
 msgid "Binary file or no diff available"
 msgstr "Бінарний файл або diff недоступний"
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Binary files can't be edited here."
 msgstr "Двійкові файли не можна редагувати тут."
@@ -1115,7 +1133,6 @@ msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Перегляньте свої репозиторії GitHub або вставте URL для клонування."
 
 #: src/mobile/RootLayout.tsx
-#: src/mobile/settingsSections.ts
 #: src/mobile/views/MoreView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -1207,12 +1224,14 @@ msgid "Camera access blocked"
 msgstr "Доступ до камери заблоковано"
 
 #. Dialog button: dismiss without deleting
+#: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -1272,6 +1291,7 @@ msgstr "Список змін"
 
 #: src/mobile/views/pr/PrChangesPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
@@ -1411,9 +1431,15 @@ msgstr "Очистити кеш"
 msgid "Clear Cookies"
 msgstr "Очистити cookies"
 
+#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
 msgstr "Очистити пошук"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Clear thread search"
+msgstr "Очистити пошук тредів"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -1480,6 +1506,10 @@ msgstr "Закрити редактор"
 msgid "Close Editor Tab"
 msgstr "Закрити вкладку редактора"
 
+#: src/mobile/views/FilesView.tsx
+msgid "Close file actions"
+msgstr "Закрити дії з файлом"
+
 #: src/renderer/components/find/FindBar.tsx
 msgid "Close find"
 msgstr "Закрити пошук"
@@ -1499,6 +1529,10 @@ msgstr "Закрити дії групи"
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Close menu"
 msgstr "Закрити меню"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Close merge options"
+msgstr "Закрити параметри злиття"
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Close overlay"
@@ -2102,6 +2136,7 @@ msgid "Default thread removal"
 msgstr "Типове видалення треду"
 
 #. Thread remove action: delete permanently
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -2120,6 +2155,11 @@ msgstr "Видалити"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Delete {0}"
 msgstr "Видалити {0}"
+
+#. placeholder {0}: props.entry.name
+#: src/mobile/views/FilesView.tsx
+msgid "Delete <0>{0}</0>? This cannot be undone."
+msgstr "Видалити <0>{0}</0>? Цю дію не можна скасувати."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Delete branch?"
@@ -2153,6 +2193,8 @@ msgstr "Видалити тред?"
 msgid "Delete to-do"
 msgstr "Видалити завдання"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 msgid "Delete Worktree"
 msgstr "Видалити worktree"
@@ -2282,6 +2324,7 @@ msgstr "Відкинути зміни"
 msgid "Discard changes to <0>{title}</0>? This cannot be undone."
 msgstr "Відкинути зміни в <0>{title}</0>? Це не можна буде скасувати."
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -2512,6 +2555,10 @@ msgstr "Розширений (Hooks)"
 msgid "Enter a repository URL."
 msgstr "Введіть URL репозиторію."
 
+#: src/mobile/routeComponents.tsx
+msgid "Enter a valid desktop endpoint."
+msgstr "Введіть дійсну кінцеву точку десктопа."
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
 msgstr "Увійти в режим плану"
@@ -2668,6 +2715,11 @@ msgstr "Отримати"
 msgid "File"
 msgstr "Файл"
 
+#: src/mobile/views/FilesView.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+msgid "File actions"
+msgstr "Дії з файлом"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "File changes will appear here."
 msgstr "Зміни файлів з'являться тут."
@@ -2676,6 +2728,7 @@ msgstr "Зміни файлів з'являться тут."
 msgid "File is too large to preview."
 msgstr "Файл занадто великий для попереднього перегляду."
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "Файл більше не існує на диску."
@@ -2695,6 +2748,7 @@ msgstr "Файл занадто великий для відображення (
 msgid "File uses an unsupported encoding."
 msgstr "Файл використовує непідтримуване кодування."
 
+#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Files"
 msgstr "Файли"
@@ -3339,8 +3393,8 @@ msgid "Lightcode mobile navigation"
 msgstr "Мобільна навігація Lightcode"
 
 #: src/mobile/views/SettingsView.tsx
-msgid "Links and page behavior"
-msgstr "Посилання та поведінка сторінок"
+#~ msgid "Links and page behavior"
+#~ msgstr "Посилання та поведінка сторінок"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -3405,6 +3459,7 @@ msgid "Loading threads"
 msgstr "Завантаження потоків"
 
 #: src/mobile/routeComponents.tsx
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -3573,25 +3628,34 @@ msgstr "У злитті є конфлікти:\n"
 msgid "Merge Locally & Remove Worktree"
 msgstr "Злити локально та видалити worktree"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge method"
 msgstr "Метод злиття"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge options"
 msgstr "Параметри злиття"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge PR: Commit"
 msgstr "Злити PR: Commit"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge PR: Rebase"
 msgstr "Злити PR: Rebase"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge PR: Squash"
 msgstr "Злити PR: Squash"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Merge this pull request with one squashed commit."
+msgstr "Злити цей pull request одним squash-комітом."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge to Source"
@@ -3849,15 +3913,31 @@ msgstr "Новий каталог конфігурації профілю Claude
 msgid "New Claude profile name"
 msgstr "Нова назва профілю Claude"
 
+#: src/mobile/views/FilesView.tsx
+msgid "New file"
+msgstr "Новий файл"
+
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "New File"
 msgstr "Новий файл"
 
+#: src/mobile/views/FilesView.tsx
+msgid "New file name"
+msgstr "Назва нового файла"
+
+#: src/mobile/views/FilesView.tsx
+msgid "New folder"
+msgstr "Нова папка"
+
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "New Folder"
 msgstr "Нова папка"
+
+#: src/mobile/views/FilesView.tsx
+msgid "New folder name"
+msgstr "Назва нової папки"
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "New line"
@@ -3902,6 +3982,7 @@ msgstr "Новий тред (чернетка)"
 msgid "New thread from this to-do"
 msgstr "Новий тред із цієї задачі"
 
+#: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/ThreadsView.tsx
 msgid "New thread in worktree"
 msgstr "Новий потік у worktree"
@@ -4054,7 +4135,9 @@ msgstr "Немає diff для {visiblePath}"
 msgid "No file checkpoint is stored for this message."
 msgstr "Для цього повідомлення не збережено контрольну точку файлів."
 
+#. placeholder {0}: query.trim()
 #. placeholder {0}: tree.searchQuery
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
 msgstr "Немає файлів, що відповідають \"{0}\"."
@@ -4081,6 +4164,7 @@ msgstr "Збігів немає."
 msgid "No matching agents."
 msgstr "Відповідних агентів немає."
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "Відповідних тредів немає"
@@ -4387,6 +4471,7 @@ msgstr "Відкривати перегляд Git як праву панель �
 msgid "Open image preview"
 msgstr "Відкрити перегляд зображення"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -4415,6 +4500,10 @@ msgstr "Відкривати нові треди як повну сторінк�
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Open on GitHub"
 msgstr "Открыть на GitHub"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Open plan"
+msgstr "Відкрити план"
 
 #. placeholder {0}: vis.prNumber
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
@@ -4464,6 +4553,7 @@ msgid "Open subagent: {0}"
 msgstr "Відкрити субагента: {0}"
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
 msgstr "Открыть терминал"
 
@@ -4826,8 +4916,8 @@ msgid "Provider has not reported token usage."
 msgstr "Провайдер не повідомив про використання токенів."
 
 #: src/mobile/views/MoreView.tsx
-msgid "Provider limits and spend"
-msgstr "Ліміти та витрати провайдерів"
+#~ msgid "Provider limits and spend"
+#~ msgstr "Ліміти та витрати провайдерів"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Provider presets"
@@ -4895,6 +4985,10 @@ msgstr "Pull request {0}"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request #{0}"
 msgstr "Pull request #{0}"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Pull request merged"
+msgstr "Pull request злито"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Pull request options"
@@ -5001,11 +5095,12 @@ msgstr "Відтворено з локальних журналів за пуб�
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
-#: src/mobile/views/GitView.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -5040,6 +5135,7 @@ msgstr "Оновлення статусу автентифікації {0}."
 msgid "Refreshing {env} {0} authentication status."
 msgstr "Оновлення статусу автентифікації {env} {0}."
 
+#: src/mobile/TerminalAccessory.tsx
 #: src/mobile/views/BrowserView.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -5067,8 +5163,8 @@ msgid "Remote URL"
 msgstr "URL віддаленого репозиторію"
 
 #: src/mobile/views/SettingsView.tsx
-msgid "Removal behavior"
-msgstr "Поведінка видалення"
+#~ msgid "Removal behavior"
+#~ msgstr "Поведінка видалення"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove"
@@ -5139,6 +5235,7 @@ msgstr "Видалити worktree?"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/DesktopsView.tsx
+#: src/mobile/views/FilesView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
@@ -5164,6 +5261,10 @@ msgstr "Перейменувати поточний чат"
 #: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
 msgid "Rename thread"
 msgstr "Перейменувати тред"
+
+#: src/mobile/views/FilesView.tsx
+msgid "Rename to"
+msgstr "Перейменувати на"
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Renderer crashed"
@@ -5308,6 +5409,7 @@ msgid "Restore thread"
 msgstr "Відновити тред"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/TerminalView.tsx
 msgid "Retry"
 msgstr "Повторить"
 
@@ -5478,6 +5580,7 @@ msgstr "Налагодження середовища виконання"
 msgid "Runtime options"
 msgstr "Параметри середовища виконання"
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -5574,6 +5677,7 @@ msgstr "Пошук агентів..."
 msgid "Search branches..."
 msgstr "Пошук гілок..."
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "Пошук файлів"
@@ -5614,6 +5718,7 @@ msgstr "Пошук комбінацій клавіш"
 msgid "Search the current view"
 msgstr "Пошук у поточному поданні"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "Пошук тредів"
@@ -5871,6 +5976,11 @@ msgstr "Увійти"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Sign in needed"
 msgstr "Потрібен вхід"
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Sign in on the paired desktop, then refresh this status."
+msgstr "Увійдіть на спареному настільному комп’ютері, а потім оновіть цей "
+"статус."
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -6157,6 +6267,7 @@ msgstr "Субагенти"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Submit"
 msgstr "Надіслати"
 
@@ -6197,6 +6308,7 @@ msgstr "Підтримка:"
 msgid "Swap notes and to-dos"
 msgstr "Поміняти місцями нотатки та завдання"
 
+#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Switch branch"
@@ -6344,6 +6456,7 @@ msgstr "Термінал"
 msgid "Terminal for {0}"
 msgstr "Термінал для {0}"
 
+#: src/mobile/TerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Terminal input"
 msgstr "Ввід у термінал"
@@ -6377,6 +6490,13 @@ msgstr "Вкладки термінала"
 msgid "Test microphone"
 msgstr "Перевірити мікрофон"
 
+#: src/mobile/remoteClient.ts
+msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
+"desktop endpoint from Settings → Remote Access."
+msgstr "Ця кінцева точка відкрила мобільний застосунок замість API десктопа. "
+"Використайте кінцеву точку десктопа з «Налаштування → Віддалений "
+"доступ»."
+
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Lightcode pairing link."
 msgstr "Цей QR-код не є посиланням підключення Lightcode."
@@ -6384,6 +6504,10 @@ msgstr "Цей QR-код не є посиланням підключення Lig
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "агент"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "The agent"
+msgstr "Агент"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "the app"
@@ -6470,10 +6594,12 @@ msgstr "На цьому пристрої немає придатної каме�
 msgid "this environment"
 msgstr "це середовище"
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "Цей файл занадто великий для вбудованого редактора."
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "Цей файл використовує непідтримуване кодування."
@@ -6589,7 +6715,6 @@ msgid "Thread todo dock"
 msgstr "Панель завдань треда"
 
 #: src/mobile/RootLayout.tsx
-#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
@@ -6713,6 +6838,10 @@ msgstr "Транскрибування голосу"
 msgid "Translucent sidebar"
 msgstr "Напівпрозора бічна панель"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Try a different search or project filter."
+msgstr "Спробуйте інший пошук або фільтр проєкту."
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
 "the auto-refresh."
@@ -6742,6 +6871,10 @@ msgstr "Не вдалося автентифікувати {0}."
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "Не вдалося створити каталог worktree WSL \"{path}\""
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to delete the worktree."
+msgstr "Не вдалося видалити worktree."
+
 #. placeholder {0}: props.selectedAgent.label
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Unable to install {0} hooks."
@@ -6770,6 +6903,7 @@ msgstr "Не вдалося виконати merge"
 msgid "Unable to open {0} login."
 msgstr "Не вдалося відкрити вхід у {0}."
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "Не вдалося відкрити файл"
@@ -6823,6 +6957,10 @@ msgstr "Не вдалося запустити {label}."
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to start mobile app."
 msgstr "Не удалось запустить мобильное приложение."
+
+#: src/mobile/views/TerminalView.tsx
+msgid "Unable to start terminal"
+msgstr "Не вдалося запустити термінал"
 
 #: src/mobile/routeComponents.tsx
 msgid "Unable to start the thread."
@@ -7036,7 +7174,6 @@ msgstr "Оновлення {0} ({env})"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/settingsSections.ts
-#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -7378,6 +7515,10 @@ msgstr "Робоче дерево чисте"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Working…"
 msgstr "Виконується…"
+
+#: src/mobile/views/WorkspaceView.tsx
+msgid "Workspace view"
+msgstr "Подання робочої області"
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx

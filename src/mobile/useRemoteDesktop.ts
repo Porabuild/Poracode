@@ -2,7 +2,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useShallow } from "zustand/react/shallow";
-import type { Project, PromptSegment, Thread, ThreadServerRequestId } from "@/shared/contracts";
+import {
+  DEFAULT_TERMINAL_SIZE,
+  type Project,
+  type PromptSegment,
+  type TerminalSize,
+  type Thread,
+  type ThreadServerRequestId,
+  type ThreadStatus,
+} from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import type {
@@ -70,6 +78,12 @@ export type ThreadAction =
   | { readonly kind: "unarchive" }
   | { readonly kind: "delete" };
 
+export interface WorktreeGroupDeleteInput {
+  readonly projectId: string;
+  readonly worktreePath: string;
+  readonly threadIds: readonly string[];
+}
+
 export const CONNECTION_LABELS: Record<ConnectionState, MessageDescriptor> = {
   booting: msg`Starting`,
   pairing: msg`Pairing`,
@@ -105,6 +119,13 @@ function shouldRefreshAfterSupervisorEvent(value: unknown): boolean {
     type === "wsl-agent-statuses"
   );
 }
+
+const MOBILE_TERMINAL_START_STATUSES = new Set<ThreadStatus>([
+  "inactive",
+  "launching",
+  "finished",
+  "error",
+]);
 
 /**
  * Owns the remote-desktop session: paired desktops, cached + live snapshots,
@@ -460,21 +481,25 @@ export function useRemoteDesktop() {
     setThreadSnapshot((current) => (current?.thread.id === thread.id ? current : null));
     const desktop = activeDesktop;
     if (!desktop) return;
-    await loadThreadSnapshot(thread.id, desktop, { preferCache: true });
+    const loaded = await loadThreadSnapshot(thread.id, desktop, { preferCache: true });
+    await ensureTerminalThreadRunning(loaded?.thread ?? thread, desktop, loaded?.terminalSize);
   }
 
   async function loadThreadSnapshot(
     threadId: string,
     desktop: StoredDesktop,
     options: { readonly preferCache: boolean },
-  ) {
+  ): Promise<RemoteThreadSnapshot | null> {
+    let latest: RemoteThreadSnapshot | null = null;
     const cached = await getStoredThreadSnapshot(desktop.desktopId, threadId);
     if (options.preferCache && cached) {
+      latest = cached.snapshot;
       setThreadSnapshot(cached.snapshot);
       applyThreadSnapshot(cached.snapshot);
     }
     try {
       const next = await clientFor(desktop).threadHistory(threadId);
+      latest = next;
       await saveThreadSnapshot(desktop.desktopId, threadId, next);
       setThreadSnapshot(next);
       applyThreadSnapshot(next);
@@ -482,6 +507,38 @@ export function useRemoteDesktop() {
       setConnection(isUnauthorizedRemoteError(error) ? "unauthorized" : "offline");
       setMessage(error instanceof Error ? error.message : i18n._(msg`Unable to load thread.`));
     }
+    return latest;
+  }
+
+  function resolveThreadProjectLocation(thread: Thread) {
+    const project = projects.find((entry) => entry.id === thread.projectId);
+    if (!project) return null;
+    return thread.worktreePath
+      ? buildWorktreeLocation(project.location, thread.worktreePath)
+      : project.location;
+  }
+
+  async function ensureTerminalThreadRunning(
+    thread: Thread,
+    desktop: StoredDesktop,
+    terminalSize?: TerminalSize,
+  ): Promise<void> {
+    if ((thread.presentationMode ?? "terminal") !== "terminal") return;
+    if (!MOBILE_TERMINAL_START_STATUSES.has(thread.status)) return;
+    const projectLocation = resolveThreadProjectLocation(thread);
+    if (!projectLocation) return;
+    await clientFor(desktop).startThread({
+      threadId: thread.id,
+      projectLocation,
+      agentKind: thread.agentKind,
+      ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
+      config: thread.config,
+      prompt: "",
+      initialSize: terminalSize ?? DEFAULT_TERMINAL_SIZE,
+      ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+      presentationMode: "terminal",
+    });
+    void refresh(desktop, { refreshSelectedThread: true });
   }
 
   /**
@@ -579,6 +636,7 @@ export function useRemoteDesktop() {
       config: input.config,
       prompt: input.prompt,
       ...(input.segments ? { segments: input.segments } : {}),
+      initialSize: DEFAULT_TERMINAL_SIZE,
       presentationMode: input.presentationMode ?? "gui",
     });
     await refresh(desktop);
@@ -608,19 +666,20 @@ export function useRemoteDesktop() {
   }
 
   async function resolveRequest(input: {
+    readonly threadId: string;
     readonly requestId: ThreadServerRequestId;
     readonly method: string;
     readonly response: unknown;
   }) {
     const desktop = activeDesktop;
-    if (!desktop || !selectedThread) return;
+    if (!desktop) return;
     await clientFor(desktop).resolveRequest({
-      threadId: selectedThread.id,
+      threadId: input.threadId,
       requestId: input.requestId,
       method: input.method,
       response: input.response,
     });
-    useAppStore.getState().touchThread(selectedThread.id);
+    useAppStore.getState().touchThread(input.threadId);
   }
 
   /**
@@ -667,6 +726,39 @@ export function useRemoteDesktop() {
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : i18n._(msg`Unable to update the thread.`),
+      );
+      void refresh(desktop, { refreshSelectedThread: true });
+    }
+  }
+
+  /**
+   * Destructive worktree cleanup is desktop-owned. The PWA removes the linked
+   * rows optimistically, then asks the paired renderer to run its existing
+   * `deleteWorktreeGroup` path (cleanup script, terminal teardown, branch/git
+   * refresh, and persisted thread deletion).
+   */
+  async function deleteWorktreeGroup(input: WorktreeGroupDeleteInput) {
+    const desktop = activeDesktop;
+    if (!desktop || input.threadIds.length === 0) return;
+    const store = useAppStore.getState();
+    for (const threadId of input.threadIds) {
+      store.deleteThread(threadId);
+    }
+    if (selectedThreadIdRef.current && input.threadIds.includes(selectedThreadIdRef.current)) {
+      setSelectedThreadId(null);
+      setThreadSnapshot(null);
+    }
+    try {
+      await clientFor(desktop).sendThreadCommand({
+        kind: "delete-worktree-group",
+        threadId: input.threadIds[0]!,
+        projectId: input.projectId,
+        worktreePath: input.worktreePath,
+        threadIds: [...input.threadIds],
+      });
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : i18n._(msg`Unable to delete the worktree.`),
       );
       void refresh(desktop, { refreshSelectedThread: true });
     }
@@ -727,6 +819,7 @@ export function useRemoteDesktop() {
     startThread,
     resolveRequest,
     applyThreadAction,
+    deleteWorktreeGroup,
     switchDesktop,
     forget,
     rename,

@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   agentStatusSchema,
   projectSchema,
+  terminalSizeSchema,
   threadContextUsageSchema,
   threadSchema,
 } from "../contracts";
@@ -155,6 +156,7 @@ export const remoteThreadSnapshotSchema = z.object({
   completedTurns: z.array(persistedCompletedTurnSchema),
   contextUsage: threadContextUsageSchema.nullable(),
   terminalScrollback: z.string().optional(),
+  terminalSize: terminalSizeSchema.optional(),
   updatedAt: z.string().min(1),
 });
 export type RemoteThreadSnapshot = z.infer<typeof remoteThreadSnapshotSchema>;
@@ -217,10 +219,10 @@ export const remoteHttpErrorSchema = z.object({
 export type RemoteHttpErrorPayload = z.infer<typeof remoteHttpErrorSchema>;
 
 /**
- * Request body for the generic git/GitHub passthrough (`POST /api/git/call`).
- * The desktop git-review components reused by the PWA drive the paired desktop
- * through this single endpoint; `procedure` is validated against the
- * git-procedure allowlist and `payload` against that procedure's own schema.
+ * Request body for the generic desktop-supervisor passthrough (`POST
+ * /api/git/call`). Desktop-backed PWA surfaces drive the paired desktop through
+ * this single endpoint; `procedure` is validated against the remote procedure
+ * allowlist and `payload` against that procedure's own schema.
  */
 export const remoteGitCallPayloadSchema = z.object({
   procedure: z.string().min(1),
@@ -274,6 +276,12 @@ export const remoteBrowserCommandSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("create-tab"), url: z.string().min(1).optional() }),
   z.object({ kind: z.literal("close-tab"), tabId: z.string().min(1) }),
   z.object({ kind: z.literal("activate-tab"), tabId: z.string().min(1) }),
+  z.object({
+    kind: z.literal("move-tab"),
+    tabId: z.string().min(1),
+    targetTabId: z.string().min(1),
+    position: z.enum(["before", "after"]),
+  }),
   z.object({ kind: z.literal("navigate"), tabId: z.string().min(1), url: z.string().min(1) }),
   z.object({ kind: z.literal("back"), tabId: z.string().min(1) }),
   z.object({ kind: z.literal("forward"), tabId: z.string().min(1) }),

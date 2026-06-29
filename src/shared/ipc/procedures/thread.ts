@@ -54,6 +54,7 @@ import type {
   StartShellPayload,
   StartThreadPayload,
   StartThreadResult,
+  TerminalSize,
   ThreadRuntimeSnapshot,
   UpdateAcpRegistryAgentPayload,
   UpdateAgentBinaryPayload,
@@ -235,6 +236,11 @@ export const threadProcedures = {
   ),
   readTerminalScrollback: definePayloadProcedure<{ threadId: string }, string, "supervisor">(
     "readTerminalScrollback",
+    "supervisor",
+    readThreadPayloadSchema,
+  ),
+  readTerminalSize: definePayloadProcedure<{ threadId: string }, TerminalSize | null, "supervisor">(
+    "readTerminalSize",
     "supervisor",
     readThreadPayloadSchema,
   ),

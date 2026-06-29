@@ -1,18 +1,40 @@
 import type { RemoteAccessScope } from "./protocol";
 
 /**
- * The git/GitHub supervisor procedures the remote PWA is allowed to invoke
+ * The supervisor procedures the remote PWA is allowed to invoke
  * through the generic `POST /api/git/call` passthrough, mapped to the access
  * scope each one requires. Reads need `session:read`; anything that mutates the
  * working tree, branches, or a PR needs `session:operate`.
  *
  * The desktop git-review components (GitReviewSidebar, SingleFileDiff,
  * PrSection, PrReviewOverlay, …) reuse these procedures verbatim via the bridge
- * shim, so the list mirrors exactly the surface those components touch. Watchers
- * are handled separately (see GIT_REMOTE_NOOP_PROCEDURES) — they set up desktop
- * file-system watchers that have no meaning for a remote client.
+ * shim; the mobile file tree/editor does the same for project-tree procedures.
+ * Watchers are handled separately (see GIT_REMOTE_NOOP_PROCEDURES) — they set
+ * up desktop file-system watchers that have no meaning for a remote client.
  */
 export const GIT_REMOTE_PROCEDURE_SCOPES = {
+  // Thread checkpoints / rollback
+  rollbackThreadConversation: "session:operate",
+  createFileCheckpoint: "session:operate",
+  finalizeFileCheckpoint: "session:operate",
+  listFileCheckpoints: "session:read",
+  restoreFileCheckpoint: "session:operate",
+  subagentSubscribe: "session:read",
+  subagentUnsubscribe: "session:read",
+  workflowGetRun: "session:read",
+
+  // Project files
+  searchProjectFiles: "session:read",
+  listProjectTree: "session:read",
+  searchProjectTree: "session:read",
+  readProjectFile: "session:read",
+  readAbsoluteFile: "session:read",
+  writeProjectFile: "session:operate",
+  createProjectEntry: "session:operate",
+  renameProjectEntry: "session:operate",
+  moveProjectEntry: "session:operate",
+  deleteProjectEntry: "session:operate",
+
   // Reads
   getGitStatus: "session:read",
   getGitDiff: "session:read",
@@ -25,6 +47,7 @@ export const GIT_REMOTE_PROCEDURE_SCOPES = {
   gitGetWorktreeSourceBranch: "session:read",
   ghCheckAvailable: "session:read",
   ghGetPrForBranch: "session:read",
+  ghListPrs: "session:read",
   ghGetPrChecks: "session:read",
   ghGetPrFiles: "session:read",
   ghGetPrDiff: "session:read",

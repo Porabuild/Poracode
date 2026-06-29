@@ -1,5 +1,6 @@
+import { Children, isValidElement, type ReactNode } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
@@ -274,6 +275,18 @@ function classNameIncludes(element: HTMLElement, value: string): boolean {
   return typeof element.className === "string" && element.className.includes(value);
 }
 
+function collectElementTypeNames(node: ReactNode): string[] {
+  const names: string[] = [];
+  Children.forEach(node, (child) => {
+    if (!isValidElement(child)) return;
+    const type = child.type;
+    if (typeof type === "function" && type.name) names.push(type.name);
+    const props = child.props as { children?: ReactNode };
+    if (props.children !== undefined) names.push(...collectElementTypeNames(props.children));
+  });
+  return names;
+}
+
 function installDraftComposerLayoutMetrics(): () => void {
   const originalClientHeight = Object.getOwnPropertyDescriptor(
     HTMLElement.prototype,
@@ -361,6 +374,7 @@ const singleEffortMultiContextCursorStatus: AgentStatus = {
 describe("ThreadDraftView", () => {
   beforeEach(() => {
     composerSpy.mockClear();
+    delete (window as unknown as { lightcode?: unknown }).lightcode;
     useAgentStatusesStore.setState({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -377,6 +391,10 @@ describe("ThreadDraftView", () => {
       lastPresentationModeByAgent: {},
       sharedSettingsHydrated: true,
     });
+  });
+
+  afterEach(() => {
+    delete (window as unknown as { lightcode?: unknown }).lightcode;
   });
 
   it("switches to the first installed agent when statuses resolve after mount", async () => {
@@ -483,6 +501,35 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("submit"));
 
     expect(onStart).not.toHaveBeenCalled();
+  });
+
+  it("does not mount desktop update or hook-install docks in remote drafts", () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    const statusWithVersion: AgentStatus = {
+      ...codexStatus,
+      version: "0.1.0",
+    };
+
+    render(
+      <ThreadDraftView project={project} agentStatuses={[statusWithVersion]} onStart={onStart} />,
+    );
+
+    const desktopProps = composerSpy.mock.lastCall?.[0] as { fixedContent?: ReactNode };
+    expect(collectElementTypeNames(desktopProps.fixedContent)).toEqual(
+      expect.arrayContaining(["ThreadAgentUpdateDock", "HookInstallProposal"]),
+    );
+
+    composerSpy.mockClear();
+    (window as unknown as { lightcode?: unknown }).lightcode = { appVersion: "remote" };
+
+    render(
+      <ThreadDraftView project={project} agentStatuses={[statusWithVersion]} onStart={onStart} />,
+    );
+
+    const remoteProps = composerSpy.mock.lastCall?.[0] as { fixedContent?: ReactNode };
+    const remoteTypes = collectElementTypeNames(remoteProps.fixedContent);
+    expect(remoteTypes).not.toContain("ThreadAgentUpdateDock");
+    expect(remoteTypes).not.toContain("HookInstallProposal");
   });
 
   it("submits codex defaults on first launch", async () => {

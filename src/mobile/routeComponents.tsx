@@ -3,17 +3,25 @@ import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import type { Project, Thread } from "@/shared/contracts";
+import { getBasename } from "@/shared/pathUtils";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useGitSummariesStore } from "./gitSummaries";
 import { useMobileApp } from "./remoteContext";
 import {
+  buildFilesTarget,
   buildGitTarget,
   preselectWorktreeDraft,
   runThreadAction,
   selectDraftProject,
 } from "./navHelpers";
-import { isMixedContentEndpoint, parsePairingLaunch, parsePairingUrl } from "./pairing";
+import {
+  isMixedContentEndpoint,
+  normalizePairingEndpoint,
+  parsePairingLaunch,
+  parsePairingUrl,
+} from "./pairing";
 import { useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
 import { DesktopsView } from "./views/DesktopsView";
 import { MoreView } from "./views/MoreView";
@@ -24,19 +32,14 @@ import { ThreadView } from "./views/ThreadView";
 const BrowserView = lazy(() =>
   import("./views/BrowserView").then((module) => ({ default: module.BrowserView })),
 );
-const GitView = lazy(() =>
-  import("./views/GitView").then((module) => ({ default: module.GitView })),
+const WorkspaceView = lazy(() =>
+  import("./views/WorkspaceView").then((module) => ({ default: module.WorkspaceView })),
 );
 const TerminalView = lazy(() =>
   import("./views/TerminalView").then((module) => ({ default: module.TerminalView })),
 );
 const SettingsView = lazy(() =>
   import("./views/SettingsView").then((module) => ({ default: module.SettingsView })),
-);
-const SettingsOverlay = lazy(() =>
-  import("@/renderer/views/SettingsOverlay/SettingsOverlay").then((module) => ({
-    default: module.SettingsOverlay,
-  })),
 );
 const UsagePanel = lazy(() =>
   import("@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel").then(
@@ -50,7 +53,7 @@ const UsagePanel = lazy(() =>
 // file never imports router.tsx (which imports these components).
 const threadRouteApi = getRouteApi("/thread/$threadId");
 const settingsSectionRouteApi = getRouteApi("/more/settings/$section");
-const gitRouteApi = getRouteApi("/git/$threadId");
+const workspaceRouteApi = getRouteApi("/workspace/$threadId");
 const terminalRouteApi = getRouteApi("/terminal/$projectId");
 
 function LazyRoute(props: { readonly children: ReactNode }) {
@@ -84,17 +87,63 @@ function ThreadDetail(props: { readonly thread: Thread | null; readonly hideHead
     <ThreadView
       thread={thread}
       terminalScrollback={remote.selectedThreadSnapshot?.terminalScrollback}
+      terminalSize={remote.selectedThreadSnapshot?.terminalSize}
       hideHeader={props.hideHeader}
       loading={loading}
       onThreadAction={(action) =>
         runThreadAction(remote, thread, action, () => void navigate({ to: "/threads" }))
       }
       onSubmitInput={(prompt, segments) => remote.sendPrompt(prompt, segments)}
-      onResolveServerRequest={(input) => remote.resolveRequest(input)}
-      onOpenGit={() => {
+      onResolveServerRequest={(input) =>
+        thread ? remote.resolveRequest({ ...input, threadId: thread.id }) : Promise.resolve()
+      }
+      onOpenWorkspace={(tab) => {
         if (thread) {
-          void navigate({ to: "/git/$threadId", params: { threadId: thread.id } });
+          void navigate({
+            to: "/workspace/$threadId",
+            params: { threadId: thread.id },
+            search: { tab },
+          });
         }
+      }}
+      onOpenWorkspaceFile={(path, lineNumber) => {
+        if (thread) {
+          void navigate({
+            to: "/workspace/$threadId",
+            params: { threadId: thread.id },
+            search: {
+              tab: "files",
+              file: path,
+              ...(lineNumber !== undefined ? { line: lineNumber } : {}),
+            },
+          });
+        }
+      }}
+      onOpenWorkspaceFolder={(path) => {
+        if (thread) {
+          void navigate({
+            to: "/workspace/$threadId",
+            params: { threadId: thread.id },
+            search: { tab: "files", folder: path },
+          });
+        }
+      }}
+      onOpenTerminal={() => {
+        if (thread) {
+          void navigate({
+            to: "/terminal/$projectId",
+            params: { projectId: thread.projectId },
+            search: thread.worktreePath ? { worktree: thread.worktreePath } : {},
+          });
+        }
+      }}
+      onNewThreadInWorktree={(input) => {
+        preselectWorktreeDraft(input);
+        void navigate({ to: "/new" });
+      }}
+      onDeleteWorktreeGroup={(input) => {
+        void remote.deleteWorktreeGroup(input);
+        void navigate({ to: "/threads" });
       }}
     />
   );
@@ -125,6 +174,9 @@ export function ThreadsRoute() {
       onThreadAction={(thread, action) => {
         void remote.applyThreadAction(thread, action);
       }}
+      onDeleteWorktreeGroup={(input) => {
+        void remote.deleteWorktreeGroup(input);
+      }}
       onNew={() => void navigate({ to: "/new" })}
       onNewThreadInWorktree={(input) => {
         preselectWorktreeDraft(input);
@@ -135,6 +187,16 @@ export function ThreadsRoute() {
           to: "/terminal/$projectId",
           params: { projectId: input.projectId },
           search: input.worktreePath ? { worktree: input.worktreePath } : {},
+        })
+      }
+      onRunProjectAction={(input) =>
+        void navigate({
+          to: "/terminal/$projectId",
+          params: { projectId: input.projectId },
+          search: {
+            action: input.actionId,
+            ...(input.worktreePath ? { worktree: input.worktreePath } : {}),
+          },
         })
       }
     />
@@ -205,16 +267,30 @@ export function DesktopsRoute() {
   const { t } = useLingui();
   const [manualEndpoint, setManualEndpoint] = useState(() => parsePairingLaunch().endpoint);
   const [manualToken, setManualToken] = useState("");
+  const manualEndpointValue = manualEndpoint.trim();
+  const manualTokenValue = manualToken.trim();
+  const manualPairingLink =
+    parsePairingUrl(manualTokenValue) ?? parsePairingUrl(manualEndpointValue);
+  const canPairManually = Boolean(
+    manualPairingLink?.credential || (manualEndpointValue && manualTokenValue),
+  );
 
   async function pair(endpoint: string, credential: string) {
-    if (isMixedContentEndpoint(endpoint)) {
+    let normalizedEndpoint: string;
+    try {
+      normalizedEndpoint = normalizePairingEndpoint(endpoint);
+    } catch {
+      toast.danger(t`Enter a valid desktop endpoint.`);
+      return;
+    }
+    if (isMixedContentEndpoint(normalizedEndpoint)) {
       toast.danger(
         t`This app is served over HTTPS but the desktop is on plain HTTP, which browsers block. Open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS.`,
       );
       return;
     }
     try {
-      await remote.pairDesktop(endpoint, credential);
+      await remote.pairDesktop(normalizedEndpoint, credential);
       setManualToken("");
       void navigate({ to: "/threads" });
     } catch (error) {
@@ -223,8 +299,15 @@ export function DesktopsRoute() {
   }
 
   function submitManualPairing() {
-    if (!manualEndpoint.trim() || !manualToken.trim()) return;
-    void pair(manualEndpoint.trim(), manualToken.trim());
+    const endpoint = manualEndpointValue;
+    const token = manualTokenValue;
+    const parsed = manualPairingLink;
+    if (parsed?.credential) {
+      void pair(parsed.endpoint, parsed.credential);
+      return;
+    }
+    if (!endpoint || !token) return;
+    void pair(endpoint, token);
   }
 
   function handleScan(value: string) {
@@ -242,6 +325,7 @@ export function DesktopsRoute() {
       activeDesktopId={remote.activeDesktopId}
       manualEndpoint={manualEndpoint}
       manualToken={manualToken}
+      canPair={canPairManually}
       showPairingHint={parsePairingLaunch().credential !== null}
       pairing={remote.connection === "pairing"}
       onEndpointChange={setManualEndpoint}
@@ -267,12 +351,7 @@ export function MoreRoute() {
     <MoreView
       onOpen={(destination) => {
         void navigate({
-          to:
-            destination === "usage"
-              ? "/more/usage"
-              : destination === "browser"
-                ? "/more/browser"
-                : "/more/settings",
+          to: destination === "browser" ? "/more/browser" : "/more/settings",
         });
       }}
     />
@@ -280,10 +359,15 @@ export function MoreRoute() {
 }
 
 export function UsageRoute() {
+  const navigate = useNavigate();
   return (
     <LazyRoute>
       <div className="m-subscreen">
-        <UsagePanel />
+        <UsagePanel
+          onOpenUsageSettings={() =>
+            void navigate({ to: "/more/settings/$section", params: { section: "usage" } })
+          }
+        />
       </div>
     </LazyRoute>
   );
@@ -300,17 +384,6 @@ export function BrowserRoute() {
 function SettingsRoute(props: { readonly sectionId: string | null }) {
   const { remote } = useMobileApp();
   const navigate = useNavigate();
-  const isWide = useMediaQuery(WIDE_SHELL_QUERY);
-
-  // The wide shell keeps the desktop settings overlay (its own sidebar layout);
-  // the phone gets a fullscreen section list with routed drill-down pages.
-  if (isWide) {
-    return (
-      <LazyRoute>
-        <SettingsOverlay onClose={() => void navigate({ to: "/more" })} />
-      </LazyRoute>
-    );
-  }
 
   return (
     <LazyRoute>
@@ -342,12 +415,19 @@ export function SettingsSectionRoute() {
   return <SettingsRoute sectionId={section} />;
 }
 
-export function GitRoute() {
-  const { threadId } = gitRouteApi.useParams();
+export function WorkspaceRoute() {
+  const { threadId } = workspaceRouteApi.useParams();
+  const { tab, file, folder, line } = workspaceRouteApi.useSearch();
   const { remote } = useMobileApp();
   const navigate = useNavigate();
-  const target = buildGitTarget(remote, threadId);
-  const hasTarget = Boolean(target);
+  const { t } = useLingui();
+
+  // A non-repo thread still has a Files tab; the Changes tab only appears when
+  // the thread's working tree is a git repo (per the cached summary).
+  const isRepo = useGitSummariesStore((s) => s.byThread[threadId]?.isRepo === true);
+  const filesTarget = buildFilesTarget(remote, threadId);
+  const gitTarget = isRepo ? buildGitTarget(remote, threadId) : null;
+  const hasTarget = Boolean(filesTarget);
 
   // If the thread/project never resolves (e.g. a stale deep link), bail out to
   // the thread list once the session has booted.
@@ -355,14 +435,54 @@ export function GitRoute() {
     if (remote.booted && !hasTarget) void navigate({ to: "/threads" });
   }, [remote.booted, hasTarget, navigate]);
 
-  if (!target) return null;
-  // The git panel belongs to a thread; closing returns there deterministically
+  if (!filesTarget) return null;
+  // The workspace belongs to a thread; closing returns there deterministically
   // (robust even on a fresh load with no back-history).
   return (
     <LazyRoute>
-      <GitView
-        target={target}
+      <WorkspaceView
+        gitTarget={gitTarget}
+        filesTarget={filesTarget}
+        initialTab={isRepo ? tab : "files"}
+        {...(file ? { initialFilePath: file } : {})}
+        {...(folder ? { initialFolderPath: folder } : {})}
+        {...(line ? { initialLineNumber: line } : {})}
         onClose={() => void navigate({ to: "/thread/$threadId", params: { threadId } })}
+        onOpenWorktreeBranch={({ worktreePath, worktreeBranch }) => {
+          const worktreeThread = remote.threads.find(
+            (entry) =>
+              entry.projectId === filesTarget.project.id && entry.worktreePath === worktreePath,
+          );
+          if (worktreeThread) {
+            void navigate({
+              to: "/workspace/$threadId",
+              params: { threadId: worktreeThread.id },
+              search: { tab: "changes" },
+            });
+            return;
+          }
+          preselectWorktreeDraft({
+            projectId: filesTarget.project.id,
+            worktreePath,
+            worktreeBranch,
+          });
+          void navigate({ to: "/new" });
+        }}
+        onLaunchConflictResolverThread={(input) => {
+          remote
+            .startThread(filesTarget.project, input)
+            .then((resolverThreadId) => {
+              if (resolverThreadId) {
+                void navigate({
+                  to: "/thread/$threadId",
+                  params: { threadId: resolverThreadId },
+                });
+              }
+            })
+            .catch((error: unknown) => {
+              toast.danger(error instanceof Error ? error.message : t`Unable to start the thread.`);
+            });
+        }}
       />
     </LazyRoute>
   );
@@ -370,7 +490,7 @@ export function GitRoute() {
 
 export function TerminalRoute() {
   const { projectId } = terminalRouteApi.useParams();
-  const { worktree } = terminalRouteApi.useSearch();
+  const { worktree, action } = terminalRouteApi.useSearch();
   const { remote } = useMobileApp();
   const navigate = useNavigate();
   const project = remote.projects.find((entry) => entry.id === projectId);
@@ -384,13 +504,17 @@ export function TerminalRoute() {
   const projectLocation = worktree
     ? buildWorktreeLocation(project.location, worktree)
     : project.location;
-  const title = worktree ? (worktree.split(/[\\/]/).pop() ?? project.name) : project.name;
+  const projectAction = action
+    ? project.scripts?.actions?.find((entry) => entry.id === action)
+    : undefined;
+  const title = projectAction?.name ?? (worktree ? getBasename(worktree) : project.name);
   return (
     <LazyRoute>
       <TerminalView
         title={title}
         projectLocation={projectLocation}
         {...(worktree ? { worktreePath: worktree } : {})}
+        {...(projectAction?.command ? { initialCommand: projectAction.command } : {})}
         onClose={() => void navigate({ to: "/threads" })}
       />
     </LazyRoute>

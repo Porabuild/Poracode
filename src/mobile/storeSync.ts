@@ -21,6 +21,7 @@ import {
   collectRuntimeEventsFromSupervisoryMessage,
   requestsFromRuntimeItems,
 } from "./runtimeRequests";
+import { shouldReplaceRuntimeItemsFromSnapshot } from "./storeSyncGuards";
 
 /**
  * Feeds remote snapshots and live WebSocket events into the same Zustand
@@ -58,16 +59,6 @@ export function applyAgentStatuses(statuses: RemoteAgentStatuses): void {
   const store = useAgentStatusesStore.getState();
   store.setAgentStatuses(statuses.windows);
   store.setWslAgentStatuses(statuses.wsl);
-}
-
-export function shouldReplaceRuntimeItemsFromSnapshot(input: {
-  readonly existingCount: number;
-  readonly snapshotItemCount: number;
-  readonly threadActive: boolean;
-}): boolean {
-  if (input.existingCount === 0) return true;
-  if (input.snapshotItemCount > input.existingCount) return true;
-  return !input.threadActive && input.snapshotItemCount >= input.existingCount;
 }
 
 function toRuntimeChatItem(item: PersistedRuntimeItem): RuntimeChatItem {

@@ -151,6 +151,7 @@ import type {
   StartThreadPayload,
   StartThreadResult,
   StageThreadInputPayload,
+  TerminalSize,
   ThreadRuntimeSnapshot,
   WriteExternalFilePayload,
   WriteExternalFileResult,
@@ -845,6 +846,10 @@ export class SupervisorRuntime {
 
   readTerminalScrollback(threadId: string): string {
     return this.threadSessionManager.readTerminalScrollback(threadId);
+  }
+
+  readTerminalSize(threadId: string): TerminalSize | null {
+    return this.threadSessionManager.readTerminalSize(threadId);
   }
 
   subagentSubscribe(payload: { threadId: string; parentItemId: string }): {

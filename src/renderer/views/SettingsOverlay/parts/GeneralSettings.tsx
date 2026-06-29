@@ -81,42 +81,46 @@ export function GeneralSettings() {
         />
       </SettingRow>
 
-      <SettingRow
-        anchorId="general.defaultNewThread"
-        title={t`Default new thread`}
-        description={<Trans>Open new threads as a full page or a side-by-side panel.</Trans>}
-      >
-        <Select
-          aria-label={t`Default new thread`}
-          className="w-[160px] shrink-0"
-          options={newThreadOptions}
-          value={newThreadMode}
-          onChange={(value) => {
-            startTransition(() => {
-              setNewThreadMode(value as NewThreadMode);
-            });
-          }}
-        />
-      </SettingRow>
-
-      <SettingRow
-        anchorId="general.homeScope"
-        title={t`Home scope`}
-        description={<Trans>Show a projectless Home scope for OS-level agent sessions.</Trans>}
-      >
-        <Switch
-          isSelected={homeScopeEnabled}
-          onChange={(selected) => {
-            startTransition(() => {
-              setHomeScopeEnabled(selected);
-            });
-          }}
+      {!remote && (
+        <SettingRow
+          anchorId="general.defaultNewThread"
+          title={t`Default new thread`}
+          description={<Trans>Open new threads as a full page or a side-by-side panel.</Trans>}
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
-      </SettingRow>
+          <Select
+            aria-label={t`Default new thread`}
+            className="w-[160px] shrink-0"
+            options={newThreadOptions}
+            value={newThreadMode}
+            onChange={(value) => {
+              startTransition(() => {
+                setNewThreadMode(value as NewThreadMode);
+              });
+            }}
+          />
+        </SettingRow>
+      )}
+
+      {!remote && (
+        <SettingRow
+          anchorId="general.homeScope"
+          title={t`Home scope`}
+          description={<Trans>Show a projectless Home scope for OS-level agent sessions.</Trans>}
+        >
+          <Switch
+            isSelected={homeScopeEnabled}
+            onChange={(selected) => {
+              startTransition(() => {
+                setHomeScopeEnabled(selected);
+              });
+            }}
+          >
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch>
+        </SettingRow>
+      )}
 
       {!remote && (
         <SettingRow
@@ -165,29 +169,31 @@ export function GeneralSettings() {
         </SettingRow>
       )}
 
-      <SettingRow
-        anchorId="general.editorLsp"
-        title={t`Editor LSP`}
-        description={
-          <Trans>
-            Enable language server support for type checking, completions, and diagnostics. Requires
-            a language server installed.
-          </Trans>
-        }
-      >
-        <Switch
-          isSelected={editorLspEnabled}
-          onChange={(selected) => {
-            startTransition(() => {
-              setEditorLspEnabled(selected);
-            });
-          }}
+      {!remote && (
+        <SettingRow
+          anchorId="general.editorLsp"
+          title={t`Editor LSP`}
+          description={
+            <Trans>
+              Enable language server support for type checking, completions, and diagnostics.
+              Requires a language server installed.
+            </Trans>
+          }
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
-      </SettingRow>
+          <Switch
+            isSelected={editorLspEnabled}
+            onChange={(selected) => {
+              startTransition(() => {
+                setEditorLspEnabled(selected);
+              });
+            }}
+          >
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch>
+        </SettingRow>
+      )}
     </SettingsPage>
   );
 }

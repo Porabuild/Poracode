@@ -108,6 +108,29 @@ async function openPairedSocket(info: RemoteAccessServerInfo): Promise<{
   return { ws, ready: await readyPromise };
 }
 
+async function issueAccessToken(
+  info: RemoteAccessServerInfo,
+  scopes: readonly string[] = ["session:read"],
+): Promise<string> {
+  const pairing = new URL(info.pairingUrl);
+  const credential = new URLSearchParams(pairing.hash.slice(1)).get("token");
+  expect(credential).toBeTruthy();
+
+  const response = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      grantType: "pairing-token",
+      credential,
+      scopes,
+      client: { label: "Test mobile", deviceType: "mobile" },
+    }),
+  });
+  expect(response.status).toBe(200);
+  const token = (await response.json()) as { accessToken: string };
+  return token.accessToken;
+}
+
 describe("RemoteAccessServer", () => {
   it("serves descriptor, snapshot, and websocket supervisor events", async () => {
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
@@ -211,6 +234,382 @@ describe("RemoteAccessServer", () => {
     expect(blockedResponse.status).toBe(403);
     await expect(blockedResponse.json()).resolves.toMatchObject({
       error: { code: "origin_not_allowed" },
+    });
+  });
+
+  it("points dev pairing links at the mobile dev app origin", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      devMobileAppUrl: "http://192.168.1.20:3100/mobile.html",
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const startupPairing = new URL(info.pairingUrl);
+    expect(startupPairing.origin).toBe("http://192.168.1.20:3100");
+    expect(startupPairing.pathname).toBe("/pair");
+    expect(startupPairing.searchParams.get("host")).toBe(info.httpBaseUrl);
+    expect(new URLSearchParams(startupPairing.hash.slice(1)).get("token")).toMatch(/^lc_pair_/);
+
+    const settingsPairing = new URL(server.issuePairingUrl("Settings QR"));
+    expect(settingsPairing.origin).toBe(startupPairing.origin);
+    expect(settingsPairing.pathname).toBe("/pair");
+    expect(settingsPairing.searchParams.get("host")).toBe(info.httpBaseUrl);
+  });
+
+  it("allows paired clients to search, list, read, write, and mutate project files through the remote bridge", async () => {
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
+      if (name === "searchProjectFiles") {
+        return {
+          entries: [{ path: "src/app.ts", name: "app.ts", type: "file" }],
+          totalIndexed: 1,
+        } as never;
+      }
+      if (name === "readAbsoluteFile") {
+        return { status: "ready", modifiedAtMs: 1230, content: "export {};\n" } as never;
+      }
+      if (name === "writeProjectFile") {
+        return { modifiedAtMs: 1234 } as never;
+      }
+      if (
+        name === "createProjectEntry" ||
+        name === "renameProjectEntry" ||
+        name === "deleteProjectEntry"
+      ) {
+        return undefined as never;
+      }
+      return {
+        directoryPath: "",
+        entries: [{ path: "src", name: "src", type: "directory", hasChildren: true }],
+      } as never;
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
+
+    const searchResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "searchProjectFiles",
+        payload: {
+          projectLocation: { kind: "posix", path: "/tmp/example" },
+          query: "app",
+          limit: 20,
+        },
+      }),
+    });
+
+    expect(searchResponse.status).toBe(200);
+    await expect(searchResponse.json()).resolves.toEqual({
+      result: {
+        entries: [{ path: "src/app.ts", name: "app.ts", type: "file" }],
+        totalIndexed: 1,
+      },
+    });
+    expect(callSupervisor).toHaveBeenCalledWith("searchProjectFiles", {
+      projectLocation: { kind: "posix", path: "/tmp/example" },
+      query: "app",
+      limit: 20,
+    });
+
+    const listResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "listProjectTree",
+        payload: {
+          projectLocation: { kind: "posix", path: "/tmp/example" },
+          directoryPath: "",
+        },
+      }),
+    });
+
+    expect(listResponse.status).toBe(200);
+    await expect(listResponse.json()).resolves.toEqual({
+      result: {
+        directoryPath: "",
+        entries: [{ path: "src", name: "src", type: "directory", hasChildren: true }],
+      },
+    });
+    expect(callSupervisor).toHaveBeenCalledWith("listProjectTree", {
+      projectLocation: { kind: "posix", path: "/tmp/example" },
+      directoryPath: "",
+    });
+
+    const readResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "readAbsoluteFile",
+        payload: {
+          projectLocation: { kind: "posix", path: "/tmp/example" },
+          absolutePath: "src/generated.ts",
+        },
+      }),
+    });
+
+    expect(readResponse.status).toBe(200);
+    await expect(readResponse.json()).resolves.toEqual({
+      result: { status: "ready", modifiedAtMs: 1230, content: "export {};\n" },
+    });
+    expect(callSupervisor).toHaveBeenCalledWith("readAbsoluteFile", {
+      projectLocation: { kind: "posix", path: "/tmp/example" },
+      absolutePath: "src/generated.ts",
+    });
+
+    const writeResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "writeProjectFile",
+        payload: {
+          projectLocation: { kind: "posix", path: "/tmp/example" },
+          path: "src/app.ts",
+          content: "export {};\n",
+          baseModifiedAtMs: 1000,
+        },
+      }),
+    });
+
+    expect(writeResponse.status).toBe(200);
+    await expect(writeResponse.json()).resolves.toEqual({
+      result: { modifiedAtMs: 1234 },
+    });
+    expect(callSupervisor).toHaveBeenCalledWith("writeProjectFile", {
+      projectLocation: { kind: "posix", path: "/tmp/example" },
+      path: "src/app.ts",
+      content: "export {};\n",
+      baseModifiedAtMs: 1000,
+    });
+
+    const createResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "createProjectEntry",
+        payload: {
+          projectLocation: { kind: "posix", path: "/tmp/example" },
+          path: "src/new.ts",
+          type: "file",
+        },
+      }),
+    });
+
+    expect(createResponse.status).toBe(200);
+    await expect(createResponse.json()).resolves.toEqual({});
+    expect(callSupervisor).toHaveBeenCalledWith("createProjectEntry", {
+      projectLocation: { kind: "posix", path: "/tmp/example" },
+      path: "src/new.ts",
+      type: "file",
+    });
+
+    const renameResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "renameProjectEntry",
+        payload: {
+          projectLocation: { kind: "posix", path: "/tmp/example" },
+          path: "src/new.ts",
+          nextName: "renamed.ts",
+        },
+      }),
+    });
+
+    expect(renameResponse.status).toBe(200);
+    await expect(renameResponse.json()).resolves.toEqual({});
+    expect(callSupervisor).toHaveBeenCalledWith("renameProjectEntry", {
+      projectLocation: { kind: "posix", path: "/tmp/example" },
+      path: "src/new.ts",
+      nextName: "renamed.ts",
+    });
+
+    const deleteResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "deleteProjectEntry",
+        payload: {
+          projectLocation: { kind: "posix", path: "/tmp/example" },
+          path: "src/renamed.ts",
+        },
+      }),
+    });
+
+    expect(deleteResponse.status).toBe(200);
+    await expect(deleteResponse.json()).resolves.toEqual({});
+    expect(callSupervisor).toHaveBeenCalledWith("deleteProjectEntry", {
+      projectLocation: { kind: "posix", path: "/tmp/example" },
+      path: "src/renamed.ts",
+    });
+  });
+
+  it("allows paired clients to subscribe to subagent overlay streams through the remote bridge", async () => {
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
+      if (name === "subagentSubscribe") return { history: [] } as never;
+      if (name === "subagentUnsubscribe") return undefined as never;
+      throw new Error(`unexpected supervisor call: ${name}`);
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+
+    const subscribeResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "subagentSubscribe",
+        payload: { threadId: "thread-1", parentItemId: "agent-1" },
+      }),
+    });
+
+    expect(subscribeResponse.status).toBe(200);
+    await expect(subscribeResponse.json()).resolves.toEqual({ result: { history: [] } });
+    expect(callSupervisor).toHaveBeenCalledWith("subagentSubscribe", {
+      threadId: "thread-1",
+      parentItemId: "agent-1",
+    });
+
+    const unsubscribeResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "subagentUnsubscribe",
+        payload: { threadId: "thread-1", parentItemId: "agent-1" },
+      }),
+    });
+
+    expect(unsubscribeResponse.status).toBe(200);
+    await expect(unsubscribeResponse.json()).resolves.toEqual({});
+    expect(callSupervisor).toHaveBeenCalledWith("subagentUnsubscribe", {
+      threadId: "thread-1",
+      parentItemId: "agent-1",
+    });
+  });
+
+  it("allows paired clients to poll workflow manifests through the remote bridge", async () => {
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
+      if (name === "workflowGetRun") return { run: null } as never;
+      throw new Error(`unexpected supervisor call: ${name}`);
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+
+    const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "workflowGetRun",
+        payload: {
+          manifestPath: "/tmp/lightcode/workflows/wf_1.json",
+          transcriptDir: "/tmp/lightcode/subagents/workflows/wf_1",
+          includeAgentChats: true,
+          location: { kind: "posix", path: "/tmp/example" },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ result: { run: null } });
+    expect(callSupervisor).toHaveBeenCalledWith("workflowGetRun", {
+      manifestPath: "/tmp/lightcode/workflows/wf_1.json",
+      transcriptDir: "/tmp/lightcode/subagents/workflows/wf_1",
+      includeAgentChats: true,
+      location: { kind: "posix", path: "/tmp/example" },
+    });
+  });
+
+  it("allows paired clients to bulk-fetch pull requests through the remote bridge", async () => {
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
+      if (name === "ghListPrs") return { prs: {} } as never;
+      throw new Error(`unexpected supervisor call: ${name}`);
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+
+    const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "ghListPrs",
+        payload: {
+          projectLocation: { kind: "posix", path: "/tmp/example" },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ result: { prs: {} } });
+    expect(callSupervisor).toHaveBeenCalledWith("ghListPrs", {
+      projectLocation: { kind: "posix", path: "/tmp/example" },
     });
   });
 
@@ -330,6 +729,28 @@ describe("RemoteAccessServer", () => {
     expect(doneResponse.status).toBe(200);
     expect(dispatched[1]).toEqual({ kind: "set-done", threadId: "thread-1", done: true });
 
+    const deleteWorktreeResponse = await fetch(
+      new URL("/api/threads/thread-1/command", info.httpBaseUrl),
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          kind: "delete-worktree-group",
+          projectId: "project-1",
+          worktreePath: "/repo/wt",
+          threadIds: ["thread-1", "thread-2"],
+        }),
+      },
+    );
+    expect(deleteWorktreeResponse.status).toBe(200);
+    expect(dispatched[2]).toEqual({
+      kind: "delete-worktree-group",
+      threadId: "thread-1",
+      projectId: "project-1",
+      worktreePath: "/repo/wt",
+      threadIds: ["thread-1", "thread-2"],
+    });
+
     rendererAvailable = false;
     const unavailableResponse = await fetch(
       new URL("/api/threads/thread-1/command", info.httpBaseUrl),
@@ -341,8 +762,67 @@ describe("RemoteAccessServer", () => {
     });
   });
 
+  it("forwards thread close through the session route and keeps terminal close as an alias", async () => {
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => undefined as never,
+    );
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    async function pair(scopes: readonly string[]): Promise<string> {
+      const pairing = new URL(server.issuePairingUrl());
+      const credential = new URLSearchParams(pairing.hash.slice(1)).get("token");
+      const response = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ grantType: "pairing-token", credential, scopes }),
+      });
+      expect(response.status).toBe(200);
+      const token = (await response.json()) as { accessToken: string };
+      return token.accessToken;
+    }
+
+    const sessionToken = await pair(["session:read", "session:operate"]);
+    const closeResponse = await fetch(new URL("/api/threads/thread-1/close", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${sessionToken}` },
+    });
+    expect(closeResponse.status).toBe(200);
+    expect(callSupervisor).toHaveBeenCalledWith("closeThread", { threadId: "thread-1" });
+
+    const readOnlyToken = await pair(["session:read"]);
+    const forbiddenResponse = await fetch(
+      new URL("/api/threads/thread-2/close", info.httpBaseUrl),
+      {
+        method: "POST",
+        headers: { authorization: `Bearer ${readOnlyToken}` },
+      },
+    );
+    expect(forbiddenResponse.status).toBe(403);
+    expect(callSupervisor).not.toHaveBeenCalledWith("closeThread", { threadId: "thread-2" });
+
+    const terminalToken = await pair(["terminal:operate"]);
+    const terminalCloseResponse = await fetch(
+      new URL("/api/threads/shell%3Aone/terminal/close", info.httpBaseUrl),
+      {
+        method: "POST",
+        headers: { authorization: `Bearer ${terminalToken}` },
+      },
+    );
+    expect(terminalCloseResponse.status).toBe(200);
+    expect(callSupervisor).toHaveBeenCalledWith("closeThread", { threadId: "shell:one" });
+  });
+
   it("serves browser state/commands and streams mirror status to watchers", async () => {
     const navigated: unknown[] = [];
+    const moved: unknown[] = [];
     const fakeManager = {
       snapshot: () => ({
         tabs: [
@@ -366,6 +846,9 @@ describe("RemoteAccessServer", () => {
       navigate: (tabId: string, url: string) => {
         navigated.push({ tabId, url });
         return Promise.resolve();
+      },
+      moveTab: (tabId: string, targetTabId: string, position: "before" | "after") => {
+        moved.push({ tabId, targetTabId, position });
       },
     } as unknown as BrowserPanelManager;
 
@@ -426,6 +909,19 @@ describe("RemoteAccessServer", () => {
     });
     expect(commandResponse.status).toBe(200);
     expect(navigated).toEqual([{ tabId: "tab-1", url: "https://example.org" }]);
+
+    const moveResponse = await fetch(new URL("/api/browser/command", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        kind: "move-tab",
+        tabId: "tab-1",
+        targetTabId: "tab-2",
+        position: "after",
+      }),
+    });
+    expect(moveResponse.status).toBe(200);
+    expect(moved).toEqual([{ tabId: "tab-1", targetTabId: "tab-2", position: "after" }]);
 
     const ticketResponse = await fetch(new URL("/api/auth/websocket-ticket", info.httpBaseUrl), {
       method: "POST",
@@ -557,6 +1053,33 @@ describe("RemoteAccessServer", () => {
     expect(statusResponse.status).toBe(200);
     await expect(statusResponse.json()).resolves.toEqual({ result: { ok: "getGitStatus" } });
     expect(calls).toContainEqual({ name: "getGitStatus", payload: { projectLocation } });
+
+    const checkpointCalls = [
+      {
+        procedure: "rollbackThreadConversation",
+        payload: { threadId: "thread-1", numTurns: 1 },
+      },
+      {
+        procedure: "listFileCheckpoints",
+        payload: { threadId: "thread-1", projectLocation },
+      },
+      {
+        procedure: "restoreFileCheckpoint",
+        payload: { threadId: "thread-1", checkpointItemId: "user-2", projectLocation },
+      },
+    ] as const;
+    for (const call of checkpointCalls) {
+      const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+        method: "POST",
+        headers: fullHeaders,
+        body: JSON.stringify(call),
+      });
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({
+        result: { ok: call.procedure },
+      });
+      expect(calls).toContainEqual({ name: call.procedure, payload: call.payload });
+    }
 
     // Payload/schema errors are client errors, not hidden as 500s.
     const invalidPayloadResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {

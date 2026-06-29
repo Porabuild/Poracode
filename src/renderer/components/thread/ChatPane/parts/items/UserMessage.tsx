@@ -1,19 +1,20 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
-import { Link, Surface, Tooltip } from "@heroui/react";
+import { Link, Surface, Tooltip, toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ChevronDown, ChevronUp, Copy } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import {
   AttachmentBar,
   openAttachmentLightbox,
   type Attachment,
 } from "@/renderer/components/composer";
-import { readBridge } from "@/renderer/bridge";
 import { fileNameFromPath } from "@/shared/promptContent";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { chatPromptSurfaceClass } from "./chatMessageSurface";
@@ -187,7 +188,7 @@ export const UserMessage = memo(function UserMessage({
           </Tooltip>
         </>
       ) : null}
-      <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+      <div className="lightcode-message-action-strip absolute right-2 top-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
         {checkpointRevertControl}
         <CopyUserMessageButton text={rawText} />
       </div>
@@ -239,7 +240,9 @@ function CopyUserMessageButton({ text }: { text: string }) {
                   }, 200);
                 }, 1200);
               })
-              .catch(() => {});
+              .catch((error: unknown) => {
+                toast.danger(friendlyError(error));
+              });
           }}
         >
           <Copy className="size-3" />
@@ -340,7 +343,7 @@ function renderUserMessageUrls(text: string, keyPrefix: string): ReactNode[] {
         className="text-[length:inherit] text-foreground no-underline hover:underline hover:decoration-1 underline-offset-2 [display:inline] [width:auto] [overflow-wrap:anywhere] [word-break:break-word]"
         onClick={(event) => {
           event.preventDefault();
-          void readBridge().openExternal(href);
+          openExternalWithFeedback(href);
         }}
       >
         {href}

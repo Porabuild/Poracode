@@ -22,9 +22,9 @@ import {
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
 import type { PrWriteAction } from "@/renderer/hooks/usePrWriteActions";
+import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import {
   usePrMergeStateStatus,
   usePrMergeable,
@@ -114,7 +114,9 @@ export function PrSection(props: {
         <Link
           className="flex min-w-0 flex-1 items-center gap-1.5 text-xs leading-tight text-muted no-underline hover:text-foreground hover:underline focus-visible:text-primary focus-visible:underline"
           isDisabled={!url}
-          onPress={() => url && void readBridge().openExternal(url)}
+          onPress={() => {
+            if (url) openExternalWithFeedback(url);
+          }}
         >
           <span className="min-w-0 truncate leading-tight" title={title || undefined}>
             #{number}
@@ -128,7 +130,7 @@ export function PrSection(props: {
             <Tooltip.Trigger>
               <button
                 type="button"
-                aria-label="Refresh PR"
+                aria-label={t`Refresh`}
                 className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground disabled:opacity-50"
                 disabled={isRefreshingPr}
                 onClick={() => void onRefreshPr?.()}
@@ -136,7 +138,7 @@ export function PrSection(props: {
                 <RefreshCw className={`size-3.5 ${isRefreshingPr ? "animate-spin" : ""}`} />
               </button>
             </Tooltip.Trigger>
-            <Tooltip.Content placement="top">Refresh PR</Tooltip.Content>
+            <Tooltip.Content placement="top">{t`Refresh`}</Tooltip.Content>
           </Tooltip>
         )}
         {canReview && (

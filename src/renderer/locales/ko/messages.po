@@ -141,6 +141,11 @@ msgstr "{0} 로그아웃되었습니다."
 msgid "{0} needs authentication."
 msgstr "{0}에는 인증이 필요합니다."
 
+#. placeholder {0}: structuredElicitation.sourceText
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "{0} needs input."
+msgstr "{0}의 입력이 필요합니다."
+
 #. placeholder {0}: currentIndex + 1
 #: src/renderer/components/find/FindBar.tsx
 msgid "{0} of {matchCount}"
@@ -226,6 +231,10 @@ msgstr "{0}개월 전"
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "{agentLabel}: {statusLabel}. Hover for status details."
 msgstr "{agentLabel}: {statusLabel}. 상태 세부정보를 보려면 마우스를 올리세요."
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "{agentLead} needs your input to continue."
+msgstr "{agentLead}가 계속하려면 입력이 필요합니다."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
@@ -465,13 +474,17 @@ msgstr "사이드바 스레드의 빠른 제거 버튼에 대한 작업입니다
 msgid "Action name"
 msgstr "액션 이름"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Actions"
 msgstr "작업"
 
+#. placeholder {0}: props.entry.name
 #. placeholder {0}: thread.title
+#: src/mobile/views/FilesView.tsx
 #: src/mobile/views/ThreadsView.tsx
 msgid "Actions for {0}"
 msgstr "{0} 작업"
@@ -941,15 +954,19 @@ msgid "Avatar color {color}"
 msgstr "아바타 색상 {color}"
 
 #: src/mobile/views/BrowserView.tsx
-#: src/mobile/views/GitView.tsx
 #: src/mobile/views/pr/PrPageHeader.tsx
 #: src/mobile/views/TerminalView.tsx
+#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "뒤로"
 
 #: src/mobile/views/GitView.tsx
+msgid "Back to changes"
+msgstr "변경 사항으로 돌아가기"
+
+#: src/mobile/views/FilesView.tsx
 msgid "Back to files"
 msgstr "파일로 돌아가기"
 
@@ -1027,6 +1044,7 @@ msgstr "바이너리 파일 — 미리보기를 사용할 수 없습니다."
 msgid "Binary file or no diff available"
 msgstr "바이너리 파일이거나 diff를 사용할 수 없음"
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Binary files can't be edited here."
 msgstr "여기서는 바이너리 파일을 편집할 수 없습니다."
@@ -1096,7 +1114,6 @@ msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "GitHub 리포지토리를 찾아보거나 복제 URL을 붙여넣으세요."
 
 #: src/mobile/RootLayout.tsx
-#: src/mobile/settingsSections.ts
 #: src/mobile/views/MoreView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -1188,12 +1205,14 @@ msgid "Camera access blocked"
 msgstr "카메라 접근이 차단됨"
 
 #. Dialog button: dismiss without deleting
+#: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -1252,6 +1271,7 @@ msgstr "변경 내역"
 
 #: src/mobile/views/pr/PrChangesPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
@@ -1390,9 +1410,15 @@ msgstr "캐시 지우기"
 msgid "Clear Cookies"
 msgstr "쿠키 지우기"
 
+#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
 msgstr "검색 지우기"
+
+#: src/mobile/views/ThreadsView.tsx
+msgid "Clear thread search"
+msgstr "스레드 검색 지우기"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -1458,6 +1484,10 @@ msgstr "편집기 닫기"
 msgid "Close Editor Tab"
 msgstr "편집기 탭 닫기"
 
+#: src/mobile/views/FilesView.tsx
+msgid "Close file actions"
+msgstr "파일 작업 닫기"
+
 #: src/renderer/components/find/FindBar.tsx
 msgid "Close find"
 msgstr "찾기 닫기"
@@ -1477,6 +1507,10 @@ msgstr "그룹 작업 닫기"
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Close menu"
 msgstr "메뉴 닫기"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Close merge options"
+msgstr "병합 옵션 닫기"
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Close overlay"
@@ -2076,6 +2110,7 @@ msgid "Default thread removal"
 msgstr "기본 스레드 제거"
 
 #. Thread remove action: delete permanently
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -2094,6 +2129,11 @@ msgstr "삭제"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Delete {0}"
 msgstr "{0} 삭제"
+
+#. placeholder {0}: props.entry.name
+#: src/mobile/views/FilesView.tsx
+msgid "Delete <0>{0}</0>? This cannot be undone."
+msgstr "<0>{0}</0>을(를) 삭제할까요? 이 작업은 되돌릴 수 없습니다."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Delete branch?"
@@ -2127,6 +2167,8 @@ msgstr "스레드를 삭제하시겠습니까?"
 msgid "Delete to-do"
 msgstr "할 일 삭제"
 
+#: src/mobile/ThreadTitleRow.tsx
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorktreeGroup.tsx
 msgid "Delete Worktree"
 msgstr "작업트리 삭제"
@@ -2255,6 +2297,7 @@ msgstr "변경 사항 버리기"
 msgid "Discard changes to <0>{title}</0>? This cannot be undone."
 msgstr "<0>{title}</0>의 변경 사항을 버릴까요? 이 작업은 되돌릴 수 없습니다."
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -2477,6 +2520,10 @@ msgstr "고급(후크)"
 msgid "Enter a repository URL."
 msgstr "저장소 URL을 입력하세요."
 
+#: src/mobile/routeComponents.tsx
+msgid "Enter a valid desktop endpoint."
+msgstr "올바른 데스크톱 엔드포인트를 입력하세요."
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
 msgstr "계획 모드 시작"
@@ -2633,6 +2680,11 @@ msgstr "가져오기"
 msgid "File"
 msgstr "파일"
 
+#: src/mobile/views/FilesView.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
+msgid "File actions"
+msgstr "파일 작업"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "File changes will appear here."
 msgstr "파일 변경사항이 여기에 표시됩니다."
@@ -2641,6 +2693,7 @@ msgstr "파일 변경사항이 여기에 표시됩니다."
 msgid "File is too large to preview."
 msgstr "파일이 너무 커서 미리 볼 수 없습니다."
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "파일이 더 이상 디스크에 존재하지 않습니다."
@@ -2658,6 +2711,7 @@ msgstr "표시하기에 파일이 너무 큽니다 ({0, plural, one {# 줄 변�
 msgid "File uses an unsupported encoding."
 msgstr "파일이 지원되지 않는 인코딩을 사용합니다."
 
+#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Files"
 msgstr "파일"
@@ -3282,8 +3336,8 @@ msgid "Lightcode mobile navigation"
 msgstr "Lightcode 모바일 탐색"
 
 #: src/mobile/views/SettingsView.tsx
-msgid "Links and page behavior"
-msgstr "링크 및 페이지 동작"
+#~ msgid "Links and page behavior"
+#~ msgstr "링크 및 페이지 동작"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -3348,6 +3402,7 @@ msgid "Loading threads"
 msgstr "스레드 로드 중"
 
 #: src/mobile/routeComponents.tsx
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -3514,25 +3569,34 @@ msgstr "병합에 충돌이 있습니다:\n"
 msgid "Merge Locally & Remove Worktree"
 msgstr "로컬로 병합 및 작업 트리 제거"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge method"
 msgstr "병합 방법"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge options"
 msgstr "병합 옵션"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge PR: Commit"
 msgstr "PR 병합: 커밋"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge PR: Rebase"
 msgstr "PR 병합: 리베이스"
 
+#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge PR: Squash"
 msgstr "PR 병합: 스쿼시"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Merge this pull request with one squashed commit."
+msgstr "이 pull request를 하나의 squash 커밋으로 병합합니다."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge to Source"
@@ -3789,15 +3853,31 @@ msgstr "새로운 Claude 프로필 구성 디렉터리"
 msgid "New Claude profile name"
 msgstr "새로운 Claude 프로필 이름"
 
+#: src/mobile/views/FilesView.tsx
+msgid "New file"
+msgstr "새 파일"
+
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "New File"
 msgstr "새 파일"
 
+#: src/mobile/views/FilesView.tsx
+msgid "New file name"
+msgstr "새 파일 이름"
+
+#: src/mobile/views/FilesView.tsx
+msgid "New folder"
+msgstr "새 폴더"
+
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "New Folder"
 msgstr "새 폴더"
+
+#: src/mobile/views/FilesView.tsx
+msgid "New folder name"
+msgstr "새 폴더 이름"
 
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "New line"
@@ -3842,6 +3922,7 @@ msgstr "새 스레드(초안)"
 msgid "New thread from this to-do"
 msgstr "이 할 일의 새 스레드"
 
+#: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/ThreadsView.tsx
 msgid "New thread in worktree"
 msgstr "worktree에서 새 스레드"
@@ -3994,7 +4075,9 @@ msgstr "{visiblePath}에는 차이가 없습니다."
 msgid "No file checkpoint is stored for this message."
 msgstr "이 메시지에 대해 저장된 파일 체크포인트가 없습니다."
 
+#. placeholder {0}: query.trim()
 #. placeholder {0}: tree.searchQuery
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
 msgstr "\"{0}\"과(와) 일치하는 파일이 없습니다."
@@ -4021,6 +4104,7 @@ msgstr "일치하는 항목이 없습니다."
 msgid "No matching agents."
 msgstr "일치하는 에이전트가 없습니다."
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "일치하는 스레드 없음"
@@ -4326,6 +4410,7 @@ msgstr "Git 검토를 오른쪽 패널이나 전체 페이지로 엽니다."
 msgid "Open image preview"
 msgstr "이미지 미리보기 열기"
 
+#: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
@@ -4354,6 +4439,10 @@ msgstr "새 스레드를 전체 페이지 또는 병렬 패널로 엽니다."
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Open on GitHub"
 msgstr "GitHub에서 열기"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Open plan"
+msgstr "계획 열기"
 
 #. placeholder {0}: vis.prNumber
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
@@ -4402,6 +4491,7 @@ msgid "Open subagent: {0}"
 msgstr "하위 에이전트 열기: {0}"
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
 msgstr "터미널 열기"
 
@@ -4757,8 +4847,8 @@ msgid "Provider has not reported token usage."
 msgstr "공급자가 토큰 사용을 보고하지 않았습니다."
 
 #: src/mobile/views/MoreView.tsx
-msgid "Provider limits and spend"
-msgstr "공급자 한도 및 지출"
+#~ msgid "Provider limits and spend"
+#~ msgstr "공급자 한도 및 지출"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Provider presets"
@@ -4826,6 +4916,10 @@ msgstr "풀 리퀘스트 {0}"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request #{0}"
 msgstr "풀 리퀘스트 #{0}"
+
+#: src/mobile/views/pr/PrOverviewPage.tsx
+msgid "Pull request merged"
+msgstr "Pull request가 병합되었습니다"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Pull request options"
@@ -4930,11 +5024,12 @@ msgstr "공개 API 요금으로 로컬 로그에서 재구성되며 구독 계�
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
-#: src/mobile/views/GitView.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -4969,6 +5064,7 @@ msgstr "{0} 인증 상태를 새로 고치는 중입니다."
 msgid "Refreshing {env} {0} authentication status."
 msgstr "{env} {0} 인증 상태를 새로 고치는 중입니다."
 
+#: src/mobile/TerminalAccessory.tsx
 #: src/mobile/views/BrowserView.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -4996,8 +5092,8 @@ msgid "Remote URL"
 msgstr "원격 URL"
 
 #: src/mobile/views/SettingsView.tsx
-msgid "Removal behavior"
-msgstr "제거 동작"
+#~ msgid "Removal behavior"
+#~ msgstr "제거 동작"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove"
@@ -5068,6 +5164,7 @@ msgstr "작업 트리를 삭제하시겠습니까?"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/DesktopsView.tsx
+#: src/mobile/views/FilesView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
@@ -5093,6 +5190,10 @@ msgstr "현재 채팅 이름 바꾸기"
 #: src/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput.tsx
 msgid "Rename thread"
 msgstr "스레드 이름 바꾸기"
+
+#: src/mobile/views/FilesView.tsx
+msgid "Rename to"
+msgstr "다음으로 이름 변경"
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Renderer crashed"
@@ -5237,6 +5338,7 @@ msgid "Restore thread"
 msgstr "스레드 복원"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/TerminalView.tsx
 msgid "Retry"
 msgstr "다시 시도"
 
@@ -5405,6 +5507,7 @@ msgstr "런타임 디버그"
 msgid "Runtime options"
 msgstr "런타임 옵션"
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -5498,6 +5601,7 @@ msgstr "에이전트 검색..."
 msgid "Search branches..."
 msgstr "브랜치 검색..."
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "파일 검색"
@@ -5538,6 +5642,7 @@ msgstr "단축키 검색"
 msgid "Search the current view"
 msgstr "현재 보기에서 검색"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
 msgstr "스레드 검색"
@@ -5792,6 +5897,10 @@ msgstr "로그인"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Sign in needed"
 msgstr "로그인이 필요합니다"
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Sign in on the paired desktop, then refresh this status."
+msgstr "페어링된 데스크톱에서 로그인한 다음 이 상태를 새로 고치세요."
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -6075,6 +6184,7 @@ msgstr "하위 에이전트"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionRows.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Submit"
 msgstr "제출"
 
@@ -6115,6 +6225,7 @@ msgstr "지원:"
 msgid "Swap notes and to-dos"
 msgstr "메모와 할 일 바꾸기"
 
+#: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Switch branch"
@@ -6262,6 +6373,7 @@ msgstr "터미널"
 msgid "Terminal for {0}"
 msgstr "{0}용 터미널"
 
+#: src/mobile/TerminalAccessory.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Terminal input"
 msgstr "터미널 입력"
@@ -6295,12 +6407,21 @@ msgstr "터미널 탭"
 msgid "Test microphone"
 msgstr "마이크 테스트"
 
+#: src/mobile/remoteClient.ts
+msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
+"desktop endpoint from Settings → Remote Access."
+msgstr "이 엔드포인트는 데스크톱 API 대신 모바일 앱을 열었습니다. 설정 → 원격 액세스의 데스크톱 엔드포인트를 사용하세요."
+
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Lightcode pairing link."
 msgstr "이 QR 코드는 Lightcode 페어링 링크가 아닙니다."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
+msgstr "에이전트"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "The agent"
 msgstr "에이전트"
 
 #: src/renderer/components/providers/usageFormat.ts
@@ -6380,10 +6501,12 @@ msgstr "이 기기에는 사용할 수 있는 카메라가 없습니다. 대신 
 msgid "this environment"
 msgstr "이 환경"
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "이 파일은 내장 편집기에 비해 너무 큽니다."
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "이 파일은 지원되지 않는 인코딩을 사용합니다."
@@ -6496,7 +6619,6 @@ msgid "Thread todo dock"
 msgstr "스레드 할 일 도크"
 
 #: src/mobile/RootLayout.tsx
-#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
@@ -6617,6 +6739,10 @@ msgstr "음성 받아쓰는 중"
 msgid "Translucent sidebar"
 msgstr "반투명 사이드바"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Try a different search or project filter."
+msgstr "다른 검색어 또는 프로젝트 필터를 사용해 보세요."
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
 "the auto-refresh."
@@ -6644,6 +6770,10 @@ msgstr "{0}을(를) 인증할 수 없습니다."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "WSL 작업 트리 디렉터리 \"{path}\"을(를) 생성할 수 없습니다."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to delete the worktree."
+msgstr "worktree를 삭제할 수 없습니다."
 
 #. placeholder {0}: props.selectedAgent.label
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -6673,6 +6803,7 @@ msgstr "병합할 수 없습니다"
 msgid "Unable to open {0} login."
 msgstr "{0} 로그인을 열 수 없습니다."
 
+#: src/mobile/views/FilesView.tsx
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "파일을 열 수 없습니다."
@@ -6726,6 +6857,10 @@ msgstr "{label}을(를) 시작할 수 없습니다."
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to start mobile app."
 msgstr "모바일 앱을 시작할 수 없습니다."
+
+#: src/mobile/views/TerminalView.tsx
+msgid "Unable to start terminal"
+msgstr "터미널을 시작할 수 없습니다"
 
 #: src/mobile/routeComponents.tsx
 msgid "Unable to start the thread."
@@ -6939,7 +7074,6 @@ msgstr "{0}({env}) 업데이트 중"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/settingsSections.ts
-#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -7268,6 +7402,10 @@ msgstr "작업 트리 깨끗함"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Working…"
 msgstr "작업 중…"
+
+#: src/mobile/views/WorkspaceView.tsx
+msgid "Workspace view"
+msgstr "작업 영역 보기"
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx

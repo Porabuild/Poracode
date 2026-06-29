@@ -34,7 +34,9 @@ describe("QuestionAnswer", () => {
     expect(screen.getByText("Allow once")).toBeInTheDocument();
     expect(screen.getByText("Only for this run")).toBeInTheDocument();
     expect(screen.getByText("Use README.md instead.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Revert" })).toBeInTheDocument();
+    const revertButton = screen.getByRole("button", { name: "Revert" });
+    expect(revertButton).toBeInTheDocument();
+    expect(revertButton.closest(".lightcode-message-action-strip")).not.toBeNull();
   });
 
   it("renders nothing when the payload has no questions", () => {

@@ -19,6 +19,7 @@ import {
   toggleMarkThreadDone,
   toggleStarThread,
 } from "./actions/threadActions";
+import { deleteWorktreeGroup } from "./actions/worktreeActions";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
@@ -246,6 +247,10 @@ const mainWindowCleanups: Array<() => void> = isBrowserExtractWindow
       // They run through the same actions as local edits so persistence and
       // side effects (unload on archive, …) stay identical.
       readBridge().onRemoteThreadCommand((command) => {
+        if (command.kind === "delete-worktree-group") {
+          deleteWorktreeGroup(command.projectId, command.worktreePath, command.threadIds);
+          return;
+        }
         const thread = useAppStore.getState().threads.find((t) => t.id === command.threadId);
         if (!thread) return;
         switch (command.kind) {

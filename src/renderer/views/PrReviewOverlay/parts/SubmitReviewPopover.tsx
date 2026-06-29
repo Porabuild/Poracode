@@ -20,9 +20,10 @@ export function SubmitReviewPopover(props: {
   prNumber: number;
   /** Hide the trigger when the viewer authored the PR (GitHub disallows self-review). */
   hidden?: boolean;
+  triggerPresentation?: "compact" | "touch";
   onSubmitted: () => void;
 }) {
-  const { projectLocation, prNumber, hidden, onSubmitted } = props;
+  const { projectLocation, prNumber, hidden, triggerPresentation = "compact", onSubmitted } = props;
   const { t } = useLingui();
   const [open, setOpen] = useState(false);
   const [decision, setDecision] = useState<PrReviewDecision>("comment");
@@ -93,7 +94,11 @@ export function SubmitReviewPopover(props: {
       <Button
         size="sm"
         variant="primary"
-        className="h-5 min-h-0 gap-1 bg-success px-2 text-[11px] font-medium text-success-foreground hover:bg-success/90"
+        className={
+          triggerPresentation === "touch"
+            ? "h-11 min-h-11 w-full justify-start gap-2 rounded-[0.625rem] bg-success px-3 text-sm font-medium text-success-foreground hover:bg-success/90"
+            : "h-5 min-h-0 gap-1 bg-success px-2 text-[11px] font-medium text-success-foreground hover:bg-success/90"
+        }
         onPress={() => setOpen(true)}
       >
         <Check className="size-3" />

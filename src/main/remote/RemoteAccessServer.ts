@@ -108,9 +108,9 @@ export interface RemoteAccessServerOptions {
   };
   /**
    * Dev-mode URL of the mobile PWA on the Vite dev server (e.g.
-   * `http://192.168.1.5:3100/mobile.html`). When set, `/app` and `/pair`
-   * redirect there instead of serving the built bundle, so the phone gets
-   * hot reload. The `#token` fragment survives the redirect per the URL spec.
+   * `http://192.168.1.5:3100/mobile.html`). Pairing links are minted on this
+   * origin with the desktop API in `?host=...`, and `/app`/`/pair` still
+   * redirect there as a fallback so the phone gets hot reload.
    */
   readonly devMobileAppUrl?: string;
   readonly port: number;
@@ -188,8 +188,10 @@ function threadIdFromPath(pathname: string, suffix: string): string | null {
   }
   const raw = pathname.slice("/api/threads/".length, pathname.length - suffix.length);
   if (!raw) return null;
+  if (raw.includes("/")) return null;
   try {
-    return decodeURIComponent(raw);
+    const threadId = decodeURIComponent(raw);
+    return threadId.includes("/") ? null : threadId;
   } catch {
     return null;
   }
@@ -233,6 +235,11 @@ const THREAD_POST_ROUTES: ReadonlyArray<{
     suffix: "/interrupt",
     scope: "session:operate",
     dispatch: (call, body) => call("interruptThread", interruptThreadPayloadSchema.parse(body)),
+  },
+  {
+    suffix: "/close",
+    scope: "session:operate",
+    dispatch: (call, body) => call("closeThread", closeThreadPayloadSchema.parse(body)),
   },
   {
     suffix: "/steer/set",
@@ -317,13 +324,14 @@ export class RemoteAccessServer {
       label: "Startup pairing",
     });
 
+    const pairingAppUrl = this.options.pairingAppUrl ?? this.options.devMobileAppUrl;
     this.info = {
       httpBaseUrl,
       wsBaseUrl: toWebSocketUrl(httpBaseUrl).toString(),
       pairingUrl: buildPairingUrl({
         httpBaseUrl,
         credential: pairingCredential.credential,
-        ...(this.options.pairingAppUrl ? { pairingAppUrl: this.options.pairingAppUrl } : {}),
+        ...(pairingAppUrl ? { pairingAppUrl } : {}),
       }),
     };
     return this.info;
@@ -397,10 +405,11 @@ export class RemoteAccessServer {
     const issued = this.auth.issuePairingCredential({
       ...(label ? { label } : {}),
     });
+    const pairingAppUrl = this.options.pairingAppUrl ?? this.options.devMobileAppUrl;
     return buildPairingUrl({
       httpBaseUrl: info.httpBaseUrl,
       credential: issued.credential,
-      ...(this.options.pairingAppUrl ? { pairingAppUrl: this.options.pairingAppUrl } : {}),
+      ...(pairingAppUrl ? { pairingAppUrl } : {}),
     });
   }
 
@@ -782,12 +791,17 @@ export class RemoteAccessServer {
     }
 
     let terminalScrollback: string | undefined;
+    let terminalSize: RemoteThreadSnapshot["terminalSize"] | undefined;
     try {
-      terminalScrollback = await this.options.callSupervisor("readTerminalScrollback", {
-        threadId,
-      });
+      const [scrollback, size] = await Promise.all([
+        this.options.callSupervisor("readTerminalScrollback", { threadId }),
+        this.options.callSupervisor("readTerminalSize", { threadId }),
+      ]);
+      terminalScrollback = scrollback;
+      terminalSize = size ?? undefined;
     } catch {
       terminalScrollback = undefined;
+      terminalSize = undefined;
     }
 
     return remoteThreadSnapshotSchema.parse({
@@ -797,16 +811,17 @@ export class RemoteAccessServer {
       completedTurns: dbGetThreadCompletedTurns(threadId),
       contextUsage: dbGetThreadContextUsage(threadId),
       ...(terminalScrollback ? { terminalScrollback } : {}),
+      ...(terminalSize ? { terminalSize } : {}),
       updatedAt: new Date().toISOString(),
     });
   }
 
   /**
-   * Generic git/GitHub passthrough. The PWA reuses the desktop git-review
-   * components, which call dozens of git/gh bridge methods; rather than a REST
-   * route per method, the client posts `{ procedure, payload }` here. Only
-   * allowlisted procedures are accepted, each gated by its required scope and
-   * validated against its own payload schema before reaching the supervisor.
+   * Generic desktop-supervisor passthrough. The PWA reuses desktop-backed
+   * surfaces which call bridge methods directly; rather than a REST route per
+   * method, the client posts `{ procedure, payload }` here. Only allowlisted
+   * procedures are accepted, each gated by its required scope and validated
+   * against its own payload schema before reaching the supervisor.
    */
   private async runGitCall(req: IncomingMessage): Promise<unknown> {
     const { procedure, payload } = remoteGitCallPayloadSchema.parse(await readJsonBody(req));

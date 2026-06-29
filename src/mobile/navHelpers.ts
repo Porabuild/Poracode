@@ -1,11 +1,13 @@
 import type { GitAddWorktreePayload, Project, Thread } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
+import { getBasename } from "@/shared/pathUtils";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useGitSummariesStore } from "./gitSummaries";
 import type { RemoteSession } from "./remoteContext";
 import type { ThreadAction } from "./useRemoteDesktop";
+import type { FilesTarget } from "./views/FilesView";
 import type { GitTarget } from "./views/GitView";
 
 /**
@@ -99,6 +101,28 @@ export function buildGitTarget(remote: RemoteSession, threadId: string): GitTarg
     };
   }
   return { project };
+}
+
+/** Resolve the project/worktree root the file tree should browse for a thread. */
+export function buildFilesTarget(remote: RemoteSession, threadId: string): FilesTarget | null {
+  const thread = remote.threads.find((entry) => entry.id === threadId);
+  if (!thread) return null;
+  const project = remote.projects.find((entry) => entry.id === thread.projectId);
+  if (!project) return null;
+  const worktreePath = thread.worktreePath ?? undefined;
+  if (worktreePath) {
+    return {
+      project,
+      projectLocation: buildWorktreeLocation(project.location, worktreePath),
+      rootLabel: getBasename(worktreePath) || project.name,
+      worktreePath,
+    };
+  }
+  return {
+    project,
+    projectLocation: project.location,
+    rootLabel: project.name,
+  };
 }
 
 /**

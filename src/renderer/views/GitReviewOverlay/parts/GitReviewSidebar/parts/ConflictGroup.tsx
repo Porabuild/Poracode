@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, FileEdit, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, FileEdit, MoreVertical, Plus } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitFileChange, Project } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
@@ -8,6 +8,7 @@ import { FileIcon, FileStatusBadge, PathDisplay } from "@/renderer/components/co
 import { compareFilesByDirThenName, openFileInEditor } from "@/renderer/utils/gitHelpers";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { useGitReviewRowPadX } from "../gitReviewPadXContext";
+import { useGitTouch } from "../gitTouchContext";
 import { ConflictFileCard } from "./ConflictFileCard";
 
 const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
@@ -42,11 +43,22 @@ export function ConflictGroup(props: {
   } = props;
   const { t } = useLingui();
   const rowPadX = useGitReviewRowPadX();
+  const touch = useGitTouch();
   const [expanded, setExpanded] = useState(true);
   const inlineDiffs = mode === "panel";
 
   const handleOpenInEditor = (path: string) =>
     openFileInEditor(project, worktreePath, worktreeBranch, path);
+
+  function openTouchFileMenu(file: GitFileChange) {
+    touch?.openFileMenu({
+      path: file.path,
+      staged: file.staged,
+      status: file.status,
+      insertions: file.insertions,
+      deletions: file.deletions,
+    });
+  }
 
   async function handleStageConflict(path: string) {
     useGitStore.getState().optimisticStageFile(storeKey, path, isWorktree);
@@ -105,11 +117,15 @@ export function ConflictGroup(props: {
               <button
                 key={file.path}
                 type="button"
-                draggable
-                className={`group flex w-full cursor-default items-center gap-1.5 rounded py-1 text-left text-xs transition-colors ${rowPadX} ${
+                draggable={!touch}
+                className={`group flex w-full cursor-default items-center gap-1.5 rounded text-left transition-colors ${rowPadX} ${
+                  touch ? "min-h-[2.75rem] py-2 text-sm" : "py-1 text-xs"
+                } ${
                   isSelected
                     ? "bg-[var(--row-active)] text-foreground"
-                    : "text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
+                    : touch
+                      ? "text-muted active:bg-[var(--row-hover)]"
+                      : "text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
                 }`}
                 onClick={() => onSelectFile(file.path, false)}
                 onDragStart={(event) => {
@@ -126,52 +142,82 @@ export function ConflictGroup(props: {
                   className="flex-1"
                   trailing={<FileStatusBadge status={file.status} />}
                 />
-                <span className="relative w-14 shrink-0">
-                  <span className="flex items-center justify-end text-[10px] leading-4 font-medium transition-opacity group-hover:opacity-0">
-                    {file.insertions > 0 && (
-                      <span className="text-success">+{file.insertions}</span>
-                    )}
-                    {file.deletions > 0 && (
-                      <span className="ml-0.5 text-danger">-{file.deletions}</span>
-                    )}
-                  </span>
-                  <span className="absolute inset-0 flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    <div
+                {touch ? (
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    <span className="flex items-center justify-end text-[11px] leading-4 font-medium tabular-nums">
+                      {file.insertions > 0 && (
+                        <span className="text-success">+{file.insertions}</span>
+                      )}
+                      {file.deletions > 0 && (
+                        <span className="ml-0.5 text-danger">-{file.deletions}</span>
+                      )}
+                    </span>
+                    <span
                       role="button"
                       tabIndex={0}
-                      className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                      title={t`Stage`}
+                      aria-label={t`Actions`}
+                      className="-mr-1 rounded p-1 text-muted/70 active:bg-[var(--row-hover)]"
                       onClick={(e) => {
                         e.stopPropagation();
-                        void handleStageConflict(file.path);
+                        openTouchFileMenu(file);
                       }}
                       onKeyDown={(e) =>
-                        handleKeyActivate(e, () => void handleStageConflict(file.path), {
+                        handleKeyActivate(e, () => openTouchFileMenu(file), {
                           stopPropagation: true,
                         })
                       }
                     >
-                      <Plus className="size-3" />
-                    </div>
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                      title={t`Open in editor`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleOpenInEditor(file.path);
-                      }}
-                      onKeyDown={(e) =>
-                        handleKeyActivate(e, () => void handleOpenInEditor(file.path), {
-                          stopPropagation: true,
-                        })
-                      }
-                    >
-                      <FileEdit className="size-3" />
-                    </div>
+                      <MoreVertical className="size-4" />
+                    </span>
                   </span>
-                </span>
+                ) : (
+                  <span className="relative w-14 shrink-0">
+                    <span className="flex items-center justify-end text-[10px] leading-4 font-medium transition-opacity group-hover:opacity-0">
+                      {file.insertions > 0 && (
+                        <span className="text-success">+{file.insertions}</span>
+                      )}
+                      {file.deletions > 0 && (
+                        <span className="ml-0.5 text-danger">-{file.deletions}</span>
+                      )}
+                    </span>
+                    <span className="absolute inset-0 flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                        title={t`Stage`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleStageConflict(file.path);
+                        }}
+                        onKeyDown={(e) =>
+                          handleKeyActivate(e, () => void handleStageConflict(file.path), {
+                            stopPropagation: true,
+                          })
+                        }
+                      >
+                        <Plus className="size-3" />
+                      </div>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className="rounded p-0.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                        title={t`Open in editor`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleOpenInEditor(file.path);
+                        }}
+                        onKeyDown={(e) =>
+                          handleKeyActivate(e, () => void handleOpenInEditor(file.path), {
+                            stopPropagation: true,
+                          })
+                        }
+                      >
+                        <FileEdit className="size-3" />
+                      </div>
+                    </span>
+                  </span>
+                )}
               </button>
             );
           })}
