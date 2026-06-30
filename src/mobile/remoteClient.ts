@@ -90,6 +90,20 @@ export interface StartRemoteThreadInput {
   readonly userMessageItemId?: StartThreadPayload["userMessageItemId"] | undefined;
 }
 
+export interface StartRemoteNewThreadInput {
+  readonly threadId?: string | undefined;
+  readonly projectId: string;
+  readonly agentKind: StartThreadPayload["agentKind"];
+  readonly agentInstanceId?: StartThreadPayload["agentInstanceId"] | undefined;
+  readonly config: ThreadConfig;
+  readonly prompt: string;
+  readonly segments?: readonly PromptSegment[] | undefined;
+  readonly presentationMode?: ThreadPresentationMode | undefined;
+  readonly worktreePath?: string | undefined;
+  readonly worktreeBranch?: string | undefined;
+  readonly isNewWorktree?: boolean | undefined;
+}
+
 export class RemoteDesktopClient {
   constructor(
     readonly endpoint: string,
@@ -204,6 +218,25 @@ export class RemoteDesktopClient {
       );
     }
     return parsed.data;
+  }
+
+  async startNewThread(input: StartRemoteNewThreadInput): Promise<StartThreadResult> {
+    const threadId = input.threadId ?? crypto.randomUUID();
+    await this.sendThreadCommand({
+      kind: "start",
+      threadId,
+      projectId: input.projectId,
+      agentKind: input.agentKind,
+      ...(input.agentInstanceId ? { agentInstanceId: input.agentInstanceId } : {}),
+      config: input.config,
+      prompt: input.prompt,
+      ...(input.segments && input.segments.length > 0 ? { segments: [...input.segments] } : {}),
+      ...(input.presentationMode ? { presentationMode: input.presentationMode } : {}),
+      ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
+      ...(input.worktreeBranch ? { worktreeBranch: input.worktreeBranch } : {}),
+      ...(input.isNewWorktree ? { isNewWorktree: true } : {}),
+    });
+    return { threadId };
   }
 
   async sendThreadInput(input: SendThreadInputPayload): Promise<void> {

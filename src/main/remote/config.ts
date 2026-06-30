@@ -11,10 +11,6 @@ function readTrimmedEnv(name: string): string | undefined {
   return value ? value : undefined;
 }
 
-export function isRemoteAccessEnabled(): boolean {
-  return process.env.LIGHTCODE_REMOTE_ACCESS?.trim() !== "0";
-}
-
 export function remoteAccessHost(): string {
   return readTrimmedEnv("LIGHTCODE_REMOTE_ACCESS_HOST") ?? DEFAULT_REMOTE_ACCESS_HOST;
 }

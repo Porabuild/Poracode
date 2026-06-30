@@ -65,24 +65,28 @@ vi.mock("./useMediaQuery", () => ({
 
 vi.mock("./views/ThreadView", () => ({
   ThreadView: (props: {
+    thread: Thread | null;
     onResolveServerRequest: (input: {
       requestId: string;
       method: string;
       response: unknown;
     }) => Promise<void>;
   }) => (
-    <button
-      type="button"
-      onClick={() =>
-        void props.onResolveServerRequest({
-          requestId: "request-1",
-          method: "requestPermission",
-          response: { optionId: "allow" },
-        })
-      }
-    >
-      Resolve request
-    </button>
+    <div>
+      <span data-testid="thread-title">{props.thread?.title ?? "No thread"}</span>
+      <button
+        type="button"
+        onClick={() =>
+          void props.onResolveServerRequest({
+            requestId: "request-1",
+            method: "requestPermission",
+            response: { optionId: "allow" },
+          })
+        }
+      >
+        Resolve request
+      </button>
+    </div>
   ),
 }));
 
@@ -104,6 +108,7 @@ vi.mock("./views/MoreView", () => ({
 
 describe("mobile route components", () => {
   beforeEach(() => {
+    fixtures.params.threadId = "thread-routed";
     fixtures.navigate.mockReset();
     fixtures.remote.openThread.mockClear();
     fixtures.remote.resolveRequest.mockClear();
@@ -122,5 +127,14 @@ describe("mobile route components", () => {
         response: { optionId: "allow" },
       });
     });
+  });
+
+  it("renders the empty thread state for a missing routed thread instead of the stale selection", () => {
+    fixtures.params.threadId = "thread-missing";
+
+    render(<ThreadRoute />);
+
+    expect(screen.getByTestId("thread-title")).toHaveTextContent("No thread");
+    expect(fixtures.remote.openThread).not.toHaveBeenCalled();
   });
 });

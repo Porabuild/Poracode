@@ -5,7 +5,7 @@ import { app, BrowserWindow, Menu, nativeTheme, session as electronSession } fro
 import { resolveThemeMode } from "@/shared/themeMode";
 import { closeDatabase, dbGetThreads, initDatabase } from "./db";
 import { cleanupOrphanedAttachments, prepareLightcodeDataRoot } from "./lightcodeData";
-import { createLocalIpcHandlers } from "./ipc/localHandlers";
+import { createLocalIpcHandlers, getRemoteAccessPairingInfo } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
 import { createSleepInhibitor } from "./sleepInhibitor";
 import {
@@ -37,11 +37,15 @@ import {
   createPersistentRemoteAuthStore,
   readOrCreateRemoteAccessIdentity,
   RemoteAccessServer,
+  type RemoteAccessServerInfo,
   RemoteBrowserGateway,
 } from "./remote";
-import { pickRemoteSettings, type RemoteGitSummaries } from "@/shared/remote";
 import {
-  isRemoteAccessEnabled,
+  pickRemoteSettings,
+  type RemoteAccessPairingInfo,
+  type RemoteGitSummaries,
+} from "@/shared/remote";
+import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
@@ -101,6 +105,7 @@ let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
 let browserMcpIngress: BrowserMcpIngress | null = null;
 let remoteAccessServer: RemoteAccessServer | null = null;
+let remoteAccessStartPromise: Promise<RemoteAccessServerInfo> | null = null;
 /** Per-thread git/PR summaries mirrored from the renderer for remote clients. */
 let remoteGitSummaries: RemoteGitSummaries = {};
 let browserExtractWindow: BrowserWindow | null = null;
@@ -396,11 +401,132 @@ if (!hasSingleInstanceLock) {
       return null;
     });
 
+    const writeRemoteAccessEnabledSetting = (enabled: boolean) => {
+      const next = patchSharedSettingsFile(requireLightcodePaths().settingsPath, {
+        remoteAccessEnabled: enabled,
+      });
+      mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, next);
+      return next;
+    };
+
+    const startRemoteAccessServer = async (): Promise<RemoteAccessServerInfo> => {
+      const runningInfo = remoteAccessServer?.getInfo();
+      if (runningInfo) return runningInfo;
+      if (remoteAccessStartPromise) return remoteAccessStartPromise;
+
+      const paths = requireLightcodePaths();
+      const identity = readOrCreateRemoteAccessIdentity(paths.baseDir);
+      const remoteHost = remoteAccessHost();
+      const advertisedHost = remoteAccessAdvertisedHost({ bindHost: remoteHost });
+      const pairingAppUrl = remoteAccessPairingAppUrl();
+      // In dev, phones load the PWA from the Vite dev server (hot reload)
+      // instead of the built bundle; swap the loopback host for the LAN one.
+      let devMobileAppUrl: string | undefined;
+      if (process.env.VITE_DEV_SERVER_URL) {
+        const devUrl = new URL("/mobile.html", process.env.VITE_DEV_SERVER_URL);
+        devUrl.hostname = advertisedHost;
+        devMobileAppUrl = devUrl.toString();
+      }
+      const authStore = createPersistentRemoteAuthStore(paths.baseDir);
+      const server = new RemoteAccessServer({
+        appVersion: app.getVersion(),
+        identity,
+        authStore,
+        host: remoteHost,
+        port: remoteAccessPort(),
+        advertisedHost,
+        ...(pairingAppUrl ? { pairingAppUrl } : {}),
+        ...(devMobileAppUrl ? { devMobileAppUrl } : {}),
+        callSupervisor: (name, payload) => supervisorClient.call(name, payload),
+        // Thread metadata lives in the renderer store; hand remote commands to
+        // the window so they run through the same actions as local edits.
+        dispatchThreadCommand: (command) => {
+          if (!mainWindow) return false;
+          mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
+          return true;
+        },
+        browser: new RemoteBrowserGateway(() => browserPanelManager),
+        // Remote-editable settings (the AI helpers). Reads/writes the same
+        // settings file as the renderer; after a remote write the desktop
+        // renderer is told so its store reflects the change without restart.
+        gitSummaries: () => remoteGitSummaries,
+        settings: {
+          read: () =>
+            pickRemoteSettings(readSharedSettingsFile(requireLightcodePaths().settingsPath)),
+          update: (patch) => {
+            const next = patchSharedSettingsFile(requireLightcodePaths().settingsPath, patch);
+            mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, next);
+            return pickRemoteSettings(next);
+          },
+        },
+      });
+      remoteAccessServer = server;
+      const startPromise = server
+        .start()
+        .then((info) => {
+          console.log("[lightcode] remote access enabled at %s", info.httpBaseUrl);
+          console.log("[lightcode] remote pairing URL: %s", info.pairingUrl);
+          return info;
+        })
+        .catch((error) => {
+          if (remoteAccessServer === server) {
+            remoteAccessServer = null;
+          }
+          console.error(
+            "[lightcode] remote access failed to start:",
+            error instanceof Error ? error.message : String(error),
+          );
+          captureMainException(error, { "lightcode.feature_area": "remote-access" });
+          throw error;
+        })
+        .finally(() => {
+          if (remoteAccessStartPromise === startPromise) {
+            remoteAccessStartPromise = null;
+          }
+        });
+      remoteAccessStartPromise = startPromise;
+      return remoteAccessStartPromise;
+    };
+
+    const stopRemoteAccessServer = () => {
+      const server = remoteAccessServer;
+      remoteAccessServer = null;
+      remoteAccessStartPromise = null;
+      if (!server) return;
+      try {
+        server.dispose();
+        console.log("[lightcode] remote access disabled");
+      } catch (error) {
+        console.warn(
+          "[lightcode] remote access failed to stop cleanly:",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    };
+
+    const setRemoteAccessEnabled = async (enabled: boolean): Promise<RemoteAccessPairingInfo> => {
+      if (!enabled) {
+        stopRemoteAccessServer();
+        writeRemoteAccessEnabledSetting(false);
+        return getRemoteAccessPairingInfo(remoteAccessServer);
+      }
+
+      writeRemoteAccessEnabledSetting(true);
+      try {
+        await startRemoteAccessServer();
+      } catch (error) {
+        writeRemoteAccessEnabledSetting(false);
+        throw error;
+      }
+      return getRemoteAccessPairingInfo(remoteAccessServer);
+    };
+
     registerIpcHandlers({
       localHandlers: createLocalIpcHandlers({
         getMainWindow: () => mainWindow,
         getBrowserPanelManager: () => browserPanelManager,
         getRemoteAccessServer: () => remoteAccessServer,
+        setRemoteAccessEnabled,
         requireLightcodePaths,
         updatePowerSaveBlocker,
         autoUpdater: autoUpdaterController,
@@ -478,67 +604,10 @@ if (!hasSingleInstanceLock) {
     await mcpInfoReady;
     supervisorClient.start(lightcodePaths.baseDir);
 
-    if (isRemoteAccessEnabled()) {
-      const identity = readOrCreateRemoteAccessIdentity(lightcodePaths.baseDir);
-      const remoteHost = remoteAccessHost();
-      const advertisedHost = remoteAccessAdvertisedHost({ bindHost: remoteHost });
-      const pairingAppUrl = remoteAccessPairingAppUrl();
-      // In dev, phones load the PWA from the Vite dev server (hot reload)
-      // instead of the built bundle; swap the loopback host for the LAN one.
-      let devMobileAppUrl: string | undefined;
-      if (process.env.VITE_DEV_SERVER_URL) {
-        const devUrl = new URL("/mobile.html", process.env.VITE_DEV_SERVER_URL);
-        devUrl.hostname = advertisedHost;
-        devMobileAppUrl = devUrl.toString();
-      }
-      const authStore = createPersistentRemoteAuthStore(lightcodePaths.baseDir);
-      const server = new RemoteAccessServer({
-        appVersion: app.getVersion(),
-        identity,
-        authStore,
-        host: remoteHost,
-        port: remoteAccessPort(),
-        advertisedHost,
-        ...(pairingAppUrl ? { pairingAppUrl } : {}),
-        ...(devMobileAppUrl ? { devMobileAppUrl } : {}),
-        callSupervisor: (name, payload) => supervisorClient.call(name, payload),
-        // Thread metadata lives in the renderer store; hand remote commands to
-        // the window so they run through the same actions as local edits.
-        dispatchThreadCommand: (command) => {
-          if (!mainWindow) return false;
-          mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
-          return true;
-        },
-        browser: new RemoteBrowserGateway(() => browserPanelManager),
-        // Remote-editable settings (the AI helpers). Reads/writes the same
-        // settings file as the renderer; after a remote write the desktop
-        // renderer is told so its store reflects the change without restart.
-        gitSummaries: () => remoteGitSummaries,
-        settings: {
-          read: () =>
-            pickRemoteSettings(readSharedSettingsFile(requireLightcodePaths().settingsPath)),
-          update: (patch) => {
-            const next = patchSharedSettingsFile(requireLightcodePaths().settingsPath, patch);
-            mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, next);
-            return pickRemoteSettings(next);
-          },
-        },
+    if (readSharedSettingsFile(lightcodePaths.settingsPath).remoteAccessEnabled) {
+      void startRemoteAccessServer().catch(() => {
+        writeRemoteAccessEnabledSetting(false);
       });
-      remoteAccessServer = server;
-      server
-        .start()
-        .then((info) => {
-          console.log("[lightcode] remote access enabled at %s", info.httpBaseUrl);
-          console.log("[lightcode] remote pairing URL: %s", info.pairingUrl);
-        })
-        .catch((error) => {
-          remoteAccessServer = null;
-          console.error(
-            "[lightcode] remote access failed to start:",
-            error instanceof Error ? error.message : String(error),
-          );
-          captureMainException(error, { "lightcode.feature_area": "remote-access" });
-        });
     }
 
     mainWindow.once("ready-to-show", () => {

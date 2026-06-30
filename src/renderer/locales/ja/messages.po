@@ -303,6 +303,10 @@ msgstr "{label} APIキー"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} の自動更新間隔 (分単位)"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "{label} copied."
+msgstr "{label}をコピーしました。"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label}使用量 — 使用量パネルを開く"
@@ -324,6 +328,10 @@ msgstr "{loginLabel}{env}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{maxLabel} context"
 msgstr "{maxLabel}コンテキスト"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "{meta} · expires {expiresAt}"
+msgstr "{meta} · 有効期限: {expiresAt}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{minutes}m ago"
@@ -1863,6 +1871,7 @@ msgid "Copied to clipboard"
 msgstr "クリップボードにコピーしました"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "コピー"
 
@@ -1875,6 +1884,10 @@ msgstr "{0}デバイス コード{1}をコピーします"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
 msgstr "現在の URL をコピー"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy desktop endpoint"
+msgstr "デスクトップエンドポイントをコピー"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useGitReviewActions.ts
 msgid "Copy details"
@@ -1900,6 +1913,14 @@ msgstr "画像をコピー"
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "メッセージをコピーする"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy pairing link"
+msgstr "ペアリングリンクをコピー"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy pairing token"
+msgstr "ペアリングトークンをコピー"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
@@ -1972,8 +1993,8 @@ msgid "Couldn't start the camera"
 msgstr "カメラを開始できませんでした"
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Couldn't tag the thread's worktree."
-msgstr "スレッドの worktree にタグ付けできませんでした。"
+#~ msgid "Couldn't tag the thread's worktree."
+#~ msgstr "スレッドの worktree にタグ付けできませんでした。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -2207,6 +2228,10 @@ msgstr "説明 (オプション)"
 msgid "Desktop"
 msgstr "デスクトップ"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Desktop endpoint"
+msgstr "デスクトップエンドポイント"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Desktop is unreachable."
 msgstr "デスクトップに到達できません。"
@@ -2251,6 +2276,10 @@ msgstr "開発専用の上書き。 LIGHTCODE DEV ビルドでのみ表示され
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "コンポーザーの音声入力ボタンで使用されるデバイス。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Devices can pair while this desktop is reachable."
+msgstr "このデスクトップに到達できる間、デバイスをペアリングできます。"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Disable"
@@ -3395,6 +3424,10 @@ msgstr "PRを読み込み中…"
 msgid "Loading registry..."
 msgstr "レジストリを読み込んでいます..."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Loading remote access…"
+msgstr "リモートアクセスを読み込み中…"
+
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
 msgstr "スレッドを読み込み中"
@@ -3854,6 +3887,10 @@ msgstr "新しい Claude プロファイル設定ディレクトリ"
 msgid "New Claude profile name"
 msgstr "新しい Claude プロファイル名"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "New code"
+msgstr "新しいコード"
+
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
 msgstr "新規ファイル"
@@ -3900,6 +3937,7 @@ msgstr "新しいタブ"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -4132,6 +4170,10 @@ msgstr "モデルが見つかりません"
 msgid "No other agents installed"
 msgstr "他のエージェントはインストールされていません"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "No paired devices yet."
+msgstr "ペアリング済みデバイスはまだありません。"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "No patterns."
 msgstr "パターンはありません。"
@@ -4287,6 +4329,11 @@ msgstr "通知する対象"
 msgid "off"
 msgstr "オフ"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Off"
+msgstr "オフ"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Offline"
 msgstr "オフライン"
@@ -4303,6 +4350,11 @@ msgstr "古い"
 msgid "on"
 msgstr "オン"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Online"
+msgstr "オンライン"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
 msgstr "焦点が合っていないときのみ"
@@ -4310,6 +4362,7 @@ msgstr "焦点が合っていないときのみ"
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "開く"
 
@@ -4572,10 +4625,18 @@ msgstr "ペアリング"
 msgid "Pair a desktop"
 msgstr "デスクトップをペアリング"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pair a phone, tablet, or browser with this desktop."
+msgstr "このデスクトップとスマートフォン、タブレット、またはブラウザをペアリングします。"
+
 #: src/mobile/components.tsx
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pair again"
 msgstr "もう一度ペアリング"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Paired devices"
+msgstr "ペアリング済みデバイス"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pairing"
@@ -4585,11 +4646,16 @@ msgstr "ペアリング中"
 msgid "Pairing expired — pair again to reconnect."
 msgstr "ペアリングの期限が切れました。再接続するにはもう一度ペアリングしてください。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pairing link"
+msgstr "ペアリングリンク"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Pairing link detected."
 msgstr "ペアリングリンクを検出しました。"
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing token"
 msgstr "ペアリングトークン"
 
@@ -5081,13 +5147,43 @@ msgstr "ブラウザのページをリロード"
 msgid "Remote"
 msgstr "リモート"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote Access"
 msgstr "リモートアクセス"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is disabled for this desktop."
+#~ msgstr "このデスクトップではリモートアクセスが無効です。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is off"
+#~ msgstr "リモートアクセスはオフです"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is on"
+#~ msgstr "リモートアクセスはオンです"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is starting"
+#~ msgstr "リモートアクセスを開始しています"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote access pairing QR code"
+msgstr "リモートアクセスペアリングQRコード"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
 msgstr "リモート名"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote session"
+msgstr "リモートセッション"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote session revoked."
+msgstr "リモートセッションを取り消しました。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
@@ -5425,6 +5521,10 @@ msgstr "{0}の PR #{prNumber}を確認します"
 #: src/mobile/views/SettingsView.tsx
 msgid "Review presentation"
 msgstr "レビュー表示"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Revoke {name}"
+msgstr "{name}を取り消す"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right"
@@ -6082,7 +6182,9 @@ msgstr "{targetLabel}スレッドを開始しました"
 
 #. Button label while the microphone test is starting
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
 msgstr "開始しています"
 
@@ -6421,6 +6523,10 @@ msgstr "そのエンドポイントはデスクトップ API ではなくモバ�
 msgid "That QR code isn't a Lightcode pairing link."
 msgstr "その QR コードは Lightcode のペアリングリンクではありません。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "That remote session was already gone."
+msgstr "そのリモートセッションはすでに存在しません。"
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "エージェント"
@@ -6444,6 +6550,10 @@ msgid "The default background refresh cadence, used for any provider without "
 "2-minute floor respects provider rate limits."
 msgstr "既定のバックグラウンド更新間隔です。下で独自の間隔を設定していないプロバイダーに使用されます。オフにするには 0 に設定します "
 "(手動のみ)。2 分の下限はプロバイダーのレート制限を考慮したものです。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "The desktop server is still coming online."
+msgstr "デスクトップサーバーはまだ起動中です。"
 
 #: src/mobile/views/MoreView.tsx
 msgid "The desktop's built-in browser"
@@ -6747,6 +6857,10 @@ msgstr "半透明のサイドバー"
 msgid "Try a different search or project filter."
 msgstr "別の検索語句またはプロジェクトフィルターを試してください。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Turn on remote access to show a pairing code."
+msgstr "リモートアクセスをオンにすると、ペアリングコードが表示されます。"
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
 "the auto-refresh."
@@ -6771,6 +6885,18 @@ msgstr "ページに入力（先にフィールドをタップ）"
 msgid "Unable to authenticate {0}."
 msgstr "{0}を認証できません。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy desktop endpoint."
+msgstr "デスクトップエンドポイントをコピーできませんでした。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy pairing link."
+msgstr "ペアリングリンクをコピーできませんでした。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy pairing token."
+msgstr "ペアリングトークンをコピーできません。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "WSL ワークツリー ディレクトリ \"{path}\" を作成できません"
@@ -6788,6 +6914,10 @@ msgstr "{0}フックをインストールできません。"
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to install {0}."
 msgstr "{0}をインストールできません。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to load remote access pairing."
+msgstr "リモートアクセスのペアリングを読み込めませんでした。"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to load thread."
@@ -6845,6 +6975,10 @@ msgstr "ワークツリーを削除できません。"
 msgid "Unable to resolve home directory for WSL distro \"{distro}\""
 msgstr "WSL ディストリビューション「{distro}」のホーム ディレクトリを解決できません"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to revoke remote session."
+msgstr "リモートセッションを取り消せませんでした。"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to save {0} credentials."
@@ -6867,6 +7001,7 @@ msgid "Unable to start terminal"
 msgstr "ターミナルを起動できません"
 
 #: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 msgid "Unable to start the thread."
 msgstr "スレッドを開始できません。"
 
@@ -6902,6 +7037,10 @@ msgstr "{0}を更新できません:{detailText}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to update {0}."
 msgstr "{0}を更新できません。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update remote access."
+msgstr "リモートアクセスを更新できません。"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to update the thread."
@@ -6966,6 +7105,10 @@ msgstr "完了のマークを外す"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unmark Done"
 msgstr "完了のマークを外す"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unnamed device"
+msgstr "名前なしのデバイス"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Unphased:"

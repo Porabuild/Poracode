@@ -221,8 +221,7 @@ export function ThreadRoute() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the routed thread + its availability
   }, [threadId, targetExists, remote.selectedThread?.id]);
 
-  const thread =
-    remote.threads.find((entry) => entry.id === threadId) ?? remote.selectedThread ?? null;
+  const thread = remote.threads.find((entry) => entry.id === threadId) ?? null;
   return <ThreadDetail thread={thread} hideHeader={!isWide} />;
 }
 
@@ -246,7 +245,7 @@ export function NewThreadRoute() {
   });
 
   function startFromDraft(project: Project, input: DraftStartInput) {
-    remote
+    return remote
       .startThread(project, input)
       .then((threadId) => {
         if (threadId) void navigate({ to: "/thread/$threadId", params: { threadId } });

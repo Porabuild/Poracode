@@ -1,4 +1,5 @@
 import { toast } from "@heroui/react";
+import { msg as linguiMsg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import { useEffect } from "react";
 import { PixelLoader } from "./components/common";
@@ -23,6 +24,7 @@ import { deleteWorktreeGroup } from "./actions/worktreeActions";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
+import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { recordRuntimeUsage } from "./state/usageRecorder";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useAgentStatusesStore } from "./state/agentStatusesStore";
@@ -32,6 +34,9 @@ import { installRuntimeItemsPersister } from "./state/chatRuntimePersister";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
+import { generateTitleAsync } from "@/renderer/utils/titleGen";
+import { titlePromptFromSegments } from "@/shared/threadTitle";
+import { i18n } from "@/renderer/i18n/i18n";
 import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer";
 import { MainView } from "@/renderer/views/MainView/MainView";
@@ -249,6 +254,46 @@ const mainWindowCleanups: Array<() => void> = isBrowserExtractWindow
       readBridge().onRemoteThreadCommand((command) => {
         if (command.kind === "delete-worktree-group") {
           deleteWorktreeGroup(command.projectId, command.worktreePath, command.threadIds);
+          return;
+        }
+        if (command.kind === "start") {
+          const store = useAppStore.getState();
+          if (store.threads.some((t) => t.id === command.threadId)) return;
+          const project = store.projects.find((p) => p.id === command.projectId);
+          if (!project) return;
+          const titlePrompt =
+            titlePromptFromSegments(command.prompt, command.segments).trim() ||
+            i18n._(linguiMsg`New thread`);
+          const thread = store.createThread({
+            threadId: command.threadId,
+            projectId: project.id,
+            agentKind: command.agentKind,
+            ...(command.agentInstanceId ? { agentInstanceId: command.agentInstanceId } : {}),
+            config: command.config,
+            prompt: titlePrompt,
+            ...(command.presentationMode ? { presentationMode: command.presentationMode } : {}),
+            ...(command.worktreePath ? { worktreePath: command.worktreePath } : {}),
+            ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
+          });
+          if (command.launchRuntime !== false) {
+            store.queueThreadLaunch(thread.id, command.prompt, command.segments);
+          }
+          const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
+          const projectAgentStatuses = getProjectAgentStatuses(
+            project.location,
+            agentStatuses,
+            wslAgentStatuses,
+          );
+          generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
+          if (command.worktreePath) {
+            void primeWorktreeGitState(project, command.worktreePath);
+            if (command.isNewWorktree) {
+              const setupScript = project.scripts?.setupScript;
+              if (setupScript) {
+                runWorktreeSetupScript(project, command.worktreePath, setupScript);
+              }
+            }
+          }
           return;
         }
         const thread = useAppStore.getState().threads.find((t) => t.id === command.threadId);

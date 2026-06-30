@@ -65,7 +65,8 @@ also serves the PNG icon set from `/icons/*`.
 
 1. Create a Vercel project pointing at this repo, Root Directory = repo root.
 2. Add repo secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
-3. On the **desktop**, set `LIGHTCODE_REMOTE_ACCESS_PAIRING_APP_URL=https://<your-host>`
+3. On the **desktop**, turn on **Settings → Remote Access** and set
+   `LIGHTCODE_REMOTE_ACCESS_PAIRING_APP_URL=https://<your-host>`
    so the pairing QR encodes `https://<your-host>/pair?host=<desktop>#token=…`
    (this is what enables app-vs-PWA routing below).
 

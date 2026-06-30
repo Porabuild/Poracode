@@ -300,6 +300,10 @@ msgstr "{label} API 密钥"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} 自动刷新间隔（分钟）"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "{label} copied."
+msgstr "已复制{label}。"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label}用法 — 打开用法面板"
@@ -321,6 +325,10 @@ msgstr "{loginLabel}{env}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{maxLabel} context"
 msgstr "{maxLabel}上下文"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "{meta} · expires {expiresAt}"
+msgstr "{meta} · 到期于 {expiresAt}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{minutes}m ago"
@@ -1859,6 +1867,7 @@ msgid "Copied to clipboard"
 msgstr "已复制到剪贴板"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "复制"
 
@@ -1871,6 +1880,10 @@ msgstr "复制{0}设备代码{1}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
 msgstr "复制当前网址"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy desktop endpoint"
+msgstr "复制桌面端点"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useGitReviewActions.ts
 msgid "Copy details"
@@ -1896,6 +1909,14 @@ msgstr "复制图片"
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "复制消息"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy pairing link"
+msgstr "复制配对链接"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy pairing token"
+msgstr "复制配对令牌"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
@@ -1968,8 +1989,8 @@ msgid "Couldn't start the camera"
 msgstr "无法启动摄像头"
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Couldn't tag the thread's worktree."
-msgstr "无法标记该线程的 worktree。"
+#~ msgid "Couldn't tag the thread's worktree."
+#~ msgstr "无法标记该线程的 worktree。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -2203,6 +2224,10 @@ msgstr "说明（可选）"
 msgid "Desktop"
 msgstr "桌面"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Desktop endpoint"
+msgstr "桌面端点"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Desktop is unreachable."
 msgstr "无法访问桌面。"
@@ -2247,6 +2272,10 @@ msgstr "仅开发覆盖。仅在 LIGHTCODE DEV 版本中可见。"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "输入框语音输入按钮使用的设备。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Devices can pair while this desktop is reachable."
+msgstr "当此桌面可访问时，设备可以配对。"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Disable"
@@ -3385,6 +3414,10 @@ msgstr "正在加载 PR…"
 msgid "Loading registry..."
 msgstr "正在加载注册表..."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Loading remote access…"
+msgstr "正在加载远程访问…"
+
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
 msgstr "正在加载线程"
@@ -3844,6 +3877,10 @@ msgstr "新的 Claude 配置文件目录"
 msgid "New Claude profile name"
 msgstr "新 Claude 配置文件名称"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "New code"
+msgstr "新代码"
+
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
 msgstr "新建文件"
@@ -3890,6 +3927,7 @@ msgstr "新标签页"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -4121,6 +4159,10 @@ msgstr "未找到模型"
 msgid "No other agents installed"
 msgstr "没有安装其他代理"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "No paired devices yet."
+msgstr "还没有已配对的设备。"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "No patterns."
 msgstr "没有模式。"
@@ -4276,6 +4318,11 @@ msgstr "通知我有关"
 msgid "off"
 msgstr "关闭"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Off"
+msgstr "关闭"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Offline"
 msgstr "离线"
@@ -4292,6 +4339,11 @@ msgstr "更早"
 msgid "on"
 msgstr "开"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Online"
+msgstr "在线"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
 msgstr "仅当窗口失去焦点时"
@@ -4299,6 +4351,7 @@ msgstr "仅当窗口失去焦点时"
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "打开"
 
@@ -4560,10 +4613,18 @@ msgstr "配对"
 msgid "Pair a desktop"
 msgstr "配对桌面"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pair a phone, tablet, or browser with this desktop."
+msgstr "将手机、平板电脑或浏览器与此桌面配对。"
+
 #: src/mobile/components.tsx
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pair again"
 msgstr "重新配对"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Paired devices"
+msgstr "已配对设备"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pairing"
@@ -4573,11 +4634,16 @@ msgstr "正在配对"
 msgid "Pairing expired — pair again to reconnect."
 msgstr "配对已过期，请重新配对以重新连接。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pairing link"
+msgstr "配对链接"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Pairing link detected."
 msgstr "检测到配对链接。"
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing token"
 msgstr "配对令牌"
 
@@ -5068,13 +5134,43 @@ msgstr "重新加载浏览器页面"
 msgid "Remote"
 msgstr "远程"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote Access"
 msgstr "远程访问"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is disabled for this desktop."
+#~ msgstr "此桌面的远程访问已禁用。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is off"
+#~ msgstr "远程访问已关闭"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is on"
+#~ msgstr "远程访问已开启"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is starting"
+#~ msgstr "正在启动远程访问"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote access pairing QR code"
+msgstr "远程访问配对二维码"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
 msgstr "远程名称"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote session"
+msgstr "远程会话"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote session revoked."
+msgstr "远程会话已撤销。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
@@ -5412,6 +5508,10 @@ msgstr "查看{0}的 PR #{prNumber}"
 #: src/mobile/views/SettingsView.tsx
 msgid "Review presentation"
 msgstr "评审显示"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Revoke {name}"
+msgstr "撤销 {name}"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right"
@@ -6066,7 +6166,9 @@ msgstr "开始{targetLabel}线程"
 
 #. Button label while the microphone test is starting
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
 msgstr "启动中"
 
@@ -6404,6 +6506,10 @@ msgstr "该端点打开的是移动应用，而不是桌面端 API。请使用�
 msgid "That QR code isn't a Lightcode pairing link."
 msgstr "该二维码不是 Lightcode 配对链接。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "That remote session was already gone."
+msgstr "该远程会话已不存在。"
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "代理"
@@ -6426,6 +6532,10 @@ msgid "The default background refresh cadence, used for any provider without "
 "its own interval set below. Set to 0 to turn off (manual only). The "
 "2-minute floor respects provider rate limits."
 msgstr "默认的后台刷新频率，适用于下方未单独设置间隔的任何提供商。设为 0 可关闭（仅手动刷新）。最低 2 分钟以遵守提供商的速率限制。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "The desktop server is still coming online."
+msgstr "桌面服务器仍在启动。"
 
 #: src/mobile/views/MoreView.tsx
 msgid "The desktop's built-in browser"
@@ -6726,6 +6836,10 @@ msgstr "半透明侧边栏"
 msgid "Try a different search or project filter."
 msgstr "请尝试其他搜索或项目筛选器。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Turn on remote access to show a pairing code."
+msgstr "开启远程访问以显示配对码。"
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
 "the auto-refresh."
@@ -6750,6 +6864,18 @@ msgstr "在页面中输入（请先点按一个字段）"
 msgid "Unable to authenticate {0}."
 msgstr "无法验证{0}。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy desktop endpoint."
+msgstr "无法复制桌面端点。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy pairing link."
+msgstr "无法复制配对链接。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy pairing token."
+msgstr "无法复制配对令牌。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "无法创建 WSL 工作树目录“{path}”"
@@ -6767,6 +6893,10 @@ msgstr "无法安装{0}挂钩。"
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to install {0}."
 msgstr "无法安装{0}。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to load remote access pairing."
+msgstr "无法加载远程访问配对。"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to load thread."
@@ -6824,6 +6954,10 @@ msgstr "无法删除工作树。"
 msgid "Unable to resolve home directory for WSL distro \"{distro}\""
 msgstr "无法解析 WSL 发行版“{distro}”的主目录"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to revoke remote session."
+msgstr "无法撤销远程会话。"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to save {0} credentials."
@@ -6846,6 +6980,7 @@ msgid "Unable to start terminal"
 msgstr "无法启动终端"
 
 #: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 msgid "Unable to start the thread."
 msgstr "无法启动线程。"
 
@@ -6881,6 +7016,10 @@ msgstr "无法更新{0}：{detailText}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to update {0}."
 msgstr "无法更新{0}。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update remote access."
+msgstr "无法更新远程访问。"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to update the thread."
@@ -6945,6 +7084,10 @@ msgstr "取消标记完成"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unmark Done"
 msgstr "取消标记完成"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unnamed device"
+msgstr "未命名设备"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Unphased:"

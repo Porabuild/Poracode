@@ -29,6 +29,7 @@ describe("ipcProcedureMap", () => {
       getMainWindow: () => null as never,
       getBrowserPanelManager: () => null,
       getRemoteAccessServer: () => null,
+      setRemoteAccessEnabled: vi.fn<(enabled: boolean) => Promise<never>>(),
       requireLightcodePaths: () =>
         ({
           baseDir: "C:\\tmp",

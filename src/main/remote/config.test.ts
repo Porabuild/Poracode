@@ -3,7 +3,6 @@ import {
   DEFAULT_REMOTE_ACCESS_HOST,
   DEFAULT_REMOTE_ACCESS_PORT,
   detectLanIpv4Address,
-  isRemoteAccessEnabled,
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
@@ -11,7 +10,6 @@ import {
 } from "./config";
 
 const ENV_KEYS = [
-  "LIGHTCODE_REMOTE_ACCESS",
   "LIGHTCODE_REMOTE_ACCESS_ADVERTISED_HOST",
   "LIGHTCODE_REMOTE_ACCESS_HOST",
   "LIGHTCODE_REMOTE_ACCESS_PAIRING_APP_URL",
@@ -36,16 +34,10 @@ function ipv4(address: string, internal = false) {
 }
 
 describe("remote access config", () => {
-  it("uses stable defaults without per-run env setup", () => {
-    expect(isRemoteAccessEnabled()).toBe(true);
+  it("uses built-in host, port, and pairing defaults", () => {
     expect(remoteAccessHost()).toBe(DEFAULT_REMOTE_ACCESS_HOST);
     expect(remoteAccessPort()).toBe(DEFAULT_REMOTE_ACCESS_PORT);
     expect(remoteAccessPairingAppUrl()).toBeUndefined();
-  });
-
-  it("can be disabled explicitly", () => {
-    process.env.LIGHTCODE_REMOTE_ACCESS = "0";
-    expect(isRemoteAccessEnabled()).toBe(false);
   });
 
   it("accepts explicit overrides", () => {

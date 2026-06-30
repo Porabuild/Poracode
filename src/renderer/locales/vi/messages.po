@@ -304,6 +304,10 @@ msgstr "Khóa API {label}"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "Khoảng thời gian tự động làm mới {label} tính bằng phút"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "{label} copied."
+msgstr "Đã sao chép {label}."
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "Mức sử dụng {label} — mở bảng sử dụng"
@@ -325,6 +329,10 @@ msgstr "{loginLabel} {env}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{maxLabel} context"
 msgstr "{maxLabel} ngữ cảnh"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "{meta} · expires {expiresAt}"
+msgstr "{meta} · hết hạn vào {expiresAt}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{minutes}m ago"
@@ -1878,6 +1886,7 @@ msgid "Copied to clipboard"
 msgstr "Đã sao chép vào bộ nhớ tạm"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "Sao chép"
 
@@ -1890,6 +1899,10 @@ msgstr "Sao chép {0} mã thiết bị {1}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
 msgstr "Sao chép URL hiện tại"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy desktop endpoint"
+msgstr "Sao chép điểm cuối máy tính"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useGitReviewActions.ts
 msgid "Copy details"
@@ -1915,6 +1928,14 @@ msgstr "Sao chép hình ảnh"
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "Sao chép tin nhắn"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy pairing link"
+msgstr "Sao chép liên kết ghép đôi"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy pairing token"
+msgstr "Sao chép token ghép đôi"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
@@ -1989,8 +2010,8 @@ msgid "Couldn't start the camera"
 msgstr "Không thể khởi động camera"
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Couldn't tag the thread's worktree."
-msgstr "Không thể gắn thẻ worktree của luồng."
+#~ msgid "Couldn't tag the thread's worktree."
+#~ msgstr "Không thể gắn thẻ worktree của luồng."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -2226,6 +2247,10 @@ msgstr "Mô tả (tùy chọn)"
 msgid "Desktop"
 msgstr "Desktop"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Desktop endpoint"
+msgstr "Điểm cuối máy tính"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Desktop is unreachable."
 msgstr "Không thể kết nối tới desktop."
@@ -2271,6 +2296,10 @@ msgstr "Ghi đè chỉ dành cho phát triển. Chỉ hiển thị trong bản d
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Thiết bị được dùng cho nút nhập giọng nói của khung soạn thảo."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Devices can pair while this desktop is reachable."
+msgstr "Thiết bị có thể ghép nối khi máy tính này có thể truy cập được."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Disable"
@@ -3438,6 +3467,10 @@ msgstr "Đang tải PR…"
 msgid "Loading registry..."
 msgstr "Đang tải sổ đăng ký..."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Loading remote access…"
+msgstr "Đang tải quyền truy cập từ xa…"
+
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
 msgstr "Đang tải luồng"
@@ -3900,6 +3933,10 @@ msgstr "Thư mục cấu hình hồ sơ Claude mới"
 msgid "New Claude profile name"
 msgstr "Tên hồ sơ Claude mới"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "New code"
+msgstr "Mã mới"
+
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
 msgstr "Tệp mới"
@@ -3946,6 +3983,7 @@ msgstr "Tab mới"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -4178,6 +4216,10 @@ msgstr "Không tìm thấy mô hình nào"
 msgid "No other agents installed"
 msgstr "Không có tác nhân nào khác được cài đặt"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "No paired devices yet."
+msgstr "Chưa có thiết bị nào được ghép đôi."
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "No patterns."
 msgstr "Không có mẫu."
@@ -4334,6 +4376,11 @@ msgstr "Thông báo cho tôi về"
 msgid "off"
 msgstr "tắt"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Off"
+msgstr "Tắt"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Offline"
 msgstr "Ngoại tuyến"
@@ -4350,6 +4397,11 @@ msgstr "Cũ hơn"
 msgid "on"
 msgstr "trên"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Online"
+msgstr "Trực tuyến"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
 msgstr "Chỉ khi không tập trung"
@@ -4357,6 +4409,7 @@ msgstr "Chỉ khi không tập trung"
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "Mở"
 
@@ -4622,10 +4675,18 @@ msgstr "Ghép đôi"
 msgid "Pair a desktop"
 msgstr "Ghép đôi desktop"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pair a phone, tablet, or browser with this desktop."
+msgstr "Ghép đôi điện thoại, máy tính bảng hoặc trình duyệt với máy tính này."
+
 #: src/mobile/components.tsx
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pair again"
 msgstr "Ghép đôi lại"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Paired devices"
+msgstr "Thiết bị đã ghép đôi"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pairing"
@@ -4635,11 +4696,16 @@ msgstr "Đang ghép đôi"
 msgid "Pairing expired — pair again to reconnect."
 msgstr "Ghép đôi đã hết hạn — hãy ghép đôi lại để kết nối."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pairing link"
+msgstr "Liên kết ghép đôi"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Pairing link detected."
 msgstr "Đã phát hiện liên kết ghép đôi."
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing token"
 msgstr "Token ghép đôi"
 
@@ -5136,13 +5202,43 @@ msgstr "Tải lại trang trình duyệt"
 msgid "Remote"
 msgstr "Từ xa"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote Access"
 msgstr "Truy cập từ xa"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is disabled for this desktop."
+#~ msgstr "Quyền truy cập từ xa đã bị tắt cho máy tính này."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is off"
+#~ msgstr "Quyền truy cập từ xa đang tắt"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is on"
+#~ msgstr "Quyền truy cập từ xa đang bật"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is starting"
+#~ msgstr "Đang khởi động quyền truy cập từ xa"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote access pairing QR code"
+msgstr "Mã QR ghép đôi truy cập từ xa"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
 msgstr "Tên từ xa"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote session"
+msgstr "Phiên từ xa"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote session revoked."
+msgstr "Đã thu hồi phiên từ xa."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
@@ -5481,6 +5577,10 @@ msgstr "Xem lại PR #{prNumber} cho {0}"
 #: src/mobile/views/SettingsView.tsx
 msgid "Review presentation"
 msgstr "Hiển thị đánh giá"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Revoke {name}"
+msgstr "Thu hồi {name}"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right"
@@ -6147,7 +6247,9 @@ msgstr "Đã bắt đầu chủ đề {targetLabel}"
 
 #. Button label while the microphone test is starting
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
 msgstr "Bắt đầu"
 
@@ -6487,6 +6589,10 @@ msgstr "Endpoint này đã mở ứng dụng di động thay vì API trên deskt
 msgid "That QR code isn't a Lightcode pairing link."
 msgstr "Mã QR đó không phải là liên kết ghép đôi Lightcode."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "That remote session was already gone."
+msgstr "Phiên từ xa đó đã không còn."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "tác nhân"
@@ -6511,6 +6617,10 @@ msgid "The default background refresh cadence, used for any provider without "
 msgstr "Nhịp làm mới nền mặc định, được dùng cho mọi nhà cung cấp chưa đặt "
 "khoảng thời gian riêng bên dưới. Đặt thành 0 để tắt (chỉ làm mới thủ "
 "công). Mức tối thiểu 2 phút tôn trọng giới hạn tốc độ của nhà cung cấp."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "The desktop server is still coming online."
+msgstr "Máy chủ trên máy tính vẫn đang khởi động."
 
 #: src/mobile/views/MoreView.tsx
 msgid "The desktop's built-in browser"
@@ -6826,6 +6936,10 @@ msgstr "Thanh bên trong suốt"
 msgid "Try a different search or project filter."
 msgstr "Thử cụm tìm kiếm hoặc bộ lọc dự án khác."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Turn on remote access to show a pairing code."
+msgstr "Bật quyền truy cập từ xa để hiển thị mã ghép nối."
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
 "the auto-refresh."
@@ -6851,6 +6965,18 @@ msgstr "Nhập vào trang (chạm vào trường trước)"
 msgid "Unable to authenticate {0}."
 msgstr "Không thể xác thực {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy desktop endpoint."
+msgstr "Không thể sao chép điểm cuối máy tính."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy pairing link."
+msgstr "Không thể sao chép liên kết ghép đôi."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy pairing token."
+msgstr "Không thể sao chép token ghép đôi."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "Không thể tạo thư mục cây làm việc WSL \"{path}\""
@@ -6868,6 +6994,10 @@ msgstr "Không thể cài đặt hook {0}."
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to install {0}."
 msgstr "Không thể cài đặt {0}."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to load remote access pairing."
+msgstr "Không thể tải ghép đôi truy cập từ xa."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to load thread."
@@ -6925,6 +7055,10 @@ msgstr "Không thể xóa cây làm việc."
 msgid "Unable to resolve home directory for WSL distro \"{distro}\""
 msgstr "Không thể giải quyết thư mục chính cho bản phân phối WSL \"{distro}\""
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to revoke remote session."
+msgstr "Không thể thu hồi phiên từ xa."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to save {0} credentials."
@@ -6947,6 +7081,7 @@ msgid "Unable to start terminal"
 msgstr "Không thể khởi động terminal"
 
 #: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 msgid "Unable to start the thread."
 msgstr "Không thể khởi động luồng."
 
@@ -6982,6 +7117,10 @@ msgstr "Không thể cập nhật {0}: {detailText}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to update {0}."
 msgstr "Không thể cập nhật {0}."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update remote access."
+msgstr "Không thể cập nhật quyền truy cập từ xa."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to update the thread."
@@ -7046,6 +7185,10 @@ msgstr "Bỏ đánh dấu xong"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unmark Done"
 msgstr "Bỏ đánh dấu xong"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unnamed device"
+msgstr "Thiết bị chưa đặt tên"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Unphased:"

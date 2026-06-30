@@ -166,6 +166,27 @@ export interface PendingSteerState {
  * through the regular thread actions instead of writing to the DB directly.
  */
 export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("start"),
+    threadId: z.string().min(1),
+    projectId: z.string().min(1),
+    agentKind: agentKindSchema,
+    agentInstanceId: agentInstanceIdSchema.optional(),
+    config: threadConfigSchema,
+    prompt: z.string(),
+    segments: z.array(promptSegmentSchema).optional(),
+    presentationMode: threadPresentationModeSchema.optional(),
+    worktreePath: z.string().min(1).optional(),
+    worktreeBranch: z.string().optional(),
+    isNewWorktree: z.boolean().optional(),
+    /**
+     * Desktop-renderer hint. Remote clients send `start` to the HTTP server;
+     * the server creates metadata and launches the supervisor directly, then
+     * forwards the command with this set to false so the renderer mirrors the
+     * row without launching the same session again.
+     */
+    launchRuntime: z.boolean().optional(),
+  }),
   z.object({ kind: z.literal("rename"), threadId: z.string().min(1), title: z.string().min(1) }),
   z.object({ kind: z.literal("set-done"), threadId: z.string().min(1), done: z.boolean() }),
   z.object({

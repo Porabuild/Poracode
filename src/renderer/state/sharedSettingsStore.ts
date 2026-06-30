@@ -674,6 +674,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     terminalPanelFontSize: state.terminalPanelFontSize,
     preventSleepWhileWorking: state.preventSleepWhileWorking,
     closeToTray: state.closeToTray,
+    remoteAccessEnabled: state.remoteAccessEnabled,
     threadRemoveAction: state.threadRemoveAction,
     newThreadMode: state.newThreadMode,
     homeScopeEnabled: state.homeScopeEnabled,

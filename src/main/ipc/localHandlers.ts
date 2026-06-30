@@ -43,7 +43,7 @@ import {
   readSharedSettingsFile,
   writeSharedSettingsFile,
 } from "../sharedSettingsFile";
-import type { RemoteGitSummaries } from "@/shared/remote";
+import type { RemoteAccessPairingInfo, RemoteGitSummaries } from "@/shared/remote";
 import { readKeybindingsFile, writeKeybindingsFile } from "../keybindingsFile";
 import type { RemoteAccessServer } from "../remote";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
@@ -62,6 +62,7 @@ interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
   getBrowserPanelManager(): BrowserPanelManager | null;
   getRemoteAccessServer(): RemoteAccessServer | null;
+  setRemoteAccessEnabled(enabled: boolean): Promise<RemoteAccessPairingInfo>;
   requireLightcodePaths(): LightcodePaths;
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
@@ -80,6 +81,25 @@ function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserP
     throw new Error("Browser panel manager is not initialized.");
   }
   return mgr;
+}
+
+export function getRemoteAccessPairingInfo(
+  server: RemoteAccessServer | null,
+): RemoteAccessPairingInfo {
+  if (!server) {
+    return { status: "disabled" };
+  }
+  const info = server.getInfo();
+  if (!info) {
+    return { status: "starting" };
+  }
+  return {
+    status: "ready",
+    httpBaseUrl: info.httpBaseUrl,
+    wsBaseUrl: info.wsBaseUrl,
+    pairingUrl: server.issuePairingUrl("Settings QR"),
+    sessions: server.listAccessSessions(),
+  };
 }
 
 let usageLoginManager: UsageLoginManager | null = null;
@@ -193,23 +213,8 @@ export function createLocalIpcHandlers(
     getKeybindings: () => readKeybindingsFile(options.requireLightcodePaths().keybindingsPath),
     setKeybindings: (file) =>
       writeKeybindingsFile(options.requireLightcodePaths().keybindingsPath, file),
-    getRemoteAccessPairing: () => {
-      const server = options.getRemoteAccessServer();
-      if (!server) {
-        return { status: "disabled" };
-      }
-      const info = server.getInfo();
-      if (!info) {
-        return { status: "starting" };
-      }
-      return {
-        status: "ready",
-        httpBaseUrl: info.httpBaseUrl,
-        wsBaseUrl: info.wsBaseUrl,
-        pairingUrl: server.issuePairingUrl("Settings QR"),
-        sessions: server.listAccessSessions(),
-      };
-    },
+    getRemoteAccessPairing: () => getRemoteAccessPairingInfo(options.getRemoteAccessServer()),
+    setRemoteAccessEnabled: (payload) => options.setRemoteAccessEnabled(payload.enabled),
     revokeRemoteAccessSession: (payload) => {
       const server = options.getRemoteAccessServer();
       if (!server) {

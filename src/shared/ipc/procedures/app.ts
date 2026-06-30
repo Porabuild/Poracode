@@ -26,6 +26,10 @@ export const revokeRemoteAccessSessionPayloadSchema = z.object({
   sessionId: z.string().min(1),
 });
 
+export const setRemoteAccessEnabledPayloadSchema = z.object({
+  enabled: z.boolean(),
+});
+
 export const appProcedures = {
   pickFolder: defineIpcProcedure<[string?], string | undefined, string | null, "main-local">(
     "pickFolder",
@@ -102,6 +106,11 @@ export const appProcedures = {
     "getRemoteAccessPairing",
     "main-local",
   ),
+  setRemoteAccessEnabled: definePayloadProcedure<
+    z.infer<typeof setRemoteAccessEnabledPayloadSchema>,
+    RemoteAccessPairingInfo,
+    "main-local"
+  >("setRemoteAccessEnabled", "main-local", setRemoteAccessEnabledPayloadSchema),
   revokeRemoteAccessSession: definePayloadProcedure<
     z.infer<typeof revokeRemoteAccessSessionPayloadSchema>,
     { revoked: boolean },

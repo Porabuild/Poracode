@@ -231,6 +231,8 @@ export const sharedSettingsSchema = z.object({
    * menu) still exits the process.
    */
   closeToTray: z.boolean(),
+  /** Enable the desktop's remote access server for paired mobile/browser clients. */
+  remoteAccessEnabled: z.boolean(),
   /** Default action for the thread remove button: archive or delete permanently. */
   threadRemoveAction: threadRemoveActionSchema,
   /** Default new-thread behaviour: full page or side-by-side panel. */
@@ -413,6 +415,7 @@ export const defaultSharedSettings: SharedSettings = {
   terminalPanelFontSize: 12,
   preventSleepWhileWorking: true,
   closeToTray: true,
+  remoteAccessEnabled: false,
   threadRemoveAction: "archive",
   newThreadMode: "page",
   homeScopeEnabled: true,

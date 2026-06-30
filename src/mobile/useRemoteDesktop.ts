@@ -97,10 +97,16 @@ export const CONNECTION_LABELS: Record<ConnectionState, MessageDescriptor> = {
 /** WebSocket reconnect backoff: full-jitter exponential, capped. */
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 20000;
+const REMOTE_THREAD_APPEAR_ATTEMPTS = 10;
+const REMOTE_THREAD_APPEAR_DELAY_MS = 250;
 function reconnectDelay(attempt: number): number {
   const ceiling = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** attempt);
   // Full jitter keeps a fleet of clients from retrying in lockstep.
   return ceiling / 2 + Math.random() * (ceiling / 2);
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function isUnauthorizedRemoteError(error: unknown): error is RemoteClientError {
@@ -470,10 +476,25 @@ export function useRemoteDesktop() {
       if (options.refreshSelectedThread && threadId) {
         await loadThreadSnapshot(threadId, desktop, { preferCache: false });
       }
+      return next;
     } catch (error) {
       setConnection(isUnauthorizedRemoteError(error) ? "unauthorized" : "offline");
       setMessage(error instanceof Error ? error.message : i18n._(msg`Desktop is unreachable.`));
+      return null;
     }
+  }
+
+  async function waitForRemoteThread(desktop: StoredDesktop, threadId: string): Promise<boolean> {
+    for (let attempt = 0; attempt < REMOTE_THREAD_APPEAR_ATTEMPTS; attempt += 1) {
+      await refresh(desktop);
+      if (useAppStore.getState().threads.some((thread) => thread.id === threadId)) {
+        return true;
+      }
+      if (attempt < REMOTE_THREAD_APPEAR_ATTEMPTS - 1) {
+        await delay(REMOTE_THREAD_APPEAR_DELAY_MS);
+      }
+    }
+    return false;
   }
 
   async function openThread(thread: Thread) {
@@ -627,38 +648,21 @@ export function useRemoteDesktop() {
         return null;
       }
     }
-    const projectLocation = worktreePath
-      ? buildWorktreeLocation(project.location, worktreePath)
-      : project.location;
-    const result = await clientFor(desktop).startThread({
-      projectLocation,
+    const result = await clientFor(desktop).startNewThread({
+      projectId: project.id,
       agentKind: input.agentKind,
       config: input.config,
       prompt: input.prompt,
       ...(input.segments ? { segments: input.segments } : {}),
-      initialSize: DEFAULT_TERMINAL_SIZE,
       presentationMode: input.presentationMode ?? "gui",
+      ...(worktreePath ? { worktreePath } : {}),
+      ...(input.worktreeBranch ? { worktreeBranch: input.worktreeBranch } : {}),
+      ...(isNewWorktree ? { isNewWorktree: true } : {}),
     });
-    await refresh(desktop);
-    // The supervisor launches in the worktree but doesn't record worktree
-    // metadata. Tag the new thread (now present after refresh) so it groups
-    // under its worktree, matching desktop; for a new worktree this also tells
-    // the desktop to prime git + run setup. Non-fatal if it fails.
-    if (worktreePath) {
-      try {
-        await clientFor(desktop).sendThreadCommand({
-          kind: "set-worktree",
-          threadId: result.threadId,
-          worktreePath,
-          ...(input.worktreeBranch ? { worktreeBranch: input.worktreeBranch } : {}),
-          ...(isNewWorktree ? { isNewWorktree: true } : {}),
-        });
-        await refresh(desktop);
-      } catch (error) {
-        setMessage(
-          error instanceof Error ? error.message : i18n._(msg`Couldn't tag the thread's worktree.`),
-        );
-      }
+    const appeared = await waitForRemoteThread(desktop, result.threadId);
+    if (!appeared) {
+      setMessage(i18n._(msg`Unable to start the thread.`));
+      return null;
     }
     setSelectedThreadId(result.threadId);
     void loadThreadSnapshot(result.threadId, desktop, { preferCache: false });

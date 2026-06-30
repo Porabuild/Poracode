@@ -301,6 +301,10 @@ msgstr "{label} API 키"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} 자동 새로고침 간격(분)"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "{label} copied."
+msgstr "{label}이(가) 복사되었습니다."
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label} 사용량 — 사용량 패널 열기"
@@ -322,6 +326,10 @@ msgstr "{loginLabel} {env}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{maxLabel} context"
 msgstr "{maxLabel} 컨텍스트"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "{meta} · expires {expiresAt}"
+msgstr "{meta} · {expiresAt}에 만료"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{minutes}m ago"
@@ -1861,6 +1869,7 @@ msgid "Copied to clipboard"
 msgstr "클립보드에 복사됨"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "복사"
 
@@ -1873,6 +1882,10 @@ msgstr "{0} 장치 코드 {1} 복사"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
 msgstr "현재 URL 복사"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy desktop endpoint"
+msgstr "데스크톱 엔드포인트 복사"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useGitReviewActions.ts
 msgid "Copy details"
@@ -1898,6 +1911,14 @@ msgstr "이미지 복사"
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "메시지 복사"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy pairing link"
+msgstr "페어링 링크 복사"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy pairing token"
+msgstr "페어링 토큰 복사"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
@@ -1970,8 +1991,8 @@ msgid "Couldn't start the camera"
 msgstr "카메라를 시작할 수 없습니다"
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Couldn't tag the thread's worktree."
-msgstr "스레드의 worktree에 태그를 지정할 수 없습니다."
+#~ msgid "Couldn't tag the thread's worktree."
+#~ msgstr "스레드의 worktree에 태그를 지정할 수 없습니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -2206,6 +2227,10 @@ msgstr "설명(선택사항)"
 msgid "Desktop"
 msgstr "데스크톱"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Desktop endpoint"
+msgstr "데스크톱 엔드포인트"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Desktop is unreachable."
 msgstr "데스크톱에 연결할 수 없습니다."
@@ -2250,6 +2275,10 @@ msgstr "개발 전용 재정의. LIGHTCODE DEV 빌드에서만 볼 수 있습니
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "컴포저 음성 입력 버튼에 사용되는 장치입니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Devices can pair while this desktop is reachable."
+msgstr "이 데스크톱에 연결할 수 있는 동안 기기를 페어링할 수 있습니다."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Disable"
@@ -3393,6 +3422,10 @@ msgstr "PR 로드 중…"
 msgid "Loading registry..."
 msgstr "레지스트리 로드 중..."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Loading remote access…"
+msgstr "원격 액세스 로드 중…"
+
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
 msgstr "스레드 로드 중"
@@ -3853,6 +3886,10 @@ msgstr "새로운 Claude 프로필 구성 디렉터리"
 msgid "New Claude profile name"
 msgstr "새로운 Claude 프로필 이름"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "New code"
+msgstr "새 코드"
+
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
 msgstr "새 파일"
@@ -3899,6 +3936,7 @@ msgstr "새 탭"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -4131,6 +4169,10 @@ msgstr "모델을 찾을 수 없습니다."
 msgid "No other agents installed"
 msgstr "다른 에이전트가 설치되어 있지 않습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "No paired devices yet."
+msgstr "아직 페어링된 기기가 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "No patterns."
 msgstr "패턴이 없습니다."
@@ -4286,6 +4328,11 @@ msgstr "나에게 알림"
 msgid "off"
 msgstr "꺼짐"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Off"
+msgstr "꺼짐"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Offline"
 msgstr "오프라인"
@@ -4302,6 +4349,11 @@ msgstr "이전"
 msgid "on"
 msgstr "켜짐"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Online"
+msgstr "온라인"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
 msgstr "포커스가 없을 때만"
@@ -4309,6 +4361,7 @@ msgstr "포커스가 없을 때만"
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "열기"
 
@@ -4571,10 +4624,18 @@ msgstr "페어링"
 msgid "Pair a desktop"
 msgstr "데스크톱 페어링"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pair a phone, tablet, or browser with this desktop."
+msgstr "휴대폰, 태블릿 또는 브라우저를 이 데스크톱과 페어링합니다."
+
 #: src/mobile/components.tsx
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pair again"
 msgstr "다시 페어링"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Paired devices"
+msgstr "페어링된 기기"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pairing"
@@ -4584,11 +4645,16 @@ msgstr "페어링 중"
 msgid "Pairing expired — pair again to reconnect."
 msgstr "페어링이 만료되었습니다. 다시 연결하려면 다시 페어링하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pairing link"
+msgstr "페어링 링크"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Pairing link detected."
 msgstr "페어링 링크가 감지되었습니다."
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing token"
 msgstr "페어링 토큰"
 
@@ -5079,13 +5145,43 @@ msgstr "브라우저 페이지 새로고침"
 msgid "Remote"
 msgstr "원격"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote Access"
 msgstr "원격 액세스"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is disabled for this desktop."
+#~ msgstr "이 데스크톱에서는 원격 액세스가 비활성화되어 있습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is off"
+#~ msgstr "원격 액세스가 꺼져 있음"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is on"
+#~ msgstr "원격 액세스가 켜져 있음"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is starting"
+#~ msgstr "원격 액세스 시작 중"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote access pairing QR code"
+msgstr "원격 액세스 페어링 QR 코드"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
 msgstr "원격 이름"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote session"
+msgstr "원격 세션"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote session revoked."
+msgstr "원격 세션이 해지되었습니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
@@ -5423,6 +5519,10 @@ msgstr "{0}에 대한 PR #{prNumber} 검토"
 #: src/mobile/views/SettingsView.tsx
 msgid "Review presentation"
 msgstr "리뷰 표시"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Revoke {name}"
+msgstr "{name} 해지"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right"
@@ -6078,7 +6178,9 @@ msgstr "{targetLabel} 스레드를 시작했습니다."
 
 #. Button label while the microphone test is starting
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
 msgstr "시작 중"
 
@@ -6416,6 +6518,10 @@ msgstr "이 엔드포인트는 데스크톱 API 대신 모바일 앱을 열었�
 msgid "That QR code isn't a Lightcode pairing link."
 msgstr "이 QR 코드는 Lightcode 페어링 링크가 아닙니다."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "That remote session was already gone."
+msgstr "해당 원격 세션은 이미 없어졌습니다."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "에이전트"
@@ -6439,6 +6545,10 @@ msgid "The default background refresh cadence, used for any provider without "
 "2-minute floor respects provider rate limits."
 msgstr "아래에서 자체 간격이 설정되지 않은 모든 공급자에 사용되는 기본 백그라운드 새로고침 주기입니다. 0이면 끄기(수동 전용)입니다. "
 "최소 2분 제한은 공급자의 속도 제한을 준수합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "The desktop server is still coming online."
+msgstr "데스크톱 서버가 아직 시작 중입니다."
 
 #: src/mobile/views/MoreView.tsx
 msgid "The desktop's built-in browser"
@@ -6743,6 +6853,10 @@ msgstr "반투명 사이드바"
 msgid "Try a different search or project filter."
 msgstr "다른 검색어 또는 프로젝트 필터를 사용해 보세요."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Turn on remote access to show a pairing code."
+msgstr "페어링 코드를 표시하려면 원격 액세스를 켜세요."
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
 "the auto-refresh."
@@ -6767,6 +6881,18 @@ msgstr "페이지에 입력(먼저 필드를 탭하세요)"
 msgid "Unable to authenticate {0}."
 msgstr "{0}을(를) 인증할 수 없습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy desktop endpoint."
+msgstr "데스크톱 엔드포인트를 복사할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy pairing link."
+msgstr "페어링 링크를 복사할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy pairing token."
+msgstr "페어링 토큰을 복사할 수 없습니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "WSL 작업 트리 디렉터리 \"{path}\"을(를) 생성할 수 없습니다."
@@ -6784,6 +6910,10 @@ msgstr "{0} 후크를 설치할 수 없습니다."
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to install {0}."
 msgstr "{0}을(를) 설치할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to load remote access pairing."
+msgstr "원격 액세스 페어링을 로드할 수 없습니다."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to load thread."
@@ -6841,6 +6971,10 @@ msgstr "작업 트리를 제거할 수 없습니다."
 msgid "Unable to resolve home directory for WSL distro \"{distro}\""
 msgstr "WSL 배포판 \"{distro}\"의 홈 디렉터리를 확인할 수 없습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to revoke remote session."
+msgstr "원격 세션을 해지할 수 없습니다."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to save {0} credentials."
@@ -6863,6 +6997,7 @@ msgid "Unable to start terminal"
 msgstr "터미널을 시작할 수 없습니다"
 
 #: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 msgid "Unable to start the thread."
 msgstr "스레드를 시작할 수 없습니다."
 
@@ -6898,6 +7033,10 @@ msgstr "{0}을(를) 업데이트할 수 없습니다: {detailText}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to update {0}."
 msgstr "{0}을(를) 업데이트할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update remote access."
+msgstr "원격 액세스를 업데이트할 수 없습니다."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to update the thread."
@@ -6962,6 +7101,10 @@ msgstr "완료 표시 해제"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unmark Done"
 msgstr "완료 표시 해제"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unnamed device"
+msgstr "이름 없는 기기"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Unphased:"

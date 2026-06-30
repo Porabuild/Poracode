@@ -16,7 +16,7 @@ import { EmptyState } from "../components";
  */
 export function NewThreadView(props: {
   readonly project: Project | null;
-  readonly onStart: (project: Project, input: DraftStartInput) => void;
+  readonly onStart: (project: Project, input: DraftStartInput) => void | Promise<void>;
 }) {
   const project = props.project;
   const agentStatuses = useProjectAgentStatuses(project?.location);

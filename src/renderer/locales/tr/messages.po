@@ -304,6 +304,10 @@ msgstr "{label} API anahtarı"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} otomatik yenileme aralığı (dakika)"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "{label} copied."
+msgstr "{label} kopyalandı."
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label} kullanımı — kullanım panelini aç"
@@ -325,6 +329,10 @@ msgstr "{loginLabel} {env}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{maxLabel} context"
 msgstr "{maxLabel} bağlam"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "{meta} · expires {expiresAt}"
+msgstr "{meta} · {expiresAt} tarihinde sona erer"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{minutes}m ago"
@@ -1881,6 +1889,7 @@ msgid "Copied to clipboard"
 msgstr "Panoya kopyalandı"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "Kopyala"
 
@@ -1893,6 +1902,10 @@ msgstr "{0} cihaz kodunu kopyala {1}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
 msgstr "Mevcut URL'yi Kopyala"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy desktop endpoint"
+msgstr "Masaüstü uç noktasını kopyala"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useGitReviewActions.ts
 msgid "Copy details"
@@ -1918,6 +1931,14 @@ msgstr "Görseli kopyala"
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "Mesajı kopyala"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy pairing link"
+msgstr "Eşleştirme bağlantısını kopyala"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy pairing token"
+msgstr "Eşleştirme token'ını kopyala"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
@@ -1992,8 +2013,8 @@ msgid "Couldn't start the camera"
 msgstr "Kamera başlatılamadı"
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Couldn't tag the thread's worktree."
-msgstr "İş parçacığının worktree'si etiketlenemedi."
+#~ msgid "Couldn't tag the thread's worktree."
+#~ msgstr "İş parçacığının worktree'si etiketlenemedi."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -2229,6 +2250,10 @@ msgstr "Açıklama (isteğe bağlı)"
 msgid "Desktop"
 msgstr "Masaüstü"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Desktop endpoint"
+msgstr "Masaüstü uç noktası"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Desktop is unreachable."
 msgstr "Masaüstüne ulaşılamıyor."
@@ -2274,6 +2299,10 @@ msgstr "Yalnızca geliştirme amaçlı geçersiz kılmalar. Yalnızca LIGHTCODE 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Oluşturucu ses giriş düğmesi tarafından kullanılan cihaz."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Devices can pair while this desktop is reachable."
+msgstr "Cihazlar bu masaüstüne erişilebildiği sürece eşleşebilir."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Disable"
@@ -3445,6 +3474,10 @@ msgstr "PR yükleniyor…"
 msgid "Loading registry..."
 msgstr "Kayıt defteri yükleniyor..."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Loading remote access…"
+msgstr "Uzaktan erişim yükleniyor…"
+
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
 msgstr "İş parçacığı yükleniyor"
@@ -3907,6 +3940,10 @@ msgstr "Yeni Claude profili yapılandırma dizini"
 msgid "New Claude profile name"
 msgstr "Yeni Claude profil adı"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "New code"
+msgstr "Yeni kod"
+
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
 msgstr "Yeni dosya"
@@ -3953,6 +3990,7 @@ msgstr "Yeni sekme"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -4185,6 +4223,10 @@ msgstr "Hiçbir model bulunamadı"
 msgid "No other agents installed"
 msgstr "Başka aracı yüklü değil"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "No paired devices yet."
+msgstr "Henüz eşleştirilmiş cihaz yok."
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "No patterns."
 msgstr "Desen yok."
@@ -4341,6 +4383,11 @@ msgstr "Beni bilgilendir"
 msgid "off"
 msgstr "kapalı"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Off"
+msgstr "Kapalı"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Offline"
 msgstr "Çevrimdışı"
@@ -4357,6 +4404,11 @@ msgstr "Daha eski"
 msgid "on"
 msgstr "açık"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Online"
+msgstr "Çevrimiçi"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
 msgstr "Yalnızca odaklanmadığında"
@@ -4364,6 +4416,7 @@ msgstr "Yalnızca odaklanmadığında"
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "Açık"
 
@@ -4630,10 +4683,18 @@ msgstr "Eşleştir"
 msgid "Pair a desktop"
 msgstr "Bir masaüstü eşleştir"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pair a phone, tablet, or browser with this desktop."
+msgstr "Bir telefonu, tableti veya tarayıcıyı bu masaüstüyle eşleştirin."
+
 #: src/mobile/components.tsx
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pair again"
 msgstr "Tekrar eşleştir"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Paired devices"
+msgstr "Eşleştirilmiş cihazlar"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pairing"
@@ -4643,11 +4704,16 @@ msgstr "Eşleştiriliyor"
 msgid "Pairing expired — pair again to reconnect."
 msgstr "Eşleştirme süresi doldu — yeniden bağlanmak için tekrar eşleştirin."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pairing link"
+msgstr "Eşleştirme bağlantısı"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Pairing link detected."
 msgstr "Eşleştirme bağlantısı algılandı."
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing token"
 msgstr "Eşleştirme token'ı"
 
@@ -5143,13 +5209,43 @@ msgstr "Tarayıcı sayfasını yeniden yükle"
 msgid "Remote"
 msgstr "Uzak"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote Access"
 msgstr "Uzaktan Erişim"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is disabled for this desktop."
+#~ msgstr "Uzaktan erişim bu masaüstü için devre dışı."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is off"
+#~ msgstr "Uzaktan erişim kapalı"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is on"
+#~ msgstr "Uzaktan erişim açık"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is starting"
+#~ msgstr "Uzaktan erişim başlatılıyor"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote access pairing QR code"
+msgstr "Uzaktan erişim eşleştirme QR kodu"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
 msgstr "Uzak ad"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote session"
+msgstr "Uzak oturum"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote session revoked."
+msgstr "Uzak oturum iptal edildi."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
@@ -5488,6 +5584,10 @@ msgstr "{0} için PR #{prNumber}'ı inceleyin"
 #: src/mobile/views/SettingsView.tsx
 msgid "Review presentation"
 msgstr "İnceleme görünümü"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Revoke {name}"
+msgstr "{name} oturumunu iptal et"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right"
@@ -6158,7 +6258,9 @@ msgstr "{targetLabel} iş parçacığı başlatıldı"
 
 #. Button label while the microphone test is starting
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
 msgstr "Başlatılıyor"
 
@@ -6499,6 +6601,10 @@ msgstr "Bu uç nokta masaüstü API'si yerine mobil uygulamayı açtı. Ayarlar 
 msgid "That QR code isn't a Lightcode pairing link."
 msgstr "Bu QR kodu bir Lightcode eşleştirme bağlantısı değil."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "That remote session was already gone."
+msgstr "Bu uzak oturum zaten yoktu."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "aracı"
@@ -6524,6 +6630,10 @@ msgstr "Aşağıda kendi aralığı ayarlanmamış sağlayıcılar için kullan�
 "varsayılan arka plan yenileme aralığı. Kapatmak için 0'a ayarlayın "
 "(yalnızca manuel). 2 dakikalık alt sınır, sağlayıcının hız sınırlarına "
 "uyar."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "The desktop server is still coming online."
+msgstr "Masaüstü sunucusu hâlâ başlatılıyor."
 
 #: src/mobile/views/MoreView.tsx
 msgid "The desktop's built-in browser"
@@ -6838,6 +6948,10 @@ msgstr "Yarı saydam kenar çubuğu"
 msgid "Try a different search or project filter."
 msgstr "Farklı bir arama veya proje filtresi deneyin."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Turn on remote access to show a pairing code."
+msgstr "Eşleştirme kodunu göstermek için uzaktan erişimi açın."
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
 "the auto-refresh."
@@ -6863,6 +6977,18 @@ msgstr "Sayfaya yazın (önce bir alana dokunun)"
 msgid "Unable to authenticate {0}."
 msgstr "{0} kimlik doğrulaması yapılamıyor."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy desktop endpoint."
+msgstr "Masaüstü uç noktası kopyalanamadı."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy pairing link."
+msgstr "Eşleştirme bağlantısı kopyalanamadı."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy pairing token."
+msgstr "Eşleştirme token'ı kopyalanamadı."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "\"{path}\" WSL çalışma ağacı dizini oluşturulamıyor"
@@ -6880,6 +7006,10 @@ msgstr "{0} kancaları yüklenemiyor."
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to install {0}."
 msgstr "{0} yüklenemiyor."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to load remote access pairing."
+msgstr "Uzaktan erişim eşleştirmesi yüklenemedi."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to load thread."
@@ -6937,6 +7067,10 @@ msgstr "Çalışma ağacı kaldırılamıyor."
 msgid "Unable to resolve home directory for WSL distro \"{distro}\""
 msgstr "\"{distro}\" WSL dağıtımı için giriş dizini çözümlenemiyor"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to revoke remote session."
+msgstr "Uzak oturum iptal edilemedi."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to save {0} credentials."
@@ -6959,6 +7093,7 @@ msgid "Unable to start terminal"
 msgstr "Terminal başlatılamadı"
 
 #: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 msgid "Unable to start the thread."
 msgstr "İş parçacığı başlatılamıyor."
 
@@ -6994,6 +7129,10 @@ msgstr "{0} güncellenemiyor: {detailText}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to update {0}."
 msgstr "{0} güncellenemiyor."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update remote access."
+msgstr "Uzaktan erişim güncellenemedi."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to update the thread."
@@ -7058,6 +7197,10 @@ msgstr "Tamamlandı işaretini kaldır"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unmark Done"
 msgstr "Bitti işaretini kaldır"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unnamed device"
+msgstr "Adsız cihaz"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Unphased:"

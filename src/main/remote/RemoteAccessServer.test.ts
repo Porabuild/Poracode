@@ -1,9 +1,11 @@
 import { WebSocket } from "ws";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Project, Thread } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { pickRemoteSettings, type RemoteSettings } from "@/shared/remote";
 import { defaultSharedSettings } from "@/shared/settings";
 import type { BrowserPanelManager } from "../browser";
+import { dbDeleteThread, dbGetProjects, dbGetThreads, dbUpsertThread } from "../db";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -12,11 +14,13 @@ import {
 import { RemoteBrowserGateway } from "./RemoteBrowserGateway";
 
 vi.mock("../db", () => ({
+  dbDeleteThread: vi.fn<(threadId: string) => void>(),
   dbGetProjects: vi.fn<() => unknown[]>(() => []),
   dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
   dbGetThreadContextUsage: vi.fn<() => null>(() => null),
   dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
   dbGetThreads: vi.fn<() => unknown[]>(() => []),
+  dbUpsertThread: vi.fn<(thread: unknown, sortOrder: number) => void>(),
 }));
 
 const servers: RemoteAccessServer[] = [];
@@ -25,7 +29,58 @@ afterEach(() => {
   for (const server of servers.splice(0)) {
     server.dispose();
   }
+  vi.mocked(dbDeleteThread).mockReset();
+  vi.mocked(dbGetProjects).mockReset().mockReturnValue([]);
+  vi.mocked(dbGetThreads).mockReset().mockReturnValue([]);
+  vi.mocked(dbUpsertThread).mockReset();
 });
+
+function createTestProject(overrides: Partial<Project> = {}): Project {
+  return {
+    id: "project-1",
+    name: "Repo",
+    location: { kind: "posix", path: "/repo" },
+    createdAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function createTestThread(overrides: Partial<Thread> = {}): Thread {
+  return {
+    id: "thread-1",
+    projectId: "project-1",
+    title: "Thread",
+    agentKind: "codex",
+    config: { model: "gpt-5" },
+    status: "idle",
+    attention: "none",
+    canResumeWithConfig: false,
+    archived: false,
+    done: false,
+    starred: false,
+    presentationMode: "terminal",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function mockThreadDb(initialThreads: Thread[] = []): { readonly threads: () => Thread[] } {
+  let threads = [...initialThreads];
+  vi.mocked(dbGetThreads).mockImplementation(() => threads);
+  vi.mocked(dbUpsertThread).mockImplementation((thread) => {
+    const parsed = thread as Thread;
+    const index = threads.findIndex((entry) => entry.id === parsed.id);
+    threads =
+      index === -1
+        ? [parsed, ...threads]
+        : threads.map((entry) => (entry.id === parsed.id ? parsed : entry));
+  });
+  vi.mocked(dbDeleteThread).mockImplementation((threadId) => {
+    threads = threads.filter((thread) => thread.id !== threadId);
+  });
+  return { threads: () => threads };
+}
 
 async function readWsMessage(ws: WebSocket): Promise<unknown> {
   return await new Promise((resolve, reject) => {
@@ -676,15 +731,89 @@ describe("RemoteAccessServer", () => {
     expect(server.revokeAccessSession(session!.id)).toBe(false);
   });
 
-  it("forwards thread commands to the renderer dispatcher", async () => {
+  it("starts remote threads durably before notifying the renderer", async () => {
+    const project = createTestProject();
+    vi.mocked(dbGetProjects).mockReturnValue([project]);
+    const db = mockThreadDb();
     const dispatched: unknown[] = [];
-    let rendererAvailable = true;
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => ({ threadId: "thread-remote" }) as never,
+    );
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
       port: 0,
-      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      callSupervisor,
+      dispatchThreadCommand: (command) => {
+        dispatched.push(command);
+        return true;
+      },
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
+
+    const response = await fetch(new URL("/api/threads/thread-remote/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        kind: "start",
+        projectId: "project-1",
+        agentKind: "codex",
+        config: { model: "gpt-5" },
+        prompt: "",
+        presentationMode: "terminal",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(db.threads()).toHaveLength(1);
+    expect(db.threads()[0]).toMatchObject({
+      id: "thread-remote",
+      projectId: "project-1",
+      title: "New thread",
+      status: "launching",
+      presentationMode: "terminal",
+    });
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "startThread",
+      expect.objectContaining({
+        threadId: "thread-remote",
+        projectLocation: project.location,
+        agentKind: "codex",
+        config: { model: "gpt-5" },
+        prompt: "",
+        initialSize: { cols: 120, rows: 30 },
+        presentationMode: "terminal",
+      }),
+    );
+    expect(dispatched).toEqual([
+      expect.objectContaining({
+        kind: "start",
+        threadId: "thread-remote",
+        projectId: "project-1",
+        launchRuntime: false,
+      }),
+    ]);
+  });
+
+  it("persists simple thread commands and mirrors them to the renderer", async () => {
+    const db = mockThreadDb([createTestThread()]);
+    const dispatched: unknown[] = [];
+    let rendererAvailable = true;
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => undefined as never,
+    );
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
       dispatchThreadCommand: (command) => {
         if (!rendererAvailable) return false;
         dispatched.push(command);
@@ -720,6 +849,7 @@ describe("RemoteAccessServer", () => {
     });
     expect(renameResponse.status).toBe(200);
     expect(dispatched).toEqual([{ kind: "rename", threadId: "thread-1", title: "New title" }]);
+    expect(db.threads()[0]?.title).toBe("New title");
 
     const doneResponse = await fetch(new URL("/api/threads/thread-1/command", info.httpBaseUrl), {
       method: "POST",
@@ -728,6 +858,18 @@ describe("RemoteAccessServer", () => {
     });
     expect(doneResponse.status).toBe(200);
     expect(dispatched[1]).toEqual({ kind: "set-done", threadId: "thread-1", done: true });
+    expect(db.threads()[0]).toMatchObject({ done: true, starred: false });
+    expect(callSupervisor).toHaveBeenCalledWith("closeThread", { threadId: "thread-1" });
+
+    rendererAvailable = false;
+    const archiveResponse = await fetch(
+      new URL("/api/threads/thread-1/command", info.httpBaseUrl),
+      { method: "POST", headers, body: JSON.stringify({ kind: "archive" }) },
+    );
+    expect(archiveResponse.status).toBe(200);
+    expect(db.threads()[0]?.archived).toBe(true);
+
+    rendererAvailable = true;
 
     const deleteWorktreeResponse = await fetch(
       new URL("/api/threads/thread-1/command", info.httpBaseUrl),
@@ -754,7 +896,16 @@ describe("RemoteAccessServer", () => {
     rendererAvailable = false;
     const unavailableResponse = await fetch(
       new URL("/api/threads/thread-1/command", info.httpBaseUrl),
-      { method: "POST", headers, body: JSON.stringify({ kind: "archive" }) },
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          kind: "delete-worktree-group",
+          projectId: "project-1",
+          worktreePath: "/repo/wt",
+          threadIds: ["thread-1"],
+        }),
+      },
     );
     expect(unavailableResponse.status).toBe(503);
     await expect(unavailableResponse.json()).resolves.toMatchObject({

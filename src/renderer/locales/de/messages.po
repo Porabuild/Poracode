@@ -303,6 +303,10 @@ msgstr "{label} API-Schlüssel"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "Automatisches Aktualisierungsintervall für {label} in Minuten"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "{label} copied."
+msgstr "{label} wurde kopiert."
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
 msgstr "{label}-Nutzung – Nutzungsbereich öffnen"
@@ -324,6 +328,10 @@ msgstr "{loginLabel}{env}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{maxLabel} context"
 msgstr "{maxLabel} Kontext"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "{meta} · expires {expiresAt}"
+msgstr "{meta} · läuft ab am {expiresAt}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{minutes}m ago"
@@ -1889,6 +1897,7 @@ msgid "Copied to clipboard"
 msgstr "In die Zwischenablage kopiert"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Copy"
 msgstr "Kopieren"
 
@@ -1901,6 +1910,10 @@ msgstr "{0} Gerätecode {1} kopieren"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
 msgstr "Aktuelle URL kopieren"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy desktop endpoint"
+msgstr "Desktop-Endpunkt kopieren"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useGitReviewActions.ts
 msgid "Copy details"
@@ -1926,6 +1939,14 @@ msgstr "Bild kopieren"
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "Nachricht kopieren"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy pairing link"
+msgstr "Kopplungslink kopieren"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy pairing token"
+msgstr "Kopplungstoken kopieren"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
@@ -2000,8 +2021,8 @@ msgid "Couldn't start the camera"
 msgstr "Kamera konnte nicht gestartet werden"
 
 #: src/mobile/useRemoteDesktop.ts
-msgid "Couldn't tag the thread's worktree."
-msgstr "Der Worktree des Threads konnte nicht markiert werden."
+#~ msgid "Couldn't tag the thread's worktree."
+#~ msgstr "Der Worktree des Threads konnte nicht markiert werden."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -2238,6 +2259,10 @@ msgstr "Beschreibung (optional)"
 msgid "Desktop"
 msgstr "Desktop"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Desktop endpoint"
+msgstr "Desktop-Endpunkt"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Desktop is unreachable."
 msgstr "Desktop ist nicht erreichbar."
@@ -2283,6 +2308,10 @@ msgstr "Überschreibungen nur für die Entwicklung. Nur im LIGHTCODE DEV-Build "
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Device used by the composer voice input button."
 msgstr "Von der Composer-Spracheingabetaste verwendetes Gerät."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Devices can pair while this desktop is reachable."
+msgstr "Geräte können gekoppelt werden, solange dieser Desktop erreichbar ist."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Disable"
@@ -3459,6 +3488,10 @@ msgstr "PR wird geladen…"
 msgid "Loading registry..."
 msgstr "Registry wird geladen..."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Loading remote access…"
+msgstr "Remotezugriff wird geladen…"
+
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
 msgstr "Thread wird geladen"
@@ -3922,6 +3955,10 @@ msgstr "Neues Claude-Profilkonfigurationsverzeichnis"
 msgid "New Claude profile name"
 msgstr "Neuer Claude-Profilname"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "New code"
+msgstr "Neuer Code"
+
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
 msgstr "Neue Datei"
@@ -3968,6 +4005,7 @@ msgstr "Neuer Tab"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -4201,6 +4239,10 @@ msgstr "Keine Modelle gefunden"
 msgid "No other agents installed"
 msgstr "Keine anderen Agenten installiert"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "No paired devices yet."
+msgstr "Noch keine gekoppelten Geräte."
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "No patterns."
 msgstr "Keine Muster."
@@ -4357,6 +4399,11 @@ msgstr "Benachrichtigen über"
 msgid "off"
 msgstr "aus"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Off"
+msgstr "Aus"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Offline"
 msgstr "Offline"
@@ -4373,6 +4420,11 @@ msgstr "Älter"
 msgid "on"
 msgstr "auf"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Online"
+msgstr "Online"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
 msgstr "Nur wenn nicht fokussiert"
@@ -4380,6 +4432,7 @@ msgstr "Nur wenn nicht fokussiert"
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "Offen"
 
@@ -4647,10 +4700,18 @@ msgstr "Koppeln"
 msgid "Pair a desktop"
 msgstr "Desktop koppeln"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pair a phone, tablet, or browser with this desktop."
+msgstr "Kopple ein Smartphone, Tablet oder einen Browser mit diesem Desktop."
+
 #: src/mobile/components.tsx
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pair again"
 msgstr "Erneut koppeln"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Paired devices"
+msgstr "Gekoppelte Geräte"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pairing"
@@ -4660,11 +4721,16 @@ msgstr "Koppeln"
 msgid "Pairing expired — pair again to reconnect."
 msgstr "Kopplung abgelaufen - erneut koppeln, um wieder zu verbinden."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pairing link"
+msgstr "Kopplungslink"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Pairing link detected."
 msgstr "Kopplungslink erkannt."
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing token"
 msgstr "Kopplungstoken"
 
@@ -5164,13 +5230,43 @@ msgstr "Browserseite neu laden"
 msgid "Remote"
 msgstr "Remote"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote Access"
 msgstr "Remotezugriff"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is disabled for this desktop."
+#~ msgstr "Remotezugriff ist für diesen Desktop deaktiviert."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is off"
+#~ msgstr "Remotezugriff ist deaktiviert"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is on"
+#~ msgstr "Remotezugriff ist aktiviert"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Remote access is starting"
+#~ msgstr "Remotezugriff wird gestartet"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote access pairing QR code"
+msgstr "QR-Code für die Remotezugriff-Kopplung"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
 msgstr "Remote-Name"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote session"
+msgstr "Remote-Sitzung"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote session revoked."
+msgstr "Remote-Sitzung widerrufen."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
@@ -5510,6 +5606,10 @@ msgstr "PR #{prNumber} für {0} überprüfen"
 #: src/mobile/views/SettingsView.tsx
 msgid "Review presentation"
 msgstr "Review-Darstellung"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Revoke {name}"
+msgstr "{name} widerrufen"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right"
@@ -6184,7 +6284,9 @@ msgstr "Thread {targetLabel} gestartet"
 
 #. Button label while the microphone test is starting
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Starting"
 msgstr "Wird gestartet"
 
@@ -6528,6 +6630,10 @@ msgstr "Dieser Endpunkt hat die mobile App statt der Desktop-API geöffnet. "
 msgid "That QR code isn't a Lightcode pairing link."
 msgstr "Dieser QR-Code ist kein Lightcode-Kopplungslink."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "That remote session was already gone."
+msgstr "Diese Remote-Sitzung war bereits nicht mehr vorhanden."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "der Agent"
@@ -6553,6 +6659,10 @@ msgstr "Der Standard-Aktualisierungstakt im Hintergrund, der für jeden Anbieter
 "ohne eigenes unten festgelegtes Intervall verwendet wird. Auf 0 setzen, "
 "um ihn zu deaktivieren (nur manuell). Die Untergrenze von 2 Minuten "
 "berücksichtigt die Ratenbegrenzungen der Anbieter."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "The desktop server is still coming online."
+msgstr "Der Desktop-Server wird noch gestartet."
 
 #: src/mobile/views/MoreView.tsx
 msgid "The desktop's built-in browser"
@@ -6871,6 +6981,10 @@ msgstr "Durchscheinende Seitenleiste"
 msgid "Try a different search or project filter."
 msgstr "Versuche eine andere Suche oder einen anderen Projektfilter."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Turn on remote access to show a pairing code."
+msgstr "Remotezugriff aktivieren, um einen Kopplungscode anzuzeigen."
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
 "the auto-refresh."
@@ -6896,6 +7010,18 @@ msgstr "In die Seite tippen (zuerst ein Feld antippen)"
 msgid "Unable to authenticate {0}."
 msgstr "{0} konnte nicht authentifiziert werden."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy desktop endpoint."
+msgstr "Desktop-Endpunkt konnte nicht kopiert werden."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy pairing link."
+msgstr "Kopplungslink konnte nicht kopiert werden."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy pairing token."
+msgstr "Kopplungstoken kann nicht kopiert werden."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "Das WSL-Worktree-Verzeichnis „{path}“ kann nicht erstellt werden."
@@ -6913,6 +7039,10 @@ msgstr "{0}-Hooks können nicht installiert werden."
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to install {0}."
 msgstr "{0} konnte nicht installiert werden."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to load remote access pairing."
+msgstr "Remotezugriff-Kopplung konnte nicht geladen werden."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to load thread."
@@ -6971,6 +7101,10 @@ msgid "Unable to resolve home directory for WSL distro \"{distro}\""
 msgstr "Das Home-Verzeichnis für die WSL-Distribution „{distro}“ kann nicht "
 "aufgelöst werden."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to revoke remote session."
+msgstr "Remote-Sitzung konnte nicht widerrufen werden."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to save {0} credentials."
@@ -6993,6 +7127,7 @@ msgid "Unable to start terminal"
 msgstr "Terminal konnte nicht gestartet werden"
 
 #: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 msgid "Unable to start the thread."
 msgstr "Thread konnte nicht gestartet werden."
 
@@ -7028,6 +7163,10 @@ msgstr "{0} kann nicht aktualisiert werden: {detailText}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Unable to update {0}."
 msgstr "{0} kann nicht aktualisiert werden."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update remote access."
+msgstr "Remotezugriff kann nicht aktualisiert werden."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to update the thread."
@@ -7092,6 +7231,10 @@ msgstr "Markierung „Fertig“ aufheben"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Unmark Done"
 msgstr "Markierung „Fertig“ aufheben"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unnamed device"
+msgstr "Unbenanntes Gerät"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Unphased:"

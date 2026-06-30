@@ -45,6 +45,7 @@ export interface ThreadSlice {
   lastViewedAtByThreadId: Record<string, number>;
   markThreadsInactiveOnLaunch: () => void;
   createThread: (input: {
+    threadId?: string;
     projectId: string;
     agentKind: Thread["agentKind"];
     agentInstanceId?: AgentInstanceId;
@@ -226,6 +227,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       return changed ? { threads } : {};
     }),
   createThread: ({
+    threadId,
     projectId,
     agentKind,
     agentInstanceId,
@@ -240,7 +242,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   }) => {
     const now = new Date().toISOString();
     const thread: Thread = {
-      id: crypto.randomUUID(),
+      id: threadId ?? crypto.randomUUID(),
       projectId,
       title: makeThreadTitle(prompt),
       agentKind,
