@@ -155,6 +155,23 @@ describe("claudeCapabilities", () => {
   it("lists Opus 4.8 first so it is the default for new threads while Fable 5 is disabled", () => {
     expect(claudeCapabilities.models[0]).toEqual({ id: "claude-opus-4-8", label: "Opus 4.8" });
   });
+
+  it("surfaces Sonnet 5 with frontier effort tiers", () => {
+    expect(claudeCapabilities.models).toContainEqual({
+      id: "claude-sonnet-5",
+      label: "Sonnet 5",
+    });
+    expect(claudeCapabilities.modelEfforts["claude-sonnet-5"]).toEqual([
+      "low",
+      "medium",
+      "high",
+      "xHigh",
+      "max",
+      "ultracode",
+    ]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-sonnet-5"]).toEqual(["1m"]);
+    expect(claudeCapabilities.modelContextSizes?.sonnet).toEqual(["200k", "1m"]);
+  });
 });
 
 describe("createClaudeAdapter buildAcpLogoutCommand", () => {
@@ -260,12 +277,14 @@ describe("createClaudeProfileAdapter", () => {
       displayName: "GLM",
       config: {
         configDir: "~/.lightcode/claude-profiles/glm",
-        models: [{ id: "sonnet", label: "Sonnet (custom)" }],
+        models: [{ id: "claude-sonnet-5", label: "Sonnet (custom)" }],
       },
     });
 
-    const sonnetEntries = adapter.capabilities.models.filter((model) => model.id === "sonnet");
-    expect(sonnetEntries).toEqual([{ id: "sonnet", label: "Sonnet" }]);
+    const sonnetEntries = adapter.capabilities.models.filter(
+      (model) => model.id === "claude-sonnet-5",
+    );
+    expect(sonnetEntries).toEqual([{ id: "claude-sonnet-5", label: "Sonnet 5" }]);
   });
 
   it("does not duplicate repeated configured model ids", () => {

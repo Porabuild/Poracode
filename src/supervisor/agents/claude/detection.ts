@@ -31,6 +31,7 @@ const PREMIUM_EFFORT_TIERS: string[] = [...CLAUDE_EFFORT_TIERS];
  * (the leftover keyed entries are inert without a matching `models` row).
  */
 const FABLE_5_ENABLED = false;
+const SONNET_5_MODEL_ID = "claude-sonnet-5";
 
 export const claudeCapabilities: AgentCapability = {
   models: [
@@ -38,7 +39,7 @@ export const claudeCapabilities: AgentCapability = {
     { id: "claude-opus-4-8", label: "Opus 4.8" },
     { id: "claude-opus-4-7", label: "Opus 4.7" },
     { id: "claude-opus-4-6", label: "Opus 4.6" },
-    { id: "sonnet", label: "Sonnet" },
+    { id: SONNET_5_MODEL_ID, label: "Sonnet 5" },
     { id: "haiku", label: "Haiku" },
   ],
   efforts: PREMIUM_EFFORT_TIERS,
@@ -48,21 +49,25 @@ export const claudeCapabilities: AgentCapability = {
     "claude-opus-4-8": PREMIUM_EFFORT_TIERS,
     "claude-opus-4-7": PREMIUM_EFFORT_TIERS,
     "claude-opus-4-6": ["low", "medium", "high", "max"],
+    [SONNET_5_MODEL_ID]: PREMIUM_EFFORT_TIERS,
     haiku: [],
-    sonnet: ["low", "medium", "high", "max"],
   },
   contextSizes: [
     { id: "200k", label: "200k" },
     { id: "1m", label: "1M" },
   ],
-  // Order matters: the first entry is the per-model default. Opus tiers default
-  // to 1M (the long-context build users select these for); Sonnet defaults to
-  // 200k because the 1M tier is billed per-token at premium rates.
+  // Order matters: the first entry is the per-model default. Frontier models
+  // default to 1M (the long-context build users select these for).
   modelContextSizes: {
     "claude-fable-5": ["1m"],
     "claude-opus-4-8": ["1m", "200k"],
     "claude-opus-4-7": ["1m", "200k"],
     "claude-opus-4-6": ["1m", "200k"],
+    [SONNET_5_MODEL_ID]: ["1m"],
+    // Legacy `sonnet` alias — dropped from the picker (replaced by Sonnet 5) but
+    // still used by commit-gen defaults and pre-rename threads, so keep it
+    // context-managed (200k default) for backward compatibility. Its presence
+    // here is what keeps it in CLAUDE_CONTEXT_MANAGED_MODEL_IDS below.
     sonnet: ["200k", "1m"],
   },
   defaultContextSize: "200k",
