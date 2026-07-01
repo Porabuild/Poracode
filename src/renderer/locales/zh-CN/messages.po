@@ -31,9 +31,12 @@ msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# 个文件} other {# 个文件}}"
 
 #. placeholder {0}: props.desktops.length
+#: src/mobile/views/DesktopsView.tsx
+msgid "{0, plural, one {# paired connection} other {# paired connections}}"
+msgstr "{0, plural, one {# 个已配对连接} other {# 个已配对连接}}"
+
 #. placeholder {0}: remote.desktops.length
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/DesktopsView.tsx
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# 个已配对桌面} other {# 个已配对桌面}}"
 
@@ -313,6 +316,10 @@ msgstr "{label} 自动刷新间隔（分钟）"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "{label} copied."
 msgstr "已复制{label}。"
+
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "{label} usage"
+msgstr "{label}用量"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -1376,10 +1383,19 @@ msgstr "正在检查..."
 msgid "Checks"
 msgstr "检查项"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a folder"
+msgstr "选择文件夹"
+
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Choose a folder…"
 msgstr "选择一个文件夹..."
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a parent folder"
+msgstr "选择父文件夹"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Choose how to sign in for {env}."
@@ -1506,6 +1522,9 @@ msgid "Cloning…"
 msgstr "克隆…"
 
 #: src/mobile/components.tsx
+#: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
@@ -1524,8 +1543,12 @@ msgid "Close browser"
 msgstr "关闭浏览器"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Close desktop actions"
-msgstr "关闭桌面操作"
+msgid "Close connection actions"
+msgstr "关闭连接操作"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Close desktop actions"
+#~ msgstr "关闭桌面操作"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1888,6 +1911,11 @@ msgstr "连接错误。"
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "连接失败。"
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "Connections"
+msgstr "连接"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
@@ -2338,8 +2366,8 @@ msgstr "无法访问桌面。"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
-msgid "Desktops"
-msgstr "桌面"
+#~ msgid "Desktops"
+#~ msgstr "桌面"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2721,9 +2749,15 @@ msgstr "退出计划模式"
 msgid "exited"
 msgstr "已退出"
 
+#. placeholder {0}: activeTab.exitCode
+#. placeholder {0}: tab.exitCode
 #: src/mobile/views/TerminalView.tsx
-msgid "exited ({exitCode})"
-msgstr "已退出（{exitCode}）"
+msgid "exited ({0})"
+msgstr "已退出（{0}）"
+
+#: src/mobile/views/TerminalView.tsx
+#~ msgid "exited ({exitCode})"
+#~ msgstr "已退出（{exitCode}）"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -2951,15 +2985,22 @@ msgstr "聚焦应用内浏览器地址栏"
 msgid "Focus window"
 msgstr "切换到窗口"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
+msgid "Folder"
+msgstr "文件夹"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "文件夹名称"
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "Folder path"
-msgstr "文件夹路径"
+msgid "Folder on the server"
+msgstr "服务器上的文件夹"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#~ msgid "Folder path"
+#~ msgstr "文件夹路径"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "服务器上的文件夹路径"
@@ -3237,6 +3278,10 @@ msgstr "历史记录"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "首页"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Home folder"
+msgstr "主目录"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3555,6 +3600,7 @@ msgstr "正在加载线程"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/views/FilesView.tsx
+#: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -4201,6 +4247,10 @@ msgstr "没有找到命令"
 msgid "No commits found."
 msgstr "没有找到提交。"
 
+#: src/mobile/RootLayout.tsx
+msgid "No connection paired"
+msgstr "尚未配对连接"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No content streams."
 msgstr "没有内容流。"
@@ -4223,8 +4273,8 @@ msgid "No description"
 msgstr "无描述"
 
 #: src/mobile/RootLayout.tsx
-msgid "No desktop paired"
-msgstr "未配对桌面"
+#~ msgid "No desktop paired"
+#~ msgstr "未配对桌面"
 
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -4594,6 +4644,10 @@ msgstr "打开文件"
 msgid "Open folder"
 msgstr "打开文件夹"
 
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "Open full usage"
+msgstr "打开完整用量"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
 msgstr "全屏打开"
@@ -4694,6 +4748,7 @@ msgstr "在桌面 Lightcode 中打开“设置”→“远程访问”，然后�
 msgid "Open subagent: {0}"
 msgstr "打开子代理：{0}"
 
+#: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
@@ -4772,8 +4827,12 @@ msgid "Pair"
 msgstr "配对"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Pair a desktop"
-msgstr "配对桌面"
+msgid "Pair a connection"
+msgstr "配对连接"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Pair a desktop"
+#~ msgstr "配对桌面"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
@@ -4827,7 +4886,6 @@ msgstr "面板"
 msgid "Panels and overlays"
 msgstr "面板和覆盖层"
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Parent folder"
 msgstr "父文件夹"
@@ -5265,6 +5323,7 @@ msgstr "以公共 API 费率从本地日志重建 — 它不反映您订阅计�
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -5416,8 +5475,12 @@ msgid "Remove Claude profile"
 msgstr "删除 Claude 配置文件"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Remove desktop"
-msgstr "移除桌面"
+msgid "Remove connection"
+msgstr "删除连接"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Remove desktop"
+#~ msgstr "移除桌面"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -5474,8 +5537,12 @@ msgid "Rename chat"
 msgstr "重命名聊天"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Rename desktop"
-msgstr "重命名桌面"
+msgid "Rename connection"
+msgstr "重命名连接"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Rename desktop"
+#~ msgstr "重命名桌面"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -5995,6 +6062,10 @@ msgstr "选择账户"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "选择一个代理以查看其提示和结果。"
 
+#: src/renderer/components/common/Select.tsx
+msgid "Select an option"
+msgstr "选择一个选项"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Select branch"
 msgstr "选择分支"
@@ -6010,6 +6081,10 @@ msgstr "选择模型"
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "选择项目"
+
+#: src/renderer/components/common/Select.tsx
+msgid "Select…"
+msgstr "选择…"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6181,6 +6256,10 @@ msgstr "在编辑器中显示麦克风按钮。"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "显示语音输入按钮"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Showing the first 4,000 entries."
+msgstr "仅显示前 4,000 个条目。"
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -6839,6 +6918,10 @@ msgstr "该文件过大，内置编辑器无法打开。"
 msgid "This file uses an unsupported encoding."
 msgstr "此文件使用不受支持的编码。"
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "This folder is empty."
+msgstr "此文件夹为空。"
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -7350,6 +7433,10 @@ msgstr "未暂存"
 msgid "Unsupported"
 msgstr "不支持"
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Up one level"
+msgstr "上一级"
+
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Update"
@@ -7432,6 +7519,7 @@ msgstr "更新{0}({env})"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/settingsSections.ts
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -7484,6 +7572,10 @@ msgstr "使用会话"
 msgid "Use this account for usage tracking, or change users in the browser "
 "before continuing."
 msgstr "使用此帐户进行使用情况跟踪，或在继续之前更改浏览器中的用户。"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Use this folder"
+msgstr "使用此文件夹"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

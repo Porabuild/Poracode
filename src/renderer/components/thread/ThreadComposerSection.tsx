@@ -735,7 +735,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                 }}
               >
                 <ThreadComposer
-                  autoFocus={paneCount === 1} // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+                  autoFocus={paneCount === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so opening a thread doesn't pop the keyboard
                   compact
                   toolbarLayoutKey={[
                     isCliThread ? "cli" : "chat",
@@ -868,7 +868,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   inputContent={
                     <MentionInput
                       ref={mentionRef}
-                      autoFocus={paneCount === 1} // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+                      autoFocus={paneCount === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so opening a thread doesn't pop the keyboard
                       compact
                       disabled={!(showServerComposer || showTerminalComposer)}
                       placeholder={

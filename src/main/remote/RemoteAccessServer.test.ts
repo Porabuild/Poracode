@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+import { connect, type Socket } from "node:net";
 import { WebSocket } from "ws";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
@@ -9,10 +11,14 @@ import {
   dbDeleteProject,
   dbDeleteThread,
   dbGetProjects,
+  dbGetThreadContextUsage,
+  dbGetThreadRuntimeItems,
+  dbGetThreadRuntimeSummaries,
   dbGetThreads,
   dbUpsertProject,
   dbUpsertThread,
 } from "../db";
+import { RemoteAuthStore } from "./auth";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -26,6 +32,7 @@ vi.mock("../db", () => ({
   dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
   dbGetThreadContextUsage: vi.fn<() => null>(() => null),
   dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
+  dbGetThreadRuntimeSummaries: vi.fn<() => Record<string, unknown>>(() => ({})),
   dbGetThreads: vi.fn<() => unknown[]>(() => []),
   dbUpsertProject: vi.fn<(project: unknown, sortOrder: number) => void>(),
   dbDeleteProject: vi.fn<(projectId: string) => void>(),
@@ -39,6 +46,9 @@ afterEach(async () => {
   vi.mocked(dbDeleteProject).mockReset();
   vi.mocked(dbDeleteThread).mockReset();
   vi.mocked(dbGetProjects).mockReset().mockReturnValue([]);
+  vi.mocked(dbGetThreadContextUsage).mockReset().mockReturnValue(null);
+  vi.mocked(dbGetThreadRuntimeItems).mockReset().mockReturnValue([]);
+  vi.mocked(dbGetThreadRuntimeSummaries).mockReset().mockReturnValue({});
   vi.mocked(dbGetThreads).mockReset().mockReturnValue([]);
   vi.mocked(dbUpsertProject).mockReset();
   vi.mocked(dbUpsertThread).mockReset();
@@ -102,6 +112,23 @@ async function readWsMessage(ws: WebSocket): Promise<unknown> {
       resolve(JSON.parse(data.toString()) as unknown);
     });
     ws.once("error", reject);
+  });
+}
+
+async function waitWsClose(ws: WebSocket): Promise<{ code: number; reason: string }> {
+  return await new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error("Timed out waiting for websocket close")),
+      5_000,
+    );
+    ws.once("close", (code, reason) => {
+      clearTimeout(timeout);
+      resolve({ code, reason: reason.toString() });
+    });
+    ws.once("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
   });
 }
 
@@ -195,6 +222,65 @@ async function issueAccessToken(
   return token.accessToken;
 }
 
+async function issueWebSocketTicket(
+  info: RemoteAccessServerInfo,
+  accessToken: string,
+): Promise<string> {
+  const ticketResponse = await fetch(new URL("/api/auth/websocket-ticket", info.httpBaseUrl), {
+    method: "POST",
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+  expect(ticketResponse.status).toBe(200);
+  const ticket = (await ticketResponse.json()) as { ticket: string };
+  return ticket.ticket;
+}
+
+async function openRawWebSocket(info: RemoteAccessServerInfo, ticket: string): Promise<Socket> {
+  const httpUrl = new URL(info.httpBaseUrl);
+  const wsUrl = new URL("/ws", info.wsBaseUrl);
+  wsUrl.searchParams.set("ticket", ticket);
+  const socket = connect(Number(httpUrl.port), httpUrl.hostname);
+  await new Promise<void>((resolve, reject) => {
+    socket.once("connect", resolve);
+    socket.once("error", reject);
+  });
+
+  const key = randomBytes(16).toString("base64");
+  socket.write(
+    [
+      `GET ${wsUrl.pathname}${wsUrl.search} HTTP/1.1`,
+      `Host: ${httpUrl.host}`,
+      "Upgrade: websocket",
+      "Connection: Upgrade",
+      `Sec-WebSocket-Key: ${key}`,
+      "Sec-WebSocket-Version: 13",
+      "",
+      "",
+    ].join("\r\n"),
+  );
+
+  let header = "";
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("Timed out waiting for upgrade")), 5_000);
+    socket.on("data", function onData(data) {
+      header += data.toString("latin1");
+      if (!header.includes("\r\n\r\n")) return;
+      socket.off("data", onData);
+      clearTimeout(timeout);
+      if (!header.startsWith("HTTP/1.1 101")) {
+        reject(new Error(`Unexpected websocket upgrade response: ${header.split("\r\n")[0]}`));
+        return;
+      }
+      resolve();
+    });
+    socket.once("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+  });
+  return socket;
+}
+
 describe("RemoteAccessServer", () => {
   it("serves descriptor, snapshot, and websocket supervisor events", async () => {
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
@@ -265,6 +351,247 @@ describe("RemoteAccessServer", () => {
     ws.close();
   });
 
+  it("builds shell snapshots from aggregated runtime summaries", async () => {
+    const visibleThread = createTestThread({ id: "thread-visible", title: "Visible" });
+    const archivedThread = createTestThread({
+      id: "thread-archived",
+      title: "Archived",
+      archived: true,
+    });
+    vi.mocked(dbGetThreads).mockReturnValue([visibleThread, archivedThread]);
+    vi.mocked(dbGetThreadRuntimeSummaries).mockReturnValue({
+      "thread-visible": {
+        itemCount: 3,
+        latestItemId: "item-3",
+        latestItemType: "assistant_message",
+        latestItemState: "completed",
+        contextUsage: { usedTokens: 128, maxTokens: 1000 },
+      },
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+
+    const response = await fetch(new URL("/api/snapshot", info.httpBaseUrl), {
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      runtimeSummariesByThread: {
+        "thread-visible": {
+          itemCount: 3,
+          latestItemId: "item-3",
+          latestItemType: "assistant_message",
+          latestItemState: "completed",
+          contextUsage: { usedTokens: 128, maxTokens: 1000 },
+        },
+      },
+    });
+    expect(dbGetThreadRuntimeSummaries).toHaveBeenCalledWith(["thread-visible"]);
+    expect(dbGetThreadRuntimeItems).not.toHaveBeenCalled();
+    expect(dbGetThreadContextUsage).not.toHaveBeenCalled();
+  });
+
+  it("drops websocket clients when outbound sends fail", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const { ws, ready } = await openPairedSocket(info);
+    expect(ready).toMatchObject({ type: "ready", seq: 0 });
+
+    const clients = (server as unknown as { clients: Map<WebSocket, unknown> }).clients;
+    const serverSocket = [...clients.keys()][0];
+    expect(serverSocket).toBeDefined();
+    const closed = new Promise<void>((resolve) => {
+      ws.once("close", () => resolve());
+    });
+    serverSocket!.send = (() => {
+      throw new Error("send failed");
+    }) as WebSocket["send"];
+    const terminate = vi.spyOn(serverSocket!, "terminate");
+
+    expect(() =>
+      server.publishSupervisorEvent({
+        type: "thread-state",
+        threadId: "thread-1",
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: false,
+      }),
+    ).not.toThrow();
+    expect(terminate).toHaveBeenCalled();
+    expect(clients.has(serverSocket!)).toBe(false);
+    await closed;
+  });
+
+  it("drops websocket clients before outbound buffers grow without bound", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      maxWebSocketOutboundBufferBytes: 64,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const { ws, ready } = await openPairedSocket(info);
+    expect(ready).toMatchObject({ type: "ready", seq: 0 });
+
+    const clients = (server as unknown as { clients: Map<WebSocket, unknown> }).clients;
+    const serverSocket = [...clients.keys()][0];
+    expect(serverSocket).toBeDefined();
+    const terminate = vi.spyOn(serverSocket!, "terminate");
+    const closed = new Promise<void>((resolve) => {
+      ws.once("close", () => resolve());
+    });
+
+    server.publishSupervisorEvent({
+      type: "thread-state",
+      threadId: "thread-with-a-long-id-that-makes-the-event-frame-exceed-the-test-limit",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+    });
+
+    expect(terminate).toHaveBeenCalled();
+    expect(clients.has(serverSocket!)).toBe(false);
+    await closed;
+  });
+
+  it("closes clients that exceed the inbound websocket payload limit", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      maxWebSocketPayloadBytes: 64,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const { ws, ready } = await openPairedSocket(info);
+    expect(ready).toMatchObject({ type: "ready", seq: 0 });
+
+    ws.send(JSON.stringify({ type: "ping", id: "x".repeat(128) }));
+
+    await expect(waitWsClose(ws)).resolves.toMatchObject({ code: 1009 });
+  });
+
+  it("closes websocket clients when their access session expires", async () => {
+    const authStore = new RemoteAuthStore();
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      authStore,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const pairing = authStore.issuePairingCredential({ scopes: ["session:read"] });
+    const token = authStore.exchangePairingCredential({
+      credential: pairing.credential,
+      ttlMs: 250,
+    });
+    const ticket = authStore.issueWebSocketTicket({
+      accessToken: token.accessToken,
+      ttlMs: 5_000,
+    });
+
+    const wsUrl = new URL("/ws", info.wsBaseUrl);
+    wsUrl.searchParams.set("ticket", ticket.ticket);
+    const ws = new WebSocket(wsUrl);
+    const readyPromise = readWsMessage(ws);
+    const closePromise = waitWsClose(ws);
+    await new Promise<void>((resolve, reject) => {
+      ws.once("open", resolve);
+      ws.once("error", reject);
+    });
+
+    await expect(readyPromise).resolves.toMatchObject({ type: "ready", seq: 0 });
+    await expect(closePromise).resolves.toEqual({
+      code: 1008,
+      reason: "Remote access session expired",
+    });
+  });
+
+  it("returns valid JSON after starting a remote terminal shell", async () => {
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => undefined as never,
+    );
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["terminal:operate"]);
+    const payload = {
+      shellId: "shell:test",
+      projectLocation: { kind: "posix", path: "/repo" },
+      initialSize: { cols: 80, rows: 24 },
+    };
+
+    const response = await fetch(new URL("/api/terminal/start", info.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(callSupervisor).toHaveBeenCalledWith("startShell", payload);
+  });
+
+  it("terminates half-open websocket clients that do not pong", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      webSocketHeartbeatIntervalMs: 20,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+    const ticket = await issueWebSocketTicket(info, token);
+    const socket = await openRawWebSocket(info, ticket);
+
+    const closed = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("Socket stayed open")), 1_000);
+      socket.once("close", () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+      socket.once("error", (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+
+    await expect(closed).resolves.toBeUndefined();
+  });
+
   it("limits CORS to trusted origins", async () => {
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",
@@ -299,6 +626,54 @@ describe("RemoteAccessServer", () => {
     await expect(blockedResponse.json()).resolves.toMatchObject({
       error: { code: "origin_not_allowed" },
     });
+  });
+
+  it("accepts websocket upgrades from arbitrary origins with one-use tickets", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      pairingAppUrl: "https://mobile.lightcode.test/app",
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+    const ticket = await issueWebSocketTicket(info, token);
+    const wsUrl = new URL("/ws", info.wsBaseUrl);
+    wsUrl.searchParams.set("ticket", ticket);
+
+    const socket = new WebSocket(wsUrl, { headers: { Origin: "https://evil.example" } });
+    const ready = readWsMessage(socket);
+    await new Promise<void>((resolve, reject) => {
+      socket.once("open", resolve);
+      socket.once("error", reject);
+    });
+    await expect(ready).resolves.toMatchObject({ type: "ready" });
+    socket.close();
+
+    const replayStatus = await new Promise<number>((resolve, reject) => {
+      const replaySocket = new WebSocket(wsUrl, { headers: { Origin: "https://evil.example" } });
+      const timeout = setTimeout(
+        () => reject(new Error("Timed out waiting for websocket replay rejection")),
+        5_000,
+      );
+      replaySocket.once("unexpected-response", (_request, response) => {
+        clearTimeout(timeout);
+        resolve(response.statusCode ?? 0);
+        replaySocket.close();
+      });
+      replaySocket.once("open", () => {
+        clearTimeout(timeout);
+        reject(new Error("Reused websocket ticket connected"));
+      });
+      replaySocket.once("error", (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+    expect(replayStatus).toBe(401);
   });
 
   it("points dev pairing links at the mobile dev app origin", async () => {
@@ -810,6 +1185,69 @@ describe("RemoteAccessServer", () => {
     ]);
   });
 
+  it("only restarts existing remote threads through the legacy start endpoint", async () => {
+    mockThreadDb([createTestThread()]);
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => ({ threadId: "thread-1" }) as never,
+    );
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    };
+    const payload = {
+      projectLocation: { kind: "posix", path: "/repo" },
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      prompt: "",
+      initialSize: { cols: 120, rows: 30 },
+      presentationMode: "terminal",
+    };
+
+    const missingThreadResponse = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+    expect(missingThreadResponse.status).toBe(400);
+    await expect(missingThreadResponse.json()).resolves.toMatchObject({
+      error: { code: "thread_id_required" },
+    });
+
+    const unknownThreadResponse = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...payload, threadId: "missing-thread" }),
+    });
+    expect(unknownThreadResponse.status).toBe(404);
+    await expect(unknownThreadResponse.json()).resolves.toMatchObject({
+      error: { code: "thread_not_found" },
+    });
+
+    const response = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...payload, threadId: "thread-1" }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ threadId: "thread-1" });
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+    expect(callSupervisor).toHaveBeenCalledWith("startThread", {
+      ...payload,
+      threadId: "thread-1",
+    });
+  });
+
   it("persists simple thread commands and mirrors them to the renderer", async () => {
     const db = mockThreadDb([createTestThread()]);
     const dispatched: unknown[] = [];
@@ -832,22 +1270,20 @@ describe("RemoteAccessServer", () => {
     servers.push(server);
     const info = await server.start();
 
-    const pairing = new URL(info.pairingUrl);
-    const credential = new URLSearchParams(pairing.hash.slice(1)).get("token");
-    const tokenResponse = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        grantType: "pairing-token",
-        credential,
-        scopes: ["session:read", "session:operate"],
-        client: { label: "Test mobile", deviceType: "mobile" },
-      }),
+    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
+    const ticket = await issueWebSocketTicket(info, token);
+    const wsUrl = new URL("/ws", info.wsBaseUrl);
+    wsUrl.searchParams.set("ticket", ticket);
+    const ws = new WebSocket(wsUrl);
+    const readWs = createWsReader(ws);
+    await new Promise<void>((resolve, reject) => {
+      ws.once("open", resolve);
+      ws.once("error", reject);
     });
-    expect(tokenResponse.status).toBe(200);
-    const token = (await tokenResponse.json()) as { accessToken: string };
+    await expect(readWs()).resolves.toMatchObject({ type: "ready" });
+
     const headers = {
-      authorization: `Bearer ${token.accessToken}`,
+      authorization: `Bearer ${token}`,
       "content-type": "application/json",
     };
 
@@ -859,6 +1295,10 @@ describe("RemoteAccessServer", () => {
     expect(renameResponse.status).toBe(200);
     expect(dispatched).toEqual([{ kind: "rename", threadId: "thread-1", title: "New title" }]);
     expect(db.threads()[0]?.title).toBe("New title");
+    await expect(readWs()).resolves.toMatchObject({
+      type: "event",
+      event: { type: "remote-threads-changed", threadIds: ["thread-1"] },
+    });
 
     const doneResponse = await fetch(new URL("/api/threads/thread-1/command", info.httpBaseUrl), {
       method: "POST",
@@ -869,6 +1309,10 @@ describe("RemoteAccessServer", () => {
     expect(dispatched[1]).toEqual({ kind: "set-done", threadId: "thread-1", done: true });
     expect(db.threads()[0]).toMatchObject({ done: true, starred: false });
     expect(callSupervisor).toHaveBeenCalledWith("closeThread", { threadId: "thread-1" });
+    await expect(readWs()).resolves.toMatchObject({
+      type: "event",
+      event: { type: "remote-threads-changed", threadIds: ["thread-1"] },
+    });
 
     rendererAvailable = false;
     const archiveResponse = await fetch(
@@ -877,6 +1321,10 @@ describe("RemoteAccessServer", () => {
     );
     expect(archiveResponse.status).toBe(200);
     expect(db.threads()[0]?.archived).toBe(true);
+    await expect(readWs()).resolves.toMatchObject({
+      type: "event",
+      event: { type: "remote-threads-changed", threadIds: ["thread-1"] },
+    });
 
     rendererAvailable = true;
 
@@ -920,6 +1368,7 @@ describe("RemoteAccessServer", () => {
     await expect(unavailableResponse.json()).resolves.toMatchObject({
       error: { code: "desktop_unavailable" },
     });
+    ws.close();
   });
 
   it("forwards thread close through the session route and keeps terminal close as an alias", async () => {

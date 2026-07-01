@@ -370,7 +370,9 @@ function BrowserTabWebview(props: { tabId: string; initialSrc: string; visible: 
       data-tab-id={props.tabId}
       partition="persist:lightcode-browser"
       src={initialSrcRef.current || "about:blank"}
-      allowpopups={true}
+      // Electron's React type says boolean, but React warns unless this custom
+      // element attribute is serialized as a string.
+      allowpopups={"true" as unknown as boolean}
       className="absolute inset-0 size-full"
       style={{ display: props.visible ? "flex" : "none" }}
     />

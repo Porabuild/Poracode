@@ -27,6 +27,24 @@ describe("parsePairingUrl", () => {
     });
   });
 
+  it("preserves relay-mounted endpoints from a hosted pairing link", () => {
+    const url =
+      "https://app.lightcodeapp.com/pair?host=https%3A%2F%2Frelay.example.test%2Fs%2Fserver-1%2F#token=lc_pair_relay";
+    expect(parsePairingUrl(url)).toEqual({
+      endpoint: "https://relay.example.test/s/server-1/",
+      credential: "lc_pair_relay",
+    });
+  });
+
+  it("preserves relay-mounted endpoints when scanning the relay pairing route", () => {
+    expect(parsePairingUrl("https://relay.example.test/s/server-1/pair#token=lc_pair_abc")).toEqual(
+      {
+        endpoint: "https://relay.example.test/s/server-1/",
+        credential: "lc_pair_abc",
+      },
+    );
+  });
+
   it("returns null for a URL with no pairing token", () => {
     expect(parsePairingUrl("https://example.com/not-a-pairing-link")).toBeNull();
   });
@@ -46,6 +64,12 @@ describe("normalizePairingEndpoint", () => {
   it("keeps a desktop remote endpoint as-is", () => {
     expect(normalizePairingEndpoint("http://192.168.1.20:38987/pair")).toBe(
       "http://192.168.1.20:38987/",
+    );
+  });
+
+  it("keeps relay path prefixes while stripping remote app routes", () => {
+    expect(normalizePairingEndpoint("https://relay.example.test/s/server-1/app")).toBe(
+      "https://relay.example.test/s/server-1/",
     );
   });
 });

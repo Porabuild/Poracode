@@ -134,7 +134,10 @@ function ThreadDetail(props: { readonly thread: Thread | null; readonly hideHead
           void navigate({
             to: "/terminal/$projectId",
             params: { projectId: thread.projectId },
-            search: thread.worktreePath ? { worktree: thread.worktreePath } : {},
+            search: {
+              fromThread: thread.id,
+              ...(thread.worktreePath ? { worktree: thread.worktreePath } : {}),
+            },
           });
         }
       }}
@@ -187,7 +190,10 @@ export function ThreadsRoute() {
         void navigate({
           to: "/terminal/$projectId",
           params: { projectId: input.projectId },
-          search: input.worktreePath ? { worktree: input.worktreePath } : {},
+          search: {
+            ...(input.sourceThreadId ? { fromThread: input.sourceThreadId } : {}),
+            ...(input.worktreePath ? { worktree: input.worktreePath } : {}),
+          },
         })
       }
       onRunProjectAction={(input) =>
@@ -196,6 +202,7 @@ export function ThreadsRoute() {
           params: { projectId: input.projectId },
           search: {
             action: input.actionId,
+            ...(input.sourceThreadId ? { fromThread: input.sourceThreadId } : {}),
             ...(input.worktreePath ? { worktree: input.worktreePath } : {}),
           },
         })
@@ -508,10 +515,13 @@ export function WorkspaceRoute() {
 
 export function TerminalRoute() {
   const { projectId } = terminalRouteApi.useParams();
-  const { worktree, action } = terminalRouteApi.useSearch();
+  const { worktree, action, fromThread } = terminalRouteApi.useSearch();
   const { remote } = useMobileApp();
   const navigate = useNavigate();
   const project = remote.projects.find((entry) => entry.id === projectId);
+  const sourceThread = fromThread
+    ? remote.threads.find((entry) => entry.id === fromThread)
+    : undefined;
   const hasProject = Boolean(project);
 
   useEffect(() => {
@@ -526,6 +536,13 @@ export function TerminalRoute() {
     ? project.scripts?.actions?.find((entry) => entry.id === action)
     : undefined;
   const title = projectAction?.name ?? (worktree ? getBasename(worktree) : project.name);
+  function closeTerminal(): void {
+    if (sourceThread) {
+      void navigate({ to: "/thread/$threadId", params: { threadId: sourceThread.id } });
+      return;
+    }
+    void navigate({ to: "/threads" });
+  }
   return (
     <LazyRoute>
       <TerminalView
@@ -533,7 +550,7 @@ export function TerminalRoute() {
         projectLocation={projectLocation}
         {...(worktree ? { worktreePath: worktree } : {})}
         {...(projectAction?.command ? { initialCommand: projectAction.command } : {})}
-        onClose={() => void navigate({ to: "/threads" })}
+        onClose={closeTerminal}
       />
     </LazyRoute>
   );

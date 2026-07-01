@@ -95,7 +95,7 @@ function DesktopRow(props: {
           <span className="min-w-0 flex-1">
             <InlineRenameInput
               initialValue={title}
-              ariaLabel={t`Rename desktop`}
+              ariaLabel={t`Rename connection`}
               onCommit={(value) => {
                 props.onRename(value);
                 setRenaming(false);
@@ -125,12 +125,12 @@ function DesktopRow(props: {
       )}
       <SheetMenu
         label={title}
-        closeLabel={t`Close desktop actions`}
+        closeLabel={t`Close connection actions`}
         items={[
           { id: "rename", label: t`Rename`, icon: <Pencil className="size-4 text-muted" /> },
           {
             id: "forget",
-            label: t`Remove desktop`,
+            label: t`Remove connection`,
             icon: <Trash2 className="size-4" />,
             tone: "danger",
           },
@@ -173,13 +173,13 @@ export function DesktopsView(props: DesktopsViewProps) {
       <div className="m-page-head">
         <div>
           <h1>
-            <Trans>Desktops</Trans>
+            <Trans>Connections</Trans>
           </h1>
           <p>
             <Plural
               value={props.desktops.length}
-              one="# paired desktop"
-              other="# paired desktops"
+              one="# paired connection"
+              other="# paired connections"
             />
           </p>
         </div>
@@ -203,7 +203,7 @@ export function DesktopsView(props: DesktopsViewProps) {
       <div className="m-card">
         <h2 className="m-card__title">
           <Link2 className="size-4" />
-          <Trans>Pair a desktop</Trans>
+          <Trans>Pair a connection</Trans>
         </h2>
         <p className="m-card__hint">
           <Trans>

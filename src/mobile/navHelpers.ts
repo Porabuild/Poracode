@@ -63,6 +63,44 @@ export function threadIdFromPath(pathname: string): string | null {
 }
 
 /**
+ * Depth of a screen in the phone navigation stack. Higher = deeper. Drives the
+ * direction of the native view transition: deeper is a forward push, shallower
+ * is a back pop, same depth is a sibling/tab cross-fade.
+ *
+ * The shell's back buttons `navigate({ to })` forward in history rather than
+ * calling `history.back()`, so history index can't tell us the direction —
+ * comparing depth gives the correct visual direction regardless.
+ */
+export function screenDepth(path: string): number {
+  if (path.startsWith("/thread/")) return 1;
+  if (path.startsWith("/workspace/") || path.startsWith("/pr/") || path.startsWith("/terminal/")) {
+    return 2;
+  }
+  if (/^\/more\/settings\/.+/.test(path)) return 2;
+  if (path === "/more/settings" || path === "/more/projects" || path === "/more/browser") {
+    return 1;
+  }
+  // Tab-level roots: /threads, /more, /new, /desktops, /more/usage.
+  return 0;
+}
+
+/**
+ * The view-transition direction for a navigation between two paths, or null when
+ * there should be no animation (first paint, or navigating to the same path).
+ */
+export function navigationTransitionType(
+  fromPath: string | undefined,
+  toPath: string,
+): "push" | "pop" | "fade" | null {
+  if (!fromPath || fromPath === toPath) return null;
+  const from = screenDepth(fromPath);
+  const to = screenDepth(toPath);
+  if (to > from) return "push";
+  if (to < from) return "pop";
+  return "fade";
+}
+
+/**
  * Apply a thread action and, when it removes the thread (archive/delete),
  * invoke `onRemoved` so the caller can route away from the now-gone thread.
  */

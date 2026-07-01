@@ -137,7 +137,12 @@ export function parseRelayVisitorPath(
 ): { readonly serverId: string; readonly path: string } | null {
   const match = /^\/s\/([^/]+)(\/.*)?$/.exec(pathname);
   if (!match) return null;
-  const serverId = decodeURIComponent(match[1]!);
+  let serverId: string;
+  try {
+    serverId = decodeURIComponent(match[1]!);
+  } catch {
+    return null;
+  }
   if (!serverId) return null;
   return { serverId, path: match[2] && match[2].length > 0 ? match[2] : "/" };
 }

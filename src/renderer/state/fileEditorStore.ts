@@ -10,6 +10,7 @@ import { captureProductEvent } from "../analytics/posthog";
 import { captureRendererException } from "../diagnostics/sentry";
 import { hasUnresolvedConflicts } from "@/renderer/utils/mergeConflicts";
 import { useGitStore } from "./gitStore";
+import { useRemoteServersStore } from "./remoteServersStore";
 import { resolveAbsolutePath } from "@/renderer/utils/resolveAbsolutePath";
 
 /**
@@ -73,6 +74,7 @@ export interface FileEditorRootContext {
   projectLocation: ProjectLocation;
   rootLabel: string;
   worktreePath?: string;
+  remoteServerId?: string;
 }
 
 export interface FileEditorBuffer {
@@ -226,6 +228,66 @@ function withGitDiff(
   return gitDiff ? { ...rest, gitDiff } : rest;
 }
 
+function isRemoteFileEditorContext(
+  rootContext: FileEditorRootContext,
+): rootContext is FileEditorRootContext & { remoteServerId: string } {
+  return typeof rootContext.remoteServerId === "string" && rootContext.remoteServerId.length > 0;
+}
+
+async function readFileForContext(
+  rootContext: FileEditorRootContext,
+  path: string,
+): Promise<ReadProjectFileResult> {
+  if (isRemoteFileEditorContext(rootContext) && !isExternalPath(path)) {
+    return useRemoteServersStore.getState().readProjectFile({
+      desktopId: rootContext.remoteServerId,
+      projectLocation: rootContext.projectLocation,
+      path,
+    });
+  }
+  return isExternalPath(path)
+    ? externalReadAsProjectResult(
+        await readBridge().readExternalFile({
+          projectLocation: rootContext.projectLocation,
+          absolutePath: path,
+        }),
+      )
+    : await readBridge().readProjectFile({
+        projectLocation: rootContext.projectLocation,
+        path,
+      });
+}
+
+async function writeFileForContext(
+  rootContext: FileEditorRootContext,
+  path: string,
+  content: string,
+  baseModifiedAtMs: number,
+): Promise<{ modifiedAtMs: number }> {
+  if (isRemoteFileEditorContext(rootContext) && !isExternalPath(path)) {
+    return useRemoteServersStore.getState().writeProjectFile({
+      desktopId: rootContext.remoteServerId,
+      projectLocation: rootContext.projectLocation,
+      path,
+      content,
+      baseModifiedAtMs,
+    });
+  }
+  return isExternalPath(path)
+    ? await readBridge().writeExternalFile({
+        projectLocation: rootContext.projectLocation,
+        absolutePath: path,
+        content,
+        baseModifiedAtMs,
+      })
+    : await readBridge().writeProjectFile({
+        projectLocation: rootContext.projectLocation,
+        path,
+        content,
+        baseModifiedAtMs,
+      });
+}
+
 /**
  * Compute the next tabs/buffers/previewTab state when opening a file.
  * Handles replacing the existing preview tab at the same position.
@@ -305,7 +367,8 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
     set((state) => {
       if (
         state.rootContext?.projectId === rootContext?.projectId &&
-        state.rootContext?.worktreePath === rootContext?.worktreePath
+        state.rootContext?.worktreePath === rootContext?.worktreePath &&
+        state.rootContext?.remoteServerId === rootContext?.remoteServerId
       ) {
         return {};
       }
@@ -416,27 +479,21 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
     });
 
     try {
-      const result = isExternalPath(openPath)
-        ? externalReadAsProjectResult(
-            await readBridge().readExternalFile({
-              projectLocation: rootContext.projectLocation,
-              absolutePath: openPath,
-            }),
-          )
-        : await readBridge().readProjectFile({
-            projectLocation: rootContext.projectLocation,
-            path: openPath,
-          });
+      const result = await readFileForContext(rootContext, openPath);
       set((state) => ({
         buffers: {
           ...state.buffers,
           [openPath]: withGitDiff(buildBuffer(result), options?.gitDiff),
         },
       }));
-      captureProductEvent("file.opened", {
-        overlay_mode: mode ?? "unchanged",
-        source: isExternalPath(openPath) ? "external" : "project",
-      });
+      try {
+        captureProductEvent("file.opened", {
+          overlay_mode: mode ?? "unchanged",
+          source: isExternalPath(openPath) ? "external" : "project",
+        });
+      } catch (error) {
+        captureRendererException(error, { featureArea: "analytics" });
+      }
       return result;
     } catch (error) {
       set((state) => {
@@ -510,21 +567,12 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
     }
 
     const savedContent = buffer.content;
-    const result = isExternalPath(path)
-      ? await readBridge().writeExternalFile({
-          projectLocation: rootContext.projectLocation,
-          absolutePath: path,
-          content: savedContent,
-          baseModifiedAtMs: buffer.modifiedAtMs,
-        })
-      : await readBridge().writeProjectFile({
-          projectLocation: rootContext.projectLocation,
-          path,
-          content: savedContent,
-          baseModifiedAtMs: buffer.modifiedAtMs,
-        });
+    const isRemoteContext = isRemoteFileEditorContext(rootContext);
+    const result = await writeFileForContext(rootContext, path, savedContent, buffer.modifiedAtMs);
 
-    recentlySavedAt.set(path, Date.now());
+    if (!isRemoteContext) {
+      recentlySavedAt.set(path, Date.now());
+    }
 
     set((state) => {
       const current = state.buffers[path];
@@ -542,7 +590,9 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
       };
     });
 
-    void maybeStageResolvedConflict(rootContext, path, savedContent);
+    if (!isRemoteContext) {
+      void maybeStageResolvedConflict(rootContext, path, savedContent);
+    }
   },
   closeTab: (path) =>
     set((state) => {
@@ -656,18 +706,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
 
     const results = await Promise.allSettled(
       paths.map((path) =>
-        (isExternalPath(path)
-          ? readBridge()
-              .readExternalFile({
-                projectLocation: rootContext.projectLocation,
-                absolutePath: path,
-              })
-              .then(externalReadAsProjectResult)
-          : readBridge().readProjectFile({
-              projectLocation: rootContext.projectLocation,
-              path,
-            })
-        ).then((result) => ({ path, result })),
+        readFileForContext(rootContext, path).then((result) => ({ path, result })),
       ),
     );
 

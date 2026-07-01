@@ -1,4 +1,4 @@
-import { startTransition, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { Button, Switch } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -22,6 +22,32 @@ function BrowserPermissionRow() {
   const [permission, setPermission] = useState<NotificationPermission>(() =>
     supported ? Notification.permission : "denied",
   );
+
+  // Permission can also be granted from the "Enable notifications" toggle
+  // above (a separate user gesture), so keep this row in sync via the
+  // Permissions API change event when available. Guarded for browsers that
+  // don't expose navigator.permissions or the "notifications" descriptor.
+  useEffect(() => {
+    if (!supported || typeof navigator === "undefined" || !navigator.permissions) return;
+    let status: PermissionStatus | undefined;
+    let cancelled = false;
+    const sync = () => setPermission(Notification.permission);
+    navigator.permissions
+      .query({ name: "notifications" as PermissionName })
+      .then((result) => {
+        if (cancelled) return;
+        status = result;
+        status.addEventListener("change", sync);
+        sync();
+      })
+      .catch(() => {
+        /* "notifications" not queryable in this browser; ignore */
+      });
+    return () => {
+      cancelled = true;
+      status?.removeEventListener("change", sync);
+    };
+  }, [supported]);
 
   if (!supported) {
     return (
@@ -86,6 +112,19 @@ export function NotificationSettings() {
         <Switch
           isSelected={notificationsEnabled}
           onChange={(selected) => {
+            // Browsers only grant the Notification permission from a user
+            // gesture. In the PWA, proactively request it as part of this
+            // toggle handler so the prompt actually appears; otherwise the
+            // permission stays "default" and native notifications never show.
+            // Gated on the remote session, so desktop behavior is unchanged.
+            if (
+              selected &&
+              remote &&
+              typeof Notification !== "undefined" &&
+              Notification.permission === "default"
+            ) {
+              void Notification.requestPermission();
+            }
             startTransition(() => {
               setNotificationsEnabled(selected);
             });

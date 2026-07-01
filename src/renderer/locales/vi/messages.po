@@ -31,9 +31,12 @@ msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# tập tin} other {# tập tin}}"
 
 #. placeholder {0}: props.desktops.length
+#: src/mobile/views/DesktopsView.tsx
+msgid "{0, plural, one {# paired connection} other {# paired connections}}"
+msgstr "{0, plural, one {# kết nối đã ghép đôi} other {# kết nối đã ghép đôi}}"
+
 #. placeholder {0}: remote.desktops.length
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/DesktopsView.tsx
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# desktop đã ghép đôi} other {# desktop đã ghép đôi}}"
 
@@ -317,6 +320,10 @@ msgstr "Khoảng thời gian tự động làm mới {label} tính bằng phút"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "{label} copied."
 msgstr "Đã sao chép {label}."
+
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "{label} usage"
+msgstr "Mức sử dụng {label}"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -1392,10 +1399,19 @@ msgstr "Đang kiểm tra…"
 msgid "Checks"
 msgstr "Kiểm tra"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a folder"
+msgstr "Chọn một thư mục"
+
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Choose a folder…"
 msgstr "Chọn một thư mục…"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a parent folder"
+msgstr "Chọn một thư mục cha"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Choose how to sign in for {env}."
@@ -1523,6 +1539,9 @@ msgid "Cloning…"
 msgstr "Nhân bản…"
 
 #: src/mobile/components.tsx
+#: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
@@ -1541,8 +1560,12 @@ msgid "Close browser"
 msgstr "Đóng trình duyệt"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Close desktop actions"
-msgstr "Đóng hành động desktop"
+msgid "Close connection actions"
+msgstr "Đóng các thao tác kết nối"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Close desktop actions"
+#~ msgstr "Đóng hành động desktop"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1913,6 +1936,11 @@ msgstr "Lỗi kết nối."
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "Kết nối thất bại."
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "Connections"
+msgstr "Kết nối"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
@@ -2368,8 +2396,8 @@ msgstr "Không thể kết nối tới desktop."
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
-msgid "Desktops"
-msgstr "Desktop"
+#~ msgid "Desktops"
+#~ msgstr "Desktop"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2759,9 +2787,15 @@ msgstr "Thoát khỏi chế độ kế hoạch"
 msgid "exited"
 msgstr "đã thoát"
 
+#. placeholder {0}: activeTab.exitCode
+#. placeholder {0}: tab.exitCode
 #: src/mobile/views/TerminalView.tsx
-msgid "exited ({exitCode})"
-msgstr "đã thoát ({exitCode})"
+msgid "exited ({0})"
+msgstr "đã thoát ({0})"
+
+#: src/mobile/views/TerminalView.tsx
+#~ msgid "exited ({exitCode})"
+#~ msgstr "đã thoát ({exitCode})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -2995,15 +3029,22 @@ msgstr "Tập trung vào thanh địa chỉ của trình duyệt tích hợp"
 msgid "Focus window"
 msgstr "Chuyển đến cửa sổ"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
+msgid "Folder"
+msgstr "Thư mục"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Tên thư mục"
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "Folder path"
-msgstr "Đường dẫn thư mục"
+msgid "Folder on the server"
+msgstr "Thư mục trên máy chủ"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#~ msgid "Folder path"
+#~ msgstr "Đường dẫn thư mục"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "Đường dẫn thư mục trên máy chủ"
@@ -3289,6 +3330,10 @@ msgstr "Lịch sử"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "Trang chủ"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Home folder"
+msgstr "Thư mục chính"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3615,6 +3660,7 @@ msgstr "Đang tải luồng"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/views/FilesView.tsx
+#: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -4264,6 +4310,10 @@ msgstr "Không tìm thấy lệnh nào"
 msgid "No commits found."
 msgstr "Không tìm thấy cam kết nào."
 
+#: src/mobile/RootLayout.tsx
+msgid "No connection paired"
+msgstr "Chưa ghép đôi kết nối nào"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No content streams."
 msgstr "Không có luồng nội dung."
@@ -4286,8 +4336,8 @@ msgid "No description"
 msgstr "Không có mô tả"
 
 #: src/mobile/RootLayout.tsx
-msgid "No desktop paired"
-msgstr "Chưa ghép đôi desktop nào"
+#~ msgid "No desktop paired"
+#~ msgstr "Chưa ghép đôi desktop nào"
 
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -4659,6 +4709,10 @@ msgstr "Mở tệp"
 msgid "Open folder"
 msgstr "Mở thư mục"
 
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "Open full usage"
+msgstr "Mở mức sử dụng đầy đủ"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
 msgstr "Mở toàn màn hình"
@@ -4760,6 +4814,7 @@ msgstr "Mở Cài đặt → Truy cập từ xa trong Lightcode trên desktop, r
 msgid "Open subagent: {0}"
 msgstr "Mở tác nhân phụ: {0}"
 
+#: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
@@ -4841,8 +4896,12 @@ msgid "Pair"
 msgstr "Ghép đôi"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Pair a desktop"
-msgstr "Ghép đôi desktop"
+msgid "Pair a connection"
+msgstr "Ghép đôi một kết nối"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Pair a desktop"
+#~ msgstr "Ghép đôi desktop"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
@@ -4896,7 +4955,6 @@ msgstr "bảng điều khiển"
 msgid "Panels and overlays"
 msgstr "Bảng điều khiển và lớp phủ"
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Parent folder"
 msgstr "Thư mục cha"
@@ -5340,6 +5398,7 @@ msgstr "Được xây dựng lại từ nhật ký cục bộ ở mức API côn
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -5491,8 +5550,12 @@ msgid "Remove Claude profile"
 msgstr "Xóa hồ sơ Claude"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Remove desktop"
-msgstr "Xóa desktop"
+msgid "Remove connection"
+msgstr "Xóa kết nối"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Remove desktop"
+#~ msgstr "Xóa desktop"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -5549,8 +5612,12 @@ msgid "Rename chat"
 msgstr "Đổi tên cuộc trò chuyện"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Rename desktop"
-msgstr "Đổi tên desktop"
+msgid "Rename connection"
+msgstr "Đổi tên kết nối"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Rename desktop"
+#~ msgstr "Đổi tên desktop"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -6075,6 +6142,10 @@ msgstr "Chọn tài khoản"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "Chọn một tác nhân để xem lời nhắc và kết quả của nó."
 
+#: src/renderer/components/common/Select.tsx
+msgid "Select an option"
+msgstr "Chọn một tùy chọn"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Select branch"
 msgstr "Chọn nhánh"
@@ -6090,6 +6161,10 @@ msgstr "Chọn mô hình"
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "Chọn dự án"
+
+#: src/renderer/components/common/Select.tsx
+msgid "Select…"
+msgstr "Chọn…"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6265,6 +6340,10 @@ msgstr "Hiển thị nút micrô trong trình soạn thảo."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "Hiển thị nút nhập bằng giọng nói"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Showing the first 4,000 entries."
+msgstr "Đang hiển thị 4.000 mục đầu tiên."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -6938,6 +7017,10 @@ msgstr "Tệp này quá lớn đối với trình chỉnh sửa tích hợp."
 msgid "This file uses an unsupported encoding."
 msgstr "Tệp này sử dụng mã hóa không được hỗ trợ."
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "This folder is empty."
+msgstr "Thư mục này trống."
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -7459,6 +7542,10 @@ msgstr "chưa đưa vào staging"
 msgid "Unsupported"
 msgstr "Không được hỗ trợ"
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Up one level"
+msgstr "Lên một cấp"
+
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Update"
@@ -7541,6 +7628,7 @@ msgstr "Đang cập nhật {0} ({env})"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/settingsSections.ts
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -7595,6 +7683,10 @@ msgid "Use this account for usage tracking, or change users in the browser "
 "before continuing."
 msgstr "Sử dụng tài khoản này để theo dõi việc sử dụng hoặc thay đổi người dùng "
 "trong trình duyệt trước khi tiếp tục."
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Use this folder"
+msgstr "Sử dụng thư mục này"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

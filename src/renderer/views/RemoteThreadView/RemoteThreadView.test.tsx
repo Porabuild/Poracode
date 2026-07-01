@@ -1,14 +1,50 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Thread } from "@/shared/contracts";
+import type { Project, Thread } from "@/shared/contracts";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { RemoteThreadView } from "./RemoteThreadView";
 
 // ChatPane pulls heavy runtime deps and reads the global store; the remote view
 // only needs to mount it, so stub it.
 vi.mock("@/renderer/components/thread/ChatPane/ChatPane", () => ({
-  ChatPane: (props: { thread: Thread }) => <div data-testid="chatpane">{props.thread.title}</div>,
+  ChatPane: (props: {
+    thread: Thread;
+    paneActionsOverride?: { openProjectRelativePath(path: string, lineNumber?: number): void };
+  }) => (
+    <div data-testid="chatpane">
+      {props.thread.title}
+      <button
+        type="button"
+        onClick={() => props.paneActionsOverride?.openProjectRelativePath("README.md", 2)}
+      >
+        open remote file
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("@/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel", () => ({
+  ThreadRuntimeRequestPanel: (props: {
+    request: { requestId: string };
+    onResolve: (input: { requestId: string; method: string; response: unknown }) => void;
+  }) => (
+    <button
+      type="button"
+      onClick={() =>
+        props.onResolve({
+          requestId: props.request.requestId,
+          method: "requestPermission",
+          response: { optionId: "allow" },
+        })
+      }
+    >
+      resolve remote request
+    </button>
+  ),
 }));
 
 const thread = {
@@ -20,12 +56,35 @@ const thread = {
   status: "idle",
 } as unknown as Thread;
 
+const project: Project = {
+  id: "p1",
+  name: "Remote Project",
+  location: { kind: "posix", path: "/remote/project" },
+  createdAt: "2026-01-01T00:00:00.000Z",
+};
+
 function seedOpenThread(overrides?: Partial<Thread>) {
   const sendRemotePrompt = vi.fn<(prompt: string) => Promise<void>>(async () => {});
   const interruptThread = vi.fn<(d: string, t: string) => Promise<void>>(async () => {});
   const closeRemoteThread = vi.fn<() => void>();
+  const resolveThreadRequest = vi.fn<
+    (input: {
+      desktopId: string;
+      threadId: string;
+      requestId: string;
+      method: string;
+      response: unknown;
+    }) => Promise<void>
+  >(async () => {});
   useRemoteServersStore.setState({
     openThread: { desktopId: "d1", threadId: "rt-1", thread: { ...thread, ...overrides } },
+    runtime: {
+      d1: {
+        status: "online",
+        projects: [project],
+        threads: [{ ...thread, ...overrides }],
+      },
+    },
     servers: [
       {
         desktopId: "d1",
@@ -38,20 +97,33 @@ function seedOpenThread(overrides?: Partial<Thread>) {
     sendRemotePrompt,
     interruptThread,
     closeRemoteThread,
+    resolveThreadRequest,
   });
-  return { sendRemotePrompt, interruptThread, closeRemoteThread };
+  return { sendRemotePrompt, interruptThread, closeRemoteThread, resolveThreadRequest };
 }
 
 describe("RemoteThreadView", () => {
   afterEach(() => {
-    useRemoteServersStore.setState({ openThread: null, servers: [] });
+    useRemoteServersStore.setState({ openThread: null, servers: [], runtime: {} });
+    useAppStore.setState({ runtimeRequestsByThread: {} });
+    useFileEditorStore.setState({
+      rootContext: null,
+      overlayMode: null,
+      tabs: [],
+      activePath: null,
+      previewTab: null,
+      markdownPreviewPath: null,
+      buffers: {},
+      refreshToken: 0,
+      pendingReveal: null,
+    });
     document.body.innerHTML = "";
   });
 
   it("renders ChatPane and the server label for the open thread", () => {
     seedOpenThread();
     render(<RemoteThreadView />);
-    expect(screen.getByTestId("chatpane").textContent).toBe("Remote thread");
+    expect(screen.getByTestId("chatpane").textContent).toContain("Remote thread");
     expect(screen.getByText("Server One")).toBeTruthy();
   });
 
@@ -69,6 +141,113 @@ describe("RemoteThreadView", () => {
     seedOpenThread({ status: "working" });
     render(<RemoteThreadView />);
     expect(screen.getByRole("button", { name: "Interrupt" })).toBeTruthy();
+  });
+
+  it("opens project-relative ChatPane file links through the remote file editor context", async () => {
+    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(async () => ({
+      path: "README.md",
+      status: "ready",
+      modifiedAtMs: 123,
+      content: "remote readme",
+      lineEnding: "lf",
+      hasBom: false,
+    }));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(() => ({ gitCall }) as unknown as RemoteDesktopClient);
+    seedOpenThread();
+
+    render(<RemoteThreadView />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "open remote file" }));
+    });
+
+    await waitFor(() =>
+      expect(gitCall).toHaveBeenCalledWith("readProjectFile", {
+        projectLocation: project.location,
+        path: "README.md",
+      }),
+    );
+    expect(useFileEditorStore.getState().rootContext).toMatchObject({
+      projectId: "p1",
+      remoteServerId: "d1",
+      projectLocation: project.location,
+    });
+    await waitFor(() =>
+      expect(useFileEditorStore.getState().buffers["README.md"]).toMatchObject({
+        content: "remote readme",
+        isLoading: false,
+      }),
+    );
+  });
+
+  it("resolves runtime requests through the remote server", async () => {
+    const { resolveThreadRequest } = seedOpenThread({ status: "needs_approval" });
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        "rt-1": [
+          {
+            requestId: "request-1",
+            threadId: "rt-1",
+            requestType: "tool_user_input",
+            payload: { summary: "Choose", details: {}, options: [] },
+            receivedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    });
+
+    render(<RemoteThreadView />);
+    fireEvent.click(screen.getByRole("button", { name: "resolve remote request" }));
+
+    await waitFor(() =>
+      expect(resolveThreadRequest).toHaveBeenCalledWith({
+        desktopId: "d1",
+        threadId: "rt-1",
+        requestId: "request-1",
+        method: "requestPermission",
+        response: { optionId: "allow" },
+      }),
+    );
+  });
+
+  it("denies a pending approval before sending a follow-up prompt", async () => {
+    const { resolveThreadRequest, sendRemotePrompt } = seedOpenThread({
+      status: "needs_approval",
+    });
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        "rt-1": [
+          {
+            requestId: "approval-1",
+            threadId: "rt-1",
+            requestType: "command_execution_approval",
+            payload: {
+              summary: "Run command",
+              details: {},
+              options: [{ optionId: "deny", label: "Deny" }],
+            },
+            receivedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    });
+
+    render(<RemoteThreadView />);
+    const box = screen.getByPlaceholderText("Message the remote agent…") as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: "try another way" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    await waitFor(() =>
+      expect(resolveThreadRequest).toHaveBeenCalledWith({
+        desktopId: "d1",
+        threadId: "rt-1",
+        requestId: "approval-1",
+        method: "requestPermission",
+        response: { optionId: "deny" },
+      }),
+    );
+    await waitFor(() => expect(sendRemotePrompt).toHaveBeenCalledWith("try another way"));
   });
 
   it("hides Interrupt when idle", () => {

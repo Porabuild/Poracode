@@ -33,6 +33,7 @@
     "start": "pnpm run setup:native && electron .",
     "server": "node dist/main/server.cjs",
     "relay": "node dist/main/relay.cjs",
+    "prepare:server-native": "node scripts/prepare-server-native.mjs",
     "prepare:wsl-helpers": "node scripts/prepare-wsl-helpers.mjs",
     "prepare:agent-plugins": "node scripts/prepare-agent-plugins.mjs",
     "prepare:package-assets": "pnpm run prepare:wsl-helpers && pnpm run prepare:agent-plugins",

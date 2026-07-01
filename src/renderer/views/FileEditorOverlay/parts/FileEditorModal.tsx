@@ -20,6 +20,7 @@ export function FileEditorModal() {
   const hasDirtyBuffers = Object.values(buffers).some(
     (buffer) => buffer.status === "ready" && buffer.isDirty,
   );
+  const isRemoteRoot = rootContext?.remoteServerId !== undefined;
 
   function requestClose() {
     if (hasDirtyBuffers && !window.confirm(t`Discard unsaved editor changes?`)) {
@@ -66,20 +67,26 @@ export function FileEditorModal() {
               </Button>
             </Modal.Header>
             <Modal.Body className="min-h-0 p-0">
-              <div className="grid h-full min-h-0 grid-cols-[320px_minmax(0,1fr)]">
-                <div className="min-h-0 border-r border-[color:var(--border)]">
-                  <div className={overlaySidebarColumnClass}>
-                    <ProjectTreeView
-                      rootContext={rootContext}
-                      onSelectFile={(path) => {
-                        void openFile(path, "modal", true).catch((error) =>
-                          toast.danger(error instanceof Error ? error.message : String(error)),
-                        );
-                      }}
-                      onPinFile={pinTab}
-                    />
+              <div
+                className={`grid h-full min-h-0 ${
+                  isRemoteRoot ? "grid-cols-[minmax(0,1fr)]" : "grid-cols-[320px_minmax(0,1fr)]"
+                }`}
+              >
+                {isRemoteRoot ? null : (
+                  <div className="min-h-0 border-r border-[color:var(--border)]">
+                    <div className={overlaySidebarColumnClass}>
+                      <ProjectTreeView
+                        rootContext={rootContext}
+                        onSelectFile={(path) => {
+                          void openFile(path, "modal", true).catch((error) =>
+                            toast.danger(error instanceof Error ? error.message : String(error)),
+                          );
+                        }}
+                        onPinFile={pinTab}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
                 <FileEditorPane
                   showTabs={false}
                   onOpenFullscreen={() => setOverlayMode("fullscreen")}

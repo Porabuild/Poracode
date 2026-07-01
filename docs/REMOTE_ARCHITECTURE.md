@@ -133,10 +133,8 @@ Also landed:
 - **Desktop UI:** the Settings → Remote Servers panel does the same against any
   connected server.
 
-Deferred (next):
+Remaining:
 
-- Wire the `remote-projects-changed` event into `useRemoteDesktop` for live
-  push refresh (today the client re-fetches after its own command).
 - **Renderer-dispatched edits** (rename, disable, relocate, reorder) — these
   need the renderer store's `sortOrder`/cascade semantics, so they ride Phase 2
   rather than the DB-direct path.
@@ -195,11 +193,23 @@ scope set (incl. `projects:manage`), and **zero console errors** throughout.
 
 Deferred (next):
 
-- Remote thread **approvals / checkpoints / file-open** in the reused `ChatPane`
-  still target the local actions context (which is `null` for the remote view,
-  so they no-op rather than misfire); routing those to the remote client is the
-  remaining polish.
+- Remote thread **absolute / out-of-project file-open** links and remote tree
+  browsing. Project-relative `ChatPane` file links now open in a remote-root
+  file editor context backed by the paired server's allowlisted
+  `readProjectFile` / `writeProjectFile` bridge; absolute paths remain ignored
+  until there is an explicit remote external-file policy.
 - **Pair via QR / pairing-URL paste** (the PWA already parses these).
+
+Landed hardening since the first Phase 4 cut:
+
+- Remote thread **approvals / user-input requests** render in the remote overlay
+  through the same `ThreadRuntimeRequestPanel` as local GUI threads and resolve
+  through the paired server's request API. Sending a follow-up prompt while an
+  approval is pending first denies that approval, matching local composer
+  behavior.
+- Remote thread **checkpoint revert** now routes provider rollback and file
+  restore through the paired server's allowlisted git bridge instead of the
+  local desktop bridge.
 
 ### Phase 5 — Cloud connectivity 🟡 (self-hostable transport landed)
 
@@ -236,8 +246,28 @@ findings; 23 survived verification. Fixed in this pass:
   segments in add/create/clone paths. `projects:manage` still grants explicit
   absolute-path access (that's the "add a project from the system" capability);
   the scope grant is the trust boundary, but traversal-disguise is forbidden.
-- **Proxy hardening.** `remoteHttpRequest` is restricted to `http(s)` and caps
-  the response at 64 MiB (scheme/SSRF/size).
+- **Proxy/client hardening.** `remoteHttpRequest` is restricted to `http(s)`,
+  aborts stuck requests, and caps streamed responses at 64 MiB
+  (scheme/SSRF/timeout/size). The shared `RemoteDesktopClient` applies the same
+  timeout and response cap to direct PWA/server requests.
+- **WebSocket frame hardening.** The desktop/headless remote server sets an
+  explicit inbound client-frame cap (1 MiB default, matching JSON POST bodies).
+  The relay also sets explicit host/visitor payload caps sized for its configured
+  HTTP body limit, so large frames fail at the `ws` layer instead of relying on
+  library defaults. Replayable event sockets also have a bounded outbound queue
+  (4 MiB default); a congested client is dropped and must reconnect through
+  event replay or snapshot resync rather than accumulating unbounded server
+  memory. Relay host/visitor sockets and the host-side relay adapter now apply
+  outbound queue caps as well, sized to permit one configured maximum HTTP body
+  frame while still bounding memory under slow cloud peers.
+- **Relay host timeout hardening.** The host-side relay adapter aborts local
+  HTTP proxy requests that do not complete within the request timeout, including
+  stalled response bodies. This keeps relay visitor timeouts from leaving stale
+  local fetch work behind on the server.
+- **WebSocket session-expiry hardening.** Remote WebSocket connections now carry
+  the bearer session's expiry timestamp and close themselves when that access
+  session expires, matching the lifetime enforced on new HTTP calls and
+  WebSocket-ticket consumption.
 - **Store correctness.** `removeServer` now closes an open live-chat thread (+
   its socket) belonging to the removed server; `mainProcessFetch` guards
   null-body HTTP statuses (204/205/304/1xx); `RemoteThreadView`'s interrupt
@@ -245,7 +275,14 @@ findings; 23 survived verification. Fixed in this pass:
 - **Event consumption.** The PWA refreshes its snapshot on
   `remote-projects-changed` (it was broadcast but ignored); the desktop keeps
   remote projects in `remoteServersStore`, so it deliberately ignores the event
-  there to avoid clobbering local projects.
+  there to avoid clobbering local projects. Desktop-as-client live chat now also
+  handles `resync-required` by fetching fresh remote thread history and
+  refreshing the remote server snapshot, matching the PWA's replay-expired
+  recovery path.
+- **Snapshot cost.** Shell snapshots now read batched runtime summaries from
+  SQLite (item count, latest item metadata, context usage) instead of loading
+  and decoding every persisted runtime item payload for every visible thread on
+  each `/api/snapshot` refresh.
 - **Clone-name parsing** strips query/fragment + trailing slashes.
 
 Accepted as-is (documented, not bugs): the bearer token persists in renderer
@@ -254,7 +291,10 @@ localStorage (mirrors the PWA; server can revoke); `storeSync` reused from
 
 ## 5. Decisions
 
-- **Connectivity (now):** direct connection only; relay is Phase 5.
+- **Connectivity (now):** direct connection remains the default (LAN / VPN /
+  Tailscale), and the self-hostable relay transport is available for
+  cross-network deployments. The managed cloud subscription layer is outside
+  this repo and can sit on top of the relay protocol.
 - **Headless runtime:** plain-Node CLI. The composition root is runtime-agnostic;
   packaging the Node-ABI builds of `better-sqlite3` / `node-pty` (alongside the
   Electron-ABI builds the desktop uses) is a packaging task, tracked below.
@@ -264,9 +304,10 @@ localStorage (mirrors the PWA; server can revoke); `storeSync` reused from
 ## 6. Open packaging tasks (Phase 1 follow-ups)
 
 - **Native ABI.** The desktop rebuilds `better-sqlite3` / `node-pty` for the
-  **Electron** ABI via `electron-rebuild` (`pnpm run setup:native`). Running the
-  CLI under **plain Node** then fails when `new Database()` loads the native
-  binding:
+  **Electron** ABI via `electron-rebuild` (`pnpm run setup:native`). A headless
+  server runs under **plain Node**, so it needs a Node-ABI SQLite binding
+  instead of the Electron one. If the default package binding is Electron-built,
+  `new Database()` fails with:
 
   ```
   The module 'better_sqlite3.node' was compiled against a different Node.js
@@ -274,12 +315,20 @@ localStorage (mirrors the PWA; server can revoke); `storeSync` reused from
   requires NODE_MODULE_VERSION 137 [Node].
   ```
 
-  This is purely a build-output mismatch, not a code issue — the CLI builds,
-  boots, writes its data dir + secret key, and surfaces this exact error. The
-  fix is to provide Node-ABI native modules for the server runtime, e.g. a
-  Docker image that `npm rebuild`s under the target Node, or a dedicated install
-  prefix. Tracked separately so it doesn't disturb the desktop's Electron-ABI
-  build in the shared `node_modules`.
+  This is a build-output mismatch, not a protocol/runtime issue. The headless
+  server now supports a separate Node-ABI `better_sqlite3.node` without
+  disturbing the desktop's Electron-ABI build:
+  - `pnpm run prepare:server-native` builds a Node-ABI binding into
+    `dist/server-native/better_sqlite3.node`.
+  - `src/server/cli.ts` marks the process as headless, and `src/main/db.ts`
+    automatically uses that prepared binding when present.
+  - Operators can override the binding path explicitly with
+    `LIGHTCODE_BETTER_SQLITE3_NATIVE_BINDING`.
+
+  Verified against the built production CLI: with the prepared binding,
+  `node dist/main/server.cjs` starts on an isolated data dir, serves the
+  environment descriptor, exchanges the pairing token, returns an authenticated
+  snapshot, and shuts down cleanly on SIGTERM.
 
 - **HTTP-server boot is independent of native modules.** `RemoteAccessServer`
   binds and serves even if the supervisor (which needs `node-pty`) is degraded;

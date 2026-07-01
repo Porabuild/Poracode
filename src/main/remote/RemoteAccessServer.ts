@@ -35,6 +35,7 @@ import {
   type RemoteSettingsPatch,
   type RemoteShellSnapshot,
   type RemoteThreadSnapshot,
+  type RemoteThreadsChangedEvent,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
 import {
@@ -67,6 +68,7 @@ import {
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
   dbGetThreadRuntimeItems,
+  dbGetThreadRuntimeSummaries,
   dbGetThreads,
   dbUpsertProject,
   dbUpsertThread,
@@ -91,7 +93,11 @@ import { tryServeBuiltMobileApp } from "./staticMobileApp";
 import { applyRemoteProjectCommand } from "./projectCommands";
 
 const MAX_JSON_BODY_BYTES = 1024 * 1024;
+const DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES = MAX_JSON_BODY_BYTES;
+const DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES = 4 * 1024 * 1024;
 const EVENT_BUFFER_LIMIT = 500;
+const DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 30_000;
+const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
 const DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT = {
   maxAttempts: 20,
   windowMs: 5 * 60 * 1000,
@@ -128,6 +134,19 @@ export interface RemoteAccessServerOptions {
     readonly windowMs: number;
   };
   /**
+   * Server-side ping interval for pruning half-open remote sockets. Set to 0 in
+   * tests only when a heartbeat would make assertions nondeterministic.
+   */
+  readonly webSocketHeartbeatIntervalMs?: number;
+  /** Maximum inbound WebSocket message payload accepted from a remote client. */
+  readonly maxWebSocketPayloadBytes?: number;
+  /**
+   * Maximum bytes the server will queue per outbound WebSocket before dropping
+   * the client. Reconnect + replay/snapshot resync is safer than unbounded
+   * memory growth behind a slow mobile or relay connection.
+   */
+  readonly maxWebSocketOutboundBufferBytes?: number;
+  /**
    * Dev-mode URL of the mobile PWA on the Vite dev server (e.g.
    * `http://192.168.1.5:3100/mobile.html`). Pairing links are minted on this
    * origin with the desktop API in `?host=...`, and `/app`/`/pair` still
@@ -161,7 +180,11 @@ export interface RemoteAccessServerOptions {
   gitSummaries?(): RemoteGitSummaries;
 }
 
-type RemoteBroadcastEvent = SupervisorEvent | RemoteGitSummariesEvent | RemoteProjectsChangedEvent;
+type RemoteBroadcastEvent =
+  | SupervisorEvent
+  | RemoteGitSummariesEvent
+  | RemoteProjectsChangedEvent
+  | RemoteThreadsChangedEvent;
 
 interface BufferedSupervisorEvent {
   readonly seq: number;
@@ -302,17 +325,23 @@ const THREAD_POST_ROUTES: ReadonlyArray<{
 export class RemoteAccessServer {
   private readonly auth: RemoteAuthStore;
   private readonly server: Server;
-  private readonly wss = new WebSocketServer({ noServer: true });
+  private readonly wss: WebSocketServer;
   private readonly clients = new Map<WebSocket, AuthenticatedRemoteSession>();
+  private readonly clientLiveness = new Map<WebSocket, boolean>();
   /** Per-connection terminal ids the client opted into live `terminal-output` for. */
   private readonly terminalWatches = new Map<WebSocket, Set<string>>();
   private readonly rateLimitBuckets = new Map<string, RateLimitBucket>();
   private readonly eventBuffer: BufferedSupervisorEvent[] = [];
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private seq = 0;
   private info: RemoteAccessServerInfo | null = null;
 
   constructor(private readonly options: RemoteAccessServerOptions) {
     this.auth = options.authStore ?? new RemoteAuthStore();
+    this.wss = new WebSocketServer({
+      noServer: true,
+      maxPayload: options.maxWebSocketPayloadBytes ?? DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES,
+    });
     this.server = createServer((req, res) => {
       void this.handleHttp(req, res);
     });
@@ -357,6 +386,7 @@ export class RemoteAccessServer {
         ...(pairingAppUrl ? { pairingAppUrl } : {}),
       }),
     };
+    this.startWebSocketHeartbeat();
     return this.info;
   }
 
@@ -367,10 +397,13 @@ export class RemoteAccessServer {
    * immediately; active requests are given a short grace period to finish.
    */
   async dispose(): Promise<void> {
+    this.stopWebSocketHeartbeat();
     for (const client of this.clients.keys()) {
       client.terminate();
     }
     this.clients.clear();
+    this.clientLiveness.clear();
+    this.terminalWatches.clear();
     this.wss.close();
     // Drop idle keep-alive connections so close() doesn't wait on them, but let
     // any in-flight request complete (up to the grace timeout).
@@ -428,6 +461,13 @@ export class RemoteAccessServer {
       type: "event",
       seq,
       event,
+    });
+  }
+
+  private publishThreadsChanged(threadIds: readonly string[]): void {
+    this.publishSupervisorEvent({
+      type: "remote-threads-changed",
+      threadIds: [...new Set(threadIds)],
     });
   }
 
@@ -622,6 +662,16 @@ export class RemoteAccessServer {
       if (req.method === "POST" && url.pathname === "/api/threads/start") {
         this.requireBearer(req, ["session:operate"]);
         const payload = startThreadPayloadSchema.parse(await readJsonBody(req));
+        if (!payload.threadId) {
+          throw new RemoteHttpError(
+            "thread_id_required",
+            "Remote thread start requires an existing thread id.",
+            400,
+          );
+        }
+        if (!dbGetThreads().some((thread) => thread.id === payload.threadId)) {
+          throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+        }
         this.writeJson(res, 200, await this.options.callSupervisor("startThread", payload));
         return;
       }
@@ -630,7 +680,8 @@ export class RemoteAccessServer {
         // path, since this isn't scoped to a thread.
         this.requireBearer(req, ["terminal:operate"]);
         const payload = startShellPayloadSchema.parse(await readJsonBody(req));
-        this.writeJson(res, 200, await this.options.callSupervisor("startShell", payload));
+        await this.options.callSupervisor("startShell", payload);
+        this.writeJson(res, 200, { ok: true });
         return;
       }
       const commandThreadId = threadIdFromPath(url.pathname, "/command");
@@ -653,6 +704,7 @@ export class RemoteAccessServer {
           const rendererCommand =
             command.kind === "start" ? { ...command, launchRuntime: false } : command;
           this.options.dispatchThreadCommand?.(rendererCommand);
+          this.publishThreadsChanged([command.threadId]);
         }
         this.writeJson(res, 200, { ok: true });
         return;
@@ -684,12 +736,23 @@ export class RemoteAccessServer {
         socket.destroy();
         return;
       }
+      // Browser WebSockets are opened directly by renderer/PWA clients rather
+      // than through the HTTP proxy path. Keep HTTP CORS as the ticket-minting
+      // gate and treat the short-lived, one-use ticket as the WS capability.
       const ticket = url.searchParams.get("ticket") ?? "";
       const session = this.auth.consumeWebSocketTicket(ticket);
       this.wss.handleUpgrade(req, socket, head, (ws) => {
         this.handleConnection(ws, req, session);
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof RemoteHttpError) {
+        this.rejectUpgrade(
+          socket,
+          error.status,
+          error.status === 401 ? "Unauthorized" : "Forbidden",
+        );
+        return;
+      }
       socket.destroy();
     }
   }
@@ -700,15 +763,41 @@ export class RemoteAccessServer {
     session: AuthenticatedRemoteSession,
   ): void {
     this.clients.set(ws, session);
+    this.clientLiveness.set(ws, true);
     this.terminalWatches.set(ws, new Set());
     // Browser mirroring is per-connection opt-in (frames are heavy); the
     // gateway's screencast stops once the last watcher unsubscribes.
     let browserWatch: (() => void) | null = null;
+    let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleSessionExpiry = () => {
+      const delayMs = session.expiresAtMs - Date.now();
+      if (delayMs <= 0) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close(1008, "Remote access session expired");
+        } else {
+          ws.terminate();
+        }
+        return;
+      }
+      expiryTimer = setTimeout(scheduleSessionExpiry, Math.min(delayMs, MAX_TIMEOUT_DELAY_MS));
+      expiryTimer.unref?.();
+    };
     ws.on("close", () => {
+      if (expiryTimer) {
+        clearTimeout(expiryTimer);
+        expiryTimer = null;
+      }
       browserWatch?.();
       browserWatch = null;
       this.terminalWatches.delete(ws);
       this.clients.delete(ws);
+      this.clientLiveness.delete(ws);
+    });
+    ws.on("pong", () => {
+      this.clientLiveness.set(ws, true);
+    });
+    ws.on("error", () => {
+      ws.terminate();
     });
     ws.on("message", (data) => {
       try {
@@ -775,6 +864,7 @@ export class RemoteAccessServer {
         // Ignore invalid client messages; all state changes go through HTTP in this slice.
       }
     });
+    scheduleSessionExpiry();
 
     const lastSeenSeq = this.parseLastSeenSeq(req);
     this.send(ws, { type: "ready", seq: this.seq });
@@ -803,19 +893,16 @@ export class RemoteAccessServer {
   private buildShellSnapshot(): RemoteShellSnapshot {
     const threads = dbGetThreads();
     const runtimeSummariesByThread: RemoteShellSnapshot["runtimeSummariesByThread"] = {};
-    // Loading runtime items is the expensive part of this snapshot; archived
-    // threads are hidden on remote clients, so skip their summaries.
-    for (const thread of threads) {
-      if (thread.archived) continue;
-      const items = dbGetThreadRuntimeItems(thread.id);
-      const latest = items.at(-1);
-      const contextUsage = dbGetThreadContextUsage(thread.id);
+    const visibleThreads = threads.filter((thread) => !thread.archived);
+    const runtimeSummaries = dbGetThreadRuntimeSummaries(visibleThreads.map((thread) => thread.id));
+    for (const thread of visibleThreads) {
+      const summary = runtimeSummaries[thread.id] ?? { itemCount: 0 };
       runtimeSummariesByThread[thread.id] = remoteRuntimeSummarySchema.parse({
-        itemCount: items.length,
-        ...(latest
-          ? { latestItemId: latest.id, latestItemType: latest.type, latestItemState: latest.state }
-          : {}),
-        ...(contextUsage ? { contextUsage } : {}),
+        itemCount: summary.itemCount,
+        ...(summary.latestItemId ? { latestItemId: summary.latestItemId } : {}),
+        ...(summary.latestItemType ? { latestItemType: summary.latestItemType } : {}),
+        ...(summary.latestItemState ? { latestItemState: summary.latestItemState } : {}),
+        ...(summary.contextUsage ? { contextUsage: summary.contextUsage } : {}),
       });
     }
     return remoteShellSnapshotSchema.parse({
@@ -1111,18 +1198,60 @@ export class RemoteAccessServer {
     }
   }
 
+  private startWebSocketHeartbeat(): void {
+    if (this.heartbeatTimer) return;
+    const intervalMs =
+      this.options.webSocketHeartbeatIntervalMs ?? DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS;
+    if (intervalMs <= 0) return;
+    this.heartbeatTimer = setInterval(() => this.sweepWebSocketLiveness(), intervalMs);
+    this.heartbeatTimer.unref?.();
+  }
+
+  private stopWebSocketHeartbeat(): void {
+    if (!this.heartbeatTimer) return;
+    clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = null;
+  }
+
+  private sweepWebSocketLiveness(): void {
+    for (const client of this.clients.keys()) {
+      if (client.readyState !== WebSocket.OPEN) {
+        client.terminate();
+        continue;
+      }
+      if (this.clientLiveness.get(client) === false) {
+        client.terminate();
+        continue;
+      }
+      this.clientLiveness.set(client, false);
+      try {
+        client.ping();
+      } catch {
+        client.terminate();
+      }
+    }
+  }
+
   private applyCors(req: IncomingMessage, res: ServerResponse): boolean {
     res.setHeader("Access-Control-Allow-Headers", "authorization, content-type");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    const origin = this.trustedRequestOrigin(req);
+    if (origin === false) return false;
+    if (origin) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+    }
+    return true;
+  }
+
+  private trustedRequestOrigin(req: IncomingMessage): string | null | false {
     const rawOrigin = Array.isArray(req.headers.origin)
       ? req.headers.origin[0]
       : req.headers.origin;
-    if (!rawOrigin) return true;
+    if (!rawOrigin) return null;
     const origin = normalizeCorsOrigin(rawOrigin);
     if (!origin || !this.isTrustedCorsOrigin(origin)) return false;
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Vary", "Origin");
-    return true;
+    return origin;
   }
 
   private isTrustedCorsOrigin(origin: string): boolean {
@@ -1229,15 +1358,48 @@ export class RemoteAccessServer {
   private broadcast(message: RemoteWebSocketServerMessage): void {
     const data = JSON.stringify(message);
     for (const client of this.clients.keys()) {
-      if (client.readyState === client.OPEN) {
-        client.send(data);
-      }
+      this.sendRaw(client, data);
     }
   }
 
   private send(ws: WebSocket, message: RemoteWebSocketServerMessage): void {
-    if (ws.readyState !== ws.OPEN) return;
-    ws.send(JSON.stringify(message));
+    this.sendRaw(ws, JSON.stringify(message));
+  }
+
+  private sendRaw(ws: WebSocket, data: string): boolean {
+    if (ws.readyState !== WebSocket.OPEN) return false;
+    const maxBuffered =
+      this.options.maxWebSocketOutboundBufferBytes ?? DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES;
+    if (ws.bufferedAmount + Buffer.byteLength(data, "utf8") > maxBuffered) {
+      this.dropWebSocketClient(ws);
+      return false;
+    }
+    try {
+      ws.send(data);
+      return true;
+    } catch {
+      this.dropWebSocketClient(ws);
+      return false;
+    }
+  }
+
+  private dropWebSocketClient(ws: WebSocket): void {
+    this.clients.delete(ws);
+    this.clientLiveness.delete(ws);
+    this.terminalWatches.delete(ws);
+    try {
+      ws.terminate();
+    } catch {
+      // ignore
+    }
+  }
+
+  private rejectUpgrade(socket: Duplex, status: number, reason: string): void {
+    try {
+      socket.write(`HTTP/1.1 ${status} ${reason}\r\nConnection: close\r\n\r\n`);
+    } finally {
+      socket.destroy();
+    }
   }
 
   private requireInfo(): RemoteAccessServerInfo {

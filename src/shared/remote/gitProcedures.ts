@@ -26,6 +26,9 @@ export const GIT_REMOTE_PROCEDURE_SCOPES = {
   // Project files
   searchProjectFiles: "session:read",
   listProjectTree: "session:read",
+  // Host folder picker (add-existing / clone parent) — same capability that can
+  // already register any absolute path as a project, so gated behind that scope.
+  browseHostDirectory: "projects:manage",
   searchProjectTree: "session:read",
   readProjectFile: "session:read",
   readAbsoluteFile: "session:read",

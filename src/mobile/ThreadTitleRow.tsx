@@ -97,7 +97,14 @@ function ThreadActionsMenu(props: {
       items={items}
       onSelect={handleSelect}
       trigger={({ open }) => (
-        <Button isIconOnly aria-label={t`Thread actions`} size="sm" variant="ghost" onPress={open}>
+        <Button
+          isIconOnly
+          className="m-topbar__actions"
+          aria-label={t`Thread actions`}
+          size="sm"
+          variant="ghost"
+          onPress={open}
+        >
           <Ellipsis className="size-4" />
         </Button>
       )}
@@ -143,8 +150,8 @@ export function ThreadTitleRow(props: {
           />
         ) : (
           <>
-            <span className="m-topbar__title">{thread.title}</span>
             <StatusBadge status={thread.status} />
+            <span className="m-topbar__title">{thread.title}</span>
             {props.onOpenWorkspace ? (
               <WorkspaceChip
                 threadId={thread.id}

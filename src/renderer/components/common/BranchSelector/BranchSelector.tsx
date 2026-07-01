@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { ChevronDown, GitBranch, GitFork, Search } from "lucide-react";
-import { Popover, toast, Tooltip } from "@heroui/react";
+import { toast, Tooltip } from "@heroui/react";
 import type { GitBranchInfo } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
@@ -15,6 +15,7 @@ import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
 import { Button } from "../Button";
 import { ConfirmDialog } from "../ConfirmDialog";
+import { ResponsiveMenuSurface } from "../ResponsiveMenuSurface";
 import { useBranchList } from "./parts/useBranchList";
 import { BranchListBox, type OpenPrReviewArgs } from "./parts/BranchListBox";
 import { BranchFooterActions } from "./parts/BranchFooterActions";
@@ -114,7 +115,8 @@ export function BranchSelector(props: BranchSelectorProps) {
       setSearch("");
       setIsCreating(false);
       setNewBranchName("");
-      setTimeout(() => searchRef.current?.focus(), 50);
+      // On mobile, auto-focusing search would pop the keyboard over the drawer.
+      if (!isRemote) setTimeout(() => searchRef.current?.focus(), 50);
       // Refresh PR status for all branches in the background; cached icons show
       // immediately (prefetch self-throttles + dedupes).
       if (projectLocation) {
@@ -277,126 +279,153 @@ export function BranchSelector(props: BranchSelectorProps) {
     }
   }
 
+  const defaultTriggerButton = (
+    <Button
+      aria-label={t`Select branch`}
+      isDisabled={isDisabled ?? false}
+      size="sm"
+      variant="ghost"
+      className={`lightcode-composer-menu min-w-0 max-w-48 ${
+        compact ? "lightcode-composer-menu--compact px-2" : "px-2.5"
+      }`}
+      {...(isRemote ? { onPress: () => setIsOpen(true) } : {})}
+    >
+      {!hideTriggerIcon || iconOnly ? (
+        isWorktree || worktreeMode ? (
+          <GitFork className={`${triggerIconSize} text-muted`} />
+        ) : (
+          <GitBranch className={`${triggerIconSize} text-muted`} />
+        )
+      ) : null}
+      {!iconOnly && (
+        <span
+          data-collapse-tier={collapseTier}
+          className={
+            hideLabelOnWrap
+              ? `lightcode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
+              : "truncate"
+          }
+        >
+          {value}
+        </span>
+      )}
+      {!iconOnly && (
+        <ChevronDown
+          data-collapse-tier={collapseTier}
+          className={
+            hideLabelOnWrap
+              ? `lightcode-composer-label-hideable ${triggerIconSize} text-muted${forceHideLabel ? " is-hidden" : ""}`
+              : `${triggerIconSize} text-muted`
+          }
+        />
+      )}
+    </Button>
+  );
+
+  // On mobile a custom trigger has no press wiring, so intercept the tap to open
+  // the drawer; the default trigger opens itself via onPress above.
+  const triggerNode = trigger ? (
+    isRemote ? (
+      <span className="contents" onClickCapture={() => setIsOpen(true)}>
+        {trigger}
+      </span>
+    ) : (
+      trigger
+    )
+  ) : isRemote ? (
+    defaultTriggerButton
+  ) : (
+    <Tooltip delay={0}>
+      {defaultTriggerButton}
+      <Tooltip.Content placement="top">{value}</Tooltip.Content>
+    </Tooltip>
+  );
+
+  const menuBody = (
+    <>
+      {/* Search */}
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+        <Search className="size-3.5 shrink-0 text-muted" />
+        <input
+          ref={searchRef}
+          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
+          placeholder={t`Search branches...`}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Escape") {
+              if (isCreating) {
+                setIsCreating(false);
+                setNewBranchName("");
+              } else {
+                setIsOpen(false);
+              }
+            }
+          }}
+        />
+      </div>
+
+      <div className="flex-1 overflow-hidden pb-1.5">
+        <BranchListBox
+          projectId={projectId}
+          items={items}
+          hasLocal={hasLocal}
+          hasRemote={hasRemote}
+          currentBranch={currentBranch}
+          value={value}
+          baseBranch={baseBranch}
+          isWorktree={isWorktree}
+          worktreeMode={worktreeMode}
+          deletingBranch={deletingBranch}
+          worktreeBranches={worktreeBranches}
+          branchWorktreePath={branchWorktreePath}
+          threadsByBranch={threadsByBranch}
+          allowWorktreeDelete={!isRemote}
+          onSelect={handleSelectBranch}
+          onDelete={(b) => handleRequestDelete(b as GitBranchInfo)}
+          onOpenPrReview={handleOpenPrReview}
+        />
+      </div>
+
+      <BranchFooterActions
+        isCreating={isCreating}
+        setIsCreating={setIsCreating}
+        newBranchName={newBranchName}
+        setNewBranchName={setNewBranchName}
+        createRef={createRef}
+        searchRef={searchRef}
+        handleCreateBranch={handleCreateBranch}
+        hideWorktreeToggle={hideWorktreeToggle}
+        worktreeMode={worktreeMode}
+        onWorktreeModeChange={onWorktreeModeChange}
+        baseBranch={baseBranch}
+        value={value}
+        isWorktree={isWorktree}
+        branchWorktreePath={branchWorktreePath}
+        onSelect={onSelect}
+        showMoveBranch={showMoveBranchAction && !isRemote}
+        isMovingBranch={isMovingBranch}
+        onMoveBranchToWorktree={() => void handleMoveBranchToWorktree()}
+      />
+    </>
+  );
+
   return (
     <div className={`flex items-center gap-1 ${props.className ?? ""}`}>
       {worktreeMode && <span className="shrink-0 text-xs text-muted">from</span>}
-      <Popover isOpen={isOpen} onOpenChange={setIsOpen}>
-        <Popover.Trigger className="flex flex-1 min-w-0 items-center">
-          {trigger ?? (
-            <Tooltip delay={0}>
-              <Button
-                aria-label={t`Select branch`}
-                isDisabled={isDisabled ?? false}
-                size="sm"
-                variant="ghost"
-                className={`lightcode-composer-menu min-w-0 max-w-48 ${
-                  compact ? "lightcode-composer-menu--compact px-2" : "px-2.5"
-                }`}
-              >
-                {!hideTriggerIcon || iconOnly ? (
-                  isWorktree || worktreeMode ? (
-                    <GitFork className={`${triggerIconSize} text-muted`} />
-                  ) : (
-                    <GitBranch className={`${triggerIconSize} text-muted`} />
-                  )
-                ) : null}
-                {!iconOnly && (
-                  <span
-                    data-collapse-tier={collapseTier}
-                    className={
-                      hideLabelOnWrap
-                        ? `lightcode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
-                        : "truncate"
-                    }
-                  >
-                    {value}
-                  </span>
-                )}
-                {!iconOnly && (
-                  <ChevronDown
-                    data-collapse-tier={collapseTier}
-                    className={
-                      hideLabelOnWrap
-                        ? `lightcode-composer-label-hideable ${triggerIconSize} text-muted${forceHideLabel ? " is-hidden" : ""}`
-                        : `${triggerIconSize} text-muted`
-                    }
-                  />
-                )}
-              </Button>
-              <Tooltip.Content placement="top">{value}</Tooltip.Content>
-            </Tooltip>
-          )}
-        </Popover.Trigger>
-        <Popover.Content placement={popoverPlacement} className="w-80 p-0">
-          <Popover.Dialog className="flex max-h-[24rem] flex-col overflow-hidden !p-0 !pb-1.5">
-            {/* Search */}
-            <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-              <Search className="size-3.5 shrink-0 text-muted" />
-              <input
-                ref={searchRef}
-                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
-                placeholder={t`Search branches...`}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  e.stopPropagation();
-                  if (e.key === "Escape") {
-                    if (isCreating) {
-                      setIsCreating(false);
-                      setNewBranchName("");
-                    } else {
-                      setIsOpen(false);
-                    }
-                  }
-                }}
-              />
-            </div>
-
-            <div className="flex-1 overflow-hidden pb-1.5">
-              <BranchListBox
-                projectId={projectId}
-                items={items}
-                hasLocal={hasLocal}
-                hasRemote={hasRemote}
-                currentBranch={currentBranch}
-                value={value}
-                baseBranch={baseBranch}
-                isWorktree={isWorktree}
-                worktreeMode={worktreeMode}
-                deletingBranch={deletingBranch}
-                worktreeBranches={worktreeBranches}
-                branchWorktreePath={branchWorktreePath}
-                threadsByBranch={threadsByBranch}
-                allowWorktreeDelete={!isRemote}
-                onSelect={handleSelectBranch}
-                onDelete={(b) => handleRequestDelete(b as GitBranchInfo)}
-                onOpenPrReview={handleOpenPrReview}
-              />
-            </div>
-
-            <BranchFooterActions
-              isCreating={isCreating}
-              setIsCreating={setIsCreating}
-              newBranchName={newBranchName}
-              setNewBranchName={setNewBranchName}
-              createRef={createRef}
-              searchRef={searchRef}
-              handleCreateBranch={handleCreateBranch}
-              hideWorktreeToggle={hideWorktreeToggle}
-              worktreeMode={worktreeMode}
-              onWorktreeModeChange={onWorktreeModeChange}
-              baseBranch={baseBranch}
-              value={value}
-              isWorktree={isWorktree}
-              branchWorktreePath={branchWorktreePath}
-              onSelect={onSelect}
-              showMoveBranch={showMoveBranchAction && !isRemote}
-              isMovingBranch={isMovingBranch}
-              onMoveBranchToWorktree={() => void handleMoveBranchToWorktree()}
-            />
-          </Popover.Dialog>
-        </Popover.Content>
-      </Popover>
+      <ResponsiveMenuSurface
+        isOpen={isOpen}
+        onOpenChange={setIsOpen}
+        label={t`Select branch`}
+        trigger={triggerNode}
+        triggerClassName="flex flex-1 min-w-0 items-center"
+        placement={popoverPlacement}
+        contentClassName="w-80 p-0"
+        dialogClassName="flex max-h-[24rem] flex-col overflow-hidden !p-0 !pb-1.5"
+      >
+        {menuBody}
+      </ResponsiveMenuSurface>
       <ConfirmDialog
         isOpen={pendingDelete !== null}
         title={pendingDelete?.worktreePath ? t`Remove worktree?` : t`Delete branch?`}

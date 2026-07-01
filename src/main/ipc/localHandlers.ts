@@ -55,7 +55,7 @@ import {
 } from "@/shared/ipc";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
 import type { AgentInstanceConfig } from "@/shared/contracts";
-import { headersToRecord } from "@/shared/http";
+import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 
@@ -122,6 +122,8 @@ function roundRect(rect: { x: number; y: number; width: number; height: number }
 }
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
+const REMOTE_HTTP_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
+const REMOTE_HTTP_REQUEST_TIMEOUT_MS = 60_000;
 
 function assertSafeExternalUrl(rawUrl: string): string {
   let parsed: URL;
@@ -193,22 +195,33 @@ export function createLocalIpcHandlers(
       if (protocol !== "http:" && protocol !== "https:") {
         throw new Error(`remoteHttpRequest only supports http(s), got "${protocol}".`);
       }
-      const response = await fetch(payload.url, {
-        method: payload.method ?? "GET",
-        ...(payload.headers ? { headers: payload.headers } : {}),
-        ...(payload.body !== undefined ? { body: payload.body } : {}),
-      });
-      // Cap the body (snapshots are large but bounded; 64 MiB is generous).
-      const MAX_BYTES = 64 * 1024 * 1024;
-      const buffer = await response.arrayBuffer();
-      if (buffer.byteLength > MAX_BYTES) {
-        throw new Error("Remote response exceeded the maximum allowed size.");
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), REMOTE_HTTP_REQUEST_TIMEOUT_MS);
+      timeout.unref?.();
+
+      try {
+        const response = await fetch(payload.url, {
+          method: payload.method ?? "GET",
+          signal: controller.signal,
+          ...(payload.headers ? { headers: payload.headers } : {}),
+          ...(payload.body !== undefined ? { body: payload.body } : {}),
+        });
+        const buffer = await readBoundedResponseBody(response, REMOTE_HTTP_RESPONSE_MAX_BYTES);
+        return {
+          status: response.status,
+          headers: headersToRecord(response.headers),
+          body: Buffer.from(buffer).toString("utf8"),
+        };
+      } catch (error) {
+        if (controller.signal.aborted) {
+          throw new Error(`Remote request timed out after ${REMOTE_HTTP_REQUEST_TIMEOUT_MS}ms.`, {
+            cause: error,
+          });
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeout);
       }
-      return {
-        status: response.status,
-        headers: headersToRecord(response.headers),
-        body: Buffer.from(buffer).toString("utf8"),
-      };
     },
     openExternal: async (url) => {
       const safeUrl = assertSafeExternalUrl(url);

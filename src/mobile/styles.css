@@ -18,6 +18,28 @@ html {
   font-size: 14px;
 }
 
+/* Minimum finger-friendly tap target. Apple HIG / WCAG 2.5.5 both put this at
+   44 CSS px; we express it in px (not rem) so the 14px root above can't shrink
+   the floor below what a fingertip needs. Every standalone control in the phone
+   shell — icon buttons, pills, list rows, form fields — is sized against this.
+   (This stylesheet loads only in the PWA, so these rules never reach desktop.) */
+:root {
+  --m-tap-min: 44px;
+}
+
+/* Reused HeroUI buttons render at their "sm" size (~32px tall) throughout the
+   phone shell — too short for a fingertip. Raise the floor for every mobile
+   button: a min-height (never a fixed height, so multi-line/reused buttons still
+   grow) plus a matching min-width for icon-only buttons so square glyph buttons
+   become a proper 44px target. */
+[data-slot="button"] {
+  min-height: var(--m-tap-min);
+}
+
+[data-slot="button"].button--icon-only {
+  min-width: var(--m-tap-min);
+}
+
 html,
 body {
   height: 100%;
@@ -116,7 +138,7 @@ body.bg-background {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 2.75rem;
+  min-height: var(--m-tap-min);
   padding: env(safe-area-inset-top) 0.625rem 0;
   border-bottom: 1px solid var(--hairline, var(--border));
   background: var(--sidebar-background, var(--background));
@@ -127,7 +149,8 @@ body.bg-background {
   min-width: 0;
   flex: 1;
   align-items: center;
-  gap: 0.5rem;
+  /* Tight gap so the leading status dot hugs the title. */
+  gap: 0.375rem;
 }
 
 .m-topbar__title {
@@ -139,13 +162,34 @@ body.bg-background {
   font-weight: 500;
 }
 
+/* Right-hand cluster order in the thread header. The title group (.m-topbar__thread,
+   flex:1) and back button stay left at the default order 0; these trailing
+   controls line up after it as: usage ring → "..." actions (moved here from the
+   title group, per the request) → connection icon at the edge. `order` only
+   changes visual order, not DOM/tab order (which stays a logical
+   title → usage → actions → connection). */
+.m-topbar .m-usage-chip {
+  order: 1;
+}
+
+/* Scoped to .m-topbar: `.m-topbar__actions` is also rendered by ThreadTitleRow
+   in the WIDE-layout thread pane header (a plain flex row, not .m-topbar), and
+   an unscoped `order` there would reshuffle it relative to the usage ring. */
+.m-topbar .m-topbar__actions {
+  order: 2;
+}
+
+.m-topbar .m-connection {
+  order: 3;
+}
+
 .m-back {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  margin-left: -0.25rem;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  margin-left: -0.5rem;
   border: none;
   border-radius: 0.5rem;
   background: transparent;
@@ -161,6 +205,8 @@ body.bg-background {
   display: flex;
   min-width: 0;
   flex: 1;
+  align-self: stretch;
+  min-height: var(--m-tap-min);
   align-items: center;
   gap: 0.5rem;
   border: none;
@@ -181,35 +227,41 @@ body.bg-background {
   letter-spacing: -0.01em;
 }
 
+/* Icon-only connection/sync affordance. The state word and pill border are
+   gone — color alone carries the state — so it stays small and leaves the
+   thread title room. The glyph is small but the button keeps a full tap
+   target via width/height (transparent, no border). */
 .m-connection {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 0.3125rem;
-  border: 1px solid var(--hairline-strong, var(--border));
-  border-radius: 999px;
+  justify-content: center;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  /* Pull the trailing icon toward the safe-area edge so it doesn't float. */
+  margin-right: -0.375rem;
+  border: none;
   background: transparent;
-  padding: 0.1875rem 0.5625rem;
-  font-size: 0.6875rem;
-  font-weight: 500;
   color: var(--muted);
   cursor: pointer;
 }
 
+.m-connection svg {
+  width: 1rem;
+  height: 1rem;
+}
+
 .m-connection[data-state="online"] {
-  border-color: color-mix(in oklab, var(--success) 45%, transparent);
   color: var(--success);
 }
 
 .m-connection[data-state="unauthorized"],
 .m-connection[data-state="error"],
 .m-connection[data-state="offline"] {
-  border-color: color-mix(in oklab, var(--danger) 40%, transparent);
   color: var(--danger);
 }
 
 .m-connection[data-state="reconnecting"] {
-  border-color: color-mix(in oklab, var(--warning) 45%, transparent);
   color: var(--warning);
 }
 
@@ -262,11 +314,14 @@ body.bg-background {
 }
 
 .m-banner__action {
+  display: inline-flex;
+  align-items: center;
   flex: none;
+  min-height: 2rem;
   border: 1px solid currentColor;
   border-radius: 999px;
   background: transparent;
-  padding: 0.1875rem 0.625rem;
+  padding: 0.25rem 0.75rem;
   font-size: 0.6875rem;
   font-weight: 600;
   color: inherit;
@@ -370,7 +425,7 @@ body.bg-background {
 
 .m-tab {
   display: flex;
-  min-height: 3rem;
+  min-height: var(--m-tap-min);
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -498,14 +553,14 @@ body.bg-background {
 .m-thread-search {
   display: flex;
   min-width: 0;
-  min-height: 2rem;
+  min-height: var(--m-tap-min);
   flex: 1;
   align-items: center;
   gap: 0.375rem;
   border: 1px solid var(--hairline, var(--border));
   border-radius: 0.5rem;
   background: var(--surface, var(--content-background));
-  padding: 0 0.5rem;
+  padding: 0 0.25rem 0 0.5rem;
 }
 
 .m-thread-search input {
@@ -522,8 +577,8 @@ body.bg-background {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 2.5rem;
+  height: var(--m-tap-min);
   flex: none;
   border: none;
   border-radius: 0.375rem;
@@ -636,9 +691,27 @@ body.bg-background {
 
 /* Shared chat messages keep these actions hover-revealed on desktop. In the
    PWA there is no dependable hover state, so rollback and copy controls need
-   to be visible before the user knows to tap them. */
+   to be visible before the user knows to tap them. The desktop controls are
+   size-5 (~20px) with a 12px icon — too small to tap reliably — so enlarge the
+   copy/revert buttons to a ~34px finger target with a ~16px icon and widen the
+   strip's gap so they don't crowd. Each button is wrapped in a HeroUI
+   tooltip-trigger div (an inline-block shrink-wrap), so the buttons are
+   descendants, not direct children — target them by descendant, and let the
+   wrapper shrink-wrap the enlarged button. Scoped to the mobile stylesheet, so
+   the compact desktop hover UI is untouched. */
 .lightcode-message-action-strip {
+  gap: 0.25rem;
   opacity: 1;
+}
+
+.lightcode-message-action-strip button {
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+}
+
+.lightcode-message-action-strip button > svg {
+  width: 1.125rem;
+  height: 1.125rem;
 }
 
 .lightcode-image-action-toolbar {
@@ -664,7 +737,7 @@ body.bg-background {
 .m-thread-group__header {
   display: flex;
   width: 100%;
-  min-height: 2.75rem;
+  min-height: var(--m-tap-min);
   align-items: center;
   gap: 0.375rem;
   border-radius: 0.625rem;
@@ -736,54 +809,48 @@ body.bg-background {
   padding-left: 0.625rem;
 }
 
+/* Status is a single colored dot now (the word is dropped for header space).
+   Colors replicate the desktop provider-icon palette. */
 .m-status {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 0.3125rem;
-  font-size: 0.6875rem;
-  color: var(--muted);
+  justify-content: center;
 }
 
+/* Base = inactive/dormant = grey. */
 .m-status__dot {
-  width: 0.375rem;
-  height: 0.375rem;
+  width: 0.5rem;
+  height: 0.5rem;
   border-radius: 999px;
   background: var(--muted);
 }
 
-.m-status[data-tone="working"] {
-  color: var(--accent);
-}
-
+/* working / launching = green (desktop --working-tone → --success), pulsing. */
 .m-status__dot[data-tone="working"] {
-  background: var(--accent);
+  background: var(--success);
   animation: m-pulse 1.4s ease-in-out infinite;
 }
 
-.m-status[data-tone="attention"] {
-  color: var(--warning);
-}
-
+/* needs approval / needs reply = yellow, pulsing. */
 .m-status__dot[data-tone="attention"] {
   background: var(--warning);
   animation: m-pulse 1.4s ease-in-out infinite;
 }
 
-.m-status[data-tone="danger"] {
-  color: var(--danger);
-}
-
+/* error = red. */
 .m-status__dot[data-tone="danger"] {
   background: var(--danger);
 }
 
-.m-status[data-tone="success"] {
-  color: var(--success);
+/* finished = moonlight blue-violet (desktop hardcodes this same value). */
+.m-status__dot[data-tone="moonlight"] {
+  background: oklch(0.82 0.12 260);
 }
 
-.m-status__dot[data-tone="success"] {
-  background: var(--success);
+/* idle but ready = white/foreground. */
+.m-status__dot[data-tone="active"] {
+  background: var(--foreground);
 }
 
 @keyframes m-pulse {
@@ -799,6 +866,13 @@ body.bg-background {
   min-height: 0;
   flex: 1;
   flex-direction: column;
+  /* Reserve the on-screen keyboard's band (visualViewport-driven, set in JS) so
+     the in-flow composer stays above the keyboard without iOS scrolling the
+     fixed shell up to reveal it. The shell itself is overflow-locked (html/body/
+     #root), so once the composer is inside the visual viewport WebKit has
+     nothing left to scroll. */
+  padding-bottom: var(--m-keyboard-offset, 0px);
+  transition: padding-bottom 0.15s ease-out;
 }
 
 .m-terminal-scroll {
@@ -829,6 +903,10 @@ body.bg-background {
   flex-direction: column;
 }
 
+.m-terminal-panel--tabbed {
+  padding-bottom: calc(6.75rem + var(--m-keyboard-offset, 0px));
+}
+
 /* Wraps the reused desktop XTermSurface (h-full/w-full) so it fills the
    available column above the composer. */
 .m-terminal-live {
@@ -850,10 +928,36 @@ body.bg-background {
   border-radius: 0;
 }
 
+.m-terminal-tab-pane {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.m-terminal-tab-pane[data-active="true"] {
+  visibility: visible;
+  pointer-events: auto;
+}
+
 .m-terminal-live--shared {
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
+}
+
+.m-terminal-bottom-dock {
+  position: fixed;
+  right: 0;
+  bottom: var(--m-keyboard-offset, 0px);
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  border-top: 1px solid var(--hairline, var(--border));
+  background: var(--sidebar-background, var(--background));
+  padding: 0.375rem 0.375rem calc(0.375rem + env(safe-area-inset-bottom));
 }
 
 .m-terminal-accessory {
@@ -874,6 +978,97 @@ body.bg-background {
   border-width: 1px 0 0;
   border-radius: 0;
   padding-bottom: calc(0.375rem + env(safe-area-inset-bottom));
+}
+
+.m-terminal-bottom-dock .m-terminal-accessory {
+  border-width: 1px;
+  border-radius: 0.625rem;
+  padding-bottom: 0.375rem;
+}
+
+.m-terminal-tabs {
+  display: flex;
+  min-width: 0;
+  gap: 0.25rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.m-terminal-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.m-terminal-tab {
+  display: flex;
+  min-width: 7rem;
+  max-width: 12rem;
+  height: var(--m-tap-min);
+  flex: 0 0 auto;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: var(--field-background, var(--surface, var(--background)));
+  color: var(--muted);
+}
+
+.m-terminal-tab[data-active="true"] {
+  border-color: var(--border);
+  background: var(--row-active, var(--row-hover));
+  color: var(--foreground);
+}
+
+.m-terminal-tab__main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0 0.375rem 0 0.625rem;
+  color: inherit;
+  text-align: left;
+}
+
+.m-terminal-tab__title,
+.m-terminal-tab__status {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-terminal-tab__title {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.m-terminal-tab__status {
+  font-size: 0.625rem;
+  color: var(--muted);
+}
+
+.m-terminal-tab__close {
+  display: flex;
+  width: 2.75rem;
+  height: 100%;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-left: 1px solid var(--hairline, var(--border));
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: transparent;
+  color: inherit;
+}
+
+.m-terminal-tab--add {
+  min-width: var(--m-tap-min);
+  max-width: var(--m-tap-min);
+  justify-content: center;
+  border-color: var(--hairline, var(--border));
 }
 
 .m-terminal-error {
@@ -918,8 +1113,8 @@ body.bg-background {
 .m-terminal-accessory__input {
   position: relative;
   display: flex;
-  width: 2.375rem;
-  height: 2.125rem;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
   flex: none;
   align-items: center;
   justify-content: center;
@@ -971,7 +1166,7 @@ body.bg-background {
 .m-terminal-accessory__key {
   display: flex;
   min-width: 2.75rem;
-  height: 2.125rem;
+  height: var(--m-tap-min);
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
@@ -987,7 +1182,7 @@ body.bg-background {
 
 .m-terminal-accessory__key--icon,
 .m-terminal-accessory__key--mod {
-  min-width: 2.125rem;
+  min-width: 2.75rem;
   padding: 0;
 }
 
@@ -1183,7 +1378,7 @@ body.bg-background {
 .m-browser__address {
   position: relative;
   display: flex;
-  height: 2.25rem;
+  height: var(--m-tap-min);
   flex: none;
   align-items: center;
   border: 1px solid var(--hairline, var(--border));
@@ -1223,10 +1418,10 @@ body.bg-background {
 .m-browser__address-action {
   position: absolute;
   top: 50%;
-  right: 0.3125rem;
+  right: 0.25rem;
   display: flex;
-  width: 1.625rem;
-  height: 1.625rem;
+  width: 2.5rem;
+  height: 2.5rem;
   align-items: center;
   justify-content: center;
   border: none;
@@ -1266,7 +1461,7 @@ body.bg-background {
 .m-browser__nav-btn {
   display: flex;
   width: 2.75rem;
-  height: 2.5rem;
+  height: var(--m-tap-min);
   align-items: center;
   justify-content: center;
   border: none;
@@ -1315,7 +1510,7 @@ body.bg-background {
 .m-sheet-action {
   display: flex;
   width: 100%;
-  min-height: 2.75rem;
+  min-height: var(--m-tap-min);
   flex: none;
   align-items: center;
   gap: 0.625rem;
@@ -1364,8 +1559,8 @@ body.bg-background {
 
 .m-thread-bar__btn {
   display: inline-flex;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
   flex: none;
   align-items: center;
   justify-content: center;
@@ -1386,7 +1581,7 @@ body.bg-background {
   display: flex;
   min-width: 0;
   flex: 1;
-  min-height: 2.25rem;
+  min-height: var(--m-tap-min);
   align-items: center;
   gap: 0.5rem;
   border: none;
@@ -1516,7 +1711,7 @@ body.bg-background {
 
 .m-seg__btn {
   display: inline-flex;
-  min-height: 1.75rem;
+  min-height: 2.375rem;
   flex: 1;
   align-items: center;
   justify-content: center;
@@ -1647,12 +1842,190 @@ body.bg-background {
   font-weight: 600;
 }
 
+/* Close affordance in a drawer header (composer menu drawers). */
+.m-sheet-close {
+  display: inline-flex;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.m-sheet-close:active {
+  background: var(--row-hover);
+  color: var(--foreground);
+}
+
+/* Provider usage ring in the thread header + its details drawer body. */
+.m-usage-chip {
+  display: inline-flex;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.m-usage-chip:active {
+  background: var(--row-hover);
+}
+
+.m-usage-detail {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  padding: 0.25rem 0.25rem 0.5rem;
+}
+
 .m-sheet-list {
   display: flex;
   min-height: 0;
   flex-direction: column;
   gap: 0.375rem;
   overflow-y: auto;
+}
+
+/* Reused desktop menu rows rendered inside a drawer (e.g. the branch selector's
+   footer actions, or any HeroUI list/menu surfaced via ResponsiveMenuSurface)
+   are laid out at desktop density — give them a finger-sized minimum. Rows that
+   force their own height with `!important` (the virtualized branch/model lists)
+   win over this and are enlarged in JS instead, so they aren't desynced. Scoped
+   to `.m-sheet`, so the desktop popover is untouched. */
+.m-sheet .list-box-item,
+.m-sheet .lightcode-menu-item {
+  min-height: var(--m-tap-min);
+}
+
+.m-sheet .m-search-input,
+.m-sheet [data-slot="input"] {
+  min-height: var(--m-tap-min);
+}
+
+/* The model picker's search row and the list's sticky header each draw a bottom
+   hairline; in the drawer they double up with a 1px seam of drawer background
+   between them. Drop the search row's border in the drawer so only the sticky
+   header's hairline shows. */
+.m-sheet .lightcode-model-menu-search {
+  border-bottom-color: transparent;
+}
+
+/* ── Host folder picker (project add-existing / clone parent) ─────── */
+
+/* A taller drawer than the composer sheets: it hosts a scrolling file-explorer
+   list with a pinned nav bar and a "Use this folder" footer. */
+.m-picker {
+  position: relative;
+  display: flex;
+  height: 85dvh;
+  max-height: 85dvh;
+  flex-direction: column;
+  border-top: 1px solid var(--hairline, var(--border));
+  border-radius: 1rem 1rem 0 0;
+  background: var(--sidebar-background, var(--background));
+  padding: 0.625rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  animation: m-sheet-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-picker__bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0 0.5rem;
+}
+
+.m-picker__nav {
+  display: inline-flex;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 0.5rem;
+  background: var(--surface, var(--content-background));
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.m-picker__nav:active {
+  background: var(--row-hover);
+}
+
+.m-picker__nav:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.m-picker__path {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--muted);
+}
+
+.m-picker__list {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.125rem;
+  overflow-y: auto;
+}
+
+.m-picker__row {
+  display: flex;
+  width: 100%;
+  min-height: var(--m-tap-min);
+  align-items: center;
+  gap: 0.625rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.5rem 0.625rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.m-picker__row:active {
+  background: var(--row-hover);
+}
+
+.m-picker__row--file {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.m-picker__row-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+}
+
+.m-picker__foot {
+  flex: none;
+  padding-top: 0.5rem;
 }
 
 /* Reuses the .m-thread-row card the same way .m-desktop-row does: the inner
@@ -1801,7 +2174,7 @@ body.bg-background {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 2.75rem;
+  min-height: var(--m-tap-min);
   padding: env(safe-area-inset-top) 0.5rem 0;
   border-bottom: 1px solid var(--hairline, var(--border));
   background: var(--sidebar-background, var(--background));
@@ -1833,7 +2206,7 @@ body.bg-background {
   display: flex;
   min-width: 0;
   width: 100%;
-  min-height: 2rem;
+  min-height: var(--m-tap-min);
   align-items: center;
   gap: 0.375rem;
   border: none;
@@ -1859,8 +2232,8 @@ body.bg-background {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
   border: none;
   border-radius: 0.5rem;
   background: transparent;
@@ -2019,11 +2392,12 @@ body.bg-background {
   flex: none;
   align-items: center;
   gap: 0.5rem;
+  min-height: var(--m-tap-min);
   margin: 0.625rem 0.75rem 0.375rem;
   border: 1px solid var(--field-border, var(--border));
   border-radius: 0.625rem;
   background: var(--field-background, var(--surface, var(--background)));
-  padding: 0.5rem 0.625rem;
+  padding: 0.25rem 0.375rem 0.25rem 0.625rem;
 }
 
 .m-files-search input {
@@ -2039,8 +2413,8 @@ body.bg-background {
 
 .m-files-search button {
   display: flex;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
   align-items: center;
   justify-content: center;
   border: none;
@@ -2065,7 +2439,7 @@ body.bg-background {
 .m-files-toolbar button {
   display: inline-flex;
   min-width: 0;
-  height: 2rem;
+  height: var(--m-tap-min);
   flex: 1;
   align-items: center;
   justify-content: center;
@@ -2094,7 +2468,7 @@ body.bg-background {
 .m-file-row-shell {
   display: flex;
   width: 100%;
-  min-height: 2.375rem;
+  min-height: var(--m-tap-min);
   align-items: center;
   border-radius: 0.5rem;
 }
@@ -2106,7 +2480,7 @@ body.bg-background {
 .m-file-row {
   display: flex;
   min-width: 0;
-  min-height: 2.375rem;
+  min-height: var(--m-tap-min);
   flex: 1;
   align-items: center;
   gap: 0.5rem;
@@ -2153,8 +2527,8 @@ body.bg-background {
 
 .m-file-row__action {
   display: flex;
-  width: 2.25rem;
-  min-height: 2.375rem;
+  width: 2.75rem;
+  min-height: var(--m-tap-min);
   flex: none;
   align-items: center;
   justify-content: center;
@@ -2172,7 +2546,7 @@ body.bg-background {
 
 .m-files-editor__head {
   display: flex;
-  min-height: 2.75rem;
+  min-height: var(--m-tap-min);
   flex: none;
   align-items: center;
   gap: 0.5rem;
@@ -2193,7 +2567,7 @@ body.bg-background {
 
 .m-files-save {
   display: inline-flex;
-  height: 2rem;
+  height: var(--m-tap-min);
   flex: none;
   align-items: center;
   gap: 0.375rem;
@@ -2412,6 +2786,7 @@ body.bg-background {
 }
 
 .m-field input {
+  min-height: var(--m-tap-min);
   border: 1px solid var(--field-border, var(--border));
   border-radius: 0.5rem;
   background: var(--field-background, var(--background));
@@ -2423,6 +2798,27 @@ body.bg-background {
 .m-field input:focus-visible {
   outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
   outline-offset: 1px;
+}
+
+/* Input-styled trigger that opens the host folder picker (project add/clone). */
+.m-field-picker {
+  display: flex;
+  width: 100%;
+  min-height: var(--m-tap-min);
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--field-border, var(--border));
+  border-radius: 0.5rem;
+  background: var(--field-background, var(--background));
+  padding: 0.5rem 0.625rem;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.m-field-picker:active {
+  background: var(--row-hover);
 }
 
 /* ── Empty state ───────────────────────────────────────────────── */
@@ -2544,8 +2940,8 @@ body.bg-background {
   top: calc(0.75rem + env(safe-area-inset-top));
   right: 0.75rem;
   display: inline-flex;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
   align-items: center;
   justify-content: center;
   border: none;
@@ -2567,12 +2963,94 @@ body.bg-background {
   -webkit-user-select: text;
 }
 
-/* iOS zooms into inputs below 16px; keep editable text at 16px on phones. */
+/* iOS zooms into inputs below 16px; keep editable text at 16px on phones.
+   `.m-sheet` / `.m-picker` drawers are portaled to <body> (outside `.m-shell`)
+   by ResponsiveMenuSurface + the host folder picker, so they need the guard
+   spelled out separately — otherwise the model-picker search field (and any
+   other in-drawer input) zooms on focus. */
 @media (max-width: 767px) {
   .m-shell textarea,
   .m-shell input,
-  .m-shell [contenteditable="true"] {
+  .m-shell [contenteditable="true"],
+  .m-sheet textarea,
+  .m-sheet input,
+  .m-sheet [contenteditable="true"],
+  .m-picker textarea,
+  .m-picker input,
+  .m-picker [contenteditable="true"] {
     font-size: 16px;
+  }
+}
+
+/* ── Native screen transitions (View Transitions API) ──────────────
+ *
+ * The phone layout navigates like a native app: the routed page slides while
+ * the top bar and tab bar stay pinned. The router (router.tsx) tags each
+ * navigation with a type — "push" (deeper), "pop" (back), or "fade" (tab /
+ * sibling) — and only on the narrow layout, so this CSS only ever runs there.
+ * Browsers without the API fall back to an instant swap.
+ *
+ * Naming an element pulls it into its own transition group: the page (.m-main)
+ * gets the sliding animation below, while the chrome groups stay in place and
+ * only cross-fade their contents (e.g. the title). Fullscreen routes
+ * (workspace / PR) have no .m-main and cross-fade via the root snapshot; the
+ * terminal renders .m-git-overlay inside .m-main, so naming that class too would
+ * collide — hence only .m-main carries the page name. */
+.m-topbar {
+  view-transition-name: m-topbar;
+}
+
+.m-tabbar {
+  view-transition-name: m-tabbar;
+}
+
+.m-main {
+  view-transition-name: m-main;
+}
+
+/* iOS-style easing, matched to the bottom-sheet timing. */
+::view-transition-group(m-main) {
+  animation-duration: 0.32s;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* PUSH — the incoming page slides in from the right over the outgoing one, which
+   drifts left with a subtle parallax. */
+html:active-view-transition-type(push)::view-transition-old(m-main) {
+  animation: m-vt-out-left 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+html:active-view-transition-type(push)::view-transition-new(m-main) {
+  animation: m-vt-in-right 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* POP — the outgoing page slides off to the right, revealing the previous one
+   underneath (which un-parallaxes back into place). */
+html:active-view-transition-type(pop)::view-transition-old(m-main) {
+  z-index: 1;
+  animation: m-vt-out-right 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+html:active-view-transition-type(pop)::view-transition-new(m-main) {
+  animation: m-vt-in-left 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes m-vt-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes m-vt-out-left {
+  to {
+    transform: translateX(-25%);
+  }
+}
+@keyframes m-vt-in-left {
+  from {
+    transform: translateX(-25%);
+  }
+}
+@keyframes m-vt-out-right {
+  to {
+    transform: translateX(100%);
   }
 }
 
@@ -2590,5 +3068,13 @@ body.bg-background {
   .m-sheet-backdrop[data-closing],
   .m-sheet-backdrop[data-closing] .m-sheet {
     animation: none;
+  }
+
+  /* The router already skips view transitions under reduced motion; this guards
+     the default cross-fade in case one runs anyway. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }

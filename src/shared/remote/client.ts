@@ -18,6 +18,7 @@ import {
   type RemoteAccessTokenResult,
   type RemoteBrowserCommand,
   type RemoteBrowserState,
+  type RemoteClientMetadata,
   type RemoteEnvironmentDescriptor,
   type RemoteProjectCommand,
   type RemoteProjectCommandResult,
@@ -45,14 +46,16 @@ import {
   type ThreadPresentationMode,
   type ThreadServerRequestId,
 } from "@/shared/contracts";
+import { readBoundedResponseBody } from "@/shared/http";
 
 export class RemoteClientError extends Error {
   constructor(
     message: string,
     readonly status: number,
     readonly code: string,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = "RemoteClientError";
   }
 }
@@ -73,6 +76,26 @@ function parseJsonResponse(text: string, response: Response): unknown {
       "invalid_response",
     );
   }
+}
+
+function defaultClientMetadata(): RemoteClientMetadata {
+  const userAgent = globalThis.navigator?.userAgent;
+  const isMobile = userAgent ? /\bMobile\b/i.test(userAgent) : false;
+  return {
+    label: isMobile ? "Lightcode mobile web" : "Lightcode web app",
+    deviceType: isMobile ? "mobile" : "browser",
+    ...(userAgent ? { os: userAgent } : {}),
+  };
+}
+
+function endpointUrl(endpoint: string, path: string): URL {
+  const base = new URL(endpoint);
+  base.search = "";
+  base.hash = "";
+  if (!base.pathname.endsWith("/")) {
+    base.pathname = `${base.pathname}/`;
+  }
+  return new URL(path.replace(/^\/+/, ""), base);
 }
 
 export interface StartRemoteThreadInput {
@@ -112,18 +135,31 @@ export interface StartRemoteNewThreadInput {
  */
 export type RemoteFetch = (
   url: string | URL,
-  init?: { method?: string; headers?: Record<string, string>; body?: string },
+  init?: { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal },
 ) => Promise<Response>;
+
+export interface RemoteDesktopClientOptions {
+  readonly requestTimeoutMs?: number;
+  readonly maxResponseBodyBytes?: number;
+}
+
+const DEFAULT_REMOTE_REQUEST_TIMEOUT_MS = 60_000;
+const DEFAULT_REMOTE_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
 
 export class RemoteDesktopClient {
   private readonly fetchImpl: RemoteFetch;
+  private readonly requestTimeoutMs: number;
+  private readonly maxResponseBodyBytes: number;
 
   constructor(
     readonly endpoint: string,
     private readonly accessToken?: string,
     fetchImpl?: RemoteFetch,
+    options: RemoteDesktopClientOptions = {},
   ) {
     this.fetchImpl = fetchImpl ?? ((url, init) => fetch(url, init));
+    this.requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REMOTE_REQUEST_TIMEOUT_MS;
+    this.maxResponseBodyBytes = options.maxResponseBodyBytes ?? DEFAULT_REMOTE_RESPONSE_MAX_BYTES;
   }
 
   async environment(): Promise<RemoteEnvironmentDescriptor> {
@@ -143,13 +179,7 @@ export class RemoteDesktopClient {
           grantType: "pairing-token",
           credential: input.credential,
           scopes: [...(input.scopes ?? REMOTE_STANDARD_SCOPES)],
-          client: {
-            label: navigator.userAgent.includes("Mobile")
-              ? "Lightcode mobile web"
-              : "Lightcode web app",
-            deviceType: navigator.userAgent.includes("Mobile") ? "mobile" : "browser",
-            os: navigator.userAgent,
-          },
+          client: defaultClientMetadata(),
         },
       }),
     );
@@ -385,7 +415,7 @@ export class RemoteDesktopClient {
   }
 
   websocketUrl(ticket: string, lastSeenSeq: number): string {
-    const url = toWebSocketUrl(new URL("/ws", this.endpoint));
+    const url = toWebSocketUrl(endpointUrl(this.endpoint, "/ws"));
     url.searchParams.set("ticket", ticket);
     if (lastSeenSeq > 0) {
       url.searchParams.set("lastSeenSeq", String(lastSeenSeq));
@@ -411,21 +441,57 @@ export class RemoteDesktopClient {
     if (this.accessToken) {
       headers.authorization = `Bearer ${this.accessToken}`;
     }
-    const response = await this.fetchImpl(new URL(path, this.endpoint), {
-      method: init.method ?? "GET",
-      headers,
-      ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+    const controller = new AbortController();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const timeoutError = new RemoteClientError(
+      `Remote request timed out after ${this.requestTimeoutMs}ms.`,
+      0,
+      "timeout",
+    );
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => {
+        controller.abort();
+        reject(timeoutError);
+      }, this.requestTimeoutMs);
     });
-    const text = await response.text();
-    const parsed = parseJsonResponse(text, response);
-    if (!response.ok) {
-      const error = remoteHttpErrorSchema.safeParse(parsed);
-      throw new RemoteClientError(
-        error.success ? error.data.error.message : "Remote request failed.",
-        response.status,
-        error.success ? error.data.error.code : "request_failed",
-      );
+
+    try {
+      const response = await Promise.race([
+        this.fetchImpl(endpointUrl(this.endpoint, path), {
+          method: init.method ?? "GET",
+          headers,
+          signal: controller.signal,
+          ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
+        }),
+        timeoutPromise,
+      ]);
+      const body = await Promise.race([
+        readBoundedResponseBody(response, this.maxResponseBodyBytes),
+        timeoutPromise,
+      ]);
+      const text = new TextDecoder().decode(body);
+      const parsed = parseJsonResponse(text, response);
+      if (!response.ok) {
+        const error = remoteHttpErrorSchema.safeParse(parsed);
+        throw new RemoteClientError(
+          error.success ? error.data.error.message : "Remote request failed.",
+          response.status,
+          error.success ? error.data.error.code : "request_failed",
+        );
+      }
+      return parsed;
+    } catch (error) {
+      if (controller.signal.aborted && error !== timeoutError) {
+        throw new RemoteClientError(
+          `Remote request timed out after ${this.requestTimeoutMs}ms.`,
+          0,
+          "timeout",
+          { cause: error },
+        );
+      }
+      throw error;
+    } finally {
+      if (timeout) clearTimeout(timeout);
     }
-    return parsed;
   }
 }

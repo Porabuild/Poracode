@@ -58,11 +58,16 @@ function renderView(
       worktreePath: string;
       threadIds: readonly string[];
     }) => void;
-    onOpenTerminal?: (input: { projectId: string; worktreePath?: string }) => void;
+    onOpenTerminal?: (input: {
+      projectId: string;
+      worktreePath?: string;
+      sourceThreadId?: string;
+    }) => void;
     onRunProjectAction?: (input: {
       projectId: string;
       actionId: string;
       worktreePath?: string;
+      sourceThreadId?: string;
     }) => void;
     projects?: Project[];
   },
@@ -499,7 +504,14 @@ describe("ThreadsView grouping", () => {
 
   it("runs a configured project action in a worktree terminal from the group menu", () => {
     const onRunProjectAction =
-      vi.fn<(input: { projectId: string; actionId: string; worktreePath?: string }) => void>();
+      vi.fn<
+        (input: {
+          projectId: string;
+          actionId: string;
+          worktreePath?: string;
+          sourceThreadId?: string;
+        }) => void
+      >();
     const projectWithAction = {
       ...PROJECT,
       scripts: {
@@ -554,16 +566,20 @@ describe("ThreadsView grouping", () => {
     expect(onRunProjectAction).toHaveBeenCalledWith({
       projectId: "p1",
       actionId: "build",
+      sourceThreadId: "c",
     });
   });
 
   it("opens a terminal for a standalone thread's project from its row menu", () => {
-    const onOpenTerminal = vi.fn<(input: { projectId: string; worktreePath?: string }) => void>();
+    const onOpenTerminal =
+      vi.fn<
+        (input: { projectId: string; worktreePath?: string; sourceThreadId?: string }) => void
+      >();
     renderView([makeThread({ id: "c", title: "Charlie" })], { onOpenTerminal });
 
     fireEvent.contextMenu(screen.getByText("Charlie").closest("button")!);
     fireEvent.click(screen.getByText("Open terminal"));
     // No worktree on the thread → project-root terminal (no worktreePath key).
-    expect(onOpenTerminal).toHaveBeenCalledWith({ projectId: "p1" });
+    expect(onOpenTerminal).toHaveBeenCalledWith({ projectId: "p1", sourceThreadId: "c" });
   });
 });

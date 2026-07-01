@@ -31,9 +31,12 @@ msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {#ファイル} other {#ファイル}}"
 
 #. placeholder {0}: props.desktops.length
+#: src/mobile/views/DesktopsView.tsx
+msgid "{0, plural, one {# paired connection} other {# paired connections}}"
+msgstr "{0, plural, one {# 件のペアリング済み接続} other {# 件のペアリング済み接続}}"
+
 #. placeholder {0}: remote.desktops.length
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/DesktopsView.tsx
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# 台のペアリング済みデスクトップ} other {# 台のペアリング済みデスクトップ}}"
 
@@ -316,6 +319,10 @@ msgstr "{label} の自動更新間隔 (分単位)"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "{label} copied."
 msgstr "{label}をコピーしました。"
+
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "{label} usage"
+msgstr "{label}の使用状況"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -1380,10 +1387,19 @@ msgstr "確認中…"
 msgid "Checks"
 msgstr "チェック"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a folder"
+msgstr "フォルダーを選択"
+
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Choose a folder…"
 msgstr "フォルダーを選択してください…"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a parent folder"
+msgstr "親フォルダーを選択"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Choose how to sign in for {env}."
@@ -1510,6 +1526,9 @@ msgid "Cloning…"
 msgstr "クローン作成中…"
 
 #: src/mobile/components.tsx
+#: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
@@ -1528,8 +1547,12 @@ msgid "Close browser"
 msgstr "ブラウザを閉じる"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Close desktop actions"
-msgstr "デスクトップのアクションを閉じる"
+msgid "Close connection actions"
+msgstr "接続の操作メニューを閉じる"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Close desktop actions"
+#~ msgstr "デスクトップのアクションを閉じる"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1898,6 +1921,11 @@ msgstr "接続エラーです。"
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "接続に失敗しました。"
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "Connections"
+msgstr "接続"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
@@ -2348,8 +2376,8 @@ msgstr "デスクトップに到達できません。"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
-msgid "Desktops"
-msgstr "デスクトップ"
+#~ msgid "Desktops"
+#~ msgstr "デスクトップ"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2732,9 +2760,15 @@ msgstr "計画モードを終了する"
 msgid "exited"
 msgstr "終了しました"
 
+#. placeholder {0}: activeTab.exitCode
+#. placeholder {0}: tab.exitCode
 #: src/mobile/views/TerminalView.tsx
-msgid "exited ({exitCode})"
-msgstr "終了しました（{exitCode}）"
+msgid "exited ({0})"
+msgstr "終了しました ({0})"
+
+#: src/mobile/views/TerminalView.tsx
+#~ msgid "exited ({exitCode})"
+#~ msgstr "終了しました（{exitCode}）"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -2962,15 +2996,22 @@ msgstr "組み込みブラウザのアドレスバーをフォーカス"
 msgid "Focus window"
 msgstr "ウィンドウに切り替え"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
+msgid "Folder"
+msgstr "フォルダ"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "フォルダ名"
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "Folder path"
-msgstr "フォルダーのパス"
+msgid "Folder on the server"
+msgstr "サーバー上のフォルダー"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#~ msgid "Folder path"
+#~ msgstr "フォルダーのパス"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "サーバー上のフォルダーのパス"
@@ -3251,6 +3292,10 @@ msgstr "履歴"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "ホーム"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Home folder"
+msgstr "ホームフォルダー"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3571,6 +3616,7 @@ msgstr "スレッドを読み込み中"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/views/FilesView.tsx
+#: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -4217,6 +4263,10 @@ msgstr "コマンドが見つかりません"
 msgid "No commits found."
 msgstr "コミットが見つかりませんでした。"
 
+#: src/mobile/RootLayout.tsx
+msgid "No connection paired"
+msgstr "ペアリング済みの接続はありません"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No content streams."
 msgstr "コンテンツのストリームはありません。"
@@ -4239,8 +4289,8 @@ msgid "No description"
 msgstr "説明なし"
 
 #: src/mobile/RootLayout.tsx
-msgid "No desktop paired"
-msgstr "ペアリング済みデスクトップはありません"
+#~ msgid "No desktop paired"
+#~ msgstr "ペアリング済みデスクトップはありません"
 
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -4611,6 +4661,10 @@ msgstr "ファイルを開く"
 msgid "Open folder"
 msgstr "フォルダーを開く"
 
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "Open full usage"
+msgstr "使用状況全体を開く"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
 msgstr "全画面で開く"
@@ -4712,6 +4766,7 @@ msgstr "デスクトップの Lightcode で「設定」→「リモートアク�
 msgid "Open subagent: {0}"
 msgstr "サブエージェントを開く:{0}"
 
+#: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
@@ -4790,8 +4845,12 @@ msgid "Pair"
 msgstr "ペアリング"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Pair a desktop"
-msgstr "デスクトップをペアリング"
+msgid "Pair a connection"
+msgstr "接続をペアリング"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Pair a desktop"
+#~ msgstr "デスクトップをペアリング"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
@@ -4845,7 +4904,6 @@ msgstr "パネル"
 msgid "Panels and overlays"
 msgstr "パネルとオーバーレイ"
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Parent folder"
 msgstr "親フォルダー"
@@ -5284,6 +5342,7 @@ msgstr "パブリック API レートでローカル ログから再構築され
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -5435,8 +5494,12 @@ msgid "Remove Claude profile"
 msgstr "Claude プロファイルを削除"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Remove desktop"
-msgstr "デスクトップを削除"
+msgid "Remove connection"
+msgstr "接続を削除"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Remove desktop"
+#~ msgstr "デスクトップを削除"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -5493,8 +5556,12 @@ msgid "Rename chat"
 msgstr "チャット名の変更"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Rename desktop"
-msgstr "デスクトップ名を変更"
+msgid "Rename connection"
+msgstr "接続の名前を変更"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Rename desktop"
+#~ msgstr "デスクトップ名を変更"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -6014,6 +6081,10 @@ msgstr "アカウントの選択"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "エージェントを選択すると、そのプロンプトと結果が表示されます。"
 
+#: src/renderer/components/common/Select.tsx
+msgid "Select an option"
+msgstr "オプションを選択"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Select branch"
 msgstr "ブランチを選択"
@@ -6029,6 +6100,10 @@ msgstr "モデルを選択してください"
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "プロジェクトの選択"
+
+#: src/renderer/components/common/Select.tsx
+msgid "Select…"
+msgstr "選択…"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6202,6 +6277,10 @@ msgstr "コンポーザーにマイクボタンを表示します。"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "音声入力ボタンを表示"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Showing the first 4,000 entries."
+msgstr "最初の4,000件を表示しています。"
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -6864,6 +6943,10 @@ msgstr "このファイルは組み込みエディタには大きすぎます。
 msgid "This file uses an unsupported encoding."
 msgstr "このファイルはサポートされていないエンコーディングを使用しています。"
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "This folder is empty."
+msgstr "このフォルダーは空です。"
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -7377,6 +7460,10 @@ msgstr "未ステージ"
 msgid "Unsupported"
 msgstr "サポートされていません"
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Up one level"
+msgstr "一つ上の階層へ"
+
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Update"
@@ -7459,6 +7546,7 @@ msgstr "{0}({env}) を更新しています"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/settingsSections.ts
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -7511,6 +7599,10 @@ msgstr "セッションを使用する"
 msgid "Use this account for usage tracking, or change users in the browser "
 "before continuing."
 msgstr "このアカウントを使用状況の追跡に使用するか、続行する前にブラウザでユーザーを変更してください。"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Use this folder"
+msgstr "このフォルダーを使用"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

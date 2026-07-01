@@ -316,6 +316,7 @@ export function RemoteServersSettings() {
     if (!canConnect) return;
     run(async () => {
       await pairServer({ endpoint, token });
+      await connectAll();
       setEndpoint("");
       setToken("");
       setAdding(false);

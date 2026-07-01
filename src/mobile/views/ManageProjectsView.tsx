@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Button } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import { FolderPlus, GitBranch, Loader2, Trash2 } from "lucide-react";
+import { FolderOpen, FolderPlus, GitBranch, Loader2, Trash2 } from "lucide-react";
 import type { Project } from "@/shared/contracts";
 import { cloneFolderNameFromUrl } from "@/shared/createProject";
 import type { RemoteProjectCommand } from "@/shared/remote";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
+import { HostFolderPicker } from "./HostFolderPicker";
 
 export interface ManageProjectsViewProps {
   readonly projects: readonly Project[];
@@ -28,6 +29,7 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
   const [folderPath, setFolderPath] = useState("");
   const [cloneParent, setCloneParent] = useState("");
   const [cloneUrl, setCloneUrl] = useState("");
+  const [pickerTarget, setPickerTarget] = useState<"folder" | "clone" | null>(null);
   const { busy, error, run } = useAsyncOperation();
 
   const cloneName = cloneFolderNameFromUrl(cloneUrl);
@@ -82,20 +84,21 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
               <Trans>Add an existing folder</Trans>
             </h2>
             <div className="m-form">
-              <label className="m-field">
+              <div className="m-field">
                 <span className="m-field__label">
-                  <Trans>Folder path on the server</Trans>
+                  <Trans>Folder on the server</Trans>
                 </span>
-                <input
-                  value={folderPath}
-                  aria-label={t`Folder path`}
-                  placeholder="/home/me/projects/app"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  onChange={(event) => setFolderPath(event.currentTarget.value)}
-                />
-              </label>
+                <button
+                  type="button"
+                  className="m-field-picker"
+                  onClick={() => setPickerTarget("folder")}
+                >
+                  <FolderOpen className="size-4 shrink-0 text-muted" />
+                  <span className={folderPath ? "truncate" : "truncate text-muted"}>
+                    {folderPath || t`Choose a folder…`}
+                  </span>
+                </button>
+              </div>
               <Button
                 className="m-form__submit text-foreground"
                 size="sm"
@@ -120,20 +123,21 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
               <Trans>Clone a repository</Trans>
             </h2>
             <div className="m-form">
-              <label className="m-field">
+              <div className="m-field">
                 <span className="m-field__label">
                   <Trans>Parent folder on the server</Trans>
                 </span>
-                <input
-                  value={cloneParent}
-                  aria-label={t`Parent folder`}
-                  placeholder="/home/me/projects"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  onChange={(event) => setCloneParent(event.currentTarget.value)}
-                />
-              </label>
+                <button
+                  type="button"
+                  className="m-field-picker"
+                  onClick={() => setPickerTarget("clone")}
+                >
+                  <FolderOpen className="size-4 shrink-0 text-muted" />
+                  <span className={cloneParent ? "truncate" : "truncate text-muted"}>
+                    {cloneParent || t`Choose a folder…`}
+                  </span>
+                </button>
+              </div>
               <label className="m-field">
                 <span className="m-field__label">
                   <Trans>Repository URL</Trans>
@@ -181,6 +185,21 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
           </p>
         </div>
       )}
+
+      {pickerTarget ? (
+        <HostFolderPicker
+          title={pickerTarget === "clone" ? t`Choose a parent folder` : t`Choose a folder`}
+          initialPath={pickerTarget === "clone" ? cloneParent : folderPath}
+          onClose={() => setPickerTarget(null)}
+          onSelect={(path) => {
+            if (pickerTarget === "clone") {
+              setCloneParent(path);
+            } else {
+              setFolderPath(path);
+            }
+          }}
+        />
+      ) : null}
     </section>
   );
 }

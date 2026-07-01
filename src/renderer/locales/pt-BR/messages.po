@@ -31,9 +31,12 @@ msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# arquivo} other {# arquivos}}"
 
 #. placeholder {0}: props.desktops.length
+#: src/mobile/views/DesktopsView.tsx
+msgid "{0, plural, one {# paired connection} other {# paired connections}}"
+msgstr "{0, plural, one {# conexão pareada} other {# conexões pareadas}}"
+
 #. placeholder {0}: remote.desktops.length
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/DesktopsView.tsx
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# desktop pareado} other {# desktops pareados}}"
 
@@ -318,6 +321,10 @@ msgstr "Intervalo de atualização automática de {label} em minutos"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "{label} copied."
 msgstr "Copiado: {label}."
+
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "{label} usage"
+msgstr "Uso de {label}"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -1399,10 +1406,19 @@ msgstr "Verificando…"
 msgid "Checks"
 msgstr "Verificações"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a folder"
+msgstr "Escolha uma pasta"
+
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Choose a folder…"
 msgstr "Escolha uma pasta…"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a parent folder"
+msgstr "Escolha uma pasta pai"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Choose how to sign in for {env}."
@@ -1531,6 +1547,9 @@ msgid "Cloning…"
 msgstr "Clonando…"
 
 #: src/mobile/components.tsx
+#: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
@@ -1549,8 +1568,12 @@ msgid "Close browser"
 msgstr "Fechar navegador"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Close desktop actions"
-msgstr "Fechar ações do desktop"
+msgid "Close connection actions"
+msgstr "Fechar ações da conexão"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Close desktop actions"
+#~ msgstr "Fechar ações do desktop"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1921,6 +1944,11 @@ msgstr "Erro de conexão."
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "Falha na conexão."
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "Connections"
+msgstr "Conexões"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
@@ -2377,8 +2405,8 @@ msgstr "O desktop está inacessível."
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
-msgid "Desktops"
-msgstr "Desktops"
+#~ msgid "Desktops"
+#~ msgstr "Desktops"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2770,9 +2798,15 @@ msgstr "Sair do modo de plano"
 msgid "exited"
 msgstr "saiu"
 
+#. placeholder {0}: activeTab.exitCode
+#. placeholder {0}: tab.exitCode
 #: src/mobile/views/TerminalView.tsx
-msgid "exited ({exitCode})"
-msgstr "saiu ({exitCode})"
+msgid "exited ({0})"
+msgstr "encerrado ({0})"
+
+#: src/mobile/views/TerminalView.tsx
+#~ msgid "exited ({exitCode})"
+#~ msgstr "saiu ({exitCode})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -3008,15 +3042,22 @@ msgstr "Acessar barra de endereços do navegador no aplicativo"
 msgid "Focus window"
 msgstr "Focar a janela"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
+msgid "Folder"
+msgstr "Pasta"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Nome da pasta"
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "Folder path"
-msgstr "Caminho da pasta"
+msgid "Folder on the server"
+msgstr "Pasta no servidor"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#~ msgid "Folder path"
+#~ msgstr "Caminho da pasta"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "Caminho da pasta no servidor"
@@ -3304,6 +3345,10 @@ msgstr "Histórico"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "Página inicial"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Home folder"
+msgstr "Pasta inicial"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3630,6 +3675,7 @@ msgstr "Carregando threads"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/views/FilesView.tsx
+#: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -4280,6 +4326,10 @@ msgstr "Nenhum comando encontrado"
 msgid "No commits found."
 msgstr "Nenhum commit encontrado."
 
+#: src/mobile/RootLayout.tsx
+msgid "No connection paired"
+msgstr "Nenhuma conexão pareada"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No content streams."
 msgstr "Nenhum fluxo de conteúdo."
@@ -4302,8 +4352,8 @@ msgid "No description"
 msgstr "Sem descrição"
 
 #: src/mobile/RootLayout.tsx
-msgid "No desktop paired"
-msgstr "Nenhum desktop pareado"
+#~ msgid "No desktop paired"
+#~ msgstr "Nenhum desktop pareado"
 
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -4675,6 +4725,10 @@ msgstr "Abrir arquivos"
 msgid "Open folder"
 msgstr "Abrir pasta"
 
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "Open full usage"
+msgstr "Abrir uso completo"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
 msgstr "Abrir tela inteira"
@@ -4778,6 +4832,7 @@ msgstr "Abra Configurações → Acesso remoto no Lightcode no desktop e escanei
 msgid "Open subagent: {0}"
 msgstr "Abrir subagente: {0}"
 
+#: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
@@ -4859,8 +4914,12 @@ msgid "Pair"
 msgstr "Parear"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Pair a desktop"
-msgstr "Parear um desktop"
+msgid "Pair a connection"
+msgstr "Parear uma conexão"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Pair a desktop"
+#~ msgstr "Parear um desktop"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
@@ -4914,7 +4973,6 @@ msgstr "Painel"
 msgid "Panels and overlays"
 msgstr "Painéis e sobreposições"
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Parent folder"
 msgstr "Pasta pai"
@@ -5359,6 +5417,7 @@ msgstr "Reconstruído a partir de registros locais com taxas de API públicas �
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -5510,8 +5569,12 @@ msgid "Remove Claude profile"
 msgstr "Remover perfil do Claude"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Remove desktop"
-msgstr "Remover desktop"
+msgid "Remove connection"
+msgstr "Remover conexão"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Remove desktop"
+#~ msgstr "Remover desktop"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -5568,8 +5631,12 @@ msgid "Rename chat"
 msgstr "Renomear chat"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Rename desktop"
-msgstr "Renomear desktop"
+msgid "Rename connection"
+msgstr "Renomear conexão"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Rename desktop"
+#~ msgstr "Renomear desktop"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -6096,6 +6163,10 @@ msgstr "Selecione a conta"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "Selecione um agente para ver seu prompt e resultado."
 
+#: src/renderer/components/common/Select.tsx
+msgid "Select an option"
+msgstr "Selecione uma opção"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Select branch"
 msgstr "Selecionar branch"
@@ -6111,6 +6182,10 @@ msgstr "Selecione o modelo"
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "Selecione o projeto"
+
+#: src/renderer/components/common/Select.tsx
+msgid "Select…"
+msgstr "Selecionar…"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6286,6 +6361,10 @@ msgstr "Mostre o botão do microfone no compositor."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "Mostrar botão de entrada de voz"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Showing the first 4,000 entries."
+msgstr "Exibindo as primeiras 4.000 entradas."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -6962,6 +7041,10 @@ msgstr "Este arquivo é muito grande para o editor integrado."
 msgid "This file uses an unsupported encoding."
 msgstr "Este arquivo usa uma codificação não suportada."
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "This folder is empty."
+msgstr "Esta pasta está vazia."
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -7485,6 +7568,10 @@ msgstr "fora do stage"
 msgid "Unsupported"
 msgstr "Não compatível"
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Up one level"
+msgstr "Um nível acima"
+
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Update"
@@ -7567,6 +7654,7 @@ msgstr "Atualizando {0} ({env})"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/settingsSections.ts
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -7621,6 +7709,10 @@ msgid "Use this account for usage tracking, or change users in the browser "
 "before continuing."
 msgstr "Use esta conta para monitorar o uso ou altere os usuários no navegador "
 "antes de continuar."
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Use this folder"
+msgstr "Usar esta pasta"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

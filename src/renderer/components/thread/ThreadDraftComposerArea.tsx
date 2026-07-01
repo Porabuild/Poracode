@@ -517,7 +517,7 @@ export function ThreadDraftComposerArea(props: {
   return (
     <>
       <ThreadComposer
-        autoFocus={(props.paneCount ?? 1) === 1} // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+        autoFocus={(props.paneCount ?? 1) === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
         compact={props.compact ?? false}
         variant="draft"
         controls={controls}
@@ -572,7 +572,7 @@ export function ThreadDraftComposerArea(props: {
         inputContent={
           <MentionInput
             ref={mentionRef}
-            autoFocus={(props.paneCount ?? 1) === 1} // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+            autoFocus={(props.paneCount ?? 1) === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
             compact={props.compact ?? false}
             placeholder={t`Send a message...`}
             projectLocation={isHomeScope ? undefined : props.project.location}

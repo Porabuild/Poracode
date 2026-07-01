@@ -185,6 +185,15 @@ export const remoteProjectsChangedEventSchema = z.object({
 });
 export type RemoteProjectsChangedEvent = z.infer<typeof remoteProjectsChangedEventSchema>;
 
+/** Broadcast after durable thread metadata changes so remote clients refresh
+ * the shell snapshot. The payload intentionally carries ids only; clients
+ * already have a snapshot endpoint for current thread/project/runtime state. */
+export const remoteThreadsChangedEventSchema = z.object({
+  type: z.literal("remote-threads-changed"),
+  threadIds: z.array(z.string().min(1)),
+});
+export type RemoteThreadsChangedEvent = z.infer<typeof remoteThreadsChangedEventSchema>;
+
 export const remoteShellSnapshotSchema = z.object({
   snapshotSeq: z.number().int().nonnegative(),
   projects: z.array(projectSchema),

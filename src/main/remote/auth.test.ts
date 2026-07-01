@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { RemoteHttpError, RemoteAuthStore } from "./auth";
+import { mkdtempSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  RemoteHttpError,
+  RemoteAuthStore,
+  parseBearerAuthorizationHeader,
+  remoteAuthFilePath,
+  writeRemoteAccessSessions,
+} from "./auth";
 
 describe("RemoteAuthStore", () => {
   it("exchanges a one-time pairing credential for a bearer token", () => {
@@ -91,5 +100,26 @@ describe("RemoteAuthStore", () => {
       RemoteHttpError,
     );
     expect(store.revokeAccessSession(session!.id)).toBe(false);
+  });
+
+  it("writes persisted access sessions with owner-only permissions", () => {
+    const baseDir = mkdtempSync(join(tmpdir(), "lc-remote-auth-"));
+    try {
+      writeRemoteAccessSessions(baseDir, []);
+
+      expect(statSync(remoteAuthFilePath(baseDir)).mode & 0o777).toBe(0o600);
+    } finally {
+      rmSync(baseDir, { recursive: true, force: true });
+    }
+  });
+
+  it("parses bearer authorization schemes case-insensitively", () => {
+    expect(parseBearerAuthorizationHeader("Bearer lc_access_token")).toBe("lc_access_token");
+    expect(parseBearerAuthorizationHeader("bearer lc_access_token")).toBe("lc_access_token");
+    expect(parseBearerAuthorizationHeader("BEARER lc_access_token")).toBe("lc_access_token");
+    expect(parseBearerAuthorizationHeader("  Bearer   lc_access_token  ")).toBe("lc_access_token");
+    expect(parseBearerAuthorizationHeader("Bearer")).toBeNull();
+    expect(parseBearerAuthorizationHeader("Bearer   ")).toBeNull();
+    expect(parseBearerAuthorizationHeader("Basic lc_access_token")).toBeNull();
   });
 });

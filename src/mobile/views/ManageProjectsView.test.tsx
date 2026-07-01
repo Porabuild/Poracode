@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Project } from "@/shared/contracts";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { BrowseHostDirectoryResult, Project } from "@/shared/contracts";
 import type { RemoteProjectCommand } from "@/shared/remote";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ManageProjectsView } from "./ManageProjectsView";
+
+const bridge = vi.hoisted(() => ({
+  browseHostDirectory: vi.fn<(payload: unknown) => Promise<BrowseHostDirectoryResult>>(),
+}));
+
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => bridge,
+}));
 
 const projects: Project[] = [
   {
@@ -14,6 +22,10 @@ const projects: Project[] = [
     createdAt: "2026-01-01T00:00:00.000Z",
   },
 ];
+
+function listing(path: string): BrowseHostDirectoryResult {
+  return { path, parentPath: "/srv", homePath: "/home/me", entries: [], truncated: false };
+}
 
 function renderView(opts?: {
   canManage?: boolean;
@@ -32,6 +44,9 @@ function renderView(opts?: {
 }
 
 describe("ManageProjectsView", () => {
+  beforeEach(() => {
+    bridge.browseHostDirectory.mockReset();
+  });
   afterEach(() => {
     document.body.innerHTML = "";
   });
@@ -42,18 +57,27 @@ describe("ManageProjectsView", () => {
     expect(screen.getByText("/srv/alpha")).toBeTruthy();
   });
 
-  it("sends an add-existing command from the folder form", async () => {
+  it("picks a folder and sends an add-existing command", async () => {
+    bridge.browseHostDirectory.mockResolvedValue(listing("/srv/beta"));
     const { onCommand } = renderView();
-    fireEvent.change(screen.getByLabelText("Folder path"), { target: { value: "/srv/beta" } });
+    // Open the folder picker (first of the two "Choose a folder" triggers).
+    fireEvent.click(screen.getAllByRole("button", { name: /Choose a folder/ })[0]!);
+    // The picker shows the browsed directory; pick it.
+    await screen.findByText("/srv/beta");
+    fireEvent.click(screen.getByRole("button", { name: /Use this folder/ }));
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() =>
       expect(onCommand).toHaveBeenCalledWith({ kind: "add-existing", path: "/srv/beta" }),
     );
   });
 
-  it("derives the clone name from the URL and sends a clone command", async () => {
+  it("picks a parent folder and sends a clone command derived from the URL", async () => {
+    bridge.browseHostDirectory.mockResolvedValue(listing("/srv"));
     const { onCommand } = renderView();
-    fireEvent.change(screen.getByLabelText("Parent folder"), { target: { value: "/srv" } });
+    // The second "Choose a folder" trigger is the clone parent field.
+    fireEvent.click(screen.getAllByRole("button", { name: /Choose a folder/ })[1]!);
+    await screen.findByText("/srv");
+    fireEvent.click(screen.getByRole("button", { name: /Use this folder/ }));
     fireEvent.change(screen.getByLabelText("Repository URL"), {
       target: { value: "https://github.com/owner/repo.git" },
     });

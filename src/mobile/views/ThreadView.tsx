@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { MessageCircle, SquareTerminal } from "lucide-react";
@@ -29,6 +29,8 @@ import { EmptyState } from "../components";
 import { WorkspaceChip } from "../GitSummaryParts";
 import { TerminalAccessory } from "../TerminalAccessory";
 import { ThreadTitleRow } from "../ThreadTitleRow";
+import { ThreadUsageIndicator } from "../ThreadUsageIndicator";
+import { useKeyboardOffset } from "../useKeyboardOffset";
 import type { ThreadAction } from "../useRemoteDesktop";
 import type { WorkspaceTab } from "./WorkspaceView";
 
@@ -100,6 +102,9 @@ export function ThreadView(props: ThreadViewProps) {
   const [terminalSize, setTerminalSize] = useState<TerminalSize | null>(null);
   const agentTerminalFontSize = useSharedSettings((state) => state.agentTerminalFontSize);
   const dockState = useThreadDockState(thread?.id ?? "");
+  // Reserve the on-screen keyboard's band so focusing the composer doesn't let
+  // iOS scroll the whole (fixed) shell up to reveal it — see useKeyboardOffset.
+  const keyboardOffset = useKeyboardOffset();
 
   useEffect(() => {
     terminalPaneRef.current = {
@@ -201,7 +206,10 @@ export function ThreadView(props: ThreadViewProps) {
   };
 
   return (
-    <section className="m-thread">
+    <section
+      className="m-thread"
+      style={{ "--m-keyboard-offset": `${keyboardOffset}px` } as CSSProperties}
+    >
       {props.loading ? (
         <span className="m-loading-bar" role="progressbar" aria-label={t`Loading thread`} />
       ) : null}
@@ -213,6 +221,7 @@ export function ThreadView(props: ThreadViewProps) {
             onNewThreadInWorktree={props.onNewThreadInWorktree}
             onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
           />
+          <ThreadUsageIndicator thread={thread} />
         </header>
       )}
       {props.onOpenWorkspace || props.onOpenTerminal ? (

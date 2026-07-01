@@ -120,6 +120,8 @@ export async function saveThreadSnapshot(
 
 export async function saveDesktop(input: {
   readonly descriptor: RemoteEnvironmentDescriptor;
+  /** Endpoint that actually succeeded during pairing. May be relay-mounted. */
+  readonly endpoint: string;
   readonly accessToken: string;
   readonly tokenExpiresAt: string;
   readonly scopes: RemoteAccessScope[];
@@ -129,7 +131,7 @@ export async function saveDesktop(input: {
   const desktop: StoredDesktop = {
     desktopId: input.descriptor.desktopId,
     label: input.descriptor.label,
-    endpoint: input.descriptor.endpoints.httpBaseUrl,
+    endpoint: input.endpoint,
     appVersion: input.descriptor.appVersion,
     accessToken: input.accessToken,
     tokenExpiresAt: input.tokenExpiresAt,

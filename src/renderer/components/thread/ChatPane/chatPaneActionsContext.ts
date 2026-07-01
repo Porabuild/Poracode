@@ -14,8 +14,9 @@ export type ChatPaneActions = {
   /**
    * Top-level entry names for the chat's project, used to validate path-like
    * tokens before chipping them. Empty until the project tree responds.
+   * Omitted for remote chats where the desktop client has no local tree cache.
    */
-  projectRootNames: ReadonlySet<string>;
+  projectRootNames?: ReadonlySet<string> | undefined;
 };
 
 export const ChatPaneActionsContext = createContext<ChatPaneActions | null>(null);

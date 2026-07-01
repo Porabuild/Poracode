@@ -31,9 +31,12 @@ msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# 파일} other {# 파일}}"
 
 #. placeholder {0}: props.desktops.length
+#: src/mobile/views/DesktopsView.tsx
+msgid "{0, plural, one {# paired connection} other {# paired connections}}"
+msgstr "{0, plural, one {#개의 페어링된 연결} other {#개의 페어링된 연결}}"
+
 #. placeholder {0}: remote.desktops.length
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/DesktopsView.tsx
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {#개의 페어링된 데스크톱} other {#개의 페어링된 데스크톱}}"
 
@@ -314,6 +317,10 @@ msgstr "{label} 자동 새로고침 간격(분)"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "{label} copied."
 msgstr "{label}이(가) 복사되었습니다."
+
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "{label} usage"
+msgstr "{label} 사용량"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -1378,10 +1385,19 @@ msgstr "확인 중…"
 msgid "Checks"
 msgstr "검사"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a folder"
+msgstr "폴더 선택"
+
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Choose a folder…"
 msgstr "폴더를 선택하세요…"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a parent folder"
+msgstr "상위 폴더 선택"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Choose how to sign in for {env}."
@@ -1508,6 +1524,9 @@ msgid "Cloning…"
 msgstr "복제 중…"
 
 #: src/mobile/components.tsx
+#: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
@@ -1526,8 +1545,12 @@ msgid "Close browser"
 msgstr "브라우저 닫기"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Close desktop actions"
-msgstr "데스크톱 작업 닫기"
+msgid "Close connection actions"
+msgstr "연결 작업 닫기"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Close desktop actions"
+#~ msgstr "데스크톱 작업 닫기"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1893,6 +1916,11 @@ msgstr "연결 오류입니다."
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "연결에 실패했습니다."
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "Connections"
+msgstr "연결"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
@@ -2344,8 +2372,8 @@ msgstr "데스크톱에 연결할 수 없습니다."
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
-msgid "Desktops"
-msgstr "데스크톱"
+#~ msgid "Desktops"
+#~ msgstr "데스크톱"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2727,9 +2755,15 @@ msgstr "계획 모드 종료"
 msgid "exited"
 msgstr "종료됨"
 
+#. placeholder {0}: activeTab.exitCode
+#. placeholder {0}: tab.exitCode
 #: src/mobile/views/TerminalView.tsx
-msgid "exited ({exitCode})"
-msgstr "종료됨({exitCode})"
+msgid "exited ({0})"
+msgstr "종료됨 ({0})"
+
+#: src/mobile/views/TerminalView.tsx
+#~ msgid "exited ({exitCode})"
+#~ msgstr "종료됨({exitCode})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -2957,15 +2991,22 @@ msgstr "인앱 브라우저 주소 표시줄에 포커스"
 msgid "Focus window"
 msgstr "창 활성화"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
+msgid "Folder"
+msgstr "폴더"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "폴더 이름"
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "Folder path"
-msgstr "폴더 경로"
+msgid "Folder on the server"
+msgstr "서버의 폴더"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#~ msgid "Folder path"
+#~ msgstr "폴더 경로"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "서버의 폴더 경로"
@@ -3246,6 +3287,10 @@ msgstr "기록"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "홈"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Home folder"
+msgstr "홈 폴더"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3566,6 +3611,7 @@ msgstr "스레드 로드 중"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/views/FilesView.tsx
+#: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -4213,6 +4259,10 @@ msgstr "명령을 찾을 수 없습니다."
 msgid "No commits found."
 msgstr "커밋을 찾을 수 없습니다."
 
+#: src/mobile/RootLayout.tsx
+msgid "No connection paired"
+msgstr "페어링된 연결 없음"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No content streams."
 msgstr "콘텐츠 스트림이 없습니다."
@@ -4235,8 +4285,8 @@ msgid "No description"
 msgstr "설명 없음"
 
 #: src/mobile/RootLayout.tsx
-msgid "No desktop paired"
-msgstr "페어링된 데스크톱 없음"
+#~ msgid "No desktop paired"
+#~ msgstr "페어링된 데스크톱 없음"
 
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -4607,6 +4657,10 @@ msgstr "파일 열기"
 msgid "Open folder"
 msgstr "폴더 열기"
 
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "Open full usage"
+msgstr "전체 사용량 열기"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
 msgstr "전체 화면 열기"
@@ -4708,6 +4762,7 @@ msgstr "데스크톱 Lightcode에서 설정 → 원격 접근을 연 다음 여�
 msgid "Open subagent: {0}"
 msgstr "하위 에이전트 열기: {0}"
 
+#: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
@@ -4786,8 +4841,12 @@ msgid "Pair"
 msgstr "페어링"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Pair a desktop"
-msgstr "데스크톱 페어링"
+msgid "Pair a connection"
+msgstr "연결 페어링"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Pair a desktop"
+#~ msgstr "데스크톱 페어링"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
@@ -4841,7 +4900,6 @@ msgstr "패널"
 msgid "Panels and overlays"
 msgstr "패널 및 오버레이"
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Parent folder"
 msgstr "상위 폴더"
@@ -5279,6 +5337,7 @@ msgstr "공개 API 요금으로 로컬 로그에서 재구성되며 구독 계�
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -5430,8 +5489,12 @@ msgid "Remove Claude profile"
 msgstr "Claude 프로필 삭제"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Remove desktop"
-msgstr "데스크톱 제거"
+msgid "Remove connection"
+msgstr "연결 제거"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Remove desktop"
+#~ msgstr "데스크톱 제거"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -5488,8 +5551,12 @@ msgid "Rename chat"
 msgstr "채팅 이름 바꾸기"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Rename desktop"
-msgstr "데스크톱 이름 변경"
+msgid "Rename connection"
+msgstr "연결 이름 변경"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Rename desktop"
+#~ msgstr "데스크톱 이름 변경"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -6009,6 +6076,10 @@ msgstr "계정 선택"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "프롬프트와 결과를 보려면 에이전트를 선택하세요."
 
+#: src/renderer/components/common/Select.tsx
+msgid "Select an option"
+msgstr "옵션을 선택하세요"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Select branch"
 msgstr "브랜치 선택"
@@ -6024,6 +6095,10 @@ msgstr "모델 선택"
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "프로젝트 선택"
+
+#: src/renderer/components/common/Select.tsx
+msgid "Select…"
+msgstr "선택…"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6196,6 +6271,10 @@ msgstr "작성기에 마이크 버튼을 표시합니다."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "음성 입력 버튼 표시"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Showing the first 4,000 entries."
+msgstr "처음 4,000개 항목을 표시합니다."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -6856,6 +6935,10 @@ msgstr "이 파일은 내장 편집기에 비해 너무 큽니다."
 msgid "This file uses an unsupported encoding."
 msgstr "이 파일은 지원되지 않는 인코딩을 사용합니다."
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "This folder is empty."
+msgstr "이 폴더는 비어 있습니다."
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -7370,6 +7453,10 @@ msgstr "스테이징되지 않음"
 msgid "Unsupported"
 msgstr "지원되지 않음"
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Up one level"
+msgstr "한 단계 위로"
+
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Update"
@@ -7452,6 +7539,7 @@ msgstr "{0}({env}) 업데이트 중"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/settingsSections.ts
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -7504,6 +7592,10 @@ msgstr "세션 사용"
 msgid "Use this account for usage tracking, or change users in the browser "
 "before continuing."
 msgstr "사용 추적을 위해 이 계정을 사용하거나 계속하기 전에 브라우저에서 사용자를 변경하세요."
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Use this folder"
+msgstr "이 폴더 사용"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

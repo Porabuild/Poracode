@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { asc, eq } from "drizzle-orm";
@@ -30,9 +32,45 @@ export function bumpProfileDataGeneration(): void {
 /** How long durable usage events are retained (well beyond the 364-day heatmap). */
 const USAGE_EVENTS_RETENTION_DAYS = 730;
 
+const HEADLESS_SERVER_ENV = "LIGHTCODE_HEADLESS_SERVER";
+const BETTER_SQLITE_NATIVE_BINDING_ENV = "LIGHTCODE_BETTER_SQLITE3_NATIVE_BINDING";
+const DEFAULT_SERVER_NATIVE_BINDING = join("dist", "server-native", "better_sqlite3.node");
+
+export function resolveBetterSqliteNativeBindingOptions(
+  env: NodeJS.ProcessEnv = process.env,
+  cwd = process.cwd(),
+  bindingExists: (path: string) => boolean = existsSync,
+): ConstructorParameters<typeof Database>[1] | undefined {
+  const explicit = env[BETTER_SQLITE_NATIVE_BINDING_ENV]?.trim();
+  if (explicit) return { nativeBinding: explicit };
+  if (env[HEADLESS_SERVER_ENV] !== "1") return undefined;
+  const preparedBinding = join(cwd, DEFAULT_SERVER_NATIVE_BINDING);
+  return bindingExists(preparedBinding) ? { nativeBinding: preparedBinding } : undefined;
+}
+
+function openDatabase(dbPath: string): InstanceType<typeof Database> {
+  const options = resolveBetterSqliteNativeBindingOptions();
+  try {
+    return new Database(dbPath, options);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("NODE_MODULE_VERSION")) {
+      throw new Error(
+        [
+          "better-sqlite3 native binding is not compatible with this Node runtime.",
+          "For the headless server, run `pnpm run prepare:server-native` or set",
+          `${BETTER_SQLITE_NATIVE_BINDING_ENV} to a Node-ABI better_sqlite3.node file.`,
+        ].join(" "),
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+}
+
 export function initDatabase(dbPath: string) {
   console.log(`[db] opening ${dbPath}`);
-  const sqlite = new Database(dbPath);
+  const sqlite = openDatabase(dbPath);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("synchronous = NORMAL");
   sqlite.pragma("foreign_keys = ON");
@@ -605,6 +643,118 @@ export interface PersistedRuntimeItem {
   parentItemId?: string | undefined;
 }
 
+export interface ThreadRuntimeSummary {
+  itemCount: number;
+  latestItemId?: string | undefined;
+  latestItemType?: string | undefined;
+  latestItemState?: PersistedRuntimeItem["state"] | undefined;
+  contextUsage?: ThreadContextUsage | undefined;
+}
+
+const SQLITE_IN_CHUNK_SIZE = 500;
+
+interface ThreadRuntimeSummaryStatementRunner {
+  all(...values: string[]): unknown[];
+}
+
+interface ThreadRuntimeSummaryQueryRunner {
+  prepare(sql: string): ThreadRuntimeSummaryStatementRunner;
+}
+
+function runtimeItemState(state: string): PersistedRuntimeItem["state"] {
+  return state === "completed" || state === "updated" ? state : "started";
+}
+
+function chunkValues<T>(values: readonly T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function placeholders(count: number): string {
+  return Array.from({ length: count }, () => "?").join(", ");
+}
+
+/**
+ * Low-cost shell snapshot summary: count runtime items and read only the latest
+ * item metadata/context usage for many threads at once. This avoids decoding
+ * every persisted chat payload on every remote `/api/snapshot` refresh.
+ */
+export function dbReadThreadRuntimeSummaries(
+  sqlite: ThreadRuntimeSummaryQueryRunner,
+  threadIds: readonly string[],
+): Record<string, ThreadRuntimeSummary> {
+  const ids = [...new Set(threadIds)].filter((id) => id.length > 0);
+  const summaries: Record<string, ThreadRuntimeSummary> = {};
+  for (const id of ids) {
+    summaries[id] = { itemCount: 0 };
+  }
+  for (const chunk of chunkValues(ids, SQLITE_IN_CHUNK_SIZE)) {
+    if (chunk.length === 0) continue;
+    const sqlPlaceholders = placeholders(chunk.length);
+    const runtimeRows = sqlite
+      .prepare(
+        `
+        SELECT thread_id, item_count, item_id, type, state
+        FROM (
+          SELECT
+            thread_id,
+            item_id,
+            type,
+            state,
+            COUNT(*) OVER (PARTITION BY thread_id) AS item_count,
+            ROW_NUMBER() OVER (PARTITION BY thread_id ORDER BY position DESC) AS rn
+          FROM thread_runtime_items
+          WHERE thread_id IN (${sqlPlaceholders})
+        )
+        WHERE rn = 1
+        `,
+      )
+      .all(...chunk) as Array<{
+      thread_id: string;
+      item_count: number;
+      item_id: string;
+      type: string;
+      state: string;
+    }>;
+    for (const row of runtimeRows) {
+      const currentSummary = summaries[row.thread_id] ?? { itemCount: 0 };
+      summaries[row.thread_id] = {
+        ...currentSummary,
+        itemCount: row.item_count,
+        latestItemId: row.item_id,
+        latestItemType: row.type,
+        latestItemState: runtimeItemState(row.state),
+      };
+    }
+
+    const usageRows = sqlite
+      .prepare(
+        `SELECT thread_id, usage FROM thread_context_usage WHERE thread_id IN (${sqlPlaceholders})`,
+      )
+      .all(...chunk) as Array<{ thread_id: string; usage: string }>;
+    for (const row of usageRows) {
+      const parsed = safeParse(row.usage);
+      if (!parsed || typeof parsed !== "object") continue;
+      const currentSummary = summaries[row.thread_id] ?? { itemCount: 0 };
+      summaries[row.thread_id] = {
+        ...currentSummary,
+        contextUsage: parsed as ThreadContextUsage,
+      };
+    }
+  }
+  return summaries;
+}
+
+export function dbGetThreadRuntimeSummaries(
+  threadIds: readonly string[],
+): Record<string, ThreadRuntimeSummary> {
+  if (!_sqlite) throw new Error("Database not initialized");
+  return dbReadThreadRuntimeSummaries(_sqlite, threadIds);
+}
+
 export function dbGetThreadRuntimeItems(threadId: string): PersistedRuntimeItem[] {
   if (!_sqlite) throw new Error("Database not initialized");
   const rows = _sqlite
@@ -622,9 +772,7 @@ export function dbGetThreadRuntimeItems(threadId: string): PersistedRuntimeItem[
   return rows.map((row) => ({
     id: row.item_id,
     type: row.type,
-    state: (row.state === "completed" || row.state === "updated"
-      ? row.state
-      : "started") as PersistedRuntimeItem["state"],
+    state: runtimeItemState(row.state),
     payload: row.payload ? safeParse(row.payload) : undefined,
     streams: row.streams ? (safeParse(row.streams) as Record<string, string>) : {},
     ...(row.parent_item_id ? { parentItemId: row.parent_item_id } : {}),

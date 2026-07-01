@@ -28,6 +28,15 @@ import { ChatItemRow } from "./items/ChatItemRow";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline } from "./items/imageViewSource";
 
+export interface CheckpointRevertActions {
+  rollbackThreadConversation(input: { threadId: string; numTurns: number }): Promise<void>;
+  restoreFileCheckpoint(input: {
+    threadId: string;
+    checkpointItemId: string;
+    projectLocation: ProjectLocation;
+  }): Promise<void>;
+}
+
 interface MessageListProps {
   threadId: string;
   entries: readonly ChatTimelineEntry[];
@@ -38,6 +47,7 @@ interface MessageListProps {
    */
   canRevertCheckpoints?: boolean;
   checkpointGuard?: CheckpointGuard;
+  checkpointActions?: CheckpointRevertActions | undefined;
   projectLocation?: ProjectLocation | undefined;
   /**
    * If set, the inline "Worked for X" indicator anchored to this item id is
@@ -77,6 +87,7 @@ export function MessageList({
   scrollElement,
   canRevertCheckpoints = true,
   checkpointGuard,
+  checkpointActions,
   projectLocation,
   suppressInlineTurnAnchorId = null,
   registerScrollToIndex,
@@ -311,10 +322,17 @@ export function MessageList({
           : 0;
       if (rollbackTurns > 0) {
         try {
-          await readBridge().rollbackThreadConversation({
-            threadId,
-            numTurns: rollbackTurns,
-          });
+          if (checkpointActions) {
+            await checkpointActions.rollbackThreadConversation({
+              threadId,
+              numTurns: rollbackTurns,
+            });
+          } else {
+            await readBridge().rollbackThreadConversation({
+              threadId,
+              numTurns: rollbackTurns,
+            });
+          }
         } catch (error) {
           console.warn(
             "[checkpoint] provider rollback failed; continuing with local revert",
@@ -323,16 +341,24 @@ export function MessageList({
         }
       }
       if (projectLocation && checkpoint) {
-        await readBridge().restoreFileCheckpoint({
-          threadId,
-          checkpointItemId: itemId,
-          projectLocation,
-        });
+        if (checkpointActions) {
+          await checkpointActions.restoreFileCheckpoint({
+            threadId,
+            checkpointItemId: itemId,
+            projectLocation,
+          });
+        } else {
+          await readBridge().restoreFileCheckpoint({
+            threadId,
+            checkpointItemId: itemId,
+            projectLocation,
+          });
+        }
       }
       state.truncateThreadRuntimeAfter(threadId, itemId);
       parentActions?.onContentHeightChange();
     },
-    [parentActions, projectLocation, threadId],
+    [checkpointActions, parentActions, projectLocation, threadId],
   );
 
   const requestRevert = useCallback(

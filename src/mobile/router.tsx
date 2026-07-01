@@ -6,7 +6,9 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import { capturePairingLaunch } from "./pairing";
+import { navigationTransitionType } from "./navHelpers";
 import { RootLayout } from "./RootLayout";
+import { WIDE_SHELL_QUERY } from "./useMediaQuery";
 import {
   BrowserRoute,
   DesktopsRoute,
@@ -130,9 +132,10 @@ const terminalRoute = createRoute({
   component: TerminalRoute,
   validateSearch: (
     search: Record<string, unknown>,
-  ): { readonly worktree?: string; readonly action?: string } => ({
+  ): { readonly worktree?: string; readonly action?: string; readonly fromThread?: string } => ({
     ...(typeof search.worktree === "string" ? { worktree: search.worktree } : {}),
     ...(typeof search.action === "string" ? { action: search.action } : {}),
+    ...(typeof search.fromThread === "string" ? { fromThread: search.fromThread } : {}),
   }),
 });
 
@@ -205,12 +208,52 @@ const routeTree = rootRoute.addChildren([
   prRouteTree,
 ]);
 
+// TanStack applies `defaultViewTransition` to EVERY navigation, including native
+// back/edge-swipe (popstate) ones, which iOS already animates interactively.
+// The `types` callback isn't told the history action, so we mirror it here:
+// BACK/FORWARD/GO come from popstate (a gesture/history back), PUSH/REPLACE from
+// our own navigate() calls. Set synchronously in the same history-notify loop,
+// so it's current when the router later reads the transition types.
+let lastNavWasGesture = false;
+
+/**
+ * View-transition types for a navigation, consumed by the CSS in styles.css
+ * (`:active-view-transition-type(push|pop|fade)`). Returns `false` to skip the
+ * transition entirely — the wide split isn't a phone stack and reduced-motion
+ * users opt out. Browsers without the View Transitions API fall back to an
+ * instant swap automatically.
+ */
+function navigationTransitionTypes(fromPath: string | undefined, toPath: string): string[] | false {
+  if (typeof window !== "undefined") {
+    if (window.matchMedia(WIDE_SHELL_QUERY).matches) return false;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+  }
+  // Leaving the mirrored browser view via a native edge-swipe/back already plays
+  // the OS's own interactive back animation; running our `pop` slide on top of it
+  // double-animates. Skip our transition for that specific gesture-driven pop.
+  if (lastNavWasGesture && fromPath === "/more/browser") return false;
+  const type = navigationTransitionType(fromPath, toPath);
+  return type ? [type] : false;
+}
+
 export const router = createRouter({
   routeTree,
   history: createHashHistory(),
   defaultPreload: false,
+  // Native-app screen transitions on the phone layout (View Transitions API).
+  defaultViewTransition: {
+    types: ({ fromLocation, toLocation }) =>
+      navigationTransitionTypes(fromLocation?.pathname, toLocation.pathname),
+  },
   // The shell handles "no route" by redirecting to /threads via the index route.
   defaultNotFoundComponent: () => null,
+});
+
+// Record the history action for each navigation (see `lastNavWasGesture`). This
+// runs synchronously in history's notify loop, before the router's deferred
+// startViewTransition reads the transition types, so the flag is always current.
+router.history.subscribe(({ action }) => {
+  lastNavWasGesture = action.type === "BACK" || action.type === "FORWARD" || action.type === "GO";
 });
 
 declare module "@tanstack/react-router" {

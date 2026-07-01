@@ -20,6 +20,7 @@ import { readOrCreateHeadlessSecretKey, readOrCreateRelaySecret } from "./headle
  *   LIGHTCODE_REMOTE_ACCESS_PORT             bind port (default 38987)
  *   LIGHTCODE_REMOTE_ACCESS_ADVERTISED_HOST  host advertised in pairing URLs
  *   LIGHTCODE_SECRET_STORAGE_KEY             base64 32-byte key (else file-backed)
+ *   LIGHTCODE_BETTER_SQLITE3_NATIVE_BINDING  optional Node-ABI better_sqlite3.node
  *   LIGHTCODE_WSL_HELPERS_DIR                in-WSL helper assets dir
  *   LIGHTCODE_REMOTE_RELAY_URL               relay /host control URL (cross-network)
  *   LIGHTCODE_REMOTE_RELAY_SECRET            secret claiming the server id (else file-backed)
@@ -32,6 +33,7 @@ function resolveWslHelpersDir(): string {
 }
 
 async function main(): Promise<void> {
+  process.env.LIGHTCODE_HEADLESS_SERVER = "1";
   const baseDir = process.env.LIGHTCODE_BASE_DIR?.trim() || resolveLightcodeBaseDir();
   // Ensure the data dir exists before the secret key is written into it.
   prepareLightcodeDataRoot(baseDir);

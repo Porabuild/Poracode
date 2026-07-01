@@ -59,12 +59,14 @@ export interface ThreadsViewProps {
   readonly onOpenTerminal: (input: {
     readonly projectId: string;
     readonly worktreePath?: string;
+    readonly sourceThreadId?: string;
   }) => void;
   /** Opens a terminal and runs one configured project action. */
   readonly onRunProjectAction: (input: {
     readonly projectId: string;
     readonly actionId: string;
     readonly worktreePath?: string;
+    readonly sourceThreadId?: string;
   }) => void;
 }
 
@@ -204,6 +206,7 @@ function ThreadActionsSheet(props: {
     props.onOpenTerminal({
       projectId: thread.projectId,
       ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
+      sourceThreadId: thread.id,
     });
     props.onClose();
   };
@@ -256,6 +259,7 @@ function ThreadActionsSheet(props: {
                   projectId: thread.projectId,
                   actionId: action.id,
                   ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
+                  sourceThreadId: thread.id,
                 }),
               )
             }

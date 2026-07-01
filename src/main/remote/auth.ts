@@ -80,6 +80,7 @@ export interface AuthenticatedRemoteSession {
   readonly sessionId: string;
   readonly scopes: readonly RemoteAccessScope[];
   readonly client: RemoteClientMetadata | undefined;
+  readonly expiresAtMs: number;
 }
 
 interface RemoteAuthStoreOptions {
@@ -208,6 +209,7 @@ export class RemoteAuthStore {
       sessionId: session.id,
       scopes: session.scopes,
       client: session.client,
+      expiresAtMs: session.expiresAtMs,
     };
   }
 
@@ -277,6 +279,7 @@ export class RemoteAuthStore {
       sessionId: session.id,
       scopes: session.scopes,
       client: session.client,
+      expiresAtMs: session.expiresAtMs,
     };
   }
 
@@ -314,10 +317,11 @@ export class RemoteAuthStore {
 }
 
 export function parseBearerAuthorizationHeader(value: string | undefined): string | null {
-  if (!value?.startsWith("Bearer ")) {
+  const match = /^bearer\s+(.+)$/i.exec(value?.trim() ?? "");
+  if (!match) {
     return null;
   }
-  const token = value.slice("Bearer ".length).trim();
+  const token = match[1]?.trim() ?? "";
   return token.length > 0 ? token : null;
 }
 
@@ -345,7 +349,7 @@ export function writeRemoteAccessSessions(
   writeFileAtomic(
     remoteAuthFilePath(baseDir),
     `${JSON.stringify(remoteAuthFileSchema.parse({ accessSessions: sessions }), null, 2)}\n`,
-    { encoding: "utf8" },
+    { encoding: "utf8", mode: 0o600 },
   );
 }
 

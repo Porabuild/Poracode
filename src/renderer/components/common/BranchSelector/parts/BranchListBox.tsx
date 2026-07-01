@@ -24,6 +24,7 @@ import {
   VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS,
 } from "../../dropdownVirtualization";
 import { PixelLoader } from "../../PixelLoader";
+import { useResponsiveMenu } from "../../ResponsiveMenuSurface";
 import type { BranchListItem } from "./useBranchList";
 
 const STATUS_DOT_CLASS: Record<StatusTone, string> = {
@@ -81,6 +82,11 @@ export function BranchListBox(props: {
     onOpenPrReview,
   } = props;
   const { t } = useLingui();
+  // In the mobile drawer, grow branch rows to a finger target. Drop the compact
+  // `!h-7` force-class so the `.m-sheet .list-box-item { min-height }` rule sizes
+  // them, and match the virtualizer's rowHeight so the scroll math stays in sync.
+  const { mobile } = useResponsiveMenu();
+  const rowHeight = mobile ? 44 : COMPACT_DROPDOWN_ROW_HEIGHT;
 
   if (!hasLocal && !hasRemote) {
     return (
@@ -93,13 +99,10 @@ export function BranchListBox(props: {
   const selectedKey = isWorktree || worktreeMode ? (baseBranch ?? value) : value;
 
   return (
-    <Virtualizer
-      layout={ListLayout}
-      layoutOptions={{ rowHeight: COMPACT_DROPDOWN_ROW_HEIGHT, padding: 8 }}
-    >
+    <Virtualizer layout={ListLayout} layoutOptions={{ rowHeight, padding: 8 }}>
       <ListBox
         aria-label={t`Branches`}
-        className={`lightcode-menu max-h-60 overflow-y-auto ${VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS}`}
+        className={`lightcode-menu max-h-60 overflow-y-auto ${mobile ? "" : VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS}`}
         items={items}
         selectedKeys={
           isWorktree || worktreeMode ? new Set([baseBranch ?? value]) : new Set([value])

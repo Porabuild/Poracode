@@ -17,7 +17,6 @@ import type {
   RemoteProjectCommand,
   RemoteShellSnapshot,
   RemoteThreadSnapshot,
-  RemoteWebSocketClientMessage,
 } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import { readBridge } from "@/renderer/bridge";
@@ -37,6 +36,7 @@ import {
   setTerminalSocketSender,
 } from "./terminalFeed";
 import { RemoteClientError, RemoteDesktopClient } from "./remoteClient";
+import { createRemoteSocketSender } from "./remoteSocketSender";
 import { applyDesktopSettings, resetDesktopSettings } from "./settingsSync";
 import { sortThreadsByRecency } from "./presentation";
 import {
@@ -126,7 +126,10 @@ function shouldRefreshAfterSupervisorEvent(value: unknown): boolean {
     type === "wsl-agent-statuses" ||
     // A project was added/cloned/removed remotely (by this or another client);
     // re-pull the shell snapshot so the project list reflects it.
-    type === "remote-projects-changed"
+    type === "remote-projects-changed" ||
+    // Thread metadata was changed by another client/desktop; refresh the
+    // sidebar snapshot while streaming chat deltas keep the open thread live.
+    type === "remote-threads-changed"
   );
 }
 
@@ -290,11 +293,7 @@ export function useRemoteDesktop() {
             setMessage("");
             // Browser mirroring (watch/input) rides this socket; registering the
             // sender re-subscribes a watching BrowserView after reconnects.
-            const socketSender = (outgoing: RemoteWebSocketClientMessage) => {
-              if (socket.readyState !== WebSocket.OPEN) return false;
-              socket.send(JSON.stringify(outgoing));
-              return true;
-            };
+            const socketSender = createRemoteSocketSender(socket);
             setBrowserSocketSender(socketSender);
             // Live terminal streaming (CLI threads + dev shells) rides this
             // socket too; registering re-subscribes on-screen terminals.
@@ -438,6 +437,7 @@ export function useRemoteDesktop() {
     resetSessionState();
     const desktop = await saveDesktop({
       descriptor,
+      endpoint,
       accessToken: token.accessToken,
       tokenExpiresAt: token.expiresAt,
       scopes: token.scopes,

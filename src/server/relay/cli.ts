@@ -29,8 +29,10 @@ async function main(): Promise<void> {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log("\n[lightcode-relay] %s received, shutting down…", signal);
-    relay.dispose();
-    process.exit(0);
+    void relay
+      .dispose()
+      .catch((error) => console.error("[lightcode-relay] shutdown error:", error))
+      .finally(() => process.exit(0));
   };
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));

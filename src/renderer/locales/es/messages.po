@@ -31,9 +31,13 @@ msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# archivo} other {# archivos}}"
 
 #. placeholder {0}: props.desktops.length
+#: src/mobile/views/DesktopsView.tsx
+msgid "{0, plural, one {# paired connection} other {# paired connections}}"
+msgstr "{0, plural, one {# conexión emparejada} other {# conexiones "
+"emparejadas}}"
+
 #. placeholder {0}: remote.desktops.length
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/DesktopsView.tsx
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# escritorio emparejado} other {# escritorios "
 "emparejados}}"
@@ -318,6 +322,10 @@ msgstr "Intervalo de actualización automática de {label} en minutos"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "{label} copied."
 msgstr "Se copió {label}."
+
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "{label} usage"
+msgstr "Uso de {label}"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -1398,10 +1406,19 @@ msgstr "Comprobando…"
 msgid "Checks"
 msgstr "Comprobaciones"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a folder"
+msgstr "Elige una carpeta"
+
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Choose a folder…"
 msgstr "Elige una carpeta…"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a parent folder"
+msgstr "Elige una carpeta principal"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Choose how to sign in for {env}."
@@ -1530,6 +1547,9 @@ msgid "Cloning…"
 msgstr "Clonando…"
 
 #: src/mobile/components.tsx
+#: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
@@ -1548,8 +1568,12 @@ msgid "Close browser"
 msgstr "Cerrar navegador"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Close desktop actions"
-msgstr "Cerrar acciones del escritorio"
+msgid "Close connection actions"
+msgstr "Cerrar acciones de conexión"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Close desktop actions"
+#~ msgstr "Cerrar acciones del escritorio"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1922,6 +1946,11 @@ msgstr "Error de conexión."
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "Error de conexión."
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "Connections"
+msgstr "Conexiones"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
@@ -2376,8 +2405,8 @@ msgstr "No se puede contactar con el escritorio."
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
-msgid "Desktops"
-msgstr "Escritorios"
+#~ msgid "Desktops"
+#~ msgstr "Escritorios"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2771,9 +2800,15 @@ msgstr "Salir del modo plan"
 msgid "exited"
 msgstr "salió"
 
+#. placeholder {0}: activeTab.exitCode
+#. placeholder {0}: tab.exitCode
 #: src/mobile/views/TerminalView.tsx
-msgid "exited ({exitCode})"
-msgstr "salió ({exitCode})"
+msgid "exited ({0})"
+msgstr "salió ({0})"
+
+#: src/mobile/views/TerminalView.tsx
+#~ msgid "exited ({exitCode})"
+#~ msgstr "salió ({exitCode})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -3009,15 +3044,22 @@ msgstr "Enfocar la barra de direcciones del navegador integrado"
 msgid "Focus window"
 msgstr "Enfocar ventana"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
+msgid "Folder"
+msgstr "Carpeta"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Nombre de carpeta"
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "Folder path"
-msgstr "Ruta de carpeta"
+msgid "Folder on the server"
+msgstr "Carpeta en el servidor"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#~ msgid "Folder path"
+#~ msgstr "Ruta de carpeta"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "Ruta de carpeta en el servidor"
@@ -3305,6 +3347,10 @@ msgstr "Historial"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "Inicio"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Home folder"
+msgstr "Carpeta de inicio"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3632,6 +3678,7 @@ msgstr "Cargando hilos"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/views/FilesView.tsx
+#: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -4283,6 +4330,10 @@ msgstr "No se encontraron comandos"
 msgid "No commits found."
 msgstr "No se encontraron commits."
 
+#: src/mobile/RootLayout.tsx
+msgid "No connection paired"
+msgstr "Ninguna conexión emparejada"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No content streams."
 msgstr "No hay flujos de contenido."
@@ -4305,8 +4356,8 @@ msgid "No description"
 msgstr "Sin descripción"
 
 #: src/mobile/RootLayout.tsx
-msgid "No desktop paired"
-msgstr "No hay escritorio emparejado"
+#~ msgid "No desktop paired"
+#~ msgstr "No hay escritorio emparejado"
 
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -4677,6 +4728,10 @@ msgstr "Abrir archivos"
 msgid "Open folder"
 msgstr "Abrir carpeta"
 
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "Open full usage"
+msgstr "Abrir uso completo"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
 msgstr "Abrir en pantalla completa"
@@ -4781,6 +4836,7 @@ msgstr "Abre Configuración → Acceso remoto en Lightcode en tu escritorio y "
 msgid "Open subagent: {0}"
 msgstr "Abrir subagente: {0}"
 
+#: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
@@ -4862,8 +4918,12 @@ msgid "Pair"
 msgstr "Emparejar"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Pair a desktop"
-msgstr "Emparejar un escritorio"
+msgid "Pair a connection"
+msgstr "Emparejar una conexión"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Pair a desktop"
+#~ msgstr "Emparejar un escritorio"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
@@ -4917,7 +4977,6 @@ msgstr "Panel"
 msgid "Panels and overlays"
 msgstr "Paneles y superposiciones"
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Parent folder"
 msgstr "Carpeta principal"
@@ -5363,6 +5422,7 @@ msgstr "Reconstruido a partir de los registros locales según las tarifas "
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -5514,8 +5574,12 @@ msgid "Remove Claude profile"
 msgstr "Eliminar perfil de Claude"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Remove desktop"
-msgstr "Eliminar escritorio"
+msgid "Remove connection"
+msgstr "Eliminar conexión"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Remove desktop"
+#~ msgstr "Eliminar escritorio"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -5572,8 +5636,12 @@ msgid "Rename chat"
 msgstr "Renombrar chat"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Rename desktop"
-msgstr "Cambiar nombre del escritorio"
+msgid "Rename connection"
+msgstr "Renombrar conexión"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Rename desktop"
+#~ msgstr "Cambiar nombre del escritorio"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -6101,6 +6169,10 @@ msgstr "Seleccionar cuenta"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "Selecciona un agente para ver su prompt y resultado."
 
+#: src/renderer/components/common/Select.tsx
+msgid "Select an option"
+msgstr "Selecciona una opción"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Select branch"
 msgstr "Seleccionar rama"
@@ -6116,6 +6188,10 @@ msgstr "Seleccionar modelo"
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "Seleccionar proyecto"
+
+#: src/renderer/components/common/Select.tsx
+msgid "Select…"
+msgstr "Seleccionar…"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6291,6 +6367,10 @@ msgstr "Mostrar el botón del micrófono en el redactor."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "Mostrar el botón de entrada de voz"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Showing the first 4,000 entries."
+msgstr "Mostrando las primeras 4000 entradas."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -6968,6 +7048,10 @@ msgstr "Este archivo es demasiado grande para el editor integrado."
 msgid "This file uses an unsupported encoding."
 msgstr "Este archivo usa una codificación no compatible."
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "This folder is empty."
+msgstr "Esta carpeta está vacía."
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -7490,6 +7574,10 @@ msgstr "sin preparar"
 msgid "Unsupported"
 msgstr "No compatible"
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Up one level"
+msgstr "Subir un nivel"
+
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Update"
@@ -7572,6 +7660,7 @@ msgstr "Actualizando {0} ({env})"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/settingsSections.ts
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -7626,6 +7715,10 @@ msgid "Use this account for usage tracking, or change users in the browser "
 "before continuing."
 msgstr "Usa esta cuenta para el seguimiento de uso, o cambia de usuario en el "
 "navegador antes de continuar."
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Use this folder"
+msgstr "Usar esta carpeta"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

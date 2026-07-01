@@ -31,9 +31,13 @@ msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# dosya} other {# dosya}}"
 
 #. placeholder {0}: props.desktops.length
+#: src/mobile/views/DesktopsView.tsx
+msgid "{0, plural, one {# paired connection} other {# paired connections}}"
+msgstr "{0, plural, one {# eşleştirilmiş bağlantı} other {# eşleştirilmiş "
+"bağlantı}}"
+
 #. placeholder {0}: remote.desktops.length
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/DesktopsView.tsx
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# eşleştirilmiş masaüstü} other {# eşleştirilmiş "
 "masaüstü}}"
@@ -317,6 +321,10 @@ msgstr "{label} otomatik yenileme aralığı (dakika)"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "{label} copied."
 msgstr "{label} kopyalandı."
+
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "{label} usage"
+msgstr "{label} kullanımı"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -1394,10 +1402,19 @@ msgstr "Kontrol ediliyor…"
 msgid "Checks"
 msgstr "Kontroller"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a folder"
+msgstr "Bir klasör seçin"
+
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Choose a folder…"
 msgstr "Bir klasör seçin…"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a parent folder"
+msgstr "Bir ana klasör seçin"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Choose how to sign in for {env}."
@@ -1526,6 +1543,9 @@ msgid "Cloning…"
 msgstr "Klonlanıyor…"
 
 #: src/mobile/components.tsx
+#: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
@@ -1544,8 +1564,12 @@ msgid "Close browser"
 msgstr "Tarayıcıyı kapat"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Close desktop actions"
-msgstr "Masaüstü işlemlerini kapat"
+msgid "Close connection actions"
+msgstr "Bağlantı eylemlerini kapat"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Close desktop actions"
+#~ msgstr "Masaüstü işlemlerini kapat"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1916,6 +1940,11 @@ msgstr "Bağlantı hatası."
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "Bağlantı başarısız."
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "Connections"
+msgstr "Bağlantılar"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
@@ -2371,8 +2400,8 @@ msgstr "Masaüstüne ulaşılamıyor."
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
-msgid "Desktops"
-msgstr "Masaüstleri"
+#~ msgid "Desktops"
+#~ msgstr "Masaüstleri"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2763,9 +2792,15 @@ msgstr "Plan modundan çık"
 msgid "exited"
 msgstr "çıktı"
 
+#. placeholder {0}: activeTab.exitCode
+#. placeholder {0}: tab.exitCode
 #: src/mobile/views/TerminalView.tsx
-msgid "exited ({exitCode})"
-msgstr "çıktı ({exitCode})"
+msgid "exited ({0})"
+msgstr "çıktı ({0})"
+
+#: src/mobile/views/TerminalView.tsx
+#~ msgid "exited ({exitCode})"
+#~ msgstr "çıktı ({exitCode})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -3001,15 +3036,22 @@ msgstr "Uygulama içi tarayıcı adres çubuğuna odakla"
 msgid "Focus window"
 msgstr "Pencereyi öne getir"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
+msgid "Folder"
+msgstr "Klasör"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Klasör adı"
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "Folder path"
-msgstr "Klasör yolu"
+msgid "Folder on the server"
+msgstr "Sunucudaki klasör"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#~ msgid "Folder path"
+#~ msgstr "Klasör yolu"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "Sunucudaki klasör yolu"
@@ -3296,6 +3338,10 @@ msgstr "Geçmiş"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "Ana sayfa"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Home folder"
+msgstr "Ana klasör"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3622,6 +3668,7 @@ msgstr "İş parçacıkları yükleniyor"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/views/FilesView.tsx
+#: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -4271,6 +4318,10 @@ msgstr "Hiçbir komut bulunamadı"
 msgid "No commits found."
 msgstr "Hiçbir commit bulunamadı."
 
+#: src/mobile/RootLayout.tsx
+msgid "No connection paired"
+msgstr "Eşleştirilmiş bağlantı yok"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No content streams."
 msgstr "İçerik akışı yok."
@@ -4293,8 +4344,8 @@ msgid "No description"
 msgstr "Açıklama yok"
 
 #: src/mobile/RootLayout.tsx
-msgid "No desktop paired"
-msgstr "Eşleştirilmiş masaüstü yok"
+#~ msgid "No desktop paired"
+#~ msgstr "Eşleştirilmiş masaüstü yok"
 
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -4666,6 +4717,10 @@ msgstr "Dosyaları Aç"
 msgid "Open folder"
 msgstr "Klasörü Aç"
 
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "Open full usage"
+msgstr "Tam kullanımı aç"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
 msgstr "Tam ekranı aç"
@@ -4768,6 +4823,7 @@ msgstr "Masaüstünüzde Lightcode'da Ayarlar → Uzaktan Erişim'i açın, ard�
 msgid "Open subagent: {0}"
 msgstr "Alt aracıyı aç: {0}"
 
+#: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
@@ -4849,8 +4905,12 @@ msgid "Pair"
 msgstr "Eşleştir"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Pair a desktop"
-msgstr "Bir masaüstü eşleştir"
+msgid "Pair a connection"
+msgstr "Bir bağlantı eşleştir"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Pair a desktop"
+#~ msgstr "Bir masaüstü eşleştir"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
@@ -4904,7 +4964,6 @@ msgstr "Panel"
 msgid "Panels and overlays"
 msgstr "Paneller ve yer paylaşımları"
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Parent folder"
 msgstr "Üst klasör"
@@ -5347,6 +5406,7 @@ msgstr "Yerel günlüklerden genel API oranlarıyla yeniden oluşturulmuştur; "
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -5498,8 +5558,12 @@ msgid "Remove Claude profile"
 msgstr "Claude profilini kaldır"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Remove desktop"
-msgstr "Masaüstünü kaldır"
+msgid "Remove connection"
+msgstr "Bağlantıyı kaldır"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Remove desktop"
+#~ msgstr "Masaüstünü kaldır"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -5556,8 +5620,12 @@ msgid "Rename chat"
 msgstr "Sohbeti yeniden adlandır"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Rename desktop"
-msgstr "Masaüstünü yeniden adlandır"
+msgid "Rename connection"
+msgstr "Bağlantıyı yeniden adlandır"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Rename desktop"
+#~ msgstr "Masaüstünü yeniden adlandır"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -6084,6 +6152,10 @@ msgstr "Hesap seçin"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "İstemini ve sonucunu görmek için bir aracı seçin."
 
+#: src/renderer/components/common/Select.tsx
+msgid "Select an option"
+msgstr "Bir seçenek seçin"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Select branch"
 msgstr "Şube seç"
@@ -6099,6 +6171,10 @@ msgstr "Modeli seçin"
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "Proje seçin"
+
+#: src/renderer/components/common/Select.tsx
+msgid "Select…"
+msgstr "Seç…"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6275,6 +6351,10 @@ msgstr "Composer'da mikrofon düğmesini gösterin."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "Ses girişi düğmesini göster"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Showing the first 4,000 entries."
+msgstr "İlk 4.000 giriş gösteriliyor."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -6950,6 +7030,10 @@ msgstr "Bu dosya yerleşik düzenleyici için çok büyük."
 msgid "This file uses an unsupported encoding."
 msgstr "Bu dosya desteklenmeyen bir kodlama kullanıyor."
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "This folder is empty."
+msgstr "Bu klasör boş."
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -7471,6 +7555,10 @@ msgstr "hazırlanmamış"
 msgid "Unsupported"
 msgstr "Desteklenmiyor"
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Up one level"
+msgstr "Bir seviye yukarı"
+
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Update"
@@ -7553,6 +7641,7 @@ msgstr "{0} ({env}) güncelleniyor"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/settingsSections.ts
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -7607,6 +7696,10 @@ msgid "Use this account for usage tracking, or change users in the browser "
 "before continuing."
 msgstr "Kullanım takibi için bu hesabı kullanın veya devam etmeden önce "
 "tarayıcıdaki kullanıcıları değiştirin."
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Use this folder"
+msgstr "Bu klasörü kullan"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

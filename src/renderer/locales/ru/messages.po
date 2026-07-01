@@ -31,9 +31,13 @@ msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# файл} few {# файла} many {# файлов} other {# файла}}"
 
 #. placeholder {0}: props.desktops.length
+#: src/mobile/views/DesktopsView.tsx
+msgid "{0, plural, one {# paired connection} other {# paired connections}}"
+msgstr "{0, plural, one {# подключение} few {# подключения} many {# "
+"подключений} other {# подключения}}"
+
 #. placeholder {0}: remote.desktops.length
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/DesktopsView.tsx
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# связанный десктоп} few {# связанных десктопа} many "
 "{# связанных десктопов} other {# связанного десктопа}}"
@@ -323,6 +327,10 @@ msgstr "Интервал автообновления {label} в минутах"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "{label} copied."
 msgstr "Скопировано: {label}."
+
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "{label} usage"
+msgstr "Использование {label}"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "{label} usage — open usage panel"
@@ -1402,10 +1410,19 @@ msgstr "Проверка…"
 msgid "Checks"
 msgstr "Проверки"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a folder"
+msgstr "Выберите папку"
+
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Choose a folder…"
 msgstr "Выберите папку…"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Choose a parent folder"
+msgstr "Выберите родительскую папку"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Choose how to sign in for {env}."
@@ -1534,6 +1551,9 @@ msgid "Cloning…"
 msgstr "Клонирование…"
 
 #: src/mobile/components.tsx
+#: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
@@ -1552,8 +1572,12 @@ msgid "Close browser"
 msgstr "Закрыть браузер"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Close desktop actions"
-msgstr "Закрыть действия десктопа"
+msgid "Close connection actions"
+msgstr "Закрыть действия с подключением"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Close desktop actions"
+#~ msgstr "Закрыть действия десктопа"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1925,6 +1949,11 @@ msgstr "Ошибка подключения."
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "Не удалось подключиться."
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/DesktopsView.tsx
+msgid "Connections"
+msgstr "Подключения"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
@@ -2380,8 +2409,8 @@ msgstr "Десктоп недоступен."
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
-msgid "Desktops"
-msgstr "Десктопы"
+#~ msgid "Desktops"
+#~ msgstr "Десктопы"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2772,9 +2801,15 @@ msgstr "Выйти из режима плана"
 msgid "exited"
 msgstr "завершено"
 
+#. placeholder {0}: activeTab.exitCode
+#. placeholder {0}: tab.exitCode
 #: src/mobile/views/TerminalView.tsx
-msgid "exited ({exitCode})"
-msgstr "завершено ({exitCode})"
+msgid "exited ({0})"
+msgstr "завершено ({0})"
+
+#: src/mobile/views/TerminalView.tsx
+#~ msgid "exited ({exitCode})"
+#~ msgstr "завершено ({exitCode})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -3011,15 +3046,22 @@ msgstr "Перейти на адресную строку встроенного
 msgid "Focus window"
 msgstr "Перейти к окну"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
+msgid "Folder"
+msgstr "Папка"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Имя папки"
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "Folder path"
-msgstr "Путь к папке"
+msgid "Folder on the server"
+msgstr "Папка на сервере"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#~ msgid "Folder path"
+#~ msgstr "Путь к папке"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "Путь к папке на сервере"
@@ -3306,6 +3348,10 @@ msgstr "История"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "Главная"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Home folder"
+msgstr "Домашняя папка"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3631,6 +3677,7 @@ msgstr "Загрузка потоков"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/views/FilesView.tsx
+#: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -4282,6 +4329,10 @@ msgstr "Команды не найдены"
 msgid "No commits found."
 msgstr "Коммиты не найдены."
 
+#: src/mobile/RootLayout.tsx
+msgid "No connection paired"
+msgstr "Нет подключений"
+
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No content streams."
 msgstr "Нет потоков содержимого."
@@ -4304,8 +4355,8 @@ msgid "No description"
 msgstr "Без описания"
 
 #: src/mobile/RootLayout.tsx
-msgid "No desktop paired"
-msgstr "Нет связанного десктопа"
+#~ msgid "No desktop paired"
+#~ msgstr "Нет связанного десктопа"
 
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
@@ -4677,6 +4728,10 @@ msgstr "Открыть файлы"
 msgid "Open folder"
 msgstr "Открыть папку"
 
+#: src/mobile/ThreadUsageIndicator.tsx
+msgid "Open full usage"
+msgstr "Открыть полное использование"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Open fullscreen"
 msgstr "Открыть в полноэкранном режиме"
@@ -4779,6 +4834,7 @@ msgstr "Откройте Настройки → Удалённый доступ 
 msgid "Open subagent: {0}"
 msgstr "Открыть субагента: {0}"
 
+#: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
@@ -4861,8 +4917,12 @@ msgid "Pair"
 msgstr "Связать"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Pair a desktop"
-msgstr "Связать десктоп"
+msgid "Pair a connection"
+msgstr "Связать подключение"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Pair a desktop"
+#~ msgstr "Связать десктоп"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
@@ -4916,7 +4976,6 @@ msgstr "Панель"
 msgid "Panels and overlays"
 msgstr "Панели и наложения"
 
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Parent folder"
 msgstr "Родительская папка"
@@ -5360,6 +5419,7 @@ msgstr "Реконструировано из локальных логов по
 
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -5511,8 +5571,12 @@ msgid "Remove Claude profile"
 msgstr "Удалить профиль Claude"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Remove desktop"
-msgstr "Удалить десктоп"
+msgid "Remove connection"
+msgstr "Удалить подключение"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Remove desktop"
+#~ msgstr "Удалить десктоп"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
@@ -5569,8 +5633,12 @@ msgid "Rename chat"
 msgstr "Переименовать чат"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Rename desktop"
-msgstr "Переименовать десктоп"
+msgid "Rename connection"
+msgstr "Переименовать подключение"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Rename desktop"
+#~ msgstr "Переименовать десктоп"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -6095,6 +6163,10 @@ msgstr "Выбрать аккаунт"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "Выберите агента, чтобы увидеть его промпт и результат."
 
+#: src/renderer/components/common/Select.tsx
+msgid "Select an option"
+msgstr "Выберите вариант"
+
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Select branch"
 msgstr "Выбрать ветку"
@@ -6110,6 +6182,10 @@ msgstr "Выбрать модель"
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "Выбрать проект"
+
+#: src/renderer/components/common/Select.tsx
+msgid "Select…"
+msgstr "Выбрать…"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6285,6 +6361,10 @@ msgstr "Показывать кнопку микрофона в поле вво�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "Показывать кнопку голосового ввода"
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Showing the first 4,000 entries."
+msgstr "Показаны первые 4 000 записей."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -6958,6 +7038,10 @@ msgstr "Этот файл слишком большой для встроенн�
 msgid "This file uses an unsupported encoding."
 msgstr "Этот файл использует неподдерживаемую кодировку."
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "This folder is empty."
+msgstr "Эта папка пуста."
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -7481,6 +7565,10 @@ msgstr "не в индексе"
 msgid "Unsupported"
 msgstr "Не поддерживается"
 
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Up one level"
+msgstr "На уровень вверх"
+
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Update"
@@ -7563,6 +7651,7 @@ msgstr "Обновление {0} ({env})"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/settingsSections.ts
+#: src/mobile/ThreadUsageIndicator.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -7617,6 +7706,10 @@ msgid "Use this account for usage tracking, or change users in the browser "
 "before continuing."
 msgstr "Используйте эту учётную запись для отслеживания использования или "
 "смените пользователя в браузере перед продолжением."
+
+#: src/mobile/views/HostFolderPicker.tsx
+msgid "Use this folder"
+msgstr "Использовать эту папку"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

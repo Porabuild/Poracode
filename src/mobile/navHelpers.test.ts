@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
-import { buildGitAddWorktreePayload, selectDraftProject } from "./navHelpers";
+import {
+  buildGitAddWorktreePayload,
+  navigationTransitionType,
+  screenDepth,
+  selectDraftProject,
+} from "./navHelpers";
 
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: {
@@ -166,5 +171,43 @@ describe("buildGitAddWorktreePayload", () => {
     expect(payload).not.toHaveProperty("startPoint");
     expect(payload).not.toHaveProperty("copyIgnoredPatterns");
     expect(payload?.createBranch).toBe(true);
+  });
+});
+
+describe("screenDepth", () => {
+  it("ranks tab roots shallowest, then subscreens, then fullscreen/detail", () => {
+    for (const tab of ["/threads", "/more", "/new", "/desktops", "/more/usage"]) {
+      expect(screenDepth(tab)).toBe(0);
+    }
+    expect(screenDepth("/thread/abc")).toBe(1);
+    expect(screenDepth("/more/settings")).toBe(1);
+    expect(screenDepth("/more/projects")).toBe(1);
+    expect(screenDepth("/more/browser")).toBe(1);
+    expect(screenDepth("/more/settings/appearance")).toBe(2);
+    expect(screenDepth("/workspace/t1")).toBe(2);
+    expect(screenDepth("/terminal/p1")).toBe(2);
+    expect(screenDepth("/pr/42")).toBe(2);
+  });
+});
+
+describe("navigationTransitionType", () => {
+  it("pushes when going deeper and pops when coming back", () => {
+    expect(navigationTransitionType("/threads", "/thread/abc")).toBe("push");
+    expect(navigationTransitionType("/thread/abc", "/threads")).toBe("pop");
+    expect(navigationTransitionType("/more/settings", "/more/settings/appearance")).toBe("push");
+    expect(navigationTransitionType("/more/settings/appearance", "/more/settings")).toBe("pop");
+    expect(navigationTransitionType("/thread/abc", "/workspace/abc")).toBe("push");
+    expect(navigationTransitionType("/workspace/abc", "/thread/abc")).toBe("pop");
+  });
+
+  it("fades between same-depth screens (tab / sibling switches)", () => {
+    expect(navigationTransitionType("/threads", "/more")).toBe("fade");
+    expect(navigationTransitionType("/desktops", "/new")).toBe("fade");
+    expect(navigationTransitionType("/pr/42", "/pr/42/changes")).toBe("fade");
+  });
+
+  it("returns null on first paint or a same-path navigation (no animation)", () => {
+    expect(navigationTransitionType(undefined, "/threads")).toBeNull();
+    expect(navigationTransitionType("/threads", "/threads")).toBeNull();
   });
 });

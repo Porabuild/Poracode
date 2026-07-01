@@ -47,6 +47,14 @@ const shared = {
   deps,
 };
 
+const cliShared = {
+  ...shared,
+  // CLI entrypoints need their operational logs in production builds. The
+  // desktop bundle can drop console noise, but `pnpm run server` and
+  // `pnpm run relay` are otherwise silent after tsdown minification.
+  minify: isProd ? ({ compress: { dropDebugger: true } } as const) : false,
+};
+
 export default defineConfig([
   {
     entry: { main: "src/main/main.ts" },
@@ -69,14 +77,14 @@ export default defineConfig([
     // See docs/REMOTE_ARCHITECTURE.md.
     entry: { server: "src/server/cli.ts" },
     clean: false,
-    ...shared,
+    ...cliShared,
   },
   {
     // Self-hostable relay for cross-network access (Phase 5). A dumb HTTP+WS
     // tunnel between NAT'd servers and devices. See docs/REMOTE_ARCHITECTURE.md.
     entry: { relay: "src/server/relay/cli.ts" },
     clean: false,
-    ...shared,
+    ...cliShared,
   },
   {
     entry: { claudeSdkProbeWorker: "src/supervisor/agents/claude/sdkProbeWorker.ts" },

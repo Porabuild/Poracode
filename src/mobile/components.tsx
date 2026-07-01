@@ -25,11 +25,14 @@ export function ConnectionPill(props: {
       className="m-connection"
       data-state={props.state}
       type="button"
+      // Icon-only now: the state word is dropped from the header (color carries
+      // the state), but it stays the accessible name so AT still announces
+      // "Live" / "Reconnecting" / "Offline" / "Pair again".
+      aria-label={t(CONNECTION_LABELS[props.state])}
       title={t`Sync with desktop`}
       onClick={props.onPress}
     >
       {icon}
-      {t(CONNECTION_LABELS[props.state])}
     </button>
   );
 }
@@ -88,10 +91,13 @@ export function Skeleton(props: { readonly className?: string }) {
 export function StatusBadge(props: { readonly status: ThreadStatus }) {
   const { t } = useLingui();
   const tone = threadStatusTone(props.status);
+  const label = t(THREAD_STATUS_LABELS[props.status]);
+  // A colored dot only — the status word is dropped to free header space for
+  // the thread title. The label is kept as the accessible name (role="img")
+  // and pointer tooltip so nothing is lost for AT or on hover/long-press.
   return (
-    <span className="m-status" data-tone={tone}>
+    <span className="m-status" data-tone={tone} role="img" aria-label={label} title={label}>
       <span className="m-status__dot" data-tone={tone} />
-      {t(THREAD_STATUS_LABELS[props.status])}
     </span>
   );
 }

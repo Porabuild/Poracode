@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Thread } from "@/shared/contracts";
+import type { Project, Thread } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import { ThreadRoute } from "./routeComponents";
+import { TerminalRoute, ThreadRoute } from "./routeComponents";
 
 const fixtures = vi.hoisted(() => {
+  const project: Project = {
+    id: "project-1",
+    name: "Repo",
+    location: { kind: "posix", path: "/repo" },
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
   const routedThread: Thread = {
     id: "thread-routed",
     projectId: "project-1",
@@ -26,10 +32,12 @@ const fixtures = vi.hoisted(() => {
   };
 
   return {
-    params: { threadId: routedThread.id },
+    params: { threadId: routedThread.id, projectId: project.id },
+    search: {} as { worktree?: string; action?: string; fromThread?: string },
     navigate: vi.fn<(options: unknown) => void>(),
     remote: {
       booted: true,
+      projects: [project],
       selectedThread,
       selectedThreadSnapshot: { thread: routedThread },
       threads: [selectedThread, routedThread],
@@ -45,7 +53,7 @@ const fixtures = vi.hoisted(() => {
 vi.mock("@tanstack/react-router", () => ({
   getRouteApi: () => ({
     useParams: () => fixtures.params,
-    useSearch: () => ({}),
+    useSearch: () => fixtures.search,
   }),
   useNavigate: () => fixtures.navigate,
 }));
@@ -66,6 +74,7 @@ vi.mock("./useMediaQuery", () => ({
 vi.mock("./views/ThreadView", () => ({
   ThreadView: (props: {
     thread: Thread | null;
+    onOpenTerminal: () => void;
     onResolveServerRequest: (input: {
       requestId: string;
       method: string;
@@ -85,6 +94,20 @@ vi.mock("./views/ThreadView", () => ({
         }
       >
         Resolve request
+      </button>
+      <button type="button" onClick={props.onOpenTerminal}>
+        Open terminal
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("./views/TerminalView", () => ({
+  TerminalView: (props: { title: string; onClose: () => void }) => (
+    <div>
+      <span data-testid="terminal-title">{props.title}</span>
+      <button type="button" onClick={props.onClose}>
+        Close terminal
       </button>
     </div>
   ),
@@ -109,6 +132,8 @@ vi.mock("./views/MoreView", () => ({
 describe("mobile route components", () => {
   beforeEach(() => {
     fixtures.params.threadId = "thread-routed";
+    fixtures.params.projectId = "project-1";
+    fixtures.search = {};
     fixtures.navigate.mockReset();
     fixtures.remote.openThread.mockClear();
     fixtures.remote.resolveRequest.mockClear();
@@ -136,5 +161,29 @@ describe("mobile route components", () => {
 
     expect(screen.getByTestId("thread-title")).toHaveTextContent("No thread");
     expect(fixtures.remote.openThread).not.toHaveBeenCalled();
+  });
+
+  it("opens a project terminal with the routed thread as the close target", () => {
+    render(<ThreadRoute />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open terminal" }));
+
+    expect(fixtures.navigate).toHaveBeenCalledWith({
+      to: "/terminal/$projectId",
+      params: { projectId: "project-1" },
+      search: { fromThread: "thread-routed" },
+    });
+  });
+
+  it("closes a project terminal back to its source thread", async () => {
+    fixtures.search = { fromThread: "thread-routed" };
+    render(<TerminalRoute />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Close terminal" }));
+
+    expect(fixtures.navigate).toHaveBeenCalledWith({
+      to: "/thread/$threadId",
+      params: { threadId: "thread-routed" },
+    });
   });
 });

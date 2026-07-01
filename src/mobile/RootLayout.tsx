@@ -13,6 +13,7 @@ import { preselectWorktreeDraft, runThreadAction, threadIdFromPath } from "./nav
 import { MobileAppProvider, type MobileAppContextValue } from "./remoteContext";
 import { getStoredPreference, setStoredPreference } from "./storage";
 import { ThreadTitleRow } from "./ThreadTitleRow";
+import { ThreadUsageIndicator } from "./ThreadUsageIndicator";
 import { useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
 import { useRemoteDesktop, type RemoteDesktopSession } from "./useRemoteDesktop";
 import { getSettingsSectionLabel } from "./settingsSections";
@@ -36,7 +37,13 @@ type Chrome =
 
 function getChrome(pathname: string): Chrome {
   if (pathname.startsWith("/thread/")) return { layout: "thread" };
-  if (pathname.startsWith("/workspace/") || pathname.startsWith("/pr/")) {
+  if (
+    pathname.startsWith("/workspace/") ||
+    pathname.startsWith("/pr/") ||
+    pathname.startsWith("/terminal/")
+  ) {
+    // These render their own full-screen chrome (own header + back button), so
+    // the shell shows neither the top bar nor the bottom tab bar.
     return { layout: "fullscreen" };
   }
   const sectionMatch = /^\/more\/settings\/(.+)$/.exec(pathname);
@@ -169,6 +176,7 @@ function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly ch
                 </span>
               </span>
             )}
+            {remote.selectedThread ? <ThreadUsageIndicator thread={remote.selectedThread} /> : null}
           </>
         ) : chrome.layout === "subscreen" ? (
           <>
@@ -196,7 +204,7 @@ function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly ch
         <Outlet />
       </main>
 
-      {chrome.layout === "thread" ? null : (
+      {chrome.layout === "tab" ? (
         <nav className="m-tabbar" aria-label={t`Lightcode mobile navigation`}>
           <TabButton
             active={activeTab === "threads"}
@@ -219,7 +227,7 @@ function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly ch
           <TabButton
             active={activeTab === "desktops"}
             icon={<Server className="size-4" />}
-            label={t`Desktops`}
+            label={t`Connections`}
             onPress={() => void navigate({ to: "/desktops" })}
           />
           <TabButton
@@ -229,7 +237,7 @@ function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly ch
             onPress={() => void navigate({ to: "/more" })}
           />
         </nav>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -314,7 +322,10 @@ function WideShell(props: {
               void navigate({
                 to: "/terminal/$projectId",
                 params: { projectId: input.projectId },
-                search: input.worktreePath ? { worktree: input.worktreePath } : {},
+                search: {
+                  ...(input.sourceThreadId ? { fromThread: input.sourceThreadId } : {}),
+                  ...(input.worktreePath ? { worktree: input.worktreePath } : {}),
+                },
               })
             }
             onRunProjectAction={(input) =>
@@ -323,6 +334,7 @@ function WideShell(props: {
                 params: { projectId: input.projectId },
                 search: {
                   action: input.actionId,
+                  ...(input.sourceThreadId ? { fromThread: input.sourceThreadId } : {}),
                   ...(input.worktreePath ? { worktree: input.worktreePath } : {}),
                 },
               })
@@ -338,7 +350,7 @@ function WideShell(props: {
           >
             <Server className="size-4" />
             <span>
-              <strong>{remote.activeDesktop?.label ?? t`No desktop paired`}</strong>
+              <strong>{remote.activeDesktop?.label ?? t`No connection paired`}</strong>
               <span>
                 <Plural
                   value={remote.desktops.length}

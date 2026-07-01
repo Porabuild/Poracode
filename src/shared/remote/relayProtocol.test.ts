@@ -27,4 +27,8 @@ describe("relayProtocol helpers", () => {
     expect(parseRelayVisitorPath("/s/")).toBeNull();
     expect(parseRelayVisitorPath("/")).toBeNull();
   });
+
+  it("rejects malformed encoded server ids instead of throwing", () => {
+    expect(parseRelayVisitorPath("/s/%E0%A4%A/api/snapshot")).toBeNull();
+  });
 });

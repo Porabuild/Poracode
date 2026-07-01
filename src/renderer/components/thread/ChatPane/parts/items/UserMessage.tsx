@@ -10,6 +10,7 @@ import {
   type Attachment,
 } from "@/renderer/components/composer";
 import { fileNameFromPath } from "@/shared/promptContent";
+import { isRemoteSession } from "@/renderer/bridge";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
@@ -225,6 +226,11 @@ function CopyUserMessageButton({ text }: { text: string }) {
               .then(() => {
                 setCopyState("copied");
                 setIsTooltipOpen(true);
+                // On touch there is no hover, so the tooltip that confirms the
+                // copy on desktop may not appear/persist. In the PWA, also fire
+                // a toast so the tap gets unmistakable feedback. The tooltip and
+                // "Copied" label/aria swap below stay for desktop.
+                if (isRemoteSession()) toast.success(t`Copied`);
                 if (resetTimerRef.current !== null) {
                   window.clearTimeout(resetTimerRef.current);
                 }

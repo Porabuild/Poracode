@@ -1,4 +1,5 @@
 import {
+  browseHostDirectoryPayloadSchema,
   createProjectEntryPayloadSchema,
   deleteProjectEntryPayloadSchema,
   detectSetupScriptPayloadSchema,
@@ -15,6 +16,8 @@ import {
   writeProjectFilePayloadSchema,
 } from "../../contracts";
 import type {
+  BrowseHostDirectoryPayload,
+  BrowseHostDirectoryResult,
   CreateProjectEntryPayload,
   DeleteProjectEntryPayload,
   DetectSetupScriptPayload,
@@ -52,6 +55,11 @@ export const projectTreeProcedures = {
     ListProjectTreeResult,
     "supervisor"
   >("listProjectTree", "supervisor", listProjectTreePayloadSchema),
+  browseHostDirectory: definePayloadProcedure<
+    BrowseHostDirectoryPayload,
+    BrowseHostDirectoryResult,
+    "supervisor"
+  >("browseHostDirectory", "supervisor", browseHostDirectoryPayloadSchema),
   searchProjectTree: definePayloadProcedure<
     SearchProjectTreePayload,
     SearchProjectTreeResult,

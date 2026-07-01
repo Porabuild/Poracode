@@ -10,7 +10,12 @@ function normalizeEndpoint(value: string): string {
   const url = new URL(value);
   url.hash = "";
   url.search = "";
-  url.pathname = "/";
+  const parts = url.pathname.split("/").filter(Boolean);
+  const last = parts.at(-1);
+  if (last === "pair" || last === "app" || last === "mobile.html") {
+    parts.pop();
+  }
+  url.pathname = parts.length > 0 ? `/${parts.join("/")}/` : "/";
   return url.toString();
 }
 

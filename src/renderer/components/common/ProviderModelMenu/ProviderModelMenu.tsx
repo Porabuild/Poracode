@@ -9,8 +9,9 @@ import {
 } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronDown, Search, Star } from "lucide-react";
-import { Popover, Tooltip } from "@heroui/react";
+import { Tooltip } from "@heroui/react";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { ThreadPresentationMode } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
@@ -27,6 +28,10 @@ import type { ProviderModelItem } from "./parts/types";
 export type { ProviderModelMenuProvider };
 
 const MODEL_MENU_ROW_HEIGHT = 28;
+/** Model rows grow to a finger-friendly target in the mobile PWA drawer; headers
+ * stay compact. Threaded through the virtualizer so the JS row math and the
+ * rendered row height never disagree (a mismatch desyncs the scroll spacers). */
+const MODEL_MENU_ROW_HEIGHT_MOBILE = 44;
 const MODEL_MENU_PROVIDER_HEADER_BOTTOM_GAP = 4;
 const MODEL_MENU_MAX_HEIGHT = 288;
 const MODEL_MENU_LISTBOX_PADDING_BOTTOM = 6;
@@ -46,7 +51,10 @@ interface WindowedItemsMeta {
   totalHeight: number;
 }
 
-const windowedItemsMetaCache = new WeakMap<ProviderModelItem[], WindowedItemsMeta>();
+const windowedItemsMetaCache = new WeakMap<
+  ProviderModelItem[],
+  { rowHeight: number; meta: WindowedItemsMeta }
+>();
 
 export interface ProviderModelMenuProps {
   /** Providers to surface (typically all installed agents for draft, locked-only otherwise). */
@@ -85,13 +93,16 @@ function normalizeCurrentModelForProvider(
     : modelId;
 }
 
-function windowedItemHeight(item: ProviderModelItem): number {
-  return (
-    MODEL_MENU_ROW_HEIGHT +
-    (item.type === "header-plain" || item.type === "header-provider" || item.type === "header-sub"
-      ? MODEL_MENU_PROVIDER_HEADER_BOTTOM_GAP
-      : 0)
-  );
+function windowedItemHeight(item: ProviderModelItem, modelRowHeight: number): number {
+  if (
+    item.type === "header-plain" ||
+    item.type === "header-provider" ||
+    item.type === "header-sub"
+  ) {
+    // Headers stay compact on every platform.
+    return MODEL_MENU_ROW_HEIGHT + MODEL_MENU_PROVIDER_HEADER_BOTTOM_GAP;
+  }
+  return modelRowHeight;
 }
 
 function itemIndexAtOffset(meta: WindowedItemsMeta, offset: number): number {
@@ -130,9 +141,12 @@ function isSubHeader(
   return item?.type === "header-sub";
 }
 
-function getWindowedItemsMeta(items: ProviderModelItem[]): WindowedItemsMeta {
+function getWindowedItemsMeta(
+  items: ProviderModelItem[],
+  modelRowHeight: number,
+): WindowedItemsMeta {
   const cached = windowedItemsMetaCache.get(items);
-  if (cached) return cached;
+  if (cached && cached.rowHeight === modelRowHeight) return cached.meta;
 
   const idParts: string[] = [];
   const modelRowIndices: number[] = [];
@@ -165,7 +179,7 @@ function getWindowedItemsMeta(items: ProviderModelItem[]): WindowedItemsMeta {
 
     stickyHeaderIndexByRow.push(currentStickyHeaderIndex);
     stickySubHeaderIndexByRow.push(currentStickySubHeaderIndex);
-    totalHeight += windowedItemHeight(item);
+    totalHeight += windowedItemHeight(item, modelRowHeight);
   }
 
   const meta: WindowedItemsMeta = {
@@ -179,7 +193,7 @@ function getWindowedItemsMeta(items: ProviderModelItem[]): WindowedItemsMeta {
     itemTopByIndex,
     totalHeight,
   };
-  windowedItemsMetaCache.set(items, meta);
+  windowedItemsMetaCache.set(items, { rowHeight: modelRowHeight, meta });
   return meta;
 }
 
@@ -227,6 +241,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   } = props;
 
   const { t } = useLingui();
+  const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [sessionFavorites, setSessionFavorites] = useState<readonly ModelRef[] | undefined>(
@@ -271,12 +286,14 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       setSearch("");
       setSessionFavorites(latestFavoritesRef.current);
       setSessionRecents(latestRecentsRef.current);
-      setTimeout(() => searchRef.current?.focus(), 50);
+      // On mobile, auto-focusing search would pop the keyboard over the drawer;
+      // let the user tap the field if they want to filter.
+      if (!mobile) setTimeout(() => searchRef.current?.focus(), 50);
       return;
     }
     setSessionFavorites(undefined);
     setSessionRecents(undefined);
-  }, [isOpen]);
+  }, [isOpen, mobile]);
 
   useEffect(() => {
     if (openSignal === undefined || isDisabled) return;
@@ -354,6 +371,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       size="sm"
       variant="ghost"
       className="lightcode-composer-menu min-w-0 px-2.5"
+      {...(mobile ? { onPress: () => handleOpenChange(true) } : {})}
     >
       <ProviderIcon
         kind={currentAgentKind}
@@ -389,10 +407,60 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     </Button>
   );
 
+  const content = (
+    <>
+      <div className="lightcode-model-menu-search flex items-center gap-2 border-b border-border px-3 py-2">
+        <Search className="size-3.5 shrink-0 text-muted" />
+        <input
+          ref={searchRef}
+          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
+          placeholder={t`Search models...`}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Escape") {
+              handleOpenChange(false);
+              return;
+            }
+            if (items.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+              e.preventDefault();
+              windowedListRef.current?.focus();
+            }
+          }}
+        />
+      </div>
+      {items.length === 0 ? (
+        <div className="px-3 py-3 text-center text-sm text-muted">
+          <Trans>No models found</Trans>
+        </div>
+      ) : (
+        <WindowedProviderModelList
+          domIdPrefix={listboxDomIdPrefix}
+          items={items}
+          selectedKeys={selectedKeys}
+          scrollRef={windowedListRef}
+          modelRowHeight={mobile ? MODEL_MENU_ROW_HEIGHT_MOBILE : MODEL_MENU_ROW_HEIGHT}
+          toggleFavorite={(providerKind, modelId, rowPresentationMode) =>
+            toggleFavoriteModel(
+              providerKind,
+              modelId,
+              rowPresentationMode ?? presentationMode ?? "terminal",
+            )
+          }
+          onSelect={handleSelect}
+        />
+      )}
+    </>
+  );
+
   return (
-    <Popover isOpen={isOpen} onOpenChange={handleOpenChange}>
-      <Popover.Trigger>
-        {hideLabelOnWrap ? (
+    <ResponsiveMenuSurface
+      isOpen={isOpen}
+      onOpenChange={handleOpenChange}
+      label={t`Select model`}
+      trigger={
+        !mobile && hideLabelOnWrap ? (
           <Tooltip>
             {trigger}
             <Tooltip.Content placement="top">
@@ -401,54 +469,14 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           </Tooltip>
         ) : (
           trigger
-        )}
-      </Popover.Trigger>
-      <Popover.Content placement="top start" className="w-96 p-0">
-        <Popover.Dialog className="flex max-h-[28rem] flex-col overflow-hidden !p-0">
-          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-            <Search className="size-3.5 shrink-0 text-muted" />
-            <input
-              ref={searchRef}
-              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
-              placeholder={t`Search models...`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-                if (e.key === "Escape") {
-                  handleOpenChange(false);
-                  return;
-                }
-                if (items.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
-                  e.preventDefault();
-                  windowedListRef.current?.focus();
-                }
-              }}
-            />
-          </div>
-          {items.length === 0 ? (
-            <div className="px-3 py-3 text-center text-sm text-muted">
-              <Trans>No models found</Trans>
-            </div>
-          ) : (
-            <WindowedProviderModelList
-              domIdPrefix={listboxDomIdPrefix}
-              items={items}
-              selectedKeys={selectedKeys}
-              scrollRef={windowedListRef}
-              toggleFavorite={(providerKind, modelId, rowPresentationMode) =>
-                toggleFavoriteModel(
-                  providerKind,
-                  modelId,
-                  rowPresentationMode ?? presentationMode ?? "terminal",
-                )
-              }
-              onSelect={handleSelect}
-            />
-          )}
-        </Popover.Dialog>
-      </Popover.Content>
-    </Popover>
+        )
+      }
+      placement="top start"
+      contentClassName="w-96 p-0"
+      dialogClassName="flex max-h-[28rem] flex-col overflow-hidden !p-0"
+    >
+      {content}
+    </ResponsiveMenuSurface>
   );
 }
 
@@ -457,6 +485,8 @@ function WindowedProviderModelList(props: {
   items: ProviderModelItem[];
   selectedKeys: Set<string>;
   scrollRef: RefObject<HTMLDivElement | null>;
+  /** Height of a model row; larger on mobile so drawer rows are finger-sized. */
+  modelRowHeight: number;
   toggleFavorite: (
     providerKind: string,
     modelId: string,
@@ -464,12 +494,13 @@ function WindowedProviderModelList(props: {
   ) => void;
   onSelect: (itemId: string) => void;
 }) {
-  const { domIdPrefix, items, selectedKeys, scrollRef, toggleFavorite, onSelect } = props;
+  const { domIdPrefix, items, selectedKeys, scrollRef, modelRowHeight, toggleFavorite, onSelect } =
+    props;
   const { t } = useLingui();
   const [visibleRow, setVisibleRow] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
   const [activeRowId, setActiveRowId] = useState<string | null>(() => {
-    const initialMeta = getWindowedItemsMeta(items);
+    const initialMeta = getWindowedItemsMeta(items, modelRowHeight);
     const initialSelectedIndex = selectedModelIndex(selectedKeys, initialMeta);
     return (
       (initialSelectedIndex >= 0 ? items[initialSelectedIndex]?.id : undefined) ??
@@ -487,7 +518,7 @@ function WindowedProviderModelList(props: {
     return () => clearTimeout(timer);
   }, []);
 
-  const meta = getWindowedItemsMeta(items);
+  const meta = getWindowedItemsMeta(items, modelRowHeight);
   const modelRowIndices = meta.modelRowIndices;
   const selectedIndex = selectedModelIndex(selectedKeys, meta);
   const initialActiveRowId =
@@ -504,7 +535,7 @@ function WindowedProviderModelList(props: {
     totalHeight + MODEL_MENU_LISTBOX_VERTICAL_PADDING,
     MODEL_MENU_MAX_HEIGHT,
   );
-  const visibleRowCount = Math.max(1, Math.ceil(viewportHeight / MODEL_MENU_ROW_HEIGHT));
+  const visibleRowCount = Math.max(1, Math.ceil(viewportHeight / modelRowHeight));
   const clampedVisibleRow = Math.min(visibleRow, Math.max(0, items.length - 1));
   const startIndex = Math.max(0, clampedVisibleRow - MODEL_MENU_OVERSCAN_ROWS);
   const endIndex = Math.min(
@@ -558,7 +589,7 @@ function WindowedProviderModelList(props: {
     const activeItem = items[activeIndex];
     if (!activeItem) return;
     const rowTop = itemTop(meta, activeIndex);
-    const rowHeight = windowedItemHeight(activeItem);
+    const rowHeight = windowedItemHeight(activeItem, modelRowHeight);
     const rowBottom = rowTop + rowHeight;
     const viewTop = element.scrollTop;
     const visibleHeight = element.clientHeight || viewportHeight;
@@ -587,7 +618,7 @@ function WindowedProviderModelList(props: {
       setScrollTop(nextScrollTop);
       setVisibleRow(itemIndexAtOffset(meta, nextScrollTop));
     }
-  }, [activeIndex, items, meta, scrollRef, totalHeight, viewportHeight]);
+  }, [activeIndex, items, meta, modelRowHeight, scrollRef, totalHeight, viewportHeight]);
 
   function moveActive(delta: number) {
     if (modelRowIndices.length === 0) return;
@@ -705,7 +736,8 @@ function WindowedProviderModelList(props: {
             role="option"
             aria-selected={isSelected}
             data-active={isActive ? "true" : undefined}
-            className="lightcode-menu-item group mx-1.5 flex h-7 cursor-default items-center text-foreground"
+            className="lightcode-menu-item group mx-1.5 flex cursor-default items-center text-foreground"
+            style={{ height: modelRowHeight }}
             onPointerMove={(event) => {
               if (ignorePointerRef.current) return;
               if (event.movementX === 0 && event.movementY === 0) return;

@@ -128,6 +128,8 @@ import type {
   ClearPendingSteerPayload,
   ListProjectTreePayload,
   ListProjectTreeResult,
+  BrowseHostDirectoryPayload,
+  BrowseHostDirectoryResult,
   MoveProjectEntryPayload,
   PrData,
   ReadAbsoluteFilePayload,
@@ -1432,6 +1434,12 @@ export class SupervisorRuntime {
 
   async listProjectTree(payload: ListProjectTreePayload): Promise<ListProjectTreeResult> {
     return this.projectTreeService.listProjectTree(payload);
+  }
+
+  async browseHostDirectory(
+    payload: BrowseHostDirectoryPayload,
+  ): Promise<BrowseHostDirectoryResult> {
+    return this.projectTreeService.browseHostDirectory(payload);
   }
 
   async searchProjectTree(payload: SearchProjectTreePayload): Promise<SearchProjectTreeResult> {

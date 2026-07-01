@@ -89,6 +89,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     relocateProject: (payload) => runtime.relocateProject(payload),
     searchProjectFiles: (payload) => runtime.searchProjectFiles(payload),
     listProjectTree: (payload) => runtime.listProjectTree(payload),
+    browseHostDirectory: (payload) => runtime.browseHostDirectory(payload),
     searchProjectTree: (payload) => runtime.searchProjectTree(payload),
     readProjectFile: (payload) => runtime.readProjectFile(payload),
     readAbsoluteFile: (payload) => runtime.readAbsoluteFile(payload),
