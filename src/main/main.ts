@@ -493,15 +493,18 @@ if (!hasSingleInstanceLock) {
       remoteAccessServer = null;
       remoteAccessStartPromise = null;
       if (!server) return;
-      try {
-        server.dispose();
-        console.log("[lightcode] remote access disabled");
-      } catch (error) {
-        console.warn(
-          "[lightcode] remote access failed to stop cleanly:",
-          error instanceof Error ? error.message : String(error),
+      // dispose() is async (it awaits the HTTP close); the desktop owns the DB
+      // independently of the server, so there's no teardown ordering to await
+      // here — fire-and-forget, logging any failure.
+      void server
+        .dispose()
+        .then(() => console.log("[lightcode] remote access disabled"))
+        .catch((error) =>
+          console.warn(
+            "[lightcode] remote access failed to stop cleanly:",
+            error instanceof Error ? error.message : String(error),
+          ),
         );
-      }
     };
 
     const setRemoteAccessEnabled = async (enabled: boolean): Promise<RemoteAccessPairingInfo> => {
@@ -687,7 +690,7 @@ if (!hasSingleInstanceLock) {
       windowsJobObjectManager = null;
       browserMcpIngress?.dispose();
       browserMcpIngress = null;
-      remoteAccessServer?.dispose();
+      void remoteAccessServer?.dispose();
       remoteAccessServer = null;
       browserExtractWindow?.close();
       browserExtractWindow = null;

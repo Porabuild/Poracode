@@ -37,10 +37,20 @@ msgstr "{0, plural, one {# Datei} other {# Dateien}}"
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# gekoppelter Desktop} other {# gekoppelte Desktops}}"
 
+#. placeholder {0}: props.projects.length
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "{0, plural, one {# project} other {# projects}}"
+msgstr "{0, plural, one {# Projekt} other {# Projekte}}"
+
 #. placeholder {0}: readyKinds.size
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# Anbieter bereit} other {# Anbieter bereit}}"
+
+#. placeholder {0}: servers.length
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "{0, plural, one {# server} other {# servers}}"
+#~ msgstr "{0, plural, one {# Server} other {# Server}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -393,6 +403,10 @@ msgstr "{usedLabel} Token"
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount} von {totalCount} sichtbar"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "/absolute/path/to/project"
+msgstr "/absolute/path/to/project"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "© {currentYear} Serhii Vecherenko. Alle Rechte vorbehalten."
@@ -522,8 +536,10 @@ msgstr "Aktivitätseinblicke"
 msgid "Activity metric"
 msgstr "Aktivitätsmetrik"
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
 msgstr "Hinzufügen"
@@ -552,6 +568,14 @@ msgstr "Eine Aufgabe hinzufügen…"
 msgid "Add action"
 msgstr "Aktion hinzufügen"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Add an existing folder"
+msgstr "Vorhandenen Ordner hinzufügen"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Add an existing folder on the server"
+#~ msgstr "Vorhandenen Ordner auf dem Server hinzufügen"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
 msgstr "Anhang oder Fähigkeit hinzufügen"
@@ -564,6 +588,10 @@ msgstr "Claude-Profil hinzufügen"
 msgid "Add credentials before this thread can run."
 msgstr "Fügen Sie Anmeldeinformationen hinzu, bevor dieser Thread ausgeführt "
 "werden kann."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Add folder"
+msgstr "Ordner hinzufügen"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add model"
@@ -608,6 +636,10 @@ msgstr "Zu Favoriten hinzufügen"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Add to Home Screen"
 msgstr "Zum Home-Bildschirm hinzufügen"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Add, clone, or remove projects on this server"
+msgstr "Projekte auf diesem Server hinzufügen, klonen oder entfernen"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -1252,6 +1284,7 @@ msgstr "Kamerazugriff blockiert"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Cancel"
 msgstr "Abbrechen"
@@ -1464,15 +1497,26 @@ msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Klicke auf ein Tastenkürzel, um eine neue Taste aufzuzeichnen, oder auf "
 "＋, um ein weiteres hinzuzufügen."
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone"
 msgstr "Klonen"
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Clone a repository"
 msgstr "Repository klonen"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Clone a repository into a folder on the server"
+#~ msgstr "Repository in einen Ordner auf dem Server klonen"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Clone repo"
+msgstr "Repo klonen"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Clone URL"
@@ -1488,6 +1532,7 @@ msgstr "Klonen…"
 
 #: src/mobile/components.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "Schließen"
 
@@ -1607,6 +1652,10 @@ msgstr "Tab schließen"
 #: src/mobile/views/BrowserView.tsx
 msgid "Close tab switcher"
 msgstr "Tab-Umschalter schließen"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Close thread"
+msgstr "Thread schließen"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/ThreadsView.tsx
@@ -1809,13 +1858,74 @@ msgstr "Konfliktlöser"
 msgid "Conflicts"
 msgstr "Konflikte"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect"
+msgstr "Verbinden"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connect a Lightcode desktop or headless server above to browse and "
+#~ "manage its projects from here."
+#~ msgstr "Verbinde oben einen Lightcode-Desktop oder Headless-Server, um dessen "
+#~ "Projekte von hier aus zu durchsuchen und zu verwalten."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect a server"
+msgstr "Server verbinden"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
+#~ "projects — and their threads — from here. Open Settings → Remote Access "
+#~ "on the other machine to get its endpoint and a pairing token."
+#~ msgstr "Verbinde dich mit einem anderen Lightcode-Desktop oder einem "
+#~ "Headless-Server und verwalte dessen Projekte — und deren Threads — von "
+#~ "hier aus. Öffne auf dem anderen Rechner Einstellungen → Remotezugriff, "
+#~ "um dessen Endpunkt und ein Pairing-Token zu erhalten."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
+#~ "projects from here. Open Settings → Remote Access on the other machine "
+#~ "to get its endpoint and a pairing token."
+#~ msgstr "Verbinde dich mit einem anderen Lightcode-Desktop oder einem "
+#~ "Headless-Server und verwalte dessen Projekte von hier aus. Öffne auf "
+#~ "dem anderen Rechner Einstellungen → Remotezugriff, um dessen Endpunkt "
+#~ "und ein Pairing-Token zu erhalten."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect to another Lightcode desktop or a headless server to browse and "
+"manage its projects from here. Get its endpoint and pairing token from "
+"Settings → Remote Access on that machine."
+msgstr "Mit einem anderen Lightcode-Desktop oder einem Headless-Server "
+"verbinden, um dessen Projekte hier zu durchsuchen und zu verwalten. "
+"Endpunkt und Kopplungstoken findest du unter Einstellungen → "
+"Remotezugriff auf diesem Gerät."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connected servers"
+#~ msgstr "Verbundene Server"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connecting"
+#~ msgstr "Verbindet"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "Verbindung zum Desktop-Browser wird hergestellt…"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connecting…"
+msgstr "Verbindet…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connection error"
+msgstr "Verbindungsfehler"
+
 #: src/mobile/components.tsx
 msgid "Connection error."
 msgstr "Verbindungsfehler."
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Connection failed."
+msgstr "Verbindung fehlgeschlagen."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
@@ -1891,6 +2001,10 @@ msgstr "Gespräch"
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "Kopiert"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Copied from Settings → Remote Access on the other machine."
+#~ msgstr "Aus Einstellungen → Remotezugriff auf dem anderen Rechner kopiert."
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
@@ -2373,6 +2487,10 @@ msgstr "Nicht gespeicherte Änderungen in {path} verwerfen?"
 msgid "Discard unsaved editor changes?"
 msgstr "Nicht gespeicherte Editoränderungen verwerfen?"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Disconnect server"
+msgstr "Server trennen"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
 msgstr "Codierungsagenten entdecken…"
@@ -2582,8 +2700,13 @@ msgstr "Aktiviert <0>Cookies</0> und <1>Speicher</1>. Cookies können "
 "Agenten als auch den von ihm besuchten Websites vertrauen."
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Endpoint"
 msgstr "Endpoint"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Endpoint, e.g. http://192.168.1.20:38987/"
+msgstr "Endpunkt, z. B. http://192.168.1.20:38987/"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -2897,6 +3020,15 @@ msgstr "Zum Fenster wechseln"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Ordnername"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Folder path"
+msgstr "Ordnerpfad"
+
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Folder path on the server"
+msgstr "Ordnerpfad auf dem Server"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -3326,6 +3458,11 @@ msgstr "Installieren"
 msgid "Installing in this terminal. Closes when finished."
 msgstr "Installation in diesem Terminal. Wird nach Abschluss geschlossen."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Interrupt"
+msgstr "Unterbrechen"
+
 #: src/renderer/state/slices/runtimeEventSlice.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Unterbrochen: Agentensitzung wurde vorzeitig beendet."
@@ -3581,6 +3718,10 @@ msgid "Make the sidebar translucent — the system blur material on Windows 11, 
 msgstr "Die Seitenleiste durchscheinend machen — das Unschärfe-Material des "
 "Systems unter Windows 11, sonst eine durchscheinende Tönung."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Manage remote servers"
+msgstr "Remote-Server verwalten"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "Manuelle Reihenfolge"
@@ -3714,6 +3855,10 @@ msgstr "Zusammengeführt"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merging is blocked"
 msgstr "Das Zusammenführen ist blockiert"
+
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Message the remote agent…"
+msgstr "Nachricht an den Remote-Agenten…"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Messages sent"
@@ -4251,9 +4396,21 @@ msgstr "Keine Muster."
 msgid "No phases yet."
 msgstr "Noch keine Phasen."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "No projects"
+msgstr "Keine Projekte"
+
 #: src/mobile/views/NewThreadView.tsx
 msgid "No projects available"
 msgstr "Keine Projekte verfügbar"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "No projects on this server yet."
+#~ msgstr "Auf diesem Server gibt es noch keine Projekte."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "No projects on this server."
+msgstr "Keine Projekte auf diesem Server."
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
@@ -4284,6 +4441,14 @@ msgstr "Keine Ergebnisse"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "Für diesen Thread gibt es noch keine Laufzeitelemente."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "No servers connected yet"
+#~ msgstr "Noch keine Server verbunden"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "No servers connected yet."
+msgstr "Noch keine Server verbunden."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
@@ -4405,6 +4570,7 @@ msgid "Off"
 msgstr "Aus"
 
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Offline"
 msgstr "Offline"
 
@@ -4422,6 +4588,7 @@ msgstr "auf"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Online"
 msgstr "Online"
 
@@ -4435,6 +4602,11 @@ msgstr "Nur wenn nicht fokussiert"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "Offen"
+
+#. placeholder {0}: thread.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Open {0}"
+msgstr "{0} öffnen"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Open {label}"
@@ -4709,6 +4881,10 @@ msgstr "Kopple ein Smartphone, Tablet oder einen Browser mit diesem Desktop."
 msgid "Pair again"
 msgstr "Erneut koppeln"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Pair with its endpoint and a one-time token."
+#~ msgstr "Mit dessen Endpunkt und einem Einmal-Token koppeln."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
 msgstr "Gekoppelte Geräte"
@@ -4731,6 +4907,7 @@ msgstr "Kopplungslink erkannt."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Pairing token"
 msgstr "Kopplungstoken"
 
@@ -4746,6 +4923,19 @@ msgstr "Panel"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Panels and overlays"
 msgstr "Bereiche und Overlays"
+
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Parent folder"
+msgstr "Übergeordneter Ordner"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Parent folder on the server"
+msgstr "Übergeordneter Ordner auf dem Server"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Parent folder, e.g. /home/me/projects"
+msgstr "Übergeordneter Ordner, z. B. /home/me/projects"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
@@ -4969,6 +5159,12 @@ msgid "Project-specific overrides on top of the global search settings."
 msgstr "Projektspezifische Überschreibungen zusätzlich zu den globalen "
 "Sucheinstellungen."
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/mobile/views/MoreView.tsx
+msgid "Projects"
+msgstr "Projekte"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Prompt"
 msgstr "Prompt"
@@ -5184,6 +5380,7 @@ msgstr "Rekonstruiert aus lokalen Protokollen zu öffentlichen API-Tarifen – e
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "Aktualisieren"
@@ -5260,6 +5457,23 @@ msgstr "QR-Code für die Remotezugriff-Kopplung"
 msgid "Remote name"
 msgstr "Remote-Name"
 
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Remote server"
+msgstr "Remote-Server"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Remote server not found."
+msgstr "Remote-Server nicht gefunden."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Remote servers"
+msgstr "Remote-Server"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Remote Servers"
+msgstr "Remote-Server"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Remote session"
 msgstr "Remote-Sitzung"
@@ -5331,9 +5545,18 @@ msgstr "Aus dem Panel entfernen"
 msgid "Remove model"
 msgstr "Modell entfernen"
 
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Remove project"
+msgstr "Projekt entfernen"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Remove Project"
 msgstr "Projekt entfernen"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Remove project from remote"
+#~ msgstr "Projekt vom Remote entfernen"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
@@ -5422,7 +5645,9 @@ msgstr "Repository"
 msgid "Repository pre-receive hook is blocking the merge."
 msgstr "Der Pre-Receive-Hook des Repositorys blockiert die Zusammenführung."
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Repository URL"
 msgstr "Repository-URL"
 
@@ -5900,6 +6125,10 @@ msgstr "Modell auswählen"
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "Projekt auswählen"
+
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Send"
+msgstr "Senden"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -6621,10 +6850,10 @@ msgid "Test microphone"
 msgstr "Mikrofon testen"
 
 #: src/mobile/remoteClient.ts
-msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
-"desktop endpoint from Settings → Remote Access."
-msgstr "Dieser Endpunkt hat die mobile App statt der Desktop-API geöffnet. "
-"Verwende den Desktop-Endpunkt aus Einstellungen → Remotezugriff."
+#~ msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
+#~ "desktop endpoint from Settings → Remote Access."
+#~ msgstr "Dieser Endpunkt hat die mobile App statt der Desktop-API geöffnet. "
+#~ "Verwende den Desktop-Endpunkt aus Einstellungen → Remotezugriff."
 
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Lightcode pairing link."
@@ -6675,6 +6904,10 @@ msgstr "Die normale App-Shell konnte nicht gerendert werden. Die folgenden "
 "Diagnosen werden vor dem Neuladen angezeigt, damit der Fehler "
 "untersucht werden kann."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "The other machine's remote-access address."
+#~ msgstr "Die Remotezugriffsadresse des anderen Rechners."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Der Speicherort des Repositorys auf der Festplatte. Aktualisieren Sie "
@@ -6716,6 +6949,16 @@ msgid "This browser does not support system notifications here; you will still "
 "see in-app toasts."
 msgstr "Dieser Browser unterstützt hier keine Systembenachrichtigungen; du "
 "siehst weiterhin In-App-Hinweise."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "This connection can view projects but not manage them."
+#~ msgstr "Diese Verbindung kann Projekte anzeigen, aber nicht verwalten."
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "This connection can view projects but not manage them. Re-pair to "
+"enable."
+msgstr "Diese Verbindung kann Projekte anzeigen, aber nicht verwalten. Kopple "
+"erneut, um dies zu aktivieren."
 
 #: src/mobile/views/SettingsView.tsx
 msgid "This device"
@@ -7446,6 +7689,10 @@ msgstr "Ansicht"
 #: src/mobile/views/GitActionSheet.tsx
 msgid "View diff"
 msgstr "Diff anzeigen"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "View-only — this connection can't manage projects."
+msgstr "Nur Lesezugriff – diese Verbindung kann keine Projekte verwalten."
 
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx

@@ -31,6 +31,8 @@
     "cap:sync": "pnpm run build:mobile && cap sync && pnpm run cap:configure",
     "build:electron": "cross-env NODE_ENV=production tsdown",
     "start": "pnpm run setup:native && electron .",
+    "server": "node dist/main/server.cjs",
+    "relay": "node dist/main/relay.cjs",
     "prepare:wsl-helpers": "node scripts/prepare-wsl-helpers.mjs",
     "prepare:agent-plugins": "node scripts/prepare-agent-plugins.mjs",
     "prepare:package-assets": "pnpm run prepare:wsl-helpers && pnpm run prepare:agent-plugins",

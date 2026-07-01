@@ -136,10 +136,7 @@ export function cloneFolderNameFromRepo(nameWithOwner: string): string {
  * (`https://host/owner/repo.git`) and scp-style (`git@host:owner/repo.git`).
  */
 export function cloneFolderNameFromUrl(url: string): string {
-  const trimmed = url
-    .trim()
-    .replace(/\.git$/i, "")
-    .replace(/[/\\]+$/, "");
+  const trimmed = (url.trim().split(/[?#]/)[0] ?? "").replace(/\.git$/i, "").replace(/[/\\]+$/, "");
   if (!trimmed) return "";
   const match = /[^/:\\]+$/.exec(trimmed);
   return match ? match[0] : "";

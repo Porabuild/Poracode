@@ -37,10 +37,20 @@ msgstr "{0, plural, one {# 个文件} other {# 个文件}}"
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# 个已配对桌面} other {# 个已配对桌面}}"
 
+#. placeholder {0}: props.projects.length
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "{0, plural, one {# project} other {# projects}}"
+msgstr "{0, plural, one {# 个项目} other {# 个项目}}"
+
 #. placeholder {0}: readyKinds.size
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {#提供商准备就绪} other {#提供商准备就绪}}"
+
+#. placeholder {0}: servers.length
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "{0, plural, one {# server} other {# servers}}"
+#~ msgstr "{0, plural, one {# 台服务器} other {# 台服务器}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -390,6 +400,10 @@ msgstr "{usedLabel} 令牌"
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{totalCount} 中的 {visibleCount} 个可见"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "/absolute/path/to/project"
+msgstr "/absolute/path/to/project"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "©{currentYear} Serhii Vecherenko。版权所有。"
@@ -518,8 +532,10 @@ msgstr "活动洞察"
 msgid "Activity metric"
 msgstr "活动指标"
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
 msgstr "添加"
@@ -548,6 +564,14 @@ msgstr "添加待办事项..."
 msgid "Add action"
 msgstr "添加操作"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Add an existing folder"
+msgstr "添加现有文件夹"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Add an existing folder on the server"
+#~ msgstr "添加服务器上的现有文件夹"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
 msgstr "添加附件或功能"
@@ -559,6 +583,10 @@ msgstr "添加 Claude 配置文件"
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Add credentials before this thread can run."
 msgstr "在此线程运行之前添加凭据。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Add folder"
+msgstr "添加文件夹"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add model"
@@ -603,6 +631,10 @@ msgstr "添加到收藏夹"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Add to Home Screen"
 msgstr "添加到主屏幕"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Add, clone, or remove projects on this server"
+msgstr "在此服务器上添加、克隆或移除项目"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -1230,6 +1262,7 @@ msgstr "摄像头访问已被阻止"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Cancel"
 msgstr "取消"
@@ -1439,15 +1472,26 @@ msgstr "CLI 挂钩"
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "点击快捷键以录制新的按键，或点击 ＋ 添加另一个。"
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone"
 msgstr "克隆"
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Clone a repository"
 msgstr "克隆存储库"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Clone a repository into a folder on the server"
+#~ msgstr "将仓库克隆到服务器上的文件夹中"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Clone repo"
+msgstr "克隆仓库"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Clone URL"
@@ -1463,6 +1507,7 @@ msgstr "克隆…"
 
 #: src/mobile/components.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "关闭"
 
@@ -1582,6 +1627,10 @@ msgstr "关闭选项卡"
 #: src/mobile/views/BrowserView.tsx
 msgid "Close tab switcher"
 msgstr "关闭标签页切换器"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Close thread"
+msgstr "关闭线程"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/ThreadsView.tsx
@@ -1781,13 +1830,64 @@ msgstr "冲突解决者"
 msgid "Conflicts"
 msgstr "冲突"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect"
+msgstr "连接"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connect a Lightcode desktop or headless server above to browse and "
+#~ "manage its projects from here."
+#~ msgstr "在上方连接 Lightcode 桌面或无头服务器，即可在此浏览和管理其项目。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect a server"
+msgstr "连接服务器"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
+#~ "projects — and their threads — from here. Open Settings → Remote Access "
+#~ "on the other machine to get its endpoint and a pairing token."
+#~ msgstr "连接到另一台 Lightcode 桌面或无头服务器，并在此管理其项目及线程。在另一台机器上打开“设置”→“远程访问”，获取其端点和配对令牌。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
+#~ "projects from here. Open Settings → Remote Access on the other machine "
+#~ "to get its endpoint and a pairing token."
+#~ msgstr "连接到另一台 Lightcode 桌面或无头服务器，并在此管理其项目。在另一台机器上打开“设置”→“远程访问”，获取其端点和配对令牌。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect to another Lightcode desktop or a headless server to browse and "
+"manage its projects from here. Get its endpoint and pairing token from "
+"Settings → Remote Access on that machine."
+msgstr "连接到另一台 Lightcode 桌面端或无界面服务器，即可在此浏览和管理其项目。请在对方设备的“设置 → 远程访问”中获取其端点和配对令牌。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connected servers"
+#~ msgstr "已连接的服务器"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connecting"
+#~ msgstr "正在连接"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "正在连接桌面浏览器…"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connecting…"
+msgstr "正在连接…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connection error"
+msgstr "连接错误"
+
 #: src/mobile/components.tsx
 msgid "Connection error."
 msgstr "连接错误。"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Connection failed."
+msgstr "连接失败。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
@@ -1861,6 +1961,10 @@ msgstr "对话"
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "已复制"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Copied from Settings → Remote Access on the other machine."
+#~ msgstr "已从另一台机器的“设置”→“远程访问”复制。"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
@@ -2335,6 +2439,10 @@ msgstr "放弃{path}中未保存的更改？"
 msgid "Discard unsaved editor changes?"
 msgstr "放弃未保存的编辑器更改？"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Disconnect server"
+msgstr "断开服务器连接"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
 msgstr "正在发现编码代理……"
@@ -2535,8 +2643,13 @@ msgstr "启用<0>cookie</0>和<1>存储</1>。Cookie "
 "可以包含会话令牌，并且存储通常保存身份验证状态——仅当您信任代理及其访问的站点时才启用。"
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Endpoint"
 msgstr "端点"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Endpoint, e.g. http://192.168.1.20:38987/"
+msgstr "端点，例如 http://192.168.1.20:38987/"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -2841,6 +2954,15 @@ msgstr "切换到窗口"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "文件夹名称"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Folder path"
+msgstr "文件夹路径"
+
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Folder path on the server"
+msgstr "服务器上的文件夹路径"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -3257,6 +3379,11 @@ msgstr "安装中"
 msgid "Installing in this terminal. Closes when finished."
 msgstr "在此终端中安装。完成后关闭。"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Interrupt"
+msgstr "中断"
+
 #: src/renderer/state/slices/runtimeEventSlice.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "已中断：代理会话在完成之前结束。"
@@ -3506,6 +3633,10 @@ msgid "Make the sidebar translucent — the system blur material on Windows 11, 
 "translucent tint elsewhere."
 msgstr "将侧边栏设为半透明——在Windows 11上使用系统模糊材质，在其他平台上使用半透明着色。"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Manage remote servers"
+msgstr "管理远程服务器"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "手动排序"
@@ -3638,6 +3769,10 @@ msgstr "已合并"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merging is blocked"
 msgstr "合并被阻止"
+
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Message the remote agent…"
+msgstr "向远程代理发送消息…"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Messages sent"
@@ -4171,9 +4306,21 @@ msgstr "没有模式。"
 msgid "No phases yet."
 msgstr "还没有阶段。"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "No projects"
+msgstr "没有项目"
+
 #: src/mobile/views/NewThreadView.tsx
 msgid "No projects available"
 msgstr "没有可用项目"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "No projects on this server yet."
+#~ msgstr "此服务器上还没有项目。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "No projects on this server."
+msgstr "此服务器上没有项目。"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
@@ -4203,6 +4350,14 @@ msgstr "没有结果"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "该线程还没有运行时项目。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "No servers connected yet"
+#~ msgstr "尚未连接服务器"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "No servers connected yet."
+msgstr "尚未连接任何服务器。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
@@ -4324,6 +4479,7 @@ msgid "Off"
 msgstr "关闭"
 
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Offline"
 msgstr "离线"
 
@@ -4341,6 +4497,7 @@ msgstr "开"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Online"
 msgstr "在线"
 
@@ -4354,6 +4511,11 @@ msgstr "仅当窗口失去焦点时"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "打开"
+
+#. placeholder {0}: thread.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Open {0}"
+msgstr "打开 {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Open {label}"
@@ -4622,6 +4784,10 @@ msgstr "将手机、平板电脑或浏览器与此桌面配对。"
 msgid "Pair again"
 msgstr "重新配对"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Pair with its endpoint and a one-time token."
+#~ msgstr "使用其端点和一次性令牌配对。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
 msgstr "已配对设备"
@@ -4644,6 +4810,7 @@ msgstr "检测到配对链接。"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Pairing token"
 msgstr "配对令牌"
 
@@ -4659,6 +4826,19 @@ msgstr "面板"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Panels and overlays"
 msgstr "面板和覆盖层"
+
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Parent folder"
+msgstr "父文件夹"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Parent folder on the server"
+msgstr "服务器上的父文件夹"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Parent folder, e.g. /home/me/projects"
+msgstr "父文件夹，例如 /home/me/projects"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
@@ -4876,6 +5056,12 @@ msgstr "项目设置"
 msgid "Project-specific overrides on top of the global search settings."
 msgstr "在全局搜索设置基础上的项目特定覆盖。"
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/mobile/views/MoreView.tsx
+msgid "Projects"
+msgstr "项目"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Prompt"
 msgstr "提示"
@@ -5088,6 +5274,7 @@ msgstr "以公共 API 费率从本地日志重建 — 它不反映您订阅计�
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "刷新"
@@ -5164,6 +5351,23 @@ msgstr "远程访问配对二维码"
 msgid "Remote name"
 msgstr "远程名称"
 
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Remote server"
+msgstr "远程服务器"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Remote server not found."
+msgstr "未找到远程服务器。"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Remote servers"
+msgstr "远程服务器"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Remote Servers"
+msgstr "远程服务器"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Remote session"
 msgstr "远程会话"
@@ -5235,9 +5439,18 @@ msgstr "从面板上移除"
 msgid "Remove model"
 msgstr "移除模型"
 
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Remove project"
+msgstr "移除项目"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Remove Project"
 msgstr "删除项目"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Remove project from remote"
+#~ msgstr "从远程移除项目"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
@@ -5326,7 +5539,9 @@ msgstr "仓库"
 msgid "Repository pre-receive hook is blocking the merge."
 msgstr "存储库预接收挂钩正在阻止合并。"
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Repository URL"
 msgstr "存储库网址"
 
@@ -5795,6 +6010,10 @@ msgstr "选择模型"
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "选择项目"
+
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Send"
+msgstr "发送"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -6498,9 +6717,9 @@ msgid "Test microphone"
 msgstr "测试麦克风"
 
 #: src/mobile/remoteClient.ts
-msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
-"desktop endpoint from Settings → Remote Access."
-msgstr "该端点打开的是移动应用，而不是桌面端 API。请使用“设置 → 远程访问”中的桌面端点。"
+#~ msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
+#~ "desktop endpoint from Settings → Remote Access."
+#~ msgstr "该端点打开的是移动应用，而不是桌面端 API。请使用“设置 → 远程访问”中的桌面端点。"
 
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Lightcode pairing link."
@@ -6546,6 +6765,10 @@ msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
 msgstr "正常的应用程序外壳无法呈现。以下诊断信息在重新加载之前显示，以便可以调查故障。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "The other machine's remote-access address."
+#~ msgstr "另一台机器的远程访问地址。"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "存储库在磁盘上的位置。如果您移动了该文件夹，请更新此位置。"
@@ -6583,6 +6806,15 @@ msgstr "此应用通过 HTTPS 提供，但桌面使用浏览器会阻止的普�
 msgid "This browser does not support system notifications here; you will still "
 "see in-app toasts."
 msgstr "此浏览器不支持在此处显示系统通知；你仍会看到应用内提示。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "This connection can view projects but not manage them."
+#~ msgstr "此连接可以查看项目，但不能管理项目。"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "This connection can view projects but not manage them. Re-pair to "
+"enable."
+msgstr "此连接可以查看项目，但不能管理项目。请重新配对以启用。"
 
 #: src/mobile/views/SettingsView.tsx
 msgid "This device"
@@ -7297,6 +7529,10 @@ msgstr "查看"
 #: src/mobile/views/GitActionSheet.tsx
 msgid "View diff"
 msgstr "查看 diff"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "View-only — this connection can't manage projects."
+msgstr "仅查看 — 此连接无法管理项目。"
 
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx

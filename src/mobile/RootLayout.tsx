@@ -56,6 +56,9 @@ function getChrome(pathname: string): Chrome {
   if (pathname === "/more/browser") {
     return { layout: "subscreen", title: msg`Browser`, backTo: "/more", tab: "more" };
   }
+  if (pathname === "/more/projects") {
+    return { layout: "subscreen", title: msg`Projects`, backTo: "/more", tab: "more" };
+  }
   if (pathname === "/more") return { layout: "tab", tab: "more" };
   if (pathname === "/new") return { layout: "tab", tab: "new" };
   if (pathname === "/desktops") return { layout: "tab", tab: "desktops" };

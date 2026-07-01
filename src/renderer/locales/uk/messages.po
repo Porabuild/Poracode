@@ -38,11 +38,23 @@ msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# підключений десктоп} few {# підключені десктопи} "
 "many {# підключених десктопів} other {# підключеного десктопа}}"
 
+#. placeholder {0}: props.projects.length
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "{0, plural, one {# project} other {# projects}}"
+msgstr "{0, plural, one {# проєкт} few {# проєкти} many {# проєктів} other {# "
+"проєкту}}"
+
 #. placeholder {0}: readyKinds.size
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# провайдер готовий} few {# провайдери готові} many {# "
 "провайдерів готові} other {# провайдера готові}}"
+
+#. placeholder {0}: servers.length
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "{0, plural, one {# server} other {# servers}}"
+#~ msgstr "{0, plural, one {# сервер} few {# сервери} many {# серверів} other {# "
+#~ "сервера}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -399,6 +411,10 @@ msgstr "{usedLabel} токенів"
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount} із {totalCount} видимих"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "/absolute/path/to/project"
+msgstr "/absolute/path/to/project"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "© {currentYear} Serhii Vecherenko. Усі права захищено."
@@ -527,8 +543,10 @@ msgstr "Аналітика активності"
 msgid "Activity metric"
 msgstr "Метрика активності"
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
 msgstr "Додати"
@@ -557,6 +575,14 @@ msgstr "Додати завдання…"
 msgid "Add action"
 msgstr "Додати дію"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Add an existing folder"
+msgstr "Додати наявну папку"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Add an existing folder on the server"
+#~ msgstr "Додати наявну папку на сервері"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
 msgstr "Додати вкладення або можливість"
@@ -568,6 +594,10 @@ msgstr "Додати профіль Claude"
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Add credentials before this thread can run."
 msgstr "Додайте облікові дані, перш ніж цей тред зможе запуститися."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Add folder"
+msgstr "Додати теку"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add model"
@@ -612,6 +642,10 @@ msgstr "Додати до обраного"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Add to Home Screen"
 msgstr "Додати на головний екран"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Add, clone, or remove projects on this server"
+msgstr "Додавайте, клонуйте або видаляйте проєкти на цьому сервері"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -1251,6 +1285,7 @@ msgstr "Доступ до камери заблоковано"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Cancel"
 msgstr "Скасувати"
@@ -1463,14 +1498,25 @@ msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Натисніть комбінацію клавіш, щоб записати нову клавішу, або ＋, щоб "
 "додати ще одну."
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone"
 msgstr "Клонувати"
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Clone a repository"
+msgstr "Клонувати репозиторій"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Clone a repository into a folder on the server"
+#~ msgstr "Клонувати репозиторій у папку на сервері"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Clone repo"
 msgstr "Клонувати репозиторій"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -1487,6 +1533,7 @@ msgstr "Клонування…"
 
 #: src/mobile/components.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "Закрити"
 
@@ -1606,6 +1653,10 @@ msgstr "Закрити вкладку"
 #: src/mobile/views/BrowserView.tsx
 msgid "Close tab switcher"
 msgstr "Закрити перемикач вкладок"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Close thread"
+msgstr "Закрити тред"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/ThreadsView.tsx
@@ -1805,13 +1856,73 @@ msgstr "Вирішення конфліктів"
 msgid "Conflicts"
 msgstr "Конфлікти"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect"
+msgstr "Підключити"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connect a Lightcode desktop or headless server above to browse and "
+#~ "manage its projects from here."
+#~ msgstr "Підключіть десктоп Lightcode або headless-сервер вище, щоб переглядати "
+#~ "його проєкти й керувати ними звідси."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect a server"
+msgstr "Підключити сервер"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
+#~ "projects — and their threads — from here. Open Settings → Remote Access "
+#~ "on the other machine to get its endpoint and a pairing token."
+#~ msgstr "Підключіться до іншого десктопа Lightcode або headless-сервера й "
+#~ "керуйте його проєктами — і їхніми тредами — звідси. Відкрийте "
+#~ "Налаштування → Віддалений доступ на іншій машині, щоб отримати його "
+#~ "endpoint і токен сполучення."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
+#~ "projects from here. Open Settings → Remote Access on the other machine "
+#~ "to get its endpoint and a pairing token."
+#~ msgstr "Підключіться до іншого десктопа Lightcode або headless-сервера й "
+#~ "керуйте його проєктами звідси. Відкрийте Налаштування → Віддалений "
+#~ "доступ на іншій машині, щоб отримати його endpoint і токен сполучення."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect to another Lightcode desktop or a headless server to browse and "
+"manage its projects from here. Get its endpoint and pairing token from "
+"Settings → Remote Access on that machine."
+msgstr "Підключіться до іншого комп'ютера з Lightcode або до сервера без "
+"інтерфейсу, щоб переглядати проєкти та керувати ними звідси. Адресу й "
+"код сполучення отримайте в розділі «Налаштування → Віддалений доступ» "
+"на тій машині."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connected servers"
+#~ msgstr "Підключені сервери"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connecting"
+#~ msgstr "Підключення"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "Підключення до браузера на десктопі…"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connecting…"
+msgstr "Підключення…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connection error"
+msgstr "Помилка підключення"
+
 #: src/mobile/components.tsx
 msgid "Connection error."
 msgstr "Помилка підключення."
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Connection failed."
+msgstr "Не вдалося підключитися."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
@@ -1887,6 +1998,10 @@ msgstr "Розмова"
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "Скопійовано"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Copied from Settings → Remote Access on the other machine."
+#~ msgstr "Скопійовано з розділу Налаштування → Віддалений доступ на іншій машині."
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
@@ -2365,6 +2480,10 @@ msgstr "Скасувати незбережені зміни в {path}?"
 msgid "Discard unsaved editor changes?"
 msgstr "Скасувати незбережені зміни в редакторі?"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Disconnect server"
+msgstr "Відключити сервер"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
 msgstr "Пошук агентів для кодування…"
@@ -2573,8 +2692,13 @@ msgstr "Вмикає <0>файли cookie</0> та <1>сховище</1>. Фай
 "відвідує."
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Endpoint"
 msgstr "Endpoint"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Endpoint, e.g. http://192.168.1.20:38987/"
+msgstr "Адреса, напр. http://192.168.1.20:38987/"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -2888,6 +3012,15 @@ msgstr "Перейти до вікна"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Ім'я папки"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Folder path"
+msgstr "Шлях до папки"
+
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Folder path on the server"
+msgstr "Шлях до папки на сервері"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -3318,6 +3451,11 @@ msgid "Installing in this terminal. Closes when finished."
 msgstr "Встановлення виконується в цьому терміналі. Він закриється після "
 "завершення."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Interrupt"
+msgstr "Перервати"
+
 #: src/renderer/state/slices/runtimeEventSlice.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "Перервано: сесія агента завершилася до завершення."
@@ -3573,6 +3711,10 @@ msgid "Make the sidebar translucent — the system blur material on Windows 11, 
 msgstr "Зробіть бічну панель напівпрозорою — системне розмиття у Windows 11 і "
 "напівпрозоре тонування в інших системах."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Manage remote servers"
+msgstr "Керування віддаленими серверами"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "Ручний порядок"
@@ -3706,6 +3848,10 @@ msgstr "Злито"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merging is blocked"
 msgstr "Злиття заблоковано"
+
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Message the remote agent…"
+msgstr "Повідомлення віддаленому агенту…"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Messages sent"
@@ -4241,9 +4387,21 @@ msgstr "Немає шаблонів."
 msgid "No phases yet."
 msgstr "Фаз поки немає."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "No projects"
+msgstr "Немає проєктів"
+
 #: src/mobile/views/NewThreadView.tsx
 msgid "No projects available"
 msgstr "Немає доступних проєктів"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "No projects on this server yet."
+#~ msgstr "На цьому сервері ще немає проєктів."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "No projects on this server."
+msgstr "На цьому сервері немає проєктів."
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
@@ -4274,6 +4432,14 @@ msgstr "Немає результатів"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "Для цього треду ще немає runtime-елементів."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "No servers connected yet"
+#~ msgstr "Ще немає підключених серверів"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "No servers connected yet."
+msgstr "Ще немає підключених серверів."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
@@ -4395,6 +4561,7 @@ msgid "Off"
 msgstr "Вимк."
 
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Offline"
 msgstr "Офлайн"
 
@@ -4412,6 +4579,7 @@ msgstr "увімк"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Online"
 msgstr "Онлайн"
 
@@ -4425,6 +4593,11 @@ msgstr "Лише коли немає фокусу"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "Відкрити"
+
+#. placeholder {0}: thread.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Open {0}"
+msgstr "Відкрити {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Open {label}"
@@ -4698,6 +4871,10 @@ msgstr "Спаруйте телефон, планшет або браузер і
 msgid "Pair again"
 msgstr "Підключити знову"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Pair with its endpoint and a one-time token."
+#~ msgstr "Створіть сполучення з його endpoint і одноразовим токеном."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
 msgstr "Спарені пристрої"
@@ -4720,6 +4897,7 @@ msgstr "Виявлено посилання для підключення."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Pairing token"
 msgstr "Токен підключення"
 
@@ -4735,6 +4913,19 @@ msgstr "Панель"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Panels and overlays"
 msgstr "Панелі та накладання"
+
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Parent folder"
+msgstr "Батьківська папка"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Parent folder on the server"
+msgstr "Батьківська папка на сервері"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Parent folder, e.g. /home/me/projects"
+msgstr "Батьківська папка, напр. /home/me/projects"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
@@ -4956,6 +5147,12 @@ msgid "Project-specific overrides on top of the global search settings."
 msgstr "Перевизначення для конкретного проєкту поверх глобальних налаштувань "
 "пошуку."
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/mobile/views/MoreView.tsx
+msgid "Projects"
+msgstr "Проєкти"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Prompt"
 msgstr "Промпт"
@@ -5170,6 +5367,7 @@ msgstr "Відтворено з локальних журналів за пуб�
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "Оновити"
@@ -5246,6 +5444,23 @@ msgstr "QR-код спарення віддаленого доступу"
 msgid "Remote name"
 msgstr "Назва віддаленого репозиторію"
 
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Remote server"
+msgstr "Віддалений сервер"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Remote server not found."
+msgstr "Віддалений сервер не знайдено."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Remote servers"
+msgstr "Віддалені сервери"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Remote Servers"
+msgstr "Віддалені сервери"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Remote session"
 msgstr "Віддалена сесія"
@@ -5317,9 +5532,18 @@ msgstr "Видалити з панелі"
 msgid "Remove model"
 msgstr "Видалити модель"
 
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Remove project"
+msgstr "Видалити проєкт"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Remove Project"
 msgstr "Видалити проєкт"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Remove project from remote"
+#~ msgstr "Видалити проєкт із віддаленого сервера"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
@@ -5408,7 +5632,9 @@ msgstr "Репозиторій"
 msgid "Repository pre-receive hook is blocking the merge."
 msgstr "Хук pre-receive репозиторію блокує злиття."
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Repository URL"
 msgstr "URL репозиторію"
 
@@ -5882,6 +6108,10 @@ msgstr "Вибрати модель"
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "Вибрати проєкт"
+
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Send"
+msgstr "Надіслати"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -6593,11 +6823,11 @@ msgid "Test microphone"
 msgstr "Перевірити мікрофон"
 
 #: src/mobile/remoteClient.ts
-msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
-"desktop endpoint from Settings → Remote Access."
-msgstr "Ця кінцева точка відкрила мобільний застосунок замість API десктопа. "
-"Використайте кінцеву точку десктопа з «Налаштування → Віддалений "
-"доступ»."
+#~ msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
+#~ "desktop endpoint from Settings → Remote Access."
+#~ msgstr "Ця кінцева точка відкрила мобільний застосунок замість API десктопа. "
+#~ "Використайте кінцеву точку десктопа з «Налаштування → Віддалений "
+#~ "доступ»."
 
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Lightcode pairing link."
@@ -6647,6 +6877,10 @@ msgid "The normal app shell could not render. The diagnostics below are shown "
 msgstr "Звичайна оболонка програми не змогла відрендеритися. Діагностика нижче "
 "показана перед перезавантаженням, щоб проблему можна було дослідити."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "The other machine's remote-access address."
+#~ msgstr "Адреса віддаленого доступу іншої машини."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Розташування репозиторію на диску. Оновіть його, якщо ви перемістили "
@@ -6689,6 +6923,16 @@ msgid "This browser does not support system notifications here; you will still "
 "see in-app toasts."
 msgstr "Цей браузер не підтримує тут системні сповіщення; ви й надалі "
 "бачитимете сповіщення всередині застосунку."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "This connection can view projects but not manage them."
+#~ msgstr "Це підключення може переглядати проєкти, але не керувати ними."
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "This connection can view projects but not manage them. Re-pair to "
+"enable."
+msgstr "Це підключення може переглядати проєкти, але не керувати ними. Створіть "
+"сполучення заново, щоб увімкнути керування."
 
 #: src/mobile/views/SettingsView.tsx
 msgid "This device"
@@ -7416,6 +7660,10 @@ msgstr "Перегляд"
 #: src/mobile/views/GitActionSheet.tsx
 msgid "View diff"
 msgstr "Показать diff"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "View-only — this connection can't manage projects."
+msgstr "Лише перегляд — це підключення не може керувати проєктами."
 
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx

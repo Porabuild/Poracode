@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   agentStatusSchema,
+  cloneRepoSourceSchema,
   projectSchema,
   terminalSizeSchema,
   threadContextUsageSchema,
@@ -17,6 +18,9 @@ export const remoteAccessScopeSchema = z.enum([
   "terminal:read",
   "terminal:operate",
   "requests:resolve",
+  // Create/clone/remove projects on the desktop or server. Sensitive: it writes
+  // the project list and can clone arbitrary repos, so it gates its own routes.
+  "projects:manage",
 ]);
 export type RemoteAccessScope = z.infer<typeof remoteAccessScopeSchema>;
 
@@ -130,6 +134,56 @@ export const remoteGitSummariesEventSchema = z.object({
   summaries: remoteGitSummariesSchema,
 });
 export type RemoteGitSummariesEvent = z.infer<typeof remoteGitSummariesEventSchema>;
+
+/**
+ * Remote project management. Lets a paired client add/clone/remove projects on
+ * the desktop or a headless server. Locations are referenced by an absolute
+ * path string (the server derives the platform-specific {@link ProjectLocation}
+ * itself) or by `projectId` for edits to an existing row. There is deliberately
+ * no filesystem-browsing command yet — clients pass an explicit path — because
+ * exposing the server's directory tree is a separate security decision (see
+ * docs/REMOTE_ARCHITECTURE.md, Phase 3). All commands require `projects:manage`.
+ */
+export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
+  // Register an existing folder on the server as a project.
+  z.object({
+    kind: z.literal("add-existing"),
+    path: z.string().min(1),
+    name: z.string().min(1).optional(),
+  }),
+  // Create a new empty folder under `parentPath` and register it.
+  z.object({
+    kind: z.literal("create"),
+    parentPath: z.string().min(1),
+    name: z.string().min(1),
+  }),
+  // Clone a repo into `parentPath/name` and register it.
+  z.object({
+    kind: z.literal("clone"),
+    parentPath: z.string().min(1),
+    name: z.string().min(1),
+    source: cloneRepoSourceSchema,
+  }),
+  // Remove a project. Edits that reorder/cascade (rename, disable) still flow
+  // through the renderer store on the desktop; see Phase 2 in the design doc.
+  z.object({ kind: z.literal("remove"), projectId: z.string().min(1) }),
+]);
+export type RemoteProjectCommand = z.infer<typeof remoteProjectCommandSchema>;
+
+/** Result of a project command: the full updated list plus the affected row. */
+export const remoteProjectCommandResultSchema = z.object({
+  projects: z.array(projectSchema),
+  project: projectSchema.optional(),
+});
+export type RemoteProjectCommandResult = z.infer<typeof remoteProjectCommandResultSchema>;
+
+/** Broadcast on the WS event stream after a project change so clients refresh
+ * the shell snapshot. Rides the same stream as supervisor/git events. */
+export const remoteProjectsChangedEventSchema = z.object({
+  type: z.literal("remote-projects-changed"),
+  projects: z.array(projectSchema),
+});
+export type RemoteProjectsChangedEvent = z.infer<typeof remoteProjectsChangedEventSchema>;
 
 export const remoteShellSnapshotSchema = z.object({
   snapshotSeq: z.number().int().nonnegative(),

@@ -14,6 +14,7 @@ import {
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import type {
+  RemoteProjectCommand,
   RemoteShellSnapshot,
   RemoteThreadSnapshot,
   RemoteWebSocketClientMessage,
@@ -122,7 +123,10 @@ function shouldRefreshAfterSupervisorEvent(value: unknown): boolean {
     type === "thread-exited" ||
     type === "thread-reset" ||
     type === "windows-agent-statuses" ||
-    type === "wsl-agent-statuses"
+    type === "wsl-agent-statuses" ||
+    // A project was added/cloned/removed remotely (by this or another client);
+    // re-pull the shell snapshot so the project list reflects it.
+    type === "remote-projects-changed"
   );
 }
 
@@ -802,6 +806,18 @@ export function useRemoteDesktop() {
     void refresh(activeDesktop, { refreshSelectedThread: true });
   }
 
+  /**
+   * Add (existing folder / clone) or remove a project on the active desktop,
+   * then refresh the snapshot so the new project list shows. Requires the
+   * `projects:manage` scope; throws a RemoteClientError if it's missing.
+   */
+  async function manageProject(command: RemoteProjectCommand) {
+    const desktop = activeDesktop;
+    if (!desktop) return;
+    await clientFor(desktop).projectCommand(command);
+    await refresh(desktop);
+  }
+
   return {
     desktops,
     activeDesktopId,
@@ -824,6 +840,7 @@ export function useRemoteDesktop() {
     resolveRequest,
     applyThreadAction,
     deleteWorktreeGroup,
+    manageProject,
     switchDesktop,
     forget,
     rename,

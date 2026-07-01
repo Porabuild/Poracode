@@ -1,0 +1,8 @@
+/** Collect a fetch `Headers` object into a plain record. */
+export function headersToRecord(headers: Headers): Record<string, string> {
+  const record: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    record[key] = value;
+  });
+  return record;
+}

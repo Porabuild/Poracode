@@ -8,7 +8,7 @@ import { buildWorktreeLocation } from "@/shared/worktree";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitSummariesStore } from "./gitSummaries";
-import { useMobileApp } from "./remoteContext";
+import { useMobileApp, useRemote } from "./remoteContext";
 import {
   buildFilesTarget,
   buildGitTarget,
@@ -24,6 +24,7 @@ import {
 } from "./pairing";
 import { useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
 import { DesktopsView } from "./views/DesktopsView";
+import { ManageProjectsView } from "./views/ManageProjectsView";
 import { MoreView } from "./views/MoreView";
 import { NewThreadView } from "./views/NewThreadView";
 import { ThreadsView } from "./views/ThreadsView";
@@ -349,11 +350,29 @@ export function MoreRoute() {
   return (
     <MoreView
       onOpen={(destination) => {
-        void navigate({
-          to: destination === "browser" ? "/more/browser" : "/more/settings",
-        });
+        const to =
+          destination === "browser"
+            ? "/more/browser"
+            : destination === "projects"
+              ? "/more/projects"
+              : "/more/settings";
+        void navigate({ to });
       }}
     />
+  );
+}
+
+export function ProjectsRoute() {
+  const remote = useRemote();
+  const canManage = remote.activeDesktop?.scopes.includes("projects:manage") ?? false;
+  return (
+    <div className="m-subscreen">
+      <ManageProjectsView
+        projects={remote.projects}
+        canManage={canManage}
+        onCommand={(command) => remote.manageProject(command)}
+      />
+    </div>
   );
 }
 

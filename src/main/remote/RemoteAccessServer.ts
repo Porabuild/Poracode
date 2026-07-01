@@ -1,3 +1,4 @@
+import { mkdirSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
@@ -13,6 +14,7 @@ import {
   remoteEnvironmentDescriptorSchema,
   remoteAgentStatusesSchema,
   remoteHttpErrorSchema,
+  remoteProjectCommandSchema,
   remoteRuntimeSummarySchema,
   remoteSettingsPatchSchema,
   remoteShellSnapshotSchema,
@@ -26,6 +28,9 @@ import {
   type RemoteGitSummaries,
   type RemoteGitSummariesEvent,
   type RemoteAccessSessionSummary,
+  type RemoteProjectCommand,
+  type RemoteProjectCommandResult,
+  type RemoteProjectsChangedEvent,
   type RemoteSettings,
   type RemoteSettingsPatch,
   type RemoteShellSnapshot,
@@ -56,12 +61,14 @@ import type {
 } from "@/shared/ipc";
 import { ipcProcedureMap } from "@/shared/ipc";
 import {
+  dbDeleteProject,
   dbDeleteThread,
   dbGetProjects,
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
   dbGetThreadRuntimeItems,
   dbGetThreads,
+  dbUpsertProject,
   dbUpsertThread,
 } from "../db";
 import { buildWorktreeLocation } from "@/shared/worktree";
@@ -81,6 +88,7 @@ import {
   buildLocalPairingServiceWorkerJs,
 } from "./pairingPage";
 import { tryServeBuiltMobileApp } from "./staticMobileApp";
+import { applyRemoteProjectCommand } from "./projectCommands";
 
 const MAX_JSON_BODY_BYTES = 1024 * 1024;
 const EVENT_BUFFER_LIMIT = 500;
@@ -153,9 +161,11 @@ export interface RemoteAccessServerOptions {
   gitSummaries?(): RemoteGitSummaries;
 }
 
+type RemoteBroadcastEvent = SupervisorEvent | RemoteGitSummariesEvent | RemoteProjectsChangedEvent;
+
 interface BufferedSupervisorEvent {
   readonly seq: number;
-  readonly event: SupervisorEvent | RemoteGitSummariesEvent;
+  readonly event: RemoteBroadcastEvent;
 }
 
 interface RateLimitBucket {
@@ -350,13 +360,32 @@ export class RemoteAccessServer {
     return this.info;
   }
 
-  dispose(): void {
+  /**
+   * Stops the server. Resolves once the HTTP server has actually closed so a
+   * caller (e.g. the headless host) can safely tear down the database afterward
+   * without crashing an in-flight request. Idle keep-alive sockets are dropped
+   * immediately; active requests are given a short grace period to finish.
+   */
+  async dispose(): Promise<void> {
     for (const client of this.clients.keys()) {
       client.terminate();
     }
     this.clients.clear();
     this.wss.close();
-    this.server.close();
+    // Drop idle keep-alive connections so close() doesn't wait on them, but let
+    // any in-flight request complete (up to the grace timeout).
+    this.server.closeIdleConnections?.();
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(done, 5000);
+      this.server.close(() => done());
+    });
     this.info = null;
   }
 
@@ -381,7 +410,7 @@ export class RemoteAccessServer {
 
   /** Pushes an event onto the replayable WS event stream. Out-of-band desktop
    * events (git summaries) ride the same stream as supervisor events. */
-  publishSupervisorEvent(event: SupervisorEvent | RemoteGitSummariesEvent): void {
+  publishSupervisorEvent(event: RemoteBroadcastEvent): void {
     // Terminal output is high-volume and ephemeral: keep it off the replayable
     // event stream (replaying PTY bytes would garble the screen) and only send
     // it to clients that opted into that terminal via `terminal-watch`.
@@ -570,6 +599,18 @@ export class RemoteAccessServer {
       }
       if (req.method === "POST" && url.pathname === "/api/git/call") {
         this.writeJson(res, 200, { result: await this.runGitCall(req) });
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/projects/command") {
+        this.requireBearer(req, ["projects:manage"]);
+        const command = remoteProjectCommandSchema.parse(await readJsonBody(req));
+        const result = await this.runProjectCommand(command);
+        // Tell every connected client to refresh its shell snapshot.
+        this.publishSupervisorEvent({
+          type: "remote-projects-changed",
+          projects: result.projects,
+        });
+        this.writeJson(res, 200, result);
         return;
       }
       const historyThreadId = threadIdFromPath(url.pathname, "/history");
@@ -857,6 +898,32 @@ export class RemoteAccessServer {
       typeof name
     >;
     return this.options.callSupervisor(name, parsedPayload);
+  }
+
+  /**
+   * Applies a remote project command. The DB is the source of truth: new
+   * projects are written directly and clones are driven through the supervisor.
+   * On the desktop the renderer learns about the change via the broadcast
+   * `remote-projects-changed` event (and reloads from the DB on next launch);
+   * headless servers have no renderer, so the DB write is the whole story.
+   */
+  private runProjectCommand(command: RemoteProjectCommand): Promise<RemoteProjectCommandResult> {
+    return applyRemoteProjectCommand(command, {
+      getProjects: () => dbGetProjects(),
+      listProjectThreadIds: (projectId) =>
+        dbGetThreads()
+          .filter((thread) => thread.projectId === projectId)
+          .map((thread) => thread.id),
+      upsertProject: (project, sortOrder) => dbUpsertProject(project, sortOrder),
+      deleteProject: (projectId) => dbDeleteProject(projectId),
+      closeThread: (threadId) => this.closeThreadBestEffort(threadId),
+      cloneRepo: (input) => this.options.callSupervisor("cloneRepo", input),
+      makeDirectory: (path) => {
+        mkdirSync(path);
+      },
+      platform: process.platform,
+      now: () => new Date().toISOString(),
+    });
   }
 
   /**

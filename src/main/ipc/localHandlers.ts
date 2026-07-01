@@ -55,6 +55,7 @@ import {
 } from "@/shared/ipc";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
 import type { AgentInstanceConfig } from "@/shared/contracts";
+import { headersToRecord } from "@/shared/http";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 
@@ -183,6 +184,32 @@ export function createLocalIpcHandlers(
       return true;
     },
     createProjectDirectory: (payload) => createProjectDirectory(payload),
+    // Desktop-as-client: proxy a remote Lightcode server request through the
+    // main process (no browser CORS). Restricted to http(s) and a bounded
+    // response so a hostile/buggy peer can't exfiltrate via odd schemes or
+    // exhaust memory. (The remote is one the user explicitly paired with.)
+    remoteHttpRequest: async (payload) => {
+      const protocol = new URL(payload.url).protocol;
+      if (protocol !== "http:" && protocol !== "https:") {
+        throw new Error(`remoteHttpRequest only supports http(s), got "${protocol}".`);
+      }
+      const response = await fetch(payload.url, {
+        method: payload.method ?? "GET",
+        ...(payload.headers ? { headers: payload.headers } : {}),
+        ...(payload.body !== undefined ? { body: payload.body } : {}),
+      });
+      // Cap the body (snapshots are large but bounded; 64 MiB is generous).
+      const MAX_BYTES = 64 * 1024 * 1024;
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength > MAX_BYTES) {
+        throw new Error("Remote response exceeded the maximum allowed size.");
+      }
+      return {
+        status: response.status,
+        headers: headersToRecord(response.headers),
+        body: Buffer.from(buffer).toString("utf8"),
+      };
+    },
     openExternal: async (url) => {
       const safeUrl = assertSafeExternalUrl(url);
       const browserPanel = options.getBrowserPanelManager();

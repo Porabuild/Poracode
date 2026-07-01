@@ -20,6 +20,7 @@ import {
   QrCode,
   RefreshCw,
   Search,
+  Server,
   Settings2,
   Sparkles,
   TerminalSquare,
@@ -52,6 +53,7 @@ const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
   "threads",
   "shortcuts",
   "remoteAccess",
+  "remoteServers",
   "agents",
   "browser",
   "archived",
@@ -203,6 +205,7 @@ export function SettingsSidebar(props: {
     { id: "search", icon: <Search className="size-4" />, label: t`Search` },
     { id: "shortcuts", icon: <Keyboard className="size-4" />, label: t`Shortcuts` },
     { id: "remoteAccess", icon: <QrCode className="size-4" />, label: t`Remote Access` },
+    { id: "remoteServers", icon: <Server className="size-4" />, label: t`Remote Servers` },
   ];
   const sectionsAfterAgents: { id: SettingsSection; icon: ReactNode; label: string }[] = [
     { id: "browser", icon: <Globe className="size-4" />, label: t`Browser` },

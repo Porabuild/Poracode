@@ -29,6 +29,8 @@ import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/parts/useResizablePanels";
 import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarPanelDragButton";
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
+import { SidebarRemoteServers } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { readBridge } from "@/renderer/bridge";
 import { openRemoteAccessSettings, openSettings } from "@/renderer/actions/panelActions";
 import { ProviderUsageRail } from "@/renderer/components/providers/ProviderUsageRail";
@@ -268,6 +270,12 @@ export function Sidebar() {
     }
   }, [currentProjectId, setProjectCollapsed]);
 
+  // Reconnect any persisted remote servers once on mount so their projects show
+  // in the sidebar without opening Settings → Remote Servers.
+  useEffect(() => {
+    void useRemoteServersStore.getState().connectAll();
+  }, []);
+
   useEffect(() => {
     if (currentWorktreePath) {
       setWorktreeCollapsed(currentWorktreePath, false);
@@ -410,6 +418,7 @@ export function Sidebar() {
                   sortMode={sortMode}
                 />
               ))}
+              <SidebarRemoteServers />
             </div>
           )}
         </div>

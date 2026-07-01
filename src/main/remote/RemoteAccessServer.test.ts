@@ -5,7 +5,14 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import { pickRemoteSettings, type RemoteSettings } from "@/shared/remote";
 import { defaultSharedSettings } from "@/shared/settings";
 import type { BrowserPanelManager } from "../browser";
-import { dbDeleteThread, dbGetProjects, dbGetThreads, dbUpsertThread } from "../db";
+import {
+  dbDeleteProject,
+  dbDeleteThread,
+  dbGetProjects,
+  dbGetThreads,
+  dbUpsertProject,
+  dbUpsertThread,
+} from "../db";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -20,18 +27,20 @@ vi.mock("../db", () => ({
   dbGetThreadContextUsage: vi.fn<() => null>(() => null),
   dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
   dbGetThreads: vi.fn<() => unknown[]>(() => []),
+  dbUpsertProject: vi.fn<(project: unknown, sortOrder: number) => void>(),
+  dbDeleteProject: vi.fn<(projectId: string) => void>(),
   dbUpsertThread: vi.fn<(thread: unknown, sortOrder: number) => void>(),
 }));
 
 const servers: RemoteAccessServer[] = [];
 
-afterEach(() => {
-  for (const server of servers.splice(0)) {
-    server.dispose();
-  }
+afterEach(async () => {
+  await Promise.all(servers.splice(0).map((server) => server.dispose()));
+  vi.mocked(dbDeleteProject).mockReset();
   vi.mocked(dbDeleteThread).mockReset();
   vi.mocked(dbGetProjects).mockReset().mockReturnValue([]);
   vi.mocked(dbGetThreads).mockReset().mockReturnValue([]);
+  vi.mocked(dbUpsertProject).mockReset();
   vi.mocked(dbUpsertThread).mockReset();
 });
 
@@ -969,6 +978,105 @@ describe("RemoteAccessServer", () => {
     );
     expect(terminalCloseResponse.status).toBe(200);
     expect(callSupervisor).toHaveBeenCalledWith("closeThread", { threadId: "shell:one" });
+  });
+
+  it("applies project commands only for projects:manage tokens and broadcasts changes", async () => {
+    let projects: Project[] = [];
+    vi.mocked(dbGetProjects).mockImplementation(() => projects);
+    vi.mocked(dbUpsertProject).mockImplementation((project) => {
+      const parsed = project as Project;
+      projects = [parsed, ...projects.filter((entry) => entry.id !== parsed.id)];
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    async function pair(scopes: readonly string[]): Promise<string> {
+      const pairing = new URL(server.issuePairingUrl());
+      const credential = new URLSearchParams(pairing.hash.slice(1)).get("token");
+      const response = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ grantType: "pairing-token", credential, scopes }),
+      });
+      expect(response.status).toBe(200);
+      const token = (await response.json()) as { accessToken: string };
+      return token.accessToken;
+    }
+
+    const readOnlyToken = await pair(["session:read"]);
+    const forbiddenResponse = await fetch(new URL("/api/projects/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${readOnlyToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ kind: "add-existing", path: "/repo/new-app" }),
+    });
+    expect(forbiddenResponse.status).toBe(403);
+    expect(dbUpsertProject).not.toHaveBeenCalled();
+
+    const manageToken = await pair(["session:read", "projects:manage"]);
+    const ticketResponse = await fetch(new URL("/api/auth/websocket-ticket", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${manageToken}` },
+    });
+    expect(ticketResponse.status).toBe(200);
+    const ticket = (await ticketResponse.json()) as { ticket: string };
+    const wsUrl = new URL("/ws", info.wsBaseUrl);
+    wsUrl.searchParams.set("ticket", ticket.ticket);
+    const ws = new WebSocket(wsUrl);
+    const read = createWsReader(ws);
+    await new Promise<void>((resolve, reject) => {
+      ws.once("open", resolve);
+      ws.once("error", reject);
+    });
+    expect(await read()).toMatchObject({ type: "ready" });
+
+    const commandResponse = await fetch(new URL("/api/projects/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${manageToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ kind: "add-existing", path: "/repo/new-app" }),
+    });
+    expect(commandResponse.status).toBe(200);
+    await expect(commandResponse.json()).resolves.toMatchObject({
+      project: {
+        name: "new-app",
+        location: { kind: "posix", path: "/repo/new-app" },
+      },
+      projects: [
+        {
+          name: "new-app",
+          location: { kind: "posix", path: "/repo/new-app" },
+        },
+      ],
+    });
+    expect(dbUpsertProject).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "new-app" }),
+      expect.any(Number),
+    );
+    expect(await read()).toMatchObject({
+      type: "event",
+      event: {
+        type: "remote-projects-changed",
+        projects: [
+          {
+            name: "new-app",
+            location: { kind: "posix", path: "/repo/new-app" },
+          },
+        ],
+      },
+    });
+    ws.close();
   });
 
   it("serves browser state/commands and streams mirror status to watchers", async () => {

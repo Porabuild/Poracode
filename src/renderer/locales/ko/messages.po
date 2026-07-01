@@ -37,10 +37,20 @@ msgstr "{0, plural, one {# 파일} other {# 파일}}"
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {#개의 페어링된 데스크톱} other {#개의 페어링된 데스크톱}}"
 
+#. placeholder {0}: props.projects.length
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "{0, plural, one {# project} other {# projects}}"
+msgstr "{0, plural, one {#개 프로젝트} other {#개 프로젝트}}"
+
 #. placeholder {0}: readyKinds.size
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# 공급자 준비됨} other {# 공급자 준비됨}}"
+
+#. placeholder {0}: servers.length
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "{0, plural, one {# server} other {# servers}}"
+#~ msgstr "{0, plural, one {#개 서버} other {#개 서버}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -391,6 +401,10 @@ msgstr "{usedLabel} 토큰"
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{totalCount}개 중 {visibleCount}개 표시"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "/absolute/path/to/project"
+msgstr "/absolute/path/to/project"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "© {currentYear} Serhii Vecherenko. 모든 권리 보유."
@@ -519,8 +533,10 @@ msgstr "활동 인사이트"
 msgid "Activity metric"
 msgstr "활동 지표"
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add"
 msgstr "추가"
@@ -549,6 +565,14 @@ msgstr "할 일 추가…"
 msgid "Add action"
 msgstr "작업 추가"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Add an existing folder"
+msgstr "기존 폴더 추가"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Add an existing folder on the server"
+#~ msgstr "서버의 기존 폴더 추가"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
 msgstr "첨부 파일 또는 기능 추가"
@@ -560,6 +584,10 @@ msgstr "Claude 프로필 추가"
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Add credentials before this thread can run."
 msgstr "이 스레드를 실행하려면 먼저 자격 증명을 추가하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Add folder"
+msgstr "폴더 추가"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add model"
@@ -604,6 +632,10 @@ msgstr "즐겨찾기에 추가"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Add to Home Screen"
 msgstr "홈 화면에 추가"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Add, clone, or remove projects on this server"
+msgstr "이 서버에서 프로젝트를 추가, 클론 또는 제거합니다"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -1232,6 +1264,7 @@ msgstr "카메라 접근이 차단됨"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Cancel"
 msgstr "취소"
@@ -1441,14 +1474,25 @@ msgstr "CLI 후크"
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "단축키를 클릭하여 새 키를 기록하거나 ＋를 눌러 추가하세요."
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone"
 msgstr "클론"
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Clone a repository"
+msgstr "저장소 복제"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Clone a repository into a folder on the server"
+#~ msgstr "저장소를 서버의 폴더로 클론"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Clone repo"
 msgstr "저장소 복제"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -1465,6 +1509,7 @@ msgstr "복제 중…"
 
 #: src/mobile/components.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "닫기"
 
@@ -1584,6 +1629,10 @@ msgstr "탭 닫기"
 #: src/mobile/views/BrowserView.tsx
 msgid "Close tab switcher"
 msgstr "탭 전환기 닫기"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Close thread"
+msgstr "스레드 닫기"
 
 #: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/ThreadsView.tsx
@@ -1783,13 +1832,67 @@ msgstr "충돌 해결사"
 msgid "Conflicts"
 msgstr "충돌"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect"
+msgstr "연결"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connect a Lightcode desktop or headless server above to browse and "
+#~ "manage its projects from here."
+#~ msgstr "위에서 Lightcode 데스크톱 또는 헤드리스 서버를 연결하여 여기에서 해당 프로젝트를 찾아보고 관리하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect a server"
+msgstr "서버 연결"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
+#~ "projects — and their threads — from here. Open Settings → Remote Access "
+#~ "on the other machine to get its endpoint and a pairing token."
+#~ msgstr "다른 Lightcode 데스크톱 또는 헤드리스 서버에 연결하고 여기에서 해당 프로젝트와 스레드를 관리합니다. 다른 컴퓨터에서 "
+#~ "설정 → 원격 액세스를 열어 엔드포인트와 페어링 토큰을 가져오세요."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
+#~ "projects from here. Open Settings → Remote Access on the other machine "
+#~ "to get its endpoint and a pairing token."
+#~ msgstr "다른 Lightcode 데스크톱 또는 헤드리스 서버에 연결하고 여기에서 해당 프로젝트를 관리합니다. 다른 컴퓨터에서 설정 → "
+#~ "원격 액세스를 열어 엔드포인트와 페어링 토큰을 가져오세요."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect to another Lightcode desktop or a headless server to browse and "
+"manage its projects from here. Get its endpoint and pairing token from "
+"Settings → Remote Access on that machine."
+msgstr "다른 Lightcode 데스크톱이나 헤드리스 서버에 연결하면 여기에서 해당 프로젝트를 탐색하고 관리할 수 있습니다. 해당 기기의 "
+"설정 → 원격 액세스에서 엔드포인트와 페어링 토큰을 확인하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connected servers"
+#~ msgstr "연결된 서버"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Connecting"
+#~ msgstr "연결 중"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "데스크톱 브라우저에 연결 중…"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connecting…"
+msgstr "연결 중…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connection error"
+msgstr "연결 오류"
+
 #: src/mobile/components.tsx
 msgid "Connection error."
 msgstr "연결 오류입니다."
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Connection failed."
+msgstr "연결에 실패했습니다."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
@@ -1863,6 +1966,10 @@ msgstr "대화"
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "복사됨"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Copied from Settings → Remote Access on the other machine."
+#~ msgstr "다른 컴퓨터의 설정 → 원격 액세스에서 복사되었습니다."
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
@@ -2338,6 +2445,10 @@ msgstr "{path}에서 저장되지 않은 변경 사항을 삭제하시겠습니�
 msgid "Discard unsaved editor changes?"
 msgstr "저장되지 않은 편집기 변경사항을 삭제하시겠습니까?"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Disconnect server"
+msgstr "서버 연결 해제"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
 msgstr "코딩 에이전트 검색 중…"
@@ -2538,8 +2649,13 @@ msgstr "<0>쿠키</0> 및 <1>저장</1>을 활성화합니다. 쿠키는 세션 
 "유지합니다. 에이전트와 에이전트가 방문하는 사이트를 모두 신뢰할 때만 활성화됩니다."
 
 #: src/mobile/views/DesktopsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Endpoint"
 msgstr "엔드포인트"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Endpoint, e.g. http://192.168.1.20:38987/"
+msgstr "엔드포인트, 예: http://192.168.1.20:38987/"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -2844,6 +2960,15 @@ msgstr "창 활성화"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "폴더 이름"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Folder path"
+msgstr "폴더 경로"
+
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Folder path on the server"
+msgstr "서버의 폴더 경로"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -3264,6 +3389,11 @@ msgstr "설치 중"
 msgid "Installing in this terminal. Closes when finished."
 msgstr "이 터미널에 설치 중입니다. 완료되면 닫힙니다."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Interrupt"
+msgstr "중단"
+
 #: src/renderer/state/slices/runtimeEventSlice.ts
 msgid "Interrupted: agent session ended before completion."
 msgstr "중단됨: 에이전트 세션이 완료되기 전에 종료되었습니다."
@@ -3514,6 +3644,10 @@ msgid "Make the sidebar translucent — the system blur material on Windows 11, 
 "translucent tint elsewhere."
 msgstr "사이드바를 반투명하게 만듭니다 — Windows 11에서는 시스템 블러 효과, 그 외 환경에서는 반투명 색조를 사용합니다."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Manage remote servers"
+msgstr "원격 서버 관리"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "수동 정렬"
@@ -3647,6 +3781,10 @@ msgstr "병합됨"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merging is blocked"
 msgstr "병합이 차단되었습니다."
+
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Message the remote agent…"
+msgstr "원격 에이전트에 메시지 보내기…"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Messages sent"
@@ -4181,9 +4319,21 @@ msgstr "패턴이 없습니다."
 msgid "No phases yet."
 msgstr "아직 단계가 없습니다."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "No projects"
+msgstr "프로젝트 없음"
+
 #: src/mobile/views/NewThreadView.tsx
 msgid "No projects available"
 msgstr "사용 가능한 프로젝트 없음"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "No projects on this server yet."
+#~ msgstr "이 서버에는 아직 프로젝트가 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "No projects on this server."
+msgstr "이 서버에 프로젝트가 없습니다."
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
@@ -4213,6 +4363,14 @@ msgstr "결과 없음"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "이 스레드에는 아직 런타임 항목이 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "No servers connected yet"
+#~ msgstr "아직 연결된 서버가 없습니다"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "No servers connected yet."
+msgstr "아직 연결된 서버가 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
@@ -4334,6 +4492,7 @@ msgid "Off"
 msgstr "꺼짐"
 
 #: src/mobile/useRemoteDesktop.ts
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Offline"
 msgstr "오프라인"
 
@@ -4351,6 +4510,7 @@ msgstr "켜짐"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Online"
 msgstr "온라인"
 
@@ -4364,6 +4524,11 @@ msgstr "포커스가 없을 때만"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "열기"
+
+#. placeholder {0}: thread.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Open {0}"
+msgstr "{0} 열기"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Open {label}"
@@ -4633,6 +4798,10 @@ msgstr "휴대폰, 태블릿 또는 브라우저를 이 데스크톱과 페어�
 msgid "Pair again"
 msgstr "다시 페어링"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Pair with its endpoint and a one-time token."
+#~ msgstr "엔드포인트와 일회용 토큰으로 페어링하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
 msgstr "페어링된 기기"
@@ -4655,6 +4824,7 @@ msgstr "페어링 링크가 감지되었습니다."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Pairing token"
 msgstr "페어링 토큰"
 
@@ -4670,6 +4840,19 @@ msgstr "패널"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Panels and overlays"
 msgstr "패널 및 오버레이"
+
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Parent folder"
+msgstr "상위 폴더"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Parent folder on the server"
+msgstr "서버의 상위 폴더"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Parent folder, e.g. /home/me/projects"
+msgstr "상위 폴더, 예: /home/me/projects"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
@@ -4887,6 +5070,12 @@ msgstr "프로젝트 설정"
 msgid "Project-specific overrides on top of the global search settings."
 msgstr "전역 검색 설정 위에 프로젝트별 재정의가 적용됩니다."
 
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/mobile/views/MoreView.tsx
+msgid "Projects"
+msgstr "프로젝트"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Prompt"
 msgstr "프롬프트"
@@ -5099,6 +5288,7 @@ msgstr "공개 API 요금으로 로컬 로그에서 재구성되며 구독 계�
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "새로고침"
@@ -5175,6 +5365,23 @@ msgstr "원격 액세스 페어링 QR 코드"
 msgid "Remote name"
 msgstr "원격 이름"
 
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Remote server"
+msgstr "원격 서버"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Remote server not found."
+msgstr "원격 서버를 찾을 수 없습니다."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Remote servers"
+msgstr "원격 서버"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Remote Servers"
+msgstr "원격 서버"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Remote session"
 msgstr "원격 세션"
@@ -5246,9 +5453,18 @@ msgstr "패널에서 제거"
 msgid "Remove model"
 msgstr "모델 제거"
 
+#: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Remove project"
+msgstr "프로젝트 제거"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Remove Project"
 msgstr "프로젝트 제거"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "Remove project from remote"
+#~ msgstr "원격에서 프로젝트 제거"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
@@ -5337,7 +5553,9 @@ msgstr "저장소"
 msgid "Repository pre-receive hook is blocking the merge."
 msgstr "저장소 사전 수신 후크가 병합을 차단하고 있습니다."
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Repository URL"
 msgstr "저장소 URL"
 
@@ -5806,6 +6024,10 @@ msgstr "모델 선택"
 #: src/renderer/components/thread/ProjectSwitchMenu.tsx
 msgid "Select project"
 msgstr "프로젝트 선택"
+
+#: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
+msgid "Send"
+msgstr "보내기"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -6510,9 +6732,9 @@ msgid "Test microphone"
 msgstr "마이크 테스트"
 
 #: src/mobile/remoteClient.ts
-msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
-"desktop endpoint from Settings → Remote Access."
-msgstr "이 엔드포인트는 데스크톱 API 대신 모바일 앱을 열었습니다. 설정 → 원격 액세스의 데스크톱 엔드포인트를 사용하세요."
+#~ msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
+#~ "desktop endpoint from Settings → Remote Access."
+#~ msgstr "이 엔드포인트는 데스크톱 API 대신 모바일 앱을 열었습니다. 설정 → 원격 액세스의 데스크톱 엔드포인트를 사용하세요."
 
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Lightcode pairing link."
@@ -6559,6 +6781,10 @@ msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
 msgstr "일반 앱 셸을 렌더링할 수 없습니다. 아래 진단은 다시 로드하기 전에 표시되므로 오류를 조사할 수 있습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "The other machine's remote-access address."
+#~ msgstr "다른 컴퓨터의 원격 액세스 주소입니다."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "디스크에 있는 저장소 위치입니다. 폴더를 옮겼다면 업데이트하세요."
@@ -6597,6 +6823,15 @@ msgstr "이 앱은 HTTPS로 제공되지만 데스크톱은 브라우저가 차�
 msgid "This browser does not support system notifications here; you will still "
 "see in-app toasts."
 msgstr "이 브라우저는 여기에서 시스템 알림을 지원하지 않습니다. 앱 내 토스트는 계속 표시됩니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#~ msgid "This connection can view projects but not manage them."
+#~ msgstr "이 연결은 프로젝트를 볼 수 있지만 관리할 수 없습니다."
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "This connection can view projects but not manage them. Re-pair to "
+"enable."
+msgstr "이 연결은 프로젝트를 볼 수 있지만 관리할 수 없습니다. 활성화하려면 다시 페어링하세요."
 
 #: src/mobile/views/SettingsView.tsx
 msgid "This device"
@@ -7314,6 +7549,10 @@ msgstr "보기"
 #: src/mobile/views/GitActionSheet.tsx
 msgid "View diff"
 msgstr "diff 보기"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "View-only — this connection can't manage projects."
+msgstr "읽기 전용 — 이 연결로는 프로젝트를 관리할 수 없습니다."
 
 #. placeholder {0}: provider.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx

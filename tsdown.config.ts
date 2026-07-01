@@ -64,6 +64,21 @@ export default defineConfig([
     ...shared,
   },
   {
+    // Standalone headless remote server (no Electron). Forks the same
+    // supervisor.cjs and reuses the same RemoteAccessServer as the desktop.
+    // See docs/REMOTE_ARCHITECTURE.md.
+    entry: { server: "src/server/cli.ts" },
+    clean: false,
+    ...shared,
+  },
+  {
+    // Self-hostable relay for cross-network access (Phase 5). A dumb HTTP+WS
+    // tunnel between NAT'd servers and devices. See docs/REMOTE_ARCHITECTURE.md.
+    entry: { relay: "src/server/relay/cli.ts" },
+    clean: false,
+    ...shared,
+  },
+  {
     entry: { claudeSdkProbeWorker: "src/supervisor/agents/claude/sdkProbeWorker.ts" },
     clean: false,
     outDir: "dist/main",
