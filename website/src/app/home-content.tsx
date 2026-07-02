@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { downloadUrlFor, type ReleaseInfo } from "@/lib/releases";
+import { useI18n } from "@/lib/i18n/I18nProvider";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { LandingFaq } from "./landing-faq";
 
 const ACP_REGISTRY_CDN = "https://cdn.agentclientprotocol.com/registry/v1/latest";
 
@@ -100,6 +103,7 @@ async function getBrowserArchitecture(): Promise<string | undefined> {
 }
 
 export function HomeContent({ release }: { release: ReleaseInfo }) {
+  const { t } = useI18n();
   const scrollToFeatures = () => {
     document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
   };
@@ -164,7 +168,9 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
   // Star count logic (placeholder for real data)
   const starCount = 0;
 
-  const versionLabel = release.version ? `v${release.version} • Super Fast` : "Super Fast";
+  const versionLabel = release.version
+    ? `v${release.version} • ${t("hero.tagline")}`
+    : t("hero.tagline");
   const downloadHref = downloadUrlFor(release, platform.slug);
 
   return (
@@ -173,12 +179,15 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[1000px] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-from)_0%,_transparent_70%)] from-white/[0.03] to-transparent pointer-events-none" />
 
       {/* Navigation */}
-      <nav className="relative z-10 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
+      <nav className="relative z-50 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-2">
           <Terminal className="w-8 h-8 text-white" />
           <span className="text-xl font-bold tracking-tight text-white">Lightcode</span>
         </div>
         <div className="flex items-center gap-4">
+          <a href="/changelog" className="text-sm text-gray-400 hover:text-white transition-colors">
+            {t("nav.changelog")}
+          </a>
           <a
             href="https://github.com/SDSLeon/lightcode"
             target="_blank"
@@ -187,6 +196,7 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
           >
             GitHub
           </a>
+          <LanguageSelector />
         </div>
       </nav>
 
@@ -214,8 +224,8 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight mb-6 leading-tight text-white"
           >
-            Universal orchestrator <br className="hidden lg:block" />
-            <span className="lightcode-shimmer-text">for AI coding agents.</span>
+            {t("hero.title1")} <br className="hidden lg:block" />
+            <span className="lightcode-shimmer-text">{t("hero.title2")}</span>
           </motion.h1>
 
           <motion.p
@@ -224,8 +234,7 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-lg text-gray-400 max-w-xl mb-6 leading-relaxed"
           >
-            Run TUI and GUI agents side-by-side in any layout. Support for infinite threads with
-            real-time persistence and protocol-agnostic orchestration.
+            {t("hero.subtitle")}
           </motion.p>
 
           <motion.div
@@ -235,7 +244,7 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
             className="mb-10"
           >
             <span className="text-sm font-semibold uppercase tracking-[0.2em] lightcode-shimmer-text opacity-90">
-              Bring your own agent subscriptions & API keys
+              {t("hero.byo")}
             </span>
           </motion.div>
 
@@ -246,7 +255,7 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
             className="mb-8 w-full"
           >
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
-              Supported Agents
+              {t("hero.supportedAgents")}
             </p>
             <div className="flex flex-wrap items-center gap-3">
               {[
@@ -306,7 +315,7 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
                 className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-gray-300 transition hover:bg-white/10 hover:border-white/20 cursor-pointer"
               >
                 <Boxes className="w-4 h-4 text-gray-300 opacity-80" />
-                ~30 via ACP Registry
+                {t("hero.acpRegistry")}
               </button>
             </div>
           </motion.div>
@@ -322,19 +331,19 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
               className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-sm bg-white px-8 font-medium text-black transition-colors hover:bg-gray-200 sm:w-auto"
             >
               <Download className="w-4 h-4" />
-              Download for {platform.label}
+              {t("hero.downloadFor", { platform: platform.label })}
             </a>
             <a
               href="/download"
               className="text-sm text-gray-500 hover:text-gray-300 transition-colors underline underline-offset-4"
             >
-              Other platforms
+              {t("nav.otherPlatforms")}
             </a>
             <a
               href="/nightly"
               className="text-sm text-gray-500 hover:text-amber-300/90 transition-colors underline underline-offset-4"
             >
-              Nightly builds
+              {t("nav.nightly")}
             </a>
           </motion.div>
         </div>
@@ -349,8 +358,8 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
           <img
             src="/hero-screenshot.png"
             alt="Lightcode — Claude and Codex agents running side-by-side"
-            width={3248}
-            height={2122}
+            width={1973}
+            height={1276}
             decoding="async"
             className="w-full h-auto rounded-xl shadow-2xl shadow-black/50 opacity-90 group-hover:opacity-100 transition-opacity duration-500"
           />
@@ -364,7 +373,9 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
           transition={{ delay: 1, duration: 1 }}
           className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-500 hover:text-white transition-colors group cursor-pointer"
         >
-          <span className="text-[10px] uppercase tracking-widest font-bold">Discover Features</span>
+          <span className="text-[10px] uppercase tracking-widest font-bold">
+            {t("hero.discover")}
+          </span>
           <ChevronDown className="w-5 h-5 animate-bounce group-hover:translate-y-1 transition-transform" />
         </motion.button>
       </main>
@@ -374,65 +385,62 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Everything you need to <br />
-              <span className="text-gray-500">orchestrate AI agents.</span>
+              {t("features.title1")} <br />
+              <span className="text-gray-500">{t("features.title2")}</span>
             </h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
-              A professional workstation built for developers who want full control over their AI
-              coding assistants.
-            </p>
+            <p className="text-gray-400 max-w-2xl mx-auto">{t("features.subtitle")}</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <FeatureCard
               icon={<Layout className="w-6 h-6" />}
-              title="Infinite Threads & Layouts"
-              description="Mix TUI and GUI agents in any configuration. Support for infinite threads with complete layout freedom."
+              title={t("feature.threads.title")}
+              description={t("feature.threads.desc")}
             />
             <FeatureCard
               icon={<Layers className="w-6 h-6" />}
-              title="Unified Protocol GUI"
-              description="A consistent, premium GUI for both ACP and SDK agents. Seamless orchestration regardless of provider."
+              title={t("feature.protocol.title")}
+              description={t("feature.protocol.desc")}
             />
             <FeatureCard
               icon={<Terminal className="w-6 h-6" />}
-              title="Terminal Fidelity"
-              description="Run CLI agents in real terminal sessions, with the same output and controls you expect from your own shell."
+              title={t("feature.terminal.title")}
+              description={t("feature.terminal.desc")}
             />
             <FeatureCard
               icon={<Zap className="w-6 h-6" />}
-              title="Built for Speed"
-              description="Optimized to stay fast and responsive, even when you have lots of agent sessions running side by side."
+              title={t("feature.speed.title")}
+              description={t("feature.speed.desc")}
             />
             <FeatureCard
               icon={<History className="w-6 h-6" />}
-              title="Session Persistence"
-              description="Sessions are saved automatically, so you can close Lightcode and pick up right where you left off."
+              title={t("feature.persistence.title")}
+              description={t("feature.persistence.desc")}
             />
             <FeatureCard
               icon={<Globe className="w-6 h-6" />}
-              title="Built-in Browser"
-              description="Open web pages, attach browser context to agents, and keep research in the same workspace."
+              title={t("feature.browser.title")}
+              description={t("feature.browser.desc")}
             />
             <FeatureCard
               icon={<GitBranch className="w-6 h-6" />}
-              title="In-App GitHub PRs"
-              description="View diffs, stage changes, generate AI commits, and manage GitHub PRs directly inside Lightcode."
+              title={t("feature.prs.title")}
+              description={t("feature.prs.desc")}
             />
             <FeatureCard
               icon={<FileCode2 className="w-6 h-6" />}
-              title="Built-in Code Editor"
-              description="A full-featured code editor integrated directly into your workflow for quick edits and reviews."
+              title={t("feature.editor.title")}
+              description={t("feature.editor.desc")}
             />
             <FeatureCard
               icon={<Monitor className="w-6 h-6" />}
-              title="Cross-Platform Desktop"
-              description="Runs on macOS, Windows, and Linux, with a polished interface that feels at home on both Mac and Windows."
+              title={t("feature.crossPlatform.title")}
+              description={t("feature.crossPlatform.desc")}
             />
             <FeatureCard
               icon={<Terminal className="w-6 h-6" />}
-              title="WSL Support"
-              description="Use Windows and WSL projects side by side, with agent commands routed through the right environment automatically."
+              title={t("feature.wsl.title")}
+              description={t("feature.wsl.desc")}
             />
           </div>
         </div>
@@ -446,17 +454,13 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">
-              ACP Registry
+              {t("acp.eyebrow")}
             </p>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Built for the entire <br />
-              <span className="text-gray-500">agent ecosystem.</span>
+              {t("acp.title1")} <br />
+              <span className="text-gray-500">{t("acp.title2")}</span>
             </h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
-              Bring ACP registry agents into the workspace where your coding already happens. Chats,
-              terminals, browser context, and Git changes stay close by, so you can follow the work
-              without bouncing between tools.
-            </p>
+            <p className="text-gray-400 max-w-2xl mx-auto">{t("acp.subtitle")}</p>
           </div>
 
           <motion.div
@@ -486,6 +490,8 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
         </div>
       </section>
 
+      <LandingFaq />
+
       {/* Footer */}
       <footer className="relative z-10 py-12 border-t border-white/5 bg-black">
         <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
@@ -493,8 +499,11 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
             <Terminal className="w-5 h-5" />
             <span className="font-bold tracking-tight">Lightcode</span>
           </div>
-          <p className="text-gray-500 text-sm">© 2026 Lightcode. Built for the future of coding.</p>
+          <p className="text-gray-500 text-sm">{t("footer.copyright", { year: 2026 })}</p>
           <div className="flex gap-6">
+            <a href="/changelog" className="text-gray-500 hover:text-white transition-colors">
+              {t("nav.changelog")}
+            </a>
             <a
               href="https://github.com/SDSLeon/lightcode"
               className="text-gray-500 hover:text-white transition-colors"

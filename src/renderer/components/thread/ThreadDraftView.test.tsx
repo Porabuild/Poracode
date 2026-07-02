@@ -549,6 +549,7 @@ describe("ThreadDraftView", () => {
           value?: string;
           label?: string;
           isSelected?: boolean;
+          options?: Array<{ id: string; label: string }>;
         }>;
       };
       const providerModel = props.controls.find((c) => c.kind === "provider-model");
@@ -556,7 +557,8 @@ describe("ThreadDraftView", () => {
       expect(providerModel?.currentModel).toBe("gpt-5.4");
       const effortContext = props.controls.find((c) => c.kind === "effort-context");
       expect(effortContext?.effortValue).toBe("high");
-      expect(props.controls.some((control) => control.value === "auto-review")).toBe(true);
+      const permission = props.controls.find((control) => control.value === "review-on-request");
+      expect(permission?.options?.some((option) => option.label === "Ask for approval")).toBe(true);
     });
 
     fireEvent.click(screen.getByText("set-prompt"));
@@ -569,6 +571,53 @@ describe("ThreadDraftView", () => {
         effort: "high",
         mode: "agent",
         approvalPolicy: "on-request",
+        sandboxMode: "workspace-write",
+      },
+      presentationMode: "gui",
+      prompt: "hello world",
+    });
+  });
+
+  it("submits the Codex Auto-review reviewer override", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+
+    render(
+      <ThreadDraftView project={project} agentStatuses={[dualModeCodexStatus]} onStart={onStart} />,
+    );
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{ value?: string; onChange?: (value: string) => void }>;
+      };
+      expect(props.controls.some((control) => control.value === "review-on-request")).toBe(true);
+    });
+
+    const props = composerSpy.mock.lastCall?.[0] as {
+      controls: Array<{ value?: string; onChange?: (value: string) => void }>;
+    };
+    const permission = props.controls.find((control) => control.value === "review-on-request");
+    act(() => {
+      permission?.onChange?.("auto-review");
+    });
+
+    await waitFor(() => {
+      const nextProps = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{ value?: string }>;
+      };
+      expect(nextProps.controls.some((control) => control.value === "auto-review")).toBe(true);
+    });
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith({
+      agentKind: "codex",
+      config: {
+        model: "gpt-5.4",
+        effort: "high",
+        mode: "agent",
+        approvalPolicy: "on-request",
+        approvalsReviewer: "auto_review",
         sandboxMode: "workspace-write",
       },
       presentationMode: "gui",
@@ -639,7 +688,7 @@ describe("ThreadDraftView", () => {
       const providerModel = props.controls.find((c) => c.kind === "provider-model");
       expect(providerModel?.currentAgentKind).toBe("codex");
       expect(providerModel?.currentModel).toBe("gpt-5.4");
-      expect(props.controls.some((control) => control.value === "auto-review")).toBe(true);
+      expect(props.controls.some((control) => control.value === "review-on-request")).toBe(true);
     });
 
     fireEvent.click(screen.getByText("set-prompt"));

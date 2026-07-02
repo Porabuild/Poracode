@@ -471,6 +471,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     const threadOverrides = {
       model: config.model,
       ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
+      ...(config.approvalsReviewer ? { approvalsReviewer: config.approvalsReviewer } : {}),
       ...(config.sandboxMode ? { sandbox: config.sandboxMode } : {}),
       config: {
         ...(config.effort ? { model_reasoning_effort: config.effort } : {}),
@@ -673,6 +674,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         ...(config.effort ? { effort: config.effort } : {}),
         summary: "auto",
         ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
+        ...(config.approvalsReviewer ? { approvalsReviewer: config.approvalsReviewer } : {}),
         ...(sandboxPolicy ? { sandboxPolicy } : {}),
         collaborationMode,
         // Fast toggle is authoritative and the server tier is sticky, so force it

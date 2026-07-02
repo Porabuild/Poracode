@@ -19,6 +19,7 @@ export type SettingsSection =
   | "browser"
   | "usage"
   | "archived"
+  | "changelog"
   | "about"
   | "dev"
   | `agents:${string}`;

@@ -6,6 +6,7 @@ import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useWelcomeGateStore } from "@/renderer/state/welcomeGateStore";
 import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { AppDndProvider } from "@/renderer/dnd";
@@ -36,6 +37,7 @@ export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
   const wslProjectDistrosKey = useAppStore((state) => buildWslProjectDistrosKey(state.projects));
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const sharedSettingsHydrated = useSharedSettings((state) => state.sharedSettingsHydrated);
+  const backgroundWorkReleased = useWelcomeGateStore((state) => state.backgroundWorkReleased);
 
   useThreadLifecycle(storeHydrated);
   useKeyboardShortcuts();
@@ -53,7 +55,12 @@ export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
   }, [storeHydrated, sharedSettingsHydrated, homeScopeEnabled]);
 
   useEffect(() => {
-    if (!storeHydrated) {
+    // Hold first-launch detection until the welcome animation has settled (or
+    // the user dismissed it). `backgroundWorkReleased` is seeded true for
+    // returning users, so this only defers on a genuine first launch — the
+    // cold detection sweep's process spawns and `agent-detected` re-render
+    // churn would otherwise starve the welcome animation's first paint.
+    if (!storeHydrated || !backgroundWorkReleased) {
       return;
     }
 
@@ -88,7 +95,7 @@ export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
           );
       })
       .catch(() => undefined);
-  }, [storeHydrated, wslProjectDistrosKey]);
+  }, [storeHydrated, wslProjectDistrosKey, backgroundWorkReleased]);
 
   console.log(`[renderer] +${Date.now() - loadT0}ms: rendering main UI`);
   return (

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { allUsageProviderDescriptors } from "@lightcode/agents-usage";
 import {
   agentInstanceConfigMapSchema,
   installedAcpRegistryAgentSchema,
@@ -116,7 +117,7 @@ const usageSettingsSchema = z.object({
    * omitted. Gated under the `showInSidebar` master toggle.
    */
   sidebarHiddenProviders: z.array(z.string()).default([]),
-  /** Provider ids the user turned OFF for usage tracking. Default = all on. */
+  /** Provider ids the user turned OFF for usage tracking. Fresh installs start with Claude/Codex on. */
   disabledProviders: z.array(z.string()).default([]),
   /**
    * User-defined display order for providers in the usage panel. Providers not
@@ -125,8 +126,21 @@ const usageSettingsSchema = z.object({
   providerOrder: z.array(z.string()).default([]),
   /** Provider ids the user collapsed to a compact row in the usage panel. */
   collapsedProviders: z.array(z.string()).default([]),
+  /**
+   * For providers whose circle can show one of several ring groups (e.g.
+   * Antigravity's Gemini vs Claude+GPT quota groups), the group key the user
+   * picked, keyed by provider id. Absent = the provider's default (first) group.
+   * Right-clicking the sidebar circle swaps this.
+   */
+  selectedRingGroups: z.record(z.string(), z.string()).default({}),
 });
 export type UsageSettings = z.infer<typeof usageSettingsSchema>;
+
+export const DEFAULT_USAGE_ENABLED_PROVIDER_IDS = ["claude", "codex"] as const;
+const DEFAULT_USAGE_ENABLED_PROVIDER_ID_SET = new Set<string>(DEFAULT_USAGE_ENABLED_PROVIDER_IDS);
+export const DEFAULT_USAGE_DISABLED_PROVIDER_IDS = allUsageProviderDescriptors()
+  .map((provider) => provider.id)
+  .filter((id) => !DEFAULT_USAGE_ENABLED_PROVIDER_ID_SET.has(id));
 
 export const sharedSettingsSchema = z.object({
   themeMode: themeModeSchema,
@@ -464,9 +478,10 @@ export const defaultSharedSettings: SharedSettings = {
     showEstimatedCost: false,
     showInSidebar: true,
     sidebarHiddenProviders: [],
-    disabledProviders: [],
+    disabledProviders: [...DEFAULT_USAGE_DISABLED_PROVIDER_IDS],
     providerOrder: [],
     collapsedProviders: [],
+    selectedRingGroups: {},
   },
 };
 
@@ -492,5 +507,24 @@ function normalizeObjectFromSchema<
 }
 
 export function normalizeSharedSettings(value: unknown): SharedSettings {
-  return normalizeObjectFromSchema(sharedSettingsSchema.shape, defaultSharedSettings, value);
+  const normalized = normalizeObjectFromSchema(
+    sharedSettingsSchema.shape,
+    defaultSharedSettings,
+    value,
+  );
+  const parsed = z.record(z.string(), z.unknown()).safeParse(value);
+  if (!parsed.success) return normalized;
+
+  const usage = z.record(z.string(), z.unknown()).safeParse(parsed.data.usage);
+  const disabledProviders = usage.success
+    ? z.array(z.string()).safeParse(usage.data.disabledProviders)
+    : undefined;
+
+  return {
+    ...normalized,
+    usage: {
+      ...normalized.usage,
+      disabledProviders: disabledProviders?.success ? disabledProviders.data : [],
+    },
+  };
 }

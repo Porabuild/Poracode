@@ -1,7 +1,116 @@
 import { describe, expect, it } from "vitest";
-import { antigravityPool, antigravityPoolWindows } from "./antigravity";
+import {
+  antigravityPool,
+  antigravityPoolWindows,
+  antigravityQuotaSummaryWindows,
+} from "./antigravity";
 
 const NOW = 1_717_000_000_000;
+
+/** Trimmed shape of a real RetrieveUserQuotaSummary response. */
+const QUOTA_SUMMARY = {
+  response: {
+    groups: [
+      {
+        displayName: "Gemini Models",
+        description: "Models within this group: Gemini Flash, Gemini Pro",
+        buckets: [
+          {
+            bucketId: "gemini-weekly",
+            displayName: "Weekly Limit",
+            window: "weekly",
+            remainingFraction: 0.88907504,
+            resetTime: "2026-06-27T03:47:11Z",
+          },
+          {
+            bucketId: "gemini-5h",
+            displayName: "Five Hour Limit",
+            window: "5h",
+            remainingFraction: 0.3994549,
+            resetTime: "2026-06-25T03:51:42Z",
+          },
+        ],
+      },
+      {
+        displayName: "Claude and GPT models",
+        description: "Models within this group: Claude Opus, Claude Sonnet, GPT-OSS",
+        buckets: [
+          {
+            bucketId: "3p-weekly",
+            displayName: "Weekly Limit",
+            window: "weekly",
+            remainingFraction: 1,
+          },
+          {
+            bucketId: "3p-5h",
+            displayName: "Five Hour Limit",
+            window: "5h",
+            remainingFraction: 1,
+            resetTime: "2026-06-25T08:34:03Z",
+          },
+        ],
+      },
+    ],
+  },
+};
+
+describe("antigravityQuotaSummaryWindows", () => {
+  it("builds four group×cadence windows ordered Gemini-first, 5h-before-weekly", () => {
+    const windows = antigravityQuotaSummaryWindows(QUOTA_SUMMARY);
+    expect(windows.map((w) => w.id)).toEqual([
+      "antigravity:gemini:session-5h",
+      "antigravity:gemini:weekly",
+      "antigravity:claude:session-5h",
+      "antigravity:claude:weekly",
+    ]);
+    expect(windows.map((w) => w.label)).toEqual([
+      "Gemini · 5h",
+      "Gemini · Weekly",
+      "Claude · 5h",
+      "Claude · Weekly",
+    ]);
+  });
+
+  it("converts the remaining fraction to used percent and parses reset times", () => {
+    const windows = antigravityQuotaSummaryWindows(QUOTA_SUMMARY);
+    const gemini5h = windows.find((w) => w.id === "antigravity:gemini:session-5h");
+    // remaining 0.3994549 -> ~60.1% used.
+    expect(gemini5h?.usedPercent).toBeCloseTo(60.1, 1);
+    expect(gemini5h?.resetsAt).toBe(Date.parse("2026-06-25T03:51:42Z"));
+
+    const geminiWeekly = windows.find((w) => w.id === "antigravity:gemini:weekly");
+    expect(geminiWeekly?.usedPercent).toBeCloseTo(11.1, 1);
+
+    // Untouched Claude group -> 0% used; the weekly bucket has no reset time.
+    const claudeWeekly = windows.find((w) => w.id === "antigravity:claude:weekly");
+    expect(claudeWeekly?.usedPercent).toBe(0);
+    expect(claudeWeekly?.resetsAt).toBeUndefined();
+  });
+
+  it("skips buckets without a numeric fraction or recognizable cadence", () => {
+    const windows = antigravityQuotaSummaryWindows({
+      response: {
+        groups: [
+          {
+            displayName: "Gemini Models",
+            buckets: [
+              { window: "weekly" }, // no remainingFraction
+              { window: "daily", remainingFraction: 0.5 }, // unknown cadence
+              { window: "5h", remainingFraction: 0.5 },
+            ],
+          },
+        ],
+      },
+    });
+    expect(windows.map((w) => w.id)).toEqual(["antigravity:gemini:session-5h"]);
+  });
+
+  it("returns [] for a body with no recognizable groups", () => {
+    expect(antigravityQuotaSummaryWindows(undefined)).toEqual([]);
+    expect(antigravityQuotaSummaryWindows({ response: {} })).toEqual([]);
+    expect(antigravityQuotaSummaryWindows({ anything: [1, 2] })).toEqual([]);
+  });
+});
 
 describe("antigravityPool", () => {
   it("splits Gemini Pro / Flash and folds everything else into Claude", () => {

@@ -1,35 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { buildChromeLikeUserAgent } from "./userAgent";
+import { buildBrowserUserAgent } from "./userAgent";
 
-describe("buildChromeLikeUserAgent", () => {
-  it("removes Electron while preserving the current Chromium user agent", () => {
+describe("buildBrowserUserAgent", () => {
+  it("removes the Electron product token", () => {
     expect(
-      buildChromeLikeUserAgent(
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Electron/41.7.0 Safari/537.36",
+      buildBrowserUserAgent(
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Electron/41.7.0 Safari/537.36",
       ),
     ).toBe(
-      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
     );
   });
 
-  it("removes an app product token before Chrome", () => {
+  it("keeps the app product token before Chrome (Google rejects a bare Chrome UA from an embedded browser)", () => {
     expect(
-      buildChromeLikeUserAgent(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Lightcode/1.2.1 Chrome/141.0.0.0 Electron/41.7.0 Safari/537.36",
+      buildBrowserUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Lightcode/1.3.2 Chrome/146.0.0.0 Electron/41.7.0 Safari/537.36",
       ),
     ).toBe(
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Lightcode/1.3.2 Chrome/146.0.0.0 Safari/537.36",
     );
   });
 
-  it("matches the equivalent real Chrome user agent", () => {
-    const realChromeLinuxUserAgent =
-      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
-
+  it("preserves a channel-suffixed app token such as Lightcode Nightly", () => {
     expect(
-      buildChromeLikeUserAgent(
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Lightcode/1.2.1 Chrome/141.0.0.0 Electron/41.7.0 Safari/537.36",
+      buildBrowserUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Lightcode Nightly/1.3.2 Chrome/146.0.0.0 Electron/41.7.0 Safari/537.36",
       ),
-    ).toBe(realChromeLinuxUserAgent);
+    ).toBe(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Lightcode Nightly/1.3.2 Chrome/146.0.0.0 Safari/537.36",
+    );
   });
 });

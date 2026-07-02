@@ -67,6 +67,7 @@ import {
 } from "@/renderer/components/common/ProviderModelMenu";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "./agentRegistryNative";
 import { ClaudeProfileProviderSettings, ClaudeProfileSettings } from "./ClaudeProfileSettings";
+import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
 
 const SAVED_SECRET_MASK = "***********";
 
@@ -1588,7 +1589,17 @@ export function SingleAgentSettings(props: {
           />
         ) : null}
 
-        {hasAuthSettings && (
+        {props.agentKind === "opencode" ? (
+          <OpenCodeProviderSettings
+            agentKind={props.agentKind}
+            statuses={installedStatuses}
+            wslDistros={wslDistros}
+          />
+        ) : null}
+
+        {/* OpenCode authenticates per AI provider (handled above), so its
+            generic single sign-in row would be redundant. */}
+        {hasAuthSettings && props.agentKind !== "opencode" && (
           <div className="space-y-2">
             {envVarAuthMethod && acpInstanceId ? (
               <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface-secondary px-3 py-2 text-foreground">

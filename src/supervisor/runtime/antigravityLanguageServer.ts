@@ -12,6 +12,10 @@ import type { AntigravityModelQuota } from "@lightcode/agents-usage";
 const SERVICE = "exa.language_server_pb.LanguageServerService";
 export const GET_USER_STATUS = `/${SERVICE}/GetUserStatus`;
 export const GET_COMMAND_MODEL_CONFIGS = `/${SERVICE}/GetCommandModelConfigs`;
+// The current quota surface: two model groups (Gemini, Claude+GPT) each with a
+// shared 5-hour and weekly limit. Preferred over the per-model quotaInfo, which
+// only carries the 5-hour fraction.
+export const RETRIEVE_USER_QUOTA_SUMMARY = `/${SERVICE}/RetrieveUserQuotaSummary`;
 // The metadata the LS expects; the values are cosmetic but must be present.
 const REQUEST_BODY = JSON.stringify({
   metadata: {

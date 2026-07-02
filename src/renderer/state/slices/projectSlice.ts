@@ -28,6 +28,7 @@ function projectDraftConfigEqual(
     a.thinking === b.thinking &&
     a.mode === b.mode &&
     a.approvalPolicy === b.approvalPolicy &&
+    a.approvalsReviewer === b.approvalsReviewer &&
     a.sandboxMode === b.sandboxMode &&
     a.worktreeMode === b.worktreeMode
   );

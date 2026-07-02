@@ -366,6 +366,11 @@ msgstr "{original}\n"
 msgid "{percent}% full"
 msgstr "{percent}% 가득 참"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName}이(가) v{0}(으)로 업데이트되었습니다."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation}(비활성화)"
@@ -620,6 +625,10 @@ msgstr "프로젝트 추가"
 msgid "Add project options"
 msgstr "프로젝트 추가 옵션"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Add provider"
+msgstr "공급자 추가"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "리모트 추가"
@@ -726,9 +735,13 @@ msgstr "AI 에이전트 오케스트레이터 — 터미널 및 기본 ACP를 �
 msgid "AI git actions"
 msgstr "AI git 작업"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "AI providers"
+msgstr "AI 공급자"
+
 #: src/mobile/views/MoreView.tsx
 msgid "AI, agents, and archived threads on the paired desktop"
-msgstr ""
+msgstr "페어링된 데스크톱의 AI, 에이전트 및 보관된 스레드"
 
 #: src/mobile/settingsSections.ts
 msgid "Alerts when threads need you"
@@ -886,7 +899,7 @@ msgstr "보관된 스레드"
 #: src/mobile/views/SettingsView.tsx
 msgid "Archived threads are managed from the desktop app. Restoring or deleting "
 "them from this device isn't available yet."
-msgstr ""
+msgstr "보관된 스레드는 데스크톱 앱에서 관리됩니다. 이 기기에서 복원하거나 삭제하는 기능은 아직 사용할 수 없습니다."
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -910,6 +923,10 @@ msgstr "이 작업 공간에 대해 {0}에게 무엇이든 물어보세요"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "매번 물어보세요"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "승인 요청"
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
@@ -1300,7 +1317,7 @@ msgstr "선택기 취소"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Cancel removing project"
-msgstr ""
+msgstr "프로젝트 제거 취소"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
@@ -1328,6 +1345,8 @@ msgstr "사용자 변경"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "변경 내역"
 
@@ -1882,6 +1901,10 @@ msgstr "연결"
 msgid "Connect a server"
 msgstr "서버 연결"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Connect the AI providers OpenCode can use and sign out of them here."
+msgstr "OpenCode가 사용할 수 있는 AI 공급자를 여기에서 연결하고 로그아웃하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
 #~ "projects — and their threads — from here. Open Settings → Remote Access "
@@ -2108,7 +2131,7 @@ msgstr "파일을 읽을 수 없습니다."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
-msgstr ""
+msgstr "오프라인 데이터를 캐시할 수 없습니다."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't clone the repository."
@@ -2130,6 +2153,11 @@ msgstr "worktree를 만들 수 없습니다."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "저장소를 나열할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "변경 내역을 불러오지 못했습니다. 연결을 확인하거나 GitHub에서 확인하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2391,7 +2419,7 @@ msgstr "데스크톱에 연결할 수 없습니다."
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
-msgstr ""
+msgstr "데스크톱 설정"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
@@ -2558,6 +2586,11 @@ msgstr "이미지 다운로드"
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
 msgstr "“{0}”에 다운로드 중입니다. 대규모 리포지토리의 경우 시간이 걸릴 수 있습니다."
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "업데이트 다운로드 중"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2568,12 +2601,12 @@ msgid "Downloading voice model..."
 msgstr "음성 모델 다운로드 중..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "{v} 다운로드 중 — {percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "{v} 다운로드 중 — {percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "{versionLabel} 다운로드 중"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "{versionLabel} 다운로드 중"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"
@@ -2843,7 +2876,7 @@ msgstr "풀 요청을 닫지 못했습니다: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to close remote thread."
-msgstr ""
+msgstr "원격 스레드를 닫지 못했습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create pull request: {detail}"
@@ -2851,7 +2884,7 @@ msgstr "풀 요청 생성 실패: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to interrupt remote thread."
-msgstr ""
+msgstr "원격 스레드를 중단하지 못했습니다."
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -2863,7 +2896,7 @@ msgstr "풀 요청 병합 실패: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to open remote thread."
-msgstr ""
+msgstr "원격 스레드를 열지 못했습니다."
 
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 msgid "Fast"
@@ -2949,8 +2982,8 @@ msgid "Filter by project"
 msgstr "프로젝트별 필터"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "설정 필터링"
+#~ msgid "Filter settings"
+#~ msgstr "설정 필터링"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -3003,6 +3036,19 @@ msgid "First-class Command Code CLI integration using Lightcode's native "
 msgstr "Lightcode의 네이티브 런타임을 사용한 최고 수준의 Command Code CLI 통합."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "Lightcode의 네이티브 런타임을 사용하는 일급 Cursor Agent 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "Lightcode의 네이티브 런타임을 사용하는 일급 Gemini CLI 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "Lightcode의 네이티브 런타임을 사용하는 일급 GitHub Copilot CLI 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "Lightcode의 기본 런타임을 사용하는 최고 수준의 Grok Build CLI 통합."
 
@@ -3013,6 +3059,10 @@ msgstr "Lightcode의 기본 SDK 런타임을 사용한 최고 수준의 OpenCode
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "에이전트에서 수정"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "수정됨"
 
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
@@ -3228,6 +3278,10 @@ msgstr "목표"
 msgid "Goals set"
 msgstr "설정한 목표"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "확인"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "그룹"
@@ -3260,6 +3314,7 @@ msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
 msgstr "숨겨진 재개 가능 스레드는 5분마다 청소되고 이 유휴 기간이 지나면 언로드됩니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "숨기기"
 
@@ -3352,6 +3407,10 @@ msgstr "이미지"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "이미지 미리보기"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "개선됨"
 
 #: src/mobile/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS. Use your phone's camera "
@@ -3700,6 +3759,7 @@ msgstr "로그인 {0}"
 msgid "Login required"
 msgstr "로그인이 필요합니다"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Logout"
 msgstr "로그아웃"
@@ -4082,8 +4142,9 @@ msgid "Needs reply"
 msgstr "답장이 필요함"
 
 #: src/mobile/RootLayout.tsx
+#: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
-msgstr "새로 만들기"
+msgstr "신규"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -4426,6 +4487,10 @@ msgstr "프롬프트 없음"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
 msgstr "추적 중인 공급자가 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "No providers connected yet."
+msgstr "아직 연결된 공급자가 없습니다."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "No providers ready yet"
@@ -5172,6 +5237,7 @@ msgstr "프로젝트"
 msgid "Prompt"
 msgstr "프롬프트"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "프롬프트"
@@ -5515,7 +5581,7 @@ msgstr "{pattern} 제거"
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Remove <0>{0}</0> and permanently delete all of its threads? This cannot "
 "be undone."
-msgstr ""
+msgstr "<0>{0}</0>을(를) 제거하고 모든 스레드를 영구적으로 삭제할까요? 이 작업은 되돌릴 수 없습니다."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Remove action"
@@ -5859,6 +5925,10 @@ msgstr "오른쪽"
 msgid "Right panel"
 msgstr "오른쪽 패널"
 
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Right-click to switch ring"
+msgstr "마우스 오른쪽 버튼을 클릭해 링 전환"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -6061,6 +6131,10 @@ msgstr "저장소 검색…"
 msgid "Search runtime items…"
 msgstr "런타임 항목 검색…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "설정 검색"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "단축키 검색"
@@ -6200,6 +6274,11 @@ msgstr "활동 공유하기"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
 msgstr "단축키"
+
+#. placeholder {0}: g.label
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Show {0}"
+msgstr "{0} 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"
@@ -6361,6 +6440,11 @@ msgstr "로그아웃"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign out {label}"
 msgstr "{label} 로그아웃"
+
+#. placeholder {0}: provider.label
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Sign out of {0}"
+msgstr "{0}에서 로그아웃"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Signed in"
@@ -7681,9 +7765,21 @@ msgstr "{0}을(를) 통해"
 msgid "View"
 msgstr "보기"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "GitHub에서 모든 릴리스 보기"
+
 #: src/mobile/views/GitActionSheet.tsx
 msgid "View diff"
 msgstr "diff 보기"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "전체 변경 내역 보기"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "변경 내역 보기"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
@@ -7793,6 +7889,16 @@ msgid "What the Create PR button does by default: open a dialog to edit the "
 "one click. You can also switch this from the button's menu."
 msgstr "PR 만들기 버튼의 기본 기능: 대화 상자를 열어 제목과 설명을 먼저 편집하거나 자동 생성하여 한 번의 클릭으로 PR을 "
 "만듭니다. 버튼 메뉴에서 전환할 수도 있습니다."
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "새 소식"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "Lightcode의 새 소식, 최신순."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."

@@ -6,17 +6,24 @@ import { isHomeProject } from "@/shared/homeScope";
 import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useWelcomeGateStore, WELCOME_SEEN_STORAGE_KEY } from "@/renderer/state/welcomeGateStore";
 import { readStoredBoolean, writeStoredBoolean } from "@/renderer/utils/localStorage";
 import { CreateProjectMenu } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu";
 import { WELCOME_BACKGROUND_CODE } from "./welcomeBackgroundCode";
 import appIconUrl from "../../../build/icon.png";
 
-const WELCOME_SEEN_STORAGE_KEY = "lightcode-welcome-seen-v16";
-
 // Orbit + reveal animations finish ~2.4s after the overlay mounts. After
 // that the comet has scaled to 0 and no longer needs its center sampled, so
 // the rAF loop driving `--comet-x/y` can stop.
 const ORBIT_DURATION_MS = 2400;
+
+// The intro reveal fully settles ~3.2s after mount — the CTA buttons carry the
+// latest reveal (2.4s delay + 0.8s duration). Until then we hold first-launch
+// background work (agent detection) so its cold process spawns and re-render
+// churn don't starve the animation's first paint and snap it to its final
+// frame. A user who clicks a CTA sooner releases the gate immediately in
+// `dismissWelcome`.
+const WELCOME_SETTLE_MS = 3200;
 
 export function WelcomeOverlay() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,6 +56,16 @@ export function WelcomeOverlay() {
       return;
     }
     setVisible(false);
+  }, [open]);
+
+  // First launch only: defer heavy background work until the intro animation
+  // has settled, then release the gate so MainView can start agent detection.
+  useEffect(() => {
+    if (!open) return;
+    const releaseTimer = window.setTimeout(() => {
+      useWelcomeGateStore.getState().releaseBackgroundWork();
+    }, WELCOME_SETTLE_MS);
+    return () => clearTimeout(releaseTimer);
   }, [open]);
 
   useEffect(() => {
@@ -88,6 +105,9 @@ export function WelcomeOverlay() {
   function dismissWelcome() {
     writeStoredBoolean(WELCOME_SEEN_STORAGE_KEY, true);
     setWelcomeSeen(true);
+    // The user is moving on — let deferred startup work (agent detection) run
+    // now rather than waiting out the settle timer.
+    useWelcomeGateStore.getState().releaseBackgroundWork();
   }
 
   function handleAskQuestion() {

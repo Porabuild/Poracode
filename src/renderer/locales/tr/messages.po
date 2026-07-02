@@ -370,6 +370,11 @@ msgstr "{original}\n"
 msgid "{percent}% full"
 msgstr "%{percent} dolu"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName} v{0} sürümüne güncellendi."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation} (devre dışı)"
@@ -625,6 +630,10 @@ msgstr "Proje Ekle"
 msgid "Add project options"
 msgstr "Proje seçeneklerini ekle"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Add provider"
+msgstr "Sağlayıcı ekle"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Uzak Depo Ekle"
@@ -732,9 +741,13 @@ msgstr "AI aracı orkestratörü — kodlama aracılarını Terminal ve Yerel AC
 msgid "AI git actions"
 msgstr "Yapay zeka git işlemleri"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "AI providers"
+msgstr "Yapay zeka sağlayıcıları"
+
 #: src/mobile/views/MoreView.tsx
 msgid "AI, agents, and archived threads on the paired desktop"
-msgstr ""
+msgstr "Eşleştirilen masaüstündeki AI, ajanlar ve arşivlenmiş konular"
 
 #: src/mobile/settingsSections.ts
 msgid "Alerts when threads need you"
@@ -894,7 +907,8 @@ msgstr "Arşivlenmiş İleti Dizileri"
 #: src/mobile/views/SettingsView.tsx
 msgid "Archived threads are managed from the desktop app. Restoring or deleting "
 "them from this device isn't available yet."
-msgstr ""
+msgstr "Arşivlenmiş konular masaüstü uygulamasından yönetilir. Bu cihazdan geri "
+"yükleme veya silme henüz kullanılamıyor."
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -921,6 +935,10 @@ msgstr "{0} öğesine bu çalışma alanıyla ilgili her şeyi sorun"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "Her seferinde sor"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Onay iste"
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
@@ -1316,7 +1334,7 @@ msgstr "Seçiciyi iptal et"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Cancel removing project"
-msgstr ""
+msgstr "Projeyi kaldırmayı iptal et"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
@@ -1345,6 +1363,8 @@ msgstr "Kullanıcıyı Değiştir"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "Değişiklik günlüğü"
 
@@ -1903,6 +1923,11 @@ msgstr "Bağlan"
 msgid "Connect a server"
 msgstr "Bir sunucuya bağlan"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Connect the AI providers OpenCode can use and sign out of them here."
+msgstr "OpenCode'un kullanabileceği yapay zeka sağlayıcılarını buradan bağlayın "
+"ve oturumlarını kapatın."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
 #~ "projects — and their threads — from here. Open Settings → Remote Access "
@@ -2134,7 +2159,7 @@ msgstr "Dosya okunamadı."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
-msgstr ""
+msgstr "Çevrimdışı veriler önbelleğe alınamadı."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't clone the repository."
@@ -2157,6 +2182,12 @@ msgstr "Worktree oluşturulamadı."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Depolar listelenemedi."
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "Değişiklik günlüğü yüklenemedi. Bağlantını kontrol et ya da GitHub'da "
+"görüntüle."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2419,7 +2450,7 @@ msgstr "Masaüstüne ulaşılamıyor."
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
-msgstr ""
+msgstr "Masaüstü Ayarları"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
@@ -2588,6 +2619,11 @@ msgstr "Görseli indir"
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
 msgstr "“{0}” içine indiriliyor. Büyük depolar için bu biraz zaman alabilir."
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "Güncelleme indiriliyor"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2598,12 +2634,12 @@ msgid "Downloading voice model..."
 msgstr "Ses modeli indiriliyor..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "İndiriliyor{v} — {percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "İndiriliyor{v} — {percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "{versionLabel} indiriliyor"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "{versionLabel} indiriliyor"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"
@@ -2880,7 +2916,7 @@ msgstr "Çekme isteği kapatılamadı: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to close remote thread."
-msgstr ""
+msgstr "Uzak konu kapatılamadı."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create pull request: {detail}"
@@ -2888,7 +2924,7 @@ msgstr "Çekme isteği oluşturulamadı: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to interrupt remote thread."
-msgstr ""
+msgstr "Uzak konu kesintiye uğratılamadı."
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -2900,7 +2936,7 @@ msgstr "Çekme isteği birleştirilemedi: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to open remote thread."
-msgstr ""
+msgstr "Uzak konu açılamadı."
 
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 msgid "Fast"
@@ -2988,8 +3024,8 @@ msgid "Filter by project"
 msgstr "Projeye göre filtrele"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Ayarları filtrele"
+#~ msgid "Filter settings"
+#~ msgstr "Ayarları filtrele"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -3046,6 +3082,22 @@ msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Comman
 "CLI entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Cursor Agent "
+"entegrasyonu."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Gemini CLI "
+"entegrasyonu."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf GitHub "
+"Copilot CLI entegrasyonu."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Grok Build "
 "CLI entegrasyonu."
@@ -3058,6 +3110,10 @@ msgstr "Lightcode'un yerel SDK çalışma zamanını kullanan birinci sınıf Op
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Aracıda Düzelt"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "Düzeltildi"
 
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
@@ -3278,6 +3334,10 @@ msgstr "Hedef"
 msgid "Goals set"
 msgstr "Belirlenen hedefler"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "Anladım"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "Grup"
@@ -3311,6 +3371,7 @@ msgstr "Gizli devam ettirilebilir konular her 5 dakikada bir taranır ve bu "
 "boşta kalma süresinden sonra bellekten kaldırılır."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "Gizle"
 
@@ -3403,6 +3464,10 @@ msgstr "Resim"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Resim önizlemesi"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "İyileştirildi"
 
 #: src/mobile/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS. Use your phone's camera "
@@ -3757,6 +3822,7 @@ msgstr "Giriş {0}"
 msgid "Login required"
 msgstr "Giriş gerekli"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Logout"
 msgstr "Oturumu kapat"
@@ -4141,6 +4207,7 @@ msgid "Needs reply"
 msgstr "Yanıt gerekiyor"
 
 #: src/mobile/RootLayout.tsx
+#: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Yeni"
 
@@ -4485,6 +4552,10 @@ msgstr "İstem yok"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
 msgstr "Hiçbir sağlayıcı izlenmiyor."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "No providers connected yet."
+msgstr "Henüz bağlı sağlayıcı yok."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "No providers ready yet"
@@ -5238,6 +5309,7 @@ msgstr "Projeler"
 msgid "Prompt"
 msgstr "İstem"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "İstemler"
@@ -5584,7 +5656,8 @@ msgstr "{pattern} öğesini kaldır"
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Remove <0>{0}</0> and permanently delete all of its threads? This cannot "
 "be undone."
-msgstr ""
+msgstr "<0>{0}</0> öğesini kaldırıp tüm konularını kalıcı olarak silinsin mi? "
+"Bu işlem geri alınamaz."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Remove action"
@@ -5929,6 +6002,10 @@ msgstr "Sağ"
 msgid "Right panel"
 msgstr "Sağ panel"
 
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Right-click to switch ring"
+msgstr "Halkayı değiştirmek için sağ tıklayın"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -6137,6 +6214,10 @@ msgstr "Depolarda ara…"
 msgid "Search runtime items…"
 msgstr "Çalışma zamanı öğelerini ara…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Ayarları ara"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "Kısayolları ara"
@@ -6278,6 +6359,11 @@ msgstr "Etkinliğinizi paylaşın"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
 msgstr "Kısayollar"
+
+#. placeholder {0}: g.label
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Show {0}"
+msgstr "{0} öğesini göster"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"
@@ -6441,6 +6527,11 @@ msgstr "Oturumu kapat"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign out {label}"
 msgstr "{label} oturumunu kapat"
+
+#. placeholder {0}: provider.label
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Sign out of {0}"
+msgstr "{0} oturumunu kapat"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Signed in"
@@ -7785,9 +7876,21 @@ msgstr "{0} aracılığıyla"
 msgid "View"
 msgstr "Görüntüle"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "Tüm sürümleri GitHub'da görüntüle"
+
 #: src/mobile/views/GitActionSheet.tsx
 msgid "View diff"
 msgstr "Diff'i görüntüle"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "Tüm değişiklik günlüğünü görüntüle"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "Değişiklik günlüğünü görüntüle"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
@@ -7903,6 +8006,16 @@ msgstr "PR Oluştur düğmesinin varsayılan olarak yaptığı şey: Önce başl
 "açıklamayı düzenlemek için bir iletişim kutusu açın veya bunları "
 "otomatik olarak oluşturun ve tek tıklamayla PR oluşturun. Bunu düğmenin "
 "menüsünden de değiştirebilirsiniz."
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "Yenilikler"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "Lightcode'daki yenilikler, en yeniden başlayarak."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."

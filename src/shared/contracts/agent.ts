@@ -41,6 +41,13 @@ export type AgentSlashCommand = z.infer<typeof agentSlashCommandSchema>;
 export const agentConnectedProviderSchema = z.object({
   label: z.string().min(1),
   detail: z.string().min(1).optional(),
+  /**
+   * Stable provider identifier the underlying agent CLI accepts for credential
+   * removal (e.g. OpenCode's auth.json key like `opencode` / `github-copilot`).
+   * Absent when the agent can't resolve one for the env (then the UI falls back
+   * to the agent's interactive removal flow).
+   */
+  id: z.string().min(1).optional(),
 });
 export type AgentConnectedProvider = z.infer<typeof agentConnectedProviderSchema>;
 
@@ -498,7 +505,8 @@ export function areAgentConnectedProvidersEqual(
     const rightProvider = right[index]!;
     if (
       leftProvider.label !== rightProvider.label ||
-      leftProvider.detail !== rightProvider.detail
+      leftProvider.detail !== rightProvider.detail ||
+      leftProvider.id !== rightProvider.id
     ) {
       return false;
     }

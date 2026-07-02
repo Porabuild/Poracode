@@ -13,17 +13,24 @@ import {
 
 registerProviderIcon("claude", ClaudeIcon);
 registerProviderLabel("claude", "Claude Code");
+// Benchmark-driven (blind quality judging over real diffs): Sonnet at MEDIUM
+// effort is the sweet spot. At low/high effort Sonnet sometimes mislabels the
+// commit type (e.g. a fix scored as "test") and emits markdown fences; medium
+// fixed both and scored highest among Sonnet tiers, while high added latency for
+// no gain. Opus stays reserved for the conflict resolver below.
 registerCommitGenDefaults("claude", {
   label: "Claude",
-  hint: "Sonnet high",
+  hint: "Sonnet medium",
   model: "sonnet",
-  effort: "high",
+  effort: "medium",
 });
+// Haiku exposes no effort tiers (the value below is a no-op the resolver drops);
+// it is already the fastest Claude model, ideal for trivial title generation.
 registerTitleGenDefaults("claude", {
   label: "Claude",
-  hint: "Haiku medium",
+  hint: "Haiku",
   model: "haiku",
-  effort: "medium",
+  effort: "low",
 });
 registerConflictResolverDefaults("claude", {
   label: "Claude",

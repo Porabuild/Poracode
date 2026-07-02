@@ -352,6 +352,36 @@ describe("CodexStructuredSession", () => {
     });
   });
 
+  it("passes the approvals reviewer override to Codex app-server threads and turns", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const config = {
+      model: "gpt-5.4",
+      approvalPolicy: "on-request",
+      approvalsReviewer: "auto_review",
+      sandboxMode: "workspace-write",
+    };
+
+    await structuredSession.openThread(config);
+    await structuredSession.startTurn("hello", config);
+
+    expect(requests[0]).toMatchObject({
+      method: "thread/start",
+      params: {
+        approvalPolicy: "on-request",
+        approvalsReviewer: "auto_review",
+        sandbox: "workspace-write",
+      },
+    });
+    expect(requests[1]).toMatchObject({
+      method: "turn/start",
+      params: {
+        approvalPolicy: "on-request",
+        approvalsReviewer: "auto_review",
+      },
+    });
+  });
+
   it("forces serviceTier each turn: null when Fast is off (incl. the first turn), 'fast' when on", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
@@ -1052,9 +1082,13 @@ describe("createCodexAdapter buildAcpLogoutCommand", () => {
     const command = await adapter.buildAcpLogoutCommand?.();
     expect(command).toBeDefined();
     const args = command?.args ?? [];
+    // Include the resolved command itself: when the binary resolves to an
+    // absolute path it is direct-spawned (`command` = /…/codex, `args` =
+    // ["logout"]); when unresolved it is shell-wrapped (`exec 'codex' 'logout'`
+    // lives in args). Inspecting both keeps the assertion correct either way.
     const rendered = args.includes("-EncodedCommand")
       ? Buffer.from(args.at(-1) ?? "", "base64").toString("utf16le")
-      : args.join(" ");
+      : `${command?.command ?? ""} ${args.join(" ")}`;
     expect(rendered).toMatch(/codex/i);
     expect(rendered).toContain("logout");
   });

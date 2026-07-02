@@ -96,6 +96,11 @@ export type BrowserEvent =
   | { type: "usage-login-device-code-cleared"; providerId: string }
   | { type: "picker-cancelled" };
 
+/** Emitted by the main process when the user clicks an OS notification. */
+export type NotificationClickEvent = {
+  threadId: string;
+};
+
 export type UpdateStatus =
   | { type: "checking" }
   | { type: "update-available"; version: string }

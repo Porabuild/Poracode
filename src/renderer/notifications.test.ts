@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 
-const { sharedSettingsState, toastMock } = vi.hoisted(() => ({
+const { sharedSettingsState, toastMock, bridgeMock, openThreadMock } = vi.hoisted(() => ({
   sharedSettingsState: {
     current: {
       notificationsEnabled: true,
@@ -15,6 +15,10 @@ const { sharedSettingsState, toastMock } = vi.hoisted(() => ({
     success: vi.fn<(title: string, options: unknown) => void>(),
     warning: vi.fn<(title: string, options: unknown) => void>(),
   },
+  bridgeMock: {
+    showNotification: vi.fn<(payload: unknown) => Promise<boolean>>(),
+  },
+  openThreadMock: vi.fn<(threadId: string, options?: unknown) => void>(),
 }));
 
 vi.mock("@heroui/react", () => ({
@@ -22,13 +26,11 @@ vi.mock("@heroui/react", () => ({
 }));
 
 vi.mock("@/renderer/actions/threadActions", () => ({
-  openThread: vi.fn<() => void>(),
+  openThread: openThreadMock,
 }));
 
 vi.mock("@/renderer/bridge", () => ({
-  readBridge: () => ({
-    focusWindow: vi.fn<() => void>(),
-  }),
+  readBridge: () => bridgeMock,
 }));
 
 vi.mock("@/renderer/state/appStore", () => ({
@@ -47,6 +49,7 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
 }));
 
 import {
+  handleNotificationClick,
   handleThreadStateNotification,
   shouldInspectThreadStateForNotification,
 } from "./notifications";
@@ -170,5 +173,72 @@ describe("handleThreadStateNotification", () => {
       onPress: expect.any(Function),
       timeout: 6000,
     });
+  });
+});
+
+describe("handleThreadStateNotification native path", () => {
+  beforeEach(() => {
+    sharedSettingsState.current = {
+      notificationsEnabled: true,
+      notificationSound: false,
+      notificationFilter: "unfocused",
+      notificationStatuses: { done: true, needsAttention: true, error: true },
+    };
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    bridgeMock.showNotification.mockClear();
+    bridgeMock.showNotification.mockResolvedValue(true);
+  });
+
+  it("shows a native OS notification through the bridge when the window is unfocused", () => {
+    const oldThread = thread({ status: "working", attention: "working" });
+
+    handleThreadStateNotification(
+      {
+        type: "thread-state",
+        threadId: oldThread.id,
+        status: "finished",
+        attention: "none",
+      },
+      oldThread,
+      { status: "finished", attention: "none" },
+    );
+
+    expect(bridgeMock.showNotification).toHaveBeenCalledWith({
+      title: "Unknown project",
+      body: "Thread\nFinished · Waiting for your input",
+      threadId: "thread-1",
+    });
+  });
+
+  it("swallows native notification IPC failures", async () => {
+    bridgeMock.showNotification.mockRejectedValueOnce(new Error("boom"));
+    const oldThread = thread({ status: "working", attention: "working" });
+
+    handleThreadStateNotification(
+      {
+        type: "thread-state",
+        threadId: oldThread.id,
+        status: "finished",
+        attention: "none",
+      },
+      oldThread,
+      { status: "finished", attention: "none" },
+    );
+
+    await Promise.resolve();
+
+    expect(bridgeMock.showNotification).toHaveBeenCalledOnce();
+  });
+});
+
+describe("handleNotificationClick", () => {
+  beforeEach(() => {
+    openThreadMock.mockClear();
+  });
+
+  it("opens the originating thread focused on the composer", () => {
+    handleNotificationClick({ threadId: "thread-42" });
+
+    expect(openThreadMock).toHaveBeenCalledWith("thread-42", { focusComposer: true });
   });
 });

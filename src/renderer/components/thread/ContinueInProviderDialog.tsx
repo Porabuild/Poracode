@@ -146,6 +146,7 @@ function resolveDefaultConfig(
     ...(thinking ? { thinking } : {}),
     ...(mode ? { mode } : {}),
     ...(approvalPolicy ? { approvalPolicy } : {}),
+    ...(preferred?.approvalsReviewer ? { approvalsReviewer: preferred.approvalsReviewer } : {}),
     ...(sandboxMode ? { sandboxMode } : {}),
   };
 }

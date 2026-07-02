@@ -19,6 +19,7 @@ const cursorStatus = {
     models: [
       { id: "auto", label: "Auto" },
       { id: "composer-2.5", label: "Composer 2.5" },
+      { id: "composer-2.5-fast", label: "Composer 2.5 Fast" },
     ],
     efforts: [] as string[],
     modelEfforts: {} as Record<string, string[]>,
@@ -102,7 +103,7 @@ describe("resolveConflictResolverLaunchConfig", () => {
 
   it("uses resolved Auto model in Auto provider mode", () => {
     expect(resolveConflictResolverLaunchConfig("auto", cursorStatus, "", "")).toEqual({
-      model: "composer-2.5",
+      model: "composer-2.5-fast",
       effort: "",
     });
   });

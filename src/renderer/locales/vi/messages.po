@@ -369,6 +369,11 @@ msgstr "{original}\n"
 msgid "{percent}% full"
 msgstr "{percent}% đầy"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName} đã được cập nhật lên v{0}."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation} (bị vô hiệu hóa)"
@@ -623,6 +628,10 @@ msgstr "Thêm dự án"
 msgid "Add project options"
 msgstr "Thêm tùy chọn dự án"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Add provider"
+msgstr "Thêm nhà cung cấp"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Thêm remote"
@@ -730,9 +739,13 @@ msgstr "Trình điều phối tác nhân AI - quản lý các tác nhân mã hó
 msgid "AI git actions"
 msgstr "Thao tác git bằng AI"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "AI providers"
+msgstr "Nhà cung cấp AI"
+
 #: src/mobile/views/MoreView.tsx
 msgid "AI, agents, and archived threads on the paired desktop"
-msgstr ""
+msgstr "AI, tác nhân và các luồng đã lưu trữ trên máy tính đã ghép nối"
 
 #: src/mobile/settingsSections.ts
 msgid "Alerts when threads need you"
@@ -892,7 +905,8 @@ msgstr "Luồng đã lưu trữ"
 #: src/mobile/views/SettingsView.tsx
 msgid "Archived threads are managed from the desktop app. Restoring or deleting "
 "them from this device isn't available yet."
-msgstr ""
+msgstr "Các luồng đã lưu trữ được quản lý từ ứng dụng máy tính. Chưa thể khôi "
+"phục hoặc xóa chúng từ thiết bị này."
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -919,6 +933,10 @@ msgstr "Hỏi {0} bất cứ điều gì về không gian làm việc này"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "Hỏi mỗi lần"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Yêu cầu phê duyệt"
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
@@ -1313,7 +1331,7 @@ msgstr "Hủy bộ chọn"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Cancel removing project"
-msgstr ""
+msgstr "Hủy xóa dự án"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
@@ -1342,6 +1360,8 @@ msgstr "Thay đổi người dùng"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "Nhật ký thay đổi"
 
@@ -1899,6 +1919,11 @@ msgstr "Kết nối"
 msgid "Connect a server"
 msgstr "Kết nối máy chủ"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Connect the AI providers OpenCode can use and sign out of them here."
+msgstr "Kết nối các nhà cung cấp AI mà OpenCode có thể dùng và đăng xuất khỏi "
+"chúng tại đây."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
 #~ "projects — and their threads — from here. Open Settings → Remote Access "
@@ -2130,7 +2155,7 @@ msgstr "Không thể đọc tập tin."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
-msgstr ""
+msgstr "Không thể lưu dữ liệu ngoại tuyến vào bộ nhớ đệm."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't clone the repository."
@@ -2153,6 +2178,12 @@ msgstr "Không thể tạo worktree."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Không thể liệt kê các kho lưu trữ."
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "Không thể tải nhật ký thay đổi. Hãy kiểm tra kết nối hoặc xem trên "
+"GitHub."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2415,7 +2446,7 @@ msgstr "Không thể kết nối tới desktop."
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
-msgstr ""
+msgstr "Cài đặt máy tính"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
@@ -2585,6 +2616,11 @@ msgid "Downloading into “{0}”. This can take a moment for large repositories
 msgstr "Đang tải xuống “{0}”. Việc này có thể mất một chút thời gian đối với "
 "các kho lưu trữ lớn."
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "Đang tải xuống bản cập nhật"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2595,12 +2631,12 @@ msgid "Downloading voice model..."
 msgstr "Đang tải xuống mẫu giọng nói..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "Đang tải xuống {v} — {percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "Đang tải xuống {v} — {percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "Đang tải xuống {versionLabel}"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "Đang tải xuống {versionLabel}"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"
@@ -2875,7 +2911,7 @@ msgstr "Không thể đóng pull request: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to close remote thread."
-msgstr ""
+msgstr "Không thể đóng luồng từ xa."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create pull request: {detail}"
@@ -2883,7 +2919,7 @@ msgstr "Không tạo được pull request: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to interrupt remote thread."
-msgstr ""
+msgstr "Không thể ngắt luồng từ xa."
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -2895,7 +2931,7 @@ msgstr "Không thể hợp nhất pull request: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to open remote thread."
-msgstr ""
+msgstr "Không thể mở luồng từ xa."
 
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 msgid "Fast"
@@ -2982,8 +3018,8 @@ msgid "Filter by project"
 msgstr "Lọc theo dự án"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Lọc cài đặt"
+#~ msgid "Filter settings"
+#~ msgstr "Lọc cài đặt"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -3040,6 +3076,19 @@ msgstr "Tích hợp CLI Command Code hạng nhất bằng thời gian chạy g�
 "Lightcode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "Tích hợp Cursor Agent hạng nhất bằng runtime gốc của Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "Tích hợp Gemini CLI hạng nhất bằng runtime gốc của Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "Tích hợp GitHub Copilot CLI hạng nhất bằng runtime gốc của Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "Tích hợp Grok Build CLI hạng nhất bằng cách sử dụng thời gian chạy gốc "
 "của Lightcode."
@@ -3051,6 +3100,10 @@ msgstr "Tích hợp OpenCode hạng nhất bằng thời gian chạy SDK gốc c
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Sửa trong Tác nhân"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "Đã sửa"
 
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
@@ -3269,6 +3322,10 @@ msgstr "Mục tiêu"
 msgid "Goals set"
 msgstr "Mục tiêu đã đặt"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "Đã hiểu"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "Nhóm"
@@ -3302,6 +3359,7 @@ msgstr "Các chủ đề tiếp tục ẩn sẽ được quét 5 phút một l�
 "tuổi nhàn rỗi này."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "Ẩn"
 
@@ -3395,6 +3453,10 @@ msgstr "Hình ảnh"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Xem trước hình ảnh"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "Cải thiện"
 
 #: src/mobile/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS. Use your phone's camera "
@@ -3749,6 +3811,7 @@ msgstr "Đăng nhập {0}"
 msgid "Login required"
 msgstr "Yêu cầu đăng nhập"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Logout"
 msgstr "Đăng xuất"
@@ -4133,6 +4196,7 @@ msgid "Needs reply"
 msgstr "Cần trả lời"
 
 #: src/mobile/RootLayout.tsx
+#: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Mới"
 
@@ -4477,6 +4541,10 @@ msgstr "Không có lời nhắc"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
 msgstr "Không có nhà cung cấp đang được theo dõi."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "No providers connected yet."
+msgstr "Chưa có nhà cung cấp nào được kết nối."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "No providers ready yet"
@@ -5230,6 +5298,7 @@ msgstr "Dự án"
 msgid "Prompt"
 msgstr "Lời nhắc"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Prompt"
@@ -5576,7 +5645,8 @@ msgstr "Xóa {pattern}"
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Remove <0>{0}</0> and permanently delete all of its threads? This cannot "
 "be undone."
-msgstr ""
+msgstr "Xóa <0>{0}</0> và xóa vĩnh viễn tất cả các luồng của dự án này? Không "
+"thể hoàn tác."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Remove action"
@@ -5921,6 +5991,10 @@ msgstr "Phải"
 msgid "Right panel"
 msgstr "Bảng bên phải"
 
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Right-click to switch ring"
+msgstr "Nhấp chuột phải để đổi vòng"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -6127,6 +6201,10 @@ msgstr "Tìm kiếm kho lưu trữ…"
 msgid "Search runtime items…"
 msgstr "Tìm kiếm các mục thời gian chạy…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Tìm kiếm cài đặt"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "Tìm kiếm phím tắt"
@@ -6267,6 +6345,11 @@ msgstr "Chia sẻ hoạt động của bạn"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
 msgstr "Phím tắt"
+
+#. placeholder {0}: g.label
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Show {0}"
+msgstr "Hiển thị {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"
@@ -6430,6 +6513,11 @@ msgstr "Đăng xuất"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign out {label}"
 msgstr "Đăng xuất {label}"
+
+#. placeholder {0}: provider.label
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Sign out of {0}"
+msgstr "Đăng xuất khỏi {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Signed in"
@@ -7772,9 +7860,21 @@ msgstr "qua {0}"
 msgid "View"
 msgstr "Xem"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "Xem tất cả bản phát hành trên GitHub"
+
 #: src/mobile/views/GitActionSheet.tsx
 msgid "View diff"
 msgstr "Xem diff"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "Xem toàn bộ nhật ký thay đổi"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "Xem nhật ký thay đổi"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
@@ -7889,6 +7989,16 @@ msgid "What the Create PR button does by default: open a dialog to edit the "
 msgstr "Chức năng của nút Tạo PR theo mặc định: mở hộp thoại để chỉnh sửa tiêu "
 "đề và mô tả trước hoặc tự động tạo chúng và tạo PR chỉ bằng một cú nhấp "
 "chuột. Bạn cũng có thể chuyển đổi điều này từ menu của nút."
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "Có gì mới"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "Có gì mới trong Lightcode, mới nhất trước."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."

@@ -19,6 +19,9 @@ export function buildProjectDraftConfig(input: {
     // (e.g. Codex "Default permissions"). Stripping it would make reload
     // fall through to the bypass fallback and silently flip to Full access.
     ...(config.approvalPolicy !== undefined ? { approvalPolicy: config.approvalPolicy } : {}),
+    ...(config.approvalsReviewer !== undefined
+      ? { approvalsReviewer: config.approvalsReviewer }
+      : {}),
     ...(config.sandboxMode !== undefined ? { sandboxMode: config.sandboxMode } : {}),
     worktreeMode,
   };

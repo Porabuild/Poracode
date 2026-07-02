@@ -77,10 +77,10 @@ const claudeStatus: AgentStatus = {
 };
 
 describe("resolveCommitGenConfig", () => {
-  it("falls back to the registered Codex default (5.4 Mini + xhigh)", () => {
+  it("falls back to the registered Codex default (5.4 Mini + low)", () => {
     expect(resolveCommitGenConfig(codexStatus, "", "")).toEqual({
       model: "gpt-5.4-mini",
-      effort: "xhigh",
+      effort: "low",
       availableEfforts: ["low", "medium", "high", "xhigh"],
     });
   });
@@ -143,7 +143,7 @@ describe("getCommitGenCandidates", () => {
 describe("provider default hints", () => {
   it("builds commit-generation hint text from provider registrations", () => {
     expect(getCommitGenDefaultsHint()).toBe(
-      "Defaults: Claude -> Sonnet high, Codex -> GPT-5.4 Mini xhigh, Copilot -> auto, Cursor -> Composer 2.5, Gemini -> 3 Flash",
+      "Defaults: Claude -> Sonnet medium, Codex -> GPT-5.4 Mini low, Copilot -> auto, Cursor -> Composer 2.5 Fast, Gemini -> 3 Flash",
     );
   });
 });
@@ -177,13 +177,13 @@ describe("generateCommitMessageWithFallback", () => {
       projectLocation,
       agentKind: "codex",
       model: "gpt-5.4-mini",
-      effort: "xhigh",
+      effort: "low",
     });
     expect(invoke).toHaveBeenNthCalledWith(2, {
       projectLocation,
       agentKind: "claude",
       model: "sonnet",
-      effort: "high",
+      effort: "medium",
     });
   });
 

@@ -12,6 +12,7 @@ import {
   Globe,
   Info,
   Keyboard,
+  Megaphone,
   Mic,
   MessageSquare,
   PanelLeft,
@@ -211,6 +212,7 @@ export function SettingsSidebar(props: {
     { id: "browser", icon: <Globe className="size-4" />, label: t`Browser` },
     { id: "usage", icon: <Gauge className="size-4" />, label: t`Usage` },
     { id: "archived", icon: <Archive className="size-4" />, label: t`Archived Threads` },
+    { id: "changelog", icon: <Megaphone className="size-4" />, label: t`Changelog` },
     { id: "about", icon: <Info className="size-4" />, label: t`About` },
   ];
 
@@ -491,6 +493,13 @@ export function SettingsSidebar(props: {
                 onPress={() => onSectionChange("archived")}
               />
             )}
+            <SidebarButton
+              iconOnly
+              icon={<Megaphone className="size-4" />}
+              label={t`Changelog`}
+              isActive={activeSection === "changelog"}
+              onPress={() => onSectionChange("changelog")}
+            />
             {!remoteSession && (
               <SidebarButton
                 iconOnly
@@ -531,15 +540,19 @@ export function SettingsSidebar(props: {
         className={`${overlaySidebarColumnClass} transition-opacity duration-150 ${isCollapsed ? "invisible opacity-0" : "opacity-100 delay-100"}`}
       >
         <div className={sidebarBodyScrollClass()}>
-          <div
+          {/* Transparent, sidebar-item-shaped filter: no opaque fill/border so the
+              translucent sidebar glass shows through; hover/focus use the same
+              translucent row overlays as SidebarButton. A <label> lets a click
+              anywhere (incl. icon/padding) focus the input natively. */}
+          <label
             data-lightcode-find-scope="settings"
-            className="mb-1 flex items-center gap-2 rounded-xl border border-[color:var(--border)] bg-background px-3 py-1.5"
+            className="mb-1 flex cursor-text items-center gap-2 rounded-3xl px-2 py-1.5 text-muted transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-within:bg-[var(--row-active)] focus-within:text-foreground"
           >
-            <Search className="size-3.5 shrink-0 text-muted" />
+            <Search className="size-4 shrink-0" />
             <input
               ref={sectionFilterRef}
               className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted"
-              placeholder={t`Filter settings`}
+              placeholder={t`Search settings`}
               value={sectionFilter}
               onChange={(event) => setSectionFilter(event.target.value)}
               onKeyDown={(event) => {
@@ -549,7 +562,7 @@ export function SettingsSidebar(props: {
                 }
               }}
             />
-          </div>
+          </label>
           {query !== "" ? (
             <div className="space-y-0.5">
               {searchRows.length === 0 ? (

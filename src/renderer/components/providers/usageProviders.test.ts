@@ -5,6 +5,7 @@ import {
   pickUsageRings,
   resolveDisplayedProviders,
   usageProvidersForAgentInstances,
+  usageRingGroups,
 } from "./usageProviders";
 
 const agentInstances: AgentInstanceConfigMap = {
@@ -80,5 +81,39 @@ describe("usageProviders", () => {
     const rings = pickUsageRings("zai", windows);
     expect(rings.outer?.id).toBe("session-5h");
     expect(rings.inner?.id).toBe("weekly");
+  });
+
+  describe("Antigravity ring groups", () => {
+    const windows: UsageWindow[] = [
+      { id: "antigravity:gemini:session-5h", label: "Gemini · 5h", usedPercent: 60 },
+      { id: "antigravity:gemini:weekly", label: "Gemini · Weekly", usedPercent: 11 },
+      { id: "antigravity:claude:session-5h", label: "Claude · 5h", usedPercent: 0 },
+      { id: "antigravity:claude:weekly", label: "Claude · Weekly", usedPercent: 0 },
+    ];
+
+    it("exposes the Gemini and Claude+GPT swap groups", () => {
+      expect(usageRingGroups("antigravity").map((g) => g.key)).toEqual(["gemini", "claude"]);
+      expect(usageRingGroups("claude")).toEqual([]);
+    });
+
+    it("defaults to the Gemini group (5h outer, weekly inner)", () => {
+      const rings = pickUsageRings("antigravity", windows);
+      expect(rings.outer?.id).toBe("antigravity:gemini:session-5h");
+      expect(rings.inner?.id).toBe("antigravity:gemini:weekly");
+    });
+
+    it("swaps to the Claude group when selected", () => {
+      const rings = pickUsageRings("antigravity", windows, "claude");
+      expect(rings.outer?.id).toBe("antigravity:claude:session-5h");
+      expect(rings.inner?.id).toBe("antigravity:claude:weekly");
+    });
+
+    it("falls back to the most-constrained window when the selected group is absent", () => {
+      const onlyClaude = windows.filter((w) => w.id.startsWith("antigravity:claude"));
+      // Selecting the Gemini group but only Claude windows are present.
+      const rings = pickUsageRings("antigravity", onlyClaude, "gemini");
+      expect(rings.outer?.id).toBe("antigravity:claude:session-5h");
+      expect(rings.inner).toBeUndefined();
+    });
   });
 });

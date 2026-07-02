@@ -134,6 +134,7 @@ export const geminiDetectionSpec: DetectionSpec = {
   capabilities: defaultGeminiCapabilities,
   update: {
     npm: "@google/gemini-cli",
+    brew: "gemini-cli",
   },
   statusProbe: probeGeminiMetadata,
   authProbes: [envVarAuthProbe(["GEMINI_API_KEY"]), configDirAuthProbe],

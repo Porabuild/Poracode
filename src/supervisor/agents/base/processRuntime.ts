@@ -1,5 +1,5 @@
 import { execFile, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
@@ -164,6 +164,64 @@ function resolveWindowsExecutablePath(
   return parseWindowsExecutablePath(`${result.stdout ?? ""}`);
 }
 
+/**
+ * The common POSIX user-bin directories an agent binary might live in, in
+ * priority order, for {@link findPosixExecutableInWellKnownDirs}.
+ *
+ * Includes the installer convention `~/.<binary>/bin` (OpenCode's installer
+ * drops the binary in `~/.opencode/bin`). Many installers only append their bin
+ * dir to the *current* shell's rc — if the user's terminal runs fish, the line
+ * lands in fish config (`fish_add_path`) and never reaches the login `$SHELL`
+ * (zsh) PATH that detection probes, so `command -v` misses a binary the user
+ * can happily run in their terminal.
+ */
+function posixWellKnownBinaryDirs(binary: string): string[] {
+  const home = homedir();
+  return [
+    join(home, ".local", "bin"),
+    join(home, `.${binary}`, "bin"),
+    "/opt/homebrew/bin",
+    "/usr/local/bin",
+    join(home, ".bun", "bin"),
+    join(home, ".cargo", "bin"),
+    join(home, "go", "bin"),
+    join(home, "bin"),
+  ];
+}
+
+/**
+ * True when `path` is a regular file with at least one execute bit set — i.e.
+ * something node-pty / spawn can actually launch. Returns false (rather than
+ * throwing) when the path is missing, so callers can probe candidates directly.
+ */
+export function isExecutableRegularFile(path: string): boolean {
+  try {
+    const stats = statSync(path);
+    return stats.isFile() && (stats.mode & 0o111) !== 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Locate an agent binary in the well-known POSIX install directories when the
+ * login-shell `command -v` lookup comes up empty. The POSIX analogue of the
+ * Windows registry-PATH fallback ({@link getRefreshedWindowsPath}): it makes
+ * detection and launch independent of *which* interactive shell the user runs
+ * (zsh, fish, nushell, …), since an installer may only have wired the binary's
+ * dir into a shell other than the login `$SHELL`. Returns the absolute path of
+ * the first executable regular file found, or undefined (always undefined on
+ * Windows — the registry fallback covers that there).
+ */
+export function findPosixExecutableInWellKnownDirs(binary: string): string | undefined {
+  if (process.platform === "win32") return undefined;
+  for (const dir of posixWellKnownBinaryDirs(binary)) {
+    const candidate = join(dir, binary);
+    if (isExecutableRegularFile(candidate)) return candidate;
+  }
+  return undefined;
+}
+
 export function resolveExecutablePath(command: string): string | undefined {
   if (process.platform === "win32") {
     return (
@@ -182,10 +240,11 @@ export function resolveExecutablePath(command: string): string | undefined {
       windowsHide: true,
     },
   );
-  if (result.error || result.status !== 0) {
-    return undefined;
-  }
-  return parseCommandOutputLine(`${result.stdout ?? ""}`);
+  const resolved =
+    result.error || result.status !== 0
+      ? undefined
+      : parseCommandOutputLine(`${result.stdout ?? ""}`);
+  return resolved ?? findPosixExecutableInWellKnownDirs(command);
 }
 
 export function readCommandOutput(
@@ -648,7 +707,8 @@ export async function primeExecutablePathCache(commands: readonly string[]): Pro
       resolved.set(name, value.length > 0 ? value : undefined);
     }
     for (const cmd of unique) {
-      execPathCache.set(cmd, { path: resolved.get(cmd), ts });
+      const path = resolved.get(cmd) ?? findPosixExecutableInWellKnownDirs(cmd);
+      execPathCache.set(cmd, { path, ts });
     }
 
     if (envLines.length > 0) {
@@ -668,8 +728,9 @@ export async function resolveExecutablePathAsync(command: string): Promise<strin
     return cached.path;
   }
 
+  let resolved: string | undefined;
   try {
-    const resolved =
+    resolved =
       process.platform === "win32"
         ? ((await (async () => {
             try {
@@ -714,12 +775,12 @@ export async function resolveExecutablePathAsync(command: string): Promise<strin
               )
             ).stdout ?? "",
           );
-    execPathCache.set(command, { path: resolved, ts: Date.now() });
-    return resolved;
   } catch {
-    execPathCache.set(command, { path: undefined, ts: Date.now() });
-    return undefined;
+    resolved = undefined;
   }
+  const finalPath = resolved ?? findPosixExecutableInWellKnownDirs(command);
+  execPathCache.set(command, { path: finalPath, ts: Date.now() });
+  return finalPath;
 }
 
 export async function readCommandOutputAsync(

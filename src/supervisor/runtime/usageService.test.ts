@@ -59,7 +59,7 @@ afterEach(() => {
 });
 
 describe("UsageService", () => {
-  it("refresh collects all providers, emits per-provider then a terminal event", async () => {
+  it("refresh defaults to Claude and Codex only, emits per-provider then a terminal event", async () => {
     const events: SupervisorEvent[] = [];
     const service = new UsageService({
       emit: (event) => events.push(event),
@@ -70,6 +70,33 @@ describe("UsageService", () => {
 
     const result = await service.refreshProviderUsage({});
     expect(result.fromCache).toBe(false);
+    expect(result.snapshots.map((s) => s.providerId).sort()).toEqual(["claude", "codex"]);
+
+    const claude = result.snapshots.find((s) => s.providerId === "claude");
+    expect(claude?.status).toBe("ok");
+    expect(claude?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
+    // No token → auth-missing, no endpoint hit.
+    expect(result.snapshots.find((s) => s.providerId === "codex")?.status).toBe("auth-missing");
+
+    const perProvider = events.filter((e) => e.type === "provider-usage");
+    const terminal = events.filter((e) => e.type === "provider-usage-all");
+    expect(perProvider).toHaveLength(result.snapshots.length);
+    expect(terminal).toHaveLength(1);
+  });
+
+  it("keeps all providers enabled for existing settings with no usage opt-outs", async () => {
+    const settingsPath = tempCachePath();
+    writeFileSync(settingsPath, JSON.stringify({ usage: { autoRefresh: true } }), "utf8");
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      settingsPath,
+      host: makeHost({ claude: { accessToken: "tok" } }),
+      localCollectors: stubLocalCollectors(),
+    });
+
+    const result = await service.refreshProviderUsage({});
+
     expect(result.snapshots.map((s) => s.providerId).sort()).toEqual([
       "antigravity",
       "claude",
@@ -83,17 +110,6 @@ describe("UsageService", () => {
       "opencode",
       "zai",
     ]);
-
-    const claude = result.snapshots.find((s) => s.providerId === "claude");
-    expect(claude?.status).toBe("ok");
-    expect(claude?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
-    // No token → auth-missing, no endpoint hit.
-    expect(result.snapshots.find((s) => s.providerId === "codex")?.status).toBe("auth-missing");
-
-    const perProvider = events.filter((e) => e.type === "provider-usage");
-    const terminal = events.filter((e) => e.type === "provider-usage-all");
-    expect(perProvider).toHaveLength(result.snapshots.length);
-    expect(terminal).toHaveLength(1);
   });
 
   it("getProviderUsage returns cached snapshots after a refresh", async () => {

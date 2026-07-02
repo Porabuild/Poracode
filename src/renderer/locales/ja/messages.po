@@ -367,6 +367,11 @@ msgstr "{original}ワークツリーのクリーンアップも失敗しまし�
 msgid "{percent}% full"
 msgstr "{percent}% 使用"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName} がv{0}に更新されました。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation}(無効)"
@@ -621,6 +626,10 @@ msgstr "プロジェクトの追加"
 msgid "Add project options"
 msgstr "プロジェクトオプションを追加する"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Add provider"
+msgstr "プロバイダーを追加"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "リモートの追加"
@@ -727,9 +736,13 @@ msgstr "AI エージェント オーケストレーター — ターミナルお
 msgid "AI git actions"
 msgstr "AIによるgit操作"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "AI providers"
+msgstr "AI プロバイダー"
+
 #: src/mobile/views/MoreView.tsx
 msgid "AI, agents, and archived threads on the paired desktop"
-msgstr ""
+msgstr "ペアリング済みデスクトップ上の AI、エージェント、アーカイブ済みスレッド"
 
 #: src/mobile/settingsSections.ts
 msgid "Alerts when threads need you"
@@ -887,7 +900,7 @@ msgstr "アーカイブされたスレッド"
 #: src/mobile/views/SettingsView.tsx
 msgid "Archived threads are managed from the desktop app. Restoring or deleting "
 "them from this device isn't available yet."
-msgstr ""
+msgstr "アーカイブ済みスレッドはデスクトップアプリで管理されます。このデバイスからの復元または削除はまだ利用できません。"
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -911,6 +924,10 @@ msgstr "このワークスペースについて{0}に何でも質問してくだ
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "毎回尋ねる"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "承認を求める"
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
@@ -1302,7 +1319,7 @@ msgstr "ピッカーのキャンセル"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Cancel removing project"
-msgstr ""
+msgstr "プロジェクトの削除をキャンセル"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
@@ -1330,6 +1347,8 @@ msgstr "ユーザーの変更"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "変更履歴"
 
@@ -1884,6 +1903,10 @@ msgstr "接続"
 msgid "Connect a server"
 msgstr "サーバーに接続"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Connect the AI providers OpenCode can use and sign out of them here."
+msgstr "OpenCode が使用できる AI プロバイダーをここで接続し、サインアウトします。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
 #~ "projects — and their threads — from here. Open Settings → Remote Access "
@@ -2113,7 +2136,7 @@ msgstr "ファイルを読み取れませんでした。"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
-msgstr ""
+msgstr "オフラインデータをキャッシュできませんでした。"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't clone the repository."
@@ -2135,6 +2158,11 @@ msgstr "worktree を作成できませんでした。"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "リポジトリを一覧表示できませんでした。"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "変更履歴を読み込めませんでした。接続を確認するか、GitHub でご覧ください。"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2395,7 +2423,7 @@ msgstr "デスクトップに到達できません。"
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
-msgstr ""
+msgstr "デスクトップ設定"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
@@ -2562,6 +2590,11 @@ msgstr "画像をダウンロード"
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
 msgstr "「{0}」にダウンロード中です。大規模なリポジトリの場合、これには時間がかかることがあります。"
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "アップデートをダウンロード中"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2572,12 +2605,12 @@ msgid "Downloading voice model..."
 msgstr "音声モデルをダウンロードしています..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "ダウンロード中{v} — {percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "ダウンロード中{v} — {percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "{versionLabel}をダウンロード中"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "{versionLabel}をダウンロード中"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"
@@ -2848,7 +2881,7 @@ msgstr "プル リクエストを閉じることができませんでした:{det
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to close remote thread."
-msgstr ""
+msgstr "リモートスレッドを閉じられませんでした。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create pull request: {detail}"
@@ -2856,7 +2889,7 @@ msgstr "プル リクエストの作成に失敗しました:{detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to interrupt remote thread."
-msgstr ""
+msgstr "リモートスレッドを中断できませんでした。"
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -2868,7 +2901,7 @@ msgstr "プル リクエストのマージに失敗しました:{detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to open remote thread."
-msgstr ""
+msgstr "リモートスレッドを開けませんでした。"
 
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 msgid "Fast"
@@ -2954,8 +2987,8 @@ msgid "Filter by project"
 msgstr "プロジェクトで絞り込み"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "設定を絞り込む"
+#~ msgid "Filter settings"
+#~ msgstr "設定を絞り込む"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -3008,6 +3041,19 @@ msgid "First-class Command Code CLI integration using Lightcode's native "
 msgstr "Lightcode のネイティブ ランタイムを使用したファーストクラスの Command Code CLI 統合。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "Lightcode のネイティブ ランタイムを使用したファーストクラスの Cursor Agent 統合。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "Lightcode のネイティブ ランタイムを使用したファーストクラスの Gemini CLI 統合。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "Lightcode のネイティブ ランタイムを使用したファーストクラスの GitHub Copilot CLI 統合。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "Lightcode のネイティブ ランタイムを使用したファーストクラスの Grok Build CLI 統合。"
 
@@ -3018,6 +3064,10 @@ msgstr "Lightcode のネイティブ SDK ランタイムを使用したファー
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "エージェントで修正する"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "修正"
 
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
@@ -3233,6 +3283,10 @@ msgstr "目標"
 msgid "Goals set"
 msgstr "設定した目標数"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "了解"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "グループ"
@@ -3265,6 +3319,7 @@ msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
 msgstr "非表示の再開可能なスレッドは 5 分ごとにスイープされ、このアイドル時間が経過するとアンロードされます。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "隠す"
 
@@ -3357,6 +3412,10 @@ msgstr "画像"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "画像プレビュー"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "改善"
 
 #: src/mobile/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS. Use your phone's camera "
@@ -3705,6 +3764,7 @@ msgstr "ログイン{0}"
 msgid "Login required"
 msgstr "ログインが必要です"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Logout"
 msgstr "ログアウト"
@@ -4086,8 +4146,9 @@ msgid "Needs reply"
 msgstr "返信が必要です"
 
 #: src/mobile/RootLayout.tsx
+#: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
-msgstr "新規"
+msgstr "新機能"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -4430,6 +4491,10 @@ msgstr "プロンプトはありません"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
 msgstr "追跡されているプロバイダーはありません。"
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "No providers connected yet."
+msgstr "接続されているプロバイダーはまだありません。"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "No providers ready yet"
@@ -5176,6 +5241,7 @@ msgstr "プロジェクト"
 msgid "Prompt"
 msgstr "プロンプト"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "プロンプト"
@@ -5520,7 +5586,7 @@ msgstr "{pattern}を削除"
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Remove <0>{0}</0> and permanently delete all of its threads? This cannot "
 "be undone."
-msgstr ""
+msgstr "<0>{0}</0> を削除し、そのすべてのスレッドを完全に削除しますか？この操作は元に戻せません。"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Remove action"
@@ -5864,6 +5930,10 @@ msgstr "右"
 msgid "Right panel"
 msgstr "右パネル"
 
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Right-click to switch ring"
+msgstr "右クリックでリングを切り替え"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -6066,6 +6136,10 @@ msgstr "リポジトリを検索…"
 msgid "Search runtime items…"
 msgstr "ランタイム項目を検索…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "設定を検索"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "ショートカットを検索"
@@ -6206,6 +6280,11 @@ msgstr "アクティビティを共有"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
 msgstr "ショートカット"
+
+#. placeholder {0}: g.label
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Show {0}"
+msgstr "{0}を表示"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"
@@ -6367,6 +6446,11 @@ msgstr "サインアウト"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign out {label}"
 msgstr "サインアウト{label}"
+
+#. placeholder {0}: provider.label
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Sign out of {0}"
+msgstr "{0} からサインアウト"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Signed in"
@@ -7688,9 +7772,21 @@ msgstr "{0}経由"
 msgid "View"
 msgstr "表示"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "GitHubですべてのリリースを表示"
+
 #: src/mobile/views/GitActionSheet.tsx
 msgid "View diff"
 msgstr "diff を表示"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "変更履歴をすべて表示"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "変更履歴を表示"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
@@ -7800,6 +7896,16 @@ msgid "What the Create PR button does by default: open a dialog to edit the "
 "one click. You can also switch this from the button's menu."
 msgstr "[PR の作成] ボタンのデフォルトの機能: ダイアログを開いて最初にタイトルと説明を編集するか、それらを自動生成してワンクリックで PR "
 "を作成します。ボタンのメニューからも切り替えることができます。"
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "新着情報"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "Lightcodeの新着情報（新しい順）。"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."

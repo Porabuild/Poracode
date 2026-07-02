@@ -11,7 +11,7 @@ import appIconStableUrl from "../../../../../build/icon.png";
 import appIconNightlyUrl from "../../../../../build/icon-nightly.png";
 
 const GITHUB_REPO = "https://github.com/SDSLeon/lightcode";
-const WEBSITE_URL = "https://www.lightcodeapp.com/";
+const WEBSITE_URL = "https://lightcodeapp.com/";
 
 function AboutLink(props: { href: string; children: React.ReactNode }) {
   return (
@@ -33,7 +33,6 @@ function UpdateButton() {
   const downloadPercent = useUpdateStore((s) => s.downloadPercent);
   const transferred = useUpdateStore((s) => s.downloadTransferred);
   const total = useUpdateStore((s) => s.downloadTotal);
-  const bytesPerSecond = useUpdateStore((s) => s.downloadBytesPerSecond);
 
   if (phase === "checking") {
     return (
@@ -45,33 +44,35 @@ function UpdateButton() {
   }
 
   if (phase === "downloading") {
-    const v = version ? ` v${version}` : "";
+    // Single-line, fixed-height status so the Version row keeps a constant
+    // height across phases (no layout jump). `tabular-nums` keeps the digits
+    // from reflowing as the numbers tick up. The target version is intentionally
+    // omitted here — the Version row already shows it and the long nightly
+    // string was what overflowed and got clipped.
+    const percent = Math.min(100, Math.max(0, Math.round(downloadPercent)));
     const byteLine =
       transferred != null && total != null && total > 0
         ? `${formatBytes(transferred)} / ${formatBytes(total)}`
         : null;
-    const speedLine =
-      bytesPerSecond != null && bytesPerSecond > 0 ? `${formatBytes(bytesPerSecond)}/s` : null;
-    const percent = Math.round(downloadPercent);
-    const speedSuffix = speedLine ? ` · ${speedLine}` : "";
 
     return (
-      <div className="flex min-w-0 max-w-[min(100%,280px)] flex-col items-stretch gap-2 text-left">
-        <div className="flex items-center gap-2 text-sm text-foreground">
-          <Download className="size-3.5 shrink-0 animate-pulse" />
-          <span className="min-w-0 truncate">
-            <Trans>
-              Downloading{v} — {percent}%{speedSuffix}
-            </Trans>
-          </span>
-        </div>
-        {byteLine ? <p className="text-xs text-muted">{byteLine}</p> : null}
-        <div className="h-1 w-full rounded-full bg-[var(--row-active)]">
+      <div
+        className="flex items-center gap-2.5 text-xs text-muted"
+        role="progressbar"
+        aria-label={t`Downloading update`}
+        aria-valuenow={percent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <Download className="size-3.5 shrink-0 animate-pulse text-foreground" />
+        {byteLine ? <span className="whitespace-nowrap tabular-nums">{byteLine}</span> : null}
+        <div className="h-1 w-20 overflow-hidden rounded-full bg-[var(--row-active)]">
           <div
-            className="h-1 rounded-full bg-accent transition-[width] duration-300"
-            style={{ width: `${Math.round(downloadPercent)}%` }}
+            className="h-full rounded-full bg-foreground transition-[width] duration-300"
+            style={{ width: `${percent}%` }}
           />
         </div>
+        <span className="w-8 text-right tabular-nums text-foreground">{percent}%</span>
       </div>
     );
   }
@@ -79,7 +80,7 @@ function UpdateButton() {
   if (phase === "downloaded") {
     const label = version ? t`Install v${version}` : t`Install update`;
     return (
-      <Button size="sm" variant="primary" onPress={() => void readBridge().installUpdate()}>
+      <Button size="sm" variant="tertiary" onPress={() => void readBridge().installUpdate()}>
         <RefreshCw className="size-3.5" />
         {label}
       </Button>

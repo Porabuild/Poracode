@@ -31,6 +31,7 @@ import {
   writeImageFile,
 } from "../attachments/localFiles";
 import { createProjectDirectory } from "../projectDirectory";
+import { showOsNotification } from "../osNotifications";
 import {
   getProfileCoreStats,
   getProfileDevicesResponse,
@@ -243,6 +244,7 @@ export function createLocalIpcHandlers(
       }
       win.focus();
     },
+    showNotification: (payload) => showOsNotification(payload, options.getMainWindow),
     relaunchApp: () => {
       options.requestRelaunch();
     },

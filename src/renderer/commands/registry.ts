@@ -10,6 +10,7 @@ import { captureThreadInputSubmitted } from "@/renderer/analytics/posthog";
 import { addExistingProject } from "@/renderer/actions/createProjectActions";
 import { getCurrentProjectId, resolveActivePaneId } from "@/renderer/actions/currentProject";
 import {
+  openChangelogSettings,
   openFilesPanel,
   openGitReview,
   openProjectSettings,
@@ -132,6 +133,14 @@ function baseCommands(): AppCommand[] {
       title: msg`Open Settings`,
       group: "Lightcode",
       run: openSettings,
+    },
+    {
+      id: "changelog.open",
+      title: msg`What's New`,
+      subtitle: msg`View the changelog`,
+      group: "Lightcode",
+      keywords: ["changelog", "release notes", "what's new", "updates"],
+      run: openChangelogSettings,
     },
     {
       id: "find.open",

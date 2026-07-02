@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { stripAnsi } from "@/shared/ansi";
@@ -317,6 +318,47 @@ export function parseOpenCodeProvidersList(output: string): AgentConnectedProvid
   return providers;
 }
 
+/**
+ * Read the configured-provider ids straight from OpenCode's `auth.json` (the
+ * object keys — e.g. `opencode`, `github-copilot`). Values are never read, so no
+ * secret material is touched. Returns `[]` on any read/parse failure (missing
+ * file = no providers). Only valid for the host: WSL distros keep their own copy.
+ */
+async function readOpenCodeNativeProviderIds(): Promise<string[]> {
+  try {
+    const raw = await readFile(opencodeNativeAuthPath(), "utf8");
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return [];
+    return Object.keys(parsed as Record<string, unknown>);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Zip the auth.json provider ids onto the parsed `providers list` entries.
+ *
+ * `opencode providers list` renders exactly the auth.json credentials in file
+ * order, so the bullet list lines up 1:1 with `Object.keys(auth.json)` by index
+ * — that's how we recover a stable id (which the CLI text omits) for each
+ * connected provider. We only attach when the counts match: a mismatch means the
+ * CLI surfaced something not keyed in auth.json (e.g. an env-var credential), in
+ * which case guessing an id risks logging out the wrong provider, so we leave the
+ * ids off and let the UI fall back to interactive removal.
+ */
+export function attachOpenCodeProviderIds(
+  providers: readonly AgentConnectedProvider[],
+  ids: readonly string[],
+): AgentConnectedProvider[] {
+  if (providers.length === 0 || ids.length !== providers.length) {
+    return providers.map((provider) => ({ ...provider }));
+  }
+  return providers.map((provider, index) => {
+    const id = ids[index]?.trim();
+    return id ? { ...provider, id } : { ...provider };
+  });
+}
+
 async function probeOpenCodeStatus(ctx: Parameters<NonNullable<DetectionSpec["statusProbe"]>>[0]) {
   if (!ctx.executablePath) return undefined;
   const result = await readAgentCommandOutput(
@@ -326,7 +368,12 @@ async function probeOpenCodeStatus(ctx: Parameters<NonNullable<DetectionSpec["st
     { posixCwd: getAgentProbeCwd(ctx.location) },
   );
   const text = `${result.stdout}\n${result.stderr}`.trim();
-  const connectedProviders = parseOpenCodeProvidersList(text);
+  const parsedProviders = parseOpenCodeProvidersList(text);
+  // Recover a stable logout id per provider from the host auth.json. WSL distros
+  // keep their own auth.json we can't read from here, so they stay id-less and
+  // fall back to OpenCode's interactive removal flow.
+  const providerIds = ctx.location.kind === "wsl" ? [] : await readOpenCodeNativeProviderIds();
+  const connectedProviders = attachOpenCodeProviderIds(parsedProviders, providerIds);
   const credentialsCountMatch = /(\d+)\s+credentials\b/i.exec(text);
   const credentialsCount = credentialsCountMatch ? Number(credentialsCountMatch[1]) : undefined;
   const providerMetadata = compactAgentProviderMetadata({
@@ -356,7 +403,7 @@ export const opencodeDetectionSpec: DetectionSpec = {
   kind: "opencode",
   label: "OpenCode",
   binary: "opencode",
-  loginCommand: "opencode auth login",
+  loginCommand: "opencode providers login",
   capabilities: opencodeDefaultCapabilities,
   update: {
     builtIn: { binary: "opencode", args: ["upgrade"] },

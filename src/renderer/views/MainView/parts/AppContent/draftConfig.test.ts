@@ -2,17 +2,19 @@ import { describe, expect, it } from "vitest";
 import { buildProjectDraftConfig } from "./draftConfig";
 
 describe("buildProjectDraftConfig", () => {
-  it("preserves explicit empty approvalPolicy and sandboxMode so 'Default permissions' survives reload", () => {
+  it("preserves explicit empty permission fields so 'Default permissions' survives reload", () => {
     const built = buildProjectDraftConfig({
       agentKind: "codex",
       config: {
         model: "gpt-5.5",
         approvalPolicy: "",
+        approvalsReviewer: "",
         sandboxMode: "",
       },
       worktreeMode: false,
     });
     expect(built.approvalPolicy).toBe("");
+    expect(built.approvalsReviewer).toBe("");
     expect(built.sandboxMode).toBe("");
   });
 
@@ -28,6 +30,7 @@ describe("buildProjectDraftConfig", () => {
           thinking: true,
           mode: "agent",
           approvalPolicy: "default",
+          approvalsReviewer: "auto_review",
           sandboxMode: "danger-full-access",
         },
         worktreeMode: true,
@@ -41,6 +44,7 @@ describe("buildProjectDraftConfig", () => {
       thinking: true,
       mode: "agent",
       approvalPolicy: "default",
+      approvalsReviewer: "auto_review",
       sandboxMode: "danger-full-access",
       worktreeMode: true,
     });

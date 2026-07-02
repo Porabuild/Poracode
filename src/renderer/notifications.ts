@@ -1,6 +1,7 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type { Thread, ThreadAttention, ThreadStatus } from "@/shared/contracts";
+import type { NotificationClickEvent } from "@/shared/ipc";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -28,11 +29,6 @@ type SupervisorThreadStateEvent = {
   status: ThreadStatus;
   attention: ThreadAttention;
 };
-
-function canUseNativeNotifications(): boolean {
-  if (typeof Notification === "undefined") return false;
-  return Notification.permission !== "denied";
-}
 
 const NOTIFICATION_SOUND_URL = "./notification.mp3";
 
@@ -133,18 +129,13 @@ function showToastNotification(
   playSound();
 }
 
-let permissionRequest: Promise<NotificationPermission> | null = null;
-
-function ensurePermission(): Promise<NotificationPermission> {
-  if (Notification.permission !== "default") {
-    return Promise.resolve(Notification.permission);
-  }
-  if (!permissionRequest) {
-    permissionRequest = Notification.requestPermission();
-  }
-  return permissionRequest;
-}
-
+// Native (OS) notifications are created in the main process via Electron's
+// Notification API rather than the renderer's Web Notification API. The Web API
+// is gated by Chromium's per-session permission handler (see
+// src/main/browser/permissions.ts), which denies "notifications" and would force
+// Notification.permission to "denied"; the main-process API bypasses that layer
+// entirely. The renderer still owns the decision and the localized strings, and
+// reacts to clicks via onNotificationClick (handleNotificationClick below).
 function showNativeNotification(
   threadId: string,
   projectName: string,
@@ -152,36 +143,19 @@ function showNativeNotification(
   category: NotificationCategory,
   status: ThreadStatus,
 ): void {
-  if (!canUseNativeNotifications()) return;
-
   const detail = getStatusDetail(category, status);
   const body = `${threadTitle}\n${detail}`;
 
-  const show = () => {
-    try {
-      const native = new Notification(projectName, {
-        body,
-        silent: true,
-      });
-      native.onclick = () => {
-        void readBridge().focusWindow();
-        openThread(threadId, { focusComposer: true });
-        native.close();
-      };
-    } catch {
-      /* unsupported on some Linux distros */
-    }
-  };
+  void readBridge()
+    .showNotification({ title: projectName, body, threadId })
+    .then((shown) => {
+      if (shown) playSound();
+    })
+    .catch(() => undefined);
+}
 
-  if (Notification.permission === "granted") {
-    show();
-  } else {
-    void ensurePermission().then((perm) => {
-      if (perm === "granted") show();
-    });
-  }
-
-  playSound();
+export function handleNotificationClick(event: NotificationClickEvent): void {
+  openThread(event.threadId, { focusComposer: true });
 }
 
 export function handleThreadStateNotification(

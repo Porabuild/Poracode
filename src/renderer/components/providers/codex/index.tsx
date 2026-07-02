@@ -19,17 +19,29 @@ import {
 
 registerProviderIcon("codex", CodexStatusIcon);
 registerProviderLabel("codex", "Codex");
+// Title/commit defaults were chosen by an empirical benchmark (latency + blind
+// quality judging) across the Codex model/effort matrix on real prompts and
+// diffs — not by model-tier intuition. Two findings drove these:
+//   1. The dominant latency cost is reasoning effort, not model size. The old
+//      mini-at-xhigh commit default ran ~13-20x slower (≈54s median, 116s max)
+//      than low effort for no quality gain.
+//   2. gpt-5.4-mini at low effort scored in the top quality cluster on BOTH
+//      tasks while being the most consistent (no case bombed) and the cheapest.
+//      Bigger models did not reliably win: gpt-5.4 and gpt-5.3-codex-spark
+//      mislabeled a feature commit as "fix", and the fast lane / xhigh added
+//      latency without quality. So we keep mini and only fix the effort.
+// Frontier gpt-5.5 stays for the conflict resolver (a real interactive task).
 registerCommitGenDefaults("codex", {
   label: "Codex",
-  hint: "GPT-5.4 Mini xhigh",
+  hint: "GPT-5.4 Mini low",
   model: "gpt-5.4-mini",
-  effort: "xhigh",
+  effort: "low",
 });
 registerTitleGenDefaults("codex", {
   label: "Codex",
-  hint: "GPT-5.4 Mini medium",
+  hint: "GPT-5.4 Mini low",
   model: "gpt-5.4-mini",
-  effort: "medium",
+  effort: "low",
 });
 registerConflictResolverDefaults("codex", {
   label: "Codex",
@@ -80,13 +92,23 @@ const CODEX_PERMISSION_PRESETS = [
     label: msg`Default permissions`,
     hint: msg`Use config`,
     approvalPolicies: [],
+    approvalsReviewer: "",
     sandboxModes: [],
+  },
+  {
+    id: "review-on-request",
+    label: msg`Ask for approval`,
+    hint: msg`Prompts`,
+    approvalPolicies: ["on-request"],
+    approvalsReviewer: "user",
+    sandboxModes: ["workspace-write"],
   },
   {
     id: "auto-review",
     label: msg`Auto-review`,
     hint: msg`Review on request`,
     approvalPolicies: ["on-request"],
+    approvalsReviewer: "auto_review",
     sandboxModes: ["workspace-write"],
   },
   {
@@ -94,35 +116,52 @@ const CODEX_PERMISSION_PRESETS = [
     label: msg`Full access`,
     hint: msg`No prompts`,
     approvalPolicies: ["never"],
+    approvalsReviewer: "",
     sandboxModes: ["danger-full-access"],
   },
 ] as const;
 
 type CodexPermissionPreset = (typeof CODEX_PERMISSION_PRESETS)[number];
+type ResolvedCodexPermissionPreset = Omit<CodexPermissionPreset, "approvalsReviewer"> & {
+  approvalPolicy: string;
+  approvalsReviewer: string;
+  sandboxMode: string;
+};
 
 function resolveCodexPermissionPreset(
   preset: CodexPermissionPreset,
   approvalIds: Set<string>,
   sandboxIds: Set<string>,
-): { approvalPolicy: string; sandboxMode: string } | undefined {
+): { approvalPolicy: string; approvalsReviewer: string; sandboxMode: string } | undefined {
   if (preset.approvalPolicies.length === 0 && preset.sandboxModes.length === 0) {
-    return { approvalPolicy: "", sandboxMode: "" };
+    return { approvalPolicy: "", approvalsReviewer: preset.approvalsReviewer, sandboxMode: "" };
   }
 
   const approvalPolicy = preset.approvalPolicies.find((id) => approvalIds.has(id));
   const sandboxMode = preset.sandboxModes.find((id) => sandboxIds.has(id));
-  return approvalPolicy && sandboxMode ? { approvalPolicy, sandboxMode } : undefined;
+  return approvalPolicy && sandboxMode
+    ? { approvalPolicy, approvalsReviewer: preset.approvalsReviewer, sandboxMode }
+    : undefined;
 }
 
 function isCodexPermissionPresetSelected(
-  preset: CodexPermissionPreset & { approvalPolicy: string; sandboxMode: string },
-  config: { approvalPolicy?: string | undefined; sandboxMode?: string | undefined },
+  preset: ResolvedCodexPermissionPreset,
+  config: {
+    approvalPolicy?: string | undefined;
+    approvalsReviewer?: string | undefined;
+    sandboxMode?: string | undefined;
+  },
 ): boolean {
   if (!preset.approvalPolicy && !preset.sandboxMode) {
-    return !config.approvalPolicy && !config.sandboxMode;
+    return !config.approvalPolicy && !config.approvalsReviewer && !config.sandboxMode;
   }
+  const effectiveReviewer = config.approvalsReviewer || "user";
+  const reviewerMatches =
+    !preset.approvalsReviewer || preset.approvalsReviewer === effectiveReviewer;
   return (
-    preset.approvalPolicy === config.approvalPolicy && preset.sandboxMode === config.sandboxMode
+    preset.approvalPolicy === config.approvalPolicy &&
+    reviewerMatches &&
+    preset.sandboxMode === config.sandboxMode
   );
 }
 
@@ -134,10 +173,12 @@ function buildCodexPermissionControl(
 ): ComposerControl | null {
   const approvalIds = new Set(capabilities.approvalPolicies.map((policy) => policy.id));
   const sandboxIds = new Set(capabilities.sandboxModes.map((mode) => mode.id));
-  const permissionPresets = CODEX_PERMISSION_PRESETS.flatMap((preset) => {
-    const resolved = resolveCodexPermissionPreset(preset, approvalIds, sandboxIds);
-    return resolved ? [{ ...preset, ...resolved }] : [];
-  });
+  const permissionPresets: ResolvedCodexPermissionPreset[] = CODEX_PERMISSION_PRESETS.flatMap(
+    (preset) => {
+      const resolved = resolveCodexPermissionPreset(preset, approvalIds, sandboxIds);
+      return resolved ? [{ ...preset, ...resolved }] : [];
+    },
+  );
   if (permissionPresets.length === 0) return null;
   const current =
     permissionPresets.find((preset) => isCodexPermissionPresetSelected(preset, config)) ??
@@ -157,6 +198,7 @@ function buildCodexPermissionControl(
       if (!preset) return;
       onConfigChange({
         approvalPolicy: preset.approvalPolicy,
+        approvalsReviewer: preset.approvalsReviewer,
         sandboxMode: preset.sandboxMode,
       });
     },

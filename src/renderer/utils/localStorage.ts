@@ -37,3 +37,20 @@ export function writeStoredNumber(key: string, value: number): void {
     /* ignore */
   }
 }
+
+export function readStoredString(key: string, fallback: string | null = null): string | null {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? fallback : raw;
+  } catch {
+    return fallback;
+  }
+}
+
+export function writeStoredString(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+}

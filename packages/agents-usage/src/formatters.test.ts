@@ -108,6 +108,8 @@ describe("windowDurationMs", () => {
     expect(windowDurationMs("codex:gpt-5:weekly", 0)).toBe(7 * DAY);
     expect(windowDurationMs("factory:core:weekly", 0)).toBe(7 * DAY);
     expect(windowDurationMs("gemini:gemini-2.5-pro", 0)).toBe(DAY);
+    expect(windowDurationMs("antigravity:gemini:session-5h", 0)).toBe(5 * HOUR);
+    expect(windowDurationMs("antigravity:claude:weekly", 0)).toBe(7 * DAY);
   });
 
   it("measures monthly windows back from the actual reset date, not a fixed 30d", () => {

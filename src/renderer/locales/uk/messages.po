@@ -375,6 +375,11 @@ msgstr "{original}\n"
 msgid "{percent}% full"
 msgstr "{percent}% заповнено"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName} оновлено до v{0}."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation} (вимкнено)"
@@ -631,6 +636,10 @@ msgstr "Додати проєкт"
 msgid "Add project options"
 msgstr "Параметри додавання проєкту"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Add provider"
+msgstr "Додати постачальника"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Додати віддалений репозиторій"
@@ -738,9 +747,13 @@ msgstr "Оркестратор AI-агентів — керуйте агента
 msgid "AI git actions"
 msgstr "Дії AI у git"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "AI providers"
+msgstr "Постачальники AI"
+
 #: src/mobile/views/MoreView.tsx
 msgid "AI, agents, and archived threads on the paired desktop"
-msgstr ""
+msgstr "ШІ, агенти й архівовані треди на спареному робочому столі"
 
 #: src/mobile/settingsSections.ts
 msgid "Alerts when threads need you"
@@ -901,7 +914,8 @@ msgstr "Архівовані треди"
 #: src/mobile/views/SettingsView.tsx
 msgid "Archived threads are managed from the desktop app. Restoring or deleting "
 "them from this device isn't available yet."
-msgstr ""
+msgstr "Архівовані треди керуються з настільної програми. Відновлення або "
+"видалення з цього пристрою поки недоступне."
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -926,6 +940,10 @@ msgstr "Запитайте {0} про що завгодно в цьому роб
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "Питати щоразу"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Запитувати підтвердження"
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
@@ -1322,7 +1340,7 @@ msgstr "Скасувати вибір"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Cancel removing project"
-msgstr ""
+msgstr "Скасувати видалення проєкту"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
@@ -1351,6 +1369,8 @@ msgstr "Змінити користувача"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "Список змін"
 
@@ -1908,6 +1928,11 @@ msgstr "Підключити"
 msgid "Connect a server"
 msgstr "Підключити сервер"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Connect the AI providers OpenCode can use and sign out of them here."
+msgstr "Підключайте постачальників AI, які може використовувати OpenCode, і "
+"виходьте з них тут."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
 #~ "projects — and their threads — from here. Open Settings → Remote Access "
@@ -2141,7 +2166,7 @@ msgstr "Не вдалося прочитати файл."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
-msgstr ""
+msgstr "Не вдалося кешувати офлайн-дані."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't clone the repository."
@@ -2164,6 +2189,12 @@ msgstr "Не вдалося створити worktree."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Не вдалося отримати список репозиторіїв."
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "Не вдалося завантажити список змін. Перевірте з'єднання або перегляньте "
+"його на GitHub."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2426,7 +2457,7 @@ msgstr "Десктоп недоступний."
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
-msgstr ""
+msgstr "Налаштування робочого стола"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
@@ -2595,6 +2626,11 @@ msgid "Downloading into “{0}”. This can take a moment for large repositories
 msgstr "Завантаження до «{0}». Для великих репозиторіїв це може зайняти деякий "
 "час."
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "Завантаження оновлення"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2605,12 +2641,12 @@ msgid "Downloading voice model..."
 msgstr "Завантаження голосової моделі..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "Завантаження{v} — {percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "Завантаження{v} — {percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "Завантаження{versionLabel}"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "Завантаження{versionLabel}"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"
@@ -2887,7 +2923,7 @@ msgstr "Не вдалося закрити pull request: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to close remote thread."
-msgstr ""
+msgstr "Не вдалося закрити віддалений тред."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create pull request: {detail}"
@@ -2895,7 +2931,7 @@ msgstr "Не вдалося створити pull request: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to interrupt remote thread."
-msgstr ""
+msgstr "Не вдалося перервати віддалений тред."
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -2907,7 +2943,7 @@ msgstr "Не вдалося виконати злиття pull request: {detail}
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to open remote thread."
-msgstr ""
+msgstr "Не вдалося відкрити віддалений тред."
 
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 msgid "Fast"
@@ -2996,8 +3032,8 @@ msgid "Filter by project"
 msgstr "Фільтр за проєктом"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Фільтрувати налаштування"
+#~ msgid "Filter settings"
+#~ msgstr "Фільтрувати налаштування"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -3054,6 +3090,22 @@ msgstr "Першокласна інтеграція Command Code CLI з вико
 "середовища виконання Lightcode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "Першокласна інтеграція Cursor Agent із використанням нативного "
+"середовища виконання Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "Першокласна інтеграція Gemini CLI із використанням нативного середовища "
+"виконання Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "Першокласна інтеграція GitHub Copilot CLI із використанням нативного "
+"середовища виконання Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "Першокласна інтеграція Grok Build CLI з використанням нативного "
 "середовища виконання Lightcode."
@@ -3066,6 +3118,10 @@ msgstr "Першокласна інтеграція OpenCode з використ
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Виправити в агенті"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "Виправлено"
 
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
@@ -3286,6 +3342,10 @@ msgstr "Мета"
 msgid "Goals set"
 msgstr "Встановлено цілей"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "Зрозуміло"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "Група"
@@ -3319,6 +3379,7 @@ msgstr "Приховані відновлювані треди перевіря�
 "вивантажуються після цього часу простою."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "Сховати"
 
@@ -3412,6 +3473,10 @@ msgstr "Зображення"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Попередній перегляд зображення"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "Покращено"
 
 #: src/mobile/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS. Use your phone's camera "
@@ -3767,6 +3832,7 @@ msgstr "Увійти {0}"
 msgid "Login required"
 msgstr "Потрібен вхід"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Logout"
 msgstr "Вийти"
@@ -4151,8 +4217,9 @@ msgid "Needs reply"
 msgstr "Потребує відповіді"
 
 #: src/mobile/RootLayout.tsx
+#: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
-msgstr "Новий"
+msgstr "Нове"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "New action command"
@@ -4495,6 +4562,10 @@ msgstr "Немає промптів"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
 msgstr "Провайдери не відстежуються."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "No providers connected yet."
+msgstr "Ще немає підключених постачальників."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "No providers ready yet"
@@ -5250,6 +5321,7 @@ msgstr "Проєкти"
 msgid "Prompt"
 msgstr "Промпт"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Запити"
@@ -5595,7 +5667,8 @@ msgstr "Видалити {pattern}"
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Remove <0>{0}</0> and permanently delete all of its threads? This cannot "
 "be undone."
-msgstr ""
+msgstr "Видалити <0>{0}</0> і назавжди видалити всі його треди? Цю дію не можна "
+"скасувати."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Remove action"
@@ -5939,6 +6012,10 @@ msgstr "Праворуч"
 msgid "Right panel"
 msgstr "Права панель"
 
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Right-click to switch ring"
+msgstr "Клацніть правою кнопкою, щоб перемкнути кільце"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -6146,6 +6223,10 @@ msgstr "Пошук репозиторіїв…"
 msgid "Search runtime items…"
 msgstr "Пошук runtime-елементів…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Шукати налаштування"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "Пошук комбінацій клавіш"
@@ -6287,6 +6368,11 @@ msgstr "Поділіться своєю активністю"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
 msgstr "Комбінації клавіш"
+
+#. placeholder {0}: g.label
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Show {0}"
+msgstr "Показати {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"
@@ -6450,6 +6536,11 @@ msgstr "Вийти"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign out {label}"
 msgstr "Вийти {label}"
+
+#. placeholder {0}: provider.label
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Sign out of {0}"
+msgstr "Вийти з {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Signed in"
@@ -7793,9 +7884,21 @@ msgstr "через {0}"
 msgid "View"
 msgstr "Перегляд"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "Усі випуски на GitHub"
+
 #: src/mobile/views/GitActionSheet.tsx
 msgid "View diff"
 msgstr "Показать diff"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "Відкрити повний список змін"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "Відкрити список змін"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
@@ -7910,6 +8013,16 @@ msgid "What the Create PR button does by default: open a dialog to edit the "
 msgstr "Що робить кнопка створення PR за замовчуванням: спершу відкриває діалог "
 "для редагування заголовка та опису, або генерує їх автоматично та "
 "створює PR одним кліком. Це також можна перемкнути в меню кнопки."
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "Що нового"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "Що нового в Lightcode, спочатку найновіші."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."

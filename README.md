@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.lightcodeapp.com">Website</a> · <a href="https://github.com/SDSLeon/lightcode/releases">Download</a> · <a href="https://github.com/SDSLeon/lightcode/issues">Report Bug</a> · <a href="https://github.com/SDSLeon/lightcode/issues">Request Feature</a>
+  <a href="https://lightcodeapp.com">Website</a> · <a href="https://github.com/SDSLeon/lightcode/releases">Download</a> · <a href="https://github.com/SDSLeon/lightcode/issues">Report Bug</a> · <a href="https://github.com/SDSLeon/lightcode/issues">Request Feature</a>
 </p>
 
 <p align="center">
@@ -77,7 +77,7 @@ Install and run any agent from the [Agent Client Protocol](https://agentclientpr
 
 ## Install
 
-Download the latest release for your platform from the [releases page](https://github.com/SDSLeon/lightcode/releases) or visit [lightcodeapp.com](https://www.lightcodeapp.com).
+Download the latest release for your platform from the [releases page](https://github.com/SDSLeon/lightcode/releases) or visit [lightcodeapp.com](https://lightcodeapp.com).
 
 | Platform | Format           |
 | -------- | ---------------- |

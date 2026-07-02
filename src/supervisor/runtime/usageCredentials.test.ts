@@ -3,7 +3,12 @@ import { parseClaudeCredentials } from "./claudeCredentials";
 import { claudeKeychainAccount, claudeKeychainServiceNames } from "./macClaudeKeychain";
 import { parseCodexAuth } from "./codexCredentials";
 import { copilotCredentialTargetFromConfig } from "./copilotCredentials";
-import { cursorUserIdFromJwt } from "./cursorCredentials";
+import {
+  CURSOR_CLI_KEYCHAIN_ACCOUNT,
+  CURSOR_CLI_KEYCHAIN_SERVICE,
+  cursorUserIdFromJwt,
+  parseCursorCliEmail,
+} from "./cursorCredentials";
 
 /** Build a JWT-shaped token whose payload carries the given claims. */
 function fakeJwt(claims: Record<string, unknown>): string {
@@ -24,6 +29,28 @@ describe("cursorUserIdFromJwt", () => {
     expect(cursorUserIdFromJwt(undefined)).toBeUndefined();
     expect(cursorUserIdFromJwt("not-a-jwt")).toBeUndefined();
     expect(cursorUserIdFromJwt(fakeJwt({ other: "x" }))).toBeUndefined();
+  });
+});
+
+describe("Cursor CLI keychain fallback", () => {
+  it("targets the cursor-agent keychain namespace (service + shared account)", () => {
+    // The CLI builds services as `cursor-<secret>` under one `cursor-user` account.
+    expect(CURSOR_CLI_KEYCHAIN_SERVICE).toBe("cursor-access-token");
+    expect(CURSOR_CLI_KEYCHAIN_ACCOUNT).toBe("cursor-user");
+  });
+
+  it("extracts the signed-in email from cli-config.json authInfo", () => {
+    expect(
+      parseCursorCliEmail(
+        JSON.stringify({ authInfo: { email: " user@example.com ", userId: 1 }, model: {} }),
+      ),
+    ).toBe("user@example.com");
+  });
+
+  it("returns undefined when authInfo/email is absent or JSON is invalid", () => {
+    expect(parseCursorCliEmail(JSON.stringify({ authInfo: {} }))).toBeUndefined();
+    expect(parseCursorCliEmail(JSON.stringify({ authInfo: { email: "" } }))).toBeUndefined();
+    expect(parseCursorCliEmail("not json")).toBeUndefined();
   });
 });
 

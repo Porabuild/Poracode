@@ -3,7 +3,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import type { SettingsSection } from "./types";
 
 /**
- * Static index of individual settings, powering the sidebar's "Filter settings"
+ * Static index of individual settings, powering the sidebar's "Search settings"
  * search (see {@link ./SettingsSidebar}). A static index is required because
  * only the active section component is mounted at a time, so there is no live
  * DOM of other sections to scan.

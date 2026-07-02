@@ -1,13 +1,26 @@
+import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import type { OAuthToken } from "@lightcode/agents-usage";
 import { withReadonlyDb } from "./sqliteRead";
 
+const execFileAsync = promisify(execFile);
+const KEYCHAIN_TIMEOUT_MS = 5_000;
+
 /**
- * Resolve the Cursor desktop app's JWT access token from its `state.vscdb`
- * SQLite store (table `ItemTable`, key `cursorAuth/accessToken`) — the same
- * place the Cursor app keeps it. No cookie capture and no browser involvement.
- * Read-only; the token is short-lived so it is read fresh each call.
+ * Resolve Cursor's JWT access token from whichever Cursor install is signed in:
+ *
+ * 1. The Cursor desktop app's `state.vscdb` SQLite store (table `ItemTable`,
+ *    key `cursorAuth/accessToken`) — the same place the IDE keeps it.
+ * 2. The Cursor CLI (`cursor-agent`), which keeps no token in `state.vscdb`;
+ *    it shells out to `/usr/bin/security` and stores the JWT in the macOS
+ *    Keychain (service `cursor-access-token`, account `cursor-user`). Without
+ *    this fallback a CLI-only install (no IDE) reads as "Not signed in".
+ *
+ * No cookie capture and no browser involvement. Read-only; the token is
+ * short-lived so it is read fresh each call.
  */
 
 function cursorStateDbPaths(): string[] {
@@ -87,6 +100,76 @@ function unquote(value: string | undefined): string | undefined {
   return trimmed || undefined;
 }
 
+/**
+ * The Cursor CLI keychain namespace is `cursor`, so its per-secret services are
+ * `cursor-<secret>` under one shared account `cursor-user`. We only read the
+ * access token; the refresh token is left untouched (the CLI rotates it).
+ */
+export const CURSOR_CLI_KEYCHAIN_SERVICE = "cursor-access-token";
+export const CURSOR_CLI_KEYCHAIN_ACCOUNT = "cursor-user";
+
+/**
+ * Read the Cursor CLI's session JWT from the macOS Keychain. Returns undefined
+ * off macOS (the CLI uses libsecret/Credential Manager there — not covered yet)
+ * or when the CLI is not signed in / the keychain is locked or denied.
+ */
+async function readCursorCliKeychainToken(): Promise<string | undefined> {
+  if (process.platform !== "darwin") return undefined;
+  try {
+    const { stdout } = await execFileAsync(
+      "security",
+      [
+        "find-generic-password",
+        "-a",
+        CURSOR_CLI_KEYCHAIN_ACCOUNT,
+        "-w",
+        "-s",
+        CURSOR_CLI_KEYCHAIN_SERVICE,
+      ],
+      { timeout: KEYCHAIN_TIMEOUT_MS, encoding: "utf8" },
+    );
+    const trimmed = stdout.trim();
+    return trimmed || undefined;
+  } catch {
+    // Missing/locked keychains and CLI-not-signed-in degrade to auth-missing.
+    return undefined;
+  }
+}
+
+/** The CLI keeps the signed-in email in `~/.cursor/cli-config.json` → authInfo.email. */
+export function parseCursorCliEmail(content: string): string | undefined {
+  try {
+    const parsed = JSON.parse(content) as { authInfo?: { email?: unknown } };
+    const email = parsed.authInfo?.email;
+    return typeof email === "string" && email.trim() ? email.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function readCursorCliEmail(): Promise<string | undefined> {
+  try {
+    return parseCursorCliEmail(
+      await readFile(join(homedir(), ".cursor", "cli-config.json"), "utf8"),
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+/** Build the token bundle from the Cursor CLI (`cursor-agent`) session. */
+async function resolveCursorCliToken(): Promise<OAuthToken | undefined> {
+  const accessToken = await readCursorCliKeychainToken();
+  if (!accessToken) return undefined;
+  const userId = cursorUserIdFromJwt(accessToken);
+  const email = await readCursorCliEmail();
+  return {
+    accessToken,
+    ...(userId ? { accountId: userId } : {}),
+    ...(email ? { raw: { email } } : {}),
+  };
+}
+
 export async function resolveCursorToken(): Promise<OAuthToken | undefined> {
   for (const dbPath of cursorStateDbPaths()) {
     const token = await withReadonlyDb(dbPath, (db) => {
@@ -111,5 +194,7 @@ export async function resolveCursorToken(): Promise<OAuthToken | undefined> {
     });
     if (token) return token;
   }
-  return undefined;
+  // No desktop-IDE token — fall back to a Cursor CLI (`cursor-agent`) session so
+  // usage works for CLI-only installs that have no Cursor IDE.
+  return resolveCursorCliToken();
 }

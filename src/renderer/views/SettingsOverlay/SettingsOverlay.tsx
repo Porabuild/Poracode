@@ -27,6 +27,7 @@ import { ShortcutsSettings } from "./parts/ShortcutsSettings";
 import { TerminalSettings } from "./parts/TerminalSettings";
 import { ThreadSettings } from "./parts/ThreadSettings";
 import { ArchivedThreadsSettings } from "./parts/ArchivedThreadsSettings";
+import { ChangelogSettings } from "./parts/ChangelogSettings";
 import { AboutSettings } from "./parts/AboutSettings";
 import { DevSettings } from "./parts/DevSettings";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
@@ -53,6 +54,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   browser: () => <BrowserSettings />,
   usage: () => <UsageSettings />,
   archived: () => <ArchivedThreadsSettings />,
+  changelog: () => <ChangelogSettings />,
   about: () => <AboutSettings />,
   dev: () => <DevSettings />,
 };

@@ -1949,6 +1949,21 @@ describe("RemoteAccessServer", () => {
       expect(calls).toContainEqual({ name: call.procedure, payload: call.payload });
     }
 
+    const pushPayload = {
+      projectLocation,
+      remote: "origin",
+      branch: "feature/mobile",
+      setUpstream: true,
+    };
+    const pushResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: fullHeaders,
+      body: JSON.stringify({ procedure: "gitPush", payload: pushPayload }),
+    });
+    expect(pushResponse.status).toBe(200);
+    await expect(pushResponse.json()).resolves.toEqual({ result: { ok: "gitPush" } });
+    expect(calls).toContainEqual({ name: "gitPush", payload: pushPayload });
+
     // Payload/schema errors are client errors, not hidden as 500s.
     const invalidPayloadResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
@@ -1985,6 +2000,17 @@ describe("RemoteAccessServer", () => {
     expect(stageResponse.status).toBe(403);
     await expect(stageResponse.json()).resolves.toMatchObject({ error: { code: "missing_scope" } });
     expect(calls.some((c) => c.name === "gitStage")).toBe(false);
+
+    const pushWithoutOperateResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${readToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ procedure: "gitPush", payload: pushPayload }),
+    });
+    expect(pushWithoutOperateResponse.status).toBe(403);
+    await expect(pushWithoutOperateResponse.json()).resolves.toMatchObject({
+      error: { code: "missing_scope" },
+    });
+    expect(calls.filter((c) => c.name === "gitPush")).toHaveLength(1);
   });
 
   it("rejects settings endpoints when no gateway is configured", async () => {

@@ -68,9 +68,9 @@ describe("resolveConflictResolverConfig", () => {
     expect(result.model).toBe("gpt-5.5");
   });
 
-  it("falls back to registered defaults (Cursor → Composer 2.5)", () => {
+  it("falls back to registered defaults (Cursor → Composer 2.5 Fast)", () => {
     const result = resolveConflictResolverConfig(cursorStatus, "", "");
-    expect(result).toEqual({ model: "composer-2.5", effort: "", availableEfforts: [] });
+    expect(result).toEqual({ model: "composer-2.5-fast", effort: "", availableEfforts: [] });
   });
 
   it("preserves user-selected model when it exists in capabilities", () => {

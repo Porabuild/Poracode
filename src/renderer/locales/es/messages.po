@@ -371,6 +371,11 @@ msgstr "{original}\n"
 msgid "{percent}% full"
 msgstr "{percent}% lleno"
 
+#. placeholder {0}: bridge.appVersion
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "{productName} was updated to v{0}."
+msgstr "{productName} se actualizó a la v{0}."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation} (deshabilitado)"
@@ -626,6 +631,10 @@ msgstr "Agregar proyecto"
 msgid "Add project options"
 msgstr "Opciones para agregar proyecto"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Add provider"
+msgstr "Añadir proveedor"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Agregar remoto"
@@ -733,9 +742,13 @@ msgstr "Orquestador de agentes de IA: gestiona agentes de programación mediante
 msgid "AI git actions"
 msgstr "Acciones de git con IA"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "AI providers"
+msgstr "Proveedores de IA"
+
 #: src/mobile/views/MoreView.tsx
 msgid "AI, agents, and archived threads on the paired desktop"
-msgstr ""
+msgstr "IA, agentes e hilos archivados en el escritorio emparejado"
 
 #: src/mobile/settingsSections.ts
 msgid "Alerts when threads need you"
@@ -897,7 +910,9 @@ msgstr "Hilos archivados"
 #: src/mobile/views/SettingsView.tsx
 msgid "Archived threads are managed from the desktop app. Restoring or deleting "
 "them from this device isn't available yet."
-msgstr ""
+msgstr "Los hilos archivados se gestionan desde la app de escritorio. "
+"Restaurarlos o eliminarlos desde este dispositivo aún no está "
+"disponible."
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -922,6 +937,10 @@ msgstr "Pregunta a {0} cualquier cosa sobre este espacio de trabajo"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Ask each time"
 msgstr "Preguntar cada vez"
+
+#: src/renderer/components/providers/codex/index.tsx
+msgid "Ask for approval"
+msgstr "Pedir aprobación"
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
@@ -1318,7 +1337,7 @@ msgstr "Cancelar selector"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Cancel removing project"
-msgstr ""
+msgstr "Cancelar eliminación del proyecto"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
@@ -1348,6 +1367,8 @@ msgstr "Cambiar usuario"
 
 #. Link to the list of release notes
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Changelog"
 msgstr "Registro de cambios"
 
@@ -1907,6 +1928,11 @@ msgstr "Conectar"
 msgid "Connect a server"
 msgstr "Conectar un servidor"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Connect the AI providers OpenCode can use and sign out of them here."
+msgstr "Conecta los proveedores de IA que OpenCode puede usar y cierra sesión "
+"en ellos aquí."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
 #~ "projects — and their threads — from here. Open Settings → Remote Access "
@@ -2139,7 +2165,7 @@ msgstr "No se pudo leer el archivo."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
-msgstr ""
+msgstr "No se pudieron almacenar en caché los datos sin conexión."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't clone the repository."
@@ -2162,6 +2188,12 @@ msgstr "No se pudo crear el worktree."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "No se pudieron listar los repositorios."
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "Couldn't load the changelog. Check your connection, or view it on "
+"GitHub."
+msgstr "No se pudo cargar el registro de cambios. Revisa tu conexión o "
+"consúltalo en GitHub."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2424,7 +2456,7 @@ msgstr "No se puede contactar con el escritorio."
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
-msgstr ""
+msgstr "Ajustes del escritorio"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
@@ -2595,6 +2627,11 @@ msgid "Downloading into “{0}”. This can take a moment for large repositories
 msgstr "Descargando en «{0}». Esto puede tardar un momento en repositorios "
 "grandes."
 
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Downloading update"
+msgstr "Descargando actualización"
+
 #. placeholder {0}: Math.round(downloadProgress.progress)
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
@@ -2605,12 +2642,12 @@ msgid "Downloading voice model..."
 msgstr "Descargando modelo de voz..."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Downloading{v} — {percent}%{speedSuffix}"
-msgstr "Descargando{v} — {percent}%{speedSuffix}"
+#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
+#~ msgstr "Descargando{v} — {percent}%{speedSuffix}"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Downloading{versionLabel}"
-msgstr "Descargando{versionLabel}"
+#~ msgid "Downloading{versionLabel}"
+#~ msgstr "Descargando{versionLabel}"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"
@@ -2888,7 +2925,7 @@ msgstr "Error al cerrar el pull request: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to close remote thread."
-msgstr ""
+msgstr "No se pudo cerrar el hilo remoto."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create pull request: {detail}"
@@ -2896,7 +2933,7 @@ msgstr "Error al crear el pull request: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to interrupt remote thread."
-msgstr ""
+msgstr "No se pudo interrumpir el hilo remoto."
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -2908,7 +2945,7 @@ msgstr "Error al fusionar el pull request: {detail}"
 
 #: src/renderer/state/remoteServersStore.ts
 msgid "Failed to open remote thread."
-msgstr ""
+msgstr "No se pudo abrir el hilo remoto."
 
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 msgid "Fast"
@@ -2996,8 +3033,8 @@ msgid "Filter by project"
 msgstr "Filtrar por proyecto"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Filter settings"
-msgstr "Filtrar ajustes"
+#~ msgid "Filter settings"
+#~ msgstr "Filtrar ajustes"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -3054,6 +3091,22 @@ msgstr "Integración de primera clase de Command Code CLI usando el runtime "
 "nativo de Lightcode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgstr "Integración de primera clase de Cursor Agent usando el runtime nativo "
+"de Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgstr "Integración de primera clase de Gemini CLI usando el runtime nativo de "
+"Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+"runtime."
+msgstr "Integración de primera clase de GitHub Copilot CLI usando el runtime "
+"nativo de Lightcode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
 msgstr "Integración de primera clase de Grok Build CLI usando el runtime nativo "
 "de Lightcode."
@@ -3066,6 +3119,10 @@ msgstr "Integración de primera clase de OpenCode usando el runtime nativo del "
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Corregir en el agente"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Fixed"
+msgstr "Corregido"
 
 #: src/renderer/commands/registry.ts
 msgid "Focus browser address bar"
@@ -3286,6 +3343,10 @@ msgstr "Objetivo"
 msgid "Goals set"
 msgstr "Objetivos definidos"
 
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "Got it"
+msgstr "Entendido"
+
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "Grupo"
@@ -3319,6 +3380,7 @@ msgstr "Los hilos ocultos reanudables se revisan cada 5 minutos y se descargan "
 "tras este tiempo de inactividad."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 msgid "Hide"
 msgstr "Ocultar"
 
@@ -3412,6 +3474,10 @@ msgstr "Imagen"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Vista previa de imagen"
+
+#: src/renderer/components/changelog/ChangelogView.tsx
+msgid "Improved"
+msgstr "Mejorado"
 
 #: src/mobile/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS. Use your phone's camera "
@@ -3768,6 +3834,7 @@ msgstr "Iniciar sesión {0}"
 msgid "Login required"
 msgstr "Inicio de sesión requerido"
 
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Logout"
 msgstr "Cerrar sesión"
@@ -4152,6 +4219,7 @@ msgid "Needs reply"
 msgstr "Necesita respuesta"
 
 #: src/mobile/RootLayout.tsx
+#: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Nuevo"
 
@@ -4497,6 +4565,10 @@ msgstr "Sin prompts"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
 msgstr "No se están rastreando proveedores."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "No providers connected yet."
+msgstr "Aún no hay proveedores conectados."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "No providers ready yet"
@@ -5254,6 +5326,7 @@ msgstr "Proyectos"
 msgid "Prompt"
 msgstr "Prompt"
 
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Prompts"
@@ -5600,7 +5673,8 @@ msgstr "Eliminar {pattern}"
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Remove <0>{0}</0> and permanently delete all of its threads? This cannot "
 "be undone."
-msgstr ""
+msgstr "¿Quitar <0>{0}</0> y eliminar permanentemente todos sus hilos? Esta "
+"acción no se puede deshacer."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Remove action"
@@ -5946,6 +6020,10 @@ msgstr "Derecha"
 msgid "Right panel"
 msgstr "Panel derecho"
 
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Right-click to switch ring"
+msgstr "Haz clic derecho para cambiar de anillo"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
@@ -6154,6 +6232,10 @@ msgstr "Buscar repositorios…"
 msgid "Search runtime items…"
 msgstr "Buscar elementos de runtime…"
 
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Search settings"
+msgstr "Buscar ajustes"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Search shortcuts"
 msgstr "Buscar atajos"
@@ -6294,6 +6376,11 @@ msgstr "Comparte tu actividad"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Shortcuts"
 msgstr "Atajos"
+
+#. placeholder {0}: g.label
+#: src/renderer/components/providers/ProviderUsageRail.tsx
+msgid "Show {0}"
+msgstr "Mostrar {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show {label} circle in sidebar"
@@ -6458,6 +6545,11 @@ msgstr "Cerrar sesión"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign out {label}"
 msgstr "Cerrar sesión {label}"
+
+#. placeholder {0}: provider.label
+#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+msgid "Sign out of {0}"
+msgstr "Cerrar sesión en {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Signed in"
@@ -7804,9 +7896,21 @@ msgstr "vía {0}"
 msgid "View"
 msgstr "Ver"
 
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "View all releases on GitHub"
+msgstr "Ver todas las versiones en GitHub"
+
 #: src/mobile/views/GitActionSheet.tsx
 msgid "View diff"
 msgstr "Ver diff"
+
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "View full changelog"
+msgstr "Ver el registro de cambios completo"
+
+#: src/renderer/commands/registry.ts
+msgid "View the changelog"
+msgstr "Ver el registro de cambios"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
@@ -7922,6 +8026,16 @@ msgstr "Lo que hace el botón de crear PR de forma predeterminada: abrir primero
 "un diálogo para editar el título y la descripción, o generarlos "
 "automáticamente y crear el PR con un solo clic. También puedes "
 "cambiarlo desde el menú del botón."
+
+#: src/renderer/commands/registry.ts
+#: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
+#: src/renderer/views/WhatsNewOverlay.tsx
+msgid "What's New"
+msgstr "Novedades"
+
+#: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
+msgid "What's new in Lightcode, newest first."
+msgstr "Novedades en Lightcode, las más recientes primero."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."

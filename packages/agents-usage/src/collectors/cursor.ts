@@ -2,11 +2,12 @@ import type { CollectOptions, HostPort, HttpResponse } from "../host";
 import type { UsageSnapshot, UsageWindow } from "../types";
 
 /**
- * Cursor. Reuses the Cursor desktop app's session token (which the host reads
- * from the app's `state.vscdb` SQLite store, key `cursorAuth/accessToken`) as
- * the `WorkosCursorSessionToken` cookie and reads the dashboard usage summary —
- * the same endpoint Cursor's own settings page uses. No cookie capture, no
- * browser involvement.
+ * Cursor. Reuses Cursor's session token (which the host reads from the desktop
+ * app's `state.vscdb` SQLite store, key `cursorAuth/accessToken`, or — for a
+ * CLI-only install — from the `cursor-agent` keychain entry) as the
+ * `WorkosCursorSessionToken` cookie and reads the dashboard usage summary — the
+ * same endpoint Cursor's own settings page uses. No cookie capture, no browser
+ * involvement.
  *
  * Schema (per codexbar) of GET /api/usage-summary → individualUsage.plan:
  *   { used (cents), limit (cents), totalPercentUsed, autoPercentUsed,

@@ -28,9 +28,11 @@ export function claudeTerminalAuthMethod(env?: Record<string, string>): AgentTer
 const MIN_CLAUDE_OPUS_47_CLI = [2, 1, 111] as const;
 const MIN_CLAUDE_OPUS_48_CLI = [2, 1, 154] as const;
 const MIN_CLAUDE_FABLE_5_CLI = [2, 1, 170] as const;
+const MIN_CLAUDE_SONNET_5_CLI = [2, 1, 197] as const;
 const OPUS_48_MODEL_ID = "claude-opus-4-8";
 const OPUS_47_MODEL_ID = "claude-opus-4-7";
 const FABLE_5_MODEL_ID = "claude-fable-5";
+const SONNET_5_MODEL_ID = "claude-sonnet-5";
 
 const CLAUDE_SEMVER_RE = /(\d+)\.(\d+)\.(\d+)/;
 
@@ -40,7 +42,7 @@ const BUILTIN_MODELS: AgentCapability["models"] = [
   { id: OPUS_48_MODEL_ID, label: "Opus 4.8" },
   { id: OPUS_47_MODEL_ID, label: "Opus 4.7" },
   { id: "claude-opus-4-6", label: "Opus 4.6" },
-  { id: "sonnet", label: "Sonnet" },
+  { id: SONNET_5_MODEL_ID, label: "Sonnet 5" },
   { id: "haiku", label: "Haiku" },
 ];
 
@@ -52,8 +54,8 @@ const BUILTIN_MODEL_EFFORTS: AgentCapability["modelEfforts"] = {
   [OPUS_48_MODEL_ID]: PREMIUM_EFFORT_TIERS,
   [OPUS_47_MODEL_ID]: PREMIUM_EFFORT_TIERS,
   "claude-opus-4-6": ["low", "medium", "high", "max"],
+  [SONNET_5_MODEL_ID]: PREMIUM_EFFORT_TIERS,
   haiku: [],
-  sonnet: ["low", "medium", "high", "max"],
 };
 
 const BUILTIN_MODEL_CONTEXT_SIZES: NonNullable<AgentCapability["modelContextSizes"]> = {
@@ -61,6 +63,8 @@ const BUILTIN_MODEL_CONTEXT_SIZES: NonNullable<AgentCapability["modelContextSize
   [OPUS_48_MODEL_ID]: ["1m", "200k"],
   [OPUS_47_MODEL_ID]: ["1m", "200k"],
   "claude-opus-4-6": ["1m", "200k"],
+  [SONNET_5_MODEL_ID]: ["1m"],
+  // Legacy `sonnet` alias retained for backward compatibility — see detection.ts.
   sonnet: ["200k", "1m"],
 };
 
@@ -92,6 +96,7 @@ export function claudeCapabilitiesFromCliVersion(
 
   const hiddenModelIds = new Set<string>();
   if (!semverGte(triplet, MIN_CLAUDE_FABLE_5_CLI)) hiddenModelIds.add(FABLE_5_MODEL_ID);
+  if (!semverGte(triplet, MIN_CLAUDE_SONNET_5_CLI)) hiddenModelIds.add(SONNET_5_MODEL_ID);
   if (!semverGte(triplet, MIN_CLAUDE_OPUS_48_CLI)) hiddenModelIds.add(OPUS_48_MODEL_ID);
   if (!semverGte(triplet, MIN_CLAUDE_OPUS_47_CLI)) hiddenModelIds.add(OPUS_47_MODEL_ID);
   if (hiddenModelIds.size === 0) return undefined;

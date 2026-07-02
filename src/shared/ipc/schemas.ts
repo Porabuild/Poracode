@@ -154,6 +154,16 @@ export const dbSetProjectNotesPayloadSchema = projectNotesSchema;
 
 export const openExternalPayloadSchema = z.string().min(1);
 
+export const showNotificationPayloadSchema = z.object({
+  /** Notification title (already localized by the renderer). */
+  title: z.string(),
+  /** Notification body (already localized by the renderer). */
+  body: z.string(),
+  /** Thread to open when the notification is clicked. */
+  threadId: z.string().min(1),
+});
+export type ShowNotificationPayload = z.infer<typeof showNotificationPayloadSchema>;
+
 export const windowChromePayloadSchema = z.object({
   backgroundColor: z.string(),
   symbolColor: z.string(),

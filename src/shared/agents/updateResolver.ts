@@ -112,9 +112,13 @@ export function resolveSharedUpdateCommand(
   }
 
   const path = input.executablePath;
+  const isBrewPath = looksLikeBrewPath(path);
 
-  if (pkg.brew && looksLikeBrewPath(path)) {
+  if (pkg.brew && isBrewPath) {
     return { binary: "brew", args: ["upgrade", pkg.brew], strategy: "brew" };
+  }
+  if (pkg.homebrewCask && isBrewPath) {
+    return { binary: "brew", args: ["upgrade", "--cask", pkg.homebrewCask], strategy: "brew" };
   }
   if (pkg.winget && looksLikeWingetPath(path) && input.envKind === "windows") {
     return {

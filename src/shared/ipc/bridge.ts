@@ -10,7 +10,7 @@ import {
   type MainLocalProcedureName,
   type SupervisorProcedureName,
 } from "./procedureMap";
-import type { BrowserEvent, SupervisorEvent, UpdateStatus } from "./events";
+import type { BrowserEvent, NotificationClickEvent, SupervisorEvent, UpdateStatus } from "./events";
 
 export type LightcodeWindowKind = "main" | "browserExtract";
 
@@ -44,6 +44,7 @@ export type LightcodeBridge = LightcodeInvokeBridge & {
   onRemoteThreadCommand(listener: (command: RemoteThreadCommand) => void): () => void;
   /** Shared settings rewritten outside this renderer (e.g. by a remote client). */
   onSharedSettingsChanged(listener: (settings: SharedSettings) => void): () => void;
+  onNotificationClick(listener: (event: NotificationClickEvent) => void): () => void;
 };
 
 export function createInvokeBridge(
@@ -97,4 +98,5 @@ export const IPC_EVENT_CHANNELS = {
   browserEvent: createChannel("browserEvent"),
   remoteThreadCommand: createChannel("remoteThreadCommand"),
   sharedSettingsChanged: createChannel("sharedSettingsChanged"),
+  notificationClick: createChannel("notificationClick"),
 } as const;

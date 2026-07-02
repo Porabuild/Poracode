@@ -20,6 +20,7 @@ const updateByKind: Record<string, AgentAdapter["update"]> = {
   },
   gemini: {
     npm: "@google/gemini-cli",
+    brew: "gemini-cli",
   },
   opencode: {
     builtIn: { binary: "opencode", args: ["upgrade"] },
@@ -28,6 +29,12 @@ const updateByKind: Record<string, AgentAdapter["update"]> = {
   cursor: {
     builtIn: { binary: "cursor-agent", args: ["update"] },
     homebrewCask: "cursor-cli",
+  },
+  copilot: {
+    builtIn: { binary: "copilot", args: ["update"] },
+    npm: "@github/copilot",
+    homebrewCask: "copilot-cli",
+    winget: "GitHub.Copilot",
   },
   grok: {
     builtIn: { binary: "grok", args: ["update"] },
@@ -184,6 +191,60 @@ describe("resolveUpdateCommand", () => {
     expect(command?.strategy).toBe("npm-global");
     expect(command?.binary).toBe("npm");
     expect(command?.args).toEqual(["install", "-g", "@google/gemini-cli@latest"]);
+  });
+
+  it("uses brew for Homebrew-installed Gemini", () => {
+    const adapter = makeAdapter("gemini");
+    const status = makeStatus({
+      kind: "gemini",
+      executablePath: "/opt/homebrew/bin/gemini",
+    });
+    const command = resolveUpdateCommand(adapter, status, NATIVE_POSIX);
+    expect(command).toEqual({
+      binary: "brew",
+      args: ["upgrade", "gemini-cli"],
+      strategy: "brew",
+    });
+  });
+
+  it("uses Copilot's built-in updater with package-manager fallbacks", () => {
+    const adapter = makeAdapter("copilot");
+    const wingetStatus = makeStatus({
+      kind: "copilot",
+      executablePath:
+        "C:\\Users\\me\\AppData\\Local\\Microsoft\\WinGet\\Packages\\GitHub.Copilot\\copilot.exe",
+    });
+    expect(resolveUpdateCommand(adapter, wingetStatus, NATIVE_WIN)).toEqual({
+      binary: "copilot",
+      args: ["update"],
+      strategy: "built-in",
+    });
+    expect(resolveUpdateCommand(adapter, wingetStatus, NATIVE_WIN, { skipBuiltIn: true })).toEqual({
+      binary: "winget",
+      args: ["upgrade", "--id", "GitHub.Copilot", "--silent", "--accept-package-agreements"],
+      strategy: "winget",
+    });
+
+    const brewStatus = makeStatus({
+      kind: "copilot",
+      executablePath: "/opt/homebrew/bin/copilot",
+    });
+    expect(resolveUpdateCommand(adapter, brewStatus, NATIVE_POSIX, { skipBuiltIn: true })).toEqual({
+      binary: "brew",
+      args: ["upgrade", "--cask", "copilot-cli"],
+      strategy: "brew",
+    });
+  });
+
+  it("does not use a Homebrew cask fallback for non-Homebrew Cursor installs", () => {
+    const adapter = makeAdapter("cursor");
+    const status = makeStatus({
+      kind: "cursor",
+      executablePath: "/home/user/.local/bin/cursor-agent",
+    });
+    expect(
+      resolveUpdateCommand(adapter, status, NATIVE_POSIX, { skipBuiltIn: true }),
+    ).toBeUndefined();
   });
 
   it("falls back to npm-global when the path doesn't match a known pattern but the kind has an npm package", () => {

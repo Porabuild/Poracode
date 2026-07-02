@@ -24,6 +24,7 @@ export {
 } from "./bridge";
 export type {
   BrowserEvent,
+  NotificationClickEvent,
   SupervisorEvent,
   SupervisorReply,
   SupervisorRequest,

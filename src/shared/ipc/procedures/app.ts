@@ -15,6 +15,7 @@ import {
   saveClipboardImagePayloadSchema,
   saveHandoffContextPayloadSchema,
   saveImageFilePayloadSchema,
+  showNotificationPayloadSchema,
   type CreateProjectDirectoryResult,
 } from "../schemas";
 
@@ -112,6 +113,11 @@ export const appProcedures = {
     "main-local",
   ),
   focusWindow: defineNoArgProcedure<void, "main-local">("focusWindow", "main-local"),
+  showNotification: definePayloadProcedure<
+    z.infer<typeof showNotificationPayloadSchema>,
+    boolean,
+    "main-local"
+  >("showNotification", "main-local", showNotificationPayloadSchema),
   relaunchApp: defineNoArgProcedure<void, "main-local">("relaunchApp", "main-local"),
   getHomeScopeLocation: defineNoArgProcedure<ProjectLocation, "main-local">(
     "getHomeScopeLocation",

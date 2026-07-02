@@ -67,6 +67,9 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
     if (config.approvalPolicy) {
       args.push("-a", config.approvalPolicy);
     }
+    if (config.approvalsReviewer) {
+      args.push("-c", `approvals_reviewer="${config.approvalsReviewer}"`);
+    }
     if (config.sandboxMode) {
       args.push("-s", config.sandboxMode);
     }

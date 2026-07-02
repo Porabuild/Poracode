@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createOpenCodeAdapter } from ".";
 import { buildOpenCodeArgs } from "./argv";
 import {
+  attachOpenCodeProviderIds,
   humanizeOpenCodeModelId,
   mapOpenCodeSlashCommands,
   parseOpenCodeProvidersList,
@@ -160,6 +161,35 @@ describe("parseOpenCodeProvidersList", () => {
       { label: "Copilot", detail: "OAuth" },
       { label: "OpenAI", detail: "OAuth" },
     ]);
+  });
+});
+
+describe("attachOpenCodeProviderIds", () => {
+  it("zips auth.json ids onto providers by index", () => {
+    expect(
+      attachOpenCodeProviderIds(
+        [
+          { label: "OpenCode Zen", detail: "API" },
+          { label: "Copilot", detail: "OAuth" },
+          { label: "OpenAI", detail: "OAuth" },
+        ],
+        ["opencode", "github-copilot", "openai"],
+      ),
+    ).toEqual([
+      { label: "OpenCode Zen", detail: "API", id: "opencode" },
+      { label: "Copilot", detail: "OAuth", id: "github-copilot" },
+      { label: "OpenAI", detail: "OAuth", id: "openai" },
+    ]);
+  });
+
+  it("leaves ids off when counts differ (avoids logging out the wrong provider)", () => {
+    expect(
+      attachOpenCodeProviderIds([{ label: "OpenCode Zen", detail: "API" }], ["opencode", "openai"]),
+    ).toEqual([{ label: "OpenCode Zen", detail: "API" }]);
+  });
+
+  it("returns a fresh array for an empty provider list", () => {
+    expect(attachOpenCodeProviderIds([], ["opencode"])).toEqual([]);
   });
 });
 
