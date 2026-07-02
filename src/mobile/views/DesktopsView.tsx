@@ -58,9 +58,10 @@ export interface DesktopsViewProps {
   readonly onForget: (desktop: StoredDesktop) => void;
 }
 
-/** "Lightcode on host" → "host"; the brand prefix is noise inside the app. */
+/** "Poracode on host" → "host"; the brand prefix is noise inside the app.
+ *  Legacy "Lightcode on …" labels (paired pre-rebrand) are stripped too. */
 function desktopTitle(label: string): string {
-  const stripped = label.replace(/^Lightcode\s+on\s+/i, "");
+  const stripped = label.replace(/^(?:Poracode|Lightcode)\s+on\s+/i, "");
   return stripped || label;
 }
 
@@ -207,7 +208,7 @@ export function DesktopsView(props: DesktopsViewProps) {
         </h2>
         <p className="m-card__hint">
           <Trans>
-            Open Settings → Remote Access in Lightcode on your desktop, then scan the QR code from
+            Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from
             here — or enter the endpoint and pairing token manually.
           </Trans>
         </p>

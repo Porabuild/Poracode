@@ -350,24 +350,24 @@ describe("RemoteAccessServer", () => {
     const pairingPageResponse = await fetch(info.pairingUrl);
     expect(pairingPageResponse.status).toBe(200);
     const pairingHtml = await pairingPageResponse.text();
-    expect(pairingHtml).toContain("Lightcode Remote");
+    expect(pairingHtml).toContain("Poracode");
     expect(pairingHtml).toContain('rel="manifest"');
 
     const appResponse = await fetch(new URL("/app", info.httpBaseUrl));
     expect(appResponse.status).toBe(200);
-    await expect(appResponse.text()).resolves.toContain("Lightcode Remote");
+    await expect(appResponse.text()).resolves.toContain("Poracode");
 
     const manifestResponse = await fetch(new URL("/manifest.webmanifest", info.httpBaseUrl));
     expect(manifestResponse.status).toBe(200);
     await expect(manifestResponse.json()).resolves.toMatchObject({
-      name: "Lightcode",
+      name: "Poracode",
       start_url: "/app",
       display: "standalone",
     });
 
     const serviceWorkerResponse = await fetch(new URL("/service-worker.js", info.httpBaseUrl));
     expect(serviceWorkerResponse.status).toBe(200);
-    await expect(serviceWorkerResponse.text()).resolves.toContain("lightcode-remote-local");
+    await expect(serviceWorkerResponse.text()).resolves.toContain("poracode-remote-local");
 
     const { ws, ready } = await openPairedSocket(info);
     expect(ready).toMatchObject({ type: "ready", seq: 0 });

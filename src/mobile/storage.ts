@@ -39,7 +39,7 @@ interface StoredPreference {
   readonly value: string;
 }
 
-class LightcodeMobileDatabase extends DexieDatabase {
+class PoracodeMobileDatabase extends DexieDatabase {
   desktops!: EntityTable<StoredDesktop, "desktopId">;
   shellSnapshots!: EntityTable<StoredShellSnapshot, "desktopId">;
   threadSnapshots!: EntityTable<StoredThreadSnapshot, "id">;
@@ -56,7 +56,7 @@ class LightcodeMobileDatabase extends DexieDatabase {
   }
 }
 
-export const mobileDb = new LightcodeMobileDatabase();
+export const mobileDb = new PoracodeMobileDatabase();
 
 const ACTIVE_DESKTOP_KEY = "activeDesktopId";
 /** Stable per-install identity used as the push-registration upsert key. */

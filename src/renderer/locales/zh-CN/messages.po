@@ -4617,8 +4617,12 @@ msgid "Open a new browser tab"
 msgstr "在浏览器中打开新选项卡"
 
 #: src/mobile/views/NewThreadView.tsx
-msgid "Open a project in Lightcode on your desktop, then refresh."
-msgstr "请在桌面上的 Lightcode 中打开一个项目，然后刷新。"
+#~ msgid "Open a project in Lightcode on your desktop, then refresh."
+#~ msgstr "请在桌面上的 Lightcode 中打开一个项目，然后刷新。"
+
+#: src/mobile/views/NewThreadView.tsx
+msgid "Open a project in Poracode on your desktop, then refresh."
+msgstr "在桌面端的 Poracode 中打开一个项目，然后刷新。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
@@ -4779,10 +4783,15 @@ msgid "Open Settings"
 msgstr "打开设置"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Open Settings → Remote Access in Lightcode on your desktop, then scan "
-"the QR code from here — or enter the endpoint and pairing token "
-"manually."
-msgstr "在桌面 Lightcode 中打开“设置”→“远程访问”，然后在这里扫描二维码，或手动输入端点和配对令牌。"
+#~ msgid "Open Settings → Remote Access in Lightcode on your desktop, then scan "
+#~ "the QR code from here — or enter the endpoint and pairing token "
+#~ "manually."
+#~ msgstr "在桌面 Lightcode 中打开“设置”→“远程访问”，然后在这里扫描二维码，或手动输入端点和配对令牌。"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the "
+"QR code from here — or enter the endpoint and pairing token manually."
+msgstr "在桌面端的 Poracode 中打开“设置 → 远程访问”，然后从这里扫描二维码——或手动输入端点和配对令牌。"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -6880,8 +6889,12 @@ msgid "Test microphone"
 msgstr "测试麦克风"
 
 #: src/mobile/routeComponents.tsx
-msgid "That QR code isn't a Lightcode pairing link."
-msgstr "该二维码不是 Lightcode 配对链接。"
+#~ msgid "That QR code isn't a Lightcode pairing link."
+#~ msgstr "该二维码不是 Lightcode 配对链接。"
+
+#: src/mobile/routeComponents.tsx
+msgid "That QR code isn't a Poracode pairing link."
+msgstr "该二维码不是 Poracode 的配对链接。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "That remote session was already gone."

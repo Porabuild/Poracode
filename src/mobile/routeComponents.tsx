@@ -315,7 +315,7 @@ export function DesktopsRoute() {
   function handleScan(value: string) {
     const parsed = parsePairingUrl(value);
     if (!parsed?.credential) {
-      toast.danger(t`That QR code isn't a Lightcode pairing link.`);
+      toast.danger(t`That QR code isn't a Poracode pairing link.`);
       return;
     }
     void pair(parsed.endpoint, parsed.credential);

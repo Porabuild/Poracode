@@ -1,14 +1,14 @@
 {
   "id": "/",
-  "name": "Lightcode",
-  "short_name": "Lightcode",
-  "description": "Follow and steer your Lightcode AI agents from your phone — threads, git review, and live browser, paired to your desktop.",
+  "name": "Poracode",
+  "short_name": "Poracode",
+  "description": "Follow and steer your Poracode AI agents from your phone — threads, git review, and live browser, paired to your desktop.",
   "start_url": "/mobile.html",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
-  "background_color": "#17181d",
-  "theme_color": "#17181d",
+  "background_color": "#070709",
+  "theme_color": "#070709",
   "categories": ["developer", "productivity", "utilities"],
   "icons": [
     {

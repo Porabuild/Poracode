@@ -10,19 +10,19 @@ export function buildLocalPairingPageHtml(input: { readonly httpBaseUrl: string 
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#111827" />
-  <title>Lightcode Remote</title>
+  <meta name="theme-color" content="#070709" />
+  <title>Poracode</title>
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/app-icon.svg" />
   <style>
     :root {
       color-scheme: dark;
-      --bg: #0f1115;
-      --panel: #191c22;
+      --bg: #070709;
+      --panel: #0e0e14;
       --line: rgba(255, 255, 255, 0.12);
-      --text: #f6f7fb;
-      --muted: #a9b0bf;
-      --accent: #8fb3ff;
+      --text: #eaf0fb;
+      --muted: #9ba6be;
+      --accent: #8b7bff;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg);
       color: var(--text);
@@ -84,8 +84,8 @@ export function buildLocalPairingPageHtml(input: { readonly httpBaseUrl: string 
 <body>
   <div class="app">
     <main>
-      <h1>Lightcode Remote</h1>
-      <p>The mobile web app bundle is not available from this desktop build. Rebuild Lightcode so <span class="inline-code">mobile.html</span> is included in the renderer output, then open the pairing link again.</p>
+      <h1>Poracode</h1>
+      <p>The mobile web app bundle is not available from this desktop build. Rebuild Poracode so <span class="inline-code">mobile.html</span> is included in the renderer output, then open the pairing link again.</p>
       <p>Desktop endpoint</p>
       <code class="endpoint" id="endpoint"></code>
     </main>
@@ -100,15 +100,15 @@ export function buildLocalPairingPageHtml(input: { readonly httpBaseUrl: string 
 
 const LOCAL_PAIRING_MANIFEST_JSON = JSON.stringify({
   id: "/app",
-  name: "Lightcode",
-  short_name: "Lightcode",
+  name: "Poracode",
+  short_name: "Poracode",
   start_url: "/app",
   scope: "/",
   display: "standalone",
   // Matches the installed PWA's splash/status chrome to the app's dark
   // background (mobile.html theme-color).
-  background_color: "#17181d",
-  theme_color: "#17181d",
+  background_color: "#070709",
+  theme_color: "#070709",
   // PNG icons are copied from public/ into the built renderer (/icons) and
   // served by tryServeBuiltMobileApp; the SVG falls back for older builds.
   icons: [
@@ -128,7 +128,7 @@ export function buildLocalPairingManifestJson(): string {
   return LOCAL_PAIRING_MANIFEST_JSON;
 }
 
-const LOCAL_PAIRING_SERVICE_WORKER_JS = `const CACHE_NAME = "lightcode-remote-local-v1";
+const LOCAL_PAIRING_SERVICE_WORKER_JS = `const CACHE_NAME = "poracode-remote-local-v1";
 const SHELL_URLS = ["/app", "/manifest.webmanifest", "/app-icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -163,25 +163,12 @@ export function buildLocalPairingServiceWorkerJs(): string {
 }
 
 // Kept in sync with public/app-icon.svg (the static/standalone icon).
-const LOCAL_PAIRING_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Lightcode">
-  <defs>
-    <linearGradient id="lc-bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1b2433"/>
-      <stop offset="1" stop-color="#0d1018"/>
-    </linearGradient>
-    <linearGradient id="lc-bar" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#7ef3ff"/>
-      <stop offset="1" stop-color="#22cfe6"/>
-    </linearGradient>
-    <filter id="lc-glow" x="-80%" y="-80%" width="260%" height="260%">
-      <feGaussianBlur stdDeviation="16" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#lc-bg)"/>
-  <g filter="url(#lc-glow)">
-    <rect x="234" y="148" width="44" height="216" rx="22" fill="url(#lc-bar)"/>
-  </g>
+const LOCAL_PAIRING_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Poracode">
+  <rect width="1024" height="1024" rx="232" fill="#0E0E14"/>
+  <path fill-rule="evenodd" fill="#EAF0FB"
+    d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z
+       M472,392 H548 A60,60 0 0 1 548,512 H472 Z"/>
+  <circle cx="636" cy="694" r="46" fill="#8B7BFF"/>
 </svg>
 `;
 

@@ -92,11 +92,13 @@ function getChrome(pathname: string): Chrome {
 }
 
 function Brand(props: { readonly subtitle?: string | undefined; readonly onPress: () => void }) {
-  // Desktop labels default to "Lightcode on <host>"; the header only needs the host.
-  const label = props.subtitle?.replace(/^Lightcode\s+on\s+/i, "");
+  // Desktop labels default to "Poracode on <host>"; the header only needs the
+  // host. Accept the legacy "Lightcode on …" prefix for desktops paired before
+  // the rebrand so their stored labels still render cleanly.
+  const label = props.subtitle?.replace(/^(?:Poracode|Lightcode)\s+on\s+/i, "");
   return (
     <button className="m-brand" type="button" onClick={props.onPress}>
-      <span className="m-brand__title">{label || "Lightcode"}</span>
+      <span className="m-brand__title">{label || "Poracode"}</span>
     </button>
   );
 }

@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
- * Native (App Store / Play) wrapper for the Lightcode mobile PWA.
+ * Native (App Store / Play) wrapper for the Poracode mobile PWA.
  *
  * The native shells bundle the built web app (`dist/mobile`) so they launch
  * offline and don't depend on a hosted origin; the desktop endpoint is entered
@@ -21,7 +21,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  */
 const config: CapacitorConfig = {
   appId: "com.lightcodeapp.mobile",
-  appName: "Lightcode",
+  appName: "Poracode",
   webDir: "dist/mobile",
   server: {
     androidScheme: "https",

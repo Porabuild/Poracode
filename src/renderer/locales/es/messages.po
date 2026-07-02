@@ -4706,8 +4706,12 @@ msgid "Open a new browser tab"
 msgstr "Abrir una nueva pestaña del navegador"
 
 #: src/mobile/views/NewThreadView.tsx
-msgid "Open a project in Lightcode on your desktop, then refresh."
-msgstr "Abre un proyecto en Lightcode en tu escritorio y actualiza."
+#~ msgid "Open a project in Lightcode on your desktop, then refresh."
+#~ msgstr "Abre un proyecto en Lightcode en tu escritorio y actualiza."
+
+#: src/mobile/views/NewThreadView.tsx
+msgid "Open a project in Poracode on your desktop, then refresh."
+msgstr "Abre un proyecto en Poracode en tu escritorio y luego actualiza."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
@@ -4870,12 +4874,19 @@ msgid "Open Settings"
 msgstr "Abrir ajustes"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Open Settings → Remote Access in Lightcode on your desktop, then scan "
-"the QR code from here — or enter the endpoint and pairing token "
-"manually."
-msgstr "Abre Configuración → Acceso remoto en Lightcode en tu escritorio y "
-"escanea el código QR desde aquí, o introduce manualmente el endpoint y "
-"el token de emparejamiento."
+#~ msgid "Open Settings → Remote Access in Lightcode on your desktop, then scan "
+#~ "the QR code from here — or enter the endpoint and pairing token "
+#~ "manually."
+#~ msgstr "Abre Configuración → Acceso remoto en Lightcode en tu escritorio y "
+#~ "escanea el código QR desde aquí, o introduce manualmente el endpoint y "
+#~ "el token de emparejamiento."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the "
+"QR code from here — or enter the endpoint and pairing token manually."
+msgstr "Abre Ajustes → Acceso remoto en Poracode en tu escritorio y luego "
+"escanea el código QR desde aquí, o introduce el endpoint y el token de "
+"emparejamiento manualmente."
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -7008,8 +7019,12 @@ msgid "Test microphone"
 msgstr "Probar micrófono"
 
 #: src/mobile/routeComponents.tsx
-msgid "That QR code isn't a Lightcode pairing link."
-msgstr "Ese código QR no es un enlace de emparejamiento de Lightcode."
+#~ msgid "That QR code isn't a Lightcode pairing link."
+#~ msgstr "Ese código QR no es un enlace de emparejamiento de Lightcode."
+
+#: src/mobile/routeComponents.tsx
+msgid "That QR code isn't a Poracode pairing link."
+msgstr "Ese código QR no es un enlace de emparejamiento de Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "That remote session was already gone."

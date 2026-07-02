@@ -1,4 +1,4 @@
-// Service worker for the standalone (hosted) Lightcode PWA. The desktop-served
+// Service worker for the standalone (hosted) Poracode PWA. The desktop-served
 // build ships an equivalent worker generated at runtime (see
 // src/main/remote/pairingPage.ts); keep the two in sync.
 //
@@ -6,7 +6,7 @@
 // and falling back to the cache (and to the app shell for navigations) when
 // offline. Cross-origin requests — notably the paired desktop's /api, /oauth
 // and /ws endpoints, which live on a different host — are never intercepted.
-const CACHE_NAME = "lightcode-pwa-v1";
+const CACHE_NAME = "poracode-pwa-v1";
 const SHELL_URLS = ["/", "/app", "/manifest.webmanifest", "/app-icon.svg"];
 
 self.addEventListener("install", (event) => {

@@ -60,7 +60,7 @@ export function NewThreadView(props: {
         <EmptyState
           icon={<FolderOpen className="size-5" />}
           title={<Trans>No projects available</Trans>}
-          hint={<Trans>Open a project in Lightcode on your desktop, then refresh.</Trans>}
+          hint={<Trans>Open a project in Poracode on your desktop, then refresh.</Trans>}
         />
       </section>
     );

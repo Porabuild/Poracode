@@ -16,8 +16,8 @@ const remoteMock = vi.hoisted(() => ({
     booted: true,
     connection: "online",
     message: null,
-    desktops: [{ id: "desktop-1", label: "Lightcode on Mac" }],
-    activeDesktop: { id: "desktop-1", label: "Lightcode on Mac" },
+    desktops: [{ id: "desktop-1", label: "Poracode on Mac" }],
+    activeDesktop: { id: "desktop-1", label: "Poracode on Mac" },
     projects: [
       {
         id: "project-1",

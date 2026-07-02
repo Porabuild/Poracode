@@ -103,6 +103,35 @@ async function main() {
   );
   console.log("  ✓ favicons + favicon.ico");
 
+  console.log("pwa/ (mobile PWA icons):");
+  const pwa = `${OUT}/pwa`;
+  await mkdir(pwa, { recursive: true });
+  const iconSvg = `${HERE}poracode-icon.svg`;
+  // Plain transparent renders — the tile bg is baked into the SVG.
+  await writeFile(`${pwa}/icon-192.png`, await png(iconSvg, 192));
+  await writeFile(`${pwa}/icon-512.png`, await png(iconSvg, 512));
+  // Maskable: full-bleed opaque tile with the glyph inside the ~80% safe zone.
+  await writeFile(
+    `${pwa}/icon-maskable-512.png`,
+    await sharp({
+      create: { width: 512, height: 512, channels: 4, background: "#0e0e14" },
+    })
+      .composite([{ input: await png(iconSvg, 440), gravity: "centre" }])
+      .png()
+      .toBuffer(),
+  );
+  // Apple touch: iOS applies its own corner mask, so corners must be opaque.
+  await writeFile(
+    `${pwa}/apple-touch-icon.png`,
+    await sharp({
+      create: { width: 180, height: 180, channels: 4, background: "#0e0e14" },
+    })
+      .composite([{ input: await png(iconSvg, 150), gravity: "centre" }])
+      .png()
+      .toBuffer(),
+  );
+  console.log("  ✓ icon-192 + icon-512 + icon-maskable-512 + apple-touch-icon");
+
   console.log(`\nDone → ${OUT}`);
 }
 main().catch((e) => {
