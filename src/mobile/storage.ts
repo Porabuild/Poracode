@@ -102,6 +102,41 @@ export async function saveShellSnapshot(
     snapshot,
     updatedAt: new Date().toISOString(),
   });
+  await pruneOrphanThreadSnapshots(desktopId, snapshot);
+}
+
+/**
+ * Drop cached thread snapshots for threads that no longer exist on the desktop.
+ * Without this, `threadSnapshots` rows for deleted threads accumulate forever
+ * (only {@link forgetDesktop} ever deletes them), eventually hitting the mobile
+ * IndexedDB quota and failing Dexie writes — which flips the PWA offline.
+ *
+ * Threads absent from the fresh shell snapshot are gone from the desktop, so
+ * their cache is safe to prune. The currently-open thread is always in the
+ * snapshot's thread list, so this never drops the row we're actively reading.
+ */
+/**
+ * Pure selection of the cached-thread rows to prune: any row whose thread is
+ * absent from the fresh shell snapshot. Extracted so the prune decision is unit
+ * testable without an IndexedDB backend (Dexie is exercised by the wrapper).
+ */
+export function selectOrphanThreadSnapshotIds(
+  rows: ReadonlyArray<{ readonly id: string; readonly threadId: string }>,
+  snapshot: RemoteShellSnapshot,
+): string[] {
+  const liveThreadIds = new Set(snapshot.threads.map((thread) => thread.id));
+  return rows.filter((row) => !liveThreadIds.has(row.threadId)).map((row) => row.id);
+}
+
+async function pruneOrphanThreadSnapshots(
+  desktopId: string,
+  snapshot: RemoteShellSnapshot,
+): Promise<void> {
+  const rows = await mobileDb.threadSnapshots.where("desktopId").equals(desktopId).toArray();
+  const orphanIds = selectOrphanThreadSnapshotIds(rows, snapshot);
+  if (orphanIds.length > 0) {
+    await mobileDb.threadSnapshots.bulkDelete(orphanIds);
+  }
 }
 
 export async function saveThreadSnapshot(

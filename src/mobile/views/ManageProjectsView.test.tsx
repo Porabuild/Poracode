@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BrowseHostDirectoryResult, Project } from "@/shared/contracts";
 import type { RemoteProjectCommand } from "@/shared/remote";
@@ -48,6 +48,10 @@ describe("ManageProjectsView", () => {
     bridge.browseHostDirectory.mockReset();
   });
   afterEach(() => {
+    // Unmount before wiping the body: the sheets portal into <body>, and this
+    // hook runs before RTL's auto-cleanup (afterEach is LIFO) — wiping first
+    // would leave React unmounting portal nodes that no longer exist.
+    cleanup();
     document.body.innerHTML = "";
   });
 
@@ -99,11 +103,25 @@ describe("ManageProjectsView", () => {
     expect(onCommand).not.toHaveBeenCalled();
   });
 
-  it("removes a project when permitted", async () => {
+  it("removes a project only after confirming in the sheet", async () => {
     const { onCommand } = renderView({ canManage: true });
+    // Tapping the trash icon opens a confirm sheet; it must NOT remove yet.
     fireEvent.click(screen.getByRole("button", { name: "Remove project" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(onCommand).not.toHaveBeenCalled();
+    // Confirming in the sheet dispatches the remove.
+    fireEvent.click(within(dialog).getByRole("button", { name: "Remove project" }));
     await waitFor(() =>
       expect(onCommand).toHaveBeenCalledWith({ kind: "remove", projectId: "p1" }),
     );
+  });
+
+  it("does not remove a project when the confirm sheet is cancelled", async () => {
+    const { onCommand } = renderView({ canManage: true });
+    fireEvent.click(screen.getByRole("button", { name: "Remove project" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(onCommand).not.toHaveBeenCalled();
   });
 });

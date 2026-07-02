@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -166,7 +167,11 @@ export function QrScanner(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- camera lifecycle runs once; onResult is read through a ref
   }, []);
 
-  return (
+  // Portaled to <body>: mounted from a tab route inside `.m-main`, whose
+  // view-transition-name forces a stacking context — rendered inline, the
+  // fixed fullscreen overlay would paint under the tab bar regardless of
+  // z-index.
+  return createPortal(
     <div className="m-scanner" role="dialog" aria-label={t`Scan pairing QR code`}>
       <div className="m-scanner__stage">
         {error ? (
@@ -200,6 +205,7 @@ export function QrScanner(props: {
       >
         <X className="size-5" />
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }

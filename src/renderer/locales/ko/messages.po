@@ -726,7 +726,11 @@ msgstr "AI 에이전트 오케스트레이터 — 터미널 및 기본 ACP를 �
 msgid "AI git actions"
 msgstr "AI git 작업"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/views/MoreView.tsx
+msgid "AI, agents, and archived threads on the paired desktop"
+msgstr ""
+
+#: src/mobile/settingsSections.ts
 msgid "Alerts when threads need you"
 msgstr "스레드에 응답이 필요할 때 알림"
 
@@ -804,8 +808,8 @@ msgid "App Browser"
 msgstr "앱 브라우저"
 
 #: src/mobile/views/MoreView.tsx
-msgid "App preferences"
-msgstr "앱 환경설정"
+#~ msgid "App preferences"
+#~ msgstr "앱 환경설정"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -878,6 +882,11 @@ msgstr "아카이브 스레드"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Archived Threads"
 msgstr "보관된 스레드"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Archived threads are managed from the desktop app. Restoring or deleting "
+"them from this device isn't available yet."
+msgstr ""
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -1254,6 +1263,7 @@ msgstr "카메라 접근이 차단됨"
 #. Dialog button: dismiss without deleting
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1287,6 +1297,10 @@ msgstr "보류 중인 조정 취소"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Cancel picker"
 msgstr "선택기 취소"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Cancel removing project"
+msgstr ""
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
@@ -2092,6 +2106,10 @@ msgstr "커밋 메시지를 생성할 수 없습니다: {detail}"
 msgid "Could not read file."
 msgstr "파일을 읽을 수 없습니다."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't cache offline data."
+msgstr ""
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't clone the repository."
 msgstr "저장소를 복제할 수 없습니다."
@@ -2359,8 +2377,8 @@ msgid "Description (optional)"
 msgstr "설명(선택사항)"
 
 #: src/mobile/views/SettingsView.tsx
-msgid "Desktop"
-msgstr "데스크톱"
+#~ msgid "Desktop"
+#~ msgstr "데스크톱"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
@@ -2369,6 +2387,11 @@ msgstr "데스크톱 엔드포인트"
 #: src/mobile/useRemoteDesktop.ts
 msgid "Desktop is unreachable."
 msgstr "데스크톱에 연결할 수 없습니다."
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/MoreView.tsx
+msgid "Desktop Settings"
+msgstr ""
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
@@ -2665,7 +2688,7 @@ msgstr "설정에서 공급자 활성화"
 msgid "Enabled"
 msgstr "활성화됨"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Enabled agents, model visibility and order"
 msgstr "활성화된 에이전트, 모델 표시 여부 및 순서"
 
@@ -2818,9 +2841,17 @@ msgstr "실패"
 msgid "Failed to close pull request: {detail}"
 msgstr "풀 요청을 닫지 못했습니다: {detail}"
 
+#: src/renderer/state/remoteServersStore.ts
+msgid "Failed to close remote thread."
+msgstr ""
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create pull request: {detail}"
 msgstr "풀 요청 생성 실패: {detail}"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Failed to interrupt remote thread."
+msgstr ""
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -2829,6 +2860,10 @@ msgstr "프로필 통계를 불러오지 못했습니다."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to merge pull request: {detail}"
 msgstr "풀 요청 병합 실패: {detail}"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Failed to open remote thread."
+msgstr ""
 
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 msgid "Fast"
@@ -3021,7 +3056,7 @@ msgid "Folder that holds this project's worktrees. Reset to use the global "
 "setting."
 msgstr "이 프로젝트의 작업 트리를 보관하는 폴더입니다. 전역 설정을 사용하려면 재설정하세요."
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
 msgstr "글꼴 및 스크롤"
 
@@ -4214,7 +4249,6 @@ msgstr "설치된 에이전트가 없습니다."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "아직 추적된 AI 커밋, PR, 충돌 해결이 없습니다."
 
-#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
 msgstr "보관된 스레드가 없습니다."
@@ -5462,6 +5496,8 @@ msgid "Remove"
 msgstr "제거"
 
 #. placeholder {0}: att.name
+#. placeholder {0}: removeConfirm.target.name
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Remove {0}"
 msgstr "{0} 제거"
@@ -5474,6 +5510,12 @@ msgstr "패널에서 {0} 제거"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Remove {pattern}"
 msgstr "{pattern} 제거"
+
+#. placeholder {0}: removeConfirm.target.name
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Remove <0>{0}</0> and permanently delete all of its threads? This cannot "
+"be undone."
+msgstr ""
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Remove action"
@@ -5709,7 +5751,7 @@ msgstr "브라우저 복원"
 msgid "Restore default worktree base folder"
 msgstr "작업 트리 기본 폴더 복원"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Restore or delete"
 msgstr "복원 또는 삭제"
 
@@ -5801,7 +5843,7 @@ msgstr "PR 검토"
 msgid "Review PR #{prNumber} for {0}"
 msgstr "{0}에 대한 PR #{prNumber} 검토"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Review presentation"
 msgstr "리뷰 표시"
 
@@ -6561,7 +6603,7 @@ msgstr "일반 텍스트로 저장"
 msgid "Store as secret (encrypted at rest)"
 msgstr "비밀로 저장 (저장 시 암호화)"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/views/MoreView.tsx
 msgid "Stored on this phone; the desktop keeps its own values."
 msgstr "이 휴대폰에 저장됩니다. 데스크톱은 자체 값을 유지합니다."
 
@@ -6877,7 +6919,7 @@ msgstr "대상 공급자"
 msgid "Theme"
 msgstr "테마"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Theme and chat font size"
 msgstr "테마 및 채팅 글꼴 크기"
 
@@ -6913,8 +6955,8 @@ msgid "This connection can view projects but not manage them. Re-pair to "
 msgstr "이 연결은 프로젝트를 볼 수 있지만 관리할 수 없습니다. 활성화하려면 다시 페어링하세요."
 
 #: src/mobile/views/SettingsView.tsx
-msgid "This device"
-msgstr "이 기기"
+#~ msgid "This device"
+#~ msgstr "이 기기"
 
 #: src/mobile/QrScanner.tsx
 msgid "This device has no usable camera. Enter the endpoint and token below to "
@@ -7004,7 +7046,7 @@ msgstr "스레드 작업"
 msgid "Thread context usage"
 msgstr "스레드 컨텍스트 사용량"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Thread defaults and home scope"
 msgstr "스레드 기본값 및 홈 범위"
 
@@ -7064,7 +7106,7 @@ msgstr "완료로 표시된 스레드 중 며칠 동안 건드리지 않은 스�
 msgid "Title Generation"
 msgstr "제목 생성"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Title, commit, and conflict models"
 msgstr "제목, 커밋 및 충돌 모델"
 
@@ -7149,7 +7191,7 @@ msgid "Track per-provider session, weekly, and monthly usage. Windows are "
 msgstr "공급자별 세션, 주별 및 월별 사용량을 추적합니다. 사용 기간(윈도우)은 각 공급자가 보고합니다. 예상 비용은 로컬 로그에서 "
 "재구성됩니다."
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Tracking and display"
 msgstr "추적 및 표시"
 
@@ -7257,6 +7299,7 @@ msgid "Unable to open file"
 msgstr "파일을 열 수 없습니다."
 
 #: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 msgid "Unable to pair with that desktop."
 msgstr "해당 데스크톱과 페어링할 수 없습니다."
 

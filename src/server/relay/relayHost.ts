@@ -81,6 +81,18 @@ function relayHostWebSocketPayloadLimit(maxBodyBytes: number): number {
   return Math.ceil((maxBodyBytes * 4) / 3) + 1024 * 1024;
 }
 
+/**
+ * Build the synthetic `x-forwarded-for` value the host forwards to its own
+ * loopback server. relayProtocol.ts carries no visitor IP, so we stand in a
+ * stable per-visitor-channel identifier (the relay's request/channel id). It is
+ * prefixed so it can never be mistaken for or collide with a real client IP,
+ * and so distinct visitor channels land in distinct rate-limit buckets instead
+ * of collapsing into the single shared loopback bucket.
+ */
+function forwardedForIdentity(channelId: string): string {
+  return `relay:${channelId}`;
+}
+
 export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
   const fetchImpl =
     options.fetchImpl ?? ((url: string | URL, init?: RequestInit) => fetch(url, init));
@@ -167,13 +179,27 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     try {
       const body = frame.body === undefined ? undefined : Buffer.from(frame.body, "base64");
       // Drop hop-by-hop / relay-specific headers; the local fetch sets its own
-      // host and content-length for the (re-encoded) body.
+      // host and content-length for the (re-encoded) body. Also drop any
+      // client-supplied x-forwarded-for so a visitor can't spoof its own bucket.
       const requestHeaders: Record<string, string> = {};
       for (const [key, value] of Object.entries(frame.headers)) {
         const lower = key.toLowerCase();
-        if (lower === "host" || lower === "content-length" || lower === "connection") continue;
+        if (
+          lower === "host" ||
+          lower === "content-length" ||
+          lower === "connection" ||
+          lower === "x-forwarded-for"
+        )
+          continue;
         requestHeaders[key] = value;
       }
+      // The relay proxies every visitor request to the server's OWN loopback
+      // port, so without this the server's pairing rate-limiter would collapse
+      // all remote clients into one loopback bucket. relayProtocol.ts carries no
+      // visitor address, so we forward a stable per-visitor-channel identifier
+      // (the relay's per-request/-channel id) instead, giving distinct channels
+      // distinct buckets. RemoteAccessServer reads x-forwarded-for's first hop.
+      requestHeaders["x-forwarded-for"] = forwardedForIdentity(frame.id);
       const response = await Promise.race([
         fetchImpl(`${localHttpBase}${frame.path}`, {
           method: frame.method,

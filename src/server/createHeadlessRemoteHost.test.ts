@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createHeadlessRemoteHost } from "./createHeadlessRemoteHost";
+import { createHeadlessRemoteHost, resolveLocalProxyBase } from "./createHeadlessRemoteHost";
 
 // Mutable state shared with the hoisted vi.mock factories.
 const h = vi.hoisted(() => ({
@@ -125,5 +125,45 @@ describe("createHeadlessRemoteHost", () => {
 
     expect(h.supervisorDispose).toHaveBeenCalledTimes(1);
     expect(h.closeDatabase).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("resolveLocalProxyBase", () => {
+  it("uses 127.0.0.1 for wildcard bind hosts (server also listens on loopback)", () => {
+    for (const wildcard of ["0.0.0.0", "::", "::0", "", "   ", undefined]) {
+      expect(resolveLocalProxyBase(wildcard, "http://0.0.0.0:38987/")).toBe(
+        "http://127.0.0.1:38987",
+      );
+    }
+  });
+
+  it("uses the specific IPv4 bind host so relay proxy reaches the actual listener", () => {
+    // A Tailscale/VPN IP: the server does NOT listen on 127.0.0.1 here.
+    expect(resolveLocalProxyBase("100.64.1.2", "http://100.64.1.2:38987/")).toBe(
+      "http://100.64.1.2:38987",
+    );
+  });
+
+  it("brackets IPv6 literal bind hosts", () => {
+    expect(resolveLocalProxyBase("fd7a:115c:a1e0::1", "http://[fd7a:115c:a1e0::1]:38987/")).toBe(
+      "http://[fd7a:115c:a1e0::1]:38987",
+    );
+    // Already-bracketed literals are left as-is.
+    expect(resolveLocalProxyBase("[fd7a:115c:a1e0::1]", "http://[fd7a:115c:a1e0::1]:38987/")).toBe(
+      "http://[fd7a:115c:a1e0::1]:38987",
+    );
+  });
+
+  it("passes hostnames through unchanged", () => {
+    expect(resolveLocalProxyBase("my-server.local", "http://my-server.local:38987/")).toBe(
+      "http://my-server.local:38987",
+    );
+  });
+
+  it("always takes the port from the actually-listening httpBaseUrl", () => {
+    // Ephemeral-port bind (port 0 requested) resolves to a real port at listen.
+    expect(resolveLocalProxyBase("0.0.0.0", "http://0.0.0.0:54321/")).toBe(
+      "http://127.0.0.1:54321",
+    );
   });
 });

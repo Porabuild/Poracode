@@ -6,6 +6,7 @@ import type { Project } from "@/shared/contracts";
 import { cloneFolderNameFromUrl } from "@/shared/createProject";
 import type { RemoteProjectCommand } from "@/shared/remote";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
+import { BottomSheet, useSheet } from "../components";
 import { HostFolderPicker } from "./HostFolderPicker";
 
 export interface ManageProjectsViewProps {
@@ -31,6 +32,9 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
   const [cloneUrl, setCloneUrl] = useState("");
   const [pickerTarget, setPickerTarget] = useState<"folder" | "clone" | null>(null);
   const { busy, error, run } = useAsyncOperation();
+  // Removing a project cascade-deletes all its threads on the server, so gate it
+  // behind a confirm sheet (mirrors FilesView / GitActionSheet's confirm step).
+  const removeConfirm = useSheet<Project>();
 
   const cloneName = cloneFolderNameFromUrl(cloneUrl);
 
@@ -64,9 +68,7 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
                   variant="tertiary"
                   aria-label={t`Remove project`}
                   isDisabled={busy}
-                  onPress={() =>
-                    run(() => props.onCommand({ kind: "remove", projectId: project.id }))
-                  }
+                  onPress={() => removeConfirm.open(project)}
                 >
                   <Trash2 className="size-4" />
                 </Button>
@@ -199,6 +201,43 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
             }
           }}
         />
+      ) : null}
+
+      {removeConfirm.target ? (
+        <BottomSheet
+          label={t`Remove ${removeConfirm.target.name}`}
+          closeLabel={t`Cancel removing project`}
+          closing={removeConfirm.closing}
+          onClose={removeConfirm.close}
+        >
+          <div className="m-sheet-head">
+            <span className="truncate">{removeConfirm.target.name}</span>
+          </div>
+          <div className="m-sheet-list">
+            <p className="m-git-empty">
+              <Trans>
+                Remove <strong>{removeConfirm.target.name}</strong> and permanently delete all of
+                its threads? This cannot be undone.
+              </Trans>
+            </p>
+            <button type="button" className="m-sheet-action" onClick={removeConfirm.close}>
+              <Trans>Cancel</Trans>
+            </button>
+            <button
+              type="button"
+              className="m-sheet-action text-danger"
+              disabled={busy}
+              onClick={() => {
+                const projectId = removeConfirm.target!.id;
+                removeConfirm.close();
+                run(() => props.onCommand({ kind: "remove", projectId }));
+              }}
+            >
+              <Trash2 className="size-4" />
+              <Trans>Remove project</Trans>
+            </button>
+          </div>
+        </BottomSheet>
       ) : null}
     </section>
   );

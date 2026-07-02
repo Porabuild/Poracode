@@ -147,4 +147,133 @@ describe("RemoteDesktopClient", () => {
       "wss://relay.example.test/s/server-1/ws?ticket=lc_ws_test&lastSeenSeq=42",
     );
   });
+
+  it("sends lastSeenSeq=0 (replay-from-start) but omits it for the no-snapshot sentinel", () => {
+    const client = new RemoteDesktopClient("https://relay.example.test/s/server-1");
+
+    // 0 means "I have snapshotSeq 0; replay everything since" — must be sent so
+    // the server replays instead of treating it as "no replay".
+    expect(client.websocketUrl("t", 0)).toBe(
+      "wss://relay.example.test/s/server-1/ws?ticket=t&lastSeenSeq=0",
+    );
+    // null/undefined is the "no snapshot yet" sentinel → omitted.
+    expect(client.websocketUrl("t", null)).toBe("wss://relay.example.test/s/server-1/ws?ticket=t");
+    expect(client.websocketUrl("t", undefined)).toBe(
+      "wss://relay.example.test/s/server-1/ws?ticket=t",
+    );
+  });
+
+  const descriptorResponse = (protocolVersion: number, scopes: string[]): Response =>
+    new Response(
+      JSON.stringify({
+        protocolVersion,
+        desktopId: "desktop-1",
+        label: "Test Desktop",
+        appVersion: "1.0.0",
+        auth: {
+          policy: "remote-reachable",
+          bootstrapMethods: ["one-time-token"],
+          sessionMethods: ["bearer-access-token"],
+          scopes,
+        },
+        endpoints: {
+          httpBaseUrl: "http://127.0.0.1:38987/",
+          wsBaseUrl: "ws://127.0.0.1:38987/",
+        },
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+
+  it("surfaces a protocol-version mismatch as a readable, branchable error", async () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
+      descriptorResponse(999, ["session:read"]),
+    );
+
+    await expect(client.environment()).rejects.toMatchObject({
+      code: "protocol_version_mismatch",
+    });
+    // Not a raw ZodError JSON dump.
+    await expect(client.environment()).rejects.toThrow(/incompatible/i);
+  });
+
+  it("drops server-advertised scopes this build does not know instead of failing to parse", async () => {
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
+      descriptorResponse(1, ["session:read", "session:operate", "future:capability"]),
+    );
+
+    const descriptor = await client.environment();
+    expect(descriptor.auth.scopes).toEqual(["session:read", "session:operate"]);
+    expect(descriptor.auth.scopes).not.toContain("future:capability");
+  });
+
+  it("narrows unknown scopes echoed in a pairing token result", async () => {
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      undefined,
+      async () =>
+        new Response(
+          JSON.stringify({
+            accessToken: "lc_access_test",
+            tokenType: "Bearer",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+            scopes: ["session:read", "future:capability"],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    );
+
+    const result = await client.exchangePairingCredential({ credential: "lc_pair_test" });
+    expect(result.scopes).toEqual(["session:read"]);
+  });
+
+  it("registers a caller-supplied client metadata (desktop-as-client) over the navigator default", async () => {
+    let body: { client?: unknown } = {};
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      undefined,
+      async (_url, init) => {
+        body = JSON.parse(init?.body ?? "{}") as { client?: unknown };
+        return new Response(
+          JSON.stringify({
+            accessToken: "lc_access_test",
+            tokenType: "Bearer",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+            scopes: ["session:read"],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      },
+    );
+
+    await client.exchangePairingCredential({
+      credential: "lc_pair_test",
+      client: { label: "My Mac", deviceType: "desktop" },
+    });
+    expect(body.client).toEqual({ label: "My Mac", deviceType: "desktop" });
+  });
+
+  it("gives long-running git operations a larger timeout than ordinary requests", async () => {
+    vi.useFakeTimers();
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      () => new Promise<Response>(() => {}),
+      { requestTimeoutMs: 10 },
+    );
+
+    const push = client
+      .gitCall("gitPush", { projectLocation: { kind: "posix", path: "/tmp/x" } })
+      .then(
+        () => "resolved",
+        (error: unknown) => error,
+      );
+    // Ordinary 10ms deadline has long passed, but the push uses the 5-minute
+    // long-op deadline, so it must still be pending.
+    await vi.advanceTimersByTimeAsync(60_000);
+    await expect(Promise.race([push, Promise.resolve("pending")])).resolves.toBe("pending");
+
+    // Once the long deadline elapses it times out (rather than never).
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    await expect(push).resolves.toMatchObject({ code: "timeout" });
+  });
 });

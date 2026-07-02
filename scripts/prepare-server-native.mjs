@@ -11,12 +11,11 @@ const betterSqliteRoot = dirname(require.resolve("better-sqlite3/package.json"))
 const stageRoot = resolve(repoRoot, "dist", "server-native", "build", "better-sqlite3");
 const outputDir = resolve(repoRoot, "dist", "server-native");
 const outputFile = join(outputDir, "better_sqlite3.node");
-const nodeGypBin = join(
-  repoRoot,
-  "node_modules",
-  ".bin",
-  process.platform === "win32" ? "node-gyp.cmd" : "node-gyp",
-);
+// Run node-gyp's JS entrypoint under the current Node directly. Spawning the
+// `.bin/node-gyp.cmd` shim on Windows without `shell:true` throws EINVAL since
+// the CVE-2024-27980 fix; going through process.execPath is shell-independent
+// and cross-platform, so no `.cmd` vs. bare-name branch is needed.
+const nodeGypJs = require.resolve("node-gyp/bin/node-gyp.js");
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -24,7 +23,11 @@ function run(command, args, options = {}) {
     ...options,
   });
   if (result.status !== 0) {
-    throw new Error(`${command} ${args.join(" ")} failed with exit code ${result.status}`);
+    const reason =
+      result.status === null
+        ? `spawn error: ${result.error?.message ?? "unknown (status null)"}`
+        : `exit code ${result.status}`;
+    throw new Error(`${command} ${args.join(" ")} failed with ${reason}`);
   }
 }
 
@@ -38,7 +41,7 @@ cpSync(betterSqliteRoot, stageRoot, {
   },
 });
 
-run(nodeGypBin, ["rebuild", "--release"], {
+run(process.execPath, [nodeGypJs, "rebuild", "--release"], {
   cwd: stageRoot,
   env: {
     ...process.env,

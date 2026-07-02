@@ -289,6 +289,83 @@ Accepted as-is (documented, not bugs): the bearer token persists in renderer
 localStorage (mirrors the PWA; server can revoke); `storeSync` reused from
 `src/mobile` is renderer-only and relocating it is tracked Phase-4 polish.
 
+### Second review & hardening pass
+
+A follow-up multi-agent adversarial review (74 agents: 10 file-scoped finders +
+per-finding refuters) over the full remote/PWA/desktop-client surface raised 48
+candidates; 38 survived verification and were fixed here (6 high-severity, incl.
+two remote-exploitable security holes). Grouped by area:
+
+- **Clone RCE (high, security).** `applyRemoteProjectCommand` now validates a
+  clone `url` against an allowlist of safe transports (https/http/ssh/git/ftp(s)
+  - scp-style `user@host:path`) and rejects git remote-helper transports
+    (`ext::` runs an arbitrary shell command), `file:`, and leading-`-` argument
+    injection — closing an RCE reachable with only the `projects:manage` scope.
+- **Relay serverId hijack (high, security).** The relay now keeps a durable
+  `serverId → secret` binding independent of the live control socket (TTL-based
+  reclamation), so an attacker who knows a public serverId can no longer claim
+  it — and intercept forwarded bearer tokens — during a host's brief
+  disconnect.
+- **Absolute-file read scope (high, security).** `readAbsoluteFile` moved from
+  `session:read` to `projects:manage` (matching `browseHostDirectory`), so a
+  minimal read token can no longer read `~/.ssh/id_rsa` etc. off the host.
+- **Rate-limit key behind relay (medium, security).** The pairing rate limiter
+  keyed on `remoteAddress`, which is always loopback behind the relay; the relay
+  host adapter now forwards a per-visitor `x-forwarded-for` and the server keys
+  the bucket on it for loopback hops, restoring per-client throttling.
+- **Headless data-dir lock + host binding (high, stability/bug).** The headless
+  CLI takes an exclusive `server.lock` (stale-pid reclaim) so it can't co-open
+  the desktop's live data dir with a mismatched secret key; the relay adapter's
+  local proxy base is derived from the actual bind host (only `127.0.0.1` for
+  wildcard binds), fixing ECONNREFUSED when bound to a Tailscale/VPN IP. The
+  prepared Node-ABI sqlite binding is also resolved relative to `__dirname`
+  (not `cwd`) so systemd/launchd/cron launches find it.
+- **Desktop-as-client event scoping (high, bug).** The open-remote-thread socket
+  now filters events before dispatch: desktop-global events (agent statuses, git
+  summaries) are dropped and runtime batches are scoped to the open thread, so a
+  remote server can no longer clobber the local desktop's detected-agent list or
+  accumulate unrelated threads' runtime items. Store refreshes are per-desktop
+  debounced + ordered (stale snapshots ignored, `snapshotSeq` clamped with
+  `Math.max`), `pairServer` starts its event stream directly, `sendRemotePrompt`
+  uses the latest thread config, and the sidebar/overlay remote actions catch
+  their own rejections (a routine offline server no longer triggers the global
+  crash screen).
+- **PWA state-layer correctness (high→low).** A late `refresh()` from a
+  previously-active desktop can no longer clobber a just-switched session; a
+  failed pair no longer sticks connection in `pairing`; `openThread` no longer
+  destructively restarts a live run from a stale cached status; forgetting a
+  non-active desktop no longer wipes the active session; a client-side WS
+  health-ping detects half-open sockets; event-driven refreshes no longer
+  re-download the whole selected-thread history (or agent-statuses/settings) on
+  every unrelated thread's event; the snapshot guard accepts a legitimately
+  shrunk server transcript; queued runtime deltas flush before a snapshot
+  replace (no duplicated text); and orphaned Dexie thread-snapshot rows are
+  pruned.
+- **PWA view fixes.** One-tap "Remove project" now confirms before cascade-
+  deleting threads; per-thread "Delete Worktree" includes sibling threads that
+  share the worktree; `TerminalView` remounts on target change (no stale
+  PTY/cwd); a stale `/thread/:id` deep link no longer shows an unrelated thread's
+  header/actions; the always-empty "Archived Threads" section states honestly
+  that archived threads are managed on the desktop.
+- **Protocol/client robustness.** Server-advertised scopes parse leniently
+  (a newer server's unknown scope no longer throws and burns the one-time
+  pairing credential); protocol-version mismatch and response-schema failures
+  surface as typed, readable `RemoteClientError`s instead of raw ZodError JSON;
+  long-running git ops (clone/push/PR) get a 5-minute deadline instead of the
+  flat 60s; `lastSeenSeq=0` is sent (replay-from-start) instead of omitted; a
+  restarted server whose `seq` regressed below a reconnecting client's cursor
+  now sends `resync-required`; only remotely-consumed supervisor event types are
+  buffered/broadcast (chatty `lsp-message`/`git-changed`/`project-tree-changed`
+  are dropped); the `startMirrorSession` CDP listener leak on a failed
+  screencast start is cleaned up; and desktop-as-client sessions register with a
+  `desktop` device type.
+
+Verified end-to-end in the running app: enabled Remote Access on a desktop bound
+to an isolated data dir, paired the PWA (`mobile.html`) over real LAN sockets,
+and walked threads → more → manage-projects (add-existing via the host folder
+picker over the wire) → remove-confirm → settings → archived-threads → new-thread
+with **zero console errors** on both the PWA and the desktop.
+
 ## 5. Decisions
 
 - **Connectivity (now):** direct connection remains the default (LAN / VPN /

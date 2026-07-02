@@ -16,7 +16,7 @@ import { ThreadTitleRow } from "./ThreadTitleRow";
 import { ThreadUsageIndicator } from "./ThreadUsageIndicator";
 import { useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
 import { useRemoteDesktop, type RemoteDesktopSession } from "./useRemoteDesktop";
-import { getSettingsSectionLabel } from "./settingsSections";
+import { getSettingsSectionLabel, isDesktopSettingsSection } from "./settingsSections";
 import { ThreadsView } from "./views/ThreadsView";
 
 const PROJECT_FILTER_PREF = "threads.projectFilter";
@@ -49,15 +49,17 @@ function getChrome(pathname: string): Chrome {
   const sectionMatch = /^\/more\/settings\/(.+)$/.exec(pathname);
   if (sectionMatch?.[1]) {
     const id = decodeURIComponent(sectionMatch[1]);
+    // Device sections are listed flat on the More tab; only desktop-syncing
+    // sections sit behind the Desktop Settings subscreen.
     return {
       layout: "subscreen",
       title: getSettingsSectionLabel(id) ?? msg`Settings`,
-      backTo: "/more/settings",
+      backTo: isDesktopSettingsSection(id) ? "/more/settings" : "/more",
       tab: "more",
     };
   }
   if (pathname === "/more/settings") {
-    return { layout: "subscreen", title: msg`Settings`, backTo: "/more", tab: "more" };
+    return { layout: "subscreen", title: msg`Desktop Settings`, backTo: "/more", tab: "more" };
   }
   if (pathname === "/more/usage") return { layout: "tab", tab: "usage" };
   if (pathname === "/more/browser") {
@@ -121,10 +123,26 @@ function ConnectionControl(props: {
 }
 
 /** Phone chrome: route-aware top bar + the routed page + the bottom tab bar. */
-function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly chrome: Chrome }) {
-  const { remote, chrome } = props;
+function NarrowShell(props: {
+  readonly remote: RemoteDesktopSession;
+  readonly chrome: Chrome;
+  readonly pathname: string;
+}) {
+  const { remote, chrome, pathname } = props;
   const navigate = useNavigate();
   const { t } = useLingui();
+
+  // `remote.selectedThread` falls back to the most-recent thread, so on a stale
+  // /thread/:id deep link (thread deleted elsewhere) it points at the wrong
+  // thread. Only trust it for thread chrome when it matches the routed id;
+  // otherwise the header must not offer actions that would hit that other thread.
+  const routedThreadId = threadIdFromPath(pathname);
+  const headerThread =
+    chrome.layout === "thread" &&
+    remote.selectedThread &&
+    remote.selectedThread.id === routedThreadId
+      ? remote.selectedThread
+      : null;
 
   // Fullscreen routes (git panel, PR review) render their own chrome.
   if (chrome.layout === "fullscreen") {
@@ -149,13 +167,14 @@ function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly ch
             >
               <ChevronLeft className="size-5" />
             </button>
-            {remote.selectedThread ? (
+            {headerThread ? (
               <ThreadTitleRow
-                thread={remote.selectedThread}
+                thread={headerThread}
+                threads={remote.threads}
                 onAction={(action) =>
                   runThreadAction(
                     remote,
-                    remote.selectedThread,
+                    headerThread,
                     action,
                     () => void navigate({ to: "/threads" }),
                   )
@@ -176,7 +195,7 @@ function NarrowShell(props: { readonly remote: RemoteDesktopSession; readonly ch
                 </span>
               </span>
             )}
-            {remote.selectedThread ? <ThreadUsageIndicator thread={remote.selectedThread} /> : null}
+            {headerThread ? <ThreadUsageIndicator thread={headerThread} /> : null}
           </>
         ) : chrome.layout === "subscreen" ? (
           <>
@@ -492,7 +511,7 @@ export function RootLayout() {
           setProjectFilter={setProjectFilter}
         />
       ) : (
-        <NarrowShell remote={remote} chrome={getChrome(pathname)} />
+        <NarrowShell remote={remote} chrome={getChrome(pathname)} pathname={pathname} />
       )}
       <PullFromSourceDialog />
     </MobileAppProvider>

@@ -165,6 +165,99 @@ describe("applyRemoteProjectCommand", () => {
     expect(ok.project?.location).toEqual({ kind: "posix", path: "/home/me/app" });
   });
 
+  describe("clone URL transport validation", () => {
+    async function clone(url: string) {
+      const { deps } = makeDeps();
+      return applyRemoteProjectCommand(
+        { kind: "clone", parentPath: "/work", name: "r", source: { kind: "url", url } },
+        deps,
+      );
+    }
+
+    it("rejects the ext:: remote-helper transport (RCE via git)", async () => {
+      await expect(clone("ext::sh -c 'touch /tmp/pwned'")).rejects.toMatchObject({
+        status: 400,
+        code: "invalid_clone_url",
+      });
+    });
+
+    it("rejects any <helper>:: transport", async () => {
+      await expect(clone("fd::17")).rejects.toMatchObject({
+        status: 400,
+        code: "invalid_clone_url",
+      });
+    });
+
+    it("rejects the file: transport", async () => {
+      await expect(clone("file:///etc/passwd")).rejects.toMatchObject({
+        status: 400,
+        code: "invalid_clone_url",
+      });
+      await expect(clone("file:/etc/passwd")).rejects.toMatchObject({
+        status: 400,
+        code: "invalid_clone_url",
+      });
+    });
+
+    it("rejects a leading-dash URL (argument injection)", async () => {
+      await expect(clone("--upload-pack=touch /tmp/x")).rejects.toMatchObject({
+        status: 400,
+        code: "invalid_clone_url",
+      });
+    });
+
+    it("rejects an unknown scheme", async () => {
+      await expect(clone("gopher://example.com/x")).rejects.toMatchObject({
+        status: 400,
+        code: "invalid_clone_url",
+      });
+    });
+
+    it("allows a valid https URL", async () => {
+      const cloneRepo = vi.fn<RemoteProjectCommandDeps["cloneRepo"]>(async () => ({
+        path: "/work/r",
+      }));
+      const { deps } = makeDeps({ cloneRepo });
+      const result = await applyRemoteProjectCommand(
+        {
+          kind: "clone",
+          parentPath: "/work",
+          name: "r",
+          source: { kind: "url", url: "https://github.com/owner/repo.git" },
+        },
+        deps,
+      );
+      expect(cloneRepo).toHaveBeenCalledOnce();
+      expect(result.project?.location).toEqual({ kind: "posix", path: "/work/r" });
+    });
+
+    it("allows valid ssh and scp-style URLs", async () => {
+      await expect(clone("ssh://git@github.com/owner/repo.git")).resolves.toBeDefined();
+      await expect(clone("git@github.com:owner/repo.git")).resolves.toBeDefined();
+    });
+
+    it("does not validate a url for github sources (no free URL)", async () => {
+      const cloneRepo = vi.fn<RemoteProjectCommandDeps["cloneRepo"]>(async () => ({
+        path: "/work/r",
+      }));
+      const { deps } = makeDeps({ cloneRepo });
+      await applyRemoteProjectCommand(
+        {
+          kind: "clone",
+          parentPath: "/work",
+          name: "r",
+          source: {
+            kind: "github",
+            nameWithOwner: "owner/repo",
+            account: { host: "github.com", login: "me" },
+          },
+        },
+        deps,
+      );
+      expect(cloneRepo).toHaveBeenCalledOnce();
+    });
+  });
+
   it("rejects relative paths in add-existing/create/clone", async () => {
     const { deps } = makeDeps();
     await expect(

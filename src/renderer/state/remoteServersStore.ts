@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { msg } from "@lingui/core/macro";
+import { toast } from "@heroui/react";
 import type {
   Project,
   ProjectLocation,
@@ -11,6 +12,7 @@ import type {
 } from "@/shared/contracts";
 import { RemoteDesktopClient, type RemoteFetch } from "@/shared/remote/client";
 import {
+  filterKnownRemoteAccessScopes,
   REMOTE_STANDARD_SCOPES,
   type RemoteAccessScope,
   type RemoteProjectCommand,
@@ -22,6 +24,7 @@ import { i18n } from "@/renderer/i18n/i18n";
 // desktop hydrates a remote thread into the same threadId-keyed runtime store.
 // TODO(phase-4): relocate the shared sync helpers to a renderer/shared module.
 import { applyThreadSnapshot, dispatchRemoteSupervisorEvent } from "@/mobile/storeSync";
+import { collectRuntimeEventsFromSupervisoryMessage } from "@/mobile/runtimeRequests";
 
 /**
  * Remote requests run in the main process (no browser CORS — the remote
@@ -158,6 +161,9 @@ function remoteServerEventSocketReconnectDelay(attempt: number): number {
 }
 
 function closeRemoteServerEventSocket(desktopId: string): void {
+  // A pending debounced snapshot refresh for this server is now moot; cancel it
+  // so a closed/removed server never fires a late GET (finding #5).
+  clearRemoteServerRefreshTimer(desktopId);
   const entry = remoteServerEventSockets.get(desktopId);
   if (!entry) return;
   remoteServerEventSockets.delete(desktopId);
@@ -193,6 +199,90 @@ function shouldRefreshRemoteServerAfterEvent(value: unknown): boolean {
     type === "remote-projects-changed" ||
     type === "remote-threads-changed"
   );
+}
+
+/**
+ * Filter a remote WebSocket event down to what may safely be dispatched into the
+ * desktop's *shared* runtime store for the open remote thread. The remote server
+ * publishes ALL of its supervisor events, but this desktop is a client: it must
+ * NOT let a remote machine's events clobber local desktop-global stores.
+ *
+ * - Desktop-global events (agent statuses, git summaries, project/thread-change
+ *   broadcasts, provider usage, project/session-scoped events) are DROPPED — they
+ *   would otherwise overwrite the local supervisor's detected-agent list, local
+ *   git summaries, etc.
+ * - Thread-scoped lifecycle events (thread-state/reset/exited/…) are forwarded
+ *   ONLY when their `threadId` matches the open thread.
+ * - Runtime-event batches are filtered per-batch (a `thread-runtime-events-multi`
+ *   may carry batches for several threads) down to the open thread's batches so
+ *   the shared appStore is never hydrated with other threads' runtime deltas.
+ *
+ * Returns the value to dispatch (possibly a narrowed `thread-runtime-events-multi`)
+ * or `null` when nothing pertains to the open thread.
+ */
+export function filterRemoteThreadEvent(value: unknown, openThreadId: string): unknown {
+  if (!value || typeof value !== "object") return null;
+  const type = (value as { type?: unknown }).type;
+
+  // Runtime-event batches: keep only the open thread's events. A `-multi`
+  // message may carry other threads' batches, so re-shape it to a multi that
+  // contains only the open thread's runtime events.
+  if (
+    type === "thread-runtime-event" ||
+    type === "thread-runtime-events" ||
+    type === "thread-runtime-events-multi"
+  ) {
+    const batches = collectRuntimeEventsFromSupervisoryMessage(value).filter(
+      (batch) => batch.threadId === openThreadId,
+    );
+    if (batches.length === 0) return null;
+    return {
+      type: "thread-runtime-events-multi",
+      batches: batches.map((batch) => ({ threadId: batch.threadId, events: [...batch.events] })),
+    };
+  }
+
+  // Thread-scoped lifecycle events all carry a threadId; forward only ours.
+  if (
+    type === "thread-state" ||
+    type === "thread-reset" ||
+    type === "thread-exited" ||
+    type === "thread-pending-steer" ||
+    type === "thread-output" ||
+    type === "thread-osc-notification" ||
+    type === "thread-osc-shell"
+  ) {
+    const threadId = (value as { threadId?: unknown }).threadId;
+    return threadId === openThreadId ? value : null;
+  }
+
+  // Everything else is desktop-global (agent statuses, git summaries, project /
+  // thread-change broadcasts, provider usage) or scoped to a project/session
+  // that this desktop-as-client path does not mirror — drop it so it never
+  // clobbers the local desktop's shared stores.
+  return null;
+}
+
+// ── Per-server snapshot refresh: coalesced + debounced ──────────────
+// Both the per-server event socket and the open-thread socket trigger snapshot
+// refreshes on qualifying events. Route them through one per-desktopId debounced
+// scheduler (mirrors the PWA's 600ms) so a burst of events yields a single GET,
+// and tag each in-flight refresh with a monotonic request id so an out-of-order
+// (stale) snapshot never overwrites a newer one.
+const REMOTE_SERVER_REFRESH_DEBOUNCE_MS = 600;
+const remoteServerRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const remoteServerRefreshSeqByDesktopId = new Map<string, number>();
+
+function clearRemoteServerRefreshTimer(desktopId: string): void {
+  const timer = remoteServerRefreshTimers.get(desktopId);
+  if (timer) {
+    clearTimeout(timer);
+    remoteServerRefreshTimers.delete(desktopId);
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 interface RemoteServersState {
@@ -252,6 +342,8 @@ interface RemoteServersState {
   removeServer(desktopId: string): void;
   /** Re-fetch a connected server's snapshot. */
   refreshServer(desktopId: string): Promise<void>;
+  /** Debounced+coalesced refresh: bursts of socket events yield one snapshot. */
+  scheduleServerRefresh(desktopId: string): void;
   /** Connect every persisted server (called once on app start). */
   connectAll(): Promise<void>;
   /** Add/clone/remove a project on a remote server, then refresh it. */
@@ -272,6 +364,22 @@ function normalizeEndpoint(raw: string): string {
 export const useRemoteServersStore = create<RemoteServersState>()(
   persist(
     (set, get) => {
+      /** Surface a remote-server action failure without ever rejecting: toast it
+       * and reflect the server's runtime status/message so the sidebar shows it
+       * offline/errored. The renderer's global unhandledrejection handler would
+       * otherwise crash-screen on any stray rejection from a `void action(...)`. */
+      const reportRemoteServerError = (desktopId: string, error: unknown, fallback: string) => {
+        const message = errorMessage(error) || fallback;
+        toast.danger(message);
+        set((state) => {
+          const current = state.runtime[desktopId];
+          if (!current) return {};
+          return {
+            runtime: { ...state.runtime, [desktopId]: { ...current, status: "error", message } },
+          };
+        });
+      };
+
       const startRemoteServerEventStream = (server: RemoteServerRecord) => {
         const serverKey = `${server.endpoint}\0${server.accessToken}`;
         const existing = remoteServerEventSockets.get(server.desktopId);
@@ -331,11 +439,13 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   );
                   remoteServerSnapshotSeqByDesktopId.set(server.desktopId, nextSeq);
                   if (shouldRefreshRemoteServerAfterEvent(message.event)) {
-                    void get().refreshServer(server.desktopId);
+                    // Debounced so a burst of events yields a single snapshot GET
+                    // (shared with the open-thread socket via the scheduler).
+                    get().scheduleServerRefresh(server.desktopId);
                   }
                 }
                 if (message.type === "resync-required") {
-                  void get().refreshServer(server.desktopId);
+                  get().scheduleServerRefresh(server.desktopId);
                 }
               } catch {
                 // HTTP snapshots remain authoritative; ignore malformed frames.
@@ -375,11 +485,29 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           const requestSeq = openRemoteThreadRequestSeq + 1;
           openRemoteThreadRequestSeq = requestSeq;
           const server = get().servers.find((entry) => entry.desktopId === desktopId);
-          if (!server) throw new Error(i18n._(msg`Remote server not found.`));
+          if (!server) {
+            // Never reject: sidebar rows call this via `void openRemoteThread(...)`
+            // and the renderer's global unhandledrejection handler crash-screens
+            // on any stray rejection. Surface the failure as a toast instead.
+            reportRemoteServerError(
+              desktopId,
+              new Error(i18n._(msg`Remote server not found.`)),
+              i18n._(msg`Remote server not found.`),
+            );
+            return;
+          }
           const client = get().clientFactory(server.endpoint, server.accessToken);
           // Hydrate the thread's history into the shared, threadId-keyed runtime
           // store so the desktop ChatPane renders it (coexists with local threads).
-          const snapshot = await client.threadHistory(threadId);
+          // A failed history fetch (server asleep/unreachable) must not reject.
+          let snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
+          try {
+            snapshot = await client.threadHistory(threadId);
+          } catch (error) {
+            if (requestSeq !== openRemoteThreadRequestSeq) return;
+            reportRemoteServerError(desktopId, error, i18n._(msg`Failed to open remote thread.`));
+            return;
+          }
           if (requestSeq !== openRemoteThreadRequestSeq) return;
           applyThreadSnapshot(snapshot);
           closeActiveThreadSocket();
@@ -451,11 +579,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   if (message.type === "event") {
                     reconnectAttempt = 0;
                     lastSeenSeq = Math.max(lastSeenSeq, message.seq);
-                    dispatchRemoteSupervisorEvent(message.event);
+                    // The remote server publishes ALL of its supervisor events on
+                    // this stream. This desktop is a CLIENT, so forward only what
+                    // pertains to the open thread — never the remote machine's
+                    // desktop-global events (agent statuses, git summaries, …),
+                    // which would clobber the local desktop's shared stores.
+                    const forward = filterRemoteThreadEvent(message.event, threadId);
+                    if (forward !== null) dispatchRemoteSupervisorEvent(forward);
                     if (shouldRefreshRemoteServerAfterEvent(message.event)) {
-                      void get()
-                        .refreshServer(desktopId)
-                        .catch(() => undefined);
+                      // Debounced+coalesced with the per-server event socket.
+                      get().scheduleServerRefresh(desktopId);
                     }
                   }
                   if (message.type === "resync-required") {
@@ -492,9 +625,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           if (!open || !prompt.trim()) return;
           const server = get().servers.find((entry) => entry.desktopId === open.desktopId);
           if (!server) throw new Error(i18n._(msg`Remote server not found.`));
+          // The overlay captured `open.thread` when it opened; the model/mode may
+          // have changed on the remote (or PWA) since. Prefer the latest thread
+          // from the refreshed runtime snapshot so we don't ride a stale config
+          // that silently reverts the thread. Fall back to the opened snapshot.
+          const latest =
+            get().runtime[open.desktopId]?.threads.find((t) => t.id === open.threadId) ??
+            open.thread;
           await get()
             .clientFactory(server.endpoint, server.accessToken)
-            .sendThreadInput({ threadId: open.threadId, prompt, config: open.thread.config });
+            .sendThreadInput({ threadId: open.threadId, prompt, config: latest.config });
         },
 
         resolveThreadRequest: async (input) => {
@@ -561,6 +701,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           const tokenResult = await factory(normalized).exchangePairingCredential({
             credential: token,
             scopes: REMOTE_STANDARD_SCOPES,
+            // Register this connection as a desktop client so the server can
+            // label it distinctly from mobile/PWA sessions.
+            client: { label: "Lightcode Desktop", deviceType: "desktop" },
           });
           const client = factory(normalized, tokenResult.accessToken);
           const [environment, snapshot] = await Promise.all([
@@ -572,7 +715,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             label: environment.label,
             endpoint: normalized,
             accessToken: tokenResult.accessToken,
-            scopes: tokenResult.scopes,
+            // The server echoes granted scopes leniently (a newer server may
+            // advertise a scope this build doesn't know); narrow to the set this
+            // client can act on before persisting.
+            scopes: filterKnownRemoteAccessScopes(tokenResult.scopes),
           };
           set((state) => ({
             servers: [...state.servers.filter((s) => s.desktopId !== record.desktopId), record],
@@ -586,6 +732,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             },
           }));
           remoteServerSnapshotSeqByDesktopId.set(record.desktopId, snapshot.snapshotSeq);
+          // Start this server's live event stream immediately from the pairing
+          // closure. A connectAll() may be in flight, but it captured the server
+          // list *before* this record existed and would never stream it — so
+          // don't rely on a follow-up connectAll to wire the new server up.
+          startRemoteServerEventStream(record);
           return record;
         },
 
@@ -608,27 +759,55 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         refreshServer: async (desktopId) => {
           const server = get().servers.find((entry) => entry.desktopId === desktopId);
           if (!server) return;
+          // A debounced refresh may already be pending; this immediate refresh
+          // supersedes it so we don't fire a second GET moments later.
+          clearRemoteServerRefreshTimer(desktopId);
+          // Tag this refresh with a monotonic request id. Two sockets can each
+          // trigger a refresh, and their snapshot GETs may resolve out of order;
+          // ignore any result that isn't the latest so a stale snapshot never
+          // overwrites a newer one (e.g. shows "running" after "finished").
+          const requestSeq = (remoteServerRefreshSeqByDesktopId.get(desktopId) ?? 0) + 1;
+          remoteServerRefreshSeqByDesktopId.set(desktopId, requestSeq);
+          const isLatest = () => remoteServerRefreshSeqByDesktopId.get(desktopId) === requestSeq;
           // Replace the whole runtime entry; snapshots are kept across a
-          // connecting/error transition so the UI doesn't flash empty.
+          // connecting/error transition so the UI doesn't flash empty. Skip the
+          // write if the server was removed while a refresh was in flight, so a
+          // late snapshot doesn't resurrect a removed server's runtime.
           const setRuntime = (entry: RemoteServerRuntime) =>
-            set((state) => ({ runtime: { ...state.runtime, [desktopId]: entry } }));
+            set((state) =>
+              state.servers.some((s) => s.desktopId === desktopId)
+                ? { runtime: { ...state.runtime, [desktopId]: entry } }
+                : {},
+            );
           const cached = () => get().runtime[desktopId];
-          setRuntime({
-            status: "connecting",
-            projects: cached()?.projects ?? [],
-            threads: cached()?.threads ?? [],
-          });
+          // Skip the "connecting" flicker once a snapshot is cached — only
+          // downgrade the status on failure. First-ever refresh still shows it.
+          if (!cached()) {
+            setRuntime({ status: "connecting", projects: [], threads: [] });
+          }
           try {
             const snapshot = await get()
               .clientFactory(server.endpoint, server.accessToken)
               .snapshot();
-            remoteServerSnapshotSeqByDesktopId.set(desktopId, snapshot.snapshotSeq);
+            // Drop a stale (superseded) result so out-of-order resolutions don't
+            // regress the UI or the seq cursor.
+            if (!isLatest()) return;
+            // Clamp the stored seq with Math.max so a stale response can't
+            // regress the cursor a live socket already advanced past.
+            remoteServerSnapshotSeqByDesktopId.set(
+              desktopId,
+              Math.max(
+                remoteServerSnapshotSeqByDesktopId.get(desktopId) ?? 0,
+                snapshot.snapshotSeq,
+              ),
+            );
             setRuntime({
               status: "online",
               projects: snapshot.projects,
               threads: snapshot.threads,
             });
           } catch (error) {
+            if (!isLatest()) return;
             setRuntime({
               status: "error",
               message: error instanceof Error ? error.message : i18n._(msg`Connection failed.`),
@@ -636,6 +815,21 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               threads: cached()?.threads ?? [],
             });
           }
+        },
+
+        scheduleServerRefresh: (desktopId) => {
+          if (!get().servers.some((entry) => entry.desktopId === desktopId)) return;
+          clearRemoteServerRefreshTimer(desktopId);
+          remoteServerRefreshTimers.set(
+            desktopId,
+            setTimeout(() => {
+              remoteServerRefreshTimers.delete(desktopId);
+              if (!get().servers.some((entry) => entry.desktopId === desktopId)) return;
+              void get()
+                .refreshServer(desktopId)
+                .catch(() => undefined);
+            }, REMOTE_SERVER_REFRESH_DEBOUNCE_MS),
+          );
         },
 
         connectAll: async () => {
@@ -663,16 +857,34 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         },
 
         interruptThread: async (desktopId, threadId) => {
-          const server = get().servers.find((entry) => entry.desktopId === desktopId);
-          if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-          await get().clientFactory(server.endpoint, server.accessToken).interruptThread(threadId);
+          // Callers use `void interruptThread(...)`; the renderer's global
+          // unhandledrejection handler shows the full-app crash screen for any
+          // stray rejection. Catch here so an offline/unreachable server surfaces
+          // a toast (and the server's runtime status) instead of crashing the UI.
+          try {
+            const server = get().servers.find((entry) => entry.desktopId === desktopId);
+            if (!server) throw new Error(i18n._(msg`Remote server not found.`));
+            await get()
+              .clientFactory(server.endpoint, server.accessToken)
+              .interruptThread(threadId);
+          } catch (error) {
+            reportRemoteServerError(
+              desktopId,
+              error,
+              i18n._(msg`Failed to interrupt remote thread.`),
+            );
+          }
         },
 
         closeThread: async (desktopId, threadId) => {
-          const server = get().servers.find((entry) => entry.desktopId === desktopId);
-          if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-          await get().clientFactory(server.endpoint, server.accessToken).closeThread(threadId);
-          await get().refreshServer(desktopId);
+          try {
+            const server = get().servers.find((entry) => entry.desktopId === desktopId);
+            if (!server) throw new Error(i18n._(msg`Remote server not found.`));
+            await get().clientFactory(server.endpoint, server.accessToken).closeThread(threadId);
+            await get().refreshServer(desktopId);
+          } catch (error) {
+            reportRemoteServerError(desktopId, error, i18n._(msg`Failed to close remote thread.`));
+          }
         },
       };
     },
@@ -688,3 +900,22 @@ export const useRemoteServersStore = create<RemoteServersState>()(
     },
   ),
 );
+
+/**
+ * Test-only: tear down all process-local connection state (event sockets, the
+ * open-thread socket, debounce/refresh timers, and seq cursors) so each test
+ * starts from a clean slate. Pairing now opens an event socket, so leaked module
+ * state would otherwise bleed across tests.
+ */
+export function __resetRemoteServersStoreForTest(): void {
+  closeAllRemoteServerEventSockets();
+  closeActiveThreadSocket();
+  for (const desktopId of [...remoteServerRefreshTimers.keys()]) {
+    clearRemoteServerRefreshTimer(desktopId);
+  }
+  remoteServerSnapshotSeqByDesktopId.clear();
+  remoteServerRefreshSeqByDesktopId.clear();
+  connectAllInFlight = null;
+  openRemoteThreadRequestSeq = 0;
+  useRemoteServersStore.setState({ openThread: null });
+}

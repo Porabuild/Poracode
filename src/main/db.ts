@@ -40,12 +40,31 @@ export function resolveBetterSqliteNativeBindingOptions(
   env: NodeJS.ProcessEnv = process.env,
   cwd = process.cwd(),
   bindingExists: (path: string) => boolean = existsSync,
+  // db.ts is bundled to dist/main/*.cjs, so __dirname is the emitted dir.
+  moduleDir = __dirname,
 ): ConstructorParameters<typeof Database>[1] | undefined {
   const explicit = env[BETTER_SQLITE_NATIVE_BINDING_ENV]?.trim();
-  if (explicit) return { nativeBinding: explicit };
+  if (explicit) {
+    if (!bindingExists(explicit)) {
+      throw new Error(
+        `${BETTER_SQLITE_NATIVE_BINDING_ENV} points to a file that does not exist: ${explicit}. ` +
+          "Set it to a Node-ABI better_sqlite3.node built for this Node runtime, or unset it.",
+      );
+    }
+    return { nativeBinding: explicit };
+  }
   if (env[HEADLESS_SERVER_ENV] !== "1") return undefined;
-  const preparedBinding = join(cwd, DEFAULT_SERVER_NATIVE_BINDING);
-  return bindingExists(preparedBinding) ? { nativeBinding: preparedBinding } : undefined;
+  // The prepared Node-ABI binding may sit relative to the process CWD (repo
+  // root, dev) OR relative to the emitted server bundle (packaged: server.cjs
+  // in dist/main, so ../server-native/better_sqlite3.node). Launching the built
+  // CLI from any other dir (systemd/launchd/cron) misses the cwd-relative path,
+  // so probe both and prefer whichever exists.
+  const candidates = [
+    join(cwd, DEFAULT_SERVER_NATIVE_BINDING),
+    join(moduleDir, "..", "server-native", "better_sqlite3.node"),
+  ];
+  const found = candidates.find((candidate) => bindingExists(candidate));
+  return found ? { nativeBinding: found } : undefined;
 }
 
 function openDatabase(dbPath: string): InstanceType<typeof Database> {

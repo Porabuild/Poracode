@@ -735,7 +735,15 @@ describe("RemoteAccessServer", () => {
     });
     servers.push(server);
     const info = await server.start();
-    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
+    // `readAbsoluteFile` reaches paths outside any project root, so it is gated
+    // behind `projects:manage` (like `browseHostDirectory`); the other bridge
+    // procedures here only need read/operate. `projects:manage` is part of the
+    // standard scope set granted at pairing.
+    const token = await issueAccessToken(info, [
+      "session:read",
+      "session:operate",
+      "projects:manage",
+    ]);
 
     const searchResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
@@ -916,6 +924,42 @@ describe("RemoteAccessServer", () => {
     });
   });
 
+  it("rejects readAbsoluteFile for tokens without projects:manage (arbitrary host file read)", async () => {
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => {
+      throw new Error("supervisor should not be reached without projects:manage");
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    // A broad-but-not-management token: enough for project-relative reads, not
+    // enough to read arbitrary absolute paths on the host.
+    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
+
+    const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "readAbsoluteFile",
+        payload: {
+          projectLocation: { kind: "posix", path: "/tmp/example" },
+          absolutePath: "/home/user/.ssh/id_rsa",
+        },
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(callSupervisor).not.toHaveBeenCalled();
+  });
+
   it("allows paired clients to subscribe to subagent overlay streams through the remote bridge", async () => {
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
       if (name === "subagentSubscribe") return { history: [] } as never;
@@ -1082,6 +1126,122 @@ describe("RemoteAccessServer", () => {
     await expect(secondResponse.json()).resolves.toMatchObject({
       error: { code: "rate_limited" },
     });
+  });
+
+  it("keys the pairing rate limit per forwarded client behind a loopback relay hop", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      tokenExchangeRateLimit: { maxAttempts: 1, windowMs: 60_000 },
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const tokenUrl = new URL("/oauth/token", info.httpBaseUrl);
+    const body = JSON.stringify({ grantType: "pairing-token", credential: "bad-token" });
+
+    // Both requests arrive from loopback (as they would behind the relay), but
+    // carry distinct x-forwarded-for hops, so each gets its own bucket and
+    // neither is throttled despite maxAttempts: 1.
+    const deviceA = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.10" },
+      body,
+    });
+    const deviceB = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.20" },
+      body,
+    });
+    expect(deviceA.status).toBe(401);
+    expect(deviceB.status).toBe(401);
+
+    // A second attempt from device A (same forwarded hop) is throttled.
+    const deviceARetry = await fetch(tokenUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": "203.0.113.10" },
+      body,
+    });
+    expect(deviceARetry.status).toBe(429);
+  });
+
+  it("only buffers and broadcasts remotely-consumed supervisor events", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const { ws, ready } = await openPairedSocket(info);
+    expect(ready).toMatchObject({ type: "ready", seq: 0 });
+
+    // Chatty events no remote client consumes must not advance the seq or reach
+    // the socket; the next consumed event should arrive at seq 1.
+    server.publishSupervisorEvent({ type: "git-changed", projectId: "project-1" });
+    server.publishSupervisorEvent({ type: "project-tree-changed", projectId: "project-1" });
+    server.publishSupervisorEvent({ type: "lsp-message", sessionId: "lsp-1", message: {} });
+
+    const consumed = {
+      type: "thread-state",
+      threadId: "thread-1",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+    } satisfies SupervisorEvent;
+    server.publishSupervisorEvent(consumed);
+
+    expect(await readWsMessage(ws)).toMatchObject({ type: "event", seq: 1, event: consumed });
+    ws.close();
+  });
+
+  it("forces a resync when a reconnecting client's cursor exceeds a reset stream", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info);
+    const ticket = await issueWebSocketTicket(info, token);
+
+    // Fresh server is at seq 0; a client reconnecting with a higher cursor (its
+    // desktop restarted, resetting seq) must be told to resync, not silently
+    // left with stale state.
+    const wsUrl = new URL("/ws", info.wsBaseUrl);
+    wsUrl.searchParams.set("ticket", ticket);
+    wsUrl.searchParams.set("lastSeenSeq", "42");
+    const ws = new WebSocket(wsUrl);
+    // `ready` and `resync-required` are sent back-to-back on connect, so collect
+    // messages with a persistent listener rather than racing per-message reads.
+    const messages: unknown[] = [];
+    const gotResync = new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("Timed out waiting for resync")), 5_000);
+      ws.on("message", (data: Buffer) => {
+        messages.push(JSON.parse(data.toString()));
+        if (messages.some((m) => (m as { type?: string }).type === "resync-required")) {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
+      ws.once("error", (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+    await gotResync;
+    expect(messages).toEqual([
+      expect.objectContaining({ type: "ready", seq: 0 }),
+      expect.objectContaining({ type: "resync-required", seq: 0 }),
+    ]);
+    ws.close();
   });
 
   it("lists access sessions and closes active sockets when revoked", async () => {

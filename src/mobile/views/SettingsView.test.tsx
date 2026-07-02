@@ -24,4 +24,55 @@ describe("mobile SettingsView", () => {
     expect(screen.queryByText("Links and page behavior")).not.toBeInTheDocument();
     expect(screen.queryByText("Removal behavior")).not.toBeInTheDocument();
   });
+
+  it("lists only desktop-syncing sections — device sections live on the More tab", () => {
+    render(
+      <SettingsView
+        threads={[]}
+        projects={[]}
+        sectionId={null}
+        onSectionChange={() => {}}
+        onThreadAction={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("AI")).toBeInTheDocument();
+    expect(screen.getByText("Agents")).toBeInTheDocument();
+    expect(screen.getByText("Archived Threads")).toBeInTheDocument();
+    expect(screen.queryByText("Appearance")).not.toBeInTheDocument();
+    expect(screen.queryByText("Notifications")).not.toBeInTheDocument();
+  });
+
+  it("still renders device section pages by id (deep links from the More tab)", () => {
+    render(
+      <SettingsView
+        threads={[]}
+        projects={[]}
+        sectionId="git"
+        onSectionChange={() => {}}
+        onThreadAction={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Git")).toBeInTheDocument();
+  });
+
+  it("explains the archived section is desktop-managed instead of claiming nothing is archived", () => {
+    // The wire never delivers archived threads to the PWA (the shell snapshot
+    // drops them), so the empty state must be honest, not "No archived threads".
+    render(
+      <SettingsView
+        threads={[]}
+        projects={[]}
+        sectionId="archived"
+        onSectionChange={() => {}}
+        onThreadAction={() => {}}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Archived threads are managed from the desktop app/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No archived threads.")).not.toBeInTheDocument();
+  });
 });

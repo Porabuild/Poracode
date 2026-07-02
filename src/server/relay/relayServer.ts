@@ -41,6 +41,14 @@ export interface RelayServerOptions {
   /** Deadline for `/host` sockets to send their first register frame. */
   readonly hostRegistrationTimeoutMs?: number;
   readonly maxBodyBytes?: number;
+  /**
+   * How long a serverId→secret binding survives with no live host before the id
+   * can be reclaimed by a different secret. The binding is durable across host
+   * blips/reconnects (it is NOT cleared when the control socket closes); this
+   * TTL only governs eventual reclamation of an abandoned id. Defaults to 24h.
+   * Set to 0 to keep bindings until relay shutdown (no reclamation).
+   */
+  readonly secretBindingTtlMs?: number;
 }
 
 export interface RelayServerInfo {
@@ -51,6 +59,17 @@ export interface RelayServerInfo {
 interface RegisteredHost {
   readonly secret: string;
   readonly control: WebSocket;
+}
+
+/**
+ * Durable serverId→secret binding, independent of the live control socket. It
+ * survives host disconnects/reconnects so an attacker who knows a public
+ * serverId cannot claim it with a different secret while the legitimate host is
+ * briefly offline. `lastSeenAt` seeds TTL-based reclamation of abandoned ids.
+ */
+interface SecretBinding {
+  readonly secret: string;
+  lastSeenAt: number;
 }
 
 interface PendingRequest {
@@ -69,6 +88,7 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_BODY_BYTES = 64 * 1024 * 1024;
 const DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 30_000;
 const DEFAULT_HOST_REGISTRATION_TIMEOUT_MS = 10_000;
+const DEFAULT_SECRET_BINDING_TTL_MS = 24 * 60 * 60 * 1000;
 
 function relayWebSocketPayloadLimit(maxBodyBytes: number): number {
   // Host HTTP responses are base64 encoded inside a JSON frame over the relay
@@ -96,6 +116,12 @@ export class RelayServer {
   private readonly server: Server;
   private readonly wss: WebSocketServer;
   private readonly hosts = new Map<string, RegisteredHost>();
+  /**
+   * serverId → durable secret binding. Kept independent of the live control
+   * socket (NOT deleted on socket close) so a serverId cannot be hijacked with
+   * a different secret while its legitimate host is briefly offline.
+   */
+  private readonly secretBindings = new Map<string, SecretBinding>();
   /** requestId → pending HTTP response. */
   private readonly pending = new Map<string, PendingRequest>();
   /** channelId → visitor WebSocket. */
@@ -104,7 +130,11 @@ export class RelayServer {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private info: RelayServerInfo | null = null;
 
-  constructor(private readonly options: RelayServerOptions = {}) {
+  constructor(
+    private readonly options: RelayServerOptions = {},
+    /** Injectable clock for TTL-based secret-binding reclamation (tests). */
+    private readonly now: () => number = Date.now,
+  ) {
     this.wss = new WebSocketServer({
       noServer: true,
       maxPayload:
@@ -147,6 +177,7 @@ export class RelayServer {
     this.visitors.clear();
     for (const host of this.hosts.values()) host.control.terminate();
     this.hosts.clear();
+    this.secretBindings.clear();
     this.socketLiveness.clear();
     for (const [id, pending] of this.pending) {
       if (this.pending.delete(id)) pending.reject(new Error("Relay shutting down."));
@@ -288,12 +319,15 @@ export class RelayServer {
           control.close(1008, "host control already registered");
           return;
         }
-        const existing = this.liveHost(frame.serverId);
-        if (existing && existing.control !== control && existing.secret !== frame.secret) {
+        // Validate against the DURABLE binding — even with no live host — so an
+        // attacker cannot claim an offline server's id with a different secret.
+        if (!this.claimSecretBinding(frame.serverId, frame.secret)) {
           control.close(1008, "serverId already registered");
           return;
         }
-        // Replace any prior live registration for this id (reconnect).
+        // Replace any prior live registration for this id (reconnect). The
+        // durable binding above already confirmed the secret matches.
+        const existing = this.liveHost(frame.serverId);
         if (existing && existing.control !== control) {
           this.dropHostTraffic(frame.serverId, "Host reconnected.");
           existing.control.close();
@@ -350,8 +384,37 @@ export class RelayServer {
       if (serverId && this.hosts.get(serverId)?.control === control) {
         this.hosts.delete(serverId);
         this.dropHostTraffic(serverId, "Host disconnected.");
+        // Start the reclamation clock; the secret binding itself persists so the
+        // id cannot be re-claimed with a different secret until the TTL lapses.
+        this.touchSecretBinding(serverId);
       }
     });
+  }
+
+  /**
+   * Validate `secret` against the durable serverId binding and (re)claim the id.
+   * Returns false if the id is bound to a DIFFERENT secret and still within its
+   * reclamation TTL. A never-bound id, a matching secret, or an expired binding
+   * all succeed and (re)bind the id to `secret`.
+   */
+  private claimSecretBinding(serverId: string, secret: string): boolean {
+    const now = this.now();
+    const existing = this.secretBindings.get(serverId);
+    if (existing && existing.secret !== secret) {
+      const ttlMs = this.options.secretBindingTtlMs ?? DEFAULT_SECRET_BINDING_TTL_MS;
+      const live = this.hosts.get(serverId)?.control.readyState === WebSocket.OPEN;
+      // A live host with the wrong secret, or an idle-but-unexpired binding,
+      // blocks reclamation. ttlMs <= 0 means "never reclaim".
+      if (live || ttlMs <= 0 || now - existing.lastSeenAt < ttlMs) return false;
+    }
+    this.secretBindings.set(serverId, { secret, lastSeenAt: now });
+    return true;
+  }
+
+  /** Refresh a binding's reclamation clock (called when its host goes offline). */
+  private touchSecretBinding(serverId: string): void {
+    const existing = this.secretBindings.get(serverId);
+    if (existing) existing.lastSeenAt = this.now();
   }
 
   private handleVisitorWs(

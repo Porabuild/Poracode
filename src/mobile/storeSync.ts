@@ -83,7 +83,10 @@ function toCompletedTurnRecords(
   });
 }
 
-export function applyThreadSnapshot(snapshot: RemoteThreadSnapshot): void {
+export function applyThreadSnapshot(
+  snapshot: RemoteThreadSnapshot,
+  options: { readonly fromServer: boolean } = { fromServer: true },
+): void {
   const threadId = snapshot.thread.id;
   const state = useAppStore.getState();
 
@@ -96,8 +99,16 @@ export function applyThreadSnapshot(snapshot: RemoteThreadSnapshot): void {
     existingCount,
     snapshotItemCount: snapshot.runtimeItems.length,
     threadActive: isThreadTurnActive(snapshot.thread.status),
+    fromServer: options.fromServer,
   });
   if (shouldReplaceItems) {
+    // A runtime delta enqueued just before this snapshot resolved would
+    // otherwise apply AFTER the replace below and re-append text already in the
+    // snapshot (visible duplication). Flush (or drop) this thread's queued
+    // events first — mirrors dispatchRemoteSupervisorEvent's ordering guard.
+    if (pendingRuntimeEvents.has(threadId)) {
+      flushPendingRuntimeEventsSync();
+    }
     const items = snapshot.runtimeItems.map(toRuntimeChatItem);
     useAppStore.setState((current) => ({
       runtimeItemIdsByThread: {

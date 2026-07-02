@@ -44,10 +44,26 @@ function streamFile(filePath: string, res: ServerResponse): boolean {
   if (!stat.isFile()) {
     return false;
   }
+  const stream = createReadStream(normalized);
+  // A read error after statSync (file deleted / permissions / IO race) would
+  // otherwise emit an unhandled 'error' that crashes the headless server or
+  // hangs the response. Attach the handler before piping. If the error fires
+  // before headers are sent we can still return a clean 500; once headers are
+  // out we can only tear the socket down so the client sees a truncated body
+  // instead of a hung request. Either way, destroy the stream to release its fd.
+  stream.on("error", () => {
+    stream.destroy();
+    if (res.headersSent) {
+      res.destroy();
+    } else {
+      res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+      res.end("Internal Server Error");
+    }
+  });
   res.writeHead(200, {
     "content-type": CONTENT_TYPES[extname(normalized)] ?? "application/octet-stream",
     "content-length": stat.size,
   });
-  createReadStream(normalized).pipe(res);
+  stream.pipe(res);
   return true;
 }

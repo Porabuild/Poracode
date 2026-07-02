@@ -408,7 +408,22 @@ async function startMirrorSession(
     if (ended) callbacks.onEnded();
   }
 
-  await cdp.send("Page.startScreencast", { ...SCREENCAST_PARAMS });
+  try {
+    await cdp.send("Page.startScreencast", { ...SCREENCAST_PARAMS });
+  } catch (error) {
+    // startScreencast rejected before we returned a session, so `stop` is never
+    // wired up and the frame + 'destroyed' listeners (and the attached CDP
+    // session) would leak, accumulating on every retry. Unregister them and
+    // detach CDP before rethrowing.
+    unsubscribeFrames();
+    try {
+      wc.removeListener("destroyed", onDestroyed);
+    } catch {}
+    try {
+      cdp.detach();
+    } catch {}
+    throw error;
+  }
   return {
     tabId: tab.tabId,
     stop: () => stop(false),

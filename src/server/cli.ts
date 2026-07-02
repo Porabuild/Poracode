@@ -1,4 +1,4 @@
-import { writeSync } from "node:fs";
+import { closeSync, openSync, readFileSync, unlinkSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { resolveLightcodeBaseDir } from "@/shared/lightcodePaths";
 import { prepareLightcodeDataRoot } from "@/main/lightcodeData";
@@ -32,11 +32,121 @@ function resolveWslHelpersDir(): string {
   return join(__dirname, "..", "..", "resources", "wsl-helpers");
 }
 
+const LOCK_FILE = "server.lock";
+
+/** Release handle returned by {@link acquireDataDirLock}; unlinks the lockfile. */
+export interface DataDirLock {
+  readonly path: string;
+  release(): void;
+}
+
+/** Reports whether a pid is a live process this user can signal. */
+function pidIsAlive(pid: number): boolean {
+  try {
+    // Signal 0 performs error-checking without delivering a signal.
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // ESRCH: no such process (stale). EPERM: alive but owned by another user.
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+/**
+ * Acquire an exclusive lock on a Lightcode data dir so two supervisors never
+ * run against the same threads/worktrees/DB (which corrupts rows AND causes a
+ * crypto mismatch: the desktop's safeStorage-derived key vs. the headless
+ * file-backed key can't decrypt each other's sealed settings). The default
+ * data dir is the SAME `~/.lightcode` the desktop uses, so this guards the
+ * common "run the server while the app is open" footgun.
+ *
+ * Writes `<baseDir>/server.lock` with `openSync(path, "wx")` (exclusive
+ * create). On EEXIST, the holder's pid is read: a live pid fails fast with a
+ * clear message; a dead (or unparseable) pid is reclaimed and the lock retried
+ * once.
+ *
+ * `isAlive` and `now` are injectable for tests.
+ */
+export function acquireDataDirLock(
+  baseDir: string,
+  isAlive: (pid: number) => boolean = pidIsAlive,
+): DataDirLock {
+  const path = join(baseDir, LOCK_FILE);
+  let reclaimed = false;
+
+  for (;;) {
+    let fd: number;
+    try {
+      fd = openSync(path, "wx");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+
+      const holderPid = readLockPid(path);
+      if (holderPid !== null && isAlive(holderPid)) {
+        throw new Error(
+          `Lightcode data dir ${baseDir} is in use by another Lightcode process (pid ${holderPid}); ` +
+            "set LIGHTCODE_BASE_DIR to run a separate instance.",
+          { cause: error },
+        );
+      }
+      // Stale or unparseable lock (dead pid / partial write). Reclaim once to
+      // avoid an unbounded loop if two starts race to reclaim simultaneously.
+      if (reclaimed) {
+        throw new Error(
+          `Lightcode data dir ${baseDir} lock at ${path} could not be reclaimed; ` +
+            "another process may be racing to start. Retry, or set LIGHTCODE_BASE_DIR.",
+          { cause: error },
+        );
+      }
+      reclaimed = true;
+      try {
+        unlinkSync(path);
+      } catch (unlinkError) {
+        // Someone else already reclaimed it: fine, just retry the open.
+        if ((unlinkError as NodeJS.ErrnoException).code !== "ENOENT") throw unlinkError;
+      }
+      continue;
+    }
+
+    try {
+      writeSync(fd, String(process.pid));
+    } finally {
+      closeSync(fd);
+    }
+    let released = false;
+    return {
+      path,
+      release() {
+        if (released) return;
+        released = true;
+        try {
+          unlinkSync(path);
+        } catch {
+          // Already gone (reclaimed elsewhere / dir removed) — nothing to do.
+        }
+      },
+    };
+  }
+}
+
+function readLockPid(path: string): number | null {
+  try {
+    const pid = Number.parseInt(readFileSync(path, "utf8").trim(), 10);
+    return Number.isInteger(pid) && pid > 0 ? pid : null;
+  } catch {
+    // Unreadable/empty lockfile → treat as stale (reclaimable).
+    return null;
+  }
+}
+
 async function main(): Promise<void> {
   process.env.LIGHTCODE_HEADLESS_SERVER = "1";
   const baseDir = process.env.LIGHTCODE_BASE_DIR?.trim() || resolveLightcodeBaseDir();
   // Ensure the data dir exists before the secret key is written into it.
   prepareLightcodeDataRoot(baseDir);
+  // Fail fast if another Lightcode process (desktop or server) already owns this
+  // data dir — two supervisors on one dir corrupt DB rows and mismatch crypto.
+  const dataDirLock = acquireDataDirLock(baseDir);
 
   const appVersion = process.env.LIGHTCODE_APP_VERSION?.trim() || "dev";
   const isDev = process.env.LIGHTCODE_IS_DEV === "1" || Boolean(process.env.VITE_DEV_SERVER_URL);
@@ -60,7 +170,15 @@ async function main(): Promise<void> {
     },
   });
 
-  const info = await host.start();
+  let info;
+  try {
+    info = await host.start();
+  } catch (error) {
+    // Startup failed after the lock was acquired — release it so a retry (or a
+    // desktop launch) isn't blocked by an orphaned lockfile from a dead pid.
+    dataDirLock.release();
+    throw error;
+  }
   console.log("[lightcode-server] data dir:        %s", baseDir);
   console.log("[lightcode-server] listening at:    %s", info.httpBaseUrl);
   console.log("[lightcode-server] websocket at:    %s", info.wsBaseUrl);
@@ -75,10 +193,18 @@ async function main(): Promise<void> {
     void host
       .dispose()
       .catch((error) => console.error("[lightcode-server] shutdown error:", error))
-      .finally(() => process.exit(0));
+      .finally(() => {
+        // Release the data-dir lock in the SAME path that disposes the server/DB
+        // so the next start (or a desktop launch) can reclaim the dir cleanly.
+        dataDirLock.release();
+        process.exit(0);
+      });
   };
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
+  // Last-resort release on any normal/abrupt process exit (unlinkSync is sync,
+  // so it runs even from the 'exit' handler). Idempotent with shutdown().
+  process.on("exit", () => dataDirLock.release());
   // POSIX-only: print a new pairing link without restarting the server.
   process.on("SIGUSR2", () => {
     try {
@@ -89,10 +215,22 @@ async function main(): Promise<void> {
   });
 }
 
-main().catch((error) => {
-  // Write synchronously to fd 2: a piped stderr flushes asynchronously, so a
-  // console.error() immediately followed by process.exit() drops the message.
-  const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
-  writeSync(2, `[lightcode-server] failed to start: ${detail}\n`);
-  process.exit(1);
-});
+function runCli(): void {
+  main().catch((error) => {
+    // Write synchronously to fd 2: a piped stderr flushes asynchronously, so a
+    // console.error() immediately followed by process.exit() drops the message.
+    const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
+    writeSync(2, `[lightcode-server] failed to start: ${detail}\n`);
+    process.exit(1);
+  });
+}
+
+// Only boot when run as the CLI entrypoint (node dist/main/server.cjs). Guarded
+// so importing this module for its exported helpers (tests) doesn't start a
+// server. tsdown bundles to CJS, where `require`/`module` are the module-wrapper
+// args and `require.main === module` holds for the entrypoint. Under the vitest
+// ESM module runner these CJS bindings are absent, so main() is not invoked on
+// import. `typeof` guards keep both references safe when undeclared at runtime.
+if (typeof require !== "undefined" && typeof module !== "undefined" && require.main === module) {
+  runCli();
+}

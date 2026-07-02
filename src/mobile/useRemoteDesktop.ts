@@ -13,10 +13,13 @@ import {
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { buildWorktreeLocation } from "@/shared/worktree";
-import type {
-  RemoteProjectCommand,
-  RemoteShellSnapshot,
-  RemoteThreadSnapshot,
+import {
+  filterKnownRemoteAccessScopes,
+  type RemoteAccessTokenResult,
+  type RemoteEnvironmentDescriptor,
+  type RemoteProjectCommand,
+  type RemoteShellSnapshot,
+  type RemoteThreadSnapshot,
 } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import { readBridge } from "@/renderer/bridge";
@@ -100,6 +103,8 @@ const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 20000;
 const REMOTE_THREAD_APPEAR_ATTEMPTS = 10;
 const REMOTE_THREAD_APPEAR_DELAY_MS = 250;
+/** How long to wait for a health-check pong before treating the socket as dead. */
+const HEALTH_PING_TIMEOUT_MS = 5000;
 function reconnectDelay(attempt: number): number {
   const ceiling = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** attempt);
   // Full jitter keeps a fleet of clients from retrying in lockstep.
@@ -160,6 +165,16 @@ export function useRemoteDesktop() {
   // re-establish immediately (resetting its backoff attempt counter).
   const [reconnectNonce, setReconnectNonce] = useState(0);
   const selectedThreadIdRef = useRef<string | null>(null);
+  // The desktop the user is currently looking at. Async refreshes captured a
+  // `desktop` argument at call time; if the user switches to another desktop
+  // while an older refresh is still in flight, that stale result must NOT be
+  // applied (it would clobber the new desktop's data). Compared against this
+  // ref, which always reflects the active selection.
+  const activeDesktopIdRef = useRef<string | null>(null);
+  // Whether the live event socket is currently open. `refresh()` consults this
+  // so an HTTP-only success/failure doesn't flap the connection pill while the
+  // WebSocket (the real source of "Live") is up or down.
+  const socketOpenRef = useRef(false);
 
   const activeDesktop = desktops.find((desktop) => desktop.desktopId === activeDesktopId) ?? null;
   const storeThreads = useAppStore(useShallow((state) => state.threads));
@@ -175,6 +190,7 @@ export function useRemoteDesktop() {
     ? projects.find((project) => project.id === selectedThread.projectId)
     : undefined;
   selectedThreadIdRef.current = selectedThread?.id ?? null;
+  activeDesktopIdRef.current = activeDesktopId;
 
   useEffect(() => {
     let cancelled = false;
@@ -250,11 +266,31 @@ export function useRemoteDesktop() {
     // Tracked locally so reconnects resume from the latest event; the seq is
     // persisted via markDesktopConnected on the debounced refresh below.
     let lastSeenSeq = desktop.lastSeenSeq;
+    // Half-open detection: while backgrounded the OS can silently kill the TCP
+    // path without a close event, leaving readyState OPEN over a dead stream.
+    // We ping the server on resume; if no matching pong lands in time, we force
+    // a close to fall into the reconnect path.
+    let pingTimer = 0;
+    let pendingPingId: string | null = null;
 
-    function scheduleRefresh() {
+    /**
+     * Debounced snapshot refresh.
+     * - `recovery` (reconnect / resync / visibility / online): full refresh incl.
+     *   auxiliary data and the selected thread's history.
+     * - event-driven (default): skip auxiliary polls (they stream as events) and
+     *   only re-fetch the selected thread when the triggering event was about it.
+     */
+    function scheduleRefresh(
+      options: { readonly triggerThreadId?: string; readonly recovery?: boolean } = {},
+    ) {
+      const recovery = options.recovery ?? false;
+      const refreshSelectedThread =
+        recovery ||
+        (options.triggerThreadId !== undefined &&
+          options.triggerThreadId === selectedThreadIdRef.current);
       window.clearTimeout(refreshTimer);
       refreshTimer = window.setTimeout(() => {
-        void refresh(desktop, { refreshSelectedThread: true });
+        void refresh(desktop, { refreshSelectedThread, includeAuxiliary: recovery });
       }, 600);
     }
 
@@ -289,6 +325,7 @@ export function useRemoteDesktop() {
           socket.addEventListener("open", () => {
             connecting = false;
             attempt = 0;
+            socketOpenRef.current = true;
             setConnection("online");
             setMessage("");
             // Browser mirroring (watch/input) rides this socket; registering the
@@ -300,12 +337,21 @@ export function useRemoteDesktop() {
             setTerminalSocketSender(socketSender);
             // A refresh that failed while the socket was down would otherwise
             // be masked by this handler — re-fetch so the failure either heals
-            // or resurfaces its error message.
-            scheduleRefresh();
+            // or resurfaces its error message. This is a recovery refresh.
+            scheduleRefresh({ recovery: true });
           });
           socket.addEventListener("message", (event) => {
             try {
               const parsed = client.parseSocketMessage(String(event.data));
+              // Correlated health-check pong: clear the pending timer so the
+              // socket isn't force-closed as half-open.
+              if (parsed.type === "pong") {
+                if (pendingPingId !== null && parsed.id === pendingPingId) {
+                  pendingPingId = null;
+                  window.clearTimeout(pingTimer);
+                }
+                return;
+              }
               if (handleBrowserServerMessage(parsed)) return;
               if (handleTerminalServerMessage(parsed)) return;
               if (parsed.type === "event") {
@@ -314,11 +360,20 @@ export function useRemoteDesktop() {
                 // open transcripts update without a fetch round-trip.
                 dispatchRemoteSupervisorEvent(parsed.event);
                 if (shouldRefreshAfterSupervisorEvent(parsed.event)) {
-                  scheduleRefresh();
+                  // Pass the triggering thread so an unrelated thread's status
+                  // event doesn't re-download the OPEN thread's whole history.
+                  const triggerThreadId =
+                    parsed.event &&
+                    typeof parsed.event === "object" &&
+                    typeof (parsed.event as { threadId?: unknown }).threadId === "string"
+                      ? (parsed.event as { threadId: string }).threadId
+                      : undefined;
+                  scheduleRefresh(triggerThreadId !== undefined ? { triggerThreadId } : {});
                 }
               }
               if (parsed.type === "resync-required") {
-                scheduleRefresh();
+                // Replay window expired — a full recovery refresh.
+                scheduleRefresh({ recovery: true });
               }
             } catch {
               // Bad frames are ignored; HTTP refresh remains authoritative.
@@ -326,6 +381,9 @@ export function useRemoteDesktop() {
           });
           socket.addEventListener("close", () => {
             connecting = false;
+            socketOpenRef.current = false;
+            pendingPingId = null;
+            window.clearTimeout(pingTimer);
             if (ws === socket) ws = null;
             setBrowserSocketSender(null);
             setTerminalSocketSender(null);
@@ -344,6 +402,35 @@ export function useRemoteDesktop() {
       })();
     }
 
+    /**
+     * Verify a seemingly-open socket is actually alive. The OS can silently
+     * kill the TCP path while backgrounded, leaving readyState OPEN over a dead
+     * stream — the server prunes it via ping/pong but the client never notices,
+     * so the pill shows "Live" forever. Send a correlated protocol ping; if no
+     * matching pong arrives within the timeout, force-close to reconnect.
+     */
+    function sendHealthPing() {
+      const socket = ws;
+      if (socket?.readyState !== WebSocket.OPEN) return;
+      // A ping is already outstanding; let its timer resolve.
+      if (pendingPingId !== null) return;
+      const id = crypto.randomUUID();
+      pendingPingId = id;
+      try {
+        socket.send(JSON.stringify({ type: "ping", id, sentAt: Date.now() }));
+      } catch {
+        // Send failed on an ostensibly-open socket → it's dead; close now.
+        socket.close();
+        return;
+      }
+      window.clearTimeout(pingTimer);
+      pingTimer = window.setTimeout(() => {
+        // No pong for our id in time — the stream is half-open. Closing fires
+        // the close handler, which schedules the reconnect.
+        if (pendingPingId === id) socket.close();
+      }, HEALTH_PING_TIMEOUT_MS);
+    }
+
     // The OS network transitions let us react instantly instead of waiting
     // out a backoff timer: drop to "offline" the moment the radio dies, and
     // retry immediately (reset backoff) the moment it returns.
@@ -354,7 +441,7 @@ export function useRemoteDesktop() {
       connect();
       // If the socket survived (stale-open), connect() is a no-op; re-pull a
       // snapshot so state is correct after the network gap either way.
-      scheduleRefresh();
+      scheduleRefresh({ recovery: true });
     }
     function handleOffline() {
       if (closed) return;
@@ -365,7 +452,9 @@ export function useRemoteDesktop() {
     function handleVisibility() {
       if (closed || document.visibilityState !== "visible") return;
       if (ws?.readyState === WebSocket.OPEN) {
-        scheduleRefresh();
+        // Looks open, but it may be half-open after backgrounding — probe it.
+        sendHealthPing();
+        scheduleRefresh({ recovery: true });
         return;
       }
       handleOnline();
@@ -377,8 +466,10 @@ export function useRemoteDesktop() {
     connect();
     return () => {
       closed = true;
+      socketOpenRef.current = false;
       window.clearTimeout(timer);
       window.clearTimeout(refreshTimer);
+      window.clearTimeout(pingTimer);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       document.removeEventListener("visibilitychange", handleVisibility);
@@ -429,18 +520,36 @@ export function useRemoteDesktop() {
   }
 
   async function pairDesktop(endpoint: string, credential: string) {
+    // Restore this on failure so the "pairing" state can't get stuck — while it
+    // is set, DesktopsView disables Pair + Scan-QR, so a wedged "pairing" would
+    // leave the user unable to retry.
+    const priorConnection = connection;
     setConnection("pairing");
     setMessage("");
-    const anonymousClient = new RemoteDesktopClient(endpoint);
-    const descriptor = await anonymousClient.environment();
-    const token = await anonymousClient.exchangePairingCredential({ credential });
+    let descriptor: RemoteEnvironmentDescriptor;
+    let token: RemoteAccessTokenResult;
+    try {
+      const anonymousClient = new RemoteDesktopClient(endpoint);
+      descriptor = await anonymousClient.environment();
+      token = await anonymousClient.exchangePairingCredential({ credential });
+    } catch (error) {
+      // Roll the pill back so the pairing controls re-enable, then rethrow so
+      // the caller (DesktopsRoute) can toast the reason.
+      setConnection(priorConnection);
+      setMessage(
+        error instanceof Error ? error.message : i18n._(msg`Unable to pair with that desktop.`),
+      );
+      throw error;
+    }
     resetSessionState();
     const desktop = await saveDesktop({
       descriptor,
       endpoint,
       accessToken: token.accessToken,
       tokenExpiresAt: token.expiresAt,
-      scopes: token.scopes,
+      // Server-echoed scopes are lenient on the wire; narrow to the set this
+      // build understands before persisting them on the device.
+      scopes: filterKnownRemoteAccessScopes(token.scopes),
     });
     await reloadDesktops(desktop.desktopId);
     await refresh(desktop);
@@ -448,42 +557,79 @@ export function useRemoteDesktop() {
 
   async function refresh(
     desktop = activeDesktop,
-    options: { readonly refreshSelectedThread?: boolean } = {},
+    options: {
+      readonly refreshSelectedThread?: boolean;
+      /**
+       * When true (explicit/initial/reconnect refreshes) also re-fetch agent
+       * statuses and remote settings. Event-driven refreshes skip these — those
+       * signals already arrive as live WS events, so re-polling them on every
+       * status change of any thread is pure waste.
+       */
+      readonly includeAuxiliary?: boolean;
+    } = {},
   ) {
     if (!desktop) return;
+    const includeAuxiliary = options.includeAuxiliary ?? true;
     try {
       const client = clientFor(desktop);
       const next = await client.snapshot();
-      await Promise.all([
-        saveShellSnapshot(desktop.desktopId, next),
-        markDesktopConnected(desktop.desktopId, next.snapshotSeq),
-      ]);
-      setSnapshot(next);
+      // The user may have switched desktops while this snapshot was in flight;
+      // a stale result must not overwrite the desktop now on screen.
+      if (desktop.desktopId !== activeDesktopIdRef.current) return null;
       applyShellSnapshot(next);
-      // Agent statuses and remote-editable settings (AI helpers) are auxiliary
-      // and independent of each other — fetch them concurrently, and never let
-      // either failure hide threads. Older desktops without the settings
-      // endpoint just fall back to cached values.
-      const [statuses, desktopSettings] = await Promise.allSettled([
-        client.agentStatuses(),
-        client.settings(),
-      ]);
-      if (statuses.status === "fulfilled") applyAgentStatuses(statuses.value);
-      if (desktopSettings.status === "fulfilled") applyDesktopSettings(desktopSettings.value);
+      setSnapshot(next);
+      // Auxiliary data (agent statuses + remote-editable AI settings) is
+      // independent of the thread list and streams as live events, so only
+      // re-poll it on explicit/initial/reconnect refreshes. Never let either
+      // failure hide threads. Older desktops without the settings endpoint just
+      // fall back to cached values.
+      if (includeAuxiliary) {
+        const [statuses, desktopSettings] = await Promise.allSettled([
+          client.agentStatuses(),
+          client.settings(),
+        ]);
+        if (desktop.desktopId !== activeDesktopIdRef.current) return null;
+        if (statuses.status === "fulfilled") applyAgentStatuses(statuses.value);
+        if (desktopSettings.status === "fulfilled") applyDesktopSettings(desktopSettings.value);
+      }
       setSelectedThreadId(
         (current) => current ?? sortThreadsByRecency(next.threads)[0]?.id ?? null,
       );
-      setConnection("online");
+      // Only report a live connection when the socket is actually open. HTTP
+      // can succeed while the WS is blocked; downgrading/upgrading purely off
+      // HTTP results makes the pill flap. Leave a live socket's "online" alone.
+      if (socketOpenRef.current) setConnection("online");
       setMessage("");
-      await reloadDesktops(desktop.desktopId);
+      // Persist to Dexie in its OWN try/catch, outside the reachability path: a
+      // transient IndexedDB write failure must surface as a banner, not flip a
+      // live connection offline (the server was clearly reachable — we just got
+      // the snapshot from it).
+      try {
+        await Promise.all([
+          saveShellSnapshot(desktop.desktopId, next),
+          markDesktopConnected(desktop.desktopId, next.snapshotSeq),
+        ]);
+      } catch (error) {
+        setMessage(
+          error instanceof Error ? error.message : i18n._(msg`Couldn't cache offline data.`),
+        );
+      }
+      // Do NOT force the active desktop here — only switchDesktop/pair set it.
+      // Forcing it would flip the user back to a stale desktop when a late
+      // refresh of a previous desktop resolves after a switch.
+      await reloadDesktops();
       const threadId = selectedThreadIdRef.current ?? sortThreadsByRecency(next.threads)[0]?.id;
       if (options.refreshSelectedThread && threadId) {
         await loadThreadSnapshot(threadId, desktop, { preferCache: false });
       }
       return next;
     } catch (error) {
-      setConnection(isUnauthorizedRemoteError(error) ? "unauthorized" : "offline");
+      // A failed refresh must not knock a live socket offline (transient HTTP
+      // or Dexie hiccup while deltas keep streaming). Surface the message; only
+      // downgrade the pill when the socket isn't actually up.
       setMessage(error instanceof Error ? error.message : i18n._(msg`Desktop is unreachable.`));
+      if (isUnauthorizedRemoteError(error)) setConnection("unauthorized");
+      else if (!socketOpenRef.current) setConnection("offline");
       return null;
     }
   }
@@ -507,30 +653,59 @@ export function useRemoteDesktop() {
     const desktop = activeDesktop;
     if (!desktop) return;
     const loaded = await loadThreadSnapshot(thread.id, desktop, { preferCache: true });
-    await ensureTerminalThreadRunning(loaded?.thread ?? thread, desktop, loaded?.terminalSize);
+    // Only auto-(re)start a terminal thread when the status came from a FRESH
+    // server snapshot. If the history fetch failed and we fell back to a CACHED
+    // snapshot, a stale "startable" status would trigger startThread — which the
+    // supervisor implements as close+restart, KILLING a live run. Also surface
+    // any start failure rather than leaving an unhandled rejection.
+    try {
+      if (loaded && loaded.fromServer) {
+        await ensureTerminalThreadRunning(
+          loaded.snapshot.thread,
+          desktop,
+          loaded.snapshot.terminalSize,
+        );
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : i18n._(msg`Unable to start the thread.`));
+    }
   }
 
   async function loadThreadSnapshot(
     threadId: string,
     desktop: StoredDesktop,
     options: { readonly preferCache: boolean },
-  ): Promise<RemoteThreadSnapshot | null> {
-    let latest: RemoteThreadSnapshot | null = null;
+  ): Promise<{ readonly snapshot: RemoteThreadSnapshot; readonly fromServer: boolean } | null> {
+    let latest: { snapshot: RemoteThreadSnapshot; fromServer: boolean } | null = null;
     const cached = await getStoredThreadSnapshot(desktop.desktopId, threadId);
+    // The user may have switched desktops during the async cache read; a stale
+    // preload must not paint over the desktop now on screen.
+    if (desktop.desktopId !== activeDesktopIdRef.current) return null;
     if (options.preferCache && cached) {
-      latest = cached.snapshot;
+      latest = { snapshot: cached.snapshot, fromServer: false };
       setThreadSnapshot(cached.snapshot);
-      applyThreadSnapshot(cached.snapshot);
+      // A cached preload is NOT authoritative — pass fromServer:false so a
+      // shorter cached snapshot can't clobber a fuller live transcript.
+      applyThreadSnapshot(cached.snapshot, { fromServer: false });
     }
     try {
       const next = await clientFor(desktop).threadHistory(threadId);
-      latest = next;
-      await saveThreadSnapshot(desktop.desktopId, threadId, next);
+      // Bail if the active desktop changed while the fetch was in flight.
+      if (desktop.desktopId !== activeDesktopIdRef.current) return latest;
+      latest = { snapshot: next, fromServer: true };
       setThreadSnapshot(next);
-      applyThreadSnapshot(next);
+      // A fresh server history IS authoritative (fromServer defaults to true).
+      applyThreadSnapshot(next, { fromServer: true });
+      try {
+        await saveThreadSnapshot(desktop.desktopId, threadId, next);
+      } catch {
+        // Caching is best-effort; a Dexie write failure must not flip offline
+        // (the server was reachable) — the in-memory snapshot is already applied.
+      }
     } catch (error) {
-      setConnection(isUnauthorizedRemoteError(error) ? "unauthorized" : "offline");
       setMessage(error instanceof Error ? error.message : i18n._(msg`Unable to load thread.`));
+      if (isUnauthorizedRemoteError(error)) setConnection("unauthorized");
+      else if (!socketOpenRef.current) setConnection("offline");
     }
     return latest;
   }
@@ -781,9 +956,29 @@ export function useRemoteDesktop() {
   }
 
   async function forget(desktop: StoredDesktop) {
+    const wasActive = desktop.desktopId === activeDesktopIdRef.current;
     await forgetDesktop(desktop.desktopId);
+    if (!wasActive) {
+      // Forgetting a background desktop must NOT blank the active desktop's
+      // live session — just drop the row and refresh the desktop list, keeping
+      // the current desktop active.
+      await reloadDesktops(activeDesktopIdRef.current ?? undefined);
+      return;
+    }
+    // The active desktop is gone: clear its session, then hydrate the desktop
+    // that becomes active next (mirrors switchDesktop). Pick the most-recent
+    // remaining desktop and persist it as active so a reload doesn't lose it.
     resetSessionState();
-    await reloadDesktops();
+    const nextDesktop = (await listStoredDesktops())[0] ?? null;
+    if (!nextDesktop) {
+      setSnapshot(null);
+      await reloadDesktops();
+      return;
+    }
+    await setActiveDesktopId(nextDesktop.desktopId);
+    await reloadDesktops(nextDesktop.desktopId);
+    await loadCached(nextDesktop.desktopId);
+    await refresh(nextDesktop);
   }
 
   /** Rename a paired desktop locally (a personal nickname; see renameDesktop). */

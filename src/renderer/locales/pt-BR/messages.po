@@ -731,7 +731,11 @@ msgstr "Orquestrador de agentes de IA — gerencie agentes de codificação via 
 msgid "AI git actions"
 msgstr "Ações de git com IA"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/views/MoreView.tsx
+msgid "AI, agents, and archived threads on the paired desktop"
+msgstr ""
+
+#: src/mobile/settingsSections.ts
 msgid "Alerts when threads need you"
 msgstr "Alertas quando threads precisam de você"
 
@@ -812,8 +816,8 @@ msgid "App Browser"
 msgstr "Navegador de aplicativos"
 
 #: src/mobile/views/MoreView.tsx
-msgid "App preferences"
-msgstr "Preferências do app"
+#~ msgid "App preferences"
+#~ msgstr "Preferências do app"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -886,6 +890,11 @@ msgstr "Arquivar Tópico"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Archived Threads"
 msgstr "Tópicos arquivados"
+
+#: src/mobile/views/SettingsView.tsx
+msgid "Archived threads are managed from the desktop app. Restoring or deleting "
+"them from this device isn't available yet."
+msgstr ""
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -1273,6 +1282,7 @@ msgstr "Acesso à câmera bloqueado"
 #. Dialog button: dismiss without deleting
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1306,6 +1316,10 @@ msgstr "Cancelar redirecionamento pendente"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Cancel picker"
 msgstr "Cancelar seletor"
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Cancel removing project"
+msgstr ""
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "cancelled"
@@ -2122,6 +2136,10 @@ msgstr "Não foi possível gerar mensagem de commit: {detail}"
 msgid "Could not read file."
 msgstr "Não foi possível ler o arquivo."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Couldn't cache offline data."
+msgstr ""
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't clone the repository."
 msgstr "Não foi possível clonar o repositório."
@@ -2392,8 +2410,8 @@ msgid "Description (optional)"
 msgstr "Descrição (opcional)"
 
 #: src/mobile/views/SettingsView.tsx
-msgid "Desktop"
-msgstr "Desktop"
+#~ msgid "Desktop"
+#~ msgstr "Desktop"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
@@ -2402,6 +2420,11 @@ msgstr "Endpoint do desktop"
 #: src/mobile/useRemoteDesktop.ts
 msgid "Desktop is unreachable."
 msgstr "O desktop está inacessível."
+
+#: src/mobile/RootLayout.tsx
+#: src/mobile/views/MoreView.tsx
+msgid "Desktop Settings"
+msgstr ""
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/DesktopsView.tsx
@@ -2706,7 +2729,7 @@ msgstr "Habilite provedores nas configurações"
 msgid "Enabled"
 msgstr "Habilitado"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Enabled agents, model visibility and order"
 msgstr "Agentes ativados, visibilidade e ordem de modelos"
 
@@ -2861,9 +2884,17 @@ msgstr "falhou"
 msgid "Failed to close pull request: {detail}"
 msgstr "Falha ao fechar pull request: {detail}"
 
+#: src/renderer/state/remoteServersStore.ts
+msgid "Failed to close remote thread."
+msgstr ""
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create pull request: {detail}"
 msgstr "Falha ao criar pull request: {detail}"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Failed to interrupt remote thread."
+msgstr ""
 
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
@@ -2872,6 +2903,10 @@ msgstr "Falha ao carregar as estatísticas do perfil."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to merge pull request: {detail}"
 msgstr "Falha ao mesclar pull request: {detail}"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Failed to open remote thread."
+msgstr ""
 
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 msgid "Fast"
@@ -3074,7 +3109,7 @@ msgid "Folder that holds this project's worktrees. Reset to use the global "
 msgstr "Pasta que contém as árvores de trabalho deste projeto. Redefina para "
 "usar a configuração global."
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
 msgstr "Fontes e rolagem"
 
@@ -4281,7 +4316,6 @@ msgstr "Nenhum agente instalado."
 msgid "No AI commits, PRs, or conflict resolutions tracked yet."
 msgstr "Nenhum commit, PR ou resolução de conflito por IA registrado ainda."
 
-#: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "No archived threads."
 msgstr "Nenhum tópico arquivado."
@@ -5542,6 +5576,8 @@ msgid "Remove"
 msgstr "Remover"
 
 #. placeholder {0}: att.name
+#. placeholder {0}: removeConfirm.target.name
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Remove {0}"
 msgstr "Remover {0}"
@@ -5554,6 +5590,12 @@ msgstr "Remover {0} do painel"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Remove {pattern}"
 msgstr "Remover {pattern}"
+
+#. placeholder {0}: removeConfirm.target.name
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Remove <0>{0}</0> and permanently delete all of its threads? This cannot "
+"be undone."
+msgstr ""
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Remove action"
@@ -5790,7 +5832,7 @@ msgstr "Restaurar navegador"
 msgid "Restore default worktree base folder"
 msgstr "Redefinir pasta base da árvore de trabalho para o padrão"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Restore or delete"
 msgstr "Restaurar ou excluir"
 
@@ -5882,7 +5924,7 @@ msgstr "Revisar PR"
 msgid "Review PR #{prNumber} for {0}"
 msgstr "Revisar PR #{prNumber} para {0}"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Review presentation"
 msgstr "Apresentação da revisão"
 
@@ -6657,7 +6699,7 @@ msgstr "Armazenar como texto simples"
 msgid "Store as secret (encrypted at rest)"
 msgstr "Armazenar como segredo (criptografado em repouso)"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/views/MoreView.tsx
 msgid "Stored on this phone; the desktop keeps its own values."
 msgstr "Armazenado neste telefone; o desktop mantém seus próprios valores."
 
@@ -6979,7 +7021,7 @@ msgstr "o provedor alvo"
 msgid "Theme"
 msgstr "Tema"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Theme and chat font size"
 msgstr "Tema e tamanho da fonte do chat"
 
@@ -7018,8 +7060,8 @@ msgstr "Esta conexão pode ver projetos, mas não gerenciá-los. Faça o pareame
 "novamente para habilitar."
 
 #: src/mobile/views/SettingsView.tsx
-msgid "This device"
-msgstr "Este dispositivo"
+#~ msgid "This device"
+#~ msgstr "Este dispositivo"
 
 #: src/mobile/QrScanner.tsx
 msgid "This device has no usable camera. Enter the endpoint and token below to "
@@ -7114,7 +7156,7 @@ msgstr "Ações da thread"
 msgid "Thread context usage"
 msgstr "Uso de contexto do tópico"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Thread defaults and home scope"
 msgstr "Padrões de thread e escopo inicial"
 
@@ -7176,7 +7218,7 @@ msgstr "Tópicos marcados como concluídos que não foram tocados por tantos dia
 msgid "Title Generation"
 msgstr "Geração de Título"
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Title, commit, and conflict models"
 msgstr "Modelos de título, commit e conflito"
 
@@ -7262,7 +7304,7 @@ msgstr "Acompanhe a sessão por provedor, o uso semanal e mensal. As janelas sã
 "informadas por cada provedor; o custo estimado é reconstruído a partir "
 "de registros locais."
 
-#: src/mobile/views/SettingsView.tsx
+#: src/mobile/settingsSections.ts
 msgid "Tracking and display"
 msgstr "Rastreamento e exibição"
 
@@ -7371,6 +7413,7 @@ msgid "Unable to open file"
 msgstr "Não foi possível abrir o arquivo"
 
 #: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 msgid "Unable to pair with that desktop."
 msgstr "Não foi possível parear com esse desktop."
 

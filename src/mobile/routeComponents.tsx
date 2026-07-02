@@ -365,6 +365,9 @@ export function MoreRoute() {
               : "/more/settings";
         void navigate({ to });
       }}
+      onOpenSettingsSection={(section) =>
+        void navigate({ to: "/more/settings/$section", params: { section } })
+      }
     />
   );
 }
@@ -545,7 +548,15 @@ export function TerminalRoute() {
   }
   return (
     <LazyRoute>
+      {/*
+        TanStack Router keeps this component mounted across param/search changes,
+        but TerminalView seeds its tabs once and starts each shell keyed on its
+        shellId — so without a target-scoped key, navigating to a different
+        project/worktree/action would reuse the old PTY in the old cwd and skip
+        the new action's initial command. Remount on any target change instead.
+      */}
       <TerminalView
+        key={`${projectId}:${worktree ?? ""}:${action ?? ""}`}
         title={title}
         projectLocation={projectLocation}
         {...(worktree ? { worktreePath: worktree } : {})}

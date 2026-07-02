@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
+import { useEffect } from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { TerminalRoute, ThreadRoute } from "./routeComponents";
+
+// Counts TerminalView mount events so a target change can be asserted to
+// remount (fresh PTY) rather than reuse the stale one.
+const terminalMounts = vi.hoisted(() => ({ count: 0 }));
 
 const fixtures = vi.hoisted(() => {
   const project: Project = {
@@ -103,14 +108,21 @@ vi.mock("./views/ThreadView", () => ({
 }));
 
 vi.mock("./views/TerminalView", () => ({
-  TerminalView: (props: { title: string; onClose: () => void }) => (
-    <div>
-      <span data-testid="terminal-title">{props.title}</span>
-      <button type="button" onClick={props.onClose}>
-        Close terminal
-      </button>
-    </div>
-  ),
+  TerminalView: (props: { title: string; onClose: () => void }) => {
+    // Counts mounts, not renders: a target change must remount (new key), so
+    // this effect (empty deps) fires again only on a genuine remount.
+    useEffect(() => {
+      terminalMounts.count += 1;
+    }, []);
+    return (
+      <div>
+        <span data-testid="terminal-title">{props.title}</span>
+        <button type="button" onClick={props.onClose}>
+          Close terminal
+        </button>
+      </div>
+    );
+  },
 }));
 
 vi.mock("./views/NewThreadView", () => ({
@@ -137,6 +149,7 @@ describe("mobile route components", () => {
     fixtures.navigate.mockReset();
     fixtures.remote.openThread.mockClear();
     fixtures.remote.resolveRequest.mockClear();
+    terminalMounts.count = 0;
   });
 
   it("resolves runtime requests against the routed thread, not a stale selected thread", async () => {
@@ -185,5 +198,20 @@ describe("mobile route components", () => {
       to: "/thread/$threadId",
       params: { threadId: "thread-routed" },
     });
+  });
+
+  it("remounts the terminal (fresh shell) when the target changes", async () => {
+    // Start on one worktree target.
+    fixtures.search = { worktree: "/repo/a" };
+    const { rerender } = render(<TerminalRoute />);
+    await screen.findByTestId("terminal-title");
+    expect(terminalMounts.count).toBe(1);
+
+    // Navigate to a different target (new worktree + an action). TanStack Router
+    // keeps TerminalRoute mounted, but the target-scoped key must remount
+    // TerminalView so it doesn't reuse the old PTY/cwd.
+    fixtures.search = { worktree: "/repo/b", action: "build" };
+    rerender(<TerminalRoute />);
+    await waitFor(() => expect(terminalMounts.count).toBe(2));
   });
 });

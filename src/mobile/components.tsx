@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ReactNode } from "react";
 import { Check, ChevronRight, Columns2, Loader2, Rows2, Wifi, WifiOff } from "lucide-react";
@@ -225,6 +226,12 @@ export function useSheet<T>() {
  * Shared bottom-sheet chrome: a dimmed, tap-to-dismiss backdrop and the rounded
  * surface. Mounting slides it up; setting `closing` slides it back down — drive
  * both with useSheet. Callers supply the sheet head and body as children.
+ *
+ * Portaled to <body>: triggers live inside `.m-topbar` / `.m-main` / `.m-tabbar`,
+ * whose `view-transition-name`s force stacking contexts, so a backdrop rendered
+ * inline would paint under whichever named sibling comes later in the DOM
+ * (header sheets vanish behind the chat, tab-route sheets slide under the tab
+ * bar) no matter its z-index.
  */
 export function BottomSheet(props: {
   /** Dialog accessible name. */
@@ -236,7 +243,7 @@ export function BottomSheet(props: {
   readonly children: ReactNode;
 }) {
   const { t } = useLingui();
-  return (
+  return createPortal(
     <div className="m-sheet-backdrop" data-closing={props.closing || undefined}>
       <button
         type="button"
@@ -247,7 +254,8 @@ export function BottomSheet(props: {
       <div className="m-sheet" role="dialog" aria-label={props.label}>
         {props.children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

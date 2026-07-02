@@ -192,6 +192,42 @@ describe("ThreadsView grouping", () => {
     });
   });
 
+  it("deletes a worktree from a member row menu with every sibling thread id", () => {
+    // Two threads share the worktree; deleting from ONE row must still hand the
+    // desktop both ids, or the untold sibling is orphaned on a deleted path.
+    const onDeleteWorktreeGroup =
+      vi.fn<
+        (input: { projectId: string; worktreePath: string; threadIds: readonly string[] }) => void
+      >();
+    renderView(
+      [
+        makeThread({
+          id: "a",
+          title: "Alpha",
+          worktreePath: "/repo/wt",
+          worktreeBranch: "feature/x",
+        }),
+        makeThread({
+          id: "b",
+          title: "Bravo",
+          worktreePath: "/repo/wt",
+          worktreeBranch: "feature/x",
+        }),
+      ],
+      { onDeleteWorktreeGroup },
+    );
+
+    // Open the per-thread menu for one member (not the group header).
+    fireEvent.contextMenu(screen.getByText("Alpha").closest("button")!);
+    fireEvent.click(screen.getByText("Delete Worktree"));
+
+    expect(onDeleteWorktreeGroup).toHaveBeenCalledTimes(1);
+    const input = onDeleteWorktreeGroup.mock.calls[0]![0];
+    expect(input.projectId).toBe("p1");
+    expect(input.worktreePath).toBe("/repo/wt");
+    expect([...input.threadIds].sort()).toEqual(["a", "b"]);
+  });
+
   it("collapses and re-expands the group when its header is tapped", () => {
     renderView([
       makeThread({

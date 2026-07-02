@@ -177,10 +177,28 @@ function useLongPress(onLongPress: () => void) {
   return { pressHandlers, onClick, onContextMenu };
 }
 
+/**
+ * Every thread id that shares `worktreePath` within `projectId`. Deleting a
+ * worktree removes the directory + branch, so the paired desktop must be told
+ * about *all* threads pointing at it — otherwise the untold siblings survive as
+ * rows aimed at a deleted path and fail to open.
+ */
+function worktreeSiblingIds(
+  threads: readonly Thread[],
+  projectId: string,
+  worktreePath: string,
+): readonly string[] {
+  return threads
+    .filter((entry) => entry.projectId === projectId && entry.worktreePath === worktreePath)
+    .map((entry) => entry.id);
+}
+
 /** Long-press (touch) or right-click context menu for a thread row. */
 function ThreadActionsSheet(props: {
   readonly thread: Thread;
   readonly project?: Project | undefined;
+  /** Full thread list, so a worktree delete can gather every sibling id. */
+  readonly threads: readonly Thread[];
   readonly closing?: boolean;
   readonly onAction: (action: ThreadAction) => void;
   readonly onNewThreadInWorktree: ThreadsViewProps["onNewThreadInWorktree"];
@@ -320,7 +338,7 @@ function ThreadActionsSheet(props: {
                   props.onDeleteWorktreeGroup({
                     projectId: thread.projectId,
                     worktreePath,
-                    threadIds: [thread.id],
+                    threadIds: worktreeSiblingIds(props.threads, thread.projectId, worktreePath),
                   }),
                 )
               : act({ kind: "delete" })
@@ -892,6 +910,7 @@ export function ThreadsView(props: ThreadsViewProps) {
           key={menuThread.id}
           thread={menuThread}
           project={projectsById.get(menuThread.projectId)}
+          threads={props.threads}
           closing={threadMenu.closing}
           onAction={(action) => props.onThreadAction(menuThread, action)}
           onNewThreadInWorktree={props.onNewThreadInWorktree}

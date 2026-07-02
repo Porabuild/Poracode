@@ -560,6 +560,63 @@ describe("relay end-to-end", () => {
     });
   });
 
+  it("prevents hijacking an offline server id with a different secret", async () => {
+    const relay = new RelayServer({ host: "127.0.0.1", port: 0 });
+    const relayInfo = await relay.start();
+    cleanups.push(() => relay.dispose());
+
+    async function tryRegister(
+      serverId: string,
+      secret: string,
+    ): Promise<{
+      outcome: "registered" | "closed";
+      reason?: string;
+      control: WebSocket;
+    }> {
+      const control = new WebSocket(`ws://127.0.0.1:${relayInfo.port}/host`);
+      cleanups.push(() => control.terminate());
+      await new Promise<void>((resolve, reject) => {
+        control.once("open", resolve);
+        control.once("error", reject);
+      });
+      control.send(JSON.stringify({ t: "register", protocolVersion: 1, serverId, secret }));
+      return await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("no register outcome")), 3000);
+        control.once("message", (data) => {
+          clearTimeout(timer);
+          const frame = JSON.parse(String(data)) as { t: string };
+          resolve({
+            outcome: frame.t === "registered" ? "registered" : "closed",
+            control,
+          });
+        });
+        control.once("close", (code, reason) => {
+          clearTimeout(timer);
+          resolve({ outcome: "closed", reason: reason.toString(), control });
+        });
+      });
+    }
+
+    // Legit host binds the id, then goes offline (control socket drops).
+    const legit = await tryRegister("srv-victim", "legit-secret");
+    expect(legit.outcome).toBe("registered");
+    legit.control.close();
+    await waitRelaySocketClose(legit.control);
+    // Let the relay process the control 'close' (delete the live host, keep the
+    // durable binding) before the attacker races in.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Attacker who knows the public serverId tries to claim it with a different
+    // secret while the host is offline — must be rejected, not silently allowed.
+    const attacker = await tryRegister("srv-victim", "attacker-secret");
+    expect(attacker.outcome).toBe("closed");
+    expect(attacker.reason).toBe("serverId already registered");
+
+    // The legitimate host can still reconnect with its correct secret.
+    const reconnect = await tryRegister("srv-victim", "legit-secret");
+    expect(reconnect.outcome).toBe("registered");
+  });
+
   it("rejects registering multiple server ids on one host control socket", async () => {
     const relay = new RelayServer({ host: "127.0.0.1", port: 0 });
     const relayInfo = await relay.start();

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ChevronRight, CornerLeftUp, File, Folder, House, Loader2, X } from "lucide-react";
@@ -62,7 +63,10 @@ export function HostFolderPicker(props: {
   const directories = listing?.entries.filter((entry) => entry.type === "directory") ?? [];
   const files = listing?.entries.filter((entry) => entry.type === "file") ?? [];
 
-  return (
+  // Portaled to <body> like BottomSheet: the trigger lives inside `.m-main`,
+  // whose view-transition-name forces a stacking context, so an inline backdrop
+  // would slide under the tab bar on tab routes.
+  return createPortal(
     <div className="m-sheet-backdrop">
       <button
         type="button"
@@ -166,6 +170,7 @@ export function HostFolderPicker(props: {
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

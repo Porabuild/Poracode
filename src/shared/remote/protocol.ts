@@ -26,6 +26,33 @@ export type RemoteAccessScope = z.infer<typeof remoteAccessScopeSchema>;
 
 export const REMOTE_STANDARD_SCOPES: readonly RemoteAccessScope[] = remoteAccessScopeSchema.options;
 
+const KNOWN_REMOTE_ACCESS_SCOPES: ReadonlySet<string> = new Set(remoteAccessScopeSchema.options);
+
+/** Narrow an arbitrary string to a {@link RemoteAccessScope} if it is one we know. */
+export function isKnownRemoteAccessScope(value: string): value is RemoteAccessScope {
+  return KNOWN_REMOTE_ACCESS_SCOPES.has(value);
+}
+
+/**
+ * Filter a server-advertised scope list down to the {@link RemoteAccessScope}
+ * values this client build understands. A newer server may advertise scopes an
+ * older client does not know (this is what happened when `projects:manage` was
+ * added); those are dropped rather than rejected so parsing an advertised list
+ * never throws and does not burn a one-time pairing credential.
+ */
+export function filterKnownRemoteAccessScopes(scopes: readonly string[]): RemoteAccessScope[] {
+  return scopes.filter(isKnownRemoteAccessScope);
+}
+
+/**
+ * Lenient wire schema for scope lists a **server advertises** (environment
+ * descriptor, token-exchange echo). Parsed as raw strings so an unknown scope
+ * from a newer server does not throw; callers narrow with
+ * {@link filterKnownRemoteAccessScopes} before use. Use the strict
+ * {@link remoteAccessScopeSchema} for scopes the **client itself sends**.
+ */
+export const advertisedRemoteAccessScopesSchema = z.array(z.string().min(1));
+
 /** Derive the WebSocket base URL for a remote desktop's HTTP endpoint. */
 export function toWebSocketUrl(httpUrl: string | URL): URL {
   const url = new URL(httpUrl);
@@ -49,7 +76,10 @@ export const remoteEnvironmentDescriptorSchema = z.object({
     policy: z.literal("remote-reachable"),
     bootstrapMethods: z.array(z.literal("one-time-token")),
     sessionMethods: z.array(z.literal("bearer-access-token")),
-    scopes: z.array(remoteAccessScopeSchema),
+    // Lenient on the wire: a newer server may advertise a scope this client
+    // build does not know. Parsing must not throw (it precedes pairing on
+    // desktop); the client filters to known scopes before use.
+    scopes: advertisedRemoteAccessScopesSchema,
   }),
   endpoints: z.object({
     httpBaseUrl: z.string().url(),
@@ -70,7 +100,10 @@ export const remoteAccessTokenResultSchema = z.object({
   accessToken: z.string().min(1),
   tokenType: z.literal("Bearer"),
   expiresAt: z.string().min(1),
-  scopes: z.array(remoteAccessScopeSchema),
+  // Server-echoed granted scopes: lenient on the wire (see descriptor). Token
+  // exchange happens FIRST on desktop pairing, so a ZodError here would burn
+  // the one-time credential; the client narrows to known scopes before use.
+  scopes: advertisedRemoteAccessScopesSchema,
 });
 export type RemoteAccessTokenResult = z.infer<typeof remoteAccessTokenResultSchema>;
 

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
+  LIGHTCODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_STANDARD_SCOPES,
+  filterKnownRemoteAccessScopes,
   remoteAgentStatusesSchema,
   remoteAccessTokenResultSchema,
   remoteBrowserStateSchema,
@@ -78,6 +80,23 @@ function parseJsonResponse(text: string, response: Response): unknown {
   }
 }
 
+/**
+ * Parse a value against a response schema, converting a {@link z.ZodError}
+ * into a readable {@link RemoteClientError}. Raw ZodError `.message` is a JSON
+ * issue dump that callers render verbatim (mobile toast, desktop banner); this
+ * gives users a readable message and a stable `code` to branch on.
+ */
+function parseResponse<T>(schema: z.ZodType<T>, value: unknown, what: string): T {
+  const result = schema.safeParse(value);
+  if (result.success) return result.data;
+  throw new RemoteClientError(
+    `The server sent an unexpected ${what} response. It may be running an incompatible version.`,
+    500,
+    "invalid_response",
+    { cause: result.error },
+  );
+}
+
 function defaultClientMetadata(): RemoteClientMetadata {
   const userAgent = globalThis.navigator?.userAgent;
   const isMobile = userAgent ? /\bMobile\b/i.test(userAgent) : false;
@@ -146,6 +165,41 @@ export interface RemoteDesktopClientOptions {
 const DEFAULT_REMOTE_REQUEST_TIMEOUT_MS = 60_000;
 const DEFAULT_REMOTE_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
 
+/**
+ * Long-running server operations (clone, push, PR creation, commit, sync,
+ * merge) routinely exceed the 60s default while succeeding server-side; a
+ * short deadline reports a false failure while the op keeps running. These get
+ * a generous deadline instead.
+ */
+const LONG_REMOTE_REQUEST_TIMEOUT_MS = 5 * 60_000;
+
+/**
+ * Git-call procedures that mutate remote state and can run long (network I/O
+ * against a remote or GitHub). These use {@link LONG_REMOTE_REQUEST_TIMEOUT_MS}.
+ * Kept in sync loosely with GIT_REMOTE_PROCEDURE_SCOPES' `session:operate`
+ * network operations — the point is to avoid false timeouts on slow ops, so
+ * over-inclusion here is harmless.
+ */
+const LONG_RUNNING_GIT_PROCEDURES: ReadonlySet<string> = new Set([
+  "gitFetch",
+  "gitPull",
+  "gitPullRebase",
+  "gitPush",
+  "gitSync",
+  "gitSyncRebase",
+  "gitCommit",
+  "gitMergeToSource",
+  "gitPullFromSource",
+  "gitFinishMerge",
+  "ghCreatePr",
+  "ghMergePr",
+  "ghUpdatePrBranch",
+  "ghSubmitPrReview",
+  "generateCommitMessage",
+  "generateTitle",
+  "generatePrSummary",
+]);
+
 export class RemoteDesktopClient {
   private readonly fetchImpl: RemoteFetch;
   private readonly requestTimeoutMs: number;
@@ -163,26 +217,57 @@ export class RemoteDesktopClient {
   }
 
   async environment(): Promise<RemoteEnvironmentDescriptor> {
-    return remoteEnvironmentDescriptorSchema.parse(
-      await this.requestJson("/.well-known/lightcode/environment"),
-    );
+    const raw = await this.requestJson("/.well-known/lightcode/environment");
+    // Pre-parse the protocol version with a loose schema so a mismatch (the
+    // literal in the strict schema would otherwise dump a JSON ZodError) yields
+    // a readable, branchable error instead.
+    const version = z.object({ protocolVersion: z.unknown() }).safeParse(raw).data?.protocolVersion;
+    if (version !== LIGHTCODE_REMOTE_PROTOCOL_VERSION) {
+      throw new RemoteClientError(
+        "This app version is incompatible with that server. Update both to the same version.",
+        409,
+        "protocol_version_mismatch",
+      );
+    }
+    const descriptor = parseResponse(remoteEnvironmentDescriptorSchema, raw, "environment");
+    // The wire schema is lenient about advertised scopes (a newer server may
+    // list scopes this build doesn't know); narrow to the usable set here.
+    return {
+      ...descriptor,
+      auth: {
+        ...descriptor.auth,
+        scopes: filterKnownRemoteAccessScopes(descriptor.auth.scopes),
+      },
+    };
   }
 
   async exchangePairingCredential(input: {
     readonly credential: string;
     readonly scopes?: readonly RemoteAccessScope[];
+    /**
+     * Client metadata to register with the session. Defaults to a
+     * navigator-derived value (mobile/browser). A desktop-as-client caller
+     * passes e.g. `{ label, deviceType: "desktop" }` — see also
+     * {@link RemoteDesktopClientOptions.clientMetadata}.
+     */
+    readonly client?: RemoteClientMetadata;
   }): Promise<RemoteAccessTokenResult> {
-    return remoteAccessTokenResultSchema.parse(
+    const result = parseResponse(
+      remoteAccessTokenResultSchema,
       await this.requestJson("/oauth/token", {
         method: "POST",
         body: {
           grantType: "pairing-token",
           credential: input.credential,
           scopes: [...(input.scopes ?? REMOTE_STANDARD_SCOPES)],
-          client: defaultClientMetadata(),
+          client: input.client ?? defaultClientMetadata(),
         },
       }),
+      "pairing",
     );
+    // Server-echoed granted scopes are lenient on the wire; narrow to the set
+    // this build can act on.
+    return { ...result, scopes: filterKnownRemoteAccessScopes(result.scopes) };
   }
 
   async snapshot(): Promise<RemoteShellSnapshot> {
@@ -391,6 +476,10 @@ export class RemoteDesktopClient {
     const result = (await this.requestJson("/api/git/call", {
       method: "POST",
       body: { procedure, payload },
+      // push / PR creation / commit / sync run long; don't false-timeout them.
+      ...(LONG_RUNNING_GIT_PROCEDURES.has(procedure)
+        ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
+        : {}),
     })) as { result: unknown };
     return result.result;
   }
@@ -414,10 +503,20 @@ export class RemoteDesktopClient {
     return result.ticket;
   }
 
-  websocketUrl(ticket: string, lastSeenSeq: number): string {
+  /**
+   * Build the event-stream WebSocket URL. `lastSeenSeq` is the sequence the
+   * client has already applied; the server replays events after it (and
+   * signals `resync-required` if that window has expired). Send it whenever it
+   * is a non-negative sequence — including `0`, which asks the server to
+   * replay from the beginning / resync. Omission is reserved for the sentinel
+   * meaning "no snapshot yet" (`null`/`undefined`), which the server reads as
+   * "no replay". A client at snapshotSeq=0 that omitted the param would
+   * otherwise silently miss events.
+   */
+  websocketUrl(ticket: string, lastSeenSeq: number | null | undefined): string {
     const url = toWebSocketUrl(endpointUrl(this.endpoint, "/ws"));
     url.searchParams.set("ticket", ticket);
-    if (lastSeenSeq > 0) {
+    if (typeof lastSeenSeq === "number" && Number.isInteger(lastSeenSeq) && lastSeenSeq >= 0) {
       url.searchParams.set("lastSeenSeq", String(lastSeenSeq));
     }
     return url.toString();
@@ -432,6 +531,9 @@ export class RemoteDesktopClient {
     init: {
       readonly method?: "GET" | "POST";
       readonly body?: unknown;
+      /** Per-call deadline override; defaults to the client's requestTimeoutMs.
+       * Long-running ops (clone, push, PR creation) pass a larger value. */
+      readonly timeoutMs?: number;
     } = {},
   ): Promise<unknown> {
     const headers: Record<string, string> = {};
@@ -441,10 +543,11 @@ export class RemoteDesktopClient {
     if (this.accessToken) {
       headers.authorization = `Bearer ${this.accessToken}`;
     }
+    const effectiveTimeoutMs = init.timeoutMs ?? this.requestTimeoutMs;
     const controller = new AbortController();
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const timeoutError = new RemoteClientError(
-      `Remote request timed out after ${this.requestTimeoutMs}ms.`,
+      `Remote request timed out after ${effectiveTimeoutMs}ms.`,
       0,
       "timeout",
     );
@@ -452,7 +555,7 @@ export class RemoteDesktopClient {
       timeout = setTimeout(() => {
         controller.abort();
         reject(timeoutError);
-      }, this.requestTimeoutMs);
+      }, effectiveTimeoutMs);
     });
 
     try {
@@ -483,7 +586,7 @@ export class RemoteDesktopClient {
     } catch (error) {
       if (controller.signal.aborted && error !== timeoutError) {
         throw new RemoteClientError(
-          `Remote request timed out after ${this.requestTimeoutMs}ms.`,
+          `Remote request timed out after ${effectiveTimeoutMs}ms.`,
           0,
           "timeout",
           { cause: error },

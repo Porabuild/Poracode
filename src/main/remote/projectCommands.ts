@@ -82,6 +82,65 @@ function assertValidProjectPath(path: string, platform: NodeJS.Platform): void {
   assertAbsolutePath(path, platform);
 }
 
+/**
+ * Safe git remote transports. `git clone` treats an unrecognized `foo::bar`
+ * prefix as a *remote helper* (`git-remote-foo`), and the built-in `ext::`
+ * helper runs an arbitrary shell command — so an unvalidated clone URL is
+ * remote code execution. A leading `-` is argument injection (the URL is
+ * consumed as a `git clone` flag). We allow only the ordinary network
+ * transports plus scp-style `user@host:path`, and reject everything else.
+ */
+const SAFE_CLONE_URL_SCHEMES = new Set(["https", "http", "ssh", "git", "ftps", "ftp"]);
+// scp-style shorthand: `[user@]host:path` (host has no `/` before the colon and
+// the whole thing is not a `scheme://...` or `helper::...` URL).
+const SCP_LIKE_URL = /^[^/\\:]+@[^/\\:]+:.+$/;
+
+function assertSafeCloneUrl(rawUrl: string): void {
+  const url = rawUrl.trim();
+  const reject = (detail: string): never => {
+    throw new RemoteHttpError(
+      "invalid_clone_url",
+      `Refusing to clone from an unsafe repository URL: ${detail}`,
+      400,
+    );
+  };
+  if (!url) {
+    reject("the URL is empty.");
+  }
+  // Argument injection: git would parse a leading-dash URL as a flag.
+  if (url.startsWith("-")) {
+    reject("a URL may not begin with '-'.");
+  }
+  // Remote-helper transports (`ext::`, `fd::`, any `<helper>::…`) run external
+  // programs; `ext::` in particular executes an arbitrary shell command.
+  // Reject the whole `<helper>::` family, including a bare leading `::`.
+  if (/^[a-z0-9+.-]*::/i.test(url)) {
+    reject("remote-helper transports (e.g. 'ext::') are not allowed.");
+  }
+  // A `scheme://…` URL: the scheme must be an allowlisted network transport.
+  const schemeMatch = /^([a-z][a-z0-9+.-]*):\/\//i.exec(url);
+  if (schemeMatch) {
+    const scheme = (schemeMatch[1] ?? "").toLowerCase();
+    if (scheme === "file") {
+      reject("the 'file:' transport is not allowed.");
+    }
+    if (!SAFE_CLONE_URL_SCHEMES.has(scheme)) {
+      reject(`the '${scheme}:' transport is not allowed.`);
+    }
+    return;
+  }
+  // A `scheme:` prefix without `//` (e.g. `file:/path`) — reject any that
+  // isn't scp-style shorthand.
+  const bareSchemeMatch = /^([a-z][a-z0-9+.-]*):/i.exec(url);
+  if (bareSchemeMatch && !SCP_LIKE_URL.test(url)) {
+    reject(`the '${(bareSchemeMatch[1] ?? "").toLowerCase()}:' transport is not allowed.`);
+  }
+  // Otherwise it must be scp-style `user@host:path`.
+  if (!SCP_LIKE_URL.test(url)) {
+    reject("the URL is not a recognized git transport.");
+  }
+}
+
 function makeProject(location: ProjectLocation, name: string, createdAt: string): Project {
   return { id: randomUUID(), name, location, createdAt };
 }
@@ -129,6 +188,12 @@ export async function applyRemoteProjectCommand(
     case "clone": {
       assertValidProjectPath(command.parentPath, deps.platform);
       assertValidName(command.name);
+      // A free-form clone URL reaches `git clone` directly; validate the
+      // transport before we hand it to the supervisor (github sources clone
+      // via `gh` from a `nameWithOwner` and carry no free URL).
+      if (command.source.kind === "url") {
+        assertSafeCloneUrl(command.source.url);
+      }
       const parentLocation = deriveLocationFromPath(command.parentPath, deps.platform);
       const { path } = await deps.cloneRepo({
         parentLocation,

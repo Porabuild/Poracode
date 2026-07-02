@@ -54,11 +54,16 @@ export function RemoteThreadView() {
 
   if (!open) return null;
   const server = servers.find((entry) => entry.desktopId === open.desktopId);
-  const active = openTurn ?? isThreadTurnActive(open.thread.status);
-  const project = runtime?.projects.find((entry) => entry.id === open.thread.projectId);
+  // Prefer the live thread from the refreshed runtime snapshot over the one
+  // captured when the overlay opened: the model/mode/status may have changed on
+  // the remote (or PWA) since. `open.thread` is the fallback if it's not (yet) in
+  // the snapshot. This keeps ChatPane's config + status fresh (see finding #4).
+  const thread = runtime?.threads.find((entry) => entry.id === open.threadId) ?? open.thread;
+  const active = openTurn ?? isThreadTurnActive(thread.status);
+  const project = runtime?.projects.find((entry) => entry.id === thread.projectId);
   const checkpointProjectLocation = project
-    ? open.thread.worktreePath
-      ? buildWorktreeLocation(project.location, open.thread.worktreePath)
+    ? thread.worktreePath
+      ? buildWorktreeLocation(project.location, thread.worktreePath)
       : project.location
     : undefined;
   const remotePaneActions =
@@ -72,8 +77,8 @@ export function RemoteThreadView() {
               projectId: project.id,
               projectName: project.name,
               projectLocation: checkpointProjectLocation,
-              rootLabel: remoteRootLabel(project.name, open.thread.worktreePath),
-              ...(open.thread.worktreePath ? { worktreePath: open.thread.worktreePath } : {}),
+              rootLabel: remoteRootLabel(project.name, thread.worktreePath),
+              ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
               remoteServerId: open.desktopId,
             });
             void fileEditor
@@ -132,7 +137,7 @@ export function RemoteThreadView() {
     <div className="flex h-full w-full flex-col bg-background">
       <header className="flex items-center gap-3 border-b border-[var(--hairline)] px-4 py-2.5">
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm font-medium text-foreground">{open.thread.title}</span>
+          <span className="truncate text-sm font-medium text-foreground">{thread.title}</span>
           <span className="truncate text-xs text-muted">{server?.label ?? t`Remote server`}</span>
         </div>
         {active ? (
@@ -158,7 +163,7 @@ export function RemoteThreadView() {
 
       <div className="min-h-0 flex-1 overflow-hidden">
         <ChatPane
-          thread={open.thread}
+          thread={thread}
           paneActionsOverride={remotePaneActions}
           checkpointProjectLocation={checkpointProjectLocation}
           checkpointActions={{

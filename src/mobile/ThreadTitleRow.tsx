@@ -15,8 +15,27 @@ import type { WorkspaceTab } from "./views/WorkspaceView";
  * hides behind hover/context menus live here, next to the thread title — as a
  * bottom drawer, matching the rest of the phone shell.
  */
+/**
+ * Every thread id that shares `worktreePath` within `projectId`. Deleting a
+ * worktree removes the directory + branch, so the paired desktop must be told
+ * about *all* threads pointing at it — otherwise the untold siblings survive as
+ * rows aimed at a deleted path and fail to open.
+ */
+function worktreeSiblingIds(
+  threads: readonly Thread[],
+  projectId: string,
+  worktreePath: string,
+): readonly string[] {
+  const siblings = threads
+    .filter((entry) => entry.projectId === projectId && entry.worktreePath === worktreePath)
+    .map((entry) => entry.id);
+  return siblings.length > 0 ? siblings : [];
+}
+
 function ThreadActionsMenu(props: {
   readonly thread: Thread;
+  /** Full thread list, so a worktree delete can gather every sibling id. */
+  readonly threads?: readonly Thread[] | undefined;
   readonly onRename: () => void;
   readonly onAction: (action: ThreadAction) => void;
   readonly onNewThreadInWorktree?: ((input: WorktreeThreadInput) => void) | undefined;
@@ -81,10 +100,13 @@ function ThreadActionsMenu(props: {
       props.onAction({ kind: "set-starred", starred: !(thread.starred ?? false) });
     if (id === "archive") props.onAction({ kind: "archive" });
     if (id === "delete-worktree" && worktreePath) {
+      const threadIds = props.threads
+        ? worktreeSiblingIds(props.threads, thread.projectId, worktreePath)
+        : [thread.id];
       props.onDeleteWorktreeGroup?.({
         projectId: thread.projectId,
         worktreePath,
-        threadIds: [thread.id],
+        threadIds: threadIds.length > 0 ? threadIds : [thread.id],
       });
     }
     if (id === "delete") props.onAction({ kind: "delete" });
@@ -127,6 +149,8 @@ export interface WorktreeDeleteInput {
 /** Thread title + status + actions; rename swaps the title for an inline input. */
 export function ThreadTitleRow(props: {
   readonly thread: Thread;
+  /** Full thread list, so a worktree delete can gather every sibling id. */
+  readonly threads?: readonly Thread[] | undefined;
   readonly workspaceLabel?: string;
   readonly onOpenWorkspace?: (tab: WorkspaceTab) => void;
   readonly onAction: (action: ThreadAction) => void;
@@ -164,6 +188,7 @@ export function ThreadTitleRow(props: {
       </span>
       <ThreadActionsMenu
         thread={thread}
+        threads={props.threads}
         onRename={() => setRenaming(true)}
         onAction={props.onAction}
         onNewThreadInWorktree={props.onNewThreadInWorktree}

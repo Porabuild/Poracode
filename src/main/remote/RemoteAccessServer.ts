@@ -186,6 +186,46 @@ type RemoteBroadcastEvent =
   | RemoteProjectsChangedEvent
   | RemoteThreadsChangedEvent;
 
+/**
+ * Event `type`s a remote client actually consumes, so only these are buffered
+ * on the replayable stream and broadcast. Chatty supervisor events no remote
+ * client reads (`lsp-message`, `git-changed`, `project-tree-changed`,
+ * `provider-usage*`, `agent-detected`, `thread-osc-*`) waste phone bandwidth
+ * and churn the bounded replay buffer (causing spurious resync-required), so we
+ * drop them here.
+ *
+ * Derived from the remote client consumers (kept in sync with them):
+ * - `src/mobile/storeSync.ts` `dispatchRemoteSupervisorEvent`: the
+ *   `thread-runtime-event(s)[-multi]` pre-pass (live chat content), the
+ *   `remote-git-summaries` out-of-band handler, and the switch cases
+ *   (`thread-state`, `thread-pending-steer`, `thread-reset`, `thread-exited`,
+ *   `agent-status-updated`, `windows-agent-statuses`, `wsl-agent-statuses`).
+ * - `src/renderer/state/remoteServersStore.ts` `shouldRefreshRemoteServerAfterEvent`
+ *   (adds `remote-projects-changed` / `remote-threads-changed`).
+ *
+ * `thread-output` is intentionally absent: it short-circuits to
+ * `broadcastTerminalOutput` before reaching this allowlist.
+ */
+const REMOTELY_CONSUMED_EVENT_TYPES: ReadonlySet<RemoteBroadcastEvent["type"]> = new Set([
+  // Live chat runtime content.
+  "thread-runtime-event",
+  "thread-runtime-events",
+  "thread-runtime-events-multi",
+  // Thread lifecycle.
+  "thread-state",
+  "thread-pending-steer",
+  "thread-reset",
+  "thread-exited",
+  // Agent status.
+  "agent-status-updated",
+  "windows-agent-statuses",
+  "wsl-agent-statuses",
+  // Out-of-band remote events.
+  "remote-git-summaries",
+  "remote-projects-changed",
+  "remote-threads-changed",
+]);
+
 interface BufferedSupervisorEvent {
   readonly seq: number;
   readonly event: RemoteBroadcastEvent;
@@ -198,6 +238,36 @@ interface RateLimitBucket {
 
 function normalizeHostForUrl(host: string): string {
   return host.includes(":") && !host.startsWith("[") ? `[${host}]` : host;
+}
+
+/** IPv4/IPv6 loopback (relay proxies to loopback, so these are the relay hop). */
+function isLoopbackAddress(address: string | undefined): boolean {
+  if (!address) return false;
+  const normalized = address.startsWith("::ffff:") ? address.slice("::ffff:".length) : address;
+  return normalized === "127.0.0.1" || normalized === "::1" || normalized.startsWith("127.");
+}
+
+/**
+ * Keys the rate-limit bucket on the real visitor. Behind the relay, every
+ * request arrives from loopback (`relayHost` proxies to the server's own
+ * loopback port), which would collapse all remote devices into one shared
+ * bucket and defeat per-client throttling. When the socket is loopback we trust
+ * a forwarding header and take its first hop (the original client) instead;
+ * direct LAN connections fall back to the socket's remote address.
+ *
+ * NOTE: `relayHost` (owned by another agent, `src/server`) must populate
+ * `x-forwarded-for` with the visitor address for this to distinguish devices;
+ * if the header is absent this degrades gracefully to the loopback address.
+ */
+function resolveRateLimitClient(req: IncomingMessage): string {
+  const remoteAddress = req.socket.remoteAddress ?? "unknown";
+  if (!isLoopbackAddress(req.socket.remoteAddress)) {
+    return remoteAddress;
+  }
+  const forwarded = req.headers["x-forwarded-for"];
+  const rawForwarded = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  const firstHop = rawForwarded?.split(",")[0]?.trim();
+  return firstHop && firstHop.length > 0 ? firstHop : remoteAddress;
 }
 
 function normalizeCorsOrigin(rawOrigin: string): string | null {
@@ -449,6 +519,12 @@ export class RemoteAccessServer {
     // it to clients that opted into that terminal via `terminal-watch`.
     if (event.type === "thread-output") {
       this.broadcastTerminalOutput(event.threadId, event.data);
+      return;
+    }
+    // Only buffer + broadcast events a remote client actually consumes; chatty
+    // supervisor events no client reads would waste bandwidth and churn the
+    // bounded replay buffer (see REMOTELY_CONSUMED_EVENT_TYPES).
+    if (!REMOTELY_CONSUMED_EVENT_TYPES.has(event.type)) {
       return;
     }
     const seq = ++this.seq;
@@ -868,7 +944,20 @@ export class RemoteAccessServer {
 
     const lastSeenSeq = this.parseLastSeenSeq(req);
     this.send(ws, { type: "ready", seq: this.seq });
-    if (lastSeenSeq === null || lastSeenSeq >= this.seq) {
+    if (lastSeenSeq === null || lastSeenSeq === this.seq) {
+      // No client cursor, or the client is already current — nothing to replay.
+      return;
+    }
+    if (lastSeenSeq > this.seq) {
+      // Seq regressed below the client's cursor: `this.seq` is in-memory and
+      // resets to 0 on restart while bearer sessions persist, so a client
+      // reconnecting with a higher lastSeenSeq to a restarted server would
+      // otherwise silently keep stale state. Force a fresh snapshot.
+      this.send(ws, {
+        type: "resync-required",
+        seq: this.seq,
+        reason: "Server event stream reset; request a fresh snapshot.",
+      });
       return;
     }
 
@@ -1281,7 +1370,7 @@ export class RemoteAccessServer {
         this.rateLimitBuckets.delete(key);
       }
     }
-    const client = req.socket.remoteAddress ?? "unknown";
+    const client = resolveRateLimitClient(req);
     const key = `${bucketName}:${client}`;
     const bucket = this.rateLimitBuckets.get(key);
     if (!bucket || bucket.resetAtMs <= now) {

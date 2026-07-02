@@ -44,7 +44,7 @@ const remoteMock = vi.hoisted(() => ({
         updatedAt: "2026-01-01T00:00:00.000Z",
       },
     ],
-    selectedThread: null,
+    selectedThread: null as { id: string; title: string } | null,
     selectedThreadSnapshot: null,
     reconnect: vi.fn<() => void>(),
     openThread: vi.fn<(thread: unknown) => Promise<void>>().mockResolvedValue(undefined),
@@ -76,7 +76,17 @@ vi.mock("./storage", () => ({
 }));
 
 vi.mock("./ThreadTitleRow", () => ({
-  ThreadTitleRow: () => null,
+  ThreadTitleRow: (props: { thread: { id: string; title: string } }) => (
+    <div data-testid="thread-title-row" data-thread-id={props.thread.id}>
+      {props.thread.title}
+    </div>
+  ),
+}));
+
+vi.mock("./ThreadUsageIndicator", () => ({
+  ThreadUsageIndicator: (props: { thread: { id: string } }) => (
+    <div data-testid="thread-usage" data-thread-id={props.thread.id} />
+  ),
 }));
 
 vi.mock("./useMediaQuery", () => ({
@@ -96,12 +106,37 @@ describe("mobile RootLayout", () => {
   beforeEach(() => {
     routerMock.navigate.mockReset();
     routerMock.pathname = "/threads";
+    remoteMock.session.selectedThread = null;
     usePanelStore.setState({
       gitReviewContext: null,
       gitReviewAsPanel: false,
       gitOverlayOpen: false,
       prReviewContext: null,
     });
+  });
+
+  it("shows a generic thread header (no thread-scoped actions) on a stale deep link", () => {
+    // selectedThread falls back to the most-recent thread even when the routed
+    // id was deleted elsewhere; the header must NOT bind its actions to it.
+    remoteMock.session.selectedThread = remoteMock.session.threads[0]!;
+    routerMock.pathname = "/thread/thread-deleted-elsewhere";
+
+    render(<RootLayout />);
+
+    expect(screen.queryByTestId("thread-title-row")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("thread-usage")).not.toBeInTheDocument();
+    expect(screen.getByText("Thread")).toBeInTheDocument();
+  });
+
+  it("renders the thread header when the routed id matches the selected thread", () => {
+    remoteMock.session.selectedThread = remoteMock.session.threads[0]!;
+    routerMock.pathname = "/thread/thread-1";
+
+    render(<RootLayout />);
+
+    const row = screen.getByTestId("thread-title-row");
+    expect(row).toHaveAttribute("data-thread-id", "thread-1");
+    expect(screen.getByTestId("thread-usage")).toHaveAttribute("data-thread-id", "thread-1");
   });
 
   it("bridges desktop git-review signals to the workspace changes route", async () => {

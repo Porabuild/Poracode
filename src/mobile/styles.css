@@ -2965,9 +2965,9 @@ body.bg-background {
 
 /* iOS zooms into inputs below 16px; keep editable text at 16px on phones.
    `.m-sheet` / `.m-picker` drawers are portaled to <body> (outside `.m-shell`)
-   by ResponsiveMenuSurface + the host folder picker, so they need the guard
-   spelled out separately — otherwise the model-picker search field (and any
-   other in-drawer input) zooms on focus. */
+   by BottomSheet, ResponsiveMenuSurface, and the host folder picker, so they
+   need the guard spelled out separately — otherwise the model-picker search
+   field (and any other in-drawer input) zooms on focus. */
 @media (max-width: 767px) {
   .m-shell textarea,
   .m-shell input,

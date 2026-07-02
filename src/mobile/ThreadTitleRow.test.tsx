@@ -72,6 +72,49 @@ describe("ThreadTitleRow", () => {
     expect(onAction).not.toHaveBeenCalled();
   });
 
+  it("includes every sibling thread id when deleting a shared worktree", () => {
+    // Given the full thread list, deleting a worktree must gather all threads
+    // pointing at that path/project — not just the header's own thread.
+    const onDeleteWorktreeGroup =
+      vi.fn<
+        (input: { projectId: string; worktreePath: string; threadIds: readonly string[] }) => void
+      >();
+    const active = makeThread({
+      id: "thread-1",
+      worktreePath: "/repo/wt",
+      worktreeBranch: "feature/x",
+    });
+    const sibling = makeThread({
+      id: "thread-2",
+      worktreePath: "/repo/wt",
+      worktreeBranch: "feature/x",
+    });
+    // An unrelated worktree in the same project must be excluded.
+    const other = makeThread({
+      id: "thread-3",
+      worktreePath: "/repo/other",
+      worktreeBranch: "feature/y",
+    });
+
+    render(
+      <ThreadTitleRow
+        thread={active}
+        threads={[active, sibling, other]}
+        onAction={() => undefined}
+        onDeleteWorktreeGroup={onDeleteWorktreeGroup}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Thread actions" }));
+    fireEvent.click(screen.getByText("Delete Worktree"));
+
+    expect(onDeleteWorktreeGroup).toHaveBeenCalledTimes(1);
+    const input = onDeleteWorktreeGroup.mock.calls[0]![0];
+    expect(input.projectId).toBe("project-1");
+    expect(input.worktreePath).toBe("/repo/wt");
+    expect([...input.threadIds].sort()).toEqual(["thread-1", "thread-2"]);
+  });
+
   it("keeps worktree-only actions hidden for a project-root thread", () => {
     render(<ThreadTitleRow thread={makeThread()} onAction={() => undefined} />);
 

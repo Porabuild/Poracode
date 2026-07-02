@@ -31,7 +31,13 @@ export const GIT_REMOTE_PROCEDURE_SCOPES = {
   browseHostDirectory: "projects:manage",
   searchProjectTree: "session:read",
   readProjectFile: "session:read",
-  readAbsoluteFile: "session:read",
+  // Reads an arbitrary absolute path as-is (even outside any project root), so
+  // it can reach ~/.ssh/id_rsa, ~/.aws/credentials, the server DB, etc. Gated
+  // behind the same scope as browseHostDirectory and remote project management
+  // rather than the lowest read scope. `projects:manage` is part of the
+  // standard scope set granted at pairing, so normal project file opens are
+  // unaffected; project-relative reads use readProjectFile (session:read).
+  readAbsoluteFile: "projects:manage",
   writeProjectFile: "session:operate",
   createProjectEntry: "session:operate",
   renameProjectEntry: "session:operate",
