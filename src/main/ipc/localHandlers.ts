@@ -51,6 +51,8 @@ import type { AutoUpdaterController } from "../updates/autoUpdater";
 import {
   defineMainLocalIpcHandlers,
   type MainLocalIpcHandlerMap,
+  type RemoteAccessTailscaleStatus,
+  type StartTailscaleResult,
   type WindowChromePayload,
   type WindowChromeResult,
 } from "@/shared/ipc";
@@ -65,6 +67,10 @@ interface CreateLocalIpcHandlersOptions {
   getBrowserPanelManager(): BrowserPanelManager | null;
   getRemoteAccessServer(): RemoteAccessServer | null;
   setRemoteAccessEnabled(enabled: boolean): Promise<RemoteAccessPairingInfo>;
+  getRemoteAccessTailscaleStatus(): Promise<RemoteAccessTailscaleStatus>;
+  setRemoteAccessTailscaleHttps(enabled: boolean): Promise<RemoteAccessPairingInfo>;
+  startTailscale(): Promise<StartTailscaleResult>;
+  setRemoteAccessAdvertisedUrl(url: string): Promise<RemoteAccessPairingInfo>;
   requireLightcodePaths(): LightcodePaths;
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
@@ -257,6 +263,11 @@ export function createLocalIpcHandlers(
       writeKeybindingsFile(options.requireLightcodePaths().keybindingsPath, file),
     getRemoteAccessPairing: () => getRemoteAccessPairingInfo(options.getRemoteAccessServer()),
     setRemoteAccessEnabled: (payload) => options.setRemoteAccessEnabled(payload.enabled),
+    getRemoteAccessTailscaleStatus: () => options.getRemoteAccessTailscaleStatus(),
+    setRemoteAccessTailscaleHttps: (payload) =>
+      options.setRemoteAccessTailscaleHttps(payload.enabled),
+    startTailscale: () => options.startTailscale(),
+    setRemoteAccessAdvertisedUrl: (payload) => options.setRemoteAccessAdvertisedUrl(payload.url),
     revokeRemoteAccessSession: (payload) => {
       const server = options.getRemoteAccessServer();
       if (!server) {

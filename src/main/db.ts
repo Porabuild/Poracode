@@ -536,6 +536,12 @@ export function dbGetThreads(): Thread[] {
     .map(rowToThread);
 }
 
+export function dbGetThread(threadId: string): Thread | null {
+  const db = getDb();
+  const row = db.select().from(schema.threads).where(eq(schema.threads.id, threadId)).get();
+  return row ? rowToThread(row) : null;
+}
+
 export function dbGetState(key: string): string | null {
   const db = getDb();
   const row = db.select().from(schema.appState).where(eq(schema.appState.key, key)).get();

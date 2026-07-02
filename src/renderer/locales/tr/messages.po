@@ -52,11 +52,6 @@ msgstr "{0, plural, one {# proje} other {# proje}}"
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# sağlayıcı hazır} other {# sağlayıcı hazır}}"
 
-#. placeholder {0}: servers.length
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "{0, plural, one {# server} other {# servers}}"
-#~ msgstr "{0, plural, one {# sunucu} other {# sunucu}}"
-
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "{0, plural, one {target} other {targets}}"
@@ -586,10 +581,6 @@ msgstr "İşlem ekle"
 msgid "Add an existing folder"
 msgstr "Mevcut klasör ekle"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Add an existing folder on the server"
-#~ msgstr "Sunucudaki mevcut klasörü ekle"
-
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
 msgstr "Ek veya yetenek ekleyin"
@@ -654,9 +645,11 @@ msgstr "Favorilere ekle"
 msgid "Add to Home Screen"
 msgstr "Ana Ekrana ekle"
 
-#: src/mobile/views/MoreView.tsx
-msgid "Add, clone, or remove projects on this server"
-msgstr "Bu sunucuda proje ekleyin, klonlayın veya kaldırın"
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty "
+"for automatic."
+msgstr "Özel bir temel URL duyurun, örn. bir ters proxy veya tünel. Otomatik "
+"için boş bırakın."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -827,10 +820,6 @@ msgstr "Başka bir sohbet de aynı ağacı kullanıyor. Dosya geri yükleme, "
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
 msgstr "Uygulama Tarayıcısı"
-
-#: src/mobile/views/MoreView.tsx
-#~ msgid "App preferences"
-#~ msgstr "Uygulama tercihleri"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -1056,10 +1045,7 @@ msgstr "Değişikliklere dön"
 msgid "Back to files"
 msgstr "Dosyalara dön"
 
-#: src/mobile/views/pr/PrChangesPage.tsx
-#: src/mobile/views/pr/PrChecksPage.tsx
-#: src/mobile/views/pr/PrCommitsPage.tsx
-#: src/mobile/views/pr/PrConversationPage.tsx
+#: src/mobile/views/pr/PrSubPage.tsx
 msgid "Back to overview"
 msgstr "Genel bakışa dön"
 
@@ -1204,7 +1190,6 @@ msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "GitHub depolarınıza göz atın veya bir klon URL'si yapıştırın."
 
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/MoreView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -1426,6 +1411,10 @@ msgstr "Güncellemeleri kontrol edin"
 msgid "Check the live input level from the selected device."
 msgstr "Seçilen cihazdan canlı giriş seviyesini kontrol edin."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Checking Tailscale…"
+msgstr "Tailscale kontrol ediliyor…"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Checking…"
 msgstr "Kontrol ediliyor…"
@@ -1557,10 +1546,6 @@ msgid "Clone a repository"
 msgstr "Bir depo klonla"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Clone a repository into a folder on the server"
-#~ msgstr "Bir depoyu sunucudaki bir klasöre klonla"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone repo"
 msgstr "Depoyu klonla"
 
@@ -1597,13 +1582,14 @@ msgstr "{purposeNoun} terminalini kapat"
 msgid "Close browser"
 msgstr "Tarayıcıyı kapat"
 
+#: src/mobile/views/QuickCompose.tsx
+#: src/mobile/views/ThreadView.tsx
+msgid "Close composer"
+msgstr "Yazma alanını kapat"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Close connection actions"
 msgstr "Bağlantı eylemlerini kapat"
-
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Close desktop actions"
-#~ msgstr "Masaüstü işlemlerini kapat"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1633,6 +1619,7 @@ msgstr "Grubu kapat"
 msgid "Close group actions"
 msgstr "Grup işlemlerini kapat"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Close menu"
 msgstr "Menüyü kapat"
@@ -1678,6 +1665,7 @@ msgstr "Proje filtresini kapat"
 msgid "Close scanner"
 msgstr "Tarayıcıyı kapat"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
 msgstr "Aramayı kapat"
@@ -1914,12 +1902,6 @@ msgid "Connect"
 msgstr "Bağlan"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect a Lightcode desktop or headless server above to browse and "
-#~ "manage its projects from here."
-#~ msgstr "Projelerini buradan incelemek ve yönetmek için yukarıdan bir Lightcode "
-#~ "masaüstü veya headless sunucu bağlayın."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect a server"
 msgstr "Bir sunucuya bağlan"
 
@@ -1929,36 +1911,12 @@ msgstr "OpenCode'un kullanabileceği yapay zeka sağlayıcılarını buradan ba�
 "ve oturumlarını kapatın."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
-#~ "projects — and their threads — from here. Open Settings → Remote Access "
-#~ "on the other machine to get its endpoint and a pairing token."
-#~ msgstr "Başka bir Lightcode masaüstüne veya headless sunucuya bağlanın; "
-#~ "projelerini ve konularını buradan yönetin. Endpoint ve eşleştirme "
-#~ "tokenını almak için diğer makinede Ayarlar → Uzaktan Erişim'i açın."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
-#~ "projects from here. Open Settings → Remote Access on the other machine "
-#~ "to get its endpoint and a pairing token."
-#~ msgstr "Başka bir Lightcode masaüstüne veya headless sunucuya bağlanın ve "
-#~ "projelerini buradan yönetin. Endpoint ve eşleştirme tokenını almak için "
-#~ "diğer makinede Ayarlar → Uzaktan Erişim'i açın."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect to another Lightcode desktop or a headless server to browse and "
 "manage its projects from here. Get its endpoint and pairing token from "
 "Settings → Remote Access on that machine."
 msgstr "Projelerini buradan görüntülemek ve yönetmek için başka bir Lightcode "
 "masaüstüne ya da arayüzsüz bir sunucuya bağlan. Uç noktasını ve "
 "eşleştirme jetonunu o makinede Ayarlar → Uzaktan Erişim'den al."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connected servers"
-#~ msgstr "Bağlı sunucular"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connecting"
-#~ msgstr "Bağlanıyor"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
@@ -2053,15 +2011,12 @@ msgstr "@file bahsetme aramasında hangi dosyaların görüneceğini kontrol edi
 msgid "Conversation"
 msgstr "Konuşma"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "Kopyalandı"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Copied from Settings → Remote Access on the other machine."
-#~ msgstr "Diğer makinedeki Ayarlar → Uzaktan Erişim'den kopyalandı."
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
@@ -2107,6 +2062,7 @@ msgstr "Yoksayılan dosyaları kopyala"
 msgid "Copy image"
 msgstr "Görseli kopyala"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "Mesajı kopyala"
@@ -2130,6 +2086,10 @@ msgstr "Göreli Yolu Kopyala"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Copy selection"
 msgstr "Seçimi kopyala"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy Tailscale URL"
+msgstr "Tailscale URL'sini Kopyala"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
@@ -2200,10 +2160,6 @@ msgstr "Kısayol kaydedilemedi."
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "Kamera başlatılamadı"
-
-#: src/mobile/useRemoteDesktop.ts
-#~ msgid "Couldn't tag the thread's worktree."
-#~ msgstr "İş parçacığının worktree'si etiketlenemedi."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -2435,10 +2391,6 @@ msgstr "Açıklama"
 msgid "Description (optional)"
 msgstr "Açıklama (isteğe bağlı)"
 
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "Desktop"
-#~ msgstr "Masaüstü"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
 msgstr "Masaüstü uç noktası"
@@ -2451,11 +2403,6 @@ msgstr "Masaüstüne ulaşılamıyor."
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
 msgstr "Masaüstü Ayarları"
-
-#: src/mobile/RootLayout.tsx
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Desktops"
-#~ msgstr "Masaüstleri"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2633,14 +2580,6 @@ msgstr "Ses modeli indiriliyor {0}%"
 msgid "Downloading voice model..."
 msgstr "Ses modeli indiriliyor..."
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
-#~ msgstr "İndiriliyor{v} — {percent}%{speedSuffix}"
-
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-#~ msgid "Downloading{versionLabel}"
-#~ msgstr "{versionLabel} indiriliyor"
-
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"
 msgstr "Taslak"
@@ -2785,6 +2724,11 @@ msgstr "Uç nokta, örn. http://192.168.1.20:38987/"
 msgid "Enhanced (Hooks)"
 msgstr "Geliştirilmiş (Kancalar)"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Enter a full origin URL like https://code.example.com, with no path."
+msgstr "https://code.example.com gibi, yol içermeyen tam bir kaynak URL'si "
+"girin."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Enter a repository URL."
 msgstr "Bir depo URL'si girin."
@@ -2856,10 +2800,6 @@ msgstr "çıktı"
 #: src/mobile/views/TerminalView.tsx
 msgid "exited ({0})"
 msgstr "çıktı ({0})"
-
-#: src/mobile/views/TerminalView.tsx
-#~ msgid "exited ({exitCode})"
-#~ msgstr "çıktı ({exitCode})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -3023,10 +2963,6 @@ msgstr "Bu glob'larla eşleşen dosyalar, @file bahsetme aramasında gizlenir."
 msgid "Filter by project"
 msgstr "Projeye göre filtrele"
 
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#~ msgid "Filter settings"
-#~ msgstr "Ayarları filtrele"
-
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
 msgid "Find"
@@ -3139,10 +3075,6 @@ msgstr "Klasör adı"
 msgid "Folder on the server"
 msgstr "Sunucudaki klasör"
 
-#: src/mobile/views/ManageProjectsView.tsx
-#~ msgid "Folder path"
-#~ msgstr "Klasör yolu"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "Sunucudaki klasör yolu"
@@ -3251,6 +3183,12 @@ msgstr "Hazırlanmış (staged) değişikliklerden commit mesajları oluşturur.
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Yeni konular için kısa başlıklar oluşturur."
+
+#: src/mobile/push/MobilePushSettings.tsx
+msgid "Get alerts through Apple's push service when this desktop's threads "
+"finish or need you — even while the app is closed."
+msgstr "Bu masaüstünün konuları tamamlandığında veya ilginizi gerektirdiğinde "
+"Apple push hizmeti üzerinden uyarı alın — uygulama kapalıyken bile."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -3449,6 +3387,10 @@ msgstr "Ana kapsam"
 msgid "ID: {0}"
 msgstr "Kimlik: {0}"
 
+#: src/mobile/settingsSections.ts
+msgid "Identity and usage stats"
+msgstr "Kimlik ve kullanım istatistikleri"
+
 #. Microphone input level when not testing
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -3560,6 +3502,14 @@ msgstr "Windows'a yükleyin"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "Paketleri yükle"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Install Tailscale"
+msgstr "Tailscale'i yükle"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Install Tailscale to set up HTTPS access through MagicDNS."
+msgstr "MagicDNS üzerinden HTTPS erişimi kurmak için Tailscale'i yükleyin."
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -3692,14 +3642,6 @@ msgstr "Toplam token"
 msgid "Light"
 msgstr "Açık"
 
-#: src/mobile/RootLayout.tsx
-msgid "Lightcode mobile navigation"
-msgstr "Lightcode mobil gezinme"
-
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "Links and page behavior"
-#~ msgstr "Bağlantılar ve sayfa davranışı"
-
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -3793,6 +3735,10 @@ msgstr "{branch}'dan çekilmeden önce yerel değişikliklerin saklanması gerek
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
 msgstr "Konum"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Log in to Tailscale to set up HTTPS access through MagicDNS."
+msgstr "MagicDNS üzerinden HTTPS erişimi kurmak için Tailscale'e giriş yapın."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Logging in"
@@ -3987,6 +3933,10 @@ msgstr "Birleştirilmiş"
 msgid "Merging is blocked"
 msgstr "Birleştirme engellendi"
 
+#: src/mobile/UserMessageActionsSheet.tsx
+msgid "Message actions"
+msgstr "Mesaj işlemleri"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Message the remote agent…"
 msgstr "Uzak ajana mesaj gönder…"
@@ -4041,6 +3991,10 @@ msgstr "Yansıtılan masaüstü tarayıcı sekmesi"
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirroring is unavailable."
 msgstr "Yansıtma kullanılamıyor."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Mobile push notifications"
+msgstr "Mobil push bildirimleri"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4206,7 +4160,6 @@ msgstr "Dikkat Edilmesi Gerekiyor · Yanıt gerekli"
 msgid "Needs reply"
 msgstr "Yanıt gerekiyor"
 
-#: src/mobile/RootLayout.tsx
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Yeni"
@@ -4280,6 +4233,7 @@ msgid "New tab"
 msgstr "Yeni sekme"
 
 #: src/mobile/RootLayout.tsx
+#: src/mobile/views/QuickCompose.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
@@ -4444,10 +4398,6 @@ msgstr "Henüz veri yok."
 msgid "No description"
 msgstr "Açıklama yok"
 
-#: src/mobile/RootLayout.tsx
-#~ msgid "No desktop paired"
-#~ msgstr "Eşleştirilmiş masaüstü yok"
-
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
 msgid "No diff available for {0}"
@@ -4538,10 +4488,6 @@ msgid "No projects available"
 msgstr "Kullanılabilir proje yok"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "No projects on this server yet."
-#~ msgstr "Bu sunucuda henüz proje yok."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "No projects on this server."
 msgstr "Bu sunucuda proje yok."
 
@@ -4578,10 +4524,6 @@ msgstr "Sonuç yok"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "Bu konu için henüz çalışma zamanı öğesi yok."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "No servers connected yet"
-#~ msgstr "Henüz bağlı sunucu yok"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "No servers connected yet."
@@ -4928,12 +4870,17 @@ msgstr "Masaüstünüzde Lightcode'da Ayarlar → Uzaktan Erişim'i açın, ard�
 msgid "Open subagent: {0}"
 msgstr "Alt aracıyı aç: {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Open Tailscale"
+msgstr "Tailscale'i aç"
+
+#: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/ThreadsView.tsx
-#: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
 msgstr "Terminali aç"
 
+#: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/ThreadsView.tsx
 msgid "Open terminal in worktree"
 msgstr "Terminali worktree'de aç"
@@ -5013,10 +4960,6 @@ msgstr "Eşleştir"
 msgid "Pair a connection"
 msgstr "Bir bağlantı eşleştir"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Pair a desktop"
-#~ msgstr "Bir masaüstü eşleştir"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Bir telefonu, tableti veya tarayıcıyı bu masaüstüyle eşleştirin."
@@ -5025,10 +4968,6 @@ msgstr "Bir telefonu, tableti veya tarayıcıyı bu masaüstüyle eşleştirin."
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pair again"
 msgstr "Tekrar eşleştir"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Pair with its endpoint and a one-time token."
-#~ msgstr "Endpoint'i ve tek kullanımlık tokenıyla eşleştirin."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -5166,6 +5105,10 @@ msgstr "Sabitlendi"
 msgid "Plan"
 msgstr "Plan"
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Plan, ask, build…"
+msgstr "Planlayın, sorun, oluşturun…"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play a sound when a notification is shown."
@@ -5255,6 +5198,7 @@ msgstr "Önceki son görüntülenen sohbet"
 msgid "Previous tab"
 msgstr "Önceki sekme"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
 msgstr "Profil"
@@ -5301,7 +5245,6 @@ msgstr "Genel arama ayarlarının yanı sıra projeye özel geçersiz kılmalar.
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/mobile/views/MoreView.tsx
 msgid "Projects"
 msgstr "Projeler"
 
@@ -5331,10 +5274,6 @@ msgstr "Sağlayıcı"
 msgid "Provider has not reported token usage."
 msgstr "Sağlayıcı token kullanımını bildirmedi."
 
-#: src/mobile/views/MoreView.tsx
-#~ msgid "Provider limits and spend"
-#~ msgstr "Sağlayıcı sınırları ve harcama"
-
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "Sağlayıcı hazır ayarları"
@@ -5348,6 +5287,14 @@ msgstr "sağlayıcılar"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Sağlayıcılar"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Public URL"
+msgstr "Genel URL"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Public URL updated."
+msgstr "Genel URL güncellendi."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Pull"
@@ -5433,6 +5380,20 @@ msgstr "Push ↑{ahead}"
 msgid "Push failed: {detail}"
 msgstr "Push başarısız oldu: {detail}"
 
+#: src/mobile/push/MobilePushSettings.tsx
+msgid "Push notifications"
+msgstr "Push bildirimleri"
+
+#: src/mobile/push/MobilePushSettings.tsx
+msgid "Push notifications may be unavailable for this desktop."
+msgstr "Push bildirimleri bu masaüstü için kullanılamayabilir."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Push updates to paired mobile devices when threads finish or need you, "
+"even when the app is closed."
+msgstr "Konular tamamlandığında veya ilginizi gerektirdiğinde, uygulama "
+"kapalıyken bile eşleştirilmiş mobil cihazlara güncellemeler gönderin."
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"
 msgstr "Sorular"
@@ -5510,6 +5471,10 @@ msgstr "Yerel günlüklerden genel API oranlarıyla yeniden oluşturulmuştur; "
 "abonelik planlarındaki gerçek faturanızı yansıtmaz. Yalnızca kullanım "
 "panelinde gösterilir."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Redact notification content"
+msgstr "Bildirim içeriğini gizle"
+
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
@@ -5576,22 +5541,6 @@ msgid "Remote Access"
 msgstr "Uzaktan Erişim"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is disabled for this desktop."
-#~ msgstr "Uzaktan erişim bu masaüstü için devre dışı."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is off"
-#~ msgstr "Uzaktan erişim kapalı"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is on"
-#~ msgstr "Uzaktan erişim açık"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is starting"
-#~ msgstr "Uzaktan erişim başlatılıyor"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Remote access pairing QR code"
 msgstr "Uzaktan erişim eşleştirme QR kodu"
 
@@ -5627,10 +5576,6 @@ msgstr "Uzak oturum iptal edildi."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
 msgstr "Uzak URL"
-
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "Removal behavior"
-#~ msgstr "Kaldırma davranışı"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove"
@@ -5676,10 +5621,6 @@ msgstr "Claude profilini kaldır"
 msgid "Remove connection"
 msgstr "Bağlantıyı kaldır"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Remove desktop"
-#~ msgstr "Masaüstünü kaldır"
-
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "Ortam değişkenini kaldır"
@@ -5709,10 +5650,6 @@ msgstr "Projeyi kaldır"
 msgid "Remove Project"
 msgstr "Projeyi Kaldır"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Remove project from remote"
-#~ msgstr "Projeyi uzak sunucudan kaldır"
-
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Kısayolu kaldır"
@@ -5737,10 +5674,6 @@ msgstr "Sohbeti yeniden adlandır"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Rename connection"
 msgstr "Bağlantıyı yeniden adlandır"
-
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Rename desktop"
-#~ msgstr "Masaüstünü yeniden adlandır"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -5956,6 +5889,7 @@ msgstr "Değişiklikleri geri al"
 msgid "Revert to checkpoint?"
 msgstr "Kontrol noktasına geri dönülsün mü?"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Revert to this checkpoint"
 msgstr "Bu kontrol noktasına geri dön"
@@ -6226,6 +6160,7 @@ msgstr "Kısayolları ara"
 msgid "Search the current view"
 msgstr "Geçerli görünümde ara"
 
+#: src/mobile/RootLayout.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -6308,6 +6243,12 @@ msgstr "Gönder"
 msgid "Send a message..."
 msgstr "Mesaj gönder..."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Send generic text instead of conversation titles through Apple's push "
+"service."
+msgstr "Konuşma başlıkları yerine Apple push hizmeti üzerinden genel metin "
+"gönder."
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Send message"
@@ -6326,6 +6267,10 @@ msgstr "Claude Code hesaplarını yapılandırma dizinine göre ayırın ya da b
 "değişkenlerini, modellerini ve efor düzeyini yapılandırmak için bir "
 "profili açın."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
+msgstr "Uzaktan erişimi tailnet'inizin HTTPS MagicDNS URL'si üzerinden sunun."
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
 msgstr "Deneysel bir hedef belirleyin veya görüntüleyin"
@@ -6335,7 +6280,6 @@ msgid "Set shortcut"
 msgstr "Kısayol belirle"
 
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -6674,6 +6618,14 @@ msgstr "Geçerli composer'da dikteyi başlat"
 msgid "Start from scratch"
 msgstr "Sıfırdan başla"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Start Tailscale"
+msgstr "Tailscale'i başlat"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Start Tailscale to set up HTTPS access through MagicDNS."
+msgstr "MagicDNS üzerinden HTTPS erişimi kurmak için Tailscale'i başlatın."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Start the composer collapsed in terminal-native threads. A collapsed "
@@ -6951,6 +6903,14 @@ msgstr "Sekmeler"
 msgid "Tabs ({0})"
 msgstr "Sekmeler ({0})"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale HTTPS"
+msgstr "Tailscale HTTPS"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale URL"
+msgstr "Tailscale URL'si"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Take Screenshot"
 msgstr "Ekran Görüntüsü Al"
@@ -7030,12 +6990,6 @@ msgstr "Terminal sekmeleri"
 msgid "Test microphone"
 msgstr "Mikrofonu test edin"
 
-#: src/mobile/remoteClient.ts
-#~ msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
-#~ "desktop endpoint from Settings → Remote Access."
-#~ msgstr "Bu uç nokta masaüstü API'si yerine mobil uygulamayı açtı. Ayarlar → "
-#~ "Uzaktan Erişim bölümündeki masaüstü uç noktasını kullanın."
-
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Lightcode pairing link."
 msgstr "Bu QR kodu bir Lightcode eşleştirme bağlantısı değil."
@@ -7074,19 +7028,11 @@ msgstr "Aşağıda kendi aralığı ayarlanmamış sağlayıcılar için kullan�
 msgid "The desktop server is still coming online."
 msgstr "Masaüstü sunucusu hâlâ başlatılıyor."
 
-#: src/mobile/views/MoreView.tsx
-msgid "The desktop's built-in browser"
-msgstr "Masaüstünün yerleşik tarayıcısı"
-
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
 msgstr "Normal uygulama kabuğu oluşturulamadı. Arızanın araştırılabilmesi için "
 "aşağıdaki teşhisler yeniden yüklemeden önce gösterilir."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "The other machine's remote-access address."
-#~ msgstr "Diğer makinenin uzaktan erişim adresi."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
@@ -7129,19 +7075,11 @@ msgid "This browser does not support system notifications here; you will still "
 msgstr "Bu tarayıcı burada sistem bildirimlerini desteklemiyor; uygulama içi "
 "bildirimleri yine de göreceksiniz."
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "This connection can view projects but not manage them."
-#~ msgstr "Bu bağlantı projeleri görüntüleyebilir ancak yönetemez."
-
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to "
 "enable."
 msgstr "Bu bağlantı projeleri görüntüleyebilir ancak yönetemez. Etkinleştirmek "
 "için yeniden eşleştirin."
-
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "This device"
-#~ msgstr "Bu cihaz"
 
 #: src/mobile/QrScanner.tsx
 msgid "This device has no usable camera. Enter the endpoint and token below to "
@@ -7277,7 +7215,6 @@ msgstr "Konu sıralama düzeni"
 msgid "Thread todo dock"
 msgstr "Konu yapılacaklar yuvası"
 
-#: src/mobile/RootLayout.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
@@ -7446,6 +7383,10 @@ msgstr "Eşleştirme bağlantısı kopyalanamadı."
 msgid "Unable to copy pairing token."
 msgstr "Eşleştirme token'ı kopyalanamadı."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy Tailscale URL."
+msgstr "Tailscale URL'si kopyalanamadı."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "\"{path}\" WSL çalışma ağacı dizini oluşturulamıyor"
@@ -7546,12 +7487,17 @@ msgstr "{label} başlatılamıyor."
 msgid "Unable to start mobile app."
 msgstr "Mobil uygulama başlatılamıyor."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to start Tailscale."
+msgstr "Tailscale başlatılamadı."
+
 #: src/mobile/views/TerminalView.tsx
 msgid "Unable to start terminal"
 msgstr "Terminal başlatılamadı"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
+#: src/mobile/views/NewThreadFlow.tsx
 msgid "Unable to start the thread."
 msgstr "İş parçacığı başlatılamıyor."
 
@@ -7591,6 +7537,14 @@ msgstr "{0} güncellenemiyor."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Uzaktan erişim güncellenemedi."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update Tailscale HTTPS."
+msgstr "Tailscale HTTPS güncellenemedi."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update the public URL."
+msgstr "Genel URL güncellenemedi."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to update the thread."

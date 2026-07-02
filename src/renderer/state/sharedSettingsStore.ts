@@ -101,6 +101,8 @@ interface SharedSettingsState extends SharedSettings {
   setNotificationsEnabled: (value: boolean) => void;
   setNotificationSound: (value: boolean) => void;
   setNotificationFilter: (value: NotificationFilter) => void;
+  setRemotePushEnabled: (value: boolean) => void;
+  setRemotePushRedactContent: (value: boolean) => void;
   syncAcpRegistryInstalledAgents: (installed: InstalledAcpRegistryAgent[]) => void;
   setAgentInstance: (instance: AgentInstanceConfig) => void;
   removeAgentInstance: (instanceId: string) => void;
@@ -499,6 +501,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ notificationFilter });
     persistSettings(selectSharedSettings(get()));
   },
+  setRemotePushEnabled: (remotePushEnabled) => {
+    if (get().remotePushEnabled === remotePushEnabled) return;
+    set({ remotePushEnabled });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setRemotePushRedactContent: (remotePushRedactContent) => {
+    if (get().remotePushRedactContent === remotePushRedactContent) return;
+    set({ remotePushRedactContent });
+    persistSettings(selectSharedSettings(get()));
+  },
   syncAcpRegistryInstalledAgents: (installed) => {
     const current = get().acpRegistryInstalledAgents;
     const currentKeys = Object.keys(current);
@@ -676,6 +688,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     preventSleepWhileWorking: state.preventSleepWhileWorking,
     closeToTray: state.closeToTray,
     remoteAccessEnabled: state.remoteAccessEnabled,
+    remoteAccessTailscaleHttps: state.remoteAccessTailscaleHttps,
+    remoteAccessAdvertisedUrl: state.remoteAccessAdvertisedUrl,
     threadRemoveAction: state.threadRemoveAction,
     newThreadMode: state.newThreadMode,
     homeScopeEnabled: state.homeScopeEnabled,
@@ -701,6 +715,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     notificationFilter: state.notificationFilter,
     notificationStatuses: state.notificationStatuses,
     notifyL2Cli: state.notifyL2Cli,
+    remotePushEnabled: state.remotePushEnabled,
+    remotePushRedactContent: state.remotePushRedactContent,
     favoriteModels: state.favoriteModels,
     recentModels: state.recentModels,
     browser: state.browser,

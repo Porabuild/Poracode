@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { act, createEvent, fireEvent, screen } from "@testing-library/react";
 import type { Project, Thread } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { __resetCollapsedGroupCache, ThreadsView } from "./ThreadsView";
@@ -390,6 +390,30 @@ describe("ThreadsView grouping", () => {
     ).toBe(true);
   });
 
+  it("prevents native touch-hold behavior on rows with long-press menus", () => {
+    renderView([makeThread({ id: "c", title: "Charlie" })]);
+    const row = screen.getByText("Charlie").closest("button");
+    expect(row).toBeTruthy();
+
+    const touchStart = createEvent.pointerDown(row!, {
+      pointerType: "touch",
+      isPrimary: true,
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent(row!, touchStart);
+    expect(touchStart.defaultPrevented).toBe(true);
+
+    const mouseStart = createEvent.pointerDown(row!, {
+      pointerType: "mouse",
+      isPrimary: true,
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent(row!, mouseStart);
+    expect(mouseStart.defaultPrevented).toBe(false);
+  });
+
   it("offers 'Unmark all done' when every group thread is already done", () => {
     renderView([
       makeThread({
@@ -617,5 +641,190 @@ describe("ThreadsView grouping", () => {
     fireEvent.click(screen.getByText("Open terminal"));
     // No worktree on the thread → project-root terminal (no worktreePath key).
     expect(onOpenTerminal).toHaveBeenCalledWith({ projectId: "p1", sourceThreadId: "c" });
+  });
+});
+
+describe("ThreadsView header-driven (floating) search", () => {
+  beforeEach(__resetCollapsedGroupCache);
+
+  function renderFloating(input: {
+    searchOpen: boolean;
+    onSearchOpenChange?: (open: boolean) => void;
+    onChromeHiddenChange?: (hidden: boolean) => void;
+  }) {
+    return render(
+      <ThreadsView
+        projects={[PROJECT]}
+        threads={[makeThread({ id: "a", title: "Alpha" }), makeThread({ id: "b", title: "Bravo" })]}
+        selectedThreadId={null}
+        projectFilter={null}
+        searchOpen={input.searchOpen}
+        onSearchOpenChange={input.onSearchOpenChange ?? (() => {})}
+        onChromeHiddenChange={input.onChromeHiddenChange ?? (() => {})}
+        onProjectFilterChange={() => {}}
+        onOpenThread={() => {}}
+        onThreadAction={() => {}}
+        onNew={() => {}}
+        onNewThreadInWorktree={() => {}}
+        onDeleteWorktreeGroup={() => {}}
+        onOpenTerminal={() => {}}
+        onRunProjectAction={() => {}}
+      />,
+    );
+  }
+
+  it("hides the search box until the header toggles it open", () => {
+    renderFloating({ searchOpen: false });
+    expect(screen.queryByLabelText("Search threads")).not.toBeInTheDocument();
+  });
+
+  it("shows a floating search box that filters and closes via its X button", () => {
+    const onSearchOpenChange = vi.fn<(open: boolean) => void>();
+    renderFloating({ searchOpen: true, onSearchOpenChange });
+
+    fireEvent.change(screen.getByLabelText("Search threads"), { target: { value: "alp" } });
+    expect(screen.getByText("Alpha")).toBeInTheDocument();
+    expect(screen.queryByText("Bravo")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Close search"));
+    expect(onSearchOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("drops the query when the header closes the search", () => {
+    const view = renderFloating({ searchOpen: true });
+    fireEvent.change(screen.getByLabelText("Search threads"), { target: { value: "alp" } });
+    expect(screen.queryByText("Bravo")).not.toBeInTheDocument();
+
+    // Simulate the header toggling search off: the filter must not linger.
+    view.rerender(
+      <ThreadsView
+        projects={[PROJECT]}
+        threads={[makeThread({ id: "a", title: "Alpha" }), makeThread({ id: "b", title: "Bravo" })]}
+        selectedThreadId={null}
+        projectFilter={null}
+        searchOpen={false}
+        onSearchOpenChange={() => {}}
+        onChromeHiddenChange={() => {}}
+        onProjectFilterChange={() => {}}
+        onOpenThread={() => {}}
+        onThreadAction={() => {}}
+        onNew={() => {}}
+        onNewThreadInWorktree={() => {}}
+        onDeleteWorktreeGroup={() => {}}
+        onOpenTerminal={() => {}}
+        onRunProjectAction={() => {}}
+      />,
+    );
+    expect(screen.getByText("Bravo")).toBeInTheDocument();
+  });
+
+  it("keeps the closing box mounted for its exit animation, then unmounts it", () => {
+    vi.useFakeTimers();
+    try {
+      const view = renderFloating({ searchOpen: true });
+      expect(screen.getByLabelText("Search threads")).toBeInTheDocument();
+
+      view.rerender(
+        <ThreadsView
+          projects={[PROJECT]}
+          threads={[
+            makeThread({ id: "a", title: "Alpha" }),
+            makeThread({ id: "b", title: "Bravo" }),
+          ]}
+          selectedThreadId={null}
+          projectFilter={null}
+          searchOpen={false}
+          onSearchOpenChange={() => {}}
+          onChromeHiddenChange={() => {}}
+          onProjectFilterChange={() => {}}
+          onOpenThread={() => {}}
+          onThreadAction={() => {}}
+          onNew={() => {}}
+          onNewThreadInWorktree={() => {}}
+          onDeleteWorktreeGroup={() => {}}
+          onOpenTerminal={() => {}}
+          onRunProjectAction={() => {}}
+        />,
+      );
+
+      // The box lingers, marked as closing, while its shrink-into-the-icon
+      // animation plays…
+      expect(view.container.querySelector(".m-search-float")).toHaveAttribute("data-closing");
+      expect(screen.getByLabelText("Search threads")).toBeInTheDocument();
+
+      // …and unmounts once the exit timer fires.
+      act(() => vi.advanceTimersByTime(400));
+      expect(screen.queryByLabelText("Search threads")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes the search when focus leaves it (tap outside)", () => {
+    const onSearchOpenChange = vi.fn<(open: boolean) => void>();
+    renderFloating({ searchOpen: true, onSearchOpenChange });
+
+    fireEvent.focusOut(screen.getByLabelText("Search threads"));
+    expect(onSearchOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("keeps the search open when focus moves within it", () => {
+    const onSearchOpenChange = vi.fn<(open: boolean) => void>();
+    renderFloating({ searchOpen: true, onSearchOpenChange });
+
+    fireEvent.focusOut(screen.getByLabelText("Search threads"), {
+      relatedTarget: screen.getByLabelText("Close search"),
+    });
+    expect(onSearchOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("closes the search when the on-screen keyboard is dismissed", () => {
+    // Minimal visualViewport stand-in (jsdom has none): the keyboard offset is
+    // window.innerHeight - viewport.height, driven by the resize listener.
+    const listeners = new Set<() => void>();
+    const viewport = {
+      height: window.innerHeight,
+      offsetTop: 0,
+      addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+      removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+    };
+    Object.defineProperty(window, "visualViewport", { configurable: true, value: viewport });
+    try {
+      const onSearchOpenChange = vi.fn<(open: boolean) => void>();
+      renderFloating({ searchOpen: true, onSearchOpenChange });
+
+      // The keyboard sliding up must not close anything…
+      viewport.height = window.innerHeight - 300;
+      act(() => listeners.forEach((listener) => listener()));
+      expect(onSearchOpenChange).not.toHaveBeenCalled();
+
+      // …dismissing it closes the search.
+      viewport.height = window.innerHeight;
+      act(() => listeners.forEach((listener) => listener()));
+      expect(onSearchOpenChange).toHaveBeenCalledWith(false);
+    } finally {
+      Object.defineProperty(window, "visualViewport", { configurable: true, value: undefined });
+    }
+  });
+
+  it("reports scroll direction so the shell can collapse/reveal its chrome", () => {
+    const onChromeHiddenChange = vi.fn<(hidden: boolean) => void>();
+    const { container } = renderFloating({ searchOpen: false, onChromeHiddenChange });
+    const list = container.querySelector(".m-thread-list")!;
+
+    // Scrolling down past the slop hides the chrome…
+    Object.defineProperty(list, "scrollTop", { configurable: true, value: 80 });
+    fireEvent.scroll(list);
+    expect(onChromeHiddenChange).toHaveBeenLastCalledWith(true);
+
+    // …scrolling back up reveals it…
+    Object.defineProperty(list, "scrollTop", { configurable: true, value: 40 });
+    fireEvent.scroll(list);
+    expect(onChromeHiddenChange).toHaveBeenLastCalledWith(false);
+
+    // …and resting near the top always reveals it.
+    Object.defineProperty(list, "scrollTop", { configurable: true, value: 0 });
+    fireEvent.scroll(list);
+    expect(onChromeHiddenChange).toHaveBeenLastCalledWith(false);
   });
 });

@@ -3,10 +3,13 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer } from "ws";
+import { readBoundedNodeRequestBody } from "@/shared/http";
 import {
+  DEFAULT_RELAY_MAX_BODY_BYTES,
   parseRelayVisitorPath,
   relayHostFrameSchema,
   relayPublicUrl,
+  relayWebSocketPayloadLimit,
   safeJsonParse,
   type RelayServerFrame,
 } from "@/shared/remote/relayProtocol";
@@ -57,7 +60,6 @@ export interface RelayServerInfo {
 }
 
 interface RegisteredHost {
-  readonly secret: string;
   readonly control: WebSocket;
 }
 
@@ -85,16 +87,9 @@ interface VisitorChannel {
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
-const DEFAULT_MAX_BODY_BYTES = 64 * 1024 * 1024;
 const DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 30_000;
 const DEFAULT_HOST_REGISTRATION_TIMEOUT_MS = 10_000;
 const DEFAULT_SECRET_BINDING_TTL_MS = 24 * 60 * 60 * 1000;
-
-function relayWebSocketPayloadLimit(maxBodyBytes: number): number {
-  // Host HTTP responses are base64 encoded inside a JSON frame over the relay
-  // control socket. Leave room for JSON/header overhead around the encoded body.
-  return Math.ceil((maxBodyBytes * 4) / 3) + 1024 * 1024;
-}
 
 function normalizePublicBaseUrl(raw: string): string {
   let url: URL;
@@ -139,7 +134,7 @@ export class RelayServer {
       noServer: true,
       maxPayload:
         options.maxWebSocketPayloadBytes ??
-        relayWebSocketPayloadLimit(options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES),
+        relayWebSocketPayloadLimit(options.maxBodyBytes ?? DEFAULT_RELAY_MAX_BODY_BYTES),
     });
     this.server = createServer((req, res) => void this.handleHttp(req, res));
     this.server.on("upgrade", (req, socket, head) => this.handleUpgrade(req, socket, head));
@@ -333,7 +328,7 @@ export class RelayServer {
           existing.control.close();
         }
         serverId = frame.serverId;
-        this.hosts.set(frame.serverId, { secret: frame.secret, control });
+        this.hosts.set(frame.serverId, { control });
         this.sendFrame(control, {
           t: "registered",
           serverId: frame.serverId,
@@ -481,7 +476,7 @@ export class RelayServer {
     if (socket.readyState !== WebSocket.OPEN) return false;
     const maxBuffered =
       this.options.maxWebSocketOutboundBufferBytes ??
-      relayWebSocketPayloadLimit(this.options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES);
+      relayWebSocketPayloadLimit(this.options.maxBodyBytes ?? DEFAULT_RELAY_MAX_BODY_BYTES);
     if (socket.bufferedAmount + Buffer.byteLength(data, "utf8") > maxBuffered) {
       this.socketLiveness.delete(socket);
       try {
@@ -552,15 +547,7 @@ export class RelayServer {
   }
 
   private async readBody(req: IncomingMessage): Promise<Buffer> {
-    const max = this.options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
-    const chunks: Buffer[] = [];
-    let total = 0;
-    for await (const chunk of req) {
-      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      total += buffer.length;
-      if (total > max) throw new Error("body too large");
-      chunks.push(buffer);
-    }
-    return Buffer.concat(chunks);
+    const max = this.options.maxBodyBytes ?? DEFAULT_RELAY_MAX_BODY_BYTES;
+    return await readBoundedNodeRequestBody(req, max, () => new Error("body too large"));
   }
 }

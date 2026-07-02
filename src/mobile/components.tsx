@@ -227,11 +227,10 @@ export function useSheet<T>() {
  * surface. Mounting slides it up; setting `closing` slides it back down — drive
  * both with useSheet. Callers supply the sheet head and body as children.
  *
- * Portaled to <body>: triggers live inside `.m-topbar` / `.m-main` / `.m-tabbar`,
- * whose `view-transition-name`s force stacking contexts, so a backdrop rendered
+ * Portaled to <body>: triggers live inside `.m-topbar` / `.m-main`, whose
+ * `view-transition-name`s force stacking contexts, so a backdrop rendered
  * inline would paint under whichever named sibling comes later in the DOM
- * (header sheets vanish behind the chat, tab-route sheets slide under the tab
- * bar) no matter its z-index.
+ * (header sheets vanish behind the chat) no matter its z-index.
  */
 export function BottomSheet(props: {
   /** Dialog accessible name. */

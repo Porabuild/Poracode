@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -68,6 +69,26 @@ vi.mock("@/renderer/views/MainView/parts/PullFromSourceDialog", () => ({
 vi.mock("./components", () => ({
   ConnectionBanner: () => null,
   ConnectionPill: () => null,
+  // Functional stand-in: renders the trigger plus one button per item, so
+  // tests can drive the header quick menu without the portal/animation layer.
+  SheetMenu: (props: {
+    items: readonly { id: string; label: string }[];
+    onSelect: (id: string) => void;
+    trigger: (api: { open: () => void; isOpen: boolean }) => ReactNode;
+  }) => (
+    <>
+      {props.trigger({ open: () => {}, isOpen: false })}
+      {props.items.map((item) => (
+        <button key={item.id} type="button" onClick={() => props.onSelect(item.id)}>
+          {item.label}
+        </button>
+      ))}
+    </>
+  ),
+}));
+
+vi.mock("./UserMessageActionsSheet", () => ({
+  UserMessageActionsSheet: () => null,
 }));
 
 vi.mock("./storage", () => ({
@@ -113,6 +134,27 @@ describe("mobile RootLayout", () => {
       gitOverlayOpen: false,
       prReviewContext: null,
     });
+  });
+
+  it("drives home navigation from the header (search + quick menu) with no tab bar", () => {
+    render(<RootLayout />);
+
+    // The bottom tab bar is gone.
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+
+    // Search toggles the floating thread search (owned by the /threads route).
+    const search = screen.getByLabelText("Search threads");
+    expect(search).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(search);
+    expect(search).toHaveAttribute("aria-pressed", "true");
+
+    // The ⋯ quick menu hosts every secondary destination; Settings is last.
+    fireEvent.click(screen.getByText("Usage"));
+    expect(routerMock.navigate).toHaveBeenCalledWith({ to: "/more/usage" });
+    fireEvent.click(screen.getByText("Connections"));
+    expect(routerMock.navigate).toHaveBeenCalledWith({ to: "/desktops" });
+    fireEvent.click(screen.getByText("Settings"));
+    expect(routerMock.navigate).toHaveBeenCalledWith({ to: "/more" });
   });
 
   it("shows a generic thread header (no thread-scoped actions) on a stale deep link", () => {

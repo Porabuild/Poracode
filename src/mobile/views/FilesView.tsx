@@ -100,6 +100,31 @@ function fileStatusMessage(status: AbsoluteFileReadStatus) {
   return <Trans>This file uses an unsupported encoding.</Trans>;
 }
 
+function toastError(error: unknown): void {
+  toast.danger(error instanceof Error ? error.message : String(error));
+}
+
+function buildOpenFile(
+  path: string,
+  result: {
+    readonly status: AbsoluteFileReadStatus;
+    readonly modifiedAtMs?: number;
+    readonly content?: string;
+  },
+  readOnly: boolean,
+): OpenFileState {
+  const content = result.status === "ready" ? (result.content ?? "") : "";
+  return {
+    path,
+    status: result.status,
+    modifiedAtMs: result.modifiedAtMs ?? 0,
+    content,
+    savedContent: content,
+    isLoading: false,
+    readOnly,
+  };
+}
+
 /**
  * The "Files" tab of the unified workspace panel: a project/worktree file tree
  * with search and a lightweight inline editor. Like the Changes pane it owns no
@@ -162,7 +187,7 @@ export function FilesView(props: {
         [result.directoryPath]: result.entries,
       }));
     } catch (error) {
-      toast.danger(error instanceof Error ? error.message : String(error));
+      toastError(error);
     } finally {
       setPathLoading(directoryPath, false);
     }
@@ -197,7 +222,7 @@ export function FilesView(props: {
         await loadDirectory(path);
       }
     } catch (error) {
-      toast.danger(error instanceof Error ? error.message : String(error));
+      toastError(error);
     }
   }
 
@@ -211,7 +236,7 @@ export function FilesView(props: {
       resetSearch();
       await reloadParent(entry.path);
     } catch (error) {
-      toast.danger(error instanceof Error ? error.message : String(error));
+      toastError(error);
     }
   }
 
@@ -224,7 +249,7 @@ export function FilesView(props: {
       resetSearch();
       await reloadParent(entry.path);
     } catch (error) {
-      toast.danger(error instanceof Error ? error.message : String(error));
+      toastError(error);
     }
   }
 
@@ -257,15 +282,7 @@ export function FilesView(props: {
           projectLocation: props.target.projectLocation,
           absolutePath: path,
         });
-        setOpenFile({
-          path,
-          status: result.status,
-          modifiedAtMs: result.modifiedAtMs ?? 0,
-          content: result.status === "ready" ? (result.content ?? "") : "",
-          savedContent: result.status === "ready" ? (result.content ?? "") : "",
-          isLoading: false,
-          readOnly: true,
-        });
+        setOpenFile(buildOpenFile(path, result, true));
         return;
       }
 
@@ -273,15 +290,7 @@ export function FilesView(props: {
         projectLocation: props.target.projectLocation,
         path,
       });
-      setOpenFile({
-        path: result.path,
-        status: result.status,
-        modifiedAtMs: result.modifiedAtMs,
-        content: result.status === "ready" ? (result.content ?? "") : "",
-        savedContent: result.status === "ready" ? (result.content ?? "") : "",
-        isLoading: false,
-        readOnly: false,
-      });
+      setOpenFile(buildOpenFile(result.path, result, false));
     } catch (error) {
       setOpenFile(null);
       toast.danger(error instanceof Error ? error.message : t`Unable to open file`);
@@ -347,7 +356,7 @@ export function FilesView(props: {
           : current,
       );
     } catch (error) {
-      toast.danger(error instanceof Error ? error.message : String(error));
+      toastError(error);
     } finally {
       setSaving(false);
     }

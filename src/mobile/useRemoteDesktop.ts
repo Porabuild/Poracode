@@ -21,6 +21,7 @@ import {
   type RemoteShellSnapshot,
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
+import { reconnectBackoffDelay } from "@/shared/remote/backoff";
 import { useAppStore } from "@/renderer/state/appStore";
 import { readBridge } from "@/renderer/bridge";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
@@ -105,11 +106,6 @@ const REMOTE_THREAD_APPEAR_ATTEMPTS = 10;
 const REMOTE_THREAD_APPEAR_DELAY_MS = 250;
 /** How long to wait for a health-check pong before treating the socket as dead. */
 const HEALTH_PING_TIMEOUT_MS = 5000;
-function reconnectDelay(attempt: number): number {
-  const ceiling = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** attempt);
-  // Full jitter keeps a fleet of clients from retrying in lockstep.
-  return ceiling / 2 + Math.random() * (ceiling / 2);
-}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -301,7 +297,10 @@ export function useRemoteDesktop() {
       // back; surface that distinctly and let the "online" listener wake us.
       setConnection(navigator.onLine === false ? "offline" : "reconnecting");
       window.clearTimeout(timer);
-      timer = window.setTimeout(connect, reconnectDelay(attempt));
+      timer = window.setTimeout(
+        connect,
+        reconnectBackoffDelay(attempt, { baseMs: RECONNECT_BASE_MS, maxMs: RECONNECT_MAX_MS }),
+      );
       attempt += 1;
     }
 

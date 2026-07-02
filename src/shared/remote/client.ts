@@ -8,6 +8,7 @@ import {
   remoteBrowserStateSchema,
   remoteEnvironmentDescriptorSchema,
   remoteHttpErrorSchema,
+  remotePushRegistrationResultSchema,
   remoteSettingsSchema,
   remoteProjectCommandResultSchema,
   remoteShellSnapshotSchema,
@@ -24,6 +25,7 @@ import {
   type RemoteEnvironmentDescriptor,
   type RemoteProjectCommand,
   type RemoteProjectCommandResult,
+  type RemotePushRegistration,
   type RemoteSettings,
   type RemoteSettingsPatch,
   type RemoteShellSnapshot,
@@ -32,7 +34,14 @@ import {
 } from "@/shared/remote";
 import {
   DEFAULT_TERMINAL_SIZE,
+  profileIdentitySchema,
   sendThreadInputPayloadSchema,
+  type ProfileCoreStats,
+  type ProfileDevicesResponse,
+  type ProfileIdentity,
+  type ProfileIdentityResponse,
+  type ProfileStatsRequest,
+  type ProfileTokenStats,
   type ProjectLocation,
   type PromptSegment,
   type ProviderUsageResponse,
@@ -117,29 +126,25 @@ function endpointUrl(endpoint: string, path: string): URL {
   return new URL(path.replace(/^\/+/, ""), base);
 }
 
-export interface StartRemoteThreadInput {
+interface StartRemoteThreadCommon {
   readonly threadId?: StartThreadPayload["threadId"] | undefined;
-  readonly projectLocation: ProjectLocation;
   readonly agentKind: StartThreadPayload["agentKind"];
   readonly agentInstanceId?: StartThreadPayload["agentInstanceId"] | undefined;
   readonly config: ThreadConfig;
   readonly prompt: string;
   readonly segments?: readonly PromptSegment[] | undefined;
+  readonly presentationMode?: ThreadPresentationMode | undefined;
+}
+
+export interface StartRemoteThreadInput extends StartRemoteThreadCommon {
+  readonly projectLocation: ProjectLocation;
   readonly initialSize?: TerminalSize | undefined;
   readonly sessionRef?: StartThreadPayload["sessionRef"] | undefined;
-  readonly presentationMode?: ThreadPresentationMode | undefined;
   readonly userMessageItemId?: StartThreadPayload["userMessageItemId"] | undefined;
 }
 
-export interface StartRemoteNewThreadInput {
-  readonly threadId?: string | undefined;
+export interface StartRemoteNewThreadInput extends StartRemoteThreadCommon {
   readonly projectId: string;
-  readonly agentKind: StartThreadPayload["agentKind"];
-  readonly agentInstanceId?: StartThreadPayload["agentInstanceId"] | undefined;
-  readonly config: ThreadConfig;
-  readonly prompt: string;
-  readonly segments?: readonly PromptSegment[] | undefined;
-  readonly presentationMode?: ThreadPresentationMode | undefined;
   readonly worktreePath?: string | undefined;
   readonly worktreeBranch?: string | undefined;
   readonly isNewWorktree?: boolean | undefined;
@@ -199,6 +204,9 @@ const LONG_RUNNING_GIT_PROCEDURES: ReadonlySet<string> = new Set([
   "generateTitle",
   "generatePrSummary",
 ]);
+
+const settingsResponseSchema = z.object({ settings: remoteSettingsSchema });
+const browserStateResponseSchema = z.object({ state: remoteBrowserStateSchema });
 
 export class RemoteDesktopClient {
   private readonly fetchImpl: RemoteFetch;
@@ -271,49 +279,110 @@ export class RemoteDesktopClient {
   }
 
   async snapshot(): Promise<RemoteShellSnapshot> {
-    return remoteShellSnapshotSchema.parse(await this.requestJson("/api/snapshot"));
+    return parseResponse(
+      remoteShellSnapshotSchema,
+      await this.requestJson("/api/snapshot"),
+      "snapshot",
+    );
   }
 
   async agentStatuses(): Promise<RemoteAgentStatuses> {
-    return remoteAgentStatusesSchema.parse(await this.requestJson("/api/agent-statuses"));
+    return parseResponse(
+      remoteAgentStatusesSchema,
+      await this.requestJson("/api/agent-statuses"),
+      "agent statuses",
+    );
   }
 
   /** Provider usage snapshots; the response shape is a typed contract with no
    * runtime schema (see `ProviderUsageResponse`), so a light shape check only. */
   async providerUsage(): Promise<ProviderUsageResponse> {
-    const result = z
-      .object({ snapshots: z.array(z.unknown()), fromCache: z.boolean() })
-      .parse(await this.requestJson("/api/provider-usage"));
+    const result = parseResponse(
+      z.object({ snapshots: z.array(z.unknown()), fromCache: z.boolean() }),
+      await this.requestJson("/api/provider-usage"),
+      "provider usage",
+    );
     return result as ProviderUsageResponse;
   }
 
   /** Remote-editable desktop settings (the AI helpers). */
   async settings(): Promise<RemoteSettings> {
-    const result = z
-      .object({ settings: remoteSettingsSchema })
-      .parse(await this.requestJson("/api/settings"));
+    const result = parseResponse(
+      settingsResponseSchema,
+      await this.requestJson("/api/settings"),
+      "settings",
+    );
     return result.settings;
   }
 
   async updateSettings(patch: RemoteSettingsPatch): Promise<RemoteSettings> {
-    const result = z
-      .object({ settings: remoteSettingsSchema })
-      .parse(await this.requestJson("/api/settings", { method: "POST", body: patch }));
+    const result = parseResponse(
+      settingsResponseSchema,
+      await this.requestJson("/api/settings", { method: "POST", body: patch }),
+      "settings",
+    );
     return result.settings;
   }
 
+  /**
+   * Profile: local usage stats + identity, computed on the paired desktop's
+   * SQLite store. Response shapes are typed contracts with no runtime schema
+   * (like {@link providerUsage}), so only a light shape check. The stats
+   * blobs carry many more keys than the check names, so they must stay
+   * looseObject — a plain z.object would strip everything unnamed.
+   */
+  async profileDevices(): Promise<ProfileDevicesResponse> {
+    const result = parseResponse(
+      z.object({ devices: z.array(z.unknown()), currentDeviceId: z.string() }),
+      await this.requestJson("/api/profile/devices"),
+      "profile devices",
+    );
+    return result as ProfileDevicesResponse;
+  }
+
+  async profileCoreStats(req: ProfileStatsRequest): Promise<ProfileCoreStats> {
+    const result = parseResponse(
+      z.looseObject({ scope: z.string(), device: z.unknown(), totals: z.unknown() }),
+      await this.requestJson("/api/profile/core-stats", { method: "POST", body: req }),
+      "profile stats",
+    );
+    return result as unknown as ProfileCoreStats;
+  }
+
+  async profileTokenStats(req: ProfileStatsRequest): Promise<ProfileTokenStats> {
+    const result = parseResponse(
+      z.looseObject({ available: z.boolean(), scope: z.string(), device: z.unknown() }),
+      await this.requestJson("/api/profile/token-stats", { method: "POST", body: req }),
+      "profile token stats",
+    );
+    return result as unknown as ProfileTokenStats;
+  }
+
+  async setProfileIdentity(identity: ProfileIdentity): Promise<ProfileIdentityResponse> {
+    const result = parseResponse(
+      z.object({ identity: profileIdentitySchema, device: z.unknown() }),
+      await this.requestJson("/api/profile/identity", { method: "POST", body: identity }),
+      "profile identity",
+    );
+    return result as ProfileIdentityResponse;
+  }
+
   async browserState(): Promise<RemoteBrowserState> {
-    const result = z
-      .object({ state: remoteBrowserStateSchema })
-      .parse(await this.requestJson("/api/browser/state"));
+    const result = parseResponse(
+      browserStateResponseSchema,
+      await this.requestJson("/api/browser/state"),
+      "browser state",
+    );
     return result.state;
   }
 
   /** Tab mutation (create/close/activate/navigate/…); returns the new state. */
   async browserCommand(command: RemoteBrowserCommand): Promise<RemoteBrowserState> {
-    const result = z
-      .object({ state: remoteBrowserStateSchema })
-      .parse(await this.requestJson("/api/browser/command", { method: "POST", body: command }));
+    const result = parseResponse(
+      browserStateResponseSchema,
+      await this.requestJson("/api/browser/command", { method: "POST", body: command }),
+      "browser state",
+    );
     return result.state;
   }
 
@@ -340,15 +409,7 @@ export class RemoteDesktopClient {
         ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
       },
     });
-    const parsed = z.object({ threadId: z.string() }).safeParse(result);
-    if (!parsed.success) {
-      throw new RemoteClientError(
-        "Desktop returned an invalid thread response.",
-        500,
-        "bad_result",
-      );
-    }
-    return parsed.data;
+    return parseResponse(z.object({ threadId: z.string() }), result, "thread");
   }
 
   async startNewThread(input: StartRemoteNewThreadInput): Promise<StartThreadResult> {
@@ -494,6 +555,26 @@ export class RemoteDesktopClient {
     return remoteProjectCommandResultSchema.parse(
       await this.requestJson("/api/projects/command", { method: "POST", body: command }),
     );
+  }
+
+  /**
+   * Register this device's APNs tokens for push notifications and Live
+   * Activities. Idempotent upsert keyed by `deviceId`: any token field present
+   * replaces the stored value; absent fields are preserved. Requires the
+   * `session:operate` scope (no separate push scope), so already-paired devices
+   * register without re-pairing.
+   */
+  async registerPush(registration: RemotePushRegistration): Promise<void> {
+    parseResponse(
+      remotePushRegistrationResultSchema,
+      await this.requestJson("/api/push/register", { method: "POST", body: registration }),
+      "push registration",
+    );
+  }
+
+  /** Drop all push registrations for a device (sign-out / unpair). */
+  async unregisterPush(deviceId: string): Promise<void> {
+    await this.requestJson("/api/push/unregister", { method: "POST", body: { deviceId } });
   }
 
   async websocketTicket(): Promise<string> {

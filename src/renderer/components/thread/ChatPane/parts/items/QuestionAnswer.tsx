@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Surface } from "@heroui/react";
 import { Check } from "lucide-react";
 import type { QuestionAnswerItemPayload } from "@/shared/contracts";
@@ -6,15 +5,16 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { CheckpointRevertButton, type CheckpointRevertRequest } from "../CheckpointRevertControls";
 import { chatPromptSurfaceClass } from "./chatMessageSurface";
 import { ItemMarkdown } from "./ItemMarkdown";
 
 interface QuestionAnswerProps {
   item: RuntimeChatItem;
-  checkpointRevertControl: ReactNode | null;
+  checkpointRevert: CheckpointRevertRequest | null;
 }
 
-export function QuestionAnswer({ item, checkpointRevertControl }: QuestionAnswerProps) {
+export function QuestionAnswer({ item, checkpointRevert }: QuestionAnswerProps) {
   const payload = getRuntimeItemPayload<QuestionAnswerItemPayload>(item, "question_answer");
   const questions = payload?.questions ?? [];
   if (questions.length === 0) return null;
@@ -55,9 +55,12 @@ export function QuestionAnswer({ item, checkpointRevertControl }: QuestionAnswer
           </div>
         ))}
       </div>
-      {checkpointRevertControl ? (
+      {checkpointRevert ? (
         <div className="lightcode-message-action-strip absolute right-2 top-1/2 z-10 -translate-y-1/2 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
-          {checkpointRevertControl}
+          <CheckpointRevertButton
+            itemId={checkpointRevert.itemId}
+            onRequestRevert={checkpointRevert.onRequestRevert}
+          />
         </div>
       ) : null}
     </Surface>

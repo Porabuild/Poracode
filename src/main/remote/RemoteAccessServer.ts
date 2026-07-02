@@ -15,7 +15,8 @@ import {
   remoteAgentStatusesSchema,
   remoteHttpErrorSchema,
   remoteProjectCommandSchema,
-  remoteRuntimeSummarySchema,
+  remotePushRegistrationSchema,
+  remotePushUnregisterSchema,
   remoteSettingsPatchSchema,
   remoteShellSnapshotSchema,
   remoteThreadSnapshotSchema,
@@ -31,6 +32,7 @@ import {
   type RemoteProjectCommand,
   type RemoteProjectCommandResult,
   type RemoteProjectsChangedEvent,
+  type RemotePushRegistration,
   type RemoteSettings,
   type RemoteSettingsPatch,
   type RemoteShellSnapshot,
@@ -42,6 +44,8 @@ import {
   clearPendingSteerPayloadSchema,
   DEFAULT_TERMINAL_SIZE,
   interruptThreadPayloadSchema,
+  profileIdentitySchema,
+  profileStatsRequestSchema,
   remoteThreadCommandSchema,
   resolveThreadServerRequestPayloadSchema,
   closeThreadPayloadSchema,
@@ -67,12 +71,21 @@ import {
   dbGetProjects,
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
+  dbGetThread,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeSummaries,
   dbGetThreads,
   dbUpsertProject,
   dbUpsertThread,
 } from "../db";
+import {
+  getProfileCoreStats,
+  getProfileDevicesResponse,
+  getProfileTokenStats,
+  setProfileIdentityResponse,
+} from "../profile";
+import { readBoundedNodeRequestBody, writeJsonResponse } from "@/shared/http";
+import { buildPairingUrl } from "@/shared/remote/pairingUrl";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { makeThreadTitle, titlePromptFromSegments } from "@/shared/threadTitle";
 import {
@@ -82,7 +95,7 @@ import {
   type AuthenticatedRemoteSession,
 } from "./auth";
 import type { RemoteAccessIdentity } from "./identity";
-import type { RemoteBrowserGateway } from "./RemoteBrowserGateway";
+import type { RemoteBrowserFrame, RemoteBrowserGateway } from "./RemoteBrowserGateway";
 import {
   buildLocalPairingIconSvg,
   buildLocalPairingManifestJson,
@@ -127,6 +140,14 @@ export interface RemoteAccessServerOptions {
   readonly identity: RemoteAccessIdentity;
   readonly host: string;
   readonly advertisedHost?: string;
+  /**
+   * Full advertised origin (e.g. `https://machine.tailnet.ts.net` or a custom
+   * reverse-proxy origin). When set it wins over `host`/`advertisedHost`/`port`
+   * for the advertised `httpBaseUrl`: the origin is used verbatim (any path is
+   * dropped), a trailing slash is normalized on, and `wsBaseUrl` derives from it
+   * (https → wss). Requests arriving with this origin are trusted for CORS.
+   */
+  readonly advertisedBaseUrl?: string;
   readonly pairingAppUrl?: string;
   readonly trustedCorsOrigins?: readonly string[];
   readonly tokenExchangeRateLimit?: {
@@ -178,6 +199,15 @@ export interface RemoteAccessServerOptions {
   };
   /** Latest per-thread git/PR summaries published by the desktop renderer. */
   gitSummaries?(): RemoteGitSummaries;
+  /**
+   * Push-notification registration sink. The server stays pure — the store and
+   * `PushCoordinator` live in the wiring layer (`main.ts` / headless host) and
+   * are injected here. Absent on hosts that don't support push (returns 503).
+   */
+  readonly pushRegistrations?: {
+    upsert(registration: RemotePushRegistration): void;
+    remove(deviceId: string): void;
+  };
 }
 
 type RemoteBroadcastEvent =
@@ -285,19 +315,6 @@ function normalizeCorsOrigin(rawOrigin: string): string | null {
   }
 }
 
-function buildPairingUrl(input: {
-  readonly httpBaseUrl: string;
-  readonly credential: string;
-  readonly pairingAppUrl?: string;
-}): string {
-  const pairingUrl = new URL("/pair", input.pairingAppUrl ?? input.httpBaseUrl);
-  if (input.pairingAppUrl) {
-    pairingUrl.searchParams.set("host", input.httpBaseUrl);
-  }
-  pairingUrl.hash = new URLSearchParams([["token", input.credential]]).toString();
-  return pairingUrl.toString();
-}
-
 function threadIdFromPath(pathname: string, suffix: string): string | null {
   if (!pathname.startsWith("/api/threads/") || !pathname.endsWith(suffix)) {
     return null;
@@ -314,18 +331,12 @@ function threadIdFromPath(pathname: string, suffix: string): string | null {
 }
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
-  const chunks: Buffer[] = [];
-  let total = 0;
-  for await (const chunk of req) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    total += buffer.length;
-    if (total > MAX_JSON_BODY_BYTES) {
-      throw new RemoteHttpError("body_too_large", "Request body is too large.", 413);
-    }
-    chunks.push(buffer);
-  }
-  if (chunks.length === 0) return {};
-  const raw = Buffer.concat(chunks).toString("utf8");
+  const body = await readBoundedNodeRequestBody(
+    req,
+    MAX_JSON_BODY_BYTES,
+    () => new RemoteHttpError("body_too_large", "Request body is too large.", 413),
+  );
+  const raw = body.toString("utf8");
   if (!raw.trim()) return {};
   return JSON.parse(raw) as unknown;
 }
@@ -401,6 +412,12 @@ export class RemoteAccessServer {
   /** Per-connection terminal ids the client opted into live `terminal-output` for. */
   private readonly terminalWatches = new Map<WebSocket, Set<string>>();
   private readonly rateLimitBuckets = new Map<string, RateLimitBucket>();
+  /** Caches the serialized `browser-frame` message so a frame fanned out to many
+   * watchers is only stringified once. */
+  private readonly browserFrameSerializations = new WeakMap<RemoteBrowserFrame, string>();
+  /** Cached normalized allow-list, keyed on the (only) mutable input `httpBaseUrl`. */
+  private trustedCorsOrigins: { key: string | undefined; origins: ReadonlySet<string> } | null =
+    null;
   private readonly eventBuffer: BufferedSupervisorEvent[] = [];
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private seq = 0;
@@ -437,24 +454,15 @@ export class RemoteAccessServer {
     });
 
     const address = this.server.address() as AddressInfo;
-    const bindHost = this.options.host;
-    const host =
-      this.options.advertisedHost?.trim() ||
-      (bindHost === "0.0.0.0" || bindHost === "::" ? "127.0.0.1" : bindHost);
-    const httpBaseUrl = `http://${normalizeHostForUrl(host)}:${address.port}/`;
+    const httpBaseUrl = this.resolveHttpBaseUrl(address.port);
     const pairingCredential = this.auth.issuePairingCredential({
       label: "Startup pairing",
     });
 
-    const pairingAppUrl = this.options.pairingAppUrl ?? this.options.devMobileAppUrl;
     this.info = {
       httpBaseUrl,
       wsBaseUrl: toWebSocketUrl(httpBaseUrl).toString(),
-      pairingUrl: buildPairingUrl({
-        httpBaseUrl,
-        credential: pairingCredential.credential,
-        ...(pairingAppUrl ? { pairingAppUrl } : {}),
-      }),
+      pairingUrl: this.mintPairingUrl(httpBaseUrl, pairingCredential.credential),
     };
     this.startWebSocketHeartbeat();
     return this.info;
@@ -550,11 +558,13 @@ export class RemoteAccessServer {
   /** Streams PTY bytes to watching clients, dropping them on a congested socket
    * (the terminal self-heals on the next write; back-buffering would lag). */
   private broadcastTerminalOutput(id: string, data: string): void {
+    let serialized: string | null = null;
     for (const [client, watched] of this.terminalWatches) {
       if (!watched.has(id)) continue;
       if (client.readyState !== client.OPEN) continue;
       if (client.bufferedAmount > 1_500_000) continue;
-      this.send(client, { type: "terminal-output", id, data });
+      serialized ??= JSON.stringify({ type: "terminal-output", id, data });
+      this.sendRaw(client, serialized);
     }
   }
 
@@ -563,10 +573,14 @@ export class RemoteAccessServer {
     const issued = this.auth.issuePairingCredential({
       ...(label ? { label } : {}),
     });
+    return this.mintPairingUrl(info.httpBaseUrl, issued.credential);
+  }
+
+  private mintPairingUrl(httpBaseUrl: string, credential: string): string {
     const pairingAppUrl = this.options.pairingAppUrl ?? this.options.devMobileAppUrl;
     return buildPairingUrl({
-      httpBaseUrl: info.httpBaseUrl,
-      credential: issued.credential,
+      httpBaseUrl,
+      credential,
       ...(pairingAppUrl ? { pairingAppUrl } : {}),
     });
   }
@@ -691,6 +705,33 @@ export class RemoteAccessServer {
         this.writeJson(res, 200, await this.options.callSupervisor("getProviderUsage", {}));
         return;
       }
+      // Profile: identity + local usage stats, computed straight from this
+      // desktop's SQLite store (no supervisor round-trip, unlike git/provider
+      // calls). Reads mirror the provider-usage/agent-statuses read scope;
+      // the identity write mirrors the settings write scope.
+      if (req.method === "GET" && url.pathname === "/api/profile/devices") {
+        this.requireBearer(req, ["session:read"]);
+        this.writeJson(res, 200, getProfileDevicesResponse());
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/profile/core-stats") {
+        this.requireBearer(req, ["session:read"]);
+        const payload = profileStatsRequestSchema.parse(await readJsonBody(req));
+        this.writeJson(res, 200, getProfileCoreStats(payload));
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/profile/token-stats") {
+        this.requireBearer(req, ["session:read"]);
+        const payload = profileStatsRequestSchema.parse(await readJsonBody(req));
+        this.writeJson(res, 200, getProfileTokenStats(payload));
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/profile/identity") {
+        this.requireBearer(req, ["session:operate"]);
+        const identity = profileIdentitySchema.parse(await readJsonBody(req));
+        this.writeJson(res, 200, setProfileIdentityResponse(identity));
+        return;
+      }
       if (req.method === "GET" && url.pathname === "/api/settings") {
         this.requireBearer(req, ["session:read"]);
         this.writeJson(res, 200, { settings: this.requireSettingsGateway().read() });
@@ -729,6 +770,23 @@ export class RemoteAccessServer {
         this.writeJson(res, 200, result);
         return;
       }
+      // Push registration is gated on session:operate (no separate push scope),
+      // so already-paired devices register without re-pairing. POST (not
+      // DELETE) for both, matching the existing endpoint conventions.
+      if (req.method === "POST" && url.pathname === "/api/push/register") {
+        this.requireBearer(req, ["session:operate"]);
+        const registration = remotePushRegistrationSchema.parse(await readJsonBody(req));
+        this.requirePushRegistrations().upsert(registration);
+        this.writeJson(res, 200, { ok: true });
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/push/unregister") {
+        this.requireBearer(req, ["session:operate"]);
+        const { deviceId } = remotePushUnregisterSchema.parse(await readJsonBody(req));
+        this.requirePushRegistrations().remove(deviceId);
+        this.writeJson(res, 200, { ok: true });
+        return;
+      }
       const historyThreadId = threadIdFromPath(url.pathname, "/history");
       if (req.method === "GET" && historyThreadId) {
         this.requireBearer(req, ["session:read"]);
@@ -745,7 +803,7 @@ export class RemoteAccessServer {
             400,
           );
         }
-        if (!dbGetThreads().some((thread) => thread.id === payload.threadId)) {
+        if (!dbGetThread(payload.threadId)) {
           throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
         }
         this.writeJson(res, 200, await this.options.callSupervisor("startThread", payload));
@@ -910,12 +968,7 @@ export class RemoteAccessServer {
               // Drop frames when the socket is congested; the next frame
               // carries the complete picture anyway.
               if (ws.bufferedAmount > 1_500_000) return;
-              this.send(ws, {
-                type: "browser-frame",
-                tabId: frame.tabId,
-                data: frame.data,
-                metadata: frame.metadata,
-              });
+              this.sendRaw(ws, this.serializeBrowserFrame(frame));
             },
             onState: (state) => this.send(ws, { type: "browser-state", state }),
             onStatus: (status) => this.send(ws, { type: "browser-mirror-status", status }),
@@ -986,13 +1039,13 @@ export class RemoteAccessServer {
     const runtimeSummaries = dbGetThreadRuntimeSummaries(visibleThreads.map((thread) => thread.id));
     for (const thread of visibleThreads) {
       const summary = runtimeSummaries[thread.id] ?? { itemCount: 0 };
-      runtimeSummariesByThread[thread.id] = remoteRuntimeSummarySchema.parse({
+      runtimeSummariesByThread[thread.id] = {
         itemCount: summary.itemCount,
         ...(summary.latestItemId ? { latestItemId: summary.latestItemId } : {}),
         ...(summary.latestItemType ? { latestItemType: summary.latestItemType } : {}),
         ...(summary.latestItemState ? { latestItemState: summary.latestItemState } : {}),
         ...(summary.contextUsage ? { contextUsage: summary.contextUsage } : {}),
-      });
+      };
     }
     return remoteShellSnapshotSchema.parse({
       snapshotSeq: this.seq,
@@ -1021,7 +1074,7 @@ export class RemoteAccessServer {
   }
 
   private async buildThreadSnapshot(threadId: string): Promise<RemoteThreadSnapshot> {
-    const thread = dbGetThreads().find((entry) => entry.id === threadId);
+    const thread = dbGetThread(threadId);
     if (!thread) {
       throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
     }
@@ -1245,22 +1298,40 @@ export class RemoteAccessServer {
     await this.options.callSupervisor("closeThread", { threadId }).catch(() => undefined);
   }
 
-  private requireBrowserGateway(): RemoteBrowserGateway {
-    if (!this.options.browser) {
-      throw new RemoteHttpError(
-        "browser_unavailable",
-        "The desktop browser is not available.",
-        503,
-      );
+  private requireOption<K extends "browser" | "pushRegistrations" | "settings">(
+    key: K,
+    code: string,
+    message: string,
+  ): NonNullable<RemoteAccessServerOptions[K]> {
+    const value = this.options[key];
+    if (!value) {
+      throw new RemoteHttpError(code, message, 503);
     }
-    return this.options.browser;
+    return value as NonNullable<RemoteAccessServerOptions[K]>;
+  }
+
+  private requireBrowserGateway(): RemoteBrowserGateway {
+    return this.requireOption(
+      "browser",
+      "browser_unavailable",
+      "The desktop browser is not available.",
+    );
+  }
+
+  private requirePushRegistrations(): NonNullable<RemoteAccessServerOptions["pushRegistrations"]> {
+    return this.requireOption(
+      "pushRegistrations",
+      "push_unavailable",
+      "Push notifications are not available on this desktop.",
+    );
   }
 
   private requireSettingsGateway(): NonNullable<RemoteAccessServerOptions["settings"]> {
-    if (!this.options.settings) {
-      throw new RemoteHttpError("settings_unavailable", "Desktop settings are not available.", 503);
-    }
-    return this.options.settings;
+    return this.requireOption(
+      "settings",
+      "settings_unavailable",
+      "Desktop settings are not available.",
+    );
   }
 
   private requireBearer(req: IncomingMessage, scopes: readonly RemoteAccessScope[]): string {
@@ -1345,18 +1416,24 @@ export class RemoteAccessServer {
 
   private isTrustedCorsOrigin(origin: string): boolean {
     if (NATIVE_WEBVIEW_ORIGINS.has(origin)) return true;
-    const allowed = new Set<string>();
-    for (const value of [
-      this.info?.httpBaseUrl,
-      this.options.pairingAppUrl,
-      this.options.devMobileAppUrl,
-      ...(this.options.trustedCorsOrigins ?? []),
-    ]) {
-      if (!value) continue;
-      const normalized = normalizeCorsOrigin(value);
-      if (normalized) allowed.add(normalized);
+    const key = this.info?.httpBaseUrl;
+    let cache = this.trustedCorsOrigins;
+    if (!cache || cache.key !== key) {
+      const origins = new Set<string>();
+      for (const value of [
+        key,
+        this.options.pairingAppUrl,
+        this.options.devMobileAppUrl,
+        ...(this.options.trustedCorsOrigins ?? []),
+      ]) {
+        if (!value) continue;
+        const normalized = normalizeCorsOrigin(value);
+        if (normalized) origins.add(normalized);
+      }
+      cache = { key, origins };
+      this.trustedCorsOrigins = cache;
     }
-    return allowed.has(origin);
+    return cache.origins.has(origin);
   }
 
   private enforceRateLimit(
@@ -1388,8 +1465,7 @@ export class RemoteAccessServer {
   }
 
   private writeJson(res: ServerResponse, status: number, data: unknown): void {
-    res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-    res.end(`${JSON.stringify(data)}\n`);
+    writeJsonResponse(res, status, data, { trailingNewline: true });
   }
 
   private writeHtml(res: ServerResponse, status: number, html: string): void {
@@ -1455,6 +1531,20 @@ export class RemoteAccessServer {
     this.sendRaw(ws, JSON.stringify(message));
   }
 
+  private serializeBrowserFrame(frame: RemoteBrowserFrame): string {
+    let serialized = this.browserFrameSerializations.get(frame);
+    if (serialized === undefined) {
+      serialized = JSON.stringify({
+        type: "browser-frame",
+        tabId: frame.tabId,
+        data: frame.data,
+        metadata: frame.metadata,
+      });
+      this.browserFrameSerializations.set(frame, serialized);
+    }
+    return serialized;
+  }
+
   private sendRaw(ws: WebSocket, data: string): boolean {
     if (ws.readyState !== WebSocket.OPEN) return false;
     const maxBuffered =
@@ -1489,6 +1579,28 @@ export class RemoteAccessServer {
     } finally {
       socket.destroy();
     }
+  }
+
+  /**
+   * Advertised HTTP base URL (trailing slash). A full `advertisedBaseUrl`
+   * (Tailscale HTTPS / custom public origin) wins over the bind host+port; its
+   * origin is used verbatim so the reverse proxy's own port (443) is advertised
+   * rather than the local listen port.
+   */
+  private resolveHttpBaseUrl(listenPort: number): string {
+    const advertisedBaseUrl = this.options.advertisedBaseUrl?.trim();
+    if (advertisedBaseUrl) {
+      try {
+        return `${new URL(advertisedBaseUrl).origin}/`;
+      } catch {
+        // Fall through to the host/port form on a malformed advertised URL.
+      }
+    }
+    const bindHost = this.options.host;
+    const host =
+      this.options.advertisedHost?.trim() ||
+      (bindHost === "0.0.0.0" || bindHost === "::" ? "127.0.0.1" : bindHost);
+    return `http://${normalizeHostForUrl(host)}:${listenPort}/`;
   }
 
   private requireInfo(): RemoteAccessServerInfo {

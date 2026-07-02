@@ -45,6 +45,7 @@ interface MirrorSession {
 
 const ATTACH_WAIT_MS = 6000;
 const ATTACH_POLL_MS = 150;
+const BROWSER_UNAVAILABLE_REASON = "The desktop browser is not available.";
 
 const KEY_DEFINITIONS: Record<
   RemoteBrowserKey,
@@ -214,7 +215,7 @@ export class RemoteBrowserGateway {
       sink.onStatus({
         status: "unavailable",
         tabId: null,
-        reason: "The desktop browser is not available.",
+        reason: BROWSER_UNAVAILABLE_REASON,
       });
     }
     void this.ensureMirror();
@@ -255,7 +256,7 @@ export class RemoteBrowserGateway {
       this.broadcastStatus({
         status: "unavailable",
         tabId: null,
-        reason: "The desktop browser is not available.",
+        reason: BROWSER_UNAVAILABLE_REASON,
       });
       return;
     }
@@ -347,11 +348,7 @@ export class RemoteBrowserGateway {
   private requireManager(): BrowserPanelManager {
     const manager = this.getManager();
     if (!manager) {
-      throw new RemoteHttpError(
-        "browser_unavailable",
-        "The desktop browser is not available.",
-        503,
-      );
+      throw new RemoteHttpError("browser_unavailable", BROWSER_UNAVAILABLE_REASON, 503);
     }
     return manager;
   }

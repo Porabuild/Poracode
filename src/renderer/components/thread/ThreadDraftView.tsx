@@ -902,6 +902,7 @@ export function ThreadDraftView(props: {
       )}
       <div
         ref={props.compact ? undefined : anchorContainerRef}
+        data-draft-body=""
         className={`${props.compact ? alignClass : "mx-auto"} relative flex h-full min-h-0 w-full max-w-[1040px] flex-col ${paddingClass} px-3 pb-2 ${props.compact ? "" : "pt-2"}`}
       >
         <ThreadDraftDropIndicators dropIndicator={props.dropIndicator} />
@@ -923,7 +924,7 @@ export function ThreadDraftView(props: {
           ref={props.compact ? undefined : anchorBlockRef}
           className={`${props.compact ? alignClass : "mx-auto shrink-0"} w-full max-w-[720px]`}
         >
-          <div className="mb-1 flex items-center justify-between gap-2">
+          <div data-draft-controls="" className="mb-1 flex items-center justify-between gap-2">
             <ProjectSwitchMenu
               currentProjectId={project.id}
               variant="compact"
@@ -969,7 +970,9 @@ export function ThreadDraftView(props: {
           />
         </div>
         {/* Absorbs the slack below the anchored composer in the full draft view. */}
-        {props.compact ? null : <div aria-hidden className="min-h-0 w-full flex-1" />}
+        {props.compact ? null : (
+          <div aria-hidden data-draft-slack="" className="min-h-0 w-full flex-1" />
+        )}
       </div>
     </div>
   );

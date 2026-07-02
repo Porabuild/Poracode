@@ -159,3 +159,126 @@ upload steps activate automatically once their secrets are present.
 
 Each platform job uses a GitHub Environment (`mobile-web` / `mobile-android` /
 `mobile-ios`) so you can add required reviewers for production releases.
+
+---
+
+## 5. Push notifications, Live Activities (iOS) & Android push
+
+Background push (turn complete / needs input) and lock-screen / Dynamic Island
+**Live Activities** are iOS-only. They ride on two Capacitor plugins:
+
+- `@capacitor/push-notifications` — ordinary APNs alert pushes (device token).
+- `@lightcode/activity-bridge` — a **local** plugin in `native/activity-bridge/`
+  bridging ActivityKit (start/end activities, push-to-start + per-activity
+  update tokens). No-op on Android/web. Linked from the root `package.json` as
+  `"@lightcode/activity-bridge": "file:native/activity-bridge"`.
+
+The desktop never talks to APNs directly (the `.p8` auth key can't ship in the
+app); it posts to a small hosted **push gateway** that holds the key and signs
+the APNs JWT. See `docs/superpowers/specs/2026-07-02-live-activities-design.md`.
+
+### iOS floor
+
+- Live Activities: **iOS 16.2+**.
+- Push-to-start (remote activity start with the phone's app never opened):
+  **iOS 17.2+**.
+
+Everything is runtime-gated with `#available`, so the app still builds and runs
+on the Capacitor 8 default deployment target and simply reports Live Activities
+as unavailable below the floor.
+
+### What `scripts/configure-mobile-native.mjs` does automatically
+
+Run after every `cap sync` (via `pnpm run cap:sync`). When `ios/` is present it:
+
+- Sets `NSSupportsLiveActivities` and `NSSupportsLiveActivitiesFrequentUpdates`
+  to `YES` in the **app** target's `Info.plist`.
+- Adds `aps-environment` to `ios/App/App/App.entitlements` (default
+  `production`; override with `LIGHTCODE_IOS_APS_ENVIRONMENT=development` for
+  debug/TestFlight sandbox builds) and wires `CODE_SIGN_ENTITLEMENTS`.
+- Copies the widget-extension sources from `native/ios/LightcodeActivities/`
+  into `ios/App/LightcodeActivities/` (idempotent), so the manual Xcode step is
+  just "add existing folder as a target".
+
+### One-time manual Xcode steps
+
+Target injection into `project.pbxproj` is **not** scripted (too fragile).
+After the first `cap add ios` + `pnpm run cap:sync`:
+
+1. **Push Notifications capability.** Select the `App` target →
+   Signing & Capabilities → **+ Capability → Push Notifications**. (The script
+   already added `aps-environment`; this registers the capability in Xcode.)
+2. **Create the widget extension target.** File → New → Target →
+   **Widget Extension**, name it `LightcodeActivities`, and tick "Include Live
+   Activity". Delete Xcode's boilerplate sources.
+3. **Add the copied sources.** Right-click the new target group → Add Files →
+   select `ios/App/LightcodeActivities/` (`LightcodeActivitiesBundle.swift`,
+   `DesktopSessionLiveActivity.swift`, `ThreadStatusDisplay.swift`, `Info.plist`),
+   added to the `LightcodeActivities` target.
+4. **Share the ActivityAttributes file.** Add
+   `native/activity-bridge/ios/Sources/ActivityBridgePlugin/DesktopSessionAttributes.swift`
+   to the `LightcodeActivities` target's membership as well (it is already
+   compiled into the app plugin target). ActivityKit requires the **exact same**
+   `ActivityAttributes` type in both targets — use one shared file reference,
+   do not copy it.
+5. **Bundle id & signing.** Set the extension's bundle id to
+   `com.lightcodeapp.mobile.LightcodeActivities` (must be prefixed by the app id
+   `com.lightcodeapp.mobile`), select the team, and let Xcode manage the
+   extension's provisioning profile.
+
+Commit `ios/` once these are done (per the existing "commit once customized"
+convention); CI's fresh `cap add ios` won't recreate the target.
+
+### APNs key / gateway secrets
+
+The push gateway (hosted alongside the PWA — same Vercel project) needs the
+team's APNs auth key. These live in the **website deployment** environment, not
+the app build:
+
+| Var             | Meaning                                                                                             |
+| --------------- | --------------------------------------------------------------------------------------------------- |
+| `APNS_KEY_ID`   | Key ID of the `.p8` APNs auth key.                                                                  |
+| `APNS_TEAM_ID`  | Apple Team ID.                                                                                      |
+| `APNS_AUTH_KEY` | The `.p8` private key contents (PEM).                                                               |
+| `APNS_TOPIC`    | App bundle id `com.lightcodeapp.mobile` (activity pushes use the `.push-type.liveactivity` suffix). |
+
+Use the APNs **sandbox** host + `aps-environment=development` for
+debug/TestFlight-sandbox device tokens, and the production host + `production`
+for App Store / TestFlight-production builds.
+
+### Android push (FCM)
+
+Android gets **no native code and no Live Activities**. The desktop sends FCM
+**notification** messages, which Android auto-renders — Capacitor's push plugin
+still receives them in-app when foregrounded (so no double-notify). Each thread's
+status pushes share `collapse_key`/`tag = threadId`, so successive updates
+(`Running` → `Needs your input` → `Finished`) **replace** each other in the tray,
+approximating a status card. There is **no live card**: Android 16 Live Updates is
+a future increment.
+
+The same hosted push gateway (`/api/push`) also fronts FCM: the desktop POSTs
+`{ platform: "android", token, pushType: "alert", payload: { title, body,
+threadId, silent? }, priority, collapseId }`, and the gateway forwards it to FCM
+HTTP v1 with a service-account OAuth2 bearer.
+
+**Firebase setup.** Create a Firebase project, add an Android app with id
+`com.lightcodeapp.mobile`, and download its `google-services.json`. Point
+`LIGHTCODE_ANDROID_GOOGLE_SERVICES_JSON` at that file (a path, relative to the
+repo root or absolute). Generate a **service-account** key (Project settings →
+Service accounts → Generate new private key) for the gateway env below.
+
+**What `scripts/configure-mobile-native.mjs` does automatically** (when `android/`
+is present): copies `google-services.json` into `android/app/`, adds the
+`com.google.gms:google-services` classpath to `android/build.gradle`, and ensures
+the plugin is applied in `android/app/build.gradle` (Capacitor's template already
+guards this, so it's usually a no-op). All steps are idempotent and warn (never
+fail) when the env var or `android/` is absent.
+
+**Gateway env vars** (website deployment, alongside the APNs vars — an iOS-only or
+Android-only deployment works without the other's env being present):
+
+| Var                | Meaning                                                         |
+| ------------------ | --------------------------------------------------------------- |
+| `FCM_PROJECT_ID`   | Firebase project id (the `{project}` in the v1 send URL).       |
+| `FCM_CLIENT_EMAIL` | Service-account client email (the OAuth2 JWT `iss`).            |
+| `FCM_PRIVATE_KEY`  | Service-account private key (PEM; `\n`-escapes are normalized). |

@@ -39,16 +39,20 @@ function PrGlyph(props: {
   );
 }
 
+function Badge(props: { readonly summary: RemoteThreadGitSummary }) {
+  return (
+    <span className="m-git-badge">
+      <DiffCounts summary={props.summary} />
+      <PrGlyph summary={props.summary} />
+    </span>
+  );
+}
+
 /** Inline diff/PR badge for thread list rows. */
 export function GitSummaryBadge(props: { readonly threadId: string }) {
   const summary = useGitSummariesStore((s) => s.byThread[props.threadId]);
   if (!summary || !summary.isRepo) return null;
-  return (
-    <span className="m-git-badge">
-      <DiffCounts summary={summary} />
-      <PrGlyph summary={summary} />
-    </span>
-  );
+  return <Badge summary={summary} />;
 }
 
 /**
@@ -60,12 +64,7 @@ export function WorktreeGitSummaryBadge(props: { readonly threadIds: readonly st
   const byThread = useGitSummariesStore((s) => s.byThread);
   const summary = props.threadIds.map((id) => byThread[id]).find((entry) => entry?.isRepo);
   if (!summary) return null;
-  return (
-    <span className="m-git-badge">
-      <DiffCounts summary={summary} />
-      <PrGlyph summary={summary} />
-    </span>
-  );
+  return <Badge summary={summary} />;
 }
 
 /**

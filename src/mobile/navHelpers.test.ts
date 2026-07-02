@@ -175,15 +175,22 @@ describe("buildGitAddWorktreePayload", () => {
 });
 
 describe("screenDepth", () => {
-  it("ranks tab roots shallowest, then subscreens, then fullscreen/detail", () => {
-    for (const tab of ["/threads", "/more", "/new", "/desktops", "/more/usage"]) {
-      expect(screenDepth(tab)).toBe(0);
-    }
+  it("ranks home shallowest, then pushed screens, then their subscreens", () => {
+    expect(screenDepth("/threads")).toBe(0);
+    // Quick-menu destinations, the Settings page, a thread, and the full
+    // new-thread composer are all pushed straight from home.
     expect(screenDepth("/thread/abc")).toBe(1);
-    expect(screenDepth("/more/settings")).toBe(1);
+    expect(screenDepth("/more")).toBe(1);
+    expect(screenDepth("/new")).toBe(1);
+    expect(screenDepth("/desktops")).toBe(1);
+    expect(screenDepth("/more/usage")).toBe(1);
     expect(screenDepth("/more/projects")).toBe(1);
     expect(screenDepth("/more/browser")).toBe(1);
+    // Settings drill-down: device sections come off the Settings page, the
+    // desktop-syncing ones off the deeper Desktop Settings list.
+    expect(screenDepth("/more/settings")).toBe(2);
     expect(screenDepth("/more/settings/appearance")).toBe(2);
+    expect(screenDepth("/more/settings/models")).toBe(3);
     expect(screenDepth("/workspace/t1")).toBe(2);
     expect(screenDepth("/terminal/p1")).toBe(2);
     expect(screenDepth("/pr/42")).toBe(2);
@@ -194,15 +201,20 @@ describe("navigationTransitionType", () => {
   it("pushes when going deeper and pops when coming back", () => {
     expect(navigationTransitionType("/threads", "/thread/abc")).toBe("push");
     expect(navigationTransitionType("/thread/abc", "/threads")).toBe("pop");
-    expect(navigationTransitionType("/more/settings", "/more/settings/appearance")).toBe("push");
-    expect(navigationTransitionType("/more/settings/appearance", "/more/settings")).toBe("pop");
+    expect(navigationTransitionType("/threads", "/more")).toBe("push");
+    expect(navigationTransitionType("/more", "/threads")).toBe("pop");
+    expect(navigationTransitionType("/threads", "/desktops")).toBe("push");
+    expect(navigationTransitionType("/more", "/more/settings")).toBe("push");
+    expect(navigationTransitionType("/more", "/more/settings/appearance")).toBe("push");
+    expect(navigationTransitionType("/more/settings", "/more/settings/models")).toBe("push");
+    expect(navigationTransitionType("/more/settings/models", "/more/settings")).toBe("pop");
     expect(navigationTransitionType("/thread/abc", "/workspace/abc")).toBe("push");
     expect(navigationTransitionType("/workspace/abc", "/thread/abc")).toBe("pop");
   });
 
-  it("fades between same-depth screens (tab / sibling switches)", () => {
-    expect(navigationTransitionType("/threads", "/more")).toBe("fade");
-    expect(navigationTransitionType("/desktops", "/new")).toBe("fade");
+  it("fades between same-depth screens (sibling switches)", () => {
+    expect(navigationTransitionType("/more", "/new")).toBe("fade");
+    expect(navigationTransitionType("/desktops", "/more/usage")).toBe("fade");
     expect(navigationTransitionType("/pr/42", "/pr/42/changes")).toBe("fade");
   });
 

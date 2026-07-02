@@ -51,11 +51,6 @@ msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# nhà cung cấp đã sẵn sàng} other {# nhà cung cấp đã "
 "sẵn sàng}}"
 
-#. placeholder {0}: servers.length
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "{0, plural, one {# server} other {# servers}}"
-#~ msgstr "{0, plural, one {# máy chủ} other {# máy chủ}}"
-
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "{0, plural, one {target} other {targets}}"
@@ -584,10 +579,6 @@ msgstr "Thêm hành động"
 msgid "Add an existing folder"
 msgstr "Thêm thư mục hiện có"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Add an existing folder on the server"
-#~ msgstr "Thêm thư mục hiện có trên máy chủ"
-
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
 msgstr "Thêm tệp đính kèm hoặc khả năng"
@@ -652,9 +643,11 @@ msgstr "Thêm vào mục yêu thích"
 msgid "Add to Home Screen"
 msgstr "Thêm vào màn hình chính"
 
-#: src/mobile/views/MoreView.tsx
-msgid "Add, clone, or remove projects on this server"
-msgstr "Thêm, clone hoặc xóa dự án trên máy chủ này"
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty "
+"for automatic."
+msgstr "Công bố một URL cơ sở tùy chỉnh, ví dụ một reverse proxy hoặc tunnel. "
+"Để trống để dùng tự động."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -825,10 +818,6 @@ msgstr "Một cuộc trò chuyện khác cũng sử dụng cây này. Khôi ph�
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
 msgstr "Trình duyệt ứng dụng"
-
-#: src/mobile/views/MoreView.tsx
-#~ msgid "App preferences"
-#~ msgstr "Tùy chọn ứng dụng"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -1053,10 +1042,7 @@ msgstr "Quay lại thay đổi"
 msgid "Back to files"
 msgstr "Quay lại tệp"
 
-#: src/mobile/views/pr/PrChangesPage.tsx
-#: src/mobile/views/pr/PrChecksPage.tsx
-#: src/mobile/views/pr/PrCommitsPage.tsx
-#: src/mobile/views/pr/PrConversationPage.tsx
+#: src/mobile/views/pr/PrSubPage.tsx
 msgid "Back to overview"
 msgstr "Quay lại tổng quan"
 
@@ -1201,7 +1187,6 @@ msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Duyệt qua kho GitHub của bạn hoặc dán URL nhân bản."
 
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/MoreView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -1423,6 +1408,10 @@ msgstr "Kiểm tra các bản cập nhật"
 msgid "Check the live input level from the selected device."
 msgstr "Kiểm tra mức đầu vào trực tiếp từ thiết bị đã chọn."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Checking Tailscale…"
+msgstr "Đang kiểm tra Tailscale…"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Checking…"
 msgstr "Đang kiểm tra…"
@@ -1553,10 +1542,6 @@ msgid "Clone a repository"
 msgstr "Sao chép một kho lưu trữ"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Clone a repository into a folder on the server"
-#~ msgstr "Clone kho lưu trữ vào một thư mục trên máy chủ"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone repo"
 msgstr "Sao chép repo"
 
@@ -1593,13 +1578,14 @@ msgstr "Đóng terminal {purposeNoun}"
 msgid "Close browser"
 msgstr "Đóng trình duyệt"
 
+#: src/mobile/views/QuickCompose.tsx
+#: src/mobile/views/ThreadView.tsx
+msgid "Close composer"
+msgstr "Đóng trình soạn thảo"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Close connection actions"
 msgstr "Đóng các thao tác kết nối"
-
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Close desktop actions"
-#~ msgstr "Đóng hành động desktop"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1629,6 +1615,7 @@ msgstr "Đóng nhóm"
 msgid "Close group actions"
 msgstr "Đóng hành động nhóm"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Close menu"
 msgstr "Đóng menu"
@@ -1674,6 +1661,7 @@ msgstr "Đóng bộ lọc dự án"
 msgid "Close scanner"
 msgstr "Đóng trình quét"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
 msgstr "Đóng tìm kiếm"
@@ -1910,12 +1898,6 @@ msgid "Connect"
 msgstr "Kết nối"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect a Lightcode desktop or headless server above to browse and "
-#~ "manage its projects from here."
-#~ msgstr "Kết nối một desktop Lightcode hoặc máy chủ headless ở trên để duyệt và "
-#~ "quản lý các dự án của máy đó tại đây."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect a server"
 msgstr "Kết nối máy chủ"
 
@@ -1925,36 +1907,12 @@ msgstr "Kết nối các nhà cung cấp AI mà OpenCode có thể dùng và đ�
 "chúng tại đây."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
-#~ "projects — and their threads — from here. Open Settings → Remote Access "
-#~ "on the other machine to get its endpoint and a pairing token."
-#~ msgstr "Kết nối tới một desktop Lightcode khác hoặc một máy chủ headless và "
-#~ "quản lý các dự án — cùng các luồng của chúng — tại đây. Mở Cài đặt → "
-#~ "Truy cập từ xa trên máy còn lại để lấy endpoint và mã ghép nối."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
-#~ "projects from here. Open Settings → Remote Access on the other machine "
-#~ "to get its endpoint and a pairing token."
-#~ msgstr "Kết nối tới một desktop Lightcode khác hoặc một máy chủ headless và "
-#~ "quản lý các dự án của máy đó tại đây. Mở Cài đặt → Truy cập từ xa trên "
-#~ "máy còn lại để lấy endpoint và mã ghép nối."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect to another Lightcode desktop or a headless server to browse and "
 "manage its projects from here. Get its endpoint and pairing token from "
 "Settings → Remote Access on that machine."
 msgstr "Kết nối tới một máy Lightcode khác hoặc máy chủ không giao diện để "
 "duyệt và quản lý các dự án của nó tại đây. Lấy endpoint và mã ghép nối "
 "trong Cài đặt → Truy cập từ xa trên máy đó."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connected servers"
-#~ msgstr "Máy chủ đã kết nối"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connecting"
-#~ msgstr "Đang kết nối"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
@@ -2049,15 +2007,12 @@ msgstr "Kiểm soát những tập tin nào xuất hiện trong tìm kiếm đ�
 msgid "Conversation"
 msgstr "Cuộc trò chuyện"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "Đã sao chép"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Copied from Settings → Remote Access on the other machine."
-#~ msgstr "Đã sao chép từ Cài đặt → Truy cập từ xa trên máy còn lại."
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
@@ -2103,6 +2058,7 @@ msgstr "Sao chép các tập tin bị bỏ qua"
 msgid "Copy image"
 msgstr "Sao chép hình ảnh"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "Sao chép tin nhắn"
@@ -2126,6 +2082,10 @@ msgstr "Sao chép đường dẫn tương đối"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Copy selection"
 msgstr "Sao chép lựa chọn"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy Tailscale URL"
+msgstr "Sao chép URL Tailscale"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
@@ -2196,10 +2156,6 @@ msgstr "Không thể lưu phím tắt."
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "Không thể khởi động camera"
-
-#: src/mobile/useRemoteDesktop.ts
-#~ msgid "Couldn't tag the thread's worktree."
-#~ msgstr "Không thể gắn thẻ worktree của luồng."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -2431,10 +2387,6 @@ msgstr "Mô tả"
 msgid "Description (optional)"
 msgstr "Mô tả (tùy chọn)"
 
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "Desktop"
-#~ msgstr "Desktop"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
 msgstr "Điểm cuối máy tính"
@@ -2447,11 +2399,6 @@ msgstr "Không thể kết nối tới desktop."
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
 msgstr "Cài đặt máy tính"
-
-#: src/mobile/RootLayout.tsx
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Desktops"
-#~ msgstr "Desktop"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2630,14 +2577,6 @@ msgstr "Đang tải xuống mẫu giọng nói {0}%"
 msgid "Downloading voice model..."
 msgstr "Đang tải xuống mẫu giọng nói..."
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
-#~ msgstr "Đang tải xuống {v} — {percent}%{speedSuffix}"
-
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-#~ msgid "Downloading{versionLabel}"
-#~ msgstr "Đang tải xuống {versionLabel}"
-
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"
 msgstr "Bản nháp"
@@ -2780,6 +2719,11 @@ msgstr "Endpoint, ví dụ http://192.168.1.20:38987/"
 msgid "Enhanced (Hooks)"
 msgstr "Tăng cường (Móc)"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Enter a full origin URL like https://code.example.com, with no path."
+msgstr "Nhập một URL gốc đầy đủ, ví dụ https://code.example.com, không kèm "
+"đường dẫn."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Enter a repository URL."
 msgstr "Nhập URL kho lưu trữ."
@@ -2851,10 +2795,6 @@ msgstr "đã thoát"
 #: src/mobile/views/TerminalView.tsx
 msgid "exited ({0})"
 msgstr "đã thoát ({0})"
-
-#: src/mobile/views/TerminalView.tsx
-#~ msgid "exited ({exitCode})"
-#~ msgstr "đã thoát ({exitCode})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -3017,10 +2957,6 @@ msgstr "Các tệp khớp với các mẫu glob này sẽ bị ẩn khỏi tìm 
 msgid "Filter by project"
 msgstr "Lọc theo dự án"
 
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#~ msgid "Filter settings"
-#~ msgstr "Lọc cài đặt"
-
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
 msgid "Find"
@@ -3129,10 +3065,6 @@ msgstr "Tên thư mục"
 msgid "Folder on the server"
 msgstr "Thư mục trên máy chủ"
 
-#: src/mobile/views/ManageProjectsView.tsx
-#~ msgid "Folder path"
-#~ msgstr "Đường dẫn thư mục"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "Đường dẫn thư mục trên máy chủ"
@@ -3239,6 +3171,12 @@ msgstr "Tạo thông điệp commit từ các thay đổi đã staged."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Tạo tiêu đề ngắn cho chủ đề mới."
+
+#: src/mobile/push/MobilePushSettings.tsx
+msgid "Get alerts through Apple's push service when this desktop's threads "
+"finish or need you — even while the app is closed."
+msgstr "Nhận cảnh báo qua dịch vụ đẩy của Apple khi các luồng của máy tính này "
+"hoàn tất hoặc cần bạn — ngay cả khi ứng dụng đang đóng."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -3438,6 +3376,10 @@ msgstr "phạm vi thư mục chính"
 msgid "ID: {0}"
 msgstr "Mã số: {0}"
 
+#: src/mobile/settingsSections.ts
+msgid "Identity and usage stats"
+msgstr "Danh tính và số liệu sử dụng"
+
 #. Microphone input level when not testing
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -3549,6 +3491,14 @@ msgstr "Cài đặt trên Windows"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "Cài đặt gói"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Install Tailscale"
+msgstr "Cài đặt Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Install Tailscale to set up HTTPS access through MagicDNS."
+msgstr "Cài đặt Tailscale để thiết lập quyền truy cập HTTPS qua MagicDNS."
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -3681,14 +3631,6 @@ msgstr "Tokens trọn đời"
 msgid "Light"
 msgstr "Sáng"
 
-#: src/mobile/RootLayout.tsx
-msgid "Lightcode mobile navigation"
-msgstr "Điều hướng di động Lightcode"
-
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "Links and page behavior"
-#~ msgstr "Liên kết và hành vi trang"
-
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -3782,6 +3724,10 @@ msgstr "Các thay đổi cục bộ cần được lưu tạm trước khi kéo 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
 msgstr "Vị trí"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Log in to Tailscale to set up HTTPS access through MagicDNS."
+msgstr "Đăng nhập vào Tailscale để thiết lập quyền truy cập HTTPS qua MagicDNS."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Logging in"
@@ -3976,6 +3922,10 @@ msgstr "Đã hợp nhất"
 msgid "Merging is blocked"
 msgstr "Việc hợp nhất bị chặn"
 
+#: src/mobile/UserMessageActionsSheet.tsx
+msgid "Message actions"
+msgstr "Thao tác tin nhắn"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Message the remote agent…"
 msgstr "Nhắn cho tác nhân từ xa…"
@@ -4030,6 +3980,10 @@ msgstr "Thẻ trình duyệt desktop được phản chiếu"
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirroring is unavailable."
 msgstr "Không thể phản chiếu."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Mobile push notifications"
+msgstr "Thông báo đẩy trên di động"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4195,7 +4149,6 @@ msgstr "Cần chú ý · Cần trả lời"
 msgid "Needs reply"
 msgstr "Cần trả lời"
 
-#: src/mobile/RootLayout.tsx
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Mới"
@@ -4269,6 +4222,7 @@ msgid "New tab"
 msgstr "Tab mới"
 
 #: src/mobile/RootLayout.tsx
+#: src/mobile/views/QuickCompose.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
@@ -4433,10 +4387,6 @@ msgstr "Chưa có dữ liệu."
 msgid "No description"
 msgstr "Không có mô tả"
 
-#: src/mobile/RootLayout.tsx
-#~ msgid "No desktop paired"
-#~ msgstr "Chưa ghép đôi desktop nào"
-
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
 msgid "No diff available for {0}"
@@ -4527,10 +4477,6 @@ msgid "No projects available"
 msgstr "Không có dự án nào"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "No projects on this server yet."
-#~ msgstr "Chưa có dự án nào trên máy chủ này."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "No projects on this server."
 msgstr "Không có dự án nào trên máy chủ này."
 
@@ -4567,10 +4513,6 @@ msgstr "Không có kết quả"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "Chưa có mục thời gian chạy nào cho luồng này."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "No servers connected yet"
-#~ msgstr "Chưa có máy chủ nào được kết nối"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "No servers connected yet."
@@ -4916,12 +4858,17 @@ msgstr "Mở Cài đặt → Truy cập từ xa trong Lightcode trên desktop, r
 msgid "Open subagent: {0}"
 msgstr "Mở tác nhân phụ: {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Open Tailscale"
+msgstr "Mở Tailscale"
+
+#: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/ThreadsView.tsx
-#: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
 msgstr "Mở terminal"
 
+#: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/ThreadsView.tsx
 msgid "Open terminal in worktree"
 msgstr "Mở terminal trong worktree"
@@ -5001,10 +4948,6 @@ msgstr "Ghép đôi"
 msgid "Pair a connection"
 msgstr "Ghép đôi một kết nối"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Pair a desktop"
-#~ msgstr "Ghép đôi desktop"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Ghép đôi điện thoại, máy tính bảng hoặc trình duyệt với máy tính này."
@@ -5013,10 +4956,6 @@ msgstr "Ghép đôi điện thoại, máy tính bảng hoặc trình duyệt v�
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pair again"
 msgstr "Ghép đôi lại"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Pair with its endpoint and a one-time token."
-#~ msgstr "Ghép nối bằng endpoint và mã dùng một lần của máy đó."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -5154,6 +5093,10 @@ msgstr "Đã ghim"
 msgid "Plan"
 msgstr "kế hoạch"
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Plan, ask, build…"
+msgstr "Lên kế hoạch, đặt câu hỏi, xây dựng…"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play a sound when a notification is shown."
@@ -5243,6 +5186,7 @@ msgstr "Cuộc trò chuyện đã xem gần đây trước đó"
 msgid "Previous tab"
 msgstr "Tab trước"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
 msgstr "Hồ sơ"
@@ -5290,7 +5234,6 @@ msgstr "Ghi đè dành riêng cho dự án ở đầu cài đặt tìm kiếm ch
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/mobile/views/MoreView.tsx
 msgid "Projects"
 msgstr "Dự án"
 
@@ -5320,10 +5263,6 @@ msgstr "nhà cung cấp"
 msgid "Provider has not reported token usage."
 msgstr "Nhà cung cấp chưa báo cáo việc sử dụng mã thông báo."
 
-#: src/mobile/views/MoreView.tsx
-#~ msgid "Provider limits and spend"
-#~ msgstr "Giới hạn và chi tiêu của provider"
-
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "Cấu hình nhà cung cấp"
@@ -5337,6 +5276,14 @@ msgstr "nhà cung cấp"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Nhà cung cấp"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Public URL"
+msgstr "URL công khai"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Public URL updated."
+msgstr "Đã cập nhật URL công khai."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Pull"
@@ -5422,6 +5369,20 @@ msgstr "Đẩy ↑{ahead}"
 msgid "Push failed: {detail}"
 msgstr "Push không thành công: {detail}"
 
+#: src/mobile/push/MobilePushSettings.tsx
+msgid "Push notifications"
+msgstr "Thông báo đẩy"
+
+#: src/mobile/push/MobilePushSettings.tsx
+msgid "Push notifications may be unavailable for this desktop."
+msgstr "Thông báo đẩy có thể không khả dụng cho máy tính này."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Push updates to paired mobile devices when threads finish or need you, "
+"even when the app is closed."
+msgstr "Đẩy các cập nhật đến những thiết bị di động đã ghép nối khi luồng hoàn "
+"tất hoặc cần bạn, ngay cả khi ứng dụng đã đóng."
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"
 msgstr "Câu hỏi"
@@ -5499,6 +5460,10 @@ msgstr "Được xây dựng lại từ nhật ký cục bộ ở mức API côn
 "ánh hóa đơn thực của bạn đối với các gói đăng ký. Chỉ hiển thị trong "
 "bảng sử dụng."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Redact notification content"
+msgstr "Ẩn nội dung thông báo"
+
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
@@ -5565,22 +5530,6 @@ msgid "Remote Access"
 msgstr "Truy cập từ xa"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is disabled for this desktop."
-#~ msgstr "Quyền truy cập từ xa đã bị tắt cho máy tính này."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is off"
-#~ msgstr "Quyền truy cập từ xa đang tắt"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is on"
-#~ msgstr "Quyền truy cập từ xa đang bật"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is starting"
-#~ msgstr "Đang khởi động quyền truy cập từ xa"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Remote access pairing QR code"
 msgstr "Mã QR ghép đôi truy cập từ xa"
 
@@ -5616,10 +5565,6 @@ msgstr "Đã thu hồi phiên từ xa."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
 msgstr "URL từ xa"
-
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "Removal behavior"
-#~ msgstr "Hành vi xóa"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove"
@@ -5665,10 +5610,6 @@ msgstr "Xóa hồ sơ Claude"
 msgid "Remove connection"
 msgstr "Xóa kết nối"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Remove desktop"
-#~ msgstr "Xóa desktop"
-
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "Xóa biến môi trường"
@@ -5698,10 +5639,6 @@ msgstr "Xóa dự án"
 msgid "Remove Project"
 msgstr "Xóa dự án"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Remove project from remote"
-#~ msgstr "Xóa dự án khỏi máy từ xa"
-
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Xóa phím tắt"
@@ -5726,10 +5663,6 @@ msgstr "Đổi tên cuộc trò chuyện"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Rename connection"
 msgstr "Đổi tên kết nối"
-
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Rename desktop"
-#~ msgstr "Đổi tên desktop"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -5945,6 +5878,7 @@ msgstr "Hoàn nguyên các thay đổi"
 msgid "Revert to checkpoint?"
 msgstr "Hoàn nguyên về điểm kiểm tra?"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Revert to this checkpoint"
 msgstr "Quay lại điểm kiểm tra này"
@@ -6213,6 +6147,7 @@ msgstr "Tìm kiếm phím tắt"
 msgid "Search the current view"
 msgstr "Tìm kiếm trong chế độ xem hiện tại"
 
+#: src/mobile/RootLayout.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -6295,6 +6230,12 @@ msgstr "Gửi"
 msgid "Send a message..."
 msgstr "Gửi tin nhắn..."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Send generic text instead of conversation titles through Apple's push "
+"service."
+msgstr "Gửi văn bản chung chung thay vì tiêu đề cuộc trò chuyện qua dịch vụ đẩy "
+"của Apple."
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Send message"
@@ -6312,6 +6253,11 @@ msgstr "Tách các tài khoản Claude Code theo thư mục cấu hình, hoặc 
 "sơ tới nhà cung cấp bên ngoài (z.ai, …). Mở một hồ sơ để cấu hình biến "
 "môi trường, mô hình và mức nỗ lực của nó."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
+msgstr "Cung cấp quyền truy cập từ xa qua URL MagicDNS HTTPS trên tailnet của "
+"bạn."
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
 msgstr "Đặt hoặc xem mục tiêu thử nghiệm"
@@ -6321,7 +6267,6 @@ msgid "Set shortcut"
 msgstr "Đặt phím tắt"
 
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -6659,6 +6604,14 @@ msgstr "Bắt đầu đọc chính tả trong trình soạn thảo hiện tại"
 msgid "Start from scratch"
 msgstr "Bắt đầu lại từ đầu"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Start Tailscale"
+msgstr "Khởi động Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Start Tailscale to set up HTTPS access through MagicDNS."
+msgstr "Khởi động Tailscale để thiết lập quyền truy cập HTTPS qua MagicDNS."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Start the composer collapsed in terminal-native threads. A collapsed "
@@ -6935,6 +6888,14 @@ msgstr "Thẻ"
 msgid "Tabs ({0})"
 msgstr "Thẻ ({0})"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale HTTPS"
+msgstr "Tailscale HTTPS"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale URL"
+msgstr "URL Tailscale"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Take Screenshot"
 msgstr "Chụp ảnh màn hình"
@@ -7014,12 +6975,6 @@ msgstr "Tab đầu cuối"
 msgid "Test microphone"
 msgstr "Kiểm tra micrô"
 
-#: src/mobile/remoteClient.ts
-#~ msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
-#~ "desktop endpoint from Settings → Remote Access."
-#~ msgstr "Endpoint này đã mở ứng dụng di động thay vì API trên desktop. Hãy dùng "
-#~ "endpoint desktop trong Cài đặt → Truy cập từ xa."
-
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Lightcode pairing link."
 msgstr "Mã QR đó không phải là liên kết ghép đôi Lightcode."
@@ -7057,19 +7012,11 @@ msgstr "Nhịp làm mới nền mặc định, được dùng cho mọi nhà cun
 msgid "The desktop server is still coming online."
 msgstr "Máy chủ trên máy tính vẫn đang khởi động."
 
-#: src/mobile/views/MoreView.tsx
-msgid "The desktop's built-in browser"
-msgstr "Trình duyệt tích hợp của desktop"
-
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
 msgstr "Shell ứng dụng bình thường không thể hiển thị. Chẩn đoán bên dưới được "
 "hiển thị trước khi tải lại để có thể điều tra lỗi."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "The other machine's remote-access address."
-#~ msgstr "Địa chỉ truy cập từ xa của máy còn lại."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
@@ -7113,19 +7060,11 @@ msgid "This browser does not support system notifications here; you will still "
 msgstr "Trình duyệt này không hỗ trợ thông báo hệ thống ở đây; bạn vẫn sẽ thấy "
 "thông báo trong ứng dụng."
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "This connection can view projects but not manage them."
-#~ msgstr "Kết nối này có thể xem dự án nhưng không thể quản lý."
-
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to "
 "enable."
 msgstr "Kết nối này có thể xem dự án nhưng không thể quản lý. Hãy ghép nối lại "
 "để bật."
-
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "This device"
-#~ msgstr "Thiết bị này"
 
 #: src/mobile/QrScanner.tsx
 msgid "This device has no usable camera. Enter the endpoint and token below to "
@@ -7262,7 +7201,6 @@ msgstr "Thứ tự sắp xếp luồng"
 msgid "Thread todo dock"
 msgstr "Dock việc cần làm của luồng"
 
-#: src/mobile/RootLayout.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
@@ -7430,6 +7368,10 @@ msgstr "Không thể sao chép liên kết ghép đôi."
 msgid "Unable to copy pairing token."
 msgstr "Không thể sao chép token ghép đôi."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy Tailscale URL."
+msgstr "Không thể sao chép URL Tailscale."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "Không thể tạo thư mục cây làm việc WSL \"{path}\""
@@ -7530,12 +7472,17 @@ msgstr "Không thể khởi động {label}."
 msgid "Unable to start mobile app."
 msgstr "Không thể khởi động ứng dụng di động."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to start Tailscale."
+msgstr "Không thể khởi động Tailscale."
+
 #: src/mobile/views/TerminalView.tsx
 msgid "Unable to start terminal"
 msgstr "Không thể khởi động terminal"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
+#: src/mobile/views/NewThreadFlow.tsx
 msgid "Unable to start the thread."
 msgstr "Không thể khởi động luồng."
 
@@ -7575,6 +7522,14 @@ msgstr "Không thể cập nhật {0}."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Không thể cập nhật quyền truy cập từ xa."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update Tailscale HTTPS."
+msgstr "Không thể cập nhật Tailscale HTTPS."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update the public URL."
+msgstr "Không thể cập nhật URL công khai."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to update the thread."

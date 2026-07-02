@@ -1,4 +1,4 @@
-import { isThreadTurnActive, type RuntimeEvent } from "@/shared/contracts";
+import { isThreadTurnActive, type RuntimeEvent, type Thread } from "@/shared/contracts";
 import type { PersistedRuntimeItem } from "@/shared/ipc/schemas";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type {
@@ -22,6 +22,7 @@ import {
   requestsFromRuntimeItems,
 } from "./runtimeRequests";
 import { shouldReplaceRuntimeItemsFromSnapshot } from "./storeSyncGuards";
+import { notifyLiveActivityThreadState } from "./push/liveActivityController";
 
 /**
  * Feeds remote snapshots and live WebSocket events into the same Zustand
@@ -221,6 +222,24 @@ function asSupervisorEvent(value: unknown): SupervisorEvent | null {
   return value as SupervisorEvent;
 }
 
+/**
+ * Resolve the thread's title/project from the store and feed the transition to
+ * the Live Activity controller. The controller is inert unless the native app
+ * configured a desktop context, so this is a cheap no-op on web/PWA.
+ */
+function driveLiveActivity(threadId: string, status: string, knownThread?: Thread): void {
+  const state = useAppStore.getState();
+  const thread = knownThread ?? state.threads.find((entry) => entry.id === threadId);
+  if (!thread) return;
+  const project = state.projects.find((entry) => entry.id === thread.projectId);
+  void notifyLiveActivityThreadState({
+    threadId,
+    status,
+    title: thread.title,
+    project: project?.name ?? "",
+  });
+}
+
 export function dispatchRemoteSupervisorEvent(value: unknown): void {
   const runtimeBatches = collectRuntimeEventsFromSupervisoryMessage(value);
   if (runtimeBatches.length > 0) {
@@ -255,6 +274,8 @@ export function dispatchRemoteSupervisorEvent(value: unknown): void {
         useAppStore.getState().reconcileStaleSubAgents(event.threadId);
       }
       handleThreadStateNotification(event, oldThread);
+      // Foreground Live Activity driving (native app only; inert otherwise).
+      driveLiveActivity(event.threadId, event.status, oldThread);
       return;
     }
     case "thread-pending-steer": {

@@ -1,3 +1,5 @@
+import { parsePairingUrlParts } from "@/shared/remote/pairingUrl";
+
 export interface PairingLaunch {
   readonly endpoint: string;
   readonly credential: string | null;
@@ -66,17 +68,13 @@ export function parsePairingLaunch(): PairingLaunch {
  * that doesn't carry a `#token=…` credential (i.e. not a pairing link).
  */
 export function parsePairingUrl(value: string): PairingLaunch | null {
-  let url: URL;
+  const parts = parsePairingUrlParts(value);
+  if (!parts) return null;
   try {
-    url = new URL(value.trim());
-  } catch {
-    return null;
-  }
-  const credential = new URLSearchParams(url.hash.replace(/^#/, "")).get("token");
-  if (!credential) return null;
-  const host = url.searchParams.get("host");
-  try {
-    return { endpoint: normalizePairingEndpoint(host ?? url.toString()), credential };
+    return {
+      endpoint: normalizePairingEndpoint(parts.host ?? parts.url.toString()),
+      credential: parts.token,
+    };
   } catch {
     return null;
   }

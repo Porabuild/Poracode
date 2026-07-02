@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { QuestionAnswer } from "./QuestionAnswer";
 
@@ -25,7 +26,7 @@ describe("QuestionAnswer", () => {
     render(
       <QuestionAnswer
         item={item}
-        checkpointRevertControl={<button type="button">Revert</button>}
+        checkpointRevert={{ itemId: "qa-1", onRequestRevert: () => {} }}
       />,
     );
 
@@ -34,7 +35,7 @@ describe("QuestionAnswer", () => {
     expect(screen.getByText("Allow once")).toBeInTheDocument();
     expect(screen.getByText("Only for this run")).toBeInTheDocument();
     expect(screen.getByText("Use README.md instead.")).toBeInTheDocument();
-    const revertButton = screen.getByRole("button", { name: "Revert" });
+    const revertButton = screen.getByRole("button", { name: "Revert to this checkpoint" });
     expect(revertButton).toBeInTheDocument();
     expect(revertButton.closest(".lightcode-message-action-strip")).not.toBeNull();
   });
@@ -48,7 +49,7 @@ describe("QuestionAnswer", () => {
       streams: {},
     };
 
-    const { container } = render(<QuestionAnswer item={item} checkpointRevertControl={null} />);
+    const { container } = render(<QuestionAnswer item={item} checkpointRevert={null} />);
 
     expect(container).toBeEmptyDOMElement();
   });

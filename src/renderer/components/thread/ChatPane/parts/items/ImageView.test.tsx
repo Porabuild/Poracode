@@ -23,32 +23,23 @@ const originalClipboardItem = globalThis.ClipboardItem;
 const originalCreateObjectUrl = URL.createObjectURL;
 const originalRevokeObjectUrl = URL.revokeObjectURL;
 
-function installRemoteBridgeFlag() {
+/**
+ * Install a stub `window.lightcode` bridge. ImageView delegates copy/download
+ * unconditionally to the bridge; the browser-native implementations live in the
+ * mobile bridge shim (src/mobile/bridge.ts), so here we assert delegation and
+ * error handling against mocked bridge methods.
+ */
+function installBridge(overrides: Record<string, unknown> = {}) {
   const existing = (window as Window & { lightcode?: Record<string, unknown> }).lightcode ?? {};
   Object.defineProperty(window, "lightcode", {
     value: {
       ...existing,
       appVersion: "remote",
       setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      ...overrides,
     },
     configurable: true,
   });
-}
-
-function installClipboardWrite() {
-  const write = vi.fn<Clipboard["write"]>().mockResolvedValue(undefined);
-  Object.defineProperty(navigator, "clipboard", {
-    value: { write },
-    configurable: true,
-  });
-  class TestClipboardItem {
-    constructor(readonly items: Record<string, Blob>) {}
-  }
-  Object.defineProperty(globalThis, "ClipboardItem", {
-    value: TestClipboardItem,
-    configurable: true,
-  });
-  return write;
 }
 
 describe("ImageView", () => {
@@ -131,9 +122,11 @@ describe("ImageView", () => {
     expect(screen.getByText(/imageGeneration/i)).toBeTruthy();
   });
 
-  it("copies images through the browser clipboard in remote sessions", async () => {
-    installRemoteBridgeFlag();
-    const write = installClipboardWrite();
+  it("copies images by delegating to the bridge", async () => {
+    const copyImageToClipboard = vi
+      .fn<(payload: { data: Uint8Array }) => Promise<boolean>>()
+      .mockResolvedValue(true);
+    installBridge({ copyImageToClipboard });
 
     render(
       <AppProvider>
@@ -143,25 +136,18 @@ describe("ImageView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Copy image" }));
 
-    await waitFor(() => expect(write).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(copyImageToClipboard).toHaveBeenCalledTimes(1));
+    expect(copyImageToClipboard.mock.calls[0]![0].data).toBeInstanceOf(Uint8Array);
     expect(screen.getByRole("button", { name: "Copied" })).toBeTruthy();
   });
 
-  it("reports remote image copy failures", async () => {
-    installRemoteBridgeFlag();
+  it("reports image copy failures", async () => {
     const toastDanger = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const write = vi.fn<Clipboard["write"]>().mockRejectedValue(new Error("copy failed"));
-    Object.defineProperty(navigator, "clipboard", {
-      value: { write },
-      configurable: true,
-    });
-    class TestClipboardItem {
-      constructor(readonly items: Record<string, Blob>) {}
-    }
-    Object.defineProperty(globalThis, "ClipboardItem", {
-      value: TestClipboardItem,
-      configurable: true,
+    installBridge({
+      copyImageToClipboard: vi
+        .fn<() => Promise<boolean>>()
+        .mockRejectedValue(new Error("copy failed")),
     });
 
     render(
@@ -175,17 +161,11 @@ describe("ImageView", () => {
     await waitFor(() => expect(toastDanger).toHaveBeenCalledWith("copy failed"));
   });
 
-  it("downloads images through the browser in remote sessions", async () => {
-    installRemoteBridgeFlag();
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-    Object.defineProperty(URL, "createObjectURL", {
-      value: vi.fn<() => string>().mockReturnValue("blob:lightcode-test"),
-      configurable: true,
-    });
-    Object.defineProperty(URL, "revokeObjectURL", {
-      value: vi.fn<() => void>(),
-      configurable: true,
-    });
+  it("downloads images by delegating to the bridge", async () => {
+    const saveImageFile = vi
+      .fn<(payload: { data: Uint8Array; suggestedName: string }) => Promise<string | null>>()
+      .mockResolvedValue(null);
+    installBridge({ saveImageFile });
 
     render(
       <AppProvider>
@@ -195,19 +175,18 @@ describe("ImageView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Download image" }));
 
-    await waitFor(() => expect(click).toHaveBeenCalledTimes(1));
-    expect(URL.createObjectURL).toHaveBeenCalled();
+    await waitFor(() => expect(saveImageFile).toHaveBeenCalledTimes(1));
+    expect(saveImageFile.mock.calls[0]![0].data).toBeInstanceOf(Uint8Array);
+    expect(typeof saveImageFile.mock.calls[0]![0].suggestedName).toBe("string");
   });
 
-  it("reports remote image download failures", async () => {
-    installRemoteBridgeFlag();
+  it("reports image download failures", async () => {
     const toastDanger = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    Object.defineProperty(URL, "createObjectURL", {
-      value: vi.fn<() => string>(() => {
-        throw new Error("download failed");
-      }),
-      configurable: true,
+    installBridge({
+      saveImageFile: vi
+        .fn<() => Promise<string | null>>()
+        .mockRejectedValue(new Error("download failed")),
     });
 
     render(

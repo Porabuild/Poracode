@@ -227,6 +227,88 @@ export const remoteThreadsChangedEventSchema = z.object({
 });
 export type RemoteThreadsChangedEvent = z.infer<typeof remoteThreadsChangedEventSchema>;
 
+/**
+ * Push notifications, iOS Live Activities & Android live-update notifications.
+ * A paired mobile device registers its push tokens against the desktop; the
+ * desktop's `PushCoordinator` maps supervisor `thread-state` transitions to
+ * Live Activity / alert pushes routed through the hosted push gateway.
+ * Registration is gated on `session:operate` (no new scope), so already-paired
+ * devices register without re-pairing.
+ *
+ * Platform tokens: iOS carries an APNs `deviceToken` (alerts) plus optional
+ * `pushToStartToken` / `activityTokens` (Live Activities). Android carries its
+ * FCM registration token in the same `deviceToken` field and has no
+ * push-to-start / per-activity tokens (a `superRefine` rejects them so an
+ * Android registration can't smuggle iOS-only fields).
+ *
+ * Upsert semantics: any token field **present** in a registration replaces the
+ * stored value for that field; **absent** fields are preserved. This lets the
+ * app re-register a single rotated token without clobbering the others.
+ */
+export const remotePushRegistrationSchema = z
+  .object({
+    /** Stable per-device identity (survives token rotation); the upsert key. */
+    deviceId: z.string().min(8),
+    platform: z.enum(["ios", "android"]),
+    /** APNs device token (iOS alerts) or FCM registration token (Android). */
+    deviceToken: z.string().min(1).optional(),
+    /** iOS 17.2+ push-to-start token for the desktop-session Live Activity. iOS only. */
+    pushToStartToken: z.string().min(1).optional(),
+    /** Per-activity update tokens, keyed by ActivityKit activity id. iOS only. */
+    activityTokens: z.record(z.string().min(1), z.string().min(1)).optional(),
+    appVersion: z.string().min(1).optional(),
+  })
+  .superRefine((registration, ctx) => {
+    if (registration.platform !== "android") return;
+    if (registration.pushToStartToken !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["pushToStartToken"],
+        message: "pushToStartToken is iOS-only",
+      });
+    }
+    if (registration.activityTokens !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["activityTokens"],
+        message: "activityTokens is iOS-only",
+      });
+    }
+  });
+export type RemotePushRegistration = z.infer<typeof remotePushRegistrationSchema>;
+
+export const remotePushUnregisterSchema = z.object({
+  deviceId: z.string().min(1),
+});
+
+export const remotePushRegistrationResultSchema = z.object({
+  ok: z.literal(true),
+});
+
+/**
+ * A single row in the Live Activity content-state, mirroring the Swift
+ * `DesktopSessionAttributes.ContentState.ThreadRow`. `startedAt` is epoch-ms
+ * (drives the elapsed timer on-device). `status` is a `ThreadStatus` string,
+ * kept as a plain string here so the shape stays JSON-serializable and
+ * provider-agnostic.
+ */
+export const remoteLiveActivityThreadRowSchema = z.object({
+  threadId: z.string().min(1),
+  title: z.string(),
+  project: z.string(),
+  status: z.string().min(1),
+  startedAt: z.number().int().nonnegative(),
+});
+export type RemoteLiveActivityThreadRow = z.infer<typeof remoteLiveActivityThreadRowSchema>;
+
+/** Live Activity content-state (APNs payload cap is 4 KB): a running count plus
+ * up to 3 thread rows, most-recently-active first. */
+export const remoteLiveActivityContentStateSchema = z.object({
+  runningCount: z.number().int().nonnegative(),
+  threads: z.array(remoteLiveActivityThreadRowSchema).max(3),
+});
+export type RemoteLiveActivityContentState = z.infer<typeof remoteLiveActivityContentStateSchema>;
+
 export const remoteShellSnapshotSchema = z.object({
   snapshotSeq: z.number().int().nonnegative(),
   projects: z.array(projectSchema),

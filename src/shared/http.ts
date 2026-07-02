@@ -1,3 +1,5 @@
+import type { ServerResponse } from "node:http";
+
 /** Collect a fetch `Headers` object into a plain record. */
 export function headersToRecord(headers: Headers): Record<string, string> {
   const record: Record<string, string> = {};
@@ -50,4 +52,43 @@ export async function readBoundedResponseBody(
     offset += chunk.byteLength;
   }
   return body;
+}
+
+/**
+ * Reads a Node request body, aborting once the accumulated size exceeds
+ * `maxBytes`. The caller supplies `onOverflow` so each site keeps its own
+ * error type/message.
+ */
+export async function readBoundedNodeRequestBody(
+  req: AsyncIterable<Buffer | Uint8Array | string>,
+  maxBytes: number,
+  onOverflow: () => Error,
+): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for await (const chunk of req) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += buffer.length;
+    if (total > maxBytes) {
+      throw onOverflow();
+    }
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks);
+}
+
+/** Writes a JSON response body with a UTF-8 `content-type`. */
+export function writeJsonResponse(
+  res: ServerResponse,
+  status: number,
+  data: unknown,
+  options?: { readonly cacheControl?: string; readonly trailingNewline?: boolean },
+): void {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  if (options?.cacheControl) {
+    res.setHeader("Cache-Control", options.cacheControl);
+  }
+  const json = JSON.stringify(data);
+  res.end(options?.trailingNewline ? `${json}\n` : json);
 }

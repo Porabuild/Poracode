@@ -34,6 +34,18 @@ function runBrowserAction(action: Promise<unknown>): void {
   });
 }
 
+/** Navigate the active tab to a typed address, or open a new tab if none. */
+function submitBrowserUrl(input: string, activeTab: RemoteBrowserTab | null): void {
+  const url = normalizeUrl(input);
+  if (!url) return;
+  const bridge = readBridge();
+  if (activeTab) {
+    runBrowserAction(bridge.browserNavigate({ tabId: activeTab.tabId, url }));
+  } else {
+    runBrowserAction(bridge.browserCreateTab({ url, activate: true }));
+  }
+}
+
 const LOCALHOST_PATTERN =
   /^(localhost|(?:\d{1,3}\.){3}\d{1,3}|\[(?:[0-9a-f:]+)\])(?::\d+)?(?:[/?#]|$)/i;
 
@@ -346,14 +358,7 @@ function AddressPill(props: { readonly activeTab: RemoteBrowserTab | null }) {
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     setEditing(false);
-    const url = normalizeUrl(value);
-    if (!url) return;
-    const bridge = readBridge();
-    if (activeTab) {
-      runBrowserAction(bridge.browserNavigate({ tabId: activeTab.tabId, url }));
-    } else {
-      runBrowserAction(bridge.browserCreateTab({ url, activate: true }));
-    }
+    submitBrowserUrl(value, activeTab);
   }
 
   if (editing) {
@@ -533,14 +538,7 @@ function DesktopBrowserToolbar(props: {
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    const url = normalizeUrl(urlInput);
-    if (!url) return;
-    const bridge = readBridge();
-    if (activeTab) {
-      runBrowserAction(bridge.browserNavigate({ tabId: activeTab.tabId, url }));
-    } else {
-      runBrowserAction(bridge.browserCreateTab({ url, activate: true }));
-    }
+    submitBrowserUrl(urlInput, activeTab);
   };
 
   return (

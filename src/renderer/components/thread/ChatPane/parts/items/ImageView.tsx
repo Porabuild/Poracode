@@ -5,7 +5,7 @@ import { useLingui } from "@lingui/react/macro";
 import type { ToolCallPayload } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
-import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { readBridge } from "@/renderer/bridge";
 import { openImageLightbox } from "@/renderer/components/composer";
 import { resolveImageViewSource, type ImageViewSource } from "./imageViewSource";
 import { ToolCall } from "./ToolCall";
@@ -84,12 +84,6 @@ function CopyImageButton({ source }: { source: ImageViewSource }) {
   async function onCopy() {
     try {
       const data = await toClipboardPngBytes(source);
-      if (isRemoteSession()) {
-        await copyImageToBrowserClipboard(data);
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 1500);
-        return;
-      }
       const ok = await readBridge().copyImageToClipboard({ data });
       if (!ok) {
         console.warn("Clipboard rejected the image (unsupported format)");
@@ -115,10 +109,6 @@ function DownloadImageButton({ src, fileName }: { src: string; fileName: string 
   async function onDownload() {
     try {
       const data = await fetchImageBytes(src);
-      if (isRemoteSession()) {
-        saveImageFromBrowser(data, fileName);
-        return;
-      }
       await readBridge().saveImageFile({ data, suggestedName: fileName });
     } catch (err) {
       console.error("Failed to save image", err);
@@ -166,32 +156,6 @@ async function fetchImageBytes(src: string) {
   const response = await fetch(src);
   if (!response.ok) throw new Error(`Failed to load image (${response.status})`);
   return new Uint8Array(await response.arrayBuffer());
-}
-
-async function copyImageToBrowserClipboard(data: Uint8Array) {
-  if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
-    throw new Error("Browser clipboard image writes are not available.");
-  }
-  const blob = new Blob([toArrayBuffer(data)], { type: "image/png" });
-  await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-}
-
-function saveImageFromBrowser(data: Uint8Array, fileName: string) {
-  const url = URL.createObjectURL(new Blob([toArrayBuffer(data)]));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.rel = "noopener";
-  document.body.append(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-function toArrayBuffer(data: Uint8Array) {
-  const buffer = new ArrayBuffer(data.byteLength);
-  new Uint8Array(buffer).set(data);
-  return buffer;
 }
 
 /**

@@ -4,9 +4,12 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Copy, ExternalLink, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { toDataURL } from "qrcode";
 import { readBridge } from "@/renderer/bridge";
-import { PixelLoader } from "@/renderer/components/common";
+import { Input, PixelLoader } from "@/renderer/components/common";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import type { RemoteAccessTailscaleStatus } from "@/shared/ipc";
 import type { RemoteAccessPairingInfo, RemoteAccessSessionSummary } from "@/shared/remote";
-import { SettingsPage } from "./SettingsForm";
+import { parsePairingUrlParts } from "@/shared/remote/pairingUrl";
+import { SettingRow, SettingsPage } from "./SettingsForm";
 
 interface PairingViewState {
   readonly info: RemoteAccessPairingInfo | null;
@@ -40,6 +43,19 @@ function friendlyError(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+/** Clipboard copy with a localized success toast; `failureMessage` on failure. */
+function useCopyValue() {
+  const { t } = useLingui();
+  return async (value: string, label: string, failureMessage: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(t`${label} copied.`);
+    } catch {
+      toast.danger(failureMessage);
+    }
+  };
+}
+
 function formatSessionTime(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
@@ -61,13 +77,7 @@ function sessionMeta(session: RemoteAccessSessionSummary, fallback: string): str
 }
 
 function pairingTokenFromUrl(value: string): string | null {
-  try {
-    const url = new URL(value);
-    const token = new URLSearchParams(url.hash.replace(/^#/, "")).get("token");
-    return token && token.trim().length > 0 ? token : null;
-  } catch {
-    return null;
-  }
+  return parsePairingUrlParts(value)?.token ?? null;
 }
 
 function RemoteAccessSwitch(props: {
@@ -219,14 +229,7 @@ function PairingReady(props: {
     </div>
   );
 
-  const copyValue = async (value: string, label: string, failureMessage: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      toast.success(t`${label} copied.`);
-    } catch {
-      toast.danger(failureMessage);
-    }
-  };
+  const copyValue = useCopyValue();
   const handleCopy = (value: string, label: string, failureMessage: string) =>
     void copyValue(value, label, failureMessage);
 
@@ -297,6 +300,302 @@ function PairingReady(props: {
   );
 }
 
+/** True when `value` parses as an http/https URL with no path, query, or hash. */
+function isOriginOnlyUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    if (url.pathname !== "/" && url.pathname !== "") return false;
+    return !url.search && !url.hash;
+  } catch {
+    return false;
+  }
+}
+
+function tailscaleHint(
+  status: RemoteAccessTailscaleStatus | null,
+  labels: {
+    checking: string;
+    notInstalled: string;
+    notRunning: string;
+    needsLogin: string;
+    ready: string;
+  },
+): string {
+  if (!status) return labels.checking;
+  switch (status.daemon) {
+    case "not-installed":
+      return labels.notInstalled;
+    case "not-running":
+      return labels.notRunning;
+    case "needs-login":
+      return labels.needsLogin;
+    case "error":
+      return status.message ?? labels.notRunning;
+    case "running":
+      return labels.ready;
+  }
+}
+
+/**
+ * Secure-URL configuration for the running remote-access server: a Tailscale
+ * HTTPS toggle (disabled with a hint until the local daemon is running) plus a
+ * custom public base URL. Both persist their setting and restart the server so
+ * the advertised pairing URL updates; the new pairing info is bubbled up so the
+ * QR / endpoint refresh in place.
+ */
+function RemoteAccessAdvanced(props: {
+  onPairingChanged: (info: RemoteAccessPairingInfo) => void;
+}) {
+  const { t } = useLingui();
+  const tailscaleEnabled = useSharedSettings((state) => state.remoteAccessTailscaleHttps);
+  const advertisedUrl = useSharedSettings((state) => state.remoteAccessAdvertisedUrl);
+  const [status, setStatus] = useState<RemoteAccessTailscaleStatus | null>(null);
+  const [isTogglingTailscale, setIsTogglingTailscale] = useState(false);
+  const [isStartingTailscale, setIsStartingTailscale] = useState(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const [urlDraft, setUrlDraft] = useState(advertisedUrl);
+  const [isSavingUrl, setIsSavingUrl] = useState(false);
+
+  // Poll the daemon so lifecycle transitions (app launched, logged in, HTTPS
+  // provisioned) surface live without reopening Settings. Bumping `refreshNonce`
+  // after an action re-runs this immediately without changing the 5s cadence.
+  useEffect(() => {
+    let cancelled = false;
+    let inFlight = false;
+    const poll = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const next = await readBridge().getRemoteAccessTailscaleStatus();
+        if (!cancelled) setStatus(next);
+      } catch {
+        // Keep the last known status on a transient probe failure.
+      } finally {
+        inFlight = false;
+      }
+    };
+    void poll();
+    const timer = setInterval(() => void poll(), 5_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [refreshNonce]);
+
+  const triggerStatusRefresh = () => setRefreshNonce((nonce) => nonce + 1);
+
+  // Reflect external changes (e.g. a remote client editing the URL) into the draft.
+  useEffect(() => {
+    setUrlDraft(advertisedUrl);
+  }, [advertisedUrl]);
+
+  const daemonReady = status?.daemon === "running";
+  const hint = tailscaleHint(status, {
+    checking: t`Checking Tailscale…`,
+    notInstalled: t`Install Tailscale to set up HTTPS access through MagicDNS.`,
+    notRunning: t`Start Tailscale to set up HTTPS access through MagicDNS.`,
+    needsLogin: t`Log in to Tailscale to set up HTTPS access through MagicDNS.`,
+    ready: t`Serve remote access over your tailnet's HTTPS MagicDNS URL.`,
+  });
+
+  const launchTailscale = async () => {
+    setIsStartingTailscale(true);
+    try {
+      const result = await readBridge().startTailscale();
+      if (result.ok) {
+        triggerStatusRefresh();
+      } else {
+        toast.danger(result.message ?? t`Unable to start Tailscale.`);
+      }
+    } catch (error) {
+      toast.danger(friendlyError(error, t`Unable to start Tailscale.`));
+    } finally {
+      setIsStartingTailscale(false);
+    }
+  };
+
+  const copyValue = useCopyValue();
+
+  const toggleTailscale = async (enabled: boolean) => {
+    setIsTogglingTailscale(true);
+    try {
+      const info = await readBridge().setRemoteAccessTailscaleHttps({ enabled });
+      props.onPairingChanged(info);
+      const next = await readBridge().getRemoteAccessTailscaleStatus();
+      setStatus(next);
+      if (enabled && !next.serveActive && next.message) {
+        toast.danger(next.message);
+      }
+    } catch (error) {
+      toast.danger(friendlyError(error, t`Unable to update Tailscale HTTPS.`));
+      void readBridge()
+        .getRemoteAccessTailscaleStatus()
+        .then(setStatus)
+        .catch(() => {});
+    } finally {
+      setIsTogglingTailscale(false);
+    }
+  };
+
+  const saveUrl = async () => {
+    const trimmed = urlDraft.trim();
+    if (trimmed === advertisedUrl) return;
+    if (trimmed && !isOriginOnlyUrl(trimmed)) {
+      toast.danger(t`Enter a full origin URL like https://code.example.com, with no path.`);
+      return;
+    }
+    setIsSavingUrl(true);
+    try {
+      const info = await readBridge().setRemoteAccessAdvertisedUrl({ url: trimmed });
+      props.onPairingChanged(info);
+      toast.success(t`Public URL updated.`);
+    } catch (error) {
+      toast.danger(friendlyError(error, t`Unable to update the public URL.`));
+      setUrlDraft(advertisedUrl);
+    } finally {
+      setIsSavingUrl(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 border-t border-border/60 pt-6">
+      <SettingRow title={t`Tailscale HTTPS`} description={hint}>
+        <Switch
+          isSelected={tailscaleEnabled}
+          // Stays operable while enabled even if the daemon went away, so the
+          // user can always turn the setting off.
+          isDisabled={(!daemonReady && !tailscaleEnabled) || isTogglingTailscale}
+          aria-label={t`Tailscale HTTPS`}
+          onChange={(enabled) => void toggleTailscale(enabled)}
+        >
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+        </Switch>
+      </SettingRow>
+      {status?.daemon === "not-installed" ? (
+        <Button
+          size="sm"
+          variant="tertiary"
+          className="-mt-2"
+          onPress={() => void readBridge().openExternal("https://tailscale.com/download")}
+        >
+          <ExternalLink className="size-3.5" />
+          <Trans>Install Tailscale</Trans>
+        </Button>
+      ) : status?.daemon === "not-running" || status?.daemon === "needs-login" ? (
+        <Button
+          size="sm"
+          variant="tertiary"
+          className="-mt-2"
+          isDisabled={isStartingTailscale}
+          onPress={() => void launchTailscale()}
+        >
+          {isStartingTailscale ? <PixelLoader size="sm" /> : null}
+          {status.daemon === "not-running" ? (
+            <Trans>Start Tailscale</Trans>
+          ) : (
+            <Trans>Open Tailscale</Trans>
+          )}
+        </Button>
+      ) : null}
+      {status?.serveActive && status.httpsUrl ? (
+        <CopyValueRow
+          label={t`Tailscale URL`}
+          value={status.httpsUrl}
+          copyLabel={t`Copy Tailscale URL`}
+          failureMessage={t`Unable to copy Tailscale URL.`}
+          onCopy={(value, label, failureMessage) => void copyValue(value, label, failureMessage)}
+        />
+      ) : null}
+      <SettingRow
+        title={t`Public URL`}
+        description={
+          <Trans>
+            Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic.
+          </Trans>
+        }
+      >
+        <div className="flex w-[320px] shrink-0 items-center gap-2">
+          <Input
+            aria-label={t`Public URL`}
+            className="min-w-0 flex-1 font-mono text-xs"
+            placeholder="https://code.example.com"
+            value={urlDraft}
+            disabled={isSavingUrl}
+            onChange={(event) => setUrlDraft(event.target.value)}
+            onBlur={() => void saveUrl()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void saveUrl();
+              }
+            }}
+          />
+        </div>
+      </SettingRow>
+    </div>
+  );
+}
+
+/**
+ * Mobile push pipeline settings. The desktop's `PushCoordinator` maps
+ * `thread-state` transitions to APNs pushes / Live Activity updates for paired
+ * iOS devices; these two switches gate that entirely and control whether
+ * conversation titles leave the device through Apple's push service.
+ */
+function RemotePushSection() {
+  const { t } = useLingui();
+  const pushEnabled = useSharedSettings((state) => state.remotePushEnabled);
+  const setPushEnabled = useSharedSettings((state) => state.setRemotePushEnabled);
+  const redactContent = useSharedSettings((state) => state.remotePushRedactContent);
+  const setRedactContent = useSharedSettings((state) => state.setRemotePushRedactContent);
+
+  return (
+    <div className="space-y-4 border-t border-border/60 pt-6">
+      <SettingRow
+        title={t`Mobile push notifications`}
+        description={
+          <Trans>
+            Push updates to paired mobile devices when threads finish or need you, even when the app
+            is closed.
+          </Trans>
+        }
+      >
+        <Switch
+          isSelected={pushEnabled}
+          aria-label={t`Mobile push notifications`}
+          onChange={setPushEnabled}
+        >
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+        </Switch>
+      </SettingRow>
+      <SettingRow
+        title={t`Redact notification content`}
+        description={
+          <Trans>
+            Send generic text instead of conversation titles through Apple&apos;s push service.
+          </Trans>
+        }
+      >
+        <Switch
+          isSelected={redactContent}
+          isDisabled={!pushEnabled}
+          aria-label={t`Redact notification content`}
+          onChange={setRedactContent}
+        >
+          <Switch.Control>
+            <Switch.Thumb />
+          </Switch.Control>
+        </Switch>
+      </SettingRow>
+    </div>
+  );
+}
+
 export function RemoteAccessSettings() {
   const { t } = useLingui();
   const [state, setState] = useState<PairingViewState>({
@@ -357,7 +656,7 @@ export function RemoteAccessSettings() {
       }
       setState(await readPairingViewState());
     } catch (error) {
-      toast.danger(error instanceof Error ? error.message : t`Unable to revoke remote session.`);
+      toast.danger(friendlyError(error, t`Unable to revoke remote session.`));
     } finally {
       setRevokingSessionId(null);
     }
@@ -411,14 +710,20 @@ export function RemoteAccessSettings() {
           {state.error}
         </div>
       ) : state.info?.status === "ready" ? (
-        <PairingReady
-          info={state.info}
-          qrDataUrl={state.qrDataUrl}
-          isRefreshing={isRefreshing}
-          revokingSessionId={revokingSessionId}
-          onRefresh={refresh}
-          onRevoke={(sessionId) => void revokeSession(sessionId)}
-        />
+        <div className="space-y-10">
+          <PairingReady
+            info={state.info}
+            qrDataUrl={state.qrDataUrl}
+            isRefreshing={isRefreshing}
+            revokingSessionId={revokingSessionId}
+            onRefresh={refresh}
+            onRevoke={(sessionId) => void revokeSession(sessionId)}
+          />
+          <RemoteAccessAdvanced
+            onPairingChanged={(info) => void pairingViewStateFromInfo(info).then(setState)}
+          />
+          <RemotePushSection />
+        </div>
       ) : null}
     </SettingsPage>
   );

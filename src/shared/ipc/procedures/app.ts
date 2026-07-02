@@ -31,6 +31,43 @@ export const setRemoteAccessEnabledPayloadSchema = z.object({
   enabled: z.boolean(),
 });
 
+export const setRemoteAccessTailscaleHttpsPayloadSchema = z.object({
+  enabled: z.boolean(),
+});
+
+export const setRemoteAccessAdvertisedUrlPayloadSchema = z.object({
+  /** Full origin (http/https). Empty string clears the custom URL (automatic). */
+  url: z.string(),
+});
+
+/**
+ * Live view of the local Tailscale daemon + our `tailscale serve` HTTPS mapping,
+ * surfaced in desktop Settings → Remote Access.
+ */
+export interface RemoteAccessTailscaleStatus {
+  /** The persisted `remoteAccessTailscaleHttps` setting. */
+  readonly enabled: boolean;
+  /** Daemon reachability from the last probe. */
+  readonly daemon: "not-installed" | "not-running" | "needs-login" | "running" | "error";
+  /** MagicDNS FQDN (no trailing dot) when the daemon is running. */
+  readonly dnsName?: string;
+  /** Whether HTTPS certs appear provisionable on this tailnet. */
+  readonly httpsAvailable?: boolean;
+  /** Advertised HTTPS URL when the serve mapping is currently active. */
+  readonly httpsUrl?: string;
+  /** True when the remote server is currently advertising the Tailscale URL. */
+  readonly serveActive: boolean;
+  /** Daemon-probe or serve-setup error message, if any. */
+  readonly message?: string;
+}
+
+/** Result of launching the Tailscale GUI (start daemon / complete login). */
+export interface StartTailscaleResult {
+  readonly ok: boolean;
+  /** Actionable message when the GUI could not be launched. */
+  readonly message?: string;
+}
+
 /**
  * Desktop-as-client HTTP proxy. The renderer can't fetch a remote Lightcode
  * server directly — the server's CORS allowlist doesn't include the desktop's
@@ -146,6 +183,24 @@ export const appProcedures = {
     { revoked: boolean },
     "main-local"
   >("revokeRemoteAccessSession", "main-local", revokeRemoteAccessSessionPayloadSchema),
+  getRemoteAccessTailscaleStatus: defineNoArgProcedure<RemoteAccessTailscaleStatus, "main-local">(
+    "getRemoteAccessTailscaleStatus",
+    "main-local",
+  ),
+  setRemoteAccessTailscaleHttps: definePayloadProcedure<
+    z.infer<typeof setRemoteAccessTailscaleHttpsPayloadSchema>,
+    RemoteAccessPairingInfo,
+    "main-local"
+  >("setRemoteAccessTailscaleHttps", "main-local", setRemoteAccessTailscaleHttpsPayloadSchema),
+  startTailscale: defineNoArgProcedure<StartTailscaleResult, "main-local">(
+    "startTailscale",
+    "main-local",
+  ),
+  setRemoteAccessAdvertisedUrl: definePayloadProcedure<
+    z.infer<typeof setRemoteAccessAdvertisedUrlPayloadSchema>,
+    RemoteAccessPairingInfo,
+    "main-local"
+  >("setRemoteAccessAdvertisedUrl", "main-local", setRemoteAccessAdvertisedUrlPayloadSchema),
   // The renderer owns live git state; it mirrors compact per-thread summaries
   // to main so the remote access server can serve them to paired clients.
   publishRemoteGitSummaries: definePayloadProcedure<

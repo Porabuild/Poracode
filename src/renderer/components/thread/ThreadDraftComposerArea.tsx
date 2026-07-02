@@ -574,7 +574,9 @@ export function ThreadDraftComposerArea(props: {
             ref={mentionRef}
             autoFocus={(props.paneCount ?? 1) === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
             compact={props.compact ?? false}
-            placeholder={t`Send a message...`}
+            // The PWA surfaces this draft as the home screen's compact composer
+            // pill, where an invitation reads better than the generic prompt.
+            placeholder={isRemote ? t`Plan, ask, build…` : t`Send a message...`}
             projectLocation={isHomeScope ? undefined : props.project.location}
             {...(!isHomeScope ? { projectId: props.project.id } : {})}
             onTextChange={(hasText) => {
@@ -668,7 +670,7 @@ export function ThreadDraftComposerArea(props: {
         )}
       />
       {props.gitBranch ? (
-        <div className="mt-1.5 flex flex-wrap items-center gap-1 px-1">
+        <div data-draft-worktree-row="" className="mt-1.5 flex flex-wrap items-center gap-1 px-1">
           <WorktreeModeSelect
             mode={worktreeMode}
             canBringChanges={canBringChanges}

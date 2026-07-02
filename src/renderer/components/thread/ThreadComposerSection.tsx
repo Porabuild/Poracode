@@ -345,7 +345,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const collapseTerminalComposerSetting = useSharedSettings((s) => s.collapseTerminalComposer);
   const [composerCollapsed, setComposerCollapsed] = useState(collapseTerminalComposerSetting);
-  const canCollapseComposer = showTerminalComposer;
+  const canCollapseComposer = showTerminalComposer && !isRemote;
   const isComposerCollapsed = canCollapseComposer && composerCollapsed;
   const setComposerUi = useComposerUiStore((s) => s.setComposerUi);
   const branchName = useGitStore(
@@ -1003,47 +1003,51 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           }
                         />
                         {branchName ? (
-                          thread.worktreePath ? (
-                            <Tooltip delay={0}>
-                              <Tooltip.Trigger tabIndex={-1} role="none">
-                                <div className="lightcode-composer-static lightcode-composer-worktree min-w-0 max-w-48 px-2.5">
-                                  <GitFork className="size-3.5 text-muted" />
-                                  <span
-                                    data-collapse-tier={3}
-                                    className="lightcode-composer-label-hideable truncate"
-                                  >
-                                    {branchName}
-                                  </span>
-                                  {thread.prNumber ? (
+                          // Marker span so the mobile stylesheet can drop the
+                          // branch affordance (the PWA has its own git entry).
+                          <span className="contents" data-composer-branch="">
+                            {thread.worktreePath ? (
+                              <Tooltip delay={0}>
+                                <Tooltip.Trigger tabIndex={-1} role="none">
+                                  <div className="lightcode-composer-static lightcode-composer-worktree min-w-0 max-w-48 px-2.5">
+                                    <GitFork className="size-3.5 text-muted" />
                                     <span
                                       data-collapse-tier={3}
-                                      className="lightcode-composer-label-hideable shrink-0 text-muted/60"
+                                      className="lightcode-composer-label-hideable truncate"
                                     >
-                                      PR #{thread.prNumber}
+                                      {branchName}
                                     </span>
-                                  ) : null}
-                                </div>
-                              </Tooltip.Trigger>
-                              <Tooltip.Content placement="top">{branchName}</Tooltip.Content>
-                            </Tooltip>
-                          ) : (
-                            <BranchSelector
-                              projectId={thread.projectId}
-                              currentBranch={branchName}
-                              value={branchName}
-                              onSelect={handleBranchSelect}
-                              onSwitchBranch={handleSwitchBranch}
-                              hideWorktreeToggle
-                              showMoveBranchAction
-                              {...(project?.scripts?.worktreeCopyPatterns
-                                ? {
-                                    moveBranchCopyIgnoredPatterns:
-                                      project.scripts.worktreeCopyPatterns,
-                                  }
-                                : {})}
-                              collapseTier={3}
-                            />
-                          )
+                                    {thread.prNumber ? (
+                                      <span
+                                        data-collapse-tier={3}
+                                        className="lightcode-composer-label-hideable shrink-0 text-muted/60"
+                                      >
+                                        PR #{thread.prNumber}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </Tooltip.Trigger>
+                                <Tooltip.Content placement="top">{branchName}</Tooltip.Content>
+                              </Tooltip>
+                            ) : (
+                              <BranchSelector
+                                projectId={thread.projectId}
+                                currentBranch={branchName}
+                                value={branchName}
+                                onSelect={handleBranchSelect}
+                                onSwitchBranch={handleSwitchBranch}
+                                hideWorktreeToggle
+                                showMoveBranchAction
+                                {...(project?.scripts?.worktreeCopyPatterns
+                                  ? {
+                                      moveBranchCopyIgnoredPatterns:
+                                        project.scripts.worktreeCopyPatterns,
+                                    }
+                                  : {})}
+                                collapseTier={3}
+                              />
+                            )}
+                          </span>
                         ) : null}
                       </>
                     );

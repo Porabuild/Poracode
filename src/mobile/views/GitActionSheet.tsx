@@ -53,28 +53,30 @@ export function GitActionSheet(props: {
 
   async function toggleStageFile(file: GitTouchFileTarget) {
     const store = useGitStore.getState();
-    if (file.staged) {
-      store.optimisticUnstageFile(storeKey, file.path, isWorktree);
-      await readBridge()
-        .gitUnstage({ projectLocation: effectiveLocation, filePath: file.path })
-        .catch(recoverFromMutationError);
-    } else {
-      store.optimisticStageFile(storeKey, file.path, isWorktree);
-      await readBridge()
-        .gitStage({ projectLocation: effectiveLocation, filePath: file.path })
-        .catch(recoverFromMutationError);
-    }
+    const bridge = readBridge();
+    if (file.staged) store.optimisticUnstageFile(storeKey, file.path, isWorktree);
+    else store.optimisticStageFile(storeKey, file.path, isWorktree);
+    const request = file.staged
+      ? bridge.gitUnstage({ projectLocation: effectiveLocation, filePath: file.path })
+      : bridge.gitStage({ projectLocation: effectiveLocation, filePath: file.path });
+    await request.catch(recoverFromMutationError);
     onClose();
   }
 
-  async function revertFile(file: GitTouchFileTarget) {
+  async function performRevert(action: Promise<unknown>) {
     try {
-      await readBridge().gitRevert({ projectLocation: effectiveLocation, filePath: file.path });
+      await action;
       await onRefetch();
     } catch (error) {
       await recoverFromMutationError(error);
     }
     onClose();
+  }
+
+  async function revertFile(file: GitTouchFileTarget) {
+    await performRevert(
+      readBridge().gitRevert({ projectLocation: effectiveLocation, filePath: file.path }),
+    );
   }
 
   async function stageAll() {
@@ -94,13 +96,7 @@ export function GitActionSheet(props: {
   }
 
   async function revertAll() {
-    try {
-      await readBridge().gitRevertAll({ projectLocation: effectiveLocation });
-      await onRefetch();
-    } catch (error) {
-      await recoverFromMutationError(error);
-    }
-    onClose();
+    await performRevert(readBridge().gitRevertAll({ projectLocation: effectiveLocation }));
   }
 
   const title =

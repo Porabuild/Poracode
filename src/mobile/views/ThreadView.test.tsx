@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread, ToolCallPayload } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -16,6 +16,7 @@ const fixtures = vi.hoisted(() => ({
   } as Project,
   composerProps: [] as Array<{ onResolveServerRequest?: unknown }>,
   guiContentProps: [] as Array<{ onResolveServerRequest?: unknown }>,
+  keyboardOffset: 0,
 }));
 
 const bridgeMock = vi.hoisted(() => ({
@@ -69,7 +70,13 @@ vi.mock("../GitSummaryParts", () => ({
 vi.mock("@/renderer/components/thread/ThreadComposerSection", () => ({
   ThreadComposerSection: (props: { onResolveServerRequest?: unknown }) => {
     fixtures.composerProps.push(props);
-    return <div data-testid="thread-composer-section" />;
+    return (
+      <div data-testid="thread-composer-section">
+        <div data-composer-input-anchor="">
+          <div role="textbox" tabIndex={0} contentEditable suppressContentEditableWarning />
+        </div>
+      </div>
+    );
   },
 }));
 
@@ -108,6 +115,10 @@ vi.mock("@/renderer/state/useThread", () => ({
   useProject: () => fixtures.project,
 }));
 
+vi.mock("../useKeyboardOffset", () => ({
+  useKeyboardOffset: () => fixtures.keyboardOffset,
+}));
+
 describe("mobile ThreadView", () => {
   beforeEach(() => {
     bridgeMock.closeThread.mockReset().mockResolvedValue(undefined);
@@ -117,6 +128,7 @@ describe("mobile ThreadView", () => {
     toastDanger.mockClear();
     fixtures.composerProps.length = 0;
     fixtures.guiContentProps.length = 0;
+    fixtures.keyboardOffset = 0;
     useAppStore.setState({
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
@@ -201,6 +213,32 @@ describe("mobile ThreadView", () => {
     );
 
     expect(fixtures.composerProps.at(-1)?.onResolveServerRequest).toBe(onResolveServerRequest);
+  });
+
+  it("does not apply terminal keyboard padding while the floating composer is focused", async () => {
+    fixtures.keyboardOffset = 320;
+    const { container } = render(
+      <ThreadView
+        thread={makeTerminalThread()}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+        onResolveServerRequest={() => Promise.resolve()}
+      />,
+    );
+    const thread = container.querySelector<HTMLElement>(".m-thread");
+    expect(thread?.style.getPropertyValue("--m-keyboard-offset")).toBe("320px");
+
+    const input = screen.getByRole("textbox");
+    const pointerDown = createEvent.pointerDown(input, {
+      cancelable: true,
+      pointerType: "touch",
+    });
+    fireEvent(input, pointerDown);
+
+    await waitFor(() => {
+      expect(thread?.style.getPropertyValue("--m-keyboard-offset")).toBe("0px");
+    });
   });
 
   it("wires runtime request resolution into GUI thread content", () => {

@@ -252,6 +252,23 @@ describe("ThreadComposerSection", () => {
     expect(screen.getByTestId("control-kinds")).toHaveTextContent("effort-context");
   });
 
+  it("hides the terminal composer collapse button in remote sessions", () => {
+    const { unmount } = renderComposer({
+      thread: terminalThread,
+      agentStatus: claudeTerminalStatus,
+    });
+    expect(screen.getByRole("button", { name: "Collapse composer" })).toBeInTheDocument();
+    unmount();
+
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    renderComposer({
+      thread: terminalThread,
+      agentStatus: claudeTerminalStatus,
+    });
+
+    expect(screen.queryByRole("button", { name: "Collapse composer" })).not.toBeInTheDocument();
+  });
+
   it("preserves an unsent draft when the composer unmounts and restores it on remount", async () => {
     const { unmount } = renderComposer();
 

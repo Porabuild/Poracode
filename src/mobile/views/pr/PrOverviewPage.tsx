@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { toast } from "@heroui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
@@ -63,6 +64,25 @@ function checksSummary(status: string | undefined, total: number, t: TranslateFn
     default:
       return total === 1 ? t`1 check` : t`${total} checks`;
   }
+}
+
+/** One tappable overview summary row that drills into a PR deep page. */
+function PrSummaryRow(props: {
+  readonly icon: ReactNode;
+  readonly title: ReactNode;
+  readonly subtitle?: ReactNode;
+  readonly onClick: () => void;
+}) {
+  return (
+    <button type="button" className="m-more-row" onClick={props.onClick}>
+      <span className="m-more-row__icon">{props.icon}</span>
+      <span className="m-more-row__body">
+        <strong>{props.title}</strong>
+        {props.subtitle}
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-muted" />
+    </button>
+  );
 }
 
 function ChecksGlyph(props: { readonly status: string | undefined }) {
@@ -148,10 +168,6 @@ export function PrOverviewPage() {
     }
   }
 
-  function openOnGitHub(nextUrl: string) {
-    openExternalWithFeedback(nextUrl);
-  }
-
   return (
     <>
       <PrPageHeader
@@ -165,7 +181,7 @@ export function PrOverviewPage() {
                 type="button"
                 className="m-git-head__btn"
                 aria-label={t`Open on GitHub`}
-                onClick={() => openOnGitHub(url)}
+                onClick={() => openExternalWithFeedback(url)}
               >
                 <ExternalLink className="size-4" />
               </button>
@@ -194,46 +210,32 @@ export function PrOverviewPage() {
             <div className="m-pr-section__head">
               <Trans>Changes</Trans>
             </div>
-            <button type="button" className="m-more-row" onClick={() => pr.toPage("changes")}>
-              <span className="m-more-row__icon">
-                <FileDiff className="size-4" />
-              </span>
-              <span className="m-more-row__body">
-                <strong>
-                  <Plural value={filesCount} one="# file changed" other="# files changed" />
-                </strong>
+            <PrSummaryRow
+              icon={<FileDiff className="size-4" />}
+              title={<Plural value={filesCount} one="# file changed" other="# files changed" />}
+              subtitle={
                 <span className="m-pr-diffstat">
                   {additions > 0 ? <span className="text-success">+{additions}</span> : null}
                   {deletions > 0 ? <span className="text-danger">−{deletions}</span> : null}
                 </span>
-              </span>
-              <ChevronRight className="size-4 shrink-0 text-muted" />
-            </button>
-            <button type="button" className="m-more-row" onClick={() => pr.toPage("commits")}>
-              <span className="m-more-row__icon">
-                <GitCommit className="size-4" />
-              </span>
-              <span className="m-more-row__body">
-                <strong>
-                  <Plural value={commitsCount} one="# commit" other="# commits" />
-                </strong>
-              </span>
-              <ChevronRight className="size-4 shrink-0 text-muted" />
-            </button>
+              }
+              onClick={() => pr.toPage("changes")}
+            />
+            <PrSummaryRow
+              icon={<GitCommit className="size-4" />}
+              title={<Plural value={commitsCount} one="# commit" other="# commits" />}
+              onClick={() => pr.toPage("commits")}
+            />
           </div>
 
           <div className="m-pr-section">
             <div className="m-pr-section__head">
               <Trans>Status</Trans>
             </div>
-            <button type="button" className="m-more-row" onClick={() => pr.toPage("conversation")}>
-              <span className="m-more-row__icon">
-                <MessageSquare className="size-4" />
-              </span>
-              <span className="m-more-row__body">
-                <strong>
-                  <Trans>Conversation</Trans>
-                </strong>
+            <PrSummaryRow
+              icon={<MessageSquare className="size-4" />}
+              title={<Trans>Conversation</Trans>}
+              subtitle={
                 <span>
                   <Plural
                     value={conversationCount}
@@ -241,21 +243,15 @@ export function PrOverviewPage() {
                     other="# comments & reviews"
                   />
                 </span>
-              </span>
-              <ChevronRight className="size-4 shrink-0 text-muted" />
-            </button>
-            <button type="button" className="m-more-row" onClick={() => pr.toPage("checks")}>
-              <span className="m-more-row__icon">
-                <ChecksGlyph status={checksStatus} />
-              </span>
-              <span className="m-more-row__body">
-                <strong>
-                  <Trans>Checks</Trans>
-                </strong>
-                <span>{checksSummary(checksStatus, checks.length, t)}</span>
-              </span>
-              <ChevronRight className="size-4 shrink-0 text-muted" />
-            </button>
+              }
+              onClick={() => pr.toPage("conversation")}
+            />
+            <PrSummaryRow
+              icon={<ChecksGlyph status={checksStatus} />}
+              title={<Trans>Checks</Trans>}
+              subtitle={<span>{checksSummary(checksStatus, checks.length, t)}</span>}
+              onClick={() => pr.toPage("checks")}
+            />
             {isBlocked ? (
               <div className="m-pr-merge">
                 <AlertTriangle className="size-4 shrink-0 text-danger" />

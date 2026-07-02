@@ -38,6 +38,13 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
 
   const cloneName = cloneFolderNameFromUrl(cloneUrl);
 
+  const pickerConfig =
+    pickerTarget === "clone"
+      ? { title: t`Choose a parent folder`, initialPath: cloneParent, onSelect: setCloneParent }
+      : pickerTarget === "folder"
+        ? { title: t`Choose a folder`, initialPath: folderPath, onSelect: setFolderPath }
+        : null;
+
   return (
     <section className="m-page">
       <div className="m-page-head">
@@ -188,18 +195,12 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
         </div>
       )}
 
-      {pickerTarget ? (
+      {pickerConfig ? (
         <HostFolderPicker
-          title={pickerTarget === "clone" ? t`Choose a parent folder` : t`Choose a folder`}
-          initialPath={pickerTarget === "clone" ? cloneParent : folderPath}
+          title={pickerConfig.title}
+          initialPath={pickerConfig.initialPath}
           onClose={() => setPickerTarget(null)}
-          onSelect={(path) => {
-            if (pickerTarget === "clone") {
-              setCloneParent(path);
-            } else {
-              setFolderPath(path);
-            }
-          }}
+          onSelect={pickerConfig.onSelect}
         />
       ) : null}
 

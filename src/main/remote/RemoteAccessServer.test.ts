@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { connect, type Socket } from "node:net";
+import { connect, createServer as createNetServer, type Socket } from "node:net";
 import { WebSocket } from "ws";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
@@ -11,6 +11,7 @@ import {
   dbDeleteProject,
   dbDeleteThread,
   dbGetProjects,
+  dbGetThread,
   dbGetThreadContextUsage,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeSummaries,
@@ -26,20 +27,53 @@ import {
 } from "./RemoteAccessServer";
 import { RemoteBrowserGateway } from "./RemoteBrowserGateway";
 
-vi.mock("../db", () => ({
-  dbDeleteThread: vi.fn<(threadId: string) => void>(),
-  dbGetProjects: vi.fn<() => unknown[]>(() => []),
-  dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
-  dbGetThreadContextUsage: vi.fn<() => null>(() => null),
-  dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
-  dbGetThreadRuntimeSummaries: vi.fn<() => Record<string, unknown>>(() => ({})),
-  dbGetThreads: vi.fn<() => unknown[]>(() => []),
-  dbUpsertProject: vi.fn<(project: unknown, sortOrder: number) => void>(),
-  dbDeleteProject: vi.fn<(projectId: string) => void>(),
-  dbUpsertThread: vi.fn<(thread: unknown, sortOrder: number) => void>(),
-}));
+vi.mock("../db", () => {
+  // Backs dbGetState/dbSetState with a real in-memory map so the profile
+  // module's identity round-trip (write then read back) behaves like SQLite.
+  const appState = new Map<string, string>();
+  // The profile module memoizes core/token stats by this generation counter;
+  // it must actually advance on bumpProfileDataGeneration() (as it does with
+  // real SQLite) or an identity write would never invalidate the cached read.
+  let profileDataGeneration = 0;
+  return {
+    dbDeleteThread: vi.fn<(threadId: string) => void>(),
+    dbGetProjects: vi.fn<() => unknown[]>(() => []),
+    dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
+    dbGetThreadContextUsage: vi.fn<() => null>(() => null),
+    dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
+    dbGetThreadRuntimeSummaries: vi.fn<() => Record<string, unknown>>(() => ({})),
+    dbGetThread: vi.fn<(threadId: string) => unknown>(() => null),
+    dbGetThreads: vi.fn<() => unknown[]>(() => []),
+    dbUpsertProject: vi.fn<(project: unknown, sortOrder: number) => void>(),
+    dbDeleteProject: vi.fn<(projectId: string) => void>(),
+    dbUpsertThread: vi.fn<(thread: unknown, sortOrder: number) => void>(),
+    dbGetState: vi.fn<(key: string) => string | null>((key) => appState.get(key) ?? null),
+    dbSetState: vi.fn<(key: string, value: string) => void>((key, value) => {
+      appState.set(key, value);
+    }),
+    dbGetAllUsageEvents: vi.fn<() => unknown[]>(() => []),
+    getProfileDataGeneration: vi.fn<() => number>(() => profileDataGeneration),
+    bumpProfileDataGeneration: vi.fn<() => void>(() => {
+      profileDataGeneration++;
+    }),
+  };
+});
 
 const servers: RemoteAccessServer[] = [];
+
+/** Reserves an ephemeral loopback port so a test can advertise a different
+ * origin while still reaching the real listener at a known address. */
+function getFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const probe = createNetServer();
+    probe.on("error", reject);
+    probe.listen(0, "127.0.0.1", () => {
+      const address = probe.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      probe.close(() => resolve(port));
+    });
+  });
+}
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.dispose()));
@@ -49,6 +83,7 @@ afterEach(async () => {
   vi.mocked(dbGetThreadContextUsage).mockReset().mockReturnValue(null);
   vi.mocked(dbGetThreadRuntimeItems).mockReset().mockReturnValue([]);
   vi.mocked(dbGetThreadRuntimeSummaries).mockReset().mockReturnValue({});
+  vi.mocked(dbGetThread).mockReset().mockReturnValue(null);
   vi.mocked(dbGetThreads).mockReset().mockReturnValue([]);
   vi.mocked(dbUpsertProject).mockReset();
   vi.mocked(dbUpsertThread).mockReset();
@@ -87,6 +122,9 @@ function createTestThread(overrides: Partial<Thread> = {}): Thread {
 function mockThreadDb(initialThreads: Thread[] = []): { readonly threads: () => Thread[] } {
   let threads = [...initialThreads];
   vi.mocked(dbGetThreads).mockImplementation(() => threads);
+  vi.mocked(dbGetThread).mockImplementation(
+    (threadId) => threads.find((entry) => entry.id === threadId) ?? null,
+  );
   vi.mocked(dbUpsertThread).mockImplementation((thread) => {
     const parsed = thread as Thread;
     const index = threads.findIndex((entry) => entry.id === parsed.id);
@@ -626,6 +664,49 @@ describe("RemoteAccessServer", () => {
     await expect(blockedResponse.json()).resolves.toMatchObject({
       error: { code: "origin_not_allowed" },
     });
+  });
+
+  it("advertises a full advertisedBaseUrl over host/port (https → wss)", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "0.0.0.0",
+      port: 0,
+      advertisedHost: "192.168.1.5",
+      advertisedBaseUrl: "https://my-machine.tailnet-1234.ts.net",
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    expect(info.httpBaseUrl).toBe("https://my-machine.tailnet-1234.ts.net/");
+    expect(info.wsBaseUrl).toBe("wss://my-machine.tailnet-1234.ts.net/");
+    const pairingUrl = new URL(info.pairingUrl);
+    expect(pairingUrl.origin).toBe("https://my-machine.tailnet-1234.ts.net");
+    expect(pairingUrl.pathname).toBe("/pair");
+  });
+
+  it("trusts the advertisedBaseUrl origin for CORS", async () => {
+    const port = await getFreePort();
+    const advertised = "https://tunnel.example.com";
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port,
+      advertisedBaseUrl: advertised,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    await server.start();
+    const localUrl = new URL("/.well-known/lightcode/environment", `http://127.0.0.1:${port}/`);
+
+    const allowed = await fetch(localUrl, { headers: { origin: advertised } });
+    expect(allowed.status).toBe(200);
+    expect(allowed.headers.get("access-control-allow-origin")).toBe(advertised);
+
+    const blocked = await fetch(localUrl, { headers: { origin: "https://evil.example" } });
+    expect(blocked.status).toBe(403);
+    await expect(blocked.json()).resolves.toMatchObject({ error: { code: "origin_not_allowed" } });
   });
 
   it("accepts websocket upgrades from arbitrary origins with one-use tickets", async () => {
@@ -1874,6 +1955,118 @@ describe("RemoteAccessServer", () => {
     expect(stored.titleGenProvider).toBe("claude");
   });
 
+  it("serves profile devices/stats reads and the identity write, gated by scope", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    async function pair(scopes: readonly string[]): Promise<string> {
+      const pairing = new URL(server.issuePairingUrl());
+      const credential = new URLSearchParams(pairing.hash.slice(1)).get("token");
+      const tokenResponse = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ grantType: "pairing-token", credential, scopes }),
+      });
+      const token = (await tokenResponse.json()) as { accessToken: string };
+      return token.accessToken;
+    }
+
+    const readToken = await pair(["session:read"]);
+    const readHeaders = {
+      authorization: `Bearer ${readToken}`,
+      "content-type": "application/json",
+    };
+
+    const devicesResponse = await fetch(new URL("/api/profile/devices", info.httpBaseUrl), {
+      headers: readHeaders,
+    });
+    expect(devicesResponse.status).toBe(200);
+    const devices = (await devicesResponse.json()) as {
+      devices: Array<{ id: string; isCurrent?: boolean }>;
+      currentDeviceId: string;
+    };
+    expect(devices.currentDeviceId).toBeTruthy();
+    expect(devices.devices.some((d) => d.id === devices.currentDeviceId)).toBe(true);
+
+    const coreStatsResponse = await fetch(new URL("/api/profile/core-stats", info.httpBaseUrl), {
+      method: "POST",
+      headers: readHeaders,
+      body: JSON.stringify({ utcOffsetMinutes: 0 }),
+    });
+    expect(coreStatsResponse.status).toBe(200);
+    await expect(coreStatsResponse.json()).resolves.toMatchObject({
+      scope: "device",
+      identity: { plan: "Local" },
+    });
+
+    const tokenStatsResponse = await fetch(new URL("/api/profile/token-stats", info.httpBaseUrl), {
+      method: "POST",
+      headers: readHeaders,
+      body: JSON.stringify({ utcOffsetMinutes: 0 }),
+    });
+    expect(tokenStatsResponse.status).toBe(200);
+    await expect(tokenStatsResponse.json()).resolves.toMatchObject({ available: false });
+
+    // A malformed stats request (missing the required utcOffsetMinutes) is a
+    // client error, not a 500.
+    const invalidStatsResponse = await fetch(new URL("/api/profile/core-stats", info.httpBaseUrl), {
+      method: "POST",
+      headers: readHeaders,
+      body: JSON.stringify({}),
+    });
+    expect(invalidStatsResponse.status).toBe(400);
+    await expect(invalidStatsResponse.json()).resolves.toMatchObject({
+      error: { code: "invalid_request" },
+    });
+
+    // Identity writes require session:operate; a read-only token is refused.
+    const deniedIdentityResponse = await fetch(new URL("/api/profile/identity", info.httpBaseUrl), {
+      method: "POST",
+      headers: readHeaders,
+      body: JSON.stringify({ name: "Ada", handle: "ada", avatarColor: "oklch(0.6 0.1 200)" }),
+    });
+    expect(deniedIdentityResponse.status).toBe(403);
+    await expect(deniedIdentityResponse.json()).resolves.toMatchObject({
+      error: { code: "missing_scope" },
+    });
+
+    const operateToken = await pair(["session:read", "session:operate"]);
+    const operateHeaders = {
+      authorization: `Bearer ${operateToken}`,
+      "content-type": "application/json",
+    };
+    const identityResponse = await fetch(new URL("/api/profile/identity", info.httpBaseUrl), {
+      method: "POST",
+      headers: operateHeaders,
+      body: JSON.stringify({
+        name: "Ada Lovelace",
+        handle: "@Ada!",
+        avatarColor: "oklch(0.6 0.1 200)",
+      }),
+    });
+    expect(identityResponse.status).toBe(200);
+    await expect(identityResponse.json()).resolves.toMatchObject({
+      identity: { name: "Ada Lovelace", handle: "ada" },
+    });
+
+    // The write persisted: a fresh core-stats read echoes the updated identity.
+    const afterWriteResponse = await fetch(new URL("/api/profile/core-stats", info.httpBaseUrl), {
+      method: "POST",
+      headers: readHeaders,
+      body: JSON.stringify({ utcOffsetMinutes: 0 }),
+    });
+    await expect(afterWriteResponse.json()).resolves.toMatchObject({
+      identity: { name: "Ada Lovelace", handle: "ada" },
+    });
+  });
+
   it("forwards allowlisted git calls and enforces scope + allowlist", async () => {
     const calls: Array<{ name: string; payload: unknown }> = [];
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
@@ -2068,6 +2261,105 @@ describe("RemoteAccessServer", () => {
     expect(stateResponse.status).toBe(503);
     await expect(stateResponse.json()).resolves.toMatchObject({
       error: { code: "browser_unavailable" },
+    });
+  });
+
+  it("registers and unregisters push tokens via the injected sink", async () => {
+    const pushRegistrations = {
+      upsert: vi.fn<(registration: unknown) => void>(),
+      remove: vi.fn<(deviceId: string) => void>(),
+    };
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      pushRegistrations,
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    // No token → 401.
+    const anonResponse = await fetch(new URL("/api/push/register", info.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ deviceId: "device-abcdef", platform: "ios" }),
+    });
+    expect(anonResponse.status).toBe(401);
+    expect(pushRegistrations.upsert).not.toHaveBeenCalled();
+
+    // session:read only → 403 (register requires session:operate). Mint a fresh
+    // pairing credential since each is single-use.
+    const readPairing = new URL(server.issuePairingUrl());
+    const readCredential = new URLSearchParams(readPairing.hash.slice(1)).get("token");
+    const readTokenResponse = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        grantType: "pairing-token",
+        credential: readCredential,
+        scopes: ["session:read"],
+      }),
+    });
+    const readToken = (await readTokenResponse.json()) as { accessToken: string };
+    const forbidden = await fetch(new URL("/api/push/register", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${readToken.accessToken}`,
+      },
+      body: JSON.stringify({ deviceId: "device-abcdef", platform: "ios" }),
+    });
+    expect(forbidden.status).toBe(403);
+    expect(pushRegistrations.upsert).not.toHaveBeenCalled();
+
+    // session:operate → happy path (consumes the startup pairing credential).
+    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
+    const registration = {
+      deviceId: "device-abcdef",
+      platform: "ios",
+      deviceToken: "dev-token",
+      activityTokens: { activity1: "act-token" },
+    };
+    const registerResponse = await fetch(new URL("/api/push/register", info.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify(registration),
+    });
+    expect(registerResponse.status).toBe(200);
+    await expect(registerResponse.json()).resolves.toMatchObject({ ok: true });
+    expect(pushRegistrations.upsert).toHaveBeenCalledWith(registration);
+
+    const unregisterResponse = await fetch(new URL("/api/push/unregister", info.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ deviceId: "device-abcdef" }),
+    });
+    expect(unregisterResponse.status).toBe(200);
+    expect(pushRegistrations.remove).toHaveBeenCalledWith("device-abcdef");
+  });
+
+  it("rejects push endpoints when no registration sink is configured", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
+
+    const response = await fetch(new URL("/api/push/register", info.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ deviceId: "device-abcdef", platform: "ios" }),
+    });
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "push_unavailable" },
     });
   });
 });

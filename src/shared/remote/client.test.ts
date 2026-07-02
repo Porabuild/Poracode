@@ -44,6 +44,31 @@ describe("RemoteDesktopClient", () => {
     });
   });
 
+  it("keeps profile-stats fields beyond the light shape check (loose parse)", async () => {
+    const coreStats = {
+      scope: "device",
+      device: { id: "dev-1" },
+      totals: { prompts: 3 },
+      accounts: [{ key: "claude", label: "Claude", count: 3, share: 1 }],
+      providers: [],
+      availableAccounts: [],
+      identity: { name: "Test", handle: "test", avatarColor: "oklch(0.6 0.14 295)" },
+    };
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () =>
+        new Response(JSON.stringify(coreStats), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+
+    // A plain z.object would strip every key the check doesn't name; the
+    // desktop ProfileSettings component reads accounts/providers/identity.
+    await expect(client.profileCoreStats({ utcOffsetMinutes: 0 })).resolves.toEqual(coreStats);
+  });
+
   it("preserves endpoint path prefixes when issuing HTTP requests", async () => {
     let requestedUrl = "";
     let authorization = "";

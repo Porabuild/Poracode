@@ -856,7 +856,9 @@ export function ThreadComposer(props: {
         onDragLeave={handleAttachmentDragLeave}
         onDrop={handleAttachmentDrop}
       >
-        {variant === "draft" && <div className="lightcode-composer-border-glow" />}
+        {/* Inert unless a shell-level rule lights it: desktop draft focus, or
+            the phone layout's expanded live composer. */}
+        <div className="lightcode-composer-border-glow" />
         {isAttachmentDropActive ? (
           <div className="lightcode-composer-drop-overlay">
             <Trans>Drop here to attach</Trans>

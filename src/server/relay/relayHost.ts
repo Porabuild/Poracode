@@ -2,8 +2,10 @@ import { WebSocket } from "ws";
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import { toWebSocketUrl } from "@/shared/remote";
 import {
+  DEFAULT_RELAY_MAX_BODY_BYTES,
   LIGHTCODE_RELAY_PROTOCOL_VERSION,
   relayServerFrameSchema,
+  relayWebSocketPayloadLimit,
   safeJsonParse,
   type RelayHostFrame,
   type RelayRequestFrame,
@@ -73,13 +75,8 @@ interface LocalWsChannel {
   sendToLocal(data: string): void;
 }
 
-const DEFAULT_MAX_BODY_BYTES = 64 * 1024 * 1024;
 const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 const WEB_SOCKET_OPEN = 1;
-
-function relayHostWebSocketPayloadLimit(maxBodyBytes: number): number {
-  return Math.ceil((maxBodyBytes * 4) / 3) + 1024 * 1024;
-}
 
 /**
  * Build the synthetic `x-forwarded-for` value the host forwards to its own
@@ -101,11 +98,11 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
   const minReconnect = options.minReconnectMs ?? 1000;
   const maxReconnect = options.maxReconnectMs ?? 30_000;
   const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-  const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+  const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_RELAY_MAX_BODY_BYTES;
   const maxWebSocketPayloadBytes =
-    options.maxWebSocketPayloadBytes ?? relayHostWebSocketPayloadLimit(maxBodyBytes);
+    options.maxWebSocketPayloadBytes ?? relayWebSocketPayloadLimit(maxBodyBytes);
   const maxWebSocketOutboundBufferBytes =
-    options.maxWebSocketOutboundBufferBytes ?? relayHostWebSocketPayloadLimit(maxBodyBytes);
+    options.maxWebSocketOutboundBufferBytes ?? relayWebSocketPayloadLimit(maxBodyBytes);
 
   let disposed = false;
   let control: RelaySocket | null = null;
@@ -113,14 +110,10 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   const wsChannels = new Map<string, LocalWsChannel>();
 
-  const makeControl =
-    options.socketFactory ??
-    ((url: string) =>
-      new WebSocket(url, { maxPayload: maxWebSocketPayloadBytes }) as unknown as RelaySocket);
-  const makeLocalWs =
-    options.wsFactory ??
-    ((url: string) =>
-      new WebSocket(url, { maxPayload: maxWebSocketPayloadBytes }) as unknown as RelaySocket);
+  const defaultSocketFactory = (url: string): RelaySocket =>
+    new WebSocket(url, { maxPayload: maxWebSocketPayloadBytes }) as unknown as RelaySocket;
+  const makeControl = options.socketFactory ?? defaultSocketFactory;
+  const makeLocalWs = options.wsFactory ?? defaultSocketFactory;
 
   const closeSocket = (socket: RelaySocket): void => {
     try {

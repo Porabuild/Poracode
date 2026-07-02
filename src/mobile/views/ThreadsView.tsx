@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -16,7 +16,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { UIEvent as ReactUIEvent } from "react";
 import type { Project, Thread } from "@/shared/contracts";
 import { getBasename } from "@/shared/pathUtils";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
@@ -26,9 +26,12 @@ import {
   groupThreads,
   type ThreadListEntry,
 } from "@/renderer/views/MainView/parts/Sidebar/parts/groupThreads";
+import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { BottomSheet, EmptyState, SheetMenu, Skeleton, useSheet } from "../components";
+import { useKeyboardOffset } from "../useKeyboardOffset";
 import { GitSummaryBadge, WorktreeGitSummaryBadge } from "../GitSummaryParts";
+import { worktreeBranchOf, worktreeSiblingIds } from "../threadUtils";
 import type { ThreadAction } from "../useRemoteDesktop";
 
 export interface ThreadsViewProps {
@@ -39,6 +42,16 @@ export interface ThreadsViewProps {
   readonly projectFilter: string | null;
   /** First load with no cached threads yet: show placeholder rows. */
   readonly loading?: boolean;
+  /**
+   * Header-driven search (narrow home screen): when set, the always-visible
+   * inline search box is replaced by a floating input that slides in under the
+   * header while `searchOpen` is true. Leave unset for the inline box (wide
+   * sidebar).
+   */
+  readonly searchOpen?: boolean;
+  readonly onSearchOpenChange?: (open: boolean) => void;
+  /** Reports scroll direction so the shell can collapse/reveal its chrome. */
+  readonly onChromeHiddenChange?: (hidden: boolean) => void;
   readonly onProjectFilterChange: (projectId: string | null) => void;
   readonly onOpenThread: (thread: Thread) => void;
   readonly onThreadAction: (thread: Thread, action: ThreadAction) => void;
@@ -88,9 +101,6 @@ function ThreadListSkeleton() {
   );
 }
 
-const LONG_PRESS_MS = 450;
-const LONG_PRESS_SLOP_PX = 10;
-
 function normalizeSearchText(value: string | undefined): string {
   return value?.trim().toLowerCase() ?? "";
 }
@@ -112,85 +122,6 @@ function threadMatchesSearch(
     .filter(Boolean)
     .join(" ");
   return haystack.includes(query);
-}
-
-/**
- * Touch long-press / right-click → context menu, shared by thread rows and
- * group headers. The release click after a long-press is swallowed (via
- * `onClick`) so the row/header doesn't also fire its tap action; moving past
- * the slop cancels (the gesture was a scroll).
- */
-function useLongPress(onLongPress: () => void) {
-  const pressRef = useRef<{
-    timer: ReturnType<typeof setTimeout>;
-    x: number;
-    y: number;
-  } | null>(null);
-  const suppressClickRef = useRef(false);
-
-  const cancel = () => {
-    if (pressRef.current) {
-      clearTimeout(pressRef.current.timer);
-      pressRef.current = null;
-    }
-  };
-
-  const pressHandlers = {
-    onPointerDown: (event: ReactPointerEvent<HTMLElement>) => {
-      cancel();
-      pressRef.current = {
-        x: event.clientX,
-        y: event.clientY,
-        timer: setTimeout(() => {
-          pressRef.current = null;
-          suppressClickRef.current = true;
-          onLongPress();
-        }, LONG_PRESS_MS),
-      };
-    },
-    onPointerMove: (event: ReactPointerEvent<HTMLElement>) => {
-      const press = pressRef.current;
-      if (!press) return;
-      if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > LONG_PRESS_SLOP_PX) {
-        cancel();
-      }
-    },
-    onPointerUp: cancel,
-    onPointerCancel: cancel,
-    onPointerLeave: cancel,
-  };
-
-  const onClick = (action: () => void) => () => {
-    if (suppressClickRef.current) {
-      suppressClickRef.current = false;
-      return;
-    }
-    action();
-  };
-
-  const onContextMenu = (event: { preventDefault: () => void }) => {
-    event.preventDefault();
-    cancel();
-    onLongPress();
-  };
-
-  return { pressHandlers, onClick, onContextMenu };
-}
-
-/**
- * Every thread id that shares `worktreePath` within `projectId`. Deleting a
- * worktree removes the directory + branch, so the paired desktop must be told
- * about *all* threads pointing at it — otherwise the untold siblings survive as
- * rows aimed at a deleted path and fail to open.
- */
-function worktreeSiblingIds(
-  threads: readonly Thread[],
-  projectId: string,
-  worktreePath: string,
-): readonly string[] {
-  return threads
-    .filter((entry) => entry.projectId === projectId && entry.worktreePath === worktreePath)
-    .map((entry) => entry.id);
 }
 
 /** Long-press (touch) or right-click context menu for a thread row. */
@@ -229,7 +160,7 @@ function ThreadActionsSheet(props: {
     props.onClose();
   };
   const worktreePath = thread.worktreePath;
-  const worktreeBranch = worktreePath && (thread.worktreeBranch || getBasename(worktreePath));
+  const worktreeBranch = worktreeBranchOf(thread);
 
   return (
     <BottomSheet
@@ -388,7 +319,7 @@ function ThreadRow(props: {
   const live = tone !== "inactive" && tone !== "done";
   const worktreeName =
     !props.hideWorktree && thread.worktreePath ? getBasename(thread.worktreePath) : undefined;
-  const { pressHandlers, onClick, onContextMenu } = useLongPress(props.onMenu);
+  const longPressHandlers = useLongPress(props.onMenu);
 
   return (
     <button
@@ -396,9 +327,8 @@ function ThreadRow(props: {
       className="m-thread-row"
       data-active={props.isActive || undefined}
       data-live={live || undefined}
-      onClick={onClick(props.onPress)}
-      onContextMenu={onContextMenu}
-      {...pressHandlers}
+      onClick={props.onPress}
+      {...longPressHandlers}
     >
       <ThreadProviderIcon thread={thread} className="size-4 shrink-0" />
       <span className="m-thread-row__body">
@@ -481,7 +411,7 @@ function ThreadGroupHeader(props: {
   const { t } = useLingui();
   const threads = entry.group.threads;
   const allDone = threads.every((thread) => thread.done);
-  const { pressHandlers, onClick, onContextMenu } = useLongPress(props.onMenu);
+  const longPressHandlers = useLongPress(props.onMenu);
 
   return (
     <button
@@ -489,9 +419,8 @@ function ThreadGroupHeader(props: {
       className="m-thread-group__header"
       data-collapsed={props.collapsed || undefined}
       aria-expanded={!props.collapsed}
-      onClick={onClick(props.onToggle)}
-      onContextMenu={onContextMenu}
-      {...pressHandlers}
+      onClick={props.onToggle}
+      {...longPressHandlers}
     >
       <ChevronRight className="m-thread-group__chevron size-3.5 shrink-0" />
       {entry.kind === "worktree-group" ? (
@@ -699,6 +628,18 @@ function GroupActionsSheet(props: {
   );
 }
 
+/** Scroll travel (px) in one direction before the chrome collapses/reveals. */
+const CHROME_SCROLL_SLOP_PX = 6;
+
+/**
+ * How long the floating search's shrink-into-the-icon exit stays mounted: a
+ * beat past the 0.22s `m-search-float-out` animation in styles.css, so an
+ * animation that starts a frame late still finishes before the unmount. The
+ * timer (not `animationend`) drives the unmount so it still fires under
+ * reduced motion, where the animation is disabled.
+ */
+const SEARCH_EXIT_MS = 260;
+
 export function ThreadsView(props: ThreadsViewProps) {
   const { t } = useLingui();
   // Each menu keeps a snapshot of its target (the thread / group), so the
@@ -706,6 +647,75 @@ export function ThreadsView(props: ThreadsViewProps) {
   const threadMenu = useSheet<Thread>();
   const groupMenu = useSheet<GroupEntry>();
   const [query, setQuery] = useState("");
+
+  // Header-driven (floating) search vs. the wide sidebar's inline box.
+  const floatingSearch = props.searchOpen !== undefined;
+  const searchVisible = floatingSearch ? props.searchOpen === true : props.threads.length > 0;
+  // Closing the floating search keeps the box mounted briefly so it can play
+  // its exit animation back into the header icon. The exiting flag flips
+  // during render (not in an effect): the box must swap to the exit animation
+  // in the same commit `searchOpen` drops, or it would unmount for a frame
+  // and remount — skipping the animation and replaying the input's autofocus
+  // (which yanks the keyboard back up mid-close).
+  const [searchExiting, setSearchExiting] = useState(false);
+  const searchFloatRef = useRef<HTMLDivElement | null>(null);
+  const [prevSearchOpen, setPrevSearchOpen] = useState(props.searchOpen === true);
+  if ((props.searchOpen === true) !== prevSearchOpen) {
+    setPrevSearchOpen(props.searchOpen === true);
+    setSearchExiting(floatingSearch && !props.searchOpen && prevSearchOpen);
+  }
+  useEffect(() => {
+    if (!searchExiting) return;
+    // The closing box keeps no state: drop the filter (a hidden query would
+    // read as missing threads) and release focus so the keyboard dismisses
+    // with the animation, not after it.
+    setQuery("");
+    const overlay = searchFloatRef.current;
+    if (overlay?.contains(document.activeElement) && document.activeElement instanceof HTMLElement)
+      document.activeElement.blur();
+    const timer = setTimeout(() => setSearchExiting(false), SEARCH_EXIT_MS);
+    return () => clearTimeout(timer);
+  }, [searchExiting]);
+  // Autofocus only fires on mount — re-focus when the search reopens while
+  // the exiting box is still mounted.
+  useEffect(() => {
+    if (floatingSearch && props.searchOpen) searchFloatRef.current?.querySelector("input")?.focus();
+  }, [floatingSearch, props.searchOpen]);
+  // Dismissing the on-screen keyboard dismisses the search with it. Taps
+  // outside close via the overlay's onBlur; this covers dismissals that hide
+  // the keyboard WITHOUT blurring the input (Android's back button, iPad's
+  // keyboard-dismiss key): once the keyboard has been up while searching, its
+  // offset falling back to 0 closes the box.
+  const keyboardOffset = useKeyboardOffset();
+  const keyboardWasUpRef = useRef(false);
+  const onSearchOpenChange = props.onSearchOpenChange;
+  useEffect(() => {
+    if (!floatingSearch || !props.searchOpen) {
+      keyboardWasUpRef.current = false;
+      return;
+    }
+    if (keyboardOffset > 0) {
+      keyboardWasUpRef.current = true;
+      return;
+    }
+    if (!keyboardWasUpRef.current) return;
+    keyboardWasUpRef.current = false;
+    onSearchOpenChange?.(false);
+  }, [floatingSearch, props.searchOpen, keyboardOffset, onSearchOpenChange]);
+
+  // Scroll-direction reporting with hysteresis: down hides the shell chrome,
+  // up (or resting near the top) reveals it.
+  const lastScrollTopRef = useRef(0);
+  const handleListScroll = (event: ReactUIEvent<HTMLDivElement>) => {
+    const onChromeHiddenChange = props.onChromeHiddenChange;
+    if (!onChromeHiddenChange) return;
+    const top = event.currentTarget.scrollTop;
+    const delta = top - lastScrollTopRef.current;
+    lastScrollTopRef.current = top;
+    if (top <= 12) onChromeHiddenChange(false);
+    else if (delta > CHROME_SCROLL_SLOP_PX) onChromeHiddenChange(true);
+    else if (delta < -CHROME_SCROLL_SLOP_PX) onChromeHiddenChange(false);
+  };
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
     () => new Set(collapsedGroupCache),
   );
@@ -777,29 +787,59 @@ export function ThreadsView(props: ThreadsViewProps) {
         threadMatchesSearch(thread, projectNames.get(thread.projectId), searchQuery),
       )
     : projectFilteredThreads;
+  const searchField = (
+    <label className="m-thread-search">
+      <Search className="size-3.5 shrink-0 text-muted" />
+      <input
+        aria-label={t`Search threads`}
+        placeholder={t`Search threads`}
+        value={query}
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- the floating box appears because the user tapped the header search button
+        autoFocus={floatingSearch}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+      {floatingSearch ? (
+        <button
+          type="button"
+          aria-label={t`Close search`}
+          onClick={() => props.onSearchOpenChange?.(false)}
+        >
+          <X className="size-3.5" />
+        </button>
+      ) : query ? (
+        <button type="button" aria-label={t`Clear thread search`} onClick={() => setQuery("")}>
+          <X className="size-3.5" />
+        </button>
+      ) : null}
+    </label>
+  );
+  // Floating mode overlays the search under the header; inline mode keeps it
+  // pinned in the picker row. While closing, the overlay lingers with
+  // [data-closing] until its shrink-into-the-icon animation finishes.
+  const searchOverlay =
+    floatingSearch && (searchVisible || searchExiting) ? (
+      <div
+        ref={searchFloatRef}
+        className="m-search-float"
+        data-closing={searchExiting || undefined}
+        onBlur={(event) => {
+          // Tapping outside dismisses the search right away (the exit plays
+          // while the keyboard is still sliding down); focus moving within
+          // the box (e.g. to its clear button) is not a dismissal.
+          if (!searchVisible) return;
+          const next = event.relatedTarget;
+          if (next instanceof Node && event.currentTarget.contains(next)) return;
+          props.onSearchOpenChange?.(false);
+        }}
+      >
+        {searchField}
+      </div>
+    ) : null;
+  const inlineSearch = !floatingSearch && searchVisible ? searchField : null;
   const controls =
-    props.threads.length > 0 || projectPicker ? (
+    inlineSearch || projectPicker ? (
       <div className="m-threads__picker">
-        {props.threads.length > 0 ? (
-          <label className="m-thread-search">
-            <Search className="size-3.5 shrink-0 text-muted" />
-            <input
-              aria-label={t`Search threads`}
-              placeholder={t`Search threads`}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-            {query ? (
-              <button
-                type="button"
-                aria-label={t`Clear thread search`}
-                onClick={() => setQuery("")}
-              >
-                <X className="size-3.5" />
-              </button>
-            ) : null}
-          </label>
-        ) : null}
+        {inlineSearch}
         {projectPicker}
       </div>
     ) : null;
@@ -817,6 +857,7 @@ export function ThreadsView(props: ThreadsViewProps) {
     return (
       <div className="m-threads">
         {controls}
+        {searchOverlay}
         <EmptyState
           icon={<History className="size-5" />}
           title={
@@ -875,7 +916,8 @@ export function ThreadsView(props: ThreadsViewProps) {
   return (
     <div className="m-threads">
       {controls}
-      <div className="m-thread-list">
+      {searchOverlay}
+      <div className="m-thread-list" onScroll={handleListScroll}>
         {entries.map((entry) => {
           if (entry.kind === "thread") return renderThreadRow(entry.thread);
 

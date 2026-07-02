@@ -1,9 +1,12 @@
-import { closeDatabase, initDatabase } from "@/main/db";
+import { closeDatabase, dbGetProjects, dbGetThreads, initDatabase } from "@/main/db";
 import { prepareLightcodeDataRoot } from "@/main/lightcodeData";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "@/main/sharedSettingsFile";
 import { SupervisorClient } from "@/main/supervisor/SupervisorClient";
 import {
   createPersistentRemoteAuthStore,
+  createPushGateway,
+  PushCoordinator,
+  PushRegistrationStore,
   readOrCreateRemoteAccessIdentity,
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -107,6 +110,23 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
 
   const identity = readOrCreateRemoteAccessIdentity(paths.baseDir);
   const authStore = createPersistentRemoteAuthStore(paths.baseDir);
+  const pushStore = new PushRegistrationStore(paths.baseDir);
+  const pushCoordinator = new PushCoordinator({
+    store: pushStore,
+    sendPush: createPushGateway({
+      ...(options.reportError ? { onError: (error) => options.reportError?.(error) } : {}),
+    }),
+    getThreads: () => dbGetThreads(),
+    getProjects: () => dbGetProjects(),
+    getSettings: () => {
+      const settings = readSharedSettingsFile(paths.settingsPath);
+      return {
+        enabled: settings.remotePushEnabled,
+        redactContent: settings.remotePushRedactContent,
+      };
+    },
+    getAttributes: () => ({ desktopId: identity.desktopId, desktopName: identity.label }),
+  });
 
   // The supervisor's onEvent fires only after start() forks it, by which point
   // `serverRef` is assigned; the null-guard covers construction order only.
@@ -121,6 +141,7 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
     onEvent: (event) => {
       options.onSupervisorEvent?.(event);
       serverRef?.publishSupervisorEvent(event);
+      pushCoordinator.handleSupervisorEvent(event);
     },
     onReset: () => {
       // Supervisor restarted/exited: in-flight requests are already rejected by
@@ -145,6 +166,10 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
     settings: {
       read: () => pickRemoteSettings(readSharedSettingsFile(paths.settingsPath)),
       update: (patch) => pickRemoteSettings(patchSharedSettingsFile(paths.settingsPath, patch)),
+    },
+    pushRegistrations: {
+      upsert: (registration) => pushStore.upsert(registration),
+      remove: (deviceId) => pushStore.remove(deviceId),
     },
   });
   serverRef = server;

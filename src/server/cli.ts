@@ -2,6 +2,7 @@ import { closeSync, openSync, readFileSync, unlinkSync, writeSync } from "node:f
 import { join } from "node:path";
 import { resolveLightcodeBaseDir } from "@/shared/lightcodePaths";
 import { prepareLightcodeDataRoot } from "@/main/lightcodeData";
+import { installShutdown, reportFatalStartupError } from "./cliRuntime";
 import { createHeadlessRemoteHost } from "./createHeadlessRemoteHost";
 import { readOrCreateHeadlessSecretKey, readOrCreateRelaySecret } from "./headlessSecretKey";
 
@@ -185,23 +186,13 @@ async function main(): Promise<void> {
   console.log("[lightcode-server] pair a device:   %s", info.pairingUrl);
   console.log("[lightcode-server] (send SIGUSR2 to mint a fresh pairing link)");
 
-  let shuttingDown = false;
-  const shutdown = (signal: string) => {
-    if (shuttingDown) return;
-    shuttingDown = true;
-    console.log("\n[lightcode-server] %s received, shutting down…", signal);
-    void host
-      .dispose()
-      .catch((error) => console.error("[lightcode-server] shutdown error:", error))
-      .finally(() => {
-        // Release the data-dir lock in the SAME path that disposes the server/DB
-        // so the next start (or a desktop launch) can reclaim the dir cleanly.
-        dataDirLock.release();
-        process.exit(0);
-      });
-  };
-  process.on("SIGINT", () => shutdown("SIGINT"));
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  // Release the data-dir lock in the SAME path that disposes the server/DB so
+  // the next start (or a desktop launch) can reclaim the dir cleanly.
+  installShutdown(
+    "[lightcode-server]",
+    () => host.dispose(),
+    () => dataDirLock.release(),
+  );
   // Last-resort release on any normal/abrupt process exit (unlinkSync is sync,
   // so it runs even from the 'exit' handler). Idempotent with shutdown().
   process.on("exit", () => dataDirLock.release());
@@ -216,13 +207,7 @@ async function main(): Promise<void> {
 }
 
 function runCli(): void {
-  main().catch((error) => {
-    // Write synchronously to fd 2: a piped stderr flushes asynchronously, so a
-    // console.error() immediately followed by process.exit() drops the message.
-    const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
-    writeSync(2, `[lightcode-server] failed to start: ${detail}\n`);
-    process.exit(1);
-  });
+  main().catch((error) => reportFatalStartupError("[lightcode-server]", error));
 }
 
 // Only boot when run as the CLI entrypoint (node dist/main/server.cjs). Guarded

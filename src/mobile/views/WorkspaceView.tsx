@@ -14,6 +14,18 @@ import { GitView, useGitTargetStatus, type GitTarget } from "./GitView";
 
 export type WorkspaceTab = "changes" | "files";
 
+interface WorkspaceTabState {
+  readonly refreshSignal: number;
+  readonly refreshing: boolean;
+  readonly immersive: boolean;
+}
+
+const EMPTY_TAB_STATE: WorkspaceTabState = {
+  refreshSignal: 0,
+  refreshing: false,
+  immersive: false,
+};
+
 /**
  * The unified fullscreen "Code" panel for the PWA: one screen that folds the
  * former separate Git and Files panels into a single shell with a
@@ -49,20 +61,23 @@ export function WorkspaceView(props: {
   // while an explicit user pick (userTab) still wins thereafter.
   const [userTab, setUserTab] = useState<WorkspaceTab | null>(null);
   const tab: WorkspaceTab = userTab ?? (showChanges ? props.initialTab : "files");
-  const [gitRefreshSignal, setGitRefreshSignal] = useState(0);
-  const [filesRefreshSignal, setFilesRefreshSignal] = useState(0);
-  const [gitRefreshing, setGitRefreshing] = useState(false);
-  const [filesRefreshing, setFilesRefreshing] = useState(false);
-  const [gitImmersive, setGitImmersive] = useState(false);
-  const [filesImmersive, setFilesImmersive] = useState(false);
+  const [tabState, setTabState] = useState<Record<WorkspaceTab, WorkspaceTabState>>({
+    changes: EMPTY_TAB_STATE,
+    files: EMPTY_TAB_STATE,
+  });
   const [fileOpenRequest, setFileOpenRequest] = useState<{
     readonly path: string;
     readonly nonce: number;
   } | null>(null);
 
   const onChanges = tab === "changes" && showChanges;
-  const immersive = onChanges ? gitImmersive : filesImmersive;
-  const refreshing = onChanges ? gitRefreshing : filesRefreshing;
+  const activeTabKey: WorkspaceTab = onChanges ? "changes" : "files";
+  const immersive = tabState[activeTabKey].immersive;
+  const refreshing = tabState[activeTabKey].refreshing;
+
+  function updateTab(key: WorkspaceTab, patch: Partial<WorkspaceTabState>) {
+    setTabState((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  }
   const filesInitialPath = fileOpenRequest?.path ?? props.initialFilePath;
   const filesInitialLineNumber = fileOpenRequest ? undefined : props.initialLineNumber;
 
@@ -77,8 +92,13 @@ export function WorkspaceView(props: {
   const behind = gitStatus?.behind ?? 0;
 
   function refresh() {
-    if (onChanges) setGitRefreshSignal((n) => n + 1);
-    else setFilesRefreshSignal((n) => n + 1);
+    setTabState((prev) => ({
+      ...prev,
+      [activeTabKey]: {
+        ...prev[activeTabKey],
+        refreshSignal: prev[activeTabKey].refreshSignal + 1,
+      },
+    }));
   }
 
   function openFileFromGit(path: string) {
@@ -258,9 +278,9 @@ export function WorkspaceView(props: {
             <GitView
               target={gitTarget}
               onClose={props.onClose}
-              refreshSignal={gitRefreshSignal}
-              onRefreshingChange={setGitRefreshing}
-              onImmersiveChange={setGitImmersive}
+              refreshSignal={tabState.changes.refreshSignal}
+              onRefreshingChange={(value) => updateTab("changes", { refreshing: value })}
+              onImmersiveChange={(value) => updateTab("changes", { immersive: value })}
               onOpenFile={openFileFromGit}
               onLaunchConflictResolverThread={props.onLaunchConflictResolverThread}
             />
@@ -269,13 +289,13 @@ export function WorkspaceView(props: {
         <div className={!onChanges ? "m-ws-tab" : "m-ws-tab m-ws-tab--hidden"}>
           <FilesView
             target={filesTarget}
-            refreshSignal={filesRefreshSignal}
+            refreshSignal={tabState.files.refreshSignal}
             {...(filesInitialPath ? { initialFilePath: filesInitialPath } : {})}
             {...(props.initialFolderPath ? { initialFolderPath: props.initialFolderPath } : {})}
             {...(filesInitialLineNumber ? { initialLineNumber: filesInitialLineNumber } : {})}
             {...(fileOpenRequest ? { initialOpenKey: `git:${fileOpenRequest.nonce}` } : {})}
-            onRefreshingChange={setFilesRefreshing}
-            onImmersiveChange={setFilesImmersive}
+            onRefreshingChange={(value) => updateTab("files", { refreshing: value })}
+            onImmersiveChange={(value) => updateTab("files", { immersive: value })}
           />
         </div>
       </div>

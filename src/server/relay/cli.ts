@@ -1,4 +1,4 @@
-import { writeSync } from "node:fs";
+import { installShutdown, reportFatalStartupError } from "../cliRuntime";
 import { RelayServer } from "./relayServer";
 
 /**
@@ -24,22 +24,7 @@ async function main(): Promise<void> {
   console.log("[lightcode-relay] public base:   %s", info.url);
   console.log("[lightcode-relay] host control:  %s/host", info.url.replace(/^http/, "ws"));
 
-  let shuttingDown = false;
-  const shutdown = (signal: string) => {
-    if (shuttingDown) return;
-    shuttingDown = true;
-    console.log("\n[lightcode-relay] %s received, shutting down…", signal);
-    void relay
-      .dispose()
-      .catch((error) => console.error("[lightcode-relay] shutdown error:", error))
-      .finally(() => process.exit(0));
-  };
-  process.on("SIGINT", () => shutdown("SIGINT"));
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  installShutdown("[lightcode-relay]", () => relay.dispose());
 }
 
-main().catch((error) => {
-  const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
-  writeSync(2, `[lightcode-relay] failed to start: ${detail}\n`);
-  process.exit(1);
-});
+main().catch((error) => reportFatalStartupError("[lightcode-relay]", error));

@@ -22,6 +22,7 @@ export {
   type MainLocalIpcHandlerMap,
   type SupervisorIpcHandlerMap,
 } from "./bridge";
+export type { RemoteAccessTailscaleStatus, StartTailscaleResult } from "./procedures/app";
 export type {
   BrowserEvent,
   NotificationClickEvent,

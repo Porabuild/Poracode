@@ -22,6 +22,15 @@ import { z } from "zod";
  */
 export const LIGHTCODE_RELAY_PROTOCOL_VERSION = 1;
 
+/** Default cap on a single tunneled HTTP body (request or response) in bytes. */
+export const DEFAULT_RELAY_MAX_BODY_BYTES = 64 * 1024 * 1024;
+
+export function relayWebSocketPayloadLimit(maxBodyBytes: number): number {
+  // Host HTTP responses are base64 encoded inside a JSON frame over the relay
+  // control socket. Leave room for JSON/header overhead around the encoded body.
+  return Math.ceil((maxBodyBytes * 4) / 3) + 1024 * 1024;
+}
+
 /** Host → relay: claim a server id on this control socket. */
 export const relayRegisterFrameSchema = z.object({
   t: z.literal("register"),

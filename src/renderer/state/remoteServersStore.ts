@@ -11,6 +11,7 @@ import type {
   WriteProjectFileResult,
 } from "@/shared/contracts";
 import { RemoteDesktopClient, type RemoteFetch } from "@/shared/remote/client";
+import { reconnectBackoffDelay } from "@/shared/remote/backoff";
 import {
   filterKnownRemoteAccessScopes,
   REMOTE_STANDARD_SCOPES,
@@ -156,8 +157,10 @@ function remoteThreadSocketReconnectDelay(attempt: number): number {
 }
 
 function remoteServerEventSocketReconnectDelay(attempt: number): number {
-  const ceiling = remoteThreadSocketReconnectDelay(attempt);
-  return ceiling / 2 + Math.random() * (ceiling / 2);
+  return reconnectBackoffDelay(attempt, {
+    baseMs: REMOTE_THREAD_SOCKET_RECONNECT_BASE_MS,
+    maxMs: REMOTE_THREAD_SOCKET_RECONNECT_MAX_MS,
+  });
 }
 
 function closeRemoteServerEventSocket(desktopId: string): void {
@@ -378,6 +381,14 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             runtime: { ...state.runtime, [desktopId]: { ...current, status: "error", message } },
           };
         });
+      };
+
+      /** Resolve the paired server and build a client for it, or throw the
+       * shared "not found" error the action callers already surface. */
+      const requireClient = (desktopId: string): RemoteDesktopClient => {
+        const server = get().servers.find((entry) => entry.desktopId === desktopId);
+        if (!server) throw new Error(i18n._(msg`Remote server not found.`));
+        return get().clientFactory(server.endpoint, server.accessToken);
       };
 
       const startRemoteServerEventStream = (server: RemoteServerRecord) => {
@@ -623,8 +634,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         sendRemotePrompt: async (prompt) => {
           const open = get().openThread;
           if (!open || !prompt.trim()) return;
-          const server = get().servers.find((entry) => entry.desktopId === open.desktopId);
-          if (!server) throw new Error(i18n._(msg`Remote server not found.`));
+          const client = requireClient(open.desktopId);
           // The overlay captured `open.thread` when it opened; the model/mode may
           // have changed on the remote (or PWA) since. Prefer the latest thread
           // from the refreshed runtime snapshot so we don't ride a stale config
@@ -632,15 +642,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           const latest =
             get().runtime[open.desktopId]?.threads.find((t) => t.id === open.threadId) ??
             open.thread;
-          await get()
-            .clientFactory(server.endpoint, server.accessToken)
-            .sendThreadInput({ threadId: open.threadId, prompt, config: latest.config });
+          await client.sendThreadInput({ threadId: open.threadId, prompt, config: latest.config });
         },
 
         resolveThreadRequest: async (input) => {
-          const server = get().servers.find((entry) => entry.desktopId === input.desktopId);
-          if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-          await get().clientFactory(server.endpoint, server.accessToken).resolveRequest({
+          await requireClient(input.desktopId).resolveRequest({
             threadId: input.threadId,
             requestId: input.requestId,
             method: input.method,
@@ -649,50 +655,34 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         },
 
         rollbackThreadConversation: async (input) => {
-          const server = get().servers.find((entry) => entry.desktopId === input.desktopId);
-          if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-          await get()
-            .clientFactory(server.endpoint, server.accessToken)
-            .gitCall("rollbackThreadConversation", {
-              threadId: input.threadId,
-              numTurns: input.numTurns,
-            });
+          await requireClient(input.desktopId).gitCall("rollbackThreadConversation", {
+            threadId: input.threadId,
+            numTurns: input.numTurns,
+          });
         },
 
         restoreFileCheckpoint: async (input) => {
-          const server = get().servers.find((entry) => entry.desktopId === input.desktopId);
-          if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-          await get()
-            .clientFactory(server.endpoint, server.accessToken)
-            .gitCall("restoreFileCheckpoint", {
-              threadId: input.threadId,
-              checkpointItemId: input.checkpointItemId,
-              projectLocation: input.projectLocation,
-            });
+          await requireClient(input.desktopId).gitCall("restoreFileCheckpoint", {
+            threadId: input.threadId,
+            checkpointItemId: input.checkpointItemId,
+            projectLocation: input.projectLocation,
+          });
         },
 
         readProjectFile: async (input) => {
-          const server = get().servers.find((entry) => entry.desktopId === input.desktopId);
-          if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-          return (await get()
-            .clientFactory(server.endpoint, server.accessToken)
-            .gitCall("readProjectFile", {
-              projectLocation: input.projectLocation,
-              path: input.path,
-            })) as ReadProjectFileResult;
+          return (await requireClient(input.desktopId).gitCall("readProjectFile", {
+            projectLocation: input.projectLocation,
+            path: input.path,
+          })) as ReadProjectFileResult;
         },
 
         writeProjectFile: async (input) => {
-          const server = get().servers.find((entry) => entry.desktopId === input.desktopId);
-          if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-          return (await get()
-            .clientFactory(server.endpoint, server.accessToken)
-            .gitCall("writeProjectFile", {
-              projectLocation: input.projectLocation,
-              path: input.path,
-              content: input.content,
-              baseModifiedAtMs: input.baseModifiedAtMs,
-            })) as WriteProjectFileResult;
+          return (await requireClient(input.desktopId).gitCall("writeProjectFile", {
+            projectLocation: input.projectLocation,
+            path: input.path,
+            content: input.content,
+            baseModifiedAtMs: input.baseModifiedAtMs,
+          })) as WriteProjectFileResult;
         },
 
         pairServer: async ({ endpoint, token }) => {
@@ -850,9 +840,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         },
 
         runProjectCommand: async (desktopId, command) => {
-          const server = get().servers.find((entry) => entry.desktopId === desktopId);
-          if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-          await get().clientFactory(server.endpoint, server.accessToken).projectCommand(command);
+          await requireClient(desktopId).projectCommand(command);
           await get().refreshServer(desktopId);
         },
 
@@ -862,11 +850,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // stray rejection. Catch here so an offline/unreachable server surfaces
           // a toast (and the server's runtime status) instead of crashing the UI.
           try {
-            const server = get().servers.find((entry) => entry.desktopId === desktopId);
-            if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-            await get()
-              .clientFactory(server.endpoint, server.accessToken)
-              .interruptThread(threadId);
+            await requireClient(desktopId).interruptThread(threadId);
           } catch (error) {
             reportRemoteServerError(
               desktopId,
@@ -878,9 +862,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
 
         closeThread: async (desktopId, threadId) => {
           try {
-            const server = get().servers.find((entry) => entry.desktopId === desktopId);
-            if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-            await get().clientFactory(server.endpoint, server.accessToken).closeThread(threadId);
+            await requireClient(desktopId).closeThread(threadId);
             await get().refreshServer(desktopId);
           } catch (error) {
             reportRemoteServerError(desktopId, error, i18n._(msg`Failed to close remote thread.`));

@@ -98,36 +98,37 @@ export function buildLocalPairingPageHtml(input: { readonly httpBaseUrl: string 
 `;
 }
 
+const LOCAL_PAIRING_MANIFEST_JSON = JSON.stringify({
+  id: "/app",
+  name: "Lightcode",
+  short_name: "Lightcode",
+  start_url: "/app",
+  scope: "/",
+  display: "standalone",
+  // Matches the installed PWA's splash/status chrome to the app's dark
+  // background (mobile.html theme-color).
+  background_color: "#17181d",
+  theme_color: "#17181d",
+  // PNG icons are copied from public/ into the built renderer (/icons) and
+  // served by tryServeBuiltMobileApp; the SVG falls back for older builds.
+  icons: [
+    { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    {
+      src: "/icons/icon-maskable-512.png",
+      sizes: "512x512",
+      type: "image/png",
+      purpose: "maskable",
+    },
+    { src: "/app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+  ],
+});
+
 export function buildLocalPairingManifestJson(): string {
-  return JSON.stringify({
-    id: "/app",
-    name: "Lightcode",
-    short_name: "Lightcode",
-    start_url: "/app",
-    scope: "/",
-    display: "standalone",
-    // Matches the installed PWA's splash/status chrome to the app's dark
-    // background (mobile.html theme-color).
-    background_color: "#17181d",
-    theme_color: "#17181d",
-    // PNG icons are copied from public/ into the built renderer (/icons) and
-    // served by tryServeBuiltMobileApp; the SVG falls back for older builds.
-    icons: [
-      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      {
-        src: "/icons/icon-maskable-512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "maskable",
-      },
-      { src: "/app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
-    ],
-  });
+  return LOCAL_PAIRING_MANIFEST_JSON;
 }
 
-export function buildLocalPairingServiceWorkerJs(): string {
-  return `const CACHE_NAME = "lightcode-remote-local-v1";
+const LOCAL_PAIRING_SERVICE_WORKER_JS = `const CACHE_NAME = "lightcode-remote-local-v1";
 const SHELL_URLS = ["/app", "/manifest.webmanifest", "/app-icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -156,11 +157,13 @@ self.addEventListener("fetch", (event) => {
   );
 });
 `;
+
+export function buildLocalPairingServiceWorkerJs(): string {
+  return LOCAL_PAIRING_SERVICE_WORKER_JS;
 }
 
-export function buildLocalPairingIconSvg(): string {
-  // Kept in sync with public/app-icon.svg (the static/standalone icon).
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Lightcode">
+// Kept in sync with public/app-icon.svg (the static/standalone icon).
+const LOCAL_PAIRING_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Lightcode">
   <defs>
     <linearGradient id="lc-bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#1b2433"/>
@@ -181,4 +184,7 @@ export function buildLocalPairingIconSvg(): string {
   </g>
 </svg>
 `;
+
+export function buildLocalPairingIconSvg(): string {
+  return LOCAL_PAIRING_ICON_SVG;
 }

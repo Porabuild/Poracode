@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { Archive, CircleCheck, Ellipsis, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import {
+  Archive,
+  CircleCheck,
+  Ellipsis,
+  Pencil,
+  Plus,
+  SquareTerminal,
+  Star,
+  Trash2,
+} from "lucide-react";
 import type { Thread } from "@/shared/contracts";
-import { getBasename } from "@/shared/pathUtils";
 import { Button } from "@/renderer/components/common";
 import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput";
 import { SheetMenu, StatusBadge, type SheetMenuItem } from "./components";
 import { WorkspaceChip } from "./GitSummaryParts";
+import { worktreeBranchOf, worktreeSiblingIds } from "./threadUtils";
 import type { ThreadAction } from "./useRemoteDesktop";
 import type { WorkspaceTab } from "./views/WorkspaceView";
 
@@ -15,23 +24,6 @@ import type { WorkspaceTab } from "./views/WorkspaceView";
  * hides behind hover/context menus live here, next to the thread title — as a
  * bottom drawer, matching the rest of the phone shell.
  */
-/**
- * Every thread id that shares `worktreePath` within `projectId`. Deleting a
- * worktree removes the directory + branch, so the paired desktop must be told
- * about *all* threads pointing at it — otherwise the untold siblings survive as
- * rows aimed at a deleted path and fail to open.
- */
-function worktreeSiblingIds(
-  threads: readonly Thread[],
-  projectId: string,
-  worktreePath: string,
-): readonly string[] {
-  const siblings = threads
-    .filter((entry) => entry.projectId === projectId && entry.worktreePath === worktreePath)
-    .map((entry) => entry.id);
-  return siblings.length > 0 ? siblings : [];
-}
-
 function ThreadActionsMenu(props: {
   readonly thread: Thread;
   /** Full thread list, so a worktree delete can gather every sibling id. */
@@ -40,14 +32,24 @@ function ThreadActionsMenu(props: {
   readonly onAction: (action: ThreadAction) => void;
   readonly onNewThreadInWorktree?: ((input: WorktreeThreadInput) => void) | undefined;
   readonly onDeleteWorktreeGroup?: ((input: WorktreeDeleteInput) => void) | undefined;
+  readonly onOpenTerminal?: (() => void) | undefined;
 }) {
   const { thread } = props;
   const { t } = useLingui();
   const worktreePath = thread.worktreePath;
-  const worktreeBranch = worktreePath && (thread.worktreeBranch || getBasename(worktreePath));
+  const worktreeBranch = worktreeBranchOf(thread);
 
   const items: SheetMenuItem[] = [
     { id: "rename", label: t`Rename`, icon: <Pencil className="size-4 text-muted" /> },
+    ...(props.onOpenTerminal
+      ? [
+          {
+            id: "open-terminal",
+            label: worktreePath ? t`Open terminal in worktree` : t`Open terminal`,
+            icon: <SquareTerminal className="size-4 text-muted" />,
+          },
+        ]
+      : []),
     ...(worktreePath && worktreeBranch && props.onNewThreadInWorktree
       ? [
           {
@@ -88,6 +90,7 @@ function ThreadActionsMenu(props: {
 
   const handleSelect = (id: string) => {
     if (id === "rename") props.onRename();
+    if (id === "open-terminal") props.onOpenTerminal?.();
     if (id === "new-worktree-thread" && worktreePath && worktreeBranch) {
       props.onNewThreadInWorktree?.({
         projectId: thread.projectId,
@@ -156,6 +159,8 @@ export function ThreadTitleRow(props: {
   readonly onAction: (action: ThreadAction) => void;
   readonly onNewThreadInWorktree?: ((input: WorktreeThreadInput) => void) | undefined;
   readonly onDeleteWorktreeGroup?: ((input: WorktreeDeleteInput) => void) | undefined;
+  /** Adds an "Open terminal" entry to the actions menu. */
+  readonly onOpenTerminal?: (() => void) | undefined;
 }) {
   const { thread } = props;
   const [renaming, setRenaming] = useState(false);
@@ -193,6 +198,7 @@ export function ThreadTitleRow(props: {
         onAction={props.onAction}
         onNewThreadInWorktree={props.onNewThreadInWorktree}
         onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
+        onOpenTerminal={props.onOpenTerminal}
       />
     </>
   );

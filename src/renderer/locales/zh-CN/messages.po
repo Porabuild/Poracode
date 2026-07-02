@@ -50,11 +50,6 @@ msgstr "{0, plural, one {# 个项目} other {# 个项目}}"
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {#提供商准备就绪} other {#提供商准备就绪}}"
 
-#. placeholder {0}: servers.length
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "{0, plural, one {# server} other {# servers}}"
-#~ msgstr "{0, plural, one {# 台服务器} other {# 台服务器}}"
-
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "{0, plural, one {target} other {targets}}"
@@ -580,10 +575,6 @@ msgstr "添加操作"
 msgid "Add an existing folder"
 msgstr "添加现有文件夹"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Add an existing folder on the server"
-#~ msgstr "添加服务器上的现有文件夹"
-
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
 msgstr "添加附件或功能"
@@ -648,9 +639,10 @@ msgstr "添加到收藏夹"
 msgid "Add to Home Screen"
 msgstr "添加到主屏幕"
 
-#: src/mobile/views/MoreView.tsx
-msgid "Add, clone, or remove projects on this server"
-msgstr "在此服务器上添加、克隆或移除项目"
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty "
+"for automatic."
+msgstr "公布自定义基础 URL，例如反向代理或隧道。留空则自动设置。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -817,10 +809,6 @@ msgstr "另一个聊天使用同一棵树。文件恢复可能会覆盖该聊天
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
 msgstr "应用程序浏览器"
-
-#: src/mobile/views/MoreView.tsx
-#~ msgid "App preferences"
-#~ msgstr "应用偏好设置"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -1041,10 +1029,7 @@ msgstr "返回更改"
 msgid "Back to files"
 msgstr "返回文件"
 
-#: src/mobile/views/pr/PrChangesPage.tsx
-#: src/mobile/views/pr/PrChecksPage.tsx
-#: src/mobile/views/pr/PrCommitsPage.tsx
-#: src/mobile/views/pr/PrConversationPage.tsx
+#: src/mobile/views/pr/PrSubPage.tsx
 msgid "Back to overview"
 msgstr "返回概览"
 
@@ -1185,7 +1170,6 @@ msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "浏览您的 GitHub 存储库或粘贴克隆 URL。"
 
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/MoreView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -1406,6 +1390,10 @@ msgstr "检查更新"
 msgid "Check the live input level from the selected device."
 msgstr "检查所选设备的实时输入电平。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Checking Tailscale…"
+msgstr "正在检查 Tailscale..."
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Checking…"
 msgstr "正在检查..."
@@ -1535,10 +1523,6 @@ msgid "Clone a repository"
 msgstr "克隆存储库"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Clone a repository into a folder on the server"
-#~ msgstr "将仓库克隆到服务器上的文件夹中"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone repo"
 msgstr "克隆仓库"
 
@@ -1575,13 +1559,14 @@ msgstr "关闭{purposeNoun}终端"
 msgid "Close browser"
 msgstr "关闭浏览器"
 
+#: src/mobile/views/QuickCompose.tsx
+#: src/mobile/views/ThreadView.tsx
+msgid "Close composer"
+msgstr "关闭输入框"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Close connection actions"
 msgstr "关闭连接操作"
-
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Close desktop actions"
-#~ msgstr "关闭桌面操作"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1611,6 +1596,7 @@ msgstr "关闭组"
 msgid "Close group actions"
 msgstr "关闭组操作"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Close menu"
 msgstr "关闭菜单"
@@ -1656,6 +1642,7 @@ msgstr "关闭项目筛选"
 msgid "Close scanner"
 msgstr "关闭扫描器"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
 msgstr "关闭搜索"
@@ -1891,11 +1878,6 @@ msgid "Connect"
 msgstr "连接"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect a Lightcode desktop or headless server above to browse and "
-#~ "manage its projects from here."
-#~ msgstr "在上方连接 Lightcode 桌面或无头服务器，即可在此浏览和管理其项目。"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect a server"
 msgstr "连接服务器"
 
@@ -1904,30 +1886,10 @@ msgid "Connect the AI providers OpenCode can use and sign out of them here."
 msgstr "在此连接 OpenCode 可使用的 AI 提供商，并退出登录。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
-#~ "projects — and their threads — from here. Open Settings → Remote Access "
-#~ "on the other machine to get its endpoint and a pairing token."
-#~ msgstr "连接到另一台 Lightcode 桌面或无头服务器，并在此管理其项目及线程。在另一台机器上打开“设置”→“远程访问”，获取其端点和配对令牌。"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
-#~ "projects from here. Open Settings → Remote Access on the other machine "
-#~ "to get its endpoint and a pairing token."
-#~ msgstr "连接到另一台 Lightcode 桌面或无头服务器，并在此管理其项目。在另一台机器上打开“设置”→“远程访问”，获取其端点和配对令牌。"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect to another Lightcode desktop or a headless server to browse and "
 "manage its projects from here. Get its endpoint and pairing token from "
 "Settings → Remote Access on that machine."
 msgstr "连接到另一台 Lightcode 桌面端或无界面服务器，即可在此浏览和管理其项目。请在对方设备的“设置 → 远程访问”中获取其端点和配对令牌。"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connected servers"
-#~ msgstr "已连接的服务器"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connecting"
-#~ msgstr "正在连接"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
@@ -2021,15 +1983,12 @@ msgstr "控制哪些文件出现在 @file 提及搜索中。可在各项目的�
 msgid "Conversation"
 msgstr "对话"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "已复制"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Copied from Settings → Remote Access on the other machine."
-#~ msgstr "已从另一台机器的“设置”→“远程访问”复制。"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
@@ -2075,6 +2034,7 @@ msgstr "复制忽略的文件"
 msgid "Copy image"
 msgstr "复制图片"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "复制消息"
@@ -2098,6 +2058,10 @@ msgstr "复制相对路径"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Copy selection"
 msgstr "复制选区"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy Tailscale URL"
+msgstr "复制 Tailscale URL"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
@@ -2165,10 +2129,6 @@ msgstr "无法保存快捷键。"
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "无法启动摄像头"
-
-#: src/mobile/useRemoteDesktop.ts
-#~ msgid "Couldn't tag the thread's worktree."
-#~ msgstr "无法标记该线程的 worktree。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -2398,10 +2358,6 @@ msgstr "描述"
 msgid "Description (optional)"
 msgstr "说明（可选）"
 
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "Desktop"
-#~ msgstr "桌面"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
 msgstr "桌面端点"
@@ -2414,11 +2370,6 @@ msgstr "无法访问桌面。"
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
 msgstr "桌面设置"
-
-#: src/mobile/RootLayout.tsx
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Desktops"
-#~ msgstr "桌面"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2594,14 +2545,6 @@ msgstr "下载语音模型{0}%"
 msgid "Downloading voice model..."
 msgstr "正在下载语音模型..."
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
-#~ msgstr "下载{v}—{percent}%{speedSuffix}"
-
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-#~ msgid "Downloading{versionLabel}"
-#~ msgstr "正在下载{versionLabel}"
-
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"
 msgstr "草稿"
@@ -2739,6 +2682,10 @@ msgstr "端点，例如 http://192.168.1.20:38987/"
 msgid "Enhanced (Hooks)"
 msgstr "增强型（挂钩）"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Enter a full origin URL like https://code.example.com, with no path."
+msgstr "输入完整的来源 URL，例如 https://code.example.com，不含路径。"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Enter a repository URL."
 msgstr "输入存储库 URL。"
@@ -2810,10 +2757,6 @@ msgstr "已退出"
 #: src/mobile/views/TerminalView.tsx
 msgid "exited ({0})"
 msgstr "已退出（{0}）"
-
-#: src/mobile/views/TerminalView.tsx
-#~ msgid "exited ({exitCode})"
-#~ msgstr "已退出（{exitCode}）"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -2975,10 +2918,6 @@ msgstr "与这些 glob 匹配的文件在 @file 提及搜索中隐藏。"
 msgid "Filter by project"
 msgstr "按项目筛选"
 
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#~ msgid "Filter settings"
-#~ msgstr "筛选设置"
-
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
 msgid "Find"
@@ -3082,10 +3021,6 @@ msgstr "文件夹名称"
 msgid "Folder on the server"
 msgstr "服务器上的文件夹"
 
-#: src/mobile/views/ManageProjectsView.tsx
-#~ msgid "Folder path"
-#~ msgstr "文件夹路径"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "服务器上的文件夹路径"
@@ -3188,6 +3123,11 @@ msgstr "从分阶段更改生成提交消息。"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "为新线程生成短标题。"
+
+#: src/mobile/push/MobilePushSettings.tsx
+msgid "Get alerts through Apple's push service when this desktop's threads "
+"finish or need you — even while the app is closed."
+msgstr "当此桌面的线程完成或需要你处理时，通过 Apple 推送服务接收提醒 — 即使应用已关闭。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -3383,6 +3323,10 @@ msgstr "主页范围"
 msgid "ID: {0}"
 msgstr "编号：{0}"
 
+#: src/mobile/settingsSections.ts
+msgid "Identity and usage stats"
+msgstr "身份和使用统计"
+
 #. Microphone input level when not testing
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -3491,6 +3435,14 @@ msgstr "在 Windows 上安装"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "安装包"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Install Tailscale"
+msgstr "安装 Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Install Tailscale to set up HTTPS access through MagicDNS."
+msgstr "安装 Tailscale 以通过 MagicDNS 设置 HTTPS 访问。"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -3618,14 +3570,6 @@ msgstr "累计token数"
 msgid "Light"
 msgstr "浅色"
 
-#: src/mobile/RootLayout.tsx
-msgid "Lightcode mobile navigation"
-msgstr "Lightcode 移动导航"
-
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "Links and page behavior"
-#~ msgstr "链接和页面行为"
-
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -3719,6 +3663,10 @@ msgstr "从 {branch} 拉取之前需要暂存（stash）本地更改"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
 msgstr "位置"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Log in to Tailscale to set up HTTPS access through MagicDNS."
+msgstr "登录 Tailscale 以通过 MagicDNS 设置 HTTPS 访问。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Logging in"
@@ -3911,6 +3859,10 @@ msgstr "已合并"
 msgid "Merging is blocked"
 msgstr "合并被阻止"
 
+#: src/mobile/UserMessageActionsSheet.tsx
+msgid "Message actions"
+msgstr "消息操作"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Message the remote agent…"
 msgstr "向远程代理发送消息…"
@@ -3965,6 +3917,10 @@ msgstr "镜像的桌面浏览器标签页"
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirroring is unavailable."
 msgstr "镜像不可用。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Mobile push notifications"
+msgstr "移动推送通知"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4129,7 +4085,6 @@ msgstr "需要关注 · 需要回复"
 msgid "Needs reply"
 msgstr "需要回复"
 
-#: src/mobile/RootLayout.tsx
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "新增"
@@ -4203,6 +4158,7 @@ msgid "New tab"
 msgstr "新标签页"
 
 #: src/mobile/RootLayout.tsx
+#: src/mobile/views/QuickCompose.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
@@ -4367,10 +4323,6 @@ msgstr "暂无数据。"
 msgid "No description"
 msgstr "无描述"
 
-#: src/mobile/RootLayout.tsx
-#~ msgid "No desktop paired"
-#~ msgstr "未配对桌面"
-
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
 msgid "No diff available for {0}"
@@ -4460,10 +4412,6 @@ msgid "No projects available"
 msgstr "没有可用项目"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "No projects on this server yet."
-#~ msgstr "此服务器上还没有项目。"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "No projects on this server."
 msgstr "此服务器上没有项目。"
 
@@ -4499,10 +4447,6 @@ msgstr "没有结果"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "该线程还没有运行时项目。"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "No servers connected yet"
-#~ msgstr "尚未连接服务器"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "No servers connected yet."
@@ -4847,12 +4791,17 @@ msgstr "在桌面 Lightcode 中打开“设置”→“远程访问”，然后�
 msgid "Open subagent: {0}"
 msgstr "打开子代理：{0}"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Open Tailscale"
+msgstr "打开 Tailscale"
+
+#: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/ThreadsView.tsx
-#: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
 msgstr "打开终端"
 
+#: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/ThreadsView.tsx
 msgid "Open terminal in worktree"
 msgstr "在 worktree 中打开终端"
@@ -4929,10 +4878,6 @@ msgstr "配对"
 msgid "Pair a connection"
 msgstr "配对连接"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Pair a desktop"
-#~ msgstr "配对桌面"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "将手机、平板电脑或浏览器与此桌面配对。"
@@ -4941,10 +4886,6 @@ msgstr "将手机、平板电脑或浏览器与此桌面配对。"
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pair again"
 msgstr "重新配对"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Pair with its endpoint and a one-time token."
-#~ msgstr "使用其端点和一次性令牌配对。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -5082,6 +5023,10 @@ msgstr "已固定"
 msgid "Plan"
 msgstr "计划"
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Plan, ask, build…"
+msgstr "规划、提问、构建…"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play a sound when a notification is shown."
@@ -5169,6 +5114,7 @@ msgstr "上一个最近查看的聊天"
 msgid "Previous tab"
 msgstr "上一个选项卡"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
 msgstr "个人资料"
@@ -5215,7 +5161,6 @@ msgstr "在全局搜索设置基础上的项目特定覆盖。"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/mobile/views/MoreView.tsx
 msgid "Projects"
 msgstr "项目"
 
@@ -5245,10 +5190,6 @@ msgstr "提供商"
 msgid "Provider has not reported token usage."
 msgstr "提供商尚未报告令牌使用情况。"
 
-#: src/mobile/views/MoreView.tsx
-#~ msgid "Provider limits and spend"
-#~ msgstr "提供商限制和花费"
-
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "服务商预设"
@@ -5262,6 +5203,14 @@ msgstr "提供商"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "提供商"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Public URL"
+msgstr "公共 URL"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Public URL updated."
+msgstr "公共 URL 已更新。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Pull"
@@ -5346,6 +5295,19 @@ msgstr "推送 ↑{ahead}"
 msgid "Push failed: {detail}"
 msgstr "推送失败：{detail}"
 
+#: src/mobile/push/MobilePushSettings.tsx
+msgid "Push notifications"
+msgstr "推送通知"
+
+#: src/mobile/push/MobilePushSettings.tsx
+msgid "Push notifications may be unavailable for this desktop."
+msgstr "此桌面可能无法使用推送通知。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Push updates to paired mobile devices when threads finish or need you, "
+"even when the app is closed."
+msgstr "当线程完成或需要你处理时，向已配对的移动设备推送更新，即使应用已关闭。"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"
 msgstr "问题"
@@ -5421,6 +5383,10 @@ msgid "Reconstructed from local logs at public API rates — it does not reflect
 "your real bill on subscription plans. Shown only in the usage panel."
 msgstr "以公共 API 费率从本地日志重建 — 它不反映您订阅计划的真实账单。仅在使用面板中显示。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Redact notification content"
+msgstr "隐藏通知内容"
+
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
@@ -5487,22 +5453,6 @@ msgid "Remote Access"
 msgstr "远程访问"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is disabled for this desktop."
-#~ msgstr "此桌面的远程访问已禁用。"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is off"
-#~ msgstr "远程访问已关闭"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is on"
-#~ msgstr "远程访问已开启"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is starting"
-#~ msgstr "正在启动远程访问"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Remote access pairing QR code"
 msgstr "远程访问配对二维码"
 
@@ -5538,10 +5488,6 @@ msgstr "远程会话已撤销。"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
 msgstr "远程网址"
-
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "Removal behavior"
-#~ msgstr "移除行为"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove"
@@ -5586,10 +5532,6 @@ msgstr "删除 Claude 配置文件"
 msgid "Remove connection"
 msgstr "删除连接"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Remove desktop"
-#~ msgstr "移除桌面"
-
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "移除环境变量"
@@ -5619,10 +5561,6 @@ msgstr "移除项目"
 msgid "Remove Project"
 msgstr "删除项目"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Remove project from remote"
-#~ msgstr "从远程移除项目"
-
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "移除快捷键"
@@ -5647,10 +5585,6 @@ msgstr "重命名聊天"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Rename connection"
 msgstr "重命名连接"
-
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Rename desktop"
-#~ msgstr "重命名桌面"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -5865,6 +5799,7 @@ msgstr "恢复更改"
 msgid "Revert to checkpoint?"
 msgstr "恢复到此检查点？"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Revert to this checkpoint"
 msgstr "恢复到此检查点"
@@ -6129,6 +6064,7 @@ msgstr "搜索快捷键"
 msgid "Search the current view"
 msgstr "搜索当前视图"
 
+#: src/mobile/RootLayout.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -6211,6 +6147,11 @@ msgstr "发送"
 msgid "Send a message..."
 msgstr "发送消息..."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Send generic text instead of conversation titles through Apple's push "
+"service."
+msgstr "通过 Apple 推送服务发送通用文本，而非对话标题。"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Send message"
@@ -6226,6 +6167,10 @@ msgid "Separate Claude Code accounts by config directory, or point a profile at 
 "vars, models, and effort."
 msgstr "按配置目录区分Claude Code账户，或将配置指向外部服务商（z.ai，…）。打开某个配置以设置其环境变量、模型和思考级别。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
+msgstr "通过您的 Tailscale 网络的 HTTPS MagicDNS URL 提供远程访问。"
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
 msgstr "设置或查看实验目标"
@@ -6235,7 +6180,6 @@ msgid "Set shortcut"
 msgstr "设置快捷键"
 
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -6569,6 +6513,14 @@ msgstr "在当前输入框中开始语音输入"
 msgid "Start from scratch"
 msgstr "从头开始"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Start Tailscale"
+msgstr "启动 Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Start Tailscale to set up HTTPS access through MagicDNS."
+msgstr "启动 Tailscale 以通过 MagicDNS 设置 HTTPS 访问。"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Start the composer collapsed in terminal-native threads. A collapsed "
@@ -6842,6 +6794,14 @@ msgstr "标签页"
 msgid "Tabs ({0})"
 msgstr "标签页 ({0})"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale HTTPS"
+msgstr "Tailscale HTTPS"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale URL"
+msgstr "Tailscale URL"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Take Screenshot"
 msgstr "截图"
@@ -6921,11 +6881,6 @@ msgstr "终端选项卡"
 msgid "Test microphone"
 msgstr "测试麦克风"
 
-#: src/mobile/remoteClient.ts
-#~ msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
-#~ "desktop endpoint from Settings → Remote Access."
-#~ msgstr "该端点打开的是移动应用，而不是桌面端 API。请使用“设置 → 远程访问”中的桌面端点。"
-
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Lightcode pairing link."
 msgstr "该二维码不是 Lightcode 配对链接。"
@@ -6961,18 +6916,10 @@ msgstr "默认的后台刷新频率，适用于下方未单独设置间隔的任
 msgid "The desktop server is still coming online."
 msgstr "桌面服务器仍在启动。"
 
-#: src/mobile/views/MoreView.tsx
-msgid "The desktop's built-in browser"
-msgstr "桌面内置浏览器"
-
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
 msgstr "正常的应用程序外壳无法呈现。以下诊断信息在重新加载之前显示，以便可以调查故障。"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "The other machine's remote-access address."
-#~ msgstr "另一台机器的远程访问地址。"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
@@ -7012,18 +6959,10 @@ msgid "This browser does not support system notifications here; you will still "
 "see in-app toasts."
 msgstr "此浏览器不支持在此处显示系统通知；你仍会看到应用内提示。"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "This connection can view projects but not manage them."
-#~ msgstr "此连接可以查看项目，但不能管理项目。"
-
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to "
 "enable."
 msgstr "此连接可以查看项目，但不能管理项目。请重新配对以启用。"
-
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "This device"
-#~ msgstr "此设备"
 
 #: src/mobile/QrScanner.tsx
 msgid "This device has no usable camera. Enter the endpoint and token below to "
@@ -7153,7 +7092,6 @@ msgstr "线程排序顺序"
 msgid "Thread todo dock"
 msgstr "线程待办事项停靠栏"
 
-#: src/mobile/RootLayout.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
@@ -7317,6 +7255,10 @@ msgstr "无法复制配对链接。"
 msgid "Unable to copy pairing token."
 msgstr "无法复制配对令牌。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy Tailscale URL."
+msgstr "无法复制 Tailscale URL。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "无法创建 WSL 工作树目录“{path}”"
@@ -7417,12 +7359,17 @@ msgstr "无法启动{label}。"
 msgid "Unable to start mobile app."
 msgstr "无法启动移动应用。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to start Tailscale."
+msgstr "无法启动 Tailscale。"
+
 #: src/mobile/views/TerminalView.tsx
 msgid "Unable to start terminal"
 msgstr "无法启动终端"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
+#: src/mobile/views/NewThreadFlow.tsx
 msgid "Unable to start the thread."
 msgstr "无法启动线程。"
 
@@ -7462,6 +7409,14 @@ msgstr "无法更新{0}。"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "无法更新远程访问。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update Tailscale HTTPS."
+msgstr "无法更新 Tailscale HTTPS。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update the public URL."
+msgstr "无法更新公共 URL。"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to update the thread."

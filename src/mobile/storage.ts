@@ -59,6 +59,10 @@ class LightcodeMobileDatabase extends DexieDatabase {
 export const mobileDb = new LightcodeMobileDatabase();
 
 const ACTIVE_DESKTOP_KEY = "activeDesktopId";
+/** Stable per-install identity used as the push-registration upsert key. */
+const DEVICE_ID_KEY = "pushDeviceId";
+/** Per-desktop push opt-in flag (`push.enabled:<desktopId>` → "1" | "0"). */
+const PUSH_ENABLED_PREFIX = "push.enabled:";
 
 export async function getStoredPreference(key: string): Promise<string | null> {
   return (await mobileDb.preferences.get(key))?.value ?? null;
@@ -66,6 +70,29 @@ export async function getStoredPreference(key: string): Promise<string | null> {
 
 export async function setStoredPreference(key: string, value: string): Promise<void> {
   await mobileDb.preferences.put({ key, value });
+}
+
+/**
+ * Stable identity for this app install, used as the push-registration upsert
+ * key so rotating APNs tokens all merge into one desktop-side record. Generated
+ * once (a random UUID, well over the protocol's 8-char minimum) and persisted;
+ * every later call returns the same value.
+ */
+export async function getOrCreateDeviceId(): Promise<string> {
+  const existing = await getStoredPreference(DEVICE_ID_KEY);
+  if (existing) return existing;
+  const deviceId = crypto.randomUUID();
+  await setStoredPreference(DEVICE_ID_KEY, deviceId);
+  return deviceId;
+}
+
+/** Whether the user has opted this desktop into Apple push notifications. */
+export async function isPushEnabled(desktopId: string): Promise<boolean> {
+  return (await getStoredPreference(`${PUSH_ENABLED_PREFIX}${desktopId}`)) === "1";
+}
+
+export async function setPushEnabled(desktopId: string, enabled: boolean): Promise<void> {
+  await setStoredPreference(`${PUSH_ENABLED_PREFIX}${desktopId}`, enabled ? "1" : "0");
 }
 
 export async function listStoredDesktops(): Promise<StoredDesktop[]> {
@@ -132,7 +159,12 @@ async function pruneOrphanThreadSnapshots(
   desktopId: string,
   snapshot: RemoteShellSnapshot,
 ): Promise<void> {
-  const rows = await mobileDb.threadSnapshots.where("desktopId").equals(desktopId).toArray();
+  // Only the primary keys are needed to decide what to prune, so avoid loading
+  // every cached snapshot blob. The key is `${desktopId}:${threadId}`, so the
+  // threadId is the suffix after the desktopId prefix.
+  const ids = await mobileDb.threadSnapshots.where("desktopId").equals(desktopId).primaryKeys();
+  const prefixLength = desktopId.length + 1;
+  const rows = ids.map((id) => ({ id, threadId: id.slice(prefixLength) }));
   const orphanIds = selectOrphanThreadSnapshotIds(rows, snapshot);
   if (orphanIds.length > 0) {
     await mobileDb.threadSnapshots.bulkDelete(orphanIds);

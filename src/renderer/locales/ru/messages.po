@@ -54,12 +54,6 @@ msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# провайдер готов} few {# провайдера готовы} many {# "
 "провайдеров готовы} other {# провайдера готовы}}"
 
-#. placeholder {0}: servers.length
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "{0, plural, one {# server} other {# servers}}"
-#~ msgstr "{0, plural, one {# сервер} few {# сервера} many {# серверов} other {# "
-#~ "сервера}}"
-
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "{0, plural, one {target} other {targets}}"
@@ -593,10 +587,6 @@ msgstr "Добавить действие"
 msgid "Add an existing folder"
 msgstr "Добавить существующую папку"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Add an existing folder on the server"
-#~ msgstr "Добавить существующую папку на сервере"
-
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
 msgstr "Добавить вложение или возможность"
@@ -661,9 +651,11 @@ msgstr "Добавить в избранное"
 msgid "Add to Home Screen"
 msgstr "Добавить на главный экран"
 
-#: src/mobile/views/MoreView.tsx
-msgid "Add, clone, or remove projects on this server"
-msgstr "Добавляйте, клонируйте или удаляйте проекты на этом сервере"
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty "
+"for automatic."
+msgstr "Укажите собственный базовый URL, например обратный прокси или туннель. "
+"Оставьте пустым для автоматического режима."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
@@ -835,10 +827,6 @@ msgstr "Другой чат использует это же дерево. Во�
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
 msgstr "Встроенный браузер"
-
-#: src/mobile/views/MoreView.tsx
-#~ msgid "App preferences"
-#~ msgstr "Настройки приложения"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -1062,10 +1050,7 @@ msgstr "Назад к изменениям"
 msgid "Back to files"
 msgstr "Назад к файлам"
 
-#: src/mobile/views/pr/PrChangesPage.tsx
-#: src/mobile/views/pr/PrChecksPage.tsx
-#: src/mobile/views/pr/PrCommitsPage.tsx
-#: src/mobile/views/pr/PrConversationPage.tsx
+#: src/mobile/views/pr/PrSubPage.tsx
 msgid "Back to overview"
 msgstr "Назад к обзору"
 
@@ -1211,7 +1196,6 @@ msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Просмотрите свои репозитории GitHub или вставьте URL для клонирования."
 
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/MoreView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/AttachmentBar.tsx
@@ -1434,6 +1418,10 @@ msgid "Check the live input level from the selected device."
 msgstr "Проверить уровень входного сигнала с выбранного устройства в реальном "
 "времени."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Checking Tailscale…"
+msgstr "Проверка Tailscale…"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Checking…"
 msgstr "Проверка…"
@@ -1565,10 +1553,6 @@ msgid "Clone a repository"
 msgstr "Клонировать репозиторий"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Clone a repository into a folder on the server"
-#~ msgstr "Клонировать репозиторий в папку на сервере"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Clone repo"
 msgstr "Клонировать репозиторий"
 
@@ -1605,13 +1589,14 @@ msgstr "Закрыть терминал {purposeNoun}"
 msgid "Close browser"
 msgstr "Закрыть браузер"
 
+#: src/mobile/views/QuickCompose.tsx
+#: src/mobile/views/ThreadView.tsx
+msgid "Close composer"
+msgstr "Закрыть Composer"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Close connection actions"
 msgstr "Закрыть действия с подключением"
-
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Close desktop actions"
-#~ msgstr "Закрыть действия десктопа"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Close editor"
@@ -1641,6 +1626,7 @@ msgstr "Закрыть группу"
 msgid "Close group actions"
 msgstr "Закрыть действия группы"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Close menu"
 msgstr "Закрыть меню"
@@ -1686,6 +1672,7 @@ msgstr "Закрыть фильтр проектов"
 msgid "Close scanner"
 msgstr "Закрыть сканер"
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Close search"
 msgstr "Закрыть поиск"
@@ -1921,12 +1908,6 @@ msgid "Connect"
 msgstr "Подключить"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect a Lightcode desktop or headless server above to browse and "
-#~ "manage its projects from here."
-#~ msgstr "Подключите другой десктоп Lightcode или headless-сервер выше, чтобы "
-#~ "просматривать его проекты и управлять ими отсюда."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect a server"
 msgstr "Подключить сервер"
 
@@ -1936,23 +1917,6 @@ msgstr "Подключайте провайдеров ИИ, которые мо�
 "выходите из них здесь."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
-#~ "projects — and their threads — from here. Open Settings → Remote Access "
-#~ "on the other machine to get its endpoint and a pairing token."
-#~ msgstr "Подключитесь к другому десктопу Lightcode или headless-серверу и "
-#~ "управляйте его проектами — и их тредами — отсюда. Откройте Настройки → "
-#~ "Удалённый доступ на другой машине, чтобы получить его endpoint и токен "
-#~ "сопряжения."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server and manage its "
-#~ "projects from here. Open Settings → Remote Access on the other machine "
-#~ "to get its endpoint and a pairing token."
-#~ msgstr "Подключитесь к другому десктопу Lightcode или headless-серверу и "
-#~ "управляйте его проектами отсюда. Откройте Настройки → Удалённый доступ "
-#~ "на другой машине, чтобы получить его endpoint и токен сопряжения."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect to another Lightcode desktop or a headless server to browse and "
 "manage its projects from here. Get its endpoint and pairing token from "
 "Settings → Remote Access on that machine."
@@ -1960,14 +1924,6 @@ msgstr "Подключитесь к другому компьютеру с Light
 "интерфейса, чтобы просматривать проекты и управлять ими отсюда. Адрес и "
 "код сопряжения можно получить в разделе «Настройки → Удалённый доступ» "
 "на той машине."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connected servers"
-#~ msgstr "Подключённые серверы"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connecting"
-#~ msgstr "Подключение"
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
@@ -2063,15 +2019,12 @@ msgstr "Управляйте тем, какие файлы появляются 
 msgid "Conversation"
 msgstr "Разговор"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "Скопировано"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Copied from Settings → Remote Access on the other machine."
-#~ msgstr "Скопировано из раздела Настройки → Удалённый доступ на другой машине."
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
@@ -2117,6 +2070,7 @@ msgstr "Копировать игнорируемые файлы"
 msgid "Copy image"
 msgstr "Копировать изображение"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "Копировать сообщение"
@@ -2140,6 +2094,10 @@ msgstr "Копировать относительный путь"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Copy selection"
 msgstr "Копировать выделенное"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Copy Tailscale URL"
+msgstr "Копировать URL Tailscale"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
@@ -2209,10 +2167,6 @@ msgstr "Не удалось сохранить сочетание клавиш."
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "Не удалось запустить камеру"
-
-#: src/mobile/useRemoteDesktop.ts
-#~ msgid "Couldn't tag the thread's worktree."
-#~ msgstr "Не удалось пометить worktree потока."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -2444,10 +2398,6 @@ msgstr "Описание"
 msgid "Description (optional)"
 msgstr "Описание (необязательно)"
 
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "Desktop"
-#~ msgstr "Десктоп"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Desktop endpoint"
 msgstr "Конечная точка рабочего стола"
@@ -2460,11 +2410,6 @@ msgstr "Десктоп недоступен."
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
 msgstr "Настройки десктопа"
-
-#: src/mobile/RootLayout.tsx
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Desktops"
-#~ msgstr "Десктопы"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -2643,14 +2588,6 @@ msgstr "Загрузка голосовой модели {0}%"
 msgid "Downloading voice model..."
 msgstr "Загрузка голосовой модели..."
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-#~ msgid "Downloading{v} — {percent}%{speedSuffix}"
-#~ msgstr "Загрузка{v} — {percent}%{speedSuffix}"
-
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-#~ msgid "Downloading{versionLabel}"
-#~ msgstr "Загрузка{versionLabel}"
-
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Draft"
 msgstr "Черновик"
@@ -2794,6 +2731,11 @@ msgstr "Адрес, напр. http://192.168.1.20:38987/"
 msgid "Enhanced (Hooks)"
 msgstr "Расширенный (Hooks)"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Enter a full origin URL like https://code.example.com, with no path."
+msgstr "Введите полный URL источника, например https://code.example.com, без "
+"пути."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Enter a repository URL."
 msgstr "Введите URL репозитория."
@@ -2865,10 +2807,6 @@ msgstr "завершено"
 #: src/mobile/views/TerminalView.tsx
 msgid "exited ({0})"
 msgstr "завершено ({0})"
-
-#: src/mobile/views/TerminalView.tsx
-#~ msgid "exited ({exitCode})"
-#~ msgstr "завершено ({exitCode})"
 
 #. placeholder {0}: renderedSession.failedExitCode
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
@@ -3033,10 +2971,6 @@ msgstr "Файлы, соответствующие этим glob-шаблона�
 msgid "Filter by project"
 msgstr "Фильтр по проекту"
 
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#~ msgid "Filter settings"
-#~ msgstr "Фильтр настроек"
-
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
 msgid "Find"
@@ -3149,10 +3083,6 @@ msgstr "Имя папки"
 msgid "Folder on the server"
 msgstr "Папка на сервере"
 
-#: src/mobile/views/ManageProjectsView.tsx
-#~ msgid "Folder path"
-#~ msgstr "Путь к папке"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Folder path on the server"
 msgstr "Путь к папке на сервере"
@@ -3260,6 +3190,13 @@ msgstr "Генерирует сообщения коммитов из подго
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Генерирует короткие заголовки для новых тредов."
+
+#: src/mobile/push/MobilePushSettings.tsx
+msgid "Get alerts through Apple's push service when this desktop's threads "
+"finish or need you — even while the app is closed."
+msgstr "Получайте оповещения через push-сервис Apple, когда треды этого "
+"десктопа завершаются или требуют вашего внимания — даже когда "
+"приложение закрыто."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -3459,6 +3396,10 @@ msgstr "Домашняя область"
 msgid "ID: {0}"
 msgstr "ID: {0}"
 
+#: src/mobile/settingsSections.ts
+msgid "Identity and usage stats"
+msgstr "Личные данные и статистика использования"
+
 #. Microphone input level when not testing
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -3570,6 +3511,14 @@ msgstr "Установить в Windows"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "Установить пакеты"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Install Tailscale"
+msgstr "Установить Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Install Tailscale to set up HTTPS access through MagicDNS."
+msgstr "Установите Tailscale, чтобы настроить доступ по HTTPS через MagicDNS."
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -3701,14 +3650,6 @@ msgstr "Токенов за всё время"
 msgid "Light"
 msgstr "Светлая"
 
-#: src/mobile/RootLayout.tsx
-msgid "Lightcode mobile navigation"
-msgstr "Мобильная навигация Lightcode"
-
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "Links and page behavior"
-#~ msgstr "Ссылки и поведение страниц"
-
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -3803,6 +3744,10 @@ msgstr "Перед выполнением pull из {branch} локальные 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
 msgstr "Расположение"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Log in to Tailscale to set up HTTPS access through MagicDNS."
+msgstr "Войдите в Tailscale, чтобы настроить доступ по HTTPS через MagicDNS."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Logging in"
@@ -3998,6 +3943,10 @@ msgstr "Слито"
 msgid "Merging is blocked"
 msgstr "Слияние заблокировано"
 
+#: src/mobile/UserMessageActionsSheet.tsx
+msgid "Message actions"
+msgstr "Действия с сообщением"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Message the remote agent…"
 msgstr "Напишите удалённому агенту…"
@@ -4052,6 +4001,10 @@ msgstr "Зеркальная вкладка браузера десктопа"
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirroring is unavailable."
 msgstr "Зеркалирование недоступно."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Mobile push notifications"
+msgstr "Мобильные push-уведомления"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4217,7 +4170,6 @@ msgstr "Требует внимания · Нужен ответ"
 msgid "Needs reply"
 msgstr "Требует ответа"
 
-#: src/mobile/RootLayout.tsx
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Новое"
@@ -4291,6 +4243,7 @@ msgid "New tab"
 msgstr "Новая вкладка"
 
 #: src/mobile/RootLayout.tsx
+#: src/mobile/views/QuickCompose.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
@@ -4455,10 +4408,6 @@ msgstr "Данных пока нет."
 msgid "No description"
 msgstr "Без описания"
 
-#: src/mobile/RootLayout.tsx
-#~ msgid "No desktop paired"
-#~ msgstr "Нет связанного десктопа"
-
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
 msgid "No diff available for {0}"
@@ -4549,10 +4498,6 @@ msgid "No projects available"
 msgstr "Нет доступных проектов"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "No projects on this server yet."
-#~ msgstr "На этом сервере пока нет проектов."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "No projects on this server."
 msgstr "На этом сервере нет проектов."
 
@@ -4589,10 +4534,6 @@ msgstr "Нет результатов"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
 msgstr "Для этого треда пока нет runtime-элементов."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "No servers connected yet"
-#~ msgstr "Пока нет подключённых серверов"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "No servers connected yet."
@@ -4939,12 +4880,17 @@ msgstr "Откройте Настройки → Удалённый доступ 
 msgid "Open subagent: {0}"
 msgstr "Открыть субагента: {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Open Tailscale"
+msgstr "Открыть Tailscale"
+
+#: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/ThreadsView.tsx
-#: src/mobile/views/ThreadView.tsx
 msgid "Open terminal"
 msgstr "Открыть терминал"
 
+#: src/mobile/ThreadTitleRow.tsx
 #: src/mobile/views/ThreadsView.tsx
 msgid "Open terminal in worktree"
 msgstr "Открыть терминал в worktree"
@@ -5025,10 +4971,6 @@ msgstr "Связать"
 msgid "Pair a connection"
 msgstr "Связать подключение"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Pair a desktop"
-#~ msgstr "Связать десктоп"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Сопрягите телефон, планшет или браузер с этим рабочим столом."
@@ -5037,10 +4979,6 @@ msgstr "Сопрягите телефон, планшет или браузер 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Pair again"
 msgstr "Связать снова"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Pair with its endpoint and a one-time token."
-#~ msgstr "Выполните сопряжение с его endpoint и одноразовым токеном."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -5178,6 +5116,10 @@ msgstr "Закреплено"
 msgid "Plan"
 msgstr "План"
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Plan, ask, build…"
+msgstr "Планируйте, спрашивайте, создавайте…"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Play a sound when a notification is shown."
@@ -5268,6 +5210,7 @@ msgstr "Предыдущий недавно просмотренный чат"
 msgid "Previous tab"
 msgstr "Предыдущая вкладка"
 
+#: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Profile"
 msgstr "Профиль"
@@ -5315,7 +5258,6 @@ msgstr "Переопределения для конкретного проек�
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/mobile/views/MoreView.tsx
 msgid "Projects"
 msgstr "Проекты"
 
@@ -5345,10 +5287,6 @@ msgstr "Провайдер"
 msgid "Provider has not reported token usage."
 msgstr "Провайдер не сообщил об использовании токенов."
 
-#: src/mobile/views/MoreView.tsx
-#~ msgid "Provider limits and spend"
-#~ msgstr "Лимиты и расходы провайдеров"
-
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "Пресеты провайдеров"
@@ -5362,6 +5300,14 @@ msgstr "провайдеры"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Провайдеры"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Public URL"
+msgstr "Публичный URL"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Public URL updated."
+msgstr "Публичный URL обновлён."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Pull"
@@ -5446,6 +5392,20 @@ msgstr "Push ↑{ahead}"
 msgid "Push failed: {detail}"
 msgstr "Сбой push: {detail}"
 
+#: src/mobile/push/MobilePushSettings.tsx
+msgid "Push notifications"
+msgstr "Push-уведомления"
+
+#: src/mobile/push/MobilePushSettings.tsx
+msgid "Push notifications may be unavailable for this desktop."
+msgstr "Push-уведомления могут быть недоступны для этого десктопа."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Push updates to paired mobile devices when threads finish or need you, "
+"even when the app is closed."
+msgstr "Отправляйте обновления на сопряжённые мобильные устройства, когда треды "
+"завершаются или требуют вашего внимания, даже когда приложение закрыто."
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"
 msgstr "Вопросы"
@@ -5523,6 +5483,10 @@ msgstr "Реконструировано из локальных логов по
 "отражает ваш реальный счёт по подписочным планам. Показывается только "
 "на панели использования."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Redact notification content"
+msgstr "Скрывать содержимое уведомлений"
+
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
@@ -5589,22 +5553,6 @@ msgid "Remote Access"
 msgstr "Удалённый доступ"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is disabled for this desktop."
-#~ msgstr "Удаленный доступ отключен для этого рабочего стола."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is off"
-#~ msgstr "Удаленный доступ выключен"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is on"
-#~ msgstr "Удаленный доступ включен"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Remote access is starting"
-#~ msgstr "Удаленный доступ запускается"
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Remote access pairing QR code"
 msgstr "QR-код сопряжения удаленного доступа"
 
@@ -5640,10 +5588,6 @@ msgstr "Удаленная сессия отозвана."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote URL"
 msgstr "URL удалённого репозитория"
-
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "Removal behavior"
-#~ msgstr "Поведение удаления"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove"
@@ -5689,10 +5633,6 @@ msgstr "Удалить профиль Claude"
 msgid "Remove connection"
 msgstr "Удалить подключение"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Remove desktop"
-#~ msgstr "Удалить десктоп"
-
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "Удалить переменную окружения"
@@ -5722,10 +5662,6 @@ msgstr "Удалить проект"
 msgid "Remove Project"
 msgstr "Удалить проект"
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Remove project from remote"
-#~ msgstr "Удалить проект из удалённого сервера"
-
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Удалить сочетание клавиш"
@@ -5750,10 +5686,6 @@ msgstr "Переименовать чат"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Rename connection"
 msgstr "Переименовать подключение"
-
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Rename desktop"
-#~ msgstr "Переименовать десктоп"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -5968,6 +5900,7 @@ msgstr "Откатить изменения"
 msgid "Revert to checkpoint?"
 msgstr "Откатить к контрольной точке?"
 
+#: src/mobile/UserMessageActionsSheet.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Revert to this checkpoint"
 msgstr "Откатить к этой контрольной точке"
@@ -6237,6 +6170,7 @@ msgstr "Поиск сочетаний клавиш"
 msgid "Search the current view"
 msgstr "Поиск в текущем виде"
 
+#: src/mobile/RootLayout.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -6319,6 +6253,12 @@ msgstr "Отправить"
 msgid "Send a message..."
 msgstr "Отправить сообщение..."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Send generic text instead of conversation titles through Apple's push "
+"service."
+msgstr "Отправлять общий текст вместо названий разговоров через push-сервис "
+"Apple."
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Send message"
@@ -6336,6 +6276,11 @@ msgstr "Разделяйте аккаунты Claude Code по каталогу 
 "направляйте профиль на внешнего провайдера (z.ai, …). Откройте профиль, "
 "чтобы настроить его переменные окружения, модели и уровни рассуждений."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
+msgstr "Предоставляйте удалённый доступ через HTTPS-URL MagicDNS вашей сети "
+"Tailscale."
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
 msgstr "Задать или просмотреть экспериментальную цель"
@@ -6345,7 +6290,6 @@ msgid "Set shortcut"
 msgstr "Назначить сочетание клавиш"
 
 #: src/mobile/RootLayout.tsx
-#: src/mobile/views/MoreView.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -6682,6 +6626,14 @@ msgstr "Начать диктовку в текущем поле ввода"
 msgid "Start from scratch"
 msgstr "Начать с нуля"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Start Tailscale"
+msgstr "Запустить Tailscale"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Start Tailscale to set up HTTPS access through MagicDNS."
+msgstr "Запустите Tailscale, чтобы настроить доступ по HTTPS через MagicDNS."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Start the composer collapsed in terminal-native threads. A collapsed "
@@ -6957,6 +6909,14 @@ msgstr "Вкладки"
 msgid "Tabs ({0})"
 msgstr "Вкладки ({0})"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale HTTPS"
+msgstr "Tailscale HTTPS"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Tailscale URL"
+msgstr "URL Tailscale"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Take Screenshot"
 msgstr "Сделать снимок экрана"
@@ -7036,13 +6996,6 @@ msgstr "Вкладки терминала"
 msgid "Test microphone"
 msgstr "Проверить микрофон"
 
-#: src/mobile/remoteClient.ts
-#~ msgid "That endpoint opened the mobile app instead of the desktop API. Use the "
-#~ "desktop endpoint from Settings → Remote Access."
-#~ msgstr "Этот эндпоинт открыл мобильное приложение вместо API настольного "
-#~ "приложения. Используйте эндпоинт рабочего стола из «Настройки → "
-#~ "Удаленный доступ»."
-
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Lightcode pairing link."
 msgstr "Этот QR-код не является ссылкой привязки Lightcode."
@@ -7081,19 +7034,11 @@ msgstr "Частота фонового обновления по умолчан
 msgid "The desktop server is still coming online."
 msgstr "Сервер рабочего стола все еще запускается."
 
-#: src/mobile/views/MoreView.tsx
-msgid "The desktop's built-in browser"
-msgstr "Встроенный браузер десктопа"
-
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown "
 "before reload so the failure can be investigated."
 msgstr "Обычная оболочка приложения не смогла отрендериться. Диагностика ниже "
 "показана перед перезагрузкой, чтобы проблему можно было исследовать."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "The other machine's remote-access address."
-#~ msgstr "Адрес удалённого доступа другой машины."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
@@ -7137,19 +7082,11 @@ msgid "This browser does not support system notifications here; you will still "
 msgstr "Этот браузер не поддерживает здесь системные уведомления; вы всё равно "
 "будете видеть уведомления внутри приложения."
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "This connection can view projects but not manage them."
-#~ msgstr "Это подключение может просматривать проекты, но не управлять ими."
-
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to "
 "enable."
 msgstr "Это подключение может просматривать проекты, но не управлять ими. "
 "Выполните сопряжение заново, чтобы включить управление."
-
-#: src/mobile/views/SettingsView.tsx
-#~ msgid "This device"
-#~ msgstr "Это устройство"
 
 #: src/mobile/QrScanner.tsx
 msgid "This device has no usable camera. Enter the endpoint and token below to "
@@ -7286,7 +7223,6 @@ msgstr "Порядок сортировки тредов"
 msgid "Thread todo dock"
 msgstr "Панель задач треда"
 
-#: src/mobile/RootLayout.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
@@ -7455,6 +7391,10 @@ msgstr "Не удалось скопировать ссылку для сопр�
 msgid "Unable to copy pairing token."
 msgstr "Не удалось скопировать токен привязки."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to copy Tailscale URL."
+msgstr "Не удалось скопировать URL Tailscale."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "Не удалось создать каталог worktree WSL \"{path}\""
@@ -7556,12 +7496,17 @@ msgstr "Не удалось запустить {label}."
 msgid "Unable to start mobile app."
 msgstr "Не удалось запустить мобильное приложение."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to start Tailscale."
+msgstr "Не удалось запустить Tailscale."
+
 #: src/mobile/views/TerminalView.tsx
 msgid "Unable to start terminal"
 msgstr "Не удалось запустить терминал"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
+#: src/mobile/views/NewThreadFlow.tsx
 msgid "Unable to start the thread."
 msgstr "Не удалось запустить поток."
 
@@ -7601,6 +7546,14 @@ msgstr "Не удалось обновить {0}."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Не удалось обновить удаленный доступ."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update Tailscale HTTPS."
+msgstr "Не удалось обновить Tailscale HTTPS."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Unable to update the public URL."
+msgstr "Не удалось обновить публичный URL."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to update the thread."

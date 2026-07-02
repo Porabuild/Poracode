@@ -4,7 +4,7 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { PrDiffContent } from "@/renderer/views/PrReviewOverlay/parts/PrDiffContent";
 import { DIFF_MODE, DiffModeToggle } from "../../components";
 import { usePr } from "./prContext";
-import { PrPageHeader } from "./PrPageHeader";
+import { PrSubPage } from "./PrSubPage";
 
 export function PrChangesPage() {
   const { t } = useLingui();
@@ -14,22 +14,18 @@ export function PrChangesPage() {
   const [diffMode, setDiffMode] = useState<number>(DIFF_MODE.Unified);
 
   return (
-    <>
-      <PrPageHeader
-        title={t`Changes`}
-        onBack={pr.toOverview}
-        backLabel={t`Back to overview`}
-        actions={<DiffModeToggle mode={diffMode} onChange={setDiffMode} />}
+    <PrSubPage
+      title={t`Changes`}
+      className="m-git-overlay__body"
+      actions={<DiffModeToggle mode={diffMode} onChange={setDiffMode} />}
+    >
+      <PrDiffContent
+        files={files ?? []}
+        rawDiff={rawDiff ?? ""}
+        selectedFile={null}
+        diffMode={diffMode}
+        loading={pr.loading}
       />
-      <div className="m-git-overlay__body">
-        <PrDiffContent
-          files={files ?? []}
-          rawDiff={rawDiff ?? ""}
-          selectedFile={null}
-          diffMode={diffMode}
-          loading={pr.loading}
-        />
-      </div>
-    </>
+    </PrSubPage>
   );
 }

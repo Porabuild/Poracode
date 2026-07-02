@@ -12,7 +12,6 @@ import {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import {
-  CheckpointRevertButton,
   DEFAULT_CHECKPOINT_GUARD,
   RevertCheckpointDialog,
   type CheckpointGuard,
@@ -320,19 +319,10 @@ export function MessageList({
         itemIds && itemsById
           ? countRollbackTurnsAfterCheckpoint(itemIds, itemsById, completedTurns, itemId)
           : 0;
+      const revert = checkpointActions ?? readBridge();
       if (rollbackTurns > 0) {
         try {
-          if (checkpointActions) {
-            await checkpointActions.rollbackThreadConversation({
-              threadId,
-              numTurns: rollbackTurns,
-            });
-          } else {
-            await readBridge().rollbackThreadConversation({
-              threadId,
-              numTurns: rollbackTurns,
-            });
-          }
+          await revert.rollbackThreadConversation({ threadId, numTurns: rollbackTurns });
         } catch (error) {
           console.warn(
             "[checkpoint] provider rollback failed; continuing with local revert",
@@ -341,19 +331,11 @@ export function MessageList({
         }
       }
       if (projectLocation && checkpoint) {
-        if (checkpointActions) {
-          await checkpointActions.restoreFileCheckpoint({
-            threadId,
-            checkpointItemId: itemId,
-            projectLocation,
-          });
-        } else {
-          await readBridge().restoreFileCheckpoint({
-            threadId,
-            checkpointItemId: itemId,
-            projectLocation,
-          });
-        }
+        await revert.restoreFileCheckpoint({
+          threadId,
+          checkpointItemId: itemId,
+          projectLocation,
+        });
       }
       state.truncateThreadRuntimeAfter(threadId, itemId);
       parentActions?.onContentHeightChange();
@@ -569,13 +551,8 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
             threadId={threadId}
             entry={entry}
             isLastEntry={isLastEntry}
-            checkpointRevertControl={
-              checkpointRevertItemId ? (
-                <CheckpointRevertButton
-                  itemId={checkpointRevertItemId}
-                  onRequestRevert={onRequestRevert}
-                />
-              ) : null
+            checkpointRevert={
+              checkpointRevertItemId ? { itemId: checkpointRevertItemId, onRequestRevert } : null
             }
           />
         </div>

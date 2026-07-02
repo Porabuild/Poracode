@@ -3,6 +3,8 @@ import type {
   CloseThreadPayload,
   RefreshAgentScope,
   InterruptThreadPayload,
+  ProfileIdentity,
+  ProfileStatsRequest,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
   SearchProjectFilesPayload,
@@ -67,6 +69,13 @@ function detectPlatform(): NodeJS.Platform {
   return "linux";
 }
 
+/** Copy a Uint8Array's bytes into a standalone ArrayBuffer for Blob/clipboard. */
+function toArrayBuffer(data: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(data.byteLength);
+  new Uint8Array(buffer).set(data);
+  return buffer;
+}
+
 const remoteBridge = {
   // Metadata reads. Analytics/diagnostics stay disabled in remote sessions.
   platform: detectPlatform(),
@@ -116,6 +125,14 @@ const remoteBridge = {
     };
   },
 
+  // Profile: identity + local usage stats, read from the paired desktop's
+  // SQLite aggregation. copyShareImage is desktop-only (native clipboard) and
+  // falls through to the rejecting proxy below.
+  getProfileDevices: () => requireClient().profileDevices(),
+  getProfileCoreStats: (req: ProfileStatsRequest) => requireClient().profileCoreStats(req),
+  getProfileTokenStats: (req: ProfileStatsRequest) => requireClient().profileTokenStats(req),
+  setProfileIdentity: (identity: ProfileIdentity) => requireClient().setProfileIdentity(identity),
+
   // Shared settings persist per device via the store's localStorage fallback.
   // Remote-editable keys (the desktop's AI helpers) are additionally diffed
   // and forwarded to the paired desktop — see settingsSync.ts.
@@ -136,6 +153,34 @@ const remoteBridge = {
   },
   getDroppedFilePaths: () => [],
   pickFiles: () => Promise.resolve(null),
+  // Image copy/download use the browser clipboard and an anchor download in
+  // place of the desktop's native clipboard and Save dialog.
+  copyImageToClipboard: async ({ data }: { data: Uint8Array }): Promise<boolean> => {
+    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+      throw new Error("Browser clipboard image writes are not available.");
+    }
+    const blob = new Blob([toArrayBuffer(data)], { type: "image/png" });
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    return true;
+  },
+  saveImageFile: ({
+    data,
+    suggestedName,
+  }: {
+    data: Uint8Array;
+    suggestedName: string;
+  }): Promise<string | null> => {
+    const url = URL.createObjectURL(new Blob([toArrayBuffer(data)]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = suggestedName;
+    link.rel = "noopener";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    return Promise.resolve(null);
+  },
   searchProjectFiles: (payload: SearchProjectFilesPayload) =>
     requireClient().gitCall("searchProjectFiles", payload) as Promise<SearchProjectFilesResult>,
   getAgentHookPluginStatuses: () => Promise.resolve([]),

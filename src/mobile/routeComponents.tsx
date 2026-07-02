@@ -2,11 +2,9 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
-import type { Project, Thread } from "@/shared/contracts";
+import type { Thread } from "@/shared/contracts";
 import { getBasename } from "@/shared/pathUtils";
 import { buildWorktreeLocation } from "@/shared/worktree";
-import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
-import { useAppStore } from "@/renderer/state/appStore";
 import { useGitSummariesStore } from "./gitSummaries";
 import { useMobileApp, useRemote } from "./remoteContext";
 import {
@@ -14,7 +12,6 @@ import {
   buildGitTarget,
   preselectWorktreeDraft,
   runThreadAction,
-  selectDraftProject,
 } from "./navHelpers";
 import {
   isMixedContentEndpoint,
@@ -26,7 +23,8 @@ import { useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
 import { DesktopsView } from "./views/DesktopsView";
 import { ManageProjectsView } from "./views/ManageProjectsView";
 import { MoreView } from "./views/MoreView";
-import { NewThreadView } from "./views/NewThreadView";
+import { NewThreadFlow } from "./views/NewThreadFlow";
+import { QuickCompose } from "./views/QuickCompose";
 import { ThreadsView } from "./views/ThreadsView";
 import { ThreadView } from "./views/ThreadView";
 
@@ -154,9 +152,19 @@ function ThreadDetail(props: { readonly thread: Thread | null; readonly hideHead
 }
 
 export function ThreadsRoute() {
-  const { remote, projectFilter, setProjectFilter } = useMobileApp();
+  const {
+    remote,
+    projectFilter,
+    setProjectFilter,
+    threadSearchOpen,
+    setThreadSearchOpen,
+    setChromeHidden,
+  } = useMobileApp();
   const navigate = useNavigate();
   const isWide = useMediaQuery(WIDE_SHELL_QUERY);
+  // The home composer's expand state (kept here so the list's empty-state
+  // "New thread" button grows the same bubble as a tap on it).
+  const [composeExpanded, setComposeExpanded] = useState(false);
 
   // Wide: the sidebar owns the list; this pane shows the selected thread.
   if (isWide) {
@@ -164,50 +172,63 @@ export function ThreadsRoute() {
   }
 
   return (
-    <ThreadsView
-      projects={remote.projects}
-      threads={remote.threads}
-      selectedThreadId={null}
-      projectFilter={projectFilter}
-      loading={!remote.booted}
-      onProjectFilterChange={setProjectFilter}
-      onOpenThread={(thread) => {
-        void remote.openThread(thread);
-        void navigate({ to: "/thread/$threadId", params: { threadId: thread.id } });
-      }}
-      onThreadAction={(thread, action) => {
-        void remote.applyThreadAction(thread, action);
-      }}
-      onDeleteWorktreeGroup={(input) => {
-        void remote.deleteWorktreeGroup(input);
-      }}
-      onNew={() => void navigate({ to: "/new" })}
-      onNewThreadInWorktree={(input) => {
-        preselectWorktreeDraft(input);
-        void navigate({ to: "/new" });
-      }}
-      onOpenTerminal={(input) =>
-        void navigate({
-          to: "/terminal/$projectId",
-          params: { projectId: input.projectId },
-          search: {
-            ...(input.sourceThreadId ? { fromThread: input.sourceThreadId } : {}),
-            ...(input.worktreePath ? { worktree: input.worktreePath } : {}),
-          },
-        })
-      }
-      onRunProjectAction={(input) =>
-        void navigate({
-          to: "/terminal/$projectId",
-          params: { projectId: input.projectId },
-          search: {
-            action: input.actionId,
-            ...(input.sourceThreadId ? { fromThread: input.sourceThreadId } : {}),
-            ...(input.worktreePath ? { worktree: input.worktreePath } : {}),
-          },
-        })
-      }
-    />
+    <>
+      <ThreadsView
+        projects={remote.projects}
+        threads={remote.threads}
+        selectedThreadId={null}
+        projectFilter={projectFilter}
+        loading={!remote.booted}
+        searchOpen={threadSearchOpen}
+        onSearchOpenChange={setThreadSearchOpen}
+        onChromeHiddenChange={setChromeHidden}
+        onProjectFilterChange={setProjectFilter}
+        onOpenThread={(thread) => {
+          void remote.openThread(thread);
+          void navigate({ to: "/thread/$threadId", params: { threadId: thread.id } });
+        }}
+        onThreadAction={(thread, action) => {
+          void remote.applyThreadAction(thread, action);
+        }}
+        onDeleteWorktreeGroup={(input) => {
+          void remote.deleteWorktreeGroup(input);
+        }}
+        onNew={() => setComposeExpanded(true)}
+        onNewThreadInWorktree={(input) => {
+          preselectWorktreeDraft(input);
+          void navigate({ to: "/new" });
+        }}
+        onOpenTerminal={(input) =>
+          void navigate({
+            to: "/terminal/$projectId",
+            params: { projectId: input.projectId },
+            search: {
+              ...(input.sourceThreadId ? { fromThread: input.sourceThreadId } : {}),
+              ...(input.worktreePath ? { worktree: input.worktreePath } : {}),
+            },
+          })
+        }
+        onRunProjectAction={(input) =>
+          void navigate({
+            to: "/terminal/$projectId",
+            params: { projectId: input.projectId },
+            search: {
+              action: input.actionId,
+              ...(input.sourceThreadId ? { fromThread: input.sourceThreadId } : {}),
+              ...(input.worktreePath ? { worktree: input.worktreePath } : {}),
+            },
+          })
+        }
+      />
+      <QuickCompose
+        expanded={composeExpanded}
+        onExpandedChange={setComposeExpanded}
+        onStarted={(threadId) => {
+          setComposeExpanded(false);
+          void navigate({ to: "/thread/$threadId", params: { threadId } });
+        }}
+      />
+    </>
   );
 }
 
@@ -234,38 +255,12 @@ export function ThreadRoute() {
 }
 
 export function NewThreadRoute() {
-  const { remote } = useMobileApp();
   const navigate = useNavigate();
-  const { t } = useLingui();
-  const [draftProjectId, setDraftProjectId] = useState<string | null>(null);
-  const [draftNonce, setDraftNonce] = useState(0);
-
-  // The draft composer embeds the desktop ProjectSwitchMenu, which switches
-  // projects through the shared store's `openDraft`; mirror that choice here.
-  const storeView = useAppStore((state) => state.view);
-  useEffect(() => {
-    if (storeView.kind === "draft") setDraftProjectId(storeView.projectId);
-  }, [storeView]);
-
-  const draftProject = selectDraftProject(remote.projects, {
-    draftProjectId,
-    selectedThreadProjectId: remote.selectedThread?.projectId,
-  });
-
-  function startFromDraft(project: Project, input: DraftStartInput) {
-    return remote
-      .startThread(project, input)
-      .then((threadId) => {
-        if (threadId) void navigate({ to: "/thread/$threadId", params: { threadId } });
-      })
-      .catch((error: unknown) => {
-        toast.danger(error instanceof Error ? error.message : t`Unable to start the thread.`);
-        // Remount the draft view so its internal pending state resets.
-        setDraftNonce((nonce) => nonce + 1);
-      });
-  }
-
-  return <NewThreadView key={String(draftNonce)} project={draftProject} onStart={startFromDraft} />;
+  return (
+    <NewThreadFlow
+      onStarted={(threadId) => void navigate({ to: "/thread/$threadId", params: { threadId } })}
+    />
+  );
 }
 
 export function DesktopsRoute() {
@@ -356,15 +351,7 @@ export function MoreRoute() {
   const navigate = useNavigate();
   return (
     <MoreView
-      onOpen={(destination) => {
-        const to =
-          destination === "browser"
-            ? "/more/browser"
-            : destination === "projects"
-              ? "/more/projects"
-              : "/more/settings";
-        void navigate({ to });
-      }}
+      onOpen={() => void navigate({ to: "/more/settings" })}
       onOpenSettingsSection={(section) =>
         void navigate({ to: "/more/settings/$section", params: { section } })
       }

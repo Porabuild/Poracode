@@ -38,29 +38,47 @@ function isValidKey(value: string): boolean {
   }
 }
 
-export function readOrCreateHeadlessSecretKey(baseDir: string): string {
-  const fromEnv = process.env.LIGHTCODE_SECRET_STORAGE_KEY?.trim();
+function readOrCreatePersistedSecret(
+  path: string,
+  options: {
+    readonly fromEnv?: string | undefined;
+    readonly validateEnv?: (value: string) => void;
+    readonly isValid: (value: string) => boolean;
+    readonly generate: () => string;
+  },
+): string {
+  const { fromEnv } = options;
   if (fromEnv) {
-    if (!isValidKey(fromEnv)) {
-      throw new Error("LIGHTCODE_SECRET_STORAGE_KEY must be a base64-encoded 32-byte key.");
-    }
+    options.validateEnv?.(fromEnv);
     return fromEnv;
   }
 
-  const path = keyFilePath(baseDir);
   if (existsSync(path)) {
     try {
       const existing = readFileSync(path, "utf8").trim();
-      if (isValidKey(existing)) return existing;
+      if (options.isValid(existing)) return existing;
     } catch {
-      // Unreadable/corrupt key file — regenerate below. Anything sealed with
-      // the prior key is unrecoverable regardless.
+      // Unreadable/corrupt secret file — regenerate below. Anything sealed with
+      // the prior secret is unrecoverable regardless.
     }
   }
 
-  const key = randomBytes(32).toString("base64");
-  writeFileAtomic(path, key, { encoding: "utf8", mode: 0o600 });
-  return key;
+  const secret = options.generate();
+  writeFileAtomic(path, secret, { encoding: "utf8", mode: 0o600 });
+  return secret;
+}
+
+export function readOrCreateHeadlessSecretKey(baseDir: string): string {
+  return readOrCreatePersistedSecret(keyFilePath(baseDir), {
+    fromEnv: process.env.LIGHTCODE_SECRET_STORAGE_KEY?.trim(),
+    validateEnv: (value) => {
+      if (!isValidKey(value)) {
+        throw new Error("LIGHTCODE_SECRET_STORAGE_KEY must be a base64-encoded 32-byte key.");
+      }
+    },
+    isValid: isValidKey,
+    generate: () => randomBytes(32).toString("base64"),
+  });
 }
 
 const RELAY_SECRET_FILE = "relay-secret";
@@ -72,19 +90,9 @@ const RELAY_SECRET_FILE = "relay-secret";
  * 32 bytes — it's an opaque bearer string between the server and the relay.
  */
 export function readOrCreateRelaySecret(baseDir: string): string {
-  const fromEnv = process.env.LIGHTCODE_REMOTE_RELAY_SECRET?.trim();
-  if (fromEnv) return fromEnv;
-
-  const path = join(baseDir, RELAY_SECRET_FILE);
-  if (existsSync(path)) {
-    try {
-      const existing = readFileSync(path, "utf8").trim();
-      if (existing) return existing;
-    } catch {
-      // regenerate below
-    }
-  }
-  const secret = randomBytes(32).toString("base64url");
-  writeFileAtomic(path, secret, { encoding: "utf8", mode: 0o600 });
-  return secret;
+  return readOrCreatePersistedSecret(join(baseDir, RELAY_SECRET_FILE), {
+    fromEnv: process.env.LIGHTCODE_REMOTE_RELAY_SECRET?.trim(),
+    isValid: (value) => value.length > 0,
+    generate: () => randomBytes(32).toString("base64url"),
+  });
 }

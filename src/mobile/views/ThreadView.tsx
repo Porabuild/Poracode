@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { MessageCircle, SquareTerminal } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import {
   DEFAULT_TERMINAL_SIZE,
   type PromptSegment,
@@ -25,6 +25,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useProject } from "@/renderer/state/useThread";
 import { MobileTerminal } from "../MobileTerminal";
+import { FloatingComposerDock } from "../FloatingComposerDock";
 import { EmptyState } from "../components";
 import { WorkspaceChip } from "../GitSummaryParts";
 import { TerminalAccessory } from "../TerminalAccessory";
@@ -100,10 +101,12 @@ export function ThreadView(props: ThreadViewProps) {
   const terminalSurfaceRef = useRef<XTermSurfaceHandle | null>(null);
   const [terminalReloadKey, setTerminalReloadKey] = useState(0);
   const [terminalSize, setTerminalSize] = useState<TerminalSize | null>(null);
+  const [composerInputFocused, setComposerInputFocused] = useState(false);
   const agentTerminalFontSize = useSharedSettings((state) => state.agentTerminalFontSize);
   const dockState = useThreadDockState(thread?.id ?? "");
-  // Reserve the on-screen keyboard's band so focusing the composer doesn't let
-  // iOS scroll the whole (fixed) shell up to reveal it — see useKeyboardOffset.
+  // Raw keyboard band for the PTY/accessory inputs. The composer itself is
+  // hosted by FloatingComposerDock, which uses the same focus-gated lift as the
+  // home composer.
   const keyboardOffset = useKeyboardOffset();
 
   useEffect(() => {
@@ -204,11 +207,35 @@ export function ThreadView(props: ThreadViewProps) {
       : {}),
     canShowProjectEntryInExplorer: false,
   };
+  const showComposerDock = thread.status !== "launching" || !isTerminal;
+  const terminalPageKeyboardOffset = isTerminal && composerInputFocused ? 0 : keyboardOffset;
+  const composerDock = showComposerDock ? (
+    <FloatingComposerDock
+      dockClassName="m-thread-compose-dock"
+      keyboardKey={thread.id}
+      scrimLabel={t`Close composer`}
+      onComposerFocusChange={setComposerInputFocused}
+    >
+      <ThreadComposerSection
+        {...commonProps}
+        todoDockCollapsed={dockState.todoDockCollapsed}
+        todoDockPlacement={dockState.todoDockPlacement}
+        todoDockState={dockState.todoDockState}
+        goalDockState={dockState.goalDockState}
+        errorDockStates={dockState.errorDockStates}
+        onGoalDockDismiss={dockState.onGoalDockDismiss}
+        onDismissError={dockState.onDismissError}
+        onTodoDockCollapsedChange={dockState.onTodoDockCollapsedChange}
+        onTodoDockPlacementChange={dockState.onTodoDockPlacementChange}
+        onTodoDockRetire={dockState.onTodoDockRetire}
+      />
+    </FloatingComposerDock>
+  ) : null;
 
   return (
     <section
-      className="m-thread"
-      style={{ "--m-keyboard-offset": `${keyboardOffset}px` } as CSSProperties}
+      className={isTerminal ? "m-thread m-thread--terminal" : "m-thread"}
+      style={{ "--m-keyboard-offset": `${terminalPageKeyboardOffset}px` } as CSSProperties}
     >
       {props.loading ? (
         <span className="m-loading-bar" role="progressbar" aria-label={t`Loading thread`} />
@@ -220,33 +247,23 @@ export function ThreadView(props: ThreadViewProps) {
             onAction={props.onThreadAction}
             onNewThreadInWorktree={props.onNewThreadInWorktree}
             onDeleteWorktreeGroup={props.onDeleteWorktreeGroup}
+            onOpenTerminal={props.onOpenTerminal}
           />
           <ThreadUsageIndicator thread={thread} />
         </header>
       )}
-      {props.onOpenWorkspace || props.onOpenTerminal ? (
+      {/* The terminal entry lives in the title row's actions menu. */}
+      {props.onOpenWorkspace ? (
         <div className="m-thread-bar">
-          {props.onOpenWorkspace ? (
-            <WorkspaceChip
-              threadId={thread.id}
-              projectLabel={project?.name ?? ""}
-              onOpen={props.onOpenWorkspace}
-            />
-          ) : null}
-          {props.onOpenTerminal ? (
-            <button
-              type="button"
-              className="m-thread-bar__btn"
-              aria-label={t`Open terminal`}
-              onClick={props.onOpenTerminal}
-            >
-              <SquareTerminal className="size-4" />
-            </button>
-          ) : null}
+          <WorkspaceChip
+            threadId={thread.id}
+            projectLabel={project?.name ?? ""}
+            onOpen={props.onOpenWorkspace}
+          />
         </div>
       ) : null}
       {/* Same shell classes as the desktop ThreadView pane. */}
-      <div className="relative mx-auto flex min-h-0 w-full max-w-[1040px] flex-1 flex-col px-3 pb-2">
+      <div className="m-thread-content relative mx-auto flex min-h-0 w-full max-w-[1040px] flex-1 flex-col px-3 pb-2">
         <div className="mx-auto flex min-h-0 w-full max-w-[920px] flex-1 flex-col pt-2">
           {isTerminal ? (
             <>
@@ -271,26 +288,19 @@ export function ThreadView(props: ThreadViewProps) {
                   <TerminalAccessory terminalId={thread.id} onReload={reloadTerminal} />
                 </div>
               )}
-              <ThreadComposerSection
-                {...commonProps}
-                todoDockCollapsed={dockState.todoDockCollapsed}
-                todoDockPlacement={dockState.todoDockPlacement}
-                todoDockState={dockState.todoDockState}
-                goalDockState={dockState.goalDockState}
-                errorDockStates={dockState.errorDockStates}
-                onGoalDockDismiss={dockState.onGoalDockDismiss}
-                onDismissError={dockState.onDismissError}
-                onTodoDockCollapsedChange={dockState.onTodoDockCollapsedChange}
-                onTodoDockPlacementChange={dockState.onTodoDockPlacementChange}
-                onTodoDockRetire={dockState.onTodoDockRetire}
-              />
               <SubAgentOverlay threadId={thread.id} projectLocation={projectLocation} />
             </>
           ) : (
-            <GuiThreadContent {...commonProps} runtimeDebugOpen={false} />
+            <GuiThreadContent
+              {...commonProps}
+              dockState={dockState}
+              runtimeDebugOpen={false}
+              hideComposer
+            />
           )}
         </div>
       </div>
+      {composerDock}
     </section>
   );
 }

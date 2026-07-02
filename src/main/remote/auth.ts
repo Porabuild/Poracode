@@ -104,6 +104,15 @@ function hasScopes(granted: readonly RemoteAccessScope[], required: readonly Rem
   return required.every((scope) => granted.includes(scope));
 }
 
+function toAuthenticatedSession(session: StoredAccessSession): AuthenticatedRemoteSession {
+  return {
+    sessionId: session.id,
+    scopes: session.scopes,
+    client: session.client,
+    expiresAtMs: session.expiresAtMs,
+  };
+}
+
 export class RemoteAuthStore {
   private readonly pairingCredentials = new Map<string, StoredPairingCredential>();
   private readonly accessSessions = new Map<string, StoredAccessSession>();
@@ -205,12 +214,7 @@ export class RemoteAuthStore {
         403,
       );
     }
-    return {
-      sessionId: session.id,
-      scopes: session.scopes,
-      client: session.client,
-      expiresAtMs: session.expiresAtMs,
-    };
+    return toAuthenticatedSession(session);
   }
 
   listAccessSessions(): RemoteAccessSessionSummary[] {
@@ -275,12 +279,7 @@ export class RemoteAuthStore {
     if (!session) {
       throw new RemoteHttpError("invalid_access_token", "Invalid access token.", 401);
     }
-    return {
-      sessionId: session.id,
-      scopes: session.scopes,
-      client: session.client,
-      expiresAtMs: session.expiresAtMs,
-    };
+    return toAuthenticatedSession(session);
   }
 
   private pruneExpired(): void {

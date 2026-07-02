@@ -57,6 +57,10 @@ const PRESS_NO_SELECT: CSSProperties = {
   WebkitTouchCallout: "none",
 };
 
+function isTouchLikePointer(pointerType: string): boolean {
+  return pointerType === "touch" || pointerType === "pen";
+}
+
 /**
  * Fires `handler` after a press-and-hold. `firedRef` lets the caller suppress
  * the click that a touch release would otherwise dispatch right after a
@@ -79,7 +83,8 @@ export function useLongPress(handler: () => void, options: LongPressOptions = {}
 
   const onPointerDown = (event: ReactPointerEvent) => {
     // Only press-and-hold from touch/pen; mouse keeps the hover affordances.
-    if (event.pointerType === "mouse") return;
+    if (!isTouchLikePointer(event.pointerType)) return;
+    event.preventDefault();
     firedRef.current = false;
     startRef.current = { x: event.clientX, y: event.clientY };
     clear();

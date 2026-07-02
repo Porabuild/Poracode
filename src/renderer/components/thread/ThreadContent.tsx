@@ -16,7 +16,7 @@ import { guiChatFontCssVars } from "./ChatPane/chatFontVars";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import { ThreadTodoDock } from "./ThreadTodoDock";
-import { useThreadDockState } from "./useThreadDockState";
+import { useThreadDockState, type ThreadDockState } from "./useThreadDockState";
 
 export type ThreadContentCommonProps = {
   threadId: string;
@@ -40,12 +40,15 @@ export type ThreadContentCommonProps = {
 export function GuiThreadContent(
   props: ThreadContentCommonProps & {
     runtimeDebugOpen: boolean;
+    dockState?: ThreadDockState;
+    hideComposer?: boolean;
   },
 ) {
   const { runtimeDebugOpen } = props;
   const thread = useThread(props.threadId) ?? props.fallbackThread;
   const guiChatFontSize = useSharedSettings((s) => s.guiChatFontSize);
-  const dockState = useThreadDockState(thread.id);
+  const ownDockState = useThreadDockState(thread.id);
+  const dockState = props.dockState ?? ownDockState;
   const { todoDockState } = dockState;
   const showTodoInRightRail = dockState.showTodoInRightRail;
   const showThreadSideRail = runtimeDebugOpen || showTodoInRightRail;
@@ -106,19 +109,21 @@ export function GuiThreadContent(
           ) : null}
         </div>
       </div>
-      <ThreadComposerSection
-        {...props}
-        todoDockCollapsed={dockState.todoDockCollapsed}
-        todoDockPlacement={dockState.todoDockPlacement}
-        todoDockState={dockState.todoDockState}
-        goalDockState={dockState.goalDockState}
-        errorDockStates={dockState.errorDockStates}
-        onGoalDockDismiss={dockState.onGoalDockDismiss}
-        onDismissError={dockState.onDismissError}
-        onTodoDockCollapsedChange={dockState.onTodoDockCollapsedChange}
-        onTodoDockPlacementChange={dockState.onTodoDockPlacementChange}
-        onTodoDockRetire={dockState.onTodoDockRetire}
-      />
+      {props.hideComposer ? null : (
+        <ThreadComposerSection
+          {...props}
+          todoDockCollapsed={dockState.todoDockCollapsed}
+          todoDockPlacement={dockState.todoDockPlacement}
+          todoDockState={dockState.todoDockState}
+          goalDockState={dockState.goalDockState}
+          errorDockStates={dockState.errorDockStates}
+          onGoalDockDismiss={dockState.onGoalDockDismiss}
+          onDismissError={dockState.onDismissError}
+          onTodoDockCollapsedChange={dockState.onTodoDockCollapsedChange}
+          onTodoDockPlacementChange={dockState.onTodoDockPlacementChange}
+          onTodoDockRetire={dockState.onTodoDockRetire}
+        />
+      )}
     </>
   );
 }

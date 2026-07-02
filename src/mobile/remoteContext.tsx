@@ -16,6 +16,13 @@ export interface MobileAppContextValue {
    * narrow /threads route. */
   readonly projectFilter: string | null;
   readonly setProjectFilter: (next: string | null) => void;
+  /** Thread search on the narrow home screen: toggled from the shell header,
+   * rendered (as a floating input) by the /threads route. */
+  readonly threadSearchOpen: boolean;
+  readonly setThreadSearchOpen: (open: boolean) => void;
+  /** Scroll-driven chrome: the /threads list reports its scroll direction and
+   * the shell collapses/reveals the header and composer dock accordingly. */
+  readonly setChromeHidden: (hidden: boolean) => void;
 }
 
 const MobileAppContext = createContext<MobileAppContextValue | null>(null);

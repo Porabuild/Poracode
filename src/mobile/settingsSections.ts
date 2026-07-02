@@ -5,6 +5,7 @@ import {
   Archive,
   Bell,
   Bot,
+  CircleUserRound,
   Gauge,
   GitFork,
   Palette,
@@ -13,7 +14,12 @@ import {
   TerminalSquare,
 } from "lucide-react";
 
-export const MOBILE_SETTINGS_SECTION_LABELS = {
+import type { MobileSettingsSectionId } from "./settingsSectionIds";
+
+export { isDesktopSettingsSection, type MobileSettingsSectionId } from "./settingsSectionIds";
+
+export const MOBILE_SETTINGS_SECTION_LABELS: Record<MobileSettingsSectionId, MessageDescriptor> = {
+  profile: msg`Profile`,
   general: msg`General`,
   appearance: msg`Appearance`,
   notifications: msg`Notifications`,
@@ -23,9 +29,7 @@ export const MOBILE_SETTINGS_SECTION_LABELS = {
   ai: msg`AI`,
   models: msg`Agents`,
   archived: msg`Archived Threads`,
-} as const;
-
-export type MobileSettingsSectionId = keyof typeof MOBILE_SETTINGS_SECTION_LABELS;
+};
 
 export interface MobileSettingsSection {
   readonly id: MobileSettingsSectionId;
@@ -38,10 +42,12 @@ export interface MobileSettingsSection {
  * Split by where a setting lives. "This device" keys persist in this
  * browser's storage and shape the PWA itself (the desktop has its own copies);
  * they're listed flat on the More tab. "Desktop" sections edit the paired
- * desktop — AI helper choices sync over the remote API and thread management
- * round-trips through thread commands — and live behind the Desktop Settings
- * subscreen. Sections that cannot function remotely (search indexing,
- * remote-access server, agent installs/auth, app updates) are omitted entirely.
+ * desktop — AI helper choices sync over the remote API, thread management
+ * round-trips through thread commands, and profile identity/usage stats are
+ * read from and written to the desktop's local SQLite store — and live behind
+ * the Desktop Settings subscreen. Sections that cannot function remotely
+ * (search indexing, remote-access server, agent installs/auth, app updates)
+ * are omitted entirely.
  */
 export const DEVICE_SETTINGS_SECTIONS: readonly MobileSettingsSection[] = [
   {
@@ -84,6 +90,12 @@ export const DEVICE_SETTINGS_SECTIONS: readonly MobileSettingsSection[] = [
 
 export const DESKTOP_SETTINGS_SECTIONS: readonly MobileSettingsSection[] = [
   {
+    id: "profile",
+    label: MOBILE_SETTINGS_SECTION_LABELS.profile,
+    hint: msg`Identity and usage stats`,
+    icon: CircleUserRound,
+  },
+  {
     id: "ai",
     label: MOBILE_SETTINGS_SECTION_LABELS.ai,
     hint: msg`Title, commit, and conflict models`,
@@ -102,12 +114,6 @@ export const DESKTOP_SETTINGS_SECTIONS: readonly MobileSettingsSection[] = [
     icon: Archive,
   },
 ];
-
-/** Whether a section page belongs to the Desktop Settings subscreen (its back
- * affordance returns there) rather than the flat More list. */
-export function isDesktopSettingsSection(sectionId: string): boolean {
-  return DESKTOP_SETTINGS_SECTIONS.some((section) => section.id === sectionId);
-}
 
 export function getSettingsSectionLabel(sectionId: string | null) {
   if (!sectionId) return null;

@@ -6,6 +6,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useGitSummariesStore } from "./gitSummaries";
 import type { RemoteSession } from "./remoteContext";
+import { isDesktopSettingsSection } from "./settingsSectionIds";
 import type { ThreadAction } from "./useRemoteDesktop";
 import type { FilesTarget } from "./views/FilesView";
 import type { GitTarget } from "./views/GitView";
@@ -76,11 +77,26 @@ export function screenDepth(path: string): number {
   if (path.startsWith("/workspace/") || path.startsWith("/pr/") || path.startsWith("/terminal/")) {
     return 2;
   }
-  if (/^\/more\/settings\/.+/.test(path)) return 2;
-  if (path === "/more/settings" || path === "/more/projects" || path === "/more/browser") {
+  // A desktop-syncing section is pushed from the Desktop Settings list (depth
+  // 2); a device section is pushed straight from the Settings page (depth 1).
+  const sectionMatch = /^\/more\/settings\/(.+)$/.exec(path);
+  if (sectionMatch?.[1]) {
+    return isDesktopSettingsSection(decodeURIComponent(sectionMatch[1])) ? 3 : 2;
+  }
+  if (path === "/more/settings") return 2;
+  // First-level screens pushed from home: quick-menu destinations, the
+  // Settings page, a thread, the full new-thread composer.
+  if (
+    path === "/more" ||
+    path === "/new" ||
+    path === "/desktops" ||
+    path === "/more/usage" ||
+    path === "/more/projects" ||
+    path === "/more/browser"
+  ) {
     return 1;
   }
-  // Tab-level roots: /threads, /more, /new, /desktops, /more/usage.
+  // Home: /threads.
   return 0;
 }
 

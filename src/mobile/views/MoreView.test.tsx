@@ -2,15 +2,15 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import { MoreView, type MoreDestination } from "./MoreView";
+import { MoreView } from "./MoreView";
 
-describe("mobile MoreView", () => {
+describe("mobile MoreView (Settings page)", () => {
   it("lists device settings sections flat and desktop settings behind a subscreen row", () => {
-    const onOpen = vi.fn<(destination: MoreDestination) => void>();
+    const onOpen = vi.fn<() => void>();
     const onOpenSettingsSection = vi.fn<(sectionId: string) => void>();
     render(<MoreView onOpen={onOpen} onOpenSettingsSection={onOpenSettingsSection} />);
 
-    // Device sections are flattened into the More list.
+    // Device sections are flattened into the Settings list.
     fireEvent.click(screen.getByText("Appearance"));
     expect(onOpenSettingsSection).toHaveBeenCalledWith("appearance");
 
@@ -18,16 +18,14 @@ describe("mobile MoreView", () => {
     expect(screen.queryByText("Agents")).not.toBeInTheDocument();
     expect(screen.queryByText("Archived Threads")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Desktop Settings"));
-    expect(onOpen).toHaveBeenCalledWith("desktop-settings");
+    expect(onOpen).toHaveBeenCalled();
   });
 
-  it("keeps the non-settings entry points", () => {
-    const onOpen = vi.fn<(destination: MoreDestination) => void>();
-    render(<MoreView onOpen={onOpen} onOpenSettingsSection={() => {}} />);
+  it("carries no quick-access rows — those live in the home header's menu", () => {
+    render(<MoreView onOpen={() => {}} onOpenSettingsSection={() => {}} />);
 
-    fireEvent.click(screen.getByText("Projects"));
-    expect(onOpen).toHaveBeenCalledWith("projects");
-    fireEvent.click(screen.getByText("Browser"));
-    expect(onOpen).toHaveBeenCalledWith("browser");
+    expect(screen.queryByText("Projects")).not.toBeInTheDocument();
+    expect(screen.queryByText("Browser")).not.toBeInTheDocument();
+    expect(screen.queryByText("Connections")).not.toBeInTheDocument();
   });
 });

@@ -11,6 +11,14 @@ function makeHandlers() {
     setRemoteAccessEnabled: vi.fn<(enabled: boolean) => Promise<{ status: "disabled" }>>(
       async () => ({ status: "disabled" }),
     ),
+    getRemoteAccessTailscaleStatus: vi.fn<() => Promise<never>>(),
+    setRemoteAccessTailscaleHttps: vi.fn<(enabled: boolean) => Promise<{ status: "disabled" }>>(
+      async () => ({ status: "disabled" }),
+    ),
+    startTailscale: vi.fn<() => Promise<{ ok: boolean }>>(async () => ({ ok: true })),
+    setRemoteAccessAdvertisedUrl: vi.fn<(url: string) => Promise<{ status: "disabled" }>>(
+      async () => ({ status: "disabled" }),
+    ),
     requireLightcodePaths: () =>
       ({
         baseDir: "/tmp/lightcode",

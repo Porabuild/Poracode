@@ -145,15 +145,9 @@ export function TerminalAccessory(props: {
 
   function onKeyDown(event: ReactKeyboardEvent<HTMLInputElement>): void {
     const nextModifiers = effectiveModifiers(event);
-    if (hasModifier(nextModifiers) && event.key.length === 1) {
-      event.preventDefault();
-      send(encodeKey(event.key, nextModifiers));
-      setModifiers(NO_MODIFIERS);
-      return;
-    }
-
-    const data = KEY_DATA[event.key];
-    if (!data) return;
+    const shouldSend =
+      (hasModifier(nextModifiers) && event.key.length === 1) || KEY_DATA[event.key] !== undefined;
+    if (!shouldSend) return;
     event.preventDefault();
     send(encodeKey(event.key, nextModifiers));
     if (hasModifier(nextModifiers)) {
