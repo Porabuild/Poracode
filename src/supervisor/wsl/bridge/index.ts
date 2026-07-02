@@ -88,7 +88,7 @@ export interface WatchEvent {
 
 /**
  * Owns one in-WSL bridge per distro. The bridge is `node bridge.mjs`
- * staged under `~/.lightcode/bridge/bridge.mjs` and spawned via `wsl.exe`.
+ * staged under `~/.poracode/bridge/bridge.mjs` and spawned via `wsl.exe`.
  * Its stdout JSONL stream is parsed here:
  *
  *   {"type":"boot","port":<n>,...}        → resolves the per-distro `ready`

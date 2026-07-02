@@ -18,7 +18,7 @@ import { recordCurrentDevice, resolveProfileDevice } from "./identity";
 import { accountLabel, modelKey, modelLabel, providerLabel } from "./labels";
 
 /**
- * Token usage from Lightcode's own activity, read from the durable `usage_events`
+ * Token usage from Poracode's own activity, read from the durable `usage_events`
  * log (kind="tokens" - per-turn deltas captured at the canonical-event layer for
  * every provider, incl. all ACP agents). No external transcript scanning, and no
  * dependency on threads (survives delete/archive). Reported both globally (folded

@@ -219,13 +219,13 @@ describe("mapOpenCodeSlashCommands", () => {
 describe("OpenCode prompt formatting", () => {
   it("places attachments on their own line with \\n\\n separator", () => {
     const adapter = createOpenCodeAdapter();
-    const attachmentPath = join(homedir(), ".lightcode", "attachments", "draft", "image.png");
+    const attachmentPath = join(homedir(), ".poracode", "attachments", "draft", "image.png");
     const prompt = adapter.formatPromptSegments?.([
       { kind: "text", content: "can you see this image?" },
       { kind: "attachment", path: attachmentPath },
     ]);
 
-    expect(prompt).toBe("can you see this image?\n\n@~/.lightcode/attachments/draft/image.png ");
+    expect(prompt).toBe("can you see this image?\n\n@~/.poracode/attachments/draft/image.png ");
   });
 
   it("wraps multiline prompts in bracketed paste in buildDirectInput", () => {
@@ -357,7 +357,7 @@ describe("detectOpenCodeTerminalStatus", () => {
 });
 
 describe("opencodeIntentFor", () => {
-  it("maps OpenCode lifecycle hooks to Lightcode intents", () => {
+  it("maps OpenCode lifecycle hooks to Poracode intents", () => {
     expect(opencodeIntentFor("session.created")).toBe("session.started");
     expect(opencodeIntentFor("tool.execute.before")).toBe("session.turn_started");
     expect(opencodeIntentFor("permission.asked")).toBe("session.needs_approval");

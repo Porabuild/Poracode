@@ -73,7 +73,7 @@ function makeStubbedManager(opts: {
       nodeVersion: "22.11.0",
       source: "user-installed",
     }),
-    deploy: () => ({ home: "/home/me", linuxBaseDir: "/home/me/.lightcode" }),
+    deploy: () => ({ home: "/home/me", linuxBaseDir: "/home/me/.poracode" }),
     spawn: (childOpts) => {
       opts.onSpawn?.(childOpts);
       if (opts.spawnsRef) opts.spawnsRef.count += 1;
@@ -197,7 +197,7 @@ describe("WslBridgeServer", () => {
       secret: "s",
       protocolVersion: 1,
       resolveNode: async () => null,
-      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.lightcode" }),
+      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.poracode" }),
       spawn: () => {
         throw new Error("should not spawn");
       },
@@ -266,7 +266,7 @@ describe("WslBridgeServer", () => {
         nodeVersion: "22.11.0",
         source: "user-installed",
       }),
-      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.lightcode" }),
+      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.poracode" }),
       spawn: () => {
         // Schedule the early exit AFTER spawn returns so the manager has
         // already attached its `once("exit")` handler.
@@ -301,7 +301,7 @@ describe("WslBridgeServer", () => {
         nodeVersion: "22.11.0",
         source: "user-installed",
       }),
-      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.lightcode" }),
+      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.poracode" }),
       spawn: () => {
         const child = new FakeChild();
         const version = versions[children.length] ?? "2.0.0";
@@ -342,7 +342,7 @@ describe("WslBridgeServer", () => {
         nodeVersion: "22.11.0",
         source: "user-installed",
       }),
-      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.lightcode" }),
+      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.poracode" }),
       spawn: () => {
         const child = new FakeChild();
         const version = children.length === 0 ? "2.0.0" : "2.0.1";
@@ -386,7 +386,7 @@ describe("WslBridgeServer", () => {
         nodeVersion: "22.11.0",
         source: "user-installed",
       }),
-      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.lightcode" }),
+      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.poracode" }),
       spawn: () => {
         const child = new FakeChild();
         children.push(child);
@@ -423,7 +423,7 @@ describe("WslBridgeServer", () => {
         nodeVersion: "22.11.0",
         source: "user-installed",
       }),
-      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.lightcode" }),
+      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.poracode" }),
       spawn: () => {
         const child = new FakeChild();
         setImmediate(() => {

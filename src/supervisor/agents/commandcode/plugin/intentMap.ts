@@ -1,7 +1,7 @@
 import type { AgentEventIntent } from "@/shared/contracts";
 
 /**
- * Map a Command Code hook event name to a Lightcode universal intent.
+ * Map a Command Code hook event name to a Poracode universal intent.
  *
  * Command Code exposes a Claude-Code-compatible hook system, but only THREE
  * events are validated by the CLI: `PreToolUse`, `PostToolUse`, `Stop`. There

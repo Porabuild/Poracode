@@ -341,11 +341,11 @@ export const XTermSurface = forwardRef<
       scrollback: 5_000,
       scrollSensitivity: useSharedSettings.getState().scrollSpeed,
       fastScrollSensitivity: 10,
-      // Keep xterm's internal scrollbar gutter effectively zero; Lightcode
+      // Keep xterm's internal scrollbar gutter effectively zero; Poracode
       // renders the visible scrollbar outside the terminal content area.
       scrollbar: { width: TERMINAL_INTERNAL_SCROLLBAR_WIDTH },
       fontSize: baseFontSizeRef.current,
-      fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace",
+      fontFamily: "'Geist Mono', 'JetBrains Mono', 'Cascadia Code', monospace",
       fontWeight: "normal",
       fontWeightBold: "bold",
       letterSpacing: 0,

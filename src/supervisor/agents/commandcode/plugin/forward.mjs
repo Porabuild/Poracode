@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Command Code lifecycle hook forwarder for Lightcode.
+ * Command Code lifecycle hook forwarder for Poracode.
  *
  * Command Code invokes each configured hook as a shell command, passing the
  * event name as argv[2] (rendered by the installer as `<wrapper> <Event>`) and
@@ -8,9 +8,9 @@
  * prefer that and fall back to argv.
  *
  * Reads `LIGHTCODE_HOOK_URL` / `LIGHTCODE_HOOK_SECRET` / `LIGHTCODE_THREAD_ID`
- * from env, maps the event to a universal Lightcode intent, and POSTs the
+ * from env, maps the event to a universal Poracode intent, and POSTs the
  * envelope. When those vars are unset (the user runs `command-code` outside
- * Lightcode) the forwarder no-ops. Emits NOTHING on stdout — Command Code, like
+ * Poracode) the forwarder no-ops. Emits NOTHING on stdout — Command Code, like
  * Claude Code, can relay hook stdout into the model's context.
  *
  * Generic plumbing lives in the shared `lightcode-hook-runtime.mjs` sibling.

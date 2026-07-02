@@ -8,6 +8,7 @@ import {
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
 import { usageToneColor } from "./usageTone";
+import { isClaudeUsageProvider } from "./usageProviders";
 
 /** Format a monetary amount (already in the currency's main unit, e.g. dollars). */
 export function formatMoney(amount: number | undefined, currency: string | undefined): string {
@@ -144,6 +145,7 @@ export function sharedWindowResetLabel(
 export function usageStatusText(
   snapshot: UsageSnapshot | undefined,
   providerLabel?: string,
+  providerId?: string,
   now: number = Date.now(),
 ): string {
   if (!snapshot) return i18n._(msg`No data yet`);
@@ -160,6 +162,9 @@ export function usageStatusText(
       }
       return i18n._(msg`No windows reported`);
     case "auth-missing":
+      if (providerId && isClaudeUsageProvider(providerId)) {
+        return i18n._(msg`No data yet`);
+      }
       return i18n._(msg`Not signed in`);
     case "app-not-running": {
       const appName = providerLabel ?? i18n._(msg`the app`);

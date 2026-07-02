@@ -51,7 +51,7 @@ export interface ClaudePluginPaths {
   /**
    * Directory containing forward.mjs, plugin.json, hooks/hooks.json. For
    * WSL contexts this is a Linux path inside the distro (e.g.
-   * `/home/sdsle/.lightcode/agent-plugins/claude`); the caller must NOT
+   * `/home/sdsle/.poracode/agent-plugins/claude`); the caller must NOT
    * pass it to native fs APIs.
    */
   pluginDir: string;
@@ -129,7 +129,7 @@ export function getClaudePluginPaths(ctx?: AgentEnvContext): ClaudePluginPaths {
  * Stage the Claude plugin assets and write a `settings.json` that wires
  * Claude's hook system to invoke the staged `forward.mjs`. Idempotent —
  * safe to call from every supervisor boot. For WSL contexts, assets are
- * staged into the distro's `~/.lightcode/agent-plugins/claude/` via the
+ * staged into the distro's `~/.poracode/agent-plugins/claude/` via the
  * shared `deployFilesToWslHome` helper.
  */
 export interface InstallClaudePluginOptions {

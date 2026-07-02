@@ -19,7 +19,7 @@ import {
   type SharedSettings,
   type UsageSettings,
 } from "@/shared/settings";
-import { resolveClaudeToken } from "./claudeCredentials";
+import { refreshRejectedClaudeToken, resolveClaudeToken } from "./claudeCredentials";
 import { createLocalUsageCollectors, type LocalUsageCollector } from "./localUsageCollectors";
 import { createNodeUsageHost } from "./usageHost";
 import { scanClaudeCost } from "./usageCostScanner";
@@ -70,6 +70,19 @@ interface UsageCacheFile {
 interface ClaudeUsageProfile {
   providerId: string;
   configDir: string;
+}
+
+function isClaudeUsageProvider(id: string): boolean {
+  return id === "claude" || id.startsWith("claude:");
+}
+
+function hasDisplayableUsage(snapshot: UsageSnapshot): boolean {
+  return (
+    snapshot.windows.length > 0 ||
+    snapshot.cost !== undefined ||
+    snapshot.tokens !== undefined ||
+    snapshot.credits !== undefined
+  );
 }
 
 function resolveNativeTildePath(rawPath: string): string {
@@ -263,14 +276,23 @@ export class UsageService {
   }
 
   /**
-   * On a transient failure (rate-limit / error) keep the last-known windowed
-   * snapshot instead of flushing the UI to empty. Real states (auth-missing,
-   * unsupported) are left to clear the windows.
+   * On a transient failure (rate-limit / error) keep the last-known usage
+   * snapshot instead of flushing the UI to empty.
+   *
+   * Claude's OAuth access token can expire while the CLI has been idle, and a
+   * one-off usage auth miss does not prove the user has signed out. Match the
+   * stale-while-revalidate behavior of comparable usage tools for
+   * Claude/Claude-profile auth-missing after a prior successful read. First-time
+   * auth-missing still renders as not signed in.
    */
   private preserveOnTransientFailure(snap: UsageSnapshot): UsageSnapshot {
-    if (snap.status !== "rate-limited" && snap.status !== "error") return snap;
+    const preserveClaudeAuthMiss =
+      snap.status === "auth-missing" && isClaudeUsageProvider(snap.providerId);
+    if (snap.status !== "rate-limited" && snap.status !== "error" && !preserveClaudeAuthMiss) {
+      return snap;
+    }
     const prev = this.snapshots.get(snap.providerId);
-    if (!prev || prev.windows.length === 0) return snap;
+    if (!prev || !hasDisplayableUsage(prev)) return snap;
     // Rate-limited: keep showing the last good windows, but adopt the new fetch
     // time and rate-limit deadline so the poller still honors the backoff —
     // otherwise the preserved snapshot's old `fetchedAt` would read as "due" and
@@ -283,6 +305,11 @@ export class UsageService {
         ...(snap.rateLimitedUntil !== undefined ? { rateLimitedUntil: snap.rateLimitedUntil } : {}),
       };
     }
+    // Claude auth misses after a prior good read are treated like transient
+    // stale-while-revalidate failures. Keep the old fetchedAt so the footer
+    // still reflects when the displayed numbers were actually obtained and the
+    // next refresh cycle keeps trying to recover.
+    if (preserveClaudeAuthMiss) return prev;
     // Plain transient error: keep the prior snapshot unchanged.
     return prev;
   }
@@ -306,6 +333,8 @@ export class UsageService {
       now: () => this.host.now(),
       credentials: {
         getOAuthToken: () => resolveClaudeToken({ CLAUDE_CONFIG_DIR: profile.configDir }),
+        refreshOAuthToken: (_providerId, token) =>
+          refreshRejectedClaudeToken(token, { CLAUDE_CONFIG_DIR: profile.configDir }),
         getSecret: (providerId, key) => this.host.credentials.getSecret(providerId, key),
       },
       ...(this.host.clientVersions ? { clientVersions: this.host.clientVersions } : {}),

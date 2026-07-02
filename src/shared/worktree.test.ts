@@ -80,11 +80,11 @@ describe("resolveWorktreePlacement", () => {
       worktreeStorageMode: "project-relative",
     };
     expect(resolveWorktreePlacement(settings, undefined, windows)).toEqual({
-      root: "C:\\src\\repo\\.lightcode\\worktrees",
+      root: "C:\\src\\repo\\.poracode\\worktrees",
       omitRepoDir: true,
     });
     expect(resolveWorktreePlacement(settings, undefined, wsl)).toEqual({
-      root: "/home/me/repo/.lightcode/worktrees",
+      root: "/home/me/repo/.poracode/worktrees",
       omitRepoDir: true,
     });
   });
@@ -101,7 +101,7 @@ describe("resolveWorktreePlacement", () => {
 
     // Global is plain, but the project forces project-relative.
     expect(resolveWorktreePlacement(globalDefault, { mode: "project-relative" }, posix)).toEqual({
-      root: "/home/me/repo/.lightcode/worktrees",
+      root: "/home/me/repo/.poracode/worktrees",
       omitRepoDir: true,
     });
   });

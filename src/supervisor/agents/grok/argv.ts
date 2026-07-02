@@ -14,7 +14,7 @@ import type { ThreadConfig } from "@/shared/contracts";
  *     approval control Grok honors at launch is `--always-approve`
  *     (alias `--yolo`).
  *   • `--no-plan` is a hard restriction — passing it disables plan tooling
- *     entirely. Lightcode never sets it; plan mode is entered when the
+ *     entirely. Poracode never sets it; plan mode is entered when the
  *     model calls `enter_plan_mode` and the user approves
  *     (`~/.grok/docs/user-guide/19-plan-mode.md`).
  *   • `--effort` / `--reasoning-effort` are not surfaced in the Grok

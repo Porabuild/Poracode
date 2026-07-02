@@ -1,6 +1,6 @@
 import { DEFAULT_CLIENT_VERSIONS } from "../clientVersions";
 import { parseRetryAfter, toEpochMs } from "../formatters";
-import type { CollectOptions, HostPort, HttpClient, HttpResponse } from "../host";
+import type { CollectOptions, HostPort, HttpClient, HttpResponse, OAuthToken } from "../host";
 import type { UsageSnapshot, UsageWindow, UsageWindowId } from "../types";
 
 /**
@@ -29,6 +29,8 @@ interface ClaudeUsageResponse {
   seven_day?: ClaudeWindowRaw;
   seven_day_opus?: ClaudeWindowRaw;
   seven_day_sonnet?: ClaudeWindowRaw;
+  seven_day_fable?: ClaudeWindowRaw;
+  seven_day_fable_5?: ClaudeWindowRaw;
   /** Pay-as-you-go overage, billed in `currency` (USD) — not a rate window. */
   extra_usage?: {
     is_enabled?: boolean;
@@ -95,6 +97,7 @@ export function parseClaudeUsage(
     windowFrom("weekly", "Weekly", data.seven_day),
     windowFrom("weekly-opus", "Weekly (Opus)", data.seven_day_opus),
     windowFrom("weekly-sonnet", "Weekly (Sonnet)", data.seven_day_sonnet),
+    windowFrom("weekly-fable", "Weekly (Fable)", data.seven_day_fable ?? data.seven_day_fable_5),
   ]) {
     if (w) windows.push(w);
   }
@@ -129,18 +132,61 @@ export function parseClaudeUsage(
   };
 }
 
-export async function collectClaude(
-  host: HostPort,
-  _opts?: CollectOptions,
-): Promise<UsageSnapshot> {
-  const now = host.now();
-  const token = await host.credentials.getOAuthToken("claude");
-  if (!token?.accessToken) {
-    return { providerId: "claude", status: "auth-missing", windows: [], fetchedAt: now };
-  }
+function isClaudeAuthRejected(status: number): boolean {
+  return status === 401 || status === 403;
+}
 
-  const version = host.clientVersions?.claudeCode ?? DEFAULT_CLIENT_VERSIONS.claudeCode;
-  const res = await host.http.request({
+function claudeAuthMissingSnapshot(now: number, status?: number): UsageSnapshot {
+  return {
+    providerId: "claude",
+    status: "auth-missing",
+    windows: [],
+    fetchedAt: now,
+    ...(status !== undefined ? { error: `access token rejected (${status})` } : {}),
+  };
+}
+
+function claudeRateLimitedSnapshot(res: HttpResponse, now: number): UsageSnapshot {
+  // Honor the server's backoff: capture Retry-After (delta-seconds or
+  // HTTP-date) so the poller stops re-hitting the throttled endpoint until it
+  // clears. Read the header case-insensitively (hosts may not lower-case it).
+  const retryAfter = res.headers["retry-after"] ?? res.headers["Retry-After"];
+  const rateLimitedUntil = parseRetryAfter(retryAfter, now) ?? now + CLAUDE_RATE_LIMIT_COOLDOWN_MS;
+  return {
+    providerId: "claude",
+    status: "rate-limited",
+    windows: [],
+    fetchedAt: now,
+    rateLimitedUntil,
+  };
+}
+
+function claudeErrorSnapshot(res: HttpResponse, now: number): UsageSnapshot {
+  return {
+    providerId: "claude",
+    status: "error",
+    windows: [],
+    fetchedAt: now,
+    error: `HTTP ${res.status}`,
+  };
+}
+
+function claudeInvalidJsonSnapshot(now: number): UsageSnapshot {
+  return {
+    providerId: "claude",
+    status: "error",
+    windows: [],
+    fetchedAt: now,
+    error: "invalid JSON response",
+  };
+}
+
+async function requestClaudeUsage(
+  host: HostPort,
+  token: OAuthToken,
+  version: string,
+): Promise<HttpResponse> {
+  return host.http.request({
     method: "GET",
     url: CLAUDE_USAGE_ENDPOINT,
     headers: {
@@ -151,56 +197,53 @@ export async function collectClaude(
     },
     timeoutMs: 15_000,
   });
+}
 
-  if (res.status === 401) {
-    return {
-      providerId: "claude",
-      status: "auth-missing",
-      windows: [],
-      fetchedAt: now,
-      error: "access token rejected (401)",
-    };
-  }
-  if (res.status === 429) {
-    // Honor the server's backoff: capture Retry-After (delta-seconds or
-    // HTTP-date) so the poller stops re-hitting the throttled endpoint until it
-    // clears. Read the header case-insensitively (hosts may not lower-case it).
-    const retryAfter = res.headers["retry-after"] ?? res.headers["Retry-After"];
-    const rateLimitedUntil =
-      parseRetryAfter(retryAfter, now) ?? now + CLAUDE_RATE_LIMIT_COOLDOWN_MS;
-    return {
-      providerId: "claude",
-      status: "rate-limited",
-      windows: [],
-      fetchedAt: now,
-      rateLimitedUntil,
-    };
-  }
-  if (res.status < 200 || res.status >= 300) {
-    return {
-      providerId: "claude",
-      status: "error",
-      windows: [],
-      fetchedAt: now,
-      error: `HTTP ${res.status}`,
-    };
-  }
+function parseClaudeUsageResponse(
+  res: HttpResponse,
+  token: OAuthToken,
+  now: number,
+): UsageSnapshot {
+  if (res.status === 429) return claudeRateLimitedSnapshot(res, now);
+  if (res.status < 200 || res.status >= 300) return claudeErrorSnapshot(res, now);
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(res.body);
   } catch {
-    return {
-      providerId: "claude",
-      status: "error",
-      windows: [],
-      fetchedAt: now,
-      error: "invalid JSON response",
-    };
+    return claudeInvalidJsonSnapshot(now);
   }
 
   const plan = formatClaudePlan(token.subscriptionType);
   return parseClaudeUsage(parsed, now, plan ? { plan } : {});
+}
+
+export async function collectClaude(
+  host: HostPort,
+  _opts?: CollectOptions,
+): Promise<UsageSnapshot> {
+  const now = host.now();
+  const initialToken = await host.credentials.getOAuthToken("claude");
+  if (!initialToken?.accessToken) {
+    return claudeAuthMissingSnapshot(now);
+  }
+
+  let token: OAuthToken = initialToken;
+  const version = host.clientVersions?.claudeCode ?? DEFAULT_CLIENT_VERSIONS.claudeCode;
+  const triedAccessTokens = new Set<string>();
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    triedAccessTokens.add(token.accessToken);
+    const res = await requestClaudeUsage(host, token, version);
+    if (!isClaudeAuthRejected(res.status)) {
+      return parseClaudeUsageResponse(res, token, now);
+    }
+    const next = await host.credentials.refreshOAuthToken?.("claude", token);
+    if (!next?.accessToken || triedAccessTokens.has(next.accessToken)) {
+      return claudeAuthMissingSnapshot(now, res.status);
+    }
+    token = next;
+  }
+  return claudeAuthMissingSnapshot(now);
 }
 
 /**

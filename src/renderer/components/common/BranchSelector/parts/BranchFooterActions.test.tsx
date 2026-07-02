@@ -25,7 +25,7 @@ describe("BranchFooterActions", () => {
         value="feature/x"
         isWorktree
         branchWorktreePath={
-          new Map([["feature/x", "C:\\Users\\demo\\.lightcode\\worktrees\\repo\\feature-x"]])
+          new Map([["feature/x", "C:\\Users\\demo\\.poracode\\worktrees\\repo\\feature-x"]])
         }
         onSelect={onSelect}
         showMoveBranch={false}
@@ -42,7 +42,7 @@ describe("BranchFooterActions", () => {
         branch: "feature/x",
         baseBranch: "feature/x",
         isWorktree: true,
-        worktreePath: "C:\\Users\\demo\\.lightcode\\worktrees\\repo\\feature-x",
+        worktreePath: "C:\\Users\\demo\\.poracode\\worktrees\\repo\\feature-x",
       });
     });
   });

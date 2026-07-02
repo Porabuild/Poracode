@@ -26,7 +26,7 @@ const CLAUDE_COLLECTOR: UsageCollector = {
     label: "Claude",
     mechanism: "oauth-endpoint",
     needsLogin: false,
-    windowIds: ["session-5h", "weekly", "weekly-opus", "weekly-sonnet", "monthly"],
+    windowIds: ["session-5h", "weekly", "weekly-opus", "weekly-sonnet", "weekly-fable", "monthly"],
   },
   collect: collectClaude,
 };

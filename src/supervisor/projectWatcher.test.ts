@@ -45,14 +45,14 @@ describe("ProjectWatcher WSL worktrees", () => {
     watcher.setWslClient(client);
 
     watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
-    watcher.watchWorktrees("project-1", ["/home/demo/.lightcode/worktrees/repo/feature"]);
+    watcher.watchWorktrees("project-1", ["/home/demo/.poracode/worktrees/repo/feature"]);
 
     await vi.waitFor(() => expect(watch).toHaveBeenCalledTimes(2));
     const worktreeWatchCall = watch.mock.calls[1]!;
     const worktreeWatchOptions = worktreeWatchCall[1];
     expect(worktreeWatchOptions).toEqual(
       expect.objectContaining({
-        paths: [{ path: "/home/demo/.lightcode/worktrees/repo/feature", scope: "worktree" }],
+        paths: [{ path: "/home/demo/.poracode/worktrees/repo/feature", scope: "worktree" }],
       }),
     );
 

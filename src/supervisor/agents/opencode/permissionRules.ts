@@ -1,7 +1,7 @@
 import type { PermissionRule } from "@opencode-ai/sdk/v2";
 
 /**
- * Build the Lightcode-owned permission override for OpenCode sessions.
+ * Build the Poracode-owned permission override for OpenCode sessions.
  *
  * Supervised mode intentionally returns undefined so OpenCode resolves
  * permissions from its normal global + project config stack.

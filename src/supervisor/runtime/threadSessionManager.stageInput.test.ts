@@ -182,7 +182,7 @@ describe("ThreadSessionManager.stageThreadInput", () => {
       segments: [{ kind: "attachment", path: shot, mimeType: "image/png" }],
     });
 
-    expect(existsSync(join(projectDir, ".lightcode", "attachments", "shot.png"))).toBe(true);
+    expect(existsSync(join(projectDir, ".poracode", "attachments", "shot.png"))).toBe(true);
     const written = write.mock.calls[0]![0];
     expect(written).toContain("shot.png");
     // The pick references the in-project copy, not the original outside path.

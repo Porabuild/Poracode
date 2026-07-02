@@ -47,6 +47,7 @@ const KNOWN_WINDOW_LABELS: Record<string, string> = {
   weekly: "Weekly",
   "weekly-opus": "Weekly · Opus",
   "weekly-sonnet": "Weekly · Sonnet",
+  "weekly-fable": "Weekly · Fable",
   monthly: "Monthly",
   "extra-usage": "Extra usage",
   "cursor-auto": "Auto + Composer",
@@ -161,6 +162,7 @@ export function windowDurationMs(windowId: string, resetsAt: number): number | u
     case "weekly":
     case "weekly-opus":
     case "weekly-sonnet":
+    case "weekly-fable":
       return 7 * DAY_MS;
     case "monthly":
     case "cursor-auto":

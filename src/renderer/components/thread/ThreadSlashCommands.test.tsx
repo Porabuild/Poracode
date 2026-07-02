@@ -96,7 +96,7 @@ function makeAgentStatus(overrides: Partial<AgentStatus> = {}): AgentStatus {
 
 const draftProject: Project = {
   id: "project-1",
-  name: "Lightcode",
+  name: "Poracode",
   location: { kind: "posix", path: "/tmp/lightcode" },
   createdAt: new Date().toISOString(),
 };
@@ -288,7 +288,7 @@ describe("ThreadSlashCommands", () => {
     expect(screen.getByText("/help")).toBeInTheDocument();
   });
 
-  it("shows Lightcode Codex server commands instead of CLI commands in GUI chat composer", () => {
+  it("shows Poracode Codex server commands instead of CLI commands in GUI chat composer", () => {
     const baseCapabilities = makeAgentStatus().capabilities;
     renderThread(
       makeThread({
@@ -325,7 +325,7 @@ describe("ThreadSlashCommands", () => {
     expect(screen.queryByText("/status")).not.toBeInTheDocument();
   });
 
-  it("shows Lightcode Codex server commands instead of CLI commands in GUI draft composer", () => {
+  it("shows Poracode Codex server commands instead of CLI commands in GUI draft composer", () => {
     const baseCapabilities = makeAgentStatus().capabilities;
     renderDraftComposer(
       makeAgentStatus({

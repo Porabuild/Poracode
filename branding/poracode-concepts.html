@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Poracode — finalized brand</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap");
+      :root {
+        --moon: #eaf0fb;
+        --dim: #9ba6be;
+        --ice: #5ee6e0;
+        --indigo: #8b7bff;
+        --tile: #0e0e14;
+        --bg: #070709;
+        --panel: #101017;
+        --line: #21212b;
+        --txt: #eaf0fb;
+        --mute: #7b7b8c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--txt);
+        font-family:
+          "Geist",
+          "Inter",
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      header {
+        padding: 46px 40px 6px;
+      }
+      h1 {
+        font-size: 32px;
+        letter-spacing: -0.02em;
+        margin: 0 0 6px;
+        font-weight: 700;
+      }
+      .sub {
+        color: #a6a6b6;
+        font-size: 15px;
+        max-width: 760px;
+        line-height: 1.55;
+      }
+      .banner {
+        margin: 14px 0 0;
+        display: inline-block;
+        font-size: 13px;
+        color: var(--indigo);
+        border: 1px solid #2b2740;
+        background: #15131f;
+        border-radius: 10px;
+        padding: 8px 14px;
+      }
+      section {
+        padding: 30px 40px;
+        border-top: 1px solid var(--line);
+      }
+      h2 {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--mute);
+        margin: 0 0 6px;
+      }
+      .h2sub {
+        font-size: 13px;
+        color: var(--mute);
+        margin: 0 0 22px;
+        max-width: 720px;
+        line-height: 1.5;
+      }
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px;
+        align-items: flex-start;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 20px;
+      }
+      .card .label {
+        font-size: 12.5px;
+        color: #a6a6b6;
+        margin-top: 14px;
+        line-height: 1.45;
+        max-width: 240px;
+      }
+      .pill {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #070709;
+        background: var(--indigo);
+        border-radius: 999px;
+        padding: 3px 9px;
+        margin-bottom: 10px;
+      }
+      .sizes {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .sizes svg {
+        display: block;
+      }
+      .hero {
+        display: flex;
+        gap: 34px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .chip {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 18px;
+      }
+      .wm {
+        font-size: 46px;
+        letter-spacing: -0.02em;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .wm .dot {
+        display: inline-block;
+        width: 0.24em;
+        height: 1em;
+        vertical-align: baseline;
+        fill: var(--indigo);
+        overflow: visible;
+        margin: 0 0.03em 0 0.1em;
+      }
+      .wm .code {
+        font-weight: 500;
+      }
+      .wm .mut {
+        font-weight: 500;
+        color: var(--mute);
+      }
+      .mono {
+        font-family: "Geist Mono", "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .sw {
+        width: 108px;
+        height: 58px;
+        border-radius: 12px;
+        display: flex;
+        align-items: flex-end;
+        padding: 8px;
+        font-size: 11px;
+        font-family: "Geist Mono", monospace;
+        color: #070709;
+      }
+      .note {
+        font-size: 13px;
+        color: #a6a6b6;
+        max-width: 760px;
+        line-height: 1.6;
+      }
+      table.t {
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      table.t td {
+        padding: 7px 18px 7px 0;
+        vertical-align: top;
+      }
+      table.t .b {
+        font-weight: 600;
+      }
+      table.t .d {
+        font-family: "Geist Mono", monospace;
+        font-size: 12.5px;
+        color: #8d8d9c;
+      }
+      .ok {
+        color: #6ee7a8;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <!-- FINAL hero: bold P + indigo baseline dot. body = currentColor -->
+      <symbol id="p" viewBox="0 0 1024 1024">
+        <rect width="1024" height="1024" rx="232" fill="#0E0E14" />
+        <path
+          fill-rule="evenodd"
+          fill="currentColor"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="#8B7BFF" />
+      </symbol>
+      <symbol id="pLight" viewBox="0 0 1024 1024">
+        <rect width="1024" height="1024" rx="232" fill="#EAF0FB" />
+        <path
+          fill-rule="evenodd"
+          fill="#0E0E14"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="#8B7BFF" />
+      </symbol>
+      <symbol id="pGlyph" viewBox="0 0 1024 1024">
+        <path
+          fill-rule="evenodd"
+          fill="currentColor"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="#8B7BFF" />
+      </symbol>
+      <symbol id="pNightly" viewBox="0 0 1024 1024">
+        <rect width="1024" height="1024" rx="232" fill="#131228" />
+        <path
+          fill-rule="evenodd"
+          fill="#EAF0FB"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="#5EE6E0" />
+      </symbol>
+    </svg>
+
+    <header>
+      <h1>Poracode — finalized brand</h1>
+      <div class="sub">
+        The <b style="color: var(--indigo)">Pora dot</b> ties it together: one indigo dot = the code
+        cursor, the <span class="mono">.</span> in <span class="mono">pora.code</span>, and the
+        <i>moment</i> (пора = “it’s time”) — always at the <b>baseline</b>, never centered. Dark /
+        moonlight, no orange. Type: <b>Geist</b>.
+      </div>
+      <div class="banner">
+        📄 Authoritative spec → <b>branding/BRAND.md</b> · rendered assets →
+        <b>branding/assets/preview.html</b>
+      </div>
+    </header>
+
+    <section>
+      <h2>1 · The mark — P + Pora dot (indigo, baseline)</h2>
+      <div class="hero">
+        <div class="chip">
+          <svg width="200" height="200" style="color: var(--moon)"><use href="#p" /></svg>
+        </div>
+        <div>
+          <div class="h2sub" style="margin-bottom: 14px">Holds to a 16px favicon:</div>
+          <div class="sizes" style="color: var(--moon)">
+            <svg width="88" height="88"><use href="#p" /></svg
+            ><svg width="48" height="48"><use href="#p" /></svg>
+            <svg width="32" height="32"><use href="#p" /></svg
+            ><svg width="16" height="16"><use href="#p" /></svg>
+          </div>
+        </div>
+        <div class="chip">
+          <div class="label" style="margin: 0 0 10px">Light</div>
+          <svg width="116" height="116"><use href="#pLight" /></svg>
+        </div>
+        <div class="chip">
+          <div class="label" style="margin: 0 0 10px">Nightly (ice)</div>
+          <svg width="116" height="116"><use href="#pNightly" /></svg>
+        </div>
+        <div class="chip" style="background: #000">
+          <div class="label" style="margin: 0 0 10px; color: #777">Glyph / mono</div>
+          <svg width="116" height="116" style="color: #fff"><use href="#pGlyph" /></svg>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>2 · Logotype — Geist, baseline dot</h2>
+      <div class="h2sub">
+        Logo is <b>Pora.code</b> (dot device, baseline, indigo). Written name in prose/stores/legal
+        is <b>Poracode</b> (one word, no dot).
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="wm">
+            Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+              <circle cx="12" cy="96" r="9" /></svg
+            ><span class="code">code</span>
+          </div>
+          <div class="label">Primary logotype — Geist 700/500, baseline indigo dot.</div>
+        </div>
+        <div class="card">
+          <div class="wm mono" style="font-weight: 600">
+            pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+              <circle cx="12" cy="96" r="9" /></svg
+            >code
+          </div>
+          <div class="label">CLI / mono lockup — Geist Mono.</div>
+        </div>
+        <div class="card">
+          <div class="row">
+            <svg width="56" height="56" style="color: var(--moon)"><use href="#p" /></svg>
+            <div class="wm" style="font-size: 34px">
+              Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+                <circle cx="12" cy="96" r="9" /></svg
+              ><span class="code">code</span>
+            </div>
+          </div>
+          <div class="label">Icon + logotype.</div>
+        </div>
+        <div class="card">
+          <div class="row">
+            <svg width="48" height="48" style="color: var(--moon)"><use href="#pGlyph" /></svg>
+            <div class="wm" style="font-size: 28px">
+              Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+                <circle cx="12" cy="96" r="9" /></svg
+              ><span class="code">code</span>
+              <span class="mut">Cloud</span>
+            </div>
+          </div>
+          <div class="label">Tier lockup — Poracode Cloud.</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>3 · Color</h2>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap">
+        <div class="sw" style="background: #070709; color: #eaf0fb">#070709 night</div>
+        <div class="sw" style="background: #0e0e14; color: #eaf0fb">#0E0E14 tile</div>
+        <div class="sw" style="background: #eaf0fb">#EAF0FB moon</div>
+        <div class="sw" style="background: #9ba6be">#9BA6BE dim</div>
+        <div class="sw" style="background: #8b7bff; color: #fff">#8B7BFF indigo ✓</div>
+        <div class="sw" style="background: #5ee6e0">#5EE6E0 ice (nightly)</div>
+      </div>
+      <p class="note" style="margin-top: 14px">
+        <b>Indigo #8B7BFF</b> is the one accent (the dot, links, active states). Ice is reserved for
+        the nightly channel. Never orange.
+      </p>
+    </section>
+
+    <section>
+      <h2>4 · Naming &amp; structure</h2>
+      <table class="t">
+        <tr>
+          <td class="b">Pora</td>
+          <td>Brand / umbrella (the mark + spoken name)</td>
+          <td class="d">pora.sh · trypora.com</td>
+        </tr>
+        <tr>
+          <td class="b">Poracode, Inc.</td>
+          <td>Legal company</td>
+          <td class="d">poracode.com</td>
+        </tr>
+        <tr>
+          <td class="b">↳ Poracode</td>
+          <td>Desktop app (open-source)</td>
+          <td class="d">poracode.com · @poracode · com.poracode.app</td>
+        </tr>
+        <tr>
+          <td class="b">↳ Poracode CLI</td>
+          <td>Command-line tool</td>
+          <td class="d">npm: poracode</td>
+        </tr>
+        <tr>
+          <td class="b">↳ Poracode Cloud</td>
+          <td>Hosted paid tier</td>
+          <td class="d">poracode.com/cloud · hold pora.cloud <span class="ok">free ✅</span></td>
+        </tr>
+      </table>
+      <p class="note" style="margin-top: 14px">
+        <b>Poracode Cloud</b>, not "Pora Cloud" — one consistent product root, clearest meaning,
+        safest vs the <span class="mono">PORA AI</span> mark. Providers (Claude · Codex · Gemini)
+        are <b>integrations you list</b>, never product names. File the
+        <span class="mono">PORACODE</span> word mark (classes 9 &amp; 42).
+      </p>
+    </section>
+  </body>
+</html>

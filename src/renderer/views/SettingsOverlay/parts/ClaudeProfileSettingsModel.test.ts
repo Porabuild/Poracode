@@ -49,7 +49,7 @@ describe("ClaudeProfileSettingsModel", () => {
     const instance: AgentInstanceConfig = {
       id: "work",
       driver: "claude",
-      config: { configDir: "~/.lightcode/claude-profiles/work" },
+      config: { configDir: "~/.poracode/claude-profiles/work" },
     };
 
     expect(profileUsesExternalProvider(instance, { configDir: "x", efforts: [] })).toBe(false);

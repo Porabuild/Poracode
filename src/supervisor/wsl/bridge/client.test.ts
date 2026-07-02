@@ -278,7 +278,7 @@ describe("WslBridgeClient", () => {
     const result = await client.gitBatch(makeLocation(), {
       commands: [
         {
-          cwd: "/home/user/.lightcode/worktrees/repo/feature",
+          cwd: "/home/user/.poracode/worktrees/repo/feature",
           args: ["branch"],
           loginEnv: true,
         },
@@ -291,7 +291,7 @@ describe("WslBridgeClient", () => {
     expect(fake.lastRequest.body).toEqual({
       commands: [
         {
-          cwd: "/home/user/.lightcode/worktrees/repo/feature",
+          cwd: "/home/user/.poracode/worktrees/repo/feature",
           args: ["branch"],
           loginEnv: true,
         },

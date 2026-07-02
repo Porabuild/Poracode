@@ -26,17 +26,22 @@ import {
   sharedWindowResetLabel,
 } from "./usageFormat";
 import {
+  isClaudeUsageProvider,
   resolveDisplayedProviders,
   usageRingGroups,
   usesSharedWindowReset,
 } from "./usageProviders";
 
-function statusText(snapshot: UsageSnapshot | undefined): MessageDescriptor | null {
+function statusText(
+  providerId: string,
+  snapshot: UsageSnapshot | undefined,
+): MessageDescriptor | null {
   if (!snapshot) return msg`No data yet`;
   switch (snapshot.status) {
     case "ok":
       return null;
     case "auth-missing":
+      if (isClaudeUsageProvider(providerId)) return msg`No data yet`;
       return msg`Not signed in`;
     case "app-not-running":
       return msg`Not running`;
@@ -60,7 +65,7 @@ function UsageTooltipBody(props: {
   const { id, label, snapshot, swappable } = props;
   const { t } = useLingui();
   const now = Date.now();
-  const message = statusText(snapshot);
+  const message = statusText(id, snapshot);
   const sharedReset = usesSharedWindowReset(id) ? sharedWindowResetLabel(snapshot, now) : undefined;
   return (
     <div className="min-w-[140px] space-y-1">

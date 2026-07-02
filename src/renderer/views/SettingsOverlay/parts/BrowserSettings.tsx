@@ -34,7 +34,7 @@ export function BrowserSettings() {
       <SettingRow
         anchorId="browser.linkOpenTarget"
         title={t`Open links in`}
-        description={t`Choose whether links from Lightcode and browser popups stay in Lightcode or open externally.`}
+        description={t`Choose whether links from Poracode and browser popups stay in Poracode or open externally.`}
       >
         <Select
           aria-label={t`Open links in`}
@@ -51,7 +51,7 @@ export function BrowserSettings() {
       <SettingRow
         anchorId="browser.linkPresentationMode"
         title={t`Show opened links in`}
-        description={t`When links open in a Lightcode browser tab, choose where the browser is revealed.`}
+        description={t`When links open in a Poracode browser tab, choose where the browser is revealed.`}
       >
         <Select
           aria-label={t`Show opened links in`}

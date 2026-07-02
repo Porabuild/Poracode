@@ -39,7 +39,7 @@ import {
  * auto-trusted by the CLI (no `trusted-hooks.json` fingerprint prompt), so a
  * merged install runs headlessly.
  *
- * Lightcode-managed entries are tagged by the staged command path
+ * Poracode-managed entries are tagged by the staged command path
  * (`LIGHTCODE_FORWARD_RE`) and pruned/replaced on every reinstall and removed
  * on uninstall, so the user's own hooks are never clobbered.
  */
@@ -66,7 +66,7 @@ const COMMANDCODE_HOOK_SPECS: ReadonlyArray<CommandCodeHookSpec> = [
 ];
 
 /**
- * Match any Lightcode-staged Command Code hook command. Covers both the WSL
+ * Match any Poracode-staged Command Code hook command. Covers both the WSL
  * shape (`forward.mjs` invoked via absolute node path) and native
  * (`lightcode-hook.{sh,cmd,ps1}` wrapper).
  */
@@ -152,8 +152,8 @@ function buildLightcodeEntry(
 }
 
 /**
- * Merge Lightcode hook entries into a parsed `settings.json` document,
- * preserving every other key (and any non-Lightcode hooks). `commandHead` is
+ * Merge Poracode hook entries into a parsed `settings.json` document,
+ * preserving every other key (and any non-Poracode hooks). `commandHead` is
  * the pre-event portion of the hook command. Exported for unit tests.
  */
 export function mergeCommandCodeSettings(
@@ -172,7 +172,7 @@ export function mergeCommandCodeSettings(
 }
 
 /**
- * Remove only Lightcode-managed hook entries from a parsed `settings.json`,
+ * Remove only Poracode-managed hook entries from a parsed `settings.json`,
  * leaving the user's other settings and hooks intact. Exported for unit tests.
  */
 export function removeCommandCodeHooks(existingParsed: unknown): Record<string, unknown> {

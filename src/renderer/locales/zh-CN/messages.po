@@ -1428,8 +1428,8 @@ msgstr "选择登录方式。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose the display language for Lightcode's interface."
-msgstr "选择 Lightcode 界面的显示语言。"
+msgid "Choose the display language for Poracode's interface."
+msgstr "选择 Poracode 界面的显示语言。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
@@ -1437,9 +1437,9 @@ msgstr "选择要附加到的线程"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose whether links from Lightcode and browser popups stay in Lightcode "
+msgid "Choose whether links from Poracode and browser popups stay in Poracode "
 "or open externally."
-msgstr "选择来自 Lightcode 和浏览器弹出窗口的链接是保留在 Lightcode 中还是在外部打开。"
+msgstr "选择来自 Poracode 和浏览器弹出窗口的链接是保留在 Poracode 中还是在外部打开。"
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
@@ -2949,45 +2949,43 @@ msgid "Finished · Waiting for your input"
 msgstr "已完成·等待您的输入"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Antigravity CLI integration using Lightcode's native "
+msgid "First-class Antigravity CLI integration using Poracode's native runtime."
+msgstr "使用 Poracode 的本机运行时实现一流的 Antigravity CLI 集成。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Claude Code integration using Poracode's native SDK runtime."
+msgstr "使用 Poracode 的本机 SDK 运行时进行一流的 Claude Code 集成。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Codex CLI integration using Poracode's native app-server "
 "runtime."
-msgstr "使用 Lightcode 的本机运行时实现一流的 Antigravity CLI 集成。"
+msgstr "使用 Poracode 的本机应用程序服务器运行时进行一流的 Codex CLI 集成。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Claude Code integration using Lightcode's native SDK "
+msgid "First-class Command Code CLI integration using Poracode's native "
 "runtime."
-msgstr "使用 Lightcode 的本机 SDK 运行时进行一流的 Claude Code 集成。"
+msgstr "使用 Poracode 的本机运行时实现一流的 Command Code CLI 集成。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Codex CLI integration using Lightcode's native app-server "
+msgid "First-class Cursor Agent integration using Poracode's native runtime."
+msgstr "使用 Poracode 原生运行时的一流 Cursor Agent 集成。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Poracode's native runtime."
+msgstr "使用 Poracode 原生运行时的一流 Gemini CLI 集成。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Poracode's native "
 "runtime."
-msgstr "使用 Lightcode 的本机应用程序服务器运行时进行一流的 Codex CLI 集成。"
+msgstr "使用 Poracode 原生运行时的一流 GitHub Copilot CLI 集成。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Command Code CLI integration using Lightcode's native "
-"runtime."
-msgstr "使用 Lightcode 的本机运行时实现一流的 Command Code CLI 集成。"
+msgid "First-class Grok Build CLI integration using Poracode's native runtime."
+msgstr "使用 Poracode 的本机运行时进行一流的 Grok Build CLI 集成。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Cursor Agent integration using Lightcode's native runtime."
-msgstr "使用 Lightcode 原生运行时的一流 Cursor Agent 集成。"
-
-#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Gemini CLI integration using Lightcode's native runtime."
-msgstr "使用 Lightcode 原生运行时的一流 Gemini CLI 集成。"
-
-#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
-"runtime."
-msgstr "使用 Lightcode 原生运行时的一流 GitHub Copilot CLI 集成。"
-
-#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
-msgstr "使用 Lightcode 的本机运行时进行一流的 Grok Build CLI 集成。"
-
-#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class OpenCode integration using Lightcode's native SDK runtime."
-msgstr "使用 Lightcode 的本机 SDK 运行时进行一流的 OpenCode 集成。"
+msgid "First-class OpenCode integration using Poracode's native SDK runtime."
+msgstr "使用 Poracode 的本机 SDK 运行时进行一流的 OpenCode 集成。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
@@ -5048,9 +5046,9 @@ msgstr "将此配置指向非Anthropic服务商（z.ai，…），并自定义�
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
+msgid "Popular editor themes adapted to Poracode. Each follows the light or "
 "dark mode above."
-msgstr "流行的编辑器主题适应 Lightcode。每个都遵循上面的浅色或深色模式。"
+msgstr "流行的编辑器主题适应 Poracode。每个都遵循上面的浅色或深色模式。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "PR actions"
@@ -5230,8 +5228,8 @@ msgid "Pull ↓{behind}"
 msgstr "拉 ↓{behind}"
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "Pull did not complete. Your local changes remain in a Lightcode stash."
-msgstr "拉取未完成。您的本地更改仍保留在 Lightcode 贮藏区中。"
+msgid "Pull did not complete. Your local changes remain in a Poracode stash."
+msgstr "拉取未完成。您的本地更改仍保留在 Poracode 贮藏区中。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pull failed: {detail}"
@@ -7022,9 +7020,9 @@ msgstr "该线程使用工作树 <0>{0}</0>。还要删除工作树目录吗？"
 
 #. placeholder {0}: activeDialog.sourceBranch
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
-msgid "This worktree has local changes. Lightcode can temporarily stash them, "
+msgid "This worktree has local changes. Poracode can temporarily stash them, "
 "pull from {0}, then re-apply your changes."
-msgstr "该工作树有本地更改。Lightcode 可以暂时贮藏（stash）它们，从 {0} 拉取，然后重新应用您的更改。"
+msgstr "该工作树有本地更改。Poracode 可以暂时贮藏（stash）它们，从 {0} 拉取，然后重新应用您的更改。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
 msgid "Thought"
@@ -7643,8 +7641,8 @@ msgstr "使用忽略文件"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at "
-".lightcode/worktrees."
-msgstr "使用一个全局文件夹，或将工作树嵌套在每个项目的 .lightcode/worktrees 内。"
+".poracode/worktrees."
+msgstr "使用一个全局文件夹，或将工作树嵌套在每个项目的 .poracode/worktrees 内。"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
@@ -7831,8 +7829,8 @@ msgid "What's New"
 msgstr "新功能"
 
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
-msgid "What's new in Lightcode, newest first."
-msgstr "Lightcode 的新功能，最新优先。"
+msgid "What's new in Poracode, newest first."
+msgstr "Poracode 的新功能，最新优先。"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."
@@ -7840,9 +7838,9 @@ msgstr "启用后，搜索会考虑 <0>.gitignore</0> 条目。"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "When links open in a Lightcode browser tab, choose where the browser is "
+msgid "When links open in a Poracode browser tab, choose where the browser is "
 "revealed."
-msgstr "当链接在 Lightcode 浏览器选项卡中打开时，选择浏览器的显示位置。"
+msgstr "当链接在 Poracode 浏览器选项卡中打开时，选择浏览器的显示位置。"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "When off, suppress notifications from terminal threads whose status "
@@ -7856,9 +7854,9 @@ msgstr "何时显示可见线程的应用内 Toast。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "When you close the window, keep Lightcode running in the system tray. "
+msgid "When you close the window, keep Poracode running in the system tray. "
 "Disable to quit on close."
-msgstr "当您关闭窗口时，请保持 Lightcode 在系统托盘中运行。禁用关闭时退出。"
+msgstr "当您关闭窗口时，请保持 Poracode 在系统托盘中运行。禁用关闭时退出。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -7871,9 +7869,9 @@ msgid "Where do you want to begin?"
 msgstr "您想从哪里开始？"
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
-msgid "Where Lightcode creates git worktrees for new branches. Changes apply to "
+msgid "Where Poracode creates git worktrees for new branches. Changes apply to "
 "worktrees created from now on; existing worktrees stay where they are."
-msgstr "Lightcode 为新分支创建 git 工作树的位置。更改适用于从现在起创建的工作树；现有工作树保持原位不变。"
+msgstr "Poracode 为新分支创建 git 工作树的位置。更改适用于从现在起创建的工作树；现有工作树保持原位不变。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx

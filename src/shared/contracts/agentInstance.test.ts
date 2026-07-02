@@ -68,9 +68,9 @@ describe("Claude profile instance helpers", () => {
   it("parses a Claude profile config directory", () => {
     expect(
       parseClaudeProfileInstanceConfig({
-        configDir: "~/.lightcode/claude-profiles/work",
+        configDir: "~/.poracode/claude-profiles/work",
       }),
-    ).toEqual({ configDir: "~/.lightcode/claude-profiles/work" });
+    ).toEqual({ configDir: "~/.poracode/claude-profiles/work" });
   });
 
   it("rejects an empty Claude profile config directory", () => {

@@ -188,7 +188,7 @@ function UsageProviderRow(props: { id: string; label: string }) {
   const showBars = enabled && snapshot?.status === "ok" && snapshot.windows.length > 0;
   const reserveBars = !enabled && snapshot?.status === "ok" && snapshot.windows.length > 0;
   const message = enabled
-    ? usageStatusText(snapshot, label)
+    ? usageStatusText(snapshot, label, id)
     : t({ message: "Tracking off", comment: "Usage status when provider tracking is disabled" });
   // The credits line below already shows the balance, and usageStatusText folds
   // it into the status string for a windowless "ok" snapshot — so skip the

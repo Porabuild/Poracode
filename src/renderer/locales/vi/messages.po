@@ -1446,8 +1446,8 @@ msgstr "Chọn cách đăng nhập."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose the display language for Lightcode's interface."
-msgstr "Chọn ngôn ngữ hiển thị cho giao diện của Lightcode."
+msgid "Choose the display language for Poracode's interface."
+msgstr "Chọn ngôn ngữ hiển thị cho giao diện của Poracode."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
@@ -1455,10 +1455,10 @@ msgstr "Chọn chủ đề để đính kèm"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose whether links from Lightcode and browser popups stay in Lightcode "
+msgid "Choose whether links from Poracode and browser popups stay in Poracode "
 "or open externally."
-msgstr "Chọn xem các liên kết từ Lightcode và cửa sổ bật lên của trình duyệt "
-"vẫn ở trong Lightcode hay mở bên ngoài."
+msgstr "Chọn xem các liên kết từ Poracode và cửa sổ bật lên của trình duyệt vẫn "
+"ở trong Poracode hay mở bên ngoài."
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
@@ -2988,50 +2988,48 @@ msgid "Finished · Waiting for your input"
 msgstr "Đã hoàn tất · Đang chờ bạn nhập"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Antigravity CLI integration using Lightcode's native "
-"runtime."
+msgid "First-class Antigravity CLI integration using Poracode's native runtime."
 msgstr "Tích hợp CLI Antigravity hạng nhất bằng thời gian chạy gốc của "
-"Lightcode."
+"Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Claude Code integration using Lightcode's native SDK "
-"runtime."
+msgid "First-class Claude Code integration using Poracode's native SDK runtime."
 msgstr "Tích hợp Claude Code hạng nhất bằng thời gian chạy SDK gốc của "
-"Lightcode."
+"Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Codex CLI integration using Lightcode's native app-server "
+msgid "First-class Codex CLI integration using Poracode's native app-server "
 "runtime."
 msgstr "Tích hợp Codex CLI hạng nhất bằng cách sử dụng thời gian chạy máy chủ "
-"ứng dụng gốc của Lightcode."
+"ứng dụng gốc của Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Command Code CLI integration using Lightcode's native "
+msgid "First-class Command Code CLI integration using Poracode's native "
 "runtime."
 msgstr "Tích hợp CLI Command Code hạng nhất bằng thời gian chạy gốc của "
-"Lightcode."
+"Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Cursor Agent integration using Lightcode's native runtime."
-msgstr "Tích hợp Cursor Agent hạng nhất bằng runtime gốc của Lightcode."
+msgid "First-class Cursor Agent integration using Poracode's native runtime."
+msgstr "Tích hợp Cursor Agent hạng nhất bằng runtime gốc của Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Gemini CLI integration using Lightcode's native runtime."
-msgstr "Tích hợp Gemini CLI hạng nhất bằng runtime gốc của Lightcode."
+msgid "First-class Gemini CLI integration using Poracode's native runtime."
+msgstr "Tích hợp Gemini CLI hạng nhất bằng runtime gốc của Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+msgid "First-class GitHub Copilot CLI integration using Poracode's native "
 "runtime."
-msgstr "Tích hợp GitHub Copilot CLI hạng nhất bằng runtime gốc của Lightcode."
+msgstr "Tích hợp GitHub Copilot CLI hạng nhất bằng runtime gốc của Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
+msgid "First-class Grok Build CLI integration using Poracode's native runtime."
 msgstr "Tích hợp Grok Build CLI hạng nhất bằng cách sử dụng thời gian chạy gốc "
-"của Lightcode."
+"của Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class OpenCode integration using Lightcode's native SDK runtime."
-msgstr "Tích hợp OpenCode hạng nhất bằng thời gian chạy SDK gốc của Lightcode."
+msgid "First-class OpenCode integration using Poracode's native SDK runtime."
+msgstr "Tích hợp OpenCode hạng nhất bằng thời gian chạy SDK gốc của Poracode."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
@@ -5119,9 +5117,9 @@ msgstr "Trỏ hồ sơ này tới nhà cung cấp ngoài Anthropic (z.ai, …) v
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
+msgid "Popular editor themes adapted to Poracode. Each follows the light or "
 "dark mode above."
-msgstr "Các chủ đề biên tập phổ biến được điều chỉnh cho phù hợp với Lightcode. "
+msgstr "Các chủ đề biên tập phổ biến được điều chỉnh cho phù hợp với Poracode. "
 "Mỗi cái đều theo chế độ sáng hoặc tối ở trên."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -5303,9 +5301,9 @@ msgid "Pull ↓{behind}"
 msgstr "Kéo ↓{behind}"
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "Pull did not complete. Your local changes remain in a Lightcode stash."
+msgid "Pull did not complete. Your local changes remain in a Poracode stash."
 msgstr "Pull không hoàn tất. Các thay đổi cục bộ của bạn vẫn nằm trong stash "
-"của Lightcode."
+"của Poracode."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pull failed: {detail}"
@@ -7129,9 +7127,9 @@ msgstr "Luồng này sử dụng cây làm việc <0>{0}</0>. Cũng xóa thư m�
 
 #. placeholder {0}: activeDialog.sourceBranch
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
-msgid "This worktree has local changes. Lightcode can temporarily stash them, "
+msgid "This worktree has local changes. Poracode can temporarily stash them, "
 "pull from {0}, then re-apply your changes."
-msgstr "Cây làm việc này có các thay đổi cục bộ. Lightcode có thể tạm thời lưu "
+msgstr "Cây làm việc này có các thay đổi cục bộ. Poracode có thể tạm thời lưu "
 "trữ (stash) chúng, kéo (pull) từ {0}, sau đó áp dụng lại các thay đổi "
 "của bạn."
 
@@ -7756,9 +7754,9 @@ msgstr "Sử dụng tập tin bỏ qua"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at "
-".lightcode/worktrees."
+".poracode/worktrees."
 msgstr "Dùng một thư mục toàn cục, hoặc lồng các cây làm việc bên trong mỗi dự "
-"án tại .lightcode/worktrees."
+"án tại .poracode/worktrees."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
@@ -7952,8 +7950,8 @@ msgid "What's New"
 msgstr "Có gì mới"
 
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
-msgid "What's new in Lightcode, newest first."
-msgstr "Có gì mới trong Lightcode, mới nhất trước."
+msgid "What's new in Poracode, newest first."
+msgstr "Có gì mới trong Poracode, mới nhất trước."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."
@@ -7961,9 +7959,9 @@ msgstr "Khi được bật, tìm kiếm sẽ tôn trọng các mục nhập <0>.
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "When links open in a Lightcode browser tab, choose where the browser is "
+msgid "When links open in a Poracode browser tab, choose where the browser is "
 "revealed."
-msgstr "Khi các liên kết mở trong tab trình duyệt Lightcode, hãy chọn nơi trình "
+msgstr "Khi các liên kết mở trong tab trình duyệt Poracode, hãy chọn nơi trình "
 "duyệt được hiển thị."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -7980,9 +7978,9 @@ msgstr "Thời điểm hiển thị thông báo nhanh (toast) trong ứng dụng
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "When you close the window, keep Lightcode running in the system tray. "
+msgid "When you close the window, keep Poracode running in the system tray. "
 "Disable to quit on close."
-msgstr "Khi bạn đóng cửa sổ, hãy giữ Lightcode chạy trong khay hệ thống. Tắt để "
+msgstr "Khi bạn đóng cửa sổ, hãy giữ Poracode chạy trong khay hệ thống. Tắt để "
 "thoát khi đóng."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -7998,9 +7996,9 @@ msgid "Where do you want to begin?"
 msgstr "Bạn muốn bắt đầu từ đâu?"
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
-msgid "Where Lightcode creates git worktrees for new branches. Changes apply to "
+msgid "Where Poracode creates git worktrees for new branches. Changes apply to "
 "worktrees created from now on; existing worktrees stay where they are."
-msgstr "Nơi Lightcode tạo các cây làm việc git cho các nhánh mới. Các thay đổi "
+msgstr "Nơi Poracode tạo các cây làm việc git cho các nhánh mới. Các thay đổi "
 "áp dụng cho các cây làm việc được tạo từ giờ trở đi; các cây làm việc "
 "hiện có vẫn giữ nguyên vị trí."
 

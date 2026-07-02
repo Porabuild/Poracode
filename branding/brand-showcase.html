@@ -1,0 +1,1271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Poracode — Brand Book (all cases)</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap");
+      :root {
+        --moon: #eaf0fb;
+        --dim: #9ba6be;
+        --faint: #6b6b7b;
+        --ice: #5ee6e0;
+        --indigo: #8b7bff;
+        --indigo-d: #6f5cf0;
+        --tile: #0e0e14;
+        --bg: #070709;
+        --panel: #101017;
+        --panel2: #16161f;
+        --line: #21212b;
+        --line2: #2c2c38;
+        --txt: #eaf0fb;
+        --mute: #7b7b8c;
+        --good: #6ee7a8;
+        --bad: #ff6b6b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--txt);
+        font-family:
+          "Geist",
+          "Inter",
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        font-size: 15px;
+        line-height: 1.55;
+      }
+      a {
+        color: var(--indigo);
+        text-decoration: none;
+      }
+      code,
+      .mono {
+        font-family: "Geist Mono", "SF Mono", ui-monospace, Menlo, monospace;
+      }
+      /* layout */
+      nav {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 12px 28px;
+        background: rgba(7, 7, 9, 0.82);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--line);
+      }
+      nav .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        margin-right: 14px;
+      }
+      nav a {
+        color: var(--dim);
+        font-size: 13px;
+        padding: 6px 10px;
+        border-radius: 8px;
+      }
+      nav a:hover {
+        color: var(--moon);
+        background: var(--panel);
+      }
+      section {
+        padding: 46px 40px;
+        border-top: 1px solid var(--line);
+        max-width: 1200px;
+      }
+      .eyebrow {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: var(--indigo);
+        font-weight: 600;
+        margin: 0 0 8px;
+      }
+      h2 {
+        font-size: 26px;
+        letter-spacing: -0.02em;
+        margin: 0 0 4px;
+        font-weight: 700;
+      }
+      h3 {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--mute);
+        margin: 30px 0 14px;
+        font-weight: 600;
+      }
+      p.lead {
+        color: var(--dim);
+        max-width: 680px;
+        margin: 0 0 6px;
+      }
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: flex-start;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 22px;
+      }
+      .cap {
+        font-size: 12px;
+        color: var(--mute);
+        margin-top: 12px;
+        font-family: "Geist Mono", monospace;
+      }
+      .sizes {
+        display: flex;
+        align-items: flex-end;
+        gap: 22px;
+      }
+      .sizes svg {
+        display: block;
+      }
+      /* hero */
+      .hero {
+        padding: 70px 40px 50px;
+        max-width: 1200px;
+      }
+      .hero .lock {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
+      .wm {
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1;
+      }
+      .dot {
+        display: inline-block;
+        width: 0.24em;
+        height: 1em;
+        vertical-align: baseline;
+        fill: var(--indigo);
+        overflow: visible;
+        margin: 0 0.03em 0 0.1em;
+      }
+      .wm .code {
+        font-weight: 600;
+      }
+      .wm .mut {
+        font-weight: 500;
+        color: var(--mute);
+      }
+      .tag {
+        color: var(--dim);
+        font-size: 20px;
+        margin-top: 22px;
+        max-width: 620px;
+      }
+      .tag b {
+        color: var(--moon);
+        font-weight: 600;
+      }
+      /* swatches */
+      .sw {
+        width: 140px;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+      }
+      .sw .chip {
+        height: 84px;
+      }
+      .sw .meta {
+        padding: 10px 12px;
+        background: var(--panel);
+      }
+      .sw .name {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .sw .hex {
+        font-family: "Geist Mono", monospace;
+        font-size: 12px;
+        color: var(--mute);
+      }
+      .sw .role {
+        font-size: 11px;
+        color: var(--faint);
+        margin-top: 3px;
+      }
+      /* type */
+      .specimen {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 8px 20px;
+        background: var(--panel);
+      }
+      .specimen div {
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .specimen div:last-child {
+        border: 0;
+      }
+      .scale {
+        font-size: 12px;
+        color: var(--mute);
+        font-family: "Geist Mono", monospace;
+        width: 120px;
+        display: inline-block;
+      }
+      /* components */
+      .btn {
+        font: inherit;
+        font-weight: 600;
+        font-size: 14px;
+        border-radius: 10px;
+        padding: 10px 18px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn.pri {
+        background: #20202b;
+        color: #fff;
+        border-color: var(--line2);
+      }
+      .btn.pri:hover {
+        background: #262633;
+        border-color: #3a3a4a;
+      }
+      .btn.sec {
+        background: var(--panel2);
+        color: var(--moon);
+        border-color: var(--line2);
+      }
+      .btn.sec:hover {
+        border-color: #3a3a4a;
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--dim);
+      }
+      .btn.ghost:hover {
+        color: var(--moon);
+        background: var(--panel);
+      }
+      .btn.danger {
+        background: transparent;
+        color: var(--bad);
+        border-color: #43232b;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 5px 11px;
+        border-radius: 999px;
+        border: 1px solid var(--line2);
+        background: var(--panel2);
+        color: var(--dim);
+      }
+      .pill .d {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--indigo);
+      }
+      .input {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        background: var(--panel2);
+        border: 1px solid var(--line2);
+        border-radius: 10px;
+        padding: 11px 14px;
+        font-family: "Geist Mono", monospace;
+        color: var(--moon);
+        width: 320px;
+      }
+      .cursor {
+        display: inline-block;
+        width: 9px;
+        height: 18px;
+        border-radius: 2px;
+        background: var(--indigo);
+        margin-left: 1px;
+        animation: blink 1.1s step-end infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+      .codeblock {
+        background: #0b0b11;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px 18px;
+        font-family: "Geist Mono", monospace;
+        font-size: 13px;
+        color: #c9cfe0;
+        overflow: auto;
+      }
+      .codeblock .k {
+        color: #8b7bff;
+      }
+      .codeblock .s {
+        color: #6ee7a8;
+      }
+      .codeblock .c {
+        color: var(--faint);
+      }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid var(--line);
+      }
+      .tabs .t {
+        padding: 9px 14px;
+        font-size: 13px;
+        color: var(--mute);
+        border-bottom: 2px solid transparent;
+        cursor: pointer;
+      }
+      .tabs .t.on {
+        color: var(--moon);
+        border-color: var(--indigo);
+      }
+      .toast {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--panel2);
+        border: 1px solid var(--line2);
+        border-left: 3px solid var(--indigo);
+        border-radius: 12px;
+        padding: 13px 16px;
+        max-width: 380px;
+      }
+      .switch {
+        width: 42px;
+        height: 24px;
+        border-radius: 999px;
+        background: var(--indigo);
+        position: relative;
+        display: inline-block;
+      }
+      .switch::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+      }
+      /* app mock */
+      .win {
+        width: 560px;
+        max-width: 100%;
+        border: 1px solid var(--line2);
+        border-radius: 14px;
+        overflow: hidden;
+        background: var(--panel);
+      }
+      .win .bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        background: var(--tile);
+        border-bottom: 1px solid var(--line);
+      }
+      .win .dots {
+        display: flex;
+        gap: 7px;
+      }
+      .win .dots i {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: #33333f;
+        display: block;
+      }
+      .win .body {
+        display: flex;
+        min-height: 180px;
+      }
+      .win .side {
+        width: 150px;
+        border-right: 1px solid var(--line);
+        padding: 12px;
+        color: var(--mute);
+        font-size: 12px;
+      }
+      .win .side .item {
+        padding: 7px 9px;
+        border-radius: 8px;
+        margin-bottom: 3px;
+      }
+      .win .side .item.on {
+        background: var(--panel2);
+        color: var(--moon);
+      }
+      .win .main {
+        flex: 1;
+        padding: 16px;
+      }
+      .win .msg {
+        background: var(--panel2);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 13px;
+        color: var(--dim);
+        margin-bottom: 8px;
+      }
+      /* dock + tab + og */
+      .dock {
+        display: inline-flex;
+        gap: 14px;
+        padding: 14px 18px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--line2);
+        border-radius: 22px;
+        backdrop-filter: blur(8px);
+      }
+      .dock svg {
+        border-radius: 14px;
+      }
+      .brtab {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #1b1b24;
+        border: 1px solid var(--line2);
+        border-radius: 9px 9px 0 0;
+        padding: 8px 14px;
+        font-size: 13px;
+        color: #c9cddb;
+      }
+      .avatar {
+        border-radius: 50%;
+        overflow: hidden;
+        display: inline-flex;
+      }
+      .og {
+        width: 600px;
+        max-width: 100%;
+        aspect-ratio: 1200/630;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: radial-gradient(120% 140% at 80% 10%, #15132a 0%, #070709 60%);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 48px;
+      }
+      .og .t {
+        font-size: 40px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-top: 18px;
+      }
+      .og .s {
+        color: var(--dim);
+        font-size: 18px;
+        margin-top: 10px;
+      }
+      /* do/dont */
+      .dd {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .dd .item {
+        border-radius: 14px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        width: 200px;
+      }
+      .dd .item.no {
+        border-color: #43232b;
+      }
+      .dd .item.yes {
+        border-color: #1f4a36;
+      }
+      .dd .lab {
+        font-weight: 700;
+        font-size: 13px;
+        margin-top: 12px;
+      }
+      .dd .yes .lab {
+        color: var(--good);
+      }
+      .dd .no .lab {
+        color: var(--bad);
+      }
+      .dd .sub {
+        font-size: 12px;
+        color: var(--mute);
+        margin-top: 3px;
+      }
+      table.t {
+        border-collapse: collapse;
+        font-size: 14px;
+        width: 100%;
+        max-width: 760px;
+      }
+      table.t td,
+      table.t th {
+        padding: 9px 16px 9px 0;
+        text-align: left;
+        vertical-align: top;
+        border-bottom: 1px solid var(--line);
+      }
+      table.t th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--mute);
+        font-weight: 600;
+      }
+      .b {
+        font-weight: 600;
+      }
+      .d {
+        font-family: "Geist Mono", monospace;
+        font-size: 12.5px;
+        color: #8d8d9c;
+      }
+      .footer {
+        padding: 40px;
+        color: var(--faint);
+        font-size: 13px;
+        border-top: 1px solid var(--line);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ============ SYMBOL LIBRARY ============ -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <linearGradient id="badGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#8B7BFF" />
+          <stop offset="1" stop-color="#5EE6E0" />
+        </linearGradient>
+      </defs>
+      <symbol id="p" viewBox="0 0 1024 1024">
+        <rect width="1024" height="1024" rx="232" fill="#0E0E14" />
+        <path
+          fill-rule="evenodd"
+          fill="currentColor"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="#8B7BFF" />
+      </symbol>
+      <symbol id="pLight" viewBox="0 0 1024 1024">
+        <rect width="1024" height="1024" rx="232" fill="#EAF0FB" />
+        <path
+          fill-rule="evenodd"
+          fill="#0E0E14"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="#8B7BFF" />
+      </symbol>
+      <symbol id="pGlyph" viewBox="0 0 1024 1024">
+        <path
+          fill-rule="evenodd"
+          fill="currentColor"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="#8B7BFF" />
+      </symbol>
+      <symbol id="pGlyphMono" viewBox="0 0 1024 1024">
+        <path
+          fill-rule="evenodd"
+          fill="currentColor"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="currentColor" />
+      </symbol>
+      <symbol id="pNightly" viewBox="0 0 1024 1024">
+        <rect width="1024" height="1024" rx="232" fill="#131228" />
+        <path
+          fill-rule="evenodd"
+          fill="#EAF0FB"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="#5EE6E0" />
+      </symbol>
+      <!-- clearspace overlay -->
+      <symbol id="pClear" viewBox="0 0 1024 1024">
+        <rect
+          x="2"
+          y="2"
+          width="1020"
+          height="1020"
+          rx="232"
+          fill="none"
+          stroke="#2C2C38"
+          stroke-dasharray="14 14"
+        />
+        <rect
+          x="260"
+          y="208"
+          width="504"
+          height="616"
+          fill="none"
+          stroke="#8B7BFF"
+          stroke-opacity=".35"
+          stroke-dasharray="10 10"
+        />
+        <path
+          fill-rule="evenodd"
+          fill="#EAF0FB"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="#8B7BFF" />
+      </symbol>
+      <!-- WRONG variants -->
+      <symbol id="wOrange" viewBox="0 0 1024 1024">
+        <rect width="1024" height="1024" rx="232" fill="#FF7A1A" />
+        <path
+          fill-rule="evenodd"
+          fill="#fff"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="#fff" />
+      </symbol>
+      <symbol id="wCenter" viewBox="0 0 1024 1024">
+        <rect width="1024" height="1024" rx="232" fill="#0E0E14" />
+        <path
+          fill-rule="evenodd"
+          fill="#EAF0FB"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="452" r="46" fill="#8B7BFF" />
+      </symbol>
+      <symbol id="wGrad" viewBox="0 0 1024 1024">
+        <rect width="1024" height="1024" rx="232" fill="#0E0E14" />
+        <path
+          fill-rule="evenodd"
+          fill="url(#badGrad)"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="#8B7BFF" />
+      </symbol>
+      <symbol id="wLowc" viewBox="0 0 1024 1024">
+        <rect width="1024" height="1024" rx="232" fill="#0E0E14" />
+        <path
+          fill-rule="evenodd"
+          fill="#2A2A36"
+          d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z M472,392 H548 A60,60 0 0 1 548,512 H472 Z"
+        />
+        <circle cx="636" cy="694" r="46" fill="#3A3A4A" />
+      </symbol>
+    </svg>
+
+    <!-- ============ NAV ============ -->
+    <nav>
+      <span class="brand"
+        ><svg width="22" height="22" style="color: var(--moon)"><use href="#pGlyph" /></svg>
+        Poracode</span
+      >
+      <a href="#logo">Logo</a><a href="#wordmark">Wordmark</a><a href="#dot">Dot motif</a
+      ><a href="#color">Color</a> <a href="#type">Type</a><a href="#ui">Components</a
+      ><a href="#context">In context</a><a href="#dont">Do &amp; Don't</a>
+      <a href="#naming">Naming</a><a href="#assets">Assets</a>
+    </nav>
+
+    <!-- ============ HERO ============ -->
+    <div class="hero">
+      <p class="eyebrow">Brand Book · all cases</p>
+      <div class="lock">
+        <svg width="96" height="96" style="color: var(--moon)"><use href="#p" /></svg>
+        <div class="wm" style="font-size: 64px">
+          Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+            <circle cx="12" cy="96" r="9" /></svg
+          ><span class="code">code</span>
+        </div>
+      </div>
+      <div class="tag">
+        <b>It's time to code.</b> The universal AI coding-agent orchestrator — run Claude, Codex
+        &amp; Gemini side by side.
+      </div>
+    </div>
+
+    <!-- ============ LOGO ============ -->
+    <section id="logo">
+      <p class="eyebrow">01</p>
+      <h2>Logo &amp; icon</h2>
+      <p class="lead">
+        A bold geometric <b>P</b> + the indigo <b>Pora dot</b> at the baseline. Flat, single-color
+        body, single-color dot.
+      </p>
+
+      <h3>Core variants</h3>
+      <div class="grid">
+        <div class="card">
+          <svg width="120" height="120" style="color: var(--moon)"><use href="#p" /></svg>
+          <div class="cap">primary · dark tile</div>
+        </div>
+        <div class="card">
+          <svg width="120" height="120"><use href="#pLight" /></svg>
+          <div class="cap">light tile</div>
+        </div>
+        <div class="card" style="background: #000">
+          <svg width="120" height="120" style="color: #fff"><use href="#pGlyph" /></svg>
+          <div class="cap">glyph · no tile</div>
+        </div>
+        <div class="card">
+          <svg width="120" height="120" style="color: var(--moon)"><use href="#pNightly" /></svg>
+          <div class="cap">nightly channel · ice dot</div>
+        </div>
+      </div>
+
+      <h3>Monochrome (one-color reproduction)</h3>
+      <div class="grid">
+        <div class="card">
+          <svg width="100" height="100" style="color: #fff"><use href="#pGlyphMono" /></svg>
+          <div class="cap">white — on dark</div>
+        </div>
+        <div class="card" style="background: #eaf0fb">
+          <svg width="100" height="100" style="color: #0e0e14"><use href="#pGlyphMono" /></svg>
+          <div class="cap">black — on light</div>
+        </div>
+        <div class="card" style="background: var(--indigo)">
+          <svg width="100" height="100" style="color: #fff"><use href="#pGlyphMono" /></svg>
+          <div class="cap">knockout — on accent</div>
+        </div>
+      </div>
+
+      <h3>Size ladder — legible to 16px</h3>
+      <div class="card">
+        <div class="sizes" style="color: var(--moon)">
+          <svg width="128" height="128"><use href="#p" /></svg
+          ><svg width="64" height="64"><use href="#p" /></svg>
+          <svg width="48" height="48"><use href="#p" /></svg
+          ><svg width="32" height="32"><use href="#p" /></svg>
+          <svg width="24" height="24"><use href="#p" /></svg
+          ><svg width="16" height="16"><use href="#p" /></svg>
+        </div>
+        <div class="cap">128 · 64 · 48 · 32 · 24 · 16</div>
+      </div>
+
+      <h3>Clearspace &amp; minimum size</h3>
+      <div class="grid">
+        <div class="card">
+          <svg width="150" height="150"><use href="#pClear" /></svg>
+          <div class="cap">clearspace ≥ dot-height on all sides</div>
+        </div>
+        <div class="card">
+          <div class="sizes" style="color: var(--moon)">
+            <svg width="20" height="20"><use href="#pGlyph" /></svg>
+          </div>
+          <div class="cap">min 20px → use glyph (drop the tile)</div>
+        </div>
+      </div>
+
+      <h3>On color / imagery (safe placement)</h3>
+      <div class="grid">
+        <div class="card" style="background: linear-gradient(135deg, #1c2230, #39304f)">
+          <svg width="92" height="92"><use href="#p" /></svg>
+          <div class="cap">always on its own tile over photos</div>
+        </div>
+        <div class="card" style="background: #101820">
+          <svg width="92" height="92" style="color: var(--moon)"><use href="#pGlyph" /></svg>
+          <div class="cap">glyph on a dark, low-noise surface</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ WORDMARK ============ -->
+    <section id="wordmark">
+      <p class="eyebrow">02</p>
+      <h2>Wordmark &amp; lockups</h2>
+      <p class="lead">
+        <b>Logo</b> = <span class="mono">Pora.code</span> (dot device, baseline).
+        <b>Written name</b> = <span class="mono">Poracode</span> (one word, no dot).
+      </p>
+      <div class="grid">
+        <div class="card">
+          <div class="wm" style="font-size: 44px">
+            Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+              <circle cx="12" cy="96" r="9" /></svg
+            ><span class="code">code</span>
+          </div>
+          <div class="cap">primary logotype — Geist 700/500</div>
+        </div>
+        <div class="card">
+          <div class="wm mono" style="font-size: 38px; font-weight: 600">
+            pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+              <circle cx="12" cy="96" r="9" /></svg
+            >code
+          </div>
+          <div class="cap">CLI / mono lockup</div>
+        </div>
+        <div class="card">
+          <div class="row" style="display: flex; align-items: center; gap: 16px">
+            <svg width="52" height="52" style="color: var(--moon)"><use href="#p" /></svg>
+            <div class="wm" style="font-size: 34px">
+              Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+                <circle cx="12" cy="96" r="9" /></svg
+              ><span class="code">code</span>
+            </div>
+          </div>
+          <div class="cap">horizontal lockup</div>
+        </div>
+        <div class="card" style="text-align: center">
+          <svg width="64" height="64" style="color: var(--moon)"><use href="#p" /></svg>
+          <div class="wm" style="font-size: 26px; margin-top: 12px">
+            Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+              <circle cx="12" cy="96" r="9" /></svg
+            ><span class="code">code</span>
+          </div>
+          <div class="cap">stacked lockup</div>
+        </div>
+      </div>
+      <h3>Product family lockups</h3>
+      <div class="grid">
+        <div class="card">
+          <div class="wm" style="font-size: 30px">
+            Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+              <circle cx="12" cy="96" r="9" /></svg
+            ><span class="code">code</span>
+          </div>
+          <div class="cap">desktop app</div>
+        </div>
+        <div class="card">
+          <div class="wm" style="font-size: 30px">
+            Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+              <circle cx="12" cy="96" r="9" /></svg
+            ><span class="code">code</span>
+            <span class="mut">CLI</span>
+          </div>
+          <div class="cap">command-line tool</div>
+        </div>
+        <div class="card">
+          <div class="wm" style="font-size: 30px">
+            Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+              <circle cx="12" cy="96" r="9" /></svg
+            ><span class="code">code</span>
+            <span class="mut">Cloud</span>
+          </div>
+          <div class="cap">hosted paid tier</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ DOT MOTIF ============ -->
+    <section id="dot">
+      <p class="eyebrow">03</p>
+      <h2>The Pora dot</h2>
+      <p class="lead">
+        One indigo dot, always at the baseline — the cursor, the logotype dot, the moment. It recurs
+        across the system.
+      </p>
+      <div class="grid">
+        <div class="card">
+          <svg width="80" height="80" style="color: var(--moon)"><use href="#p" /></svg>
+          <div class="cap">in the icon</div>
+        </div>
+        <div class="card">
+          <div class="wm" style="font-size: 34px">
+            Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+              <circle cx="12" cy="96" r="9" /></svg
+            ><span class="code">code</span>
+          </div>
+          <div class="cap">in the logotype</div>
+        </div>
+        <div class="card">
+          <div class="mono" style="font-size: 18px; color: var(--moon)">
+            ~ poracode<span class="cursor"></span>
+          </div>
+          <div class="cap">as the live cursor</div>
+        </div>
+        <div class="card">
+          <div style="font-size: 15px">
+            Run agents <span style="color: var(--indigo)">·</span> review
+            <span style="color: var(--indigo)">·</span> ship
+          </div>
+          <div class="cap">as separators / bullets</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ COLOR ============ -->
+    <section id="color">
+      <p class="eyebrow">04</p>
+      <h2>Color</h2>
+      <p class="lead">Dark-first: moonlight + ink + one cool accent. <b>Never orange.</b></p>
+      <div class="grid">
+        <div class="sw">
+          <div class="chip" style="background: #070709"></div>
+          <div class="meta">
+            <div class="name">Night</div>
+            <div class="hex">#070709</div>
+            <div class="role">page background</div>
+          </div>
+        </div>
+        <div class="sw">
+          <div class="chip" style="background: #0e0e14"></div>
+          <div class="meta">
+            <div class="name">Tile</div>
+            <div class="hex">#0E0E14</div>
+            <div class="role">icon tile · panels</div>
+          </div>
+        </div>
+        <div class="sw">
+          <div class="chip" style="background: #eaf0fb"></div>
+          <div class="meta">
+            <div class="name">Moon</div>
+            <div class="hex">#EAF0FB</div>
+            <div class="role">primary text · the P</div>
+          </div>
+        </div>
+        <div class="sw">
+          <div class="chip" style="background: #9ba6be"></div>
+          <div class="meta">
+            <div class="name">Dim</div>
+            <div class="hex">#9BA6BE</div>
+            <div class="role">secondary text</div>
+          </div>
+        </div>
+        <div class="sw">
+          <div class="chip" style="background: #8b7bff"></div>
+          <div class="meta">
+            <div class="name">Indigo ✓</div>
+            <div class="hex">#8B7BFF</div>
+            <div class="role">accent · the dot · links</div>
+          </div>
+        </div>
+        <div class="sw">
+          <div class="chip" style="background: #5ee6e0"></div>
+          <div class="meta">
+            <div class="name">Ice</div>
+            <div class="hex">#5EE6E0</div>
+            <div class="role">nightly only</div>
+          </div>
+        </div>
+      </div>
+      <h3>Accent on surfaces &amp; contrast</h3>
+      <div class="grid">
+        <div class="card" style="display: flex; gap: 14px; align-items: center">
+          <span class="pill"><span class="d"></span>Active</span><a href="#">A link in indigo</a
+          ><span style="color: var(--indigo); font-weight: 600">Focused</span>
+          <div class="cap" style="margin: 0">AA on tile ≈ 6.3:1</div>
+        </div>
+        <div class="card" style="background: #eaf0fb; color: #0e0e14">
+          <span style="color: #6f5cf0; font-weight: 600">Indigo on light</span> &nbsp;·&nbsp;
+          <span style="color: #15151b">ink text</span>
+          <div class="cap" style="color: #5a5a66">use indigo-dark #6F5CF0 on light</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TYPE ============ -->
+    <section id="type">
+      <p class="eyebrow">05</p>
+      <h2>Typography — Geist</h2>
+      <p class="lead">
+        Geist Sans for brand/UI, Geist Mono for code &amp; the dot. Open-source (SIL OFL). Fallback:
+        Inter, system-ui.
+      </p>
+      <h3>Weights</h3>
+      <div class="card" style="display: flex; gap: 26px; flex-wrap: wrap; font-size: 30px">
+        <span style="font-weight: 400">Aa 400</span><span style="font-weight: 500">Aa 500</span
+        ><span style="font-weight: 600">Aa 600</span><span style="font-weight: 700">Aa 700</span
+        ><span style="font-weight: 800">Aa 800</span>
+      </div>
+      <h3>Scale</h3>
+      <div class="specimen">
+        <div>
+          <span class="scale">Display 48/700</span
+          ><span style="font-size: 48px; font-weight: 700; letter-spacing: -0.02em"
+            >It's time to code</span
+          >
+        </div>
+        <div>
+          <span class="scale">H1 32/700</span
+          ><span style="font-size: 32px; font-weight: 700">Orchestrate your agents</span>
+        </div>
+        <div>
+          <span class="scale">H2 24/600</span
+          ><span style="font-size: 24px; font-weight: 600">Run Claude, Codex &amp; Gemini</span>
+        </div>
+        <div>
+          <span class="scale">Body 16/400</span
+          ><span style="font-size: 16px"
+            >Poracode runs and coordinates multiple AI coding agents in one place.</span
+          >
+        </div>
+        <div>
+          <span class="scale">Small 13/400</span
+          ><span style="font-size: 13px; color: var(--dim)">Provider-agnostic by design.</span>
+        </div>
+        <div>
+          <span class="scale">Mono 14</span
+          ><span class="mono" style="font-size: 14px; color: var(--moon)">npm i -g poracode</span>
+        </div>
+      </div>
+      <h3>Code block</h3>
+      <div class="codeblock">
+        <span class="c"># it's time to code</span> <span class="k">npx</span> poracode
+        <span class="k">--agent</span> <span class="s">"claude"</span> <span class="k">--task</span>
+        <span class="s">"refactor auth"</span>
+      </div>
+    </section>
+
+    <!-- ============ UI COMPONENTS ============ -->
+    <section id="ui">
+      <p class="eyebrow">06</p>
+      <h2>UI components</h2>
+      <p class="lead">
+        The brand applied to product surfaces. Indigo is the single interactive accent.
+      </p>
+      <h3>Buttons</h3>
+      <div class="card" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center">
+        <button class="btn pri">Start a thread</button>
+        <button class="btn sec">Open project</button>
+        <button class="btn ghost">Cancel</button>
+        <button class="btn danger">Stop agent</button>
+      </div>
+      <h3>Inputs · pills · switch</h3>
+      <div class="card" style="display: flex; gap: 20px; flex-wrap: wrap; align-items: center">
+        <div class="input">~ poracode run<span class="cursor"></span></div>
+        <span class="pill"><span class="d"></span>Running</span>
+        <span class="pill">Claude</span><span class="pill">Codex</span
+        ><span class="pill">Gemini</span>
+        <span class="switch"></span>
+      </div>
+      <h3>Tabs · toast · card</h3>
+      <div class="grid">
+        <div class="card" style="min-width: 280px">
+          <div class="tabs">
+            <div class="t on">Chat</div>
+            <div class="t">Terminal</div>
+            <div class="t">Browser</div>
+          </div>
+          <div style="padding-top: 14px; color: var(--dim); font-size: 14px">
+            Active tab uses the indigo underline.
+          </div>
+        </div>
+        <div class="toast">
+          <svg width="20" height="20" style="color: var(--moon)"><use href="#pGlyph" /></svg>
+          <div style="font-size: 13px">
+            <b>Agent finished</b>
+            <div style="color: var(--mute)">refactor auth · 2m 14s</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ IN CONTEXT ============ -->
+    <section id="context">
+      <p class="eyebrow">07</p>
+      <h2>In context</h2>
+
+      <h3>App window</h3>
+      <div class="win">
+        <div class="bar">
+          <span class="dots"><i></i><i></i><i></i></span
+          ><svg width="18" height="18" style="color: var(--moon); margin-left: 6px">
+            <use href="#pGlyph" /></svg
+          ><span style="font-weight: 600; font-size: 13px">Poracode</span>
+        </div>
+        <div class="body">
+          <div class="side">
+            <div class="item on">● my-app</div>
+            <div class="item">● api-gateway</div>
+            <div class="item">● website</div>
+          </div>
+          <div class="main">
+            <div class="msg">▸ claude: refactored the auth module, 3 files changed.</div>
+            <div class="msg" style="color: var(--moon)">
+              Run the tests now<span class="cursor"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>macOS dock · browser tab · avatar</h3>
+      <div class="grid" style="align-items: center">
+        <div class="dock">
+          <svg width="48" height="48"><use href="#wLowc" /></svg
+          ><svg width="48" height="48" style="color: var(--moon)"><use href="#p" /></svg
+          ><svg width="48" height="48"><use href="#wLowc" /></svg>
+        </div>
+        <span class="brtab"
+          ><svg width="16" height="16" style="color: var(--moon)"><use href="#pGlyph" /></svg>
+          Poracode — run Claude, Codex &amp; Gemini</span
+        >
+        <span class="avatar"
+          ><svg width="56" height="56" style="color: var(--moon)"><use href="#p" /></svg
+        ></span>
+      </div>
+
+      <h3>Social / OG card (1200×630)</h3>
+      <div class="og">
+        <svg width="72" height="72" style="color: var(--moon)"><use href="#p" /></svg>
+        <div class="t">
+          Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+            <circle cx="12" cy="96" r="9" /></svg
+          ><span style="font-weight: 500">code</span>
+        </div>
+        <div class="s">It's time to code. Run Claude, Codex &amp; Gemini side by side.</div>
+      </div>
+    </section>
+
+    <!-- ============ DO / DON'T ============ -->
+    <section id="dont">
+      <p class="eyebrow">08</p>
+      <h2>Do &amp; Don't</h2>
+      <div class="dd">
+        <div class="item yes">
+          <svg width="92" height="92" style="color: var(--moon)"><use href="#p" /></svg>
+          <div class="lab">✓ Correct</div>
+          <div class="sub">moonlight P, indigo dot at baseline</div>
+        </div>
+        <div class="item no">
+          <svg width="92" height="92"><use href="#wOrange" /></svg>
+          <div class="lab">✕ No orange</div>
+          <div class="sub">Claude's color; "P on orange" misreads</div>
+        </div>
+        <div class="item no">
+          <svg width="92" height="92"><use href="#wCenter" /></svg>
+          <div class="lab">✕ Dot centered</div>
+          <div class="sub">the dot lives at the baseline</div>
+        </div>
+        <div class="item no">
+          <svg width="92" height="92"><use href="#wGrad" /></svg>
+          <div class="lab">✕ Gradient body</div>
+          <div class="sub">flat single-color only</div>
+        </div>
+        <div class="item no">
+          <svg width="92" height="92" style="transform: scaleX(1.35)"><use href="#p" /></svg>
+          <div class="lab">✕ Stretched</div>
+          <div class="sub">never distort proportions</div>
+        </div>
+        <div class="item no">
+          <svg width="92" height="92"><use href="#wLowc" /></svg>
+          <div class="lab">✕ Low contrast</div>
+          <div class="sub">keep the P moonlight on dark</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ NAMING ============ -->
+    <section id="naming">
+      <p class="eyebrow">09</p>
+      <h2>Naming &amp; structure</h2>
+      <table class="t">
+        <tr>
+          <th>Layer</th>
+          <th>Name</th>
+          <th>Where it lives</th>
+        </tr>
+        <tr>
+          <td>Brand / umbrella</td>
+          <td class="b">Pora</td>
+          <td class="d">spoken · pora.sh · trypora.com</td>
+        </tr>
+        <tr>
+          <td>Legal company</td>
+          <td class="b">Poracode, Inc.</td>
+          <td class="d">poracode.com</td>
+        </tr>
+        <tr>
+          <td>App</td>
+          <td class="b">Poracode</td>
+          <td class="d">@poracode · com.poracode.app</td>
+        </tr>
+        <tr>
+          <td>CLI</td>
+          <td class="b">Poracode CLI</td>
+          <td class="d">npm: poracode</td>
+        </tr>
+        <tr>
+          <td>Hosted tier</td>
+          <td class="b">Poracode Cloud</td>
+          <td class="d">poracode.com/cloud · pora.cloud</td>
+        </tr>
+      </table>
+      <p class="lead" style="margin-top: 16px">
+        Providers (Claude · Codex · Gemini) are <b>integrations you list</b>, never product names.
+        File the <span class="mono">PORACODE</span> word mark (classes 9 &amp; 42); clear vs
+        <span class="mono">PORA AI</span>.
+      </p>
+    </section>
+
+    <!-- ============ ASSETS ============ -->
+    <section id="assets">
+      <p class="eyebrow">10</p>
+      <h2>Assets &amp; regeneration</h2>
+      <table class="t">
+        <tr>
+          <th>File</th>
+          <th>Use</th>
+        </tr>
+        <tr>
+          <td class="d">assets/poracode-icon.svg</td>
+          <td>primary master (dark tile)</td>
+        </tr>
+        <tr>
+          <td class="d">assets/poracode-icon-light.svg</td>
+          <td>light tile</td>
+        </tr>
+        <tr>
+          <td class="d">assets/poracode-icon-nightly.svg</td>
+          <td>nightly channel</td>
+        </tr>
+        <tr>
+          <td class="d">assets/poracode-glyph.svg</td>
+          <td>tile-less glyph (currentColor)</td>
+        </tr>
+        <tr>
+          <td class="d">assets/poracode-wordmark.svg</td>
+          <td>logotype (outline before shipping)</td>
+        </tr>
+        <tr>
+          <td class="d">assets/out/build/*</td>
+          <td>icon.{png,icns,ico} + ladder + nightly</td>
+        </tr>
+        <tr>
+          <td class="d">assets/out/website/*</td>
+          <td>favicon.ico + PWA icons</td>
+        </tr>
+      </table>
+      <div class="codeblock" style="margin-top: 16px">
+        <span class="c"># regenerate every raster + platform asset</span>
+        <span class="k">node</span> branding/assets/build-icons.mjs
+      </div>
+    </section>
+
+    <div class="footer">
+      Poracode — Brand Book · finalized v1 · dark/moonlight · Geist · no orange · the dot stays at
+      the baseline. See <b>branding/BRAND.md</b> for the written spec.
+    </div>
+  </body>
+</html>

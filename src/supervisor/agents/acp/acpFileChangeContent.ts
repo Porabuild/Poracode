@@ -12,7 +12,7 @@ export interface AcpContentFileChange {
  * Read ACP `ToolCallContent` entries of type `"diff"` (`path`, `oldText`,
  * `newText`). Cursor's ACP server puts edits here while leaving `rawInput` /
  * `rawOutput` empty — Zed renders these blocks natively; without this helper
- * Lightcode's mapper has nothing to show.
+ * Poracode's mapper has nothing to show.
  */
 export function extractAcpFileChangesFromContent(content: unknown): AcpContentFileChange[] {
   if (!Array.isArray(content)) return [];

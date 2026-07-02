@@ -13,7 +13,7 @@ import { getCachedWslHomeDirectory, resolveWslHomeDirectory } from "../agents/ba
 export interface WslHomeDeployResult {
   /** Linux path of the user's home directory inside the distro. */
   home: string;
-  /** Linux path of the deploy base (`<home>/.lightcode`). */
+  /** Linux path of the deploy base (`<home>/.poracode`). */
   linuxBaseDir: string;
 }
 
@@ -21,8 +21,8 @@ export interface WslDeployFile {
   /** Absolute Windows source path. */
   src: string;
   /**
-   * POSIX-style path relative to `<home>/.lightcode/` inside the distro.
-   * Example: `"watcher/watcher.node"` → `~/.lightcode/watcher/watcher.node`.
+   * POSIX-style path relative to `<home>/.poracode/` inside the distro.
+   * Example: `"watcher/watcher.node"` → `~/.poracode/watcher/watcher.node`.
    */
   relDest: string;
 }
@@ -44,7 +44,7 @@ export function resolveWslHelpersDir(): string | undefined {
 
 /**
  * Idempotently stage a set of files into a WSL distro's
- * `<home>/.lightcode/<relDest>`. Returns the resolved home + linuxBaseDir on
+ * `<home>/.poracode/<relDest>`. Returns the resolved home + linuxBaseDir on
  * success, or `null` when:
  *   - `$HOME` cannot be resolved through the bootstrap WSL path
  *   - any source file is missing
@@ -66,12 +66,12 @@ export function deployFilesToWslHome(
   }
 
   const uncHome = `\\\\wsl.localhost\\${distro}${home.replaceAll("/", "\\")}`;
-  const linuxBaseDir = `${home}/.lightcode`;
+  const linuxBaseDir = `${home}/.poracode`;
 
   try {
     for (const file of files) {
       const segments = file.relDest.split("/").filter((segment) => segment.length > 0);
-      const winDest = [uncHome, ".lightcode", ...segments].join("\\");
+      const winDest = [uncHome, ".poracode", ...segments].join("\\");
       mkdirSync(dirname(winDest), { recursive: true });
       if (isFresh(file.src, winDest)) continue;
       copyFileSync(file.src, winDest);

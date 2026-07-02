@@ -1,5 +1,5 @@
 /**
- * Shared helper for injecting the Lightcode in-app browser MCP server into
+ * Shared helper for injecting the Poracode in-app browser MCP server into
  * agent CLIs. The main process hosts a single Streamable-HTTP MCP endpoint
  * (BrowserMcpIngress); each agent receives a URL + bearer token at launch.
  * No per-thread Node child process.

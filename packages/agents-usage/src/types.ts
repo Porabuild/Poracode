@@ -12,6 +12,7 @@ export const knownUsageWindowIdSchema = z.enum([
   "weekly",
   "weekly-opus",
   "weekly-sonnet",
+  "weekly-fable",
   "monthly",
   // Pay-as-you-go overage (e.g. Claude `extra_usage`): a spend amount, not a
   // rate-limit window. Carries `used`/`limit` in `currency`.

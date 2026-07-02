@@ -1,28 +1,58 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  type ComponentType,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import {
   Terminal,
   Zap,
-  ChevronDown,
   GitBranch,
   FileCode2,
   Monitor,
   Globe,
-  Trophy,
   Layers,
   History,
   Layout,
   Download,
-  Boxes,
+  ArrowUpRight,
+  KeyRound,
+  Moon,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useSpring, useReducedMotion, useInView } from "framer-motion";
 import { downloadUrlFor, type ReleaseInfo } from "@/lib/releases";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import {
+  BrandLockup,
+  BrandWordmark,
+  PoraGlyph,
+  PoraIconTile,
+  MonoLockup,
+  DotPeriod,
+} from "@/components/BrandMark";
 import { LandingFaq } from "./landing-faq";
 
 const ACP_REGISTRY_CDN = "https://cdn.agentclientprotocol.com/registry/v1/latest";
+
+const EASE = [0.16, 1, 0.3, 1] as const;
+const fadeUp = (delay: number) => ({
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.55, ease: EASE, delay },
+});
+
+// lucide-react 1.14.0 dropped brand glyphs, so the GitHub mark is inlined.
+function GithubMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+    </svg>
+  );
+}
 
 interface AcpAgent {
   id: string;
@@ -31,7 +61,6 @@ interface AcpAgent {
 
 // Mirrors the public ACP Registry at cdn.agentclientprotocol.com, excluding
 // providers already promoted in the hero "Supported Agents" strip.
-// Icons are served from the same CDN as `${id}.svg`.
 const ACP_REGISTRY_AGENTS: AcpAgent[] = [
   { id: "agoragentic-acp", name: "Agoragentic" },
   { id: "amp-acp", name: "Amp" },
@@ -64,13 +93,125 @@ const ACP_REGISTRY_AGENTS: AcpAgent[] = [
   { id: "vtcode", name: "VT Code" },
 ];
 
+const FEATURES = [
+  { icon: Layout, title: "feature.threads.title", desc: "feature.threads.desc" },
+  { icon: Layers, title: "feature.protocol.title", desc: "feature.protocol.desc" },
+  { icon: Terminal, title: "feature.terminal.title", desc: "feature.terminal.desc" },
+  { icon: Zap, title: "feature.speed.title", desc: "feature.speed.desc" },
+  { icon: History, title: "feature.persistence.title", desc: "feature.persistence.desc" },
+  { icon: Globe, title: "feature.browser.title", desc: "feature.browser.desc" },
+  { icon: GitBranch, title: "feature.prs.title", desc: "feature.prs.desc" },
+  { icon: FileCode2, title: "feature.editor.title", desc: "feature.editor.desc" },
+  { icon: Monitor, title: "feature.crossPlatform.title", desc: "feature.crossPlatform.desc" },
+  { icon: Terminal, title: "feature.wsl.title", desc: "feature.wsl.desc" },
+] as const;
+
+// Real captures of individual app surfaces for the zig-zag showcase.
+// `width`/`height` are the asset's true pixel dims so the browser reserves the
+// aspect-ratio box up front (no layout shift as the full-res capture decodes).
+const SHOWCASE = [
+  {
+    src: "/feature-chat.png",
+    title: "feature.protocol.title",
+    desc: "feature.protocol.desc",
+    width: 1092,
+    height: 1822,
+  },
+  {
+    src: "/sf-editor.png",
+    title: "feature.editor.title",
+    desc: "feature.editor.desc",
+    width: 2468,
+    height: 1554,
+  },
+  {
+    src: "/feature-git.png",
+    title: "feature.prs.title",
+    desc: "feature.prs.desc",
+    width: 2920,
+    height: 1840,
+  },
+  {
+    src: "/sf-browser.png",
+    title: "feature.browser.title",
+    desc: "feature.browser.desc",
+    width: 1934,
+    height: 1440,
+  },
+] as const;
+
+// More real surfaces, shown as a bento gallery. `span` is the lg col-span (of 6),
+// `fit` picks each capture's interesting crop region, `width`/`height` reserve the box.
+const GALLERY = [
+  {
+    src: "/sf-usage.png",
+    title: "feature.usage.title",
+    desc: "feature.usage.desc",
+    span: 2,
+    fit: "object-top",
+    width: 750,
+    height: 1554,
+  },
+  {
+    src: "/sf-worktrees.png",
+    title: "feature.worktrees.title",
+    desc: "feature.worktrees.desc",
+    span: 2,
+    fit: "object-bottom",
+    width: 448,
+    height: 528,
+  },
+  {
+    src: "/sf-notes.png",
+    title: "feature.notes.title",
+    desc: "feature.notes.desc",
+    span: 2,
+    fit: "object-top",
+    width: 750,
+    height: 1300,
+  },
+  {
+    src: "/sf-acp.png",
+    title: "feature.registry.title",
+    desc: "feature.registry.desc",
+    span: 3,
+    fit: "object-left-top",
+    width: 2948,
+    height: 1554,
+  },
+  {
+    src: "/sf-continue.png",
+    title: "feature.continue.title",
+    desc: "feature.continue.desc",
+    span: 3,
+    fit: "object-top",
+    width: 1520,
+    height: 584,
+  },
+  {
+    src: "/sf-terminal.png",
+    title: "feature.terminal.title",
+    desc: "feature.terminal.desc",
+    span: 6,
+    fit: "object-left-top",
+    width: 2154,
+    height: 584,
+  },
+] as const;
+
+// lg col-span per bento tile. Literal class strings so Tailwind's JIT keeps them.
+const SPAN_CLASS: Record<number, string> = {
+  2: "lg:col-span-2",
+  3: "sm:col-span-2 lg:col-span-3",
+  6: "sm:col-span-2 lg:col-span-6",
+};
+
 type NavigatorWithUserAgentData = Navigator & {
   userAgentData?: {
     getHighEntropyValues: (hints: string[]) => Promise<{ architecture?: string }>;
   };
 };
 
-/** Detect Apple Silicon via WebGL renderer string when the browser exposes it. */
 function detectAppleSiliconViaWebGL(): boolean | undefined {
   try {
     const canvas = document.createElement("canvas");
@@ -82,7 +223,6 @@ function detectAppleSiliconViaWebGL(): boolean | undefined {
     const dbg = gl.getExtension("WEBGL_debug_renderer_info");
     if (!dbg) return undefined;
     const renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) as string;
-    // Safari often reports a generic "Apple GPU" on M-series Macs.
     if (/Apple\s+(?:GPU|M\d)/i.test(renderer)) return true;
     if (/(?:Intel|AMD|Radeon|NVIDIA)/i.test(renderer)) return false;
     return undefined;
@@ -104,13 +244,6 @@ async function getBrowserArchitecture(): Promise<string | undefined> {
 
 export function HomeContent({ release }: { release: ReleaseInfo }) {
   const { t } = useI18n();
-  const scrollToFeatures = () => {
-    document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const scrollToAcpRegistry = () => {
-    document.getElementById("acp-registry")?.scrollIntoView({ behavior: "smooth" });
-  };
 
   const [platform, setPlatform] = useState<{ label: string; slug: string }>({
     label: "Desktop",
@@ -118,33 +251,26 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
   });
 
   useEffect(() => {
+    let cancelled = false;
+    const apply = (p: { label: string; slug: string }) => {
+      if (!cancelled) setPlatform(p);
+    };
     const ua = navigator.userAgent;
-
     const detect = async () => {
       if (ua.includes("Mac")) {
-        // Detect Apple Silicon vs Intel.
-        // Chrome & Safari on M1 both include "Intel" in the UA string, so
-        // we can't rely on the UA alone.
         let isArm = true;
-
-        // 1. Try userAgentData (Chrome/Edge — not available in Safari)
         const architecture = await getBrowserArchitecture();
         if (architecture) {
           isArm = /^(?:arm|arm64|aarch64)$/i.test(architecture);
         } else {
-          // userAgentData unavailable (Safari) — fall back to WebGL renderer.
-          // If Safari hides the renderer too, prefer the Apple Silicon build
-          // because Safari's Mac UA still says Intel on M-series machines.
           isArm = detectAppleSiliconViaWebGL() ?? true;
         }
-
-        setPlatform(
+        apply(
           isArm
             ? { label: "macOS (arm)", slug: "mac-arm64" }
             : { label: "macOS (Intel)", slug: "mac-x64" },
         );
       } else if (ua.includes("Win")) {
-        // Windows ARM detection
         let isArm = false;
         const architecture = await getBrowserArchitecture();
         if (architecture) {
@@ -152,364 +278,334 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
         } else {
           isArm = ua.includes("ARM") || ua.includes("Aarch64");
         }
-        setPlatform(
+        apply(
           isArm
             ? { label: "Windows (ARM)", slug: "win-arm64" }
             : { label: "Windows", slug: "win-x64" },
         );
       } else if (ua.includes("Linux")) {
-        setPlatform({ label: "Linux", slug: "linux-x64" });
+        apply({ label: "Linux", slug: "linux-x64" });
       }
     };
-
-    detect();
+    void detect();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  // Star count logic (placeholder for real data)
-  const starCount = 0;
 
   const versionLabel = release.version
     ? `v${release.version} • ${t("hero.tagline")}`
     : t("hero.tagline");
   const downloadHref = downloadUrlFor(release, platform.slug);
+  // Lead with the `Pora.code` wordmark, so the headline copy is the value-prop
+  // only: drop the "Poracode —" brand prefix from title1 and the trailing
+  // full-stop from title2 (the Pora dot stands in for it). Locale-safe.
+  const descriptor = `${t("hero.title1").replace(/^Poracode\s*[—–-]\s*/u, "")} ${t(
+    "hero.title2",
+  ).replace(/[.。]\s*$/u, "")}`;
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-black text-white">
-      {/* Background Decor */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[1000px] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-from)_0%,_transparent_70%)] from-white/[0.03] to-transparent pointer-events-none" />
+    <div className="relative min-h-screen overflow-x-hidden bg-night text-moon">
+      {/* powered-on top edge */}
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-px bg-gradient-to-r from-transparent via-accent/45 to-transparent" />
 
-      {/* Navigation */}
-      <nav className="relative z-50 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
-          <Terminal className="w-8 h-8 text-white" />
-          <span className="text-xl font-bold tracking-tight text-white">Lightcode</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <a href="/changelog" className="text-sm text-gray-400 hover:text-white transition-colors">
-            {t("nav.changelog")}
+      {/* one-light-source ambient decor */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-52 left-1/2 h-[760px] w-[min(1180px,124vw)] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(139,123,255,0.18),transparent)] blur-[120px]" />
+        <div className="brand-grid absolute inset-x-0 top-0 h-[1200px]" />
+      </div>
+
+      {/* ── §0 Announcement bar ─────────────────────────────────── */}
+      <a
+        href="/changelog"
+        className="group relative z-40 flex h-9 items-center justify-center gap-2 border-b border-white/[0.06] bg-tile text-center"
+      >
+        <span className="pora-dot pora-pulse h-1.5 w-1.5" />
+        <span className="font-mono text-[12px] tracking-[-0.01em] text-dim transition-colors group-hover:text-moon">
+          {versionLabel}
+        </span>
+        <ArrowUpRight className="h-3 w-3 text-accent transition-transform group-hover:translate-x-0.5" />
+      </a>
+
+      {/* ── §1 Nav ──────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-night/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5 sm:px-8">
+          <a href="/" aria-label="Poracode" className="transition-opacity hover:opacity-90">
+            <BrandLockup />
           </a>
-          <a
-            href="https://github.com/SDSLeon/lightcode"
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm text-gray-400 hover:text-white transition-colors"
-          >
-            GitHub
-          </a>
-          <LanguageSelector />
+          <div className="flex items-center gap-1 sm:gap-2">
+            <a
+              href="/changelog"
+              className="hidden rounded-md px-3 py-2 font-mono text-[13px] text-dim transition-colors hover:bg-white/[0.04] hover:text-moon sm:inline-flex"
+            >
+              {t("nav.changelog")}
+            </a>
+            <a
+              href="https://github.com/poracode/poracode"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 font-mono text-[13px] text-dim transition-colors hover:bg-white/[0.04] hover:text-moon"
+            >
+              <GithubMark className="h-4 w-4" />
+              <span className="hidden sm:inline">GitHub</span>
+            </a>
+            <LanguageSelector />
+            <a
+              href={downloadHref}
+              className="ml-1 hidden h-9 items-center gap-2 rounded-lg bg-moon px-4 text-sm font-semibold text-night transition hover:brightness-95 sm:inline-flex"
+            >
+              <Download className="h-4 w-4" />
+              {t("nav.download")}
+              <kbd className="ml-0.5 rounded bg-night/10 px-1.5 py-0.5 font-mono text-[11px] font-medium text-night/70">
+                ⌘D
+              </kbd>
+            </a>
+          </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <main className="relative z-10 grid md:grid-cols-2 gap-12 items-center px-4 pt-12 pb-20 max-w-7xl mx-auto min-h-[min(calc(100vh-100px),900px)]">
-        {/* Left Column: Text & CTA */}
-        <div className="flex flex-col items-start text-left">
-          <div className="flex flex-wrap items-center gap-3 mb-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3 py-1 text-sm font-medium text-gray-300 rounded-full bg-white/5 border border-white/10"
-            >
-              <Zap className="w-4 h-4 text-gray-400" />
-              <span>{versionLabel}</span>
-            </motion.div>
+      {/* ── §2 Hero — brand-led ─────────────────────────────────── */}
+      <section className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-5 pt-24 pb-14 text-center sm:px-8 md:pt-32 md:pb-16">
+        <motion.h1 {...fadeUp(0)} className="flex flex-col items-center">
+          <span className="block">
+            <BrandWordmark className="text-6xl tracking-[-0.04em] sm:text-7xl lg:text-8xl" />
+          </span>
+          <span className="mt-5 block max-w-2xl text-2xl font-semibold leading-[1.1] tracking-[-0.02em] text-dim sm:text-3xl md:text-4xl">
+            {descriptor}
+            <DotPeriod />
+          </span>
+        </motion.h1>
 
-            {starCount >= 500 && <StarMilestone count={starCount} />}
-          </div>
+        <motion.p
+          {...fadeUp(0.12)}
+          className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-dim sm:text-xl"
+        >
+          {t("hero.subtitle")}
+        </motion.p>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight mb-6 leading-tight text-white"
+        <motion.div
+          {...fadeUp(0.2)}
+          className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:gap-5"
+        >
+          <a
+            href={downloadHref}
+            className="brand-glow group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-moon px-7 font-semibold text-night transition will-change-transform hover:-translate-y-0.5 hover:brightness-95"
           >
-            {t("hero.title1")} <br className="hidden lg:block" />
-            <span className="lightcode-shimmer-text">{t("hero.title2")}</span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-lg text-gray-400 max-w-xl mb-6 leading-relaxed"
-          >
-            {t("hero.subtitle")}
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25 }}
-            className="mb-10"
-          >
-            <span className="text-sm font-semibold uppercase tracking-[0.2em] lightcode-shimmer-text opacity-90">
-              {t("hero.byo")}
-            </span>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="mb-8 w-full"
-          >
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
-              {t("hero.supportedAgents")}
-            </p>
-            <div className="flex flex-wrap items-center gap-3">
-              {[
-                {
-                  name: "Claude",
-                  path: "m3.127 10.604 3.135-1.76.053-.153-.053-.085H6.11l-.525-.032-1.791-.048-1.554-.065-1.505-.08-.38-.081L0 7.832l.036-.234.32-.214.455.04 1.009.069 1.513.105 1.097.064 1.626.17h.259l.036-.105-.089-.065-.068-.064-1.566-1.062-1.695-1.121-.887-.646-.48-.327-.243-.306-.104-.67.435-.48.585.04.15.04.593.456 1.267.981 1.654 1.218.242.202.097-.068.012-.049-.109-.181-.9-1.626-.96-1.655-.428-.686-.113-.411a2 2 0 0 1-.068-.484l.496-.674L4.446 0l.662.089.279.242.411.94.666 1.48 1.033 2.014.302.597.162.553.06.17h.105v-.097l.085-1.134.157-1.392.154-1.792.052-.504.25-.605.497-.327.387.186.319.456-.045.294-.19 1.23-.37 1.93-.243 1.29h.142l.161-.16.654-.868 1.097-1.372.484-.545.565-.601.363-.287h.686l.505.751-.226.775-.707.895-.585.759-.839 1.13-.524.904.048.072.125-.012 1.897-.403 1.024-.186 1.223-.21.553.258.06.263-.218.536-1.307.323-1.533.307-2.284.54-.028.02.032.04 1.029.098.44.024h1.077l2.005.15.525.346.315.424-.053.323-.807.411-3.631-.863-.872-.218h-.12v.073l.726.71 1.331 1.202 1.667 1.55.084.383-.214.302-.226-.032-1.464-1.101-.565-.497-1.28-1.077h-.084v.113l.295.432 1.557 2.34.08.718-.112.234-.404.141-.444-.08-.911-1.28-.94-1.44-.759-1.291-.093.053-.448 4.821-.21.246-.484.186-.403-.307-.214-.496.214-.98.258-1.28.21-1.016.19-1.263.112-.42-.008-.028-.092.012-.953 1.307-1.448 1.957-1.146 1.227-.274.109-.477-.247.045-.44.266-.39 1.586-2.018.956-1.25.617-.723-.004-.105h-.036l-4.212 2.736-.75.096-.324-.302.04-.496.154-.162 1.267-.871z",
-                },
-                {
-                  name: "Codex",
-                  path: "M8.086.457a6.105 6.105 0 013.046-.415c1.333.153 2.521.72 3.564 1.7a.117.117 0 00.107.029c1.408-.346 2.762-.224 4.061.366l.063.03.154.076c1.357.703 2.33 1.77 2.918 3.198.278.679.418 1.388.421 2.126a5.655 5.655 0 01-.18 1.631.167.167 0 00.04.155 5.982 5.982 0 011.578 2.891c.385 1.901-.01 3.615-1.183 5.14l-.182.22a6.063 6.063 0 01-2.934 1.851.162.162 0 00-.108.102c-.255.736-.511 1.364-.987 1.992-1.199 1.582-2.962 2.462-4.948 2.451-1.583-.008-2.986-.587-4.21-1.736a.145.145 0 00-.14-.032c-.518.167-1.04.191-1.604.185a5.924 5.924 0 01-2.595-.622 6.058 6.058 0 01-2.146-1.781c-.203-.269-.404-.522-.551-.821a7.74 7.74 0 01-.495-1.283 6.11 6.11 0 01-.017-3.064.166.166 0 00.008-.074.115.115 0 00-.037-.064 5.958 5.958 0 01-1.38-2.202 5.196 5.196 0 01-.333-1.589 6.915 6.915 0 01.188-2.132c.45-1.484 1.309-2.648 2.577-3.493.282-.188.55-.334.802-.438.286-.12.573-.22.861-.304a.129.129 0 00.087-.087A6.016 6.016 0 015.635 2.31C6.315 1.464 7.132.846 8.086.457zm-.804 7.85a.848.848 0 00-1.473.842l1.694 2.965-1.688 2.848a.849.849 0 001.46.864l1.94-3.272a.849.849 0 00.007-.854l-1.94-3.393zm5.446 6.24a.849.849 0 000 1.695h4.848a.849.849 0 000-1.696h-4.848z",
-                  viewBox: "0 0 24 24",
-                },
-                {
-                  name: "OpenCode",
-                  path: "M0 0 H240 V300 H0 Z M60 60 H180 V240 H60 Z M60 120 H180 V240 H60 Z",
-                  viewBox: "0 0 240 300",
-                },
-                {
-                  name: "Gemini",
-                  path: "M32.447 0c.68 0 1.273.465 1.439 1.125a38.904 38.904 0 001.999 5.905c2.152 5 5.105 9.376 8.854 13.125 3.751 3.75 8.126 6.703 13.125 8.855a38.98 38.98 0 005.906 1.999c.66.166 1.124.758 1.124 1.438 0 .68-.464 1.273-1.125 1.439a38.902 38.902 0 00-5.905 1.999c-5 2.152-9.375 5.105-13.125 8.854-3.749 3.751-6.702 8.126-8.854 13.125a38.973 38.973 0 00-2 5.906 1.485 1.485 0 01-1.438 1.124c-.68 0-1.272-.464-1.438-1.125a38.913 38.913 0 00-2-5.905c-2.151-5-5.103-9.375-8.854-13.125-3.75-3.749-8.125-6.702-13.125-8.854a38.973 38.973 0 00-5.905-2A1.485 1.485 0 010 32.448c0-.68.465-1.272 1.125-1.438a38.903 38.903 0 005.905-2c5-2.151 9.376-5.104 13.125-8.854 3.75-3.749 6.703-8.125 8.855-13.125a38.972 38.972 0 001.999-5.905A1.485 1.485 0 0132.447 0z",
-                  viewBox: "0 0 65 65",
-                },
-                {
-                  name: "Antigravity",
-                  path: "M21.751 22.607c1.34 1.005 3.35.335 1.508-1.508C17.73 15.74 18.904 1 12.037 1 5.17 1 6.342 15.74.815 21.1c-2.01 2.009.167 2.511 1.507 1.506 5.192-3.517 4.857-9.714 9.715-9.714 4.857 0 4.522 6.197 9.714 9.715z",
-                  viewBox: "0 0 24 24",
-                },
-                {
-                  name: "Cursor",
-                  path: "M22.106 5.68L12.5.135a.998.998 0 00-.998 0L1.893 5.68a.84.84 0 00-.419.726v11.186c0 .3.16.577.42.727l9.607 5.547a.999.999 0 00.998 0l9.608-5.547a.84.84 0 00.42-.727V6.407a.84.84 0 00-.42-.726zm-.603 1.176L12.228 22.92c-.063.108-.228.064-.228-.061V12.34a.59.59 0 00-.295-.51l-9.11-5.26c-.107-.062-.063-.228.062-.228h18.55c.264 0 .428.286.296.514z",
-                  viewBox: "0 0 24 24",
-                },
-                {
-                  name: "Copilot",
-                  path: "M23.922 16.992c-.861 1.495-5.859 5.023-11.922 5.023-6.063 0-11.061-3.528-11.922-5.023A.641.641 0 0 1 0 16.736v-2.869a.841.841 0 0 1 .053-.22c.372-.935 1.347-2.292 2.605-2.656.167-.429.414-1.055.644-1.517a10.195 10.195 0 0 1-.052-1.086c0-1.331.282-2.499 1.132-3.368.397-.406.89-.717 1.474-.952 1.399-1.136 3.392-2.093 6.122-2.093 2.731 0 4.767.957 6.166 2.093.584.235 1.077.546 1.474.952.85.869 1.132 2.037 1.132 3.368 0 .368-.014.733-.052 1.086.23.462.477 1.088.644 1.517 1.258.364 2.233 1.721 2.605 2.656a.832.832 0 0 1 .053.22v2.869a.641.641 0 0 1-.078.256ZM12.172 11h-.344a4.323 4.323 0 0 1-.355.508C10.703 12.455 9.555 13 7.965 13c-1.725 0-2.989-.359-3.782-1.259a2.005 2.005 0 0 1-.085-.104L4 11.741v6.585c1.435.779 4.514 2.179 8 2.179 3.486 0 6.565-1.4 8-2.179v-6.585l-.098-.104s-.033.045-.085.104c-.793.9-2.057 1.259-3.782 1.259-1.59 0-2.738-.545-3.508-1.492a4.323 4.323 0 0 1-.355-.508h-.016.016Zm.641-2.935c.136 1.057.403 1.913.878 2.497.442.544 1.134.938 2.344.938 1.573 0 2.292-.337 2.657-.751.384-.435.558-1.15.558-2.361 0-1.14-.243-1.847-.705-2.319-.477-.488-1.319-.862-2.824-1.025-1.487-.161-2.192.138-2.533.529-.269.307-.437.808-.438 1.578v.021c0 .265.021.562.063.893Zm-1.626 0c.042-.331.063-.628.063-.894v-.02c-.001-.77-.169-1.271-.438-1.578-.341-.391-1.046-.69-2.533-.529-1.505.163-2.347.537-2.824 1.025-.462.472-.705 1.179-.705 2.319 0 1.211.175 1.926.558 2.361.365.414 1.084.751 2.657.751 1.21 0 1.902-.394 2.344-.938.475-.584.742-1.44.878-2.497Z M14.5 14.25a1 1 0 0 1 1 1v2a1 1 0 0 1-2 0v-2a1 1 0 0 1 1-1Zm-5 0a1 1 0 0 1 1 1v2a1 1 0 0 1-2 0v-2a1 1 0 0 1 1-1Z",
-                  viewBox: "0 0 24 24",
-                },
-                {
-                  name: "Grok Build",
-                  path: "M2.30047 8.77631L12.0474 23H16.3799L6.63183 8.77631H2.30047ZM6.6285 16.6762L2.29492 23H6.63072L8.79584 19.8387L6.6285 16.6762ZM17.3709 1L9.88007 11.9308L12.0474 15.0944L21.7067 1H17.3709ZM18.1555 7.76374V23H21.7067V2.5818L18.1555 7.76374Z",
-                  viewBox: "0 0 24 24",
-                },
-              ].map((agent) => (
-                <div
-                  key={agent.name}
-                  className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-gray-300 transition hover:bg-white/10 cursor-default"
-                >
-                  <svg viewBox={agent.viewBox} className="w-4 h-4 fill-white opacity-80">
-                    <path d={agent.path} fillRule="evenodd" />
-                  </svg>
-                  {agent.name}
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={scrollToAcpRegistry}
-                className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-gray-300 transition hover:bg-white/10 hover:border-white/20 cursor-pointer"
-              >
-                <Boxes className="w-4 h-4 text-gray-300 opacity-80" />
-                {t("hero.acpRegistry")}
-              </button>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto"
-          >
-            <a
-              href={downloadHref}
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-sm bg-white px-8 font-medium text-black transition-colors hover:bg-gray-200 sm:w-auto"
-            >
-              <Download className="w-4 h-4" />
-              {t("hero.downloadFor", { platform: platform.label })}
-            </a>
+            <Download className="h-4 w-4" />
+            {t("hero.downloadFor", { platform: platform.label })}
+          </a>
+          <div className="flex items-center gap-5">
             <a
               href="/download"
-              className="text-sm text-gray-500 hover:text-gray-300 transition-colors underline underline-offset-4"
+              className="text-sm text-dim underline-offset-4 transition-colors hover:text-moon hover:underline"
             >
               {t("nav.otherPlatforms")}
             </a>
             <a
               href="/nightly"
-              className="text-sm text-gray-500 hover:text-amber-300/90 transition-colors underline underline-offset-4"
+              className="inline-flex items-center gap-1.5 text-sm text-dim transition-colors hover:text-ice"
             >
+              <Moon className="h-3.5 w-3.5" />
               {t("nav.nightly")}
             </a>
-          </motion.div>
-        </div>
-
-        {/* Right Column: App Screenshot */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.2 }}
-          className="w-full md:w-[110%] md:-ml-[5%] lg:w-[max(125%,calc(100%+20vw))] lg:-ml-[12.5%] overflow-visible relative group"
-        >
-          <img
-            src="/hero-screenshot.png"
-            alt="Lightcode — Claude and Codex agents running side-by-side"
-            width={1973}
-            height={1276}
-            decoding="async"
-            className="w-full h-auto rounded-xl shadow-2xl shadow-black/50 opacity-90 group-hover:opacity-100 transition-opacity duration-500"
-          />
+          </div>
         </motion.div>
 
-        {/* Scroll Indicator */}
-        <motion.button
-          onClick={scrollToFeatures}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1, duration: 1 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-500 hover:text-white transition-colors group cursor-pointer"
+        <motion.div
+          {...fadeUp(0.28)}
+          className="mt-6 inline-flex items-center gap-2 font-mono text-[12px] text-dim"
         >
-          <span className="text-[10px] uppercase tracking-widest font-bold">
-            {t("hero.discover")}
-          </span>
-          <ChevronDown className="w-5 h-5 animate-bounce group-hover:translate-y-1 transition-transform" />
-        </motion.button>
-      </main>
+          <KeyRound className="h-4 w-4" />
+          <span>{t("hero.byo")}</span>
+        </motion.div>
+      </section>
 
-      {/* Features Section */}
-      <section id="features" className="relative z-10 py-24 px-4 bg-black border-t border-white/5">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              {t("features.title1")} <br />
-              <span className="text-gray-500">{t("features.title2")}</span>
+      {/* ── §3 App window showcase ──────────────────────────────── */}
+      <section className="relative z-10 mx-auto max-w-6xl px-4 pb-28 sm:px-8">
+        <div className="pointer-events-none absolute -inset-x-10 -top-10 bottom-0 -z-10 bg-[radial-gradient(55%_45%_at_50%_28%,rgba(139,123,255,0.22),transparent)] blur-[90px]" />
+        <AppWindow
+          src="/hero-screenshot.png"
+          alt="Poracode desktop app running Claude and Codex coding agents side by side"
+          width={2948}
+          height={1554}
+          chrome
+          parallax
+          badge
+        />
+        <div className="pointer-events-none absolute inset-x-0 -bottom-px h-48 bg-gradient-to-t from-night to-transparent" />
+      </section>
+
+      {/* ── §4 Features — hairline manifest grid ────────────────── */}
+      <section
+        id="features"
+        className="relative z-10 border-t border-white/[0.06] px-5 py-28 sm:px-8"
+      >
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-14 max-w-2xl">
+            <p className="mb-4 flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-dim">
+              <span className="pora-dot h-1.5 w-1.5" />
+              {t("features.title2")}
+            </p>
+            <h2 className="text-4xl font-bold tracking-[-0.03em] text-moon md:text-5xl">
+              {t("features.title1")}
+              <DotPeriod pulse={false} />
             </h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">{t("features.subtitle")}</p>
+            <p className="mt-4 text-lg text-dim">{t("features.subtitle")}</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <FeatureCard
-              icon={<Layout className="w-6 h-6" />}
-              title={t("feature.threads.title")}
-              description={t("feature.threads.desc")}
-            />
-            <FeatureCard
-              icon={<Layers className="w-6 h-6" />}
-              title={t("feature.protocol.title")}
-              description={t("feature.protocol.desc")}
-            />
-            <FeatureCard
-              icon={<Terminal className="w-6 h-6" />}
-              title={t("feature.terminal.title")}
-              description={t("feature.terminal.desc")}
-            />
-            <FeatureCard
-              icon={<Zap className="w-6 h-6" />}
-              title={t("feature.speed.title")}
-              description={t("feature.speed.desc")}
-            />
-            <FeatureCard
-              icon={<History className="w-6 h-6" />}
-              title={t("feature.persistence.title")}
-              description={t("feature.persistence.desc")}
-            />
-            <FeatureCard
-              icon={<Globe className="w-6 h-6" />}
-              title={t("feature.browser.title")}
-              description={t("feature.browser.desc")}
-            />
-            <FeatureCard
-              icon={<GitBranch className="w-6 h-6" />}
-              title={t("feature.prs.title")}
-              description={t("feature.prs.desc")}
-            />
-            <FeatureCard
-              icon={<FileCode2 className="w-6 h-6" />}
-              title={t("feature.editor.title")}
-              description={t("feature.editor.desc")}
-            />
-            <FeatureCard
-              icon={<Monitor className="w-6 h-6" />}
-              title={t("feature.crossPlatform.title")}
-              description={t("feature.crossPlatform.desc")}
-            />
-            <FeatureCard
-              icon={<Terminal className="w-6 h-6" />}
-              title={t("feature.wsl.title")}
-              description={t("feature.wsl.desc")}
-            />
+          <div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f, i) => (
+              <FeatureCell
+                key={f.title}
+                index={i}
+                icon={f.icon}
+                title={t(f.title)}
+                desc={t(f.desc)}
+                wide={i === FEATURES.length - 1}
+              />
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ACP Registry Section */}
-      <section
-        id="acp-registry"
-        className="relative z-10 py-24 px-4 bg-black border-t border-white/5"
-      >
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">
-              {t("acp.eyebrow")}
+      {/* ── §4b Showcase — real app surfaces, zig-zag ───────────── */}
+      <section className="relative z-10 px-5 pb-28 sm:px-8">
+        <div className="pointer-events-none absolute left-1/2 top-1/3 -z-10 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(94,230,224,0.06),transparent)] blur-2xl" />
+        <div className="mx-auto flex max-w-6xl flex-col gap-20">
+          {SHOWCASE.map((s, i) => (
+            <div key={s.src} className="grid items-center gap-8 lg:grid-cols-12 lg:gap-12">
+              <div className={`lg:col-span-7 ${i % 2 === 1 ? "lg:order-2" : ""}`}>
+                <AppWindow src={s.src} width={s.width} height={s.height} />
+              </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.6, ease: EASE }}
+                className={`lg:col-span-5 ${i % 2 === 1 ? "lg:order-1" : ""}`}
+              >
+                <p className="mb-3 flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-accent">
+                  <span className="pora-dot h-1.5 w-1.5" />
+                  {String(i + 1).padStart(2, "0")} / {String(SHOWCASE.length).padStart(2, "0")}
+                </p>
+                <h3 className="text-2xl font-bold tracking-[-0.02em] text-moon md:text-3xl">
+                  {t(s.title)}
+                  <DotPeriod pulse={false} />
+                </h3>
+                <p className="mt-3 max-w-md text-base leading-relaxed text-dim">{t(s.desc)}</p>
+              </motion.div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── §4c Surface gallery — real bento of app panels ──────── */}
+      <section className="relative z-10 border-t border-white/[0.06] px-5 py-28 sm:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-14 max-w-2xl">
+            <p className="mb-4 flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-accent">
+              <span className="pora-dot h-1.5 w-1.5" />
+              {t("gallery.eyebrow")}
             </p>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              {t("acp.title1")} <br />
-              <span className="text-gray-500">{t("acp.title2")}</span>
+            <h2 className="text-4xl font-bold tracking-[-0.03em] text-moon md:text-5xl">
+              {t("gallery.title")}
+              <DotPeriod pulse={false} />
             </h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">{t("acp.subtitle")}</p>
+            <p className="mt-4 text-lg text-dim">{t("gallery.subtitle")}</p>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.5 }}
-            className="flex flex-wrap items-center justify-center gap-2"
-          >
-            {ACP_REGISTRY_AGENTS.map((agent) => (
-              <div
-                key={agent.id}
-                className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-gray-300 transition hover:bg-white/10 hover:border-white/20 cursor-default"
-              >
-                <img
-                  src={`${ACP_REGISTRY_CDN}/${agent.id}.svg`}
-                  alt=""
-                  width={16}
-                  height={16}
-                  loading="lazy"
-                  className="w-4 h-4 object-contain opacity-80 [filter:brightness(0)_invert(1)]"
-                />
-                {agent.name}
-              </div>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-6">
+            {GALLERY.map((g, i) => (
+              <BentoCard
+                key={g.src}
+                index={i}
+                src={g.src}
+                title={t(g.title)}
+                desc={t(g.desc)}
+                span={g.span}
+                fit={g.fit}
+                width={g.width}
+                height={g.height}
+              />
             ))}
-          </motion.div>
+          </div>
         </div>
+      </section>
+
+      {/* ── §5 ACP registry — living marquee ────────────────────── */}
+      <section id="acp-registry" className="relative z-10 border-t border-white/[0.06] py-28">
+        <div className="mx-auto mb-12 max-w-7xl px-5 text-center sm:px-8">
+          <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-accent">
+            {t("acp.eyebrow")}
+          </p>
+          <h2 className="text-3xl font-bold tracking-[-0.02em] text-moon md:text-4xl">
+            {t("acp.title1")} {t("acp.title2").replace(/[.。]\s*$/, "")}
+            <DotPeriod pulse={false} />
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-dim">{t("acp.subtitle")}</p>
+        </div>
+        <AcpMarquee />
       </section>
 
       <LandingFaq />
 
-      {/* Footer */}
-      <footer className="relative z-10 py-12 border-t border-white/5 bg-black">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2 opacity-50">
-            <Terminal className="w-5 h-5" />
-            <span className="font-bold tracking-tight">Lightcode</span>
+      {/* ── §7 Final CTA — signature close ──────────────────────── */}
+      <section className="relative z-10 border-t border-white/[0.06] px-5 py-32 sm:px-8">
+        <div className="relative mx-auto max-w-4xl overflow-hidden rounded-3xl border border-white/[0.08] bg-tile px-6 py-20 text-center sm:px-12">
+          <div className="pointer-events-none absolute -top-24 left-1/2 h-[360px] w-[760px] -translate-x-1/2 bg-[radial-gradient(closest-side,rgba(139,123,255,0.22),transparent)] blur-2xl" />
+          <div className="relative">
+            <PoraIconTile className="mx-auto mb-7 h-14 w-14" />
+            <h2 className="mx-auto max-w-2xl text-3xl font-bold tracking-[-0.02em] text-moon md:text-4xl">
+              {descriptor}
+              <DotPeriod />
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-dim">{t("features.subtitle")}</p>
+            <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <a
+                href={downloadHref}
+                className="brand-glow inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-moon px-7 font-semibold text-night transition hover:brightness-95"
+              >
+                <Download className="h-4 w-4" />
+                {t("hero.downloadFor", { platform: platform.label })}
+              </a>
+              <a
+                href="https://github.com/poracode/poracode"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-6 font-medium text-moon transition hover:border-white/20 hover:bg-white/[0.06]"
+              >
+                <GithubMark className="h-4 w-4" />
+                GitHub
+                <ArrowUpRight className="h-4 w-4 text-dim" />
+              </a>
+            </div>
+            <MonoLockup className="mt-9 text-sm" />
           </div>
-          <p className="text-gray-500 text-sm">{t("footer.copyright", { year: 2026 })}</p>
-          <div className="flex gap-6">
-            <a href="/changelog" className="text-gray-500 hover:text-white transition-colors">
+        </div>
+      </section>
+
+      {/* ── §8 Footer ───────────────────────────────────────────── */}
+      <footer className="relative z-10 border-t border-white/[0.06] px-5 py-12 sm:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 md:flex-row">
+          <div className="flex items-center gap-2.5">
+            <PoraIconTile className="h-7 w-7" />
+            <BrandWordmark className="text-base" />
+          </div>
+          <p className="font-mono text-[12px] text-dim">{t("footer.copyright", { year: 2026 })}</p>
+          <div className="flex items-center gap-6">
+            <a
+              href="/changelog"
+              className="font-mono text-[13px] text-dim transition-colors hover:text-moon"
+            >
               {t("nav.changelog")}
             </a>
             <a
-              href="https://github.com/SDSLeon/lightcode"
-              className="text-gray-500 hover:text-white transition-colors"
+              href="https://github.com/poracode/poracode"
+              className="font-mono text-[13px] text-dim transition-colors hover:text-moon"
             >
               GitHub
             </a>
+            <MonoLockup className="text-xs" />
           </div>
         </div>
       </footer>
@@ -517,41 +613,240 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
   );
 }
 
-function FeatureCard({
-  icon,
-  title,
-  description,
+/**
+ * Framed app-capture window. The hero passes `chrome` (macOS title bar + `pora.code`
+ * mono URL), `badge` (floating glyph), and `parallax` (mouse tilt); the zig-zag
+ * captures use the bare frame. The shared shell (border, top hairline, inset ring)
+ * lives here once so it can't drift between callers.
+ */
+function AppWindow({
+  src,
+  alt = "",
+  width,
+  height,
+  chrome = false,
+  badge = false,
+  parallax = false,
 }: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
+  src: string;
+  alt?: string;
+  width?: number;
+  height?: number;
+  chrome?: boolean;
+  badge?: boolean;
+  parallax?: boolean;
 }) {
+  const reduce = useReducedMotion();
+  const enableParallax = parallax && !reduce;
+  const rx = useMotionValue(0);
+  const ry = useMotionValue(0);
+  const srx = useSpring(rx, { stiffness: 140, damping: 18, mass: 0.4 });
+  const sry = useSpring(ry, { stiffness: 140, damping: 18, mass: 0.4 });
+
+  const onMove = (e: ReactMouseEvent<HTMLDivElement>) => {
+    if (!enableParallax) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    rx.set(-((e.clientY - r.top) / r.height - 0.5) * 5);
+    ry.set(((e.clientX - r.left) / r.width - 0.5) * 6);
+  };
+  const onLeave = () => {
+    rx.set(0);
+    ry.set(0);
+  };
+
+  // The hero (parallax) gets a pronounced scale-pop; supporting captures slide up.
+  const entrance = parallax
+    ? {
+        initial: { opacity: 0, y: 36, scale: 0.97 },
+        whileInView: { opacity: 1, y: 0, scale: 1 },
+        transition: { duration: 0.8, ease: EASE },
+      }
+    : {
+        initial: { opacity: 0, y: 24 },
+        whileInView: { opacity: 1, y: 0 },
+        transition: { duration: 0.7, ease: EASE },
+      };
+
   return (
     <motion.div
-      whileHover={{ y: -5 }}
-      className="p-6 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10 transition-all duration-300 group"
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      {...entrance}
+      viewport={{ once: true, margin: "-80px" }}
+      {...(enableParallax
+        ? { style: { rotateX: srx, rotateY: sry, transformPerspective: 1600 } }
+        : {})}
+      className="brand-glow relative overflow-hidden rounded-2xl border border-white/[0.09] bg-tile/85"
     >
-      <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center mb-4 text-gray-400 group-hover:text-white group-hover:bg-white/10 transition-colors">
-        {icon}
-      </div>
-      <h3 className="text-lg font-bold mb-2 text-white">{title}</h3>
-      <p className="text-sm text-gray-500 leading-relaxed group-hover:text-gray-400 transition-colors">
-        {description}
-      </p>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent" />
+      {chrome ? (
+        <div className="flex items-center gap-2 border-b border-white/[0.06] bg-tile-2 px-4 py-2.5">
+          <span className="h-3 w-3 rounded-full bg-white/15" />
+          <span className="h-3 w-3 rounded-full bg-white/15" />
+          <span className="h-3 w-3 rounded-full bg-white/15" />
+          <div className="mx-auto flex items-center gap-1.5">
+            <MonoLockup className="text-xs" />
+            <span className="pora-dot h-1 w-1" />
+          </div>
+          <span className="w-12" />
+        </div>
+      ) : null}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        loading="lazy"
+        decoding="async"
+        className="block h-auto w-full"
+      />
+      <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/[0.06]" />
+      {badge ? (
+        <div className="absolute -bottom-5 -left-4 hidden h-12 w-12 rotate-3 items-center justify-center rounded-2xl border border-white/10 bg-tile brand-glow sm:flex">
+          <PoraGlyph className="h-6 w-6 text-moon" />
+        </div>
+      ) : null}
     </motion.div>
   );
 }
 
-function StarMilestone({ count }: { count: number }) {
+/** A bento tile: a framed real-app capture with a caption, spanning `span` of 6 cols on lg. */
+function BentoCard({
+  index,
+  src,
+  title,
+  desc,
+  span,
+  fit,
+  width,
+  height,
+}: {
+  index: number;
+  src: string;
+  title: string;
+  desc: string;
+  span: number;
+  fit: string;
+  width: number;
+  height: number;
+}) {
+  const spanClass = SPAN_CLASS[span] ?? "lg:col-span-2";
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: 0.2 }}
-      className="inline-flex items-center gap-2 px-3 py-1 text-sm font-semibold rounded-full border bg-yellow-500/10 border-yellow-500/20 text-yellow-500"
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.55, ease: EASE, delay: (index % 3) * 0.06 }}
+      className={`group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-tile/70 transition-colors hover:border-white/[0.16] ${spanClass}`}
     >
-      <Trophy className="w-4 h-4" />
-      <span>{count} Stars • Community Choice</span>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+      <div className="relative h-52 overflow-hidden border-b border-white/[0.06] bg-night">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt=""
+          width={width}
+          height={height}
+          loading="lazy"
+          decoding="async"
+          className={`h-full w-full object-cover ${fit} transition-transform duration-500 group-hover:scale-[1.03]`}
+        />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-tile/80 to-transparent" />
+      </div>
+      <div className="flex flex-1 flex-col gap-1.5 p-5">
+        <h3 className="text-base font-semibold text-moon">{title}</h3>
+        <p className="text-sm leading-relaxed text-dim">{desc}</p>
+      </div>
     </motion.div>
+  );
+}
+
+function FeatureCell({
+  index,
+  icon: Icon,
+  title,
+  desc,
+  wide,
+}: {
+  index: number;
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+  wide?: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.5, ease: EASE, delay: (index % 3) * 0.05 }}
+      className={`group relative bg-night p-7 transition-colors hover:bg-[rgba(139,123,255,0.035)] ${
+        wide ? "lg:col-span-3" : ""
+      }`}
+    >
+      {/* cursor-sweep top edge on hover */}
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-px origin-left scale-x-0 bg-gradient-to-r from-accent/0 via-accent/70 to-accent/0 transition-transform duration-500 group-hover:scale-x-100" />
+      <div className="mb-4 flex items-center justify-between">
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent ring-1 ring-accent/20 transition group-hover:bg-accent/[0.16]">
+          <Icon className="h-5 w-5" />
+        </span>
+        <span className="font-mono text-xs text-dim/40">{String(index + 1).padStart(2, "0")}</span>
+      </div>
+      <h3 className="mb-2 text-base font-semibold text-moon">{title}</h3>
+      <p className="text-sm leading-relaxed text-dim">{desc}</p>
+    </motion.div>
+  );
+}
+
+// Doubled list so the two tracks can scroll seamlessly; derived from a module
+// constant, so it's built once rather than on every marquee render.
+const ACP_MARQUEE_LOOP = [...ACP_REGISTRY_AGENTS, ...ACP_REGISTRY_AGENTS];
+
+function acpChip(agent: AcpAgent, key: string) {
+  return (
+    <span
+      key={key}
+      className="brand-chip whitespace-nowrap px-3.5 py-1.5 font-mono text-[13px] text-dim"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`${ACP_REGISTRY_CDN}/${agent.id}.svg`}
+        alt=""
+        width={16}
+        height={16}
+        loading="lazy"
+        className="h-4 w-4 object-contain opacity-80 [filter:brightness(0)_invert(1)]"
+      />
+      {agent.name}
+    </span>
+  );
+}
+
+function AcpMarquee() {
+  const reduce = useReducedMotion();
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { margin: "200px" });
+  const run = !reduce && inView; // only animate while visible & motion allowed
+  return (
+    <div
+      ref={ref}
+      className="space-y-3 overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_8%,#000_92%,transparent)]"
+    >
+      <motion.div
+        className="flex w-max gap-2.5"
+        animate={run ? { x: ["0%", "-50%"] } : { x: "0%" }}
+        transition={run ? { duration: 48, repeat: Infinity, ease: "linear" } : { duration: 0 }}
+      >
+        {ACP_MARQUEE_LOOP.map((a, i) => acpChip(a, `r1-${a.id}-${i}`))}
+      </motion.div>
+      <motion.div
+        className="flex w-max gap-2.5"
+        animate={run ? { x: ["-50%", "0%"] } : { x: "-50%" }}
+        transition={run ? { duration: 58, repeat: Infinity, ease: "linear" } : { duration: 0 }}
+      >
+        {ACP_MARQUEE_LOOP.map((a, i) => acpChip(a, `r2-${a.id}-${i}`))}
+      </motion.div>
+    </div>
   );
 }

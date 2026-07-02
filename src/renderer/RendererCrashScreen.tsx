@@ -101,7 +101,7 @@ export function createRendererCrashReport(input: RendererCrashInput): RendererCr
 
 export function formatRendererCrashReport(report: RendererCrashReport): string {
   const lines = [
-    "Lightcode renderer crash",
+    "Poracode renderer crash",
     `Kind: ${report.kind}`,
     `Time: ${report.timestamp}`,
     `URL: ${report.url}`,

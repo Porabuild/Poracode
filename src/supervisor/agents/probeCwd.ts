@@ -11,9 +11,9 @@ import { getProjectPosixPath } from "@/shared/wsl";
  * bundled `rg` indexer. When that cwd is the user's project or home, the scan
  * touches sandbox-protected paths (Photos, Calendar, Containers) and macOS
  * routes the access through `sandboxd` → `tccd`, attributing the request to
- * the responsible parent (Lightcode). The result is a launch-time "would like
+ * the responsible parent (Poracode). The result is a launch-time "would like
  * to access data from other apps" prompt unrelated to anything the user asked
- * Lightcode to do. Pointing every probe at an empty, Lightcode-owned
+ * Poracode to do. Pointing every probe at an empty, Poracode-owned
  * directory keeps the scan contained.
  *
  * Posix only — TCC lives on macOS, and on Linux the home dir is generally

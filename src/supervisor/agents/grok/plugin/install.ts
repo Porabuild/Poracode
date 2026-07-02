@@ -29,14 +29,14 @@ import {
  * Grok CLI plugin installer.
  *
  * Two writes per install:
- *   1. **Plugin staging** under `~/.lightcode/agent-plugins/grok/` — copies
+ *   1. **Plugin staging** under `~/.poracode/agent-plugins/grok/` — copies
  *      `forward.mjs` + `plugin.json` + the shared forwarder runtime + the
  *      native wrapper script. Same shape as Claude/Codex/Gemini/Copilot.
  *   2. **Global hook config** at `~/.grok/hooks/lightcode-status.json`. Grok
  *      loads global hooks at every session and always trusts them — no
  *      `/hooks-trust` prompt is required. Done at install time, not per-spawn.
  *
- * Both files are owned by Lightcode — we replace them on reinstall and never
+ * Both files are owned by Poracode — we replace them on reinstall and never
  * merge into user-authored config.
  */
 

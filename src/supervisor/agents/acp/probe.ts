@@ -107,12 +107,12 @@ const MAX_MODEL_THOUGHT_LEVEL_PROBES = 40;
 // ── Mode mapping ─────────────────────────────────────────────────
 
 /**
- * Known ACP mode ID → Lightcode mode + optional approval policy.
+ * Known ACP mode ID → Poracode mode + optional approval policy.
  *
  * This is the reverse of `resolveAcpMode()` in session.ts.
  */
 /**
- * ACP mode ID → Lightcode mode + optional approval policy ID.
+ * ACP mode ID → Poracode mode + optional approval policy ID.
  *
  * Labels come from the ACP `SessionMode.name` field, not hardcoded here.
  */
@@ -131,7 +131,7 @@ export function normalizeAcpModeId(modeId: string): string {
 }
 
 /**
- * Map ACP `SessionMode[]` to Lightcode modes and approval policies.
+ * Map ACP `SessionMode[]` to Poracode modes and approval policies.
  * Labels are taken from ACP's `SessionMode.name`.
  */
 export function mapAcpModes(availableModes: SessionMode[]): {
@@ -173,7 +173,7 @@ export function humanizeModelId(id: string): string {
 }
 
 /**
- * Map ACP `ModelInfo[]` to Lightcode model options.
+ * Map ACP `ModelInfo[]` to Poracode model options.
  *
  * If the agent returns `name` equal to `modelId`, we generate a
  * friendlier label from the ID.

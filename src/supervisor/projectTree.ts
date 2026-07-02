@@ -345,7 +345,7 @@ export class ProjectTreeService {
    *
    * Relative paths resolve against the project root for convenience. Absolute
    * paths are read as-is, even outside the project root — the user/agent may
-   * reference any file (e.g. a plan in a `~/.lightcode/worktrees` worktree),
+   * reference any file (e.g. a plan in a `~/.poracode/worktrees` worktree),
    * and the editor must be able to open it.
    *
    * Returns `{ status: "missing" }` for ENOENT instead of throwing, since the
@@ -518,7 +518,7 @@ export class ProjectTreeService {
    * `projectRoot`. Anchor that root at the file's own parent directory so the
    * bridge's path-safety check passes for exactly this file — siblings and
    * ancestors stay out of scope. Without this, opening an out-of-root path on
-   * WSL (e.g. a plan in a `~/.lightcode/worktrees` worktree, or `/etc/hosts`)
+   * WSL (e.g. a plan in a `~/.poracode/worktrees` worktree, or `/etc/hosts`)
    * fails with "path escapes projectRoot". Mirrors the `{ ...location,
    * linuxPath }` idiom used for out-of-root git operations in `git/exec.ts`.
    */

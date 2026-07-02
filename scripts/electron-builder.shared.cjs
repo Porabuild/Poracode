@@ -19,15 +19,15 @@ function normalizeChannel(value) {
 }
 
 function productNameFor(channel) {
-  return channel === "nightly" ? "Lightcode Nightly" : "Lightcode";
+  return channel === "nightly" ? "Poracode Nightly" : "Poracode";
 }
 
 function appIdFor(channel) {
-  return channel === "nightly" ? "com.lightcode.app.nightly" : "com.lightcode.app";
+  return channel === "nightly" ? "com.poracode.app.nightly" : "com.poracode.app";
 }
 
 function userDataDirNameFor(channel) {
-  return channel === "nightly" ? ".lightcode-nightly" : ".lightcode";
+  return channel === "nightly" ? ".poracode-nightly" : ".poracode";
 }
 
 function updaterChannelFor(channel) {
@@ -35,7 +35,7 @@ function updaterChannelFor(channel) {
 }
 
 function artifactPrefixFor(channel) {
-  return channel === "nightly" ? "Lightcode-Nightly" : "Lightcode";
+  return channel === "nightly" ? "Poracode-Nightly" : "Poracode";
 }
 
 module.exports = {

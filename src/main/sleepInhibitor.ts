@@ -92,7 +92,7 @@ class SystemdInhibitor implements Inhibitor {
         "systemd-inhibit",
         [
           "--what=sleep:idle",
-          "--who=Lightcode",
+          "--who=Poracode",
           "--why=Agent thread is working",
           "--mode=block",
           "cat",

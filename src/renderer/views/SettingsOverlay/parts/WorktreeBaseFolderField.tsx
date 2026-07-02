@@ -5,7 +5,7 @@ import { readBridge } from "@/renderer/bridge";
 import { Button, Input, PathDisplay } from "@/renderer/components/common";
 
 /** Friendly representation of the built-in default worktree root. */
-export const DEFAULT_WORKTREE_PATH = "~/.lightcode/worktrees";
+export const DEFAULT_WORKTREE_PATH = "~/.poracode/worktrees";
 
 /**
  * Worktree base-folder control shared by the global and per-project settings: a

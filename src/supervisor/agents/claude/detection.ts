@@ -122,7 +122,7 @@ export const claudeCapabilities: AgentCapability = {
 };
 
 /**
- * Built-in Claude model ids whose `[<size>]` suffix Lightcode owns — it derives
+ * Built-in Claude model ids whose `[<size>]` suffix Poracode owns — it derives
  * that suffix from the thread's `contextSize` selector (see
  * {@link applyClaudeContextSuffix}). Any model id NOT in this set is a custom /
  * external-provider model (e.g. z.ai `glm-5.2[1m]`) whose suffix is part of the

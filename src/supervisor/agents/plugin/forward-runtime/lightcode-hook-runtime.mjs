@@ -12,7 +12,7 @@
  *
  * Shipped via `prepare-agent-plugins.mjs` into each provider's plugin dir at
  * staging time, so `import "./lightcode-hook-runtime.mjs"` resolves as a
- * sibling of `forward.mjs` inside `~/.lightcode/agent-plugins/<kind>/`.
+ * sibling of `forward.mjs` inside `~/.poracode/agent-plugins/<kind>/`.
  */
 
 import { readFileSync } from "node:fs";
@@ -150,14 +150,14 @@ export function copyStringExtra(extra, payload, sourceKey, targetKey, max = 500)
 /**
  * Run a provider forwarder. Reads argv[2] as the event name, JSON stdin as
  * payload, builds the universal envelope, and POSTs it. Returns silently when
- * the env vars are absent (i.e. the agent is running outside Lightcode) or
+ * the env vars are absent (i.e. the agent is running outside Poracode) or
  * when the provider can't map the event to an intent.
  *
  * Options:
  *   - `agentKind`           default for the `agentKind` envelope field, used
  *                           when `LIGHTCODE_AGENT_KIND` env var is unset.
  *   - `pluginVersion`       provider's plugin.json version (string).
- *   - `intentFor(name, payload, ctx)` map a native event to a Lightcode
+ *   - `intentFor(name, payload, ctx)` map a native event to a Poracode
  *                           intent. `ctx.debug` available for per-event debug
  *                           tweaks (see codex). Return `undefined` to skip.
  *   - `buildExtra(name, payload)` provider-specific `extra` object.
@@ -225,7 +225,7 @@ export async function runForwarder(options) {
     if (!intent) {
       if (debug) {
         process.stderr.write(
-          `[lightcode-hook] skip POST: no mapped Lightcode intent for ${eventName}\n`,
+          `[lightcode-hook] skip POST: no mapped Poracode intent for ${eventName}\n`,
         );
       }
       return;

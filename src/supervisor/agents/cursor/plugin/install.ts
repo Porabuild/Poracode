@@ -35,7 +35,7 @@ export interface CursorPluginPaths {
    * Cursor's hooks.json file. Cursor only reads from `~/.cursor/hooks.json`
    * (or `<project>/.cursor/hooks.json`); `CURSOR_CONFIG_DIR` does NOT redirect
    * hook discovery, so we merge our managed entries into the user's global
-   * file (Lightcode-managed entries are tagged by the staged command path and
+   * file (Poracode-managed entries are tagged by the staged command path and
    * pruned/replaced on every reinstall).
    */
   globalHooksPath: string;
@@ -58,7 +58,7 @@ const CURSOR_HOOK_SPECS: ReadonlyArray<CursorHookSpec> = [
 const CURSOR_HOOK_TIMEOUT_SECONDS = 5;
 
 /**
- * Match any Lightcode-staged Cursor hook command in hooks.json. Covers both
+ * Match any Poracode-staged Cursor hook command in hooks.json. Covers both
  * the WSL shape (`forward.mjs` invoked via absolute node path) and native
  * (`lightcode-hook.{sh,cmd,ps1}` wrapper).
  */
@@ -130,8 +130,8 @@ function buildLightcodeEntry(spec: CursorHookSpec, commandHead: string): Record<
 }
 
 /**
- * Merge Lightcode Cursor hook entries into a parsed `hooks.json` document.
- * Preserves any non-Lightcode entries the user has authored. `commandHead` is
+ * Merge Poracode Cursor hook entries into a parsed `hooks.json` document.
+ * Preserves any non-Poracode entries the user has authored. `commandHead` is
  * the entire pre-event portion of each hook command — for WSL it's
  * `'<absolute-node-path>' '<forward.mjs-path>'`, for native it's just
  * `"<wrapper-path>"`. Exported for unit tests.

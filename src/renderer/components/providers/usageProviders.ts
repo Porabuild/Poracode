@@ -81,7 +81,10 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
     ],
   },
   claude: {
-    rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "weekly-opus", "weekly-sonnet"] },
+    rings: {
+      outer: ["session-5h"],
+      inner: ["weekly", "monthly", "weekly-opus", "weekly-sonnet", "weekly-fable"],
+    },
   },
   codex: {
     rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "weekly-opus", "weekly-sonnet"] },
@@ -120,6 +123,10 @@ export const USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = STATIC_USAGE_PROVID
 
 function rendererMeta(providerId: string): Omit<UsageProvider, "id" | "label"> | undefined {
   return RENDERER_META[providerId] ?? RENDERER_META[baseAgentKind(providerId)];
+}
+
+export function isClaudeUsageProvider(providerId: string): boolean {
+  return baseAgentKind(providerId) === "claude";
 }
 
 function claudeProfileUsageProviders(

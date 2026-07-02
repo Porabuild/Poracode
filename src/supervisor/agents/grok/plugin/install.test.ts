@@ -14,7 +14,7 @@ import {
 } from "./install";
 
 describe("grokIntentFor", () => {
-  it("maps Grok's registered lifecycle events to Lightcode intents", () => {
+  it("maps Grok's registered lifecycle events to Poracode intents", () => {
     expect(grokIntentFor("SessionStart", undefined)).toBe("session.started");
     expect(grokIntentFor("UserPromptSubmit", undefined)).toBe("session.turn_started");
     expect(grokIntentFor("Stop", undefined)).toBe("session.turn_finished");

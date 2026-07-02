@@ -18,6 +18,9 @@ describe("usageWindowDisplayLabel", () => {
     expect(usageWindowDisplayLabel({ id: "session-5h", label: "x", usedPercent: 0 })).toBe(
       "Session (5h)",
     );
+    expect(usageWindowDisplayLabel({ id: "weekly-fable", label: "x", usedPercent: 0 })).toBe(
+      "Weekly · Fable",
+    );
   });
 
   it("honors a collector's custom monthly label (e.g. z.ai 'MCP')", () => {
@@ -104,6 +107,7 @@ describe("windowDurationMs", () => {
     expect(windowDurationMs("session-5h", 0)).toBe(5 * HOUR);
     expect(windowDurationMs("weekly", 0)).toBe(7 * DAY);
     expect(windowDurationMs("weekly-opus", 0)).toBe(7 * DAY);
+    expect(windowDurationMs("weekly-fable", 0)).toBe(7 * DAY);
     expect(windowDurationMs("codex:gpt-5:session-5h", 0)).toBe(5 * HOUR);
     expect(windowDurationMs("codex:gpt-5:weekly", 0)).toBe(7 * DAY);
     expect(windowDurationMs("factory:core:weekly", 0)).toBe(7 * DAY);

@@ -9,7 +9,7 @@ export const CODEX_BROWSER_MCP_TOKEN_ENV = "LIGHTCODE_BROWSER_MCP_TOKEN";
 
 /**
  * Codex CLI accepts inline TOML overrides via `-c key.path=value`. Build the
- * override sequence registering the Lightcode in-app browser MCP server for a
+ * override sequence registering the Poracode in-app browser MCP server for a
  * single Codex invocation, using Codex's streamable-HTTP MCP transport.
  *
  * Codex enables the rmcp client (which speaks streamable HTTP + SSE) when

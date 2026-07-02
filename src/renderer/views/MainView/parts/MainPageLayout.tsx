@@ -3,6 +3,7 @@ import { useDroppable } from "@dnd-kit/react";
 import { getAppName } from "@/shared/appName";
 import { readBridge } from "@/renderer/bridge";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
+import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
 import { Sidebar } from "@/renderer/views/MainView/parts/Sidebar/Sidebar";
 import { AppContent } from "@/renderer/views/MainView/parts/AppContent/AppContent";
 import { SidebarHeaderControls } from "@/renderer/views/MainView/parts/SidebarHeaderControls";
@@ -22,10 +23,27 @@ const FileEditorPanel = lazy(() =>
 
 export function MainPageLayout(props: { onTitleClick: () => void }) {
   const { onTitleClick } = props;
+  const channel = readBridge().channel;
+  const isDev = import.meta.env.DEV;
+  // Keep the dev / nightly tag beside the brand wordmark (the old text header
+  // rendered it inline as "(DEV)" / "Nightly").
+  const channelSuffix = [channel === "nightly" ? "Nightly" : "", isDev ? "(dev)" : ""]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <PageLayout
-      title={getAppName(readBridge().channel, import.meta.env.DEV)}
+      title={getAppName(channel, isDev)}
+      titleNode={
+        <span className="inline-flex items-baseline gap-1.5">
+          <BrandWordmark className="text-sm text-foreground" />
+          {channelSuffix ? (
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">
+              {channelSuffix}
+            </span>
+          ) : null}
+        </span>
+      }
       onTitleClick={onTitleClick}
       onRequestClosePanels={closeAllPanels}
       onDismissRightOverlay={dismissRightOverlay}

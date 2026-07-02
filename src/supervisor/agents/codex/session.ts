@@ -31,7 +31,7 @@ function nativeCodexHomeCandidates(): string[] {
 
 /** Append the codex private-home suffix to a resolved WSL `$HOME`, if present. */
 function codexPrivateHomeFrom(home: string | undefined): string | undefined {
-  return home ? `${home}/.lightcode/agent-plugins/codex/home` : undefined;
+  return home ? `${home}/.poracode/agent-plugins/codex/home` : undefined;
 }
 
 function wslPrivateCodexHome(distro: string): string | undefined {

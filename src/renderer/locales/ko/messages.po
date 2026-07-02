@@ -1430,8 +1430,8 @@ msgstr "로그인 방법을 선택하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose the display language for Lightcode's interface."
-msgstr "Lightcode 인터페이스의 표시 언어를 선택하세요."
+msgid "Choose the display language for Poracode's interface."
+msgstr "Poracode 인터페이스의 표시 언어를 선택하세요."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
@@ -1439,9 +1439,9 @@ msgstr "첨부할 스레드를 선택하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose whether links from Lightcode and browser popups stay in Lightcode "
+msgid "Choose whether links from Poracode and browser popups stay in Poracode "
 "or open externally."
-msgstr "Lightcode 및 브라우저 팝업의 링크를 Lightcode에 유지할지 아니면 외부에서 열지 선택합니다."
+msgstr "Poracode 및 브라우저 팝업의 링크를 Poracode에 유지할지 아니면 외부에서 열지 선택합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
@@ -2953,45 +2953,43 @@ msgid "Finished · Waiting for your input"
 msgstr "완료됨 · 귀하의 의견을 기다리는 중"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Antigravity CLI integration using Lightcode's native "
+msgid "First-class Antigravity CLI integration using Poracode's native runtime."
+msgstr "Poracode의 네이티브 런타임을 사용한 최고 수준의 Antigravity CLI 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Claude Code integration using Poracode's native SDK runtime."
+msgstr "Poracode의 기본 SDK 런타임을 사용한 최고 수준의 Claude Code 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Codex CLI integration using Poracode's native app-server "
 "runtime."
-msgstr "Lightcode의 네이티브 런타임을 사용한 최고 수준의 Antigravity CLI 통합."
+msgstr "Poracode의 기본 앱 서버 런타임을 사용한 최고 수준의 Codex CLI 통합."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Claude Code integration using Lightcode's native SDK "
+msgid "First-class Command Code CLI integration using Poracode's native "
 "runtime."
-msgstr "Lightcode의 기본 SDK 런타임을 사용한 최고 수준의 Claude Code 통합."
+msgstr "Poracode의 네이티브 런타임을 사용한 최고 수준의 Command Code CLI 통합."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Codex CLI integration using Lightcode's native app-server "
+msgid "First-class Cursor Agent integration using Poracode's native runtime."
+msgstr "Poracode의 네이티브 런타임을 사용하는 일급 Cursor Agent 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Gemini CLI integration using Poracode's native runtime."
+msgstr "Poracode의 네이티브 런타임을 사용하는 일급 Gemini CLI 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class GitHub Copilot CLI integration using Poracode's native "
 "runtime."
-msgstr "Lightcode의 기본 앱 서버 런타임을 사용한 최고 수준의 Codex CLI 통합."
+msgstr "Poracode의 네이티브 런타임을 사용하는 일급 GitHub Copilot CLI 통합."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Command Code CLI integration using Lightcode's native "
-"runtime."
-msgstr "Lightcode의 네이티브 런타임을 사용한 최고 수준의 Command Code CLI 통합."
+msgid "First-class Grok Build CLI integration using Poracode's native runtime."
+msgstr "Poracode의 기본 런타임을 사용하는 최고 수준의 Grok Build CLI 통합."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Cursor Agent integration using Lightcode's native runtime."
-msgstr "Lightcode의 네이티브 런타임을 사용하는 일급 Cursor Agent 통합."
-
-#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Gemini CLI integration using Lightcode's native runtime."
-msgstr "Lightcode의 네이티브 런타임을 사용하는 일급 Gemini CLI 통합."
-
-#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
-"runtime."
-msgstr "Lightcode의 네이티브 런타임을 사용하는 일급 GitHub Copilot CLI 통합."
-
-#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
-msgstr "Lightcode의 기본 런타임을 사용하는 최고 수준의 Grok Build CLI 통합."
-
-#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class OpenCode integration using Lightcode's native SDK runtime."
-msgstr "Lightcode의 기본 SDK 런타임을 사용한 최고 수준의 OpenCode 통합."
+msgid "First-class OpenCode integration using Poracode's native SDK runtime."
+msgstr "Poracode의 기본 SDK 런타임을 사용한 최고 수준의 OpenCode 통합."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
@@ -5060,9 +5058,9 @@ msgstr "사용자 지정 환경 변수, 모델 이름, 추론 강도 단계로 �
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
+msgid "Popular editor themes adapted to Poracode. Each follows the light or "
 "dark mode above."
-msgstr "Lightcode에 맞게 조정된 인기 있는 편집기 테마입니다. 각각은 위의 밝은 모드 또는 어두운 모드를 따릅니다."
+msgstr "Poracode에 맞게 조정된 인기 있는 편집기 테마입니다. 각각은 위의 밝은 모드 또는 어두운 모드를 따릅니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "PR actions"
@@ -5242,8 +5240,8 @@ msgid "Pull ↓{behind}"
 msgstr "풀 ↓{behind}"
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "Pull did not complete. Your local changes remain in a Lightcode stash."
-msgstr "풀이 완료되지 않았습니다. 로컬 변경 사항은 Lightcode 스태시에 남아 있습니다."
+msgid "Pull did not complete. Your local changes remain in a Poracode stash."
+msgstr "풀이 완료되지 않았습니다. 로컬 변경 사항은 Poracode 스태시에 남아 있습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pull failed: {detail}"
@@ -7038,10 +7036,10 @@ msgstr "이 스레드는 작업 트리 <0>{0}</0>을 사용합니다. 작업 트
 
 #. placeholder {0}: activeDialog.sourceBranch
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
-msgid "This worktree has local changes. Lightcode can temporarily stash them, "
+msgid "This worktree has local changes. Poracode can temporarily stash them, "
 "pull from {0}, then re-apply your changes."
-msgstr "이 작업 트리에는 로컬 변경 사항이 있습니다. Lightcode는 일시적으로 이를 숨기고 {0}에서 가져온 다음 변경 사항을 "
-"다시 적용할 수 있습니다."
+msgstr "이 작업 트리에는 로컬 변경 사항이 있습니다. Poracode는 일시적으로 이를 숨기고 {0}에서 가져온 다음 변경 사항을 다시 "
+"적용할 수 있습니다."
 
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
 msgid "Thought"
@@ -7661,8 +7659,8 @@ msgstr "무시 파일 사용"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at "
-".lightcode/worktrees."
-msgstr "하나의 전역 폴더를 사용하거나, 각 프로젝트의 .lightcode/worktrees에 작업 트리를 중첩합니다."
+".poracode/worktrees."
+msgstr "하나의 전역 폴더를 사용하거나, 각 프로젝트의 .poracode/worktrees에 작업 트리를 중첩합니다."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
@@ -7850,8 +7848,8 @@ msgid "What's New"
 msgstr "새 소식"
 
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
-msgid "What's new in Lightcode, newest first."
-msgstr "Lightcode의 새 소식, 최신순."
+msgid "What's new in Poracode, newest first."
+msgstr "Poracode의 새 소식, 최신순."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."
@@ -7859,9 +7857,9 @@ msgstr "활성화되면 검색은 <0>.gitignore</0> 항목을 존중합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "When links open in a Lightcode browser tab, choose where the browser is "
+msgid "When links open in a Poracode browser tab, choose where the browser is "
 "revealed."
-msgstr "Lightcode 브라우저 탭에서 링크가 열리면 브라우저가 표시되는 위치를 선택하세요."
+msgstr "Poracode 브라우저 탭에서 링크가 열리면 브라우저가 표시되는 위치를 선택하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "When off, suppress notifications from terminal threads whose status "
@@ -7875,9 +7873,9 @@ msgstr "표시되는 스레드에 대한 인앱 토스트를 표시하는 경우
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "When you close the window, keep Lightcode running in the system tray. "
+msgid "When you close the window, keep Poracode running in the system tray. "
 "Disable to quit on close."
-msgstr "창을 닫을 때 시스템 트레이에서 Lightcode를 계속 실행하십시오. 닫을 때 종료하려면 비활성화하세요."
+msgstr "창을 닫을 때 시스템 트레이에서 Poracode를 계속 실행하십시오. 닫을 때 종료하려면 비활성화하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -7890,9 +7888,9 @@ msgid "Where do you want to begin?"
 msgstr "어디서부터 시작하시겠습니까?"
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
-msgid "Where Lightcode creates git worktrees for new branches. Changes apply to "
+msgid "Where Poracode creates git worktrees for new branches. Changes apply to "
 "worktrees created from now on; existing worktrees stay where they are."
-msgstr "Lightcode가 새 브랜치를 위해 git 작업 트리를 생성하는 위치입니다. 변경 사항은 지금부터 생성되는 작업 트리에 "
+msgstr "Poracode가 새 브랜치를 위해 git 작업 트리를 생성하는 위치입니다. 변경 사항은 지금부터 생성되는 작업 트리에 "
 "적용되며, 기존 작업 트리는 그대로 유지됩니다."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

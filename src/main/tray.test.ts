@@ -58,7 +58,7 @@ describe("resolveTrayIconPath", () => {
     existsSyncMock.mockReturnValue(false);
 
     const handle = createTray({
-      appName: "Lightcode",
+      appName: "Poracode",
       channel: "stable",
       onQuit: vi.fn<() => void>(),
       window: {

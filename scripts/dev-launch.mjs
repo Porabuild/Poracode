@@ -1,4 +1,4 @@
-// Electron-based hosts (VS Code, Lightcode production build) set
+// Electron-based hosts (VS Code, Poracode production build) set
 // ELECTRON_RUN_AS_NODE=1 in their child processes.  If that leaks into our
 // dev shell, `electron.exe` starts as plain Node and every Electron API is
 // undefined.  Delete the variable before spawning electronmon.

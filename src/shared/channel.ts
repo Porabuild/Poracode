@@ -13,15 +13,15 @@ export function resolveLightcodeChannel(): LightcodeChannel {
 }
 
 export function productNameFor(channel: LightcodeChannel): string {
-  return channel === "nightly" ? "Lightcode Nightly" : "Lightcode";
+  return channel === "nightly" ? "Poracode Nightly" : "Poracode";
 }
 
 export function appIdFor(channel: LightcodeChannel): string {
-  return channel === "nightly" ? "com.lightcode.app.nightly" : "com.lightcode.app";
+  return channel === "nightly" ? "com.poracode.app.nightly" : "com.poracode.app";
 }
 
 export function userDataDirNameFor(channel: LightcodeChannel): string {
-  return channel === "nightly" ? ".lightcode-nightly" : ".lightcode";
+  return channel === "nightly" ? ".poracode-nightly" : ".poracode";
 }
 
 export function updaterChannelFor(channel: LightcodeChannel): string | undefined {
@@ -29,5 +29,5 @@ export function updaterChannelFor(channel: LightcodeChannel): string | undefined
 }
 
 export function artifactPrefixFor(channel: LightcodeChannel): string {
-  return channel === "nightly" ? "Lightcode-Nightly" : "Lightcode";
+  return channel === "nightly" ? "Poracode-Nightly" : "Poracode";
 }

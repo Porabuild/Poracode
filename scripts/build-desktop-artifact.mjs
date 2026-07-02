@@ -443,7 +443,7 @@ function buildElectronBuilderConfig() {
 
   return `appId: ${appId}
 productName: ${productName}
-copyright: Copyright (C) 2026 Lightcode
+copyright: Copyright (C) 2026 Poracode
 
 directories:
   output: release
@@ -530,7 +530,7 @@ mac:
   hardenedRuntime: true
   gatekeeperAssess: false
   extendInfo:
-    NSMicrophoneUsageDescription: Lightcode uses the microphone for local voice input in the composer.
+    NSMicrophoneUsageDescription: Poracode uses the microphone for local voice input in the composer.
   entitlements: ${macEntitlements}
   entitlementsInherit: ${macEntitlementsInherit}
   notarize: true

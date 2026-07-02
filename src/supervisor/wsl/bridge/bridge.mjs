@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Lightcode in-distro bridge server — runs INSIDE a WSL distro.
+ * Poracode in-distro bridge server — runs INSIDE a WSL distro.
  *
  * Owns two kinds of endpoints, both guarded by the shared bearer secret:
  *
@@ -827,7 +827,7 @@ function gitCheckpointSnapshotHandler(req, body) {
         tree,
         ...(head ? ["-p", head] : []),
         "-m",
-        "Lightcode checkpoint",
+        "Poracode checkpoint",
         "-m",
         JSON.stringify(body.metadata),
       ];
@@ -1086,7 +1086,7 @@ async function handleMcpProxy(req, res) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader(
         "Access-Control-Allow-Headers",
-        "Authorization, X-Lightcode-Token, Content-Type, Mcp-Session-Id",
+        "Authorization, X-Poracode-Token, Content-Type, Mcp-Session-Id",
       );
       res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
     }

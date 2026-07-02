@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Codex CLI lifecycle hook forwarder for Lightcode.
+ * Codex CLI lifecycle hook forwarder for Poracode.
  *
  * Invoked by Codex with:
  *   argv[2] = hook event name (e.g. "SessionStart", "Stop")

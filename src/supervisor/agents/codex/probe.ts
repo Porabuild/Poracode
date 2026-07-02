@@ -155,7 +155,7 @@ export function mapCodexModels(
   );
 
   // Prefer high for Codex threads when the default model supports it.
-  // The CLI may report medium as its built-in default, but Lightcode's
+  // The CLI may report medium as its built-in default, but Poracode's
   // Codex UX should start at high unless the model can't use it.
   const defaultModel =
     visible.find((m) => m.id === PREFERRED_CODEX_DEFAULT_MODEL) ??

@@ -2,7 +2,7 @@ import type { AgentEventIntent } from "@/shared/contracts";
 
 /**
  * NOTE: `forward.mjs` has its own copy of `cursorIntentFor` because it ships
- * as a standalone ESM file inside `~/.lightcode/agent-plugins/cursor/` and
+ * as a standalone ESM file inside `~/.poracode/agent-plugins/cursor/` and
  * cannot import from a `.ts` file. Keep the two in sync.
  */
 export interface CursorHookPayload {

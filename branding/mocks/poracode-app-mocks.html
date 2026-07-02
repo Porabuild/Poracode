@@ -1,0 +1,1138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Poracode — app mock scenes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --night: #070709;
+        --tile: #0e0e14;
+        --tile2: #14141c;
+        --moon: #eaf0fb;
+        --dim: #9ba6be;
+        --accent: #8b7bff;
+        --ice: #5ee6e0;
+        --hair: rgba(234, 240, 251, 0.08);
+        --hair2: rgba(234, 240, 251, 0.05);
+        --row-active: rgba(139, 123, 255, 0.1);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: #1a1a22;
+        font-family: "Geist", system-ui, sans-serif;
+        color: var(--moon);
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 48px;
+        align-items: flex-start;
+        -webkit-font-smoothing: antialiased;
+      }
+      .scene {
+        background: var(--night);
+        overflow: hidden;
+        position: relative;
+        color: var(--moon);
+        font-size: 13px;
+      }
+      .mono {
+        font-family: "Geist Mono", ui-monospace, monospace;
+      }
+      .dim {
+        color: var(--dim);
+      }
+      .accent {
+        color: var(--accent);
+      }
+      .dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 9999px;
+        background: var(--accent);
+        box-shadow: 0 0 8px rgba(139, 123, 255, 0.7);
+      }
+      .dot-dim {
+        background: var(--dim);
+        box-shadow: none;
+        opacity: 0.55;
+      }
+      .dot-ice {
+        background: var(--ice);
+        box-shadow: 0 0 8px rgba(94, 230, 224, 0.6);
+      }
+
+      /* ---------- app shell ---------- */
+      .app {
+        display: flex;
+        width: 100%;
+        height: 100%;
+      }
+      .rail {
+        width: 232px;
+        flex-shrink: 0;
+        background: var(--tile);
+        border-right: 1px solid var(--hair);
+        display: flex;
+        flex-direction: column;
+        padding: 14px 12px;
+      }
+      .rail-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+        padding: 0 4px;
+      }
+      .wordmark {
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: -0.02em;
+        display: inline-flex;
+        align-items: baseline;
+      }
+      .wordmark .wd {
+        width: 5px;
+        height: 5px;
+        border-radius: 9999px;
+        background: var(--accent);
+        margin: 0 1px;
+        align-self: flex-end;
+        margin-bottom: 2px;
+        box-shadow: 0 0 6px rgba(139, 123, 255, 0.8);
+      }
+      .wordmark .code {
+        font-weight: 600;
+      }
+      .rail-icons {
+        display: flex;
+        gap: 10px;
+        color: var(--dim);
+      }
+      .rail-icons svg {
+        width: 15px;
+        height: 15px;
+      }
+      .rail-section {
+        font-size: 11px;
+        color: var(--dim);
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        margin: 14px 4px 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .thread {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 7px 10px;
+        border-radius: 7px;
+        color: var(--dim);
+        font-size: 13px;
+        position: relative;
+        margin-bottom: 1px;
+      }
+      .thread .label {
+        font-family: "Geist Mono", monospace;
+        font-size: 12.5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+      }
+      .thread .time {
+        font-size: 11px;
+        color: var(--dim);
+        opacity: 0.6;
+      }
+      .thread.active {
+        background: var(--row-active);
+        color: var(--moon);
+      }
+      .thread.active::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 6px;
+        bottom: 6px;
+        width: 2.5px;
+        border-radius: 2px;
+        background: var(--accent);
+        box-shadow: 0 0 8px rgba(139, 123, 255, 0.7);
+      }
+      .rail-spacer {
+        flex: 1;
+      }
+      .usage {
+        border-top: 1px solid var(--hair);
+        padding-top: 12px;
+        margin-top: 8px;
+      }
+      .usage-label {
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        color: var(--dim);
+        opacity: 0.7;
+        margin-bottom: 8px;
+      }
+      .rings {
+        display: flex;
+        gap: 10px;
+      }
+      .ring {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 3px solid var(--hair);
+        position: relative;
+      }
+      .ring::after {
+        content: "";
+        position: absolute;
+        inset: -3px;
+        border-radius: 50%;
+        border: 3px solid transparent;
+        border-top-color: var(--accent);
+        border-right-color: var(--accent);
+        transform: rotate(40deg);
+      }
+
+      /* ---------- main / panes ---------- */
+      .main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .topbar {
+        height: 42px;
+        border-bottom: 1px solid var(--hair);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 16px;
+        flex-shrink: 0;
+      }
+      .topbar .branch {
+        font-family: "Geist Mono", monospace;
+        font-size: 12.5px;
+        color: var(--moon);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .topbar .path {
+        font-family: "Geist Mono", monospace;
+        font-size: 12px;
+        color: var(--dim);
+        opacity: 0.7;
+      }
+      .topbar .spacer {
+        flex: 1;
+      }
+      .seg {
+        display: flex;
+        font-size: 12px;
+        color: var(--dim);
+        border: 1px solid var(--hair);
+        border-radius: 7px;
+        overflow: hidden;
+      }
+      .seg span {
+        padding: 4px 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .seg span.on {
+        background: var(--row-active);
+        color: var(--moon);
+      }
+      .panes {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      .pane {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .pane + .pane {
+        border-left: 1px solid var(--hair);
+      }
+      .pane-head {
+        height: 38px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--hair2);
+        flex-shrink: 0;
+      }
+      .pane-head .pico {
+        width: 16px;
+        height: 16px;
+        display: inline-flex;
+      }
+      .pane-head .pname {
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .pane-head .pmodel {
+        font-family: "Geist Mono", monospace;
+        font-size: 11.5px;
+        color: var(--dim);
+      }
+      .pane-head .pstatus {
+        margin-left: auto;
+        font-family: "Geist Mono", monospace;
+        font-size: 11px;
+        color: var(--dim);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .pane-body {
+        flex: 1;
+        padding: 14px;
+        overflow: hidden;
+        min-height: 0;
+      }
+
+      /* terminal pane */
+      .term {
+        font-family: "Geist Mono", monospace;
+        font-size: 12.5px;
+        line-height: 1.85;
+        color: var(--moon);
+      }
+      .term .muted {
+        color: var(--dim);
+      }
+      .term .prompt {
+        color: var(--accent);
+      }
+      .term .ok {
+        color: var(--ice);
+      }
+      .term .run {
+        color: var(--accent);
+      }
+      .cursor {
+        display: inline-block;
+        width: 7px;
+        height: 15px;
+        background: var(--accent);
+        vertical-align: -2px;
+        box-shadow: 0 0 8px rgba(139, 123, 255, 0.7);
+      }
+
+      /* chat pane */
+      .msg-user {
+        background: var(--tile2);
+        border: 1px solid var(--hair);
+        border-radius: 10px;
+        padding: 10px 13px;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--moon);
+        margin-bottom: 14px;
+        max-width: 92%;
+      }
+      .msg-assist {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--moon);
+      }
+      .assist-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .toolchip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--tile);
+        border: 1px solid var(--hair);
+        border-radius: 8px;
+        padding: 7px 11px;
+        font-family: "Geist Mono", monospace;
+        font-size: 12px;
+        color: var(--dim);
+        margin: 6px 0;
+      }
+      .toolchip .chk {
+        color: var(--ice);
+      }
+      .toolchip .add {
+        color: var(--ice);
+      }
+      .toolchip .del {
+        color: var(--dim);
+      }
+      .streaming {
+        color: var(--moon);
+        margin-top: 8px;
+      }
+      .streaming .cur {
+        display: inline-block;
+        width: 6px;
+        height: 14px;
+        background: var(--accent);
+        vertical-align: -2px;
+        margin-left: 2px;
+        box-shadow: 0 0 8px rgba(139, 123, 255, 0.7);
+      }
+      .composer {
+        margin-top: auto;
+        border-top: 1px solid var(--hair2);
+        padding: 10px 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--dim);
+        font-size: 13px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--dim);
+        background: var(--tile2);
+        border: 1px solid var(--hair);
+        border-radius: 7px;
+        padding: 4px 9px;
+      }
+      .pill .glyph {
+        color: var(--moon);
+      }
+
+      /* generic feature window helpers */
+      .col {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .row {
+        display: flex;
+        min-width: 0;
+      }
+      .filetree {
+        width: 190px;
+        border-right: 1px solid var(--hair);
+        padding: 12px 10px;
+        font-family: "Geist Mono", monospace;
+        font-size: 12.5px;
+        color: var(--dim);
+        flex-shrink: 0;
+      }
+      .filetree .f {
+        padding: 4px 8px;
+        border-radius: 6px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .filetree .f.on {
+        background: var(--row-active);
+        color: var(--moon);
+      }
+      .filetree .f .badge {
+        margin-left: auto;
+        font-size: 11px;
+      }
+      .diff {
+        flex: 1;
+        font-family: "Geist Mono", monospace;
+        font-size: 12.5px;
+        line-height: 1.75;
+        padding: 12px 0;
+        overflow: hidden;
+      }
+      .diff .ln {
+        padding: 0 16px;
+        white-space: pre;
+      }
+      .diff .ln.add {
+        background: rgba(94, 230, 224, 0.06);
+        color: var(--moon);
+      }
+      .diff .ln.add .s {
+        color: var(--ice);
+      }
+      .diff .ln.del {
+        color: var(--dim);
+        opacity: 0.7;
+      }
+      .diff .ln .g {
+        color: var(--dim);
+        opacity: 0.5;
+        display: inline-block;
+        width: 30px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        background: var(--moon);
+        color: var(--night);
+        font-weight: 600;
+        font-size: 12.5px;
+        border-radius: 8px;
+        padding: 7px 13px;
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--moon);
+        border: 1px solid var(--hair);
+      }
+      .branchpill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-family: "Geist Mono", monospace;
+        font-size: 12px;
+        color: var(--moon);
+        background: var(--tile2);
+        border: 1px solid var(--hair);
+        border-radius: 7px;
+        padding: 4px 9px;
+      }
+      .check {
+        color: var(--ice);
+      }
+      .urlbar {
+        flex: 1;
+        height: 28px;
+        border-radius: 7px;
+        border: 1px solid var(--hair);
+        background: var(--night);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 11px;
+        font-family: "Geist Mono", monospace;
+        font-size: 12px;
+        color: var(--dim);
+      }
+      .dropdown {
+        position: absolute;
+        background: var(--tile2);
+        border: 1px solid var(--hair);
+        border-radius: 10px;
+        padding: 6px;
+        width: 215px;
+        box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.8);
+        z-index: 5;
+      }
+      .dd-item {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 8px 10px;
+        border-radius: 7px;
+        font-size: 13px;
+        color: var(--dim);
+      }
+      .dd-item.on {
+        background: var(--row-active);
+        color: var(--moon);
+        box-shadow: inset 0 0 0 1px rgba(139, 123, 255, 0.4);
+      }
+      .dd-item .pico {
+        width: 15px;
+        height: 15px;
+      }
+      .timeline {
+        position: relative;
+        padding-left: 18px;
+      }
+      .timeline::before {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: 4px;
+        bottom: 4px;
+        width: 1.5px;
+        background: var(--hair);
+      }
+      .tl-item {
+        position: relative;
+        margin-bottom: 12px;
+        font-size: 12.5px;
+        color: var(--dim);
+      }
+      .tl-item::before {
+        content: "";
+        position: absolute;
+        left: -18px;
+        top: 4px;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 8px rgba(139, 123, 255, 0.6);
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 1px;
+        background: var(--hair);
+        flex: 1;
+        min-height: 0;
+      }
+      .cell {
+        background: var(--night);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .cell-head {
+        height: 30px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 11px;
+        border-bottom: 1px solid var(--hair2);
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+      .cell-body {
+        padding: 10px 11px;
+        font-family: "Geist Mono", monospace;
+        font-size: 11px;
+        line-height: 1.7;
+        color: var(--dim);
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ============================ HERO (986 x 638) ============================ -->
+    <div class="scene" id="hero" style="width: 986px; height: 638px">
+      <div class="app">
+        <!-- rail -->
+        <aside class="rail">
+          <div class="rail-head">
+            <span class="wordmark">Pora<span class="wd"></span><span class="code">code</span></span>
+            <span class="rail-icons">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.5-3.5" />
+              </svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5v14" />
+              </svg>
+            </span>
+          </div>
+          <div class="rail-section">acme-web</div>
+          <div class="thread active">
+            <span class="label">feat/auth-refactor</span>
+            <span class="dot"></span>
+          </div>
+          <div class="thread">
+            <span class="label">fix/race-condition</span>
+            <span class="dot"></span>
+          </div>
+          <div class="thread">
+            <span class="label">gemini-spike</span>
+            <span class="dot dot-dim"></span>
+          </div>
+          <div class="thread">
+            <span class="label">chore/bump-deps</span>
+            <span class="dot dot-dim"></span>
+          </div>
+          <div class="thread">
+            <span class="label">docs/readme</span>
+            <span class="dot dot-ice"></span>
+          </div>
+          <div class="rail-spacer"></div>
+          <div class="usage">
+            <div class="usage-label">USAGE</div>
+            <div class="rings">
+              <div class="ring"></div>
+              <div class="ring"></div>
+            </div>
+          </div>
+        </aside>
+        <!-- main -->
+        <div class="main">
+          <div class="topbar">
+            <span class="branch">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="6" cy="6" r="2.5" />
+                <circle cx="6" cy="18" r="2.5" />
+                <circle cx="18" cy="9" r="2.5" />
+                <path d="M6 8.5v7M18 11v1a4 4 0 0 1-4 4H8" />
+              </svg>
+              feat/auth-refactor
+            </span>
+            <span class="path">~/work/acme-web</span>
+            <span class="spacer"></span>
+            <span class="seg"><span class="on">Chat</span><span>CLI</span></span>
+          </div>
+          <div class="panes">
+            <!-- TUI / Claude -->
+            <div class="pane">
+              <div class="pane-head">
+                <span class="pico" style="color: var(--moon)">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                      d="m3.127 10.604 3.135-1.76.053-.153-.053-.085H6.11l-.525-.032-1.791-.048-1.554-.065-1.505-.08-.38-.081L0 7.832l.036-.234.32-.214.455.04 1.009.069 1.513.105 1.097.064 1.626.17h.259l.036-.105-.089-.065-.068-.064-1.566-1.062-1.695-1.121-.887-.646-.48-.327-.243-.306-.104-.67.435-.48.585.04.15.04.593.456 1.267.981 1.654 1.218.242.202.097-.068.012-.049-.109-.181-.9-1.626-.96-1.655-.428-.686-.113-.411a2 2 0 0 1-.068-.484l.496-.674L4.446 0l.662.089.279.242.411.94.666 1.48 1.033 2.014.302.597.162.553.06.17h.105v-.097l.085-1.134.157-1.392.154-1.792.052-.504.25-.605.497-.327.387.186.319.456-.045.294-.19 1.23-.37 1.93-.243 1.29h.142l.161-.16.654-.868 1.097-1.372.484-.545.565-.601.363-.287h.686l.505.751-.226.775-.707.895-.585.759-.839 1.13-.524.904.048.072.125-.012 1.897-.403 1.024-.186 1.223-.21.553.258.06.263-.218.536-1.307.323-1.533.307-2.284.54-.028.02.032.04 1.029.098.44.024h1.077l2.005.15.525.346.315.424-.053.323-.807.411-3.631-.863-.872-.218h-.12v.073l.726.71 1.331 1.202 1.667 1.55.084.383-.214.302-.226-.032-1.464-1.101-.565-.497-1.28-1.077h-.084v.113l.295.432 1.557 2.34.08.718-.112.234-.404.141-.444-.08-.911-1.28-.94-1.44-.759-1.291-.093.053-.448 4.821-.21.246-.484.186-.403-.307-.214-.496.214-.98.258-1.28.21-1.016.19-1.263.112-.42-.008-.028-.092.012-.953 1.307-1.448 1.957-1.146 1.227-.274.109-.477-.247.045-.44.266-.39 1.586-2.018.956-1.25.617-.723-.004-.105h-.036l-4.212 2.736-.75.096-.324-.302.04-.496.154-.162 1.267-.871z"
+                    />
+                  </svg>
+                </span>
+                <span class="pname">Claude</span>
+                <span class="pmodel">opus-4.8 · terminal</span>
+                <span class="pstatus"><span class="dot"></span>running</span>
+              </div>
+              <div class="pane-body term">
+                <div>
+                  <span class="muted">~/work/acme-web</span> <span class="prompt">$</span> pora run
+                  --agent claude
+                </div>
+                <div class="run">● Refactoring auth to a refresh-token flow…</div>
+                <div>
+                  <span class="ok">✓</span> Read <span class="muted">src/auth/session.ts</span>
+                </div>
+                <div>
+                  <span class="ok">✓</span> Edit <span class="muted">src/auth/session.ts</span>
+                  <span class="accent">+48</span> <span class="muted">−12</span>
+                </div>
+                <div>
+                  <span class="ok">✓</span> Add&nbsp; <span class="muted">src/auth/refresh.ts</span>
+                  <span class="accent">+96</span>
+                </div>
+                <div>
+                  <span class="ok">✓</span> Run&nbsp; <span class="muted">pnpm test auth</span> →
+                  <span class="ok">142 passed</span>
+                </div>
+                <div class="muted">● Rotating refresh tokens on each use…</div>
+                <div><span class="prompt">$</span> <span class="cursor"></span></div>
+              </div>
+            </div>
+            <!-- GUI / Codex -->
+            <div class="pane">
+              <div class="pane-head">
+                <span class="pico" style="color: var(--moon)">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                      d="M8.086.457a6.105 6.105 0 013.046-.415c1.333.153 2.521.72 3.564 1.7a.117.117 0 00.107.029c1.408-.346 2.762-.224 4.061.366l.063.03.154.076c1.357.703 2.33 1.77 2.918 3.198.278.679.418 1.388.421 2.126a5.655 5.655 0 01-.18 1.631.167.167 0 00.04.155 5.982 5.982 0 011.578 2.891c.385 1.901-.01 3.615-1.183 5.14l-.182.22a6.063 6.063 0 01-2.934 1.851.162.162 0 00-.108.102c-.255.736-.511 1.364-.987 1.992-1.199 1.582-2.962 2.462-4.948 2.451-1.583-.008-2.986-.587-4.21-1.736a.145.145 0 00-.14-.032c-.518.167-1.04.191-1.604.185a5.924 5.924 0 01-2.595-.622 6.058 6.058 0 01-2.146-1.781c-.203-.269-.404-.522-.551-.821a7.74 7.74 0 01-.495-1.283 6.11 6.11 0 01-.017-3.064.166.166 0 00.008-.074.115.115 0 00-.037-.064 5.958 5.958 0 01-1.38-2.202 5.196 5.196 0 01-.333-1.589 6.915 6.915 0 01.188-2.132c.45-1.484 1.309-2.648 2.577-3.493.282-.188.55-.334.802-.438.286-.12.573-.22.861-.304a.129.129 0 00.087-.087A6.016 6.016 0 015.635 2.31C6.315 1.464 7.132.846 8.086.457zm-.804 7.85a.848.848 0 00-1.473.842l1.694 2.965-1.688 2.848a.849.849 0 001.46.864l1.94-3.272a.849.849 0 00.007-.854l-1.94-3.393zm5.446 6.24a.849.849 0 000 1.695h4.848a.849.849 0 000-1.696h-4.848z"
+                    />
+                  </svg>
+                </span>
+                <span class="pname">Codex</span>
+                <span class="pmodel">gpt-5 · high</span>
+                <span class="pstatus">streaming</span>
+              </div>
+              <div class="pane-body col" style="display: flex">
+                <div class="msg-user">
+                  Refactor the auth flow to use refresh tokens and add rotation on each use.
+                </div>
+                <div class="msg-assist">
+                  <div class="assist-head">
+                    <span class="dot"></span><span style="font-weight: 600">Codex</span>
+                  </div>
+                  I’ll add a refresh-token store and rotate on every exchange. Reading the current
+                  session module first.
+                  <div class="toolchip">
+                    <span class="chk">⛁</span> Read <span class="dim">src/auth/session.ts</span>
+                  </div>
+                  <div class="toolchip">
+                    ✎ Edit <span class="dim">session.ts</span> <span class="add">+48</span>
+                    <span class="del">−12</span>
+                  </div>
+                  <div class="streaming">
+                    Persisting the rotated token and revoking the prior one<span class="cur"></span>
+                  </div>
+                </div>
+                <div class="composer">
+                  <span class="pill"><span class="glyph">✦</span> Codex</span>
+                  <span class="pill">High</span>
+                  <span class="dim" style="margin-left: 4px">Send a message…</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================== FEATURE: BROWSER (800 x 560) ====================== -->
+    <div class="scene" id="browser" style="width: 800px; height: 560px">
+      <div class="app">
+        <div class="main">
+          <div class="topbar">
+            <span class="branch">Built-in Browser</span>
+            <span class="spacer"></span>
+            <span class="seg"
+              ><span>Diff</span><span>Terminal</span><span class="on">Browser</span></span
+            >
+          </div>
+          <div class="row" style="flex: 1; min-height: 0">
+            <!-- chat sliver -->
+            <div
+              class="col"
+              style="width: 250px; border-right: 1px solid var(--hair); padding: 14px"
+            >
+              <div class="msg-user" style="font-size: 12.5px">
+                Use the docs page as context for the API client.
+              </div>
+              <div class="msg-assist" style="font-size: 12.5px">
+                <div class="toolchip" style="font-size: 11px">
+                  🌐 Captured <span class="dim">pora.code/docs</span>
+                </div>
+                Matching the request/response shapes to the reference…
+              </div>
+              <div style="margin-top: auto" class="pill">＋ Attach page to agent</div>
+            </div>
+            <!-- browser -->
+            <div class="col" style="flex: 1; min-width: 0">
+              <div
+                style="
+                  display: flex;
+                  gap: 8px;
+                  align-items: center;
+                  padding: 10px 12px;
+                  border-bottom: 1px solid var(--hair2);
+                "
+              >
+                <span class="dim" style="font-family: &quot;Geist Mono&quot;, monospace">←</span>
+                <span class="dim" style="font-family: &quot;Geist Mono&quot;, monospace">→</span>
+                <div class="urlbar">
+                  <span class="dot" style="width: 6px; height: 6px"></span> pora.code/docs
+                </div>
+              </div>
+              <div
+                style="
+                  flex: 1;
+                  padding: 22px;
+                  background: linear-gradient(180deg, #0b0b11, #070709);
+                "
+              >
+                <div style="font-size: 22px; font-weight: 700; letter-spacing: -0.02em">
+                  API Reference
+                </div>
+                <div
+                  class="dim"
+                  style="margin-top: 8px; font-size: 12.5px; line-height: 1.7; max-width: 340px"
+                >
+                  The Poracode client streams structured events over a single WebSocket. Bring your
+                  own keys.
+                </div>
+                <div style="margin-top: 18px; display: flex; flex-direction: column; gap: 8px">
+                  <div class="toolchip" style="margin: 0">
+                    GET <span class="dim">/v1/threads</span>
+                  </div>
+                  <div class="toolchip" style="margin: 0">
+                    POST <span class="dim">/v1/threads/:id/run</span>
+                  </div>
+                  <div class="toolchip" style="margin: 0">
+                    WS&nbsp; <span class="dim">/v1/stream</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================== FEATURE: PRs / DIFF (800 x 560) ====================== -->
+    <div class="scene" id="prs" style="width: 800px; height: 560px">
+      <div class="app">
+        <div class="main">
+          <div class="topbar">
+            <span class="branchpill"><span class="check">✓</span> feat/auth-refactor</span>
+            <span
+              class="dim"
+              style="font-family: &quot;Geist Mono&quot;, monospace; font-size: 12px"
+              >7 files · +312 −96</span
+            >
+            <span class="spacer"></span>
+            <span class="btn">✦ Generate commit</span>
+          </div>
+          <div class="row" style="flex: 1; min-height: 0">
+            <div class="filetree">
+              <div class="f on">session.ts <span class="badge accent">+48</span></div>
+              <div class="f">refresh.ts <span class="badge accent">+96</span></div>
+              <div class="f">tokens.ts <span class="badge accent">+22</span></div>
+              <div class="f">middleware.ts <span class="badge dim">−12</span></div>
+              <div class="f">auth.test.ts <span class="badge accent">+64</span></div>
+            </div>
+            <div class="diff">
+              <div class="ln"><span class="g">12</span> export async function rotate(</div>
+              <div class="ln del"><span class="g">13</span> - token: string</div>
+              <div class="ln add">
+                <span class="g">13</span> <span class="s">+ token: string, sid: string</span>
+              </div>
+              <div class="ln"><span class="g">14</span> ) {</div>
+              <div class="ln add">
+                <span class="g">15</span> <span class="s">+ const next = await mint(sid)</span>
+              </div>
+              <div class="ln add">
+                <span class="g">16</span> <span class="s">+ await store.revoke(token)</span>
+              </div>
+              <div class="ln add">
+                <span class="g">17</span> <span class="s">+ return next</span>
+              </div>
+              <div class="ln"><span class="g">18</span> }</div>
+              <div
+                style="
+                  margin: 14px 16px 0;
+                  padding: 12px 14px;
+                  border: 1px solid var(--hair);
+                  border-radius: 10px;
+                  background: var(--tile);
+                "
+              >
+                <div
+                  class="dim"
+                  style="
+                    font-family: &quot;Geist&quot;, sans-serif;
+                    font-size: 11px;
+                    letter-spacing: 0.12em;
+                    margin-bottom: 6px;
+                  "
+                >
+                  SUGGESTED COMMIT
+                </div>
+                <div
+                  style="
+                    font-family: &quot;Geist Mono&quot;, monospace;
+                    font-size: 12.5px;
+                    color: var(--moon);
+                  "
+                >
+                  auth: rotate refresh tokens on each exchange
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================== FEATURE: PROTOCOL / PROVIDER PICKER (760 x 560) ====================== -->
+    <div class="scene" id="protocol" style="width: 760px; height: 560px">
+      <div class="app">
+        <div class="main">
+          <div class="topbar">
+            <span class="branch">Unified runtime</span>
+            <span class="spacer"></span>
+            <span class="seg"><span class="on">Chat</span><span>CLI</span></span>
+          </div>
+          <div class="pane-body col" style="flex: 1; position: relative">
+            <div class="msg-user">
+              Summarise the change and switch to Gemini for a second opinion.
+            </div>
+            <div class="timeline" style="margin: 6px 0 14px">
+              <div class="tl-item">
+                Read <span style="color: var(--moon)">3 files</span> · src/auth/*
+              </div>
+              <div class="tl-item">
+                Edit <span style="color: var(--moon)">session.ts</span>
+                <span class="accent">+48 −12</span>
+              </div>
+              <div class="tl-item">
+                Ran <span style="color: var(--moon)">pnpm test</span> ·
+                <span style="color: var(--ice)">142 passed</span>
+              </div>
+            </div>
+            <!-- composer with open provider dropdown -->
+            <div
+              style="
+                margin-top: auto;
+                border: 1px solid var(--hair);
+                border-radius: 12px;
+                padding: 12px;
+                background: var(--tile);
+              "
+            >
+              <div class="dim">Send a message…</div>
+              <div style="display: flex; gap: 8px; margin-top: 12px; position: relative">
+                <span class="pill"><span class="glyph">✦</span> Claude ▾</span>
+                <span class="pill">High · 1M</span>
+                <span class="pill">Auto mode</span>
+                <span style="margin-left: auto" class="dim">⏎</span>
+                <!-- dropdown -->
+                <div class="dropdown" style="bottom: 34px; left: 0">
+                  <div class="dd-item on">
+                    <span class="pico"
+                      ><svg viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                          d="m3.127 10.604 3.135-1.76.053-.153-.053-.085H6.11l-.525-.032-1.791-.048-1.554-.065-1.505-.08-.38-.081L0 7.832l.036-.234.32-.214.455.04 1.009.069 1.513.105 1.097.064 1.626.17h.259l.036-.105-.089-.065-.068-.064-1.566-1.062-1.695-1.121-.887-.646-.48-.327-.243-.306-.104-.67.435-.48.585.04.15.04.593.456 1.267.981 1.654 1.218.242.202.097-.068.012-.049-.109-.181-.9-1.626-.96-1.655-.428-.686-.113-.411a2 2 0 0 1-.068-.484l.496-.674L4.446 0l.662.089.279.242.411.94.666 1.48 1.033 2.014.302.597.162.553.06.17h.105v-.097l.085-1.134.157-1.392.154-1.792.052-.504.25-.605.497-.327.387.186.319.456-.045.294-.19 1.23-.37 1.93-.243 1.29h.142l.161-.16.654-.868 1.097-1.372.484-.545.565-.601.363-.287h.686l.505.751-.226.775-.707.895-.585.759-.839 1.13-.524.904.048.072.125-.012 1.897-.403 1.024-.186 1.223-.21.553.258.06.263-.218.536-1.307.323-1.533.307-2.284.54-.028.02.032.04 1.029.098.44.024h1.077l2.005.15.525.346.315.424-.053.323-.807.411-3.631-.863-.872-.218h-.12v.073l.726.71 1.331 1.202 1.667 1.55.084.383-.214.302-.226-.032-1.464-1.101-.565-.497-1.28-1.077h-.084v.113l.295.432 1.557 2.34.08.718-.112.234-.404.141-.444-.08-.911-1.28-.94-1.44-.759-1.291-.093.053-.448 4.821-.21.246-.484.186-.403-.307-.214-.496.214-.98.258-1.28.21-1.016.19-1.263.112-.42-.008-.028-.092.012-.953 1.307-1.448 1.957-1.146 1.227-.274.109-.477-.247.045-.44.266-.39 1.586-2.018.956-1.25.617-.723-.004-.105h-.036l-4.212 2.736-.75.096-.324-.302.04-.496.154-.162 1.267-.871z"
+                        /></svg
+                    ></span>
+                    Claude <span style="margin-left: auto" class="dim">opus-4.8</span>
+                  </div>
+                  <div class="dd-item">
+                    <span class="pico"
+                      ><svg viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                          d="M8.086.457a6.105 6.105 0 013.046-.415c1.333.153 2.521.72 3.564 1.7a.117.117 0 00.107.029c1.408-.346 2.762-.224 4.061.366l.063.03.154.076c1.357.703 2.33 1.77 2.918 3.198.278.679.418 1.388.421 2.126a5.655 5.655 0 01-.18 1.631.167.167 0 00.04.155 5.982 5.982 0 011.578 2.891c.385 1.901-.01 3.615-1.183 5.14l-.182.22a6.063 6.063 0 01-2.934 1.851.162.162 0 00-.108.102c-.255.736-.511 1.364-.987 1.992-1.199 1.582-2.962 2.462-4.948 2.451-1.583-.008-2.986-.587-4.21-1.736a.145.145 0 00-.14-.032c-.518.167-1.04.191-1.604.185a5.924 5.924 0 01-2.595-.622 6.058 6.058 0 01-2.146-1.781c-.203-.269-.404-.522-.551-.821a7.74 7.74 0 01-.495-1.283 6.11 6.11 0 01-.017-3.064.166.166 0 00.008-.074.115.115 0 00-.037-.064 5.958 5.958 0 01-1.38-2.202 5.196 5.196 0 01-.333-1.589 6.915 6.915 0 01.188-2.132c.45-1.484 1.309-2.648 2.577-3.493.282-.188.55-.334.802-.438.286-.12.573-.22.861-.304a.129.129 0 00.087-.087A6.016 6.016 0 015.635 2.31C6.315 1.464 7.132.846 8.086.457zm-.804 7.85a.848.848 0 00-1.473.842l1.694 2.965-1.688 2.848a.849.849 0 001.46.864l1.94-3.272a.849.849 0 00.007-.854l-1.94-3.393zm5.446 6.24a.849.849 0 000 1.695h4.848a.849.849 0 000-1.696h-4.848z"
+                        /></svg
+                    ></span>
+                    Codex <span style="margin-left: auto" class="dim">gpt-5</span>
+                  </div>
+                  <div class="dd-item">
+                    <span class="pico"
+                      ><svg viewBox="0 0 65 65" fill="currentColor">
+                        <path
+                          d="M32.447 0c.68 0 1.273.465 1.439 1.125a38.904 38.904 0 001.999 5.905c2.152 5 5.105 9.376 8.854 13.125 3.751 3.75 8.126 6.703 13.125 8.855a38.98 38.98 0 005.906 1.999c.66.166 1.124.758 1.124 1.438 0 .68-.464 1.273-1.125 1.439a38.902 38.902 0 00-5.905 1.999c-5 2.152-9.375 5.105-13.125 8.854-3.749 3.751-6.702 8.126-8.854 13.125a38.973 38.973 0 00-2 5.906 1.485 1.485 0 01-1.438 1.124c-.68 0-1.272-.464-1.438-1.125a38.913 38.913 0 00-2-5.905c-2.151-5-5.103-9.375-8.854-13.125-3.75-3.749-8.125-6.702-13.125-8.854a38.973 38.973 0 00-5.905-2A1.485 1.485 0 010 32.448c0-.68.465-1.272 1.125-1.438a38.903 38.903 0 005.905-2c5-2.151 9.376-5.104 13.125-8.854 3.75-3.749 6.703-8.125 8.855-13.125a38.972 38.972 0 001.999-5.905A1.485 1.485 0 0132.447 0z"
+                        /></svg
+                    ></span>
+                    Gemini <span style="margin-left: auto" class="dim">2.5-pro</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================== FEATURE: THREADS / LAYOUT (920 x 600) ====================== -->
+    <div class="scene" id="threads" style="width: 920px; height: 600px">
+      <div class="app">
+        <aside class="rail" style="width: 200px">
+          <div class="rail-head">
+            <span class="wordmark" style="font-size: 14px"
+              >Pora<span class="wd"></span><span class="code">code</span></span
+            >
+          </div>
+          <div class="rail-section">acme-web</div>
+          <div class="thread active">
+            <span class="label">auth-refactor</span><span class="dot"></span>
+          </div>
+          <div class="thread">
+            <span class="label">fix-flaky-test</span><span class="dot"></span>
+          </div>
+          <div class="thread">
+            <span class="label">gemini-spike</span><span class="dot dot-dim"></span>
+          </div>
+          <div class="thread">
+            <span class="label">ui/bento-grid</span><span class="dot dot-ice"></span>
+          </div>
+        </aside>
+        <div class="main">
+          <div class="topbar">
+            <span class="branch">3 agents · 1 workspace</span>
+            <span class="spacer"></span>
+            <span class="seg"><span class="on">▦ Grid</span><span>▭ Tabs</span></span>
+          </div>
+          <div class="grid2">
+            <div class="cell">
+              <div class="cell-head">
+                <span class="pico" style="width: 14px; height: 14px; color: var(--moon)"
+                  ><svg viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                      d="m3.127 10.604 3.135-1.76.053-.153-.053-.085H6.11l-.525-.032-1.791-.048-1.554-.065-1.505-.08-.38-.081L0 7.832l.036-.234.32-.214.455.04 1.009.069 1.513.105 1.097.064 1.626.17h.259l.036-.105-.089-.065-.068-.064-1.566-1.062-1.695-1.121-.887-.646-.48-.327-.243-.306-.104-.67.435-.48.585.04.15.04.593.456 1.267.981 1.654 1.218.242.202.097-.068.012-.049-.109-.181-.9-1.626-.96-1.655-.428-.686-.113-.411a2 2 0 0 1-.068-.484l.496-.674L4.446 0l.662.089.279.242.411.94.666 1.48 1.033 2.014.302.597.162.553.06.17h.105v-.097l.085-1.134.157-1.392.154-1.792.052-.504.25-.605.497-.327.387.186.319.456-.045.294-.19 1.23-.37 1.93-.243 1.29h.142l.161-.16.654-.868 1.097-1.372.484-.545.565-.601.363-.287h.686l.505.751-.226.775-.707.895-.585.759-.839 1.13-.524.904.048.072.125-.012 1.897-.403 1.024-.186 1.223-.21.553.258.06.263-.218.536-1.307.323-1.533.307-2.284.54-.028.02.032.04 1.029.098.44.024h1.077l2.005.15.525.346.315.424-.053.323-.807.411-3.631-.863-.872-.218h-.12v.073l.726.71 1.331 1.202 1.667 1.55.084.383-.214.302-.226-.032-1.464-1.101-.565-.497-1.28-1.077h-.084v.113l.295.432 1.557 2.34.08.718-.112.234-.404.141-.444-.08-.911-1.28-.94-1.44-.759-1.291-.093.053-.448 4.821-.21.246-.484.186-.403-.307-.214-.496.214-.98.258-1.28.21-1.016.19-1.263.112-.42-.008-.028-.092.012-.953 1.307-1.448 1.957-1.146 1.227-.274.109-.477-.247.045-.44.266-.39 1.586-2.018.956-1.25.617-.723-.004-.105h-.036l-4.212 2.736-.75.096-.324-.302.04-.496.154-.162 1.267-.871z"
+                    /></svg
+                ></span>
+                <span style="font-weight: 600">Claude</span>
+                <span class="dim mono" style="font-size: 11px">terminal</span
+                ><span class="dot" style="margin-left: auto"></span>
+              </div>
+              <div class="cell-body">
+                <span style="color: var(--accent)">$</span> pora run<br /><span
+                  style="color: var(--ice)"
+                  >✓</span
+                >
+                142 tests passed<br />● rotating tokens…<span
+                  class="cursor"
+                  style="height: 12px; width: 6px"
+                ></span>
+              </div>
+            </div>
+            <div class="cell">
+              <div class="cell-head">
+                <span class="pico" style="width: 14px; height: 14px; color: var(--moon)"
+                  ><svg viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                      d="M8.086.457a6.105 6.105 0 013.046-.415c1.333.153 2.521.72 3.564 1.7a.117.117 0 00.107.029c1.408-.346 2.762-.224 4.061.366l.063.03.154.076c1.357.703 2.33 1.77 2.918 3.198.278.679.418 1.388.421 2.126a5.655 5.655 0 01-.18 1.631.167.167 0 00.04.155 5.982 5.982 0 011.578 2.891c.385 1.901-.01 3.615-1.183 5.14l-.182.22a6.063 6.063 0 01-2.934 1.851.162.162 0 00-.108.102c-.255.736-.511 1.364-.987 1.992-1.199 1.582-2.962 2.462-4.948 2.451-1.583-.008-2.986-.587-4.21-1.736a.145.145 0 00-.14-.032c-.518.167-1.04.191-1.604.185a5.924 5.924 0 01-2.595-.622 6.058 6.058 0 01-2.146-1.781c-.203-.269-.404-.522-.551-.821a7.74 7.74 0 01-.495-1.283 6.11 6.11 0 01-.017-3.064.166.166 0 00.008-.074.115.115 0 00-.037-.064 5.958 5.958 0 01-1.38-2.202 5.196 5.196 0 01-.333-1.589 6.915 6.915 0 01.188-2.132c.45-1.484 1.309-2.648 2.577-3.493.282-.188.55-.334.802-.438.286-.12.573-.22.861-.304a.129.129 0 00.087-.087A6.016 6.016 0 015.635 2.31C6.315 1.464 7.132.846 8.086.457zm-.804 7.85a.848.848 0 00-1.473.842l1.694 2.965-1.688 2.848a.849.849 0 001.46.864l1.94-3.272a.849.849 0 00.007-.854l-1.94-3.393zm5.446 6.24a.849.849 0 000 1.695h4.848a.849.849 0 000-1.696h-4.848z"
+                    /></svg
+                ></span>
+                <span style="font-weight: 600">Codex</span>
+                <span class="dim mono" style="font-size: 11px">chat</span
+                ><span class="dim mono" style="margin-left: auto; font-size: 11px">streaming</span>
+              </div>
+              <div
+                class="cell-body"
+                style="
+                  font-family: &quot;Geist&quot;, sans-serif;
+                  font-size: 12px;
+                  color: var(--moon);
+                  line-height: 1.6;
+                "
+              >
+                Added refresh.ts and wired rotation.
+                <div class="toolchip" style="margin: 8px 0 0; font-size: 11px">
+                  ✎ session.ts <span class="add">+48</span>
+                </div>
+              </div>
+            </div>
+            <div class="cell">
+              <div class="cell-head">
+                <span class="pico" style="width: 13px; height: 13px; color: var(--moon)"
+                  ><svg viewBox="0 0 65 65" fill="currentColor">
+                    <path
+                      d="M32.447 0c.68 0 1.273.465 1.439 1.125a38.904 38.904 0 001.999 5.905c2.152 5 5.105 9.376 8.854 13.125 3.751 3.75 8.126 6.703 13.125 8.855a38.98 38.98 0 005.906 1.999c.66.166 1.124.758 1.124 1.438 0 .68-.464 1.273-1.125 1.439a38.902 38.902 0 00-5.905 1.999c-5 2.152-9.375 5.105-13.125 8.854-3.749 3.751-6.702 8.126-8.854 13.125a38.973 38.973 0 00-2 5.906 1.485 1.485 0 01-1.438 1.124c-.68 0-1.272-.464-1.438-1.125a38.913 38.913 0 00-2-5.905c-2.151-5-5.103-9.375-8.854-13.125-3.75-3.749-8.125-6.702-13.125-8.854a38.973 38.973 0 00-5.905-2A1.485 1.485 0 010 32.448c0-.68.465-1.272 1.125-1.438a38.903 38.903 0 005.905-2c5-2.151 9.376-5.104 13.125-8.854 3.75-3.749 6.703-8.125 8.855-13.125a38.972 38.972 0 001.999-5.905A1.485 1.485 0 0132.447 0z"
+                    /></svg
+                ></span>
+                <span style="font-weight: 600">Gemini</span>
+                <span class="dim mono" style="font-size: 11px">review</span
+                ><span class="dot dot-dim" style="margin-left: auto"></span>
+              </div>
+              <div
+                class="cell-body"
+                style="
+                  font-family: &quot;Geist&quot;, sans-serif;
+                  font-size: 12px;
+                  color: var(--dim);
+                  line-height: 1.6;
+                "
+              >
+                Second opinion: rotation looks correct; consider a grace window for in-flight
+                requests.
+              </div>
+            </div>
+            <div class="cell" style="display: flex; align-items: center; justify-content: center">
+              <div style="text-align: center; color: var(--dim)">
+                <div style="font-size: 26px; color: var(--accent); line-height: 1">＋</div>
+                <div class="mono" style="font-size: 11px; margin-top: 6px">New pane</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -106,7 +106,7 @@ export function AppearanceSettings() {
             </p>
             <p className="text-xs text-muted">
               <Trans>
-                Popular editor themes adapted to Lightcode. Each follows the light or dark mode
+                Popular editor themes adapted to Poracode. Each follows the light or dark mode
                 above.
               </Trans>
             </p>

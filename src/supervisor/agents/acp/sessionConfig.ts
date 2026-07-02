@@ -2,7 +2,7 @@ import type { ThreadConfig } from "@/shared/contracts";
 import { normalizeAcpModeId } from "./probe";
 
 /**
- * Resolve the ACP mode ID from Lightcode's ThreadConfig.
+ * Resolve the ACP mode ID from Poracode's ThreadConfig.
  *
  * Different agents expose different mode IDs:
  *   Gemini:  "default", "autoEdit", "yolo", "plan"

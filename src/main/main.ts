@@ -283,7 +283,7 @@ const sleepInhibitor = createSleepInhibitor();
 
 function requireLightcodePaths(): LightcodePaths {
   if (!lightcodePaths) {
-    throw new Error("Lightcode paths are not initialized.");
+    throw new Error("Poracode paths are not initialized.");
   }
   return lightcodePaths;
 }

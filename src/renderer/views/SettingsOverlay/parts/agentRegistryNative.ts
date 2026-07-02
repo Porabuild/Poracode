@@ -49,7 +49,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "codex",
     label: "Codex",
-    description: msg`First-class Codex CLI integration using Lightcode's native app-server runtime.`,
+    description: msg`First-class Codex CLI integration using Poracode's native app-server runtime.`,
     docsUrl: "https://developers.openai.com/codex/cli",
     installCommand: (project) =>
       nativeInstallCommand(project, {
@@ -71,7 +71,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "claude",
     label: "Claude Code",
-    description: msg`First-class Claude Code integration using Lightcode's native SDK runtime.`,
+    description: msg`First-class Claude Code integration using Poracode's native SDK runtime.`,
     docsUrl: "https://code.claude.com/docs/en/setup",
     installCommand: (project) =>
       nativeInstallCommand(project, {
@@ -91,7 +91,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "opencode",
     label: "OpenCode",
-    description: msg`First-class OpenCode integration using Lightcode's native SDK runtime.`,
+    description: msg`First-class OpenCode integration using Poracode's native SDK runtime.`,
     docsUrl: "https://opencode.ai/docs/",
     installCommand: (project) =>
       nativeInstallCommand(project, {
@@ -113,7 +113,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "grok",
     label: "Grok Build",
-    description: msg`First-class Grok Build CLI integration using Lightcode's native runtime.`,
+    description: msg`First-class Grok Build CLI integration using Poracode's native runtime.`,
     docsUrl: "https://docs.x.ai/build/overview",
     installCommand: (project) =>
       nativeInstallCommand(project, {
@@ -130,7 +130,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "antigravity",
     label: "Antigravity",
-    description: msg`First-class Antigravity CLI integration using Lightcode's native runtime.`,
+    description: msg`First-class Antigravity CLI integration using Poracode's native runtime.`,
     docsUrl: "https://antigravity.google/docs/cli-getting-started",
     installCommand: (project) =>
       posixOrWindows(
@@ -143,7 +143,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "commandcode",
     label: "Command Code",
-    description: msg`First-class Command Code CLI integration using Lightcode's native runtime.`,
+    description: msg`First-class Command Code CLI integration using Poracode's native runtime.`,
     docsUrl: "https://commandcode.ai/docs/quickstart",
     installCommand: (project) =>
       nativeInstallCommand(project, {
@@ -160,7 +160,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "cursor",
     label: "Cursor",
-    description: msg`First-class Cursor Agent integration using Lightcode's native runtime.`,
+    description: msg`First-class Cursor Agent integration using Poracode's native runtime.`,
     docsUrl: "https://cursor.com/docs/cli/installation",
     installCommand: (project) =>
       posixOrWindows(
@@ -173,7 +173,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "gemini",
     label: "Gemini",
-    description: msg`First-class Gemini CLI integration using Lightcode's native runtime.`,
+    description: msg`First-class Gemini CLI integration using Poracode's native runtime.`,
     docsUrl: "https://github.com/google-gemini/gemini-cli",
     installCommand: (project) =>
       posixOrWindows(
@@ -187,7 +187,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
   {
     id: "copilot",
     label: "GitHub Copilot",
-    description: msg`First-class GitHub Copilot CLI integration using Lightcode's native runtime.`,
+    description: msg`First-class GitHub Copilot CLI integration using Poracode's native runtime.`,
     docsUrl:
       "https://docs.github.com/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli",
     installCommand: (project) =>

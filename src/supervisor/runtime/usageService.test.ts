@@ -428,6 +428,95 @@ describe("UsageService", () => {
     expect(snap?.rateLimitedUntil).toBe(NOW + 3 * 60_000 + 1800 * 1000);
   });
 
+  it("keeps last-good Claude usage when an idle auth probe reports missing auth", async () => {
+    let now = NOW;
+    let token: OAuthToken | undefined = { accessToken: "tok" };
+    const host: HostPort = {
+      now: () => now,
+      credentials: {
+        getOAuthToken: (id) => Promise.resolve(id === "claude" ? token : undefined),
+        getSecret: () => Promise.resolve(undefined),
+      },
+      http: {
+        request: () => Promise.resolve({ status: 200, headers: {}, body: CLAUDE_BODY }),
+      },
+    };
+    const service = new UsageService({ emit: () => {}, cachePath: tempCachePath(), host });
+
+    await service.refreshProviderUsage({ providerIds: ["claude"] });
+    token = undefined;
+    now = NOW + 3 * 60_000;
+    const refreshed = await service.refreshProviderUsage({ providerIds: ["claude"] });
+    const snap = refreshed.snapshots.find((s) => s.providerId === "claude");
+
+    expect(snap?.status).toBe("ok");
+    expect(snap?.fetchedAt).toBe(NOW);
+    expect(snap?.windows.find((w) => w.id === "session-5h")?.usedPercent).toBe(0.4);
+  });
+
+  it("still reports first-time Claude auth-missing when there is no last-good usage", async () => {
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      host: makeHost({}),
+    });
+
+    const refreshed = await service.refreshProviderUsage({ providerIds: ["claude"] });
+
+    expect(refreshed.snapshots[0]).toMatchObject({
+      providerId: "claude",
+      status: "auth-missing",
+      windows: [],
+    });
+  });
+
+  it("does not preserve auth-missing for non-Claude providers", async () => {
+    let authenticated = true;
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      host: makeHost({}),
+      localCollectors: [
+        {
+          id: "opencode",
+          collect: (nowMs): Promise<UsageSnapshot> =>
+            Promise.resolve(
+              authenticated
+                ? {
+                    providerId: "opencode",
+                    status: "ok",
+                    windows: [
+                      {
+                        id: "monthly",
+                        label: "Monthly",
+                        usedPercent: 42,
+                        unit: "percent",
+                      },
+                    ],
+                    fetchedAt: nowMs,
+                  }
+                : {
+                    providerId: "opencode",
+                    status: "auth-missing",
+                    windows: [],
+                    fetchedAt: nowMs,
+                  },
+            ),
+        },
+      ],
+    });
+
+    await service.refreshProviderUsage({ providerIds: ["opencode"] });
+    authenticated = false;
+    const refreshed = await service.refreshProviderUsage({ providerIds: ["opencode"] });
+
+    expect(refreshed.snapshots[0]).toMatchObject({
+      providerId: "opencode",
+      status: "auth-missing",
+      windows: [],
+    });
+  });
+
   it("applies the default cooldown when preserving a bare rate-limited snapshot", async () => {
     let now = NOW;
     let calls = 0;

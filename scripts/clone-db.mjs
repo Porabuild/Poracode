@@ -1,7 +1,7 @@
-// Clones the production Lightcode SQLite DB into the dev base dir so dev runs
+// Clones the production Poracode SQLite DB into the dev base dir so dev runs
 // start from real data. One-way (prod -> dev) by design; never the reverse.
 //
-// Source: ~/.lightcode/state.sqlite
+// Source: ~/.poracode/state.sqlite
 // Dest:   ~/.lightcode-dev/state.sqlite
 //
 // Uses SQLite's online backup API so it is safe to run while the production app
@@ -12,7 +12,7 @@ import { homedir } from "node:os";
 import { existsSync, mkdirSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const srcDir = join(homedir(), ".lightcode");
+const srcDir = join(homedir(), ".poracode");
 const destDir = join(homedir(), ".lightcode-dev");
 const srcPath = join(srcDir, "state.sqlite");
 const destPath = join(destDir, "state.sqlite");

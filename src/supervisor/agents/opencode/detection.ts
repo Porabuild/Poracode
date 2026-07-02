@@ -69,7 +69,7 @@ export const opencodeDefaultCapabilities: AgentCapability = {
       type: "toggle",
       env: {},
       label: "Use Browser",
-      description: "Expose Lightcode's internal browser to OpenCode via MCP.",
+      description: "Expose Poracode's internal browser to OpenCode via MCP.",
       default: OPENCODE_BROWSER_MCP_DEFAULT,
     },
   ],

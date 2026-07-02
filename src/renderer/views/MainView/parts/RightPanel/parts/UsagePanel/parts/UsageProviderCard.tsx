@@ -142,7 +142,7 @@ export function UsageProviderCard(props: {
               ) : null}
             </span>
             {collapsed && (!hasWindows || !snapshot) ? (
-              <span className="text-xs text-muted">{usageStatusText(snapshot, label)}</span>
+              <span className="text-xs text-muted">{usageStatusText(snapshot, label, id)}</span>
             ) : null}
           </span>
         </button>
@@ -198,7 +198,7 @@ export function UsageProviderCard(props: {
             </>
           ) : (
             <div className="space-y-2">
-              <p className="text-xs text-muted">{usageStatusText(snapshot, label)}</p>
+              <p className="text-xs text-muted">{usageStatusText(snapshot, label, id)}</p>
               {canSignIn && isApiKeyLogin ? (
                 <form onSubmit={onSubmitApiKey} className="flex items-center gap-1.5">
                   <input

@@ -916,7 +916,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             (await resolveExecutablePathAsync("claude"));
           if (!claudeExecutablePath) {
             throw new Error(
-              "Claude Code CLI not found on PATH. Install Claude Code (`npm i -g @anthropic-ai/claude-code` or via Homebrew) and restart Lightcode.",
+              "Claude Code CLI not found on PATH. Install Claude Code (`npm i -g @anthropic-ai/claude-code` or via Homebrew) and restart Poracode.",
             );
           }
           break;

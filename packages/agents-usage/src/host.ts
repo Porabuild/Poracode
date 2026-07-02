@@ -48,6 +48,13 @@ export interface OAuthToken {
 export interface CredentialStore {
   /** Primary access token for a provider, or undefined when not signed in. */
   getOAuthToken(providerId: string): Promise<OAuthToken | undefined>;
+  /**
+   * Return a fresh/fallback OAuth token after the provider rejected `token`.
+   * Optional: hosts that can refresh provider-native OAuth credentials implement
+   * it. Collectors may retry once or more with returned tokens, and should still
+   * degrade gracefully when omitted.
+   */
+  refreshOAuthToken?(providerId: string, token: OAuthToken): Promise<OAuthToken | undefined>;
   /** Generic secret (e.g. a captured session cookie) for cookie providers. */
   getSecret(providerId: string, key: string): Promise<string | undefined>;
   /**

@@ -2,6 +2,7 @@ import type { RefCallback } from "react";
 import { TerminalSquare, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
+import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 
 export type ThreadDraftDropIndicator =
@@ -108,9 +109,7 @@ export function ThreadDraftHero(props: { compact?: boolean | undefined }) {
         <h1
           className={`inline-flex items-baseline gap-3 overflow-visible pb-[0.12em] leading-[1.28] font-semibold tracking-normal ${props.compact ? "text-[clamp(1.375rem,2.75vw,1.875rem)]" : "text-[clamp(1.875rem,4.25vw,3.125rem)]"}`}
         >
-          <span className="inline-block pr-[0.04em] pb-[0.12em] text-transparent [background-image:linear-gradient(135deg,var(--foreground)_0%,color-mix(in_oklab,var(--accent)_60%,var(--foreground))_52%,var(--muted)_100%)] [background-size:100%_100%] bg-clip-text">
-            Lightcode
-          </span>
+          <BrandWordmark className="inline-block pr-[0.04em] pb-[0.12em]" />
         </h1>
       </div>
     </div>

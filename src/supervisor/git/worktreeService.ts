@@ -198,7 +198,7 @@ export class GitWorktreeService {
     const stashSha = carryChanges
       ? await this.pushTransferStash(
           location,
-          `Lightcode: ${keepChangesInSource ? "copy" : "move"} changes to ${branch ?? resolvedPath}`,
+          `Poracode: ${keepChangesInSource ? "copy" : "move"} changes to ${branch ?? resolvedPath}`,
         )
       : undefined;
 
@@ -490,7 +490,7 @@ export class GitWorktreeService {
   }
 
   /**
-   * Remove orphaned Lightcode-managed worktrees (registered but not in the
+   * Remove orphaned Poracode-managed worktrees (registered but not in the
    * active set). A worktree counts as managed only when it lives under one of
    * `managedRoots` — the resolved global root, the project-relative root, and the
    * legacy default. Per-project *custom* bases are intentionally excluded so we

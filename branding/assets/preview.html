@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Poracode — rendered assets</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Geist:wght@500;700&display=swap");
+      body {
+        margin: 0;
+        background: #070709;
+        color: #eaf0fb;
+        font-family: "Geist", "Inter", system-ui, sans-serif;
+        padding: 40px;
+      }
+      h1 {
+        font-size: 26px;
+        letter-spacing: -0.02em;
+        font-weight: 700;
+      }
+      h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: #7b7b8c;
+        margin: 34px 0 14px;
+      }
+      .row {
+        display: flex;
+        gap: 22px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      figure {
+        margin: 0;
+        text-align: center;
+      }
+      figcaption {
+        font-size: 11px;
+        color: #7b7b8c;
+        margin-top: 8px;
+        font-family: "Geist Mono", monospace;
+      }
+      .tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #1b1b24;
+        border: 1px solid #2a2a36;
+        border-radius: 9px 9px 0 0;
+        padding: 8px 14px;
+        font-size: 13px;
+        color: #c9cddb;
+      }
+      .light {
+        background: #eaf0fb;
+        padding: 22px;
+        border-radius: 14px;
+        display: inline-block;
+      }
+      .note {
+        color: #9ba6be;
+        font-size: 13px;
+        max-width: 700px;
+        line-height: 1.6;
+      }
+      .wm {
+        font-size: 42px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .wm .dot {
+        display: inline-block;
+        width: 0.24em;
+        height: 1em;
+        vertical-align: baseline;
+        fill: #8b7bff;
+        overflow: visible;
+        margin: 0 0.03em 0 0.1em;
+      }
+      .wm .c {
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Poracode — rendered production assets <span style="color: #8b7bff">(real PNGs)</span></h1>
+    <p class="note">
+      Rasterized from the SVG masters via <code>sharp</code>. Staged in
+      <code>branding/assets/out/</code>, ready for <code>build/</code> and
+      <code>website/public/</code>.
+    </p>
+
+    <h2>App icon — size ladder</h2>
+    <div class="row">
+      <figure>
+        <img src="out/build/icon-256.png" width="256" />
+        <figcaption>256</figcaption>
+      </figure>
+      <figure>
+        <img src="out/build/icon-128.png" width="128" />
+        <figcaption>128</figcaption>
+      </figure>
+      <figure>
+        <img src="out/build/icon-64.png" width="64" />
+        <figcaption>64</figcaption>
+      </figure>
+      <figure>
+        <img src="out/build/icon-48.png" width="48" />
+        <figcaption>48</figcaption>
+      </figure>
+      <figure>
+        <img src="out/build/icon-32.png" width="32" />
+        <figcaption>32</figcaption>
+      </figure>
+      <figure>
+        <img src="out/build/icon-16.png" width="16" />
+        <figcaption>16</figcaption>
+      </figure>
+    </div>
+
+    <h2>Light mode · Nightly channel</h2>
+    <div class="row">
+      <figure>
+        <span class="light"><img src="../assets/poracode-icon-light.svg" width="120" /></span>
+        <figcaption>light tile</figcaption>
+      </figure>
+      <figure>
+        <img src="out/build/icon-nightly-128.png" width="128" />
+        <figcaption>nightly (ice dot)</figcaption>
+      </figure>
+    </div>
+
+    <h2>In a browser tab (favicon)</h2>
+    <div class="row">
+      <span class="tab"
+        ><img src="out/website/favicon-48x48.png" width="16" height="16" /> Poracode — run Claude,
+        Codex &amp; Gemini</span
+      >
+    </div>
+
+    <h2>Logotype — baseline dot</h2>
+    <div class="row" style="align-items: center">
+      <img src="out/build/icon-64.png" width="64" />
+      <div class="wm">
+        Pora<svg class="dot" viewBox="0 0 24 100" aria-hidden="true">
+          <circle cx="12" cy="96" r="9" /></svg
+        ><span class="c">code</span>
+      </div>
+    </div>
+  </body>
+</html>

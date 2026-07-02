@@ -2,6 +2,22 @@
 @import "@heroui/styles";
 @import "@xterm/xterm/css/xterm.css";
 
+/* Poracode brand type — Geist (Vercel, SIL OFL), bundled for offline use. */
+@font-face {
+  font-family: "Geist";
+  src: url("./fonts/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("./fonts/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --lightcode-modal-radius: 0.7rem;
 }
@@ -839,7 +855,7 @@
        near-white default (~0.94) so these controls separate from the panel in
        light themes (~1.35:1 vs page) instead of vanishing into it. */
     --default: oklch(0.86 0.004 286);
-    --accent: oklch(0.62 0.11 245);
+    --accent: #6f5cf0;
     --accent-foreground: var(--snow);
     --success: oklch(0.45 0.16 150);
     --success-foreground: var(--snow);
@@ -866,34 +882,35 @@
   .dark,
   [data-theme="dark"] {
     color-scheme: dark;
-    --background: oklch(0.19 0.004 286);
-    --foreground: var(--snow);
-    --surface: oklch(0.22 0.004 286);
-    --surface-secondary: oklch(0.25 0.004 286);
-    --surface-tertiary: oklch(0.27 0.003 286);
-    --overlay: oklch(0.24 0.004 286);
-    --muted: oklch(0.66 0.01 286);
-    --scrollbar: oklch(0.4 0.01 286);
-    --default: oklch(0.28 0.004 286);
-    --accent: oklch(0.77 0.08 244);
-    --accent-foreground: oklch(0.18 0.004 286);
+    /* Poracode "moonlight" — dark/cool surfaces, indigo accent. */
+    --background: #070709;
+    --foreground: #eaf0fb;
+    --surface: #0e0e14;
+    --surface-secondary: #16161f;
+    --surface-tertiary: #1d1d28;
+    --overlay: #15151d;
+    --muted: #9ba6be;
+    --scrollbar: #3a3a48;
+    --default: #20202b;
+    --accent: #8b7bff;
+    --accent-foreground: #0a0a12;
     --danger: oklch(0.64 0.2 24.63);
     --danger-foreground: var(--snow);
-    --field-background: oklch(0.23 0.004 286);
-    --field-placeholder: oklch(0.54 0.01 286);
+    --field-background: #14141c;
+    --field-placeholder: #6b6b7b;
     --field-border: oklch(0.34 0.006 286 / 0.85);
-    --segment: oklch(0.36 0.006 286);
+    --segment: #2a2a36;
     --border: oklch(0.31 0.006 286 / 0.9);
     --separator: oklch(0.3 0.006 286 / 0.85);
 
     /* App-specific */
-    --sidebar-background: oklch(0.22 0.004 286);
-    --content-background: oklch(0.2 0.004 286);
+    --sidebar-background: #0e0e14;
+    --content-background: #0b0b11;
     /* Dark surfaces read muddier through heavy blur, so lean more on the theme
        color (higher alpha = less transparent) than the light default above. */
     --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 65%, transparent);
     --window-header-background: var(--sidebar-background);
-    --composer-surface: oklch(0.25 0.004 286);
+    --composer-surface: #16161f;
   }
 
   * {
@@ -974,7 +991,7 @@ body,
 }
 
 body {
-  font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+  font-family: "Geist", "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   background: var(--background);
   color: var(--foreground);
   overflow: hidden;

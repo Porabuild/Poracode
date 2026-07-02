@@ -19,6 +19,7 @@ const FIXTURE = {
   five_hour: { utilization: 21, resets_at: "2026-05-29T12:00:00Z" },
   seven_day: { utilization: 1, resets_at: "2026-06-01T00:00:00Z" },
   seven_day_opus: { utilization: 10, resets_at: "2026-06-01T00:00:00Z" },
+  seven_day_fable: { utilization: 25, resets_at: "2026-06-01T00:00:00Z" },
   extra_usage: {
     is_enabled: true,
     monthly_limit: 25000,
@@ -45,6 +46,7 @@ describe("parseClaudeUsage", () => {
     expect(session?.resetsAt).toBe(Date.parse("2026-05-29T12:00:00Z"));
     expect(snap.windows.find((w) => w.id === "weekly")?.usedPercent).toBe(1);
     expect(snap.windows.find((w) => w.id === "weekly-opus")?.usedPercent).toBe(10);
+    expect(snap.windows.find((w) => w.id === "weekly-fable")?.usedPercent).toBe(25);
     // extra_usage is pay-as-you-go overage, surfaced as a dollar "extra-usage"
     // line — never as a "monthly" rate window.
     expect(snap.windows.find((w) => w.id === "monthly")).toBeUndefined();
@@ -61,6 +63,7 @@ describe("parseClaudeUsage", () => {
   it("omits windows the API does not report", () => {
     const snap = parseClaudeUsage({ five_hour: { utilization: 0.1 } }, FAKE_NOW_MS);
     expect(snap.windows.map((w) => w.id)).toEqual(["session-5h"]);
+    expect(snap.windows.find((w) => w.id === "weekly-fable")).toBeUndefined();
   });
 
   it("treats session utilization as a direct percentage", () => {
@@ -78,6 +81,16 @@ describe("parseClaudeUsage", () => {
     );
     expect(snap.windows.find((w) => w.id === "weekly")?.usedPercent).toBe(1);
     expect(snap.windows.find((w) => w.id === "weekly-sonnet")?.usedPercent).toBe(0.5);
+  });
+
+  it("accepts the alternate Fable weekly usage field name", () => {
+    const snap = parseClaudeUsage(
+      { seven_day_fable_5: { utilization: 17, resets_at: "2026-06-01T00:00:00Z" } },
+      FAKE_NOW_MS,
+    );
+    const fable = snap.windows.find((w) => w.id === "weekly-fable");
+    expect(fable?.label).toBe("Weekly (Fable)");
+    expect(fable?.usedPercent).toBe(17);
   });
 });
 
@@ -123,6 +136,61 @@ describe("collectClaude", () => {
       }),
     );
     expect(unauth.status).toBe("auth-missing");
+  });
+
+  it("refreshes and retries once after a 401 before reporting auth-missing", async () => {
+    const authorizations: string[] = [];
+    const host = createFakeHost({
+      tokens: { claude: { accessToken: "old", refreshToken: "refresh", subscriptionType: "max" } },
+      refreshOAuthToken: async (_providerId, token) =>
+        token.accessToken === "old"
+          ? { accessToken: "fresh", refreshToken: "rotated", subscriptionType: "max" }
+          : undefined,
+    });
+    host.http.request = (req) => {
+      if (req.headers?.Authorization) authorizations.push(req.headers.Authorization);
+      return Promise.resolve(
+        req.headers?.Authorization === "Bearer old"
+          ? { status: 401, headers: {}, body: "{}" }
+          : { status: 200, headers: {}, body: JSON.stringify(FIXTURE) },
+      );
+    };
+
+    const snap = await collectClaude(host);
+
+    expect(snap.status).toBe("ok");
+    expect(snap.plan).toBe("Max Subscription");
+    expect(authorizations).toEqual(["Bearer old", "Bearer fresh"]);
+  });
+
+  it("also refreshes and retries after a 403", async () => {
+    const host = createFakeHost({
+      tokens: { claude: { accessToken: "old", refreshToken: "refresh" } },
+      refreshOAuthToken: async () => ({ accessToken: "fresh" }),
+    });
+    host.http.request = (req) =>
+      Promise.resolve(
+        req.headers?.Authorization === "Bearer old"
+          ? { status: 403, headers: {}, body: "{}" }
+          : { status: 200, headers: {}, body: JSON.stringify(FIXTURE) },
+      );
+
+    const snap = await collectClaude(host);
+
+    expect(snap.status).toBe("ok");
+  });
+
+  it("reports auth-missing when refresh returns the same rejected token", async () => {
+    const host = createFakeHost({
+      tokens: { claude: { accessToken: "old", refreshToken: "refresh" } },
+      refreshOAuthToken: async (_providerId, token) => token,
+      routes: { [CLAUDE_USAGE_ENDPOINT]: { status: 401 } },
+    });
+
+    const snap = await collectClaude(host);
+
+    expect(snap.status).toBe("auth-missing");
+    expect(snap.error).toBe("access token rejected (401)");
   });
 
   it("honors a Retry-After header on a 429 (backoff until the server says)", async () => {

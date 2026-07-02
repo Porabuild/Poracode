@@ -49,7 +49,7 @@ not localized — only the surrounding app UI chrome is).
 
 ## Step 1 — Gather source material
 
-Resolve the repo slug from the remote (default `SDSLeon/lightcode`):
+Resolve the repo slug from the remote (default `poracode/poracode`):
 
 ```bash
 gh repo view --json nameWithOwner -q .nameWithOwner

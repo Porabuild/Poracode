@@ -23,7 +23,7 @@ export function configureSecretStorageKey(rawKey: string | undefined): void {
   if (!rawKey) return;
   const key = Buffer.from(rawKey, "base64");
   if (key.length !== 32) {
-    throw new Error("Invalid Lightcode secret key.");
+    throw new Error("Invalid Poracode secret key.");
   }
   configuredSecretKey = key;
 }
@@ -34,7 +34,7 @@ function readSecretKey(): Buffer {
     testFallbackSecretKey ??= randomBytes(32);
     return testFallbackSecretKey;
   }
-  throw new Error("Lightcode secret storage key is not initialized.");
+  throw new Error("Poracode secret storage key is not initialized.");
 }
 
 export function encryptSecret(_baseDir: string, value: string): string {

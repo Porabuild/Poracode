@@ -15,20 +15,20 @@ describe("buildBrowserUserAgent", () => {
   it("keeps the app product token before Chrome (Google rejects a bare Chrome UA from an embedded browser)", () => {
     expect(
       buildBrowserUserAgent(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Lightcode/1.3.2 Chrome/146.0.0.0 Electron/41.7.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Poracode/1.3.2 Chrome/146.0.0.0 Electron/41.7.0 Safari/537.36",
       ),
     ).toBe(
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Lightcode/1.3.2 Chrome/146.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Poracode/1.3.2 Chrome/146.0.0.0 Safari/537.36",
     );
   });
 
-  it("preserves a channel-suffixed app token such as Lightcode Nightly", () => {
+  it("preserves a channel-suffixed app token such as Poracode Nightly", () => {
     expect(
       buildBrowserUserAgent(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Lightcode Nightly/1.3.2 Chrome/146.0.0.0 Electron/41.7.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Poracode Nightly/1.3.2 Chrome/146.0.0.0 Electron/41.7.0 Safari/537.36",
       ),
     ).toBe(
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Lightcode Nightly/1.3.2 Chrome/146.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Poracode Nightly/1.3.2 Chrome/146.0.0.0 Safari/537.36",
     );
   });
 });

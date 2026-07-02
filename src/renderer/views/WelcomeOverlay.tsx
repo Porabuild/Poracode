@@ -8,6 +8,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWelcomeGateStore, WELCOME_SEEN_STORAGE_KEY } from "@/renderer/state/welcomeGateStore";
 import { readStoredBoolean, writeStoredBoolean } from "@/renderer/utils/localStorage";
+import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
 import { CreateProjectMenu } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu";
 import { WELCOME_BACKGROUND_CODE } from "./welcomeBackgroundCode";
 import appIconUrl from "../../../build/icon.png";
@@ -207,9 +208,7 @@ export function WelcomeOverlay() {
             }`}
           >
             <h1 className="flex items-baseline gap-3 overflow-visible pr-[0.22em] pb-[0.2em] text-[clamp(3.25rem,8vw,6.25rem)] leading-[1.28] font-semibold tracking-normal">
-              <span className="inline-block pr-[0.04em] pb-[0.12em] text-transparent [background-image:linear-gradient(135deg,var(--foreground)_0%,color-mix(in_oklab,var(--accent)_60%,var(--foreground))_52%,var(--muted)_100%)] [background-size:100%_100%] bg-clip-text">
-                Lightcode
-              </span>
+              <BrandWordmark className="inline-block pr-[0.04em] pb-[0.12em]" />
             </h1>
             <p className="text-sm text-muted">
               <Trans>Where do you want to begin?</Trans>

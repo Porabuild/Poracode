@@ -265,7 +265,7 @@ export async function installRuntimeIntoDistro(
     throw new Error(`could not resolve $HOME inside WSL distro "${distro}"`);
   }
 
-  const linuxRuntimeDir = `${home}/.lightcode/runtime`;
+  const linuxRuntimeDir = `${home}/.poracode/runtime`;
   const versionedDirName = nodeArchiveDirName(target);
   const linuxNodePath = `${linuxRuntimeDir}/${versionedDirName}/bin/node`;
   const uncNodePath = toWslUncPath(distro, linuxNodePath);

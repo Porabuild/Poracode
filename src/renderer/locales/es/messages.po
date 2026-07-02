@@ -1454,8 +1454,8 @@ msgstr "Elige cómo iniciar sesión."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose the display language for Lightcode's interface."
-msgstr "Elige el idioma de visualización de la interfaz de Lightcode."
+msgid "Choose the display language for Poracode's interface."
+msgstr "Elige el idioma de visualización de la interfaz de Poracode."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
@@ -1463,10 +1463,10 @@ msgstr "Elige el hilo al que adjuntar"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose whether links from Lightcode and browser popups stay in Lightcode "
+msgid "Choose whether links from Poracode and browser popups stay in Poracode "
 "or open externally."
-msgstr "Elige si los enlaces de Lightcode y las ventanas emergentes del "
-"navegador permanecen en Lightcode o se abren de forma externa."
+msgstr "Elige si los enlaces de Poracode y las ventanas emergentes del "
+"navegador permanecen en Poracode o se abren de forma externa."
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
@@ -3001,54 +3001,52 @@ msgid "Finished · Waiting for your input"
 msgstr "Finalizado · Esperando tu entrada"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Antigravity CLI integration using Lightcode's native "
-"runtime."
+msgid "First-class Antigravity CLI integration using Poracode's native runtime."
 msgstr "Integración de primera clase de Antigravity CLI usando el runtime "
-"nativo de Lightcode."
+"nativo de Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Claude Code integration using Lightcode's native SDK "
-"runtime."
+msgid "First-class Claude Code integration using Poracode's native SDK runtime."
 msgstr "Integración de primera clase de Claude Code usando el runtime nativo "
-"del SDK de Lightcode."
+"del SDK de Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Codex CLI integration using Lightcode's native app-server "
+msgid "First-class Codex CLI integration using Poracode's native app-server "
 "runtime."
 msgstr "Integración de primera clase de Codex CLI usando el runtime nativo de "
-"app-server de Lightcode."
+"app-server de Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Command Code CLI integration using Lightcode's native "
+msgid "First-class Command Code CLI integration using Poracode's native "
 "runtime."
 msgstr "Integración de primera clase de Command Code CLI usando el runtime "
-"nativo de Lightcode."
+"nativo de Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Cursor Agent integration using Lightcode's native runtime."
+msgid "First-class Cursor Agent integration using Poracode's native runtime."
 msgstr "Integración de primera clase de Cursor Agent usando el runtime nativo "
-"de Lightcode."
+"de Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Gemini CLI integration using Lightcode's native runtime."
+msgid "First-class Gemini CLI integration using Poracode's native runtime."
 msgstr "Integración de primera clase de Gemini CLI usando el runtime nativo de "
-"Lightcode."
+"Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+msgid "First-class GitHub Copilot CLI integration using Poracode's native "
 "runtime."
 msgstr "Integración de primera clase de GitHub Copilot CLI usando el runtime "
-"nativo de Lightcode."
+"nativo de Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
+msgid "First-class Grok Build CLI integration using Poracode's native runtime."
 msgstr "Integración de primera clase de Grok Build CLI usando el runtime nativo "
-"de Lightcode."
+"de Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class OpenCode integration using Lightcode's native SDK runtime."
+msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Integración de primera clase de OpenCode usando el runtime nativo del "
-"SDK de Lightcode."
+"SDK de Poracode."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
@@ -5146,9 +5144,9 @@ msgstr "Apunta este perfil a un proveedor distinto de Anthropic (z.ai, …) con 
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
+msgid "Popular editor themes adapted to Poracode. Each follows the light or "
 "dark mode above."
-msgstr "Temas populares de editores adaptados a Lightcode. Cada uno sigue el "
+msgstr "Temas populares de editores adaptados a Poracode. Cada uno sigue el "
 "modo claro u oscuro de arriba."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -5331,9 +5329,9 @@ msgid "Pull ↓{behind}"
 msgstr "Pull ↓{behind}"
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "Pull did not complete. Your local changes remain in a Lightcode stash."
+msgid "Pull did not complete. Your local changes remain in a Poracode stash."
 msgstr "El pull no se completó. Tus cambios locales permanecen en un stash de "
-"Lightcode."
+"Poracode."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pull failed: {detail}"
@@ -7164,9 +7162,9 @@ msgstr "Este hilo usa el worktree <0>{0}</0>. ¿Eliminar también el directorio 
 
 #. placeholder {0}: activeDialog.sourceBranch
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
-msgid "This worktree has local changes. Lightcode can temporarily stash them, "
+msgid "This worktree has local changes. Poracode can temporarily stash them, "
 "pull from {0}, then re-apply your changes."
-msgstr "Este worktree tiene cambios locales. Lightcode puede guardarlos "
+msgstr "Este worktree tiene cambios locales. Poracode puede guardarlos "
 "temporalmente en el stash, extraer de {0} y luego volver a aplicar tus "
 "cambios."
 
@@ -7793,9 +7791,9 @@ msgstr "Usar archivos ignore"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at "
-".lightcode/worktrees."
+".poracode/worktrees."
 msgstr "Usa una sola carpeta global o anida los worktrees dentro de cada "
-"proyecto en .lightcode/worktrees."
+"proyecto en .poracode/worktrees."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
@@ -7990,8 +7988,8 @@ msgid "What's New"
 msgstr "Novedades"
 
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
-msgid "What's new in Lightcode, newest first."
-msgstr "Novedades en Lightcode, las más recientes primero."
+msgid "What's new in Poracode, newest first."
+msgstr "Novedades en Poracode, las más recientes primero."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."
@@ -8000,9 +7998,9 @@ msgstr "Cuando está activado, la búsqueda respeta las entradas de "
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "When links open in a Lightcode browser tab, choose where the browser is "
+msgid "When links open in a Poracode browser tab, choose where the browser is "
 "revealed."
-msgstr "Cuando los enlaces se abren en una pestaña del navegador de Lightcode, "
+msgstr "Cuando los enlaces se abren en una pestaña del navegador de Poracode, "
 "elige dónde se muestra el navegador."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -8019,10 +8017,10 @@ msgstr "Cuándo mostrar avisos dentro de la app para los hilos visibles."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "When you close the window, keep Lightcode running in the system tray. "
+msgid "When you close the window, keep Poracode running in the system tray. "
 "Disable to quit on close."
-msgstr "Cuando cierres la ventana, mantener Lightcode en ejecución en la "
-"bandeja del sistema. Desactívalo para salir al cerrar."
+msgstr "Cuando cierres la ventana, mantener Poracode en ejecución en la bandeja "
+"del sistema. Desactívalo para salir al cerrar."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -8037,9 +8035,9 @@ msgid "Where do you want to begin?"
 msgstr "¿Por dónde quieres empezar?"
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
-msgid "Where Lightcode creates git worktrees for new branches. Changes apply to "
+msgid "Where Poracode creates git worktrees for new branches. Changes apply to "
 "worktrees created from now on; existing worktrees stay where they are."
-msgstr "Dónde crea Lightcode los worktrees de git para las nuevas ramas. Los "
+msgstr "Dónde crea Poracode los worktrees de git para las nuevas ramas. Los "
 "cambios se aplican a los worktrees creados a partir de ahora; los "
 "worktrees existentes permanecen donde están."
 

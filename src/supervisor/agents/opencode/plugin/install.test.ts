@@ -71,7 +71,7 @@ describe("installOpenCodePlugin", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    // Lightcode-side staging
+    // Poracode-side staging
     expect(existsSync(join(result.paths.pluginDir, "plugin.json"))).toBe(true);
     expect(existsSync(join(result.paths.pluginDir, "lightcode-status.mjs"))).toBe(true);
 
@@ -121,7 +121,7 @@ describe("installOpenCodePlugin", () => {
 
     const config = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>;
     expect(config.theme).toBe("dark");
-    // Lightcode entry removed; user's other plugin entry is preserved.
+    // Poracode entry removed; user's other plugin entry is preserved.
     expect(config.plugin).toEqual(["@warp-dot-dev/opencode-warp"]);
   });
 

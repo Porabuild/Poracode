@@ -5,7 +5,7 @@ import { z } from "zod";
  *
  * These power the Profile page (a Codex/Synara-style identity + usage dashboard)
  * and are deliberately shaped to survive the jump from LOCAL-only aggregation to
- * the future Lightcode Cloud, where the same stats are synced and merged across
+ * the future Poracode Cloud, where the same stats are synced and merged across
  * a user's devices.
  *
  * Cloud-readiness rules baked into the model:

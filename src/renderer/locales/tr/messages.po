@@ -1449,8 +1449,8 @@ msgstr "Nasıl oturum açılacağını seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose the display language for Lightcode's interface."
-msgstr "Lightcode'un arayüzü için görüntüleme dilini seçin."
+msgid "Choose the display language for Poracode's interface."
+msgstr "Poracode'un arayüzü için görüntüleme dilini seçin."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
@@ -1458,10 +1458,10 @@ msgstr "Eklenecek konuyu seçin"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose whether links from Lightcode and browser popups stay in Lightcode "
+msgid "Choose whether links from Poracode and browser popups stay in Poracode "
 "or open externally."
-msgstr "Lightcode ve tarayıcı açılır pencerelerindeki bağlantıların "
-"Lightcode'da mı kalacağını yoksa harici olarak mı açılacağını seçin."
+msgstr "Poracode ve tarayıcı açılır pencerelerindeki bağlantıların Poracode'da "
+"mı kalacağını yoksa harici olarak mı açılacağını seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
@@ -2994,53 +2994,51 @@ msgid "Finished · Waiting for your input"
 msgstr "Bitti · Girişinizi bekliyorum"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Antigravity CLI integration using Lightcode's native "
-"runtime."
-msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Antigravity "
+msgid "First-class Antigravity CLI integration using Poracode's native runtime."
+msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Antigravity "
 "CLI entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Claude Code integration using Lightcode's native SDK "
-"runtime."
-msgstr "Lightcode'un yerel SDK çalışma zamanını kullanan birinci sınıf Claude "
+msgid "First-class Claude Code integration using Poracode's native SDK runtime."
+msgstr "Poracode'un yerel SDK çalışma zamanını kullanan birinci sınıf Claude "
 "Code entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Codex CLI integration using Lightcode's native app-server "
+msgid "First-class Codex CLI integration using Poracode's native app-server "
 "runtime."
-msgstr "Lightcode'un yerel uygulama sunucusu çalışma zamanını kullanan birinci "
+msgstr "Poracode'un yerel uygulama sunucusu çalışma zamanını kullanan birinci "
 "sınıf Codex CLI entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Command Code CLI integration using Lightcode's native "
+msgid "First-class Command Code CLI integration using Poracode's native "
 "runtime."
-msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Command Code "
+msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Command Code "
 "CLI entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Cursor Agent integration using Lightcode's native runtime."
-msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Cursor Agent "
+msgid "First-class Cursor Agent integration using Poracode's native runtime."
+msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Cursor Agent "
 "entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Gemini CLI integration using Lightcode's native runtime."
-msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Gemini CLI "
+msgid "First-class Gemini CLI integration using Poracode's native runtime."
+msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Gemini CLI "
 "entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class GitHub Copilot CLI integration using Lightcode's native "
+msgid "First-class GitHub Copilot CLI integration using Poracode's native "
 "runtime."
-msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf GitHub "
+msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf GitHub "
 "Copilot CLI entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Grok Build CLI integration using Lightcode's native runtime."
-msgstr "Lightcode'un yerel çalışma zamanını kullanan birinci sınıf Grok Build "
+msgid "First-class Grok Build CLI integration using Poracode's native runtime."
+msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Grok Build "
 "CLI entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class OpenCode integration using Lightcode's native SDK runtime."
-msgstr "Lightcode'un yerel SDK çalışma zamanını kullanan birinci sınıf OpenCode "
+msgid "First-class OpenCode integration using Poracode's native SDK runtime."
+msgstr "Poracode'un yerel SDK çalışma zamanını kullanan birinci sınıf OpenCode "
 "entegrasyonu."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
@@ -5131,10 +5129,10 @@ msgstr "Bu profili özel ortam değişkenleri, model adları ve efor düzeyleriy
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Popular editor themes adapted to Lightcode. Each follows the light or "
+msgid "Popular editor themes adapted to Poracode. Each follows the light or "
 "dark mode above."
-msgstr "Lightcode'a uyarlanmış popüler editör temaları. Her biri yukarıdaki "
-"açık veya karanlık modunu takip eder."
+msgstr "Poracode'a uyarlanmış popüler editör temaları. Her biri yukarıdaki açık "
+"veya karanlık modunu takip eder."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "PR actions"
@@ -5314,8 +5312,8 @@ msgid "Pull ↓{behind}"
 msgstr "Çek ↓{behind}"
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "Pull did not complete. Your local changes remain in a Lightcode stash."
-msgstr "Çekme tamamlanmadı. Yerel değişiklikleriniz bir Lightcode zulasında "
+msgid "Pull did not complete. Your local changes remain in a Poracode stash."
+msgstr "Çekme tamamlanmadı. Yerel değişiklikleriniz bir Poracode zulasında "
 "(stash) kalır."
 
 #: src/renderer/i18n/sharedMessages.ts
@@ -7143,9 +7141,9 @@ msgstr "Bu iş parçacığı <0>{0}</0> çalışma ağacını kullanıyor. Ayrı
 
 #. placeholder {0}: activeDialog.sourceBranch
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
-msgid "This worktree has local changes. Lightcode can temporarily stash them, "
+msgid "This worktree has local changes. Poracode can temporarily stash them, "
 "pull from {0}, then re-apply your changes."
-msgstr "Bu çalışma ağacında yerel değişiklikler var. Lightcode bunları geçici "
+msgstr "Bu çalışma ağacında yerel değişiklikler var. Poracode bunları geçici "
 "olarak saklayabilir, {0} öğesinden çekebilir ve ardından "
 "değişikliklerinizi yeniden uygulayabilir."
 
@@ -7771,9 +7769,9 @@ msgstr "Yoksayılan dosyaları kullan"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at "
-".lightcode/worktrees."
+".poracode/worktrees."
 msgstr "Tek bir genel klasör kullanın veya çalışma ağaçlarını her projenin "
-"içinde .lightcode/worktrees altında iç içe yerleştirin."
+"içinde .poracode/worktrees altında iç içe yerleştirin."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
@@ -7968,8 +7966,8 @@ msgid "What's New"
 msgstr "Yenilikler"
 
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
-msgid "What's new in Lightcode, newest first."
-msgstr "Lightcode'daki yenilikler, en yeniden başlayarak."
+msgid "What's new in Poracode, newest first."
+msgstr "Poracode'daki yenilikler, en yeniden başlayarak."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."
@@ -7977,9 +7975,9 @@ msgstr "Etkinleştirildiğinde, arama <0>.gitignore</0> girişlerine saygı duya
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "When links open in a Lightcode browser tab, choose where the browser is "
+msgid "When links open in a Poracode browser tab, choose where the browser is "
 "revealed."
-msgstr "Bağlantılar Lightcode tarayıcı sekmesinde açıldığında, tarayıcının "
+msgstr "Bağlantılar Poracode tarayıcı sekmesinde açıldığında, tarayıcının "
 "nerede görüntüleneceğini seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -7996,9 +7994,9 @@ msgstr "Görünür konular için uygulama içi bildirimlerin ne zaman "
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "When you close the window, keep Lightcode running in the system tray. "
+msgid "When you close the window, keep Poracode running in the system tray. "
 "Disable to quit on close."
-msgstr "Pencereyi kapattığınızda Lightcode'u sistem tepsisinde çalışır durumda "
+msgstr "Pencereyi kapattığınızda Poracode'u sistem tepsisinde çalışır durumda "
 "tutun. Kapatınca çıkmak için devre dışı bırakın."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8013,11 +8011,11 @@ msgid "Where do you want to begin?"
 msgstr "Nereden başlamak istiyorsunuz?"
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
-msgid "Where Lightcode creates git worktrees for new branches. Changes apply to "
+msgid "Where Poracode creates git worktrees for new branches. Changes apply to "
 "worktrees created from now on; existing worktrees stay where they are."
-msgstr "Lightcode'un yeni dallar için git çalışma ağaçlarını nerede "
-"oluşturduğu. Değişiklikler bundan sonra oluşturulan çalışma ağaçları "
-"için geçerlidir; mevcut çalışma ağaçları olduğu yerde kalır."
+msgstr "Poracode'un yeni dallar için git çalışma ağaçlarını nerede oluşturduğu. "
+"Değişiklikler bundan sonra oluşturulan çalışma ağaçları için "
+"geçerlidir; mevcut çalışma ağaçları olduğu yerde kalır."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx

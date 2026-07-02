@@ -104,7 +104,7 @@ export function NightlyContent({ release }: { release: ReleaseInfo }) {
             <span className="text-[11px] font-semibold tracking-[0.14em] uppercase">Nightly</span>
           </div>
 
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Lightcode Nightly</h1>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Poracode Nightly</h1>
 
           {hasBuild ? (
             <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">

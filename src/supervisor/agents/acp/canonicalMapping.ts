@@ -2,7 +2,7 @@
  * Generic ACP → canonical RuntimeEvent mapper.
  *
  * This is the SINGLE source of truth for translating ACP protocol messages
- * (`@agentclientprotocol/sdk`) into Lightcode's canonical chat events. It is
+ * (`@agentclientprotocol/sdk`) into Poracode's canonical chat events. It is
  * consumed by every ACP-speaking adapter — Copilot, future Gemini-ACP,
  * user-registered generic-ACP instances, and the `codex-acp` Rust shim.
  *

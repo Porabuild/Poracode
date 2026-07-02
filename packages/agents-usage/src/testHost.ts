@@ -19,6 +19,8 @@ export interface FakeHostConfig {
   routes?: Record<string, FakeRoute>;
   /** Observe each outbound request (e.g. to assert headers). */
   onRequest?: (req: HttpRequest) => void;
+  /** Return a fresh/fallback OAuth token after a collector sees token rejection. */
+  refreshOAuthToken?: (providerId: string, token: OAuthToken) => Promise<OAuthToken | undefined>;
   /** Observe `setSecret` writes (e.g. to assert a rotated token was persisted). */
   onSetSecret?: (providerId: string, key: string, value: string) => void;
 }
@@ -34,6 +36,7 @@ export function createFakeHost(config: FakeHostConfig = {}): HostPort {
     now: () => now,
     credentials: {
       getOAuthToken: (id) => Promise.resolve(config.tokens?.[id]),
+      ...(config.refreshOAuthToken ? { refreshOAuthToken: config.refreshOAuthToken } : {}),
       getSecret: (id, key) => Promise.resolve(secrets[id]?.[key]),
       setSecret: (id, key, value) => {
         (secrets[id] ??= {})[key] = value;

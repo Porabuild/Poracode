@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe("readKeybindingsFile", () => {
-  it("creates the default Lightcode keybinding file when missing", () => {
+  it("creates the default Poracode keybinding file when missing", () => {
     tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
 

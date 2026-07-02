@@ -168,7 +168,7 @@ export class GitMergeService {
       "push",
       "-u",
       "-m",
-      `Lightcode: before pull from ${sourceBranch}`,
+      `Poracode: before pull from ${sourceBranch}`,
     ]);
 
     const result = await this.pullFromSourceClean(worktreeLocation, sourceBranch);

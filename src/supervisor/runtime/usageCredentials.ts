@@ -1,6 +1,6 @@
 import type { CredentialStore } from "@lightcode/agents-usage";
 import { getUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
-import { resolveClaudeToken } from "./claudeCredentials";
+import { refreshRejectedClaudeToken, resolveClaudeToken } from "./claudeCredentials";
 import { resolveCodexToken } from "./codexCredentials";
 import { resolveCopilotToken } from "./copilotCredentials";
 import { resolveCursorToken } from "./cursorCredentials";
@@ -42,6 +42,14 @@ export function createNativeCredentialStore(cacheDir?: string): CredentialStore 
           return resolveFactoryCliToken();
         case "zai":
           return resolveZaiToken();
+        default:
+          return undefined;
+      }
+    },
+    refreshOAuthToken: async (providerId, token) => {
+      switch (providerId) {
+        case "claude":
+          return refreshRejectedClaudeToken(token);
         default:
           return undefined;
       }

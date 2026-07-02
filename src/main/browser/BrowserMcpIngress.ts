@@ -147,7 +147,7 @@ export class BrowserMcpIngress {
           res.setHeader("Access-Control-Allow-Origin", origin);
           res.setHeader(
             "Access-Control-Allow-Headers",
-            "Authorization, X-Lightcode-Token, Content-Type, Mcp-Session-Id",
+            "Authorization, X-Poracode-Token, Content-Type, Mcp-Session-Id",
           );
           res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
         }

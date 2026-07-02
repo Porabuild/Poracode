@@ -285,7 +285,7 @@ export class SupervisorRuntime {
     const rawBaseDir = process.env.LIGHTCODE_DATA_DIR?.trim();
     const envBaseDir =
       rawBaseDir && rawBaseDir !== "undefined" && isAbsolute(rawBaseDir) ? rawBaseDir : undefined;
-    const baseDir = envBaseDir ?? join(homedir(), ".lightcode");
+    const baseDir = envBaseDir ?? join(homedir(), ".poracode");
     this.baseDir = baseDir;
     const paths = resolveLightcodePaths(baseDir);
     this.logsDir = paths.terminalLogsDir;
@@ -1136,7 +1136,7 @@ export class SupervisorRuntime {
   }
 
   /**
-   * The worktree roots Lightcode considers "managed" for prune: the built-in
+   * The worktree roots Poracode considers "managed" for prune: the built-in
    * default, the resolved global root (custom base or project-relative), and the
    * project-relative root. Per-project custom bases are excluded on purpose so we
    * never auto-delete a user-chosen directory.

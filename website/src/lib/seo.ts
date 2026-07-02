@@ -22,21 +22,21 @@ const OG_LOCALE: Record<Locale, string> = {
   "zh-CN": "zh_CN",
 };
 
-export const SITE_NAME = "Lightcode";
-export const SITE_URL = "https://lightcodeapp.com";
-export const GITHUB_URL = "https://github.com/SDSLeon/lightcode";
+export const SITE_NAME = "Poracode";
+export const SITE_URL = "https://poracode.com";
+export const GITHUB_URL = "https://github.com/poracode/poracode";
 export const SOCIAL_IMAGE_PATH = "/hero-screenshot.png";
 export const SOCIAL_IMAGE_ALT =
-  "Lightcode desktop app showing AI coding agents running side by side";
+  "Poracode desktop app showing AI coding agents running side by side";
 
-export const SITE_TITLE = "Lightcode - AI Coding Agent Desktop for Claude Code, Codex & Gemini";
+export const SITE_TITLE = "Poracode - AI Coding Agent Desktop for Claude Code, Codex & Gemini";
 export const SITE_DESCRIPTION =
-  "Lightcode is an open-source desktop app for running Claude Code, Codex, Gemini, Cursor, OpenCode, and ACP agents side by side with terminals, diffs, browser previews, worktrees, and PRs.";
+  "Poracode is an open-source desktop app for running Claude Code, Codex, Gemini, Cursor, OpenCode, and ACP agents side by side with terminals, diffs, browser previews, worktrees, and PRs.";
 
 export const SEO_KEYWORDS = [
-  "Lightcode",
-  "Lightcode app",
-  "Lightcode desktop app",
+  "Poracode",
+  "Poracode app",
+  "Poracode desktop app",
   "AI coding agents",
   "Claude Code desktop app",
   "Codex desktop app",
@@ -150,14 +150,14 @@ export function createHomeJsonLd(release: ReleaseInfo, locale: Locale = DEFAULT_
     "@id": `${SITE_URL}/#software`,
     name: SITE_NAME,
     // Brand aliases help Google disambiguate the app from the unrelated
-    // "Lightcode" music project and other software firms ranking for the term,
-    // and tie the entity to the lightcodeapp.com domain-match query.
+    // "Poracode" music project and other software firms ranking for the term,
+    // and tie the entity to the poracode.com domain-match query.
     alternateName: [
-      "Lightcode App",
-      "Lightcode Desktop",
-      "Lightcode Desktop App",
-      "Lightcode AI Agent Orchestrator",
-      "lightcodeapp.com",
+      "Poracode App",
+      "Poracode Desktop",
+      "Poracode Desktop App",
+      "Poracode AI Agent Orchestrator",
+      "poracode.com",
     ],
     applicationCategory: "DeveloperApplication",
     applicationSubCategory: "AI coding assistant workspace",

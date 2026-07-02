@@ -424,7 +424,7 @@ describe("applyClaudeProfileEnvironment", () => {
       id: "glm",
       driver: "claude",
       displayName: "GLM",
-      config: { configDir: "~/.lightcode/claude-profiles/glm" },
+      config: { configDir: "~/.poracode/claude-profiles/glm" },
       ...(environment ? { environment } : {}),
     };
     return { ...defaultSharedSettings, agentInstances: { glm: instance } };

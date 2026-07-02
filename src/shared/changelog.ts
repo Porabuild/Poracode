@@ -7,7 +7,7 @@ import { z } from "zod";
  * truth — `website/public/changelog.json` on master — served by the marketing
  * site and fetched at runtime:
  *
- *   https://lightcodeapp.com/changelog.json
+ *   https://poracode.com/changelog.json
  *
  * so the notes can be edited, reworded, or extended by committing to master
  * (Vercel redeploys the site) without shipping a new app build. The desktop app
@@ -16,7 +16,7 @@ import { z } from "zod";
  * carries the shape + the pure helpers.
  */
 
-export const CHANGELOG_URL = "https://lightcodeapp.com/changelog.json";
+export const CHANGELOG_URL = "https://poracode.com/changelog.json";
 
 export type ChangelogChangeKind = "added" | "improved" | "fixed";
 

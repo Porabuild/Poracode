@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Claude Code lifecycle hook forwarder for Lightcode.
+ * Claude Code lifecycle hook forwarder for Poracode.
  *
  * Invoked by Claude on each subscribed hook event with:
  *   argv[2] = hook event name (e.g. "UserPromptSubmit")
  *   stdin   = JSON payload from Claude
  *
  * Reads `LIGHTCODE_HOOK_URL`, `LIGHTCODE_HOOK_SECRET`, etc. from env, builds
- * the universal Lightcode envelope, and POSTs it. Emits NOTHING on stdout —
+ * the universal Poracode envelope, and POSTs it. Emits NOTHING on stdout —
  * Claude relays hook stdout into the model's context for some events.
  *
  * Generic plumbing lives in the shared `lightcode-hook-runtime.mjs` sibling.

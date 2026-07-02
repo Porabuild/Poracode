@@ -15,6 +15,11 @@ interface KeychainEnv {
   CLAUDE_CODE_CUSTOM_OAUTH_URL?: string | undefined;
 }
 
+export interface ClaudeKeychainCredential {
+  service: string;
+  content: string;
+}
+
 export function claudeKeychainAccount(
   env: { USER?: string | undefined } = process.env,
   fallbackUsername = userInfo().username,
@@ -56,9 +61,9 @@ export function claudeKeychainServiceNames(env: KeychainEnv = process.env): stri
   );
 }
 
-export async function readClaudeCredentialsFromMacKeychain(
+export async function readClaudeCredentialsFromMacKeychainEntry(
   env: KeychainEnv = process.env,
-): Promise<string | undefined> {
+): Promise<ClaudeKeychainCredential | undefined> {
   if (process.platform !== "darwin") return undefined;
   const account = claudeKeychainAccount();
   for (const service of claudeKeychainServiceNames(env)) {
@@ -69,10 +74,45 @@ export async function readClaudeCredentialsFromMacKeychain(
         { timeout: KEYCHAIN_TIMEOUT_MS, encoding: "utf8" },
       );
       const trimmed = stdout.trim();
-      if (trimmed) return trimmed;
+      if (trimmed) return { service, content: trimmed };
     } catch {
       // Try the next candidate. Missing/locked keychains degrade to auth-missing.
     }
   }
   return undefined;
+}
+
+export async function readClaudeCredentialsFromMacKeychainService(
+  service: string,
+): Promise<string | undefined> {
+  if (process.platform !== "darwin") return undefined;
+  try {
+    const { stdout } = await execFileAsync(
+      "security",
+      ["find-generic-password", "-a", claudeKeychainAccount(), "-w", "-s", service],
+      { timeout: KEYCHAIN_TIMEOUT_MS, encoding: "utf8" },
+    );
+    const trimmed = stdout.trim();
+    return trimmed || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function readClaudeCredentialsFromMacKeychain(
+  env: KeychainEnv = process.env,
+): Promise<string | undefined> {
+  return (await readClaudeCredentialsFromMacKeychainEntry(env))?.content;
+}
+
+export async function writeClaudeCredentialsToMacKeychain(
+  service: string,
+  content: string,
+): Promise<void> {
+  if (process.platform !== "darwin") return;
+  await execFileAsync(
+    "security",
+    ["add-generic-password", "-U", "-a", claudeKeychainAccount(), "-s", service, "-w", content],
+    { timeout: KEYCHAIN_TIMEOUT_MS, encoding: "utf8" },
+  );
 }

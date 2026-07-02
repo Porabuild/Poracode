@@ -17,7 +17,7 @@ function oscNotify(body: string, code: 9 | 99 | 777 = 9): OscNotification {
 describe("createClaudeAdapter handleOscTitle", () => {
   const adapter = createClaudeAdapter();
 
-  // Observed from real dev sessions (~/.lightcode/logs/terminal/*.log):
+  // Observed from real dev sessions (~/.poracode/logs/terminal/*.log):
   //   124× "⠂ <task title>"  /  121× "⠐ <task title>"  /  10× "✳ <task title>"
   // The braille 2-frame animation (⠂ / ⠐, U+2802 / U+2810) is the stable
   // "working" signal; ✳ appeared rarely and was classified as an artifact.
@@ -196,7 +196,7 @@ describe("createClaudeProfileAdapter", () => {
       id: "work",
       driver: "claude",
       displayName: "Work",
-      config: { configDir: "~/.lightcode/claude-profiles/work" },
+      config: { configDir: "~/.poracode/claude-profiles/work" },
     });
 
     expect(adapter.kind).toBe("claude:work");
@@ -204,7 +204,7 @@ describe("createClaudeProfileAdapter", () => {
     expect(adapter.capabilities.subProviders).toBeUndefined();
     expect(adapter.capabilities.modelSubProvider).toBeUndefined();
 
-    const expectedConfigDir = path.join(homedir(), ".lightcode/claude-profiles/work");
+    const expectedConfigDir = path.join(homedir(), ".poracode/claude-profiles/work");
     expect(
       adapter.buildLaunchArgv(projectLocation, { model: "sonnet" }, "hello").env?.CLAUDE_CONFIG_DIR,
     ).toBe(expectedConfigDir);
@@ -225,7 +225,7 @@ describe("createClaudeProfileAdapter", () => {
       id: "glm",
       driver: "claude",
       displayName: "GLM",
-      config: { configDir: "~/.lightcode/claude-profiles/glm" },
+      config: { configDir: "~/.poracode/claude-profiles/glm" },
       // Values arrive decrypted from the supervisor's settings read.
       environment: {
         ANTHROPIC_BASE_URL: { value: "https://api.z.ai/api/anthropic" },
@@ -236,7 +236,7 @@ describe("createClaudeProfileAdapter", () => {
     });
 
     const env = adapter.buildLaunchArgv(projectLocation, { model: "glm-5.2" }, "hello").env;
-    const expectedConfigDir = path.join(homedir(), ".lightcode/claude-profiles/glm");
+    const expectedConfigDir = path.join(homedir(), ".poracode/claude-profiles/glm");
     expect(env?.ANTHROPIC_BASE_URL).toBe("https://api.z.ai/api/anthropic");
     expect(env?.ANTHROPIC_AUTH_TOKEN).toBe("sk-test");
     expect(env?.CLAUDE_CONFIG_DIR).toBe(expectedConfigDir);
@@ -248,7 +248,7 @@ describe("createClaudeProfileAdapter", () => {
       driver: "claude",
       displayName: "GLM",
       config: {
-        configDir: "~/.lightcode/claude-profiles/glm",
+        configDir: "~/.poracode/claude-profiles/glm",
         models: [{ id: "glm-5.2", label: "GLM 5.2" }, { id: "glm-4.5-air" }],
       },
     });
@@ -275,7 +275,7 @@ describe("createClaudeProfileAdapter", () => {
       driver: "claude",
       displayName: "GLM",
       config: {
-        configDir: "~/.lightcode/claude-profiles/glm",
+        configDir: "~/.poracode/claude-profiles/glm",
         models: [{ id: "claude-sonnet-5", label: "Sonnet (custom)" }],
       },
     });
@@ -292,7 +292,7 @@ describe("createClaudeProfileAdapter", () => {
       driver: "claude",
       displayName: "GLM",
       config: {
-        configDir: "~/.lightcode/claude-profiles/glm",
+        configDir: "~/.poracode/claude-profiles/glm",
         models: [{ id: "glm-5.2" }, { id: "glm-5.2", label: "GLM duplicate" }],
       },
     });
@@ -306,7 +306,7 @@ describe("createClaudeProfileAdapter", () => {
       id: "glm",
       driver: "claude",
       displayName: "GLM",
-      config: { configDir: "~/.lightcode/claude-profiles/glm", efforts: ["high", "max"] },
+      config: { configDir: "~/.poracode/claude-profiles/glm", efforts: ["high", "max"] },
     });
 
     expect(adapter.capabilities.efforts).toEqual(["high", "max"]);
@@ -318,7 +318,7 @@ describe("createClaudeProfileAdapter", () => {
       id: "glm",
       driver: "claude",
       displayName: "GLM",
-      config: { configDir: "~/.lightcode/claude-profiles/glm", efforts: ["max", "ultracode"] },
+      config: { configDir: "~/.poracode/claude-profiles/glm", efforts: ["max", "ultracode"] },
     });
 
     expect(adapter.capabilities.efforts).toEqual(["max", "ultracode"]);
@@ -337,7 +337,7 @@ describe("createClaudeProfileAdapter", () => {
       id: "glm",
       driver: "claude",
       displayName: "GLM",
-      config: { configDir: "~/.lightcode/claude-profiles/glm", efforts: ["bogus", "nope"] },
+      config: { configDir: "~/.poracode/claude-profiles/glm", efforts: ["bogus", "nope"] },
     });
 
     expect(adapter.capabilities.efforts).toEqual(claudeCapabilities.efforts);

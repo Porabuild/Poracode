@@ -293,10 +293,10 @@ describe("ProjectTreeService WSL external files", () => {
   });
 
   it("readExternalFile reads a path outside the project root on WSL", async () => {
-    // A plan produced in a git worktree lives under ~/.lightcode/worktrees,
+    // A plan produced in a git worktree lives under ~/.poracode/worktrees,
     // outside the project root.
     const projectRoot = "/home/user/work/repo";
-    const planPath = "/home/user/.lightcode/worktrees/repo/branch/PLAN.md";
+    const planPath = "/home/user/.poracode/worktrees/repo/branch/PLAN.md";
     bridge.files.set(planPath, { content: Buffer.from("# Plan\n"), mtimeMs: 1000 });
 
     const result = await service.readExternalFile({
@@ -307,7 +307,7 @@ describe("ProjectTreeService WSL external files", () => {
     expect(result).toMatchObject({ status: "ready", content: "# Plan\n" });
     // The bridge must be anchored at the file's own directory, not the project
     // root — otherwise its containment check rejects the path.
-    expect(bridge.reads.at(-1)?.projectRoot).toBe("/home/user/.lightcode/worktrees/repo/branch");
+    expect(bridge.reads.at(-1)?.projectRoot).toBe("/home/user/.poracode/worktrees/repo/branch");
   });
 
   it("writeExternalFile saves a path outside the project root on WSL", async () => {
@@ -347,7 +347,7 @@ describe("ProjectTreeService WSL external files", () => {
 
   it("readAbsoluteFile reads a path outside the project root on WSL", async () => {
     const projectRoot = "/home/user/work/repo";
-    const externalPath = "/home/user/.lightcode/worktrees/repo/branch/PLAN.md";
+    const externalPath = "/home/user/.poracode/worktrees/repo/branch/PLAN.md";
     bridge.files.set(externalPath, { content: Buffer.from("# Plan\n"), mtimeMs: 2000 });
 
     const result = await service.readAbsoluteFile({
@@ -356,7 +356,7 @@ describe("ProjectTreeService WSL external files", () => {
     });
 
     expect(result).toMatchObject({ status: "ready", content: "# Plan\n" });
-    expect(bridge.reads.at(-1)?.projectRoot).toBe("/home/user/.lightcode/worktrees/repo/branch");
+    expect(bridge.reads.at(-1)?.projectRoot).toBe("/home/user/.poracode/worktrees/repo/branch");
   });
 
   it("readAbsoluteFile resolves relative paths against the project root on WSL", async () => {

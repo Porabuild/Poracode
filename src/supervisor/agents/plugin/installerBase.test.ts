@@ -299,7 +299,7 @@ describe("renderNativeHookWrapper", () => {
   });
 
   it("prefers PowerShell 7, then Windows PowerShell, before cmd fallback on Windows", () => {
-    const body = renderNativeHookWrapper({ electronPath: "C:\\Lightcode\\Lightcode.exe" });
+    const body = renderNativeHookWrapper({ electronPath: "C:\\Poracode\\Poracode.exe" });
     if (process.platform !== "win32") {
       return;
     }
@@ -319,7 +319,7 @@ describe("renderNativeHookWrapper", () => {
 describe("renderNativeHookPowerShellWrapper", () => {
   it("passes hook args through to forward.mjs", () => {
     const body = renderNativeHookPowerShellWrapper({
-      electronPath: "C:\\Lightcode\\Lightcode.exe",
+      electronPath: "C:\\Poracode\\Poracode.exe",
     });
     expect(body).toContain("$forward = Join-Path $PSScriptRoot 'forward.mjs'");
     expect(body).toContain("$forward @args");
@@ -328,7 +328,7 @@ describe("renderNativeHookPowerShellWrapper", () => {
 
   it("escapes single quotes in the node path", () => {
     const body = renderNativeHookPowerShellWrapper({
-      electronPath: "C:\\Lightcode\\Lightcode.exe",
+      electronPath: "C:\\Poracode\\Poracode.exe",
       nodePath: "C:\\a'b\\node.exe",
     });
     expect(body).toContain("& 'C:\\a''b\\node.exe' $forward @args");

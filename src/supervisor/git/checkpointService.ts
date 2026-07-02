@@ -163,7 +163,7 @@ export class GitCheckpointService {
         tree,
         ...(head ? ["-p", head] : []),
         "-m",
-        "Lightcode checkpoint",
+        "Poracode checkpoint",
         "-m",
         JSON.stringify({ ...metadata, ref }),
       ];

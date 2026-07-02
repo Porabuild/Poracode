@@ -1,7 +1,7 @@
 import type { AgentEventIntent } from "@/shared/contracts";
 
 /**
- * Map Codex `hook_event_name` + stdin payload to Lightcode intents.
+ * Map Codex `hook_event_name` + stdin payload to Poracode intents.
  * PreToolUse / PostToolUse are omitted unless debug (see forward.mjs).
  */
 export function codexIntentFor(
