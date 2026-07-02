@@ -5,7 +5,7 @@ import type { NotificationClickEvent } from "@/shared/ipc";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 
 type NotificationCategory = "done" | "needsAttention" | "error";
@@ -129,6 +129,62 @@ function showToastNotification(
   playSound();
 }
 
+function canUseBrowserNotifications(): boolean {
+  if (typeof Notification === "undefined") return false;
+  return Notification.permission !== "denied";
+}
+
+let permissionRequest: Promise<NotificationPermission> | null = null;
+
+function ensureBrowserNotificationPermission(): Promise<NotificationPermission> {
+  if (Notification.permission !== "default") {
+    return Promise.resolve(Notification.permission);
+  }
+  if (!permissionRequest) {
+    permissionRequest = Notification.requestPermission();
+  }
+  return permissionRequest;
+}
+
+function showBrowserNotification(
+  threadId: string,
+  projectName: string,
+  threadTitle: string,
+  category: NotificationCategory,
+  status: ThreadStatus,
+): void {
+  if (!canUseBrowserNotifications()) return;
+
+  const detail = getStatusDetail(category, status);
+  const body = `${threadTitle}\n${detail}`;
+
+  const show = () => {
+    try {
+      const native = new Notification(projectName, {
+        body,
+        silent: true,
+      });
+      native.onclick = () => {
+        void readBridge().focusWindow();
+        openThread(threadId, { focusComposer: true });
+        native.close();
+      };
+    } catch {
+      /* unsupported in some browsers */
+    }
+  };
+
+  if (Notification.permission === "granted") {
+    show();
+  } else {
+    void ensureBrowserNotificationPermission().then((perm) => {
+      if (perm === "granted") show();
+    });
+  }
+
+  playSound();
+}
+
 // Native (OS) notifications are created in the main process via Electron's
 // Notification API rather than the renderer's Web Notification API. The Web API
 // is gated by Chromium's per-session permission handler (see
@@ -136,7 +192,7 @@ function showToastNotification(
 // Notification.permission to "denied"; the main-process API bypasses that layer
 // entirely. The renderer still owns the decision and the localized strings, and
 // reacts to clicks via onNotificationClick (handleNotificationClick below).
-function showNativeNotification(
+function showElectronNotification(
   threadId: string,
   projectName: string,
   threadTitle: string,
@@ -152,6 +208,20 @@ function showNativeNotification(
       if (shown) playSound();
     })
     .catch(() => undefined);
+}
+
+function showNativeNotification(
+  threadId: string,
+  projectName: string,
+  threadTitle: string,
+  category: NotificationCategory,
+  status: ThreadStatus,
+): void {
+  if (isRemoteSession()) {
+    showBrowserNotification(threadId, projectName, threadTitle, category, status);
+    return;
+  }
+  showElectronNotification(threadId, projectName, threadTitle, category, status);
 }
 
 export function handleNotificationClick(event: NotificationClickEvent): void {

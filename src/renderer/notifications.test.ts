@@ -16,6 +16,8 @@ const { sharedSettingsState, toastMock, bridgeMock, openThreadMock } = vi.hoiste
     warning: vi.fn<(title: string, options: unknown) => void>(),
   },
   bridgeMock: {
+    focusWindow: vi.fn<() => Promise<void>>(),
+    remote: false,
     showNotification: vi.fn<(payload: unknown) => Promise<boolean>>(),
   },
   openThreadMock: vi.fn<(threadId: string, options?: unknown) => void>(),
@@ -30,6 +32,7 @@ vi.mock("@/renderer/actions/threadActions", () => ({
 }));
 
 vi.mock("@/renderer/bridge", () => ({
+  isRemoteSession: () => bridgeMock.remote,
   readBridge: () => bridgeMock,
 }));
 
@@ -72,6 +75,43 @@ function thread(overrides: Partial<Thread> = {}): Thread {
     ...overrides,
   };
 }
+
+type FakeNotification = {
+  title: string;
+  options: NotificationOptions | undefined;
+  onclick: (() => void) | null;
+  close: ReturnType<typeof vi.fn>;
+};
+
+function installBrowserNotification(permission: NotificationPermission = "granted") {
+  const notifications: FakeNotification[] = [];
+  class BrowserNotification {
+    static permission: NotificationPermission = permission;
+    static requestPermission = vi
+      .fn<() => Promise<NotificationPermission>>()
+      .mockResolvedValue("granted");
+
+    readonly title: string;
+    readonly options: NotificationOptions | undefined;
+    onclick: (() => void) | null = null;
+    close = vi.fn<() => void>();
+
+    constructor(title: string, options?: NotificationOptions) {
+      this.title = title;
+      this.options = options;
+      notifications.push(this);
+    }
+  }
+  vi.stubGlobal("Notification", BrowserNotification);
+  return { BrowserNotification, notifications };
+}
+
+beforeEach(() => {
+  bridgeMock.remote = false;
+  bridgeMock.focusWindow.mockClear();
+  openThreadMock.mockClear();
+  vi.unstubAllGlobals();
+});
 
 describe("shouldInspectThreadStateForNotification", () => {
   beforeEach(() => {
@@ -184,6 +224,7 @@ describe("handleThreadStateNotification native path", () => {
       notificationFilter: "unfocused",
       notificationStatuses: { done: true, needsAttention: true, error: true },
     };
+    bridgeMock.remote = false;
     vi.spyOn(document, "hasFocus").mockReturnValue(false);
     bridgeMock.showNotification.mockClear();
     bridgeMock.showNotification.mockResolvedValue(true);
@@ -228,6 +269,75 @@ describe("handleThreadStateNotification native path", () => {
     await Promise.resolve();
 
     expect(bridgeMock.showNotification).toHaveBeenCalledOnce();
+  });
+});
+
+describe("handleThreadStateNotification PWA path", () => {
+  beforeEach(() => {
+    sharedSettingsState.current = {
+      notificationsEnabled: true,
+      notificationSound: false,
+      notificationFilter: "unfocused",
+      notificationStatuses: { done: true, needsAttention: true, error: true },
+    };
+    bridgeMock.remote = true;
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    bridgeMock.showNotification.mockClear();
+  });
+
+  it("shows a browser notification instead of calling desktop notification IPC", () => {
+    const { notifications } = installBrowserNotification();
+    const oldThread = thread({ status: "working", attention: "working" });
+
+    handleThreadStateNotification(
+      {
+        type: "thread-state",
+        threadId: oldThread.id,
+        status: "finished",
+        attention: "none",
+      },
+      oldThread,
+      { status: "finished", attention: "none" },
+    );
+
+    expect(bridgeMock.showNotification).not.toHaveBeenCalled();
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]).toMatchObject({
+      title: "Unknown project",
+      options: {
+        body: "Thread\nFinished · Waiting for your input",
+        silent: true,
+      },
+    });
+
+    notifications[0]!.onclick?.();
+
+    expect(bridgeMock.focusWindow).toHaveBeenCalledOnce();
+    expect(openThreadMock).toHaveBeenCalledWith("thread-1", { focusComposer: true });
+    expect(notifications[0]!.close).toHaveBeenCalledOnce();
+  });
+
+  it("requests browser notification permission before showing the notification", async () => {
+    const { BrowserNotification, notifications } = installBrowserNotification("default");
+    const oldThread = thread({ status: "working", attention: "working" });
+
+    handleThreadStateNotification(
+      {
+        type: "thread-state",
+        threadId: oldThread.id,
+        status: "finished",
+        attention: "none",
+      },
+      oldThread,
+      { status: "finished", attention: "none" },
+    );
+
+    expect(BrowserNotification.requestPermission).toHaveBeenCalledOnce();
+    expect(notifications).toHaveLength(0);
+
+    await Promise.resolve();
+
+    expect(notifications).toHaveLength(1);
   });
 });
 
