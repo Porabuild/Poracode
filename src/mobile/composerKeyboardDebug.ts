@@ -5,14 +5,9 @@
  */
 const DEBUG_FLAG_KEY = "lightcode-mobile-keyboard-debug";
 
-// TODO: flip back to flag-only before shipping — forced on while debugging the
-// first-focus page pan.
-const FORCE_DEBUG = true;
-
 let enabled: boolean | null = null;
 
 function debugEnabled(): boolean {
-  if (FORCE_DEBUG) return true;
   if (enabled === null) {
     try {
       enabled = window.localStorage.getItem(DEBUG_FLAG_KEY) === "1";
