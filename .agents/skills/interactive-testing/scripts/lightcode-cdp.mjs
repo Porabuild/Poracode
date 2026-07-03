@@ -174,8 +174,13 @@ async function evaluate(client, expression, awaitPromise = false) {
 }
 
 async function screenshot(client, selector, out) {
-  const params = { format: "png", fromSurface: true, captureBeyondViewport: true };
+  // captureBeyondViewport only for element clips (they may extend below the
+  // fold). For full-viewport shots it must stay off: the compositor surface
+  // can be larger than the visible window (e.g. after a viewport override),
+  // and capturing beyond the viewport pads the PNG with dead space.
+  const params = { format: "png", fromSurface: true };
   if (selector !== "-") {
+    params.captureBeyondViewport = true;
     const rect = await evaluate(
       client,
       `(() => { const el = document.querySelector(${JSON.stringify(selector)});` +
