@@ -92,7 +92,16 @@ export function startClaudeTurn(
   state.assistantTextItems.clear();
   state.reasoningItems.clear();
   state.toolItemsByIndex.clear();
-  state.toolItemsById.clear();
+  // Background subagents keep running across user turns: their live parent
+  // tool_call (and forwarded children) must survive this reset so the later
+  // `task_notification` can still find and close them — a blanket clear would
+  // strand the parent pill on "running" forever. `toolItemsByIndex` is
+  // per-message scratch (cleared on every message_start), so clearing it fully
+  // is safe.
+  for (const [id, tool] of [...state.toolItemsById]) {
+    if (isLiveSubAgentScopedTool(state, tool)) continue;
+    state.toolItemsById.delete(id);
+  }
   delete state.currentAssistantMessageId;
   delete state.currentCompactionItemId;
   state.streamedAssistantMessageIds.clear();
@@ -219,21 +228,44 @@ export function closeClaudeOpenItems(
   for (const item of state.reasoningItems.values()) {
     completeTextItem(state, item, "reasoning_text", events);
   }
-  for (const tool of state.toolItemsByIndex.values()) {
+  // Background subagents run past the main turn's `result`; their parent tool
+  // and any in-flight child tools must survive this close so a later
+  // `task_notification` / child tool_result can complete them. Once no subagent
+  // is live, nothing more is coming, so any dangling child rows are flushed.
+  for (const [index, tool] of [...state.toolItemsByIndex]) {
+    if (isLiveSubAgentScopedTool(state, tool)) continue;
     // Plan-aggregated tools never emitted item.started; their lifecycle is
     // owned by the aggregator's plan item, which persists across turns.
-    if (tool.planAggregatorRole) continue;
-    events.push({
-      type: "item.completed",
-      threadId: state.threadId,
-      itemId: tool.itemId,
-      payload: toolPayload(tool, "success"),
-    });
+    if (!tool.planAggregatorRole) {
+      events.push({
+        type: "item.completed",
+        threadId: state.threadId,
+        itemId: tool.itemId,
+        payload: toolPayload(tool, "success"),
+      });
+    }
+    state.toolItemsByIndex.delete(index);
+  }
+  for (const [id, tool] of [...state.toolItemsById]) {
+    if (isLiveSubAgentScopedTool(state, tool)) continue;
+    // A dangling sub-agent child whose subagent already closed will never get
+    // its tool_result; flush it with a completion (like the open main-thread
+    // tools above) so it doesn't stay "running" in the overlay forever. Tools
+    // completed by the index loop above are never in the child set, so this
+    // cannot double-complete.
+    if (!tool.planAggregatorRole && state.subAgentChildToolItemIds?.has(id)) {
+      events.push({
+        type: "item.completed",
+        threadId: state.threadId,
+        itemId: tool.itemId,
+        payload: toolPayload(tool, "success"),
+      });
+    }
+    state.toolItemsById.delete(id);
+    state.subAgentChildToolItemIds?.delete(id);
   }
   state.assistantTextItems.clear();
   state.reasoningItems.clear();
-  state.toolItemsByIndex.clear();
-  state.toolItemsById.clear();
   if (options?.closePlan && state.planAggregator) {
     events.push(...closePlanAggregator(state.planAggregator));
   }
@@ -242,16 +274,40 @@ export function closeClaudeOpenItems(
 
 const ASK_USER_QUESTION_TOOL_NAME = "AskUserQuestion";
 
-function classifyToolItemType(toolName: string): CanonicalItemType {
+/**
+ * Whether a tool name launches a sub-agent (Claude `Agent`/`Task`, workflow
+ * orchestration, or any *subagent* variant). Single source of truth shared by
+ * `classifyToolItemType`, `syncSubAgentModelProgress`, the `isSubAgent` payload
+ * flag, and the background-subagent keep-alive registry so they never drift.
+ */
+function isSubAgentToolName(toolName: string): boolean {
   const name = toolName.toLowerCase();
-  if (name === "todowrite" || name.includes("todo")) return "plan";
-  if (
+  return (
     name === "task" ||
     name === "workflow" ||
     name === "agent" ||
     name.includes("subagent") ||
     name.includes("sub-agent")
-  ) {
+  );
+}
+
+/**
+ * Whether a tool item belongs to a still-running background subagent — either
+ * the launching Agent/Task parent itself or a forwarded child tool inside it.
+ * Such items must survive turn-boundary map resets (`closeClaudeOpenItems`,
+ * `startClaudeTurn`) so the eventual `task_notification` / forwarded
+ * tool_result can complete them.
+ */
+function isLiveSubAgentScopedTool(state: ClaudeMapperState, tool: ToolItemState): boolean {
+  const liveParents = state.activeSubAgentToolToTask;
+  if (!liveParents || liveParents.size === 0) return false;
+  return liveParents.has(tool.itemId) || state.subAgentChildToolItemIds?.has(tool.itemId) === true;
+}
+
+function classifyToolItemType(toolName: string): CanonicalItemType {
+  const name = toolName.toLowerCase();
+  if (name === "todowrite" || name.includes("todo")) return "plan";
+  if (isSubAgentToolName(name)) {
     return "tool_call";
   }
   if (
@@ -484,7 +540,7 @@ function startToolItem(
 }
 
 function syncSubAgentModelProgress(tool: ToolItemState): void {
-  if (tool.toolName !== "Task") return;
+  if (!isSubAgentToolName(tool.toolName)) return;
   const model = readStringField(tool.input, "model");
   if (!model) return;
   tool.progress = { ...tool.progress, model };
@@ -825,7 +881,7 @@ function toolPayload(
     ...(images && images.length > 0 ? { images } : {}),
     status,
     ...(tool.progress ? { progress: tool.progress } : {}),
-    ...(tool.toolName === "Workflow" ? { isSubAgent: true } : {}),
+    ...(isSubAgentToolName(tool.toolName) ? { isSubAgent: true } : {}),
   };
 }
 
@@ -1007,34 +1063,27 @@ function extractText(value: unknown): string {
   return extractText(obj.content);
 }
 
-/**
- * Absorb a `task_started` / `task_progress` / `task_notification` system
- * message into the parent Task tool_call's progress field. Lets a collapsed
- * sub-agent row show its current step without expanding to read the children.
- */
-function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState): RuntimeEvent[] {
-  const events: RuntimeEvent[] = [];
-  const obj = message as {
-    task_id?: unknown;
-    tool_use_id?: unknown;
-    description?: unknown;
-    last_tool_name?: unknown;
-    summary?: unknown;
-    usage?: unknown;
-  };
-  const usage =
-    obj.usage && typeof obj.usage === "object"
-      ? (obj.usage as { total_tokens?: number; tool_uses?: number; duration_ms?: number })
-      : undefined;
-  const goalUsage = emitActiveGoalTaskUsageUpdate(state, obj, usage);
-  if (goalUsage) events.push(goalUsage);
+interface TaskLifecycleMessage {
+  task_id?: unknown;
+  tool_use_id?: unknown;
+  description?: unknown;
+  last_tool_name?: unknown;
+  summary?: unknown;
+  usage?: unknown;
+}
 
-  const toolUseId = typeof obj.tool_use_id === "string" ? obj.tool_use_id : undefined;
-  if (!toolUseId) return events;
-  const tool = state.toolItemsById.get(toolUseId);
-  if (!tool) return events;
-  syncSubAgentModelProgress(tool);
+type TaskUsage = { total_tokens?: number; tool_uses?: number; duration_ms?: number };
 
+function readTaskUsage(obj: { usage?: unknown }): TaskUsage | undefined {
+  return obj.usage && typeof obj.usage === "object" ? (obj.usage as TaskUsage) : undefined;
+}
+
+/** Merge a task lifecycle message's descriptive/usage fields onto a tool's progress. */
+function mergeTaskProgress(
+  tool: ToolItemState,
+  obj: TaskLifecycleMessage,
+  usage: TaskUsage | undefined,
+): ToolCallProgress {
   const next: ToolCallProgress = {
     ...tool.progress,
     ...(typeof obj.description === "string" && obj.description.length > 0
@@ -1051,6 +1100,28 @@ function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState): Runt
   if (typeof usage?.tool_uses === "number") {
     next.stepCount = Math.max(next.stepCount ?? 0, usage.tool_uses);
   }
+  return next;
+}
+
+/**
+ * Absorb a `task_started` / `task_progress` / `task_notification` system
+ * message into the parent Task tool_call's progress field. Lets a collapsed
+ * sub-agent row show its current step without expanding to read the children.
+ */
+function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState): RuntimeEvent[] {
+  const events: RuntimeEvent[] = [];
+  const obj = message as TaskLifecycleMessage;
+  const usage = readTaskUsage(obj);
+  const goalUsage = emitActiveGoalTaskUsageUpdate(state, obj, usage);
+  if (goalUsage) events.push(goalUsage);
+
+  const toolUseId = typeof obj.tool_use_id === "string" ? obj.tool_use_id : undefined;
+  if (!toolUseId) return events;
+  const tool = state.toolItemsById.get(toolUseId);
+  if (!tool) return events;
+  syncSubAgentModelProgress(tool);
+
+  const next = mergeTaskProgress(tool, obj, usage);
   if (Object.keys(next).length === 0) return events;
   tool.progress = next;
   events.push({
@@ -1059,6 +1130,126 @@ function applyTaskLifecycle(message: SDKMessage, state: ClaudeMapperState): Runt
     itemId: tool.itemId,
     payload: toolPayload(tool, "running"),
   });
+  return events;
+}
+
+function unregisterSubAgentTask(state: ClaudeMapperState, taskId: string, toolUseId: string): void {
+  state.activeSubAgentTaskToTool?.delete(taskId);
+  state.activeSubAgentToolToTask?.delete(toolUseId);
+}
+
+/**
+ * Record a live background subagent task so later lifecycle events can find the
+ * parent tool item and keep it "running" past its launch tool_result. Only
+ * genuine subagent launches register: a `task_started` WITHOUT `subagent_type`
+ * (a plain background Bash task) whose tool is not a subagent-like tool is
+ * ignored so it still completes normally when its tool_result arrives.
+ */
+function registerSubAgentTaskIfNeeded(message: SDKMessage, state: ClaudeMapperState): void {
+  const obj = message as { task_id?: unknown; tool_use_id?: unknown; subagent_type?: unknown };
+  const taskId =
+    typeof obj.task_id === "string" && obj.task_id.length > 0 ? obj.task_id : undefined;
+  const toolUseId =
+    typeof obj.tool_use_id === "string" && obj.tool_use_id.length > 0 ? obj.tool_use_id : undefined;
+  if (!taskId || !toolUseId) return;
+  const hasSubagentType = typeof obj.subagent_type === "string" && obj.subagent_type.length > 0;
+  const tool = state.toolItemsById.get(toolUseId);
+  const toolIsSubAgent = tool ? isSubAgentToolName(tool.toolName) : false;
+  if (!hasSubagentType && !toolIsSubAgent) return;
+  (state.activeSubAgentTaskToTool ??= new Map<string, string>()).set(taskId, toolUseId);
+  (state.activeSubAgentToolToTask ??= new Map<string, string>()).set(toolUseId, taskId);
+}
+
+/**
+ * `task_updated` carries a `patch` but no `tool_use_id`. For a tracked subagent
+ * task, fold the patch's descriptive fields onto the parent tool's progress so
+ * the collapsed pill reflects the latest state. Terminal patch statuses are NOT
+ * closed here — the authoritative `task_notification` (which carries the summary)
+ * owns the close.
+ */
+function applyTaskUpdated(message: SDKMessage, state: ClaudeMapperState): RuntimeEvent[] {
+  const obj = message as { task_id?: unknown; patch?: unknown };
+  const taskId = typeof obj.task_id === "string" ? obj.task_id : undefined;
+  if (!taskId) return [];
+  const toolUseId = state.activeSubAgentTaskToTool?.get(taskId);
+  if (!toolUseId) return [];
+  const tool = state.toolItemsById.get(toolUseId);
+  if (!tool) return [];
+  const patch =
+    obj.patch && typeof obj.patch === "object" ? (obj.patch as Record<string, unknown>) : undefined;
+  if (!patch) return [];
+  const description =
+    typeof patch.description === "string" && patch.description.length > 0
+      ? patch.description
+      : undefined;
+  const error = typeof patch.error === "string" && patch.error.length > 0 ? patch.error : undefined;
+  if (!description && !error) return [];
+  tool.progress = {
+    ...tool.progress,
+    ...(description ? { description } : {}),
+    ...(error ? { summary: error } : {}),
+  };
+  return [
+    {
+      type: "item.updated",
+      threadId: state.threadId,
+      itemId: tool.itemId,
+      payload: toolPayload(tool, "running"),
+    },
+  ];
+}
+
+/**
+ * `task_notification` is the authoritative close for a background task. For a
+ * tracked subagent, emit the final `item.updated` (+ `item.completed`) on the
+ * parent tool and clean up the registry. For everything else (plain background
+ * Bash), fall back to the progress-attach behavior — the tool's own tool_result
+ * still owns its completion.
+ */
+function applyTaskNotification(message: SDKMessage, state: ClaudeMapperState): RuntimeEvent[] {
+  const obj = message as TaskLifecycleMessage & { status?: unknown };
+  const taskId = typeof obj.task_id === "string" ? obj.task_id : undefined;
+  const registeredToolUseId = taskId ? state.activeSubAgentTaskToTool?.get(taskId) : undefined;
+  if (!taskId || !registeredToolUseId) {
+    return applyTaskLifecycle(message, state);
+  }
+
+  const events: RuntimeEvent[] = [];
+  const usage = readTaskUsage(obj);
+  const goalUsage = emitActiveGoalTaskUsageUpdate(state, obj, usage);
+  if (goalUsage) events.push(goalUsage);
+
+  const tool = state.toolItemsById.get(registeredToolUseId);
+  if (!tool) {
+    unregisterSubAgentTask(state, taskId, registeredToolUseId);
+    return events;
+  }
+
+  syncSubAgentModelProgress(tool);
+  tool.progress = mergeTaskProgress(tool, obj, usage);
+  const status: "success" | "error" = obj.status === "completed" ? "success" : "error";
+  const summary =
+    typeof obj.summary === "string" && obj.summary.length > 0 ? obj.summary : undefined;
+  events.push({
+    type: "item.updated",
+    threadId: state.threadId,
+    itemId: tool.itemId,
+    payload:
+      status === "error"
+        ? toolPayload(tool, "error", summary ? { message: summary } : undefined)
+        : toolPayload(tool, "success", summary),
+  });
+  events.push({
+    type: "item.completed",
+    threadId: state.threadId,
+    itemId: tool.itemId,
+    payload: toolPayload(tool, status),
+  });
+  state.toolItemsById.delete(registeredToolUseId);
+  for (const [idx, value] of state.toolItemsByIndex) {
+    if (value.itemId === registeredToolUseId) state.toolItemsByIndex.delete(idx);
+  }
+  unregisterSubAgentTask(state, taskId, registeredToolUseId);
   return events;
 }
 
@@ -1185,7 +1376,7 @@ function mapPermissionDenied(message: SDKMessage, state: ClaudeMapperState): Run
   return events;
 }
 
-function readParentToolUseId(message: SDKMessage): string | undefined {
+export function readParentToolUseId(message: SDKMessage): string | undefined {
   const value = (message as { parent_tool_use_id?: unknown }).parent_tool_use_id;
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
@@ -1505,6 +1696,90 @@ function readPositiveInteger(value: unknown): number | undefined {
   return parsed !== undefined && parsed > 0 ? parsed : undefined;
 }
 
+/**
+ * Render a sub-agent's forwarded whole `assistant` message as self-contained,
+ * already-complete child items. Unlike the main-thread path this never reads or
+ * writes `assistantTextItems` / `reasoningItems` / `toolItemsByIndex` (the
+ * shared per-index lanes), so a sub-agent block at index 0 can't clobber the
+ * main thread's live stream. Tool calls ARE recorded in `toolItemsById` (keyed
+ * by their globally-unique tool_use id) so the sub-agent's own tool_result can
+ * complete them. The outer `tagParent` stamps `parentItemId` on the emitted
+ * `item.started` events and bumps the parent sub-agent's step counter.
+ */
+function flushSubAgentAssistantMessage(
+  message: SDKMessage,
+  state: ClaudeMapperState,
+): RuntimeEvent[] {
+  const events: RuntimeEvent[] = [];
+  const content = (message as { message?: { content?: unknown } }).message?.content;
+  if (!Array.isArray(content)) return events;
+  for (const block of content) {
+    if (!block || typeof block !== "object") continue;
+    const obj = block as Record<string, unknown>;
+    if (obj.type === "text" && typeof obj.text === "string" && obj.text.length > 0) {
+      const itemId = newItemId("asst");
+      events.push({
+        type: "item.started",
+        threadId: state.threadId,
+        itemId,
+        itemType: "assistant_message",
+      });
+      events.push({
+        type: "content.delta",
+        threadId: state.threadId,
+        itemId,
+        stream: "assistant_text",
+        delta: obj.text,
+      });
+      events.push({ type: "item.completed", threadId: state.threadId, itemId });
+      continue;
+    }
+    if (obj.type === "thinking") {
+      const text = extractText(obj);
+      if (text.length === 0) continue;
+      const itemId = newItemId("reason");
+      events.push({
+        type: "item.started",
+        threadId: state.threadId,
+        itemId,
+        itemType: "reasoning",
+      });
+      events.push({
+        type: "content.delta",
+        threadId: state.threadId,
+        itemId,
+        stream: "reasoning_text",
+        delta: text,
+      });
+      events.push({ type: "item.completed", threadId: state.threadId, itemId });
+      continue;
+    }
+    if (obj.type === "tool_use" || obj.type === "server_tool_use" || obj.type === "mcp_tool_use") {
+      const toolName = typeof obj.name === "string" ? obj.name : "Tool";
+      if (toolName === ASK_USER_QUESTION_TOOL_NAME) continue;
+      const input =
+        obj.input && typeof obj.input === "object" && !Array.isArray(obj.input)
+          ? (obj.input as Record<string, unknown>)
+          : {};
+      const itemId = typeof obj.id === "string" ? obj.id : newItemId("tool");
+      const tool = createToolItemState({ itemId, toolName, input });
+      // Plan-aggregator tools inside a sub-agent would pollute the main plan
+      // item; skip them (their result is dropped too — they're child-scoped).
+      if (tool.planAggregatorRole) continue;
+      if (!state.toolItemsById.has(itemId)) state.toolItemsById.set(itemId, tool);
+      (state.subAgentChildToolItemIds ??= new Set<string>()).add(itemId);
+      events.push({
+        type: "item.started",
+        threadId: state.threadId,
+        itemId: tool.itemId,
+        itemType: tool.itemType,
+        payload: toolPayload(tool, "running"),
+      });
+    }
+  }
+  return events;
+}
+
 function mapClaudeSdkMessageInner(
   message: SDKMessage,
   state: ClaudeMapperState,
@@ -1512,6 +1787,13 @@ function mapClaudeSdkMessageInner(
 ): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
   if (message.type === "stream_event") {
+    // Sub-agent partial streams (parent_tool_use_id set) interleave with the
+    // main-thread stream but share the same per-block-index lane maps. Their
+    // `message_start` would clear the main lane mid-stream and their deltas
+    // would append to main-thread items at the same index. Drop them — the
+    // sub-agent's forwarded whole assistant/user messages render its child
+    // items (see flushSubAgentAssistantMessage), so nothing is lost.
+    if (readParentToolUseId(message)) return events;
     const event = message.event as unknown as Record<string, unknown>;
     const type = event.type;
     const index = typeof event.index === "number" ? event.index : 0;
@@ -1657,6 +1939,13 @@ function mapClaudeSdkMessageInner(
   }
 
   if (message.type === "assistant") {
+    // Sub-agent (parent-attributed) whole messages must not touch the shared
+    // main-lane per-index maps — index 0 of a sub-agent message would collide
+    // with the main thread's streaming block at index 0. Emit self-contained,
+    // already-complete child items instead (tagParent attaches parentItemId).
+    if (readParentToolUseId(message)) {
+      return flushSubAgentAssistantMessage(message, state);
+    }
     const messageId = readClaudeAssistantMessageId(message.message);
     const skipTextSnapshot = messageId ? state.streamedAssistantMessageIds.has(messageId) : false;
     const content = (message.message as { content?: unknown }).content;
@@ -1741,6 +2030,19 @@ function mapClaudeSdkMessageInner(
         }
         continue;
       }
+      // A background subagent's launch tool_result ("Async agent launched…")
+      // arrives immediately while the subagent keeps running. Keep the parent
+      // tool_call alive (running) instead of completing/deleting it — the
+      // authoritative `task_notification` closes it later (applyTaskNotification).
+      if (state.activeSubAgentToolToTask?.has(toolUseId)) {
+        events.push({
+          type: "item.updated",
+          threadId: state.threadId,
+          itemId: tool.itemId,
+          payload: toolPayload(tool, "running"),
+        });
+        continue;
+      }
       const isError = obj.is_error === true;
       if (tool.itemType === "file_change" && !isError) {
         const metadata = fileChangeMetadataFromToolResult(
@@ -1775,6 +2077,7 @@ function mapClaudeSdkMessageInner(
       });
       events.push({ type: "item.completed", threadId: state.threadId, itemId: tool.itemId });
       state.toolItemsById.delete(toolUseId);
+      state.subAgentChildToolItemIds?.delete(toolUseId);
       for (const [idx, value] of state.toolItemsByIndex) {
         if (value.itemId === toolUseId) state.toolItemsByIndex.delete(idx);
       }
@@ -1802,13 +2105,24 @@ function mapClaudeSdkMessageInner(
     return events;
   }
 
-  if (
-    message.type === "system" &&
-    (message.subtype === "task_started" ||
-      message.subtype === "task_progress" ||
-      message.subtype === "task_notification")
-  ) {
+  if (message.type === "system" && message.subtype === "task_started") {
+    registerSubAgentTaskIfNeeded(message, state);
     events.push(...applyTaskLifecycle(message, state));
+    return events;
+  }
+
+  if (message.type === "system" && message.subtype === "task_progress") {
+    events.push(...applyTaskLifecycle(message, state));
+    return events;
+  }
+
+  if (message.type === "system" && message.subtype === "task_updated") {
+    events.push(...applyTaskUpdated(message, state));
+    return events;
+  }
+
+  if (message.type === "system" && message.subtype === "task_notification") {
+    events.push(...applyTaskNotification(message, state));
     return events;
   }
 

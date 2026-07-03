@@ -272,3 +272,98 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
     expect(events).toEqual([]);
   });
 });
+
+describe("ThreadSessionManager steer capability", () => {
+  function steerableSession(withSteer: boolean): StructuredSessionHandle & {
+    startTurn: ReturnType<typeof vi.fn>;
+    steerTurn?: ReturnType<typeof vi.fn>;
+  } {
+    const startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
+      async () => undefined,
+    );
+    const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(
+      async () => undefined,
+    );
+    return createStructuredSession({
+      startTurn,
+      ...(withSteer ? { steerTurn } : {}),
+    }) as StructuredSessionHandle & {
+      startTurn: typeof startTurn;
+      steerTurn?: typeof steerTurn;
+    };
+  }
+
+  it("submit-while-working uses steerTurn without interrupting when available", async () => {
+    const structuredSession = steerableSession(true);
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    manager.sessions.set(THREAD_ID, session);
+
+    await manager.sendThreadInput({
+      threadId: THREAD_ID,
+      prompt: "steer me",
+      config: { model: `${AGENT_KIND}/model` },
+    });
+
+    expect(structuredSession.steerTurn).toHaveBeenCalledTimes(1);
+    expect(structuredSession.steerTurn).toHaveBeenCalledWith(
+      "steer me",
+      { model: `${AGENT_KIND}/model` },
+      undefined,
+      undefined,
+    );
+    expect(structuredSession.interruptTurn).not.toHaveBeenCalled();
+    expect(structuredSession.startTurn).not.toHaveBeenCalled();
+  });
+
+  it("submit-while-working falls back to interrupt-drain when steerTurn is absent", async () => {
+    const structuredSession = steerableSession(false);
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    manager.sessions.set(THREAD_ID, session);
+
+    await manager.sendThreadInput({
+      threadId: THREAD_ID,
+      prompt: "steer me",
+      config: { model: `${AGENT_KIND}/model` },
+    });
+
+    expect(structuredSession.interruptTurn).toHaveBeenCalledTimes(1);
+    expect(structuredSession.startTurn).not.toHaveBeenCalled();
+  });
+
+  it("setPendingSteer uses steerTurn without interrupting when available", async () => {
+    const structuredSession = steerableSession(true);
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    manager.sessions.set(THREAD_ID, session);
+
+    await manager.setPendingSteer({
+      threadId: THREAD_ID,
+      prompt: "steer via slot",
+      config: { model: `${AGENT_KIND}/model` },
+    });
+
+    expect(structuredSession.steerTurn).toHaveBeenCalledTimes(1);
+    expect(structuredSession.interruptTurn).not.toHaveBeenCalled();
+  });
+
+  it("setPendingSteer falls back to interrupt-drain when steerTurn is absent", async () => {
+    const structuredSession = steerableSession(false);
+    const adapter = createAdapter(structuredSession);
+    const { manager } = createManager(adapter);
+    const session = createWorkingSession(adapter, structuredSession);
+    manager.sessions.set(THREAD_ID, session);
+
+    await manager.setPendingSteer({
+      threadId: THREAD_ID,
+      prompt: "steer via slot",
+      config: { model: `${AGENT_KIND}/model` },
+    });
+
+    expect(structuredSession.interruptTurn).toHaveBeenCalledTimes(1);
+  });
+});

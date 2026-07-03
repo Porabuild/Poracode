@@ -98,6 +98,20 @@ export interface StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void>;
+  /**
+   * Steer the in-flight turn: enqueue a new user message onto the running
+   * turn WITHOUT interrupting it (no subagents killed, no error result). The
+   * message either steers the current turn or is answered in the next one.
+   * Providers that expose this let the runtime skip the interrupt-drain steer
+   * path. When no turn is in flight, implementations fall back to `startTurn`
+   * semantics so turn accounting stays correct.
+   */
+  steerTurn?(
+    prompt: string,
+    config: ThreadConfig,
+    segments?: PromptSegment[],
+    options?: StartTurnOptions,
+  ): Promise<void>;
   interruptTurn?(): Promise<void>;
   resolveServerRequest?(requestId: ThreadServerRequestId, response: unknown): Promise<void>;
   readThread?(): Promise<ThreadHistory>;

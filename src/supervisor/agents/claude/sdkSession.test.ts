@@ -193,12 +193,38 @@ function sdkAssistantMessage(sessionId: string, uuid: string, text: string): SDK
   } as unknown as SDKMessage;
 }
 
+function sdkAssistantMessageWithParent(
+  sessionId: string,
+  uuid: string,
+  text: string,
+  parentToolUseId: string,
+): SDKMessage {
+  return {
+    type: "assistant",
+    uuid,
+    session_id: sessionId,
+    parent_tool_use_id: parentToolUseId,
+    message: {
+      id: uuid,
+      role: "assistant",
+      content: [{ type: "text", text }],
+    },
+  } as unknown as SDKMessage;
+}
+
 function sdkSuccessResult(sessionId: string): SDKMessage {
   return {
     type: "result",
     subtype: "success",
     session_id: sessionId,
   } as unknown as SDKMessage;
+}
+
+function promptQueueForLatestQuery(): AsyncIterator<{ message: { content: unknown } }> {
+  const queryArg = mockSdk.query.mock.calls.at(-1)?.[0] as {
+    prompt: AsyncIterable<{ message: { content: unknown } }>;
+  };
+  return queryArg.prompt[Symbol.asyncIterator]();
 }
 
 describe("ClaudeSdkSession", () => {
@@ -591,6 +617,120 @@ describe("ClaudeSdkSession", () => {
     expect(runtimeEvents.filter((e) => e.type === "turn.completed").length).toBe(
       turnCompletesAfterFirst + 1,
     );
+
+    await session.dispose();
+  });
+
+  it("does not open a resumed turn on sub-agent chatter after idle", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-subagent-idle",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("launch a background subagent", config);
+    await flushAsyncWork();
+    fake.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-1", "launched"));
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "idle" });
+
+    const turnStartsAfterIdle = runtimeEvents.filter((e) => e.type === "turn.started").length;
+
+    // Sub-agent output keeps arriving AFTER the main result — must NOT reopen a turn.
+    fake.emitMessage(
+      sdkAssistantMessageWithParent(openedSessionId, "sub-uuid-1", "subagent working", "toolu_p"),
+    );
+    await flushAsyncWork();
+
+    expect(updates.at(-1)).toMatchObject({ status: "idle" });
+    expect(runtimeEvents.filter((e) => e.type === "turn.started").length).toBe(turnStartsAfterIdle);
+
+    await session.dispose();
+  });
+
+  it("steerTurn enqueues onto the running turn without interrupting or reopening", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-steer",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    await session.openThread(config);
+    await session.startTurn("first", config);
+    await flushAsyncWork();
+    const queue = promptQueueForLatestQuery();
+    expect((await queue.next()).value?.message.content).toBe("first");
+
+    const turnStartsBeforeSteer = runtimeEvents.filter((e) => e.type === "turn.started").length;
+    runtimeEvents.length = 0;
+
+    await session.steerTurn!("steer this", config);
+
+    // No interrupt, no new turn.started; an optimistic user_message item is painted.
+    expect(fake.runtime.interrupt).not.toHaveBeenCalled();
+    expect(runtimeEvents.filter((e) => e.type === "turn.started").length).toBe(0);
+    expect(turnStartsBeforeSteer).toBe(1);
+    expect(
+      runtimeEvents.filter((e) => e.type === "item.started" && e.itemType === "user_message")
+        .length,
+    ).toBe(1);
+    // The steer message was pushed onto the SDK input queue.
+    expect((await queue.next()).value?.message.content).toBe("steer this");
+
+    await session.dispose();
+  });
+
+  it("steerTurn falls back to startTurn semantics when no turn is in flight", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-steer-idle",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("first", config);
+    await flushAsyncWork();
+    fake.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-1", "done"));
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    runtimeEvents.length = 0;
+
+    // Raced idle: steer opens a fresh turn just like startTurn.
+    await session.steerTurn!("second", config);
+    expect(runtimeEvents.filter((e) => e.type === "turn.started").length).toBe(1);
 
     await session.dispose();
   });

@@ -55,6 +55,7 @@ import { CLAUDE_DEFAULT_APPROVAL_POLICY } from "./detection";
 import {
   ACCEPT_SUGGESTION_OPTION_PREFIX,
   buildClaudeQuestionAnswerEvents,
+  buildPromptContentBlocks,
   closeClaudeOpenItems,
   createClaudeMapperState,
   emitActiveGoalTokenUpdate,
@@ -67,6 +68,7 @@ import {
   nonDiagnosticErrors,
   parseClaudeQuestions,
   readClaudeApiUsageSpendTokens,
+  readParentToolUseId,
   startClaudeTurn,
   type ClaudeMapperState,
   type ClaudeQuestion,
@@ -581,6 +583,44 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     await this.syncUltracodeFlag(query);
     await this.syncFastMode(query);
 
+    const message = await buildSdkUserMessage(prompt, segments);
+    this.promptQueue.push(message);
+  }
+
+  /**
+   * Steer the running turn by streaming a new user message into the SDK's input
+   * queue WITHOUT interrupting — the probed-safe steering mechanism: the running
+   * turn continues, background subagents are unaffected, and the message steers
+   * the current turn or is answered in the next one. No `turn.started` is
+   * emitted mid-turn (the message joins the open turn); if no turn is in flight
+   * (raced idle) we fall back to `startTurn` so turn accounting stays correct.
+   */
+  async steerTurn(
+    prompt: string,
+    config: ThreadConfig,
+    segments?: PromptSegment[],
+    options?: StartTurnOptions,
+  ): Promise<void> {
+    if (this.disposed) return;
+    if (!this.currentTurnInFlight) {
+      await this.startTurn(prompt, config, segments, options);
+      return;
+    }
+    this.currentConfig = config;
+    // Optimistic user_message item only (no turn.started) so the chat paints the
+    // steer immediately; mirrors the emission startClaudeTurn performs.
+    const userItemId = options?.userMessageItemId ?? `user-${randomUUID()}`;
+    this.emitRuntimeEvents([
+      {
+        type: "item.started",
+        threadId: this.input.threadId,
+        itemId: userItemId,
+        itemType: "user_message",
+        payload: { content: buildPromptContentBlocks(prompt, segments) },
+      },
+      { type: "item.completed", threadId: this.input.threadId, itemId: userItemId },
+    ]);
+    await this.requireQuery();
     const message = await buildSdkUserMessage(prompt, segments);
     this.promptQueue.push(message);
   }
@@ -1154,7 +1194,9 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.emitUpdate(mapped);
     }
 
-    if (message.type === "assistant") {
+    if (message.type === "assistant" && !readParentToolUseId(message)) {
+      // Only main-thread assistant uuids are valid resume anchors; a sub-agent
+      // uuid (parent_tool_use_id set) must never become a rollback resume point.
       this.currentTurnAssistantUuid = message.uuid;
     }
 
@@ -1276,12 +1318,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
  * Whether an SDK message represents the model starting to produce fresh
  * assistant output. A streamed message opens with a `message_start` stream
  * event; non-streaming transports deliver a whole `assistant` message instead.
- * Sub-agent (`Task`) output also arrives as assistant messages, but only while
- * a turn is already in flight, so callers gate on `currentTurnInFlight` to
- * exclude it. Used to detect a wakeup/background resume that bypassed
- * `startTurn`.
+ * Sub-agent output also arrives as assistant messages / stream events, but it
+ * carries a `parent_tool_use_id` and keeps arriving AFTER the main turn's
+ * `result` — it must never open a resumed turn (that would flip the thread back
+ * to working on background subagent chatter). Exclude anything parent-attributed
+ * here. Used to detect a wakeup/background resume that bypassed `startTurn`.
  */
 function isResumedAssistantActivity(message: SDKMessage): boolean {
+  if (readParentToolUseId(message)) return false;
   if (message.type === "assistant") return true;
   if (message.type === "stream_event") {
     return message.event.type === "message_start";
