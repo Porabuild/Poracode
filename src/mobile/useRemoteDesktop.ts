@@ -141,6 +141,15 @@ const MOBILE_TERMINAL_START_STATUSES = new Set<ThreadStatus>([
   "error",
 ]);
 
+// For GUI threads "finished" (and "launching") mean the structured session is
+// still alive on the desktop — restarting would close+reopen a live session.
+// Only resume sessions that are actually gone, and only ones that ended
+// CLEANLY: a prompt-less resume of an "error" thread replays its broken turn,
+// which the agent session can keep re-entering on its own — an infinite
+// relaunch-into-working loop with no user input. Errored threads wait for an
+// explicit prompt instead.
+const MOBILE_GUI_START_STATUSES = new Set<ThreadStatus>(["inactive"]);
+
 /**
  * Owns the remote-desktop session: paired desktops, cached + live snapshots,
  * the resumable WebSocket, and every mutation the PWA can perform. All thread
@@ -647,23 +656,27 @@ export function useRemoteDesktop() {
   }
 
   async function openThread(thread: Thread) {
+    // Mirror the desktop sidebar click: the shared store action marks the
+    // thread as the visible pane (so live "idle" events apply as idle instead
+    // of being downgraded to the unwatched "finished" state) and clears any
+    // stale finished/done flags on the way in. Without it the PWA never
+    // populates state.view, and a finished thread stays "Finished" forever.
+    // ThreadsRoute resets the view to home on the way back so unwatched
+    // completions keep earning their badge.
+    useAppStore.getState().openThread(thread.id);
     setSelectedThreadId(thread.id);
     setThreadSnapshot((current) => (current?.thread.id === thread.id ? current : null));
     const desktop = activeDesktop;
     if (!desktop) return;
     const loaded = await loadThreadSnapshot(thread.id, desktop, { preferCache: true });
-    // Only auto-(re)start a terminal thread when the status came from a FRESH
-    // server snapshot. If the history fetch failed and we fell back to a CACHED
+    // Only auto-(re)start a thread when the status came from a FRESH server
+    // snapshot. If the history fetch failed and we fell back to a CACHED
     // snapshot, a stale "startable" status would trigger startThread — which the
     // supervisor implements as close+restart, KILLING a live run. Also surface
     // any start failure rather than leaving an unhandled rejection.
     try {
       if (loaded && loaded.fromServer) {
-        await ensureTerminalThreadRunning(
-          loaded.snapshot.thread,
-          desktop,
-          loaded.snapshot.terminalSize,
-        );
+        await ensureThreadRunning(loaded.snapshot.thread, desktop, loaded.snapshot.terminalSize);
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : i18n._(msg`Unable to start the thread.`));
@@ -717,15 +730,32 @@ export function useRemoteDesktop() {
       : project.location;
   }
 
-  async function ensureTerminalThreadRunning(
+  /**
+   * Activate an inactive thread on the desktop when the user opens it in the
+   * PWA. Terminal threads spawn a fresh PTY; GUI (native chat) threads resume
+   * their structured session via `sessionRef` (or open a new one when none was
+   * ever recorded). Both are driven with an empty prompt — the supervisor's
+   * `startThread` opens/resumes the session and leaves it idle, starting a turn
+   * only when a prompt is supplied. Only the presentation and terminal size
+   * differ between the two, so a single call covers both.
+   */
+  async function ensureThreadRunning(
     thread: Thread,
     desktop: StoredDesktop,
     terminalSize?: TerminalSize,
   ): Promise<void> {
-    if ((thread.presentationMode ?? "terminal") !== "terminal") return;
-    if (!MOBILE_TERMINAL_START_STATUSES.has(thread.status)) return;
+    const presentation = thread.presentationMode ?? "terminal";
+    const startStatuses =
+      presentation === "terminal" ? MOBILE_TERMINAL_START_STATUSES : MOBILE_GUI_START_STATUSES;
+    if (!startStatuses.has(thread.status)) return;
     const projectLocation = resolveThreadProjectLocation(thread);
-    if (!projectLocation) return;
+    if (!projectLocation) {
+      // The thread is startable but its project isn't in the current shell
+      // snapshot (transient race after a remote project change). Surface it
+      // instead of silently leaving the thread inactive.
+      setMessage(i18n._(msg`Unable to start the thread.`));
+      return;
+    }
     await clientFor(desktop).startThread({
       threadId: thread.id,
       projectLocation,
@@ -735,7 +765,7 @@ export function useRemoteDesktop() {
       prompt: "",
       initialSize: terminalSize ?? DEFAULT_TERMINAL_SIZE,
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-      presentationMode: "terminal",
+      presentationMode: presentation,
     });
     void refresh(desktop, { refreshSelectedThread: true });
   }

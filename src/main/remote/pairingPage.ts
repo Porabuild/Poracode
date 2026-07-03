@@ -22,7 +22,7 @@ export function buildLocalPairingPageHtml(input: { readonly httpBaseUrl: string 
       --line: rgba(255, 255, 255, 0.12);
       --text: #eaf0fb;
       --muted: #9ba6be;
-      --accent: #8b7bff;
+      --accent: #8892ef;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg);
       color: var(--text);

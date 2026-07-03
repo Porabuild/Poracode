@@ -16,6 +16,8 @@
  * composer ancestors and re-asserts the current baseline.
  */
 
+import { keyboardDebug } from "./composerKeyboardDebug";
+
 const SETTLE_TIMING_MS = [0, 16, 50, 150, 300, 500] as const;
 const MOBILE_ROOT_SCROLL_TOP = 0;
 
@@ -38,6 +40,14 @@ function setScrollTop(element: Element | null | undefined, top: number): void {
 }
 
 function restoreRootScroll(top: number): void {
+  const scrollerTop = lockedScroller?.scrollTop ?? 0;
+  if (scrollerTop !== top || window.scrollY !== top) {
+    keyboardDebug("scroll-lock-correct", {
+      target: top,
+      scrollerTop,
+      windowScrollY: window.scrollY,
+    });
+  }
   setScrollTop(lockedScroller, top);
   setScrollTop(document.scrollingElement, top);
   setScrollTop(document.documentElement, top);

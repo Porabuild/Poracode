@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Switch, toast } from "@heroui/react";
+import { Button, Disclosure, Switch, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Copy, ExternalLink, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { toDataURL } from "qrcode";
@@ -167,6 +167,80 @@ function CopyValueRow(props: {
   );
 }
 
+function PairedDevicesDisclosure(props: {
+  sessions: readonly RemoteAccessSessionSummary[];
+  revokingSessionId: string | null;
+  onRevoke: (sessionId: string) => void;
+}) {
+  const { t } = useLingui();
+  const unnamedDeviceLabel = t`Unnamed device`;
+  const remoteSessionLabel = t`Remote session`;
+
+  return (
+    <Disclosure className="max-w-[42rem] border-t border-border/60 pt-4">
+      <Disclosure.Heading>
+        <Disclosure.Trigger className="flex w-full min-w-0 items-center gap-3 py-1 text-left">
+          <ShieldCheck className="size-4 shrink-0 text-muted" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium text-foreground">
+              <Trans>Paired devices</Trans>
+            </span>
+            <span className="block text-xs text-muted">
+              {props.sessions.length === 0 ? (
+                <Trans>No paired devices yet.</Trans>
+              ) : (
+                <Trans>Expand to review or revoke access.</Trans>
+              )}
+            </span>
+          </span>
+          <span className="rounded-full bg-foreground/10 px-2 py-0.5 text-xs tabular-nums text-muted">
+            {props.sessions.length}
+          </span>
+          <Disclosure.Indicator className="size-3.5 shrink-0 text-muted" />
+        </Disclosure.Trigger>
+      </Disclosure.Heading>
+      <Disclosure.Content>
+        <Disclosure.Body className="space-y-2 pt-3">
+          {props.sessions.length === 0 ? (
+            <p className="text-xs text-muted">
+              <Trans>New phones, tablets, and browsers appear here after pairing.</Trans>
+            </p>
+          ) : (
+            props.sessions.map((session) => {
+              const name = sessionName(session, unnamedDeviceLabel);
+              const meta = sessionMeta(session, remoteSessionLabel);
+              const expiresAt = formatSessionTime(session.expiresAt);
+              const revoking = props.revokingSessionId === session.id;
+              return (
+                <div key={session.id} className="flex items-center gap-3 py-1">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{name}</p>
+                    <p className="truncate text-xs text-muted">{t`${meta} · expires ${expiresAt}`}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    isIconOnly
+                    isDisabled={revoking}
+                    aria-label={t`Revoke ${name}`}
+                    onPress={() => props.onRevoke(session.id)}
+                  >
+                    {revoking ? (
+                      <PixelLoader size="sm" />
+                    ) : (
+                      <Trash2 className="size-3.5 text-danger" />
+                    )}
+                  </Button>
+                </div>
+              );
+            })
+          )}
+        </Disclosure.Body>
+      </Disclosure.Content>
+    </Disclosure>
+  );
+}
+
 function PairingReady(props: {
   info: Extract<RemoteAccessPairingInfo, { status: "ready" }>;
   qrDataUrl: string | null;
@@ -179,65 +253,17 @@ function PairingReady(props: {
   const desktopEndpointLabel = t`Desktop endpoint`;
   const pairingTokenLabel = t`Pairing token`;
   const pairingLinkLabel = t`Pairing link`;
-  const unnamedDeviceLabel = t`Unnamed device`;
-  const remoteSessionLabel = t`Remote session`;
   const pairingToken = pairingTokenFromUrl(props.info.pairingUrl);
-  const pairedDevices = (
-    <div className="max-w-[42rem]">
-      <div className="flex items-center gap-2">
-        <ShieldCheck className="size-4 text-muted" />
-        <p className="text-sm font-medium text-foreground">
-          <Trans>Paired devices</Trans>
-        </p>
-      </div>
-      {props.info.sessions.length === 0 ? (
-        <p className="mt-2 text-xs text-muted">
-          <Trans>No paired devices yet.</Trans>
-        </p>
-      ) : (
-        <div className="mt-3 space-y-2">
-          {props.info.sessions.map((session) => {
-            const name = sessionName(session, unnamedDeviceLabel);
-            const meta = sessionMeta(session, remoteSessionLabel);
-            const expiresAt = formatSessionTime(session.expiresAt);
-            const revoking = props.revokingSessionId === session.id;
-            return (
-              <div key={session.id} className="flex items-center gap-3 py-1.5">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">{name}</p>
-                  <p className="truncate text-xs text-muted">{t`${meta} · expires ${expiresAt}`}</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  isIconOnly
-                  isDisabled={revoking}
-                  aria-label={t`Revoke ${name}`}
-                  onPress={() => props.onRevoke(session.id)}
-                >
-                  {revoking ? (
-                    <PixelLoader size="sm" />
-                  ) : (
-                    <Trash2 className="size-3.5 text-danger" />
-                  )}
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
 
   const copyValue = useCopyValue();
   const handleCopy = (value: string, label: string, failureMessage: string) =>
     void copyValue(value, label, failureMessage);
 
   return (
-    <div className="space-y-10">
-      <div className="grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)]">
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="space-y-3">
-          <div className="flex aspect-square w-full max-w-[260px] items-center justify-center bg-white p-3">
+          <div className="flex aspect-square w-full max-w-[220px] items-center justify-center bg-white p-3">
             {props.qrDataUrl ? (
               <img
                 src={props.qrDataUrl}
@@ -295,7 +321,11 @@ function PairingReady(props: {
           />
         </div>
       </div>
-      {pairedDevices}
+      <PairedDevicesDisclosure
+        sessions={props.info.sessions}
+        revokingSessionId={props.revokingSessionId}
+        onRevoke={props.onRevoke}
+      />
     </div>
   );
 }
@@ -393,10 +423,12 @@ function RemoteAccessAdvanced(props: {
   const daemonReady = status?.daemon === "running";
   const hint = tailscaleHint(status, {
     checking: t`Checking Tailscale…`,
-    notInstalled: t`Install Tailscale to set up HTTPS access through MagicDNS.`,
-    notRunning: t`Start Tailscale to set up HTTPS access through MagicDNS.`,
-    needsLogin: t`Log in to Tailscale to set up HTTPS access through MagicDNS.`,
-    ready: t`Serve remote access over your tailnet's HTTPS MagicDNS URL.`,
+    notInstalled: t`Install Tailscale to enable HTTPS access through MagicDNS.`,
+    notRunning: t`Start Tailscale to enable HTTPS access through MagicDNS.`,
+    needsLogin: t`Log in to Tailscale to enable HTTPS access through MagicDNS.`,
+    ready: tailscaleEnabled
+      ? t`Ready. New pairing codes will advertise the Tailscale HTTPS URL when serve is active.`
+      : t`Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing codes.`,
   });
 
   const launchTailscale = async () => {
@@ -460,7 +492,10 @@ function RemoteAccessAdvanced(props: {
 
   return (
     <div className="space-y-4 border-t border-border/60 pt-6">
-      <SettingRow title={t`Tailscale HTTPS`} description={hint}>
+      <SettingRow
+        title={t`Tailscale HTTPS`}
+        description={t`Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below.`}
+      >
         <Switch
           isSelected={tailscaleEnabled}
           // Stays operable while enabled even if the daemon went away, so the
@@ -474,6 +509,7 @@ function RemoteAccessAdvanced(props: {
           </Switch.Control>
         </Switch>
       </SettingRow>
+      <p className="-mt-2 text-xs text-muted">{hint}</p>
       {status?.daemon === "not-installed" ? (
         <Button
           size="sm"

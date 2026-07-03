@@ -1,3 +1,5 @@
+import { describeElement, keyboardDebug } from "./composerKeyboardDebug";
+
 /**
  * How long to keep the guard armed waiting for the synthetic ghost click.
  * Mobile browsers dispatch the synthesized tap-end `click` ~100-300ms after
@@ -31,6 +33,9 @@ export function suppressNextGhostTap(): () => void {
   let timeoutId = 0;
 
   function swallow(event: Event) {
+    keyboardDebug("ghost-tap-swallowed", {
+      target: describeElement(event.target instanceof Element ? event.target : null),
+    });
     event.preventDefault();
     event.stopPropagation();
     disarm();
@@ -43,7 +48,10 @@ export function suppressNextGhostTap(): () => void {
   }
 
   document.addEventListener("click", swallow, true);
-  timeoutId = window.setTimeout(disarm, GHOST_TAP_WINDOW_MS);
+  timeoutId = window.setTimeout(() => {
+    keyboardDebug("ghost-tap-guard-expired");
+    disarm();
+  }, GHOST_TAP_WINDOW_MS);
   activeDisarm = disarm;
 
   return disarm;

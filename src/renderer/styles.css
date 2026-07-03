@@ -855,7 +855,7 @@
        near-white default (~0.94) so these controls separate from the panel in
        light themes (~1.35:1 vs page) instead of vanishing into it. */
     --default: oklch(0.86 0.004 286);
-    --accent: #6f5cf0;
+    --accent: #5f6cd9;
     --accent-foreground: var(--snow);
     --success: oklch(0.45 0.16 150);
     --success-foreground: var(--snow);
@@ -886,20 +886,22 @@
     --background: #070709;
     --foreground: #eaf0fb;
     --surface: #0e0e14;
-    --surface-secondary: #16161f;
-    --surface-tertiary: #1d1d28;
-    --overlay: #15151d;
+    --surface-secondary: #1a1a1e;
+    /* Matches --composer-surface so chat bubbles (user message) and the
+       composer read as one surface. */
+    --surface-tertiary: #17171d;
+    --overlay: #19191c;
     --muted: #9ba6be;
     --scrollbar: #3a3a48;
-    --default: #20202b;
-    --accent: #8b7bff;
+    --default: #242429;
+    --accent: #8892ef;
     --accent-foreground: #0a0a12;
     --danger: oklch(0.64 0.2 24.63);
     --danger-foreground: var(--snow);
-    --field-background: #14141c;
+    --field-background: #18181b;
     --field-placeholder: #6b6b7b;
     --field-border: oklch(0.34 0.006 286 / 0.85);
-    --segment: #2a2a36;
+    --segment: #2e2f33;
     --border: oklch(0.31 0.006 286 / 0.9);
     --separator: oklch(0.3 0.006 286 / 0.85);
 
@@ -910,7 +912,7 @@
        color (higher alpha = less transparent) than the light default above. */
     --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 65%, transparent);
     --window-header-background: var(--sidebar-background);
-    --composer-surface: #16161f;
+    --composer-surface: #17171d;
   }
 
   * {

@@ -126,10 +126,13 @@ function resolveIcon(control: ComposerControl): ReactNode | undefined {
   }
 
   if (iconKind === "permission") {
+    // The `lightcode-composer-permission-icon` marker is a provider-agnostic
+    // hook (keyed off the generic `iconKind`, never a provider name) that the
+    // mobile compact composer uses to surface the permission chip as an icon.
     if (control.kind === "toggle") {
       return (
         <PermissionIcon
-          className="size-4 text-foreground"
+          className="size-4 text-foreground lightcode-composer-permission-icon"
           index={control.isSelected ? 1 : 0}
           count={2}
         />
@@ -139,7 +142,7 @@ function resolveIcon(control: ComposerControl): ReactNode | undefined {
     const idx = ids.indexOf(control.value);
     return (
       <PermissionIcon
-        className="size-4 text-foreground"
+        className="size-4 text-foreground lightcode-composer-permission-icon"
         index={idx < 0 ? 0 : idx}
         count={ids.length}
       />

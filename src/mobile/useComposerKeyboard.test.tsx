@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { createEvent, fireEvent, render, screen } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useComposerKeyboard } from "./useComposerKeyboard";
+import { resetComposerKeyboardMemoryForTests, useComposerKeyboard } from "./useComposerKeyboard";
 
 const keyboardMock = vi.hoisted(() => ({ offset: 0 }));
 const scrollLockMock = vi.hoisted(() => ({
@@ -21,7 +21,7 @@ vi.mock("./composeScrollLock", () => scrollLockMock);
 
 function ComposerKeyboardHarness(props: { readonly onBeforeGuardedFocus?: () => void }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  useComposerKeyboard(
+  const { liftOffset, measuringKeyboard } = useComposerKeyboard(
     ref,
     "test-composer",
     props.onBeforeGuardedFocus ? { onBeforeGuardedFocus: props.onBeforeGuardedFocus } : {},
@@ -32,13 +32,59 @@ function ComposerKeyboardHarness(props: { readonly onBeforeGuardedFocus?: () => 
       <div data-composer-input-anchor="">
         <div role="textbox" tabIndex={0} contentEditable suppressContentEditableWarning />
       </div>
+      <output aria-label="lift offset">{liftOffset}</output>
+      <output aria-label="measuring keyboard">{String(measuringKeyboard)}</output>
     </div>
   );
+}
+
+function installVisualViewport(): () => void {
+  const original = window.visualViewport;
+  Object.defineProperty(window, "visualViewport", {
+    configurable: true,
+    value: {
+      height: 500,
+      offsetTop: 0,
+      addEventListener:
+        vi.fn<
+          (
+            type: string,
+            listener: EventListenerOrEventListenerObject,
+            options?: boolean | AddEventListenerOptions,
+          ) => void
+        >(),
+      removeEventListener:
+        vi.fn<
+          (
+            type: string,
+            listener: EventListenerOrEventListenerObject,
+            options?: boolean | EventListenerOptions,
+          ) => void
+        >(),
+    },
+  });
+  return () => {
+    if (original) {
+      Object.defineProperty(window, "visualViewport", { configurable: true, value: original });
+    } else {
+      Reflect.deleteProperty(window, "visualViewport");
+    }
+  };
+}
+
+async function waitForTwoFrames(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  });
 }
 
 describe("useComposerKeyboard", () => {
   beforeEach(() => {
     keyboardMock.offset = 0;
+    window.localStorage.clear();
+    resetComposerKeyboardMemoryForTests();
     scrollLockMock.lockComposeScroll.mockClear();
     scrollLockMock.unlockComposeScroll.mockClear();
     scrollLockMock.focusWithoutScroll.mockClear();
@@ -168,6 +214,172 @@ describe("useComposerKeyboard", () => {
         configurable: true,
         value: originalRequestAnimationFrame,
       });
+    }
+  });
+
+  it("focuses only the keyboard primer until cold first focus has a measured keyboard height", async () => {
+    const restoreVisualViewport = installVisualViewport();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+    try {
+      const { rerender } = render(<ComposerKeyboardHarness />);
+      const input = screen.getByRole("textbox");
+      expect(screen.getByLabelText("lift offset")).toHaveTextContent("0");
+      expect(screen.getByLabelText("measuring keyboard")).toHaveTextContent("false");
+
+      const pointerDown = createEvent.pointerDown(input, {
+        pointerType: "touch",
+        cancelable: true,
+      });
+      fireEvent(input, pointerDown);
+
+      expect(screen.getByLabelText("lift offset")).toHaveTextContent("0");
+      expect(screen.getByLabelText("measuring keyboard")).toHaveTextContent("true");
+      expect(document.activeElement).toHaveAttribute("data-composer-keyboard-primer");
+      expect(scrollLockMock.focusWithoutScroll).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          dataset: expect.objectContaining({ composerKeyboardPrimer: "" }),
+        }),
+      );
+
+      keyboardMock.offset = 320;
+      rerender(<ComposerKeyboardHarness />);
+
+      expect(document.activeElement).toHaveAttribute("data-composer-keyboard-primer");
+      expect(screen.getByLabelText("measuring keyboard")).toHaveTextContent("true");
+
+      act(() => {
+        vi.runOnlyPendingTimers();
+      });
+      await act(async () => {
+        await waitForTwoFrames();
+      });
+
+      expect(screen.getByLabelText("lift offset")).toHaveTextContent("320");
+      expect(screen.getByLabelText("measuring keyboard")).toHaveTextContent("false");
+      expect(scrollLockMock.focusWithoutScroll).toHaveBeenNthCalledWith(
+        scrollLockMock.focusWithoutScroll.mock.calls.length - 1,
+        expect.objectContaining({
+          dataset: expect.objectContaining({ composerFocusSentinel: "" }),
+        }),
+      );
+      expect(scrollLockMock.focusWithoutScroll).toHaveBeenLastCalledWith(input);
+      expect(document.activeElement).toBe(input);
+    } finally {
+      vi.useRealTimers();
+      restoreVisualViewport();
+    }
+  });
+
+  it("pins the lift to the remembered height while the primer probes on first focus", async () => {
+    const restoreVisualViewport = installVisualViewport();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    window.localStorage.setItem("lightcode-mobile-keyboard-height", "347");
+
+    try {
+      const { rerender } = render(<ComposerKeyboardHarness />);
+      const input = screen.getByRole("textbox");
+
+      const pointerDown = createEvent.pointerDown(input, {
+        pointerType: "touch",
+        cancelable: true,
+      });
+      fireEvent(input, pointerDown);
+
+      // The primer still owns focus (focusing the editable before the
+      // keyboard is up makes iOS pan the page), but the dock is already
+      // lifted by the remembered height instead of hidden.
+      expect(document.activeElement).toHaveAttribute("data-composer-keyboard-primer");
+      expect(screen.getByLabelText("measuring keyboard")).toHaveTextContent("true");
+      expect(screen.getByLabelText("lift offset")).toHaveTextContent("347");
+
+      // Interim measurements during the keyboard's rise must not move the
+      // pinned lift.
+      keyboardMock.offset = 209;
+      rerender(<ComposerKeyboardHarness />);
+      expect(screen.getByLabelText("lift offset")).toHaveTextContent("347");
+
+      keyboardMock.offset = 320;
+      rerender(<ComposerKeyboardHarness />);
+      expect(screen.getByLabelText("lift offset")).toHaveTextContent("347");
+
+      act(() => {
+        vi.runOnlyPendingTimers();
+      });
+      await act(async () => {
+        await waitForTwoFrames();
+      });
+
+      // Probe done: the real editor takes focus and the measured offset wins.
+      expect(document.activeElement).toBe(input);
+      expect(screen.getByLabelText("measuring keyboard")).toHaveTextContent("false");
+      expect(screen.getByLabelText("lift offset")).toHaveTextContent("320");
+    } finally {
+      vi.useRealTimers();
+      restoreVisualViewport();
+    }
+  });
+
+  it("probes through the primer again when refocusing after the keyboard was dismissed", () => {
+    const restoreVisualViewport = installVisualViewport();
+    window.localStorage.setItem("lightcode-mobile-keyboard-height", "347");
+
+    try {
+      keyboardMock.offset = 347;
+      const { rerender } = render(<ComposerKeyboardHarness />);
+      const input = screen.getByRole("textbox");
+
+      input.focus();
+      fireEvent.focusIn(input);
+
+      // The dismiss key hides the keyboard without blurring the editor.
+      keyboardMock.offset = 0;
+      rerender(<ComposerKeyboardHarness />);
+
+      // Refocusing must raise the keyboard from closed — that goes through
+      // the primer (a directly focused editable makes iOS pan the page),
+      // with the dock pre-positioned at the remembered lift.
+      const pointerDown = createEvent.pointerDown(input, {
+        pointerType: "touch",
+        cancelable: true,
+      });
+      fireEvent(input, pointerDown);
+
+      expect(document.activeElement).toHaveAttribute("data-composer-keyboard-primer");
+      expect(screen.getByLabelText("measuring keyboard")).toHaveTextContent("true");
+      expect(screen.getByLabelText("lift offset")).toHaveTextContent("347");
+    } finally {
+      restoreVisualViewport();
+    }
+  });
+
+  it("does not focus the real editor when cold first focus times out without measurement", () => {
+    const restoreVisualViewport = installVisualViewport();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+
+    try {
+      render(<ComposerKeyboardHarness />);
+      const input = screen.getByRole("textbox");
+
+      const pointerDown = createEvent.pointerDown(input, {
+        pointerType: "touch",
+        cancelable: true,
+      });
+      fireEvent(input, pointerDown);
+
+      expect(document.activeElement).toHaveAttribute("data-composer-keyboard-primer");
+
+      act(() => {
+        vi.advanceTimersByTime(1_200);
+      });
+
+      expect(document.activeElement).not.toBe(input);
+      expect(screen.getByLabelText("lift offset")).toHaveTextContent("0");
+      expect(screen.getByLabelText("measuring keyboard")).toHaveTextContent("false");
+      expect(scrollLockMock.focusWithoutScroll).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+      restoreVisualViewport();
     }
   });
 

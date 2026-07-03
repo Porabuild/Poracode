@@ -2829,6 +2829,10 @@ msgstr "Rozwiń wszystko"
 msgid "Expand error"
 msgstr "Rozwiń błąd"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Expand to review or revoke access."
+msgstr "Rozwiń, aby sprawdzić lub odebrać dostęp."
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "Rozwiń dok zadań do wykonania"
@@ -3516,8 +3520,12 @@ msgid "Install Tailscale"
 msgstr "Zainstaluj Tailscale"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Install Tailscale to set up HTTPS access through MagicDNS."
-msgstr "Zainstaluj Tailscale, aby skonfigurować dostęp HTTPS przez MagicDNS."
+msgid "Install Tailscale to enable HTTPS access through MagicDNS."
+msgstr "Zainstaluj Tailscale, aby włączyć dostęp HTTPS przez MagicDNS."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Install Tailscale to set up HTTPS access through MagicDNS."
+#~ msgstr "Zainstaluj Tailscale, aby skonfigurować dostęp HTTPS przez MagicDNS."
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -3745,8 +3753,12 @@ msgid "Location"
 msgstr "Lokalizacja"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Log in to Tailscale to set up HTTPS access through MagicDNS."
-msgstr "Zaloguj się w Tailscale, aby skonfigurować dostęp HTTPS przez MagicDNS."
+msgid "Log in to Tailscale to enable HTTPS access through MagicDNS."
+msgstr "Zaloguj się do Tailscale, aby włączyć dostęp HTTPS przez MagicDNS."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Log in to Tailscale to set up HTTPS access through MagicDNS."
+#~ msgstr "Zaloguj się w Tailscale, aby skonfigurować dostęp HTTPS przez MagicDNS."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Logging in"
@@ -4225,6 +4237,10 @@ msgstr "Nazwa nowego folderu"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "New line"
 msgstr "Nowy wiersz"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "New phones, tablets, and browsers appear here after pairing."
+msgstr "Nowe telefony, tablety i przeglądarki pojawią się tutaj po sparowaniu."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
@@ -4923,6 +4939,15 @@ msgid "Optional status hooks. Installed hooks update automatically; missing "
 msgstr "Opcjonalne haki stanu. Zainstalowane haki aktualizują się "
 "automatycznie; brakujące haki nigdy nie są instalowane automatycznie."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Optional. Enabling this runs tailscale serve for the remote access port, "
+"then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it "
+"off to use the LAN address or Public URL below."
+msgstr "Opcjonalne. Włączenie uruchamia tailscale serve dla portu zdalnego "
+"dostępu, a nowe kody parowania użyją adresu HTTPS MagicDNS twojego "
+"tailnetu. Zostaw wyłączone, aby używać adresu LAN albo publicznego URL "
+"poniżej."
+
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/common/OptionMenu.tsx
@@ -5459,6 +5484,18 @@ msgstr "Gotowy"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Ready for Review"
 msgstr "Gotowe do przeglądu"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Ready. New pairing codes will advertise the Tailscale HTTPS URL when "
+"serve is active."
+msgstr "Gotowe. Nowe kody parowania będą ogłaszać adres HTTPS Tailscale, gdy "
+"serve będzie aktywne."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing "
+"codes."
+msgstr "Gotowe. Włącz to, aby ogłaszać adres HTTPS Tailscale w nowych kodach "
+"parowania."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Reasoning"
@@ -6286,9 +6323,9 @@ msgstr "Oddziel konta Claude Code według katalogu konfiguracji lub skieruj "
 "skonfigurować jego zmienne środowiskowe, modele i poziom rozumowania."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
-msgstr "Udostępniaj dostęp zdalny przez adres URL HTTPS MagicDNS Twojej "
-"tailnet."
+#~ msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
+#~ msgstr "Udostępniaj dostęp zdalny przez adres URL HTTPS MagicDNS Twojej "
+#~ "tailnet."
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
@@ -6641,8 +6678,12 @@ msgid "Start Tailscale"
 msgstr "Uruchom Tailscale"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Start Tailscale to set up HTTPS access through MagicDNS."
-msgstr "Uruchom Tailscale, aby skonfigurować dostęp HTTPS przez MagicDNS."
+msgid "Start Tailscale to enable HTTPS access through MagicDNS."
+msgstr "Uruchom Tailscale, aby włączyć dostęp HTTPS przez MagicDNS."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Start Tailscale to set up HTTPS access through MagicDNS."
+#~ msgstr "Uruchom Tailscale, aby skonfigurować dostęp HTTPS przez MagicDNS."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx

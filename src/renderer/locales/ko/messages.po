@@ -2784,6 +2784,10 @@ msgstr "모두 펼치기"
 msgid "Expand error"
 msgstr "확장 오류"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Expand to review or revoke access."
+msgstr "펼쳐서 액세스를 검토하거나 취소합니다."
+
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "할 일 도크 확장"
@@ -3447,8 +3451,12 @@ msgid "Install Tailscale"
 msgstr "Tailscale 설치"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Install Tailscale to set up HTTPS access through MagicDNS."
-msgstr "MagicDNS를 통한 HTTPS 액세스를 설정하려면 Tailscale을 설치하세요."
+msgid "Install Tailscale to enable HTTPS access through MagicDNS."
+msgstr "MagicDNS를 통한 HTTPS 액세스를 활성화하려면 Tailscale을 설치하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Install Tailscale to set up HTTPS access through MagicDNS."
+#~ msgstr "MagicDNS를 통한 HTTPS 액세스를 설정하려면 Tailscale을 설치하세요."
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -3672,8 +3680,12 @@ msgid "Location"
 msgstr "위치"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Log in to Tailscale to set up HTTPS access through MagicDNS."
-msgstr "MagicDNS를 통한 HTTPS 액세스를 설정하려면 Tailscale에 로그인하세요."
+msgid "Log in to Tailscale to enable HTTPS access through MagicDNS."
+msgstr "MagicDNS를 통한 HTTPS 액세스를 활성화하려면 Tailscale에 로그인하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Log in to Tailscale to set up HTTPS access through MagicDNS."
+#~ msgstr "MagicDNS를 통한 HTTPS 액세스를 설정하려면 Tailscale에 로그인하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
 msgid "Logging in"
@@ -4150,6 +4162,10 @@ msgstr "새 폴더 이름"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "New line"
 msgstr "줄 바꿈"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "New phones, tablets, and browsers appear here after pairing."
+msgstr "새 휴대폰, 태블릿, 브라우저는 페어링 후 여기에 표시됩니다."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
@@ -4845,6 +4861,13 @@ msgid "Optional status hooks. Installed hooks update automatically; missing "
 "hooks are never installed automatically."
 msgstr "선택적 상태 후크. 설치된 후크는 자동으로 업데이트됩니다. 누락된 후크는 자동으로 설치되지 않습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Optional. Enabling this runs tailscale serve for the remote access port, "
+"then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it "
+"off to use the LAN address or Public URL below."
+msgstr "선택 사항입니다. 이 옵션을 켜면 원격 액세스 포트에 대해 tailscale serve를 실행하고, 이후 새 페어링 코드는 "
+"tailnet의 HTTPS MagicDNS URL을 사용합니다. LAN 주소나 아래 공개 URL을 사용하려면 꺼 둡니다."
+
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/common/OptionMenu.tsx
@@ -5372,6 +5395,16 @@ msgstr "준비"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Ready for Review"
 msgstr "검토 준비 완료"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Ready. New pairing codes will advertise the Tailscale HTTPS URL when "
+"serve is active."
+msgstr "준비됨. serve가 활성화되면 새 페어링 코드가 Tailscale HTTPS URL을 광고합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing "
+"codes."
+msgstr "준비됨. 이 옵션을 켜면 새 페어링 코드에 Tailscale HTTPS URL이 광고됩니다."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Reasoning"
@@ -6189,8 +6222,8 @@ msgstr "Claude Code 계정을 설정 디렉터리별로 분리하거나, 프로�
 "변수, 모델, 추론 강도를 구성하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
-msgstr "테일넷의 HTTPS MagicDNS URL을 통해 원격 액세스를 제공합니다."
+#~ msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
+#~ msgstr "테일넷의 HTTPS MagicDNS URL을 통해 원격 액세스를 제공합니다."
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
@@ -6539,8 +6572,12 @@ msgid "Start Tailscale"
 msgstr "Tailscale 시작"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Start Tailscale to set up HTTPS access through MagicDNS."
-msgstr "MagicDNS를 통한 HTTPS 액세스를 설정하려면 Tailscale을 시작하세요."
+msgid "Start Tailscale to enable HTTPS access through MagicDNS."
+msgstr "MagicDNS를 통한 HTTPS 액세스를 활성화하려면 Tailscale을 시작하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#~ msgid "Start Tailscale to set up HTTPS access through MagicDNS."
+#~ msgstr "MagicDNS를 통한 HTTPS 액세스를 설정하려면 Tailscale을 시작하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx

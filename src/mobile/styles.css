@@ -712,6 +712,30 @@ body.bg-background {
   transform: translateY(calc(-1 * var(--m-keyboard-offset, 0px)));
 }
 
+/* Cold first focus: before iOS reports a keyboard height there is no reliable
+   offset to lift by. A fixed hidden primer owns focus during that measurement;
+   keep the dock raised and nearly invisible until visualViewport reports the
+   real keyboard offset and the full composer can be expanded/focused there. */
+.m-compose-dock[data-measuring-keyboard],
+.m-thread-compose-dock[data-measuring-keyboard] {
+  transform: translateY(-50dvh);
+  opacity: 0.01;
+  transition: none !important;
+}
+
+/* Guarded first-focus expansion happens inside the touch gesture, BEFORE the
+   programmatic focus. It must land instantly: with the max-height/transform
+   transitions running, iOS evaluates the focused editable at its mid-animation
+   (bottom-edge) position and pans the layout viewport to reveal it — the
+   "keyboard pushes the page" jump. The keyboard's own rise covers the missing
+   animation; the attribute is cleared right after the expansion paints. */
+.m-compose-dock[data-instant-expand],
+.m-thread-compose-dock[data-instant-expand],
+.m-compose-dock[data-instant-expand] *,
+.m-thread-compose-dock[data-instant-expand] * {
+  transition: none !important;
+}
+
 /* Dims the screen behind the expanded composer; tapping it collapses. It is
    a SIBLING of the dock, not a child: the dock is transformed while expanded
    (keyboard lift), and a transformed ancestor becomes the containing block of
@@ -736,7 +760,11 @@ body.bg-background {
   max-height: calc(2.75rem + 2px);
   border: 1px solid var(--hairline, var(--border));
   border-radius: 1.375rem;
-  background: color-mix(in oklab, var(--surface, var(--content-background)) 92%, transparent);
+  background: color-mix(
+    in oklab,
+    var(--composer-surface, var(--surface, var(--content-background))) 92%,
+    transparent
+  );
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
@@ -749,7 +777,7 @@ body.bg-background {
 .m-thread-compose-dock[data-expanded] .m-compose-bubble {
   max-height: calc(100dvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 7.5rem);
   border-radius: 1rem;
-  background: var(--sidebar-background, var(--background));
+  background: var(--composer-surface, var(--sidebar-background, var(--background)));
 }
 
 /* The embedded draft view sizes to its content inside the bubble: neutralize
@@ -842,7 +870,11 @@ body.bg-background {
    line and get clipped; inside a compact pill the send/stop goes back to its
    desktop 2.25rem — centered by the 0.25rem insets. */
 .m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-send,
-.m-main .m-thread .lightcode-composer-shell:not(:focus-within) .lightcode-composer-send {
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell
+  .lightcode-composer-send {
   width: 2.25rem;
   height: 2.25rem;
   min-width: 2.25rem;
@@ -932,7 +964,10 @@ body.bg-background {
   gap: 0.625rem;
   border: 1px solid var(--hairline, var(--border));
   border-radius: 0.625rem;
-  background: var(--surface, var(--content-background));
+  /* Same surface as the composer and chat bubbles (--surface-tertiary =
+     --composer-surface in the default dark theme) so the tappable cards read
+     as one family. */
+  background: var(--surface-tertiary, var(--surface, var(--content-background)));
   padding: 0.5rem 0.625rem;
   color: inherit;
   cursor: pointer;
@@ -947,7 +982,7 @@ body.bg-background {
 }
 
 .m-thread-row:active {
-  background: var(--row-hover);
+  background: var(--row-active, var(--row-hover));
 }
 
 .m-thread-row[data-active="true"] {
@@ -1226,7 +1261,28 @@ body.bg-background {
   overflow: hidden;
 }
 
-.m-thread-content {
+/* GUI chat scrolls UNDER the floating composer: the column runs to the screen
+   bottom (padding-bottom: 0 also neutralizes the JSX pb-2 utility) and the
+   safe zone lives INSIDE the chat scroller, so the last message scrolls clear
+   of the composer while earlier content ghosts beneath its translucent
+   bubble. */
+.m-thread:not(.m-thread--terminal) .m-thread-content {
+  padding-bottom: 0;
+}
+
+.m-thread .m-thread-content [data-lightcode-chat-scroller] {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+
+/* The scroll-to-bottom pin anchors to the pane's (now full-height) bottom
+   edge; lift it above the floating composer band. */
+.m-thread .m-thread-content button.bottom-4:has(svg.lucide-arrow-down) {
+  bottom: calc(4.5rem + env(safe-area-inset-bottom));
+}
+
+/* The terminal is an opaque bordered surface — it cannot scroll under the
+   composer, so the terminal column keeps reserving the band via padding. */
+.m-thread--terminal .m-thread-content {
   padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
 }
 
@@ -1938,7 +1994,11 @@ body.bg-background {
   transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.m-main .m-thread .lightcode-composer-shell:focus-within [data-composer-input-anchor] {
+.m-main
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .lightcode-composer-shell
+  [data-composer-input-anchor] {
   max-height: 12rem;
 }
 
@@ -1954,23 +2014,56 @@ body.bg-background {
 
 .m-main
   .m-thread
-  .lightcode-composer-shell:not(:focus-within)
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell
   .lightcode-composer-toolbar
   > .relative
   > div
-  > :nth-child(n + 4),
+  > :nth-child(n + 4):not(:has(.lightcode-composer-mode-icon)):not(
+    :has(.lightcode-composer-permission-icon)
+  ),
 .m-main
   .m-thread
-  .lightcode-composer-shell:not(:focus-within)
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell
   .lightcode-composer-toolbar
   > .flex.shrink-0
   > :not(.lightcode-composer-send) {
-  overflow: hidden;
-  max-width: 0;
-  opacity: 0;
+  /* display:none, not max-width:0 — zero-width flex items still earn the
+     row's 0.875rem gap on both sides, which read as uneven spacing between
+     the visible summary chips. The reveal on expand is covered by the
+     toolbar's entrance animation, so the per-chip width transition is not
+     missed. */
+  display: none;
+}
+
+/* One rhythm in the compact summary: chips carry no margins/padding of their
+   own (the row gap is the only inter-chip space) and the icon-only chips
+   share one 1rem icon box, so mixed intrinsic icon sizes (3.5 vs 4) can't
+   make equal gaps read as unequal. */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  > div
+  > * {
+  margin: 0;
   padding: 0;
-  border-width: 0;
-  pointer-events: none;
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  > div
+  > *
+  :is(svg, .lightcode-composer-permission-icon, .lightcode-composer-mode-icon) {
+  width: 1rem;
+  height: 1rem;
 }
 
 /* Compact with nothing typed: no send either — the summary row stands alone.
@@ -1980,9 +2073,8 @@ body.bg-background {
    action affordance. */
 .m-main
   .m-thread
-  .lightcode-composer-shell:not(:focus-within):not(
-    :has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  )
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
   .lightcode-composer-send:is([disabled], [data-disabled], [aria-disabled="true"]) {
   display: none;
 }
@@ -1998,29 +2090,53 @@ body.bg-background {
     border-color 0.15s ease;
 }
 
-.m-main .m-thread .lightcode-composer-shell:not(:focus-within) {
+.m-main .m-thread .m-thread-compose-dock:not([data-expanded]) .lightcode-composer-shell {
   border-radius: 1.375rem;
-  background: color-mix(in oklab, var(--surface, var(--content-background)) 92%, transparent);
+  background: color-mix(
+    in oklab,
+    var(--composer-surface, var(--surface, var(--content-background))) 92%,
+    transparent
+  );
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
 }
 
+/* The collapsed thread composer floats over live chat: keep it properly
+   translucent (the backdrop blur carries legibility) so the messages visibly
+   scroll beneath it. Collapsed only — the expanded bubble keeps its solid
+   surface for legible controls. */
+.m-main .m-thread .m-thread-compose-dock:not([data-expanded]) .m-compose-bubble {
+  background: color-mix(
+    in oklab,
+    var(--composer-surface, var(--surface, var(--content-background))) 45%,
+    transparent
+  );
+}
+
 /* …and expanded matches the expanded bubble: flatter radius, opaque surface,
    and the same animated border glow the draft composer shows (the glow node
    is rendered for every variant; desktop only lights it for drafts). */
-.m-main .m-thread .lightcode-composer-shell:focus-within {
+.m-main .m-thread .m-thread-compose-dock[data-expanded] .lightcode-composer-shell {
   border-radius: 1rem;
   border-color: transparent;
-  background: var(--sidebar-background, var(--background));
+  background: var(--composer-surface, var(--sidebar-background, var(--background)));
 }
 
-.m-main .m-thread .lightcode-composer-shell:focus-within .lightcode-composer-border-glow {
+.m-main
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .lightcode-composer-shell
+  .lightcode-composer-border-glow {
   opacity: 0.7;
   transition: opacity 0.3s ease;
 }
 
-.m-main .m-thread .lightcode-composer-shell:focus-within .lightcode-composer-border-glow::before {
+.m-main
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .lightcode-composer-shell
+  .lightcode-composer-border-glow::before {
   animation-play-state: running;
 }
 
@@ -2032,9 +2148,8 @@ body.bg-background {
    to its own row below the input (the rules above), send at its right. */
 .m-main
   .m-thread
-  .lightcode-composer-shell:not(:focus-within):not(
-    :has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  )
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
   .lightcode-composer-toolbar {
   position: absolute;
   inset: 0;
@@ -2048,9 +2163,8 @@ body.bg-background {
 
 .m-main
   .m-thread
-  .lightcode-composer-shell:not(:focus-within):not(
-    :has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  )
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
   .lightcode-composer-toolbar
   > :has(.lightcode-composer-send) {
   margin-left: auto;
@@ -2058,9 +2172,8 @@ body.bg-background {
 
 .m-main
   .m-thread
-  .lightcode-composer-shell:not(:focus-within):not(
-    :has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  )
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
   .lightcode-composer-toolbar
   .lightcode-composer-send {
   pointer-events: auto;
@@ -2069,7 +2182,8 @@ body.bg-background {
 /* The trio occupies the placeholder's slot; hide the placeholder itself. */
 .m-main
   .m-thread
-  .lightcode-composer-shell:not(:focus-within)
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell
   .lightcode-mention-input:empty::before {
   content: none;
 }
@@ -2080,7 +2194,11 @@ body.bg-background {
   transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.m-main .m-thread .lightcode-composer-shell:not(:focus-within) .lightcode-mention-input {
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell
+  .lightcode-mention-input {
   min-height: 2.75rem;
   max-height: 2.75rem;
   padding: calc((2.75rem - 1lh) / 2) 1rem;
@@ -2092,16 +2210,14 @@ body.bg-background {
    text at the input's own size. */
 .m-main
   .m-thread
-  .lightcode-composer-shell:not(:focus-within):not(
-    :has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  )
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
   .lightcode-composer-toolbar
   > .relative,
 .m-main
   .m-thread
-  .lightcode-composer-shell:not(:focus-within):not(
-    :has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  )
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
   .lightcode-composer-toolbar
   > .relative
   > div {
@@ -2113,9 +2229,8 @@ body.bg-background {
 
 .m-main
   .m-thread
-  .lightcode-composer-shell:not(:focus-within):not(
-    :has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  )
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
   .lightcode-composer-toolbar
   > .relative
   :is(button, [role="button"]) {
@@ -2134,13 +2249,100 @@ body.bg-background {
 
 .m-main
   .m-thread
-  .lightcode-composer-shell:not(:focus-within):not(
-    :has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  )
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
   .lightcode-composer-toolbar
   > .relative
   svg.lucide-chevron-down {
   display: none;
+}
+
+/* The desktop toolbar wrap system hides control labels (is-hidden /
+   data-collapse-tier) by measuring hidden probe rows against the container
+   width. On this device the compact line only ever surfaces the first three
+   controls, so that measurement is meaningless here — force the summary trio's
+   labels back on so effort reads as text, not a lone icon. Only <span> labels
+   are re-shown: the chevrons carry the same hideable class but are <svg> and
+   stay hidden (rule above). The Fast toggle is iconOnly (no label span), so it
+   stays an icon. min-width:0 + the label's own `truncate` keep a long model
+   name from overflowing the pointer-through overlay line. */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  span.lightcode-composer-label-hideable:not(.flex-col) {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* The model label is a stacked flex column (name over sub-provider); re-show it
+   as flex so its direction is preserved (display:inline-block would collapse
+   the two rows onto one line). */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  span.lightcode-composer-label-hideable.flex-col {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* The mode (work/plan) and permission chips join the compact summary as
+   icon-only glyphs — informational, non-interactive (the overlay row is
+   pointer-events:none; tapping the line focuses the input). The force-show
+   rules above would surface their text labels, so re-hide those: the chips are
+   identified provider-agnostically by the shared icon markers, never by
+   provider name or brittle nth-child position. */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  > div
+  > *:has(.lightcode-composer-mode-icon)
+  span.lightcode-composer-label-hideable,
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  > div
+  > *:has(.lightcode-composer-permission-icon)
+  span.lightcode-composer-label-hideable {
+  display: none;
+}
+
+/* Compact → expanded moves the toolbar from an absolute overlay (over the
+   input line) into its own row; position can't transition, so give the
+   expanded toolbar a brief entrance that reads as one motion with the dock's
+   max-height/transform animation. This is a keyframe animation, not a
+   transition, so [data-instant-expand] * (transition: none) does not disable
+   it — a short fade on the warm flip is harmless. */
+@keyframes m-thread-toolbar-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .lightcode-composer-shell
+  .lightcode-composer-toolbar {
+  animation: m-thread-toolbar-enter 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* Inside the floating thread bubble, the bubble owns the card chrome just like

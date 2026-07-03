@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread, ToolCallPayload } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -14,7 +14,10 @@ const fixtures = vi.hoisted(() => ({
     location: { kind: "posix", path: "/repo" },
     createdAt: "2026-01-01T00:00:00.000Z",
   } as Project,
-  composerProps: [] as Array<{ onResolveServerRequest?: unknown }>,
+  composerProps: [] as Array<{
+    onResolveServerRequest?: unknown;
+    onSubmitInput?: (prompt: string) => Promise<void>;
+  }>,
   guiContentProps: [] as Array<{ onResolveServerRequest?: unknown }>,
   keyboardOffset: 0,
 }));
@@ -68,7 +71,10 @@ vi.mock("../GitSummaryParts", () => ({
 }));
 
 vi.mock("@/renderer/components/thread/ThreadComposerSection", () => ({
-  ThreadComposerSection: (props: { onResolveServerRequest?: unknown }) => {
+  ThreadComposerSection: (props: {
+    onResolveServerRequest?: unknown;
+    onSubmitInput?: (prompt: string) => Promise<void>;
+  }) => {
     fixtures.composerProps.push(props);
     return (
       <div data-testid="thread-composer-section">
@@ -236,6 +242,7 @@ describe("mobile ThreadView", () => {
     });
     fireEvent(input, pointerDown);
 
+    expect(thread?.style.getPropertyValue("--m-keyboard-offset")).toBe("0px");
     await waitFor(() => {
       expect(thread?.style.getPropertyValue("--m-keyboard-offset")).toBe("0px");
     });
@@ -255,6 +262,52 @@ describe("mobile ThreadView", () => {
     );
 
     expect(fixtures.guiContentProps.at(-1)?.onResolveServerRequest).toBe(onResolveServerRequest);
+  });
+
+  it("collapses the floating composer after a successful send", async () => {
+    const { container } = render(
+      <ThreadView
+        thread={{ ...makeTerminalThread(), presentationMode: "gui" }}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+        onResolveServerRequest={() => Promise.resolve()}
+      />,
+    );
+    const dock = container.querySelector(".m-thread-compose-dock");
+
+    // Focusing the composer expands the controlled dock.
+    fireEvent.focusIn(screen.getByRole("textbox"));
+    await waitFor(() => expect(dock).toHaveAttribute("data-expanded"));
+
+    // A successful send collapses it (drops keyboard + scrim). Drive the
+    // composer's onSubmitInput directly rather than a DOM click so a leftover
+    // ghost-tap guard from an earlier test can't swallow the gesture.
+    await act(async () => {
+      await fixtures.composerProps.at(-1)?.onSubmitInput?.("hi");
+    });
+    expect(dock).not.toHaveAttribute("data-expanded");
+  });
+
+  it("keeps the composer expanded when the keyboard is dismissed (no collapse-on-focus-loss)", async () => {
+    const { container } = render(
+      <ThreadView
+        thread={{ ...makeTerminalThread(), presentationMode: "gui" }}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+        onResolveServerRequest={() => Promise.resolve()}
+      />,
+    );
+    const dock = container.querySelector(".m-thread-compose-dock");
+    const input = screen.getByRole("textbox");
+
+    fireEvent.focusIn(input);
+    await waitFor(() => expect(dock).toHaveAttribute("data-expanded"));
+
+    // Dismissing the keyboard blurs the input but must not collapse the dock.
+    fireEvent.focusOut(input);
+    await waitFor(() => expect(dock).toHaveAttribute("data-expanded"));
   });
 });
 

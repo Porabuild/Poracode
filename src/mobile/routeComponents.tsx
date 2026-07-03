@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import { useAppStore } from "@/renderer/state/appStore";
 import type { Thread } from "@/shared/contracts";
 import { getBasename } from "@/shared/pathUtils";
 import { buildWorktreeLocation } from "@/shared/worktree";
@@ -165,6 +166,15 @@ export function ThreadsRoute() {
   // The home composer's expand state (kept here so the list's empty-state
   // "New thread" button grows the same bubble as a tap on it).
   const [composeExpanded, setComposeExpanded] = useState(false);
+
+  // The narrow list is the "away from every thread" surface: reset the shared
+  // view so threads finishing from here on count as unwatched (the store
+  // downgrades their idle transition to the "Finished" badge). openThread in
+  // useRemoteDesktop sets the view back when a thread is opened. Wide shells
+  // keep the detail pane mounted, so the view stays on the selected thread.
+  useEffect(() => {
+    if (!isWide) useAppStore.getState().openHome();
+  }, [isWide]);
 
   // Wide: the sidebar owns the list; this pane shows the selected thread.
   if (isWide) {
