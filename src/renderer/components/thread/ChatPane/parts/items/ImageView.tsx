@@ -1,8 +1,9 @@
 import { memo, useMemo, useState, type ReactNode } from "react";
 import { Check, Copy, Download, Maximize2 } from "lucide-react";
-import { Tooltip } from "@heroui/react";
+import { Tooltip, toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { ToolCallPayload } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { readBridge } from "@/renderer/bridge";
 import { openImageLightbox } from "@/renderer/components/composer";
@@ -65,7 +66,7 @@ export const ImageCard = memo(function ImageCard({ source }: { source: ImageView
           className="block max-h-[22rem] w-auto max-w-full object-contain"
         />
       </button>
-      <div className="pointer-events-none absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
+      <div className="lightcode-image-action-toolbar pointer-events-none absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
         <CopyImageButton source={source} />
         <DownloadImageButton src={source.src} fileName={source.fileName} />
         <IconButton label={t`Open preview`} onClick={openPreview}>
@@ -92,6 +93,7 @@ function CopyImageButton({ source }: { source: ImageViewSource }) {
       window.setTimeout(() => setCopied(false), 1500);
     } catch (err) {
       console.error("Failed to copy image to clipboard", err);
+      toast.danger(friendlyError(err));
     }
   }
 
@@ -110,6 +112,7 @@ function DownloadImageButton({ src, fileName }: { src: string; fileName: string 
       await readBridge().saveImageFile({ data, suggestedName: fileName });
     } catch (err) {
       console.error("Failed to save image", err);
+      toast.danger(friendlyError(err));
     }
   }
 

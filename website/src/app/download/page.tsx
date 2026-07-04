@@ -6,9 +6,9 @@ import { createPageMetadata } from "@/lib/seo";
 import { DownloadContent } from "./download-content";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Download Lightcode",
+  title: "Download Poracode",
   description:
-    "Download Lightcode for macOS, Windows, and Linux. Install the desktop workspace for Claude Code, Codex, Gemini, Cursor, OpenCode, and ACP agents.",
+    "Download Poracode for macOS, Windows, and Linux. Install the desktop workspace for Claude Code, Codex, Gemini, Cursor, OpenCode, and ACP agents.",
   path: "/download",
 });
 

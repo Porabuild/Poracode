@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * GitHub Copilot CLI lifecycle hook forwarder for Lightcode.
+ * GitHub Copilot CLI lifecycle hook forwarder for Poracode.
  *
  * Copilot hooks communicate via JSON stdin and (for `preToolUse`) JSON stdout.
  * We never override permission decisions — we always exit silently with no

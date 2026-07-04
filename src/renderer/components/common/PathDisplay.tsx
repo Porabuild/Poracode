@@ -73,6 +73,14 @@ export function PathDisplay({
     dir && font && containerWidth > 0
       ? fitDirHeadEllipsis(dir, font, dirAvailable)
       : { suffix: dir, truncated: false };
+  // A truncated directory only earns its space if a meaningful tail survives:
+  // a leading "…" plus a single character (e.g. "…_") is pure noise, so require
+  // at least a couple of real characters before showing it. When the directory
+  // can't clear that bar the basename takes the whole row (truncating with a
+  // trailing ellipsis rather than hard-clipping, which read as vanishing).
+  const MIN_DIR_TAIL = 2;
+  const showDir =
+    dir.length > 0 && (!dirDisplay.truncated || dirDisplay.suffix.length >= MIN_DIR_TAIL);
 
   return (
     <span
@@ -80,12 +88,25 @@ export function PathDisplay({
       className={`flex min-w-0 items-center whitespace-nowrap overflow-hidden ${className ?? ""}`}
       title={title ?? path}
     >
+      {/* The basename slot is `shrink-0` on purpose: its measured width must be
+          its *intrinsic* width so it never reacts to the directory's size.
+          If it could shrink, flexbox would compress it whenever the dir grew,
+          ResizeObserver would report the smaller width, `dirAvailable` would
+          grow, the dir would grow again — a runaway loop that crushed the
+          basename to nothing. The basename is instead capped to the container
+          width so that when it alone overflows the row it truncates with a
+          trailing ellipsis rather than hard-clipping (which read as vanishing). */}
       <span ref={fixedRef} className="flex shrink-0 items-center">
-        <span className={basenameClassName}>{basename}</span>
+        <span
+          className={`min-w-0 truncate ${basenameClassName}`}
+          style={containerWidth > 0 ? { maxWidth: containerWidth } : undefined}
+        >
+          {basename}
+        </span>
         {trailing}
       </span>
-      {dir && (
-        <span className={`ml-1 min-w-0 ${dirClassName}`}>
+      {showDir && (
+        <span className={`ml-1 min-w-0 shrink-0 ${dirClassName}`}>
           {dirDisplay.truncated && "…"}
           {dirDisplay.suffix}
         </span>

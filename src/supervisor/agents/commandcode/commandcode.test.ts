@@ -478,9 +478,9 @@ describe("sanitizeCommandCodeCwd", () => {
   it("lowercases and collapses dots and slashes (worktree + temp paths)", () => {
     expect(
       sanitizeCommandCodeCwd(
-        "/Users/test-fixture-xyz/.lightcode/worktrees/lc-bbea/lc-golden-pixel-8f39b4b5",
+        "/Users/test-fixture-xyz/.poracode/worktrees/lc-bbea/lc-golden-pixel-8f39b4b5",
       ),
-    ).toBe("users-test-fixture-xyz-lightcode-worktrees-lc-bbea-lc-golden-pixel-8f39b4b5");
+    ).toBe("users-test-fixture-xyz-poracode-worktrees-lc-bbea-lc-golden-pixel-8f39b4b5");
     expect(sanitizeCommandCodeCwd("/private/var/T/cc-dbg-ca.ppww")).toBe(
       "private-var-t-cc-dbg-ca-ppww",
     );

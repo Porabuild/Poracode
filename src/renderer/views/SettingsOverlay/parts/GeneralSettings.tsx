@@ -2,6 +2,7 @@ import { startTransition } from "react";
 import { Switch } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { NewThreadMode } from "@/shared/contracts";
+import { isRemoteSession } from "@/renderer/bridge";
 import type { AiContentLanguage, LocaleSetting } from "@/shared/locale";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { aiLanguageOptions, localeOptions } from "@/renderer/i18n/locales";
@@ -27,6 +28,9 @@ export function GeneralSettings() {
   const setHomeScopeEnabled = useSharedSettings((state) => state.setHomeScopeEnabled);
   const editorLspEnabled = useSharedSettings((state) => state.editorLspEnabled);
   const setEditorLspEnabled = useSharedSettings((state) => state.setEditorLspEnabled);
+  // System sleep and tray behavior belong to the desktop OS; a remote session
+  // can't affect them, so hide the rows there.
+  const remote = isRemoteSession();
 
   const newThreadOptions = useLocalizedOptions(newThreadModeOptions);
   const resolvedLocaleOptions = localeOptions.map((option) => ({
@@ -43,7 +47,7 @@ export function GeneralSettings() {
       <SettingRow
         anchorId="general.language"
         title={t`Language`}
-        description={<Trans>Choose the display language for Lightcode's interface.</Trans>}
+        description={<Trans>Choose the display language for Poracode's interface.</Trans>}
       >
         <Select
           aria-label={t`Language`}
@@ -77,109 +81,119 @@ export function GeneralSettings() {
         />
       </SettingRow>
 
-      <SettingRow
-        anchorId="general.defaultNewThread"
-        title={t`Default new thread`}
-        description={<Trans>Open new threads as a full page or a side-by-side panel.</Trans>}
-      >
-        <Select
-          aria-label={t`Default new thread`}
-          className="w-[160px] shrink-0"
-          options={newThreadOptions}
-          value={newThreadMode}
-          onChange={(value) => {
-            startTransition(() => {
-              setNewThreadMode(value as NewThreadMode);
-            });
-          }}
-        />
-      </SettingRow>
-
-      <SettingRow
-        anchorId="general.homeScope"
-        title={t`Home scope`}
-        description={<Trans>Show a projectless Home scope for OS-level agent sessions.</Trans>}
-      >
-        <Switch
-          isSelected={homeScopeEnabled}
-          onChange={(selected) => {
-            startTransition(() => {
-              setHomeScopeEnabled(selected);
-            });
-          }}
+      {!remote && (
+        <SettingRow
+          anchorId="general.defaultNewThread"
+          title={t`Default new thread`}
+          description={<Trans>Open new threads as a full page or a side-by-side panel.</Trans>}
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
-      </SettingRow>
+          <Select
+            aria-label={t`Default new thread`}
+            className="w-[160px] shrink-0"
+            options={newThreadOptions}
+            value={newThreadMode}
+            onChange={(value) => {
+              startTransition(() => {
+                setNewThreadMode(value as NewThreadMode);
+              });
+            }}
+          />
+        </SettingRow>
+      )}
 
-      <SettingRow
-        anchorId="general.preventSleepWhileWorking"
-        title={t`Prevent sleep while working`}
-        description={<Trans>Keep the system awake while any thread is actively working.</Trans>}
-      >
-        <Switch
-          isSelected={preventSleepWhileWorking}
-          onChange={(selected) => {
-            startTransition(() => {
-              setPreventSleepWhileWorking(selected);
-            });
-          }}
+      {!remote && (
+        <SettingRow
+          anchorId="general.homeScope"
+          title={t`Home scope`}
+          description={<Trans>Show a projectless Home scope for OS-level agent sessions.</Trans>}
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
-      </SettingRow>
+          <Switch
+            isSelected={homeScopeEnabled}
+            onChange={(selected) => {
+              startTransition(() => {
+                setHomeScopeEnabled(selected);
+              });
+            }}
+          >
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch>
+        </SettingRow>
+      )}
 
-      <SettingRow
-        anchorId="general.closeToTray"
-        title={t`Close to tray`}
-        description={
-          <Trans>
-            When you close the window, keep Lightcode running in the system tray. Disable to quit on
-            close.
-          </Trans>
-        }
-      >
-        <Switch
-          isSelected={closeToTray}
-          onChange={(selected) => {
-            startTransition(() => {
-              setCloseToTray(selected);
-            });
-          }}
+      {!remote && (
+        <SettingRow
+          anchorId="general.preventSleepWhileWorking"
+          title={t`Prevent sleep while working`}
+          description={<Trans>Keep the system awake while any thread is actively working.</Trans>}
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
-      </SettingRow>
+          <Switch
+            isSelected={preventSleepWhileWorking}
+            onChange={(selected) => {
+              startTransition(() => {
+                setPreventSleepWhileWorking(selected);
+              });
+            }}
+          >
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch>
+        </SettingRow>
+      )}
 
-      <SettingRow
-        anchorId="general.editorLsp"
-        title={t`Editor LSP`}
-        description={
-          <Trans>
-            Enable language server support for type checking, completions, and diagnostics. Requires
-            a language server installed.
-          </Trans>
-        }
-      >
-        <Switch
-          isSelected={editorLspEnabled}
-          onChange={(selected) => {
-            startTransition(() => {
-              setEditorLspEnabled(selected);
-            });
-          }}
+      {!remote && (
+        <SettingRow
+          anchorId="general.closeToTray"
+          title={t`Close to tray`}
+          description={
+            <Trans>
+              When you close the window, keep Poracode running in the system tray. Disable to quit
+              on close.
+            </Trans>
+          }
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
-      </SettingRow>
+          <Switch
+            isSelected={closeToTray}
+            onChange={(selected) => {
+              startTransition(() => {
+                setCloseToTray(selected);
+              });
+            }}
+          >
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch>
+        </SettingRow>
+      )}
+
+      {!remote && (
+        <SettingRow
+          anchorId="general.editorLsp"
+          title={t`Editor LSP`}
+          description={
+            <Trans>
+              Enable language server support for type checking, completions, and diagnostics.
+              Requires a language server installed.
+            </Trans>
+          }
+        >
+          <Switch
+            isSelected={editorLspEnabled}
+            onChange={(selected) => {
+              startTransition(() => {
+                setEditorLspEnabled(selected);
+              });
+            }}
+          >
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch>
+        </SettingRow>
+      )}
     </SettingsPage>
   );
 }

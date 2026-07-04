@@ -45,6 +45,7 @@ export interface ThreadSlice {
   lastViewedAtByThreadId: Record<string, number>;
   markThreadsInactiveOnLaunch: () => void;
   createThread: (input: {
+    threadId?: string;
     projectId: string;
     agentKind: Thread["agentKind"];
     agentInstanceId?: AgentInstanceId;
@@ -59,6 +60,7 @@ export interface ThreadSlice {
   }) => Thread;
   deleteThread: (threadId: string) => void;
   renameThread: (threadId: string, title: string) => void;
+  setThreadWorktree: (threadId: string, worktreePath: string, worktreeBranch?: string) => void;
   updateThreadConfig: (threadId: string, config: ThreadConfig) => void;
   updateThreadRuntime: (
     threadId: string,
@@ -225,6 +227,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       return changed ? { threads } : {};
     }),
   createThread: ({
+    threadId,
     projectId,
     agentKind,
     agentInstanceId,
@@ -239,7 +242,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   }) => {
     const now = new Date().toISOString();
     const thread: Thread = {
-      id: crypto.randomUUID(),
+      id: threadId ?? crypto.randomUUID(),
       projectId,
       title: makeThreadTitle(prompt),
       agentKind,
@@ -342,6 +345,19 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     set((state) => ({
       threads: state.threads.map((thread) =>
         thread.id === threadId ? { ...thread, title, updatedAt: new Date().toISOString() } : thread,
+      ),
+    })),
+  setThreadWorktree: (threadId, worktreePath, worktreeBranch) =>
+    set((state) => ({
+      threads: state.threads.map((thread) =>
+        thread.id === threadId
+          ? {
+              ...thread,
+              worktreePath,
+              ...(worktreeBranch ? { worktreeBranch } : {}),
+              updatedAt: new Date().toISOString(),
+            }
+          : thread,
       ),
     })),
   updateThreadConfig: (threadId, config) =>

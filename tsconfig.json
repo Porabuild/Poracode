@@ -23,6 +23,7 @@
     "src",
     "tests",
     "packages/agents-usage/src",
+    "native/activity-bridge/src",
     "vite.config.ts",
     "tsdown.config.ts",
     "lingui.config.ts",

@@ -3,8 +3,9 @@ import {
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ToolCallPayload } from "@/shared/contracts";
-import { memo, type ReactNode } from "react";
+import { memo } from "react";
 import { useAppStore } from "@/renderer/state/appStore";
+import type { CheckpointRevertRequest } from "../CheckpointRevertControls";
 import {
   getChildItemIdsStoreSelector,
   getRuntimeItemStoreSelector,
@@ -28,7 +29,7 @@ interface ChatItemRowProps {
   entry: ChatTimelineEntry;
   /** True when this is the tail of the visible timeline. Drives live-group expand state. */
   isLastEntry?: boolean;
-  checkpointRevertControl: ReactNode | null;
+  checkpointRevert: CheckpointRevertRequest | null;
 }
 
 /**
@@ -43,29 +44,25 @@ export const ChatItemRow = memo(function ChatItemRow({
   threadId,
   entry,
   isLastEntry = false,
-  checkpointRevertControl,
+  checkpointRevert,
 }: ChatItemRowProps) {
   "use no memo";
   if (entry.kind === "tool_call_group") {
     return <ToolCallGroup threadId={threadId} itemIds={entry.itemIds} isLive={isLastEntry} />;
   }
   return (
-    <SingleChatItemRow
-      threadId={threadId}
-      itemId={entry.id}
-      checkpointRevertControl={checkpointRevertControl}
-    />
+    <SingleChatItemRow threadId={threadId} itemId={entry.id} checkpointRevert={checkpointRevert} />
   );
 });
 
 const SingleChatItemRow = memo(function SingleChatItemRow({
   threadId,
   itemId,
-  checkpointRevertControl,
+  checkpointRevert,
 }: {
   threadId: string;
   itemId: string;
-  checkpointRevertControl: ReactNode | null;
+  checkpointRevert: CheckpointRevertRequest | null;
 }) {
   const item = useAppStore(getRuntimeItemStoreSelector(threadId, itemId));
   const childIds = useAppStore(getChildItemIdsStoreSelector(threadId, itemId));
@@ -84,15 +81,15 @@ const SingleChatItemRow = memo(function SingleChatItemRow({
       return <SubAgentToolCall threadId={threadId} item={item} />;
     }
   }
-  return renderItem(item, checkpointRevertControl);
+  return renderItem(item, checkpointRevert);
 });
 
-function renderItem(item: RuntimeChatItem, checkpointRevertControl: ReactNode | null) {
+function renderItem(item: RuntimeChatItem, checkpointRevert: CheckpointRevertRequest | null) {
   switch (item.type) {
     case "user_message":
-      return <UserMessage item={item} checkpointRevertControl={checkpointRevertControl} />;
+      return <UserMessage item={item} checkpointRevert={checkpointRevert} />;
     case "question_answer":
-      return <QuestionAnswer item={item} checkpointRevertControl={checkpointRevertControl} />;
+      return <QuestionAnswer item={item} checkpointRevert={checkpointRevert} />;
     case "assistant_message":
       return <AssistantMessage item={item} />;
     case "reasoning":

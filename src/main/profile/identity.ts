@@ -10,7 +10,7 @@ import { titleCase } from "./labels";
  * Profile identity + device attribution, persisted in the app_state table.
  *
  * Both are intentionally device-local: today the identity is a cosmetic override
- * and the device id tags this install's stats. When Lightcode Cloud lands, the
+ * and the device id tags this install's stats. When Poracode Cloud lands, the
  * device id is what lets the server merge per-device contributions into the
  * "all devices" view while keeping each device individually inspectable.
  */

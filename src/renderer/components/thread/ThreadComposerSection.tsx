@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { Tooltip } from "@heroui/react";
+import { Tooltip, toast } from "@heroui/react";
 import { ChevronDown, GitFork } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type {
@@ -10,21 +10,22 @@ import type {
   ThreadConfig,
   ThreadServerRequestId,
 } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { ProviderModelMenuProvider, BranchSelector, type BranchSelection } from "../common";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import {
   AttachmentBar,
   ComposerAddMenu,
+  ComposerVoiceInput,
   MentionInput,
   openAttachmentLightbox,
-  VoiceInputButton,
   useAttachments,
 } from "../composer";
 import type { MentionInputHandle, VoiceInputHandle } from "../composer";
 import { flattenSegments } from "../composer/serializeMentions";
 import { getTriggerWords } from "@/renderer/components/providers";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { captureProductEvent, threadProductProperties } from "@/renderer/analytics/posthog";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
@@ -33,6 +34,7 @@ import {
   useBrowserAttachInbox,
 } from "@/renderer/state/browserAttachInbox";
 import { useComposerUiStore } from "@/renderer/state/composerUiStore";
+import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThread } from "@/renderer/state/useThread";
@@ -113,8 +115,6 @@ function buildControls(
 ): ComposerControl[] {
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
-  const isCliThread = presentationMode === "terminal";
-  if (isCliThread) return [];
   if (!agentStatus) return [];
 
   const presentationCapabilities = capabilitiesForPresentation(
@@ -194,6 +194,7 @@ type ThreadComposerSectionProps = {
     response: unknown;
   }) => Promise<void>;
   onSubmitInput: (prompt: string, segments?: PromptSegment[]) => Promise<void>;
+  onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   onTodoDockCollapsedChange: (collapsed: boolean) => void;
   onTodoDockPlacementChange: (placement: "composer" | "right") => void;
   onTodoDockRetire?: () => void;
@@ -219,7 +220,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
-  const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton);
+  const isRemote = isRemoteSession();
+  const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemote;
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -305,6 +307,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const hasRuntimeAuthError =
     !isAgentAuthenticated && errorDockStates.some((state) => isAuthErrorMessage(state.message));
   const authRequired = agentStatus?.authState === "missing" || hasRuntimeAuthError;
+  const canShowRuntimeChrome = !usesTerminalPresentation || isRemote;
   const isServerControlled =
     agentStatus?.capabilities.liveInputMode === "server" || !usesTerminalPresentation;
   const isTerminalInput = agentStatus?.capabilities.liveInputMode === "terminal";
@@ -333,16 +336,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     thread.status !== "inactive" &&
     thread.status !== "launching";
   const showTodoInComposer =
-    !usesTerminalPresentation && todoDockState !== null && todoDockPlacement === "composer";
-  const showGoalInComposer = !usesTerminalPresentation && goalDockState !== null;
+    canShowRuntimeChrome && todoDockState !== null && todoDockPlacement === "composer";
+  const showGoalInComposer = canShowRuntimeChrome && goalDockState !== null;
   const showErrorInComposer =
-    !usesTerminalPresentation && errorDockStates.length > 0 && !hasRuntimeAuthError;
+    (!usesTerminalPresentation || isRemote) && errorDockStates.length > 0 && !hasRuntimeAuthError;
   const hasActiveSubAgent = useAppStore(
-    (s) => !usesTerminalPresentation && selectActiveSubAgentParentItemIds(s, thread.id).length > 0,
+    (s) => canShowRuntimeChrome && selectActiveSubAgentParentItemIds(s, thread.id).length > 0,
   );
   const collapseTerminalComposerSetting = useSharedSettings((s) => s.collapseTerminalComposer);
   const [composerCollapsed, setComposerCollapsed] = useState(collapseTerminalComposerSetting);
-  const canCollapseComposer = showTerminalComposer;
+  const canCollapseComposer = showTerminalComposer && !isRemote;
   const isComposerCollapsed = canCollapseComposer && composerCollapsed;
   const setComposerUi = useComposerUiStore((s) => s.setComposerUi);
   const branchName = useGitStore(
@@ -368,17 +371,17 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const isCliThread = usesTerminalPresentation;
   const canSubmit =
     (canSubmitServerInput || canSubmitTerminalInput) && !isSubmitting && !authRequired;
-  const canInterruptStructuredTurn = !usesTerminalPresentation && thread.status === "working";
+  const canInterruptStructuredTurn = canShowRuntimeChrome && thread.status === "working";
   const isStructuredLaunching = !usesTerminalPresentation && thread.status === "launching";
   const pendingSteer = useAppStore((s) => s.pendingSteerByThreadId[thread.id]);
   const usesPendingSteerPath = !usesTerminalPresentation && thread.status === "working";
   const runtimeRequests = useAppStore((s) => s.runtimeRequestsByThread[thread.id]);
-  const activeRuntimeRequest = !usesTerminalPresentation ? runtimeRequests?.[0] : undefined;
+  const activeRuntimeRequest = canShowRuntimeChrome ? runtimeRequests?.[0] : undefined;
   const approvalDenyOption = activeRuntimeRequest
     ? getApprovalDenyOption(activeRuntimeRequest)
     : undefined;
   const reportedContextUsage = useAppStore((s) =>
-    !usesTerminalPresentation ? s.runtimeContextByThread[thread.id] : undefined,
+    canShowRuntimeChrome ? s.runtimeContextByThread[thread.id] : undefined,
   );
   const contextSummary = resolveThreadContextUsageSummary({
     thread,
@@ -386,7 +389,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     reportedUsage: reportedContextUsage,
   });
   const showContextIndicator =
-    !usesTerminalPresentation &&
+    canShowRuntimeChrome &&
     hasReportedContextUsage(reportedContextUsage) &&
     contextSummary.maxTokens !== undefined;
   const showContextInComposer = showContextIndicator && contextDockOpen;
@@ -410,6 +413,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       .catch((error: unknown) => {
         setIsInterrupting(false);
         console.error("[thread] failed to interrupt turn", error);
+        toast.danger(friendlyError(error));
       });
   }
 
@@ -435,6 +439,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       })
       .catch((err: unknown) => {
         console.error("[git] switch branch failed", err);
+        toast.danger(friendlyError(err));
       });
   }
 
@@ -533,12 +538,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     // first, then the follow-up prompt explaining what to do differently.
     const denyPendingApproval = () => {
       if (!activeRuntimeRequest || !approvalDenyOption) return Promise.resolve();
-      useAppStore.getState().applyRuntimeEvent(thread.id, {
-        type: "request.resolved",
-        threadId: thread.id,
-        requestId: activeRuntimeRequest.requestId,
-        outcome: "declined",
-      });
+      const rollback = applyOptimisticRequestResolution(
+        thread.id,
+        activeRuntimeRequest,
+        "declined",
+      );
       return props
         .onResolveServerRequest({
           requestId: activeRuntimeRequest.requestId,
@@ -547,6 +551,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         })
         .catch((err) => {
           console.error("[chat] auto-deny on composer submit failed", err);
+          rollback();
+          throw err;
         });
     };
 
@@ -578,11 +584,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           clearSubmittedComposer();
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         // Leave the prompt intact so the user can retry.
         if (clearedBeforeSendSettled) {
           restoreSubmittedComposer();
         }
+        toast.danger(friendlyError(error));
       })
       .finally(() => {
         // The composer is now either cleared (success) or restored (failure);
@@ -597,6 +604,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       .clearPendingSteer({ threadId: thread.id })
       .catch((error: unknown) => {
         console.error("[thread] failed to clear pending steer", error);
+        toast.danger(friendlyError(error));
       });
   }
 
@@ -727,7 +735,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                 }}
               >
                 <ThreadComposer
-                  autoFocus={paneCount === 1} // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+                  autoFocus={paneCount === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so opening a thread doesn't pop the keyboard
                   compact
                   toolbarLayoutKey={[
                     isCliThread ? "cli" : "chat",
@@ -815,14 +823,19 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             }
                             onOpenPlanFile={
                               project
-                                ? (path) =>
+                                ? (path) => {
+                                    if (props.onOpenProjectRelativePath) {
+                                      props.onOpenProjectRelativePath(path);
+                                      return;
+                                    }
                                     void openFileInEditor(
                                       project,
                                       thread.worktreePath,
                                       branchName,
                                       path,
                                       { markdownPreview: true },
-                                    )
+                                    );
+                                  }
                                 : undefined
                             }
                           />
@@ -855,7 +868,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   inputContent={
                     <MentionInput
                       ref={mentionRef}
-                      autoFocus={paneCount === 1} // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+                      autoFocus={paneCount === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so opening a thread doesn't pop the keyboard
                       compact
                       disabled={!(showServerComposer || showTerminalComposer)}
                       placeholder={
@@ -873,9 +886,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
                       }}
                       onSubmit={submitPrompt}
-                      onPasteImage={(file) => {
-                        void attachments.addClipboardImage(file, thread.id);
-                      }}
+                      {...(!isRemote
+                        ? {
+                            onPasteImage: (file: File) => {
+                              void attachments.addClipboardImage(file, thread.id);
+                            },
+                          }
+                        : {})}
                       onInterceptKey={(e) => {
                         if (
                           !usesTerminalPresentation &&
@@ -912,10 +929,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         if (showTerminalComposer) {
                           if (e.key === "Tab" && e.shiftKey && !e.ctrlKey && !e.metaKey) {
                             e.preventDefault();
-                            void readBridge().writeTerminal({
-                              threadId: thread.id,
-                              data: "\x1b[Z",
-                            });
+                            void readBridge()
+                              .writeTerminal({
+                                threadId: thread.id,
+                                data: "\x1b[Z",
+                              })
+                              .catch((error: unknown) => {
+                                toast.danger(friendlyError(error));
+                              });
                             return true;
                           }
                           if (
@@ -925,10 +946,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             e.key.toLowerCase() === "t"
                           ) {
                             e.preventDefault();
-                            void readBridge().writeTerminal({
-                              threadId: thread.id,
-                              data: "\x14",
-                            });
+                            void readBridge()
+                              .writeTerminal({
+                                threadId: thread.id,
+                                data: "\x14",
+                              })
+                              .catch((error: unknown) => {
+                                toast.danger(friendlyError(error));
+                              });
                             return true;
                           }
                         }
@@ -964,6 +989,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         ) : null}
                         <ComposerAddMenu
                           browserMcpEnabled={thread.config.browserMcp === true}
+                          showFileOption={!isRemote}
                           showBrowserOption={browserMcpToggleableHere}
                           onPickFiles={() => {
                             void readBridge()
@@ -977,70 +1003,66 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           }
                         />
                         {branchName ? (
-                          thread.worktreePath ? (
-                            <Tooltip delay={0}>
-                              <Tooltip.Trigger tabIndex={-1} role="none">
-                                <div className="lightcode-composer-static lightcode-composer-worktree min-w-0 max-w-48 px-2.5">
-                                  <GitFork className="size-3.5 text-muted" />
-                                  <span
-                                    data-collapse-tier={3}
-                                    className="lightcode-composer-label-hideable truncate"
-                                  >
-                                    {branchName}
-                                  </span>
-                                  {thread.prNumber ? (
+                          // Marker span so the mobile stylesheet can drop the
+                          // branch affordance (the PWA has its own git entry).
+                          <span className="contents" data-composer-branch="">
+                            {thread.worktreePath ? (
+                              <Tooltip delay={0}>
+                                <Tooltip.Trigger tabIndex={-1} role="none">
+                                  <div className="lightcode-composer-static lightcode-composer-worktree min-w-0 max-w-48 px-2.5">
+                                    <GitFork className="size-3.5 text-muted" />
                                     <span
                                       data-collapse-tier={3}
-                                      className="lightcode-composer-label-hideable shrink-0 text-muted/60"
+                                      className="lightcode-composer-label-hideable truncate"
                                     >
-                                      PR #{thread.prNumber}
+                                      {branchName}
                                     </span>
-                                  ) : null}
-                                </div>
-                              </Tooltip.Trigger>
-                              <Tooltip.Content placement="top">{branchName}</Tooltip.Content>
-                            </Tooltip>
-                          ) : (
-                            <BranchSelector
-                              projectId={thread.projectId}
-                              currentBranch={branchName}
-                              value={branchName}
-                              onSelect={handleBranchSelect}
-                              onSwitchBranch={handleSwitchBranch}
-                              hideWorktreeToggle
-                              showMoveBranchAction
-                              {...(project?.scripts?.worktreeCopyPatterns
-                                ? {
-                                    moveBranchCopyIgnoredPatterns:
-                                      project.scripts.worktreeCopyPatterns,
-                                  }
-                                : {})}
-                              collapseTier={3}
-                            />
-                          )
+                                    {thread.prNumber ? (
+                                      <span
+                                        data-collapse-tier={3}
+                                        className="lightcode-composer-label-hideable shrink-0 text-muted/60"
+                                      >
+                                        PR #{thread.prNumber}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </Tooltip.Trigger>
+                                <Tooltip.Content placement="top">{branchName}</Tooltip.Content>
+                              </Tooltip>
+                            ) : (
+                              <BranchSelector
+                                projectId={thread.projectId}
+                                currentBranch={branchName}
+                                value={branchName}
+                                onSelect={handleBranchSelect}
+                                onSwitchBranch={handleSwitchBranch}
+                                hideWorktreeToggle
+                                showMoveBranchAction
+                                {...(project?.scripts?.worktreeCopyPatterns
+                                  ? {
+                                      moveBranchCopyIgnoredPatterns:
+                                        project.scripts.worktreeCopyPatterns,
+                                    }
+                                  : {})}
+                                collapseTier={3}
+                              />
+                            )}
+                          </span>
                         ) : null}
                       </>
                     );
-                    const renderVoiceInput = () =>
-                      showVoiceInputButton ? (
-                        <VoiceInputButton
-                          ref={voiceInputRef}
-                          isDisabled={
-                            authRequired ||
-                            isSubmitting ||
-                            !(showServerComposer || showTerminalComposer)
-                          }
-                          onTranscript={(text) => {
-                            mentionRef.current?.commitVoiceTranscript(text);
-                          }}
-                          onTranscriptPreview={(text) => {
-                            mentionRef.current?.previewVoiceTranscript(text);
-                          }}
-                          onTranscriptCancel={() => {
-                            mentionRef.current?.clearVoiceTranscriptPreview();
-                          }}
-                        />
-                      ) : null;
+                    const renderVoiceInput = () => (
+                      <ComposerVoiceInput
+                        show={showVoiceInputButton}
+                        isDisabled={
+                          authRequired ||
+                          isSubmitting ||
+                          !(showServerComposer || showTerminalComposer)
+                        }
+                        mentionRef={mentionRef}
+                        voiceInputRef={voiceInputRef}
+                      />
+                    );
                     return isCliThread
                       ? { leadingControls: renderExtras, afterControls: renderVoiceInput }
                       : {
@@ -1053,7 +1075,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         };
                   })()}
                   onPromptChange={setPrompt}
-                  onAttachFiles={attachments.addFiles}
+                  {...(!isRemote ? { onAttachFiles: attachments.addFiles } : {})}
                   onSubmit={() => {
                     const segments = mentionRef.current?.serializeSegments();
                     submitPrompt(

@@ -14,20 +14,20 @@ const agentInstances: AgentInstanceConfigMap = {
     id: "work",
     driver: "claude",
     displayName: "Work",
-    config: { configDir: "~/.lightcode/claude-profiles/work" },
+    config: { configDir: "~/.poracode/claude-profiles/work" },
   },
   home: {
     id: "home",
     driver: "claude",
     displayName: "Home",
-    config: { configDir: "~/.lightcode/claude-profiles/home" },
+    config: { configDir: "~/.poracode/claude-profiles/home" },
   },
   disabled: {
     id: "disabled",
     driver: "claude",
     displayName: "Disabled",
     enabled: false,
-    config: { configDir: "~/.lightcode/claude-profiles/disabled" },
+    config: { configDir: "~/.poracode/claude-profiles/disabled" },
   },
 };
 

@@ -70,6 +70,7 @@ export function SidebarButton(props: {
   const dragRowDim = isDragging && !iconOnly && !isDisabled ? " opacity-60" : "";
 
   if (iconOnly) {
+    const tooltipContent = tooltip ?? label;
     return (
       <Tooltip delay={150}>
         <Tooltip.Trigger className="flex min-h-0 flex-col">
@@ -84,7 +85,7 @@ export function SidebarButton(props: {
             {icon}
           </button>
         </Tooltip.Trigger>
-        <Tooltip.Content placement="right">{label}</Tooltip.Content>
+        <Tooltip.Content placement="right">{tooltipContent}</Tooltip.Content>
       </Tooltip>
     );
   }

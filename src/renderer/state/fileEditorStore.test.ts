@@ -1,9 +1,12 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import {
   useFileEditorStore,
   type FileEditorRootContext,
   resolvePathForFileOpen,
 } from "./fileEditorStore";
+import { useGitStore } from "./gitStore";
+import { useRemoteServersStore } from "./remoteServersStore";
 
 function makeBuffer(path: string) {
   return {
@@ -387,5 +390,127 @@ describe("resolvePathForFileOpen (worktree-relative traversal regression)", () =
 
   it("returns raw path when no rootContext", () => {
     expect(resolvePathForFileOpen(null, "../foo")).toBe("../foo");
+  });
+});
+
+describe("fileEditorStore remote roots", () => {
+  const originalLightcode = window.lightcode;
+
+  beforeEach(() => {
+    useFileEditorStore.setState({
+      rootContext: null,
+      overlayMode: null,
+      tabs: [],
+      activePath: null,
+      previewTab: null,
+      markdownPreviewPath: null,
+      buffers: {},
+      refreshToken: 0,
+      pendingReveal: null,
+    });
+    useRemoteServersStore.getState().closeRemoteThread();
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useGitStore.setState({ statuses: {}, worktreeStatuses: {} });
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      writable: true,
+      value: originalLightcode,
+    });
+  });
+
+  it("saves project files through the remote bridge without local git side effects", async () => {
+    const writeProjectFile = vi.fn<() => Promise<void>>();
+    const gitStage = vi.fn<() => Promise<void>>();
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      writable: true,
+      value: {
+        writeProjectFile,
+        gitStage,
+      },
+    });
+    const gitCall = vi.fn<RemoteDesktopClient["gitCall"]>(async () => ({ modifiedAtMs: 2 }));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Remote Desktop",
+          endpoint: "https://remote.example.test/",
+          accessToken: "token",
+          scopes: ["session:read", "session:operate"],
+        },
+      ],
+      clientFactory: () => ({ gitCall }) as unknown as RemoteDesktopClient,
+    });
+    useGitStore.setState({
+      statuses: {
+        p1: {
+          isRepo: true,
+          branch: "main",
+          tracking: "",
+          hasRemote: false,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+          mergeInProgress: true,
+          conflictFiles: [
+            {
+              path: "README.md",
+              status: "UU",
+              staged: false,
+              insertions: 0,
+              deletions: 0,
+            },
+          ],
+        },
+      },
+    });
+    useFileEditorStore.setState({
+      rootContext: {
+        projectId: "p1",
+        projectName: "Remote Project",
+        projectLocation: { kind: "posix", path: "/remote/project" },
+        rootLabel: "Remote Project",
+        remoteServerId: "d1",
+      },
+      tabs: ["README.md"],
+      activePath: "README.md",
+      buffers: {
+        "README.md": {
+          ...makeBuffer("README.md"),
+          content: "updated",
+          savedContent: "old",
+          isDirty: true,
+        },
+      },
+    });
+
+    await useFileEditorStore.getState().saveFile("README.md");
+
+    expect(gitCall).toHaveBeenCalledWith("writeProjectFile", {
+      projectLocation: { kind: "posix", path: "/remote/project" },
+      path: "README.md",
+      content: "updated",
+      baseModifiedAtMs: 1,
+    });
+    expect(writeProjectFile).not.toHaveBeenCalled();
+    expect(gitStage).not.toHaveBeenCalled();
+    expect(useFileEditorStore.getState().buffers["README.md"]).toMatchObject({
+      modifiedAtMs: 2,
+      savedContent: "updated",
+      isDirty: false,
+    });
   });
 });

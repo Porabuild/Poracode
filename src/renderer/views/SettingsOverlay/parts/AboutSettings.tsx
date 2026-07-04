@@ -4,14 +4,15 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
 import { useUpdateStore } from "@/renderer/state/updateStore";
+import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
 import { productNameFor } from "@/shared/channel";
 import { formatBytes } from "@/shared/formatBytes";
 import { SettingsPage } from "./SettingsForm";
 import appIconStableUrl from "../../../../../build/icon.png";
 import appIconNightlyUrl from "../../../../../build/icon-nightly.png";
 
-const GITHUB_REPO = "https://github.com/SDSLeon/lightcode";
-const WEBSITE_URL = "https://lightcodeapp.com/";
+const GITHUB_REPO = "https://github.com/poracode/poracode";
+const WEBSITE_URL = "https://poracode.com/";
 
 function AboutLink(props: { href: string; children: React.ReactNode }) {
   return (
@@ -119,7 +120,9 @@ export function AboutSettings() {
       <div className="mb-8 flex items-center gap-4">
         <img src={appIconUrl} alt={productName} className="size-12 shrink-0 rounded-lg" />
         <div>
-          <p className="text-lg font-semibold text-foreground">{productName}</p>
+          <p className="text-lg text-foreground">
+            <BrandWordmark />
+          </p>
           <p className="text-xs text-muted">
             <Trans>AI agent orchestrator — manage coding agents via Terminal and Native ACP.</Trans>
           </p>

@@ -6,7 +6,7 @@ import { ChangelogView } from "@/renderer/components/changelog/ChangelogView";
 import { useChangelogStore } from "@/renderer/state/changelogStore";
 import { SettingsPage } from "./SettingsForm";
 
-const RELEASES_URL = "https://github.com/SDSLeon/lightcode/releases";
+const RELEASES_URL = "https://github.com/poracode/poracode/releases";
 
 export function ChangelogSettings() {
   const { t } = useLingui();
@@ -35,7 +35,7 @@ export function ChangelogSettings() {
   return (
     <SettingsPage
       title={t`Changelog`}
-      description={<Trans>What's new in Lightcode, newest first.</Trans>}
+      description={<Trans>What's new in Poracode, newest first.</Trans>}
       bodyClassName=""
     >
       {releases.length === 0 ? (

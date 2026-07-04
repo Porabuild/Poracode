@@ -298,7 +298,7 @@ async function acquireOpenCodeServerInner(
 
 /**
  * Supervisor shutdown helper. Releases pool bookkeeping, then terminates
- * only Lightcode-spawned `opencode serve` processes still tracked in
+ * only Poracode-spawned `opencode serve` processes still tracked in
  * {@link disposeSpawnedOpenCodeServerHandles}. Does not touch unrelated
  * `opencode.exe` processes the user started outside the app.
  */

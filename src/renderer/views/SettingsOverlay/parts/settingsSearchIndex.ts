@@ -32,6 +32,8 @@ export interface SettingsSearchEntry {
   keywords?: string;
   /** Only offered in dev builds (mirrors the sidebar's `isDevApp()` gate). */
   devOnly?: boolean;
+  /** Only rendered in the desktop app, not remote/PWA sessions. */
+  desktopOnly?: boolean;
   /** Renders only under a runtime/platform condition; the drift test skips it. */
   conditional?: boolean;
 }
@@ -42,7 +44,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "general",
     anchor: "general.language",
     title: msg`Language`,
-    description: msg`Choose the display language for Lightcode's interface.`,
+    description: msg`Choose the display language for Poracode's interface.`,
     keywords: "locale display interface translation ui",
   },
   {
@@ -58,6 +60,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Default new thread`,
     description: msg`Open new threads as a full page or a side-by-side panel.`,
     keywords: "thread mode full page panel side-by-side layout",
+    desktopOnly: true,
   },
   {
     section: "general",
@@ -65,6 +68,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Home scope`,
     description: msg`Show a projectless Home scope for OS-level agent sessions.`,
     keywords: "projectless os-level agent session global",
+    desktopOnly: true,
   },
   {
     section: "general",
@@ -72,13 +76,15 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Prevent sleep while working`,
     description: msg`Keep the system awake while any thread is actively working.`,
     keywords: "sleep awake wake idle power system",
+    desktopOnly: true,
   },
   {
     section: "general",
     anchor: "general.closeToTray",
     title: msg`Close to tray`,
-    description: msg`When you close the window, keep Lightcode running in the system tray. Disable to quit on close.`,
+    description: msg`When you close the window, keep Poracode running in the system tray. Disable to quit on close.`,
     keywords: "tray minimize background quit close window exit",
+    desktopOnly: true,
   },
   {
     section: "general",
@@ -86,6 +92,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Editor LSP`,
     description: msg`Enable language server support for type checking, completions, and diagnostics. Requires a language server installed.`,
     keywords: "language server protocol type checking completion diagnostics intellisense",
+    desktopOnly: true,
   },
 
   // Audio
@@ -144,7 +151,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "appearance",
     anchor: "appearance.theme",
     title: msg`Theme`,
-    description: msg`Popular editor themes adapted to Lightcode. Each follows the light or dark mode above.`,
+    description: msg`Popular editor themes adapted to Poracode. Each follows the light or dark mode above.`,
     keywords: "color preset editor theme gallery swatch palette",
   },
   {
@@ -158,12 +165,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     anchor: "appearance.translucentSidebar",
     title: msg`Translucent sidebar`,
     keywords: "transparency blur vibrancy acrylic glass frosted material translucent",
+    desktopOnly: true,
   },
   {
     section: "appearance",
     anchor: "appearance.sidebarFrosting",
     title: msg`Sidebar frosting`,
     keywords: "tint glass blur opacity translucency slider acrylic vibrancy",
+    desktopOnly: true,
     conditional: true,
   },
 
@@ -174,6 +183,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Terminal position`,
     description: msg`Where the terminal panel appears.`,
     keywords: "terminal panel location placement layout bottom right",
+    desktopOnly: true,
   },
   {
     section: "terminal",
@@ -181,6 +191,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Auto-show terminal panel`,
     description: msg`Automatically show the terminal panel when running commands or creating worktrees.`,
     keywords: "auto open reveal terminal panel commands worktree automatic",
+    desktopOnly: true,
   },
   {
     section: "terminal",
@@ -195,6 +206,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Browser pick target (CLI threads)`,
     description: msg`Where a browser element-picker selection goes in terminal-native threads. A collapsed composer always routes to the terminal.`,
     keywords: "browser pick target cli element picker selection terminal",
+    desktopOnly: true,
   },
   {
     section: "terminal",
@@ -225,6 +237,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Unload idle threads after`,
     description: msg`Hidden resumable threads are swept every 5 minutes and unloaded after this idle age.`,
     keywords: "unload idle thread memory sweep stale resumable minutes",
+    desktopOnly: true,
   },
   {
     section: "threads",
@@ -232,6 +245,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Auto-archive done threads after`,
     description: msg`Threads marked done that have not been touched for this many days are archived automatically on app launch. Set to 0 to disable.`,
     keywords: "auto archive done complete days cleanup launch",
+    desktopOnly: true,
   },
   {
     section: "threads",
@@ -239,6 +253,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Default thread removal`,
     description: msg`Action for the quick-remove button on sidebar threads.`,
     keywords: "default thread removal delete archive quick remove sidebar",
+    desktopOnly: true,
   },
 
   // Git
@@ -248,6 +263,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Git review mode`,
     description: msg`Open git review as a right-side panel or a full page.`,
     keywords: "diff code review panel page layout",
+    desktopOnly: true,
   },
   {
     section: "git",
@@ -262,7 +278,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "worktrees",
     anchor: "worktrees.storageLocation",
     title: msg`Storage location`,
-    description: msg`Use one global folder, or nest worktrees inside each project at .lightcode/worktrees.`,
+    description: msg`Use one global folder, or nest worktrees inside each project at .poracode/worktrees.`,
     keywords: "worktree storage mode global per-project nested location",
   },
   {
@@ -335,6 +351,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     anchor: "notifications.notifyL2Cli",
     title: msg`Notify for L2 CLI threads`,
     keywords: "terminal osc fallback hook plugin suppress cli l2",
+    desktopOnly: true,
     conditional: true,
   },
 
@@ -381,27 +398,31 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "browser",
     anchor: "browser.linkOpenTarget",
     title: msg`Open links in`,
-    description: msg`Choose whether links from Lightcode and browser popups stay in Lightcode or open externally.`,
+    description: msg`Choose whether links from Poracode and browser popups stay in Poracode or open externally.`,
     keywords: "open links target app system external default browser",
+    desktopOnly: true,
   },
   {
     section: "browser",
     anchor: "browser.linkPresentationMode",
     title: msg`Show opened links in`,
-    description: msg`When links open in a Lightcode browser tab, choose where the browser is revealed.`,
+    description: msg`When links open in a Poracode browser tab, choose where the browser is revealed.`,
     keywords: "presentation panel overlay fullscreen reveal browser tab layout",
+    desktopOnly: true,
   },
   {
     section: "browser",
     anchor: "browser.allowEval",
     title: msg`Allow eval`,
     keywords: "eval javascript execute run code arbitrary agent security",
+    desktopOnly: true,
   },
   {
     section: "browser",
     anchor: "browser.allowDataAccess",
     title: msg`Allow agents to read/write cookies and storage`,
     keywords: "cookies storage localstorage session tokens auth data access read write agent",
+    desktopOnly: true,
   },
 
   // Usage
@@ -412,6 +433,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     description: msg`The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits.`,
     keywords:
       "automatic update poll interval background fetch refresh frequency default per provider",
+    desktopOnly: true,
   },
   {
     section: "usage",
@@ -486,7 +508,7 @@ function truncate(text: string, max = SNIPPET_MAX): string {
 export function searchSettings(
   query: string,
   t: Translate,
-  opts?: { devMode?: boolean; index?: readonly SettingsSearchEntry[] },
+  opts?: { devMode?: boolean; remoteSession?: boolean; index?: readonly SettingsSearchEntry[] },
 ): SettingsSearchResult[] {
   const needle = query.trim().toLowerCase();
   if (needle === "") return [];
@@ -494,6 +516,7 @@ export function searchSettings(
   const results: SettingsSearchResult[] = [];
   for (const entry of index) {
     if (entry.devOnly && !opts?.devMode) continue;
+    if (entry.desktopOnly && opts?.remoteSession) continue;
     const title = t(entry.title);
     const description = entry.description ? t(entry.description) : "";
     const titleMatch = title.toLowerCase().includes(needle);

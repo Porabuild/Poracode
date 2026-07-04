@@ -1,0 +1,3860 @@
+/*
+ * Poracode mobile shell styles.
+ *
+ * The PWA reuses the desktop renderer's components and stylesheet
+ * (imported before this file), so everything here is limited to the mobile
+ * shell chrome that has no desktop counterpart: the top bar, tab bar,
+ * sidebar/detail split, session list, and pairing screens. All colors come
+ * from the renderer's design tokens.
+ */
+
+/* The reused desktop panels are designed for desktop density; at the browser
+   default 16px root their rem-based sizes read oversized on a phone (the
+   Electron shell uses the same CSS pixels, but in a much wider window).
+   Shrinking the root scales every rem-based size down uniformly. Form fields
+   are excluded: the px rule at the bottom keeps them at 16px so iOS does not
+   auto-zoom on focus. */
+html {
+  font-size: 14px;
+}
+
+/* Minimum finger-friendly tap target. Apple HIG / WCAG 2.5.5 both put this at
+   44 CSS px; we express it in px (not rem) so the 14px root above can't shrink
+   the floor below what a fingertip needs. Every standalone control in the phone
+   shell — icon buttons, pills, list rows, form fields — is sized against this.
+   (This stylesheet loads only in the PWA, so these rules never reach desktop.) */
+:root {
+  --m-tap-min: 44px;
+}
+
+/* Reused HeroUI buttons render at their "sm" size (~32px tall) throughout the
+   phone shell — too short for a fingertip. Raise the floor for every mobile
+   button: a min-height (never a fixed height, so multi-line/reused buttons still
+   grow) plus a matching min-width for icon-only buttons so square glyph buttons
+   become a proper 44px target. */
+[data-slot="button"] {
+  min-height: var(--m-tap-min);
+}
+
+[data-slot="button"].button--icon-only {
+  min-width: var(--m-tap-min);
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--sidebar-background, var(--background));
+}
+
+/* Pin the shell to the visual viewport. On iOS standalone, 100dvh can fall
+   short of the physical screen and leave the body showing through beneath the
+   tab bar; a fixed, inset-0 root always covers the screen edge to edge (the
+   meta viewport-fit=cover lets it extend into the safe areas, which the top bar
+   and tab bar then pad for). */
+#root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+}
+
+body.bg-background {
+  background: var(--sidebar-background, var(--background));
+}
+
+/* ── Shell ─────────────────────────────────────────────────────── */
+
+.m-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--sidebar-background, var(--background));
+  color: var(--foreground, inherit);
+}
+
+.m-shell--wide {
+  display: grid;
+  grid-template-columns: clamp(264px, 26vw, 340px) minmax(0, 1fr);
+  grid-template-rows: 100%;
+}
+
+.m-main {
+  /* Anchors the floating home-composer pill. */
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background: var(--background);
+  overflow: hidden;
+}
+
+.m-main > .m-page {
+  overflow-y: auto;
+}
+
+/* The threads screen scrolls its list, not the whole pane, so the project
+   picker above the list is a fixed header — it never moves with the list's
+   overscroll bounce — while the rows keep their native rubber-band. */
+.m-main > .m-threads {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.m-main > .m-threads > .m-thread-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Clear the floating composer pill so the last rows stay reachable. */
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+
+.m-main > .m-threads > .m-threads__picker {
+  position: static;
+}
+
+/* App chrome — top bar, bottom tab bar, the threads list, and the wide-layout
+   sidebar — is tap-only: a long-press here opens our own actions sheet (or does
+   nothing), and must never start iOS text selection. Marking only the row
+   non-selectable isn't enough: WebKit then falls back to selecting the page's
+   *other* chrome text ("Select All" over the brand + tab labels), which is the
+   selection users still see. Disabling selection (and the callout) across the
+   whole chrome removes anything for that fallback to grab. Content surfaces
+   (chat, diffs) live outside these and keep native selection. */
+.m-topbar,
+.m-compose-dock,
+.m-thread-compose-dock,
+.m-threads,
+.m-sidebar {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* ── Top bar (narrow layout) ───────────────────────────────────── */
+
+.m-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--m-tap-min);
+  padding: env(safe-area-inset-top) 0.625rem 0;
+  border-bottom: 1px solid var(--hairline, var(--border));
+  background: var(--sidebar-background, var(--background));
+}
+
+.m-topbar__thread {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  /* Tight gap so the leading status dot hugs the title. */
+  gap: 0.375rem;
+}
+
+.m-topbar__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Right-hand cluster order in the thread header. The title group (.m-topbar__thread,
+   flex:1) and back button stay left at the default order 0; these trailing
+   controls line up after it as: usage ring → "..." actions (moved here from the
+   title group, per the request) → connection icon at the edge. `order` only
+   changes visual order, not DOM/tab order (which stays a logical
+   title → usage → actions → connection). */
+.m-topbar .m-usage-chip {
+  order: 1;
+}
+
+/* Scoped to .m-topbar: `.m-topbar__actions` is also rendered by ThreadTitleRow
+   in the WIDE-layout thread pane header (a plain flex row, not .m-topbar), and
+   an unscoped `order` there would reshuffle it relative to the usage ring. */
+.m-topbar .m-topbar__actions {
+  order: 2;
+}
+
+.m-topbar .m-connection {
+  order: 3;
+}
+
+.m-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  margin-left: -0.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.m-back:active {
+  background: var(--row-active, var(--row-hover));
+}
+
+.m-brand {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-self: stretch;
+  min-height: var(--m-tap-min);
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  background: transparent;
+  padding: 0.25rem 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.m-brand__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Icon-only connection/sync affordance. The state word and pill border are
+   gone — color alone carries the state — so it stays small and leaves the
+   thread title room. The glyph is small but the button keeps a full tap
+   target via width/height (transparent, no border). */
+.m-connection {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  /* Pull the trailing icon toward the safe-area edge so it doesn't float. */
+  margin-right: -0.375rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.m-connection svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.m-connection[data-state="online"] {
+  color: var(--success);
+}
+
+.m-connection[data-state="unauthorized"],
+.m-connection[data-state="error"],
+.m-connection[data-state="offline"] {
+  color: var(--danger);
+}
+
+.m-connection[data-state="reconnecting"] {
+  color: var(--warning);
+}
+
+.m-spin {
+  animation: m-spin 1s linear infinite;
+}
+
+@keyframes m-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Connection banner ─────────────────────────────────────────── */
+
+/* Sits between the top bar and the routed content (and at the top of the
+   wide-layout detail pane), surfacing reconnecting/offline/expired states
+   with a recovery action without stealing the whole screen. */
+.m-banner {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.75rem;
+  border-bottom: 1px solid var(--hairline, var(--border));
+  font-size: 0.75rem;
+}
+
+.m-banner[data-tone="warn"] {
+  background: color-mix(in oklab, var(--warning) 14%, var(--background));
+  color: var(--warning);
+}
+
+.m-banner[data-tone="danger"] {
+  background: color-mix(in oklab, var(--danger) 14%, var(--background));
+  color: var(--danger);
+}
+
+.m-banner__icon {
+  display: inline-flex;
+  flex: none;
+}
+
+.m-banner__text {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-banner__action {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: 2rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: inherit;
+  cursor: pointer;
+}
+
+.m-banner__action:active {
+  background: color-mix(in oklab, currentColor 18%, transparent);
+}
+
+/* ── Skeleton loaders ──────────────────────────────────────────── */
+
+.m-skeleton {
+  display: block;
+  border-radius: 0.375rem;
+  background: linear-gradient(
+    90deg,
+    var(--row-hover, color-mix(in oklab, var(--foreground) 8%, transparent)) 25%,
+    color-mix(in oklab, var(--foreground) 16%, transparent) 37%,
+    var(--row-hover, color-mix(in oklab, var(--foreground) 8%, transparent)) 63%
+  );
+  background-size: 400% 100%;
+  animation: m-shimmer 1.4s ease infinite;
+}
+
+@keyframes m-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* Indeterminate top progress bar (thread history fetch); never hides content. */
+.m-loading-bar {
+  position: relative;
+  display: block;
+  height: 2px;
+  flex: none;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+.m-loading-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: var(--accent);
+  animation: m-loading-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes m-loading-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+/* Thread/desktop list loading placeholder rows mirror the real card metrics. */
+.m-skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem;
+}
+
+.m-skeleton-row {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  gap: 0.625rem;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 0.625rem;
+  background: var(--surface, var(--content-background));
+  padding: 0.5rem 0.625rem;
+}
+
+.m-skeleton-row__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+/* ── Header icon actions (search / More) ───────────────────────── */
+
+.m-topbar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  flex: none;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.m-topbar-icon:active {
+  background: var(--row-active, var(--row-hover));
+}
+
+/* The search icon hands off to the floating pill: while the pill is open
+   (aria-pressed) the glyph dips away, and springs back when the pill
+   collapses into it. */
+.m-topbar-icon > svg {
+  transition:
+    transform 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease;
+}
+
+.m-topbar-icon[aria-pressed="true"] > svg {
+  transform: scale(0.72);
+  opacity: 0.45;
+}
+
+/* ── Scroll-aware chrome (home screen) ─────────────────────────────
+ *
+ * Scrolling the thread list down tucks the header away (its full height —
+ * content row + safe-area padding — via margin) and slides the composer pill
+ * off the bottom; scrolling up brings both back. The shell toggles
+ * `data-chrome-hidden` (only ever on the home layout). */
+.m-topbar {
+  transition:
+    margin-top 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease;
+}
+
+.m-shell[data-chrome-hidden] .m-topbar {
+  margin-top: calc(-1 * (var(--m-tap-min) + env(safe-area-inset-top)) - 1px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.m-shell[data-chrome-hidden] .m-compose-dock:not([data-expanded]) {
+  transform: translateY(calc(100% + 1.5rem + env(safe-area-inset-bottom)));
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Sidebar + detail (wide layout) ────────────────────────────── */
+
+.m-sidebar {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--hairline, var(--border));
+  background: var(--sidebar-background, var(--background));
+}
+
+.m-sidebar__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: calc(0.5rem + env(safe-area-inset-top)) 0.75rem 0.375rem;
+}
+
+.m-sidebar__actions {
+  display: flex;
+  gap: 0.375rem;
+  padding: 0 0.75rem 0.5rem;
+}
+
+.m-sidebar__scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.m-sidebar__foot {
+  border-top: 1px solid var(--hairline, var(--border));
+  padding: 0.375rem;
+}
+
+.m-sidebar__desktops {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.375rem 0.5rem;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.m-sidebar__desktops:hover,
+.m-sidebar__desktops[data-active="true"] {
+  background: var(--row-hover);
+  color: var(--foreground, inherit);
+}
+
+.m-sidebar__desktops > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.m-sidebar__desktops strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.m-sidebar__desktops span span {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.m-detail {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--content-background, var(--background));
+}
+
+.m-detail > .m-threads,
+.m-detail > .m-page {
+  overflow-y: auto;
+}
+
+/* ── Threads list (desktop sidebar rows, sans hover actions) ───── */
+
+.m-threads {
+  /* Anchors the floating search overlay. */
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+/* Pinned above the scrolling list so the filter stays reachable. */
+.m-threads__picker {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  background: var(--background);
+}
+
+.m-thread-search {
+  display: flex;
+  min-width: 0;
+  min-height: var(--m-tap-min);
+  flex: 1;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 0.5rem;
+  background: var(--surface, var(--content-background));
+  padding: 0 0.25rem 0 0.5rem;
+}
+
+.m-thread-search input {
+  min-width: 0;
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 16px;
+}
+
+.m-thread-search button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: var(--m-tap-min);
+  flex: none;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.m-thread-search button:active {
+  background: var(--row-active, var(--row-hover));
+  color: var(--foreground);
+}
+
+.m-threads__project-btn {
+  max-width: min(42vw, 12rem);
+  flex: none;
+}
+
+/* Header-toggled search: floats over the top of the list (above the picker
+   row). The pill wears the composer bubble's translucent chrome and scales
+   out of the header search icon when toggled on; [data-closing] plays the
+   reverse — shrinking back into the icon — before the box unmounts. */
+.m-search-float {
+  position: absolute;
+  top: 0.375rem;
+  right: 0.5rem;
+  left: 0.5rem;
+  z-index: 6;
+  display: flex;
+  /* Under the header search icon: one icon button + the topbar edge padding
+     in from the overlay's right edge. Vertically the origin hugs the shell's
+     top edge — the icon itself sits above `.m-main`, whose overflow:hidden
+     would clip the pill the moment it shrinks past that boundary. */
+  transform-origin: calc(100% - 4.75rem) -0.375rem;
+  animation: m-search-float-in 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The exit easing is the enter curve time-reversed (ease-in): the pill
+   leaves its place slowly, then accelerates as it is absorbed into the icon —
+   mirroring how it decelerates into place on open. */
+.m-search-float[data-closing] {
+  pointer-events: none;
+  animation: m-search-float-out 0.22s cubic-bezier(1, 0, 0.68, 0.28) forwards;
+}
+
+.m-search-float .m-thread-search {
+  flex: 1;
+  border-radius: 1.375rem;
+  background: color-mix(in oklab, var(--surface, var(--content-background)) 92%, transparent);
+  padding-left: 0.875rem;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.m-search-float .m-thread-search button {
+  border-radius: 9999px;
+}
+
+@keyframes m-search-float-in {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+
+@keyframes m-search-float-out {
+  to {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+
+/* ── Home composer (floating bubble, grows in place) ───────────────
+ *
+ * The real draft composer floats over the thread list as a bubble. Collapsed,
+ * everything but the prompt input is trimmed away; focusing the input grows
+ * the same bubble in place (max-height transition, overflow clipped) to
+ * reveal the full selection UI — project, Chat/CLI, model, worktree. Because
+ * it is one composer in one bubble, focus (and the keyboard) survive the
+ * expansion. The bubble overlays the list (no layout shift when the
+ * scroll-aware chrome tucks it away); the list reserves its band via padding. */
+.m-compose-dock,
+.m-thread-compose-dock {
+  position: absolute;
+  right: 0.75rem;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: 0.75rem;
+  z-index: 5;
+  transition:
+    transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease;
+}
+
+/* Ride above the on-screen keyboard while expanded (the dock is anchored to
+   the layout viewport, which iOS keeps full-height under the keyboard). */
+.m-compose-dock[data-expanded],
+.m-thread-compose-dock[data-expanded] {
+  transform: translateY(calc(-1 * var(--m-keyboard-offset, 0px)));
+}
+
+/* Cold first focus: before iOS reports a keyboard height there is no reliable
+   offset to lift by. A fixed hidden primer owns focus during that measurement;
+   keep the dock raised and nearly invisible until visualViewport reports the
+   real keyboard offset and the full composer can be expanded/focused there. */
+.m-compose-dock[data-measuring-keyboard],
+.m-thread-compose-dock[data-measuring-keyboard] {
+  transform: translateY(-50dvh);
+  opacity: 0.01;
+  transition: none !important;
+}
+
+/* Guarded first-focus expansion happens inside the touch gesture, BEFORE the
+   programmatic focus. It must land instantly: with the max-height/transform
+   transitions running, iOS evaluates the focused editable at its mid-animation
+   (bottom-edge) position and pans the layout viewport to reveal it — the
+   "keyboard pushes the page" jump. The keyboard's own rise covers the missing
+   animation; the attribute is cleared right after the expansion paints. */
+.m-compose-dock[data-instant-expand],
+.m-thread-compose-dock[data-instant-expand],
+.m-compose-dock[data-instant-expand] *,
+.m-thread-compose-dock[data-instant-expand] * {
+  transition: none !important;
+}
+
+/* Dims the screen behind the expanded composer; tapping it collapses. It is
+   a SIBLING of the dock, not a child: the dock is transformed while expanded
+   (keyboard lift), and a transformed ancestor becomes the containing block of
+   a position:fixed child — the scrim would shrink to the bubble's box and
+   outside taps would fall through to the list. */
+.m-compose-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  border: none;
+  background: color-mix(in oklab, var(--background) 55%, transparent);
+  cursor: default;
+  animation: m-sheet-backdrop-in 0.2s ease;
+}
+
+.m-compose-bubble {
+  /* Anchors the collapsed tap overlay. */
+  position: relative;
+  overflow: hidden;
+  /* The collapsed content is exactly one 2.75rem input line + the border;
+     capping right at it keeps the collapse animation from overshooting. */
+  max-height: calc(2.75rem + 2px);
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 1.375rem;
+  background: color-mix(
+    in oklab,
+    var(--composer-surface, var(--surface, var(--content-background))) 92%,
+    transparent
+  );
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  transition:
+    max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    border-radius 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-compose-dock[data-expanded] .m-compose-bubble,
+.m-thread-compose-dock[data-expanded] .m-compose-bubble {
+  max-height: calc(100dvh - var(--m-keyboard-offset, 0px) - env(safe-area-inset-top) - 7.5rem);
+  border-radius: 1rem;
+  background: var(--composer-surface, var(--sidebar-background, var(--background)));
+}
+
+/* The embedded draft view sizes to its content inside the bubble: neutralize
+   its full-height centering (anchor spacer above, slack filler below). */
+.m-compose-bubble .m-draft {
+  display: block;
+  overflow-y: auto;
+  max-height: inherit;
+  padding: 0.375rem 0.5rem 0.5rem;
+  transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-compose-bubble .m-draft > * {
+  min-height: 0;
+  flex: none;
+  height: auto;
+}
+
+.m-compose-bubble .m-draft [data-draft-composer-anchor-spacer],
+.m-compose-bubble .m-draft [data-draft-slack] {
+  display: none;
+}
+
+.m-compose-bubble .m-draft .h-full {
+  height: auto;
+}
+
+/* The bubble supplies the surface; flatten the composer's own card chrome so
+   it doesn't read as a box-in-a-box. */
+.m-compose-bubble .lightcode-composer-shell {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The input's growth is part of the bubble animation. */
+.m-compose-bubble [data-composer-input-anchor] {
+  position: relative;
+  overflow: hidden;
+  max-height: 20rem;
+  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Match the collapsed composer trick for every unfocused composer input: the
+   first tap lands on a non-editable layer, then the shared guarded-focus code
+   locks scroll and focuses the real editor. If the contenteditable itself is
+   the touch target, iOS can still run its keyboard reveal pan heuristics even
+   after preventDefault. Once focused, remove the shield so normal caret taps
+   work natively. */
+.m-compose-bubble [data-composer-input-anchor]:not(:focus-within)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: transparent;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.m-compose-bubble .lightcode-mention-input {
+  transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Collapsed: only the prompt input (single line) remains visible — project
+   row, worktree row, and the composer's docks/attachments are trimmed away. */
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-controls],
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-worktree-row],
+.m-compose-dock:not([data-expanded])
+  .m-compose-bubble
+  .lightcode-composer-shell
+  > :not([data-composer-input-anchor]):not(.lightcode-composer-toolbar) {
+  display: none;
+}
+
+/* Same one-line metrics as the live-thread pill: a 2.75rem centered text
+   line, no wrapper padding — the desktop editor's own top-heavy padding
+   otherwise leaves dead air above the placeholder and clips below. The draft
+   body wrapper carries its own pt-2/pb-2/px-3 in full (non-compact) mode and
+   must be zeroed too, or the whole shell rides 0.5rem low in the pill. */
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft,
+.m-compose-dock:not([data-expanded]) .m-compose-bubble [data-draft-body] {
+  padding: 0;
+}
+
+.m-compose-bubble [data-draft-body] {
+  transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The 44px mobile tap floor on HeroUI buttons would overflow the 2.75rem
+   line and get clipped; inside a compact pill the send/stop goes back to its
+   desktop 2.25rem — centered by the 0.25rem insets. */
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-send,
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell
+  .lightcode-composer-send {
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+.m-compose-dock:not([data-expanded]) .m-compose-bubble [data-composer-input-anchor] {
+  max-height: 2.75rem;
+}
+
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-mention-input {
+  min-height: 2.75rem;
+  max-height: 2.75rem;
+  padding: calc((2.75rem - 1lh) / 2) 1rem;
+}
+
+/* …plus the send button once there is something to send: the toolbar keeps
+   only it, pinned to the input row's right edge. */
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-toolbar {
+  display: none;
+}
+
+.m-compose-dock:not([data-expanded])
+  .m-compose-bubble:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .lightcode-composer-toolbar {
+  position: absolute;
+  /* Centers the 2.25rem send button in the 2.75rem line. */
+  right: 0.25rem;
+  bottom: 0.25rem;
+  /* Above the tap overlay: sending a kept draft must not re-expand. */
+  z-index: 3;
+  display: flex;
+  height: auto !important;
+}
+
+.m-compose-dock:not([data-expanded])
+  .m-compose-bubble
+  .lightcode-composer-toolbar
+  > :not(:has(.lightcode-composer-send)),
+.m-compose-dock:not([data-expanded])
+  .m-compose-bubble
+  .lightcode-composer-toolbar
+  > :has(.lightcode-composer-send)
+  > :not(.lightcode-composer-send) {
+  display: none;
+}
+
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-shell {
+  position: relative;
+}
+
+/* Keep the input clear of the pinned send button. */
+.m-compose-dock:not([data-expanded])
+  .m-compose-bubble:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  [data-composer-input-anchor] {
+  margin-right: 2.75rem;
+}
+
+/* Collapsed, a transparent overlay owns the whole bubble tap. The input must
+   never take the tap natively: iOS pans the (overflow-locked) document to
+   reveal a natively focused field and the offset lingers after the keyboard
+   dismisses. The overlay's handler expands and focuses with preventScroll
+   instead — still inside the gesture, so the keyboard rises. */
+.m-compose-tap {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+.m-thread-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.125rem 0.5rem 0.625rem;
+}
+
+/* Card-style rows: on touch there is no hover, so the surface + hairline
+   border is what marks the tappable area. */
+.m-thread-row {
+  display: flex;
+  width: 100%;
+  min-height: 3.25rem;
+  align-items: center;
+  gap: 0.625rem;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 0.625rem;
+  /* Same surface as the composer and chat bubbles (--surface-tertiary =
+     --composer-surface in the default dark theme) so the tappable cards read
+     as one family. */
+  background: var(--surface-tertiary, var(--surface, var(--content-background)));
+  padding: 0.5rem 0.625rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  -webkit-touch-callout: none;
+}
+
+.m-thread-row,
+.m-thread-row * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.m-thread-row:active {
+  background: var(--row-active, var(--row-hover));
+}
+
+.m-thread-row[data-active="true"] {
+  border-color: color-mix(in oklab, var(--accent) 55%, transparent);
+  background: var(--row-active, var(--row-hover));
+}
+
+.m-thread-row__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.m-thread-row__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: color-mix(in oklab, var(--foreground) 80%, transparent);
+}
+
+.m-thread-row[data-live="true"] .m-thread-row__title {
+  color: var(--foreground);
+}
+
+.m-thread-row__title[data-done="true"] {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.m-thread-row__meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.m-thread-row__meta-item {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.1875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-thread-row__meta-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.m-thread-row__side {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--muted);
+}
+
+/* User messages get no in-bubble action icons in the PWA: a long-press on the
+   bubble opens the message action sheet instead (UserMessageActionsSheet).
+   Suppress the OS text-selection / touch callout inside user bubbles so the
+   hold doesn't also start a selection — copying lives in the sheet. */
+[data-user-message] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+[data-user-message] * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* The question/answer row still shows its revert control inline (there is no
+   long-press surface for it), and it's hover-revealed on desktop. In the PWA
+   there is no dependable hover state, so keep it visible. The desktop control
+   is size-5 (~20px) with a 12px icon — too small to tap reliably. Growing the
+   button to the full --m-tap-min box makes it taller than the bubble, so keep
+   a compact visible button and extend the *tappable* area to --m-tap-min with
+   an invisible ::after overlay (clicks on a button's pseudo-element hit the
+   button). The button is wrapped in a HeroUI tooltip-trigger div (an
+   inline-block shrink-wrap), so it's a descendant, not a direct child —
+   target it by descendant. Scoped to the mobile stylesheet, so the compact
+   desktop hover UI is untouched. */
+.lightcode-message-action-strip {
+  gap: 0.25rem;
+  opacity: 1;
+}
+
+.lightcode-message-action-strip button {
+  position: relative;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.lightcode-message-action-strip button::after {
+  content: "";
+  position: absolute;
+  inset: calc((1.5rem - var(--m-tap-min)) / 2);
+}
+
+.lightcode-message-action-strip button > svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.lightcode-image-action-toolbar {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.lightcode-subagent-dock-row {
+  padding-right: 2rem;
+}
+
+.lightcode-subagent-dismiss {
+  opacity: 1;
+}
+
+/* Worktree / provider groups: a tappable header above indented child rows. */
+.m-thread-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.m-thread-group__header {
+  display: flex;
+  width: 100%;
+  min-height: var(--m-tap-min);
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 0.625rem;
+  padding: 0.375rem 0.5rem;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+  -webkit-touch-callout: none;
+}
+
+.m-thread-group__header,
+.m-thread-group__header * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.m-thread-group__header:active {
+  background: var(--row-hover);
+}
+
+/* Points down when expanded; rotates to point right when collapsed. */
+.m-thread-group__chevron {
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+}
+
+.m-thread-group__header[data-collapsed="true"] .m-thread-group__chevron {
+  transform: rotate(0deg);
+}
+
+.m-thread-group__title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: color-mix(in oklab, var(--foreground) 80%, transparent);
+}
+
+.m-thread-group__title[data-done="true"] {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.m-thread-group__project {
+  max-width: 9ch;
+  flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.m-thread-group__count {
+  flex: none;
+  min-width: 1.25rem;
+  border-radius: 0.375rem;
+  background: var(--row-hover);
+  padding: 0.0625rem 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-align: center;
+  color: color-mix(in oklab, var(--foreground) 65%, transparent);
+}
+
+/* Left rail visually nests the child rows under their group header. */
+.m-thread-group__items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-left: 0.5rem;
+  border-left: 1px solid var(--hairline, var(--border));
+  padding-left: 0.625rem;
+}
+
+/* Status is a single colored dot now (the word is dropped for header space).
+   Colors replicate the desktop provider-icon palette. */
+.m-status {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Base = inactive/dormant = grey. */
+.m-status__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+/* working / launching = green (desktop --working-tone → --success), pulsing. */
+.m-status__dot[data-tone="working"] {
+  background: var(--success);
+  animation: m-pulse 1.4s ease-in-out infinite;
+}
+
+/* needs approval / needs reply = yellow, pulsing. */
+.m-status__dot[data-tone="attention"] {
+  background: var(--warning);
+  animation: m-pulse 1.4s ease-in-out infinite;
+}
+
+/* error = red. */
+.m-status__dot[data-tone="danger"] {
+  background: var(--danger);
+}
+
+/* finished = moonlight blue-violet (desktop hardcodes this same value). */
+.m-status__dot[data-tone="moonlight"] {
+  background: oklch(0.82 0.12 260);
+}
+
+/* idle but ready = white/foreground. */
+.m-status__dot[data-tone="active"] {
+  background: var(--foreground);
+}
+
+@keyframes m-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ── Thread page ───────────────────────────────────────────────── */
+
+.m-thread {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* GUI chat scrolls UNDER the floating composer: the column runs to the screen
+   bottom (padding-bottom: 0 also neutralizes the JSX pb-2 utility) and the
+   safe zone lives INSIDE the chat scroller, so the last message scrolls clear
+   of the composer while earlier content ghosts beneath its translucent
+   bubble. */
+.m-thread:not(.m-thread--terminal) .m-thread-content {
+  padding-bottom: 0;
+}
+
+.m-thread .m-thread-content [data-lightcode-chat-scroller] {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+
+/* The scroll-to-bottom pin anchors to the pane's (now full-height) bottom
+   edge; lift it above the floating composer band. */
+.m-thread .m-thread-content button.bottom-4:has(svg.lucide-arrow-down) {
+  bottom: calc(4.5rem + env(safe-area-inset-bottom));
+}
+
+/* The terminal is an opaque bordered surface — it cannot scroll under the
+   composer, so the terminal column keeps reserving the band via padding. */
+.m-thread--terminal .m-thread-content {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+
+/* Terminal threads reserve the keyboard band via padding: the PTY's inputs
+   (accessory bar, xterm) summon the keyboard outside the composer's focus
+   tracking, so the whole column reflows above it. */
+.m-thread--terminal {
+  padding-bottom: var(--m-keyboard-offset, 0px);
+  transition: padding-bottom 0.15s ease-out;
+}
+
+.m-terminal-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 0.625rem;
+  background: var(--terminal-surface, var(--surface, var(--background)));
+  margin-bottom: 0.5rem;
+}
+
+.m-terminal {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.m-terminal-stack,
+.m-terminal-panel {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.m-terminal-panel--tabbed {
+  padding-bottom: calc(6.75rem + var(--m-keyboard-offset, 0px));
+}
+
+/* Wraps the reused desktop XTermSurface (h-full/w-full) so it fills the
+   available column above the composer. */
+.m-terminal-live {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 0.625rem;
+  background: var(--terminal-surface, var(--surface, var(--background)));
+  margin-bottom: 0.5rem;
+  padding: 0.375rem 0.5rem;
+}
+
+/* Full-bleed variant for the standalone terminal overlay (no card chrome). */
+.m-terminal-live--full {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.m-terminal-tab-pane {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.m-terminal-tab-pane[data-active="true"] {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.m-terminal-live--shared {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
+.m-terminal-bottom-dock {
+  position: fixed;
+  right: 0;
+  bottom: var(--m-keyboard-offset, 0px);
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  border-top: 1px solid var(--hairline, var(--border));
+  background: var(--sidebar-background, var(--background));
+  padding: 0.375rem 0.375rem calc(0.375rem + env(safe-area-inset-bottom));
+}
+
+.m-terminal-accessory {
+  display: flex;
+  min-width: 0;
+  flex: none;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 0.625rem;
+  background: var(--sidebar-background, var(--background));
+  padding: 0.375rem;
+}
+
+.m-terminal-panel .m-terminal-accessory {
+  margin: 0;
+  border-width: 1px 0 0;
+  border-radius: 0;
+  padding-bottom: calc(0.375rem + env(safe-area-inset-bottom));
+}
+
+.m-terminal-bottom-dock .m-terminal-accessory {
+  border-width: 1px;
+  border-radius: 0.625rem;
+  padding-bottom: 0.375rem;
+}
+
+.m-terminal-tabs {
+  display: flex;
+  min-width: 0;
+  gap: 0.25rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.m-terminal-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.m-terminal-tab {
+  display: flex;
+  min-width: 7rem;
+  max-width: 12rem;
+  height: var(--m-tap-min);
+  flex: 0 0 auto;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: var(--field-background, var(--surface, var(--background)));
+  color: var(--muted);
+}
+
+.m-terminal-tab[data-active="true"] {
+  border-color: var(--border);
+  background: var(--row-active, var(--row-hover));
+  color: var(--foreground);
+}
+
+.m-terminal-tab__main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  padding: 0 0.375rem 0 0.625rem;
+  color: inherit;
+  text-align: left;
+}
+
+.m-terminal-tab__title,
+.m-terminal-tab__status {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-terminal-tab__title {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.m-terminal-tab__status {
+  font-size: 0.625rem;
+  color: var(--muted);
+}
+
+.m-terminal-tab__close {
+  display: flex;
+  width: 2.75rem;
+  height: 100%;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-left: 1px solid var(--hairline, var(--border));
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: transparent;
+  color: inherit;
+}
+
+.m-terminal-tab--add {
+  min-width: var(--m-tap-min);
+  max-width: var(--m-tap-min);
+  justify-content: center;
+  border-color: var(--hairline, var(--border));
+}
+
+.m-terminal-error {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.625rem;
+  border-bottom: 1px solid var(--hairline, var(--border));
+  background: color-mix(in oklab, var(--danger) 12%, var(--background));
+  padding: 0.625rem 0.75rem;
+  color: var(--foreground);
+}
+
+.m-terminal-error__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.m-terminal-error__body > span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.m-terminal-error__retry {
+  flex: none;
+  border-radius: 0.5rem;
+  background: var(--surface);
+  padding: 0.375rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.m-terminal-error__retry:active {
+  background: var(--row-hover);
+}
+
+.m-terminal-accessory__input {
+  position: relative;
+  display: flex;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  background: var(--row-hover, var(--surface));
+  color: var(--foreground);
+  cursor: text;
+}
+
+.m-terminal-accessory__input input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  outline: none;
+  opacity: 0.01;
+}
+
+.m-terminal-accessory__input:focus-within {
+  box-shadow: 0 0 0 1px var(--accent);
+  color: var(--accent);
+}
+
+.m-terminal-accessory__keys {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  gap: 0.25rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.m-terminal-accessory__mods {
+  display: flex;
+  flex: none;
+  gap: 0.25rem;
+}
+
+.m-terminal-accessory__keys::-webkit-scrollbar {
+  display: none;
+}
+
+.m-terminal-accessory__key {
+  display: flex;
+  min-width: 2.75rem;
+  height: var(--m-tap-min);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--field-background, var(--surface, var(--background)));
+  padding: 0 0.625rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.m-terminal-accessory__key--icon,
+.m-terminal-accessory__key--mod {
+  min-width: 2.75rem;
+  padding: 0;
+}
+
+.m-terminal-accessory__key:active {
+  background: var(--row-hover);
+}
+
+.m-terminal-accessory__key--mod[data-active="true"] {
+  background: var(--accent);
+  color: var(--accent-foreground, var(--background));
+}
+
+/* ── Draft page ────────────────────────────────────────────────── */
+
+.m-draft {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.m-draft > * {
+  min-height: 0;
+  flex: 1;
+}
+
+/* ── Generic pages (desktops / pairing) ────────────────────────── */
+
+.m-page {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem calc(0.75rem + env(safe-area-inset-bottom));
+}
+
+.m-page-head h1 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.m-page-head p {
+  margin: 0.125rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.m-desktop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+/* Reuses the .m-thread-row card; the inner button is the switch target so
+   the forget action can sit beside it without nesting buttons. The card's
+   own padding moves onto the inner button. */
+.m-desktop-row {
+  padding: 0 0.375rem 0 0;
+  cursor: default;
+}
+
+.m-desktop-row__main {
+  display: flex;
+  min-width: 0;
+  min-height: 3.25rem;
+  flex: 1;
+  align-items: center;
+  gap: 0.625rem;
+  border: none;
+  border-radius: 0.625rem 0 0 0.625rem;
+  background: transparent;
+  padding: 0.5rem 0.25rem 0.5rem 0.625rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.m-desktop-row__main:active {
+  background: var(--row-hover);
+}
+
+.m-desktop-row__main > svg {
+  color: var(--muted);
+}
+
+.m-desktop-row[data-active="true"] .m-desktop-row__main > svg {
+  color: var(--accent);
+}
+
+.m-desktop-row__check {
+  color: var(--accent);
+}
+
+/* ── More tab ──────────────────────────────────────────────────── */
+
+.m-more-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.m-more-row {
+  display: flex;
+  width: 100%;
+  min-height: 3.25rem;
+  align-items: center;
+  gap: 0.625rem;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 0.625rem;
+  background: var(--surface, var(--content-background));
+  padding: 0.5rem 0.625rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.m-more-row:active {
+  background: var(--row-hover);
+}
+
+.m-more-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.m-more-row__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  border-radius: 0.5rem;
+  border: 1px solid var(--hairline, var(--border));
+  color: var(--muted);
+}
+
+.m-more-row__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.m-more-row__body strong {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.m-more-row__body span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+/* ── Remote browser (mirrored desktop tabs) ────────────────────── */
+
+/* Mobile-browser chrome (Safari/Chrome style): the page fills the screen and
+   the controls live at the bottom — address pill above a nav row, with the
+   tab switcher in a bottom sheet. */
+.m-browser {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  background: var(--content-background, var(--background));
+}
+
+.m-browser__stage {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.m-browser__bottom {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0.125rem;
+  border-top: 1px solid var(--hairline, var(--border));
+  background: var(--sidebar-background, var(--background));
+  padding: 0.5rem 0.75rem calc(0.25rem + env(safe-area-inset-bottom));
+}
+
+.m-browser__address {
+  position: relative;
+  display: flex;
+  height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 999px;
+  background: var(--field-background, var(--surface, var(--background)));
+}
+
+.m-browser__address-main {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  /* Symmetric inset so the host stays centered despite the reload button. */
+  padding: 0 2.25rem;
+  font-size: 0.8125rem;
+  color: inherit;
+  cursor: pointer;
+}
+
+.m-browser__address-main > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-browser__address-main > span[data-placeholder="true"] {
+  color: var(--field-placeholder, var(--muted));
+}
+
+.m-browser__address-action {
+  position: absolute;
+  top: 50%;
+  right: 0.25rem;
+  display: flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.m-browser__address-action:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.m-browser__address-input {
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  padding: 0 1rem;
+  text-align: center;
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+
+.m-browser__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.375rem;
+}
+
+.m-browser__nav-btn {
+  display: flex;
+  width: 2.75rem;
+  height: var(--m-tap-min);
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.625rem;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.m-browser__nav-btn:active {
+  background: var(--row-hover);
+}
+
+.m-browser__nav-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.m-browser__nav-btn[data-active="true"] {
+  color: var(--accent);
+}
+
+.m-browser__nav-plus {
+  display: flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--row-hover, var(--surface));
+}
+
+.m-browser__tabs-count {
+  display: flex;
+  width: 1.375rem;
+  height: 1.375rem;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid currentColor;
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+/* Full-width action rows inside a bottom sheet (thread context menu). */
+.m-sheet-action {
+  display: flex;
+  width: 100%;
+  min-height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  gap: 0.625rem;
+  border: none;
+  border-radius: 0.625rem;
+  background: transparent;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.8125rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.m-sheet-action:active {
+  background: var(--row-hover);
+}
+
+.m-sheet-action[data-static="true"] {
+  cursor: default;
+}
+
+/* ── Git summaries (read-only, mirrored from the desktop) ─────────── */
+
+.m-git-badge,
+.m-git-counts,
+.m-git-pr {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Thread action bar: a compact, dividerless row under the thread header that
+   holds the workspace entry (project · branch · diffstat · PR). The terminal
+   shortcut lives in the title row's actions menu. */
+.m-thread-bar {
+  display: flex;
+  width: 100%;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+}
+
+/* ── Live-thread composer: compact ⇄ full ──────────────────────────
+ *
+ * Unfocused, the composer is a summary: a one-line input plus the current
+ * model / effort / fast chips (the first three toolbar controls) — and the
+ * send button whenever there is a prompt to send. Focusing the input widens
+ * it and slides the remaining controls back in. The workspace entry above the
+ * chat is the git surface, so the composer's own branch affordance is
+ * dropped entirely on this device. */
+.m-shell [data-composer-branch] {
+  display: none;
+}
+
+.m-main .m-thread .lightcode-composer-shell [data-composer-input-anchor] {
+  overflow: hidden;
+  max-height: 2.75rem;
+  transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .lightcode-composer-shell
+  [data-composer-input-anchor] {
+  max-height: 12rem;
+}
+
+/* Collapse every toolbar control past the summary trio, and the leading/after
+   extras (context ring, attach, mic) — width+opacity so it animates. */
+.m-main .m-thread .lightcode-composer-toolbar > .relative > div > *,
+.m-main .m-thread .lightcode-composer-toolbar > .flex.shrink-0 > * {
+  transition:
+    max-width 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease;
+  max-width: 16rem;
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell
+  .lightcode-composer-toolbar
+  > .relative
+  > div
+  > :nth-child(n + 4):not(:has(.lightcode-composer-mode-icon)):not(
+    :has(.lightcode-composer-permission-icon)
+  ),
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell
+  .lightcode-composer-toolbar
+  > .flex.shrink-0
+  > :not(.lightcode-composer-send) {
+  /* display:none, not max-width:0 — zero-width flex items still earn the
+     row's 0.875rem gap on both sides, which read as uneven spacing between
+     the visible summary chips. The reveal on expand is covered by the
+     toolbar's entrance animation, so the per-chip width transition is not
+     missed. */
+  display: none;
+}
+
+/* One rhythm in the compact summary: chips carry no margins/padding of their
+   own (the row gap is the only inter-chip space) and the icon-only chips
+   share one 1rem icon box, so mixed intrinsic icon sizes (3.5 vs 4) can't
+   make equal gaps read as unequal. */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  > div
+  > * {
+  margin: 0;
+  padding: 0;
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  > div
+  > *
+  :is(svg, .lightcode-composer-permission-icon, .lightcode-composer-mode-icon) {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Compact with nothing typed: no send either — the summary row stands alone.
+   (Disabled markers cover HeroUI/React Aria button states.) Scoped to the
+   EMPTY case only: with a typed follow-up the button must stay visible even
+   while disabled (e.g. a running thread's stop), or the row loses its only
+   action affordance. */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-send:is([disabled], [data-disabled], [aria-disabled="true"]) {
+  display: none;
+}
+
+/* One composer language across screens: compact matches the home bubble's
+   pill (hairline, radius, translucent surface, shadow)… */
+.m-main .m-thread .lightcode-composer-shell {
+  border-color: var(--hairline, var(--border));
+  transition:
+    border-radius 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.15s ease;
+}
+
+.m-main .m-thread .m-thread-compose-dock:not([data-expanded]) .lightcode-composer-shell {
+  border-radius: 1.375rem;
+  background: color-mix(
+    in oklab,
+    var(--composer-surface, var(--surface, var(--content-background))) 92%,
+    transparent
+  );
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+
+/* The collapsed thread composer floats over live chat: keep it properly
+   translucent (the backdrop blur carries legibility) so the messages visibly
+   scroll beneath it. Collapsed only — the expanded bubble keeps its solid
+   surface for legible controls. */
+.m-main .m-thread .m-thread-compose-dock:not([data-expanded]) .m-compose-bubble {
+  background: color-mix(
+    in oklab,
+    var(--composer-surface, var(--surface, var(--content-background))) 45%,
+    transparent
+  );
+}
+
+/* …and expanded matches the expanded bubble: flatter radius, opaque surface,
+   and the same animated border glow the draft composer shows (the glow node
+   is rendered for every variant; desktop only lights it for drafts). */
+.m-main .m-thread .m-thread-compose-dock[data-expanded] .lightcode-composer-shell {
+  border-radius: 1rem;
+  border-color: transparent;
+  background: var(--composer-surface, var(--sidebar-background, var(--background)));
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .lightcode-composer-shell
+  .lightcode-composer-border-glow {
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .lightcode-composer-shell
+  .lightcode-composer-border-glow::before {
+  animation-play-state: running;
+}
+
+/* Compact + nothing typed: the summary trio sits where the placeholder would
+   be — one line total. The overlaid toolbar is tap-transparent (the whole
+   line focuses the input underneath); only the send/stop button stays
+   directly interactive, since it can be enabled with an empty prompt (a
+   running thread's stop, attachments). With a value the toolbar falls back
+   to its own row below the input (the rules above), send at its right. */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  align-items: center;
+  justify-content: flex-start;
+  /* Left edge lines up with the input text (1rem, the shared compact line). */
+  padding: 0 0.625rem 0 1rem;
+  pointer-events: none;
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > :has(.lightcode-composer-send) {
+  margin-left: auto;
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  .lightcode-composer-send {
+  pointer-events: auto;
+}
+
+/* The trio occupies the placeholder's slot; hide the placeholder itself. */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell
+  .lightcode-mention-input:empty::before {
+  content: none;
+}
+
+/* Shared compact line metrics with the home bubble: one 2.75rem line, text
+   vertically centered (the desktop editor's padding is top-heavy). */
+.m-main .m-thread .lightcode-composer-shell .lightcode-mention-input {
+  transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell
+  .lightcode-mention-input {
+  min-height: 2.75rem;
+  max-height: 2.75rem;
+  padding: calc((2.75rem - 1lh) / 2) 1rem;
+}
+
+/* In the placeholder slot the trio reads as plain muted labels, not
+   dropdowns: chip chrome and the menu chevrons go away. The row is re-laid
+   out flat — uniform gap between items, everything on one center line, label
+   text at the input's own size. */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative,
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  :is(button, [role="button"]) {
+  display: inline-flex;
+  height: auto;
+  align-items: center;
+  gap: 0.375rem;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  svg.lucide-chevron-down {
+  display: none;
+}
+
+/* The desktop toolbar wrap system hides control labels (is-hidden /
+   data-collapse-tier) by measuring hidden probe rows against the container
+   width. On this device the compact line only ever surfaces the first three
+   controls, so that measurement is meaningless here — force the summary trio's
+   labels back on so effort reads as text, not a lone icon. Only <span> labels
+   are re-shown: the chevrons carry the same hideable class but are <svg> and
+   stay hidden (rule above). The Fast toggle is iconOnly (no label span), so it
+   stays an icon. min-width:0 + the label's own `truncate` keep a long model
+   name from overflowing the pointer-through overlay line. */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  span.lightcode-composer-label-hideable:not(.flex-col) {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* The model label is a stacked flex column (name over sub-provider); re-show it
+   as flex so its direction is preserved (display:inline-block would collapse
+   the two rows onto one line). */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  span.lightcode-composer-label-hideable.flex-col {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* The mode (work/plan) and permission chips join the compact summary as
+   icon-only glyphs — informational, non-interactive (the overlay row is
+   pointer-events:none; tapping the line focuses the input). The force-show
+   rules above would surface their text labels, so re-hide those: the chips are
+   identified provider-agnostically by the shared icon markers, never by
+   provider name or brittle nth-child position. */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  > div
+  > *:has(.lightcode-composer-mode-icon)
+  span.lightcode-composer-label-hideable,
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .lightcode-composer-toolbar
+  > .relative
+  > div
+  > *:has(.lightcode-composer-permission-icon)
+  span.lightcode-composer-label-hideable {
+  display: none;
+}
+
+/* Compact → expanded moves the toolbar from an absolute overlay (over the
+   input line) into its own row; position can't transition, so give the
+   expanded toolbar a brief entrance that reads as one motion with the dock's
+   max-height/transform animation. This is a keyframe animation, not a
+   transition, so [data-instant-expand] * (transition: none) does not disable
+   it — a short fade on the warm flip is harmless. */
+@keyframes m-thread-toolbar-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock[data-expanded]
+  .lightcode-composer-shell
+  .lightcode-composer-toolbar {
+  animation: m-thread-toolbar-enter 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Inside the floating thread bubble, the bubble owns the card chrome just like
+   the home composer. Keep the reused desktop composer as content only. */
+.m-main .m-thread .m-thread-compose-dock .lightcode-composer-shell,
+.m-main .m-thread .m-thread-compose-dock .lightcode-composer-shell:not(:focus-within),
+.m-main .m-thread .m-thread-compose-dock .lightcode-composer-shell:focus-within {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The workspace entry — the single tap target into the unified Code panel. */
+.m-ws-chip {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  min-height: var(--m-tap-min);
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.25rem 0.375rem;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.m-ws-chip:active {
+  background: var(--row-hover);
+}
+
+/* Project / branch take the available width and ellipsize; the diff/PR meta and
+   chevron stay pinned to the right. */
+.m-ws-chip__main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: baseline;
+  gap: 0.375rem;
+  overflow: hidden;
+}
+
+.m-ws-chip__project {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.m-ws-chip__sep {
+  flex: none;
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.m-ws-chip__branch {
+  min-width: 1.5rem;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.m-ws-chip__meta {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.m-ws-chip__chevron {
+  flex: none;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+/* Unified workspace panel (Changes | Files) — fullscreen host above the shell. */
+.m-workspace {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: var(--content-background, var(--background));
+}
+
+.m-workspace__body {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* One tab's pane fills the body; the inactive tab stays mounted but hidden so
+   switching preserves an open diff or edited file. */
+.m-ws-tab {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.m-ws-tab--hidden {
+  display: none;
+}
+
+.m-ws-pane {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The reused GitReviewSidebar / files body fill the pane. */
+.m-ws-pane > * {
+  min-height: 0;
+  flex: 1;
+}
+
+/* iOS-style segmented control switching Changes / Files. */
+.m-seg {
+  display: flex;
+  flex: none;
+  gap: 0.1875rem;
+  margin: 0.5rem 0.75rem;
+  padding: 0.1875rem;
+  border-radius: 0.625rem;
+  background: var(--row-hover);
+}
+
+.m-seg__btn {
+  display: inline-flex;
+  min-height: 2.375rem;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.m-seg__btn[data-active="true"] {
+  background: var(--surface, var(--content-background));
+  color: var(--foreground);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.m-git-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.25rem;
+}
+
+.m-git-detail__body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.0625rem;
+}
+
+.m-git-detail__body strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.m-git-detail__body span {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.m-git-empty {
+  margin: 0;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.m-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: color-mix(in oklab, var(--background) 45%, transparent);
+  /* Mount fades the dim in; the sheet itself slides up (below). */
+  animation: m-sheet-backdrop-in 0.2s ease;
+}
+
+/* Closing: the dim fades and the sheet slides back out before React unmounts —
+   useSheet keeps the sheet mounted for the animation's length. `forwards` holds
+   the end state so it doesn't flash back to visible on the last frame. The dim
+   rides the sheet's accelerating exit curve: it holds while the sheet detaches
+   and only fades at the end, as the sheet leaves the screen. */
+.m-sheet-backdrop[data-closing] {
+  animation: m-sheet-backdrop-out 0.2s cubic-bezier(1, 0, 0.68, 0.28) forwards;
+}
+
+.m-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: transparent;
+  cursor: default;
+}
+
+.m-sheet {
+  position: relative;
+  display: flex;
+  max-height: 60dvh;
+  flex-direction: column;
+  border-top: 1px solid var(--hairline, var(--border));
+  border-radius: 1rem 1rem 0 0;
+  background: var(--sidebar-background, var(--background));
+  padding: 0.625rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  animation: m-sheet-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Exit easing is the enter curve time-reversed (ease-in): the sheet detaches
+   slowly, then accelerates off-screen — mirroring how it decelerates into
+   place on open. */
+.m-sheet-backdrop[data-closing] .m-sheet {
+  animation: m-sheet-out 0.2s cubic-bezier(1, 0, 0.68, 0.28) forwards;
+}
+
+@keyframes m-sheet-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes m-sheet-backdrop-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes m-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes m-sheet-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.m-sheet-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.125rem 0.5rem 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* Close affordance in a drawer header (composer menu drawers). */
+.m-sheet-close {
+  display: inline-flex;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.m-sheet-close:active {
+  background: var(--row-hover);
+  color: var(--foreground);
+}
+
+/* Provider usage ring in the thread header + its details drawer body. */
+.m-usage-chip {
+  display: inline-flex;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.m-usage-chip:active {
+  background: var(--row-hover);
+}
+
+.m-usage-detail {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  padding: 0.25rem 0.25rem 0.5rem;
+}
+
+.m-sheet-list {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.375rem;
+  overflow-y: auto;
+}
+
+/* Reused desktop menu rows rendered inside a drawer (e.g. the branch selector's
+   footer actions, or any HeroUI list/menu surfaced via ResponsiveMenuSurface)
+   are laid out at desktop density — give them a finger-sized minimum. Rows that
+   force their own height with `!important` (the virtualized branch/model lists)
+   win over this and are enlarged in JS instead, so they aren't desynced. Scoped
+   to `.m-sheet`, so the desktop popover is untouched. */
+.m-sheet .list-box-item,
+.m-sheet .lightcode-menu-item {
+  min-height: var(--m-tap-min);
+}
+
+.m-sheet .m-search-input,
+.m-sheet [data-slot="input"] {
+  min-height: var(--m-tap-min);
+}
+
+/* The model picker's search row and the list's sticky header each draw a bottom
+   hairline; in the drawer they double up with a 1px seam of drawer background
+   between them. Drop the search row's border in the drawer so only the sticky
+   header's hairline shows. */
+.m-sheet .lightcode-model-menu-search {
+  border-bottom-color: transparent;
+}
+
+/* ── Host folder picker (project add-existing / clone parent) ─────── */
+
+/* A taller drawer than the composer sheets: it hosts a scrolling file-explorer
+   list with a pinned nav bar and a "Use this folder" footer. */
+.m-picker {
+  position: relative;
+  display: flex;
+  height: 85dvh;
+  max-height: 85dvh;
+  flex-direction: column;
+  border-top: 1px solid var(--hairline, var(--border));
+  border-radius: 1rem 1rem 0 0;
+  background: var(--sidebar-background, var(--background));
+  padding: 0.625rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  animation: m-sheet-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-picker__bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0 0.5rem;
+}
+
+.m-picker__nav {
+  display: inline-flex;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 0.5rem;
+  background: var(--surface, var(--content-background));
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.m-picker__nav:active {
+  background: var(--row-hover);
+}
+
+.m-picker__nav:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.m-picker__path {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--muted);
+}
+
+.m-picker__list {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.125rem;
+  overflow-y: auto;
+}
+
+.m-picker__row {
+  display: flex;
+  width: 100%;
+  min-height: var(--m-tap-min);
+  align-items: center;
+  gap: 0.625rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.5rem 0.625rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.m-picker__row:active {
+  background: var(--row-hover);
+}
+
+.m-picker__row--file {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.m-picker__row-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+}
+
+.m-picker__foot {
+  flex: none;
+  padding-top: 0.5rem;
+}
+
+/* Reuses the .m-thread-row card the same way .m-desktop-row does: the inner
+   button is the activate target so the close action sits beside it. */
+.m-tab-row {
+  flex: none;
+  padding: 0 0.375rem 0 0;
+  cursor: default;
+}
+
+.m-tab-row__main {
+  display: flex;
+  min-width: 0;
+  min-height: 3.25rem;
+  flex: 1;
+  align-items: center;
+  gap: 0.625rem;
+  border: none;
+  border-radius: 0.625rem 0 0 0.625rem;
+  background: transparent;
+  padding: 0.5rem 0.25rem 0.5rem 0.625rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.m-tab-row__main:active {
+  background: var(--row-hover);
+}
+
+.m-tab-row__main > svg {
+  color: var(--muted);
+}
+
+.m-tab-row[data-active="true"] .m-tab-row__main > svg {
+  color: var(--accent);
+}
+
+.m-browser__surface {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  /* Panning forwards to the page; pinch zooms the mirror locally. */
+  touch-action: none;
+}
+
+/* Local pinch-zoom target; transform is set imperatively during gestures. */
+.m-browser__zoom {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+}
+
+.m-browser__zoom img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.m-browser__typing {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
+  border-top: 1px solid var(--hairline, var(--border));
+  padding: 0.375rem 0.5rem calc(0.375rem + env(safe-area-inset-bottom));
+  background: var(--sidebar-background, var(--background));
+}
+
+.m-browser__typing input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--field-border, var(--border));
+  border-radius: 0.5rem;
+  background: var(--field-background, var(--background));
+  padding: 0.3125rem 0.5625rem;
+  font: inherit;
+  color: inherit;
+}
+
+.m-browser__typing input:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
+  outline-offset: 1px;
+}
+
+.m-browser__status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding: 1.25rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.m-browser__status[data-dim="true"] {
+  background: color-mix(in oklab, var(--background) 72%, transparent);
+}
+
+.m-browser__status p {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  max-width: 24rem;
+}
+
+/* ── Fullscreen git / PR panels (reused desktop components) ──────── */
+
+/* Full-window overlay host above the app shell for the git panel and PR
+   review. The reused desktop components fill .m-git-overlay__body. */
+.m-git-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: var(--content-background, var(--background));
+}
+
+.m-git-overlay__body {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The reused GitReviewSidebar / PrReviewSidebar fill the body. */
+.m-git-overlay__body > * {
+  min-height: 0;
+  flex: 1;
+}
+
+/* Header strip: back chevron, branch/title, trailing actions. */
+.m-git-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--m-tap-min);
+  padding: env(safe-area-inset-top) 0.5rem 0;
+  border-bottom: 1px solid var(--hairline, var(--border));
+  background: var(--sidebar-background, var(--background));
+}
+
+.m-git-head__title {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+}
+
+.m-git-head__branch {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.m-git-head__branch-selector {
+  min-width: 0;
+  flex: 1;
+}
+
+.m-git-head__branch-trigger {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  min-height: var(--m-tap-min);
+  align-items: center;
+  gap: 0.375rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.m-git-head__branch-trigger:active {
+  background: var(--row-hover);
+}
+
+.m-git-head__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+.m-git-head__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.m-git-head__btn:active {
+  background: var(--row-hover);
+  color: var(--foreground);
+}
+
+.m-git-head__btn[data-active="true"] {
+  color: var(--foreground);
+}
+
+.m-git-head__btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Single scroll surface for PR deep pages whose content is its natural height
+   (commits, checks). Sits directly below the page header in the overlay column;
+   self-scrolling pages (changes, conversation) use .m-git-overlay__body. */
+.m-pr-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* GitHub-style PR review overview (scrollable summary of the PR). */
+.m-pr-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  padding: 0.75rem 0.75rem calc(1rem + env(safe-area-inset-bottom));
+}
+
+.m-pr-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.m-pr-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.m-pr-section__head {
+  padding: 0 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.m-pr-diffstat {
+  display: inline-flex;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.m-pr-merge {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  border: 1px solid color-mix(in oklab, var(--danger) 40%, transparent);
+  border-radius: 0.625rem;
+  background: color-mix(in oklab, var(--danger) 8%, transparent);
+  padding: 0.5rem 0.625rem;
+}
+
+.m-pr-merge__body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.0625rem;
+  font-size: 0.75rem;
+}
+
+.m-pr-merge__body strong {
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.m-pr-merge__body span {
+  color: var(--muted);
+}
+
+.m-pr-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.m-pr-actions > .m-git-head__btn {
+  width: 3.25rem;
+  height: auto;
+}
+
+/* Diff drill-down overlaid above the file list. */
+.m-git-diff {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: var(--content-background, var(--background));
+}
+
+.m-git-diff__body {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+}
+
+.m-git-diff__path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+/* ── Project files / editor (the workspace Files tab) ──────────── */
+
+.m-files-body {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.m-files-tree,
+.m-files-editor {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.m-files-search {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--m-tap-min);
+  margin: 0.625rem 0.75rem 0.375rem;
+  border: 1px solid var(--field-border, var(--border));
+  border-radius: 0.625rem;
+  background: var(--field-background, var(--surface, var(--background)));
+  padding: 0.25rem 0.375rem 0.25rem 0.625rem;
+}
+
+.m-files-search input {
+  min-width: 0;
+  flex: 1;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: inherit;
+  outline: none;
+}
+
+.m-files-search button {
+  display: flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.m-files-search button:active {
+  background: var(--row-hover);
+  color: var(--foreground);
+}
+
+.m-files-toolbar {
+  display: flex;
+  flex: none;
+  gap: 0.5rem;
+  padding: 0 0.5rem 0.375rem;
+}
+
+.m-files-toolbar button {
+  display: inline-flex;
+  min-width: 0;
+  height: var(--m-tap-min);
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 0.5rem;
+  background: var(--surface, var(--content-background));
+  padding: 0 0.625rem;
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.m-files-toolbar button:active {
+  background: var(--row-hover);
+}
+
+.m-files-list {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.125rem 0.5rem calc(0.75rem + env(safe-area-inset-bottom));
+}
+
+.m-file-row-shell {
+  display: flex;
+  width: 100%;
+  min-height: var(--m-tap-min);
+  align-items: center;
+  border-radius: 0.5rem;
+}
+
+.m-file-row-shell:active {
+  background: var(--row-hover);
+}
+
+.m-file-row {
+  display: flex;
+  min-width: 0;
+  min-height: var(--m-tap-min);
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.375rem 0.5rem;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.m-file-row__chevron {
+  display: flex;
+  width: 1rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.m-file-row__chevron svg {
+  transition: transform 0.15s ease;
+}
+
+.m-file-row__name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+}
+
+.m-file-row__path {
+  max-width: 42%;
+  flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.m-file-row__action {
+  display: flex;
+  width: 2.75rem;
+  min-height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.m-file-row__action:active {
+  background: var(--row-hover);
+  color: var(--foreground);
+}
+
+.m-files-editor__head {
+  display: flex;
+  min-height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--hairline, var(--border));
+  background: var(--sidebar-background, var(--background));
+  padding: 0 0.5rem;
+}
+
+.m-files-editor__path {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.m-files-save {
+  display: inline-flex;
+  height: var(--m-tap-min);
+  flex: none;
+  align-items: center;
+  gap: 0.375rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--accent);
+  padding: 0 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-foreground, white);
+  cursor: pointer;
+}
+
+.m-files-save:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Syntax-highlighted code editor: a Shiki-rendered backdrop with a transparent
+   textarea on top. The outer element scrolls; an inner wrapper grows with the
+   highlight layer so the absolutely-positioned textarea covers the full content
+   height and the caret stays aligned. Both layers must share identical metrics
+   (font, size, line-height, padding, wrapping). Font is intentionally small for
+   mobile code density. */
+.m-files-code {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  background: var(--content-background, var(--background));
+  -webkit-overflow-scrolling: touch;
+}
+
+.m-files-code__inner {
+  position: relative;
+  min-height: 100%;
+}
+
+.m-files-code__hl,
+.m-files-code__ta {
+  margin: 0;
+  padding: 0.5rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  tab-size: 2;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.m-files-code__hl {
+  color: var(--foreground);
+  pointer-events: none;
+}
+
+.m-files-code__ta {
+  position: absolute;
+  inset: 0;
+  resize: none;
+  border: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--foreground);
+  outline: none;
+  overflow: hidden;
+}
+
+.m-files-status {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.25rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.m-files-status--inline {
+  min-height: 5rem;
+  flex: none;
+}
+
+.m-files-empty {
+  padding: 0.75rem 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+/* ── Settings (phone drill-down) ───────────────────────────────── */
+
+.m-settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.m-settings-group + .m-settings-group {
+  margin-top: 0.5rem;
+}
+
+.m-settings-group__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  padding: 0 0.25rem;
+}
+
+.m-settings-group__head strong {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.m-settings-group__head span {
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.m-settings {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.m-settings__body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0.875rem calc(1rem + env(safe-area-inset-bottom));
+}
+
+/* The desktop SettingRow is a single label/control line; on a phone wide
+   controls (selects, number fields) get the full next line instead of
+   crushing the label. */
+.m-settings__body .settings-row {
+  flex-wrap: wrap;
+  row-gap: 0.375rem;
+}
+
+.m-settings__body .settings-row__text {
+  flex: 1 1 14rem;
+}
+
+.m-settings__body .settings-row > :not(.settings-row__text) {
+  margin-left: auto;
+}
+
+/* Full-height host for reused desktop panels (usage, browser). */
+.m-subscreen {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.m-subscreen > * {
+  min-height: 0;
+  flex: 1;
+}
+
+.m-card {
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: 0.625rem;
+  background: var(--surface, var(--content-background));
+  padding: 0.625rem 0.75rem 0.75rem;
+}
+
+.m-card__title {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0 0 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.m-card__hint {
+  margin: 0 0 0.625rem;
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.m-card__hint--accent {
+  color: var(--accent);
+}
+
+.m-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.m-form__submit {
+  width: 100%;
+  margin-top: 0.125rem;
+}
+
+.m-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.m-field__label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.m-field input {
+  min-height: var(--m-tap-min);
+  border: 1px solid var(--field-border, var(--border));
+  border-radius: 0.5rem;
+  background: var(--field-background, var(--background));
+  padding: 0.5rem 0.625rem;
+  font: inherit;
+  color: inherit;
+}
+
+.m-field input:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
+  outline-offset: 1px;
+}
+
+/* Input-styled trigger that opens the host folder picker (project add/clone). */
+.m-field-picker {
+  display: flex;
+  width: 100%;
+  min-height: var(--m-tap-min);
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--field-border, var(--border));
+  border-radius: 0.5rem;
+  background: var(--field-background, var(--background));
+  padding: 0.5rem 0.625rem;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.m-field-picker:active {
+  background: var(--row-hover);
+}
+
+/* ── Empty state ───────────────────────────────────────────────── */
+
+.m-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem 1.25rem;
+  text-align: center;
+}
+
+.m-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.625rem;
+  border: 1px solid var(--hairline, var(--border));
+  background: var(--surface, var(--content-background));
+  color: var(--muted);
+}
+
+.m-empty strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.m-empty p {
+  margin: 0;
+  max-width: 26rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ── QR scanner (camera pairing) ───────────────────────────────── */
+
+.m-scanner {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+}
+
+.m-scanner__stage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.m-scanner__video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Transparent reticle with a dimming mask painted by an outsized box-shadow. */
+.m-scanner__reticle {
+  position: absolute;
+  width: min(70vw, 18rem);
+  aspect-ratio: 1;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 1rem;
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45);
+}
+
+.m-scanner__caption {
+  position: absolute;
+  bottom: calc(2rem + env(safe-area-inset-bottom));
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 80vw;
+  margin: 0;
+  padding: 0.5rem 0.875rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.8125rem;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.m-scanner__error {
+  display: flex;
+  max-width: 22rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1.5rem;
+  color: #fff;
+  text-align: center;
+}
+
+.m-scanner__error strong {
+  font-size: 0.9375rem;
+}
+
+.m-scanner__error p {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.m-scanner__close {
+  position: absolute;
+  top: calc(0.75rem + env(safe-area-inset-top));
+  right: 0.75rem;
+  display: inline-flex;
+  width: var(--m-tap-min);
+  height: var(--m-tap-min);
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  cursor: pointer;
+}
+
+/* ── Mobile input ergonomics ───────────────────────────────────── */
+
+/* Editable fields must stay selectable even inside the non-selectable chrome
+   (the inline rename field in the thread actions sheet, the project picker):
+   otherwise iOS won't let you place the cursor or select text to edit. */
+.m-shell textarea,
+.m-shell input,
+.m-shell [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* iOS zooms into inputs below 16px; keep editable text at 16px on phones.
+   `.m-sheet` / `.m-picker` drawers are portaled to <body> (outside `.m-shell`)
+   by BottomSheet, ResponsiveMenuSurface, and the host folder picker, so they
+   need the guard spelled out separately — otherwise the model-picker search
+   field (and any other in-drawer input) zooms on focus. */
+@media (max-width: 767px) {
+  .m-shell textarea,
+  .m-shell input,
+  .m-shell [contenteditable="true"],
+  .m-sheet textarea,
+  .m-sheet input,
+  .m-sheet [contenteditable="true"],
+  .m-picker textarea,
+  .m-picker input,
+  .m-picker [contenteditable="true"] {
+    font-size: 16px;
+  }
+}
+
+/* ── Native screen transitions (View Transitions API) ──────────────
+ *
+ * The phone layout navigates like a native app: the routed page slides while
+ * the top bar and tab bar stay pinned. The router (router.tsx) tags each
+ * navigation with a type — "push" (deeper), "pop" (back), or "fade" (tab /
+ * sibling) — and only on the narrow layout, so this CSS only ever runs there.
+ * Browsers without the API fall back to an instant swap.
+ *
+ * Naming an element pulls it into its own transition group: the page (.m-main)
+ * gets the sliding animation below, while the chrome groups stay in place and
+ * only cross-fade their contents (e.g. the title). Fullscreen routes
+ * (workspace / PR) have no .m-main and cross-fade via the root snapshot; the
+ * terminal renders .m-git-overlay inside .m-main, so naming that class too would
+ * collide — hence only .m-main carries the page name. */
+.m-topbar {
+  view-transition-name: m-topbar;
+}
+
+.m-main {
+  view-transition-name: m-main;
+}
+
+/* iOS-style easing, matched to the bottom-sheet timing. */
+::view-transition-group(m-main) {
+  animation-duration: 0.32s;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* PUSH — the incoming page slides in from the right over the outgoing one, which
+   drifts left with a subtle parallax. */
+html:active-view-transition-type(push)::view-transition-old(m-main) {
+  animation: m-vt-out-left 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+html:active-view-transition-type(push)::view-transition-new(m-main) {
+  animation: m-vt-in-right 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* POP — the outgoing page slides off to the right, revealing the previous one
+   underneath (which un-parallaxes back into place). */
+html:active-view-transition-type(pop)::view-transition-old(m-main) {
+  z-index: 1;
+  animation: m-vt-out-right 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+html:active-view-transition-type(pop)::view-transition-new(m-main) {
+  animation: m-vt-in-left 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes m-vt-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes m-vt-out-left {
+  to {
+    transform: translateX(-25%);
+  }
+}
+@keyframes m-vt-in-left {
+  from {
+    transform: translateX(-25%);
+  }
+}
+@keyframes m-vt-out-right {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m-spin,
+  .m-status__dot,
+  .m-skeleton,
+  .m-loading-bar::after {
+    animation: none;
+  }
+
+  /* Sheets snap in/out instead of sliding (useSheet still defers the unmount). */
+  .m-sheet-backdrop,
+  .m-sheet,
+  .m-sheet-backdrop[data-closing],
+  .m-sheet-backdrop[data-closing] .m-sheet {
+    animation: none;
+  }
+
+  /* The router already skips view transitions under reduced motion; this guards
+     the default cross-fade in case one runs anyway. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

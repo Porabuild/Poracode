@@ -1,10 +1,14 @@
 import type { Dirent, Stats } from "node:fs";
 import { readdir, readFile, rename, rm, stat, writeFile, mkdir } from "node:fs/promises";
-import { dirname, isAbsolute, posix, relative, resolve } from "node:path";
+import { homedir } from "node:os";
+import { dirname, isAbsolute, join, posix, relative, resolve } from "node:path";
 import micromatch from "micromatch";
 import type {
+  BrowseHostDirectoryPayload,
+  BrowseHostDirectoryResult,
   CreateProjectEntryPayload,
   DeleteProjectEntryPayload,
+  HostDirectoryEntry,
   ListProjectTreePayload,
   ListProjectTreeResult,
   MoveProjectEntryPayload,
@@ -30,6 +34,7 @@ import { execGit, getLocationIdentity } from "./git";
 import type { WslBridgeClient } from "./wsl/bridge/client";
 
 const BOM = Buffer.from([0xef, 0xbb, 0xbf]);
+const MAX_HOST_BROWSE_ENTRIES = 4_000;
 const CACHE_TTL_MS = 10_000;
 const MAX_CACHE_ENTRIES = 4;
 const MAX_SEARCH_INDEX_SIZE = 50_000;
@@ -122,6 +127,13 @@ function sortEntries(entries: ProjectTreeEntry[]): ProjectTreeEntry[] {
   });
 }
 
+function sortHostEntries(entries: HostDirectoryEntry[]): HostDirectoryEntry[] {
+  return entries.toSorted((a, b) => {
+    if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
+    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+  });
+}
+
 export class ProjectTreeService {
   private searchCache = new Map<string, CachedSearchIndex>();
   private wslClient: WslBridgeClient | undefined;
@@ -182,6 +194,70 @@ export class ProjectTreeService {
     return {
       directoryPath,
       entries: sortEntries(visibleEntries),
+    };
+  }
+
+  /**
+   * List an arbitrary absolute directory on the host for the folder picker
+   * (add-existing / clone parent). Not confined to a project root — this is the
+   * one entry point that browses the wider filesystem, so it's gated behind the
+   * `projects:manage` remote scope (see gitProcedures.ts), the same capability
+   * that can already register any path as a project.
+   *
+   * Native FS only: paths are the host's own filesystem (POSIX or Windows).
+   * Symlinks that resolve to directories are surfaced as directories so they can
+   * be navigated into. Hidden entries are included so the user can reach dotted
+   * folders. Errors (missing dir, permission denied) propagate to a toast.
+   */
+  async browseHostDirectory(
+    payload: BrowseHostDirectoryPayload,
+  ): Promise<BrowseHostDirectoryResult> {
+    const home = homedir();
+    const requested = payload.path.trim();
+    const target = requested ? resolve(requested) : home;
+
+    const targetStat = await stat(target);
+    if (!targetStat.isDirectory()) {
+      throw new Error("Not a directory.");
+    }
+
+    const allDirents = await readdir(target, { withFileTypes: true });
+    const truncated = allDirents.length > MAX_HOST_BROWSE_ENTRIES;
+    const dirents = truncated ? allDirents.slice(0, MAX_HOST_BROWSE_ENTRIES) : allDirents;
+
+    // Resolve symlink targets in parallel so a folder full of links doesn't
+    // serialize a stat() per entry.
+    const symlinkDirNames = new Set<string>();
+    await Promise.all(
+      dirents
+        .filter((entry) => entry.isSymbolicLink())
+        .map(async (entry) => {
+          try {
+            if ((await stat(join(target, entry.name))).isDirectory()) {
+              symlinkDirNames.add(entry.name);
+            }
+          } catch {
+            // Broken symlink — treat as a file.
+          }
+        }),
+    );
+
+    const entries: HostDirectoryEntry[] = dirents.map((entry) => {
+      const isDir = entry.isDirectory() || symlinkDirNames.has(entry.name);
+      return {
+        name: entry.name,
+        path: join(target, entry.name),
+        type: isDir ? "directory" : "file",
+      };
+    });
+
+    const parent = dirname(target);
+    return {
+      path: target,
+      parentPath: parent === target ? null : parent,
+      homePath: home,
+      entries: sortHostEntries(entries),
+      truncated,
     };
   }
 
@@ -269,7 +345,7 @@ export class ProjectTreeService {
    *
    * Relative paths resolve against the project root for convenience. Absolute
    * paths are read as-is, even outside the project root — the user/agent may
-   * reference any file (e.g. a plan in a `~/.lightcode/worktrees` worktree),
+   * reference any file (e.g. a plan in a `~/.poracode/worktrees` worktree),
    * and the editor must be able to open it.
    *
    * Returns `{ status: "missing" }` for ENOENT instead of throwing, since the
@@ -442,7 +518,7 @@ export class ProjectTreeService {
    * `projectRoot`. Anchor that root at the file's own parent directory so the
    * bridge's path-safety check passes for exactly this file — siblings and
    * ancestors stay out of scope. Without this, opening an out-of-root path on
-   * WSL (e.g. a plan in a `~/.lightcode/worktrees` worktree, or `/etc/hosts`)
+   * WSL (e.g. a plan in a `~/.poracode/worktrees` worktree, or `/etc/hosts`)
    * fails with "path escapes projectRoot". Mirrors the `{ ...location,
    * linuxPath }` idiom used for out-of-root git operations in `git/exec.ts`.
    */

@@ -1295,7 +1295,7 @@ describe("createCodexAdapter handleOscNotification", () => {
 });
 
 describe("codexIntentFor", () => {
-  it("maps hook events to Lightcode intents", () => {
+  it("maps hook events to Poracode intents", () => {
     expect(codexIntentFor("SessionStart", { hook_event_name: "SessionStart" }, false)).toBe(
       "session.started",
     );

@@ -12,7 +12,7 @@ import { Button, Surface } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ArrowDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
-import { isThreadTurnActive, type Thread } from "@/shared/contracts";
+import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { chatMessageSurfaceClass } from "./parts/items/chatMessageSurface";
 import { readBridge } from "@/renderer/bridge";
@@ -45,7 +45,7 @@ import {
 } from "./chatPaneSelectors";
 import { normalizeChatProjectPath } from "./chatPathUtils";
 import { formatElapsed } from "./formatElapsed";
-import { MessageList } from "./parts/MessageList";
+import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { SubAgentOverlay } from "./parts/items/SubAgentOverlay";
 
 interface ChatPaneProps {
@@ -53,6 +53,12 @@ interface ChatPaneProps {
   hiddenRuntimeItemId?: string | undefined;
   hasSupplementaryContent?: boolean;
   layoutChangeToken?: string | null;
+  onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
+  onRevealProjectFolderInTree?: ((path: string) => void) | undefined;
+  canShowProjectEntryInExplorer?: boolean | undefined;
+  paneActionsOverride?: ChatPaneActions | undefined;
+  checkpointActions?: CheckpointRevertActions | undefined;
+  checkpointProjectLocation?: ProjectLocation | undefined;
 }
 
 const USER_SCROLL_INTENT_MS = 750;
@@ -76,7 +82,18 @@ const EMPTY_FILE_CHECKPOINTS: NonNullable<
  * composer (see `ThreadRuntimeRequestPanel`), not in the chat list.
  */
 export function ChatPane(props: ChatPaneProps) {
-  const { thread, hiddenRuntimeItemId, hasSupplementaryContent = false, layoutChangeToken } = props;
+  const {
+    thread,
+    hiddenRuntimeItemId,
+    hasSupplementaryContent = false,
+    layoutChangeToken,
+    onOpenProjectRelativePath,
+    onRevealProjectFolderInTree,
+    canShowProjectEntryInExplorer,
+    paneActionsOverride,
+    checkpointActions,
+    checkpointProjectLocation,
+  } = props;
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
@@ -116,16 +133,19 @@ export function ChatPane(props: ChatPaneProps) {
     if (!project || !targetContext || isHomeScope) return null;
     return {
       openProjectRelativePath: (path, lineNumber) => {
-        void openFileInEditor(
-          project,
-          worktreePath,
-          branch,
-          normalizeChatProjectPath(path, targetContext.projectLocation),
-          lineNumber,
-        );
+        const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
+        if (onOpenProjectRelativePath) {
+          onOpenProjectRelativePath(normalized, lineNumber);
+          return;
+        }
+        void openFileInEditor(project, worktreePath, branch, normalized, lineNumber);
       },
       revealProjectFolderInTree: (path) => {
         const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
+        if (onRevealProjectFolderInTree) {
+          onRevealProjectFolderInTree(normalized);
+          return;
+        }
         const fileEditor = useFileEditorStore.getState();
         const currentRoot = fileEditor.rootContext;
         const isSameContext =
@@ -140,13 +160,17 @@ export function ChatPane(props: ChatPaneProps) {
         const ancestors = collectPathAncestors(normalized);
         useProjectTreeStore.getState().expandMany(ancestors);
       },
-      showProjectEntryInExplorer: (path) => {
-        const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
-        void readBridge().revealProjectEntry({
-          projectLocation: targetContext.projectLocation,
-          path: normalized,
-        });
-      },
+      ...(canShowProjectEntryInExplorer === false
+        ? {}
+        : {
+            showProjectEntryInExplorer: (path: string) => {
+              const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
+              void readBridge().revealProjectEntry({
+                projectLocation: targetContext.projectLocation,
+                path: normalized,
+              });
+            },
+          }),
       onContentHeightChange: () => scrollControlsRef.current?.onContentHeightChange(),
       isStickToBottom: () => scrollControlsRef.current?.isStickToBottom() ?? false,
       registerVirtualScrollToBottom: (handler) => {
@@ -155,7 +179,17 @@ export function ChatPane(props: ChatPaneProps) {
       projectLocation: targetContext.projectLocation,
       projectRootNames,
     };
-  }, [project, targetContext, isHomeScope, branch, worktreePath, projectRootNames]);
+  }, [
+    project,
+    targetContext,
+    isHomeScope,
+    branch,
+    worktreePath,
+    projectRootNames,
+    onOpenProjectRelativePath,
+    onRevealProjectFolderInTree,
+    canShowProjectEntryInExplorer,
+  ]);
 
   useEffect(() => {
     void hydrateThreadRuntimeItems(threadId);
@@ -269,7 +303,7 @@ export function ChatPane(props: ChatPaneProps) {
   );
 
   return (
-    <ChatPaneActionsContext.Provider value={paneActions}>
+    <ChatPaneActionsContext.Provider value={paneActionsOverride ?? paneActions}>
       <div className="flex h-full min-h-0 flex-col">
         <div className="relative min-h-0 flex-1">
           <div
@@ -315,7 +349,11 @@ export function ChatPane(props: ChatPaneProps) {
                     suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
                     canRevertCheckpoints={!isLive && !isHomeScope}
                     checkpointGuard={checkpointGuard}
-                    projectLocation={isHomeScope ? undefined : targetContext?.projectLocation}
+                    checkpointActions={checkpointActions}
+                    projectLocation={
+                      checkpointProjectLocation ??
+                      (isHomeScope ? undefined : targetContext?.projectLocation)
+                    }
                   />
                   {showTailLoader && tailTurn ? (
                     <ChatTailLoader turn={tailTurn} isPaused={isTurnPaused} />

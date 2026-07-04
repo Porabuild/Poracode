@@ -106,7 +106,9 @@ export const persistedRuntimeItemSchema = z.object({
   id: z.string().min(1),
   type: z.string().min(1),
   state: z.enum(["started", "updated", "completed"]),
-  payload: z.unknown(),
+  // Optional: items persisted without a payload round-trip as a missing key
+  // over JSON transports (the remote API), unlike structured-clone IPC.
+  payload: z.unknown().optional(),
   streams: z.record(z.string(), z.string()),
   parentItemId: z.string().optional(),
 });

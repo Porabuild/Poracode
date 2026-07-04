@@ -42,7 +42,7 @@ import { ConflictGroup } from "./parts/ConflictGroup";
 import { FileGroup } from "./parts/FileGroup";
 import { useGitReviewActions } from "./parts/useGitReviewActions";
 import { useSourceBranchData } from "./parts/useSourceBranchData";
-import { useConflictResolver } from "./parts/useConflictResolver";
+import { useConflictResolver, type ConflictResolverLaunchInput } from "./parts/useConflictResolver";
 import { ConflictResolutionActions } from "./parts/ConflictResolutionActions";
 import { CommitSyncPanel } from "./parts/CommitSyncPanel";
 import { PrSection } from "./parts/PrSection";
@@ -70,6 +70,12 @@ export function GitReviewSidebar(props: {
   statusKey?: string | undefined;
   mode?: "overlay" | "panel";
   wrapLines?: boolean;
+  /** Hide the desktop "Return to app / Hide sidebar" footer (mobile shells
+   * provide their own navigation chrome). */
+  hideFooterNav?: boolean;
+  /** Override conflict-agent launch for remote/mobile shells that cannot queue
+   * local renderer threads directly. */
+  onLaunchConflictResolverThread?: ((input: ConflictResolverLaunchInput) => void) | undefined;
 }) {
   const {
     project,
@@ -88,6 +94,8 @@ export function GitReviewSidebar(props: {
     statusKey,
     mode = "overlay",
     wrapLines = false,
+    hideFooterNav = false,
+    onLaunchConflictResolverThread,
   } = props;
   const { t } = useLingui();
   const storeKey = statusKey ?? project.id;
@@ -194,6 +202,7 @@ export function GitReviewSidebar(props: {
     mergeConflictFiles,
     worktreePath,
     worktreeBranch,
+    onLaunchResolverThread: onLaunchConflictResolverThread,
   });
 
   const projectAgentStatuses = getProjectAgentStatuses(
@@ -667,7 +676,7 @@ export function GitReviewSidebar(props: {
             </Modal.Backdrop>
           )}
 
-          {mode !== "panel" && (
+          {mode !== "panel" && !hideFooterNav && (
             <div className={sidebarFooterNavClass}>
               <SidebarButton
                 icon={<ArrowLeft className="size-4" />}

@@ -16,7 +16,7 @@ export interface WslLineChildOpts {
   cwd?: string;
   /**
    * Argv passed verbatim after `--`, e.g. `["bash", "-lc", "<script>"]` or
-   * `["node", "/home/me/.lightcode/bridge/bridge.mjs"]`.
+   * `["node", "/home/me/.poracode/bridge/bridge.mjs"]`.
    */
   argv: string[];
   /**

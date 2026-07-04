@@ -39,36 +39,26 @@ try {
   await wait(500);
   await screenshot(app, "smoke-browser-01-panel.png");
 
-  step("creating or reusing Browser tab");
-  let state = await browserState();
-  if (state.tabs.length === 0) {
-    const clicked = await clickButton("Open new tab", { optional: true });
-    if (!clicked.ok) {
-      await clickButton("New tab");
-    }
-    state = await waitForBrowserState((s) => s.tabs.length > 0, "new browser tab");
-  }
-  assert(state.tabs.length > 0, "Create tab", "browser state has at least one tab");
-  assert(state.activeTabId !== null, "Active tab", "browser state has an active tab");
-  await screenshot(app, "smoke-browser-02-tab.png");
-
-  step("navigating embedded browser");
-  const tabId = state.activeTabId;
+  step("creating Browser tab");
   const runId = Date.now();
   const firstTitle = `LC Browser Smoke ${runId}`;
   const secondTitle = `LC Browser Smoke ${runId} 2`;
   const firstUrl = smokeDataUrl(firstTitle, "first page");
   const secondUrl = smokeDataUrl(secondTitle, "second page");
 
-  await navigate(tabId, firstUrl);
+  await callBridge("browserCreateTab", { url: firstUrl, activate: true });
   step("waiting for first browser target");
   await waitForBrowserTarget(firstTitle, firstUrl);
   step("waiting for first browser state");
-  state = await waitForBrowserState(
+  let state = await waitForBrowserState(
     (s) => activeTab(s)?.title === firstTitle && activeTab(s)?.loading === false,
     "first smoke page title",
   );
+  assert(state.tabs.length > 0, "Create tab", "browser state has at least one tab");
+  assert(state.activeTabId !== null, "Active tab", "browser state has an active tab");
   assert(activeTab(state)?.url === firstUrl, "Navigate", "active tab reached first smoke URL");
+  const tabId = state.activeTabId;
+  await screenshot(app, "smoke-browser-02-tab.png");
 
   await wait(500);
   step("reading first browser DOM");
@@ -127,18 +117,21 @@ try {
   await screenshot(app, "smoke-browser-04-navigation.png");
 
   step("checking Browser settings");
-  let settingsOpened = await clickButton("Settings", { optional: true });
+  let settingsOpened = await settingsOverlayVisible();
   if (!settingsOpened.ok) {
-    settingsOpened = await clickText("Settings", { optional: true });
+    settingsOpened = await clickButton("Settings", { optional: true });
+    if (!settingsOpened.ok) {
+      settingsOpened = await clickText("Settings", { optional: true });
+    }
+    if (settingsOpened.ok) {
+      await waitForSettingsOverlay();
+    }
   }
   if (settingsOpened.ok) {
-    await waitForRendererText("Settings", "settings overlay");
     await clickSettingsSidebarItem("Browser", { optional: true });
-    const settingsText = await waitForRendererText(
-      "Expose browser to agents",
-      "Browser settings page",
-      { optional: true },
-    );
+    const settingsText = await waitForBrowserSettingsPage({
+      optional: true,
+    });
     if (settingsText.ok) {
       assert(true, "Browser settings", "Browser settings page is reachable");
       await screenshot(app, "smoke-browser-05-settings.png");
@@ -361,12 +354,36 @@ async function clickSettingsSidebarItem(text, options = {}) {
   return clicked;
 }
 
-async function waitForRendererText(text, label, options = {}) {
+async function settingsOverlayVisible() {
+  return evaluate(
+    `(() => {
+      const labels = [...document.querySelectorAll("button,[role=button],a")]
+        .map((candidate) => candidate.getAttribute("aria-label") || candidate.title || candidate.textContent?.trim() || "");
+      return {
+        ok: labels.includes("General") && labels.includes("Agents") && labels.includes("Browser"),
+      };
+    })()`,
+  );
+}
+
+async function waitForSettingsOverlay() {
+  await waitFor(async () => {
+    const state = await settingsOverlayVisible();
+    return state.ok ? state : null;
+  }, "settings overlay");
+}
+
+async function waitForBrowserSettingsPage(options = {}) {
   try {
     await waitFor(async () => {
-      const snapshot = await rendererSnapshot();
-      return snapshot.text.includes(text) ? snapshot : null;
-    }, label);
+      return evaluate(
+        `(() => {
+          const openLinksControl = document.querySelector('button[aria-label="Open links in"]');
+          const showOpenedLinksControl = document.querySelector('button[aria-label="Show opened links in"]');
+          return openLinksControl && showOpenedLinksControl ? { ok: true } : null;
+        })()`,
+      );
+    }, "Browser settings page");
     return { ok: true };
   } catch (error) {
     if (options.optional === true) return { ok: false, error: error.message };
@@ -397,12 +414,19 @@ async function callBridge(method, payload) {
   const result = await evaluate(
     `(() => {
       window.__smokeBridgeErrors ??= [];
-      window.lightcode[${JSON.stringify(method)}](${JSON.stringify(payload)}).catch((error) => {
-        window.__smokeBridgeErrors.push(String(error));
-      });
-      return true;
+      return window.lightcode[${JSON.stringify(method)}](${JSON.stringify(payload)}).then(
+        () => ({ ok: true }),
+        (error) => {
+          window.__smokeBridgeErrors.push(String(error));
+          return { ok: false, error: String(error) };
+        },
+      );
     })()`,
+    { awaitPromise: true },
   );
+  if (!result.ok) {
+    throw new Error(`Bridge call ${method} failed: ${result.error}`);
+  }
   return result;
 }
 
@@ -414,7 +438,7 @@ async function waitForBrowserTarget(title, url) {
   return waitFor(async () => {
     const targets = await listTargets();
     return targets.find(
-      (target) => target.type === "page" && target.title === title && target.url === url,
+      (target) => isBrowserContentTarget(target) && target.title === title && target.url === url,
     );
   }, `browser page target ${title}`);
 }
@@ -425,7 +449,9 @@ async function evaluateBrowserTarget(url, expression) {
     const target = await waitFor(
       async () => {
         const targets = await listTargets();
-        return targets.find((candidate) => candidate.type === "page" && candidate.url === url);
+        return targets.find(
+          (candidate) => isBrowserContentTarget(candidate) && candidate.url === url,
+        );
       },
       `browser target ${url.slice(0, 48)}`,
     );
@@ -454,7 +480,9 @@ async function screenshotForTarget(url, filename) {
   try {
     const target = await waitFor(async () => {
       const targets = await listTargets();
-      return targets.find((candidate) => candidate.type === "page" && candidate.url === url);
+      return targets.find(
+        (candidate) => isBrowserContentTarget(candidate) && candidate.url === url,
+      );
     }, `screenshot target ${filename}`);
     client = await connectTarget(target);
     await send(client, "Page.enable");
@@ -491,6 +519,10 @@ async function screenshot(client, filename) {
 function smokeDataUrl(title, body) {
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head><body><main><h1>${title}</h1><p>${body}</p><button>Smoke Button</button></main></body></html>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+}
+
+function isBrowserContentTarget(target) {
+  return target.type === "page" || target.type === "webview";
 }
 
 async function waitFor(fn, label) {

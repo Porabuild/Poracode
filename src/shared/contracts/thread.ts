@@ -72,6 +72,9 @@ export const terminalSizeSchema = z.object({
 });
 export type TerminalSize = z.infer<typeof terminalSizeSchema>;
 
+/** Fallback PTY geometry used when a terminal is launched before its surface has measured. */
+export const DEFAULT_TERMINAL_SIZE: TerminalSize = { cols: 120, rows: 30 };
+
 export const promptSegmentSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), content: z.string() }),
   z.object({ kind: z.literal("file"), path: z.string() }),
@@ -155,6 +158,70 @@ export interface PendingSteerState {
   /** Wall-clock timestamp the slot was staged or last edited. */
   stagedAt: number;
 }
+
+/**
+ * Thread-metadata mutation issued by a remote client (the mobile PWA). Thread
+ * metadata is owned by the desktop renderer's store (which persists it via
+ * `dbSyncAll`), so these commands are forwarded main → renderer and applied
+ * through the regular thread actions instead of writing to the DB directly.
+ */
+export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("start"),
+    threadId: z.string().min(1),
+    projectId: z.string().min(1),
+    agentKind: agentKindSchema,
+    agentInstanceId: agentInstanceIdSchema.optional(),
+    config: threadConfigSchema,
+    prompt: z.string(),
+    segments: z.array(promptSegmentSchema).optional(),
+    presentationMode: threadPresentationModeSchema.optional(),
+    worktreePath: z.string().min(1).optional(),
+    worktreeBranch: z.string().optional(),
+    isNewWorktree: z.boolean().optional(),
+    /**
+     * Desktop-renderer hint. Remote clients send `start` to the HTTP server;
+     * the server creates metadata and launches the supervisor directly, then
+     * forwards the command with this set to false so the renderer mirrors the
+     * row without launching the same session again.
+     */
+    launchRuntime: z.boolean().optional(),
+  }),
+  z.object({ kind: z.literal("rename"), threadId: z.string().min(1), title: z.string().min(1) }),
+  z.object({ kind: z.literal("set-done"), threadId: z.string().min(1), done: z.boolean() }),
+  z.object({
+    kind: z.literal("set-starred"),
+    threadId: z.string().min(1),
+    starred: z.boolean(),
+  }),
+  // Tags a remotely-started thread with its worktree so it groups under that
+  // worktree. The supervisor launches in the dir (via projectLocation) but
+  // never records this metadata; the desktop renderer owns it. `isNewWorktree`
+  // means the remote client just created the worktree, so the desktop should
+  // also prime its git state and run the project setup script (parity with a
+  // local "new thread in worktree").
+  z.object({
+    kind: z.literal("set-worktree"),
+    threadId: z.string().min(1),
+    worktreePath: z.string().min(1),
+    worktreeBranch: z.string().optional(),
+    isNewWorktree: z.boolean().optional(),
+  }),
+  // Removes a worktree group from a remote client. The desktop renderer handles
+  // this through its existing worktree cleanup path so scripts, terminals,
+  // linked threads, git state, and persistence stay consistent with desktop.
+  z.object({
+    kind: z.literal("delete-worktree-group"),
+    threadId: z.string().min(1),
+    projectId: z.string().min(1),
+    worktreePath: z.string().min(1),
+    threadIds: z.array(z.string().min(1)).min(1),
+  }),
+  z.object({ kind: z.literal("archive"), threadId: z.string().min(1) }),
+  z.object({ kind: z.literal("unarchive"), threadId: z.string().min(1) }),
+  z.object({ kind: z.literal("delete"), threadId: z.string().min(1) }),
+]);
+export type RemoteThreadCommand = z.infer<typeof remoteThreadCommandSchema>;
 
 export const writeTerminalPayloadSchema = z.object({
   threadId: z.string().min(1),

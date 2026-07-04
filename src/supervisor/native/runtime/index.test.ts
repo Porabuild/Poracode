@@ -69,18 +69,18 @@ afterEach(() => {
 
 describe("managedNodePath", () => {
   it("uses bin/node on POSIX targets", () => {
-    const baseDir = "/home/u/.lightcode";
+    const baseDir = "/home/u/.poracode";
     const path = managedNodePath(baseDir, "linux-x64");
     expect(path.replaceAll("\\", "/")).toBe(
-      `/home/u/.lightcode/runtime/${nodeArchiveDirName("linux-x64")}/bin/node`,
+      `/home/u/.poracode/runtime/${nodeArchiveDirName("linux-x64")}/bin/node`,
     );
   });
 
   it("uses node.exe on Windows targets", () => {
-    const baseDir = "C:/u/.lightcode";
+    const baseDir = "C:/u/.poracode";
     const path = managedNodePath(baseDir, "win-x64");
     expect(path.replaceAll("\\", "/")).toBe(
-      `C:/u/.lightcode/runtime/${nodeArchiveDirName("win-x64")}/node.exe`,
+      `C:/u/.poracode/runtime/${nodeArchiveDirName("win-x64")}/node.exe`,
     );
   });
 });

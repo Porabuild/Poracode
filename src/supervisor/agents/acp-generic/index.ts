@@ -279,7 +279,7 @@ function mergeAcpProbeCapabilities(
 
   // Synthetic supervised/auto-approve policies when the ACP probe leaves us
   // without a real bypass mode. A protocol default mode can arrive here as a
-  // single provider-named "default" policy; normalize it to Lightcode's
+  // single provider-named "default" policy; normalize it to Poracode's
   // two-state UI instead of showing a one-item dropdown.
   if (
     !hasBypassApprovalPolicy &&

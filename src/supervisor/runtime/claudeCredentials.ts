@@ -18,7 +18,7 @@ import { readClaudeCredentialsFromWindowsVault } from "./windowsClaudeVault";
 import { readClaudeCredsFromWsl } from "./wslCredentials";
 
 /**
- * Claude (Anthropic) credential resolution, reusing the files Lightcode's
+ * Claude (Anthropic) credential resolution, reusing the files Poracode's
  * detection already reads. The pure parser is exported separately for tests.
  * Secrets are never logged.
  */

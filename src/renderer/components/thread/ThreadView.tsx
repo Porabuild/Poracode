@@ -12,6 +12,7 @@ import type {
   ThreadPresentationMode,
   ThreadServerRequestId,
 } from "@/shared/contracts";
+import { DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { isOpenCodeBrowserMcpEnabled } from "@/shared/opencodeSettings";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -27,10 +28,9 @@ import { setRendererRuntimeDiagnosticContext } from "@/renderer/diagnostics/sent
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ContinueInProviderDialog } from "./ContinueInProviderDialog";
-import { GuiThreadContent, TerminalThreadContent } from "./ThreadContent";
+import { GuiThreadContent } from "./ThreadContent";
+import { TerminalThreadContent } from "./TerminalThreadContent";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
-
-const DEFAULT_HIDDEN_TERMINAL_SIZE: TerminalSize = { cols: 120, rows: 30 };
 
 /**
  * Strip Electron's `Error invoking remote method '<channel>': Error: ` prefix

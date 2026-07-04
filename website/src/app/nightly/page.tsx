@@ -5,9 +5,9 @@ import { createPageMetadata } from "@/lib/seo";
 import { NightlyContent } from "./nightly-content";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "Lightcode Nightly — Latest pre-release builds",
+  title: "Poracode Nightly — Latest pre-release builds",
   description:
-    "Download the latest Lightcode nightly build. Pre-release installers with the newest changes, refreshed automatically from CI.",
+    "Download the latest Poracode nightly build. Pre-release installers with the newest changes, refreshed automatically from CI.",
   path: "/nightly",
 });
 

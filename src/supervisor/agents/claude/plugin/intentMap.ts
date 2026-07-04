@@ -2,7 +2,7 @@ import type { AgentEventIntent } from "@/shared/contracts";
 
 /**
  * Translate a Claude Code hook event name + raw payload into the universal
- * Lightcode `intent` vocabulary. Any event we don't care about returns
+ * Poracode `intent` vocabulary. Any event we don't care about returns
  * `undefined` and the forwarder simply exits 0 without POSTing.
  *
  * This file is the only Claude-specific surface in the plugin pipeline:

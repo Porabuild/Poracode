@@ -54,7 +54,7 @@ describe("buildAntigravityArgs", () => {
     ]);
   });
 
-  it("maps Lightcode bypass and sandbox config to agy flags", () => {
+  it("maps Poracode bypass and sandbox config to agy flags", () => {
     expect(
       buildAntigravityArgs({ ...config, approvalPolicy: "yolo", sandboxMode: "sandbox" }, ""),
     ).toEqual([

@@ -1,4 +1,5 @@
 import { toast } from "@heroui/react";
+import { msg as linguiMsg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import { useEffect } from "react";
 import { PixelLoader } from "./components/common";
@@ -13,6 +14,18 @@ import {
 } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
+import {
+  archiveThread,
+  deleteThread,
+  renameThread,
+  toggleMarkThreadDone,
+  toggleStarThread,
+} from "./actions/threadActions";
+import { deleteWorktreeGroup } from "./actions/worktreeActions";
+import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
+import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
+import { normalizeSharedSettings } from "@/shared/settings";
+import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { recordRuntimeUsage } from "./state/usageRecorder";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useAgentStatusesStore } from "./state/agentStatusesStore";
@@ -22,9 +35,16 @@ import { installRuntimeItemsPersister } from "./state/chatRuntimePersister";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
+import { generateTitleAsync } from "@/renderer/utils/titleGen";
+import { titlePromptFromSegments } from "@/shared/threadTitle";
+import { i18n } from "@/renderer/i18n/i18n";
 import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer";
 import { MainView } from "@/renderer/views/MainView/MainView";
+import {
+  primeWorktreeGitState,
+  runWorktreeSetupScript,
+} from "@/renderer/views/MainView/parts/AppContent/AppContent";
 import { CommandPalette } from "@/renderer/commands/CommandPalette";
 import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel";
 import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";
@@ -222,15 +242,112 @@ function handleUpdateStatus(status: UpdateStatus): void {
 }
 
 // The browser-extract window renders a standalone BrowserPanel; it has no use
-// for supervisor/update streams or runtime persistence, so only the main window
-// wires these up (and tears them down on HMR dispose).
+// for supervisor/update streams, remote-client bridges, or runtime persistence,
+// so only the main window wires these up (and tears them down on HMR dispose).
 const mainWindowCleanups: Array<() => void> = isBrowserExtractWindow
   ? []
   : [
       readBridge().onSupervisorEvent(handleSupervisorEvent),
       readBridge().onUpdateStatus(handleUpdateStatus),
+      // Thread-metadata commands issued from paired remote clients (mobile PWA).
+      // They run through the same actions as local edits so persistence and
+      // side effects (unload on archive, …) stay identical.
+      readBridge().onRemoteThreadCommand((command) => {
+        if (command.kind === "delete-worktree-group") {
+          deleteWorktreeGroup(command.projectId, command.worktreePath, command.threadIds);
+          return;
+        }
+        if (command.kind === "start") {
+          const store = useAppStore.getState();
+          if (store.threads.some((t) => t.id === command.threadId)) return;
+          const project = store.projects.find((p) => p.id === command.projectId);
+          if (!project) return;
+          const titlePrompt =
+            titlePromptFromSegments(command.prompt, command.segments).trim() ||
+            i18n._(linguiMsg`New thread`);
+          const thread = store.createThread({
+            threadId: command.threadId,
+            projectId: project.id,
+            agentKind: command.agentKind,
+            ...(command.agentInstanceId ? { agentInstanceId: command.agentInstanceId } : {}),
+            config: command.config,
+            prompt: titlePrompt,
+            ...(command.presentationMode ? { presentationMode: command.presentationMode } : {}),
+            ...(command.worktreePath ? { worktreePath: command.worktreePath } : {}),
+            ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
+          });
+          if (command.launchRuntime !== false) {
+            store.queueThreadLaunch(thread.id, command.prompt, command.segments);
+          }
+          const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
+          const projectAgentStatuses = getProjectAgentStatuses(
+            project.location,
+            agentStatuses,
+            wslAgentStatuses,
+          );
+          generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
+          if (command.worktreePath) {
+            void primeWorktreeGitState(project, command.worktreePath);
+            if (command.isNewWorktree) {
+              const setupScript = project.scripts?.setupScript;
+              if (setupScript) {
+                runWorktreeSetupScript(project, command.worktreePath, setupScript);
+              }
+            }
+          }
+          return;
+        }
+        const thread = useAppStore.getState().threads.find((t) => t.id === command.threadId);
+        if (!thread) return;
+        switch (command.kind) {
+          case "rename":
+            renameThread(command.threadId, command.title);
+            break;
+          case "set-done":
+            if (thread.done !== command.done) toggleMarkThreadDone(command.threadId);
+            break;
+          case "set-starred":
+            if ((thread.starred ?? false) !== command.starred) toggleStarThread(command.threadId);
+            break;
+          case "set-worktree": {
+            useAppStore
+              .getState()
+              .setThreadWorktree(command.threadId, command.worktreePath, command.worktreeBranch);
+            // A freshly-created remote worktree needs the same desktop-side follow-up
+            // a local "new thread in worktree" gets: prime its git state and run the
+            // project setup script.
+            if (command.isNewWorktree) {
+              const project = useAppStore
+                .getState()
+                .projects.find((p) => p.id === thread.projectId);
+              if (project) {
+                void primeWorktreeGitState(project, command.worktreePath);
+                const setupScript = project.scripts?.setupScript;
+                if (setupScript) runWorktreeSetupScript(project, command.worktreePath, setupScript);
+              }
+            }
+            break;
+          }
+          case "archive":
+            archiveThread(command.threadId);
+            break;
+          case "unarchive":
+            useAppStore.getState().unarchiveThread(command.threadId);
+            break;
+          case "delete":
+            // Thread-only delete: remote clients never trigger worktree removal.
+            deleteThread(command.threadId);
+            break;
+        }
+      }),
+      // Settings rewritten outside this renderer (remote clients editing desktop
+      // settings over the remote API) — apply without echoing a persist.
+      readBridge().onSharedSettingsChanged((settings) => {
+        applyExternalSharedSettings(normalizeSharedSettings(settings));
+      }),
       readBridge().onNotificationClick(handleNotificationClick),
       installRuntimeItemsPersister(),
+      installRemoteGitSummaryPublisher(),
     ];
 let uninstallProductAnalytics: (() => void) | null = null;
 let productAnalyticsStarted = false;

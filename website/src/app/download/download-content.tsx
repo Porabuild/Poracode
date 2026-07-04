@@ -63,7 +63,7 @@ export function DownloadContent({ release }: { release: ReleaseInfo }) {
           transition={{ duration: 0.4 }}
         >
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
-            Download Lightcode{versionSuffix}
+            Download Poracode{versionSuffix}
           </h1>
           <p className="text-gray-400 mb-12 text-lg">
             Choose the installer for your platform and architecture.

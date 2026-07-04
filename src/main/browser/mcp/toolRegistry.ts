@@ -63,7 +63,7 @@ export interface ToolSpec {
 }
 
 export const BROWSER_MCP_INSTRUCTIONS =
-  "Use the browser MCP server for browsing, inspecting, clicking, typing, screenshots, network/console checks, and local web app verification inside Lightcode. Prefer browser.snapshot or browser.find before browser.click/fill/type, use @e refs from snapshots when possible, and call browser.api when you need the complete API map.";
+  "Use the browser MCP server for browsing, inspecting, clicking, typing, screenshots, network/console checks, and local web app verification inside Poracode. Prefer browser.snapshot or browser.find before browser.click/fill/type, use @e refs from snapshots when possible, and call browser.api when you need the complete API map.";
 
 export const TOOLS: ToolSpec[] = [
   {
@@ -74,12 +74,12 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     name: "list_tabs",
-    description: "List open tabs in the Lightcode in-app browser panel.",
+    description: "List open tabs in the Poracode in-app browser panel.",
     inputSchema: { type: "object", properties: {} },
   },
   {
     name: "new_tab",
-    description: "Open a new tab in the Lightcode browser panel.",
+    description: "Open a new tab in the Poracode browser panel.",
     inputSchema: {
       type: "object",
       properties: {
@@ -90,7 +90,7 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     name: "open",
-    description: "Open a URL in the active Lightcode browser tab, creating a tab if needed.",
+    description: "Open a URL in the active Poracode browser tab, creating a tab if needed.",
     inputSchema: {
       type: "object",
       required: ["url"],
@@ -315,7 +315,7 @@ export const TOOLS: ToolSpec[] = [
   {
     name: "eval",
     description:
-      "Evaluate a JS expression in the page's main world. Disabled by default; enable in Lightcode settings.",
+      "Evaluate a JS expression in the page's main world. Disabled by default; enable in Poracode settings.",
     inputSchema: {
       type: "object",
       required: ["js"],
@@ -545,7 +545,7 @@ export const TOOLS: ToolSpec[] = [
   {
     name: "cookies",
     description:
-      'Cookies for the tab. `op:"get"` returns matching cookies; `op:"set"` upserts; `op:"clear"` deletes (filter optional). Requires allowDataAccess in Lightcode settings.',
+      'Cookies for the tab. `op:"get"` returns matching cookies; `op:"set"` upserts; `op:"clear"` deletes (filter optional). Requires allowDataAccess in Poracode settings.',
     inputSchema: {
       type: "object",
       properties: {
@@ -580,7 +580,7 @@ export const TOOLS: ToolSpec[] = [
   {
     name: "storage",
     description:
-      'Read/write localStorage or sessionStorage. `op:"getAll"|"get"|"set"|"remove"|"clear"`. Requires allowDataAccess in Lightcode settings.',
+      'Read/write localStorage or sessionStorage. `op:"getAll"|"get"|"set"|"remove"|"clear"`. Requires allowDataAccess in Poracode settings.',
     inputSchema: {
       type: "object",
       required: ["op", "kind"],
@@ -925,14 +925,14 @@ export async function dispatchTool(
       return {
         server: "browser",
         description:
-          "Controls the Lightcode in-app browser panel through tabs, navigation, inspection, input, screenshots, console, network, dialogs, cookies, and storage.",
+          "Controls the Poracode in-app browser panel through tabs, navigation, inspection, input, screenshots, console, network, dialogs, cookies, and storage.",
         guidance: [
-          "Prefer this MCP server over shell-driven browser automation when a page is visible in Lightcode.",
+          "Prefer this MCP server over shell-driven browser automation when a page is visible in Poracode.",
           "Start with snapshot or find to identify @e refs before click, fill, type, hover, get, is, or scroll.",
           "Use fill for form fields when replacing text; use type only when appending text to the current value.",
           "Use wait after navigation or mutations instead of fixed sleeps unless a plain ms delay is intentional.",
           "Use requests and console after actions to verify web app behavior and diagnose failures.",
-          "Use eval, cookies, and storage only when the corresponding Lightcode setting allows it.",
+          "Use eval, cookies, and storage only when the corresponding Poracode setting allows it.",
         ],
         workflows: {
           inspect: ["list_tabs", "snapshot", "find", "get", "is"],
@@ -1242,7 +1242,7 @@ export async function dispatchTool(
     }
     case "eval": {
       if (!ctx.allowEval) {
-        return { error: "eval is disabled in Lightcode settings" };
+        return { error: "eval is disabled in Poracode settings" };
       }
       const { tab } = await requireTab(ctx, payload);
       const expression = String(payload.js ?? "");
@@ -1457,7 +1457,7 @@ export async function dispatchTool(
       if (!ctx.allowDataAccess) {
         return {
           error:
-            "cookies is disabled. Enable 'Allow agents to read/write cookies and storage' in Lightcode settings.",
+            "cookies is disabled. Enable 'Allow agents to read/write cookies and storage' in Poracode settings.",
         };
       }
       const { tab } = await requireTab(ctx, payload);
@@ -1488,7 +1488,7 @@ export async function dispatchTool(
       if (!ctx.allowDataAccess) {
         return {
           error:
-            "storage is disabled. Enable 'Allow agents to read/write cookies and storage' in Lightcode settings.",
+            "storage is disabled. Enable 'Allow agents to read/write cookies and storage' in Poracode settings.",
         };
       }
       const { tab } = await requireTab(ctx, payload);

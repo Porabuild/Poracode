@@ -1,5 +1,5 @@
-import { startTransition } from "react";
-import { ChevronDown, FolderOpen, House, Monitor } from "lucide-react";
+import { startTransition, useState } from "react";
+import { Check, ChevronDown, FolderOpen, House, Monitor } from "lucide-react";
 import { Dropdown, Label } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
@@ -7,6 +7,10 @@ import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { makeDraftPaneId } from "@/shared/paneId";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  ResponsiveMenuSurface,
+  useResponsiveMenu,
+} from "@/renderer/components/common/ResponsiveMenuSurface";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 
 function LocationIcon(props: { kind: Project["location"]["kind"]; className?: string }) {
@@ -41,6 +45,8 @@ export function ProjectSwitchMenu(props: {
   );
   const openDraft = useAppStore((state) => state.openDraft);
   const replacePaneId = useAppStore((state) => state.replacePaneId);
+  const { mobile } = useResponsiveMenu();
+  const [isOpen, setIsOpen] = useState(false);
 
   const current = projects.find((p) => p.id === currentProjectId);
   const isHomeCurrent = isHomeProjectId(currentProjectId);
@@ -61,6 +67,75 @@ export function ProjectSwitchMenu(props: {
         openDraft(nextProjectId);
       }
     });
+  }
+
+  // Mobile PWA: present as a bottom drawer with finger-sized rows instead of the
+  // desktop HeroUI dropdown popover. `mobile === isRemoteSession()`, so the
+  // desktop branch below is never reached on the phone (and stays untouched).
+  if (mobile) {
+    const triggerClass =
+      variant === "hero"
+        ? "group mx-auto inline-flex max-w-full items-center gap-1.5 rounded border border-transparent px-2 py-0.5 outline-none transition-colors hover:border-border/60 hover:bg-[var(--row-hover)] disabled:cursor-default disabled:hover:border-transparent disabled:hover:bg-transparent"
+        : "group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-muted/60 outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted/60";
+    return (
+      <ResponsiveMenuSurface
+        isOpen={isOpen}
+        onOpenChange={setIsOpen}
+        label={t`Switch project`}
+        trigger={
+          <button
+            type="button"
+            aria-label={t`Switch project`}
+            aria-expanded={isOpen}
+            disabled={isDisabled}
+            className={triggerClass}
+            onClick={() => {
+              if (!isDisabled) setIsOpen(true);
+            }}
+          >
+            {variant === "hero" ? (
+              <span className="min-w-0 truncate pb-[0.08em] leading-snug font-medium tracking-normal text-transparent [background-image:linear-gradient(135deg,var(--muted)_0%,color-mix(in_oklab,var(--accent)_30%,var(--muted))_100%)] [background-size:100%_100%] bg-clip-text font-mono">
+                {label}
+              </span>
+            ) : (
+              <>
+                {triggerIcon}
+                <span className="min-w-0 truncate">{label}</span>
+              </>
+            )}
+            {!isDisabled ? <ChevronDown className="size-3 shrink-0 text-muted/60" /> : null}
+          </button>
+        }
+      >
+        <div className="m-sheet-list">
+          {projects.map((project) => {
+            const isHome = isHomeProject(project);
+            const itemLabel = isHome ? HOME_PROJECT_NAME : project.name;
+            const selected = project.id === currentProjectId;
+            return (
+              <button
+                key={project.id}
+                type="button"
+                className="m-sheet-action"
+                aria-pressed={selected || undefined}
+                onClick={() => {
+                  setIsOpen(false);
+                  handleSelect(project.id);
+                }}
+              >
+                {isHome ? (
+                  <House className="size-4 shrink-0 text-muted" />
+                ) : (
+                  <LocationIcon kind={project.location.kind} />
+                )}
+                <span className="flex-1 truncate">{itemLabel}</span>
+                {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
+              </button>
+            );
+          })}
+        </div>
+      </ResponsiveMenuSurface>
+    );
   }
 
   const menu = (

@@ -2,7 +2,7 @@
  * OpenCode SDK → canonical RuntimeEvent mapper.
  *
  * Translates events emitted by `client.event.subscribe` (`@opencode-ai/sdk/v2`)
- * into Lightcode's canonical chat events. Mirrors the role of
+ * into Poracode's canonical chat events. Mirrors the role of
  * `acp/canonicalMapping.ts` for the ACP protocol.
  *
  * Reconciliation note: OpenCode interleaves `message.part.delta` (incremental)

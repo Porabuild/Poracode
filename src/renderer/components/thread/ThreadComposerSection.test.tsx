@@ -1,29 +1,65 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { AgentStatus, Thread } from "@/shared/contracts";
+import type { AgentStatus, Thread, ThreadServerRequestId } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ThreadComposerSection } from "./ThreadComposerSection";
+import type { ThreadErrorDockState } from "./threadErrorState";
+
+const bridgeMock = vi.hoisted(() => ({
+  isRemoteSession: vi.fn<() => boolean>(() => false),
+  clearPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  interruptThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  refreshAgentStatuses: vi
+    .fn<() => Promise<{ windows: AgentStatus[]; wsl: AgentStatus[] }>>()
+    .mockResolvedValue({ windows: [], wsl: [] }),
+}));
 
 vi.mock("../../bridge", () => ({
+  isRemoteSession: bridgeMock.isRemoteSession,
   readBridge: () => ({
     pickFiles: vi.fn<() => Promise<string[] | undefined>>().mockResolvedValue(undefined),
+    clearPendingSteer: bridgeMock.clearPendingSteer,
+    interruptThread: bridgeMock.interruptThread,
     setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    refreshAgentStatuses: bridgeMock.refreshAgentStatuses,
   }),
 }));
 
+const toastDangerSpy = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
+
 vi.mock("./ThreadComposer", () => ({
   ThreadComposer: (props: {
+    controls?: Array<{
+      kind?: string;
+      label?: string;
+      currentModel?: string;
+      effortValue?: string;
+    }>;
     fixedContent?: ReactNode;
     inputContent?: ReactNode;
+    onAttachFiles?: (paths: string[]) => void;
+    onStop?: () => void;
     onSubmit: () => void;
+    submitDisabled?: boolean;
   }) => (
     <div>
       {props.fixedContent}
       {props.inputContent}
+      <output data-testid="control-kinds">
+        {props.controls?.map((control) => control.kind ?? control.label ?? "").join(",") ?? ""}
+      </output>
+      <output data-testid="attach-files-enabled">{props.onAttachFiles ? "yes" : "no"}</output>
+      {props.onStop && props.submitDisabled ? (
+        <button type="button" aria-label="Stop response" onClick={props.onStop}>
+          stop
+        </button>
+      ) : null}
       <button type="button" onClick={props.onSubmit}>
         send
       </button>
@@ -117,12 +153,27 @@ describe("ThreadComposerSection", () => {
       pendingSteerByThreadId: {},
       threadDraftContents: {},
     });
+    bridgeMock.isRemoteSession.mockReturnValue(false);
+    bridgeMock.clearPendingSteer.mockClear();
+    bridgeMock.clearPendingSteer.mockResolvedValue(undefined);
+    bridgeMock.refreshAgentStatuses.mockClear();
+    bridgeMock.interruptThread.mockClear();
+    bridgeMock.interruptThread.mockResolvedValue(undefined);
+    toastDangerSpy.mockClear();
   });
 
   function composerElement(opts?: {
     thread?: Thread;
     agentStatus?: AgentStatus;
+    errorDockStates?: ThreadErrorDockState[];
+    onConfigChange?: (config: Thread["config"]) => void;
     onSubmitInput?: (prompt: string, segments?: unknown) => Promise<void>;
+    onResolveServerRequest?: (input: {
+      requestId: ThreadServerRequestId;
+      method: string;
+      response: unknown;
+    }) => Promise<void>;
+    onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
   }) {
     const thread = opts?.thread ?? guiThread;
     const agentStatus = opts?.agentStatus ?? codexGuiStatus;
@@ -138,12 +189,15 @@ describe("ThreadComposerSection", () => {
         todoDockPlacement="composer"
         todoDockState={null}
         goalDockState={null}
-        errorDockStates={[]}
+        errorDockStates={opts?.errorDockStates ?? []}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
-        onConfigChange={() => undefined}
-        onResolveServerRequest={async () => undefined}
+        onConfigChange={opts?.onConfigChange ?? (() => undefined)}
+        onResolveServerRequest={opts?.onResolveServerRequest ?? (async () => undefined)}
         onSubmitInput={opts?.onSubmitInput ?? (async () => undefined)}
+        {...(opts?.onOpenProjectRelativePath
+          ? { onOpenProjectRelativePath: opts.onOpenProjectRelativePath }
+          : {})}
         onTodoDockCollapsedChange={() => undefined}
         onTodoDockPlacementChange={() => undefined}
       />
@@ -153,7 +207,19 @@ describe("ThreadComposerSection", () => {
   function renderComposer(opts?: {
     thread?: Thread;
     agentStatus?: AgentStatus;
+    errorDockStates?: ThreadErrorDockState[];
+    onConfigChange?: (config: Thread["config"]) => void;
     onSubmitInput?: ReturnType<typeof vi.fn<(prompt: string, segments?: unknown) => Promise<void>>>;
+    onResolveServerRequest?: ReturnType<
+      typeof vi.fn<
+        (input: {
+          requestId: ThreadServerRequestId;
+          method: string;
+          response: unknown;
+        }) => Promise<void>
+      >
+    >;
+    onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
   }) {
     const onSubmitInput =
       opts?.onSubmitInput ??
@@ -161,6 +227,47 @@ describe("ThreadComposerSection", () => {
     const result = render(composerElement({ ...opts, onSubmitInput }));
     return { ...result, onSubmitInput };
   }
+
+  it("exposes model controls for active terminal threads", () => {
+    renderComposer({
+      thread: { ...terminalThread, config: { model: "claude", effort: "low" } },
+      agentStatus: {
+        ...claudeTerminalStatus,
+        capabilities: {
+          ...claudeTerminalStatus.capabilities,
+          models: [
+            { id: "claude", label: "Claude" },
+            { id: "opus", label: "Opus" },
+          ],
+          efforts: ["low", "high"],
+          modelEfforts: {
+            claude: ["low", "high"],
+            opus: ["high"],
+          },
+        },
+      },
+    });
+
+    expect(screen.getByTestId("control-kinds")).toHaveTextContent("provider-model");
+    expect(screen.getByTestId("control-kinds")).toHaveTextContent("effort-context");
+  });
+
+  it("hides the terminal composer collapse button in remote sessions", () => {
+    const { unmount } = renderComposer({
+      thread: terminalThread,
+      agentStatus: claudeTerminalStatus,
+    });
+    expect(screen.getByRole("button", { name: "Collapse composer" })).toBeInTheDocument();
+    unmount();
+
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    renderComposer({
+      thread: terminalThread,
+      agentStatus: claudeTerminalStatus,
+    });
+
+    expect(screen.queryByRole("button", { name: "Collapse composer" })).not.toBeInTheDocument();
+  });
 
   it("preserves an unsent draft when the composer unmounts and restores it on remount", async () => {
     const { unmount } = renderComposer();
@@ -322,6 +429,71 @@ describe("ThreadComposerSection", () => {
     });
   });
 
+  it("reports active-thread send failures and restores the GUI composer", async () => {
+    const onSubmitInput = vi
+      .fn<(prompt: string, segments?: unknown) => Promise<void>>()
+      .mockRejectedValue(new Error("send failed"));
+
+    renderComposer({ onSubmitInput });
+
+    const input = screen.getByRole("textbox");
+    input.appendChild(document.createTextNode("retry me"));
+    fireEvent.input(input);
+    fireEvent.click(screen.getByText("send"));
+
+    await waitFor(() => {
+      expect(toastDangerSpy).toHaveBeenCalledWith("send failed");
+    });
+    expect(screen.getByRole("textbox")).toHaveTextContent("retry me");
+  });
+
+  it("restores approval requests and composer text when auto-deny before submit fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const onResolveServerRequest = vi
+      .fn<
+        (input: {
+          requestId: ThreadServerRequestId;
+          method: string;
+          response: unknown;
+        }) => Promise<void>
+      >()
+      .mockRejectedValue(new Error("deny failed"));
+    const onSubmitInput = vi
+      .fn<(prompt: string, segments?: unknown) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [guiThread.id]: [
+          {
+            requestId: "approval-before-submit",
+            threadId: guiThread.id,
+            requestType: "command_execution_approval",
+            payload: { summary: "Run first" },
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+
+    renderComposer({ onResolveServerRequest, onSubmitInput });
+
+    const input = screen.getByRole("textbox");
+    input.appendChild(document.createTextNode("do this instead"));
+    fireEvent.input(input);
+    fireEvent.click(screen.getByText("send"));
+
+    await waitFor(() => {
+      expect(toastDangerSpy).toHaveBeenCalledWith("deny failed");
+    });
+    expect(onSubmitInput).not.toHaveBeenCalled();
+    expect(screen.getByText("Run first")).toBeInTheDocument();
+    expect(screen.getByRole("textbox")).toHaveTextContent("do this instead");
+    expect(useAppStore.getState().runtimeRequestsByThread[guiThread.id]).toEqual([
+      expect.objectContaining({ requestId: "approval-before-submit" }),
+    ]);
+    consoleError.mockRestore();
+  });
+
   it("shows an auth row and blocks active-thread input when the agent needs login", () => {
     const onSubmitInput = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     render(
@@ -357,6 +529,265 @@ describe("ThreadComposerSection", () => {
     fireEvent.click(screen.getByText("send"));
 
     expect(onSubmitInput).not.toHaveBeenCalled();
+  });
+
+  it("keeps remote auth docks actionable without desktop-only login controls", async () => {
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    renderComposer({
+      thread: terminalThread,
+      agentStatus: {
+        ...claudeTerminalStatus,
+        authState: "missing",
+        loginCommand: "claude login",
+      },
+    });
+
+    expect(screen.getByText("Sign in required")).toBeInTheDocument();
+    expect(
+      screen.getByText("Claude: Sign in on the paired desktop, then refresh this status."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Login" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Settings" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh Claude authentication" }));
+
+    await waitFor(() => {
+      expect(bridgeMock.refreshAgentStatuses).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("disables desktop-local attachment drops in remote sessions", () => {
+    renderComposer();
+    expect(screen.getByTestId("attach-files-enabled")).toHaveTextContent("yes");
+
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    renderComposer();
+    expect(screen.getAllByTestId("attach-files-enabled").at(-1)!).toHaveTextContent("no");
+  });
+
+  it("shows generic error docks for remote terminal sessions only", () => {
+    const errorDockStates = [{ sourceItemId: "err-1", message: "Tool failed remotely." }];
+    const { unmount } = renderComposer({
+      thread: terminalThread,
+      agentStatus: claudeTerminalStatus,
+      errorDockStates,
+    });
+
+    expect(screen.queryByText("Tool failed remotely.")).not.toBeInTheDocument();
+    unmount();
+
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    renderComposer({
+      thread: terminalThread,
+      agentStatus: claudeTerminalStatus,
+      errorDockStates,
+    });
+
+    expect(screen.getByText("Tool failed remotely.")).toBeInTheDocument();
+  });
+
+  it("keeps runtime approval requests actionable in remote terminal sessions", async () => {
+    const onResolveServerRequest = vi
+      .fn<
+        (input: {
+          requestId: ThreadServerRequestId;
+          method: string;
+          response: unknown;
+        }) => Promise<void>
+      >()
+      .mockResolvedValue(undefined);
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [terminalThread.id]: [
+          {
+            requestId: "terminal-approval",
+            threadId: terminalThread.id,
+            requestType: "command_execution_approval",
+            payload: { summary: "Run mobile terminal command" },
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+
+    renderComposer({
+      thread: terminalThread,
+      agentStatus: claudeTerminalStatus,
+      onResolveServerRequest,
+    });
+
+    expect(screen.getByText("Run mobile terminal command")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Allow" }));
+
+    await waitFor(() => {
+      expect(onResolveServerRequest).toHaveBeenCalledWith({
+        requestId: "terminal-approval",
+        method: "requestPermission",
+        response: { optionId: "allow" },
+      });
+    });
+  });
+
+  it("restores runtime approval requests when resolving fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const onResolveServerRequest = vi
+      .fn<
+        (input: {
+          requestId: ThreadServerRequestId;
+          method: string;
+          response: unknown;
+        }) => Promise<void>
+      >()
+      .mockRejectedValue(new Error("approval failed"));
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [guiThread.id]: [
+          {
+            requestId: "approval-fails",
+            threadId: guiThread.id,
+            requestType: "command_execution_approval",
+            payload: { summary: "Run fragile command" },
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+
+    renderComposer({ onResolveServerRequest });
+
+    fireEvent.click(screen.getByRole("button", { name: "Allow" }));
+
+    await waitFor(() => {
+      expect(toastDangerSpy).toHaveBeenCalledWith("approval failed");
+    });
+    expect(screen.getByText("Run fragile command")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Allow" })).toBeEnabled();
+    expect(useAppStore.getState().runtimeRequestsByThread[guiThread.id]).toEqual([
+      expect.objectContaining({ requestId: "approval-fails" }),
+    ]);
+    consoleError.mockRestore();
+  });
+
+  it("shows todo and goal docks in remote terminal sessions only", () => {
+    const terminalTodoDockState = {
+      sourceItemId: "plan-1",
+      itemState: "completed" as const,
+      steps: [{ text: "Patch mobile runtime chrome", status: "pending" as const }],
+      activeIndex: 0,
+      sourceKind: "steps" as const,
+    };
+    const terminalGoalDockState = {
+      sourceItemId: "goal-1",
+      itemState: "completed" as const,
+      objective: "No mobile dead ends",
+      status: "active" as const,
+      action: "set" as const,
+    };
+    const renderTerminalDocks = () =>
+      render(
+        <ThreadComposerSection
+          threadId={terminalThread.id}
+          fallbackThread={terminalThread}
+          agentStatus={claudeTerminalStatus}
+          projectLocation={{ kind: "windows", path: "C:\\repo" }}
+          paneCount={1}
+          terminalPaneRef={{ current: null }}
+          todoDockCollapsed={false}
+          todoDockPlacement="composer"
+          todoDockState={terminalTodoDockState}
+          goalDockState={terminalGoalDockState}
+          errorDockStates={[]}
+          onGoalDockDismiss={() => undefined}
+          onDismissError={() => undefined}
+          onConfigChange={() => undefined}
+          onResolveServerRequest={async () => undefined}
+          onSubmitInput={async () => undefined}
+          onTodoDockCollapsedChange={() => undefined}
+          onTodoDockPlacementChange={() => undefined}
+        />,
+      );
+
+    const { unmount } = renderTerminalDocks();
+    expect(screen.queryByLabelText("Thread todo dock")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Thread goal dock")).not.toBeInTheDocument();
+    unmount();
+
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    renderTerminalDocks();
+
+    expect(screen.getByLabelText("Thread todo dock")).toHaveTextContent(
+      "Patch mobile runtime chrome",
+    );
+    expect(screen.getByLabelText("Thread goal dock")).toHaveTextContent("No mobile dead ends");
+  });
+
+  it("exposes interrupt for remote terminal sessions while a turn is working", () => {
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    renderComposer({
+      thread: {
+        ...terminalThread,
+        id: "thread-terminal-working",
+        status: "working",
+        attention: "working",
+      },
+      agentStatus: claudeTerminalStatus,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Stop response" }));
+
+    expect(bridgeMock.interruptThread).toHaveBeenCalledWith({
+      threadId: "thread-terminal-working",
+    });
+  });
+
+  it("reports failed remote terminal interrupts instead of only logging them", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    bridgeMock.interruptThread.mockRejectedValueOnce(new Error("interrupt failed"));
+    renderComposer({
+      thread: {
+        ...terminalThread,
+        id: "thread-terminal-working",
+        status: "working",
+        attention: "working",
+      },
+      agentStatus: claudeTerminalStatus,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Stop response" }));
+
+    await waitFor(() => {
+      expect(toastDangerSpy).toHaveBeenCalledWith("interrupt failed");
+    });
+    consoleError.mockRestore();
+  });
+
+  it("reports failed pending steer cancellation", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    bridgeMock.clearPendingSteer.mockRejectedValueOnce(new Error("cancel failed"));
+    useAppStore.setState({
+      pendingSteerByThreadId: {
+        [guiThread.id]: {
+          id: "pending-1",
+          prompt: "Actually inspect the diff first",
+          stagedAt: Date.now(),
+        },
+      },
+    });
+
+    renderComposer({
+      thread: { ...guiThread, status: "working", attention: "working" },
+      agentStatus: codexGuiStatus,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel pending steer" }));
+
+    await waitFor(() => {
+      expect(toastDangerSpy).toHaveBeenCalledWith("cancel failed");
+    });
+    expect(bridgeMock.clearPendingSteer).toHaveBeenCalledWith({ threadId: guiThread.id });
+    consoleError.mockRestore();
   });
 
   it("keeps queued runtime approval requests actionable after resolving the first one", async () => {
@@ -426,6 +857,51 @@ describe("ThreadComposerSection", () => {
       resolveRequest?.();
       await Promise.resolve();
     });
+  });
+
+  it("routes plan file opens through the mobile workspace callback when provided", () => {
+    const onOpenProjectRelativePath = vi.fn<(path: string, lineNumber?: number) => void>();
+    useAppStore.setState({
+      projects: [
+        {
+          id: "project-1",
+          name: "Repo",
+          location: { kind: "windows", path: "C:\\repo" },
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      runtimeRequestsByThread: {
+        [guiThread.id]: [
+          {
+            requestId: "plan-approval",
+            threadId: guiThread.id,
+            requestType: "tool_user_input",
+            payload: {
+              summary: "Proposed plan",
+              details: {
+                toolName: "ExitPlanMode",
+                input: {
+                  planFilePath: "C:\\Users\\sdsle\\.claude\\plans\\plan.md",
+                },
+              },
+              options: [
+                { optionId: "deny", label: "No, keep planning" },
+                { optionId: "default", label: "Yes, and manually approve edits" },
+              ],
+            },
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+
+    renderComposer({ onOpenProjectRelativePath });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open plan" }));
+
+    expect(onOpenProjectRelativePath).toHaveBeenCalledWith(
+      "C:\\Users\\sdsle\\.claude\\plans\\plan.md",
+    );
   });
 
   it("renders multi-question user input forms with answer options instead of approval fallback buttons", async () => {

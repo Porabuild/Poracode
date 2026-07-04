@@ -107,7 +107,7 @@ function claudeProfile(overrides: Partial<AgentInstanceConfig> = {}): AgentInsta
     id: "glm",
     driver: "claude",
     displayName: "GLM",
-    config: { configDir: "~/.lightcode/claude-profiles/glm" },
+    config: { configDir: "~/.poracode/claude-profiles/glm" },
     ...overrides,
   };
 }
@@ -171,7 +171,7 @@ describe("ClaudeProfileSettings", () => {
     );
     expect(screen.getByLabelText("New Claude profile config directory")).toHaveAttribute(
       "placeholder",
-      "~/.lightcode/claude-profiles/profile",
+      "~/.poracode/claude-profiles/profile",
     );
   });
 
@@ -189,7 +189,7 @@ describe("ClaudeProfileSettings", () => {
     expect(addButton).toBeEnabled();
     expect(screen.getByLabelText("New Claude profile config directory")).toHaveAttribute(
       "placeholder",
-      "~/.lightcode/claude-profiles/work",
+      "~/.poracode/claude-profiles/work",
     );
   });
 
@@ -205,7 +205,7 @@ describe("ClaudeProfileSettings", () => {
       id: "work",
       driver: "claude",
       displayName: "Work",
-      config: { configDir: "~/.lightcode/claude-profiles/work" },
+      config: { configDir: "~/.poracode/claude-profiles/work" },
     });
     // The form collapses back to the add button after a successful add.
     expect(screen.queryByLabelText("New Claude profile name")).not.toBeInTheDocument();
@@ -331,7 +331,7 @@ describe("ClaudeProfileProviderSettings", () => {
       driver: "claude",
       displayName: "GLM",
       config: {
-        configDir: "~/.lightcode/claude-profiles/glm",
+        configDir: "~/.poracode/claude-profiles/glm",
         models: [
           { id: "deepseek-v4-pro[1m]", label: "DeepSeek V4 Pro" },
           { id: "deepseek-v4-flash", label: "DeepSeek V4 Flash" },
@@ -406,7 +406,7 @@ describe("ClaudeProfileProviderSettings", () => {
     await waitFor(() => expect(settingsState.setAgentInstance).toHaveBeenCalled());
     const saved = settingsState.setAgentInstance.mock.calls.at(-1)?.[0];
     expect(saved?.config).toEqual({
-      configDir: "~/.lightcode/claude-profiles/glm",
+      configDir: "~/.poracode/claude-profiles/glm",
       models: [{ id: "glm-5.2" }],
       efforts: ["medium", "high", "xHigh", "max", "ultracode"],
     });

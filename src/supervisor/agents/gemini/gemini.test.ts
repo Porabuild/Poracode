@@ -71,7 +71,7 @@ describe("createGeminiAdapter handleOscTitle", () => {
     expect(adapter.detectTerminalStatus).toBeUndefined();
   });
 
-  it("maps Gemini title-bar status to Lightcode status", () => {
+  it("maps Gemini title-bar status to Poracode status", () => {
     expect(adapter.handleOscTitle?.(oscTitle("✦  Working… (lightcode)"))).toEqual({
       status: "working",
       attention: "working",

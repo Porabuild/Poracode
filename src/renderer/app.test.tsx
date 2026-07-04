@@ -2,6 +2,7 @@ import { Fragment, type ReactNode } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { RemoteThreadCommand } from "@/shared/contracts";
 import { useAppStore } from "./state/appStore";
 import { useGitStore } from "./state/gitStore";
 import { usePanelStore } from "./state/panelStore";
@@ -9,71 +10,44 @@ import { useSidebarUiStore } from "./state/sidebarUiStore";
 import { gitMergeAndRemove } from "@/renderer/actions/gitActions";
 import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 
-const { bridge } = vi.hoisted(() => ({
-  bridge: {
-    pickFolder: vi.fn<() => Promise<null>>().mockResolvedValue(null),
-    listWslDistros: vi.fn<() => Promise<string[]>>().mockResolvedValue([]),
-    getAgentStatuses: vi
-      .fn<() => Promise<{ windows: unknown[]; wsl: unknown[]; fromCache: boolean }>>()
-      .mockResolvedValue({ windows: [], wsl: [], fromCache: false }),
-    getThreadSnapshots: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
-    getHomeScopeLocation: vi
-      .fn<() => Promise<{ kind: "windows"; path: string }>>()
-      .mockResolvedValue({ kind: "windows", path: "C:\\Users\\demo" }),
-    dbGetThreadRuntimeItems: vi
-      .fn<(threadId: string) => Promise<unknown[]>>()
-      .mockResolvedValue([]),
-    dbGetThreadCompletedTurns: vi
-      .fn<(threadId: string) => Promise<unknown[]>>()
-      .mockResolvedValue([]),
-    dbGetThreadContextUsage: vi.fn<(threadId: string) => Promise<null>>().mockResolvedValue(null),
-    getGitStatus: vi
-      .fn<
-        () => Promise<{
-          isRepo: boolean;
-          branch: string;
-          tracking: string;
-          hasRemote: boolean;
-          remoteInfo: null;
-          ahead: number;
-          behind: number;
-          staged: unknown[];
-          unstaged: unknown[];
-          totalInsertions: number;
-          totalDeletions: number;
-        }>
-      >()
-      .mockResolvedValue({
-        isRepo: true,
-        branch: "main",
-        tracking: "",
-        hasRemote: false,
-        remoteInfo: null,
-        ahead: 0,
-        behind: 0,
-        staged: [],
-        unstaged: [],
-        totalInsertions: 0,
-        totalDeletions: 0,
-      }),
-    gitListBranches: vi
-      .fn<() => Promise<{ current: string; branches: unknown[] }>>()
-      .mockResolvedValue({ current: "main", branches: [] }),
-    gitFetch: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    gitListWorktrees: vi
-      .fn<() => Promise<{ worktrees: unknown[] }>>()
-      .mockResolvedValue({ worktrees: [] }),
-    gitProjectSnapshot: vi
-      .fn<
-        () => Promise<{
-          status: unknown;
-          branches: unknown;
-          worktrees: unknown[] | null;
-          ghAvailable: boolean | null;
-        }>
-      >()
-      .mockResolvedValue({
-        status: {
+const { bridge, remoteThreadCommandListeners } = vi.hoisted(() => {
+  const listeners: Array<(command: RemoteThreadCommand) => void> = [];
+  return {
+    remoteThreadCommandListeners: listeners,
+    bridge: {
+      pickFolder: vi.fn<() => Promise<null>>().mockResolvedValue(null),
+      listWslDistros: vi.fn<() => Promise<string[]>>().mockResolvedValue([]),
+      getAgentStatuses: vi
+        .fn<() => Promise<{ windows: unknown[]; wsl: unknown[]; fromCache: boolean }>>()
+        .mockResolvedValue({ windows: [], wsl: [], fromCache: false }),
+      getThreadSnapshots: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+      getHomeScopeLocation: vi
+        .fn<() => Promise<{ kind: "windows"; path: string }>>()
+        .mockResolvedValue({ kind: "windows", path: "C:\\Users\\demo" }),
+      dbGetThreadRuntimeItems: vi
+        .fn<(threadId: string) => Promise<unknown[]>>()
+        .mockResolvedValue([]),
+      dbGetThreadCompletedTurns: vi
+        .fn<(threadId: string) => Promise<unknown[]>>()
+        .mockResolvedValue([]),
+      dbGetThreadContextUsage: vi.fn<(threadId: string) => Promise<null>>().mockResolvedValue(null),
+      getGitStatus: vi
+        .fn<
+          () => Promise<{
+            isRepo: boolean;
+            branch: string;
+            tracking: string;
+            hasRemote: boolean;
+            remoteInfo: null;
+            ahead: number;
+            behind: number;
+            staged: unknown[];
+            unstaged: unknown[];
+            totalInsertions: number;
+            totalDeletions: number;
+          }>
+        >()
+        .mockResolvedValue({
           isRepo: true,
           branch: "main",
           tracking: "",
@@ -85,59 +59,98 @@ const { bridge } = vi.hoisted(() => ({
           unstaged: [],
           totalInsertions: 0,
           totalDeletions: 0,
-        },
-        branches: { current: "main", branches: [] },
-        worktrees: [],
-        ghAvailable: null,
+        }),
+      gitListBranches: vi
+        .fn<() => Promise<{ current: string; branches: unknown[] }>>()
+        .mockResolvedValue({ current: "main", branches: [] }),
+      gitFetch: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      gitListWorktrees: vi
+        .fn<() => Promise<{ worktrees: unknown[] }>>()
+        .mockResolvedValue({ worktrees: [] }),
+      gitProjectSnapshot: vi
+        .fn<
+          () => Promise<{
+            status: unknown;
+            branches: unknown;
+            worktrees: unknown[] | null;
+            ghAvailable: boolean | null;
+          }>
+        >()
+        .mockResolvedValue({
+          status: {
+            isRepo: true,
+            branch: "main",
+            tracking: "",
+            hasRemote: false,
+            remoteInfo: null,
+            ahead: 0,
+            behind: 0,
+            staged: [],
+            unstaged: [],
+            totalInsertions: 0,
+            totalDeletions: 0,
+          },
+          branches: { current: "main", branches: [] },
+          worktrees: [],
+          ghAvailable: null,
+        }),
+      gitWorktreeStatusBatch: vi
+        .fn<() => Promise<{ statuses: Record<string, unknown> }>>()
+        .mockResolvedValue({ statuses: {} }),
+      gitGetWorktreeSourceBranch: vi
+        .fn<() => Promise<{ sourceBranch: string; commitsAhead: number; sourceAhead: number }>>()
+        .mockResolvedValue({
+          sourceBranch: "master",
+          commitsAhead: 1,
+          sourceAhead: 0,
+        }),
+      gitMergeToSource: vi
+        .fn<() => Promise<{ merged: boolean; fastForward: boolean; newSourceCommit: string }>>()
+        .mockResolvedValue({
+          merged: true,
+          fastForward: false,
+          newSourceCommit: "abc123",
+        }),
+      gitAddWorktree: vi.fn<() => Promise<{ path: string }>>().mockResolvedValue({
+        path: "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
       }),
-    gitWorktreeStatusBatch: vi
-      .fn<() => Promise<{ statuses: Record<string, unknown> }>>()
-      .mockResolvedValue({ statuses: {} }),
-    gitGetWorktreeSourceBranch: vi
-      .fn<() => Promise<{ sourceBranch: string; commitsAhead: number; sourceAhead: number }>>()
-      .mockResolvedValue({
-        sourceBranch: "master",
-        commitsAhead: 1,
-        sourceAhead: 0,
+      gitRemoveWorktree: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      gitDeleteBranch: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      startThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      sendThreadInput: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      clearPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      resizeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      resolveThreadServerRequest: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      closeThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      onSupervisorEvent: vi.fn<() => () => void>(() => () => undefined),
+      startShell: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      gitWatchProject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      gitWatchWorktrees: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      gitUnwatchProject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      checkForUpdate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      startUpdateDownload: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      installUpdate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      onUpdateStatus: vi.fn<() => () => void>(() => () => undefined),
+      listAcpRegistry: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
+      onBrowserEvent: vi.fn<() => () => void>(() => () => undefined),
+      onRemoteThreadCommand: vi.fn<
+        (listener: (command: RemoteThreadCommand) => void) => () => void
+      >((listener) => {
+        listeners.push(listener);
+        return () => undefined;
       }),
-    gitMergeToSource: vi
-      .fn<() => Promise<{ merged: boolean; fastForward: boolean; newSourceCommit: string }>>()
-      .mockResolvedValue({
-        merged: true,
-        fastForward: false,
-        newSourceCommit: "abc123",
-      }),
-    gitAddWorktree: vi.fn<() => Promise<{ path: string }>>().mockResolvedValue({
-      path: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
-    }),
-    gitRemoveWorktree: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    gitDeleteBranch: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    startThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    sendThreadInput: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    clearPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    resizeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    resolveThreadServerRequest: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    closeThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    onSupervisorEvent: vi.fn<() => () => void>(() => () => undefined),
-    startShell: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    gitWatchProject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    gitWatchWorktrees: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    gitUnwatchProject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    checkForUpdate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    startUpdateDownload: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    installUpdate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    onUpdateStatus: vi.fn<() => () => void>(() => () => undefined),
-    onNotificationClick: vi.fn<() => () => void>(() => () => undefined),
-    listAcpRegistry: vi.fn<() => Promise<unknown>>().mockResolvedValue([]),
-    onBrowserEvent: vi.fn<() => () => void>(() => () => undefined),
-    browserGetState: vi
-      .fn<() => Promise<{ tabs: []; activeTabId: null }>>()
-      .mockResolvedValue({ tabs: [], activeTabId: null }),
-  },
-}));
+      onSharedSettingsChanged: vi.fn<() => () => void>(() => () => undefined),
+      onNotificationClick: vi.fn<() => () => void>(() => () => undefined),
+      publishRemoteGitSummaries: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      browserGetState: vi
+        .fn<() => Promise<{ tabs: []; activeTabId: null }>>()
+        .mockResolvedValue({ tabs: [], activeTabId: null }),
+    },
+  };
+});
 
 vi.mock("./bridge", () => ({
   readBridge: () => bridge,
@@ -215,7 +228,7 @@ vi.mock("./views/MainView/parts/Sidebar/Sidebar", () => ({
           onClick={() =>
             gitMergeAndRemove(
               "project-1",
-              "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+              "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
             )
           }
           type="button"
@@ -262,8 +275,7 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
             agentKind: "codex",
             config: { model: "gpt-5.4" },
             prompt: "attach worktree",
-            existingWorktreePath:
-              "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+            existingWorktreePath: "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
             worktreeBranch: "feature/x",
           })
         }
@@ -360,6 +372,115 @@ describe("App", () => {
       collapsedWorktrees: {},
       threadListLimits: {},
     });
+  });
+
+  it("creates and queues a thread requested by a remote client", async () => {
+    useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
+    useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
+    useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
+
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [
+        {
+          id: "project-1",
+          name: "Repo",
+          location: {
+            kind: "windows",
+            path: "C:\\repo",
+          },
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "home" },
+    }));
+
+    render(<App />);
+    const listener = remoteThreadCommandListeners.at(-1);
+    expect(listener).toBeDefined();
+
+    act(() => {
+      listener?.({
+        kind: "start",
+        threadId: "remote-thread-1",
+        projectId: "project-1",
+        agentKind: "codex",
+        config: { model: "gpt-5.4" },
+        prompt: "start from phone",
+        segments: [{ kind: "text", content: "start from phone" }],
+        presentationMode: "gui",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-view-remote-thread-1")).toHaveAttribute(
+        "data-pending-launch",
+        "start from phone",
+      );
+    });
+    const state = useAppStore.getState();
+    const thread = state.threads.find((entry) => entry.id === "remote-thread-1");
+    expect(thread).toMatchObject({
+      projectId: "project-1",
+      agentKind: "codex",
+      presentationMode: "gui",
+      status: "launching",
+    });
+    expect(state.view).toEqual({ kind: "thread", panes: ["remote-thread-1"] });
+    expect(state.pendingLaunchSegments["remote-thread-1"]).toEqual([
+      { kind: "text", content: "start from phone" },
+    ]);
+    expect(bridge.startThread).not.toHaveBeenCalled();
+  });
+
+  it("mirrors a remotely started thread without queueing a duplicate launch", async () => {
+    useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
+    useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
+    useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
+
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [
+        {
+          id: "project-1",
+          name: "Repo",
+          location: {
+            kind: "windows",
+            path: "C:\\repo",
+          },
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "home" },
+    }));
+
+    render(<App />);
+    const listener = remoteThreadCommandListeners.at(-1);
+    expect(listener).toBeDefined();
+
+    act(() => {
+      listener?.({
+        kind: "start",
+        threadId: "remote-thread-1",
+        projectId: "project-1",
+        agentKind: "codex",
+        config: { model: "gpt-5.4" },
+        prompt: "",
+        presentationMode: "terminal",
+        launchRuntime: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-view-remote-thread-1")).toBeInTheDocument();
+    });
+    const state = useAppStore.getState();
+    expect(state.threads.find((thread) => thread.id === "remote-thread-1")?.title).toBe(
+      "New thread",
+    );
+    expect(state.pendingThreadLaunches["remote-thread-1"]).toBeUndefined();
+    expect(state.pendingLaunchSegments["remote-thread-1"]).toBeUndefined();
+    expect(bridge.startThread).not.toHaveBeenCalled();
   });
 
   it("queues launch for the selected stored thread on launch even without a session ref", async () => {
@@ -929,18 +1050,18 @@ describe("App", () => {
     const threads = useAppStore.getState().threads;
     expect(threads).toHaveLength(1);
     expect(threads[0]?.worktreePath).toBe(
-      "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+      "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
     );
     expect(threads[0]?.worktreeBranch).toBe("feature/x");
     expect(useAppStore.getState().projects[0]?.lastDraftConfig?.worktreeMode).toBe(true);
     expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
       projectId: "project-1",
-      worktreePaths: ["C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x"],
+      worktreePaths: ["C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x"],
     });
     expect(bridge.getGitStatus).toHaveBeenCalledWith({
       projectLocation: {
         kind: "windows",
-        path: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+        path: "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
       },
     });
   });
@@ -973,7 +1094,7 @@ describe("App", () => {
           status: "idle",
           attention: "none",
           canResumeWithConfig: false,
-          worktreePath: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-y",
+          worktreePath: "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-y",
           worktreeBranch: "feature/y",
           archived: false,
           done: false,
@@ -992,8 +1113,8 @@ describe("App", () => {
       expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
         projectId: "project-1",
         worktreePaths: [
-          "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
-          "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-y",
+          "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
+          "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-y",
         ],
       });
     });
@@ -1004,8 +1125,8 @@ describe("App", () => {
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
     useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
 
-    const visiblePath = "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-y";
-    const hiddenPath = "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-z";
+    const visiblePath = "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-y";
+    const hiddenPath = "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-z";
 
     useSidebarUiStore.setState({ threadListLimits: { "project-1": 1 } });
     useAppStore.setState((state) => ({
@@ -1128,7 +1249,7 @@ describe("App", () => {
       const threads = useAppStore.getState().threads;
       expect(threads).toHaveLength(1);
       expect(threads[0]?.worktreePath).toBe(
-        "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+        "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
       );
       expect(threads[0]?.worktreeBranch).toBe("feature/x");
     });
@@ -1165,7 +1286,7 @@ describe("App", () => {
           status: "idle",
           attention: "none",
           canResumeWithConfig: false,
-          worktreePath: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+          worktreePath: "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
           archived: false,
           done: false,
           starred: false,
@@ -1181,7 +1302,7 @@ describe("App", () => {
           status: "idle",
           attention: "none",
           canResumeWithConfig: false,
-          worktreePath: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+          worktreePath: "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
           worktreeBranch: "lightcode/brave-heron",
           archived: false,
           done: false,
@@ -1208,7 +1329,7 @@ describe("App", () => {
         projectLocation: { kind: "windows", path: "C:\\repo" },
         worktreeLocation: {
           kind: "windows",
-          path: "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x",
+          path: "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
         },
         worktreeBranch: "lightcode/brave-heron",
         sourceBranch: "master",

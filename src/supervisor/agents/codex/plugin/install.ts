@@ -39,7 +39,7 @@ import { resolveCodexNativeExecutableForWindows } from "../windowsExecutable";
 
 export interface CodexPluginPaths {
   pluginDir: string;
-  /** Private CODEX_HOME used only for Codex processes spawned by Lightcode. */
+  /** Private CODEX_HOME used only for Codex processes spawned by Poracode. */
   codexHomeDir: string;
   /** Path to hooks.json inside the private CODEX_HOME. */
   codexHooksPath: string;
@@ -56,7 +56,7 @@ const CODEX_HOOK_EVENTS = [
 ] as const;
 
 /**
- * Match any Lightcode-staged Codex hook command in hooks.json. Covers both
+ * Match any Poracode-staged Codex hook command in hooks.json. Covers both
  * the WSL shape (where `forward.mjs` is invoked directly via an absolute
  * node path) and the native shape (where `lightcode-hook.{sh,cmd,ps1}` is the
  * entry point).
@@ -150,7 +150,7 @@ function buildLightcodeGroup(event: string, commandHead: string): Record<string,
 }
 
 /**
- * Merge Lightcode Codex hook matcher groups into a parsed `hooks.json`
+ * Merge Poracode Codex hook matcher groups into a parsed `hooks.json`
  * document. `commandHead` is the entire pre-event portion of each hook
  * command — for WSL it's `"<absolute-node-path>" "<forward.mjs-path>"`;
  * for native it's just `"<wrapper-path>"`. Exported for unit tests.

@@ -214,13 +214,13 @@ export interface WorktreePathOptions {
   omitRepoDir?: boolean;
 }
 
-/** Built-in default worktree root for a location (`~/.lightcode/worktrees`). */
+/** Built-in default worktree root for a location (`~/.poracode/worktrees`). */
 export async function resolveBuiltInWorktreeRoot(location: ProjectLocation): Promise<string> {
   if (location.kind === "wsl") {
     const homePath = await resolveWslHomeDirectory(location.distro);
-    return posix.join(homePath, ".lightcode", "worktrees");
+    return posix.join(homePath, ".poracode", "worktrees");
   }
-  return resolveLightcodePaths(join(homedir(), ".lightcode")).worktreesDir;
+  return resolveLightcodePaths(join(homedir(), ".poracode")).worktreesDir;
 }
 
 export async function computeDefaultWorktreePath(

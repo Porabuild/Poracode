@@ -73,6 +73,10 @@ export function openUsageSettings(): void {
   usePanelStore.getState().openSettingsSection("usage");
 }
 
+export function openRemoteAccessSettings(): void {
+  usePanelStore.getState().openSettingsSection("remoteAccess");
+}
+
 export function openChangelogSettings(): void {
   usePanelStore.getState().openSettingsSection("changelog");
 }

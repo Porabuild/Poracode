@@ -5,9 +5,9 @@
  * but for the host platform (mac/linux/win32). Three layers, in order of
  * cost:
  *
- *   1. **Lightcode-managed runtime** (zero-shell-spawn fast path).
+ *   1. **Poracode-managed runtime** (zero-shell-spawn fast path).
  *      A previous background install dropped the pinned LTS at
- *      `~/.lightcode/runtime/<archive-dir>/`. A single `existsSync` decides.
+ *      `~/.poracode/runtime/<archive-dir>/`. A single `existsSync` decides.
  *
  *   2. **Login-shell probe.** On mac/linux, GUI-launched apps don't inherit
  *      the user's interactive PATH (no Homebrew, no nvm, no fnm) — so we
@@ -17,7 +17,7 @@
  *
  *   3. **Background install.** When 1 + 2 both miss, we kick off a
  *      fire-and-forget download of the pinned LTS archive into
- *      `~/.lightcode/runtime/`. The current install pass falls back to
+ *      `~/.poracode/runtime/`. The current install pass falls back to
  *      Electron-as-Node for this boot; the next supervisor boot picks up
  *      the managed runtime via the fast path.
  *
@@ -77,7 +77,7 @@ export interface NativeRuntimeProgressEvent {
 export type NativeRuntimeProgressListener = (event: NativeRuntimeProgressEvent) => void;
 
 export interface ResolveNativeNodeOptions {
-  /** Override `~/.lightcode` for tests / dev runs. */
+  /** Override `~/.poracode` for tests / dev runs. */
   baseDir?: string;
   /** Optional progress sink. */
   onProgress?: NativeRuntimeProgressListener;

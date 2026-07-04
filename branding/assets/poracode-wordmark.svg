@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 200" width="760" height="200">
+  <!-- Logotype "Pora.code": the dot is a true ROUND circle (the Pora dot), sitting ON the
+       baseline like a period, optically centered in the gap — NOT the font's square period.
+       NOTE: text uses live Geist; OUTLINE the glyphs and fine-tune kerning before shipping. -->
+  <text x="356" y="150" text-anchor="end" font-family="Geist, Inter, system-ui, sans-serif" font-weight="700" font-size="150" letter-spacing="-4" fill="#EAF0FB">Pora</text>
+  <circle cx="376" cy="137" r="13" fill="#8B7BFF"/>
+  <text x="396" y="150" text-anchor="start" font-family="Geist, Inter, system-ui, sans-serif" font-weight="600" font-size="150" letter-spacing="-4" fill="#EAF0FB">code</text>
+</svg>

@@ -820,7 +820,7 @@ describe("CliHookPluginCoordinator install cache", () => {
     const stub = makeStubAdapter("gemini", {
       pluginLaunchExtras: async () => ({
         env: {
-          GEMINI_CLI_SYSTEM_SETTINGS_PATH: "/home/u/.lightcode/agent-plugins/gemini/settings.json",
+          GEMINI_CLI_SYSTEM_SETTINGS_PATH: "/home/u/.poracode/agent-plugins/gemini/settings.json",
         },
       }),
     });
@@ -846,7 +846,7 @@ describe("CliHookPluginCoordinator install cache", () => {
       LIGHTCODE_THREAD_ID: "thread-gemini",
       LIGHTCODE_AGENT_KIND: "gemini",
       LIGHTCODE_HOOK_PROTOCOL_VERSION: "1",
-      GEMINI_CLI_SYSTEM_SETTINGS_PATH: "/home/u/.lightcode/agent-plugins/gemini/settings.json",
+      GEMINI_CLI_SYSTEM_SETTINGS_PATH: "/home/u/.poracode/agent-plugins/gemini/settings.json",
     });
     expect(resolved!.extraArgs).toEqual([]);
   });

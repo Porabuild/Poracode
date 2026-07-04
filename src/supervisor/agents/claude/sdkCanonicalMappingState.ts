@@ -65,6 +65,24 @@ export interface ClaudeMapperState {
   activeGoalLiveApiTokensUsed?: number;
   activeGoalTaskTokensByKey?: Map<string, number>;
   planAggregator?: PlanAggregatorState;
+  /**
+   * Live background subagent tasks, keyed by the SDK `task_id`, mapping to the
+   * launching Agent/Task tool_use id. Populated on `task_started` that carries
+   * a `subagent_type` (or whose tool maps to a subagent-like tool). Lets a
+   * `task_updated` (which carries no `tool_use_id`) find the parent item, and
+   * keeps the parent tool_call alive after its launch tool_result arrives until
+   * the authoritative `task_notification` closes it.
+   */
+  activeSubAgentTaskToTool?: Map<string, string>;
+  /** Reverse of {@link activeSubAgentTaskToTool}: tool_use id → task_id. */
+  activeSubAgentToolToTask?: Map<string, string>;
+  /**
+   * tool_use ids of tools launched INSIDE a running subagent (forwarded child
+   * messages). Tracked so the main turn's `result` close doesn't evict them
+   * before their own (also-forwarded) tool_result arrives to complete them —
+   * background subagent activity continues after the main turn's result.
+   */
+  subAgentChildToolItemIds?: Set<string>;
 }
 
 export function createClaudeMapperState(threadId: string): ClaudeMapperState {

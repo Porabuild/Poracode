@@ -9,6 +9,7 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { usePrTitle, usePrUrl, usePrViewerDidAuthor } from "@/renderer/state/gitSelectors";
+import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { PrReviewSidebar } from "./parts/PrReviewSidebar";
 import { PrDiffContent } from "./parts/PrDiffContent";
 import { SubmitReviewPopover } from "./parts/SubmitReviewPopover";
@@ -119,7 +120,7 @@ export function PrReviewOverlay(props: {
               <Link
                 aria-label={t`Open PR on GitHub`}
                 className="lightcode-overlay-header__controls shrink-0 text-muted hover:text-foreground"
-                onPress={() => void readBridge().openExternal(prUrl)}
+                onPress={() => openExternalWithFeedback(prUrl)}
               >
                 <ExternalLink className="size-3.5" />
               </Link>

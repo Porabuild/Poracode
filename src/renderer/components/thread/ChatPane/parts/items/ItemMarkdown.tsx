@@ -1,7 +1,7 @@
 import { Link } from "@heroui/react";
 import { Suspense, lazy, useMemo } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
-import { readBridge } from "@/renderer/bridge";
+import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { InlineFilePathChip } from "./InlineFilePathChip";
@@ -64,7 +64,7 @@ function PlainText({
               className="[display:inline] [width:auto] [overflow-wrap:anywhere] [word-break:break-word]"
               onClick={(event) => {
                 event.preventDefault();
-                void readBridge().openExternal(node.href);
+                openExternalWithFeedback(node.href);
               }}
             >
               {node.href}

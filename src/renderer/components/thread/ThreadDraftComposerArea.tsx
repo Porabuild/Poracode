@@ -12,14 +12,14 @@ import type {
 } from "@/shared/contracts";
 import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
   AttachmentBar,
   BrowserChip,
   ComposerAddMenu,
+  ComposerVoiceInput,
   MentionInput,
   openAttachmentLightbox,
-  VoiceInputButton,
   type MentionInputHandle,
   type VoiceInputHandle,
   useAttachments,
@@ -210,7 +210,8 @@ export function ThreadDraftComposerArea(props: {
   // either binary, which is a confusing state to debug.
   const [agentUpdating, setAgentUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton);
+  const isRemote = isRemoteSession();
+  const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemote;
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const attachments = useAttachments();
@@ -516,7 +517,7 @@ export function ThreadDraftComposerArea(props: {
   return (
     <>
       <ThreadComposer
-        autoFocus={(props.paneCount ?? 1) === 1} // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+        autoFocus={(props.paneCount ?? 1) === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
         compact={props.compact ?? false}
         variant="draft"
         controls={controls}
@@ -526,15 +527,19 @@ export function ThreadDraftComposerArea(props: {
             {authRequired ? (
               <ThreadAuthRequiredDock agentStatus={props.selectedAgent} project={props.project} />
             ) : null}
-            <ThreadAgentUpdateDock
-              agentStatus={props.selectedAgent}
-              onUpdatingChange={setAgentUpdating}
-            />
-            <HookInstallProposal
-              project={props.project}
-              selectedAgent={props.selectedAgent}
-              presentationMode={props.presentationMode}
-            />
+            {!isRemote ? (
+              <>
+                <ThreadAgentUpdateDock
+                  agentStatus={props.selectedAgent}
+                  onUpdatingChange={setAgentUpdating}
+                />
+                <HookInstallProposal
+                  project={props.project}
+                  selectedAgent={props.selectedAgent}
+                  presentationMode={props.presentationMode}
+                />
+              </>
+            ) : null}
             {showCommandPanel ? (
               <ThreadCommandPanel
                 commands={filteredCommands}
@@ -567,9 +572,11 @@ export function ThreadDraftComposerArea(props: {
         inputContent={
           <MentionInput
             ref={mentionRef}
-            autoFocus={(props.paneCount ?? 1) === 1} // eslint-disable-line jsx-a11y/no-autofocus -- desktop app, expected UX
+            autoFocus={(props.paneCount ?? 1) === 1 && !isRemote} // eslint-disable-line jsx-a11y/no-autofocus -- desktop only; mobile PWA skips it so navigating to a thread doesn't pop the keyboard
             compact={props.compact ?? false}
-            placeholder={t`Send a message...`}
+            // The PWA surfaces this draft as the home screen's compact composer
+            // pill, where an invitation reads better than the generic prompt.
+            placeholder={isRemote ? t`Plan, ask, build…` : t`Send a message...`}
             projectLocation={isHomeScope ? undefined : props.project.location}
             {...(!isHomeScope ? { projectId: props.project.id } : {})}
             onTextChange={(hasText) => {
@@ -580,9 +587,13 @@ export function ThreadDraftComposerArea(props: {
             showBrowserMention={browserMcpScope !== "none" && props.config.browserMcp !== true}
             onBrowserMentionSelect={() => props.onConfigChange({ browserMcp: true })}
             triggerWords={getTriggerWords(props.selectedAgent.kind, props.config.model)}
-            onPasteImage={(file) => {
-              void attachments.addClipboardImage(file, `draft:${props.project.id}`);
-            }}
+            {...(!isRemote
+              ? {
+                  onPasteImage: (file: File) => {
+                    void attachments.addClipboardImage(file, `draft:${props.project.id}`);
+                  },
+                }
+              : {})}
             onSubmit={(segments) => {
               submitSegments([...attachments.toSegments(), ...segments]);
             }}
@@ -629,7 +640,7 @@ export function ThreadDraftComposerArea(props: {
         submitPending={isSubmitting}
         submitLabel={t`Launch thread`}
         onPromptChange={setPrompt}
-        onAttachFiles={attachments.addFiles}
+        {...(!isRemote ? { onAttachFiles: attachments.addFiles } : {})}
         onSubmit={() => {
           const segments = mentionRef.current?.serializeSegments() ?? [];
           submitSegments([...attachments.toSegments(), ...segments], prompt);
@@ -638,6 +649,7 @@ export function ThreadDraftComposerArea(props: {
           <>
             <ComposerAddMenu
               browserMcpEnabled={props.config.browserMcp === true}
+              showFileOption={!isRemote}
               showBrowserOption={browserMcpScope !== "none"}
               onPickFiles={() => {
                 void readBridge()
@@ -648,26 +660,17 @@ export function ThreadDraftComposerArea(props: {
               }}
               onToggleBrowserMcp={(next) => props.onConfigChange({ browserMcp: next })}
             />
-            {showVoiceInputButton ? (
-              <VoiceInputButton
-                ref={voiceInputRef}
-                isDisabled={authRequired || agentUpdating || isSubmitting}
-                onTranscript={(text) => {
-                  mentionRef.current?.commitVoiceTranscript(text);
-                }}
-                onTranscriptPreview={(text) => {
-                  mentionRef.current?.previewVoiceTranscript(text);
-                }}
-                onTranscriptCancel={() => {
-                  mentionRef.current?.clearVoiceTranscriptPreview();
-                }}
-              />
-            ) : null}
+            <ComposerVoiceInput
+              show={showVoiceInputButton}
+              isDisabled={authRequired || agentUpdating || isSubmitting}
+              mentionRef={mentionRef}
+              voiceInputRef={voiceInputRef}
+            />
           </>
         )}
       />
       {props.gitBranch ? (
-        <div className="mt-1.5 flex flex-wrap items-center gap-1 px-1">
+        <div data-draft-worktree-row="" className="mt-1.5 flex flex-wrap items-center gap-1 px-1">
           <WorktreeModeSelect
             mode={worktreeMode}
             canBringChanges={canBringChanges}

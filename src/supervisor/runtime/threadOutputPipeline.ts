@@ -348,7 +348,7 @@ export class ThreadOutputPipeline {
           s.length <= max ? JSON.stringify(s) : `${JSON.stringify(s.slice(0, max))}…`;
         const hintText = oscHint
           ? `hint=${oscHint.status}/${oscHint.attention} corroborated=${String(oscHint.corroborated)}`
-          : "hint=(null — event not mapped to Lightcode status)";
+          : "hint=(null — event not mapped to Poracode status)";
         console.log(
           `[lightcode-osc] PTY thread=${session.threadId} kind=${session.agentKind} ` +
             `code=${notification.code} title=${j(notification.title, 64)} body=${j(notification.body, 200)} ` +

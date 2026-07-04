@@ -1,0 +1,32 @@
+{
+  "name": "@lightcode/activity-bridge",
+  "version": "1.0.0",
+  "description": "Capacitor bridge from the Lightcode mobile web layer to iOS ActivityKit (Live Activities / Dynamic Island). No-op on Android and web.",
+  "license": "Apache-2.0",
+  "author": "SDSLeon",
+  "files": [
+    "src",
+    "ios/Sources",
+    "Package.swift",
+    "LightcodeActivityBridge.podspec",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^8.0.0"
+  },
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}

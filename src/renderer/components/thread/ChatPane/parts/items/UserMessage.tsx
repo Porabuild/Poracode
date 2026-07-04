@@ -1,21 +1,26 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
-import { Link, Surface, Tooltip } from "@heroui/react";
+import { Link, Surface, Tooltip, toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ChevronDown, ChevronUp, Copy } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import {
   AttachmentBar,
   openAttachmentLightbox,
   type Attachment,
 } from "@/renderer/components/composer";
-import { readBridge } from "@/renderer/bridge";
 import { fileNameFromPath } from "@/shared/promptContent";
+import { isRemoteSession } from "@/renderer/bridge";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
+import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
+import { openUserMessageActions } from "../../userMessageActions";
+import { CheckpointRevertButton, type CheckpointRevertRequest } from "../CheckpointRevertControls";
 import { chatPromptSurfaceClass } from "./chatMessageSurface";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { ItemMarkdown } from "./ItemMarkdown";
@@ -23,7 +28,7 @@ import { extractSelectorPayloads } from "./SelectorBadge";
 
 interface UserMessageProps {
   item: RuntimeChatItem;
-  checkpointRevertControl: ReactNode | null;
+  checkpointRevert: CheckpointRevertRequest | null;
 }
 
 const COLLAPSED_LINE_COUNT = 4;
@@ -43,10 +48,7 @@ const lineClampClass =
 const collapsedFadeClass =
   "[mask-image:linear-gradient(to_bottom,black_65%,transparent)] [-webkit-mask-image:linear-gradient(to_bottom,black_65%,transparent)]";
 
-export const UserMessage = memo(function UserMessage({
-  item,
-  checkpointRevertControl,
-}: UserMessageProps) {
+export const UserMessage = memo(function UserMessage({ item, checkpointRevert }: UserMessageProps) {
   const { t } = useLingui();
   const actions = useChatPaneActions();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -107,6 +109,23 @@ export const UserMessage = memo(function UserMessage({
     return () => observer.disconnect();
   }, []);
 
+  // On touch (the PWA) there is no hover to reveal the copy/revert strip, and
+  // permanently visible icons crowd a one-line bubble — so the strip is
+  // dropped there and a long-press on the bubble opens the mobile action
+  // sheet instead (see src/mobile/UserMessageActionsSheet.tsx).
+  const isRemote = isRemoteSession();
+  const longPressHandlers = useLongPress(
+    isRemote
+      ? () =>
+          openUserMessageActions({
+            text: rawText,
+            requestRevert: checkpointRevert
+              ? () => checkpointRevert.onRequestRevert(checkpointRevert.itemId)
+              : null,
+          })
+      : null,
+  );
+
   if (content.length === 0 || (text.length === 0 && attachments.length === 0 && !slashCommand))
     return null;
   const isCollapsible = hasVisualOverflow;
@@ -123,7 +142,7 @@ export const UserMessage = memo(function UserMessage({
       : isCollapsible
         ? "max-h-[50vh] overflow-y-auto"
         : "";
-  const baseBodyClass = `min-w-0 leading-snug ${checkpointRevertControl ? "pr-12" : "pr-7"} ${collapseClass}`;
+  const baseBodyClass = `min-w-0 leading-snug ${!isRemote && checkpointRevert ? "pr-12" : "pr-7"} ${collapseClass}`;
   const inlineBodyClass = `${baseBodyClass} lightcode-user-message-inline-content whitespace-pre-wrap break-words text-[length:var(--lc-chat-font-size)] text-foreground`;
 
   let bodyContent: ReactNode = null;
@@ -147,7 +166,12 @@ export const UserMessage = memo(function UserMessage({
   }
 
   return (
-    <Surface variant="tertiary" className={chatPromptSurfaceClass}>
+    <Surface
+      variant="tertiary"
+      className={chatPromptSurfaceClass}
+      data-user-message="true"
+      {...longPressHandlers}
+    >
       <div className="min-w-0 space-y-1.5 leading-snug">
         {attachments.length > 0 ? (
           <div className="-mt-1">
@@ -187,10 +211,17 @@ export const UserMessage = memo(function UserMessage({
           </Tooltip>
         </>
       ) : null}
-      <div className="absolute right-2 top-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
-        {checkpointRevertControl}
-        <CopyUserMessageButton text={rawText} />
-      </div>
+      {!isRemote ? (
+        <div className="lightcode-message-action-strip absolute right-2 top-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+          {checkpointRevert ? (
+            <CheckpointRevertButton
+              itemId={checkpointRevert.itemId}
+              onRequestRevert={checkpointRevert.onRequestRevert}
+            />
+          ) : null}
+          <CopyUserMessageButton text={rawText} />
+        </div>
+      ) : null}
     </Surface>
   );
 });
@@ -239,7 +270,9 @@ function CopyUserMessageButton({ text }: { text: string }) {
                   }, 200);
                 }, 1200);
               })
-              .catch(() => {});
+              .catch((error: unknown) => {
+                toast.danger(friendlyError(error));
+              });
           }}
         >
           <Copy className="size-3" />
@@ -340,7 +373,7 @@ function renderUserMessageUrls(text: string, keyPrefix: string): ReactNode[] {
         className="text-[length:inherit] text-foreground no-underline hover:underline hover:decoration-1 underline-offset-2 [display:inline] [width:auto] [overflow-wrap:anywhere] [word-break:break-word]"
         onClick={(event) => {
           event.preventDefault();
-          void readBridge().openExternal(href);
+          openExternalWithFeedback(href);
         }}
       >
         {href}

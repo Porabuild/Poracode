@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Grok CLI lifecycle hook forwarder for Lightcode.
+ * Grok CLI lifecycle hook forwarder for Poracode.
  *
  * The Grok TUI auto-loads global hooks from `~/.grok/hooks/*.json` on every
  * session start (always trusted, no per-project prompt). The user-global

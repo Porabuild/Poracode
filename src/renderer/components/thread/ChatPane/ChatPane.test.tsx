@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { toast } from "@heroui/react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
@@ -55,6 +56,8 @@ vi.mock("@tanstack/react-virtual", () => ({
     },
   }),
 }));
+
+const toastDangerSpy = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
 
 const originalResizeObserver = globalThis.ResizeObserver;
 
@@ -115,6 +118,7 @@ afterAll(() => {
 describe("ChatPane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    toastDangerSpy.mockClear();
     vi.useRealTimers();
     MockResizeObserver.reset();
     localStorage.clear();
@@ -743,6 +747,27 @@ describe("ChatPane", () => {
     await screen.findByRole("button", { name: "Copied" });
   });
 
+  it("reports user message copy failures", async () => {
+    const thread = makeThread();
+    seedUserMessage(thread.id, "Copy this prompt");
+    const writeText = vi
+      .fn<(text: string) => Promise<void>>()
+      .mockRejectedValue(new Error("copy failed"));
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy message" }));
+
+    await waitFor(() => {
+      expect(toastDangerSpy).toHaveBeenCalledWith("copy failed");
+    });
+  });
+
   it("renders links in slash command user messages as links", async () => {
     const thread = makeThread();
     const url = "https://tanstack.com/blog/tanstack-virtual-chat";
@@ -752,6 +777,32 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     expect(screen.getByRole("link", { name: url })).toHaveAttribute("href", url);
+  });
+
+  it("reports failed user message link opens", async () => {
+    const thread = makeThread();
+    const url = "https://tanstack.com/blog/tanstack-virtual-chat";
+    seedUserMessage(thread.id, url);
+    const openExternal = vi
+      .fn<(href: string) => Promise<void>>()
+      .mockRejectedValue(new Error("open failed"));
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      value: {
+        openExternal,
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    fireEvent.click(screen.getByRole("link", { name: url }));
+
+    await waitFor(() => {
+      expect(toastDangerSpy).toHaveBeenCalledWith("open failed");
+    });
+    expect(openExternal).toHaveBeenCalledWith(url);
   });
 
   it("updates user message collapse state when resize changes visual overflow", async () => {
@@ -1035,6 +1086,7 @@ describe("ChatPane", () => {
     const buttons = screen.getAllByRole("button", { name: "Revert to this checkpoint" });
     expect(buttons).toHaveLength(1);
     expect(screen.getByText("Follow-up prompt").closest(".surface")).toContainElement(buttons[0]!);
+    expect(buttons[0]!.closest(".lightcode-message-action-strip")).not.toBeNull();
 
     fireEvent.click(buttons[0]!);
     expect(await screen.findByText("Revert to checkpoint?")).toBeInTheDocument();

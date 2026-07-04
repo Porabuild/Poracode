@@ -15,7 +15,7 @@ import {
   type Components as StreamdownComponents,
 } from "streamdown";
 import remarkGfm from "remark-gfm";
-import { readBridge } from "@/renderer/bridge";
+import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { CodeBlock } from "./CodeBlock";
@@ -39,8 +39,8 @@ type RehypePlugins = NonNullable<ComponentProps<typeof Streamdown>["rehypePlugin
 // Streamdown bundles `rehype-harden`, which rewrites links whose href fails its
 // allowlist into `<span>…[blocked]</span>`. During streaming, partial hrefs
 // (e.g. `https://sent`) routinely trip it, producing a "[blocked]" flash on
-// otherwise valid URLs. We control the click path via `readBridge().openExternal`
-// and gate file/folder hrefs through `MdAnchor`, so harden is redundant here.
+// otherwise valid URLs. We control external opens through `MdAnchor` and gate
+// file/folder hrefs there too, so harden is redundant here.
 const REHYPE_PLUGINS: RehypePlugins = Object.entries(defaultRehypePlugins)
   .filter(([key]) => key !== "harden")
   .map(([, plugin]) => plugin);
@@ -267,7 +267,7 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
         className="text-[length:inherit] text-foreground no-underline hover:underline hover:decoration-1 underline-offset-2 [display:inline] [width:auto] [overflow-wrap:anywhere] [word-break:break-word]"
         onClick={(event) => {
           event.preventDefault();
-          void readBridge().openExternal(href);
+          openExternalWithFeedback(href);
         }}
       >
         {props.children}

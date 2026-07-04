@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { toast } from "@heroui/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { ChatPaneActionsContext, type ChatPaneActions } from "../../chatPaneActionsContext";
@@ -21,9 +22,13 @@ vi.mock("./CodeBlock", () => ({
   },
 }));
 
+const toastDangerSpy = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
+
 describe("ItemMarkdownInner", () => {
   beforeEach(() => {
     codeBlockSpy.mockClear();
+    toastDangerSpy.mockClear();
+    Reflect.deleteProperty(window, "lightcode");
   });
 
   it("routes supported fenced code blocks through CodeBlock", () => {
@@ -234,6 +239,32 @@ describe("ItemMarkdownInner", () => {
     expect(container.querySelector('a[href="/"]')).toBeNull();
     expect(container).toHaveTextContent("Changed styles.css");
     expect(screen.queryByText(/\[blocked\]/)).not.toBeInTheDocument();
+  });
+
+  it("reports failed markdown link opens", async () => {
+    const openExternal = vi
+      .fn<(href: string) => Promise<void>>()
+      .mockRejectedValue(new Error("open failed"));
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      value: {
+        openExternal,
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
+
+    render(
+      <AppProvider>
+        <ItemMarkdownInner text={"Open [docs](https://example.test/docs)."} />
+      </AppProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: /docs/ }));
+
+    await waitFor(() => {
+      expect(toastDangerSpy).toHaveBeenCalledWith("open failed");
+    });
+    expect(openExternal).toHaveBeenCalledWith("https://example.test/docs");
   });
 });
 

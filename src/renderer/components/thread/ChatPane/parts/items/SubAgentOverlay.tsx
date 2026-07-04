@@ -296,7 +296,7 @@ function ChildList({
               key={id}
               threadId={threadId}
               entry={{ kind: "item", id }}
-              checkpointRevertControl={null}
+              checkpointRevert={null}
             />
           ))
         )}

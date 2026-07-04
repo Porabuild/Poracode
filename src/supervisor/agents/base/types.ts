@@ -37,10 +37,10 @@ export interface AgentEnvContext {
   envKind: "windows" | "wsl" | "posix";
   wslDistro?: string;
   /**
-   * Lightcode data base dir for native (non-WSL) plugin staging. Populated by
+   * Poracode data base dir for native (non-WSL) plugin staging. Populated by
    * the supervisor so dev runs (`~/.lightcode-dev`) stage plugins separately
-   * from prod (`~/.lightcode`). WSL plugin installs ignore this and stage
-   * into the distro's `$HOME/.lightcode/` via `resolveWslHomeDirectoryAsync`.
+   * from prod (`~/.poracode`). WSL plugin installs ignore this and stage
+   * into the distro's `$HOME/.poracode/` via `resolveWslHomeDirectoryAsync`.
    */
   baseDir?: string;
   browserMcpEnabled?: boolean;
@@ -93,6 +93,20 @@ export interface StructuredSessionHandle {
   ensureResumeArtifacts?(): Promise<void>;
   waitForRolloutFile?(timeoutMs?: number): Promise<void>;
   startTurn?(
+    prompt: string,
+    config: ThreadConfig,
+    segments?: PromptSegment[],
+    options?: StartTurnOptions,
+  ): Promise<void>;
+  /**
+   * Steer the in-flight turn: enqueue a new user message onto the running
+   * turn WITHOUT interrupting it (no subagents killed, no error result). The
+   * message either steers the current turn or is answered in the next one.
+   * Providers that expose this let the runtime skip the interrupt-drain steer
+   * path. When no turn is in flight, implementations fall back to `startTurn`
+   * semantics so turn accounting stays correct.
+   */
+  steerTurn?(
     prompt: string,
     config: ThreadConfig,
     segments?: PromptSegment[],

@@ -18,8 +18,10 @@ import {
   PanelLeft,
   PanelLeftClose,
   Palette,
+  QrCode,
   RefreshCw,
   Search,
+  Server,
   Settings2,
   Sparkles,
   TerminalSquare,
@@ -40,9 +42,24 @@ import {
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { PixelLoader, SidebarButton } from "@/renderer/components/common";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
-import { isDevApp } from "@/renderer/bridge";
+import { isDevApp, isRemoteSession } from "@/renderer/bridge";
 import { searchSettings } from "./settingsSearchIndex";
 import type { SettingsSection } from "./types";
+
+// Sections that only make sense on the desktop app; the remote (PWA) client
+// hides them and instead surfaces "Models" in place of the Agents tree. Single
+// source of truth for both the collapsed icon rail and the expanded list.
+const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
+  "search",
+  "threads",
+  "shortcuts",
+  "remoteAccess",
+  "remoteServers",
+  "agents",
+  "browser",
+  "archived",
+  "about",
+]);
 
 function claudeProfileSidebarLabel(agent: AgentStatus): string {
   return agent.label.replace(/^Claude\s+/iu, "").trim() || agent.label;
@@ -135,6 +152,13 @@ export function SettingsSidebar(props: {
     activeSection === "agentsGeneral" ||
     activeSection.startsWith("agents:");
   const devMode = isDevApp();
+  // Remote (PWA) sessions hide the sections that cannot work remotely
+  // (search indexing, the remote-access server, agent installs/auth,
+  // archived-thread management via the local store, app updates). AI helper
+  // settings sync to the desktop and notifications fire on the device, so
+  // both stay. Model visibility/order still matters remotely, so Agents
+  // collapses to a single "Models" entry that opens the general agents page.
+  const remoteSession = isRemoteSession();
 
   const openAgents = () => {
     if (isAgentsActive) {
@@ -161,6 +185,9 @@ export function SettingsSidebar(props: {
     return needle === "" || label.toLowerCase().includes(needle);
   };
 
+  const isSectionVisible = (id: SettingsSection) =>
+    !remoteSession || !DESKTOP_ONLY_SECTIONS.has(id);
+
   const sectionsBeforeAgents: { id: SettingsSection; icon: ReactNode; label: string }[] = [
     { id: "profile", icon: <UserRound className="size-4" />, label: t`Profile` },
     { id: "general", icon: <Settings2 className="size-4" />, label: t`General` },
@@ -178,6 +205,8 @@ export function SettingsSidebar(props: {
     },
     { id: "search", icon: <Search className="size-4" />, label: t`Search` },
     { id: "shortcuts", icon: <Keyboard className="size-4" />, label: t`Shortcuts` },
+    { id: "remoteAccess", icon: <QrCode className="size-4" />, label: t`Remote Access` },
+    { id: "remoteServers", icon: <Server className="size-4" />, label: t`Remote Servers` },
   ];
   const sectionsAfterAgents: { id: SettingsSection; icon: ReactNode; label: string }[] = [
     { id: "browser", icon: <Globe className="size-4" />, label: t`Browser` },
@@ -207,7 +236,7 @@ export function SettingsSidebar(props: {
         ]
       : []),
   ];
-  const settingMatches = query === "" ? [] : searchSettings(query, t, { devMode });
+  const settingMatches = query === "" ? [] : searchSettings(query, t, { devMode, remoteSession });
   const matchesBySection = new Map<string, typeof settingMatches>();
   for (const match of settingMatches) {
     const list = matchesBySection.get(match.section) ?? [];
@@ -216,6 +245,7 @@ export function SettingsSidebar(props: {
   }
   const searchRows: SearchRow[] = [];
   for (const meta of sectionMetaList) {
+    if (!isSectionVisible(meta.id)) continue;
     if (matchesFilter(meta.label)) {
       searchRows.push({
         kind: "section",
@@ -316,28 +346,51 @@ export function SettingsSidebar(props: {
               isActive={activeSection === "ai"}
               onPress={() => onSectionChange("ai")}
             />
-            <SidebarButton
-              iconOnly
-              icon={<Search className="size-4" />}
-              label={t`Search`}
-              isActive={activeSection === "search"}
-              onPress={() => onSectionChange("search")}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<Keyboard className="size-4" />}
-              label={t`Shortcuts`}
-              isActive={activeSection === "shortcuts"}
-              onPress={() => onSectionChange("shortcuts")}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<Bot className="size-4" />}
-              label={t`Agents`}
-              isActive={isAgentsActive}
-              onPress={openAgents}
-            />
-            {isAgentsActive && (
+            {!remoteSession && (
+              <SidebarButton
+                iconOnly
+                icon={<Search className="size-4" />}
+                label={t`Search`}
+                isActive={activeSection === "search"}
+                onPress={() => onSectionChange("search")}
+              />
+            )}
+            {!remoteSession && (
+              <SidebarButton
+                iconOnly
+                icon={<Keyboard className="size-4" />}
+                label={t`Shortcuts`}
+                isActive={activeSection === "shortcuts"}
+                onPress={() => onSectionChange("shortcuts")}
+              />
+            )}
+            {!remoteSession && (
+              <SidebarButton
+                iconOnly
+                icon={<QrCode className="size-4" />}
+                label={t`Remote Access`}
+                isActive={activeSection === "remoteAccess"}
+                onPress={() => onSectionChange("remoteAccess")}
+              />
+            )}
+            {remoteSession ? (
+              <SidebarButton
+                iconOnly
+                icon={<Bot className="size-4" />}
+                label={t`Models`}
+                isActive={activeSection === "agentsGeneral"}
+                onPress={() => onSectionChange("agentsGeneral")}
+              />
+            ) : (
+              <SidebarButton
+                iconOnly
+                icon={<Bot className="size-4" />}
+                label={t`Agents`}
+                isActive={isAgentsActive}
+                onPress={openAgents}
+              />
+            )}
+            {!remoteSession && isAgentsActive && (
               <SidebarButton
                 iconOnly
                 icon={
@@ -348,7 +401,7 @@ export function SettingsSidebar(props: {
                 onPress={onRefreshAgents}
               />
             )}
-            {isAgentsActive && (
+            {!remoteSession && isAgentsActive && (
               <SidebarButton
                 iconOnly
                 icon={<Settings2 className="size-4" />}
@@ -357,7 +410,7 @@ export function SettingsSidebar(props: {
                 onPress={() => onSectionChange("agentsGeneral")}
               />
             )}
-            {isAgentsActive && (
+            {!remoteSession && isAgentsActive && (
               <SidebarButton
                 iconOnly
                 icon={<Boxes className="size-4" />}
@@ -366,7 +419,8 @@ export function SettingsSidebar(props: {
                 onPress={() => onSectionChange("acpRegistry")}
               />
             )}
-            {isAgentsActive &&
+            {!remoteSession &&
+              isAgentsActive &&
               primaryAgents.map((agent) => {
                 const needsAttention = attentionAgentKinds.has(agent.kind);
                 return (
@@ -430,13 +484,15 @@ export function SettingsSidebar(props: {
               isActive={activeSection === "usage"}
               onPress={() => onSectionChange("usage")}
             />
-            <SidebarButton
-              iconOnly
-              icon={<Archive className="size-4" />}
-              label={t`Archived Threads`}
-              isActive={activeSection === "archived"}
-              onPress={() => onSectionChange("archived")}
-            />
+            {!remoteSession && (
+              <SidebarButton
+                iconOnly
+                icon={<Archive className="size-4" />}
+                label={t`Archived Threads`}
+                isActive={activeSection === "archived"}
+                onPress={() => onSectionChange("archived")}
+              />
+            )}
             <SidebarButton
               iconOnly
               icon={<Megaphone className="size-4" />}
@@ -444,13 +500,15 @@ export function SettingsSidebar(props: {
               isActive={activeSection === "changelog"}
               onPress={() => onSectionChange("changelog")}
             />
-            <SidebarButton
-              iconOnly
-              icon={<Info className="size-4" />}
-              label={t`About`}
-              isActive={activeSection === "about"}
-              onPress={() => onSectionChange("about")}
-            />
+            {!remoteSession && (
+              <SidebarButton
+                iconOnly
+                icon={<Info className="size-4" />}
+                label={t`About`}
+                isActive={activeSection === "about"}
+                onPress={() => onSectionChange("about")}
+              />
+            )}
             {devMode && (
               <SidebarButton
                 iconOnly
@@ -534,7 +592,7 @@ export function SettingsSidebar(props: {
           ) : (
             <div className="space-y-0.5">
               {sectionsBeforeAgents
-                .filter((section) => matchesFilter(section.label))
+                .filter((section) => isSectionVisible(section.id) && matchesFilter(section.label))
                 .map((section) => (
                   <SidebarButton
                     key={section.id}
@@ -544,7 +602,15 @@ export function SettingsSidebar(props: {
                     onPress={() => onSectionChange(section.id)}
                   />
                 ))}
-              {matchesFilter(t`Agents`) && (
+              {remoteSession && matchesFilter(t`Models`) && (
+                <SidebarButton
+                  icon={<Bot className="size-4" />}
+                  label={t`Models`}
+                  isActive={activeSection === "agentsGeneral"}
+                  onPress={() => onSectionChange("agentsGeneral")}
+                />
+              )}
+              {!remoteSession && matchesFilter(t`Agents`) && (
                 <>
                   <SidebarButton
                     icon={<Bot className="size-4" />}
@@ -645,7 +711,7 @@ export function SettingsSidebar(props: {
                 </>
               )}
               {sectionsAfterAgents
-                .filter((section) => matchesFilter(section.label))
+                .filter((section) => isSectionVisible(section.id) && matchesFilter(section.label))
                 .map((section) => (
                   <SidebarButton
                     key={section.id}

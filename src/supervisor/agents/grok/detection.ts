@@ -18,7 +18,7 @@ import {
 import { buildContextSizeCapabilities } from "../contextWindowLabel";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
 
-// Approval policies surfaced to Lightcode. Grok only honors `--always-approve`
+// Approval policies surfaced to Poracode. Grok only honors `--always-approve`
 // (bypass) at launch — `--permission-mode <MODE>` is headless-only and is
 // silently ignored by both the TUI and `grok agent stdio`. We therefore
 // expose a single Default ↔ Bypass Approvals toggle in the composer.

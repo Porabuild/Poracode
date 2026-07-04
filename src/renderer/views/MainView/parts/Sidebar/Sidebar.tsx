@@ -8,8 +8,9 @@ import {
   RefreshCw,
   Search,
   Settings2,
+  Smartphone,
 } from "lucide-react";
-import { startTransition, useEffect } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
@@ -28,8 +29,10 @@ import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/parts/useResizablePanels";
 import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarPanelDragButton";
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
+import { SidebarRemoteServers } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { readBridge } from "@/renderer/bridge";
-import { openSettings } from "@/renderer/actions/panelActions";
+import { openRemoteAccessSettings, openSettings } from "@/renderer/actions/panelActions";
 import { ProviderUsageRail } from "@/renderer/components/providers/ProviderUsageRail";
 import { openTerminal } from "@/renderer/actions/terminalActions";
 import { openThread } from "@/renderer/actions/threadActions";
@@ -145,6 +148,19 @@ function ThreadIcon(props: { thread: Thread }) {
   return <ThreadProviderIcon thread={props.thread} className="size-3.5" />;
 }
 
+type RemoteAccessSidebarStatus = "off" | "starting" | "online";
+
+function RemoteAccessSidebarIcon(props: { status: RemoteAccessSidebarStatus }) {
+  return (
+    <span className="relative flex size-4 items-center justify-center">
+      <Smartphone className="size-4" />
+      {props.status === "online" ? (
+        <span className="absolute -right-px -top-px size-1.5 rounded-full bg-emerald-400 ring-[1.5px] ring-[var(--sidebar-background)]" />
+      ) : null}
+    </span>
+  );
+}
+
 function CollapsedThreadRail() {
   const currentThreadIds = useCurrentThreadIds();
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
@@ -198,9 +214,16 @@ export function Sidebar() {
   );
   const homeProject = useAppStore((state) => state.projects.find(isHomeProject));
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
+  const remoteAccessEnabled = useSharedSettings((s) => s.remoteAccessEnabled);
   const currentProjectId = useCurrentProjectId();
   const currentWorktreePath = useCurrentWorktreePath();
   const sortMode = usePanelStore((s) => s.threadSortMode);
+  const settingsOpen = usePanelStore((s) => s.settingsOpen);
+  const settingsSection = usePanelStore((s) => s.settingsSection);
+  // Remote Access has its own sidebar entry, so the generic Settings button
+  // lights up for every other section.
+  const remoteAccessSettingsActive = settingsOpen && settingsSection === "remoteAccess";
+  const otherSettingsActive = settingsOpen && !remoteAccessSettingsActive;
   const threadSearchOpen = usePanelStore((s) => s.threadSearchOpen);
   const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
@@ -213,9 +236,27 @@ export function Sidebar() {
   const openHome = useAppStore((s) => s.openHome);
   const appView = useAppStore((s) => s.view);
   const appNameForHome = getAppName(readBridge().channel, import.meta.env.DEV);
+  const [remoteAccessStatus, setRemoteAccessStatus] = useState<RemoteAccessSidebarStatus>("off");
   const { setScrollContainer, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
     maxFadePx: 10,
   });
+  const remoteAccessStatusLabel =
+    remoteAccessStatus === "online"
+      ? t`Online`
+      : remoteAccessStatus === "starting"
+        ? t`Starting`
+        : t`Off`;
+  const remoteAccessTooltip = (
+    <span className="flex items-center gap-2">
+      <span>{t`Remote Access`}</span>
+      <span className="inline-flex items-center gap-1.5 text-muted">
+        {remoteAccessStatus === "online" ? (
+          <span className="size-1.5 rounded-full bg-emerald-400" />
+        ) : null}
+        {remoteAccessStatusLabel}
+      </span>
+    </span>
+  );
 
   useEffect(() => {
     if (currentProjectId) {
@@ -223,11 +264,50 @@ export function Sidebar() {
     }
   }, [currentProjectId, setProjectCollapsed]);
 
+  // Reconnect any persisted remote servers once on mount so their projects show
+  // in the sidebar without opening Settings → Remote Servers.
+  useEffect(() => {
+    void useRemoteServersStore.getState().connectAll();
+  }, []);
+
   useEffect(() => {
     if (currentWorktreePath) {
       setWorktreeCollapsed(currentWorktreePath, false);
     }
   }, [currentWorktreePath, setWorktreeCollapsed]);
+
+  useEffect(() => {
+    if (!remoteAccessEnabled) {
+      setRemoteAccessStatus("off");
+      return;
+    }
+
+    let cancelled = false;
+    const readRemoteStatus = async () => {
+      try {
+        const info = await readBridge().getRemoteAccessPairing();
+        if (cancelled) return;
+        setRemoteAccessStatus(
+          info.status === "ready" ? "online" : info.status === "starting" ? "starting" : "off",
+        );
+      } catch {
+        if (!cancelled) {
+          setRemoteAccessStatus("off");
+        }
+      }
+    };
+
+    setRemoteAccessStatus((current) => (current === "online" ? current : "starting"));
+    void readRemoteStatus();
+    const interval = window.setInterval(() => {
+      void readRemoteStatus();
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [remoteAccessEnabled]);
 
   return (
     <div className="relative h-full">
@@ -259,7 +339,16 @@ export function Sidebar() {
               iconOnly
               icon={<Settings2 className="size-4" />}
               label={t`Settings`}
+              isActive={otherSettingsActive}
               onPress={openSettings}
+            />
+            <SidebarButton
+              iconOnly
+              icon={<RemoteAccessSidebarIcon status={remoteAccessStatus} />}
+              label={t`Remote Access`}
+              tooltip={remoteAccessTooltip}
+              isActive={remoteAccessSettingsActive}
+              onPress={openRemoteAccessSettings}
             />
             <SidebarButton
               iconOnly
@@ -324,6 +413,7 @@ export function Sidebar() {
                   sortMode={sortMode}
                 />
               ))}
+              <SidebarRemoteServers />
             </div>
           )}
         </div>
@@ -332,11 +422,24 @@ export function Sidebar() {
         <div className={sidebarFooterNavClass}>
           <UpdateButtons />
           <WhatsNewButton />
-          <SidebarButton
-            icon={<Settings2 className="size-4" />}
-            label={t`Settings`}
-            onPress={openSettings}
-          />
+          <div className="flex items-center gap-1">
+            <div className="min-w-0 flex-1">
+              <SidebarButton
+                icon={<Settings2 className="size-4" />}
+                label={t`Settings`}
+                isActive={otherSettingsActive}
+                onPress={openSettings}
+              />
+            </div>
+            <SidebarButton
+              iconOnly
+              icon={<RemoteAccessSidebarIcon status={remoteAccessStatus} />}
+              label={t`Remote Access`}
+              tooltip={remoteAccessTooltip}
+              isActive={remoteAccessSettingsActive}
+              onPress={openRemoteAccessSettings}
+            />
+          </div>
           <SidebarButton
             icon={<PanelLeftClose className="size-4" />}
             label={t`Hide sidebar`}

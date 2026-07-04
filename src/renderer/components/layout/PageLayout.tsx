@@ -20,36 +20,41 @@ const alwaysExpandedSidebar = {
 
 function SidebarHeaderWordmark(props: {
   title: string;
+  titleNode?: ReactNode | undefined;
   onTitleClick?: () => void;
   hideWordmark: boolean;
 }) {
-  const { title, onTitleClick, hideWordmark } = props;
+  const { title, titleNode, onTitleClick, hideWordmark } = props;
 
   if (hideWordmark) {
     return <p className="sr-only">{title}</p>;
   }
 
+  // The main window passes the Pora·code brand wordmark; overlays (Settings,
+  // Git Review, …) fall back to their uppercase section title.
+  const content = titleNode ?? (
+    <span className="text-xs font-semibold uppercase tracking-[0.12em]">{title}</span>
+  );
+
   if (onTitleClick) {
     return (
       <button
         type="button"
-        className="lightcode-overlay-header__controls shrink-0 text-xs font-semibold leading-none uppercase tracking-[0.12em] text-muted transition-colors hover:text-foreground"
+        aria-label={title}
+        className="lightcode-overlay-header__controls shrink-0 leading-none text-muted transition-colors hover:text-foreground"
         onClick={onTitleClick}
       >
-        {title}
+        {content}
       </button>
     );
   }
 
-  return (
-    <p className="shrink-0 text-xs font-semibold leading-none uppercase tracking-[0.12em] text-muted">
-      {title}
-    </p>
-  );
+  return <p className="shrink-0 leading-none text-muted">{content}</p>;
 }
 
 function SidebarHeaderRow(props: {
   title: string;
+  titleNode?: ReactNode | undefined;
   onTitleClick?: () => void;
   children?: ReactNode;
 }) {
@@ -94,7 +99,13 @@ function SidebarHeaderRow(props: {
         aria-hidden="true"
       >
         {isMac() && <div className={macosTrafficLightGutterClass} />}
-        {showHeaderActions && <SidebarHeaderWordmark title={props.title} hideWordmark={false} />}
+        {showHeaderActions && (
+          <SidebarHeaderWordmark
+            title={props.title}
+            titleNode={props.titleNode}
+            hideWordmark={false}
+          />
+        )}
         {showHeaderActions ? props.children : null}
       </div>
 
@@ -123,6 +134,7 @@ function SidebarHeaderRow(props: {
           ) : (
             <SidebarHeaderWordmark
               title={props.title}
+              titleNode={props.titleNode}
               {...(props.onTitleClick != null ? { onTitleClick: props.onTitleClick } : {})}
               hideWordmark={hideWordmark}
             />
@@ -141,6 +153,7 @@ function SidebarHeaderRow(props: {
  */
 export function PageLayout(props: {
   title: string;
+  titleNode?: ReactNode | undefined;
   onTitleClick?: () => void;
   sidebarHeaderChildren?: ReactNode;
   contentHeaderChildren?: ReactNode;
@@ -154,6 +167,7 @@ export function PageLayout(props: {
 }) {
   const {
     title,
+    titleNode,
     onTitleClick,
     sidebarHeaderChildren,
     contentHeaderChildren,
@@ -167,7 +181,11 @@ export function PageLayout(props: {
   } = props;
 
   const sidebarHeader = (
-    <SidebarHeaderRow title={title} {...(onTitleClick != null ? { onTitleClick } : {})}>
+    <SidebarHeaderRow
+      title={title}
+      titleNode={titleNode}
+      {...(onTitleClick != null ? { onTitleClick } : {})}
+    >
       {sidebarHeaderChildren}
     </SidebarHeaderRow>
   );

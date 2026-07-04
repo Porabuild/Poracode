@@ -125,20 +125,20 @@ function baseCommands(): AppCommand[] {
     {
       id: "palette.open",
       title: msg`Open Command Palette`,
-      group: "Lightcode",
+      group: "Poracode",
       run: () => useCommandPaletteStore.getState().open(),
     },
     {
       id: "settings.open",
       title: msg`Open Settings`,
-      group: "Lightcode",
+      group: "Poracode",
       run: openSettings,
     },
     {
       id: "changelog.open",
       title: msg`What's New`,
       subtitle: msg`View the changelog`,
-      group: "Lightcode",
+      group: "Poracode",
       keywords: ["changelog", "release notes", "what's new", "updates"],
       run: openChangelogSettings,
     },
@@ -146,7 +146,7 @@ function baseCommands(): AppCommand[] {
       id: "find.open",
       title: msg`Find`,
       subtitle: msg`Search the current view`,
-      group: "Lightcode",
+      group: "Poracode",
       keywords: ["find", "search", "filter"],
       run: openFindForActiveSurface,
     },
@@ -154,7 +154,7 @@ function baseCommands(): AppCommand[] {
       id: "sidebar.toggle",
       title: msg`Toggle sidebar`,
       subtitle: msg`Show or hide the sidebar`,
-      group: "Lightcode",
+      group: "Poracode",
       run: toggleSidebar,
     },
     {
@@ -382,7 +382,7 @@ function baseCommands(): AppCommand[] {
       id: "tab.next",
       title: msg`Next tab`,
       subtitle: msg`Switch to the next tab`,
-      group: "Lightcode",
+      group: "Poracode",
       // Context-aware tab switching: cycles whichever surface holds focus — the
       // editor tab strip or the terminal tab strip. thread.next/previous own the
       // same chords elsewhere but stand down inside the editor/terminal (see
@@ -394,7 +394,7 @@ function baseCommands(): AppCommand[] {
       id: "tab.previous",
       title: msg`Previous tab`,
       subtitle: msg`Switch to the previous tab`,
-      group: "Lightcode",
+      group: "Poracode",
       when: "editorFocus || terminalFocus",
       run: () => switchFocusedSurfaceTab("previous"),
     },

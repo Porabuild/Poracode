@@ -43,7 +43,7 @@ export interface ThemeSpec {
  * to recede behind code and fail as readable UI text (e.g. One's `#5c6370` is
  * ~2.3:1 on its background). The blend is pushed only as far as needed to clear
  * a WCAG contrast floor, so muted stays recessive while matching the base
- * Lightcode theme's readability (~4.5–6:1) for every palette, and still
+ * Poracode theme's readability (~4.5–6:1) for every palette, and still
  * inherits each theme's tint because `fg` / `bg` are themed.
  *
  * The strict floor applies to the content background (where settings

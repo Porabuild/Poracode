@@ -2,7 +2,7 @@ import { startTransition, useEffect, useState, type FormEvent } from "react";
 import { Eye, EyeOff, LogOut, RefreshCw } from "lucide-react";
 import { NumberField, Switch } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { Button } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import {
@@ -199,6 +199,11 @@ function UsageProviderRow(props: { id: string; label: string }) {
     snapshot.windows.length === 0 &&
     !!snapshot.credits &&
     !snapshot.credits.unlimited;
+  const tokens =
+    snapshot?.cost && snapshot.tokens?.total
+      ? ` · ${t`${formatTokens(snapshot.tokens.total)} tokens`}`
+      : "";
+  const money = snapshot?.cost ? formatMoney(snapshot.cost.amount, snapshot.cost.currency) : "";
 
   return (
     <div className="border-t border-[color:var(--separator)] py-3 first:border-t-0">
@@ -226,9 +231,7 @@ function UsageProviderRow(props: { id: string; label: string }) {
             )}
             {snapshot?.cost ? (
               <p className="mt-1.5 text-xs text-muted">
-                ~{formatMoney(snapshot.cost.amount, snapshot.cost.currency)}
-                {snapshot.tokens?.total ? ` · ${formatTokens(snapshot.tokens.total)} tokens` : ""}
-                {` · ${snapshot.cost.period} · est.`}
+                {t`~${money}${tokens} · ${snapshot.cost.period} · est.`}
               </p>
             ) : null}
             {snapshot?.credits && !snapshot.credits.unlimited ? (
@@ -315,44 +318,48 @@ export function UsageSettings() {
         </Button>
       }
     >
-      <SettingRow
-        anchorId="usage.autoRefreshMinutes"
-        title={t`Default auto-refresh (minutes)`}
-        description={
-          <Trans>
-            The default background refresh cadence, used for any provider without its own interval
-            set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate
-            limits.
-          </Trans>
-        }
-      >
-        <NumberField
-          aria-label={t`Auto-refresh interval in minutes, 0 to turn off`}
-          className="w-[140px] shrink-0"
-          minValue={0}
-          maxValue={120}
-          step={1}
-          value={autoRefresh ? refreshIntervalMinutes : 0}
-          onChange={(value) => {
-            if (value === undefined || Number.isNaN(value)) return;
-            const minutes = Math.floor(value);
-            startTransition(() => {
-              if (minutes <= 0) {
-                setUsageSetting("autoRefresh", false);
-                return;
-              }
-              setUsageSetting("autoRefresh", true);
-              setUsageSetting("refreshIntervalMinutes", Math.min(120, Math.max(2, minutes)));
-            });
-          }}
+      {/* The background refresher runs on the desktop; a remote session's
+          interval is never read, so hide the row there. */}
+      {!isRemoteSession() && (
+        <SettingRow
+          anchorId="usage.autoRefreshMinutes"
+          title={t`Default auto-refresh (minutes)`}
+          description={
+            <Trans>
+              The default background refresh cadence, used for any provider without its own interval
+              set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider
+              rate limits.
+            </Trans>
+          }
         >
-          <NumberField.Group>
-            <NumberField.DecrementButton />
-            <NumberField.Input />
-            <NumberField.IncrementButton />
-          </NumberField.Group>
-        </NumberField>
-      </SettingRow>
+          <NumberField
+            aria-label={t`Auto-refresh interval in minutes, 0 to turn off`}
+            className="w-[140px] shrink-0"
+            minValue={0}
+            maxValue={120}
+            step={1}
+            value={autoRefresh ? refreshIntervalMinutes : 0}
+            onChange={(value) => {
+              if (value === undefined || Number.isNaN(value)) return;
+              const minutes = Math.floor(value);
+              startTransition(() => {
+                if (minutes <= 0) {
+                  setUsageSetting("autoRefresh", false);
+                  return;
+                }
+                setUsageSetting("autoRefresh", true);
+                setUsageSetting("refreshIntervalMinutes", Math.min(120, Math.max(2, minutes)));
+              });
+            }}
+          >
+            <NumberField.Group>
+              <NumberField.DecrementButton />
+              <NumberField.Input />
+              <NumberField.IncrementButton />
+            </NumberField.Group>
+          </NumberField>
+        </SettingRow>
+      )}
 
       <SettingRow
         anchorId="usage.showInSidebar"

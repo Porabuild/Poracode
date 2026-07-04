@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Gemini CLI lifecycle hook forwarder for Lightcode.
+ * Gemini CLI lifecycle hook forwarder for Poracode.
  *
  * Gemini hooks communicate via JSON stdin/stdout. This script writes only a
  * final JSON object to stdout, and sends diagnostics to stderr when

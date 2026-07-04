@@ -1,14 +1,14 @@
-const GITHUB_REPO = "SDSLeon/lightcode";
+const GITHUB_REPO = "poracode/poracode";
 const RELEASES_LATEST_URL = `https://github.com/${GITHUB_REPO}/releases/latest`;
 const RELEASES_INDEX_URL = `https://github.com/${GITHUB_REPO}/releases`;
 const NIGHTLY_TAG_PATTERN = /-nightly\./;
 
 export const PLATFORM_PATTERNS: Record<string, RegExp> = {
-  "mac-arm64": /Lightcode-.*-arm64\.dmg$/,
-  "mac-x64": /Lightcode-.*-x64\.dmg$/,
-  "win-x64": /Lightcode-.*Setup-.*-x64\.exe$/,
-  "win-arm64": /Lightcode-.*Setup-.*-arm64\.exe$/,
-  "linux-x64": /Lightcode-.*-x86_64\.AppImage$/,
+  "mac-arm64": /Poracode-.*-arm64\.dmg$/,
+  "mac-x64": /Poracode-.*-x64\.dmg$/,
+  "win-x64": /Poracode-.*Setup-.*-x64\.exe$/,
+  "win-arm64": /Poracode-.*Setup-.*-arm64\.exe$/,
+  "linux-x64": /Poracode-.*-x86_64\.AppImage$/,
 };
 
 export type PlatformSlug = keyof typeof PLATFORM_PATTERNS;
@@ -50,7 +50,7 @@ function buildReleaseInfo(release: GitHubReleaseResponse): ReleaseInfo {
 function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github.v3+json",
-    "User-Agent": "Lightcode-Website",
+    "User-Agent": "Poracode-Website",
   };
   // Optional: required when the repo is private.
   const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;

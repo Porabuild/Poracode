@@ -28,9 +28,9 @@ export interface CliHookPluginCoordinatorOptions {
   adapters: Map<AgentKind, AgentAdapter>;
   settingsPath: string;
   /**
-   * Lightcode data base dir for native plugin staging. Forwarded to each
+   * Poracode data base dir for native plugin staging. Forwarded to each
    * adapter's `ctx.baseDir` so dev (`~/.lightcode-dev`) and prod
-   * (`~/.lightcode`) keep separate plugin stages instead of stomping the
+   * (`~/.poracode`) keep separate plugin stages instead of stomping the
    * same `agent-plugins/` directory. Omit only in tests — production callers
    * always pass the resolved lightcode data dir.
    */
@@ -382,7 +382,7 @@ export class CliHookPluginCoordinator {
       const installed = await slice.isPluginInstalled(ctx);
       // Cache hit. For both positive and negative entries, re-check the staged
       // files before trusting the cache: the user may have repaired or removed
-      // ~/.lightcode/agent-plugins/ and the provider's generated hook config
+      // ~/.poracode/agent-plugins/ and the provider's generated hook config
       // out of band.
       if (installed.installed) {
         if (installed.version !== undefined && installed.version !== slice.pluginVersion) {

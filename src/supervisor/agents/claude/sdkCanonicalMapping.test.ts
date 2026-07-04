@@ -1562,7 +1562,7 @@ describe("sdkCanonicalMapping — tool use", () => {
 });
 
 describe("sdkCanonicalMapping — sub-agents", () => {
-  it("tags item.started events with parentItemId when parent_tool_use_id is set", () => {
+  it("drops sub-agent stream_event partials (parent_tool_use_id set)", () => {
     const state = createClaudeMapperState("thread-1");
     const events = mapClaudeSdkMessage(
       streamEventWithParent(
@@ -1571,15 +1571,122 @@ describe("sdkCanonicalMapping — sub-agents", () => {
       ),
       state,
     );
-    expect(events).toEqual([
+    expect(events).toEqual([]);
+  });
+
+  it("sub-agent partials do not corrupt the main-thread stream lane", () => {
+    const state = createClaudeMapperState("thread-1");
+    // Main thread opens a streaming text block at index 0.
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: { type: "text", text: "" },
+      }),
+      state,
+    );
+    const mainItem = state.assistantTextItems.get(0);
+    expect(mainItem).toBeDefined();
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_delta",
+        index: 0,
+        delta: { type: "text_delta", text: "main-thread answer" },
+      }),
+      state,
+    );
+
+    // A sub-agent message_start at the same index must NOT clear the main lane,
+    // and a sub-agent delta must NOT append to the main item.
+    const subAgentEvents = [
+      mapClaudeSdkMessage(
+        streamEventWithParent(
+          { type: "message_start", message: { id: "sub-msg" } },
+          "toolu_parent",
+        ),
+        state,
+      ),
+      mapClaudeSdkMessage(
+        streamEventWithParent(
+          {
+            type: "content_block_delta",
+            index: 0,
+            delta: { type: "text_delta", text: "SUBAGENT" },
+          },
+          "toolu_parent",
+        ),
+        state,
+      ),
+    ].flat();
+    expect(subAgentEvents).toEqual([]);
+    // Main lane still points at the same live item.
+    expect(state.assistantTextItems.get(0)).toBe(mainItem);
+
+    // Main thread continues streaming onto its own item, uncorrupted.
+    const more = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_delta",
+        index: 0,
+        delta: { type: "text_delta", text: "!" },
+      }),
+      state,
+    );
+    expect(more).toEqual([
       {
-        type: "item.started",
+        type: "content.delta",
         threadId: "thread-1",
-        itemId: expect.stringMatching(/^asst-/),
-        itemType: "assistant_message",
-        parentItemId: "toolu_parent",
+        itemId: mainItem!.itemId,
+        stream: "assistant_text",
+        delta: "!",
       },
     ]);
+  });
+
+  it("renders a forwarded sub-agent assistant text message as a complete child item", () => {
+    const state = createClaudeMapperState("thread-1");
+    // Register the parent tool so tagParent can bump its step counter.
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_parent",
+          name: "Agent",
+          input: { description: "Investigate", subagent_type: "general-purpose" },
+        },
+      }),
+      state,
+    );
+
+    const events = mapClaudeSdkMessage(
+      {
+        type: "assistant",
+        session_id: "claude-session",
+        uuid: "msg-sub-text",
+        parent_tool_use_id: "toolu_parent",
+        message: {
+          id: "msg-sub-text",
+          role: "assistant",
+          content: [{ type: "text", text: "sub-agent thinking out loud" }],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    expect(events).toMatchObject([
+      {
+        type: "item.started",
+        itemType: "assistant_message",
+        parentItemId: "toolu_parent",
+        itemId: expect.stringMatching(/^asst-/),
+      },
+      { type: "content.delta", stream: "assistant_text", delta: "sub-agent thinking out loud" },
+      { type: "item.completed" },
+      { type: "item.updated", itemId: "toolu_parent", payload: { progress: { stepCount: 1 } } },
+    ]);
+    // The main lane's per-index text map is untouched by the sub-agent flush.
+    expect(state.assistantTextItems.size).toBe(0);
   });
 
   it("does not set parentItemId on top-level messages (parent_tool_use_id null)", () => {
@@ -1877,6 +1984,398 @@ describe("sdkCanonicalMapping — task progress", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("sdkCanonicalMapping — background sub-agents", () => {
+  function startAgentTool(
+    state: ReturnType<typeof createClaudeMapperState>,
+    toolUseId: string,
+    name = "Agent",
+  ): void {
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: toolUseId,
+          name,
+          input: { description: "Investigate", subagent_type: "general-purpose" },
+        },
+      }),
+      state,
+    );
+  }
+
+  function taskStarted(toolUseId: string, subagentType: string | undefined): SDKMessage {
+    return {
+      type: "system",
+      subtype: "task_started",
+      session_id: "claude-session",
+      task_id: "task-A",
+      tool_use_id: toolUseId,
+      description: "Investigate",
+      ...(subagentType ? { subagent_type: subagentType } : {}),
+    } as unknown as SDKMessage;
+  }
+
+  function launchToolResult(toolUseId: string): SDKMessage {
+    return {
+      type: "user",
+      session_id: "claude-session",
+      message: {
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: toolUseId,
+            content: "Async agent launched successfully. It is running in the background.",
+          },
+        ],
+      },
+    } as unknown as SDKMessage;
+  }
+
+  it("keeps the Agent parent running after its launch tool_result when a subagent task is live", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_parent");
+    mapClaudeSdkMessage(taskStarted("toolu_parent", "general-purpose"), state);
+
+    const events = mapClaudeSdkMessage(launchToolResult("toolu_parent"), state);
+    expect(events).toEqual([
+      {
+        type: "item.updated",
+        threadId: "thread-1",
+        itemId: "toolu_parent",
+        payload: expect.objectContaining({ name: "Agent", status: "running", isSubAgent: true }),
+      },
+    ]);
+    // Parent item survives — not deleted, not completed.
+    expect(state.toolItemsById.has("toolu_parent")).toBe(true);
+  });
+
+  it("marks the Agent parent as a sub-agent tool via isSubAgent payload", () => {
+    const state = createClaudeMapperState("thread-1");
+    const started = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: { type: "tool_use", id: "toolu_parent", name: "Agent", input: {} },
+      }),
+      state,
+    );
+    expect(started).toMatchObject([
+      { type: "item.started", payload: { name: "Agent", isSubAgent: true } },
+    ]);
+  });
+
+  it("does not keep-alive a background Bash task_started without subagent_type", () => {
+    const state = createClaudeMapperState("thread-1");
+    // Bash tool opens at index 0.
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_bash",
+          name: "Bash",
+          input: { command: "ls" },
+        },
+      }),
+      state,
+    );
+    mapClaudeSdkMessage(taskStarted("toolu_bash", undefined), state);
+    expect(state.activeSubAgentToolToTask?.has("toolu_bash") ?? false).toBe(false);
+
+    // Its tool_result completes it normally.
+    const events = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        message: {
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: "toolu_bash", content: "file.txt" }],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(events.some((e) => e.type === "item.completed" && e.itemId === "toolu_bash")).toBe(true);
+    expect(state.toolItemsById.has("toolu_bash")).toBe(false);
+  });
+
+  it("maps task_updated patch onto the live parent without closing it", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_parent");
+    mapClaudeSdkMessage(taskStarted("toolu_parent", "general-purpose"), state);
+    mapClaudeSdkMessage(launchToolResult("toolu_parent"), state);
+
+    const events = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_updated",
+        session_id: "claude-session",
+        task_id: "task-A",
+        patch: { status: "completed", end_time: 1_783_066_726_333 },
+      } as unknown as SDKMessage,
+      state,
+    );
+    // Terminal patch status alone does NOT close the parent — wait for
+    // task_notification. No descriptive fields → no-op update here.
+    expect(events).toEqual([]);
+    expect(state.toolItemsById.has("toolu_parent")).toBe(true);
+  });
+
+  it("closes the parent on task_notification completed and cleans the registry", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_parent");
+    mapClaudeSdkMessage(taskStarted("toolu_parent", "general-purpose"), state);
+    mapClaudeSdkMessage(launchToolResult("toolu_parent"), state);
+
+    const events = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_notification",
+        session_id: "claude-session",
+        task_id: "task-A",
+        tool_use_id: "toolu_parent",
+        status: "completed",
+        summary: "Investigation complete",
+        usage: { total_tokens: 4_200, tool_uses: 3, duration_ms: 1_500 },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(events).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_parent",
+        payload: { status: "success", progress: { summary: "Investigation complete" } },
+      },
+      { type: "item.completed", itemId: "toolu_parent", payload: { status: "success" } },
+    ]);
+    expect(state.toolItemsById.has("toolu_parent")).toBe(false);
+    expect(state.activeSubAgentTaskToTool?.has("task-A") ?? false).toBe(false);
+    expect(state.activeSubAgentToolToTask?.has("toolu_parent") ?? false).toBe(false);
+  });
+
+  it("closes the parent as error on task_notification stopped (interrupt)", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_parent");
+    mapClaudeSdkMessage(taskStarted("toolu_parent", "general-purpose"), state);
+    mapClaudeSdkMessage(launchToolResult("toolu_parent"), state);
+
+    const events = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_notification",
+        session_id: "claude-session",
+        task_id: "task-A",
+        tool_use_id: "toolu_parent",
+        status: "stopped",
+        summary: "Stopped by user",
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(events).toMatchObject([
+      { type: "item.updated", itemId: "toolu_parent", payload: { status: "error" } },
+      { type: "item.completed", itemId: "toolu_parent", payload: { status: "error" } },
+    ]);
+    expect(state.toolItemsById.has("toolu_parent")).toBe(false);
+  });
+
+  it("registers a keep-alive when task_started omits subagent_type but the tool is Agent-like", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_parent");
+    // task_started arrives without subagent_type, but the tool is classified
+    // sub-agent-like → still registers.
+    mapClaudeSdkMessage(taskStarted("toolu_parent", undefined), state);
+    expect(state.activeSubAgentToolToTask?.has("toolu_parent") ?? false).toBe(true);
+  });
+
+  it("keeps the live parent and its child tools alive across the main turn's result", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-1", "launch subagent", undefined);
+    startAgentTool(state, "toolu_parent");
+    mapClaudeSdkMessage(taskStarted("toolu_parent", "general-purpose"), state);
+    mapClaudeSdkMessage(launchToolResult("toolu_parent"), state);
+
+    // A forwarded child tool_use from the running subagent.
+    mapClaudeSdkMessage(
+      {
+        type: "assistant",
+        session_id: "claude-session",
+        uuid: "sub-msg-tool",
+        parent_tool_use_id: "toolu_parent",
+        message: {
+          id: "sub-msg-tool",
+          role: "assistant",
+          content: [
+            { type: "tool_use", id: "toolu_child", name: "Read", input: { file_path: "a" } },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    // Main turn ends while the subagent still runs. The parent and child must
+    // NOT be completed/evicted here.
+    const resultEvents = mapClaudeSdkMessage(
+      {
+        type: "result",
+        subtype: "success",
+        session_id: "claude-session",
+        usage: { input_tokens: 1, output_tokens: 1 },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(
+      resultEvents.some(
+        (e) =>
+          e.type === "item.completed" &&
+          (e.itemId === "toolu_parent" || e.itemId === "toolu_child"),
+      ),
+    ).toBe(false);
+    expect(state.toolItemsById.has("toolu_parent")).toBe(true);
+    expect(state.toolItemsById.has("toolu_child")).toBe(true);
+
+    // The child's own forwarded tool_result still completes it.
+    const childResult = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        parent_tool_use_id: "toolu_parent",
+        message: {
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: "toolu_child", content: "file body" }],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(childResult.some((e) => e.type === "item.completed" && e.itemId === "toolu_child")).toBe(
+      true,
+    );
+
+    // The authoritative task_notification finally closes the parent.
+    const close = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_notification",
+        session_id: "claude-session",
+        task_id: "task-A",
+        tool_use_id: "toolu_parent",
+        status: "completed",
+        summary: "Done",
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(close.some((e) => e.type === "item.completed" && e.itemId === "toolu_parent")).toBe(
+      true,
+    );
+    expect(state.toolItemsById.has("toolu_parent")).toBe(false);
+  });
+
+  it("keeps the live parent across a new user turn started while the subagent runs", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-1", "launch subagent", undefined);
+    startAgentTool(state, "toolu_parent");
+    mapClaudeSdkMessage(taskStarted("toolu_parent", "general-purpose"), state);
+    mapClaudeSdkMessage(launchToolResult("toolu_parent"), state);
+
+    // Main turn ends; thread goes idle while the task still runs.
+    mapClaudeSdkMessage(
+      {
+        type: "result",
+        subtype: "success",
+        session_id: "claude-session",
+        usage: { input_tokens: 1, output_tokens: 1 },
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    // The user submits another message during the idle window. The new-turn
+    // reset must not evict the live parent — the later task_notification
+    // still needs to find and close it.
+    startClaudeTurn(state, "turn-2", "unrelated follow-up", undefined);
+    expect(state.toolItemsById.has("toolu_parent")).toBe(true);
+
+    const close = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_notification",
+        session_id: "claude-session",
+        task_id: "task-A",
+        tool_use_id: "toolu_parent",
+        status: "completed",
+        summary: "Done",
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(close.some((e) => e.type === "item.completed" && e.itemId === "toolu_parent")).toBe(
+      true,
+    );
+    expect(state.toolItemsById.has("toolu_parent")).toBe(false);
+  });
+
+  it("flushes a dangling child of a stopped subagent instead of leaving it running", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-1", "launch subagent", undefined);
+    startAgentTool(state, "toolu_parent");
+    mapClaudeSdkMessage(taskStarted("toolu_parent", "general-purpose"), state);
+    mapClaudeSdkMessage(launchToolResult("toolu_parent"), state);
+
+    // Forwarded child tool_use whose tool_result will never arrive (the
+    // subagent gets killed mid-execution).
+    mapClaudeSdkMessage(
+      {
+        type: "assistant",
+        session_id: "claude-session",
+        uuid: "sub-msg-tool",
+        parent_tool_use_id: "toolu_parent",
+        message: {
+          id: "sub-msg-tool",
+          role: "assistant",
+          content: [
+            { type: "tool_use", id: "toolu_child", name: "Read", input: { file_path: "a" } },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    // Interrupt: the subagent's task_notification "stopped" closes the parent
+    // and unregisters the task, leaving the child dangling.
+    mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_notification",
+        session_id: "claude-session",
+        task_id: "task-A",
+        tool_use_id: "toolu_parent",
+        status: "stopped",
+        summary: "Stopped by user",
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(state.toolItemsById.has("toolu_child")).toBe(true);
+
+    // The interrupt's result closes open items; with no live subagent left the
+    // dangling child must be completed, not silently dropped.
+    const resultEvents = mapClaudeSdkMessage(
+      {
+        type: "result",
+        subtype: "error_during_execution",
+        session_id: "claude-session",
+        is_error: true,
+        errors: [],
+        usage: { input_tokens: 1, output_tokens: 1 },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(
+      resultEvents.some((e) => e.type === "item.completed" && e.itemId === "toolu_child"),
+    ).toBe(true);
+    expect(state.toolItemsById.has("toolu_child")).toBe(false);
   });
 });
 

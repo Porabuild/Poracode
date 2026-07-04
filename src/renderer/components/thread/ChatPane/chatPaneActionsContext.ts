@@ -6,7 +6,7 @@ export type ChatPaneActions = {
   /** Open the in-app file editor overlay and expand the project tree to the folder. */
   revealProjectFolderInTree: (path: string) => void;
   /** Reveal a file or folder in the OS file explorer (Finder/Explorer/Nautilus). */
-  showProjectEntryInExplorer: (path: string) => void;
+  showProjectEntryInExplorer?: ((path: string) => void) | undefined;
   onContentHeightChange: () => void;
   isStickToBottom?: () => boolean;
   registerVirtualScrollToBottom?: (handler: (() => void) | null) => void;
@@ -14,8 +14,9 @@ export type ChatPaneActions = {
   /**
    * Top-level entry names for the chat's project, used to validate path-like
    * tokens before chipping them. Empty until the project tree responds.
+   * Omitted for remote chats where the desktop client has no local tree cache.
    */
-  projectRootNames: ReadonlySet<string>;
+  projectRootNames?: ReadonlySet<string> | undefined;
 };
 
 export const ChatPaneActionsContext = createContext<ChatPaneActions | null>(null);

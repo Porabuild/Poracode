@@ -14,6 +14,7 @@ import {
 } from "@/renderer/components/common";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import { PermissionIcon } from "@/renderer/components/providers/PermissionIcon";
+import { isRemoteSession } from "@/renderer/bridge";
 import type { LabeledOption, ThreadPresentationMode } from "@/shared/contracts";
 
 export type OptionMenuOption = string | { id: string; label: string; hint?: string };
@@ -125,10 +126,13 @@ function resolveIcon(control: ComposerControl): ReactNode | undefined {
   }
 
   if (iconKind === "permission") {
+    // The `lightcode-composer-permission-icon` marker is a provider-agnostic
+    // hook (keyed off the generic `iconKind`, never a provider name) that the
+    // mobile compact composer uses to surface the permission chip as an icon.
     if (control.kind === "toggle") {
       return (
         <PermissionIcon
-          className="size-4 text-foreground"
+          className="size-4 text-foreground lightcode-composer-permission-icon"
           index={control.isSelected ? 1 : 0}
           count={2}
         />
@@ -138,7 +142,7 @@ function resolveIcon(control: ComposerControl): ReactNode | undefined {
     const idx = ids.indexOf(control.value);
     return (
       <PermissionIcon
-        className="size-4 text-foreground"
+        className="size-4 text-foreground lightcode-composer-permission-icon"
         index={idx < 0 ? 0 : idx}
         count={ids.length}
       />
@@ -299,6 +303,10 @@ export function ThreadComposer(props: {
   }`;
 
   const returnFocusToInput = () => {
+    // On mobile (PWA) refocusing the composer after closing a menu/drawer would
+    // pop the on-screen keyboard back up over the chat — a jarring side effect
+    // of tapping a toolbar control. Leave focus where the user left it there.
+    if (isRemoteSession()) return;
     const el = editorHostRef.current?.querySelector<HTMLElement>(
       'textarea, [contenteditable="true"], input:not([type="hidden"])',
     );
@@ -851,7 +859,9 @@ export function ThreadComposer(props: {
         onDragLeave={handleAttachmentDragLeave}
         onDrop={handleAttachmentDrop}
       >
-        {variant === "draft" && <div className="lightcode-composer-border-glow" />}
+        {/* Inert unless a shell-level rule lights it: desktop draft focus, or
+            the phone layout's expanded live composer. */}
+        <div className="lightcode-composer-border-glow" />
         {isAttachmentDropActive ? (
           <div className="lightcode-composer-drop-overlay">
             <Trans>Drop here to attach</Trans>

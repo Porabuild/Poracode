@@ -1,7 +1,7 @@
 {
   "name": "lightcode-status",
   "version": "1.1.4",
-  "description": "Forward Claude Code lifecycle events to Lightcode for sidebar status detection.",
-  "author": "Lightcode",
+  "description": "Forward Claude Code lifecycle events to Poracode for sidebar status detection.",
+  "author": "Poracode",
   "license": "Apache-2.0"
 }

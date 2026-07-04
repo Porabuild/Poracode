@@ -81,7 +81,7 @@ describe("theme presets", () => {
   });
 
   // Guards the core fix: muted secondary text and the foreground must stay
-  // readable in every theme/variant, matching the base Lightcode contrast.
+  // readable in every theme/variant, matching the base Poracode contrast.
   it("keeps muted and foreground text above the contrast floor", () => {
     const failures: string[] = [];
     for (const preset of APP_THEME_PRESETS) {

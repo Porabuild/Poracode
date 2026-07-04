@@ -3,6 +3,7 @@ import { Switch } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { TerminalPosition } from "@/shared/contracts";
 import type { CliPickerTarget } from "@/shared/settings";
+import { isRemoteSession } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { Select } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
@@ -35,49 +36,54 @@ export function TerminalSettings() {
 
   const terminalPositionOpts = useLocalizedOptions(terminalPositionOptions);
   const cliPickerTargetOpts = useLocalizedOptions(cliPickerTargetOptions);
+  const remote = isRemoteSession();
 
   return (
     <SettingsPage title={t`Terminal`}>
-      <SettingRow
-        anchorId="terminal.terminalPosition"
-        title={t`Terminal position`}
-        description={<Trans>Where the terminal panel appears.</Trans>}
-      >
-        <Select
-          aria-label={t`Terminal position`}
-          className="w-[160px] shrink-0"
-          options={terminalPositionOpts}
-          value={terminalPosition}
-          onChange={(value) => {
-            startTransition(() => {
-              setTerminalPosition(value as TerminalPosition);
-            });
-          }}
-        />
-      </SettingRow>
-
-      <SettingRow
-        anchorId="terminal.autoShowTerminalPanel"
-        title={t`Auto-show terminal panel`}
-        description={
-          <Trans>
-            Automatically show the terminal panel when running commands or creating worktrees.
-          </Trans>
-        }
-      >
-        <Switch
-          isSelected={autoShowTerminalPanel}
-          onChange={(selected) => {
-            startTransition(() => {
-              setAutoShowTerminalPanel(selected);
-            });
-          }}
+      {!remote && (
+        <SettingRow
+          anchorId="terminal.terminalPosition"
+          title={t`Terminal position`}
+          description={<Trans>Where the terminal panel appears.</Trans>}
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
-      </SettingRow>
+          <Select
+            aria-label={t`Terminal position`}
+            className="w-[160px] shrink-0"
+            options={terminalPositionOpts}
+            value={terminalPosition}
+            onChange={(value) => {
+              startTransition(() => {
+                setTerminalPosition(value as TerminalPosition);
+              });
+            }}
+          />
+        </SettingRow>
+      )}
+
+      {!remote && (
+        <SettingRow
+          anchorId="terminal.autoShowTerminalPanel"
+          title={t`Auto-show terminal panel`}
+          description={
+            <Trans>
+              Automatically show the terminal panel when running commands or creating worktrees.
+            </Trans>
+          }
+        >
+          <Switch
+            isSelected={autoShowTerminalPanel}
+            onChange={(selected) => {
+              startTransition(() => {
+                setAutoShowTerminalPanel(selected);
+              });
+            }}
+          >
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch>
+        </SettingRow>
+      )}
 
       <SettingRow
         anchorId="terminal.collapseTerminalComposer"
@@ -103,28 +109,30 @@ export function TerminalSettings() {
         </Switch>
       </SettingRow>
 
-      <SettingRow
-        anchorId="terminal.cliPickerTarget"
-        title={t`Browser pick target (CLI threads)`}
-        description={
-          <Trans>
-            Where a browser element-picker selection goes in terminal-native threads. A collapsed
-            composer always routes to the terminal.
-          </Trans>
-        }
-      >
-        <Select
-          aria-label={t`Browser pick target for CLI threads`}
-          className="w-[160px] shrink-0"
-          options={cliPickerTargetOpts}
-          value={cliPickerTarget}
-          onChange={(value) => {
-            startTransition(() => {
-              setCliPickerTarget(value as CliPickerTarget);
-            });
-          }}
-        />
-      </SettingRow>
+      {!remote && (
+        <SettingRow
+          anchorId="terminal.cliPickerTarget"
+          title={t`Browser pick target (CLI threads)`}
+          description={
+            <Trans>
+              Where a browser element-picker selection goes in terminal-native threads. A collapsed
+              composer always routes to the terminal.
+            </Trans>
+          }
+        >
+          <Select
+            aria-label={t`Browser pick target for CLI threads`}
+            className="w-[160px] shrink-0"
+            options={cliPickerTargetOpts}
+            value={cliPickerTarget}
+            onChange={(value) => {
+              startTransition(() => {
+                setCliPickerTarget(value as CliPickerTarget);
+              });
+            }}
+          />
+        </SettingRow>
+      )}
 
       <SettingRow
         anchorId="terminal.agentTerminalFontSize"

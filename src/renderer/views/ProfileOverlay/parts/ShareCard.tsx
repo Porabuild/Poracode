@@ -82,7 +82,7 @@ export const ShareCard = forwardRef<
       </div>
 
       <div className="flex items-center justify-center pt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted/60">
-        Lightcode
+        Poracode
       </div>
     </div>
   );

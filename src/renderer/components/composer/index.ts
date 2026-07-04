@@ -1,4 +1,5 @@
 export { MentionInput, type MentionInputHandle } from "./MentionInput";
+export { ComposerVoiceInput } from "./ComposerVoiceInput";
 export { AttachmentBar, BrowserChip } from "./AttachmentBar";
 export { ComposerAddMenu } from "./ComposerAddMenu";
 export { VoiceInputButton, type VoiceInputHandle } from "./VoiceInputButton";

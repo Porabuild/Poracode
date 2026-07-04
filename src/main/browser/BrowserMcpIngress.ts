@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { randomBytes, randomUUID } from "node:crypto";
+import { readBoundedNodeRequestBody, writeJsonResponse } from "@/shared/http";
 import type { BrowserPanelManager } from "./BrowserPanelManager";
 import {
   BROWSER_MCP_INSTRUCTIONS,
@@ -111,28 +112,12 @@ export class BrowserMcpIngress {
   }
 
   private async readBody(req: IncomingMessage): Promise<string> {
-    return await new Promise<string>((resolve, reject) => {
-      let total = 0;
-      const chunks: Buffer[] = [];
-      req.on("data", (chunk: Buffer) => {
-        total += chunk.length;
-        if (total > MAX_BODY) {
-          req.destroy();
-          reject(new Error("body too large"));
-          return;
-        }
-        chunks.push(chunk);
-      });
-      req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-      req.on("error", reject);
-    });
+    const body = await readBoundedNodeRequestBody(req, MAX_BODY, () => new Error("body too large"));
+    return body.toString("utf8");
   }
 
   private sendJson(res: ServerResponse, status: number, body: unknown): void {
-    res.statusCode = status;
-    res.setHeader("Content-Type", "application/json");
-    res.setHeader("Cache-Control", "no-store");
-    res.end(JSON.stringify(body));
+    writeJsonResponse(res, status, body, { cacheControl: "no-store" });
   }
 
   private checkAuth(req: IncomingMessage): boolean {
@@ -162,7 +147,7 @@ export class BrowserMcpIngress {
           res.setHeader("Access-Control-Allow-Origin", origin);
           res.setHeader(
             "Access-Control-Allow-Headers",
-            "Authorization, X-Lightcode-Token, Content-Type, Mcp-Session-Id",
+            "Authorization, X-Poracode-Token, Content-Type, Mcp-Session-Id",
           );
           res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
         }

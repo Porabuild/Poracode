@@ -369,6 +369,13 @@ export class ThreadSessionManager {
       // any `sendThreadInput` that lands here while working is treated as a
       // steer (replace-latest) for backwards compatibility.
       if (session.presentationMode === "gui" && session.status === "working") {
+        // Capability-based: sessions that support non-interrupting steer enqueue
+        // the message onto the running turn (subagents survive); others fall
+        // back to the interrupt-drain pending-steer path.
+        if (session.structuredSession.steerTurn) {
+          this.steerStructuredTurn(session, turn);
+          return;
+        }
         this.stagePendingSteer(session, turn);
         this.fireSteerInterrupt(session);
         return;
@@ -771,6 +778,12 @@ export class ThreadSessionManager {
       config: payload.config,
       ...(effectiveSegments ? { segments: effectiveSegments } : {}),
     };
+    // Capability-based: non-interrupting steer enqueues onto the running turn
+    // (subagents survive, no watchdog); others use the interrupt-drain path.
+    if (session.structuredSession.steerTurn) {
+      this.steerStructuredTurn(session, turn);
+      return;
+    }
     this.stagePendingSteer(session, turn);
     if (session.status === "working") {
       this.fireSteerInterrupt(session);
@@ -813,6 +826,36 @@ export class ThreadSessionManager {
       optimisticItemId ? { userMessageItemId: optimisticItemId } : undefined,
     );
     void startTurn.catch((error) => {
+      if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
+        return;
+      }
+      this.failStructuredSession(session, error);
+    });
+  }
+
+  /**
+   * Steer an in-flight turn via the session's `steerTurn` capability: enqueue
+   * the user message onto the running turn without interrupting it (no
+   * subagents killed, no error result, no pending-steer/watchdog dance). The
+   * session emits its own optimistic user_message item, so pass the renderer's
+   * id through when present to keep it deduped. Providers without `steerTurn`
+   * never reach here — callers keep the interrupt-drain path for them.
+   */
+  private steerStructuredTurn(session: SessionRuntime, turn: QueuedStructuredTurn): void {
+    const steerTurn = session.structuredSession?.steerTurn;
+    if (!steerTurn) return;
+    const optimisticItemId =
+      session.presentationMode === "gui" && turn.prompt.length > 0
+        ? turn.userMessageItemId
+        : undefined;
+    const steer = steerTurn.call(
+      session.structuredSession,
+      turn.prompt,
+      turn.config,
+      turn.segments,
+      optimisticItemId ? { userMessageItemId: optimisticItemId } : undefined,
+    );
+    void steer.catch((error) => {
       if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
         return;
       }
@@ -978,6 +1021,10 @@ export class ThreadSessionManager {
 
   readTerminalScrollback(threadId: string): string {
     return this.outputPipeline.readTerminalScrollback(this.sessions.get(threadId));
+  }
+
+  readTerminalSize(threadId: string): TerminalSize | null {
+    return this.sessions.get(threadId)?.terminalSize ?? null;
   }
 
   handlePtyDataForTests(session: SessionRuntime, data: string): void {

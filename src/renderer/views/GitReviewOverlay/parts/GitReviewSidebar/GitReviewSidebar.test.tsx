@@ -20,6 +20,8 @@ const bridgeMock = vi.hoisted(() => ({
   generateCommitMessage: vi.fn<() => Promise<{ message: string }>>(),
 }));
 
+const toastDanger = vi.hoisted(() => vi.fn<(message: string) => void>());
+
 vi.mock("@heroui/react", () => {
   function Button(props: {
     children?: ReactNode | ((state: { isPending: boolean }) => ReactNode);
@@ -107,7 +109,7 @@ vi.mock("@heroui/react", () => {
 
     Surface: Wrapper,
     Tooltip,
-    toast: { danger: vi.fn<() => void>() },
+    toast: { danger: toastDanger },
   };
 });
 
@@ -122,41 +124,50 @@ vi.mock("@/renderer/state/agentStatusesStore", () => ({
   ) => selector({ agentStatuses: [], wslAgentStatuses: [] }),
 }));
 
-vi.mock("@/renderer/state/sharedSettingsStore", () => ({
-  useSharedSettings: (
-    selector: (state: {
-      commitGenProvider: string;
-      commitGenModel: string;
-      commitGenEffort: string;
-      wslCommitGenProvider: string;
-      wslCommitGenModel: string;
-      wslCommitGenEffort: string;
-      conflictResolverProvider: string;
-      conflictResolverModel: string;
-      conflictResolverEffort: string;
-      conflictResolverPresentationMode: "terminal" | "gui";
-      wslConflictResolverProvider: string;
-      wslConflictResolverModel: string;
-      wslConflictResolverEffort: string;
-      wslConflictResolverPresentationMode: "terminal" | "gui";
-    }) => unknown,
-  ) =>
-    selector({
-      commitGenProvider: "codex",
-      commitGenModel: "gpt-5.4",
-      commitGenEffort: "medium",
-      wslCommitGenProvider: "auto",
-      wslCommitGenModel: "",
-      wslCommitGenEffort: "",
-      conflictResolverProvider: "auto",
-      conflictResolverModel: "",
-      conflictResolverEffort: "",
-      conflictResolverPresentationMode: "gui",
-      wslConflictResolverProvider: "auto",
-      wslConflictResolverModel: "",
-      wslConflictResolverEffort: "",
-      wslConflictResolverPresentationMode: "gui",
-    }),
+vi.mock("@/renderer/state/sharedSettingsStore", () => {
+  const sharedSettings = {
+    commitGenProvider: "codex",
+    commitGenModel: "gpt-5.4",
+    commitGenEffort: "medium",
+    wslCommitGenProvider: "auto",
+    wslCommitGenModel: "",
+    wslCommitGenEffort: "",
+    conflictResolverProvider: "auto",
+    conflictResolverModel: "",
+    conflictResolverEffort: "",
+    conflictResolverFast: false,
+    conflictResolverPresentationMode: "gui" as const,
+    wslConflictResolverProvider: "auto",
+    wslConflictResolverModel: "",
+    wslConflictResolverEffort: "",
+    wslConflictResolverFast: false,
+    wslConflictResolverPresentationMode: "gui" as const,
+  };
+  const useSharedSettings = (selector: (state: typeof sharedSettings) => unknown) =>
+    selector(sharedSettings);
+  useSharedSettings.getState = () => sharedSettings;
+  return { useSharedSettings };
+});
+
+vi.mock("@/renderer/components/providers/conflictResolver", () => ({
+  getConflictResolverCandidatesForLaunch: () => [
+    {
+      kind: "codex",
+      capabilities: {
+        presentationMode: "gui",
+        presentationModes: ["gui"],
+        bypassPermissions: { approvalPolicy: "bypassPermissions" },
+      },
+    },
+  ],
+  readConflictResolverSettingsForProject: () => ({
+    provider: "codex",
+    model: "gpt-5.4",
+    effort: "medium",
+    fast: false,
+    presentationMode: "gui",
+  }),
+  resolveConflictResolverLaunchConfig: () => ({ model: "gpt-5.4", effort: "medium" }),
 }));
 
 vi.mock("@/renderer/components/common", async (importOriginal) => {
@@ -211,10 +222,13 @@ vi.mock("@/renderer/components/providers", () => ({
 
 import { useGitStore } from "@/renderer/state/gitStore";
 import { GitReviewSidebar } from "./GitReviewSidebar";
+import { GitTouchProvider, type GitTouchFileTarget } from "./gitTouchContext";
+import type { ConflictResolverLaunchInput } from "./parts/useConflictResolver";
 
 describe("GitReviewSidebar", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    toastDanger.mockClear();
     bridgeMock.gitStage.mockResolvedValue(undefined);
     bridgeMock.gitUnstage.mockResolvedValue(undefined);
     bridgeMock.gitRevert.mockResolvedValue(undefined);
@@ -241,7 +255,7 @@ describe("GitReviewSidebar", () => {
   it("renders worktree changes from the provided git status", () => {
     const project: Project = {
       id: "project-1",
-      name: "Lightcode",
+      name: "Poracode",
       createdAt: new Date().toISOString(),
       location: { kind: "windows", path: "C:\\repo-worktree" },
     };
@@ -288,10 +302,63 @@ describe("GitReviewSidebar", () => {
     expect(screen.queryByText("main-only.ts")).not.toBeInTheDocument();
   });
 
-  it("shows an init action when the location is not a git repository", () => {
+  it("reports failed file staging before refreshing the git state", async () => {
     const project: Project = {
       id: "project-1",
       name: "Lightcode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [
+        {
+          path: "src/app.ts",
+          status: "M",
+          staged: false,
+          insertions: 4,
+          deletions: 1,
+        },
+      ],
+      totalInsertions: 4,
+      totalDeletions: 1,
+    };
+    const onRefresh = vi.fn<() => void>();
+    bridgeMock.gitStage.mockRejectedValueOnce(new Error("stage failed"));
+    useGitStore.getState().setStatus(project.id, gitStatus);
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={0}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={onRefresh}
+      />,
+    );
+
+    fireEvent.click(screen.getByTitle("Stage"));
+
+    await waitFor(() => {
+      expect(toastDanger).toHaveBeenCalledWith("stage failed");
+    });
+    expect(onRefresh).toHaveBeenCalledOnce();
+  });
+
+  it("shows an init action when the location is not a git repository", () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Poracode",
       createdAt: new Date().toISOString(),
       location: { kind: "windows", path: "C:\\repo" },
     };
@@ -340,7 +407,7 @@ describe("GitReviewSidebar", () => {
   it("shows the pixel loader while init is pending", async () => {
     const project: Project = {
       id: "project-1",
-      name: "Lightcode",
+      name: "Poracode",
       createdAt: new Date().toISOString(),
       location: { kind: "windows", path: "C:\\repo" },
     };
@@ -381,7 +448,7 @@ describe("GitReviewSidebar", () => {
   it("shows a clean working tree state after the repo has no changes", () => {
     const project: Project = {
       id: "project-1",
-      name: "Lightcode",
+      name: "Poracode",
       createdAt: new Date().toISOString(),
       location: { kind: "windows", path: "C:\\repo" },
     };
@@ -419,10 +486,136 @@ describe("GitReviewSidebar", () => {
     expect(screen.queryByText("No changes")).not.toBeInTheDocument();
   });
 
-  it("adds a remote from the clean working tree state", async () => {
+  it("routes conflict file actions through the touch menu when provided", () => {
     const project: Project = {
       id: "project-1",
       name: "Lightcode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      totalInsertions: 4,
+      totalDeletions: 2,
+      mergeInProgress: true,
+      conflictFiles: [
+        {
+          path: "src/conflict.ts",
+          status: "UU",
+          staged: false,
+          insertions: 4,
+          deletions: 2,
+        },
+      ],
+    };
+    const openFileMenu = vi.fn<(target: GitTouchFileTarget) => void>();
+    const openGroupMenu = vi.fn<() => void>();
+
+    render(
+      <GitTouchProvider value={{ openFileMenu, openGroupMenu }}>
+        <GitReviewSidebar
+          project={project}
+          gitStatus={gitStatus}
+          selectedFile={null}
+          selectedStaged={false}
+          refreshKey={0}
+          onSelectFile={() => undefined}
+          onClose={() => undefined}
+          onRefresh={() => undefined}
+          mode="overlay"
+        />
+      </GitTouchProvider>,
+    );
+
+    expect(screen.queryByTitle("Open in editor")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+
+    expect(openFileMenu).toHaveBeenCalledWith({
+      path: "src/conflict.ts",
+      staged: false,
+      status: "UU",
+      insertions: 4,
+      deletions: 2,
+    });
+  });
+
+  it("uses the conflict resolver launch override when provided", () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Lightcode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      unstaged: [],
+      totalInsertions: 4,
+      totalDeletions: 2,
+      mergeInProgress: true,
+      conflictFiles: [
+        {
+          path: "src/conflict.ts",
+          status: "UU",
+          staged: false,
+          insertions: 4,
+          deletions: 2,
+        },
+      ],
+    };
+    const onLaunchConflictResolverThread = vi.fn<(input: ConflictResolverLaunchInput) => void>();
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={0}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+        worktreePath={"C:\\repo-worktree"}
+        worktreeBranch="feature"
+        onLaunchConflictResolverThread={onLaunchConflictResolverThread}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Fix in Agent" }));
+
+    expect(onLaunchConflictResolverThread).toHaveBeenCalledWith({
+      agentKind: "codex",
+      config: {
+        model: "gpt-5.4",
+        effort: "medium",
+        approvalPolicy: "bypassPermissions",
+      },
+      prompt: expect.stringContaining("src/conflict.ts"),
+      presentationMode: "gui",
+      existingWorktreePath: "C:\\repo-worktree",
+      worktreeBranch: "feature",
+    });
+  });
+
+  it("adds a remote from the clean working tree state", async () => {
+    const project: Project = {
+      id: "project-1",
+      name: "Poracode",
       createdAt: new Date().toISOString(),
       location: { kind: "windows", path: "C:\\repo" },
     };
@@ -474,7 +667,7 @@ describe("GitReviewSidebar", () => {
   it("moves worktree merge actions into the create PR dropdown", async () => {
     const project: Project = {
       id: "project-1",
-      name: "Lightcode",
+      name: "Poracode",
       createdAt: new Date().toISOString(),
       location: { kind: "windows", path: "C:\\repo-worktree" },
     };
@@ -536,7 +729,7 @@ describe("GitReviewSidebar", () => {
   it("does not show the removed merge section while worktree source info is still loading", () => {
     const project: Project = {
       id: "project-1",
-      name: "Lightcode",
+      name: "Poracode",
       createdAt: new Date().toISOString(),
       location: { kind: "windows", path: "C:\\repo-worktree" },
     };
@@ -579,7 +772,7 @@ describe("GitReviewSidebar", () => {
   it("hides pull from source when the worktree is already up to date with its source branch", async () => {
     const project: Project = {
       id: "project-1",
-      name: "Lightcode",
+      name: "Poracode",
       createdAt: new Date().toISOString(),
       location: { kind: "windows", path: "C:\\repo-worktree" },
     };
@@ -641,7 +834,7 @@ describe("GitReviewSidebar", () => {
   it("shows pull from source when the source branch is ahead", async () => {
     const project: Project = {
       id: "project-1",
-      name: "Lightcode",
+      name: "Poracode",
       createdAt: new Date().toISOString(),
       location: { kind: "windows", path: "C:\\repo-worktree" },
     };

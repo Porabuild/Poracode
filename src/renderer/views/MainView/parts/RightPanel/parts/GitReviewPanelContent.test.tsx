@@ -30,7 +30,7 @@ vi.mock("@/renderer/views/GitReviewOverlay/parts/GitReviewPanel", async () => {
 describe("GitReviewPanelContent", () => {
   const project: Project = {
     id: "project-1",
-    name: "Lightcode",
+    name: "Poracode",
     createdAt: new Date().toISOString(),
     location: { kind: "windows", path: "C:\\repo" },
   };

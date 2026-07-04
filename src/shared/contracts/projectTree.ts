@@ -50,6 +50,40 @@ export const listProjectTreePayloadSchema = z.object({
 });
 export type ListProjectTreePayload = z.infer<typeof listProjectTreePayloadSchema>;
 
+/** One entry in a host-filesystem directory listing (the folder picker). */
+export interface HostDirectoryEntry {
+  /** Base name of the entry. */
+  name: string;
+  /** Absolute path on the host. */
+  path: string;
+  type: "file" | "directory";
+}
+
+export interface BrowseHostDirectoryResult {
+  /** The absolute directory that was listed (resolved home when none given). */
+  path: string;
+  /** Parent directory absolute path, or null at a filesystem root. */
+  parentPath: string | null;
+  /** The host user's home directory absolute path (for a "Home" shortcut). */
+  homePath: string;
+  /** Directory contents, directories first. */
+  entries: HostDirectoryEntry[];
+  /** True when the listing was capped and some entries were omitted. */
+  truncated: boolean;
+}
+
+/**
+ * Browse the paired host's filesystem to pick a folder (add-existing / clone
+ * parent). Unlike {@link listProjectTreePayloadSchema} this is not confined to a
+ * project root — it lists an arbitrary absolute directory. Gated behind the
+ * `projects:manage` scope, the same capability that can already add any path.
+ */
+export const browseHostDirectoryPayloadSchema = z.object({
+  /** Absolute path to list; empty → the host user's home directory. */
+  path: z.string().default(""),
+});
+export type BrowseHostDirectoryPayload = z.infer<typeof browseHostDirectoryPayloadSchema>;
+
 export interface SearchProjectTreeResult {
   entries: ProjectTreeEntry[];
 }

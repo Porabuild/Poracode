@@ -26,7 +26,7 @@ function formatUpdatedAgo(fetchedAt: number, now: number, t: TranslateFn): strin
   return t(msg`${days}d ago`);
 }
 
-export function UsagePanel() {
+export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefined }) {
   const { t } = useLingui();
   const providerOrder = useSharedSettings((s) => s.usage.providerOrder);
   const disabledProviders = useSharedSettings((s) => s.usage.disabledProviders);
@@ -83,6 +83,8 @@ export function UsagePanel() {
     return max;
   })();
 
+  const openSettings = props.onOpenUsageSettings ?? openUsageSettings;
+
   const toggleCollapse = (id: string) => {
     const next = collapsedProviders.includes(id)
       ? collapsedProviders.filter((x) => x !== id)
@@ -119,7 +121,7 @@ export function UsagePanel() {
               </p>
               <button
                 type="button"
-                onClick={openUsageSettings}
+                onClick={openSettings}
                 className="text-xs text-accent underline-offset-2 hover:underline"
               >
                 <Trans>Enable providers in settings</Trans>

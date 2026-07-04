@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
-import { join, posix } from "node:path";
-import { tmpdir } from "node:os";
+import { dirname, join, posix, resolve } from "node:path";
+import { homedir, tmpdir } from "node:os";
 import { beforeEach, afterEach, describe, expect, it } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import { ProjectTreeService } from "./projectTree";
@@ -293,10 +293,10 @@ describe("ProjectTreeService WSL external files", () => {
   });
 
   it("readExternalFile reads a path outside the project root on WSL", async () => {
-    // A plan produced in a git worktree lives under ~/.lightcode/worktrees,
+    // A plan produced in a git worktree lives under ~/.poracode/worktrees,
     // outside the project root.
     const projectRoot = "/home/user/work/repo";
-    const planPath = "/home/user/.lightcode/worktrees/repo/branch/PLAN.md";
+    const planPath = "/home/user/.poracode/worktrees/repo/branch/PLAN.md";
     bridge.files.set(planPath, { content: Buffer.from("# Plan\n"), mtimeMs: 1000 });
 
     const result = await service.readExternalFile({
@@ -307,7 +307,7 @@ describe("ProjectTreeService WSL external files", () => {
     expect(result).toMatchObject({ status: "ready", content: "# Plan\n" });
     // The bridge must be anchored at the file's own directory, not the project
     // root — otherwise its containment check rejects the path.
-    expect(bridge.reads.at(-1)?.projectRoot).toBe("/home/user/.lightcode/worktrees/repo/branch");
+    expect(bridge.reads.at(-1)?.projectRoot).toBe("/home/user/.poracode/worktrees/repo/branch");
   });
 
   it("writeExternalFile saves a path outside the project root on WSL", async () => {
@@ -347,7 +347,7 @@ describe("ProjectTreeService WSL external files", () => {
 
   it("readAbsoluteFile reads a path outside the project root on WSL", async () => {
     const projectRoot = "/home/user/work/repo";
-    const externalPath = "/home/user/.lightcode/worktrees/repo/branch/PLAN.md";
+    const externalPath = "/home/user/.poracode/worktrees/repo/branch/PLAN.md";
     bridge.files.set(externalPath, { content: Buffer.from("# Plan\n"), mtimeMs: 2000 });
 
     const result = await service.readAbsoluteFile({
@@ -356,7 +356,7 @@ describe("ProjectTreeService WSL external files", () => {
     });
 
     expect(result).toMatchObject({ status: "ready", content: "# Plan\n" });
-    expect(bridge.reads.at(-1)?.projectRoot).toBe("/home/user/.lightcode/worktrees/repo/branch");
+    expect(bridge.reads.at(-1)?.projectRoot).toBe("/home/user/.poracode/worktrees/repo/branch");
   });
 
   it("readAbsoluteFile resolves relative paths against the project root on WSL", async () => {
@@ -372,5 +372,67 @@ describe("ProjectTreeService WSL external files", () => {
     });
 
     expect(result).toMatchObject({ status: "ready", content: "export {};\n" });
+  });
+});
+
+describe("ProjectTreeService.browseHostDirectory", () => {
+  let tempDir: string;
+  let service: ProjectTreeService;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), "lightcode-host-browse-"));
+    service = new ProjectTreeService();
+  });
+
+  afterEach(() => {
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it("lists a directory with folders first and absolute paths", async () => {
+    mkdirSync(join(tempDir, "alpha"));
+    mkdirSync(join(tempDir, ".hidden"));
+    writeFileSync(join(tempDir, "readme.md"), "x", "utf8");
+
+    const result = await service.browseHostDirectory({ path: tempDir });
+
+    expect(result.path).toBe(resolve(tempDir));
+    expect(result.homePath).toBe(homedir());
+    expect(result.parentPath).toBe(dirname(resolve(tempDir)));
+    expect(result.truncated).toBe(false);
+
+    const names = result.entries.map((entry) => entry.name);
+    // Hidden folders are included so dotted directories stay reachable.
+    expect(names).toEqual([".hidden", "alpha", "readme.md"]);
+    // Directories sort ahead of files.
+    const firstFileIndex = result.entries.findIndex((entry) => entry.type === "file");
+    expect(
+      result.entries.slice(0, firstFileIndex).every((entry) => entry.type === "directory"),
+    ).toBe(true);
+    // Entry paths are absolute.
+    expect(result.entries.find((entry) => entry.name === "alpha")?.path).toBe(
+      join(resolve(tempDir), "alpha"),
+    );
+  });
+
+  it("defaults to the home directory when no path is given", async () => {
+    const result = await service.browseHostDirectory({ path: "" });
+    expect(result.path).toBe(homedir());
+  });
+
+  it("classifies a symlink to a directory as a directory", async () => {
+    if (process.platform === "win32") return; // symlink perms differ on Windows CI
+    const { symlinkSync } = await import("node:fs");
+    mkdirSync(join(tempDir, "real"));
+    symlinkSync(join(tempDir, "real"), join(tempDir, "link"));
+
+    const result = await service.browseHostDirectory({ path: tempDir });
+    expect(result.entries.find((entry) => entry.name === "link")?.type).toBe("directory");
+  });
+
+  it("throws when the path is not a directory", async () => {
+    writeFileSync(join(tempDir, "file.txt"), "x", "utf8");
+    await expect(service.browseHostDirectory({ path: join(tempDir, "file.txt") })).rejects.toThrow(
+      "Not a directory.",
+    );
   });
 });

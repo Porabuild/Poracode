@@ -44,26 +44,39 @@ import {
   readSharedSettingsFile,
   writeSharedSettingsFile,
 } from "../sharedSettingsFile";
+import type { RemoteAccessPairingInfo, RemoteGitSummaries } from "@/shared/remote";
 import { readKeybindingsFile, writeKeybindingsFile } from "../keybindingsFile";
+import type { RemoteAccessServer } from "../remote";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
 import {
   defineMainLocalIpcHandlers,
   type MainLocalIpcHandlerMap,
+  type RemoteAccessTailscaleStatus,
+  type StartTailscaleResult,
   type WindowChromePayload,
   type WindowChromeResult,
 } from "@/shared/ipc";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
 import type { AgentInstanceConfig } from "@/shared/contracts";
+import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
   getBrowserPanelManager(): BrowserPanelManager | null;
+  getRemoteAccessServer(): RemoteAccessServer | null;
+  setRemoteAccessEnabled(enabled: boolean): Promise<RemoteAccessPairingInfo>;
+  getRemoteAccessTailscaleStatus(): Promise<RemoteAccessTailscaleStatus>;
+  setRemoteAccessTailscaleHttps(enabled: boolean): Promise<RemoteAccessPairingInfo>;
+  startTailscale(): Promise<StartTailscaleResult>;
+  setRemoteAccessAdvertisedUrl(url: string): Promise<RemoteAccessPairingInfo>;
   requireLightcodePaths(): LightcodePaths;
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
   onSharedSettingsChanged?(): void;
+  /** Per-thread git/PR summaries mirrored from the renderer for remote clients. */
+  onRemoteGitSummaries?(summaries: RemoteGitSummaries): void;
   extractBrowserToWindow(): void;
   injectBrowserToMain(): void;
   /** Relaunch the app (exposed via the relaunchApp IPC). */
@@ -76,6 +89,25 @@ function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserP
     throw new Error("Browser panel manager is not initialized.");
   }
   return mgr;
+}
+
+export function getRemoteAccessPairingInfo(
+  server: RemoteAccessServer | null,
+): RemoteAccessPairingInfo {
+  if (!server) {
+    return { status: "disabled" };
+  }
+  const info = server.getInfo();
+  if (!info) {
+    return { status: "starting" };
+  }
+  return {
+    status: "ready",
+    httpBaseUrl: info.httpBaseUrl,
+    wsBaseUrl: info.wsBaseUrl,
+    pairingUrl: server.issuePairingUrl("Settings QR"),
+    sessions: server.listAccessSessions(),
+  };
 }
 
 let usageLoginManager: UsageLoginManager | null = null;
@@ -97,6 +129,8 @@ function roundRect(rect: { x: number; y: number; width: number; height: number }
 }
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
+const REMOTE_HTTP_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
+const REMOTE_HTTP_REQUEST_TIMEOUT_MS = 60_000;
 
 function assertSafeExternalUrl(rawUrl: string): string {
   let parsed: URL;
@@ -159,6 +193,43 @@ export function createLocalIpcHandlers(
       return true;
     },
     createProjectDirectory: (payload) => createProjectDirectory(payload),
+    // Desktop-as-client: proxy a remote Lightcode server request through the
+    // main process (no browser CORS). Restricted to http(s) and a bounded
+    // response so a hostile/buggy peer can't exfiltrate via odd schemes or
+    // exhaust memory. (The remote is one the user explicitly paired with.)
+    remoteHttpRequest: async (payload) => {
+      const protocol = new URL(payload.url).protocol;
+      if (protocol !== "http:" && protocol !== "https:") {
+        throw new Error(`remoteHttpRequest only supports http(s), got "${protocol}".`);
+      }
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), REMOTE_HTTP_REQUEST_TIMEOUT_MS);
+      timeout.unref?.();
+
+      try {
+        const response = await fetch(payload.url, {
+          method: payload.method ?? "GET",
+          signal: controller.signal,
+          ...(payload.headers ? { headers: payload.headers } : {}),
+          ...(payload.body !== undefined ? { body: payload.body } : {}),
+        });
+        const buffer = await readBoundedResponseBody(response, REMOTE_HTTP_RESPONSE_MAX_BYTES);
+        return {
+          status: response.status,
+          headers: headersToRecord(response.headers),
+          body: Buffer.from(buffer).toString("utf8"),
+        };
+      } catch (error) {
+        if (controller.signal.aborted) {
+          throw new Error(`Remote request timed out after ${REMOTE_HTTP_REQUEST_TIMEOUT_MS}ms.`, {
+            cause: error,
+          });
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+      }
+    },
     openExternal: async (url) => {
       const safeUrl = assertSafeExternalUrl(url);
       const browserPanel = options.getBrowserPanelManager();
@@ -190,8 +261,25 @@ export function createLocalIpcHandlers(
     getKeybindings: () => readKeybindingsFile(options.requireLightcodePaths().keybindingsPath),
     setKeybindings: (file) =>
       writeKeybindingsFile(options.requireLightcodePaths().keybindingsPath, file),
+    getRemoteAccessPairing: () => getRemoteAccessPairingInfo(options.getRemoteAccessServer()),
+    setRemoteAccessEnabled: (payload) => options.setRemoteAccessEnabled(payload.enabled),
+    getRemoteAccessTailscaleStatus: () => options.getRemoteAccessTailscaleStatus(),
+    setRemoteAccessTailscaleHttps: (payload) =>
+      options.setRemoteAccessTailscaleHttps(payload.enabled),
+    startTailscale: () => options.startTailscale(),
+    setRemoteAccessAdvertisedUrl: (payload) => options.setRemoteAccessAdvertisedUrl(payload.url),
+    revokeRemoteAccessSession: (payload) => {
+      const server = options.getRemoteAccessServer();
+      if (!server) {
+        return { revoked: false };
+      }
+      return { revoked: server.revokeAccessSession(payload.sessionId) };
+    },
     revealProjectEntry: async (payload) => {
       shell.showItemInFolder(resolveProjectFsPath(payload));
+    },
+    publishRemoteGitSummaries: (payload) => {
+      options.onRemoteGitSummaries?.(payload.summaries);
     },
     getSharedSettings: () => readSharedSettingsFile(options.requireLightcodePaths().settingsPath),
     setSharedSettings: (settings) => {
@@ -264,7 +352,7 @@ export function createLocalIpcHandlers(
       if (process.platform === "win32") {
         mainWindow.setBackgroundMaterial(wantsMaterial ? "acrylic" : "none");
         mainWindow.setBackgroundColor(
-          wantsMaterial ? "#00000000" : payload.appearance === "dark" ? "#141416" : "#f1f1f4",
+          wantsMaterial ? "#00000000" : payload.appearance === "dark" ? "#070709" : "#f1f1f4",
         );
       }
       if (wantsMaterial && payload.appearance) {

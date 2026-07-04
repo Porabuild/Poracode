@@ -1,5 +1,5 @@
 /**
- * OpenCode plugin forwarder for Lightcode thread status.
+ * OpenCode plugin forwarder for Poracode thread status.
  *
  * OpenCode imports this plugin in-process and calls hook callbacks directly —
  * unlike Claude/Codex/Gemini which spawn `forward.mjs` per hook event. The
@@ -35,7 +35,7 @@
  * and cannot be fixed plugin-side. `id` is still set because newer OpenCode
  * builds will read it.
  *
- * Safe outside Lightcode: when the env vars are missing the handlers no-op.
+ * Safe outside Poracode: when the env vars are missing the handlers no-op.
  */
 
 import { readFileSync } from "node:fs";
@@ -88,7 +88,7 @@ function debugLog(message) {
   }
 }
 
-// `event.type` → Lightcode intent. `permission.updated` and the (per-docs but
+// `event.type` → Poracode intent. `permission.updated` and the (per-docs but
 // untyped in the SDK) `permission.asked` both surface a request for approval,
 // so they share `session.needs_approval`. `tool.execute.after` /
 // `permission.replied` are intentionally unmapped — noisy and `session.idle`

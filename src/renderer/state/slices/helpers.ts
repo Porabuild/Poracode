@@ -37,13 +37,7 @@ export function stripPlanMode(config: ThreadConfig): ThreadConfig {
   return rest;
 }
 
-export function makeThreadTitle(prompt: string): string {
-  const normalized = prompt.trim().replace(/\s+/g, " ");
-  if (normalized.length <= 120) {
-    return normalized;
-  }
-  return `${normalized.slice(0, 117)}...`;
-}
+export { makeThreadTitle } from "@/shared/threadTitle";
 
 export function normalizeStoredThreadStatus(thread: Thread): Thread {
   if (thread.status === "inactive") {

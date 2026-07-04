@@ -240,11 +240,27 @@ export const sharedSettingsSchema = z.object({
   /** Prevent OS sleep while any thread is actively working. */
   preventSleepWhileWorking: z.boolean(),
   /**
-   * When true, closing the main window hides Lightcode to the system tray
+   * When true, closing the main window hides Poracode to the system tray
    * instead of quitting. The tray icon's Quit action (or Quit from the app
    * menu) still exits the process.
    */
   closeToTray: z.boolean(),
+  /** Enable the desktop's remote access server for paired mobile/browser clients. */
+  remoteAccessEnabled: z.boolean(),
+  /**
+   * Advertise a Tailscale MagicDNS HTTPS URL for remote access. When enabled and
+   * the local Tailscale daemon is healthy, the app runs `tailscale serve` to
+   * reverse-proxy `https://<machine>.<tailnet>.ts.net` to the local remote-access
+   * port and advertises that secure URL in pairing info. Desktop/server-lifecycle
+   * only — deliberately excluded from the remote-editable settings subset.
+   */
+  remoteAccessTailscaleHttps: z.boolean(),
+  /**
+   * Custom advertised base URL (origin only, http/https) for remote access, e.g.
+   * a Cloudflare named tunnel or reverse proxy. Empty means automatic. Desktop/
+   * server-lifecycle only — never remotely writable.
+   */
+  remoteAccessAdvertisedUrl: z.string(),
   /** Default action for the thread remove button: archive or delete permanently. */
   threadRemoveAction: threadRemoveActionSchema,
   /** Default new-thread behaviour: full page or side-by-side panel. */
@@ -272,18 +288,18 @@ export const sharedSettingsSchema = z.object({
   autoShowTerminalPanel: z.boolean(),
   /**
    * Where git worktrees are created: under a global root (`global`) or nested in
-   * each project at `<project>/.lightcode/worktrees` (`project-relative`).
+   * each project at `<project>/.poracode/worktrees` (`project-relative`).
    */
   worktreeStorageMode: worktreeStorageModeSchema,
   /**
    * Custom global worktree root for native projects. Empty string = built-in
-   * default (`~/.lightcode/worktrees`). Only used when `worktreeStorageMode` is
+   * default (`~/.poracode/worktrees`). Only used when `worktreeStorageMode` is
    * `global`.
    */
   worktreeBasePath: z.string(),
   /**
    * Custom global worktree root for WSL projects (a Linux path). Empty string =
-   * WSL default (`~/.lightcode/worktrees` in the distro home). Only used when
+   * WSL default (`~/.poracode/worktrees` in the distro home). Only used when
    * `worktreeStorageMode` is `global`.
    */
   wslWorktreeBasePath: z.string(),
@@ -339,6 +355,18 @@ export const sharedSettingsSchema = z.object({
    * noisier transitions.
    */
   notifyL2Cli: z.boolean(),
+  /**
+   * Send push notifications and iOS Live Activity updates to paired mobile
+   * devices (via the hosted push gateway) on thread-state transitions. Distinct
+   * from desktop OS notifications (`notificationsEnabled`).
+   */
+  remotePushEnabled: z.boolean(),
+  /**
+   * Redact thread titles and project names in remote push payloads (they
+   * traverse the gateway and APNs), replacing them with generic text. The
+   * WebSocket-connected foreground app still shows full detail.
+   */
+  remotePushRedactContent: z.boolean(),
   /** User-starred (provider, presentation, model) entries surfaced at the top of the model picker. */
   favoriteModels: z.array(modelPickerEntrySchema),
   /**
@@ -427,6 +455,9 @@ export const defaultSharedSettings: SharedSettings = {
   terminalPanelFontSize: 12,
   preventSleepWhileWorking: true,
   closeToTray: true,
+  remoteAccessEnabled: false,
+  remoteAccessTailscaleHttps: false,
+  remoteAccessAdvertisedUrl: "",
   threadRemoveAction: "archive",
   newThreadMode: "page",
   homeScopeEnabled: true,
@@ -450,6 +481,8 @@ export const defaultSharedSettings: SharedSettings = {
   notificationFilter: "unfocused",
   notificationStatuses: { done: true, needsAttention: true, error: true },
   notifyL2Cli: true,
+  remotePushEnabled: true,
+  remotePushRedactContent: false,
   favoriteModels: [],
   recentModels: [],
   disableCliHookPlugin: false,

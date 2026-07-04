@@ -37,6 +37,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     extractContext: (payload) => runtime.extractContext(payload),
     cancelExtractContext: ({ threadId }) => runtime.cancelExtractContext(threadId),
     readTerminalScrollback: ({ threadId }) => runtime.readTerminalScrollback(threadId),
+    readTerminalSize: ({ threadId }) => runtime.readTerminalSize(threadId),
     subagentSubscribe: (payload) => runtime.subagentSubscribe(payload),
     subagentUnsubscribe: async (payload) => {
       runtime.subagentUnsubscribe(payload);
@@ -88,6 +89,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     relocateProject: (payload) => runtime.relocateProject(payload),
     searchProjectFiles: (payload) => runtime.searchProjectFiles(payload),
     listProjectTree: (payload) => runtime.listProjectTree(payload),
+    browseHostDirectory: (payload) => runtime.browseHostDirectory(payload),
     searchProjectTree: (payload) => runtime.searchProjectTree(payload),
     readProjectFile: (payload) => runtime.readProjectFile(payload),
     readAbsoluteFile: (payload) => runtime.readAbsoluteFile(payload),

@@ -93,7 +93,7 @@ describe("computeDefaultWorktreePath", () => {
 
       expect(path).toMatch(
         new RegExp(
-          `^${join(homedir(), ".lightcode", "worktrees").replace(/\\/g, "\\\\")}\\\\lightcode-[a-f0-9]{4}\\\\feature-x$`,
+          `^${join(homedir(), ".poracode", "worktrees").replace(/\\/g, "\\\\")}\\\\lightcode-[a-f0-9]{4}\\\\feature-x$`,
         ),
       );
     },
@@ -118,8 +118,8 @@ describe("computeDefaultWorktreePath", () => {
       );
 
       expect(first).not.toBe(second);
-      expect(first).toContain(`${join(".lightcode", "worktrees")}\\lightcode-`);
-      expect(second).toContain(`${join(".lightcode", "worktrees")}\\lightcode-`);
+      expect(first).toContain(`${join(".poracode", "worktrees")}\\lightcode-`);
+      expect(second).toContain(`${join(".poracode", "worktrees")}\\lightcode-`);
     },
   );
 
@@ -135,7 +135,7 @@ describe("computeDefaultWorktreePath", () => {
   });
 
   it("omits the repo-hash segment for project-relative placement", async () => {
-    const root = join(homedir(), "repo", ".lightcode", "worktrees");
+    const root = join(homedir(), "repo", ".poracode", "worktrees");
     const path = await computeDefaultWorktreePath(
       { kind: process.platform === "win32" ? "windows" : "posix", path: join(homedir(), "repo") },
       "feature/x",
@@ -161,7 +161,7 @@ describe("computeDefaultWorktreePath", () => {
       );
 
       expect(path).toMatch(
-        /^\/home\/demo\/.lightcode\/worktrees\/lightcode-[a-f0-9]{4}\/feature-x$/,
+        /^\/home\/demo\/.poracode\/worktrees\/lightcode-[a-f0-9]{4}\/feature-x$/,
       );
       expect(home).toHaveBeenCalledWith(expect.objectContaining({ distro: "Ubuntu" }));
       expect(readWslCommandOutputAsync).not.toHaveBeenCalled();
@@ -206,7 +206,7 @@ describe("GitService.addWorktree", () => {
 
     await new GitService().addWorktree(
       location,
-      "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
+      "C:\\Users\\demo\\.poracode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
       "lightcode/brave-heron",
       true,
     );
@@ -240,7 +240,7 @@ describe("GitService.addWorktree", () => {
 
     await new GitService().addWorktree(
       location,
-      "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
+      "C:\\Users\\demo\\.poracode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
       "lightcode/brave-heron",
       true,
       "lightcode/silver-meadow-abcd",
@@ -251,7 +251,7 @@ describe("GitService.addWorktree", () => {
       commands.some((c) =>
         c.includes(
           "worktree add -b lightcode/brave-heron " +
-            "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron " +
+            "C:\\Users\\demo\\.poracode\\worktrees\\lightcode-12345678\\lightcode-brave-heron " +
             "origin/lightcode/silver-meadow-abcd",
         ),
       ),
@@ -282,7 +282,7 @@ describe("GitService.addWorktree", () => {
 
     await new GitService().addWorktree(
       location,
-      "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
+      "C:\\Users\\demo\\.poracode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
       "lightcode/brave-heron",
       true,
       "main",
@@ -315,7 +315,7 @@ describe("GitService.addWorktree", () => {
 
     await new GitService().addWorktree(
       location,
-      "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
+      "C:\\Users\\demo\\.poracode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
       "lightcode/brave-heron",
       true,
       "feature/x",
@@ -346,7 +346,7 @@ describe("GitService.addWorktree", () => {
 
     await new GitService().addWorktree(
       location,
-      "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
+      "C:\\Users\\demo\\.poracode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
       "lightcode/brave-heron",
       true,
       "feature/x",
@@ -370,7 +370,7 @@ describe("GitService.addWorktree", () => {
 
     await new GitService().addWorktree(
       location,
-      "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
+      "C:\\Users\\demo\\.poracode\\worktrees\\lightcode-12345678\\lightcode-brave-heron",
       "lightcode/brave-heron",
       true,
       "feature/x",
@@ -418,7 +418,7 @@ describe("GitService.addWorktree", () => {
             "worktree",
             "add",
             expect.stringMatching(
-              /^\/home\/demo\/.lightcode\/worktrees\/lightcode-[a-f0-9]{4}\/feature-x$/,
+              /^\/home\/demo\/.poracode\/worktrees\/lightcode-[a-f0-9]{4}\/feature-x$/,
             ),
             "feature/x",
           ],
@@ -435,7 +435,7 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
     kind: "windows" as const,
     path: "C:\\Users\\demo\\work\\lightcode",
   };
-  const worktreePath = "C:\\Users\\demo\\.lightcode\\worktrees\\lightcode-12345678\\feature-x";
+  const worktreePath = "C:\\Users\\demo\\.poracode\\worktrees\\lightcode-12345678\\feature-x";
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -631,7 +631,7 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
       linuxPath: "/home/demo/work/lightcode",
       uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\lightcode",
     };
-    const wslWorktreePath = "/home/demo/.lightcode/worktrees/lightcode/feature-x";
+    const wslWorktreePath = "/home/demo/.poracode/worktrees/lightcode/feature-x";
     const bridgeMkdir = vi.fn<() => Promise<void>>(async () => undefined);
     let stashPushed = false;
     const gitExec = vi.fn<
@@ -677,7 +677,7 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
         distro: "Ubuntu",
         linuxPath: wslWorktreePath,
         uncPath:
-          "\\\\wsl.localhost\\Ubuntu\\home\\demo\\.lightcode\\worktrees\\lightcode\\feature-x",
+          "\\\\wsl.localhost\\Ubuntu\\home\\demo\\.poracode\\worktrees\\lightcode\\feature-x",
       });
       expect(applyCalls[0]?.[1]).toMatchObject({ cwd: wslWorktreePath });
     } finally {
@@ -1458,7 +1458,7 @@ describe("GitService.pullFromSource", () => {
 
     expect(result).toEqual({ merged: true, fastForward: true });
     const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
-    expect(commands).toContain("stash push -u -m Lightcode: before pull from main");
+    expect(commands).toContain("stash push -u -m Poracode: before pull from main");
     expect(commands).toContain("merge --ff-only origin/main");
     expect(commands).toContain("stash pop");
   });
@@ -1647,7 +1647,7 @@ describe("GitService.getWorktreeSourceBranch", () => {
             "HEAD abc123",
             "branch refs/heads/master",
             "",
-            "worktree C:/Users/demo/.lightcode/worktrees/lightcode-12345678/lightcode-brave-heron",
+            "worktree C:/Users/demo/.poracode/worktrees/lightcode-12345678/lightcode-brave-heron",
             "HEAD def456",
             "branch refs/heads/lightcode/brave-heron",
             "",
@@ -1726,7 +1726,7 @@ describe("GitService.removeWorktree", () => {
     kind: "windows" as const,
     path: "C:\\Users\\demo\\work\\repo",
   };
-  const worktreePath = "C:\\Users\\demo\\.lightcode\\worktrees\\repo-12345678\\feature-x";
+  const worktreePath = "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x";
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1754,9 +1754,9 @@ describe("GitService.removeWorktree", () => {
   });
 
   it("does not prune worktrees from a sibling path with the same prefix", async () => {
-    const managedRoot = "C:\\Users\\demo\\.lightcode\\worktrees";
-    const siblingPath = "C:\\Users\\demo\\.lightcode\\worktrees-old\\repo-1234\\feature-x";
-    const staleManagedPath = "C:\\Users\\demo\\.lightcode\\worktrees\\repo-1234\\feature-y";
+    const managedRoot = "C:\\Users\\demo\\.poracode\\worktrees";
+    const siblingPath = "C:\\Users\\demo\\.poracode\\worktrees-old\\repo-1234\\feature-x";
+    const staleManagedPath = "C:\\Users\\demo\\.poracode\\worktrees\\repo-1234\\feature-y";
 
     mockGitCommands((args) => {
       if (args[0] === "worktree" && args[1] === "prune") return { stdout: "" };
@@ -1878,7 +1878,7 @@ describe("GitService.removeWorktree", () => {
       linuxPath: "/home/demo/work/repo",
       uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\work\\repo",
     };
-    const wslWorktreePath = "/home/demo/.lightcode/worktrees/repo/feature-x";
+    const wslWorktreePath = "/home/demo/.poracode/worktrees/repo/feature-x";
     const gitExec = vi.fn<
       (location: WslLocation, input: WslGitExecInput) => Promise<WslGitExecResult>
     >(async (_location, input) => {

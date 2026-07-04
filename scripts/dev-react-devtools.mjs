@@ -1,5 +1,5 @@
 // react-devtools spawns its own bundled Electron.  Electron-based hosts
-// (VS Code, the Lightcode app itself, Claude Code) set ELECTRON_RUN_AS_NODE=1
+// (VS Code, the Poracode app itself, Claude Code) set ELECTRON_RUN_AS_NODE=1
 // in their child processes.  If that leaks into our dev shell, react-devtools'
 // Electron starts as plain Node and `require("electron").app` is undefined, so
 // it crashes at startup (app.js:17, "Cannot read properties of undefined").

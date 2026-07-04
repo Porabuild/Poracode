@@ -550,7 +550,7 @@ Commands:
 });
 
 describe("Cursor terminal auth", () => {
-  it("disables Cursor's WSL browser opener so Lightcode can open the URL natively", () => {
+  it("disables Cursor's WSL browser opener so Poracode can open the URL natively", () => {
     expect(
       buildCursorTerminalAuthMethod({
         kind: "wsl",

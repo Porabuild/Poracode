@@ -310,7 +310,7 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
   it("creates git checkpoint snapshots inside the bridge process", async () => {
     git(projectRoot, "init");
     git(projectRoot, "config", "user.email", "test@example.com");
-    git(projectRoot, "config", "user.name", "Lightcode Test");
+    git(projectRoot, "config", "user.name", "Poracode Test");
     git(projectRoot, "add", "README.md");
     git(projectRoot, "commit", "-m", "init");
     writeFileSync(join(projectRoot, "README.md"), "after");
@@ -344,7 +344,7 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
   it("runs structured git batches without a shell", async () => {
     git(projectRoot, "init");
     git(projectRoot, "config", "user.email", "test@example.com");
-    git(projectRoot, "config", "user.name", "Lightcode Test");
+    git(projectRoot, "config", "user.name", "Poracode Test");
 
     const { status, body } = await post(`${bridge.baseUrl}/v1/git/batch`, {
       timeoutMs: 10_000,
@@ -412,7 +412,7 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
   it("runs login-env git execs without exposing the bridge secret to hooks", async () => {
     git(projectRoot, "init");
     git(projectRoot, "config", "user.email", "test@example.com");
-    git(projectRoot, "config", "user.name", "Lightcode Test");
+    git(projectRoot, "config", "user.name", "Poracode Test");
     mkdirSync(join(projectRoot, ".githooks"));
     const hookPath = join(projectRoot, ".githooks", "pre-commit");
     writeFileSync(

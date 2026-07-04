@@ -22,7 +22,7 @@ export type ProjectScripts = z.infer<typeof projectScriptsSchema>;
 /**
  * Where git worktrees are created. `global` places them under a global root
  * (built-in default or a user-configured base); `project-relative` nests them
- * inside the project at `<project>/.lightcode/worktrees`.
+ * inside the project at `<project>/.poracode/worktrees`.
  */
 export const worktreeStorageModeSchema = z.enum(["global", "project-relative"]);
 export type WorktreeStorageMode = z.infer<typeof worktreeStorageModeSchema>;

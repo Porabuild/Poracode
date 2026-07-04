@@ -1,8 +1,9 @@
-import { startTransition } from "react";
-import { Switch } from "@heroui/react";
+import { startTransition, useEffect, useState } from "react";
+import { Button, Switch } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { NotificationFilter } from "@/shared/contracts";
+import { isRemoteSession } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { Select } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
@@ -12,6 +13,75 @@ const filterOptions = [
   { id: "unfocused", label: msg`Only when unfocused` },
   { id: "all", label: msg({ message: "Always", comment: "Notification filter: always notify" }) },
 ] as const;
+
+/** In the PWA, system notifications need the browser's permission; surface
+ * the request here since browsers only grant it from a user gesture. */
+function BrowserPermissionRow() {
+  const { t } = useLingui();
+  const supported = typeof Notification !== "undefined";
+  const [permission, setPermission] = useState<NotificationPermission>(() =>
+    supported ? Notification.permission : "denied",
+  );
+
+  // Permission can also be granted from the "Enable notifications" toggle
+  // above (a separate user gesture), so keep this row in sync via the
+  // Permissions API change event when available. Guarded for browsers that
+  // don't expose navigator.permissions or the "notifications" descriptor.
+  useEffect(() => {
+    if (!supported || typeof navigator === "undefined" || !navigator.permissions) return;
+    let status: PermissionStatus | undefined;
+    let cancelled = false;
+    const sync = () => setPermission(Notification.permission);
+    navigator.permissions
+      .query({ name: "notifications" as PermissionName })
+      .then((result) => {
+        if (cancelled) return;
+        status = result;
+        status.addEventListener("change", sync);
+        sync();
+      })
+      .catch(() => {
+        /* "notifications" not queryable in this browser; ignore */
+      });
+    return () => {
+      cancelled = true;
+      status?.removeEventListener("change", sync);
+    };
+  }, [supported]);
+
+  if (!supported) {
+    return (
+      <p className="text-xs text-muted">
+        <Trans>
+          This browser does not support system notifications here; you will still see in-app toasts.
+        </Trans>
+      </p>
+    );
+  }
+  if (permission === "granted") return null;
+  return (
+    <SettingRow
+      title={t`System notifications`}
+      description={
+        permission === "denied"
+          ? t`Blocked by the browser. Allow notifications for this site in the browser settings to get alerts while the app is in the background.`
+          : t`Allow the browser to show notifications while the app is in the background.`
+      }
+    >
+      {permission === "default" ? (
+        <Button
+          size="sm"
+          variant="secondary"
+          onPress={() => {
+            void Notification.requestPermission().then(setPermission);
+          }}
+        >
+          <Trans>Allow</Trans>
+        </Button>
+      ) : null}
+    </SettingRow>
+  );
+}
 
 export function NotificationSettings() {
   const { t } = useLingui();
@@ -25,11 +95,15 @@ export function NotificationSettings() {
   const setNotificationStatuses = useSharedSettings((s) => s.setNotificationStatuses);
   const notifyL2Cli = useSharedSettings((s) => s.notifyL2Cli);
   const setNotifyL2Cli = useSharedSettings((s) => s.setNotifyL2Cli);
+  // Remote sessions notify on this device; the L2 CLI nuance is desktop-only
+  // and the browser permission row is PWA-only.
+  const remote = isRemoteSession();
 
   const filterOpts = useLocalizedOptions(filterOptions);
 
   return (
     <SettingsPage title={t`Notifications`}>
+      {remote ? <BrowserPermissionRow /> : null}
       <SettingRow
         anchorId="notifications.enableNotifications"
         title={t`Enable notifications`}
@@ -38,6 +112,19 @@ export function NotificationSettings() {
         <Switch
           isSelected={notificationsEnabled}
           onChange={(selected) => {
+            // Browsers only grant the Notification permission from a user
+            // gesture. In the PWA, proactively request it as part of this
+            // toggle handler so the prompt actually appears; otherwise the
+            // permission stays "default" and native notifications never show.
+            // Gated on the remote session, so desktop behavior is unchanged.
+            if (
+              selected &&
+              remote &&
+              typeof Notification !== "undefined" &&
+              Notification.permission === "default"
+            ) {
+              void Notification.requestPermission();
+            }
             startTransition(() => {
               setNotificationsEnabled(selected);
             });
@@ -177,30 +264,32 @@ export function NotificationSettings() {
           </div>
         </div>
 
-        <SettingRow
-          anchorId="notifications.notifyL2Cli"
-          className="pt-2"
-          title={t`Notify for L2 CLI threads`}
-          description={
-            <Trans>
-              When off, suppress notifications from terminal threads whose status comes from the OSC
-              fallback (no CLI hook plugin).
-            </Trans>
-          }
-        >
-          <Switch
-            isSelected={notifyL2Cli}
-            onChange={(selected) => {
-              startTransition(() => {
-                setNotifyL2Cli(selected);
-              });
-            }}
+        {!remote && (
+          <SettingRow
+            anchorId="notifications.notifyL2Cli"
+            className="pt-2"
+            title={t`Notify for L2 CLI threads`}
+            description={
+              <Trans>
+                When off, suppress notifications from terminal threads whose status comes from the
+                OSC fallback (no CLI hook plugin).
+              </Trans>
+            }
           >
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch>
-        </SettingRow>
+            <Switch
+              isSelected={notifyL2Cli}
+              onChange={(selected) => {
+                startTransition(() => {
+                  setNotifyL2Cli(selected);
+                });
+              }}
+            >
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch>
+          </SettingRow>
+        )}
       </div>
     </SettingsPage>
   );

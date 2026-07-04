@@ -37,7 +37,7 @@ import { buildOpenCodeBrowserMcp } from "../mcpBrowser";
  * loads plugin files in-process. So "install" here means:
  *
  *   1. Stage `plugin.json` + `lightcode-status.mjs` to
- *      `~/.lightcode/agent-plugins/opencode/` (the canonical lightcode-managed
+ *      `~/.poracode/agent-plugins/opencode/` (the canonical lightcode-managed
  *      location used for version bookkeeping and the manifest the supervisor
  *      reads at boot).
  *   2. Copy the staged plugin into OpenCode's auto-discovery directory at
@@ -47,7 +47,7 @@ import { buildOpenCodeBrowserMcp } from "../mcpBrowser";
  *
  * Why drop into `plugins/` instead of registering a `file://` spec in
  * `~/.config/opencode/opencode.json`: empirically, an opencode.json reference
- * to a file under `~/.lightcode/` did not load reliably in OpenCode 1.14.31
+ * to a file under `~/.poracode/` did not load reliably in OpenCode 1.14.31
  * across Windows/WSL — auto-discovery from `plugins/` is the well-trodden
  * path every other ecosystem plugin (Warp, sample plugins) uses, and the
  * displayed name in OpenCode's TUI status panel comes from the basename of
@@ -60,11 +60,11 @@ import { buildOpenCodeBrowserMcp } from "../mcpBrowser";
  *
  * The plugin reads `LIGHTCODE_HOOK_URL` / `LIGHTCODE_HOOK_SECRET` /
  * `LIGHTCODE_THREAD_ID` etc. from `process.env` at hook time. When those
- * vars are unset (i.e. the user runs `opencode` outside Lightcode) the
+ * vars are unset (i.e. the user runs `opencode` outside Poracode) the
  * handlers no-op.
  */
 
-/** Files staged into `~/.lightcode/agent-plugins/opencode/`. */
+/** Files staged into `~/.poracode/agent-plugins/opencode/`. */
 const OPENCODE_PLUGIN_ASSET_FILES = ["plugin.json", "lightcode-status.mjs"] as const;
 
 /**
@@ -81,7 +81,7 @@ const OPENCODE_PLUGIN_DROP_FILE_NAME = "lightcode-status.js";
 const OPENCODE_PLUGIN_DROP_MANIFEST_NAME = "lightcode-status.plugin.json";
 
 /**
- * Older Lightcode versions dropped a `.mjs` here, which OpenCode never loaded
+ * Older Poracode versions dropped a `.mjs` here, which OpenCode never loaded
  * (auto-discovery is `*.{ts,js}` only). Cleaned up at install/uninstall time
  * so users upgrading don't end up with two stale siblings.
  */
@@ -90,7 +90,7 @@ const OPENCODE_LEGACY_DROP_FILES = ["lightcode-status.mjs"] as const;
 /**
  * Substring identifying our entry in the user's `opencode.json` `"plugin"`
  * array. Older lightcode versions registered a `file://` URL here pointing
- * at the staged plugin under `~/.lightcode/`. We no longer write such an
+ * at the staged plugin under `~/.poracode/`. We no longer write such an
  * entry but still scrub any prior one out on every install / uninstall.
  */
 const LIGHTCODE_PLUGIN_SPEC_MARKER = "agent-plugins/opencode/";
@@ -495,7 +495,7 @@ export function syncOpenCodeBrowserMcpConfigFile(
 /**
  * Removes the dropped plugin file from OpenCode's plugins/ directory and any
  * legacy drops, plus scrubs the lightcode entry from opencode.json. Staging
- * dir under `~/.lightcode/` stays so version diagnostics survive.
+ * dir under `~/.poracode/` stays so version diagnostics survive.
  * Best-effort: missing files / unreachable distros are swallowed.
  */
 export function uninstallOpenCodePlugin(ctx?: AgentEnvContext): void {

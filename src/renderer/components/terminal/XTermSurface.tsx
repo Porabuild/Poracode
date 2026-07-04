@@ -94,6 +94,32 @@ export const XTermSurface = forwardRef<
     className?: string;
     baseFontSize?: number;
     openLinksInNativeBrowser?: boolean;
+    /** Mobile browsers are more reliable with xterm's default DOM renderer. */
+    preferDomRenderer?: boolean;
+    /** Keep xterm's local buffer at the canonical PTY size instead of fitting. */
+    fixedTerminalSize?: TerminalSize;
+    /** Whether a visual fit should resize the backing PTY. */
+    resizeTerminalOnFit?: boolean;
+    /** Translate touch drags into xterm wheel events for mobile/PWA terminals. */
+    touchScrollEnabled?: boolean;
+    /** Keep touch gestures from focusing xterm's hidden textarea. */
+    suppressTouchKeyboard?: boolean;
+    /**
+     * Pluggable output feed. When provided (the remote PWA), the surface gets
+     * PTY bytes / reset / exit through this subscription instead of the local
+     * supervisor IPC event stream. Returns an unsubscribe.
+     */
+    outputSource?: (listener: {
+      onOutput: (data: string) => void;
+      onReset: () => void;
+      onExited: (exitCode: number | null) => void;
+    }) => () => void;
+    /**
+     * Initial scrollback to hydrate with, instead of reading it over the bridge
+     * (the PWA already has it from the thread snapshot, or none for a fresh
+     * shell). An empty string hydrates nothing but still skips the bridge read.
+     */
+    initialScrollback?: string;
   }
 >(function XTermSurface(props, ref) {
   const {
@@ -108,6 +134,13 @@ export const XTermSurface = forwardRef<
     className,
     baseFontSize = 12,
     openLinksInNativeBrowser = false,
+    preferDomRenderer = false,
+    fixedTerminalSize,
+    resizeTerminalOnFit = true,
+    touchScrollEnabled = false,
+    suppressTouchKeyboard = false,
+    outputSource,
+    initialScrollback,
   } = props;
   const { t } = useLingui();
   const appearance = useResolvedAppearance();
@@ -247,6 +280,20 @@ export const XTermSurface = forwardRef<
       const token = ++scrollbackHydrationToken;
       hydratingScrollback = true;
       bufferedOutputDuringHydration = "";
+      // Caller-supplied scrollback (the PWA) hydrates synchronously — no bridge
+      // round-trip, so live output that arrives next isn't buffered/lost.
+      if (initialScrollback !== undefined) {
+        if (initialScrollback.length > 0) {
+          terminal.reset();
+          terminal.write(initialScrollback);
+        }
+        hydratingScrollback = false;
+        if (bufferedOutputDuringHydration.length > 0) {
+          terminal.write(bufferedOutputDuringHydration);
+          bufferedOutputDuringHydration = "";
+        }
+        return;
+      }
       let restoredScrollback = false;
       void readBridge()
         .readTerminalScrollback({ threadId: terminalId })
@@ -294,11 +341,11 @@ export const XTermSurface = forwardRef<
       scrollback: 5_000,
       scrollSensitivity: useSharedSettings.getState().scrollSpeed,
       fastScrollSensitivity: 10,
-      // Keep xterm's internal scrollbar gutter effectively zero; Lightcode
+      // Keep xterm's internal scrollbar gutter effectively zero; Poracode
       // renders the visible scrollbar outside the terminal content area.
       scrollbar: { width: TERMINAL_INTERNAL_SCROLLBAR_WIDTH },
       fontSize: baseFontSizeRef.current,
-      fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace",
+      fontFamily: "'Geist Mono', 'JetBrains Mono', 'Cascadia Code', monospace",
       fontWeight: "normal",
       fontWeightBold: "bold",
       letterSpacing: 0,
@@ -383,6 +430,19 @@ export const XTermSurface = forwardRef<
       // no-op there.
       const wasPinnedToBottom = terminal.buffer.active.viewportY >= terminal.buffer.active.baseY;
 
+      if (fixedTerminalSize) {
+        if (terminal.cols !== fixedTerminalSize.cols || terminal.rows !== fixedTerminalSize.rows) {
+          terminal.resize(fixedTerminalSize.cols, fixedTerminalSize.rows);
+        }
+        lastCols = fixedTerminalSize.cols;
+        lastRows = fixedTerminalSize.rows;
+        onTerminalResizeRef.current?.(fixedTerminalSize);
+        if (wasPinnedToBottom) {
+          terminal.scrollToBottom();
+        }
+        return;
+      }
+
       fit.fit();
 
       if (wasPinnedToBottom) {
@@ -397,7 +457,9 @@ export const XTermSurface = forwardRef<
         clearTimeout(ptyResizeTimer);
         ptyResizeTimer = 0;
       }
-      if (terminal.buffer.normal.length < RESIZE_DEBOUNCE_BUFFER_THRESHOLD) {
+      if (!resizeTerminalOnFit) {
+        onTerminalResizeRef.current?.({ cols: terminal.cols, rows: terminal.rows });
+      } else if (terminal.buffer.normal.length < RESIZE_DEBOUNCE_BUFFER_THRESHOLD) {
         flushPtyResize();
       } else {
         ptyResizeTimer = window.setTimeout(() => {
@@ -445,6 +507,77 @@ export const XTermSurface = forwardRef<
     terminal.loadAddon(new ClipboardAddon());
 
     terminal.open(mount);
+    const focusTerminalOnPointerDown = (event: PointerEvent) => {
+      if (suppressTouchKeyboard && event.pointerType === "touch") {
+        event.stopPropagation();
+        return;
+      }
+      terminal.focus();
+    };
+    mount.addEventListener("pointerdown", focusTerminalOnPointerDown, { capture: true });
+
+    let touchScrollY: number | null = null;
+    let touchScrollRemainder = 0;
+    // Resolved once: xterm creates the viewport synchronously in open() and keeps
+    // it for the surface's lifetime, so we skip a DOM query per touchmove.
+    const touchWheelTarget =
+      mount.querySelector(".xterm-viewport") ?? mount.querySelector(".xterm") ?? mount;
+    const dispatchWheelFromTouch = (touch: Touch, deltaY: number) => {
+      const wheelEvent = new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+        deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+        deltaY,
+      });
+      return !touchWheelTarget.dispatchEvent(wheelEvent);
+    };
+    const onTouchStart = (event: TouchEvent) => {
+      if (!touchScrollEnabled) return;
+      event.stopPropagation();
+      if (suppressTouchKeyboard) {
+        event.preventDefault();
+      }
+      if (event.touches.length !== 1) {
+        touchScrollY = null;
+        touchScrollRemainder = 0;
+        return;
+      }
+      touchScrollY = event.touches[0]?.clientY ?? null;
+      touchScrollRemainder = 0;
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      if (!touchScrollEnabled) return;
+      if (touchScrollY === null || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const deltaY = touchScrollY - touch.clientY;
+      touchScrollY = touch.clientY;
+      if (deltaY === 0) return;
+      if (dispatchWheelFromTouch(touch, deltaY)) return;
+
+      const rowHeight = terminal.rows > 0 ? mount.clientHeight / terminal.rows : 0;
+      if (rowHeight <= 0) return;
+      const rawLines = deltaY / rowHeight + touchScrollRemainder;
+      const lines = rawLines > 0 ? Math.floor(rawLines) : Math.ceil(rawLines);
+      touchScrollRemainder = rawLines - lines;
+      if (lines === 0) return;
+
+      terminal.scrollLines(lines);
+      checkScrollPosition();
+    };
+    const onTouchEnd = () => {
+      touchScrollY = null;
+      touchScrollRemainder = 0;
+    };
+    mount.addEventListener("touchstart", onTouchStart, { capture: true, passive: false });
+    mount.addEventListener("touchmove", onTouchMove, { capture: true, passive: false });
+    mount.addEventListener("touchend", onTouchEnd, { capture: true });
+    mount.addEventListener("touchcancel", onTouchEnd, { capture: true });
 
     // ── WebGL renderer with DOM fallback ────────────────────────
     // Match VSCode: prefer the GPU renderer, fall back to the DOM renderer
@@ -452,17 +585,19 @@ export const XTermSurface = forwardRef<
     // a healthy WebGL context (it relies on the GPU compositor).
     let webglAddon: WebglAddon | null = null;
     let webglContextLossDisposable: { dispose(): void } | null = null;
-    try {
-      webglAddon = new WebglAddon();
-      webglContextLossDisposable = webglAddon.onContextLoss(() => {
+    if (!preferDomRenderer) {
+      try {
+        webglAddon = new WebglAddon();
+        webglContextLossDisposable = webglAddon.onContextLoss(() => {
+          webglAddon?.dispose();
+          webglAddon = null;
+        });
+        terminal.loadAddon(webglAddon);
+        terminal.loadAddon(new ImageAddon());
+      } catch {
         webglAddon?.dispose();
         webglAddon = null;
-      });
-      terminal.loadAddon(webglAddon);
-      terminal.loadAddon(new ImageAddon());
-    } catch {
-      webglAddon?.dispose();
-      webglAddon = null;
+      }
     }
 
     terminal.onBell(() => {
@@ -598,26 +733,32 @@ export const XTermSurface = forwardRef<
     });
     resizeObserver.observe(mount);
 
-    // Subscribe to supervisor events - this stays alive for the terminal's entire lifecycle
-    const unsubscribe = readBridge().onSupervisorEvent((event) => {
-      if (event.type === "thread-reset" && event.threadId === terminalId) {
-        resetForNewPty();
+    // Terminal lifecycle feed (stays alive for the terminal's whole lifecycle).
+    // Output/reset/exit handlers are shared between the local supervisor IPC
+    // stream (desktop) and a caller-provided feed (the remote PWA's WebSocket).
+    const handleReset = () => resetForNewPty();
+    const handleOutput = (data: string) => {
+      if (hydratingScrollback) {
+        bufferedOutputDuringHydration += data;
         return;
       }
+      terminal.write(data);
+    };
+    const handleExited = (exitCode: number | null) => {
+      onExitedRef.current?.(exitCode);
+    };
 
-      if (event.type === "thread-output" && event.threadId === terminalId) {
-        if (hydratingScrollback) {
-          bufferedOutputDuringHydration += event.data;
-          return;
-        }
-        terminal.write(event.data);
-        return;
-      }
-
-      if (event.type === "thread-exited" && event.threadId === terminalId) {
-        onExitedRef.current?.(event.exitCode);
-      }
-    });
+    const unsubscribe = outputSource
+      ? outputSource({ onOutput: handleOutput, onReset: handleReset, onExited: handleExited })
+      : readBridge().onSupervisorEvent((event) => {
+          if (event.type === "thread-reset" && event.threadId === terminalId) {
+            handleReset();
+          } else if (event.type === "thread-output" && event.threadId === terminalId) {
+            handleOutput(event.data);
+          } else if (event.type === "thread-exited" && event.threadId === terminalId) {
+            handleExited(event.exitCode);
+          }
+        });
 
     // Fit synchronously before hydrating: reading clientWidth forces layout, so
     // in a real browser the terminal is already at the viewport width when the
@@ -648,6 +789,11 @@ export const XTermSurface = forwardRef<
       webglAddon?.dispose();
       linkDisposable.dispose();
       searchResultsDisposable.dispose();
+      mount.removeEventListener("pointerdown", focusTerminalOnPointerDown, { capture: true });
+      mount.removeEventListener("touchstart", onTouchStart, { capture: true });
+      mount.removeEventListener("touchmove", onTouchMove, { capture: true });
+      mount.removeEventListener("touchend", onTouchEnd, { capture: true });
+      mount.removeEventListener("touchcancel", onTouchEnd, { capture: true });
       mount.removeEventListener("focusin", onTerminalFocusIn);
       clearActiveTerminalFind(findController);
       unsubscribe();
@@ -658,7 +804,7 @@ export const XTermSurface = forwardRef<
       searchRef.current = null;
       requestRefitRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once: terminal is created once, readOnly/terminalId/appearance are captured at init
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once: terminal is created once, readOnly/terminalId/appearance/touch behavior are captured at init
   }, []);
 
   useEffect(() => {
@@ -792,7 +938,12 @@ export const XTermSurface = forwardRef<
           } as CSSProperties
         }
       >
-        <div ref={mountRef} className="lightcode-terminal-pane h-full min-w-0 overflow-hidden" />
+        <div
+          ref={mountRef}
+          className={`lightcode-terminal-pane h-full ${
+            fixedTerminalSize ? "min-w-max overflow-visible" : "min-w-0 overflow-hidden"
+          }`}
+        />
         {findOpen ? (
           <div className="pointer-events-auto absolute right-2 top-2 z-20">
             <FindBar

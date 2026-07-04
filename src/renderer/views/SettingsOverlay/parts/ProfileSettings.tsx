@@ -6,6 +6,7 @@ import type {
   ProfileStatsWindow,
   ProfileTokenProvider,
 } from "@/shared/contracts";
+import { isRemoteSession } from "@/renderer/bridge";
 import {
   Button,
   LightballTabs,
@@ -41,6 +42,10 @@ function toEntry(p: ProfileTokenProvider): ProfileBreakdownEntry {
 export function ProfileSettings() {
   const { t } = useLingui();
   const data = useProfileData();
+  // Sharing takes a native clipboard screenshot of the page (copyShareImage),
+  // which has no remote equivalent; hide the affordance rather than surface a
+  // dead button. Editing identity still works remotely via setProfileIdentity.
+  const remote = isRemoteSession();
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [pickedMetric, setPickedMetric] = useState<ActivityMetric | null>(null);
@@ -113,10 +118,12 @@ export function ProfileSettings() {
 
   const headerActions = (
     <>
-      <Button size="sm" variant="ghost" onPress={() => setShareOpen(true)} className="gap-1.5">
-        <Share2 className="size-4" />
-        <Trans>Share</Trans>
-      </Button>
+      {!remote && (
+        <Button size="sm" variant="ghost" onPress={() => setShareOpen(true)} className="gap-1.5">
+          <Share2 className="size-4" />
+          <Trans>Share</Trans>
+        </Button>
+      )}
       <Button size="sm" variant="ghost" onPress={() => setEditOpen(true)} className="gap-1.5">
         <Pencil className="size-4" />
         <Trans>Edit</Trans>

@@ -28,6 +28,12 @@ describe("ipcProcedureMap", () => {
     const handlers = createLocalIpcHandlers({
       getMainWindow: () => null as never,
       getBrowserPanelManager: () => null,
+      getRemoteAccessServer: () => null,
+      setRemoteAccessEnabled: vi.fn<(enabled: boolean) => Promise<never>>(),
+      getRemoteAccessTailscaleStatus: vi.fn<() => Promise<never>>(),
+      setRemoteAccessTailscaleHttps: vi.fn<(enabled: boolean) => Promise<never>>(),
+      startTailscale: vi.fn<() => Promise<{ ok: boolean }>>(async () => ({ ok: true })),
+      setRemoteAccessAdvertisedUrl: vi.fn<(url: string) => Promise<never>>(),
       requireLightcodePaths: () =>
         ({
           baseDir: "C:\\tmp",

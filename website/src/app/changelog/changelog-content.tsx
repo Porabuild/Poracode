@@ -13,7 +13,7 @@ import { useI18n } from "@/lib/i18n/I18nProvider";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { LanguageSelector } from "@/components/LanguageSelector";
 
-const RELEASES_URL = "https://github.com/SDSLeon/lightcode/releases";
+const RELEASES_URL = "https://github.com/poracode/poracode/releases";
 
 const KIND_ORDER: ChangelogChangeKind[] = ["added", "improved", "fixed"];
 

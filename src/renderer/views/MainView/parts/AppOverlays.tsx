@@ -25,6 +25,8 @@ const PrReviewOverlay = lazy(() =>
 import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { RemoteThreadView } from "@/renderer/views/RemoteThreadView/RemoteThreadView";
 import { resolvePrKey } from "@/renderer/state/gitSelectors";
 
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
@@ -45,6 +47,7 @@ import { CloneProjectModal } from "@/renderer/views/MainView/parts/CreateProject
 export function AppOverlays() {
   const projects = useAppStore((s) => s.projects);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
+  const remoteThreadOpen = useRemoteServersStore((s) => s.openThread !== null);
   const projectSettingsId = usePanelStore((s) => s.projectSettingsId);
   const gitOverlayOpen = usePanelStore((s) => s.gitOverlayOpen);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
@@ -68,6 +71,12 @@ export function AppOverlays() {
       <WhatsNewOverlay />
       <OverlayShell open={settingsOpen} onExited={() => usePanelStore.getState().closeSettings()}>
         <SettingsOverlay onClose={() => usePanelStore.getState().closeSettings()} />
+      </OverlayShell>
+      <OverlayShell
+        open={remoteThreadOpen}
+        onExited={() => useRemoteServersStore.getState().closeRemoteThread()}
+      >
+        <RemoteThreadView />
       </OverlayShell>
       <OverlayShell
         open={!!projectSettingsId}

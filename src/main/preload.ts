@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { type LightcodeChannel, normalizeChannel } from "@/shared/channel";
+import type { RemoteThreadCommand } from "@/shared/contracts";
+import type { SharedSettings } from "@/shared/settings";
 import {
   createInvokeBridge,
   IPC_EVENT_CHANNELS,
@@ -122,6 +124,24 @@ const bridge: LightcodeBridge = {
     ipcRenderer.on(IPC_EVENT_CHANNELS.browserEvent, handler);
     return () => {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.browserEvent, handler);
+    };
+  },
+  onRemoteThreadCommand(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, command: RemoteThreadCommand) => {
+      listener(command);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.remoteThreadCommand, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.remoteThreadCommand, handler);
+    };
+  },
+  onSharedSettingsChanged(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, settings: SharedSettings) => {
+      listener(settings);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.sharedSettingsChanged, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.sharedSettingsChanged, handler);
     };
   },
   onNotificationClick(listener) {

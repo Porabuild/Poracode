@@ -4,6 +4,7 @@ import { Surface } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import type { MessageItemPayload, ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { isIosTouchScroll } from "@/renderer/utils/iosScroll";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
@@ -11,7 +12,6 @@ import {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import {
-  CheckpointRevertButton,
   DEFAULT_CHECKPOINT_GUARD,
   RevertCheckpointDialog,
   type CheckpointGuard,
@@ -27,6 +27,15 @@ import { ChatItemRow } from "./items/ChatItemRow";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline } from "./items/imageViewSource";
 
+export interface CheckpointRevertActions {
+  rollbackThreadConversation(input: { threadId: string; numTurns: number }): Promise<void>;
+  restoreFileCheckpoint(input: {
+    threadId: string;
+    checkpointItemId: string;
+    projectLocation: ProjectLocation;
+  }): Promise<void>;
+}
+
 interface MessageListProps {
   threadId: string;
   entries: readonly ChatTimelineEntry[];
@@ -37,6 +46,7 @@ interface MessageListProps {
    */
   canRevertCheckpoints?: boolean;
   checkpointGuard?: CheckpointGuard;
+  checkpointActions?: CheckpointRevertActions | undefined;
   projectLocation?: ProjectLocation | undefined;
   /**
    * If set, the inline "Worked for X" indicator anchored to this item id is
@@ -62,6 +72,11 @@ const DEFAULT_ROW_ESTIMATE_PX = 96;
 const INLINE_IMAGE_ROW_ESTIMATE_PX = 384;
 const ASSISTANT_IMAGE_ROW_ESTIMATE_PX = 448;
 const SKIP_REVERT_CONFIRM_PREF_KEY = "lightcode-chat-checkpoint-revert-skip-confirm";
+// How long the iOS scroll-compensation flush waits for momentum to idle before
+// applying the buffered delta. Matches @tanstack/virtual-core's
+// `isScrollingResetDelay` (150ms) so it fires right as the virtualizer itself
+// considers the scroll settled.
+const COMPENSATION_SETTLE_MS = 150;
 
 // Intentionally not wrapped in `React.memo`: pane swaps preserve this fiber
 // while moving the DOM, so the virtualizer must re-render to re-measure.
@@ -71,6 +86,7 @@ export function MessageList({
   scrollElement,
   canRevertCheckpoints = true,
   checkpointGuard,
+  checkpointActions,
   projectLocation,
   suppressInlineTurnAnchorId = null,
   registerScrollToIndex,
@@ -79,6 +95,16 @@ export function MessageList({
   const parentActions = useChatPaneActions();
   const virtualSizeBoxRef = useRef<HTMLDivElement | null>(null);
   const pendingScrollCompensationRef = useRef(0);
+  // iOS WebKit cancels an in-flight momentum scroll the instant any
+  // programmatic `scrollTop` write lands, so the per-commit compensation write
+  // below makes a flick-up "stop" each time a row above the viewport trades its
+  // estimated height for a real one. On iOS we instead buffer that delta while a
+  // backward momentum scroll is in flight and flush it in a single write once
+  // the gesture settles. Captured once: the form factor never changes at runtime.
+  const deferScrollCompensation = useRef(isIosTouchScroll()).current;
+  const isCompensationDeferredRef = useRef(false);
+  const compensationFlushTimerRef = useRef<number | null>(null);
+  const scheduleCompensationFlushRef = useRef<(() => void) | null>(null);
   const [pendingRevertItemId, setPendingRevertItemId] = useState<string | null>(null);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [revertError, setRevertError] = useState<string | null>(null);
@@ -95,7 +121,11 @@ export function MessageList({
     getItemKey: useCallback((index: number) => entries[index]?.id ?? index, [entries]),
     overscan: CHAT_TRANSCRIPT_OVERSCAN,
     useFlushSync: true,
-    useAnimationFrameWithResizeObserver: true,
+    // On iOS the rAF-wrapped ResizeObserver adds ~16ms of latency that desyncs a
+    // remeasure from the momentum frame for no benefit (TanStack's own default is
+    // off). Keep it on elsewhere — it's load-bearing nowhere else and flipping it
+    // for everyone is out of scope for this fix.
+    useAnimationFrameWithResizeObserver: !deferScrollCompensation,
   });
 
   useLayoutEffect(() => {
@@ -125,26 +155,102 @@ export function MessageList({
     // row-height change, which reads as flicker. Instead the delta is
     // accumulated here and applied in the layout effect below, in the same
     // commit (and therefore the same paint) as the DOM change it compensates.
-    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, delta) => {
+    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, delta, instance) => {
       if (!scrollElement) return false;
-      if (parentActions?.isStickToBottom?.() || item.start + item.size <= scrollElement.scrollTop) {
+      const isAboveViewport = item.start + item.size <= scrollElement.scrollTop;
+      if (parentActions?.isStickToBottom?.() || isAboveViewport) {
         pendingScrollCompensationRef.current += delta;
+        // Only an above-viewport correction during an active upward (backward)
+        // momentum scroll needs to be deferred on iOS. The stick-to-bottom write
+        // lands at the bottom where there is no upward momentum to cancel, so it
+        // stays synchronous and keeps the streaming pin intact.
+        if (
+          deferScrollCompensation &&
+          isAboveViewport &&
+          instance?.isScrolling &&
+          instance.scrollDirection === "backward"
+        ) {
+          isCompensationDeferredRef.current = true;
+        }
       }
       return false;
     };
     return () => {
       virtualizer.shouldAdjustScrollPositionOnItemSizeChange = undefined;
     };
-  }, [parentActions, scrollElement, virtualizer]);
+  }, [deferScrollCompensation, parentActions, scrollElement, virtualizer]);
 
   // Intentionally dependency-free: runs after every commit, once row refs have
   // synchronously measured newly mounted rows, so the scroll correction lands
   // before the browser paints the row's real height.
   useLayoutEffect(() => {
     if (pendingScrollCompensationRef.current === 0 || !scrollElement) return;
+    // On iOS the buffered delta is held until the gesture settles (see the
+    // effect below) so the write never lands mid-momentum. Everywhere else it
+    // applies synchronously, in the same paint as the row-height change.
+    if (isCompensationDeferredRef.current) {
+      // Arm the settle flush from the commit itself, not just from scroll
+      // events — so a deferral set on the final scroll tick of a coast (where no
+      // further scroll arrives to re-arm) is still flushed once activity idles,
+      // even on iOS versions without `scrollend`.
+      scheduleCompensationFlushRef.current?.();
+      return;
+    }
     scrollElement.scrollTop += pendingScrollCompensationRef.current;
     pendingScrollCompensationRef.current = 0;
   });
+
+  // iOS only: apply the buffered scroll compensation in a single write once the
+  // momentum scroll has settled. A `scroll`-idle debounce covers both a short
+  // flick and a long inertial coast; `scrollend` (iOS 17+) gives a crisper
+  // signal; and a new `touchstart` (which itself cancels any in-flight momentum)
+  // bounds the visible drift to a single gesture. All three fire only when no
+  // inertial scroll is in flight, so the write cannot cancel momentum. On other
+  // platforms `deferScrollCompensation` is false and this attaches nothing.
+  useLayoutEffect(() => {
+    if (!deferScrollCompensation || !scrollElement) return;
+    const flushCompensation = () => {
+      if (compensationFlushTimerRef.current !== null) {
+        clearTimeout(compensationFlushTimerRef.current);
+        compensationFlushTimerRef.current = null;
+      }
+      isCompensationDeferredRef.current = false;
+      if (pendingScrollCompensationRef.current !== 0) {
+        scrollElement.scrollTop += pendingScrollCompensationRef.current;
+        pendingScrollCompensationRef.current = 0;
+      }
+    };
+    const scheduleFlush = () => {
+      if (!isCompensationDeferredRef.current) return;
+      if (compensationFlushTimerRef.current !== null) {
+        clearTimeout(compensationFlushTimerRef.current);
+      }
+      // Re-armed on every scroll tick, so it only fires once momentum truly idles.
+      compensationFlushTimerRef.current = window.setTimeout(
+        flushCompensation,
+        COMPENSATION_SETTLE_MS,
+      );
+    };
+    scheduleCompensationFlushRef.current = scheduleFlush;
+    scrollElement.addEventListener("scroll", scheduleFlush, { passive: true });
+    scrollElement.addEventListener("scrollend", flushCompensation);
+    scrollElement.addEventListener("touchstart", flushCompensation, { passive: true });
+    return () => {
+      scheduleCompensationFlushRef.current = null;
+      scrollElement.removeEventListener("scroll", scheduleFlush);
+      scrollElement.removeEventListener("scrollend", flushCompensation);
+      scrollElement.removeEventListener("touchstart", flushCompensation);
+      if (compensationFlushTimerRef.current !== null) {
+        clearTimeout(compensationFlushTimerRef.current);
+        compensationFlushTimerRef.current = null;
+      }
+      // Don't strand a buffered delta when the thread unmounts mid-flick.
+      if (pendingScrollCompensationRef.current !== 0) {
+        scrollElement.scrollTop += pendingScrollCompensationRef.current;
+        pendingScrollCompensationRef.current = 0;
+      }
+    };
+  }, [deferScrollCompensation, scrollElement]);
 
   useLayoutEffect(() => {
     const virtualSizeBox = virtualSizeBoxRef.current;
@@ -213,12 +319,10 @@ export function MessageList({
         itemIds && itemsById
           ? countRollbackTurnsAfterCheckpoint(itemIds, itemsById, completedTurns, itemId)
           : 0;
+      const revert = checkpointActions ?? readBridge();
       if (rollbackTurns > 0) {
         try {
-          await readBridge().rollbackThreadConversation({
-            threadId,
-            numTurns: rollbackTurns,
-          });
+          await revert.rollbackThreadConversation({ threadId, numTurns: rollbackTurns });
         } catch (error) {
           console.warn(
             "[checkpoint] provider rollback failed; continuing with local revert",
@@ -227,7 +331,7 @@ export function MessageList({
         }
       }
       if (projectLocation && checkpoint) {
-        await readBridge().restoreFileCheckpoint({
+        await revert.restoreFileCheckpoint({
           threadId,
           checkpointItemId: itemId,
           projectLocation,
@@ -236,7 +340,7 @@ export function MessageList({
       state.truncateThreadRuntimeAfter(threadId, itemId);
       parentActions?.onContentHeightChange();
     },
-    [parentActions, projectLocation, threadId],
+    [checkpointActions, parentActions, projectLocation, threadId],
   );
 
   const requestRevert = useCallback(
@@ -447,13 +551,8 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
             threadId={threadId}
             entry={entry}
             isLastEntry={isLastEntry}
-            checkpointRevertControl={
-              checkpointRevertItemId ? (
-                <CheckpointRevertButton
-                  itemId={checkpointRevertItemId}
-                  onRequestRevert={onRequestRevert}
-                />
-              ) : null
+            checkpointRevert={
+              checkpointRevertItemId ? { itemId: checkpointRevertItemId, onRequestRevert } : null
             }
           />
         </div>

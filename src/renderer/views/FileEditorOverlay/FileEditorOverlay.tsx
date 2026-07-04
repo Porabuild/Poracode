@@ -23,6 +23,7 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
   const hasDirtyBuffers = Object.values(buffers).some(
     (buffer) => buffer.status === "ready" && buffer.isDirty,
   );
+  const isRemoteRoot = rootContext.remoteServerId !== undefined;
 
   function requestClose() {
     if (hasDirtyBuffers && !window.confirm(t`Discard unsaved editor changes?`)) {
@@ -44,17 +45,19 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
       }
       sidebar={
         <div className={overlaySidebarColumnClass}>
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <ProjectTreeView
-              rootContext={rootContext}
-              onSelectFile={(path) => {
-                void openFile(path, "fullscreen", true).catch((error) =>
-                  toast.danger(error instanceof Error ? error.message : String(error)),
-                );
-              }}
-              onPinFile={pinTab}
-            />
-          </div>
+          {isRemoteRoot ? null : (
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <ProjectTreeView
+                rootContext={rootContext}
+                onSelectFile={(path) => {
+                  void openFile(path, "fullscreen", true).catch((error) =>
+                    toast.danger(error instanceof Error ? error.message : String(error)),
+                  );
+                }}
+                onPinFile={pinTab}
+              />
+            </div>
+          )}
           <div className={sidebarFooterNavClass}>
             <SidebarButton
               icon={<ArrowLeft className="size-4" />}

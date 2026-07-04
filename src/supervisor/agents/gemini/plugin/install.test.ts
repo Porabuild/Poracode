@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe("getGeminiPluginPaths", () => {
-  it("places Gemini settings under Lightcode's plugin dir", () => {
+  it("places Gemini settings under Poracode's plugin dir", () => {
     const baseDir = makeBaseDir();
     const paths = getGeminiPluginPaths({ envKind: "posix", baseDir });
 
@@ -36,7 +36,7 @@ describe("getGeminiPluginPaths", () => {
 describe("renderGeminiSettings", () => {
   it("renders only the trimmed hook surface with the resolved-node command prefix", () => {
     const commandPrefix =
-      "'/home/demo/.nvm/versions/node/v22.11.0/bin/node' '/home/demo/.lightcode/agent-plugins/gemini/forward.mjs'";
+      "'/home/demo/.nvm/versions/node/v22.11.0/bin/node' '/home/demo/.poracode/agent-plugins/gemini/forward.mjs'";
     const doc = renderGeminiSettings({ headExpression: commandPrefix });
 
     expect(doc.hooksConfig).toEqual({ notifications: false });

@@ -24,6 +24,7 @@ import {
   VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS,
 } from "../../dropdownVirtualization";
 import { PixelLoader } from "../../PixelLoader";
+import { useResponsiveMenu } from "../../ResponsiveMenuSurface";
 import type { BranchListItem } from "./useBranchList";
 
 const STATUS_DOT_CLASS: Record<StatusTone, string> = {
@@ -56,6 +57,7 @@ export function BranchListBox(props: {
   worktreeBranches: Set<string>;
   branchWorktreePath: Map<string, string>;
   threadsByBranch: Map<string, Thread[]>;
+  allowWorktreeDelete?: boolean;
   onSelect: (branchName: string) => void;
   onDelete: (branch: { name: string; remote?: string; isRemote?: boolean }) => void;
   onOpenPrReview: (args: OpenPrReviewArgs) => void;
@@ -74,11 +76,17 @@ export function BranchListBox(props: {
     worktreeBranches,
     branchWorktreePath,
     threadsByBranch,
+    allowWorktreeDelete = true,
     onSelect,
     onDelete,
     onOpenPrReview,
   } = props;
   const { t } = useLingui();
+  // In the mobile drawer, grow branch rows to a finger target. Drop the compact
+  // `!h-7` force-class so the `.m-sheet .list-box-item { min-height }` rule sizes
+  // them, and match the virtualizer's rowHeight so the scroll math stays in sync.
+  const { mobile } = useResponsiveMenu();
+  const rowHeight = mobile ? 44 : COMPACT_DROPDOWN_ROW_HEIGHT;
 
   if (!hasLocal && !hasRemote) {
     return (
@@ -91,13 +99,10 @@ export function BranchListBox(props: {
   const selectedKey = isWorktree || worktreeMode ? (baseBranch ?? value) : value;
 
   return (
-    <Virtualizer
-      layout={ListLayout}
-      layoutOptions={{ rowHeight: COMPACT_DROPDOWN_ROW_HEIGHT, padding: 8 }}
-    >
+    <Virtualizer layout={ListLayout} layoutOptions={{ rowHeight, padding: 8 }}>
       <ListBox
         aria-label={t`Branches`}
-        className={`lightcode-menu max-h-60 overflow-y-auto ${VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS}`}
+        className={`lightcode-menu max-h-60 overflow-y-auto ${mobile ? "" : VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS}`}
         items={items}
         selectedKeys={
           isWorktree || worktreeMode ? new Set([baseBranch ?? value]) : new Set([value])
@@ -154,6 +159,7 @@ export function BranchListBox(props: {
                 {...(worktreePath ? { worktreePath } : {})}
                 threads={threads}
                 isDeleting={isDeleting}
+                allowWorktreeDelete={allowWorktreeDelete}
                 onDelete={onDelete}
                 onOpenPrReview={onOpenPrReview}
               />
@@ -174,6 +180,7 @@ function BranchRowBody(props: {
   worktreePath?: string;
   threads: Thread[];
   isDeleting: boolean;
+  allowWorktreeDelete: boolean;
   onDelete: (branch: { name: string; remote?: string; isRemote?: boolean }) => void;
   onOpenPrReview: (args: OpenPrReviewArgs) => void;
 }) {
@@ -186,11 +193,12 @@ function BranchRowBody(props: {
     worktreePath,
     threads,
     isDeleting,
+    allowWorktreeDelete,
     onDelete,
     onOpenPrReview,
   } = props;
   const { t } = useLingui();
-  const canDelete = !isCurrent;
+  const canDelete = !isCurrent && (allowWorktreeDelete || !worktreePath);
 
   const prKey = worktreePath ?? buildBranchNamePrKey(projectId, branch.name);
   const prState = usePrState(prKey);
@@ -276,7 +284,7 @@ function BranchRowBody(props: {
             <button
               type="button"
               aria-label={t`Delete ${branch.name}`}
-              className="flex items-center justify-center rounded border-0 bg-transparent p-0 text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100"
+              className="flex items-center justify-center rounded border-0 bg-transparent p-0 text-muted/55 opacity-0 transition hover:text-danger group-hover:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:opacity-100"
               onPointerDown={(e) => e.stopPropagation()}
               onPointerUp={(e) => e.stopPropagation()}
               onClick={(e) => {

@@ -1,6 +1,7 @@
 import { startTransition } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitReviewMode, PrCreateMode } from "@/shared/contracts";
+import { isRemoteSession } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { Select } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
@@ -15,26 +16,29 @@ export function GitSettings() {
 
   const gitReviewOptions = useLocalizedOptions(gitReviewModeOptions);
   const prCreateOptions = useLocalizedOptions(prCreateModeOptions);
+  const remote = isRemoteSession();
 
   return (
     <SettingsPage title={t`Git`}>
-      <SettingRow
-        anchorId="git.gitReviewMode"
-        title={t`Git review mode`}
-        description={<Trans>Open git review as a right-side panel or a full page.</Trans>}
-      >
-        <Select
-          aria-label={t`Git review mode`}
-          className="w-[160px] shrink-0"
-          options={gitReviewOptions}
-          value={gitReviewMode}
-          onChange={(value) => {
-            startTransition(() => {
-              setGitReviewMode(value as GitReviewMode);
-            });
-          }}
-        />
-      </SettingRow>
+      {!remote && (
+        <SettingRow
+          anchorId="git.gitReviewMode"
+          title={t`Git review mode`}
+          description={<Trans>Open git review as a right-side panel or a full page.</Trans>}
+        >
+          <Select
+            aria-label={t`Git review mode`}
+            className="w-[160px] shrink-0"
+            options={gitReviewOptions}
+            value={gitReviewMode}
+            onChange={(value) => {
+              startTransition(() => {
+                setGitReviewMode(value as GitReviewMode);
+              });
+            }}
+          />
+        </SettingRow>
+      )}
       <SettingRow
         anchorId="git.defaultCreatePrAction"
         title={t`Default Create PR action`}

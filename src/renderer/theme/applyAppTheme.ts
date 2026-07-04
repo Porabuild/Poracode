@@ -1,7 +1,7 @@
 /**
  * Applies a theme preset's variant to the document root as inline CSS custom
  * properties. Inline properties win over the `.light` / `.dark` rules in
- * styles.css, so the base ("Lightcode") theme is expressed by *clearing* the
+ * styles.css, so the base ("Poracode") theme is expressed by *clearing* the
  * managed properties — letting styles.css stay the source of truth — rather
  * than by re-setting equivalent values.
  */

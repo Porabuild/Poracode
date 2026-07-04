@@ -31,7 +31,7 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   }),
   "git.pull.reapplyConflicts": msg({ message: "Re-applying local changes has conflicts" }),
   "git.pull.stashPreserved": msg({
-    message: "Pull did not complete. Your local changes remain in a Lightcode stash.",
+    message: "Pull did not complete. Your local changes remain in a Poracode stash.",
   }),
   "git.worktree.noBranch": msg({
     message: "Cannot create a default worktree path without a branch name",

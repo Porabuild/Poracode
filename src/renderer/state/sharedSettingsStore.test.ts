@@ -139,7 +139,7 @@ describe("sharedSettingsStore", () => {
       id: "work",
       driver: "claude",
       displayName: "Work",
-      config: { configDir: "~/.lightcode/claude-profiles/work" },
+      config: { configDir: "~/.poracode/claude-profiles/work" },
     });
     useSharedSettings.setState({
       providerConfigs: {

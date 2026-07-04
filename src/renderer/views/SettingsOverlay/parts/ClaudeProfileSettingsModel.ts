@@ -16,7 +16,7 @@ export type PresetEnvRow = { key: string; value: string; sensitive: boolean };
 /**
  * Canonical z.ai (GLM) environment, per https://docs.z.ai/devpack/tool/claude.
  * `glm-5.2[1m]` is z.ai's real model name for the 1M-context GLM 5.2 — the `[1m]`
- * is part of the id, not Lightcode's context selector, so it is sent verbatim.
+ * is part of the id, not Poracode's context selector, so it is sent verbatim.
  * `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is required for the 1M context to be usable.
  */
 export const ZAI_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
@@ -124,7 +124,7 @@ export function slugifyProfileName(value: string): string {
 }
 
 export function defaultConfigDir(name: string): string {
-  return `~/.lightcode/claude-profiles/${slugifyProfileName(name)}`;
+  return `~/.poracode/claude-profiles/${slugifyProfileName(name)}`;
 }
 
 export function uniqueProfileId(name: string, existing: Readonly<Record<string, unknown>>): string {
