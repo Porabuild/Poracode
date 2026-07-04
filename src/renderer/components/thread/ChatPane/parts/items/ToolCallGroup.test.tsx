@@ -76,7 +76,7 @@ describe("ToolCallGroup", () => {
     const threadId = "thread-1";
     const items = [
       makeFileChangeItem("file-1", { added: 4, removed: 2 }),
-      makeFileChangeItem("file-2", { added: 5, removed: 0 }),
+      makeFileChangeItem("file-2", { added: 5, removed: 0 }, "src/bar.ts"),
     ];
     seedThread(threadId, items);
 
@@ -109,6 +109,54 @@ describe("ToolCallGroup", () => {
     expect(within(heading).getByText("src")).toBeInTheDocument();
     expect(within(heading).getByText("+9")).toHaveClass("text-success");
     expect(within(heading).getByText("-5")).toHaveClass("text-danger");
+  });
+
+  it("flattens same-file edit groups into stacked diffs without per-edit rows", async () => {
+    const threadId = "thread-1";
+    const items = [
+      makeFileChangeItem("file-1", { added: 4, removed: 2 }),
+      makeFileChangeItem("file-2", { added: 5, removed: 3 }),
+    ];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    // No nested per-edit disclosure rows — diffs render directly.
+    expect(screen.queryByRole("button", { name: /^Edit:/i })).not.toBeInTheDocument();
+    const viewport = getViewport(view.container);
+    expect(within(viewport).queryAllByRole("button")).toHaveLength(0);
+    await waitFor(() => {
+      expect((viewport.textContent?.match(/new/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  // One fixture per provider payload shape: Claude (metadata.changes from
+  // structuredPatch), Codex (args.changes[]), OpenCode (metadata.changes), and
+  // ACP providers like Gemini/Cursor/Copilot (editOldText/editNewText).
+  it.each([
+    ["claude", makeProviderEditItem("claude")],
+    ["codex", makeProviderEditItem("codex")],
+    ["opencode", makeProviderEditItem("opencode")],
+    ["acp", makeProviderEditItem("acp")],
+  ] as const)("flattens same-file edit groups for %s payloads", async (_provider, makeItem) => {
+    const threadId = "thread-1";
+    const items = [makeItem("edit-1"), makeItem("edit-2")];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    expect(screen.getByRole("button", { name: /2 edits:/i })).toBeInTheDocument();
+    const viewport = getViewport(view.container);
+    expect(within(viewport).queryAllByRole("button")).toHaveLength(0);
+    await waitFor(() => {
+      expect((viewport.textContent?.match(/const answer = 42;/g) ?? []).length).toBe(2);
+    });
   });
 
   it("renders file-change diffs directly instead of args/result sections", async () => {
@@ -549,18 +597,19 @@ function makeGrokReadToolItem(id: string): RuntimeChatItem {
 function makeFileChangeItem(
   id: string,
   diffSummary: { added: number; removed: number } = { added: 1, removed: 1 },
+  path = "src/foo.ts",
 ): RuntimeChatItem {
   return {
     id,
     type: "file_change",
     state: "completed",
     payload: {
-      path: "src/foo.ts",
+      path,
       changeKind: "edit",
       diffSummary,
       args: [
         "*** Begin Patch",
-        "*** Update File: src/foo.ts",
+        `*** Update File: ${path}`,
         "@@",
         "-old",
         "+new",
@@ -568,9 +617,9 @@ function makeFileChangeItem(
       ].join("\n"),
       result: {
         detailedContent: [
-          "diff --git a/src/foo.ts b/src/foo.ts",
-          "--- a/src/foo.ts",
-          "+++ b/src/foo.ts",
+          `diff --git a/${path} b/${path}`,
+          `--- a/${path}`,
+          `+++ b/${path}`,
           "@@ -1 +1 @@",
           "-old",
           "+new",
@@ -580,6 +629,57 @@ function makeFileChangeItem(
     },
     streams: {},
   };
+}
+
+/**
+ * Edit `file_change` payloads as each provider mapper actually emits them:
+ * - claude: `metadata.changes[].diff` from tool_use_result.structuredPatch
+ * - codex: `args.changes[].diff` from the app-server turn diff
+ * - opencode: `metadata.changes[].diff` from the SDK metadata
+ * - acp (Gemini/Cursor/Copilot/Grok): `editOldText`/`editNewText` snapshots
+ */
+function makeProviderEditItem(
+  provider: "claude" | "codex" | "opencode" | "acp",
+): (id: string) => RuntimeChatItem {
+  const path = "src/app.ts";
+  const diff = [
+    `diff --git a/${path} b/${path}`,
+    `--- a/${path}`,
+    `+++ b/${path}`,
+    "@@ -11,3 +11,3 @@",
+    " context line 11",
+    "-const answer = 41;",
+    "+const answer = 42;",
+    " context line 13",
+  ].join("\n");
+  const change = { path, kind: { type: "update", move_path: null }, diff };
+  return (id: string) => ({
+    id,
+    type: "file_change",
+    state: "completed",
+    payload: {
+      path,
+      changeKind: "edit",
+      status: "success",
+      diffSummary: { added: 1, removed: 1 },
+      ...(provider === "claude"
+        ? {
+            args: {
+              file_path: path,
+              old_string: "const answer = 41;",
+              new_string: "const answer = 42;",
+            },
+            result: "Edit applied.",
+            metadata: { changes: [change] },
+          }
+        : provider === "codex"
+          ? { args: { changes: [change] } }
+          : provider === "opencode"
+            ? { metadata: { changes: [change] } }
+            : { editOldText: "const answer = 41;\n", editNewText: "const answer = 42;\n" }),
+    },
+    streams: {},
+  });
 }
 
 function makeReplacementFileChangeItem(id: string): RuntimeChatItem {

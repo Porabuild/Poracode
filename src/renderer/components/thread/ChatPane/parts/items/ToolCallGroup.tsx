@@ -142,7 +142,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
         </Disclosure.Heading>
         <Disclosure.Content>
           <Disclosure.Body className="mt-0.5 border-t border-[color:var(--border)] pt-1">
-            {hasOverflowRows ? (
+            {hasOverflowRows && !sameFileEditSummary ? (
               <div className="mb-1 flex justify-center">
                 <button
                   type="button"
@@ -163,11 +163,15 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                 showAll ? "max-h-[420px] overflow-y-auto" : ""
               }`}
             >
-              {visibleItems.map((item) => (
-                <div key={item.id} className="animate-tool-call-enter">
-                  <ToolCallInline item={item} />
-                </div>
-              ))}
+              {sameFileEditSummary ? (
+                <SameFileEditGroupBody items={items} />
+              ) : (
+                visibleItems.map((item) => (
+                  <div key={item.id} className="animate-tool-call-enter">
+                    <ToolCallInline item={item} />
+                  </div>
+                ))
+              )}
             </div>
           </Disclosure.Body>
         </Disclosure.Content>
@@ -200,6 +204,48 @@ function SameFileEditGroupTitle({ summary }: { summary: SameFileEditGroupSummary
         />
       </code>
       {diffLabel ? <span className="shrink-0 tabular-nums font-medium">{diffLabel}</span> : null}
+    </>
+  );
+}
+
+/**
+ * Flattened body for a group where every item edits the same file: renders
+ * each edit's diff directly, in order, without nesting each edit behind its
+ * own disclosure row. Edits without a renderable diff (e.g. still running)
+ * fall back to the regular inline row.
+ */
+function SameFileEditGroupBody({ items }: { items: readonly RuntimeChatItem[] }) {
+  const { t } = useLingui();
+  return (
+    <>
+      {items.map((item) => {
+        const row = getInlineRow(item, true, t);
+        if (!row?.bodyText) {
+          return (
+            <div key={item.id} className="animate-tool-call-enter">
+              <ToolCallInline item={item} />
+            </div>
+          );
+        }
+        return (
+          <div key={item.id} className="animate-tool-call-enter">
+            {row.bodyKind === "diff" ? (
+              <InlineDiffView
+                diffText={row.bodyText}
+                filePath={row.bodyFilePath ?? ""}
+                {...(row.bodyOldText !== undefined && row.bodyNewText !== undefined
+                  ? { oldText: row.bodyOldText, newText: row.bodyNewText }
+                  : {})}
+              />
+            ) : (
+              <CommandOutputViewport
+                text={row.bodyText}
+                {...(row.bodyLanguage ? { language: row.bodyLanguage } : {})}
+              />
+            )}
+          </div>
+        );
+      })}
     </>
   );
 }
