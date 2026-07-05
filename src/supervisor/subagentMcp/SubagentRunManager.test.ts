@@ -283,7 +283,10 @@ describe("SubagentRunManager", () => {
       }),
     } as unknown as AgentAdapter;
     // Real spawn path → use an existing cwd (buildPosixCommand sets cwd).
-    const realProject: ProjectLocation = { kind: "posix", path: tmpdir() };
+    const realProject: ProjectLocation =
+      process.platform === "win32"
+        ? { kind: "windows", path: tmpdir() }
+        : { kind: "posix", path: tmpdir() };
     const host: SubagentRunHost = {
       getParentContext: (threadId) =>
         threadId === PARENT ? { projectLocation: realProject, config: { model: "p" } } : undefined,

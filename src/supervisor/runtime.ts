@@ -165,45 +165,13 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { LspMessagePayload, LspStartPayload, LspStopPayload } from "@/shared/lsp";
 import { resolveLightcodePaths } from "@/shared/lightcodePaths";
 import { joinProjectPosixPath } from "@/shared/wsl";
-import {
-  acpGenericKind,
-  extractAcpGenericInstanceId,
-  verifyAcpGenericAuthentication,
-} from "./agents/acp-generic";
-import {
-  dispatchAcpAuthenticate,
-  dispatchAcpLogout,
-  envContextFromPayload,
-  isUnsupportedAcpLogoutError,
-} from "./agents/acp";
-import { buildAgentRegistry } from "./agents/registry";
-import {
-  autoUpdateAcpRegistryAgents,
-  backfillAcpRegistryAgentIcons,
-  cacheLocalAcpRegistryIcons,
-  fetchAcpRegistry,
-  installAcpRegistryAgent as installAcpRegistryAgentFromRegistry,
-  readAcpRegistrySettings,
-  removeAcpRegistryAgent as removeAcpRegistryAgentFromRegistry,
-  setAcpGenericAgentAuthAcknowledged,
-  setAcpRegistryAgentAuth as setAcpRegistryAgentAuthInRegistry,
-  updateAcpRegistryAgent as updateAcpRegistryAgentFromRegistry,
-} from "./agents/acpRegistry";
 import { prefetchNativeNodeRuntime } from "./runtime/prefetchNativeNode";
 import {
   setSessionFsBridgeClient,
   setWslProcessBridgeClient,
   type AgentAdapter,
-  type AgentEnvContext,
 } from "./agents/base";
 import { setWslAttachmentBridgeClient } from "./runtime/threadAttachments";
-import { getLatestVersionForAdapter, runUpdateCommandWithFallback } from "./agents/updateAgent";
-import { clearAgentBinaryPathCache } from "./agents/binaryResolver";
-import { generateCommitMessage } from "./commitMessageGenerator";
-import {
-  extractContext as extractContextFn,
-  extractContextFromScrollback,
-} from "./contextExtractor";
 import { FileIndexService } from "./fileIndex";
 import { GitService, resolveBuiltInWorktreeRoot } from "./git";
 import { resolveWorktreePlacement } from "@/shared/worktree";
@@ -212,13 +180,12 @@ import { GitHubService } from "./github";
 import { ProjectWatcher } from "./projectWatcher";
 import { LanguageServerManager } from "./lsp";
 import { ProjectTreeService } from "./projectTree";
-import { generatePrSummary } from "./prSummaryGenerator";
 import { detectWindowsShell, type WindowsShellPreference } from "./shellPreference";
-import { generateTitle } from "./titleGenerator";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
 import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
-import { probeAntigravityAccount } from "./runtime/antigravityAccountProbe";
 import { UsageService } from "./runtime/usageService";
+import { AgentRegistryService } from "./runtime/agentRegistryService";
+import { GenerationService } from "./runtime/generationService";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
 import { CliHookPluginCoordinator } from "./runtime/cliHookPluginCoordinator";
@@ -253,6 +220,8 @@ export class SupervisorRuntime {
   private readonly windowsShell: WindowsShellPreference;
   private readonly agentStatusService: AgentStatusService;
   private readonly usageService: UsageService;
+  private readonly agentRegistryService: AgentRegistryService;
+  private readonly generationService: GenerationService;
   private readonly threadSessionManager: ThreadSessionManager;
   private readonly lspManager: LanguageServerManager;
   private readonly cliHookPluginCoordinator: CliHookPluginCoordinator;
@@ -260,7 +229,6 @@ export class SupervisorRuntime {
   private readonly subagentRunManager: SubagentRunManager;
   private readonly orchestratorThreadManager: OrchestratorThreadManager;
   private wslHookBridge: WslBridgeServer | undefined;
-  private extractionAbortControllers = new Map<string, AbortController>();
 
   readonly sessions: Map<string, SessionRuntime>;
   readonly shellSessions: Map<string, ShellSessionRuntime>;
@@ -300,7 +268,19 @@ export class SupervisorRuntime {
     this.settingsPath = paths.settingsPath;
     this.acpIconsDir = paths.acpIconsDir;
     this.sharedSettingsCache = new SupervisorSharedSettingsCache(this.settingsPath);
-    this.refreshAgentRegistryAdapters();
+    // The agent/ACP registry cluster. Constructed up front so the initial
+    // adapter build below can run before the later-created services exist; those
+    // dependencies (status/usage/hook-plugin/sessions) resolve lazily at call
+    // time via the getter closures.
+    this.agentRegistryService = new AgentRegistryService({
+      adapters: this.adapters,
+      settingsPath: this.settingsPath,
+      baseDir,
+      acpIconsDir: this.acpIconsDir,
+      sharedSettingsCache: this.sharedSettingsCache,
+      getAgentStatusService: () => this.agentStatusService,
+    });
+    this.agentRegistryService.refreshAgentRegistryAdapters();
     mkdirSync(paths.cacheDir, { recursive: true });
     mkdirSync(this.logsDir, { recursive: true });
 
@@ -548,15 +528,16 @@ export class SupervisorRuntime {
     });
     this.usageService.startAutoRefresh();
 
+    this.generationService = new GenerationService({
+      adapters: this.adapters,
+      readTerminalScrollback: (threadId) => this.readTerminalScrollback(threadId),
+    });
+
     // One-time-per-machine icon repair: localize any acp-generic icon still on
     // a remote CDN URL so sidebar rows paint from disk instead of flickering
     // through a network round-trip on every start. No-op (no network) once all
     // icons are local. Fire-and-forget — never blocks the window from opening.
-    void this.cacheLocalAcpIconsOnLaunch();
-  }
-
-  async listWslDistros(): Promise<string[]> {
-    return this.agentStatusService.listWslDistros();
+    void this.agentRegistryService.cacheLocalAcpIconsOnLaunch();
   }
 
   /** Distinct WSL distros hosting a live `antigravity` session (the only
@@ -570,84 +551,16 @@ export class SupervisorRuntime {
     return [...distros];
   }
 
-  /**
-   * Convert remote acp-generic icon URLs to locally-cached ones at launch so
-   * the renderer receives `lightcode-local://` icons this session (and
-   * instantly on every future launch).
-   */
-  private async cacheLocalAcpIconsOnLaunch(): Promise<void> {
-    try {
-      const changed = await cacheLocalAcpRegistryIcons({
-        settingsPath: this.settingsPath,
-        iconsDir: this.acpIconsDir,
-      });
-      if (changed) await this.propagateAcpRegistryChange();
-    } catch (error) {
-      console.warn("[supervisor] launch ACP icon cache failed", error);
-    }
-  }
-
-  /**
-   * Propagate an acp-generic settings change (icon localization, registry
-   * update): invalidate the settings cache, rebuild adapters, and refresh the
-   * affected acp-generic statuses so the renderer picks up fresh icons/auth.
-   * Best-effort — refresh failures are swallowed so callers stay resilient.
-   */
-  private async propagateAcpRegistryChange(): Promise<void> {
-    this.sharedSettingsCache.invalidate();
-    this.refreshAgentRegistryAdapters();
-    const settings = readAcpRegistrySettings(this.settingsPath);
-    const acpKinds = Object.entries(settings.agentInstances)
-      .filter(([, instance]) => instance.driver === "acp-generic")
-      .map(([id]) => acpGenericKind(id));
-    if (acpKinds.length === 0) return;
-    try {
-      const wslDistros = await this.agentStatusService.listWslDistros();
-      await this.agentStatusService.refreshAgentStatuses({
-        wslDistros,
-        scope: { agentKinds: acpKinds },
-      });
-    } catch (error) {
-      console.warn("[supervisor] refresh after acp-generic settings change failed", error);
-    }
-  }
-
-  private refreshAgentRegistryAdapters(): void {
-    const settings = readAcpRegistrySettings(this.settingsPath);
-    const adapters = buildAgentRegistry(Object.values(settings.agentInstances));
-    const nextKinds = new Set(adapters.map((adapter) => adapter.kind));
-    for (const kind of [...this.adapters.keys()]) {
-      if (!nextKinds.has(kind)) {
-        this.adapters.delete(kind);
-      }
-    }
-    for (const adapter of adapters) {
-      this.adapters.set(adapter.kind, adapter);
-    }
-  }
-
-  private async refreshAffectedAgentStatus(agentKind: string): Promise<void> {
-    try {
-      const wslDistros = await this.agentStatusService.listWslDistros();
-      await this.agentStatusService.refreshAgentStatuses({
-        wslDistros,
-        scope: { agentKinds: [agentKind] },
-      });
-    } catch (error) {
-      console.warn(`[supervisor] refreshAffectedAgentStatus failed for ${agentKind}`, error);
-    }
+  async listWslDistros(): Promise<string[]> {
+    return this.agentRegistryService.listWslDistros();
   }
 
   async getAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
-    this.sharedSettingsCache.invalidate();
-    this.refreshAgentRegistryAdapters();
-    return this.agentStatusService.getAgentStatuses(payload);
+    return this.agentRegistryService.getAgentStatuses(payload);
   }
 
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {
-    this.sharedSettingsCache.invalidate();
-    this.refreshAgentRegistryAdapters();
-    return this.agentStatusService.refreshAgentStatuses(payload);
+    return this.agentRegistryService.refreshAgentStatuses(payload);
   }
 
   async getProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
@@ -677,233 +590,55 @@ export class SupervisorRuntime {
   }
 
   async listAcpRegistry(): Promise<AcpRegistryListResult> {
-    const registry = await fetchAcpRegistry();
-    let changed = await backfillAcpRegistryAgentIcons({
-      registry,
-      settingsPath: this.settingsPath,
-      iconsDir: this.acpIconsDir,
-    });
-    const autoUpdate = await autoUpdateAcpRegistryAgents({
-      registry,
-      baseDir: this.baseDir,
-      settingsPath: this.settingsPath,
-      iconsDir: this.acpIconsDir,
-    });
-    if (autoUpdate.updated.length > 0) changed = true;
-    if (changed) await this.propagateAcpRegistryChange();
-    return registry;
+    return this.agentRegistryService.listAcpRegistry();
   }
 
   async installAcpRegistryAgent(
     payload: InstallAcpRegistryAgentPayload,
   ): Promise<AcpRegistryMutationResult> {
-    const installed = await installAcpRegistryAgentFromRegistry({
-      agentId: payload.agentId,
-      baseDir: this.baseDir,
-      settingsPath: this.settingsPath,
-      iconsDir: this.acpIconsDir,
-    });
-    this.sharedSettingsCache.invalidate();
-    this.refreshAgentRegistryAdapters();
-    await this.refreshAffectedAgentStatus(acpGenericKind(payload.agentId));
-    return { installed };
+    return this.agentRegistryService.installAcpRegistryAgent(payload);
   }
 
   async updateAcpRegistryAgent(
     payload: UpdateAcpRegistryAgentPayload,
   ): Promise<AcpRegistryMutationResult> {
-    const installed = await updateAcpRegistryAgentFromRegistry({
-      agentId: payload.agentId,
-      baseDir: this.baseDir,
-      settingsPath: this.settingsPath,
-      iconsDir: this.acpIconsDir,
-    });
-    this.sharedSettingsCache.invalidate();
-    this.refreshAgentRegistryAdapters();
-    await this.refreshAffectedAgentStatus(acpGenericKind(payload.agentId));
-    return { installed };
+    return this.agentRegistryService.updateAcpRegistryAgent(payload);
   }
 
   async updateAgentBinary(payload: UpdateAgentBinaryPayload): Promise<UpdateAgentBinaryResult> {
-    const adapter = this.adapters.get(payload.agentKind);
-    if (!adapter) {
-      return {
-        ok: false,
-        strategy: "unsupported",
-        output: `No adapter registered for agent kind "${payload.agentKind}".`,
-      };
-    }
-
-    const envContext: AgentEnvContext = {
-      envKind: payload.envKind,
-      ...(payload.wslDistro ? { wslDistro: payload.wslDistro } : {}),
-      baseDir: this.baseDir,
-    };
-
-    const wslDistros = await this.agentStatusService.listWslDistros();
-    const statuses = await this.agentStatusService.getAgentStatuses({ wslDistros });
-    const pool = payload.envKind === "wsl" ? statuses.wsl : statuses.windows;
-    const status = pool.find(
-      (entry) =>
-        entry.kind === payload.agentKind &&
-        (payload.envKind !== "wsl" || entry.envDistro === payload.wslDistro),
-    );
-    if (!status || !status.installed) {
-      return {
-        ok: false,
-        strategy: "unsupported",
-        output: `${adapter.label} is not installed in the requested environment.`,
-      };
-    }
-
-    const result = await runUpdateCommandWithFallback(adapter, status, envContext);
-    if (result.ok) {
-      // Drop the cached executable path so the next detection probe runs a
-      // fresh `command -v` / `where.exe`. Without this we keep returning the
-      // old path; for most package managers the path doesn't change after
-      // an update, but for nvm/fnm/asdf and similar version-managed setups
-      // the new binary can land at a different prefix and the cached entry
-      // would resolve to a stale shim.
-      clearAgentBinaryPathCache();
-      await this.refreshAffectedAgentStatus(payload.agentKind);
-    }
-    return result;
+    return this.agentRegistryService.updateAgentBinary(payload);
   }
 
   async getLatestAgentVersion(
     payload: GetLatestAgentVersionPayload,
   ): Promise<GetLatestAgentVersionResult> {
-    const adapter = this.adapters.get(payload.agentKind);
-    if (!adapter) return { source: "unknown" };
-    return getLatestVersionForAdapter(adapter);
+    return this.agentRegistryService.getLatestAgentVersion(payload);
   }
-
-  /** Short-lived cache for the resolved Antigravity account, so reopening the
-   * settings page doesn't re-spawn `agy` each time. */
-  private antigravityAccountCache:
-    | { value: NonNullable<GetAntigravityAccountResult["account"]>; at: number }
-    | undefined;
 
   async getAntigravityAccount(
     payload: GetAntigravityAccountPayload,
   ): Promise<GetAntigravityAccountResult> {
-    const ACCOUNT_TTL_MS = 5 * 60_000;
-    const cached = this.antigravityAccountCache;
-    if (cached && Date.now() - cached.at < ACCOUNT_TTL_MS) return { account: cached.value };
-
-    const wslDistros = payload.wslDistros ?? [];
-    const { windows } = await this.agentStatusService.getAgentStatuses({ wslDistros });
-    const native = windows.find((status) => status.kind === "antigravity" && status.installed);
-    // Spawning `agy` is only safe once the user is signed in (the config-dir
-    // probe's soft signal) — a never-authenticated spawn would drop into the
-    // interactive OAuth flow. Otherwise restrict to reusing a running LS.
-    const account = await probeAntigravityAccount({
-      ...(native?.executablePath ? { executablePath: native.executablePath } : {}),
-      wslDistros,
-      allowSpawn: native?.authState === "authenticated",
-    }).catch((error) => {
-      console.warn("[supervisor] antigravity account probe failed:", error);
-      return undefined;
-    });
-    if (account) this.antigravityAccountCache = { value: account, at: Date.now() };
-    return account ? { account } : {};
+    return this.agentRegistryService.getAntigravityAccount(payload);
   }
 
   async removeAcpRegistryAgent(
     payload: RemoveAcpRegistryAgentPayload,
   ): Promise<AcpRegistryMutationResult> {
-    const installed = removeAcpRegistryAgentFromRegistry({
-      agentId: payload.agentId,
-      baseDir: this.baseDir,
-      settingsPath: this.settingsPath,
-    });
-    this.sharedSettingsCache.invalidate();
-    this.refreshAgentRegistryAdapters();
-    return { installed };
+    return this.agentRegistryService.removeAcpRegistryAgent(payload);
   }
 
   async setAcpRegistryAgentAuth(
     payload: SetAcpRegistryAgentAuthPayload,
   ): Promise<AcpRegistryMutationResult> {
-    const installed = setAcpRegistryAgentAuthInRegistry({
-      agentId: payload.agentId,
-      environment: payload.environment,
-      settingsPath: this.settingsPath,
-    });
-    this.sharedSettingsCache.invalidate();
-    this.refreshAgentRegistryAdapters();
-    void this.refreshAffectedAgentStatus(acpGenericKind(payload.agentId));
-    return { installed };
+    return this.agentRegistryService.setAcpRegistryAgentAuth(payload);
   }
 
   async authenticateAcpAgent(payload: AuthenticateAcpAgentPayload): Promise<void> {
-    const adapter = this.adapters.get(payload.agentKind);
-    if (!adapter) {
-      throw new Error(`Unknown agent: ${payload.agentKind}`);
-    }
-    const ctx = envContextFromPayload(payload.envKind, payload.wslDistro);
-    await dispatchAcpAuthenticate({
-      adapter,
-      methodId: payload.methodId,
-      ...(payload.envKind ? { envKind: payload.envKind } : {}),
-      ...(payload.wslDistro ? { wslDistro: payload.wslDistro } : {}),
-    });
-    // Generic ACP instances persist a per-env login acknowledgement so the
-    // detection probe (which can't always tell whether the agent is signed in)
-    // reports `authState: "authenticated"` on the next refresh. Native ACP
-    // adapters (copilot/gemini/cursor) probe their own auth state directly
-    // and don't need an ack.
-    const instanceId = extractAcpGenericInstanceId(payload.agentKind);
-    if (instanceId !== undefined) {
-      const instance = readAcpRegistrySettings(this.settingsPath).agentInstances[instanceId];
-      const verified =
-        instance !== undefined && (await verifyAcpGenericAuthentication(instance, ctx));
-      if (!verified) {
-        setAcpGenericAgentAuthAcknowledged(this.settingsPath, instanceId, ctx, false);
-        this.sharedSettingsCache.invalidate();
-        this.refreshAgentRegistryAdapters();
-        void this.refreshAffectedAgentStatus(payload.agentKind);
-        throw new Error("ACP authentication was not completed.");
-      }
-      setAcpGenericAgentAuthAcknowledged(this.settingsPath, instanceId, ctx, true);
-    } else {
-      const status = await adapter.detectInstall(ctx);
-      if (status.authState === "missing") {
-        void this.refreshAffectedAgentStatus(payload.agentKind);
-        throw new Error("ACP authentication was not completed.");
-      }
-    }
-    this.sharedSettingsCache.invalidate();
-    this.refreshAgentRegistryAdapters();
-    void this.refreshAffectedAgentStatus(payload.agentKind);
+    return this.agentRegistryService.authenticateAcpAgent(payload);
   }
 
   async logoutAcpAgent(payload: LogoutAcpAgentPayload): Promise<void> {
-    const adapter = this.adapters.get(payload.agentKind);
-    if (!adapter) {
-      throw new Error(`Unknown agent: ${payload.agentKind}`);
-    }
-    const ctx = envContextFromPayload(payload.envKind, payload.wslDistro);
-    const instanceId = extractAcpGenericInstanceId(payload.agentKind);
-    // Best-effort ACP-side logout only applies to generic ACP instances. The
-    // local ack is their source of truth, so unsupported ACP logout can still
-    // clear the UI state. Native adapters must not report success unless the
-    // agent actually accepts the logout request.
-    try {
-      await dispatchAcpLogout({
-        adapter,
-        ...(payload.envKind ? { envKind: payload.envKind } : {}),
-        ...(payload.wslDistro ? { wslDistro: payload.wslDistro } : {}),
-      });
-    } catch (error) {
-      if (instanceId === undefined || !isUnsupportedAcpLogoutError(error)) throw error;
-    }
-    if (instanceId !== undefined) {
-      setAcpGenericAgentAuthAcknowledged(this.settingsPath, instanceId, ctx, false);
-    }
-    this.sharedSettingsCache.invalidate();
-    this.refreshAgentRegistryAdapters();
-    void this.refreshAffectedAgentStatus(payload.agentKind);
+    return this.agentRegistryService.logoutAcpAgent(payload);
   }
 
   getThreadSnapshots(): ThreadRuntimeSnapshot[] {
@@ -1082,93 +817,23 @@ export class SupervisorRuntime {
   async generateCommitMessage(
     payload: GenerateCommitMessagePayload,
   ): Promise<GenerateCommitMessageResult> {
-    const adapter = this.requireAdapter(payload.agentKind);
-    return {
-      message: await generateCommitMessage(
-        payload.projectLocation,
-        adapter,
-        payload.model,
-        payload.effort,
-        payload.language,
-        payload.fast,
-      ),
-    };
+    return this.generationService.generateCommitMessage(payload);
   }
 
   async generateTitle(payload: GenerateTitlePayload): Promise<GenerateTitleResult> {
-    const adapter = this.requireAdapter(payload.agentKind);
-    return {
-      title: await generateTitle(
-        payload.projectLocation,
-        adapter,
-        payload.prompt,
-        payload.model,
-        payload.effort,
-        payload.language,
-        payload.fast,
-      ),
-    };
+    return this.generationService.generateTitle(payload);
   }
 
   async generatePrSummary(payload: GeneratePrSummaryPayload): Promise<GeneratePrSummaryResult> {
-    const adapter = this.requireAdapter(payload.agentKind);
-    return generatePrSummary(
-      payload.projectLocation,
-      adapter,
-      payload.branch,
-      payload.baseBranch,
-      payload.model,
-      payload.effort,
-      payload.language,
-    );
+    return this.generationService.generatePrSummary(payload);
   }
 
   async extractContext(payload: ExtractContextPayload): Promise<ExtractContextResult> {
-    const adapter = this.requireAdapter(payload.agentKind);
-    const abortController = new AbortController();
-    this.extractionAbortControllers.set(payload.threadId, abortController);
-
-    try {
-      try {
-        return await extractContextFn(
-          payload.projectLocation,
-          adapter,
-          payload.sessionRef,
-          payload.worktreePath,
-          payload.model,
-          payload.effort,
-          abortController.signal,
-        );
-      } catch {
-        const scrollback = this.readTerminalScrollback(payload.threadId);
-        if (scrollback) {
-          return extractContextFromScrollback(
-            payload.projectLocation,
-            adapter,
-            scrollback,
-            payload.agentKind,
-            payload.sessionRef.providerSessionId,
-            payload.worktreePath,
-            payload.model,
-            payload.effort,
-            abortController.signal,
-          );
-        }
-        throw new Error(
-          `Cannot extract context from ${adapter.label}: no session resume or scrollback available`,
-        );
-      }
-    } finally {
-      this.extractionAbortControllers.delete(payload.threadId);
-    }
+    return this.generationService.extractContext(payload);
   }
 
   cancelExtractContext(threadId: string): void {
-    const controller = this.extractionAbortControllers.get(threadId);
-    if (controller) {
-      controller.abort();
-      this.extractionAbortControllers.delete(threadId);
-    }
+    this.generationService.cancelExtractContext(threadId);
   }
 
   async gitListBranches(payload: GetGitBranchesPayload): Promise<GitBranchListResult> {
@@ -1660,14 +1325,6 @@ export class SupervisorRuntime {
     });
     const { shutdownSpawnedOpenCodeServers } = await import("./agents/opencode/sdkClient");
     shutdownSpawnedOpenCodeServers();
-  }
-
-  private requireAdapter(kind: AgentKind) {
-    const adapter = this.adapters.get(kind);
-    if (!adapter) {
-      throw new Error(`Unsupported agent adapter: ${kind}`);
-    }
-    return adapter;
   }
 
   private handlePtyData(session: SessionRuntime, data: string): void {

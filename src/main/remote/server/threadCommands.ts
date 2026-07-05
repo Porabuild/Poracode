@@ -1,0 +1,227 @@
+import { mkdirSync } from "node:fs";
+import type { IncomingMessage } from "node:http";
+import {
+  GIT_REMOTE_PROCEDURE_SCOPES,
+  isGitRemoteProcedure,
+  remoteGitCallPayloadSchema,
+  type RemoteProjectCommand,
+  type RemoteProjectCommandResult,
+} from "@/shared/remote";
+import { DEFAULT_TERMINAL_SIZE, type RemoteThreadCommand, type Thread } from "@/shared/contracts";
+import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
+import { ipcProcedureMap } from "@/shared/ipc";
+import {
+  dbDeleteProject,
+  dbDeleteThread,
+  dbGetProjects,
+  dbGetThreads,
+  dbUpsertProject,
+  dbUpsertThread,
+} from "../../db";
+import { RemoteHttpError } from "../auth";
+import { buildWorktreeLocation } from "@/shared/worktree";
+import { makeThreadTitle, titlePromptFromSegments } from "@/shared/threadTitle";
+import { applyRemoteProjectCommand } from "../projectCommands";
+import type { RemoteServerContext } from "./context";
+import { readJsonBody } from "./requestBody";
+import { sortOrderForThread } from "./snapshots";
+
+/**
+ * Generic desktop-supervisor passthrough. The PWA reuses desktop-backed
+ * surfaces which call bridge methods directly; rather than a REST route per
+ * method, the client posts `{ procedure, payload }` here. Only allowlisted
+ * procedures are accepted, each gated by its required scope and validated
+ * against its own payload schema before reaching the supervisor.
+ */
+export async function runGitCall(ctx: RemoteServerContext, req: IncomingMessage): Promise<unknown> {
+  const { procedure, payload } = remoteGitCallPayloadSchema.parse(await readJsonBody(req));
+  if (!isGitRemoteProcedure(procedure)) {
+    throw new RemoteHttpError(
+      "git_procedure_not_allowed",
+      `Git procedure "${procedure}" is not available to remote clients.`,
+      403,
+    );
+  }
+  ctx.security.requireBearer(req, [GIT_REMOTE_PROCEDURE_SCOPES[procedure]]);
+  const name = procedure as SupervisorProcedureName;
+  const parsedPayload = ipcProcedureMap[name].payloadSchema.parse(payload) as IpcProcedurePayload<
+    typeof name
+  >;
+  return ctx.options.callSupervisor(name, parsedPayload);
+}
+
+/**
+ * Applies a remote project command. The DB is the source of truth: new
+ * projects are written directly and clones are driven through the supervisor.
+ * On the desktop the renderer learns about the change via the broadcast
+ * `remote-projects-changed` event (and reloads from the DB on next launch);
+ * headless servers have no renderer, so the DB write is the whole story.
+ */
+export function runProjectCommand(
+  ctx: RemoteServerContext,
+  command: RemoteProjectCommand,
+): Promise<RemoteProjectCommandResult> {
+  return applyRemoteProjectCommand(command, {
+    getProjects: () => dbGetProjects(),
+    listProjectThreadIds: (projectId) =>
+      dbGetThreads()
+        .filter((thread) => thread.projectId === projectId)
+        .map((thread) => thread.id),
+    upsertProject: (project, sortOrder) => dbUpsertProject(project, sortOrder),
+    deleteProject: (projectId) => dbDeleteProject(projectId),
+    closeThread: (threadId) => closeThreadBestEffort(ctx, threadId),
+    cloneRepo: (input) => ctx.options.callSupervisor("cloneRepo", input),
+    makeDirectory: (path) => {
+      mkdirSync(path);
+    },
+    platform: process.platform,
+    now: () => new Date().toISOString(),
+  });
+}
+
+/**
+ * Applies thread commands to the durable DB path used by remote snapshots.
+ * Returns true for commands whose behavior still requires renderer-owned side
+ * effects beyond simple thread metadata persistence.
+ */
+export async function applyRemoteThreadCommand(
+  ctx: RemoteServerContext,
+  command: RemoteThreadCommand,
+): Promise<boolean> {
+  switch (command.kind) {
+    case "start":
+      await startRemoteThread(ctx, command);
+      return false;
+    case "rename":
+      updateRemoteThread(command.threadId, (thread) => ({
+        ...thread,
+        title: command.title,
+        updatedAt: new Date().toISOString(),
+      }));
+      return false;
+    case "set-done":
+      if (command.done) {
+        await closeThreadBestEffort(ctx, command.threadId);
+        const now = new Date().toISOString();
+        updateRemoteThread(command.threadId, (thread) => ({
+          ...thread,
+          done: true,
+          doneAt: now,
+          starred: false,
+        }));
+      } else {
+        updateRemoteThread(command.threadId, (thread) => ({
+          ...thread,
+          done: false,
+          doneAt: undefined,
+        }));
+      }
+      return false;
+    case "set-starred":
+      updateRemoteThread(command.threadId, (thread) => ({
+        ...thread,
+        starred: command.starred,
+      }));
+      return false;
+    case "set-worktree":
+      updateRemoteThread(command.threadId, (thread) => ({
+        ...thread,
+        worktreePath: command.worktreePath,
+        ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
+        updatedAt: new Date().toISOString(),
+      }));
+      return false;
+    case "archive":
+      await closeThreadBestEffort(ctx, command.threadId);
+      updateRemoteThread(command.threadId, (thread) => ({
+        ...thread,
+        archived: true,
+        updatedAt: new Date().toISOString(),
+      }));
+      return false;
+    case "unarchive":
+      updateRemoteThread(command.threadId, (thread) => ({
+        ...thread,
+        archived: false,
+        updatedAt: new Date().toISOString(),
+      }));
+      return false;
+    case "delete":
+      await closeThreadBestEffort(ctx, command.threadId);
+      dbDeleteThread(command.threadId);
+      return false;
+    case "delete-worktree-group":
+      return true;
+  }
+}
+
+async function startRemoteThread(
+  ctx: RemoteServerContext,
+  command: Extract<RemoteThreadCommand, { kind: "start" }>,
+): Promise<void> {
+  const project = dbGetProjects().find((entry) => entry.id === command.projectId);
+  if (!project) {
+    throw new RemoteHttpError("project_not_found", "Project not found.", 404);
+  }
+
+  const threads = dbGetThreads();
+  const existing = threads.some((thread) => thread.id === command.threadId);
+  const now = new Date().toISOString();
+  const presentationMode = command.presentationMode ?? "terminal";
+  const titlePrompt = titlePromptFromSegments(command.prompt, command.segments);
+  const thread: Thread = {
+    id: command.threadId,
+    projectId: command.projectId,
+    title: makeThreadTitle(titlePrompt) || "New thread",
+    agentKind: command.agentKind,
+    ...(command.agentInstanceId ? { agentInstanceId: command.agentInstanceId } : {}),
+    config: command.config,
+    status: "launching",
+    attention: "none",
+    canResumeWithConfig: false,
+    archived: false,
+    done: false,
+    starred: false,
+    presentationMode,
+    ...(presentationMode !== "terminal" ? { threadStatusSource: "server" } : {}),
+    ...(command.worktreePath ? { worktreePath: command.worktreePath } : {}),
+    ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
+    createdAt: now,
+    updatedAt: now,
+    activeTurnStartedAt: now,
+  };
+  dbUpsertThread(thread, sortOrderForThread(threads, command.threadId));
+
+  const projectLocation = command.worktreePath
+    ? buildWorktreeLocation(project.location, command.worktreePath)
+    : project.location;
+  try {
+    await ctx.options.callSupervisor("startThread", {
+      threadId: command.threadId,
+      projectLocation,
+      agentKind: command.agentKind,
+      ...(command.agentInstanceId ? { agentInstanceId: command.agentInstanceId } : {}),
+      config: command.config,
+      prompt: command.prompt,
+      ...(command.segments ? { segments: command.segments } : {}),
+      initialSize: DEFAULT_TERMINAL_SIZE,
+      ...(command.presentationMode ? { presentationMode: command.presentationMode } : {}),
+    });
+  } catch (error) {
+    if (!existing) dbDeleteThread(command.threadId);
+    throw error;
+  }
+}
+
+function updateRemoteThread(threadId: string, update: (thread: Thread) => Thread): void {
+  const threads = dbGetThreads();
+  const thread = threads.find((entry) => entry.id === threadId);
+  if (!thread) {
+    throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+  }
+  dbUpsertThread(update(thread), sortOrderForThread(threads, threadId));
+}
+
+async function closeThreadBestEffort(ctx: RemoteServerContext, threadId: string): Promise<void> {
+  await ctx.options.callSupervisor("closeThread", { threadId }).catch(() => undefined);
+}

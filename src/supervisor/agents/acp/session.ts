@@ -17,11 +17,9 @@ import {
   type AcpHttpMcpServer,
 } from "./mcpBrowser";
 import { buildAcpSubagentMcpServers } from "./mcpSubagent";
-import { appendFileSync, mkdirSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { homedir } from "node:os";
-import { resolveLightcodePaths } from "@/shared/lightcodePaths";
 import { Readable, Writable } from "node:stream";
 import { spawn as spawnPty } from "node-pty";
 import {
@@ -47,7 +45,6 @@ import {
   type SessionNotification,
   type SessionCapabilities,
   type SessionUpdate,
-  type TerminalExitStatus,
   type TerminalOutputRequest,
   type TerminalOutputResponse,
   type WaitForTerminalExitRequest,
@@ -80,28 +77,16 @@ import {
 } from "./canonicalMapping";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { ensureNodePtySpawnHelperExecutable } from "@/supervisor/nodePty";
-import { processEnvRecord } from "@/supervisor/processEnv";
 import {
-  buildPosixExportPrefix,
   createKnownSessionRef,
-  detectShell,
-  getPosixLoginShellArgs,
-  getProjectShellEnv,
-  getWindowsSystemCommand,
-  getWindowsPathOverrideEnv,
-  getWslCommand,
-  quotePosixShellArg,
-  quotePowerShellLiteral,
-  resolveWslShellPath,
   type AgentLaunchOptions,
   type CommandSpec,
-  type CreateStructuredSessionInput,
   type StartTurnOptions,
   type StructuredSessionHandle,
   type StructuredSessionListener,
   type StructuredSessionUpdate,
 } from "../base";
-import { mapAcpSlashCommands, normalizeAcpModeId } from "./probe";
+import { mapAcpSlashCommands } from "./probe";
 import {
   applyAcpModeUpdateToConfig,
   findSelectConfigOption,
@@ -113,10 +98,7 @@ import {
 // ── Helpers ──────────────────────────────────────────────────────
 
 import {
-  basenameForProjectPath,
-  guessMimeType,
   resolveAcpHostFsPath,
-  resolveAcpProjectPath,
   resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
   resolveSessionCwd,
@@ -127,64 +109,23 @@ import {
 
 export { resolveAcpReadableHostFsPath, resolveAcpResourcePath, toAcpResourceUri };
 
-/**
- * Convert Poracode `PromptSegment[]` + prompt text into ACP `ContentBlock[]`.
- */
-async function segmentsToContentBlocks(
-  prompt: string,
-  location: ProjectLocation,
-  segments?: PromptSegment[],
-  promptCapabilities?: PromptCapabilities,
-): Promise<ContentBlock[]> {
-  void promptCapabilities;
-  const blocks: ContentBlock[] = [];
-
-  for (const seg of segments ?? []) {
-    if (seg.kind === "attachment") {
-      const resourcePath = resolveAcpResourcePath(location, seg.path);
-      const isImage = /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)$/i.test(seg.path);
-      if (isImage) {
-        try {
-          const data = await readFile(resourcePath);
-          const mimeType = seg.mimeType ?? guessMimeType(seg.path);
-          blocks.push({ type: "image", data: data.toString("base64"), mimeType });
-        } catch {
-          // Fall back to resource link if the image bytes can't be read
-          // (permission / size / missing). Capability-gating is intentionally
-          // skipped — matches t3code's Cursor adapter which sends image
-          // blocks unconditionally; ACP agents that don't accept images
-          // should reject the prompt rather than silently dropping content.
-          blocks.push({
-            type: "resource_link",
-            uri: toAcpResourceUri(location, seg.path),
-            name: basenameForProjectPath(location, resourcePath),
-            ...(seg.mimeType ? { mimeType: seg.mimeType } : {}),
-          });
-        }
-      } else {
-        blocks.push({
-          type: "resource_link",
-          uri: toAcpResourceUri(location, seg.path),
-          name: basenameForProjectPath(location, resourcePath),
-          ...(seg.mimeType ? { mimeType: seg.mimeType } : {}),
-        });
-      }
-    } else if (seg.kind === "file") {
-      const resourcePath = resolveAcpResourcePath(location, seg.path);
-      blocks.push({
-        type: "resource_link",
-        uri: toAcpResourceUri(location, seg.path),
-        name: basenameForProjectPath(location, resourcePath),
-      });
-    }
-  }
-
-  if (prompt.trim().length > 0) {
-    blocks.push({ type: "text", text: prompt });
-  }
-
-  return blocks;
-}
+import { segmentsToContentBlocks } from "./sessionContentBlocks";
+import {
+  hasNativeAcpPermissionMode,
+  selectAutoApprovedPermissionOption,
+} from "./sessionPermissionMode";
+import {
+  acpTerminalEnvEntries,
+  buildAcpTerminalLaunch,
+  buildTerminalCommandLine,
+  childExitStatus,
+  completeAcpTerminal,
+  isSameTerminalCommand,
+  normalizeTerminalCommandText,
+  resolveAcpTerminalCwd,
+} from "./sessionTerminalLaunch";
+import { filterAcpInboundNoise, looksLikeAcpSessionNotification } from "./sessionStreamFilter";
+import { maybeCaptureAcpUpdate } from "./sessionDiagnostics";
 
 import {
   appendTerminalOutput,
@@ -206,227 +147,6 @@ import {
 } from "./sessionElicitation";
 
 export { normalizeAcpStopReason, rewriteLoadSessionError };
-
-function buildTerminalCommandLine(command: string, args: string[]): string {
-  return [command, ...args].join(" ");
-}
-
-function normalizeTerminalCommandText(command: string | undefined): string | undefined {
-  const normalized = command
-    ?.trim()
-    .replace(/^cmd(?:\.exe)?\s+\/d\s+\/s\s+\/c\s+/i, "")
-    .replace(/^cmd(?:\.exe)?\s+\/c\s+/i, "")
-    .replace(/^powershell(?:\.exe)?\s+.*?-command\s+/i, "")
-    .replace(/^pwsh(?:\.exe)?\s+.*?-command\s+/i, "")
-    .replace(/\s+/g, " ");
-  return normalized && normalized.length > 0 ? normalized : undefined;
-}
-
-function isSameTerminalCommand(expectedNormalized: string, actual: string): boolean {
-  const actualNormalized = normalizeTerminalCommandText(actual);
-  if (!actualNormalized) return false;
-  return (
-    actualNormalized === expectedNormalized || actualNormalized.endsWith(` ${expectedNormalized}`)
-  );
-}
-
-function acpModeKey(modeId: string): string {
-  return normalizeAcpModeId(modeId).toLowerCase();
-}
-
-function hasNativeAcpPermissionMode(policy: string, availableModeIds: string[]): boolean {
-  const available = new Set(availableModeIds.map(acpModeKey));
-  const normalizedPolicy = policy.toLowerCase();
-
-  if (available.has(normalizedPolicy)) return true;
-  if (normalizedPolicy === "never") {
-    return available.has("yolo") || available.has("autopilot");
-  }
-  if (normalizedPolicy === "autopilot") {
-    return available.has("autopilot") || available.has("yolo");
-  }
-  if (normalizedPolicy === "auto_edit") {
-    return available.has("autoedit");
-  }
-  return false;
-}
-
-function selectAutoApprovedPermissionOption(request: RequestPermissionRequest): string | undefined {
-  const readOptionId = (kind: string) => {
-    const optionId = request.options.find((option) => option.kind === kind)?.optionId?.trim();
-    return optionId && optionId.length > 0 ? optionId : undefined;
-  };
-
-  return readOptionId("allow_always") ?? readOptionId("allow_once");
-}
-
-function buildAcpTerminalEnv(location: ProjectLocation): Record<string, string> {
-  const env = processEnvRecord();
-  if (location.kind === "windows") {
-    return {
-      ...env,
-      ...(getProjectShellEnv(location.path) ?? getWindowsPathOverrideEnv() ?? {}),
-    };
-  }
-  if (location.kind === "posix") {
-    return { ...env, ...(getProjectShellEnv(location.path) ?? {}) };
-  }
-  return env;
-}
-
-function encodePowerShellCommand(script: string): string {
-  return Buffer.from(script, "utf16le").toString("base64");
-}
-
-function buildWindowsTerminalScript(command: string, args: string[]): string {
-  if (args.length === 0) return `$ErrorActionPreference = 'Stop'; ${command}`;
-  return [
-    "$ErrorActionPreference = 'Stop'",
-    `$cmd = ${quotePowerShellLiteral(command)}`,
-    `$args = @(${args.map(quotePowerShellLiteral).join(", ")})`,
-    "& $cmd @args",
-  ].join("; ");
-}
-
-function buildPosixTerminalScript(command: string, args: string[]): string {
-  return args.length === 0
-    ? command
-    : `exec ${[command, ...args].map(quotePosixShellArg).join(" ")}`;
-}
-
-function acpTerminalEnvEntries(
-  entries: ReadonlyArray<{ name: string; value: string }> | null | undefined,
-): Record<string, string> {
-  const env: Record<string, string> = {};
-  for (const entry of entries ?? []) {
-    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(entry.name)) {
-      env[entry.name] = entry.value;
-    }
-  }
-  return env;
-}
-
-function resolveAcpTerminalCwd(location: ProjectLocation, cwd: string): string {
-  return location.kind === "wsl"
-    ? resolveAcpProjectPath(location, cwd)
-    : resolveAcpHostFsPath(location, cwd);
-}
-
-function buildAcpTerminalLaunch(
-  location: ProjectLocation,
-  cwd: string,
-  command: string,
-  args: string[],
-  requestEnv: Record<string, string>,
-): { command: string; args: string[]; cwd?: string; env: Record<string, string> } {
-  if (location.kind === "windows") {
-    const env = { ...buildAcpTerminalEnv(location), ...requestEnv };
-    const shell = detectShell();
-    if (typeof shell === "string") {
-      return {
-        command: shell,
-        args: [
-          "-NoLogo",
-          "-NoProfile",
-          "-EncodedCommand",
-          encodePowerShellCommand(buildWindowsTerminalScript(command, args)),
-        ],
-        cwd,
-        env,
-      };
-    }
-    return {
-      command: getWindowsSystemCommand("cmd.exe"),
-      args: ["/d", "/s", "/c", args.length === 0 ? command : [command, ...args].join(" ")],
-      cwd,
-      env,
-    };
-  }
-
-  if (location.kind === "wsl") {
-    const exports = buildPosixExportPrefix({ TERM: "xterm-256color", ...requestEnv });
-    const script = `${exports}${buildPosixTerminalScript(command, args)}`;
-    return {
-      command: getWslCommand(),
-      args: [
-        "-d",
-        location.distro,
-        "--cd",
-        cwd,
-        "--",
-        resolveWslShellPath(location.distro),
-        "-l",
-        "-i",
-        "-c",
-        script,
-      ],
-      env: processEnvRecord(),
-    };
-  }
-
-  if (args.length === 0) {
-    return {
-      command: process.env.SHELL || "/bin/bash",
-      args: getPosixLoginShellArgs(command),
-      cwd,
-      env: { ...buildAcpTerminalEnv(location), ...requestEnv },
-    };
-  }
-
-  return {
-    command,
-    args,
-    cwd,
-    env: { ...buildAcpTerminalEnv(location), ...requestEnv },
-  };
-}
-
-function completeAcpTerminal(record: AcpTerminalRecord, status: TerminalExitStatus): void {
-  if (record.exitStatus) return;
-  record.exitStatus = status;
-  const waiters = record.waiters.splice(0);
-  for (const resolve of waiters) {
-    resolve(record.exitStatus);
-  }
-}
-
-function looksLikeAcpSessionNotification(params: unknown): params is SessionNotification {
-  if (!params || typeof params !== "object") return false;
-  const p = params as { sessionId?: unknown; update?: unknown };
-  if (typeof p.sessionId !== "string") return false;
-  if (!p.update || typeof p.update !== "object") return false;
-  return typeof (p.update as { sessionUpdate?: unknown }).sessionUpdate === "string";
-}
-
-function filterAcpInboundNoise(
-  stream: ReturnType<typeof ndJsonStream>,
-): ReturnType<typeof ndJsonStream> {
-  return {
-    writable: stream.writable,
-    readable: stream.readable.pipeThrough(
-      new TransformStream({
-        transform(message, controller) {
-          if (isStraySkillsReloadResponse(message)) return;
-          controller.enqueue(message);
-        },
-      }),
-    ) as ReturnType<typeof ndJsonStream>["readable"],
-  };
-}
-
-function isStraySkillsReloadResponse(message: unknown): boolean {
-  if (!message || typeof message !== "object") return false;
-  const record = message as Record<string, unknown>;
-  return !("method" in record) && record.id === "skills-reload";
-}
-
-function childExitStatus(code: number | null, signal: NodeJS.Signals | null): TerminalExitStatus {
-  return {
-    ...(typeof code === "number" ? { exitCode: code } : {}),
-    ...(signal ? { signal: String(signal) } : {}),
-    ...(code === null && !signal ? { exitCode: 0 } : {}),
-  };
-}
 
 // ── Session ──────────────────────────────────────────────────────
 
@@ -1859,106 +1579,5 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       );
       return notification;
     }
-  }
-}
-
-// ── Factory ──────────────────────────────────────────────────────
-
-/**
- * Decide whether `createAcpStructuredSession` should actually spawn the ACP
- * agent for this thread launch. Pulled out as a pure predicate so adapters
- * (and tests) can audit the contract without instantiating a real process.
- *
- *   - **Terminal resume** → `false`. The TUI re-attaches via its native flag
- *     (`--resume <id>`, `--session <id>`, etc.) and a parallel ACP session
- *     would just waste a process and confuse the renderer.
- *   - **GUI resume** → `true`. The structured session IS the chat surface,
- *     so it must stay live for the thread's whole lifetime; `openThread`
- *     calls `loadSession` to re-attach.
- *   - **Initial launch (any presentation)** → `true`. Even terminal threads
- *     use a short-lived ACP session to allocate the provider session id
- *     before the TUI takes over.
- */
-export function shouldSpawnAcpSession(input: CreateStructuredSessionInput): boolean {
-  if (input.sessionRef && input.presentationMode !== "gui") {
-    return false;
-  }
-  return true;
-}
-
-/**
- * Create an ACP structured session for the given adapter command.
- *
- * Agent adapters call this from their `createStructuredSession()` method,
- * passing the ACP-mode command (e.g. `gemini --acp`, `copilot --acp --stdio`).
- *
- * The factory owns the resume/presentation gating via {@link shouldSpawnAcpSession}
- * so every ACP-speaking provider behaves identically. Adapters should NOT add
- * their own `if (input.sessionRef) return undefined` gate — that's what
- * produced the Copilot GUI-resume regression. Just call this factory
- * unconditionally and trust the shared decision.
- */
-export function createAcpStructuredSession(
-  acpCommand: CommandSpec,
-  input: CreateStructuredSessionInput,
-): AcpStructuredSession | undefined {
-  if (!shouldSpawnAcpSession(input)) {
-    return undefined;
-  }
-  return AcpStructuredSession.create(acpCommand, input.projectLocation, input.threadId, {
-    ...(input.loadSessionErrorRewriter
-      ? { loadSessionErrorRewriter: input.loadSessionErrorRewriter }
-      : {}),
-    ...(input.acpSessionUpdateTransform
-      ? { sessionUpdateTransform: input.acpSessionUpdateTransform }
-      : {}),
-    ...(input.acpExtensionNotificationHandler
-      ? { extensionNotificationHandler: input.acpExtensionNotificationHandler }
-      : {}),
-    ...(input.browserMcp !== undefined ? { browserMcp: input.browserMcp } : {}),
-    ...(input.subagentMcp !== undefined ? { subagentMcp: input.subagentMcp } : {}),
-  });
-}
-
-/**
- * Diagnostic capture of inbound ACP `session/update` notifications.
- *
- * Off by default. Set `LIGHTCODE_ACP_LOG=toolcalls` to capture just
- * `tool_call` / `tool_call_update` updates (what we use to design
- * per-adapter wire-format transforms); set `LIGHTCODE_ACP_LOG=full` to
- * capture every update. Each line is a self-contained JSON object written
- * to the channel's `logs/acp-sessions.jsonl`.
- */
-const ACP_LOG_MODE = (() => {
-  const mode = process.env.LIGHTCODE_ACP_LOG;
-  return mode === "toolcalls" || mode === "full" ? mode : null;
-})();
-let acpLogDirEnsured = false;
-
-function maybeCaptureAcpUpdate(
-  params: SessionNotification,
-  threadId: string,
-  sessionId: string | undefined,
-  cwd: string,
-): void {
-  if (ACP_LOG_MODE === null) return;
-  const kind = params.update.sessionUpdate;
-  if (ACP_LOG_MODE === "toolcalls" && kind !== "tool_call" && kind !== "tool_call_update") return;
-  try {
-    const dir = resolveLightcodePaths(process.env.LIGHTCODE_DATA_DIR).logsDir;
-    if (!acpLogDirEnsured) {
-      mkdirSync(dir, { recursive: true });
-      acpLogDirEnsured = true;
-    }
-    const line = `${JSON.stringify({
-      ts: new Date().toISOString(),
-      threadId,
-      sessionId,
-      cwd,
-      notification: params,
-    })}\n`;
-    appendFileSync(join(dir, "acp-sessions.jsonl"), line, "utf8");
-  } catch {
-    // capture is best-effort and must never break a session
   }
 }

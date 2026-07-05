@@ -1,0 +1,114 @@
+/**
+ * Per-session mapper state and turn-boundary lifecycle for the ACP → canonical
+ * mapper. Tracks open items so streamed deltas land on the right item id.
+ */
+
+import { randomUUID } from "node:crypto";
+import type { CanonicalItemType, RuntimeEvent } from "@/shared/contracts";
+
+export interface AcpToolCallItemState {
+  itemId: string;
+  itemType: CanonicalItemType;
+  payload: Record<string, unknown>;
+  isSubAgent: boolean;
+  subAgentProgressItemId?: string;
+  subAgentProgressText?: string;
+  /**
+   * ACP `Terminal` id that hosts this tool's output, if any. Captured on the
+   * first `tool_call`/`tool_call_update` whose `content` references a terminal,
+   * so later updates can still snapshot PTY output even when the agent omits
+   * the content array on subsequent notifications.
+   */
+  terminalId?: string;
+}
+
+export interface ActiveAcpSubAgent {
+  toolCallId: string;
+  itemId: string;
+}
+
+/** Per-session state — tracks open items so deltas land on the right item id. */
+export interface AcpMapperState {
+  threadId: string;
+  /** Item id of the currently-streaming assistant message, if any. */
+  openAssistantItemId?: string;
+  /** Item id of the currently-streaming reasoning item, if any. */
+  openReasoningItemId?: string;
+  /** Item id of the currently-streaming user message, if any. */
+  openUserItemId?: string;
+  /** Map ACP `toolCallId` → our internal item id + canonical item type + payload. */
+  toolCallItems: Map<string, AcpToolCallItemState>;
+  /**
+   * ACP does not expose an explicit `parentItemId` for sub-agent children, so
+   * we conservatively infer nesting from active sub-agent tool-call lifetimes.
+   */
+  activeSubAgents: ActiveAcpSubAgent[];
+  /** Item id of the most recent plan, if open. */
+  openPlanItemId?: string;
+  /** Last plan steps emitted for the open plan item. */
+  openPlanSteps?: Array<{ step: string; status: "pending" | "in_progress" | "completed" }>;
+  /** ACP `toolCallId`s rerouted to other item types (e.g. assistant_message
+   * for Copilot's `task_complete` summary). Their `tool_call_update`s must be
+   * dropped so we don't emit ghost updates against the wrong item. */
+  suppressedToolCallIds: Set<string>;
+  /**
+   * Resolve the live output of a client-hosted ACP terminal by its
+   * `terminalId`. Gemini's shell tool surfaces output via `createTerminal`
+   * (separate JSON-RPC channel) and references the terminal from
+   * `ToolCallContent` blocks of type `"terminal"`. The session wires this
+   * callback in so the mapper can inline that output on the canonical payload's
+   * `result` field — without it, the chat row has no body to render.
+   */
+  resolveTerminalOutput?: (terminalId: string) => string | undefined;
+  /**
+   * Resolve client-hosted terminal output by command text when an ACP agent
+   * creates a terminal but omits the terminal content reference from its
+   * tool_call payload.
+   */
+  resolveTerminalOutputByCommand?: (command: string) => string | undefined;
+}
+
+export function createAcpMapperState(threadId: string): AcpMapperState {
+  return {
+    threadId,
+    toolCallItems: new Map(),
+    activeSubAgents: [],
+    suppressedToolCallIds: new Set(),
+  };
+}
+
+export function newItemId(prefix: string): string {
+  return `${prefix}-${randomUUID()}`;
+}
+
+const OPEN_CONTENT_ITEM_KEYS = [
+  "openAssistantItemId",
+  "openReasoningItemId",
+  "openUserItemId",
+] as const;
+
+/** Close any open assistant/user/reasoning items as a turn boundary. */
+export function closeOpenContentItems(state: AcpMapperState): RuntimeEvent[] {
+  const events: RuntimeEvent[] = [];
+  for (const key of OPEN_CONTENT_ITEM_KEYS) {
+    const itemId = state[key];
+    if (itemId) {
+      events.push({ type: "item.completed", threadId: state.threadId, itemId });
+      delete state[key];
+    }
+  }
+  return events;
+}
+
+/**
+ * Drop per-turn bookkeeping that wouldn't otherwise be released — orphaned
+ * tool-call ids (the agent never sent a terminal status), plan id (plan was
+ * abandoned mid-turn).
+ */
+export function resetMapperForTurnEnd(state: AcpMapperState): void {
+  state.toolCallItems.clear();
+  state.activeSubAgents.length = 0;
+  state.suppressedToolCallIds.clear();
+  delete state.openPlanItemId;
+  delete state.openPlanSteps;
+}

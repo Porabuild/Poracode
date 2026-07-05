@@ -1,4 +1,5 @@
-export { AcpStructuredSession, createAcpStructuredSession, shouldSpawnAcpSession } from "./session";
+export { AcpStructuredSession } from "./session";
+export { createAcpStructuredSession, shouldSpawnAcpSession } from "./sessionFactory";
 export {
   authenticateAcpAgent,
   humanizeModelId,

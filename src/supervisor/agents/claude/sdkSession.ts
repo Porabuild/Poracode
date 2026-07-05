@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { spawn, type ChildProcess } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import type {
   CanUseTool,
   Options as ClaudeQueryOptions,
@@ -9,13 +8,11 @@ import type {
   PermissionUpdate,
   Query,
   SDKMessage,
-  SDKUserMessage,
   SpawnOptions,
   SpawnedProcess,
 } from "@anthropic-ai/claude-agent-sdk";
 import type {
   AgentSlashCommand,
-  ProjectLocation,
   PromptSegment,
   RuntimeEvent,
   SessionRef,
@@ -31,14 +28,9 @@ import { buildClaudeBrowserMcpServers } from "./mcpBrowser";
 import { buildClaudeSubagentMcpServers } from "./mcpSubagent";
 import {
   createKnownSessionRef,
-  buildAgentCommand,
-  definedEnv,
-  getWslCommand,
   getPrimedPosixEnv,
   getProjectShellEnv,
-  getWslProjectShellEnv,
   primeWslProjectShellEnv,
-  quotePosixShellArg,
   resolveExecutablePathAsync,
   type AgentLaunchOptions,
   type CreateStructuredSessionInput,
@@ -50,11 +42,8 @@ import {
 } from "../base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { resolveAgentBinaryPath } from "../binaryResolver";
-import { chosenOptionIds } from "../questionAnswers";
 import { applyClaudeContextSuffix } from "./argv";
-import { CLAUDE_DEFAULT_APPROVAL_POLICY } from "./detection";
 import {
-  ACCEPT_SUGGESTION_OPTION_PREFIX,
   buildClaudeQuestionAnswerEvents,
   buildPromptContentBlocks,
   closeClaudeOpenItems,
@@ -72,340 +61,25 @@ import {
   readParentToolUseId,
   startClaudeTurn,
   type ClaudeMapperState,
-  type ClaudeQuestion,
 } from "./sdkCanonicalMapping";
 import { mapClaudeSlashCommands } from "./probe";
 import { AsyncPromptQueue } from "./promptQueue";
-
-const CLAUDE_EXIT_PLAN_MODE_TOOL_NAMES: ReadonlySet<string> = new Set([
-  "ExitPlanMode",
-  "exit_plan_mode",
-]);
-
-type PendingPermission = {
-  kind: "permission";
-  toolName: string;
-  toolInput: Record<string, unknown>;
-  suggestions?: PermissionUpdate[];
-  resolve: (result: PermissionResult) => void;
-};
-
-type PendingQuestion = {
-  kind: "question";
-  questions: ClaudeQuestion[];
-  originalQuestions: unknown;
-  resolve: (result: PermissionResult) => void;
-};
-
-type PendingRequest = PendingPermission | PendingQuestion;
+import { projectCwd, spawnClaudeInWsl, spawnClaudeNative } from "./sdkSpawn";
+import { buildSdkUserMessage } from "./sdkPrompt";
+import {
+  basePermissionModeForConfig,
+  buildDenyMessage,
+  isQuestionCancelResponse,
+  normalizeQuestionAnswersForSdk,
+  permissionDecision,
+  permissionModeForConfig,
+  rawQuestionAnswers,
+  type PendingRequest,
+} from "./sdkResponses";
 
 type CompletedClaudeTurn = {
   resumeSessionAt: string | undefined;
 };
-
-type WindowsProjectLocation = Extract<ProjectLocation, { kind: "windows" }>;
-
-function projectCwd(location: ProjectLocation): string {
-  switch (location.kind) {
-    case "wsl":
-      return location.linuxPath;
-    case "windows":
-    case "posix":
-      return location.path;
-  }
-}
-
-function permissionModeForConfig(config: ThreadConfig): PermissionMode {
-  return (
-    config.mode === "plan" ? "plan" : (config.approvalPolicy ?? CLAUDE_DEFAULT_APPROVAL_POLICY)
-  ) as PermissionMode;
-}
-
-function basePermissionModeForConfig(config: ThreadConfig): PermissionMode {
-  return (config.approvalPolicy ?? CLAUDE_DEFAULT_APPROVAL_POLICY) as PermissionMode;
-}
-
-function buildDenyMessage(
-  decisionKind: PermissionDecision["kind"],
-  pending: PendingRequest,
-): string {
-  if (decisionKind === "cancel") return "User cancelled tool execution.";
-  if (pending.kind === "permission" && CLAUDE_EXIT_PLAN_MODE_TOOL_NAMES.has(pending.toolName)) {
-    return "User wants to keep planning. Stop here and wait for the user's next message; do not call ExitPlanMode again until the user explicitly approves the plan.";
-  }
-  return "User declined tool execution.";
-}
-
-// SDK-provided env is layered on top of the WSL login-shell env we primed,
-// so these Windows-host vars must be dropped — otherwise they overwrite the
-// Linux PATH (and friends) inside the distro.
-const WINDOWS_HOST_ENV_KEYS = new Set([
-  "path",
-  "pathext",
-  "systemroot",
-  "windir",
-  "comspec",
-  "appdata",
-  "localappdata",
-  "userprofile",
-  "homedrive",
-  "homepath",
-  "programdata",
-  "programfiles",
-  "programfiles(x86)",
-  "commonprogramfiles",
-  "commonprogramfiles(x86)",
-]);
-const POSIX_ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
-function filteredEnv(env: Record<string, string | undefined>): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(env)) {
-    if (value === undefined) continue;
-    if (WINDOWS_HOST_ENV_KEYS.has(key.toLowerCase())) continue;
-    out[key] = value;
-  }
-  return out;
-}
-
-function buildDirectWslEnvCommandArgs(
-  command: string,
-  args: string[],
-  env: Record<string, string>,
-): string[] {
-  const exports = Object.entries(env)
-    .filter(([key]) => POSIX_ENV_NAME_RE.test(key))
-    .map(([key, value]) => `export ${key}=${quotePosixShellArg(value)}`)
-    .join("; ");
-  const exec = `exec ${[command, ...args].map(quotePosixShellArg).join(" ")}`;
-  return ["/bin/sh", "-c", exports ? `${exports}; ${exec}` : exec];
-}
-
-function spawnClaudeInWsl(location: ProjectLocation, options: SpawnOptions): SpawnedProcess {
-  if (location.kind !== "wsl") {
-    throw new Error("spawnClaudeInWsl called for a non-WSL project.");
-  }
-  const command = options.command || resolveAgentBinaryPath(location, "claude") || "claude";
-  const cwd = options.cwd ?? location.linuxPath;
-  const capturedEnv =
-    getWslProjectShellEnv(location.distro, cwd) ??
-    getWslProjectShellEnv(location.distro, location.linuxPath);
-  const env = capturedEnv
-    ? { ...capturedEnv, ...filteredEnv(options.env) }
-    : filteredEnv(options.env);
-  const args = [
-    "-d",
-    location.distro,
-    "--cd",
-    cwd,
-    "--",
-    ...buildDirectWslEnvCommandArgs(command, options.args, env),
-  ];
-  return spawn(getWslCommand(), args, {
-    env: process.env,
-    signal: options.signal,
-    stdio: ["pipe", "pipe", "pipe"],
-    windowsHide: true,
-  }) as unknown as SpawnedProcess;
-}
-
-function spawnClaudeNative(
-  location: WindowsProjectLocation,
-  options: SpawnOptions,
-): SpawnedProcess {
-  const command = options.command || resolveAgentBinaryPath(location, "claude") || "claude";
-  const cwd = options.cwd ?? location.path;
-  if (process.platform === "win32") {
-    const env = definedEnv(options.env);
-    const spec = buildAgentCommand(
-      { ...location, path: cwd },
-      command,
-      options.args,
-      undefined,
-      env,
-    );
-    return spawn(spec.command, spec.args, {
-      ...(spec.env ? { env: spec.env } : Object.keys(env).length > 0 ? { env } : {}),
-      signal: options.signal,
-      stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true,
-      cwd: spec.cwd,
-    }) as unknown as SpawnedProcess;
-  }
-  return spawn(command, options.args, {
-    env: options.env,
-    signal: options.signal,
-    stdio: ["pipe", "pipe", "pipe"],
-    windowsHide: true,
-    cwd,
-  }) as unknown as SpawnedProcess;
-}
-
-function isImageAttachment(segment: PromptSegment): boolean {
-  return (
-    segment.kind === "attachment" &&
-    (segment.mimeType?.startsWith("image/") === true ||
-      /\.(png|jpe?g|gif|webp)$/i.test(segment.path))
-  );
-}
-
-function isPdfAttachment(segment: PromptSegment): boolean {
-  return (
-    segment.kind === "attachment" &&
-    (segment.mimeType === "application/pdf" || /\.pdf$/i.test(segment.path))
-  );
-}
-
-async function buildSdkUserMessage(
-  prompt: string,
-  segments?: PromptSegment[],
-): Promise<SDKUserMessage> {
-  if (!segments || segments.length === 0) {
-    return {
-      type: "user",
-      session_id: "",
-      parent_tool_use_id: null,
-      message: { role: "user", content: prompt },
-    } as SDKUserMessage;
-  }
-
-  const content: Array<Record<string, unknown>> = [];
-  const textParts: string[] = [];
-  const flushText = () => {
-    if (textParts.length > 0) {
-      content.push({ type: "text", text: textParts.join("") });
-      textParts.length = 0;
-    }
-  };
-  for (const segment of segments) {
-    if (segment.kind === "text") {
-      textParts.push(segment.content);
-      continue;
-    }
-    if (segment.kind === "attachment" && isImageAttachment(segment)) {
-      flushText();
-      const bytes = await readFile(segment.path);
-      const mimeType = segment.mimeType ?? inferImageMime(segment.path);
-      content.push({
-        type: "image",
-        source: {
-          type: "base64",
-          media_type: mimeType,
-          data: bytes.toString("base64"),
-        },
-      });
-      continue;
-    }
-    if (segment.kind === "attachment" && isPdfAttachment(segment)) {
-      flushText();
-      const bytes = await readFile(segment.path);
-      content.push({
-        type: "document",
-        source: {
-          type: "base64",
-          media_type: "application/pdf",
-          data: bytes.toString("base64"),
-        },
-      });
-      continue;
-    }
-    textParts.push(`@${segment.path}`);
-  }
-  flushText();
-  if (content.length === 0 && prompt.length > 0) content.push({ type: "text", text: prompt });
-
-  return {
-    type: "user",
-    session_id: "",
-    parent_tool_use_id: null,
-    message: { role: "user", content },
-  } as unknown as SDKUserMessage;
-}
-
-function inferImageMime(path: string): string {
-  const lower = path.toLowerCase();
-  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
-  if (lower.endsWith(".gif")) return "image/gif";
-  if (lower.endsWith(".webp")) return "image/webp";
-  return "image/png";
-}
-
-function responseOptionId(response: unknown): string | undefined {
-  if (response && typeof response === "object") {
-    const obj = response as Record<string, unknown>;
-    if (typeof obj.optionId === "string") return obj.optionId;
-    if (typeof obj.decision === "string") return obj.decision;
-  }
-  return undefined;
-}
-
-interface PermissionDecision {
-  kind: "accept" | "acceptForSession" | "decline" | "cancel";
-  /** Index into `pending.suggestions` when the user picked a single suggestion. */
-  suggestionIndex?: number;
-}
-
-function permissionDecision(response: unknown): PermissionDecision {
-  const option = responseOptionId(response);
-  if (!option) return { kind: "accept" };
-
-  if (option.startsWith(ACCEPT_SUGGESTION_OPTION_PREFIX)) {
-    const idx = Number.parseInt(option.slice(ACCEPT_SUGGESTION_OPTION_PREFIX.length), 10);
-    if (Number.isFinite(idx) && idx >= 0) {
-      return { kind: "acceptForSession", suggestionIndex: idx };
-    }
-  }
-
-  const lower = option.toLowerCase();
-  if (lower.includes("session") || lower.includes("always")) return { kind: "acceptForSession" };
-  if (lower.includes("decline") || lower.includes("deny") || lower.includes("reject")) {
-    return { kind: "decline" };
-  }
-  if (lower.includes("cancel")) return { kind: "cancel" };
-  return { kind: "accept" };
-}
-
-function rawQuestionAnswers(response: unknown, pending: PendingQuestion): Record<string, unknown> {
-  if (response && typeof response === "object") {
-    const obj = response as Record<string, unknown>;
-    if (obj.answers && typeof obj.answers === "object") {
-      return obj.answers as Record<string, unknown>;
-    }
-  }
-  const option = responseOptionId(response);
-  const first = pending.questions[0];
-  return first && option ? { [first.question]: option } : {};
-}
-
-function isQuestionCancelResponse(response: unknown): boolean {
-  if (!response || typeof response !== "object") return false;
-  const action = (response as Record<string, unknown>).action;
-  return action === "cancel" || action === "decline";
-}
-
-function normalizeQuestionAnswersForSdk(
-  answers: Record<string, unknown>,
-  pending: PendingQuestion,
-): Record<string, unknown> {
-  const normalized: Record<string, unknown> = {};
-  for (const question of pending.questions) {
-    const raw = answers[question.question] ?? answers[question.header];
-    const value = normalizeQuestionAnswerValue(question, raw);
-    if (value !== undefined) normalized[question.question] = value;
-  }
-  return normalized;
-}
-
-function normalizeQuestionAnswerValue(question: ClaudeQuestion, raw: unknown): string | undefined {
-  const chosen = chosenOptionIds(raw);
-  if (chosen.length === 0) return undefined;
-  return chosen.map((id) => labelForOption(question, id)).join(", ");
-}
-
-function labelForOption(question: ClaudeQuestion, optionId: string): string {
-  const match = question.options.find((opt) => opt.optionId === optionId);
-  return match?.label ?? optionId;
-}
 
 export class ClaudeSdkSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions = { suppressResumeConfigOverrides: true };

@@ -10,9 +10,9 @@ import {
   resolveAcpReadableHostFsPath,
   resolveAcpResourcePath,
   rewriteLoadSessionError,
-  shouldSpawnAcpSession,
   toAcpResourceUri,
 } from "./session";
+import { shouldSpawnAcpSession } from "./sessionFactory";
 import { resolveAcpPromptFailureMessage, shouldEmitAcpPromptRpcErrorItem } from "./sessionErrors";
 
 function makeInput(

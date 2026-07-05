@@ -1,17 +1,14 @@
-import { accessSync, constants as fsConstants, existsSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { homedir } from "node:os";
-import { join, resolve as resolvePath } from "node:path";
+import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
-import type { SupervisorEvent } from "@/shared/ipc";
 import { defaultSharedSettings, normalizeSharedSettings } from "@/shared/settings";
 import {
   type AgentKind,
   type ClearPendingSteerPayload,
   type AgentEventEnvelope,
   type CloseThreadPayload,
-  type PendingSteerState,
   type PromptSegment,
   type ProjectLocation,
   type ResizeTerminalPayload,
@@ -27,23 +24,18 @@ import {
   type TerminalSize,
   type ThreadConfig,
   type ThreadRuntimeSnapshot,
-  type ThreadServerRequestId,
-  type ThreadStatus,
   type WriteTerminalPayload,
   type RuntimeEvent,
   areAgentSlashCommandsEqual,
-  isClaudeProfileKind,
   isThreadConfigEqual,
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
-import { terminateProcessTree } from "@/shared/processTree";
 import {
   resolveBrowserMcpHttpConfigForLaunch,
   type BrowserMcpHttpConfig,
 } from "@/supervisor/agents/browserMcp";
 import {
   resolveSubagentMcpHttpConfigForLaunch,
-  type SubagentMcpHostAccessResolver,
   type SubagentMcpHttpConfig,
 } from "@/supervisor/agents/subagentMcp";
 import {
@@ -55,108 +47,54 @@ import {
   createKnownSessionRef,
   defaultFormatPromptSegments,
   getRefreshedWindowsPath,
-  getWslCommand,
   injectWslEnv,
   primeProjectShellEnv,
   resolveLaunchSpec,
 } from "../agents/base";
-import { prepareClaudeMergedSettingsFile } from "../agents/claude/mergedSettings";
 import { captureSupervisorException } from "../diagnostics/sentry";
 import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
-import type { WindowsShellPreference } from "../shellPreference";
 import { BufferedLogWriter } from "./bufferedLogWriter";
-import { hookDebugSpawn } from "./hookDebug";
-import type {
-  PendingSteerSlot,
-  QueuedStructuredTurn,
-  SessionRuntime,
-  ShellSessionRuntime,
-} from "./sessionTypes";
+import type { QueuedStructuredTurn, SessionRuntime, ShellSessionRuntime } from "./sessionTypes";
 import { ThreadOutputPipeline, resolveThreadStatusSource } from "./threadOutputPipeline";
 import { rewriteSegmentsForWorkspace, rewriteSegmentsForWsl } from "./threadAttachments";
 
 import {
   isInterruptibleBusyStatus,
   isUserInterruptKeystroke,
-  STRUCTURED_INTERRUPT_STALE_KILL_MS,
   USER_INTERRUPT_RECOVERY_GRACE_MS,
 } from "./threadSession/userInterrupt";
 import { writeSubmittedPrompt } from "./threadSession/promptWrite";
 import { getIterm2StatusL2TerminalEnv, resolveTerminalColorEnv } from "./threadSession/terminalEnv";
 import {
-  hookDebugProjectLabel,
   requireSessionPty,
+  shouldPrimeNativeProjectShellEnv,
   shouldReleaseInitialStructuredIdleSuppression,
 } from "./threadSession/helpers";
 import { RuntimeEventRouter } from "./threadSession/runtimeEventRouter";
+import type { ThreadSessionManagerOptions } from "./threadSession/managerOptions";
+import { PtyLifecycle } from "./threadSession/ptyLifecycle";
+import {
+  describeSpawnFailure,
+  sanitizeEnv,
+  sanitizedProcessEnv,
+} from "./threadSession/spawnDiagnostics";
+import {
+  applyClaudeMergedSettingsRewrite,
+  mergeCliHookExtraArgs,
+} from "./threadSession/cliHookArgs";
+import { CliHookSessionCoordinator } from "./threadSession/cliHookPlugin";
+import { StructuredInterruptWatchdog } from "./threadSession/structuredInterruptWatchdog";
+import {
+  SteerCoordinator,
+  clearPendingSteerSlot,
+  isSteerDrainableStatus,
+} from "./threadSession/steerCoordinator";
+import { buildShellCommand } from "./threadSession/shellCommand";
 
 export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmittedPrompt };
-
-export interface ThreadSessionManagerOptions {
-  emit(event: SupervisorEvent): void;
-  isDev: boolean;
-  logsDir: string;
-  settingsPath: string;
-  readDisableCliHookPlugin(): boolean;
-  adapters: Map<AgentKind, AgentAdapter>;
-  windowsShell: WindowsShellPreference;
-  /**
-   * Optional: provides CLI hook plugin ingress env vars + extra CLI args injected
-   * into every agent PTY spawn. The supervisor boots a single
-   * `HookIngress` and exposes this hook so the manager doesn't depend on
-   * `node:http` itself.
-   */
-  resolvePluginEnvForSpawn?(input: {
-    threadId: string;
-    agentKind: AgentKind;
-    projectLocation: ProjectLocation;
-    browserMcpEnabled?: boolean;
-    browserMcp?: BrowserMcpHttpConfig;
-  }): Promise<{ env: Record<string, string>; extraArgs: string[] } | undefined>;
-  wslBridge?: {
-    ensureBridge(distro: string): Promise<{ baseUrl: string; secret: string } | undefined>;
-  };
-  /**
-   * Optional: cross-provider subagents MCP hooks. When a thread launches with
-   * `config.subagentMcp === true`, the manager registers it with the ingress
-   * and threads the resulting http config into the structured session / launch
-   * options. On interrupt + close it cancels the thread's child runs; on close
-   * it also unregisters the thread. All heavy lifting lives in the subagentMcp
-   * module — these are thin hooks only.
-   */
-  subagentMcp?: {
-    register(threadId: string): SubagentMcpHttpConfig | undefined;
-    unregister(threadId: string): void;
-    cancelAll(threadId: string): void;
-    /**
-     * Try to route a server-request resolution to a subagent child run. Returns
-     * `true` when the id belonged to a subagent (namespaced under a run) and was
-     * handled; `false` to fall through to the normal session resolve path.
-     */
-    resolveChildRequest(requestId: ThreadServerRequestId, response: unknown): boolean;
-  };
-  /**
-   * Optional: resolves how a WSL distro reaches host-bound services (NAT
-   * gateway IP vs. mirrored-mode loopback) so subagents MCP URLs can be
-   * rewritten — or left as-is — for agents launched inside a WSL distro (the
-   * ingress binds `0.0.0.0` on Windows for this). Windows-only in practice;
-   * absent/undefined on macOS/Linux, which makes the WSL rewrite path inert.
-   */
-  subagentMcpHostAccess?: SubagentMcpHostAccessResolver;
-}
-
-function shouldPrimeNativeProjectShellEnv(
-  location: ProjectLocation,
-): location is Extract<ProjectLocation, { kind: "windows" | "posix" }> {
-  return location.kind === "posix" || (process.platform === "win32" && location.kind === "windows");
-}
-
-function isClaudeAdapterKind(kind: string): boolean {
-  return kind === "claude" || isClaudeProfileKind(kind);
-}
+export type { ThreadSessionManagerOptions };
 
 export class ThreadSessionManager {
-  private static readonly PTY_CLOSE_TIMEOUT_MS = 2_000;
   readonly sessions = new Map<string, SessionRuntime>();
   readonly shellSessions = new Map<string, ShellSessionRuntime>();
   /** Reverse index: agent-native session id → SessionRuntime, for CLI hook routing fallback. */
@@ -164,11 +102,13 @@ export class ThreadSessionManager {
   private readonly startLocks = new Map<string, Promise<void>>();
   private readonly pendingStartInterrupts = new Set<string>();
   private readonly pendingStartAborts = new Set<string>();
-  private readonly ptyExitPromises = new WeakMap<object, Promise<void>>();
-  private readonly ptyExitResolvers = new WeakMap<object, () => void>();
+  private readonly ptyLifecycle = new PtyLifecycle();
   private readonly logWriter = new BufferedLogWriter();
   private readonly outputPipeline: ThreadOutputPipeline;
   private readonly runtimeEventRouter: RuntimeEventRouter;
+  private readonly steerCoordinator: SteerCoordinator;
+  private readonly structuredInterruptWatchdog: StructuredInterruptWatchdog;
+  private readonly cliHookPlugin: CliHookSessionCoordinator;
   private disposed = false;
 
   constructor(private readonly options: ThreadSessionManagerOptions) {
@@ -184,10 +124,33 @@ export class ThreadSessionManager {
       onStartQueuedLaunchPrompt: (session) => this.startQueuedLaunchPrompt(session),
       onStartSessionRefDiscovery: (session) => this.pollSessionRefDiscovery(session),
     });
-  }
-
-  private readDisableCliHookPlugin(): boolean {
-    return this.options.readDisableCliHookPlugin();
+    // Construct the watchdog first: it drains the pending-steer slot via the
+    // free `clearPendingSteerSlot` (no back-reference to SteerCoordinator), so
+    // SteerCoordinator can then take the concrete watchdog instance without a
+    // mutual lazy dependency or construction-order fragility.
+    this.structuredInterruptWatchdog = new StructuredInterruptWatchdog({
+      sessions: this.sessions,
+      isDisposed: () => this.disposed,
+      clearPendingSteerSlot: (session) => clearPendingSteerSlot(session, options.emit),
+      failStructuredSession: (session, error) => this.failStructuredSession(session, error),
+    });
+    this.steerCoordinator = new SteerCoordinator({
+      emit: options.emit,
+      sessions: this.sessions,
+      interruptStructuredTurn: (session) =>
+        this.structuredInterruptWatchdog.interruptStructuredTurn(session),
+      startStructuredTurn: (session, turn) => this.startStructuredTurn(session, turn),
+      failStructuredSession: (session, error) => this.failStructuredSession(session, error),
+    });
+    this.cliHookPlugin = new CliHookSessionCoordinator({
+      sessions: this.sessions,
+      sessionsBySessionId: this.sessionsBySessionId,
+      options: this.options,
+      outputPipeline: this.outputPipeline,
+      indexSessionRef: (session, prevId) => this.indexSessionRef(session, prevId),
+      isBrowserMcpEnabledForLaunch: (adapter, config) =>
+        this.isBrowserMcpEnabledForLaunch(adapter, config),
+    });
   }
 
   getThreadSnapshots(): ThreadRuntimeSnapshot[] {
@@ -199,7 +162,10 @@ export class ThreadSessionManager {
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
       canResumeWithConfig: session.canResumeWithConfig,
-      threadStatusSource: resolveThreadStatusSource(session, this.readDisableCliHookPlugin()),
+      threadStatusSource: resolveThreadStatusSource(
+        session,
+        this.options.readDisableCliHookPlugin(),
+      ),
     }));
   }
 
@@ -245,7 +211,7 @@ export class ThreadSessionManager {
    */
   appendSubagentRuntimeEvent(parentThreadId: string, event: RuntimeEvent): void {
     if (!this.sessions.has(parentThreadId)) return;
-    this.enqueueRuntimeEvent(parentThreadId, event);
+    this.runtimeEventRouter.append(parentThreadId, event);
   }
 
   /**
@@ -289,7 +255,9 @@ export class ThreadSessionManager {
   subagentSubscribe(payload: { threadId: string; parentItemId: string }): {
     history: RuntimeEvent[];
   } {
-    return { history: this.runtimeEventRouter.subscribe(payload.threadId, payload.parentItemId) };
+    return {
+      history: this.runtimeEventRouter.subscribe(payload.threadId, payload.parentItemId),
+    };
   }
 
   /**
@@ -302,14 +270,6 @@ export class ThreadSessionManager {
     this.runtimeEventRouter.unsubscribe(payload.threadId, payload.parentItemId);
   }
 
-  private clearAllSubAgentStateForThread(threadId: string): void {
-    this.runtimeEventRouter.clearAllForThread(threadId);
-  }
-
-  private flushRuntimeEvents(): void {
-    this.runtimeEventRouter.flush();
-  }
-
   /**
    * Look up the live `SessionRuntime` for a CLI hook plugin envelope. Routing
    * precedence is `threadId` (PTY env, primary) → `sessionId`
@@ -319,24 +279,7 @@ export class ThreadSessionManager {
     threadId?: string;
     sessionId?: string;
   }): SessionRuntime | undefined {
-    if (input.threadId) {
-      const direct = this.sessions.get(input.threadId);
-      if (direct) return direct;
-    }
-    if (input.sessionId) {
-      const indexed = this.sessionsBySessionId.get(input.sessionId);
-      if (indexed) return indexed;
-      // Fallback: scan for late-arriving `sessionRef`s that haven't been
-      // indexed yet (race between hook SessionStart and provider sessionRef
-      // discovery). Sessions count is small; linear scan is fine.
-      for (const session of this.sessions.values()) {
-        if (session.sessionRef?.providerSessionId === input.sessionId) {
-          this.sessionsBySessionId.set(input.sessionId, session);
-          return session;
-        }
-      }
-    }
-    return undefined;
+    return this.cliHookPlugin.findSessionForCliHookPlugin(input);
   }
 
   /** Apply a CLI hook plugin state change resolved by the dispatcher. */
@@ -347,21 +290,12 @@ export class ThreadSessionManager {
       attention: import("@/shared/contracts").ThreadAttention;
     },
   ): void {
-    this.outputPipeline.applyCliHookPluginState(session, change);
+    this.cliHookPlugin.applyCliHookPluginState(session, change);
   }
 
   /** Mark hook ownership for routed bookkeeping events that do not carry state. */
   noteCliHookPluginActivity(session: SessionRuntime, envelope?: AgentEventEnvelope): void {
-    const nextId = envelope?.sessionId;
-    if (nextId && !session.sessionRef) {
-      session.sessionRef = createKnownSessionRef(nextId);
-      session.canResumeWithConfig = true;
-      this.indexSessionRef(session, undefined);
-      session.stopSessionRefWatcher?.();
-      session.stopSessionRefWatcher = undefined;
-      this.outputPipeline.emitState(session);
-    }
-    this.outputPipeline.noteCliHookPluginActivity(session);
+    this.cliHookPlugin.noteCliHookPluginActivity(session, envelope);
   }
 
   /**
@@ -463,18 +397,18 @@ export class ThreadSessionManager {
         // the message onto the running turn (subagents survive); others fall
         // back to the interrupt-drain pending-steer path.
         if (session.structuredSession.steerTurn) {
-          this.steerStructuredTurn(session, turn);
+          this.steerCoordinator.steerStructuredTurn(session, turn);
           return;
         }
-        this.stagePendingSteer(session, turn);
-        this.fireSteerInterrupt(session);
+        this.steerCoordinator.stagePendingSteer(session, turn);
+        this.steerCoordinator.fireSteerInterrupt(session);
         return;
       }
       if (session.presentationMode === "gui" && session.pendingSteer !== undefined) {
         // Drain in progress (cancel acked, slot still set). Replace it; the
         // existing drain-on-idle hook will pick up the new content.
-        this.stagePendingSteer(session, turn);
-        this.maybeDrainPendingSteer(session);
+        this.steerCoordinator.stagePendingSteer(session, turn);
+        this.steerCoordinator.maybeDrainPendingSteer(session);
         return;
       }
       this.startStructuredTurn(session, turn);
@@ -535,7 +469,7 @@ export class ThreadSessionManager {
       throw new Error(`Unknown thread session: ${payload.threadId}`);
     }
     this.options.subagentMcp?.cancelAll(payload.threadId);
-    await this.interruptStructuredTurn(session);
+    await this.structuredInterruptWatchdog.interruptStructuredTurn(session);
   }
 
   async rollbackThreadConversation(payload: RollbackThreadConversationPayload): Promise<void> {
@@ -676,213 +610,13 @@ export class ThreadSessionManager {
   }
 
   /**
-   * Stage (or replace) the pending steer slot. Allocates a stable id on the
-   * first stage and emits a `thread-pending-steer` event so the renderer can
-   * paint the strip. Replace-latest semantics — a second submit-while-working
-   * overwrites the existing slot rather than queueing.
-   */
-  private stagePendingSteer(session: SessionRuntime, turn: QueuedStructuredTurn): void {
-    const id = session.pendingSteer?.id ?? `steer-${randomUUID()}`;
-    const slot: PendingSteerSlot = {
-      id,
-      stagedAt: Date.now(),
-      ...turn,
-    };
-    session.pendingSteer = slot;
-    this.emitPendingSteer(session);
-  }
-
-  private clearPendingSteerSlot(session: SessionRuntime): void {
-    if (session.pendingSteer === undefined) return;
-    session.pendingSteer = undefined;
-    this.emitPendingSteer(session);
-  }
-
-  private emitPendingSteer(session: SessionRuntime): void {
-    const slot = session.pendingSteer;
-    const pending: PendingSteerState | null = slot
-      ? {
-          id: slot.id,
-          prompt: slot.prompt,
-          stagedAt: slot.stagedAt,
-          ...(slot.segments ? { segments: slot.segments } : {}),
-        }
-      : null;
-    this.options.emit({
-      type: "thread-pending-steer",
-      threadId: session.threadId,
-      pending,
-    });
-  }
-
-  private fireSteerInterrupt(session: SessionRuntime): void {
-    void this.interruptStructuredTurn(session).catch((error) => {
-      if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
-        return;
-      }
-      console.error("[supervisor] failed to interrupt structured turn:", error);
-      captureSupervisorException(error, {
-        "lightcode.feature_area": "supervisor-runtime",
-        "lightcode.provider": session.agentKind,
-      });
-    });
-  }
-
-  /**
-   * Stopped states a staged steer can drain from. A failed turn ("error") still
-   * leaves the structured session alive and ready for a new turn, so the steer
-   * must flush there too — a turn that errors never reaches "idle"/"needs_reply",
-   * so without this the strip sticks on "waiting for agent to stop" forever.
-   */
-  private static isSteerDrainableStatus(status: ThreadStatus): boolean {
-    return status === "idle" || status === "needs_reply" || status === "error";
-  }
-
-  private maybeDrainPendingSteer(session: SessionRuntime): void {
-    if (session.presentationMode !== "gui") {
-      return;
-    }
-    if (!ThreadSessionManager.isSteerDrainableStatus(session.status)) {
-      return;
-    }
-    const slot = session.pendingSteer;
-    if (!slot) return;
-    session.pendingSteer = undefined;
-    this.emitPendingSteer(session);
-    const turn: QueuedStructuredTurn = {
-      prompt: slot.prompt,
-      config: slot.config,
-      ...(slot.segments ? { segments: slot.segments } : {}),
-      ...(slot.userMessageItemId ? { userMessageItemId: slot.userMessageItemId } : {}),
-    };
-    this.startStructuredTurn(session, turn);
-  }
-
-  private async interruptStructuredTurn(session: SessionRuntime): Promise<void> {
-    if (session.presentationMode !== "gui") {
-      return;
-    }
-    if (!session.structuredSession?.interruptTurn || session.structuredTurnInterruptRequested) {
-      return;
-    }
-    session.structuredTurnInterruptRequested = true;
-    this.armStructuredInterruptWatchdog(session);
-    try {
-      await session.structuredSession.interruptTurn();
-    } catch (error) {
-      session.structuredTurnInterruptRequested = false;
-      this.clearStructuredInterruptWatchdog(session);
-      throw error;
-    }
-  }
-
-  private clearStructuredInterruptWatchdog(session: SessionRuntime): void {
-    if (session.structuredInterruptWatchdog) {
-      clearTimeout(session.structuredInterruptWatchdog);
-      session.structuredInterruptWatchdog = undefined;
-    }
-  }
-
-  /**
-   * Arm (or reset) the force-stop watchdog for a structured turn. Reset on any
-   * inbound sign of life so a healthy-but-slow cancel is never force-killed; it
-   * only fires after the agent has gone fully silent for the grace window with
-   * the interrupt still pending — i.e. the session is stale/disconnected.
-   */
-  private armStructuredInterruptWatchdog(session: SessionRuntime): void {
-    this.clearStructuredInterruptWatchdog(session);
-    const instanceId = session.instanceId;
-    session.structuredInterruptWatchdog = setTimeout(() => {
-      session.structuredInterruptWatchdog = undefined;
-      this.forceStopStaleStructuredTurn(session.threadId, instanceId);
-    }, STRUCTURED_INTERRUPT_STALE_KILL_MS);
-  }
-
-  /**
-   * Re-arm the watchdog if a stop is still pending — called on inbound activity
-   * (status updates / runtime events) so the silence clock restarts whenever
-   * the session proves it is still alive.
-   */
-  private touchStructuredInterruptWatchdog(session: SessionRuntime): void {
-    if (!session.structuredTurnInterruptRequested) return;
-    if (session.status !== "working") return;
-    this.armStructuredInterruptWatchdog(session);
-  }
-
-  /**
-   * The agent never acknowledged a stop request and has gone silent: the
-   * structured session is stale/disconnected. Dispose it best-effort and force
-   * the thread into a stopped `error` state so the UI stops waiting forever.
-   */
-  private forceStopStaleStructuredTurn(threadId: string, instanceId: string): void {
-    const session = this.sessions.get(threadId);
-    if (!session || session.instanceId !== instanceId) {
-      return;
-    }
-    if (this.disposed || session.ignoreExit) {
-      return;
-    }
-    if (session.status !== "working" || !session.structuredTurnInterruptRequested) {
-      return;
-    }
-    this.clearStructuredInterruptWatchdog(session);
-    session.structuredTurnInterruptRequested = false;
-    this.clearPendingSteerSlot(session);
-    const staleSession = session.structuredSession;
-    session.structuredSession = undefined;
-    void Promise.resolve(staleSession?.dispose()).catch((error) => {
-      console.error("[supervisor] failed to dispose stale structured session:", error);
-    });
-    this.failStructuredSession(
-      session,
-      new Error("Agent stopped responding to the stop request and was force-stopped."),
-    );
-  }
-
-  /**
    * Stage the user's steer message and fire the cancel notification. The
    * renderer calls this when submit-while-working happens on a GUI thread.
    * Drain is automatic on cancelled-stopReason via `maybeDrainPendingSteer`.
    */
   async setPendingSteer(payload: SetPendingSteerPayload): Promise<void> {
     const session = this.requireSession(payload.threadId);
-    if (session.presentationMode !== "gui") {
-      throw new Error("Pending steer is only supported for GUI-presentation threads.");
-    }
-    const usesStructuredFlow =
-      session.adapter.capabilities.liveInputMode === "server" || session.presentationMode === "gui";
-    if (!usesStructuredFlow || !session.structuredSession?.startTurn) {
-      throw new Error("Thread does not support structured turns.");
-    }
-    const effectiveSegments = payload.segments
-      ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
-          preserveImageAttachments: true,
-        })
-      : undefined;
-    const prompt =
-      effectiveSegments && effectiveSegments.length > 0
-        ? (session.adapter.formatPromptSegments?.(effectiveSegments) ??
-          defaultFormatPromptSegments(effectiveSegments))
-        : payload.prompt;
-    const turn: QueuedStructuredTurn = {
-      prompt,
-      config: payload.config,
-      ...(effectiveSegments ? { segments: effectiveSegments } : {}),
-    };
-    // Capability-based: non-interrupting steer enqueues onto the running turn
-    // (subagents survive, no watchdog); others use the interrupt-drain path.
-    if (session.structuredSession.steerTurn) {
-      this.steerStructuredTurn(session, turn);
-      return;
-    }
-    this.stagePendingSteer(session, turn);
-    if (session.status === "working") {
-      this.fireSteerInterrupt(session);
-    } else {
-      // Status was already idle/needs_reply by the time we staged. Drain now
-      // so the message doesn't sit unflushed.
-      this.maybeDrainPendingSteer(session);
-    }
+    await this.steerCoordinator.setPendingSteer(session, payload);
   }
 
   /**
@@ -892,7 +626,7 @@ export class ThreadSessionManager {
    */
   async clearPendingSteer(payload: ClearPendingSteerPayload): Promise<void> {
     const session = this.requireSession(payload.threadId);
-    this.clearPendingSteerSlot(session);
+    this.steerCoordinator.clearPendingSteerSlot(session);
   }
 
   private startStructuredTurn(session: SessionRuntime, turn: QueuedStructuredTurn): void {
@@ -924,43 +658,13 @@ export class ThreadSessionManager {
     });
   }
 
-  /**
-   * Steer an in-flight turn via the session's `steerTurn` capability: enqueue
-   * the user message onto the running turn without interrupting it (no
-   * subagents killed, no error result, no pending-steer/watchdog dance). The
-   * session emits its own optimistic user_message item, so pass the renderer's
-   * id through when present to keep it deduped. Providers without `steerTurn`
-   * never reach here — callers keep the interrupt-drain path for them.
-   */
-  private steerStructuredTurn(session: SessionRuntime, turn: QueuedStructuredTurn): void {
-    const steerTurn = session.structuredSession?.steerTurn;
-    if (!steerTurn) return;
-    const optimisticItemId =
-      session.presentationMode === "gui" && turn.prompt.length > 0
-        ? turn.userMessageItemId
-        : undefined;
-    const steer = steerTurn.call(
-      session.structuredSession,
-      turn.prompt,
-      turn.config,
-      turn.segments,
-      optimisticItemId ? { userMessageItemId: optimisticItemId } : undefined,
-    );
-    void steer.catch((error) => {
-      if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
-        return;
-      }
-      this.failStructuredSession(session, error);
-    });
-  }
-
   async closeThread(payload: CloseThreadPayload): Promise<void> {
     const shell = this.shellSessions.get(payload.threadId);
     if (shell) {
       shell.ignoreExit = true;
       this.shellSessions.delete(payload.threadId);
-      this.safeShellPtyKill(shell);
-      await this.waitForPtyExit(shell);
+      this.ptyLifecycle.killShell(shell);
+      await this.ptyLifecycle.waitForExit(shell);
       return;
     }
 
@@ -980,15 +684,15 @@ export class ThreadSessionManager {
     if (existing.sessionRef?.providerSessionId) {
       this.sessionsBySessionId.delete(existing.sessionRef.providerSessionId);
     }
-    this.clearAllSubAgentStateForThread(payload.threadId);
+    this.runtimeEventRouter.clearAllForThread(payload.threadId);
     this.options.subagentMcp?.cancelAll(payload.threadId);
     this.options.subagentMcp?.unregister(payload.threadId);
     await existing.structuredSession?.dispose();
     if (existing.structuredSession) {
       await sleep(150);
     }
-    this.safePtyKill(existing);
-    await this.waitForPtyExit(existing);
+    this.ptyLifecycle.kill(existing);
+    await this.ptyLifecycle.waitForExit(existing);
   }
 
   async startShell(payload: StartShellPayload): Promise<void> {
@@ -997,7 +701,7 @@ export class ThreadSessionManager {
     if (existing) {
       existing.ignoreExit = true;
       this.shellSessions.delete(payload.shellId);
-      this.safeShellPtyKill(existing);
+      this.ptyLifecycle.killShell(existing);
     }
 
     // Capture project-scoped shell env (fnm / nvm / asdf / mise cd-hooks
@@ -1007,7 +711,7 @@ export class ThreadSessionManager {
       await primeProjectShellEnv(payload.projectLocation.path);
     }
 
-    const shellCommand = this.buildShellCommand(payload.projectLocation, {
+    const shellCommand = buildShellCommand(payload.projectLocation, this.options.windowsShell, {
       startInHome: payload.startInHome === true,
     });
     this.options.emit({ type: "thread-reset", threadId: payload.shellId });
@@ -1073,7 +777,7 @@ export class ThreadSessionManager {
     };
 
     this.shellSessions.set(payload.shellId, session);
-    this.trackPtyExit(session);
+    this.ptyLifecycle.track(session);
     pty.onData((data) => {
       if (this.shellSessions.get(payload.shellId)?.instanceId !== session.instanceId) {
         return;
@@ -1091,7 +795,7 @@ export class ThreadSessionManager {
     });
 
     pty.onExit(({ exitCode }) => {
-      this.resolvePtyExit(session);
+      this.ptyLifecycle.resolveExit(session);
       if (session.ignoreExit) {
         return;
       }
@@ -1136,13 +840,13 @@ export class ThreadSessionManager {
       this.pendingStartAborts.add(threadId);
     }
 
-    this.flushRuntimeEvents();
+    this.runtimeEventRouter.flush();
     await Promise.allSettled(
       [...this.sessions.values()].map(async (session) => {
         session.ignoreExit = true;
         this.outputPipeline.clearSessionTimers(session);
         await session.structuredSession?.dispose();
-        this.safePtyKill(session);
+        this.ptyLifecycle.kill(session);
       }),
     );
     this.sessions.clear();
@@ -1150,7 +854,7 @@ export class ThreadSessionManager {
 
     for (const shell of this.shellSessions.values()) {
       shell.ignoreExit = true;
-      this.safeShellPtyKill(shell);
+      this.ptyLifecycle.killShell(shell);
     }
     this.shellSessions.clear();
     this.logWriter.dispose();
@@ -1174,162 +878,6 @@ export class ThreadSessionManager {
 
   private isCurrentSession(session: SessionRuntime): boolean {
     return this.sessions.get(session.threadId)?.instanceId === session.instanceId;
-  }
-
-  /**
-   * Hook-launch flags must stay in the option section of the argv. Appending
-   * them after positional session ids / prompts makes Codex treat
-   * `--enable <hooks-feature>` as trailing user input instead of a real flag.
-   */
-  /**
-   * Swap the hook plugin's `--settings <path>` for a sibling file with the
-   * session flags merged in (ultracode and/or fast mode). Claude's CLI keeps
-   * only the first `--settings` it sees and silently drops the rest, so the
-   * inline flags and the plugin's hooks file can't coexist as separate flags —
-   * they have to be one file.
-   */
-  private async applyClaudeMergedSettingsRewrite(
-    adapter: AgentAdapter,
-    args: string[],
-    config: ThreadConfig,
-    projectLocation: ProjectLocation,
-  ): Promise<string[]> {
-    if (!isClaudeAdapterKind(adapter.kind)) return args;
-    const flags: Record<string, unknown> = {};
-    if (config.effort === "ultracode") flags.ultracode = true;
-    if (config.fast === true) flags.fastMode = true;
-    if (Object.keys(flags).length === 0) return args;
-    const idx = args.findIndex((arg, i) => arg === "--settings" && i + 1 < args.length);
-    if (idx < 0) return args;
-    const originalPath = args[idx + 1];
-    if (!originalPath) return args;
-    const rewritten = await prepareClaudeMergedSettingsFile(originalPath, projectLocation, flags);
-    if (!rewritten) return args;
-    const out = [...args];
-    out[idx + 1] = rewritten;
-    return out;
-  }
-
-  private mergeCliHookExtraArgs(
-    adapter: AgentAdapter,
-    args: string[],
-    extraArgs: string[],
-    prompt: string,
-    sessionRef?: SessionRef,
-  ): string[] {
-    if (extraArgs.length === 0) {
-      return args;
-    }
-
-    if (adapter.kind === "codex") {
-      let trailingPositionals = 0;
-      if (args[0] === "resume" || sessionRef) {
-        trailingPositionals += 1;
-      }
-      if (prompt.trim().length > 0) {
-        trailingPositionals += 1;
-      }
-      const insertAt = Math.max(args.length - trailingPositionals, args[0] === "resume" ? 1 : 0);
-      return [...args.slice(0, insertAt), ...extraArgs, ...args.slice(insertAt)];
-    }
-
-    if (isClaudeAdapterKind(adapter.kind)) {
-      const insertAt = prompt.trim().length > 0 ? args.length - 1 : args.length;
-      return [...args.slice(0, insertAt), ...extraArgs, ...args.slice(insertAt)];
-    }
-
-    return [...args, ...extraArgs];
-  }
-
-  /**
-   * Resolve the CLI hook plugin env + extra agent args that should be injected for
-   * the given thread. Always returns a value so callers can splat
-   * unconditionally; missing config produces an empty record/array.
-   */
-  private async resolveCliHookPluginExtras(
-    threadId: string,
-    agentKind: AgentKind,
-    projectLocation: ProjectLocation,
-    config: ThreadConfig,
-    browserMcp: BrowserMcpHttpConfig | undefined,
-  ): Promise<{ env: Record<string, string>; extraArgs: string[] }> {
-    const adapter = this.options.adapters.get(agentKind);
-    const liveInputMode = adapter?.capabilities.liveInputMode ?? "terminal";
-
-    if (!this.options.resolvePluginEnvForSpawn) {
-      hookDebugSpawn({
-        threadId,
-        agentKind,
-        project: hookDebugProjectLabel(projectLocation),
-        mode: "L2",
-        label: "terminal TUI parse only (no hook coordinator wired)",
-        liveInputMode,
-      });
-      return { env: {}, extraArgs: [] };
-    }
-    try {
-      const resolved = await this.options.resolvePluginEnvForSpawn({
-        threadId,
-        agentKind,
-        projectLocation,
-        browserMcpEnabled: this.isBrowserMcpEnabledForLaunch(adapter, config),
-        ...(browserMcp !== undefined ? { browserMcp } : {}),
-      });
-      const merged = resolved ?? { env: {}, extraArgs: [] };
-      const hookUrl = merged.env.LIGHTCODE_HOOK_URL;
-      const hasHookEnv = Boolean(hookUrl);
-
-      if (liveInputMode === "server") {
-        hookDebugSpawn({
-          threadId,
-          agentKind,
-          project: hookDebugProjectLabel(projectLocation),
-          mode: "L2",
-          label: "structured / ACP–style agent (status from control channel, not CLI hook plugin)",
-          liveInputMode,
-          hookEnvInjected: hasHookEnv,
-        });
-      } else if (hasHookEnv) {
-        const viaWslBridge = projectLocation.kind === "wsl";
-        hookDebugSpawn({
-          threadId,
-          agentKind,
-          project: hookDebugProjectLabel(projectLocation),
-          mode: "L1",
-          label: viaWslBridge
-            ? "CLI hook plugin → in-distro HTTP bridge (WSL) → supervisor"
-            : "CLI hook plugin → host HookIngress → supervisor",
-          liveInputMode,
-          hookUrl,
-          extraCliArgs: merged.extraArgs.length,
-        });
-      } else {
-        hookDebugSpawn({
-          threadId,
-          agentKind,
-          project: hookDebugProjectLabel(projectLocation),
-          mode: "L2",
-          label:
-            "CLI hook plugin inactive for this spawn (install/cache/transport/node in WSL, or not a hook-capable agent)",
-          liveInputMode,
-          extraCliArgs: merged.extraArgs.length,
-        });
-      }
-
-      return merged;
-    } catch (error) {
-      console.warn("[supervisor] CLI hook plugin env resolution failed:", error);
-      hookDebugSpawn({
-        threadId,
-        agentKind,
-        project: hookDebugProjectLabel(projectLocation),
-        mode: "L2",
-        label: "resolvePluginEnvForSpawn threw; falling back to terminal parse only",
-        liveInputMode,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return { env: {}, extraArgs: [] };
-    }
   }
 
   /**
@@ -1615,7 +1163,7 @@ export class ThreadSessionManager {
     // platform (WSL, win32, posix). Failure to resolve plugin extras silently
     // degrades to L2 — the supervisor must never block thread creation on
     // the hook-plugin plumbing.
-    const cliHookExtras = await this.resolveCliHookPluginExtras(
+    const cliHookExtras = await this.cliHookPlugin.resolveCliHookPluginExtras(
       payload.threadId,
       payload.agentKind,
       payload.projectLocation,
@@ -1623,7 +1171,7 @@ export class ThreadSessionManager {
       browserMcp,
     );
     if (cliHookExtras.extraArgs.length > 0) {
-      argv.args = this.mergeCliHookExtraArgs(
+      argv.args = mergeCliHookExtraArgs(
         adapter,
         argv.args,
         cliHookExtras.extraArgs,
@@ -1631,7 +1179,7 @@ export class ThreadSessionManager {
         payload.sessionRef,
       );
     }
-    argv.args = await this.applyClaudeMergedSettingsRewrite(
+    argv.args = await applyClaudeMergedSettingsRewrite(
       adapter,
       argv.args,
       payload.config,
@@ -1786,7 +1334,7 @@ export class ThreadSessionManager {
       getIterm2StatusL2TerminalEnv({
         agentKind: input.agentKind,
         projectLocation: input.projectLocation,
-        disableCliHookPlugin: this.readDisableCliHookPlugin(),
+        disableCliHookPlugin: this.options.readDisableCliHookPlugin(),
         cliHookEnvInjected,
       }),
     );
@@ -1858,7 +1406,7 @@ export class ThreadSessionManager {
 
     this.sessions.set(input.threadId, session);
     if (session.pty) {
-      this.trackPtyExit(session);
+      this.ptyLifecycle.track(session);
     }
     if (session.sessionRef?.providerSessionId) {
       this.sessionsBySessionId.set(session.sessionRef.providerSessionId, session);
@@ -1949,7 +1497,7 @@ export class ThreadSessionManager {
         // stale "working" until the next snapshot reconcile (on thread switch).
         // Flushing first guarantees the renderer applies the final events before
         // the status change, mirroring its own flushPendingRuntimeEventsSync.
-        this.flushRuntimeEvents();
+        this.runtimeEventRouter.flush();
 
         this.outputPipeline.updateState(
           session,
@@ -1963,18 +1511,18 @@ export class ThreadSessionManager {
         );
         if (update.status !== "working") {
           session.structuredTurnInterruptRequested = false;
-          this.clearStructuredInterruptWatchdog(session);
+          this.structuredInterruptWatchdog.clearStructuredInterruptWatchdog(session);
         } else {
           // Still working but the agent showed a sign of life — restart the
           // stale-kill clock so a healthy long-running cancel is not killed.
-          this.touchStructuredInterruptWatchdog(session);
+          this.structuredInterruptWatchdog.touchStructuredInterruptWatchdog(session);
         }
         if (
           session.presentationMode === "gui" &&
           (wasWorking || hadInterruptRequest) &&
-          ThreadSessionManager.isSteerDrainableStatus(update.status)
+          isSteerDrainableStatus(update.status)
         ) {
-          this.maybeDrainPendingSteer(session);
+          this.steerCoordinator.maybeDrainPendingSteer(session);
         }
         if (
           (configChanged || slashCommandsChanged) &&
@@ -2000,7 +1548,7 @@ export class ThreadSessionManager {
         // Streaming output is a sign of life — restart the stale-kill clock so a
         // healthy agent still emitting tool/text deltas after a stop request is
         // never force-stopped while it works toward honoring the cancel.
-        this.touchStructuredInterruptWatchdog(session);
+        this.structuredInterruptWatchdog.touchStructuredInterruptWatchdog(session);
         this.enqueueRuntimeEvent(session.threadId, event);
       },
     });
@@ -2024,7 +1572,7 @@ export class ThreadSessionManager {
     });
 
     pty?.onExit((event) => {
-      this.resolvePtyExit(session);
+      this.ptyLifecycle.resolveExit(session);
       if (session.ignoreExit) {
         return;
       }
@@ -2122,12 +1670,12 @@ export class ThreadSessionManager {
     // any unsubscribed buffers, lingering child→parent entries, and overlay
     // subscriptions from the dead session are stale once the structured
     // session is replaced. `closeThread` already does this on full teardown.
-    this.clearAllSubAgentStateForThread(session.threadId);
+    this.runtimeEventRouter.clearAllForThread(session.threadId);
     await session.structuredSession?.dispose();
     if (session.structuredSession) {
       await sleep(150);
     }
-    this.safePtyKill(session);
+    this.ptyLifecycle.kill(session);
     if (!this.isCurrentSession(session)) {
       return;
     }
@@ -2225,7 +1773,7 @@ export class ThreadSessionManager {
     }
 
     const launchPrompt = useStructuredFlow ? "" : prompt;
-    const cliHookExtras = await this.resolveCliHookPluginExtras(
+    const cliHookExtras = await this.cliHookPlugin.resolveCliHookPluginExtras(
       session.threadId,
       session.agentKind,
       session.projectLocation,
@@ -2250,7 +1798,7 @@ export class ThreadSessionManager {
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
-      argv.args = this.mergeCliHookExtraArgs(
+      argv.args = mergeCliHookExtraArgs(
         session.adapter,
         argv.args,
         cliHookExtras.extraArgs,
@@ -2258,7 +1806,7 @@ export class ThreadSessionManager {
         session.sessionRef,
       );
     }
-    argv.args = await this.applyClaudeMergedSettingsRewrite(
+    argv.args = await applyClaudeMergedSettingsRewrite(
       session.adapter,
       argv.args,
       config,
@@ -2318,7 +1866,7 @@ export class ThreadSessionManager {
       if (session.structuredSession) {
         await sleep(150);
       }
-      this.safePtyKill(session);
+      this.ptyLifecycle.kill(session);
 
       if (this.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
         return;
@@ -2334,7 +1882,7 @@ export class ThreadSessionManager {
         session.projectLocation,
         session.config,
       );
-      const cliHookExtras = await this.resolveCliHookPluginExtras(
+      const cliHookExtras = await this.cliHookPlugin.resolveCliHookPluginExtras(
         session.threadId,
         session.agentKind,
         session.projectLocation,
@@ -2358,14 +1906,14 @@ export class ThreadSessionManager {
         ),
       );
       if (cliHookExtras.extraArgs.length > 0) {
-        argv.args = this.mergeCliHookExtraArgs(
+        argv.args = mergeCliHookExtraArgs(
           session.adapter,
           argv.args,
           cliHookExtras.extraArgs,
           session.launchPrompt,
         );
       }
-      argv.args = await this.applyClaudeMergedSettingsRewrite(
+      argv.args = await applyClaudeMergedSettingsRewrite(
         session.adapter,
         argv.args,
         session.config,
@@ -2406,7 +1954,7 @@ export class ThreadSessionManager {
     session.ignoreExit = true;
     session.stopSessionRefWatcher?.();
     session.stopSessionRefWatcher = undefined;
-    setTimeout(() => this.safePtyKill(session), 150);
+    setTimeout(() => this.ptyLifecycle.kill(session), 150);
   }
 
   private startQueuedLaunchPrompt(session: SessionRuntime): void {
@@ -2421,107 +1969,6 @@ export class ThreadSessionManager {
       }
       this.failStructuredSession(session, error);
     });
-  }
-
-  private trackPtyExit(session: SessionRuntime | ShellSessionRuntime): void {
-    if (session.ptyExited || this.ptyExitPromises.has(session)) {
-      return;
-    }
-    let resolve!: () => void;
-    const promise = new Promise<void>((done) => {
-      resolve = done;
-    });
-    this.ptyExitPromises.set(session, promise);
-    this.ptyExitResolvers.set(session, resolve);
-  }
-
-  private resolvePtyExit(session: SessionRuntime | ShellSessionRuntime): void {
-    session.ptyExited = true;
-    this.ptyExitResolvers.get(session)?.();
-    this.ptyExitResolvers.delete(session);
-    this.ptyExitPromises.delete(session);
-  }
-
-  private async waitForPtyExit(session: SessionRuntime | ShellSessionRuntime): Promise<void> {
-    if (session.ptyExited) {
-      return;
-    }
-    const exitPromise = this.ptyExitPromises.get(session);
-    if (!exitPromise) {
-      return;
-    }
-    await Promise.race([
-      exitPromise,
-      sleep(ThreadSessionManager.PTY_CLOSE_TIMEOUT_MS).then(() => undefined),
-    ]);
-  }
-
-  private safePtyKill(session: SessionRuntime): void {
-    if (!session.pty) {
-      return;
-    }
-    if (session.ptyExited) {
-      return;
-    }
-    if (process.platform === "win32") {
-      terminateProcessTree(session.pty.pid);
-      return;
-    }
-    try {
-      process.kill(session.pty.pid, 0);
-    } catch {
-      return;
-    }
-    session.pty.kill();
-  }
-
-  private safeShellPtyKill(session: ShellSessionRuntime): void {
-    if (session.ptyExited) {
-      return;
-    }
-    if (process.platform === "win32") {
-      terminateProcessTree(session.pty.pid);
-      return;
-    }
-    try {
-      process.kill(session.pty.pid, 0);
-    } catch {
-      return;
-    }
-    session.pty.kill();
-  }
-
-  private buildShellCommand(
-    location: ProjectLocation,
-    options?: { startInHome?: boolean },
-  ): {
-    command: string;
-    args: string[];
-    cwd?: string;
-  } {
-    const startInHome = options?.startInHome === true;
-    if (location.kind === "wsl") {
-      // `wsl --cd ~` lands in the distro's Linux home; otherwise the worktree.
-      return {
-        command: getWslCommand(),
-        args: ["-d", location.distro, "--cd", startInHome ? "~" : location.linuxPath],
-      };
-    }
-
-    if (process.platform === "win32") {
-      return {
-        command: this.options.windowsShell.shell,
-        args: [...this.options.windowsShell.args],
-        cwd: startInHome ? homedir() : location.path,
-      };
-    }
-
-    const shell = process.env.SHELL || "/bin/bash";
-    return {
-      command: shell,
-      args: ["-l"],
-      cwd: startInHome ? homedir() : location.path,
-    };
   }
 
   private resolveLogPath(threadId: string): string {
@@ -2642,135 +2089,4 @@ export class ThreadSessionManager {
     }
     return env;
   }
-}
-
-function describeSpawnFailure(
-  kind: "shell" | "agent",
-  cmd: { command: string; args: string[]; cwd?: string },
-  env: Record<string, string>,
-  error: unknown,
-): string {
-  const base = error instanceof Error ? error.message : String(error);
-  const prefix = `Failed to spawn ${kind} (${cmd.command})`;
-
-  if (cmd.cwd) {
-    const cwdDiagnosis = diagnoseCwd(cmd.cwd);
-    if (cwdDiagnosis) return cwdDiagnosis;
-  }
-
-  if (cmd.command.startsWith("/")) {
-    const binaryDiagnosis = diagnoseShellBinary(cmd.command);
-    if (binaryDiagnosis) return binaryDiagnosis;
-  } else {
-    // node-pty surfaces a bare "posix_spawnp failed." for PATH-lookup misses.
-    // Do the lookup ourselves against the env actually handed to the child so
-    // the user sees whether the binary was missing vs found-but-unspawnable.
-    const lookup = diagnoseRelativeBinary(cmd.command, env);
-    if (lookup) return `${prefix}: ${lookup}`;
-  }
-
-  // posix_spawn returns E2BIG when env+argv exceed ARG_MAX (~256KB on macOS).
-  const envBytes = measureEnvBytes(env);
-  const argvBytes = measureArgvBytes(cmd.command, cmd.args);
-  // Leave headroom — ARG_MAX includes pointer overhead and string terminators.
-  if (envBytes + argvBytes > 200_000) {
-    return `${prefix}: environment is too large (${Math.round((envBytes + argvBytes) / 1024)} KB). This usually means a parent process leaked variables into the launch env.`;
-  }
-
-  return `${prefix}: ${base}`;
-}
-
-function diagnoseRelativeBinary(command: string, env: Record<string, string>): string | undefined {
-  const pathValue = env.PATH ?? "";
-  const entries = pathValue.split(":").filter((entry) => entry.length > 0);
-  for (const entry of entries) {
-    const candidate = resolvePath(entry, command);
-    try {
-      const stat = statSync(candidate);
-      if (stat.isFile() && (stat.mode & 0o111) !== 0) return undefined;
-    } catch {
-      // continue
-    }
-  }
-  if (entries.length === 0) {
-    return `'${command}' could not be resolved — PATH is empty.`;
-  }
-  return `'${command}' was not found on PATH (${entries.length} entries searched). Check that the binary is installed and visible to the app's environment.`;
-}
-
-function sanitizeEnv(source: NodeJS.ProcessEnv): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [key, value] of Object.entries(source)) {
-    if (typeof value !== "string") continue;
-    // posix_spawn treats embedded NULs as terminators and rejects the env.
-    if (value.indexOf("\0") !== -1) continue;
-    out[key] = value;
-  }
-  return out;
-}
-
-// process.env is effectively static after supervisor boot — sanitize once
-// instead of re-scanning ~150–300 entries on every startShell call.
-const sanitizedProcessEnv = sanitizeEnv(process.env);
-
-function measureEnvBytes(env: Record<string, string>): number {
-  let total = 0;
-  for (const [key, value] of Object.entries(env)) {
-    total += Buffer.byteLength(key) + Buffer.byteLength(value) + 2; // '=' and NUL
-  }
-  return total;
-}
-
-function measureArgvBytes(command: string, args: readonly string[]): number {
-  let total = Buffer.byteLength(command) + 1;
-  for (const arg of args) {
-    total += Buffer.byteLength(arg) + 1;
-  }
-  return total;
-}
-
-function diagnoseCwd(cwd: string): string | undefined {
-  let stat;
-  try {
-    stat = statSync(cwd);
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") {
-      return `Cannot start shell: working directory does not exist (${cwd}).`;
-    }
-    if (code === "EACCES") {
-      return `Cannot start shell: working directory is not accessible (${cwd}).`;
-    }
-    return `Cannot start shell: working directory (${cwd}) error: ${(err as Error).message}`;
-  }
-  if (!stat.isDirectory()) {
-    return `Cannot start shell: working directory path is not a directory (${cwd}).`;
-  }
-  try {
-    accessSync(cwd, fsConstants.X_OK | fsConstants.R_OK);
-  } catch {
-    return `Cannot start shell: working directory lacks read/execute permission (${cwd}).`;
-  }
-  return undefined;
-}
-
-function diagnoseShellBinary(command: string): string | undefined {
-  if (!existsSync(command)) {
-    return `Cannot start shell: ${command} not found. Check $SHELL.`;
-  }
-  let stat;
-  try {
-    stat = statSync(command);
-  } catch {
-    return undefined;
-  }
-  if (!stat.isFile()) {
-    return `Cannot start shell: ${command} is not an executable file.`;
-  }
-  try {
-    accessSync(command, fsConstants.X_OK);
-  } catch {
-    return `Cannot start shell: ${command} is not executable (no +x permission).`;
-  }
-  return undefined;
 }
