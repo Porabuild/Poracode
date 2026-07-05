@@ -3,9 +3,11 @@ import { msg } from "@lingui/core/macro";
 import type {
   AgentCapability,
   AgentStatus,
+  Thread,
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
+import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import type { ProviderModelMenuProvider } from "@/renderer/components/common";
 import { statusToMenuProvider } from "@/renderer/components/common/ProviderModelMenu";
 import {
@@ -269,4 +271,104 @@ export function appendProviderComposerControls(
   }).map(applyDefaultControlTiers);
 
   return [...controls, ...providerControls];
+}
+
+function normalizeCursorComposerConfig(
+  agentKind: string,
+  config: ThreadConfig,
+  capabilities: AgentStatus["capabilities"],
+): ThreadConfig {
+  if (agentKind !== "cursor" || capabilities.models.some((model) => model.id === config.model)) {
+    return config;
+  }
+
+  const parsed = parseCursorModelId(config.model);
+  const baseModel = migrateCursorBaseId(parsed.baseId);
+  if (!capabilities.models.some((model) => model.id === baseModel)) {
+    const fallback = capabilities.models[0]?.id;
+    return fallback
+      ? {
+          ...config,
+          model: fallback,
+          effort: undefined,
+          contextSize: undefined,
+          fast: false,
+          thinking: false,
+        }
+      : config;
+  }
+
+  return {
+    ...config,
+    model: baseModel,
+    ...(parsed.effort && !config.effort ? { effort: parsed.effort } : {}),
+    fast: config.fast ?? parsed.fast,
+    thinking: config.thinking ?? parsed.thinking,
+  };
+}
+
+export function buildControls(
+  thread: Thread,
+  agentStatus: AgentStatus | undefined,
+  hiddenModelIds: readonly string[] | undefined,
+  onConfigChange: (config: ThreadConfig) => void,
+): ComposerControl[] {
+  const presentationMode =
+    thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
+  if (!agentStatus) return [];
+
+  const presentationCapabilities = capabilitiesForPresentation(
+    agentStatus.capabilities,
+    presentationMode,
+  );
+  const filteredCaps = filterHiddenModels(presentationCapabilities, hiddenModelIds);
+  const effectiveConfig = normalizeCursorComposerConfig(
+    thread.agentKind,
+    thread.config,
+    filteredCaps,
+  );
+  const isDisabled = !thread.canResumeWithConfig;
+  const onPatch = (patch: Partial<ThreadConfig>) =>
+    onConfigChange({ ...thread.config, ...effectiveConfig, ...patch });
+  const provider: ProviderModelMenuProvider = {
+    kind: thread.agentKind,
+    label: agentStatus.label,
+    ...(agentStatus.icon ? { icon: agentStatus.icon } : {}),
+    capabilities: filteredCaps,
+  };
+
+  return appendProviderComposerControls(
+    buildModelPickerControls({
+      providers: [provider],
+      selectedAgentKind: thread.agentKind,
+      model: effectiveConfig.model,
+      ...(effectiveConfig.effort ? { effort: effectiveConfig.effort } : {}),
+      ...(effectiveConfig.contextSize ? { contextSize: effectiveConfig.contextSize } : {}),
+      ...(effectiveConfig.fast ? { fast: effectiveConfig.fast } : {}),
+      ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
+      capabilities: filteredCaps,
+      lockedAgentKind: thread.agentKind,
+      presentationMode,
+      isDisabled,
+      onProviderModelChange: ({ model }) => {
+        onPatch(
+          patchConfigForModelChange(filteredCaps, model, {
+            ...(effectiveConfig.effort ? { effort: effectiveConfig.effort } : {}),
+            ...(effectiveConfig.contextSize ? { contextSize: effectiveConfig.contextSize } : {}),
+            ...(effectiveConfig.fast ? { fast: effectiveConfig.fast } : {}),
+            ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
+          }),
+        );
+      },
+      onConfigPatch: onPatch,
+    }),
+    {
+      agentKind: thread.agentKind,
+      capabilities: filteredCaps,
+      config: thread.config,
+      presentationMode,
+      isDisabled,
+      onConfigChange: onPatch,
+    },
+  );
 }
