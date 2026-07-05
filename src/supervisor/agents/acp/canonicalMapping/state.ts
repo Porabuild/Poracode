@@ -3,7 +3,6 @@
  * mapper. Tracks open items so streamed deltas land on the right item id.
  */
 
-import { randomUUID } from "node:crypto";
 import type { CanonicalItemType, RuntimeEvent } from "@/shared/contracts";
 
 export interface AcpToolCallItemState {
@@ -77,9 +76,7 @@ export function createAcpMapperState(threadId: string): AcpMapperState {
   };
 }
 
-export function newItemId(prefix: string): string {
-  return `${prefix}-${randomUUID()}`;
-}
+export { newItemId } from "../../contextUsage";
 
 const OPEN_CONTENT_ITEM_KEYS = [
   "openAssistantItemId",

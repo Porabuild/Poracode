@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   buildDiffHeaderLines,
   formatHunkRange,
@@ -6,9 +5,7 @@ import {
 } from "@/shared/lineUnifiedDiff";
 import type { FileChangeMetadata } from "../sdkCanonicalMappingState";
 
-export function newItemId(prefix: string): string {
-  return `${prefix}-${randomUUID()}`;
-}
+export { newItemId } from "../../contextUsage";
 
 /**
  * Collect inline images out of a Claude `tool_result` content (Anthropic image

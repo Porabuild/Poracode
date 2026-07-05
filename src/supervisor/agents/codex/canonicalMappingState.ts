@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { CanonicalItemType } from "@/shared/contracts";
 
 export interface CodexMapperState {
@@ -38,9 +37,7 @@ export function createCodexMapperState(threadId: string): CodexMapperState {
   };
 }
 
-export function newItemId(prefix: string): string {
-  return `${prefix}-${randomUUID()}`;
-}
+export { newItemId } from "../contextUsage";
 
 /**
  * Normalize Codex's item-type label into our canonical enum: lowercase, split

@@ -11,7 +11,6 @@
  * `suffixPrefixOverlap` to detect what's new in a snapshot.
  */
 
-import { randomUUID } from "node:crypto";
 import type {
   EventSubscribeResponse,
   Part,
@@ -29,6 +28,7 @@ import type {
 import { readDiffSummary, readFileChangePath } from "../fileChangeSummary";
 import {
   createContextUsageEvent,
+  newItemId,
   readNonNegativeInteger,
   usageFromTokenCounts,
 } from "../contextUsage";
@@ -49,10 +49,6 @@ export {
   type OpenCodeMapperState,
   type OpenCodeSubAgentSessionState,
 };
-
-function newItemId(prefix: string): string {
-  return `${prefix}-${randomUUID()}`;
-}
 
 /** Longest suffix of `emitted` that is a prefix of `full`. */
 function suffixPrefixOverlap(emitted: string, full: string): number {

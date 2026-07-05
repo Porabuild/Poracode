@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { RuntimeEvent, ThreadContextUsage } from "@/shared/contracts";
 
 interface TokenCounts {
@@ -13,6 +14,11 @@ interface TokenCounts {
 export function readNonNegativeInteger(value: unknown): number | undefined {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return undefined;
   return Math.trunc(value);
+}
+
+/** Mint a canonical runtime-event item id of the form `<prefix>-<uuid>`. */
+export function newItemId(prefix: string): string {
+  return `${prefix}-${randomUUID()}`;
 }
 
 export function createContextUsageEvent(
