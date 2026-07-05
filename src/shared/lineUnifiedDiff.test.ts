@@ -11,6 +11,41 @@ describe("countLineChangeStats", () => {
     const newText = ["line one", "line TWO", "line three"].join("\n");
     expect(countLineChangeStats(oldText, newText)).toEqual({ added: 1, removed: 1 });
   });
+
+  it("stays minimal for a small edit in a large file (Cursor ACP sends whole-file oldText/newText)", () => {
+    const oldLines = Array.from({ length: 5000 }, (_, i) => `const line${i} = ${i};`);
+    const newLines = [...oldLines];
+    newLines[2500] = "const line2500 = CHANGED;";
+    expect(countLineChangeStats(oldLines.join("\n"), newLines.join("\n"))).toEqual({
+      added: 1,
+      removed: 1,
+    });
+  });
+
+  it("stays minimal for insertions into a large file", () => {
+    const oldLines = Array.from({ length: 4000 }, (_, i) => `line ${i}`);
+    const newLines = [
+      ...oldLines.slice(0, 1000),
+      "inserted a",
+      "inserted b",
+      ...oldLines.slice(1000),
+    ];
+    expect(countLineChangeStats(oldLines.join("\n"), newLines.join("\n"))).toEqual({
+      added: 2,
+      removed: 0,
+    });
+  });
+
+  it("stays minimal for two distant edits in a large file", () => {
+    const oldLines = Array.from({ length: 6000 }, (_, i) => `row ${i}`);
+    const newLines = [...oldLines];
+    newLines[100] = "row 100 edited";
+    newLines[5900] = "row 5900 edited";
+    expect(countLineChangeStats(oldLines.join("\n"), newLines.join("\n"))).toEqual({
+      added: 2,
+      removed: 2,
+    });
+  });
 });
 
 describe("buildLineUnifiedDiff", () => {
@@ -48,6 +83,20 @@ describe("buildLineUnifiedDiff", () => {
         ),
       ),
     ).toEqual({ added: 3, removed: 0 });
+  });
+
+  it("emits a single small hunk for a one-line edit in a large file", () => {
+    const oldLines = Array.from({ length: 5000 }, (_, i) => `const line${i} = ${i};`);
+    const newLines = [...oldLines];
+    newLines[2500] = "const line2500 = CHANGED;";
+    const diff = buildLineUnifiedDiff("src/big.ts", oldLines.join("\n"), newLines.join("\n"));
+    const minus = diff
+      .split("\n")
+      .filter((line) => line.startsWith("-") && !line.startsWith("---"));
+    const plus = diff.split("\n").filter((line) => line.startsWith("+") && !line.startsWith("+++"));
+    expect(minus).toHaveLength(1);
+    expect(plus).toHaveLength(1);
+    expect(diff).toContain("@@ -2498,7 +2498,7 @@");
   });
 
   it("normalizes absolute Windows paths for diff headers", () => {

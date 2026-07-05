@@ -9,7 +9,11 @@ export type DiffOp =
   | { kind: "insert"; text: string };
 
 const CONTEXT_LINES = 3;
-/** LCS DP allocates `(n+1)*(m+1)` cells. Beyond this we degrade to a coarse diff. */
+/**
+ * LCS DP allocates `(n+1)*(m+1)` cells. Beyond this we anchor on lines that are
+ * unique to both sides (patience-style) and recurse; only anchor-free oversized
+ * regions degrade to a coarse delete-all/insert-all diff.
+ */
 const MAX_DP_CELLS = 4_000_000;
 
 /**
@@ -70,16 +74,65 @@ export function diffLineOps(oldText: string, newText: string): DiffOp[] {
   if (oldText === newText) {
     return splitLines(oldText).map((text) => ({ kind: "equal", text }));
   }
-  const oldLines = splitLines(oldText);
-  const newLines = splitLines(newText);
-  const n = oldLines.length;
-  const m = newLines.length;
-  if ((n + 1) * (m + 1) > MAX_DP_CELLS) {
+  return diffLinesTrimmed(splitLines(oldText), splitLines(newText));
+}
+
+/** Peel matching prefix/suffix lines before dispatching to the core diff. */
+function diffLinesTrimmed(oldLines: readonly string[], newLines: readonly string[]): DiffOp[] {
+  const shorter = Math.min(oldLines.length, newLines.length);
+  let prefix = 0;
+  while (prefix < shorter && oldLines[prefix] === newLines[prefix]) prefix += 1;
+  let suffix = 0;
+  while (
+    suffix < shorter - prefix &&
+    oldLines[oldLines.length - 1 - suffix] === newLines[newLines.length - 1 - suffix]
+  ) {
+    suffix += 1;
+  }
+  return [
+    ...oldLines.slice(0, prefix).map<DiffOp>((text) => ({ kind: "equal", text })),
+    ...diffLinesCore(
+      oldLines.slice(prefix, oldLines.length - suffix),
+      newLines.slice(prefix, newLines.length - suffix),
+    ),
+    ...oldLines.slice(oldLines.length - suffix).map<DiffOp>((text) => ({ kind: "equal", text })),
+  ];
+}
+
+function diffLinesCore(oldLines: readonly string[], newLines: readonly string[]): DiffOp[] {
+  if (oldLines.length === 0) return newLines.map((text) => ({ kind: "insert", text }));
+  if (newLines.length === 0) return oldLines.map((text) => ({ kind: "delete", text }));
+  if ((oldLines.length + 1) * (newLines.length + 1) <= MAX_DP_CELLS) {
+    return diffLinesLcs(oldLines, newLines);
+  }
+  const anchors = findUniqueLineAnchors(oldLines, newLines);
+  if (anchors.length === 0) {
     return [
       ...oldLines.map<DiffOp>((text) => ({ kind: "delete", text })),
       ...newLines.map<DiffOp>((text) => ({ kind: "insert", text })),
     ];
   }
+  const ops: DiffOp[] = [];
+  let oldFrom = 0;
+  let newFrom = 0;
+  for (const anchor of anchors) {
+    ops.push(
+      ...diffLinesTrimmed(
+        oldLines.slice(oldFrom, anchor.oldIndex),
+        newLines.slice(newFrom, anchor.newIndex),
+      ),
+      { kind: "equal", text: oldLines[anchor.oldIndex]! },
+    );
+    oldFrom = anchor.oldIndex + 1;
+    newFrom = anchor.newIndex + 1;
+  }
+  ops.push(...diffLinesTrimmed(oldLines.slice(oldFrom), newLines.slice(newFrom)));
+  return ops;
+}
+
+function diffLinesLcs(oldLines: readonly string[], newLines: readonly string[]): DiffOp[] {
+  const n = oldLines.length;
+  const m = newLines.length;
   const dp = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
   for (let i = n - 1; i >= 0; i -= 1) {
     for (let j = m - 1; j >= 0; j -= 1) {
@@ -112,6 +165,73 @@ export function diffLineOps(oldText: string, newText: string): DiffOp[] {
     j += 1;
   }
   return ops;
+}
+
+interface LineAnchor {
+  oldIndex: number;
+  newIndex: number;
+}
+
+/**
+ * Patience-diff anchoring: lines that appear exactly once on both sides, kept
+ * in a longest increasing subsequence so anchor order is consistent on both
+ * sides. Splitting at these anchors keeps oversized diffs minimal instead of
+ * degrading to delete-all/insert-all.
+ */
+function findUniqueLineAnchors(
+  oldLines: readonly string[],
+  newLines: readonly string[],
+): LineAnchor[] {
+  const oldUnique = collectUniqueLineIndexes(oldLines);
+  const newUnique = collectUniqueLineIndexes(newLines);
+  const candidates: LineAnchor[] = [];
+  for (const [text, oldIndex] of oldUnique) {
+    const newIndex = newUnique.get(text);
+    if (newIndex !== undefined) candidates.push({ oldIndex, newIndex });
+  }
+  candidates.sort((a, b) => a.oldIndex - b.oldIndex);
+  return longestIncreasingByNewIndex(candidates);
+}
+
+function collectUniqueLineIndexes(lines: readonly string[]): Map<string, number> {
+  const indexes = new Map<string, number>();
+  const duplicates = new Set<string>();
+  for (let i = 0; i < lines.length; i += 1) {
+    const text = lines[i]!;
+    if (duplicates.has(text)) continue;
+    if (indexes.has(text)) {
+      indexes.delete(text);
+      duplicates.add(text);
+    } else {
+      indexes.set(text, i);
+    }
+  }
+  return indexes;
+}
+
+/** O(k log k) LIS over `newIndex` for candidates already sorted by `oldIndex`. */
+function longestIncreasingByNewIndex(candidates: readonly LineAnchor[]): LineAnchor[] {
+  const tailIndexes: number[] = [];
+  const predecessors = new Array<number>(candidates.length).fill(-1);
+  for (let i = 0; i < candidates.length; i += 1) {
+    const value = candidates[i]!.newIndex;
+    let low = 0;
+    let high = tailIndexes.length;
+    while (low < high) {
+      const mid = (low + high) >> 1;
+      if (candidates[tailIndexes[mid]!]!.newIndex < value) low = mid + 1;
+      else high = mid;
+    }
+    if (low > 0) predecessors[i] = tailIndexes[low - 1]!;
+    tailIndexes[low] = i;
+  }
+  const result: LineAnchor[] = [];
+  let cursor = tailIndexes.length > 0 ? tailIndexes[tailIndexes.length - 1]! : -1;
+  while (cursor >= 0) {
+    result.push(candidates[cursor]!);
+    cursor = predecessors[cursor]!;
+  }
+  return result.reverse();
 }
 
 function buildHunks(ops: DiffOp[]): string[] {
