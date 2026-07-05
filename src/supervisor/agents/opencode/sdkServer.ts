@@ -52,9 +52,6 @@ export function disposeSpawnedOpenCodeServerHandles(): void {
   activeServerChildren.clear();
 }
 
-/** @deprecated Use {@link disposeSpawnedOpenCodeServerHandles}. */
-export const disposeOpenCodeServerHandlesForShutdown = disposeSpawnedOpenCodeServerHandles;
-
 function registerProcessExitCleanup(): void {
   if (processExitCleanupRegistered) return;
   processExitCleanupRegistered = true;

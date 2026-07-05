@@ -730,16 +730,3 @@ export async function detectAgentInstall(
     capabilities,
   };
 }
-
-/**
- * @deprecated Use buildAgentCommand() instead. This is kept for backward compatibility.
- */
-export function wrapWslCommand(
-  location: ProjectLocation,
-  command: string,
-  args: string[],
-  resolvedExecPath?: string,
-  env?: Record<string, string>,
-): CommandSpec {
-  return buildAgentCommand(location, command, args, resolvedExecPath, env);
-}

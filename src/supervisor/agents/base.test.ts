@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
-import { getWslCommand, injectWslEnv, wrapWslCommand } from "./base";
+import { getWslCommand, injectWslEnv, buildAgentCommand } from "./base";
 
 const wslProject: ProjectLocation = {
   kind: "wsl",
@@ -9,9 +9,9 @@ const wslProject: ProjectLocation = {
   uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
 };
 
-describe.skipIf(process.platform !== "win32")("wrapWslCommand", () => {
+describe.skipIf(process.platform !== "win32")("buildAgentCommand", () => {
   it("launches WSL agent commands through the resolved login shell", () => {
-    expect(wrapWslCommand(wslProject, "codex", ["--version"])).toEqual({
+    expect(buildAgentCommand(wslProject, "codex", ["--version"])).toEqual({
       command: getWslCommand(),
       args: [
         "-d",
@@ -30,7 +30,7 @@ describe.skipIf(process.platform !== "win32")("wrapWslCommand", () => {
 
   it("uses the detected executable path inside a login shell when available", () => {
     expect(
-      wrapWslCommand(
+      buildAgentCommand(
         wslProject,
         "codex",
         ["resume", "session-1"],
@@ -54,7 +54,7 @@ describe.skipIf(process.platform !== "win32")("wrapWslCommand", () => {
   });
 
   it("bakes env vars into the WSL shell script as exports", () => {
-    const spec = wrapWslCommand(wslProject, "claude", ["--print"], undefined, {
+    const spec = buildAgentCommand(wslProject, "claude", ["--print"], undefined, {
       CLAUDE_CODE_NO_FLICKER: "1",
     });
     const script = spec.args[spec.args.length - 1]!;
@@ -64,7 +64,7 @@ describe.skipIf(process.platform !== "win32")("wrapWslCommand", () => {
 
 describe("injectWslEnv", () => {
   it("prepends export statements to the WSL script arg", () => {
-    const original = wrapWslCommand(wslProject, "claude", ["--version"]);
+    const original = buildAgentCommand(wslProject, "claude", ["--version"]);
     const patched = injectWslEnv(original, wslProject, {
       CLAUDE_CODE_NO_FLICKER: "1",
       ANOTHER_VAR: "hello",
@@ -87,7 +87,7 @@ describe("injectWslEnv", () => {
   });
 
   it("returns the spec unchanged when env is empty", () => {
-    const original = wrapWslCommand(wslProject, "claude", ["--version"]);
+    const original = buildAgentCommand(wslProject, "claude", ["--version"]);
     const result = injectWslEnv(original, wslProject, {});
     expect(result).toBe(original);
   });
