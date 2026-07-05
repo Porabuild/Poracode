@@ -19,41 +19,36 @@ import { resolveZaiToken } from "./zaiCredentials";
  * are never logged.
  */
 
+type OAuthToken = NonNullable<Awaited<ReturnType<typeof resolveClaudeToken>>>;
+
+/**
+ * Per-provider OAuth token resolvers. factory/zai have no agent adapter, so this
+ * stays an in-file registration table (not adapter-contributed) — adding a
+ * usage-tracked provider is a one-line entry here rather than a new switch case.
+ */
+const tokenResolvers: Record<string, () => Promise<OAuthToken | undefined>> = {
+  claude: resolveClaudeToken,
+  codex: resolveCodexToken,
+  copilot: resolveCopilotToken,
+  cursor: resolveCursorToken,
+  grok: resolveGrokToken,
+  gemini: resolveGeminiToken,
+  // resolveFactoryCliToken is sync (returns the token directly, not a Promise);
+  // wrap it so every entry shares the () => Promise<OAuthToken | undefined> shape.
+  factory: async () => resolveFactoryCliToken(),
+  zai: resolveZaiToken,
+};
+
+/** Per-provider refreshers (currently only Claude rejects/expired tokens). */
+const tokenRefreshers: Record<string, (token: OAuthToken) => Promise<OAuthToken | undefined>> = {
+  claude: refreshRejectedClaudeToken,
+};
+
 /** Build the native credential store consumed by the usage HostPort. */
 export function createNativeCredentialStore(cacheDir?: string): CredentialStore {
   return {
-    getOAuthToken: async (providerId) => {
-      switch (providerId) {
-        case "claude":
-          return resolveClaudeToken();
-        case "codex":
-          return resolveCodexToken();
-        case "copilot":
-          return resolveCopilotToken();
-        case "cursor":
-          return resolveCursorToken();
-        case "grok":
-          return resolveGrokToken();
-        case "gemini":
-          return resolveGeminiToken();
-        // Factory/Droid: the local `droid` CLI's token (read-only). Used as the
-        // primary source before the captured browser-login secret.
-        case "factory":
-          return resolveFactoryCliToken();
-        case "zai":
-          return resolveZaiToken();
-        default:
-          return undefined;
-      }
-    },
-    refreshOAuthToken: async (providerId, token) => {
-      switch (providerId) {
-        case "claude":
-          return refreshRejectedClaudeToken(token);
-        default:
-          return undefined;
-      }
-    },
+    getOAuthToken: async (providerId) => tokenResolvers[providerId]?.(),
+    refreshOAuthToken: async (providerId, token) => tokenRefreshers[providerId]?.(token),
     // Captured session secrets (e.g. a browser-login cookie) live in the
     // safeStorage-sealed store written by main; decrypt and return on demand.
     // Never logged.
