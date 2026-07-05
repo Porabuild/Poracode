@@ -5,7 +5,7 @@ import {
   initializeSupervisorSentry,
 } from "./diagnostics/sentry";
 import { createSupervisorIpcHandlers } from "./ipcHandlers";
-import { SupervisorRuntime } from "./runtime";
+import { SupervisorRuntime } from "./supervisorRuntime";
 import { configureSecretStorageKey } from "./secretStorage";
 
 initializeSupervisorSentry({

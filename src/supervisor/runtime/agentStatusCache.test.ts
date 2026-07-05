@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import { resolveLightcodePaths } from "@/shared/lightcodePaths";
 import type { AgentAdapter } from "../agents/base";
-import { detectWslAgentStatuses, SupervisorRuntime } from "../runtime";
+import { detectWslAgentStatuses, SupervisorRuntime } from "../supervisorRuntime";
 import { STATUS_CACHE_VERSION } from "./agentStatusService";
 
 const tempDirs: string[] = [];

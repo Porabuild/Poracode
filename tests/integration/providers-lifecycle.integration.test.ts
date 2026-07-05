@@ -14,7 +14,7 @@ import type {
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import { createAgentRegistry } from "@/supervisor/agents/registry";
-import { SupervisorRuntime } from "@/supervisor/runtime";
+import { SupervisorRuntime } from "@/supervisor/supervisorRuntime";
 
 // Live-CLI integration: for each adapter in `createAgentRegistry()`, this test
 // starts a real thread with a cheap model, waits for sessionRef discovery,

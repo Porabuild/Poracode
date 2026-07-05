@@ -35,7 +35,7 @@ vi.mock("../agents/acp-generic", async (importActual) => {
   };
 });
 
-import { SupervisorRuntime } from "../runtime";
+import { SupervisorRuntime } from "../supervisorRuntime";
 
 const tempDirs: string[] = [];
 const runtimesToDispose: SupervisorRuntime[] = [];

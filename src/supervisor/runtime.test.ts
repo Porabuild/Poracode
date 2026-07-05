@@ -55,7 +55,7 @@ vi.mock("./agents/binaryResolver", async (importActual) => {
 vi.spyOn(console, "warn").mockImplementation(() => {});
 vi.spyOn(console, "log").mockImplementation(() => {});
 
-import { SupervisorRuntime } from "./runtime";
+import { SupervisorRuntime } from "./supervisorRuntime";
 
 const tempDirs: string[] = [];
 const runtimesToDispose: SupervisorRuntime[] = [];

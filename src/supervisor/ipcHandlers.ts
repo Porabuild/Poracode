@@ -1,5 +1,5 @@
 import { defineSupervisorIpcHandlers, type SupervisorIpcHandlerMap } from "@/shared/ipc";
-import type { SupervisorRuntime } from "./runtime";
+import type { SupervisorRuntime } from "./supervisorRuntime";
 
 export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): SupervisorIpcHandlerMap {
   return defineSupervisorIpcHandlers({
