@@ -21,7 +21,6 @@ import { readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { homedir } from "node:os";
 import { Readable, Writable } from "node:stream";
-import { spawn as spawnPty } from "node-pty";
 import {
   ClientSideConnection,
   ndJsonStream,
@@ -33,7 +32,6 @@ import {
   type CreateElicitationRequest,
   type CreateElicitationResponse,
   type CreateTerminalRequest,
-  type CreateTerminalResponse,
   type KillTerminalRequest,
   type McpCapabilities,
   type PromptCapabilities,
@@ -46,9 +44,7 @@ import {
   type SessionCapabilities,
   type SessionUpdate,
   type TerminalOutputRequest,
-  type TerminalOutputResponse,
   type WaitForTerminalExitRequest,
-  type WaitForTerminalExitResponse,
   type WriteTextFileRequest,
   type WriteTextFileResponse,
 } from "@agentclientprotocol/sdk";
@@ -76,7 +72,6 @@ import {
   type AcpMapperState,
 } from "./canonicalMapping";
 import { terminateChildProcessTree } from "@/shared/processTree";
-import { ensureNodePtySpawnHelperExecutable } from "@/supervisor/nodePty";
 import {
   createKnownSessionRef,
   type AgentLaunchOptions,
@@ -114,24 +109,9 @@ import {
   hasNativeAcpPermissionMode,
   selectAutoApprovedPermissionOption,
 } from "./sessionPermissionMode";
-import {
-  acpTerminalEnvEntries,
-  buildAcpTerminalLaunch,
-  buildTerminalCommandLine,
-  childExitStatus,
-  completeAcpTerminal,
-  isSameTerminalCommand,
-  normalizeTerminalCommandText,
-  resolveAcpTerminalCwd,
-} from "./sessionTerminalLaunch";
 import { filterAcpInboundNoise, looksLikeAcpSessionNotification } from "./sessionStreamFilter";
 import { maybeCaptureAcpUpdate } from "./sessionDiagnostics";
-
-import {
-  appendTerminalOutput,
-  MAX_ACP_TERMINALS_PER_SESSION,
-  type AcpTerminalRecord,
-} from "./sessionTerminal";
+import { AcpTerminalManager } from "./terminalManager";
 import {
   appendInterruptAckTextTail,
   createAcpPromptUsageEvent,
@@ -225,19 +205,24 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private agentPromptCapabilities: PromptCapabilities | undefined;
   private agentSessionCapabilities: SessionCapabilities | undefined;
   private agentMcpCapabilities: McpCapabilities | undefined;
-  private readonly acpTerminals = new Map<string, AcpTerminalRecord>();
-  private acpTerminalSeq = 0;
-  /**
-   * Final stdout/stderr snapshot kept around after `releaseTerminal` so the
-   * canonical mapper can still surface output when the agent emits its
-   * completed `tool_call_update` AFTER releasing the terminal. Without this
-   * the live `acpTerminals` entry is gone and the chat row would render
-   * without a body even though we have the bytes in hand.
-   */
-  private readonly releasedAcpTerminalOutput = new Map<string, string>();
-  private readonly acpTerminalCommandById = new Map<string, string>();
-
   private mapperState: AcpMapperState | undefined;
+  /**
+   * Client-hosted ACP terminal subsystem. Lazily created so test harnesses
+   * that bypass the constructor (and override `projectLocation`/`cwd` after
+   * prototype instantiation) still get a coherent manager on first use.
+   */
+  private _terminalManager: AcpTerminalManager | undefined;
+
+  private get terminalManager(): AcpTerminalManager {
+    if (!this._terminalManager) {
+      this._terminalManager = new AcpTerminalManager({
+        projectLocation: this.projectLocation,
+        cwd: this.cwd,
+        assertRequestSession: (sessionId) => this.assertRequestSession(sessionId),
+      });
+    }
+    return this._terminalManager;
+  }
   /**
    * Runtime events that fired before the listener was wired (typical race:
    * the supervisor calls `void startTurn(...)` and then `await`s plugin-env
@@ -302,9 +287,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       // `ToolCallContent` entries of type `"terminal"` (Gemini's shell tool)
       // get inlined as the canonical `result` payload.
       this.mapperState.resolveTerminalOutput = (terminalId) =>
-        this.acpTerminals.get(terminalId)?.output ?? this.releasedAcpTerminalOutput.get(terminalId);
+        this.terminalManager.getTerminalOutput(terminalId);
       this.mapperState.resolveTerminalOutputByCommand = (command) =>
-        this.resolveAcpTerminalOutputByCommand(command);
+        this.terminalManager.resolveAcpTerminalOutputByCommand(command);
     }
     return this.mapperState;
   }
@@ -862,7 +847,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       // `closeOpenTurnItems`, so any output snapshots from terminals that
       // belonged to this turn are no longer reachable. Drop them so the cache
       // can't grow across a long-lived session.
-      this.releasedAcpTerminalOutput.clear();
+      this._terminalManager?.clearReleasedTerminalOutput();
       this.clearAcpToolCallItemIdMap();
     }
   }
@@ -908,7 +893,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.isDisposed = true;
 
     this.cancelPendingServerRequests();
-    this.releaseAllAcpTerminals();
+    this._terminalManager?.releaseAllAcpTerminals();
 
     if (this.sessionId && this.agentSessionCapabilities?.close !== undefined) {
       try {
@@ -987,167 +972,24 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     return {};
   }
 
-  private handleCreateTerminal(params: CreateTerminalRequest): CreateTerminalResponse {
-    this.assertRequestSession(params.sessionId);
-    if (this.acpTerminals.size >= MAX_ACP_TERMINALS_PER_SESSION) {
-      throw RequestError.invalidParams({
-        message: `ACP terminal limit reached (${MAX_ACP_TERMINALS_PER_SESSION}); release existing terminals before creating more.`,
-      });
-    }
-    const terminalId = `acp-terminal-${this.acpTerminalSeq++}`;
-    const cwd = params.cwd
-      ? resolveAcpTerminalCwd(this.projectLocation, params.cwd)
-      : resolveAcpTerminalCwd(this.projectLocation, this.cwd);
-    const launch = buildAcpTerminalLaunch(
-      this.projectLocation,
-      cwd,
-      params.command,
-      params.args ?? [],
-      acpTerminalEnvEntries(params.env),
-    );
-    const outputByteLimit =
-      typeof params.outputByteLimit === "number" ? params.outputByteLimit : undefined;
-
-    if (process.platform === "win32") {
-      const child = spawnChild(launch.command, launch.args, {
-        ...(launch.cwd ? { cwd: launch.cwd } : {}),
-        env: launch.env,
-        stdio: ["ignore", "pipe", "pipe"],
-        shell: false,
-        windowsHide: true,
-      });
-      const record: AcpTerminalRecord = {
-        kill: () => terminateChildProcessTree(child),
-        commandLine: buildTerminalCommandLine(params.command, params.args ?? []),
-        output: "",
-        outputByteLimit,
-        truncated: false,
-        exitStatus: undefined,
-        waiters: [],
-        subscriptions: [],
-      };
-      this.acpTerminals.set(terminalId, record);
-      this.acpTerminalCommandById.set(terminalId, record.commandLine);
-      child.stdout?.on("data", (chunk) => appendTerminalOutput(record, String(chunk)));
-      child.stderr?.on("data", (chunk) => appendTerminalOutput(record, String(chunk)));
-      child.once("error", (error) => {
-        appendTerminalOutput(record, `${error.message}\n`);
-        completeAcpTerminal(record, { exitCode: 1 });
-      });
-      child.once("exit", (code, signal) => {
-        completeAcpTerminal(record, childExitStatus(code, signal));
-      });
-      return { terminalId };
-    }
-
-    ensureNodePtySpawnHelperExecutable();
-    const pty = spawnPty(launch.command, launch.args, {
-      ...(launch.cwd ? { cwd: launch.cwd } : {}),
-      env: launch.env,
-      cols: 80,
-      rows: 24,
-    });
-    const record: AcpTerminalRecord = {
-      kill: () => pty.kill(),
-      commandLine: buildTerminalCommandLine(params.command, params.args ?? []),
-      output: "",
-      outputByteLimit,
-      truncated: false,
-      exitStatus: undefined,
-      waiters: [],
-      subscriptions: [],
-    };
-    this.acpTerminals.set(terminalId, record);
-    this.acpTerminalCommandById.set(terminalId, record.commandLine);
-    record.subscriptions.push(pty.onData((data) => appendTerminalOutput(record, data)));
-    record.subscriptions.push(
-      pty.onExit((event) => {
-        completeAcpTerminal(record, {
-          exitCode: event.exitCode,
-          ...(event.signal ? { signal: String(event.signal) } : {}),
-        });
-      }),
-    );
-    return { terminalId };
+  private handleCreateTerminal(params: CreateTerminalRequest) {
+    return this.terminalManager.handleCreateTerminal(params);
   }
 
-  private handleTerminalOutput(params: TerminalOutputRequest): TerminalOutputResponse {
-    this.assertRequestSession(params.sessionId);
-    const record = this.getAcpTerminal(params.terminalId);
-    return {
-      output: record.output,
-      truncated: record.truncated,
-      ...(record.exitStatus ? { exitStatus: record.exitStatus } : {}),
-    };
+  private handleTerminalOutput(params: TerminalOutputRequest) {
+    return this.terminalManager.handleTerminalOutput(params);
   }
 
   private handleReleaseTerminal(params: ReleaseTerminalRequest): void {
-    this.assertRequestSession(params.sessionId);
-    const record = this.getAcpTerminal(params.terminalId);
-    this.disposeAcpTerminal(params.terminalId, record);
+    this.terminalManager.handleReleaseTerminal(params);
   }
 
-  private async handleWaitForTerminalExit(
-    params: WaitForTerminalExitRequest,
-  ): Promise<WaitForTerminalExitResponse> {
-    this.assertRequestSession(params.sessionId);
-    const record = this.getAcpTerminal(params.terminalId);
-    if (record.exitStatus) return record.exitStatus;
-    return new Promise((resolve) => {
-      record.waiters.push(resolve);
-    });
+  private handleWaitForTerminalExit(params: WaitForTerminalExitRequest) {
+    return this.terminalManager.handleWaitForTerminalExit(params);
   }
 
   private handleKillTerminal(params: KillTerminalRequest): void {
-    this.assertRequestSession(params.sessionId);
-    const record = this.getAcpTerminal(params.terminalId);
-    if (!record.exitStatus) {
-      record.kill();
-    }
-  }
-
-  private getAcpTerminal(terminalId: string): AcpTerminalRecord {
-    const record = this.acpTerminals.get(terminalId);
-    if (!record) {
-      throw RequestError.invalidParams({ message: `Unknown ACP terminal: ${terminalId}` });
-    }
-    return record;
-  }
-
-  private releaseAllAcpTerminals(): void {
-    for (const [terminalId, record] of [...this.acpTerminals]) {
-      this.disposeAcpTerminal(terminalId, record);
-    }
-  }
-
-  private disposeAcpTerminal(terminalId: string, record: AcpTerminalRecord): void {
-    this.acpTerminals.delete(terminalId);
-    if (record.output.length > 0) {
-      this.releasedAcpTerminalOutput.set(terminalId, record.output);
-    }
-    for (const subscription of record.subscriptions.splice(0)) {
-      subscription.dispose();
-    }
-    if (!record.exitStatus) {
-      record.kill();
-    }
-    completeAcpTerminal(record, record.exitStatus ?? { signal: "SIGTERM" });
-  }
-
-  private resolveAcpTerminalOutputByCommand(command: string): string | undefined {
-    const target = normalizeTerminalCommandText(command);
-    if (!target) return undefined;
-
-    for (const [_terminalId, record] of [...this.acpTerminals].reverse()) {
-      if (!record.output || !isSameTerminalCommand(target, record.commandLine)) continue;
-      return record.output;
-    }
-    for (const [terminalId, output] of [...this.releasedAcpTerminalOutput].reverse()) {
-      const commandLine = this.acpTerminalCommandById.get(terminalId);
-      if (!output || !commandLine || !isSameTerminalCommand(target, commandLine)) continue;
-      return output;
-    }
-    return undefined;
+    this.terminalManager.handleKillTerminal(params);
   }
 
   private readonly pendingPermissionResolvers = new Map<
