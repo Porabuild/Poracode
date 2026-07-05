@@ -27,6 +27,7 @@ import {
   isAgentAuthMethod,
   scopeEnvForStatus,
   statusUpdateScope,
+  shouldPreferTerminalLogin,
 } from "@/renderer/utils/acpRegistryAuth";
 import { Input } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
@@ -48,7 +49,6 @@ import {
   findEnvVarAuthMethod,
   findTerminalLoginStatus,
   formatStatusList,
-  shouldPreferTerminalLogin,
   statusEnvKey,
   supportsAcpLogoutStatus,
 } from "./parts/authHelpers";

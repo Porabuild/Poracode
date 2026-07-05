@@ -21,6 +21,10 @@ export function registryAdapterKind(agentId: string): string {
   return `${ACP_GENERIC_PREFIX}${agentId}`;
 }
 
+export function shouldPreferTerminalLogin(status: AgentStatus): boolean {
+  return status.kind === "grok" && Boolean(status.loginCommand);
+}
+
 export function isEnvVarAuthMethod(
   method: StatusAuthMethod | undefined,
 ): method is AgentEnvVarAuthMethod {

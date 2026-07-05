@@ -13,6 +13,7 @@ import {
   findAgentAuthMethodForStatus,
   findTerminalAuthMethodForStatus,
   scopeEnvForStatus,
+  shouldPreferTerminalLogin,
 } from "@/renderer/utils/acpRegistryAuth";
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 
@@ -32,10 +33,6 @@ async function refreshAgentStatus(status: AgentStatus): Promise<void> {
  */
 function preventFocusSteal(event: React.MouseEvent<HTMLElement>): void {
   event.preventDefault();
-}
-
-function shouldPreferTerminalLogin(status: AgentStatus): boolean {
-  return status.kind === "grok" && Boolean(status.loginCommand);
 }
 
 export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; project?: Project }) {

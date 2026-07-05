@@ -80,7 +80,3 @@ export function supportsAcpLogoutStatus(
 ): boolean {
   return status.authLogoutSupported === true || acpInstanceId !== undefined;
 }
-
-export function shouldPreferTerminalLogin(status: AgentStatus): boolean {
-  return status.kind === "grok" && Boolean(status.loginCommand);
-}
