@@ -1710,7 +1710,7 @@ function flushSubAgentAssistantMessage(
   message: SDKMessage,
   state: ClaudeMapperState,
 ): RuntimeEvent[] {
-  const events: RuntimeEvent[] = [];
+  const events: RuntimeEvent[] = [...syncSubAgentModelFromChildAssistant(message, state)];
   const content = (message as { message?: { content?: unknown } }).message?.content;
   if (!Array.isArray(content)) return events;
   for (const block of content) {
@@ -1778,6 +1778,38 @@ function flushSubAgentAssistantMessage(
     }
   }
   return events;
+}
+
+/**
+ * A Task/Agent launch usually omits `model` from its input — the agent
+ * definition behind `subagent_type` supplies it — so the collapsed pill can't
+ * tell the user which model the subagent runs on. The forwarded child
+ * assistant messages carry the resolved model id; fold the first observed one
+ * onto the parent tool's progress (an explicit `model` input keeps
+ * precedence) so the row shows `Model · tokens` like MCP subagent tiles.
+ */
+function syncSubAgentModelFromChildAssistant(
+  message: SDKMessage,
+  state: ClaudeMapperState,
+): RuntimeEvent[] {
+  const parentToolUseId = readParentToolUseId(message);
+  if (!parentToolUseId) return [];
+  const tool = state.toolItemsById.get(parentToolUseId);
+  if (!tool || !isSubAgentToolName(tool.toolName)) return [];
+  if (tool.progress?.model) return [];
+  const inner = (message as { message?: unknown }).message;
+  if (!inner || typeof inner !== "object") return [];
+  const model = readStringField(inner as Record<string, unknown>, "model");
+  if (!model) return [];
+  tool.progress = { ...tool.progress, model };
+  return [
+    {
+      type: "item.updated",
+      threadId: state.threadId,
+      itemId: tool.itemId,
+      payload: toolPayload(tool, "running"),
+    },
+  ];
 }
 
 function mapClaudeSdkMessageInner(

@@ -102,16 +102,20 @@ describe("RemoteAuthStore", () => {
     expect(store.revokeAccessSession(session!.id)).toBe(false);
   });
 
-  it("writes persisted access sessions with owner-only permissions", () => {
-    const baseDir = mkdtempSync(join(tmpdir(), "lc-remote-auth-"));
-    try {
-      writeRemoteAccessSessions(baseDir, []);
+  // POSIX-only: Windows does not honor the 0o600 mode bits (stat reports 0o666).
+  it.skipIf(process.platform === "win32")(
+    "writes persisted access sessions with owner-only permissions",
+    () => {
+      const baseDir = mkdtempSync(join(tmpdir(), "lc-remote-auth-"));
+      try {
+        writeRemoteAccessSessions(baseDir, []);
 
-      expect(statSync(remoteAuthFilePath(baseDir)).mode & 0o777).toBe(0o600);
-    } finally {
-      rmSync(baseDir, { recursive: true, force: true });
-    }
-  });
+        expect(statSync(remoteAuthFilePath(baseDir)).mode & 0o777).toBe(0o600);
+      } finally {
+        rmSync(baseDir, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("parses bearer authorization schemes case-insensitively", () => {
     expect(parseBearerAuthorizationHeader("Bearer lc_access_token")).toBe("lc_access_token");

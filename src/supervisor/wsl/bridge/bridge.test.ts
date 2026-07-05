@@ -174,6 +174,39 @@ describe("bridge.mjs Browser MCP proxy", () => {
     });
   });
 
+  it("reaches a loopback-only upstream even when a default gateway exists (mirrored networking)", async () => {
+    // In mirrored WSL networking the default gateway is the LAN router, not
+    // the host; the proxy must not force-rewrite 127.0.0.1 to it.
+    const loopbackUpstream = createServer((_req, res) => {
+      res.statusCode = 200;
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ jsonrpc: "2.0", id: 7, result: { via: "loopback" } }));
+    });
+    const loopbackBaseUrl = await listenLocalServer(loopbackUpstream, "127.0.0.1");
+    const loopbackBridge = await startBridge({
+      LIGHTCODE_BROWSER_MCP_URL: loopbackBaseUrl,
+      LIGHTCODE_BROWSER_MCP_TOKEN: "upstream-token",
+    });
+
+    try {
+      const response = await fetch(`${loopbackBridge.baseUrl}/mcp`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${SECRET}`, "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 7, method: "initialize", params: {} }),
+      });
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual({
+        jsonrpc: "2.0",
+        id: 7,
+        result: { via: "loopback" },
+      });
+    } finally {
+      await loopbackBridge.dispose();
+      await closeServer(loopbackUpstream);
+    }
+  });
+
   it("matches the host MCP endpoint when clients probe SSE with GET", async () => {
     const response = await fetch(`${bridge.baseUrl}/mcp`, {
       method: "GET",

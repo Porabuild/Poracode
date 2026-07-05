@@ -33,4 +33,9 @@ describe("subAgentProgressMeta", () => {
     expect(formatSubAgentModelLabel("gemini-2.5-pro")).toBe("Gemini 2.5 Pro");
     expect(formatSubAgentModelLabel("claude-opus-4-8")).toBe("Opus 4.8");
   });
+
+  it("strips the date suffix from Claude release ids reported by child assistant messages", () => {
+    expect(formatSubAgentModelLabel("claude-opus-4-8-20250915")).toBe("Opus 4.8");
+    expect(formatSubAgentModelLabel("claude-haiku-4-5-20251001")).toBe("Haiku 4.5");
+  });
 });

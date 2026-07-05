@@ -1689,6 +1689,95 @@ describe("sdkCanonicalMapping — sub-agents", () => {
     expect(state.assistantTextItems.size).toBe(0);
   });
 
+  it("folds the child assistant message model onto the parent Task progress", () => {
+    const state = createClaudeMapperState("thread-1");
+    // Task input has no `model` — the agent definition supplies it, so only
+    // the child assistant messages reveal which model actually runs.
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_parent",
+          name: "Task",
+          input: { description: "Investigate", subagent_type: "Explore" },
+        },
+      }),
+      state,
+    );
+
+    const childMessage = (id: string): SDKMessage =>
+      ({
+        type: "assistant",
+        session_id: "claude-session",
+        uuid: id,
+        parent_tool_use_id: "toolu_parent",
+        message: {
+          id,
+          role: "assistant",
+          model: "claude-haiku-4-5-20251001",
+          content: [{ type: "text", text: "looking around" }],
+        },
+      }) as unknown as SDKMessage;
+
+    const events = mapClaudeSdkMessage(childMessage("msg-sub-1"), state);
+    expect(events[0]).toMatchObject({
+      type: "item.updated",
+      itemId: "toolu_parent",
+      payload: {
+        name: "Task",
+        status: "running",
+        progress: { model: "claude-haiku-4-5-20251001" },
+      },
+    });
+
+    // Later child messages don't re-emit a leading model update (only the
+    // usual tagParent step-counter bump follows the child items).
+    const repeat = mapClaudeSdkMessage(childMessage("msg-sub-2"), state);
+    expect(repeat[0]).toMatchObject({ type: "item.started", itemType: "assistant_message" });
+    expect(state.toolItemsById.get("toolu_parent")?.progress?.model).toBe(
+      "claude-haiku-4-5-20251001",
+    );
+  });
+
+  it("keeps an explicit Task input model over the child assistant message model", () => {
+    const state = createClaudeMapperState("thread-1");
+    mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_parent",
+          name: "Task",
+          input: { description: "Investigate", subagent_type: "Explore", model: "opus" },
+        },
+      }),
+      state,
+    );
+
+    const events = mapClaudeSdkMessage(
+      {
+        type: "assistant",
+        session_id: "claude-session",
+        uuid: "msg-sub-1",
+        parent_tool_use_id: "toolu_parent",
+        message: {
+          id: "msg-sub-1",
+          role: "assistant",
+          model: "claude-opus-4-8-20250915",
+          content: [{ type: "text", text: "looking around" }],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    // No leading model update — the input model already populated progress.
+    expect(events[0]).toMatchObject({ type: "item.started", itemType: "assistant_message" });
+    expect(state.toolItemsById.get("toolu_parent")?.progress?.model).toBe("opus");
+  });
+
   it("does not set parentItemId on top-level messages (parent_tool_use_id null)", () => {
     const state = createClaudeMapperState("thread-1");
     const events = mapClaudeSdkMessage(

@@ -444,6 +444,11 @@ export interface AcpStructuredSessionOptions {
    * provider-agnostic.
    */
   sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
+  /**
+   * Vendor ACP extension notifications (e.g. Cursor `cursor/task`) that are
+   * not surfaced as standard `session/update` messages.
+   */
+  extensionNotificationHandler?: import("../base/types").AcpExtensionNotificationHandler;
   browserMcp?: BrowserMcpHttpConfig;
   subagentMcp?: SubagentMcpHttpConfig;
 }
@@ -456,6 +461,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
 
+  private extensionNotificationHandler?: import("../base/types").AcpExtensionNotificationHandler;
+
+  private readonly acpToolCallIdToItemId = new Map<string, string>();
   private readonly child: ChildProcess;
   private readonly connection: ClientSideConnection;
   private readonly cwd: string;
@@ -546,6 +554,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
     if (options?.sessionUpdateTransform) {
       this.sessionUpdateTransform = options.sessionUpdateTransform;
+    }
+    if (options?.extensionNotificationHandler) {
+      this.extensionNotificationHandler = options.extensionNotificationHandler;
     }
     this.browserMcp = options?.browserMcp;
     this.subagentMcp = options?.subagentMcp;
@@ -830,6 +841,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         extNotification(method: string, params: Record<string, unknown>) {
           session.handleExtNotification(method, params);
           return Promise.resolve();
+        },
+        extMethod(method: string, params: Record<string, unknown>) {
+          session.handleExtNotification(method, params);
+          return Promise.resolve({});
         },
       }),
       stream,
@@ -1128,6 +1143,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       // belonged to this turn are no longer reachable. Drop them so the cache
       // can't grow across a long-lived session.
       this.releasedAcpTerminalOutput.clear();
+      this.clearAcpToolCallItemIdMap();
     }
   }
 
@@ -1581,6 +1597,47 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.handleSessionUpdate(params as unknown as SessionNotification);
       return;
     }
+    if (
+      this.extensionNotificationHandler &&
+      !this.isReplayingHistory &&
+      Date.now() >= (this.replayHistoryUntil || 0)
+    ) {
+      const events = this.extensionNotificationHandler(method, params, {
+        threadId: this.threadId,
+        resolveToolCallItemId: (toolCallId) => this.acpToolCallIdToItemId.get(toolCallId),
+      });
+      if (events.length > 0) {
+        this.emitRuntimeEvents(events);
+      }
+    }
+  }
+
+  private rememberAcpToolCallItemId(
+    notification: SessionNotification,
+    events: RuntimeEvent[],
+  ): void {
+    const update = notification.update;
+    if (update.sessionUpdate !== "tool_call" && update.sessionUpdate !== "tool_call_update") {
+      return;
+    }
+    const toolCallId = (update as { toolCallId?: unknown }).toolCallId;
+    if (typeof toolCallId !== "string" || toolCallId.length === 0) return;
+
+    const fromMapper = this.mapperState?.toolCallItems.get(toolCallId)?.itemId;
+    if (fromMapper) {
+      this.acpToolCallIdToItemId.set(toolCallId, fromMapper);
+      return;
+    }
+
+    for (const event of events) {
+      if (event.type !== "item.started" || event.itemType !== "tool_call") continue;
+      this.acpToolCallIdToItemId.set(toolCallId, event.itemId);
+      return;
+    }
+  }
+
+  private clearAcpToolCallItemIdMap(): void {
+    this.acpToolCallIdToItemId.clear();
   }
 
   /**
@@ -1612,6 +1669,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // avoid duplicating every message in the chat pane.
     if (!this.isReplayingHistory && Date.now() >= (this.replayHistoryUntil || 0)) {
       const events = mapAcpSessionUpdate(params, this.ensureMapperState());
+      this.rememberAcpToolCallItemId(params, events);
       if (events.length > 0) {
         this.recordAgentSurfacedError(events);
         this.emitRuntimeEvents(events);
@@ -1853,6 +1911,9 @@ export function createAcpStructuredSession(
       : {}),
     ...(input.acpSessionUpdateTransform
       ? { sessionUpdateTransform: input.acpSessionUpdateTransform }
+      : {}),
+    ...(input.acpExtensionNotificationHandler
+      ? { extensionNotificationHandler: input.acpExtensionNotificationHandler }
       : {}),
     ...(input.browserMcp !== undefined ? { browserMcp: input.browserMcp } : {}),
     ...(input.subagentMcp !== undefined ? { subagentMcp: input.subagentMcp } : {}),

@@ -973,6 +973,7 @@ function isAcpSubAgentToolCall(toolCall: {
   kind?: string | null;
   rawInput?: unknown;
 }): boolean {
+  if (readStringField(toolCall.rawInput, "_toolName") === "task") return true;
   if (readStringField(toolCall.rawInput, "agent_type")) return true;
   if (readStringField(toolCall.rawInput, "subagent_type")) return true;
   return (

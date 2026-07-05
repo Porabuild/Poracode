@@ -51,8 +51,9 @@ export interface BrowserMcpBridge {
 /**
  * Resolve an HTTP MCP server config suitable for the given project location.
  * For native (windows/posix) projects, the loopback URL is returned as-is.
- * For WSL projects, `127.0.0.1` is rewritten to the WSL->host gateway IP
- * resolved from `\\wsl.localhost\<distro>\etc\resolv.conf`.
+ * For WSL projects this returns null — WSL agents reach the host ingress
+ * through the in-distro bridge's `/mcp` reverse proxy instead (see
+ * `resolveBrowserMcpHttpConfigForLaunch`).
  *
  * Returns null when the MCP ingress is not running (env vars absent) or a
  * WSL distro cannot be reached. Per-thread opt-in is enforced by callers —

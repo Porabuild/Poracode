@@ -170,22 +170,58 @@ function resolveDefaultGateway() {
   return null;
 }
 
-function resolveBrowserMcpUpstreamUrl() {
+let cachedNetworkingMode;
+
+// Networking mode of this distro ("mirrored" | "nat" | null when
+// undetectable). `wslinfo` ships with modern WSL; older distros lack it.
+function resolveNetworkingMode() {
+  if (cachedNetworkingMode !== undefined) return cachedNetworkingMode;
+  try {
+    const out = execFileSync("wslinfo", ["--networking-mode"], {
+      encoding: "utf8",
+      timeout: 3000,
+    });
+    cachedNetworkingMode =
+      String(out ?? "")
+        .trim()
+        .toLowerCase() || null;
+  } catch {
+    cachedNetworkingMode = null;
+  }
+  return cachedNetworkingMode;
+}
+
+// In NAT mode the host's loopback URL must be rewritten to the WSL default
+// gateway (the host's vEthernet IP); in mirrored mode 127.0.0.1 already
+// reaches the host and the gateway is the LAN router, so the rewrite would
+// break the proxy. `wslinfo` tells us which mode we're in and orders the
+// candidates; the caller still falls back to the other candidate on
+// connection failure in case detection was wrong or unavailable.
+function resolveBrowserMcpUpstreamCandidates() {
   const raw = process.env.LIGHTCODE_BROWSER_MCP_URL;
-  if (!raw) return null;
+  if (!raw) return [];
   let parsed;
   try {
     parsed = new URL(raw);
   } catch {
-    return null;
-  }
-  if (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") {
-    const gateway = resolveDefaultGateway();
-    if (gateway) parsed.hostname = gateway;
+    return [];
   }
   parsed.pathname = `${parsed.pathname.replace(/\/$/, "")}/mcp`;
-  return parsed.toString();
+  const loopbackUrl = parsed.toString();
+  if (parsed.hostname !== "127.0.0.1" && parsed.hostname !== "localhost") {
+    return [loopbackUrl];
+  }
+  const gateway = resolveDefaultGateway();
+  if (!gateway) return [loopbackUrl];
+  const rewritten = new URL(loopbackUrl);
+  rewritten.hostname = gateway;
+  const gatewayUrl = rewritten.toString();
+  // NAT: gateway is the host, loopback is this distro — gateway first.
+  // Mirrored or undetectable: loopback reaches the host — loopback first.
+  return resolveNetworkingMode() === "nat" ? [gatewayUrl, loopbackUrl] : [loopbackUrl, gatewayUrl];
 }
+
+let knownBrowserMcpUpstreamUrl = null;
 
 function validateEnvelope(json) {
   if (!json || typeof json !== "object") return null;
@@ -1105,9 +1141,13 @@ async function handleMcpProxy(req, res) {
     return;
   }
 
-  const upstreamUrl = resolveBrowserMcpUpstreamUrl();
+  const candidates = resolveBrowserMcpUpstreamCandidates();
+  if (knownBrowserMcpUpstreamUrl && candidates.includes(knownBrowserMcpUpstreamUrl)) {
+    candidates.splice(candidates.indexOf(knownBrowserMcpUpstreamUrl), 1);
+    candidates.unshift(knownBrowserMcpUpstreamUrl);
+  }
   const upstreamToken = process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
-  if (!upstreamUrl || !upstreamToken) {
+  if (candidates.length === 0 || !upstreamToken) {
     respond(res, 503, {
       jsonrpc: "2.0",
       id: null,
@@ -1140,19 +1180,27 @@ async function handleMcpProxy(req, res) {
   }
 
   let upstream;
-  try {
-    upstream = await fetch(upstreamUrl, {
-      method: "POST",
-      headers,
-      body,
-    });
-  } catch (err) {
+  let lastError;
+  for (const candidateUrl of candidates) {
+    try {
+      upstream = await fetch(candidateUrl, {
+        method: "POST",
+        headers,
+        body,
+      });
+      knownBrowserMcpUpstreamUrl = candidateUrl;
+      break;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  if (!upstream) {
     respond(res, 502, {
       jsonrpc: "2.0",
       id: null,
       error: {
         code: -32000,
-        message: `browser MCP upstream request failed: ${String(err?.message ?? err)}`,
+        message: `browser MCP upstream request failed: ${String(lastError?.message ?? lastError)}`,
       },
     });
     return;

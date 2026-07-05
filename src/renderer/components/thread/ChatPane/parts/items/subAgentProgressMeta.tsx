@@ -100,7 +100,9 @@ function formatKnownModelId(modelId: string): string | undefined {
   const claudeShort = /^(opus|sonnet|haiku)$/i.exec(modelId);
   if (claudeShort) return capitalizeSegment(claudeShort[1]!);
 
-  const claudeRelease = /^claude-(opus|sonnet|haiku)-(\d+)-(\d+)$/i.exec(modelId);
+  // Optional trailing -YYYYMMDD: assistant messages report the dated release
+  // id (e.g. claude-opus-4-8-20250915); the pill shows just "Opus 4.8".
+  const claudeRelease = /^claude-(opus|sonnet|haiku)-(\d+)-(\d+)(?:-\d{8})?$/i.exec(modelId);
   if (claudeRelease) {
     return `${capitalizeSegment(claudeRelease[1]!)} ${claudeRelease[2]}.${claudeRelease[3]}`;
   }

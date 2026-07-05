@@ -34,15 +34,47 @@ export function transformCursorAcpSessionUpdate(
   if (update.sessionUpdate !== "tool_call" && update.sessionUpdate !== "tool_call_update") {
     return notification;
   }
-  const rawOutput = (update as { rawOutput?: unknown }).rawOutput;
-  if (!isPlainRecord(rawOutput)) return notification;
-  const kind = readString((update as { kind?: unknown }).kind)?.toLowerCase();
+  const enriched = enrichCursorTaskToolCall(update);
+  const rawOutput = (enriched as { rawOutput?: unknown }).rawOutput;
+  if (!isPlainRecord(rawOutput)) {
+    return enriched === update ? notification : { ...notification, update: enriched };
+  }
+  const kind = readString((enriched as { kind?: unknown }).kind)?.toLowerCase();
   const replacement = formatRawOutput(kind, rawOutput);
-  if (replacement === undefined) return notification;
+  if (replacement === undefined) {
+    return enriched === update ? notification : { ...notification, update: enriched };
+  }
   return {
     ...notification,
-    update: { ...update, rawOutput: replacement },
+    update: { ...enriched, rawOutput: replacement } as SessionNotification["update"],
   };
+}
+
+function enrichCursorTaskToolCall(
+  update: SessionNotification["update"],
+): SessionNotification["update"] {
+  const toolUpdate = update as {
+    rawInput?: unknown;
+    title?: unknown;
+  };
+  const rawInput = toolUpdate.rawInput;
+  if (!isPlainRecord(rawInput) || rawInput._toolName !== "task") return update;
+  const title = readString(toolUpdate.title);
+  const fromTitle = title?.replace(/^Task:\s*/i, "").trim();
+  const description =
+    readString(rawInput.description) ??
+    (fromTitle && fromTitle.toLowerCase() !== "subagent task" ? fromTitle : undefined);
+  if (!description && readString(rawInput.prompt)) return update;
+  if (!description) return update;
+  return {
+    ...update,
+    rawInput: {
+      ...rawInput,
+      description,
+      name: readString(rawInput.name) ?? description,
+      ...(readString(rawInput.prompt) ? {} : { prompt: description }),
+    },
+  } as SessionNotification["update"];
 }
 
 function formatRawOutput(

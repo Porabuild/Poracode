@@ -156,7 +156,7 @@ describe("syncGeminiSubagentMcpSettings", () => {
       subagents: {
         httpUrl: subagentCfg.url,
         headers: subagentCfg.headers,
-        timeout: 30_000,
+        timeout: 300_000,
       },
     });
 
@@ -180,7 +180,7 @@ describe("syncGeminiSubagentMcpSettings", () => {
       subagents: {
         httpUrl: subagentCfg.url,
         headers: subagentCfg.headers,
-        timeout: 30_000,
+        timeout: 300_000,
       },
       browser: {
         httpUrl: browserCfg.url,
@@ -195,7 +195,7 @@ describe("syncGeminiSubagentMcpSettings", () => {
       subagents: {
         httpUrl: subagentCfg.url,
         headers: subagentCfg.headers,
-        timeout: 30_000,
+        timeout: 300_000,
       },
     });
   });
