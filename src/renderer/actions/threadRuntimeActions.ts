@@ -1,34 +1,28 @@
-import type { PromptSegment, ThreadConfig, ThreadServerRequestId } from "@/shared/contracts";
+import type {
+  ProjectLocation,
+  PromptSegment,
+  Thread,
+  ThreadConfig,
+  ThreadServerRequestId,
+} from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { buildWorktreeLocation } from "@/shared/worktree";
+import { resolveProjectLocation } from "@/shared/worktree";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { readBridge } from "@/renderer/bridge";
 import { captureThreadInputSubmitted } from "@/renderer/analytics/posthog";
 import { useAppStore } from "@/renderer/state/appStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 
-/**
- * Resolve the on-disk project location for a thread, accounting for an optional
- * worktree path. Mirrors the computation ThreadPane performs inline so the
- * extracted actions behave identically to the original closure-based handlers.
- */
+/** Resolve a thread and its on-disk project location from the store. */
 function resolveThreadProjectLocation(
   threadId: string,
-):
-  | {
-      thread: import("@/shared/contracts").Thread;
-      projectLocation: import("@/shared/contracts").ProjectLocation;
-    }
-  | undefined {
+): { thread: Thread; projectLocation: ProjectLocation } | undefined {
   const state = useAppStore.getState();
   const thread = state.threads.find((item) => item.id === threadId);
   if (!thread) return undefined;
   const project = state.projects.find((item) => item.id === thread.projectId);
   if (!project) return undefined;
-  const projectLocation = thread.worktreePath
-    ? buildWorktreeLocation(project.location, thread.worktreePath)
-    : project.location;
-  return { thread, projectLocation };
+  return { thread, projectLocation: resolveProjectLocation(project.location, thread.worktreePath) };
 }
 
 /**
@@ -58,21 +52,22 @@ export async function submitThreadInput(
   const presentation = thread.presentationMode ?? "terminal";
   let optimisticUserMessageItemId: string | undefined;
   let markedWorking = false;
+  const store = useAppStore.getState();
   if (presentation === "gui" && prompt.length > 0) {
     optimisticUserMessageItemId = `user-${crypto.randomUUID()}`;
-    useAppStore.getState().applyRuntimeEvent(thread.id, {
+    store.applyRuntimeEvent(thread.id, {
       type: "item.started",
       threadId: thread.id,
       itemId: optimisticUserMessageItemId,
       itemType: "user_message",
       payload: { content: buildPromptContentBlocks(prompt, segments) },
     });
-    useAppStore.getState().applyRuntimeEvent(thread.id, {
+    store.applyRuntimeEvent(thread.id, {
       type: "item.completed",
       threadId: thread.id,
       itemId: optimisticUserMessageItemId,
     });
-    useAppStore.getState().updateThreadRuntime(thread.id, {
+    store.updateThreadRuntime(thread.id, {
       status: "working",
       attention: "working",
       canResumeWithConfig: thread.canResumeWithConfig,
@@ -97,7 +92,7 @@ export async function submitThreadInput(
     });
   } catch (error) {
     if (markedWorking) {
-      useAppStore.getState().updateThreadRuntime(thread.id, {
+      store.updateThreadRuntime(thread.id, {
         status: thread.status,
         attention: thread.attention,
         canResumeWithConfig: thread.canResumeWithConfig,
@@ -108,7 +103,7 @@ export async function submitThreadInput(
     throw error;
   }
   captureThreadInputSubmitted(thread, segments);
-  useAppStore.getState().touchThread(thread.id);
+  store.touchThread(thread.id);
 }
 
 /**

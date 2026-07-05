@@ -108,3 +108,14 @@ export function buildWorktreeLocation(
   }
   return { kind: "windows", path: worktreePath };
 }
+
+/**
+ * Resolve the effective on-disk location for a thread: the worktree location
+ * when the thread runs in a worktree, otherwise the project root.
+ */
+export function resolveProjectLocation(
+  original: ProjectLocation,
+  worktreePath: string | undefined,
+): ProjectLocation {
+  return worktreePath ? buildWorktreeLocation(original, worktreePath) : original;
+}

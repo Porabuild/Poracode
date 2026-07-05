@@ -5,8 +5,11 @@ import type {
   ProjectLocation,
   PendingSteerState,
   ThreadConfig,
-  ThreadServerRequestId,
 } from "@/shared/contracts";
+import {
+  changeThreadConfig,
+  resolveThreadServerRequest,
+} from "@/renderer/actions/threadRuntimeActions";
 import { openFileInEditor } from "@/renderer/utils/gitHelpers";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
 import { ActiveSubAgentTile } from "./ChatPane/parts/items/ActiveSubAgentTile";
@@ -58,12 +61,6 @@ type ThreadComposerDocksProps = {
   onTodoDockPlacementChange: (placement: "composer" | "right") => void;
   onTodoDockRetire?: () => void;
   onCancelPendingSteer: () => void;
-  onResolveServerRequest: (input: {
-    requestId: ThreadServerRequestId;
-    method: string;
-    response: unknown;
-  }) => Promise<void>;
-  onConfigChange: (config: ThreadConfig) => void;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   onSlashActiveIndexChange: (index: number) => void;
   onSelectCommand: (command: AgentSlashCommand) => void;
@@ -108,8 +105,6 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
     onTodoDockPlacementChange,
     onTodoDockRetire,
     onCancelPendingSteer,
-    onResolveServerRequest,
-    onConfigChange,
     onOpenProjectRelativePath,
     onSlashActiveIndexChange,
     onSelectCommand,
@@ -157,9 +152,9 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
           threadId={threadId}
           agentLabel={agentStatus?.label}
           request={activeRuntimeRequest}
-          onResolve={onResolveServerRequest}
+          onResolve={(input) => resolveThreadServerRequest(threadId, input)}
           onPlanApproved={(optionId) =>
-            onConfigChange({
+            changeThreadConfig(threadId, {
               ...threadConfig,
               mode: "agent",
               ...(optionId === "default" || optionId === "auto"

@@ -6,7 +6,7 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import { buildWorktreeLocation } from "@/shared/worktree";
+import { resolveProjectLocation } from "@/shared/worktree";
 import { toggleMarkThreadDone } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useProject, useThread } from "@/renderer/state/useThread";
@@ -66,9 +66,7 @@ export function ThreadPane(props: {
 
   if (!thread) return null;
   if (!project) return null;
-  const projectLocation = thread.worktreePath
-    ? buildWorktreeLocation(project.location, thread.worktreePath)
-    : project.location;
+  const projectLocation = resolveProjectLocation(project.location, thread.worktreePath);
   return (
     <ThreadView
       key={props.threadId}

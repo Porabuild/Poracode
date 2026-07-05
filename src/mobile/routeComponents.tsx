@@ -94,9 +94,6 @@ function ThreadDetail(props: { readonly thread: Thread | null; readonly hideHead
         runThreadAction(remote, thread, action, () => void navigate({ to: "/threads" }))
       }
       onSubmitInput={(prompt, segments) => remote.sendPrompt(prompt, segments)}
-      onResolveServerRequest={(input) =>
-        thread ? remote.resolveRequest({ ...input, threadId: thread.id }) : Promise.resolve()
-      }
       onOpenWorkspace={(tab) => {
         if (thread) {
           void navigate({

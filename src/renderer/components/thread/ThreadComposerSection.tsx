@@ -454,6 +454,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     // turn returns with `cancelled` stopReason. No optimistic chat paint —
     // the strip above the composer is the visual confirmation; the real
     // user_message item lands when the turn drains and starts.
+    const submit =
+      props.onSubmitInput ??
+      ((outgoingPrompt: string, outgoingSegments?: PromptSegment[]) =>
+        submitThreadInput(thread.id, outgoingPrompt, outgoingSegments));
     const runSubmission = () =>
       usesPendingSteerPath
         ? readBridge().setPendingSteer({
@@ -462,9 +466,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             ...(allSegments.length > 0 ? { segments: allSegments } : {}),
             config: thread.config,
           })
-        : props.onSubmitInput
-          ? props.onSubmitInput(flat, allSegments.length > 0 ? allSegments : undefined)
-          : submitThreadInput(thread.id, flat, allSegments.length > 0 ? allSegments : undefined);
+        : submit(flat, allSegments.length > 0 ? allSegments : undefined);
 
     if (!usesTerminalPresentation) {
       clearSubmittedComposer();
@@ -684,10 +686,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           ? { onTodoDockRetire: props.onTodoDockRetire }
                           : {})}
                         onCancelPendingSteer={handleCancelPendingSteer}
-                        onResolveServerRequest={(input) =>
-                          resolveThreadServerRequest(thread.id, input)
-                        }
-                        onConfigChange={(config) => changeThreadConfig(thread.id, config)}
                         {...(props.onOpenProjectRelativePath
                           ? { onOpenProjectRelativePath: props.onOpenProjectRelativePath }
                           : {})}

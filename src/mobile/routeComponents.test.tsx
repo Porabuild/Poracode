@@ -48,7 +48,6 @@ const fixtures = vi.hoisted(() => {
       threads: [selectedThread, routedThread],
       openThread: vi.fn<(thread: Thread) => Promise<void>>().mockResolvedValue(undefined),
       sendPrompt: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      resolveRequest: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       applyThreadAction: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       deleteWorktreeGroup: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     },
@@ -77,29 +76,9 @@ vi.mock("./useMediaQuery", () => ({
 }));
 
 vi.mock("./views/ThreadView", () => ({
-  ThreadView: (props: {
-    thread: Thread | null;
-    onOpenTerminal: () => void;
-    onResolveServerRequest: (input: {
-      requestId: string;
-      method: string;
-      response: unknown;
-    }) => Promise<void>;
-  }) => (
+  ThreadView: (props: { thread: Thread | null; onOpenTerminal: () => void }) => (
     <div>
       <span data-testid="thread-title">{props.thread?.title ?? "No thread"}</span>
-      <button
-        type="button"
-        onClick={() =>
-          void props.onResolveServerRequest({
-            requestId: "request-1",
-            method: "requestPermission",
-            response: { optionId: "allow" },
-          })
-        }
-      >
-        Resolve request
-      </button>
       <button type="button" onClick={props.onOpenTerminal}>
         Open terminal
       </button>
@@ -148,23 +127,7 @@ describe("mobile route components", () => {
     fixtures.search = {};
     fixtures.navigate.mockReset();
     fixtures.remote.openThread.mockClear();
-    fixtures.remote.resolveRequest.mockClear();
     terminalMounts.count = 0;
-  });
-
-  it("resolves runtime requests against the routed thread, not a stale selected thread", async () => {
-    render(<ThreadRoute />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Resolve request" }));
-
-    await waitFor(() => {
-      expect(fixtures.remote.resolveRequest).toHaveBeenCalledWith({
-        threadId: "thread-routed",
-        requestId: "request-1",
-        method: "requestPermission",
-        response: { optionId: "allow" },
-      });
-    });
   });
 
   it("renders the empty thread state for a missing routed thread instead of the stale selection", () => {

@@ -7,10 +7,9 @@ import {
   type PromptSegment,
   type TerminalSize,
   type Thread,
-  type ThreadServerRequestId,
 } from "@/shared/contracts";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
-import { buildWorktreeLocation } from "@/shared/worktree";
+import { resolveProjectLocation } from "@/shared/worktree";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import type { XTermSurfaceHandle } from "@/renderer/components/terminal/XTermSurface";
@@ -45,11 +44,6 @@ export interface ThreadViewProps {
   readonly loading?: boolean;
   readonly onThreadAction: (action: ThreadAction) => void;
   readonly onSubmitInput: (prompt: string, segments?: PromptSegment[]) => Promise<void>;
-  readonly onResolveServerRequest: (input: {
-    requestId: ThreadServerRequestId;
-    method: string;
-    response: unknown;
-  }) => Promise<void>;
   /** Open the unified workspace panel (Changes/Files) for this thread. */
   readonly onOpenWorkspace?: (tab: WorkspaceTab) => void;
   /** Open a project/worktree file from a shared chat file chip. */
@@ -141,10 +135,9 @@ export function ThreadView(props: ThreadViewProps) {
   }
 
   const agentStatus = projectAgentStatuses.find((status) => status.kind === thread.agentKind);
-  const projectLocation =
-    project && thread.worktreePath
-      ? buildWorktreeLocation(project.location, thread.worktreePath)
-      : project?.location;
+  const projectLocation = project
+    ? resolveProjectLocation(project.location, thread.worktreePath)
+    : undefined;
   const isTerminal = (thread.presentationMode ?? "terminal") === "terminal";
 
   if (!projectLocation) return null;

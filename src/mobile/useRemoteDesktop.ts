@@ -8,7 +8,6 @@ import {
   type PromptSegment,
   type TerminalSize,
   type Thread,
-  type ThreadServerRequestId,
   type ThreadStatus,
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -771,7 +770,7 @@ export function useRemoteDesktop() {
   }
 
   /**
-   * Mirrors the desktop's `ThreadPane.onSubmitInput`: paint an optimistic
+   * Mirrors the desktop's `submitThreadInput` action: paint an optimistic
    * user_message for GUI threads (the supervisor reuses the same item id, so
    * the live event dedupes), then forward the prompt.
    */
@@ -875,23 +874,6 @@ export function useRemoteDesktop() {
     setSelectedThreadId(result.threadId);
     void loadThreadSnapshot(result.threadId, desktop, { preferCache: false });
     return result.threadId;
-  }
-
-  async function resolveRequest(input: {
-    readonly threadId: string;
-    readonly requestId: ThreadServerRequestId;
-    readonly method: string;
-    readonly response: unknown;
-  }) {
-    const desktop = activeDesktop;
-    if (!desktop) return;
-    await clientFor(desktop).resolveRequest({
-      threadId: input.threadId,
-      requestId: input.requestId,
-      method: input.method,
-      response: input.response,
-    });
-    useAppStore.getState().touchThread(input.threadId);
   }
 
   /**
@@ -1061,7 +1043,6 @@ export function useRemoteDesktop() {
     sendPrompt,
     interrupt,
     startThread,
-    resolveRequest,
     applyThreadAction,
     deleteWorktreeGroup,
     manageProject,

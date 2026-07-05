@@ -15,10 +15,8 @@ const fixtures = vi.hoisted(() => ({
     createdAt: "2026-01-01T00:00:00.000Z",
   } as Project,
   composerProps: [] as Array<{
-    onResolveServerRequest?: unknown;
     onSubmitInput?: (prompt: string) => Promise<void>;
   }>,
-  guiContentProps: [] as Array<{ onResolveServerRequest?: unknown }>,
   keyboardOffset: 0,
 }));
 
@@ -71,10 +69,7 @@ vi.mock("../GitSummaryParts", () => ({
 }));
 
 vi.mock("@/renderer/components/thread/ThreadComposerSection", () => ({
-  ThreadComposerSection: (props: {
-    onResolveServerRequest?: unknown;
-    onSubmitInput?: (prompt: string) => Promise<void>;
-  }) => {
+  ThreadComposerSection: (props: { onSubmitInput?: (prompt: string) => Promise<void> }) => {
     fixtures.composerProps.push(props);
     return (
       <div data-testid="thread-composer-section">
@@ -87,10 +82,7 @@ vi.mock("@/renderer/components/thread/ThreadComposerSection", () => ({
 }));
 
 vi.mock("@/renderer/components/thread/ThreadContent", () => ({
-  GuiThreadContent: (props: { onResolveServerRequest?: unknown }) => {
-    fixtures.guiContentProps.push(props);
-    return <div data-testid="gui-thread-content" />;
-  },
+  GuiThreadContent: () => <div data-testid="gui-thread-content" />,
 }));
 
 vi.mock("@/renderer/components/thread/useThreadDockState", () => ({
@@ -133,7 +125,6 @@ describe("mobile ThreadView", () => {
     bridgeMock.subagentUnsubscribe.mockClear();
     toastDanger.mockClear();
     fixtures.composerProps.length = 0;
-    fixtures.guiContentProps.length = 0;
     fixtures.keyboardOffset = 0;
     useAppStore.setState({
       runtimeItemIdsByThread: {},
@@ -165,7 +156,6 @@ describe("mobile ThreadView", () => {
         terminalScrollback=""
         onThreadAction={() => undefined}
         onSubmitInput={() => Promise.resolve()}
-        onResolveServerRequest={() => Promise.resolve()}
       />,
     );
 
@@ -189,7 +179,6 @@ describe("mobile ThreadView", () => {
         terminalScrollback=""
         onThreadAction={() => undefined}
         onSubmitInput={() => Promise.resolve()}
-        onResolveServerRequest={() => Promise.resolve()}
       />,
     );
 
@@ -205,22 +194,6 @@ describe("mobile ThreadView", () => {
     });
   });
 
-  it("renders the terminal composer for runtime request resolution", () => {
-    render(
-      <ThreadView
-        thread={makeTerminalThread()}
-        terminalScrollback=""
-        onThreadAction={() => undefined}
-        onSubmitInput={() => Promise.resolve()}
-        onResolveServerRequest={() => Promise.resolve()}
-      />,
-    );
-
-    // ThreadComposerSection resolves runtime requests via the shared actions
-    // module directly, so the mobile ThreadView just needs to render it.
-    expect(fixtures.composerProps.length).toBeGreaterThan(0);
-  });
-
   it("does not apply terminal keyboard padding while the floating composer is focused", async () => {
     fixtures.keyboardOffset = 320;
     const { container } = render(
@@ -229,7 +202,6 @@ describe("mobile ThreadView", () => {
         terminalScrollback=""
         onThreadAction={() => undefined}
         onSubmitInput={() => Promise.resolve()}
-        onResolveServerRequest={() => Promise.resolve()}
       />,
     );
     const thread = container.querySelector<HTMLElement>(".m-thread");
@@ -248,22 +220,6 @@ describe("mobile ThreadView", () => {
     });
   });
 
-  it("renders GUI thread content for runtime request resolution", () => {
-    render(
-      <ThreadView
-        thread={{ ...makeTerminalThread(), presentationMode: "gui" }}
-        terminalScrollback=""
-        onThreadAction={() => undefined}
-        onSubmitInput={() => Promise.resolve()}
-        onResolveServerRequest={() => Promise.resolve()}
-      />,
-    );
-
-    // ThreadComposerSection (rendered inside GuiThreadContent) resolves
-    // runtime requests via the shared actions module directly.
-    expect(fixtures.guiContentProps.length).toBeGreaterThan(0);
-  });
-
   it("collapses the floating composer after a successful send", async () => {
     const { container } = render(
       <ThreadView
@@ -271,7 +227,6 @@ describe("mobile ThreadView", () => {
         terminalScrollback=""
         onThreadAction={() => undefined}
         onSubmitInput={() => Promise.resolve()}
-        onResolveServerRequest={() => Promise.resolve()}
       />,
     );
     const dock = container.querySelector(".m-thread-compose-dock");
@@ -296,7 +251,6 @@ describe("mobile ThreadView", () => {
         terminalScrollback=""
         onThreadAction={() => undefined}
         onSubmitInput={() => Promise.resolve()}
-        onResolveServerRequest={() => Promise.resolve()}
       />,
     );
     const dock = container.querySelector(".m-thread-compose-dock");
