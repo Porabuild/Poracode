@@ -1,24 +1,6 @@
-export function shouldReplaceRuntimeItemsFromSnapshot(input: {
-  readonly existingCount: number;
-  readonly snapshotItemCount: number;
-  readonly threadActive: boolean;
-  /**
-   * True when the snapshot came straight from the server (a fresh history
-   * fetch); false for the conservative cached-preload path. A fresh server
-   * snapshot is authoritative for an inactive thread, so it must be accepted
-   * even when it has FEWER items than the current store (the transcript was
-   * legitimately cleared/reset/reverted on the desktop while we were away).
-   */
-  readonly fromServer: boolean;
-}): boolean {
-  if (input.existingCount === 0) return true;
-  if (input.snapshotItemCount > input.existingCount) return true;
-  // A live turn's WebSocket deltas are fresher than any debounced snapshot, so
-  // never let a same/shorter snapshot clobber them.
-  if (input.threadActive) return false;
-  // Inactive thread: a fresh server snapshot is authoritative even if shorter
-  // (thread clear / checkpoint revert). A cached preload stays conservative and
-  // only replaces when it's at least as complete as what's already shown.
-  if (input.fromServer) return true;
-  return input.snapshotItemCount >= input.existingCount;
-}
+/**
+ * Re-export shim. The guard moved to the shared renderer module
+ * `@/renderer/state/remote/guards` alongside the other snapshot helpers, so the
+ * desktop-as-client store can import it without crossing into `@/mobile`.
+ */
+export { shouldReplaceRuntimeItemsFromSnapshot } from "@/renderer/state/remote/guards";

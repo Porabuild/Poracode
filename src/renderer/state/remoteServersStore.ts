@@ -20,12 +20,11 @@ import {
 } from "@/shared/remote";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
-// storeSync lives under src/mobile but only depends on @/renderer state (it is
-// the PWA's counterpart to the renderer's IPC listeners). Reused here so the
-// desktop hydrates a remote thread into the same threadId-keyed runtime store.
-// TODO(phase-4): relocate the shared sync helpers to a renderer/shared module.
-import { applyThreadSnapshot, dispatchRemoteSupervisorEvent } from "@/mobile/storeSync";
-import { collectRuntimeEventsFromSupervisoryMessage } from "@/mobile/runtimeRequests";
+import {
+  applyThreadSnapshot,
+  collectRuntimeEventsFromSupervisoryMessage,
+  dispatchRemoteSupervisorEvent,
+} from "@/renderer/state/remote";
 
 /**
  * Remote requests run in the main process (no browser CORS — the remote

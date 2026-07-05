@@ -17,10 +17,16 @@ const sync = vi.hoisted(() => ({
   applyThreadSnapshot: vi.fn<(snapshot: unknown) => void>(),
   dispatchRemoteSupervisorEvent: vi.fn<(value: unknown) => void>(),
 }));
-vi.mock("@/mobile/storeSync", () => ({
-  applyThreadSnapshot: (snapshot: unknown) => sync.applyThreadSnapshot(snapshot),
-  dispatchRemoteSupervisorEvent: (value: unknown) => sync.dispatchRemoteSupervisorEvent(value),
-}));
+vi.mock("@/renderer/state/remote", async (importOriginal) => {
+  // Keep collectRuntimeEventsFromSupervisoryMessage (used by filterRemoteThreadEvent)
+  // and the other pure helpers real; only stub the two store mutators.
+  const actual = await importOriginal<typeof import("@/renderer/state/remote")>();
+  return {
+    ...actual,
+    applyThreadSnapshot: (snapshot: unknown) => sync.applyThreadSnapshot(snapshot),
+    dispatchRemoteSupervisorEvent: (value: unknown) => sync.dispatchRemoteSupervisorEvent(value),
+  };
+});
 
 // The store toasts on action failures (finding #6). Stub the toast surface so
 // the tests don't need a live HeroUI toast provider mounted.
