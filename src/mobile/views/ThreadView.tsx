@@ -7,7 +7,6 @@ import {
   type PromptSegment,
   type TerminalSize,
   type Thread,
-  type ThreadConfig,
   type ThreadServerRequestId,
 } from "@/shared/contracts";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
@@ -21,7 +20,6 @@ import { ThreadComposerSection } from "@/renderer/components/thread/ThreadCompos
 import { useThreadDockState } from "@/renderer/components/thread/useThreadDockState";
 import type { TerminalPaneHandle } from "@/renderer/components/thread/TerminalPane";
 import { useProjectAgentStatuses } from "@/renderer/hooks/uiSelectors";
-import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useProject } from "@/renderer/state/useThread";
 import { MobileTerminal } from "../MobileTerminal";
@@ -186,21 +184,6 @@ export function ThreadView(props: ThreadViewProps) {
       });
   }
 
-  const handleConfigChange = (config: ThreadConfig) => {
-    const store = useAppStore.getState();
-    store.updateThreadConfig(thread.id, config);
-    // Mirrors the desktop pane: switching models after a failure clears the
-    // error chrome since the user has acted on it.
-    if (thread.status === "error") {
-      store.updateThreadRuntime(thread.id, {
-        status: "idle",
-        attention: "none",
-        canResumeWithConfig: thread.canResumeWithConfig,
-        ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-      });
-    }
-  };
-
   // Collapse the floating dock (and drop the keyboard) after a message actually
   // sends. Wrapping onSubmitInput keeps this behavior mobile-local — the shared
   // renderer composer stays unaware of the dock. Only the resolved (successful)
@@ -223,8 +206,6 @@ export function ThreadView(props: ThreadViewProps) {
     projectLocation,
     paneCount: 1,
     terminalPaneRef,
-    onConfigChange: handleConfigChange,
-    onResolveServerRequest: props.onResolveServerRequest,
     onSubmitInput: handleSubmitInput,
     ...(props.onOpenWorkspaceFile ? { onOpenProjectRelativePath: props.onOpenWorkspaceFile } : {}),
     ...(props.onOpenWorkspaceFolder

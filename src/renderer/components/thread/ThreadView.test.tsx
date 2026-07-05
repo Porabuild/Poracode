@@ -1,13 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Thread, ThreadConfig, ThreadServerRequestId } from "@/shared/contracts";
+import type { Thread } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ThreadView } from "./ThreadView";
 
-const { bridge, captureFileCheckpoint } = vi.hoisted(() => ({
+const { bridge, captureFileCheckpoint, runtimeActions } = vi.hoisted(() => ({
   bridge: {
     startThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     interruptThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -22,6 +22,17 @@ const { bridge, captureFileCheckpoint } = vi.hoisted(() => ({
     dbGetThreadContextUsage: vi.fn<() => Promise<unknown | null>>().mockResolvedValue(null),
   },
   captureFileCheckpoint: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  runtimeActions: {
+    changeThreadConfig: vi.fn<() => void>(),
+    resolveThreadServerRequest: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    submitThreadInput: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock("@/renderer/actions/threadRuntimeActions", () => ({
+  changeThreadConfig: runtimeActions.changeThreadConfig,
+  resolveThreadServerRequest: runtimeActions.resolveThreadServerRequest,
+  submitThreadInput: runtimeActions.submitThreadInput,
 }));
 
 vi.mock("../../bridge", () => ({
@@ -87,7 +98,6 @@ describe("ThreadView", () => {
     // Mid-thread toggles can't re-attach an MCP server to a running session,
     // so the active-thread chip is informational only. The toggle lives in
     // the draft composer.
-    const onConfigChange = vi.fn<(config: ThreadConfig) => void>();
 
     renderThreadView({
       thread: {
@@ -131,9 +141,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     const browserIcon = screen.getByLabelText("Browser MCP enabled for this thread");
@@ -141,12 +148,10 @@ describe("ThreadView", () => {
       true,
     );
     expect(screen.queryByLabelText("Disable Browser MCP")).toBeNull();
-    expect(onConfigChange).not.toHaveBeenCalled();
+    expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
   });
 
   it("renders OpenCode Browser MCP as a read-only header icon when provider setting is enabled", () => {
-    const onConfigChange = vi.fn<(config: ThreadConfig) => void>();
-
     renderThreadView({
       thread: {
         id: "thread-opencode-browser-mcp",
@@ -188,14 +193,11 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.getByLabelText("Browser MCP enabled for OpenCode")).toBeInTheDocument();
     expect(screen.queryByLabelText("Disable Browser MCP")).toBeNull();
-    expect(onConfigChange).not.toHaveBeenCalled();
+    expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
   });
 
   it("starts a queued launch after the terminal reports its first size", async () => {
@@ -243,10 +245,7 @@ describe("ThreadView", () => {
         path: "C:\\repo",
       },
       pendingLaunchPrompt: "hi",
-      onConfigChange: () => undefined,
       onLaunchConsumed,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(bridge.startThread).not.toHaveBeenCalled();
@@ -327,10 +326,7 @@ describe("ThreadView", () => {
         path: "C:\\repo",
       },
       pendingLaunchPrompt: "hi",
-      onConfigChange: () => undefined,
       onLaunchConsumed: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     await waitFor(() => expect(captureFileCheckpoint).toHaveBeenCalled());
@@ -394,11 +390,8 @@ describe("ThreadView", () => {
         path: "C:\\repo",
       },
       pendingLaunchPrompt: "hi",
-      onConfigChange: () => undefined,
       onLaunchConsumed,
       onLaunchFailed,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     fireEvent.click(screen.getByText("report terminal size"));
@@ -454,11 +447,8 @@ describe("ThreadView", () => {
       },
       projectLocation: { kind: "posix", path: "/tmp" },
       pendingLaunchPrompt: "hi",
-      onConfigChange: () => undefined,
       onLaunchConsumed: () => undefined,
       onLaunchFailed,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     fireEvent.click(screen.getByText("report terminal size"));
@@ -514,9 +504,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(
@@ -567,9 +554,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.getByPlaceholderText("Ask Codex anything about this workspace")).toHaveAttribute(
@@ -620,9 +604,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.getByRole("img", { name: "Loading" })).toBeInTheDocument();
@@ -679,9 +660,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.queryByText("terminal pane")).not.toBeInTheDocument();
@@ -747,9 +725,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(
@@ -804,9 +779,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.queryByText("terminal pane")).not.toBeInTheDocument();
@@ -818,16 +790,6 @@ describe("ThreadView", () => {
   it("renders ExitPlanMode as an approval and leaves plan mode when accepted", async () => {
     const now = new Date().toISOString();
     const rawSummary = 'ExitPlanMode: {"plan":"# Plan"}';
-    const onConfigChange = vi.fn<(config: ThreadConfig) => void>();
-    const onResolveServerRequest = vi
-      .fn<
-        (input: {
-          requestId: ThreadServerRequestId;
-          method: string;
-          response: unknown;
-        }) => Promise<void>
-      >()
-      .mockResolvedValue(undefined);
 
     useAppStore.setState({
       projects: [
@@ -914,9 +876,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange,
-      onResolveServerRequest,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.getByText("Proposed plan")).toBeInTheDocument();
@@ -928,12 +887,12 @@ describe("ThreadView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Yes, and manually approve edits" }));
 
     await waitFor(() => {
-      expect(onConfigChange).toHaveBeenCalledWith({
+      expect(runtimeActions.changeThreadConfig).toHaveBeenCalledWith("thread-claude-plan", {
         model: "opus",
         mode: "agent",
         approvalPolicy: "default",
       });
-      expect(onResolveServerRequest).toHaveBeenCalledWith({
+      expect(runtimeActions.resolveThreadServerRequest).toHaveBeenCalledWith("thread-claude-plan", {
         requestId: "perm-plan",
         method: "requestPermission",
         response: { optionId: "default" },
@@ -943,7 +902,6 @@ describe("ThreadView", () => {
 
   it("uses the ACP composer controls for per-thread GUI presentation", () => {
     useSharedSettings.setState({ collapseTerminalComposer: true });
-    const onConfigChange = vi.fn<(config: ThreadConfig) => void>();
 
     renderThreadView({
       thread: {
@@ -1002,9 +960,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.queryByText("terminal pane")).not.toBeInTheDocument();
@@ -1021,7 +976,8 @@ describe("ThreadView", () => {
     expect(screen.queryByLabelText("Show composer")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Work" }));
-    expect(onConfigChange).toHaveBeenCalledWith(
+    expect(runtimeActions.changeThreadConfig).toHaveBeenCalledWith(
+      "thread-gui-codex",
       expect.objectContaining({
         mode: "plan",
       }),
@@ -1112,9 +1068,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.getByLabelText("Thread todo dock")).toHaveAttribute("data-placement", "composer");
@@ -1195,9 +1148,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.getByLabelText("Thread goal dock")).toHaveAttribute("data-placement", "composer");
@@ -1277,9 +1227,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.getByLabelText("Thread goal dock")).toHaveAttribute("data-placement", "composer");
@@ -1356,9 +1303,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Move todo dock to right panel" }));
@@ -1453,9 +1397,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Move todo dock to right panel" }));
@@ -1512,9 +1453,6 @@ describe("ThreadView", () => {
             kind: "windows",
             path: "C:\\repo",
           }}
-          onConfigChange={() => undefined}
-          onResolveServerRequest={async () => undefined}
-          onSubmitInput={async () => undefined}
         />
       </AppProvider>,
     );
@@ -1571,9 +1509,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     const toggle = screen.getByRole("button", { name: "Show runtime debug panel" });
@@ -1632,9 +1567,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     const input = screen.getByPlaceholderText("Ask Codex anything about this workspace");
@@ -1691,9 +1623,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     const terminalPane = screen.getByText("terminal pane");
@@ -1702,10 +1631,6 @@ describe("ThreadView", () => {
   });
 
   it("allows queued follow-ups and stop while a GUI ACP thread is running", async () => {
-    const onSubmitInput = vi
-      .fn<(prompt: string, segments?: unknown) => Promise<void>>()
-      .mockResolvedValue(undefined);
-
     renderThreadView({
       thread: {
         id: "thread-gui-working",
@@ -1752,9 +1677,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput,
     });
 
     // With empty input and agent working, stop button replaces send
@@ -1819,9 +1741,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     fireEvent.click(screen.getByLabelText("Stop response"));

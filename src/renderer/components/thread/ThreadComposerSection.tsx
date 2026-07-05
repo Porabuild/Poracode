@@ -2,15 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "re
 import { Tooltip, toast } from "@heroui/react";
 import { ChevronDown, GitFork } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
-import type {
-  AgentStatus,
-  ProjectLocation,
-  PromptSegment,
-  Thread,
-  ThreadConfig,
-  ThreadServerRequestId,
-} from "@/shared/contracts";
+import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import {
+  changeThreadConfig,
+  resolveThreadServerRequest,
+  submitThreadInput,
+} from "@/renderer/actions/threadRuntimeActions";
 import { BranchSelector, type BranchSelection } from "../common";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import {
@@ -74,13 +72,13 @@ type ThreadComposerSectionProps = {
   errorDockStates: ThreadErrorDockState[];
   onGoalDockDismiss: () => void;
   onDismissError: (sourceItemId: string) => void;
-  onConfigChange: (config: ThreadConfig) => void;
-  onResolveServerRequest: (input: {
-    requestId: ThreadServerRequestId;
-    method: string;
-    response: unknown;
-  }) => Promise<void>;
-  onSubmitInput: (prompt: string, segments?: PromptSegment[]) => Promise<void>;
+  /**
+   * Optional override for the thread-input submit. Desktop omits this so the
+   * composer calls `submitThreadInput` from the actions module directly. Mobile
+   * injects its own wrapper so it can collapse the floating dock after the send
+   * resolves and route through the mobile transport.
+   */
+  onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   onTodoDockCollapsedChange: (collapsed: boolean) => void;
   onTodoDockPlacementChange: (placement: "composer" | "right") => void;
@@ -171,7 +169,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     enabled: thread.config[descriptor.configKey] === true,
     visible: false,
     onToggle: (next: boolean) =>
-      props.onConfigChange({ ...thread.config, ...mcpTogglePatch(descriptor.configKey, next) }),
+      changeThreadConfig(thread.id, {
+        ...thread.config,
+        ...mcpTogglePatch(descriptor.configKey, next),
+      }),
   }));
   const availableCommands = resolveAvailableSlashCommands(
     thread.slashCommands,
@@ -250,7 +251,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const hiddenModelIds = useSharedSettings(
     (s) => s.hiddenModels[modelVisibilityKey(thread.agentKind, presentationMode)],
   );
-  const controls = buildControls(thread, agentStatus, hiddenModelIds, props.onConfigChange);
+  const controls = buildControls(thread, agentStatus, hiddenModelIds, (config) =>
+    changeThreadConfig(thread.id, config),
+  );
   const controlsWithOpenSignal = controls.map((control): ComposerControl => {
     if (controlOpenRequest?.target === "model" && control.kind === "provider-model") {
       return { ...control, openSignal: controlOpenRequest.nonce };
@@ -365,7 +368,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       presentationMode,
     });
     if (localAction?.kind === "set-mode") {
-      props.onConfigChange({ ...thread.config, mode: localAction.mode });
+      changeThreadConfig(thread.id, { ...thread.config, mode: localAction.mode });
       mentionRef.current?.clear();
       mentionRef.current?.focus();
       setPrompt("");
@@ -386,7 +389,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     }
     if (localAction?.kind === "toggle-fast") {
       if (agentStatus && supportsUsableFastMode(agentStatus.capabilities, thread.config.model)) {
-        props.onConfigChange({ ...thread.config, fast: thread.config.fast !== true });
+        changeThreadConfig(thread.id, { ...thread.config, fast: thread.config.fast !== true });
       }
       mentionRef.current?.clear();
       mentionRef.current?.focus();
@@ -435,17 +438,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         activeRuntimeRequest,
         "declined",
       );
-      return props
-        .onResolveServerRequest({
-          requestId: activeRuntimeRequest.requestId,
-          method: "requestPermission",
-          response: { optionId: approvalDenyOption.optionId },
-        })
-        .catch((err) => {
-          console.error("[chat] auto-deny on composer submit failed", err);
-          rollback();
-          throw err;
-        });
+      return resolveThreadServerRequest(thread.id, {
+        requestId: activeRuntimeRequest.requestId,
+        method: "requestPermission",
+        response: { optionId: approvalDenyOption.optionId },
+      }).catch((err) => {
+        console.error("[chat] auto-deny on composer submit failed", err);
+        rollback();
+        throw err;
+      });
     };
 
     // GUI threads + working status → stage as pending steer (replace-latest).
@@ -461,7 +462,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             ...(allSegments.length > 0 ? { segments: allSegments } : {}),
             config: thread.config,
           })
-        : props.onSubmitInput(flat, allSegments.length > 0 ? allSegments : undefined);
+        : props.onSubmitInput
+          ? props.onSubmitInput(flat, allSegments.length > 0 ? allSegments : undefined)
+          : submitThreadInput(thread.id, flat, allSegments.length > 0 ? allSegments : undefined);
 
     if (!usesTerminalPresentation) {
       clearSubmittedComposer();
@@ -681,8 +684,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           ? { onTodoDockRetire: props.onTodoDockRetire }
                           : {})}
                         onCancelPendingSteer={handleCancelPendingSteer}
-                        onResolveServerRequest={props.onResolveServerRequest}
-                        onConfigChange={props.onConfigChange}
+                        onResolveServerRequest={(input) =>
+                          resolveThreadServerRequest(thread.id, input)
+                        }
+                        onConfigChange={(config) => changeThreadConfig(thread.id, config)}
                         {...(props.onOpenProjectRelativePath
                           ? { onOpenProjectRelativePath: props.onOpenProjectRelativePath }
                           : {})}

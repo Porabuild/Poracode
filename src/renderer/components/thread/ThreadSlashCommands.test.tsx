@@ -108,9 +108,6 @@ function renderThread(thread: Thread, agentStatus: AgentStatus) {
         thread={thread}
         agentStatus={agentStatus}
         projectLocation={{ kind: "posix", path: "/tmp/lightcode" }}
-        onConfigChange={() => {}}
-        onResolveServerRequest={async () => {}}
-        onSubmitInput={async () => {}}
       />
     </AppProvider>,
   );

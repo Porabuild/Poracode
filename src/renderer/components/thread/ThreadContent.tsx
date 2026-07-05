@@ -1,13 +1,6 @@
 import { type RefObject } from "react";
 import { Trans } from "@lingui/react/macro";
-import type {
-  AgentStatus,
-  ProjectLocation,
-  PromptSegment,
-  Thread,
-  ThreadConfig,
-  ThreadServerRequestId,
-} from "@/shared/contracts";
+import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThread } from "@/renderer/state/useThread";
 import { ChatPane } from "./ChatPane/ChatPane";
@@ -25,13 +18,11 @@ export type ThreadContentCommonProps = {
   projectLocation: ProjectLocation;
   paneCount: number;
   terminalPaneRef: RefObject<TerminalPaneHandle | null>;
-  onConfigChange: (config: ThreadConfig) => void;
-  onResolveServerRequest: (input: {
-    requestId: ThreadServerRequestId;
-    method: string;
-    response: unknown;
-  }) => Promise<void>;
-  onSubmitInput: (prompt: string, segments?: PromptSegment[]) => Promise<void>;
+  /**
+   * Optional override for the thread-input submit. Desktop omits this so the
+   * composer calls the shared action directly; mobile injects its own wrapper.
+   */
+  onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   onRevealProjectFolderInTree?: ((path: string) => void) | undefined;
   canShowProjectEntryInExplorer?: boolean | undefined;

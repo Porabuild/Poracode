@@ -89,10 +89,7 @@ describe("ThreadView", () => {
         path: "C:\\repo",
       },
       pendingLaunchPrompt: "hi",
-      onConfigChange: () => undefined,
       onLaunchConsumed,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(bridge.startThread).not.toHaveBeenCalled();
@@ -166,9 +163,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(
@@ -219,9 +213,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.getByPlaceholderText("Ask Codex anything about this workspace")).toHaveAttribute(
@@ -272,9 +263,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.getByRole("img", { name: "Loading" })).toBeInTheDocument();
@@ -330,9 +318,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(
@@ -387,9 +372,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     expect(screen.queryByText("terminal pane")).not.toBeInTheDocument();
@@ -444,9 +426,6 @@ describe("ThreadView", () => {
         kind: "windows",
         path: "C:\\repo",
       },
-      onConfigChange: () => undefined,
-      onResolveServerRequest: async () => undefined,
-      onSubmitInput: async () => undefined,
     });
 
     const input = screen.getByPlaceholderText("Ask Codex anything about this workspace");

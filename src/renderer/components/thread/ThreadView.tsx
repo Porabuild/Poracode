@@ -10,7 +10,6 @@ import type {
   Thread,
   ThreadConfig,
   ThreadPresentationMode,
-  ThreadServerRequestId,
 } from "@/shared/contracts";
 import { DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
@@ -137,15 +136,8 @@ export type ThreadViewProps = {
         extractedContext: import("../../../shared/contracts").ExtractContextResult | null,
       ) => void)
     | undefined;
-  onConfigChange: (config: ThreadConfig) => void;
   onLaunchConsumed?: (() => void) | undefined;
   onLaunchFailed?: ((message: string) => void) | undefined;
-  onResolveServerRequest: (input: {
-    requestId: ThreadServerRequestId;
-    method: string;
-    response: unknown;
-  }) => Promise<void>;
-  onSubmitInput: (prompt: string, segments?: PromptSegment[]) => Promise<void>;
 };
 
 export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
@@ -170,11 +162,8 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     onMarkDone,
     installedAgents,
     onContinueInProvider,
-    onConfigChange,
     onLaunchConsumed,
     onLaunchFailed,
-    onResolveServerRequest,
-    onSubmitInput,
   } = props;
   const { t } = useLingui();
   const terminalPaneRef = useRef<TerminalPaneHandle>(null);
@@ -534,9 +523,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 paneCount={paneCount}
                 terminalPaneRef={terminalPaneRef}
                 onTerminalResize={setTerminalSize}
-                onConfigChange={onConfigChange}
-                onResolveServerRequest={onResolveServerRequest}
-                onSubmitInput={onSubmitInput}
               />
             ) : (
               <GuiThreadContent
@@ -547,9 +533,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 paneCount={paneCount}
                 terminalPaneRef={terminalPaneRef}
                 runtimeDebugOpen={runtimeDebugOpen}
-                onConfigChange={onConfigChange}
-                onResolveServerRequest={onResolveServerRequest}
-                onSubmitInput={onSubmitInput}
               />
             )}
           </div>

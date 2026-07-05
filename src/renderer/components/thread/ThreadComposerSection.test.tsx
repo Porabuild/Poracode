@@ -3,7 +3,7 @@ import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { AgentStatus, Thread, ThreadServerRequestId } from "@/shared/contracts";
+import type { AgentStatus, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
@@ -17,6 +17,18 @@ const bridgeMock = vi.hoisted(() => ({
   refreshAgentStatuses: vi
     .fn<() => Promise<{ windows: AgentStatus[]; wsl: AgentStatus[] }>>()
     .mockResolvedValue({ windows: [], wsl: [] }),
+}));
+
+const runtimeActions = vi.hoisted(() => ({
+  changeThreadConfig: vi.fn<() => void>(),
+  resolveThreadServerRequest: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  submitThreadInput: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/renderer/actions/threadRuntimeActions", () => ({
+  changeThreadConfig: runtimeActions.changeThreadConfig,
+  resolveThreadServerRequest: runtimeActions.resolveThreadServerRequest,
+  submitThreadInput: runtimeActions.submitThreadInput,
 }));
 
 vi.mock("../../bridge", () => ({
@@ -159,6 +171,11 @@ describe("ThreadComposerSection", () => {
     bridgeMock.refreshAgentStatuses.mockClear();
     bridgeMock.interruptThread.mockClear();
     bridgeMock.interruptThread.mockResolvedValue(undefined);
+    runtimeActions.changeThreadConfig.mockClear();
+    runtimeActions.resolveThreadServerRequest.mockClear();
+    runtimeActions.resolveThreadServerRequest.mockResolvedValue(undefined);
+    runtimeActions.submitThreadInput.mockClear();
+    runtimeActions.submitThreadInput.mockResolvedValue(undefined);
     toastDangerSpy.mockClear();
   });
 
@@ -166,13 +183,7 @@ describe("ThreadComposerSection", () => {
     thread?: Thread;
     agentStatus?: AgentStatus;
     errorDockStates?: ThreadErrorDockState[];
-    onConfigChange?: (config: Thread["config"]) => void;
     onSubmitInput?: (prompt: string, segments?: unknown) => Promise<void>;
-    onResolveServerRequest?: (input: {
-      requestId: ThreadServerRequestId;
-      method: string;
-      response: unknown;
-    }) => Promise<void>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
   }) {
     const thread = opts?.thread ?? guiThread;
@@ -192,9 +203,7 @@ describe("ThreadComposerSection", () => {
         errorDockStates={opts?.errorDockStates ?? []}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
-        onConfigChange={opts?.onConfigChange ?? (() => undefined)}
-        onResolveServerRequest={opts?.onResolveServerRequest ?? (async () => undefined)}
-        onSubmitInput={opts?.onSubmitInput ?? (async () => undefined)}
+        {...(opts?.onSubmitInput ? { onSubmitInput: opts.onSubmitInput } : {})}
         {...(opts?.onOpenProjectRelativePath
           ? { onOpenProjectRelativePath: opts.onOpenProjectRelativePath }
           : {})}
@@ -208,17 +217,7 @@ describe("ThreadComposerSection", () => {
     thread?: Thread;
     agentStatus?: AgentStatus;
     errorDockStates?: ThreadErrorDockState[];
-    onConfigChange?: (config: Thread["config"]) => void;
     onSubmitInput?: ReturnType<typeof vi.fn<(prompt: string, segments?: unknown) => Promise<void>>>;
-    onResolveServerRequest?: ReturnType<
-      typeof vi.fn<
-        (input: {
-          requestId: ThreadServerRequestId;
-          method: string;
-          response: unknown;
-        }) => Promise<void>
-      >
-    >;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
   }) {
     const onSubmitInput =
@@ -403,8 +402,6 @@ describe("ThreadComposerSection", () => {
         errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
-        onConfigChange={() => undefined}
-        onResolveServerRequest={async () => undefined}
         onSubmitInput={onSubmitInput}
         onTodoDockCollapsedChange={() => undefined}
         onTodoDockPlacementChange={() => undefined}
@@ -449,15 +446,7 @@ describe("ThreadComposerSection", () => {
 
   it("restores approval requests and composer text when auto-deny before submit fails", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const onResolveServerRequest = vi
-      .fn<
-        (input: {
-          requestId: ThreadServerRequestId;
-          method: string;
-          response: unknown;
-        }) => Promise<void>
-      >()
-      .mockRejectedValue(new Error("deny failed"));
+    runtimeActions.resolveThreadServerRequest.mockRejectedValueOnce(new Error("deny failed"));
     const onSubmitInput = vi
       .fn<(prompt: string, segments?: unknown) => Promise<void>>()
       .mockResolvedValue(undefined);
@@ -475,7 +464,7 @@ describe("ThreadComposerSection", () => {
       },
     });
 
-    renderComposer({ onResolveServerRequest, onSubmitInput });
+    renderComposer({ onSubmitInput });
 
     const input = screen.getByRole("textbox");
     input.appendChild(document.createTextNode("do this instead"));
@@ -514,8 +503,6 @@ describe("ThreadComposerSection", () => {
         errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
-        onConfigChange={() => undefined}
-        onResolveServerRequest={async () => undefined}
         onSubmitInput={onSubmitInput}
         onTodoDockCollapsedChange={() => undefined}
         onTodoDockPlacementChange={() => undefined}
@@ -587,15 +574,6 @@ describe("ThreadComposerSection", () => {
   });
 
   it("keeps runtime approval requests actionable in remote terminal sessions", async () => {
-    const onResolveServerRequest = vi
-      .fn<
-        (input: {
-          requestId: ThreadServerRequestId;
-          method: string;
-          response: unknown;
-        }) => Promise<void>
-      >()
-      .mockResolvedValue(undefined);
     bridgeMock.isRemoteSession.mockReturnValue(true);
     useAppStore.setState({
       runtimeRequestsByThread: {
@@ -614,14 +592,13 @@ describe("ThreadComposerSection", () => {
     renderComposer({
       thread: terminalThread,
       agentStatus: claudeTerminalStatus,
-      onResolveServerRequest,
     });
 
     expect(screen.getByText("Run mobile terminal command")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Allow" }));
 
     await waitFor(() => {
-      expect(onResolveServerRequest).toHaveBeenCalledWith({
+      expect(runtimeActions.resolveThreadServerRequest).toHaveBeenCalledWith(terminalThread.id, {
         requestId: "terminal-approval",
         method: "requestPermission",
         response: { optionId: "allow" },
@@ -631,15 +608,7 @@ describe("ThreadComposerSection", () => {
 
   it("restores runtime approval requests when resolving fails", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const onResolveServerRequest = vi
-      .fn<
-        (input: {
-          requestId: ThreadServerRequestId;
-          method: string;
-          response: unknown;
-        }) => Promise<void>
-      >()
-      .mockRejectedValue(new Error("approval failed"));
+    runtimeActions.resolveThreadServerRequest.mockRejectedValueOnce(new Error("approval failed"));
     useAppStore.setState({
       runtimeRequestsByThread: {
         [guiThread.id]: [
@@ -654,7 +623,7 @@ describe("ThreadComposerSection", () => {
       },
     });
 
-    renderComposer({ onResolveServerRequest });
+    renderComposer();
 
     fireEvent.click(screen.getByRole("button", { name: "Allow" }));
 
@@ -700,8 +669,6 @@ describe("ThreadComposerSection", () => {
           errorDockStates={[]}
           onGoalDockDismiss={() => undefined}
           onDismissError={() => undefined}
-          onConfigChange={() => undefined}
-          onResolveServerRequest={async () => undefined}
           onSubmitInput={async () => undefined}
           onTodoDockCollapsedChange={() => undefined}
           onTodoDockPlacementChange={() => undefined}
@@ -792,7 +759,7 @@ describe("ThreadComposerSection", () => {
 
   it("keeps queued runtime approval requests actionable after resolving the first one", async () => {
     let resolveRequest: (() => void) | undefined;
-    const onResolveServerRequest = vi.fn<() => Promise<void>>(
+    runtimeActions.resolveThreadServerRequest.mockImplementation(
       () =>
         new Promise<void>((resolve) => {
           resolveRequest = resolve;
@@ -837,8 +804,6 @@ describe("ThreadComposerSection", () => {
         errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
-        onConfigChange={() => undefined}
-        onResolveServerRequest={onResolveServerRequest}
         onSubmitInput={async () => undefined}
         onTodoDockCollapsedChange={() => undefined}
         onTodoDockPlacementChange={() => undefined}
@@ -905,7 +870,6 @@ describe("ThreadComposerSection", () => {
   });
 
   it("renders multi-question user input forms with answer options instead of approval fallback buttons", async () => {
-    const onResolveServerRequest = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     useAppStore.setState({
       runtimeRequestsByThread: {
         [guiThread.id]: [
@@ -973,8 +937,6 @@ describe("ThreadComposerSection", () => {
         errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
-        onConfigChange={() => undefined}
-        onResolveServerRequest={onResolveServerRequest}
         onSubmitInput={async () => undefined}
         onTodoDockCollapsedChange={() => undefined}
         onTodoDockPlacementChange={() => undefined}
@@ -994,7 +956,7 @@ describe("ThreadComposerSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
     await waitFor(() => {
-      expect(onResolveServerRequest).toHaveBeenCalledWith({
+      expect(runtimeActions.resolveThreadServerRequest).toHaveBeenCalledWith(guiThread.id, {
         requestId: "claude-question-1",
         method: "requestPermission",
         response: {
@@ -1008,7 +970,6 @@ describe("ThreadComposerSection", () => {
   });
 
   it("keeps long permission details in a scrollable region so actions remain available", () => {
-    const onResolveServerRequest = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const longCommand = Array.from({ length: 60 }, (_, index) => `patch line ${index + 1}`).join(
       "\n",
     );
@@ -1050,8 +1011,6 @@ describe("ThreadComposerSection", () => {
         errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
-        onConfigChange={() => undefined}
-        onResolveServerRequest={onResolveServerRequest}
         onSubmitInput={async () => undefined}
         onTodoDockCollapsedChange={() => undefined}
         onTodoDockPlacementChange={() => undefined}
@@ -1066,7 +1025,6 @@ describe("ThreadComposerSection", () => {
   });
 
   it("submits Codex multi-question user input in Codex-native response shape", async () => {
-    const onResolveServerRequest = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     useAppStore.setState({
       runtimeRequestsByThread: {
         [guiThread.id]: [
@@ -1119,8 +1077,6 @@ describe("ThreadComposerSection", () => {
         errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
-        onConfigChange={() => undefined}
-        onResolveServerRequest={onResolveServerRequest}
         onSubmitInput={async () => undefined}
         onTodoDockCollapsedChange={() => undefined}
         onTodoDockPlacementChange={() => undefined}
@@ -1132,7 +1088,7 @@ describe("ThreadComposerSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
     await waitFor(() => {
-      expect(onResolveServerRequest).toHaveBeenCalledWith({
+      expect(runtimeActions.resolveThreadServerRequest).toHaveBeenCalledWith(guiThread.id, {
         requestId: "codex-question-1",
         method: "requestPermission",
         response: {
@@ -1146,7 +1102,6 @@ describe("ThreadComposerSection", () => {
   });
 
   it("submits ACP elicitation forms in ACP response shape", async () => {
-    const onResolveServerRequest = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     useAppStore.setState({
       runtimeRequestsByThread: {
         [guiThread.id]: [
@@ -1202,8 +1157,6 @@ describe("ThreadComposerSection", () => {
         errorDockStates={[]}
         onGoalDockDismiss={() => undefined}
         onDismissError={() => undefined}
-        onConfigChange={() => undefined}
-        onResolveServerRequest={onResolveServerRequest}
         onSubmitInput={async () => undefined}
         onTodoDockCollapsedChange={() => undefined}
         onTodoDockPlacementChange={() => undefined}
@@ -1219,7 +1172,7 @@ describe("ThreadComposerSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
     await waitFor(() => {
-      expect(onResolveServerRequest).toHaveBeenCalledWith({
+      expect(runtimeActions.resolveThreadServerRequest).toHaveBeenCalledWith(guiThread.id, {
         requestId: "acp-elicit-1",
         method: "requestPermission",
         response: {
