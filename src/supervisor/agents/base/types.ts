@@ -142,11 +142,25 @@ export interface CreateStructuredSessionInput {
    * the shared mapper must remain provider-agnostic.
    */
   acpSessionUpdateTransform?: AcpSessionUpdateTransform;
+  /**
+   * Handle vendor ACP extension notifications (e.g. Cursor's `cursor/task`)
+   * that carry metadata absent from the standard `session/update` stream.
+   */
+  acpExtensionNotificationHandler?: AcpExtensionNotificationHandler;
 }
 
 export type AcpSessionUpdateTransform = (
   notification: import("@agentclientprotocol/sdk").SessionNotification,
 ) => import("@agentclientprotocol/sdk").SessionNotification;
+
+export type AcpExtensionNotificationHandler = (
+  method: string,
+  params: Record<string, unknown>,
+  ctx: {
+    threadId: string;
+    resolveToolCallItemId: (toolCallId: string) => string | undefined;
+  },
+) => import("@/shared/contracts").RuntimeEvent[];
 
 export interface AgentArgvSpec {
   binary: string;

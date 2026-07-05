@@ -122,6 +122,7 @@ function makeConfigSyncSession(
   const session = Object.create(AcpStructuredSession.prototype) as Record<string, unknown>;
   session["child"] = { killed: true };
   session["connection"] = connection;
+  session["acpToolCallIdToItemId"] = new Map();
   session["sessionId"] = "session-1";
   session["threadId"] = "thread-1";
   session["projectLocation"] = { kind: "windows", path: "C:\\repo" };
