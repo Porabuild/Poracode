@@ -1738,15 +1738,17 @@ describe("RemoteAccessServer", () => {
       body: JSON.stringify({ kind: "add-existing", path: "/repo/new-app" }),
     });
     expect(commandResponse.status).toBe(200);
+    // The server derives the location kind from the host platform.
+    const locationKind = process.platform === "win32" ? "windows" : "posix";
     await expect(commandResponse.json()).resolves.toMatchObject({
       project: {
         name: "new-app",
-        location: { kind: "posix", path: "/repo/new-app" },
+        location: { kind: locationKind, path: "/repo/new-app" },
       },
       projects: [
         {
           name: "new-app",
-          location: { kind: "posix", path: "/repo/new-app" },
+          location: { kind: locationKind, path: "/repo/new-app" },
         },
       ],
     });
@@ -1761,7 +1763,7 @@ describe("RemoteAccessServer", () => {
         projects: [
           {
             name: "new-app",
-            location: { kind: "posix", path: "/repo/new-app" },
+            location: { kind: locationKind, path: "/repo/new-app" },
           },
         ],
       },
