@@ -1,17 +1,24 @@
 import type { AgentKind, AgentStatus } from "@/shared/contracts";
 import type { AgentAdapter } from "@/supervisor/agents/base";
+import type { OrchestratorThreadManager } from "./OrchestratorThreadManager";
 import {
-  DEFAULT_WAIT_TIMEOUT_MS,
-  MAX_WAIT_TIMEOUT_MS,
-  SubagentSpawnError,
-} from "./SubagentRunManager";
+  dispatchOrchestratorTool,
+  isOrchestratorToolName,
+  ORCHESTRATOR_TOOLS,
+} from "./orchestratorTools";
+import { SubagentSpawnError } from "./SubagentRunManager";
 import type { SubagentRunManager } from "./SubagentRunManager";
+import { errorResult, jsonResult, parseWaitTimeoutMs, TIMEOUT_S_DESCRIPTION } from "./toolResult";
 import { resolveSubagentExecution } from "./types";
-import type { McpToolResult, ModelTier, SpawnableAgent, SpawnAgentRequest } from "./types";
+import type {
+  McpToolResult,
+  ModelTier,
+  SpawnableAgent,
+  SpawnAgentRequest,
+  ToolSpec,
+} from "./types";
 
-/** Shared `timeout_s` schema description for `wait_for_agent` and `run_agent`. */
-const TIMEOUT_S_DESCRIPTION =
-  'Max seconds to wait (capped at 240). On timeout, status is "running" — call wait_for_agent again to keep waiting.';
+export type { ToolSpec } from "./types";
 
 const FAST_CHEAP_KEYWORDS = ["haiku", "mini", "nano", "lite", "flash", "small", "spark", "fast"];
 const MAX_CAPABILITY_KEYWORDS = ["opus", "fable", "pro", "max", "ultra", "big"];
@@ -36,20 +43,18 @@ export function classifyModelTier(modelId: string, modelLabel: string): ModelTie
   return "balanced";
 }
 
-export interface ToolSpec {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-}
-
 /** Base routing guidance always included in the MCP `initialize` instructions. */
 export const SUBAGENT_MCP_INSTRUCTIONS_BASE = [
   "Use the subagents MCP server to delegate work to the other AI agents connected to this Lightcode session.",
   "Call list_agents first to see which agents and models are available.",
+  "There are two delegation lanes.",
+  "Lightweight subagent runs (spawn_agent, run_agent, wait_for_agent, get_status, cancel): quick, ephemeral helpers whose output streams into your own thread and disappears afterwards — best for search, summarization, bulk edits, and one-off checks.",
+  "Full threads (create_thread, list_threads, get_thread, read_thread, send_to_thread, wait_for_thread, interrupt_thread): long-lived first-class app threads the user sees in the sidebar, each optionally in its own git worktree — best for parallel work items (e.g. one ticket or feature per thread) that need isolation, review, or follow-up conversation.",
   "Routing: prefer fast/cheap agents+models for search, bulk edits, and summarization; reserve the strongest agents for implementation and review.",
-  "Run independent tasks concurrently as parallel spawn_agent calls, then collect them with wait_for_agent.",
+  "Run independent tasks concurrently as parallel spawn_agent or create_thread calls, then collect them with wait_for_agent / wait_for_thread.",
   "Use run_agent for a single blocking delegation; use spawn_agent + wait_for_agent for long tasks or fan-out.",
-  "Give each subagent a self-contained prompt — it does not share your conversation context.",
+  "Give each subagent or child thread a self-contained prompt — it does not share your conversation context.",
+  "The human can watch child threads live in the app UI, so do not poll read_thread/get_thread aggressively; rely on wait_for_thread and read transcripts only when you need the details.",
 ].join(" ");
 
 export function buildSubagentInstructions(routingGuide?: string): string {
@@ -57,7 +62,7 @@ export function buildSubagentInstructions(routingGuide?: string): string {
   return guide ? `${SUBAGENT_MCP_INSTRUCTIONS_BASE}\n\n${guide}` : SUBAGENT_MCP_INSTRUCTIONS_BASE;
 }
 
-export const TOOLS: ToolSpec[] = [
+const BASE_TOOLS: ToolSpec[] = [
   {
     name: "list_agents",
     description:
@@ -143,6 +148,9 @@ export const TOOLS: ToolSpec[] = [
   },
 ];
 
+/** Full catalog: ephemeral subagent runs + the orchestrator thread lane. */
+export const TOOLS: ToolSpec[] = [...BASE_TOOLS, ...ORCHESTRATOR_TOOLS];
+
 export const TOOL_NAMES = new Set(TOOLS.map((t) => t.name));
 
 export function isKnownToolName(name: string): boolean {
@@ -194,15 +202,8 @@ export function buildSpawnableAgents(
 export interface SubagentToolContext {
   parentThreadId: string;
   runManager: SubagentRunManager;
+  orchestrator: OrchestratorThreadManager;
   listSpawnableAgents: () => Promise<SpawnableAgent[]>;
-}
-
-function jsonResult(value: unknown): McpToolResult {
-  return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
-}
-
-function errorResult(message: string): McpToolResult {
-  return { content: [{ type: "text", text: message }], isError: true };
 }
 
 function parseSpawnRequest(args: Record<string, unknown>): SpawnAgentRequest {
@@ -217,15 +218,6 @@ function parseSpawnRequest(args: Record<string, unknown>): SpawnAgentRequest {
     ...(typeof args.effort === "string" ? { effort: args.effort } : {}),
     ...(typeof args.name === "string" ? { name: args.name } : {}),
   };
-}
-
-/** Caller-supplied `timeout_s` → ms, clamped to [0, {@link MAX_WAIT_TIMEOUT_MS}]. */
-function parseWaitTimeoutMs(value: unknown): number {
-  const requestedMs =
-    typeof value === "number" && Number.isFinite(value)
-      ? Math.max(0, value * 1000)
-      : DEFAULT_WAIT_TIMEOUT_MS;
-  return Math.min(requestedMs, MAX_WAIT_TIMEOUT_MS);
 }
 
 /** Dispatch a tools/call. Never throws — validation failures return isError results. */
@@ -267,6 +259,12 @@ export async function dispatchTool(
         return jsonResult({ ok: true });
       }
       default:
+        if (isOrchestratorToolName(name)) {
+          return await dispatchOrchestratorTool(name, args, {
+            parentThreadId: ctx.parentThreadId,
+            orchestrator: ctx.orchestrator,
+          });
+        }
         return errorResult(`Unknown tool: ${name}`);
     }
   } catch (error) {

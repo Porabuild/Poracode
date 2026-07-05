@@ -19,7 +19,7 @@ import { ResponsiveMenuSurface } from "../ResponsiveMenuSurface";
 import { useBranchList } from "./parts/useBranchList";
 import { BranchListBox, type OpenPrReviewArgs } from "./parts/BranchListBox";
 import { BranchFooterActions } from "./parts/BranchFooterActions";
-import { generateWorktreeBranch } from "./parts/generateWorktreeBranch";
+import { generateWorktreeBranch } from "@/shared/worktreeBranch";
 import type { BranchSelection } from "./parts/types";
 
 export type { BranchSelection };
@@ -462,4 +462,4 @@ export function BranchSelector(props: BranchSelectorProps) {
   );
 }
 
-export { generateWorktreeBranch } from "./parts/generateWorktreeBranch";
+export { generateWorktreeBranch } from "@/shared/worktreeBranch";

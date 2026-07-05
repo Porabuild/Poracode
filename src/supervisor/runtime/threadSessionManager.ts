@@ -51,6 +51,7 @@ import {
   type AgentLaunchOptions,
   type CommandSpec,
   type StructuredSessionHandle,
+  type ThreadHistory,
   createKnownSessionRef,
   defaultFormatPromptSegments,
   getRefreshedWindowsPath,
@@ -245,6 +246,39 @@ export class ThreadSessionManager {
   appendSubagentRuntimeEvent(parentThreadId: string, event: RuntimeEvent): void {
     if (!this.sessions.has(parentThreadId)) return;
     this.enqueueRuntimeEvent(parentThreadId, event);
+  }
+
+  /**
+   * Orchestrator host hook: a thread's live runtime state plus whether its
+   * session supports non-interrupting steer. `undefined` once the session is
+   * gone. Consumed by the subagents MCP orchestrator lane.
+   */
+  getOrchestratorThreadState(threadId: string):
+    | {
+        status: import("@/shared/contracts").ThreadStatus;
+        attention: import("@/shared/contracts").ThreadAttention;
+        config: ThreadConfig;
+        supportsSteer: boolean;
+      }
+    | undefined {
+    const session = this.sessions.get(threadId);
+    if (!session) return undefined;
+    return {
+      status: session.status,
+      attention: session.attention,
+      config: session.config,
+      supportsSteer: Boolean(session.structuredSession?.steerTurn),
+    };
+  }
+
+  /**
+   * Orchestrator host hook: read a thread's provider transcript when its
+   * session's adapter supports `readThread`; `undefined` otherwise.
+   */
+  async readThreadHistory(threadId: string): Promise<ThreadHistory | undefined> {
+    const session = this.sessions.get(threadId);
+    if (!session?.structuredSession?.readThread) return undefined;
+    return await session.structuredSession.readThread();
   }
 
   /**

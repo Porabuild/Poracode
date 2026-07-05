@@ -272,9 +272,12 @@ const mainWindowCleanups: Array<() => void> = isBrowserExtractWindow
             ...(command.agentInstanceId ? { agentInstanceId: command.agentInstanceId } : {}),
             config: command.config,
             prompt: titlePrompt,
+            ...(command.title ? { title: command.title } : {}),
             ...(command.presentationMode ? { presentationMode: command.presentationMode } : {}),
             ...(command.worktreePath ? { worktreePath: command.worktreePath } : {}),
             ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
+            ...(command.focus === false ? { focus: false } : {}),
+            ...(command.parentThreadId ? { parentThreadId: command.parentThreadId } : {}),
           });
           if (command.launchRuntime !== false) {
             store.queueThreadLaunch(thread.id, command.prompt, command.segments);
@@ -285,7 +288,11 @@ const mainWindowCleanups: Array<() => void> = isBrowserExtractWindow
             agentStatuses,
             wslAgentStatuses,
           );
-          generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
+          // An explicit title (e.g. an orchestrator-provided ticket key) is
+          // authoritative — don't let AI title generation overwrite it.
+          if (!command.title) {
+            generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
+          }
           if (command.worktreePath) {
             void primeWorktreeGitState(project, command.worktreePath);
             if (command.isNewWorktree) {

@@ -1,3 +1,11 @@
+/**
+ * Random worktree branch-name generator (`lightcode/<adjective>-<noun>-<8hex>`).
+ * Lives in `src/shared` because both the renderer (BranchSelector "new branch"
+ * action) and the supervisor (orchestrator `create_thread` MCP tool) mint
+ * branches with the same scheme. Uses the Web Crypto global, available in both
+ * the renderer and Node >= 20 without imports.
+ */
+
 const ADJECTIVES = [
   "awesome",
   "brave",

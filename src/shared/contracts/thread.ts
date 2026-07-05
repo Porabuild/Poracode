@@ -51,6 +51,12 @@ export const threadSchema = z.object({
   /** Latest error reason from the runtime, present when `status === "error"`. */
   errorMessage: z.string().optional(),
   slashCommands: z.array(agentSlashCommandSchema).optional(),
+  /**
+   * Id of the orchestrator thread that created this thread via the subagents
+   * MCP `create_thread` tool. Pure metadata for now (no renderer UI keys on
+   * it); absent for user-created threads.
+   */
+  parentThreadId: z.string().min(1).optional(),
 });
 export type Thread = z.infer<typeof threadSchema>;
 
@@ -174,6 +180,12 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     agentInstanceId: agentInstanceIdSchema.optional(),
     config: threadConfigSchema,
     prompt: z.string(),
+    /**
+     * Explicit thread title (e.g. an orchestrator-provided ticket key). When
+     * present the renderer uses it verbatim and skips AI title generation;
+     * otherwise the title is derived from the prompt.
+     */
+    title: z.string().min(1).optional(),
     segments: z.array(promptSegmentSchema).optional(),
     presentationMode: threadPresentationModeSchema.optional(),
     worktreePath: z.string().min(1).optional(),
@@ -186,6 +198,18 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
      * row without launching the same session again.
      */
     launchRuntime: z.boolean().optional(),
+    /**
+     * Desktop-renderer hint. `false` mirrors the thread row without switching
+     * the active view to it — used by orchestrator-created child threads so a
+     * fan-out of `create_thread` calls doesn't steal the user's focus.
+     * Omitted/`true` keeps the existing focus-switch behavior.
+     */
+    focus: z.boolean().optional(),
+    /**
+     * Id of the orchestrator thread that created this thread (see
+     * {@link threadSchema}'s `parentThreadId`).
+     */
+    parentThreadId: z.string().min(1).optional(),
   }),
   z.object({ kind: z.literal("rename"), threadId: z.string().min(1), title: z.string().min(1) }),
   z.object({ kind: z.literal("set-done"), threadId: z.string().min(1), done: z.boolean() }),

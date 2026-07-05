@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AgentKind, ProjectLocation, RuntimeEvent } from "@/shared/contracts";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import { createAgentRegistry } from "@/supervisor/agents/registry";
+import { OrchestratorThreadManager } from "@/supervisor/subagentMcp/OrchestratorThreadManager";
 import { SubagentMcpIngress } from "@/supervisor/subagentMcp/SubagentMcpIngress";
 import { SubagentRunManager } from "@/supervisor/subagentMcp/SubagentRunManager";
 import type { SpawnableAgent } from "@/supervisor/subagentMcp/types";
@@ -69,6 +70,20 @@ describe("subagents MCP (live)", () => {
 
     ingress = new SubagentMcpIngress({
       runManager,
+      orchestrator: new OrchestratorThreadManager({
+        adapters: new Map(),
+        emit: () => {},
+        host: {
+          getParentContext: () => undefined,
+          getThreadState: () => undefined,
+          readThreadHistory: async () => undefined,
+          sendThreadInput: async () => {},
+          interruptThread: async () => {},
+          closeThread: async () => {},
+        },
+        createWorktree: async () => ({ path: "/unused" }),
+        removeWorktree: async () => {},
+      }),
       getSpawnableAgents: async () => spawnable,
       getRoutingGuide: () => ROUTING_GUIDE,
     });

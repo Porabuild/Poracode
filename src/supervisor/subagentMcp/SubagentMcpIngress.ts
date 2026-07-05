@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { SubagentMcpHttpConfig } from "@/supervisor/agents/subagentMcp";
+import type { OrchestratorThreadManager } from "./OrchestratorThreadManager";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { buildSubagentInstructions, dispatchTool, isKnownToolName, TOOLS } from "./toolRegistry";
 import type { SpawnableAgent } from "./types";
@@ -12,6 +13,8 @@ export interface SubagentMcpIngressInfo {
 
 export interface SubagentMcpIngressDeps {
   runManager: SubagentRunManager;
+  /** Orchestrator lane: create/manage first-class child threads. */
+  orchestrator: OrchestratorThreadManager;
   /** Catalog of installed + authenticated agents the caller may spawn. */
   getSpawnableAgents: () => Promise<SpawnableAgent[]>;
   /** Optional user-provided routing guide appended to the MCP instructions (phase 3). */
@@ -284,6 +287,7 @@ export class SubagentMcpIngress {
         const result = await dispatchTool(name, args, {
           parentThreadId: threadId,
           runManager: this.deps.runManager,
+          orchestrator: this.deps.orchestrator,
           listSpawnableAgents: this.deps.getSpawnableAgents,
         });
         return { jsonrpc: "2.0", id, result };

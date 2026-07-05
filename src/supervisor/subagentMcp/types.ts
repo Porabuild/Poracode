@@ -47,6 +47,24 @@ export function resolveSubagentExecution(adapter: {
   return undefined;
 }
 
+/**
+ * Build a child thread config that inherits the parent's approval/sandbox
+ * posture but NEVER carries `subagentMcp`/`browserMcp` — the recursion guard so
+ * children can't spawn grandchildren. Shared by both subagent lanes (ephemeral
+ * runs and orchestrator threads) so the inherited posture can't drift between them.
+ */
+export function buildInheritedChildConfig(
+  parentConfig: ThreadConfig,
+  child: { model: string; effort?: string },
+): ThreadConfig {
+  return {
+    model: child.model,
+    ...(child.effort ? { effort: child.effort } : {}),
+    ...(parentConfig.approvalPolicy ? { approvalPolicy: parentConfig.approvalPolicy } : {}),
+    ...(parentConfig.sandboxMode ? { sandboxMode: parentConfig.sandboxMode } : {}),
+  };
+}
+
 export interface SpawnableAgent {
   kind: string;
   label: string;
@@ -93,4 +111,11 @@ export interface McpTextContent {
 export interface McpToolResult {
   content: McpTextContent[];
   isError?: boolean;
+}
+
+/** An MCP tool catalog entry (name + description + JSON input schema). */
+export interface ToolSpec {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
 }

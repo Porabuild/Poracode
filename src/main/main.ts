@@ -5,6 +5,7 @@ import { app, BrowserWindow, Menu, nativeTheme, session as electronSession } fro
 import { resolveThemeMode } from "@/shared/themeMode";
 import { closeDatabase, dbGetProjects, dbGetThreads, initDatabase } from "./db";
 import { cleanupOrphanedAttachments, prepareLightcodeDataRoot } from "./lightcodeData";
+import { handleOrchestratorThreadCreated } from "./orchestratorThreadBridge";
 import { createLocalIpcHandlers, getRemoteAccessPairingInfo } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
 import { createSleepInhibitor } from "./sleepInhibitor";
@@ -384,6 +385,19 @@ if (!hasSingleInstanceLock) {
         captureMainException(error, tags);
       },
       onEvent: (event) => {
+        // Orchestrator create_thread requests are consumed here (DB upsert,
+        // renderer mirror, startThread call-back) and never fanned out.
+        if (event.type === "orchestrator-thread-created") {
+          void handleOrchestratorThreadCreated(event, {
+            startThread: (payload) => supervisorClient.call("startThread", payload),
+            sendThreadCommand: (command) => {
+              if (!mainWindow) return false;
+              mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
+              return true;
+            },
+          });
+          return;
+        }
         handleSupervisorEventForSleep(event);
         remoteAccessServer?.publishSupervisorEvent(event);
         pushCoordinator?.handleSupervisorEvent(event);

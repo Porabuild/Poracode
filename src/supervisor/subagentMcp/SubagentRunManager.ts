@@ -9,7 +9,7 @@ import type {
 } from "@/shared/contracts";
 import type { AgentAdapter, StructuredSessionHandle } from "@/supervisor/agents/base";
 import { runOneShotChild, type OneShotChildHandle } from "./oneShotChild";
-import { resolveSubagentExecution } from "./types";
+import { buildInheritedChildConfig, resolveSubagentExecution } from "./types";
 import type {
   SpawnAgentRequest,
   SubagentRunHost,
@@ -156,15 +156,10 @@ export class SubagentRunManager {
     const runId = randomBytes(6).toString("hex");
     const childThreadId = `${parentThreadId}::sub::${runId}`;
 
-    // Child config inherits the parent's approval/sandbox posture but never
-    // carries subagentMcp/browserMcp — the recursion guard: children can't
-    // spawn grandchildren.
-    const childConfig: ThreadConfig = {
+    const childConfig = buildInheritedChildConfig(parent.config, {
       model,
       ...(request.effort ? { effort: request.effort } : {}),
-      ...(parent.config.approvalPolicy ? { approvalPolicy: parent.config.approvalPolicy } : {}),
-      ...(parent.config.sandboxMode ? { sandboxMode: parent.config.sandboxMode } : {}),
-    };
+    });
 
     let resolveSettled!: () => void;
     const settledPromise = new Promise<void>((resolve) => {

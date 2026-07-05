@@ -5,6 +5,8 @@ import type {
   AgentStatus,
   PendingSteerState,
   RuntimeEvent,
+  StartThreadPayload,
+  Thread,
   ThreadAttention,
   ThreadConfig,
   ThreadStatus,
@@ -57,6 +59,32 @@ export type SupervisorEvent =
       pending: PendingSteerState | null;
     }
   | { type: "thread-exited"; threadId: string; exitCode: number | null }
+  /**
+   * Emitted by the supervisor's orchestrator lane (subagents MCP
+   * `create_thread`) when an agent thread asks for a first-class child thread.
+   * The main process owns the rest of the flow, mirroring the remote-start
+   * path: it resolves `projectId` from the parent's DB row, upserts the child
+   * row, mirrors it to the renderer (`remoteThreadCommand` "start" with
+   * `launchRuntime: false`), then calls the supervisor's `startThread` with
+   * `start`. This event is consumed in main and never forwarded to the
+   * renderer or remote clients.
+   */
+  | {
+      type: "orchestrator-thread-created";
+      parentThreadId: string;
+      /** Child thread row, complete except `projectId` (main fills it from the parent's row). */
+      thread: Omit<Thread, "projectId">;
+      /** Ready-to-send supervisor `startThread` payload for the child. */
+      start: StartThreadPayload;
+      /** True when `create_thread` just created the child's git worktree. */
+      isNewWorktree?: boolean;
+      /**
+       * True when the caller supplied an explicit title (vs. a prompt-derived
+       * one). Main forwards the title to the renderer only in this case, so a
+       * custom title stays authoritative and suppresses AI title generation.
+       */
+      hasCustomTitle?: boolean;
+    }
   | {
       type: "thread-osc-notification";
       threadId: string;

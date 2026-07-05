@@ -51,12 +51,18 @@ export interface ThreadSlice {
     agentInstanceId?: AgentInstanceId;
     config: ThreadConfig;
     prompt: string;
+    /** Explicit title; defaults to a prompt-derived one when omitted. */
+    title?: string;
     worktreePath?: string;
     worktreeBranch?: string;
     groupId?: string;
     groupName?: string;
     replacePaneId?: string;
     presentationMode?: ThreadPresentationMode;
+    /** `false` adds the row without switching the active view to it (orchestrator-created children). */
+    focus?: boolean;
+    /** Orchestrator thread that created this one (metadata only). */
+    parentThreadId?: string;
   }) => Thread;
   deleteThread: (threadId: string) => void;
   renameThread: (threadId: string, title: string) => void;
@@ -233,18 +239,21 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     agentInstanceId,
     config,
     prompt,
+    title,
     worktreePath,
     worktreeBranch,
     groupId,
     groupName,
     replacePaneId: replacePaneIdParam,
     presentationMode,
+    focus,
+    parentThreadId,
   }) => {
     const now = new Date().toISOString();
     const thread: Thread = {
       id: threadId ?? crypto.randomUUID(),
       projectId,
-      title: makeThreadTitle(prompt),
+      title: title ?? makeThreadTitle(prompt),
       agentKind,
       ...(agentInstanceId ? { agentInstanceId } : {}),
       config,
@@ -260,6 +269,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       ...(worktreeBranch ? { worktreeBranch } : {}),
       ...(groupId ? { groupId } : {}),
       ...(groupName ? { groupName } : {}),
+      ...(parentThreadId ? { parentThreadId } : {}),
       createdAt: now,
       updatedAt: now,
       activeTurnStartedAt: now,
@@ -267,7 +277,11 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
 
     set((state) => {
       let nextView: AppView;
-      if (replacePaneIdParam && state.view.kind === "thread") {
+      if (focus === false) {
+        // Add the row without stealing the user's current view (a fan-out of
+        // orchestrator-created threads must not flip the active pane).
+        nextView = state.view;
+      } else if (replacePaneIdParam && state.view.kind === "thread") {
         const idx = state.view.panes.indexOf(replacePaneIdParam);
         if (idx !== -1) {
           nextView = replacePaneInView(state.view, replacePaneIdParam, thread.id);

@@ -10,6 +10,7 @@ import {
   resolveOpenCodeSessionDirectory,
   shutdownSpawnedOpenCodeServers,
 } from "@/supervisor/agents/opencode/sdkClient";
+import { OrchestratorThreadManager } from "@/supervisor/subagentMcp/OrchestratorThreadManager";
 import { SubagentMcpIngress } from "@/supervisor/subagentMcp/SubagentMcpIngress";
 import { SubagentRunManager } from "@/supervisor/subagentMcp/SubagentRunManager";
 import type { SpawnableAgent } from "@/supervisor/subagentMcp/types";
@@ -73,6 +74,20 @@ describe("opencode hosts subagents MCP (live)", () => {
 
     ingress = new SubagentMcpIngress({
       runManager,
+      orchestrator: new OrchestratorThreadManager({
+        adapters: new Map(),
+        emit: () => {},
+        host: {
+          getParentContext: () => undefined,
+          getThreadState: () => undefined,
+          readThreadHistory: async () => undefined,
+          sendThreadInput: async () => {},
+          interruptThread: async () => {},
+          closeThread: async () => {},
+        },
+        createWorktree: async () => ({ path: "/unused" }),
+        removeWorktree: async () => {},
+      }),
       getSpawnableAgents: async () => spawnable,
       getRoutingGuide: () => "Prefer opencode/big-pickle for everything in this test.",
     });
