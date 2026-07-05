@@ -10,9 +10,11 @@ import type { UsageSnapshot, UsageWindow } from "../types";
  * involvement.
  *
  * Schema (per codexbar) of GET /api/usage-summary → individualUsage.plan:
- *   { used (cents), limit (cents), totalPercentUsed, autoPercentUsed,
- *     apiPercentUsed }  + billingCycleEnd + membershipType. Surfaced as a
- *   Auto and API breakdown windows. The dollar allowance belongs to API usage.
+ *   { used (cents), limit (cents), breakdown { included, bonus, total },
+ *     totalPercentUsed, autoPercentUsed, apiPercentUsed } + billingCycleEnd +
+ *   membershipType. Surfaced as Auto and API breakdown windows. The dollar
+ *   allowance belongs to API usage; see `apiDollars` for how the clamped
+ *   dollar fields are reconciled with the authoritative percents.
  */
 
 export const CURSOR_USAGE_ENDPOINT = "https://cursor.com/api/usage-summary";
@@ -20,6 +22,8 @@ export const CURSOR_USAGE_ENDPOINT = "https://cursor.com/api/usage-summary";
 interface CursorPlanUsage {
   used?: number;
   limit?: number;
+  /** Cents: `included` is the nominal plan allowance; `total` adds any bonus credit. */
+  breakdown?: { included?: number; bonus?: number; total?: number };
   totalPercentUsed?: number;
   autoPercentUsed?: number;
   apiPercentUsed?: number;
@@ -58,6 +62,48 @@ function clampPercent(value: number | undefined): number | undefined {
   return Math.min(100, Math.max(0, value));
 }
 
+/**
+ * Cursor's plan dollar fields need reconciliation (verified against the live
+ * payload and CodexBar's Cursor probe, which scrapes the same endpoint):
+ *
+ * - `used`/`limit`/`remaining` clamp at the nominal plan price (e.g. $20/$20
+ *   while the percent says 55%), so they understate real spend.
+ * - `breakdown.total` is the total credits *consumed* (included + bonus spend),
+ *   not the allowance — treating it as the limit was CodexBar regression #240.
+ *   Prefer it as the real spend when it exceeds the clamped `used`.
+ * - `apiPercentUsed` is the authoritative consumed fraction (it's what
+ *   Cursor's own dashboard messages report). When the dollar pair disagrees
+ *   with it, keep the spend and derive the allowance as `spend / percent` so
+ *   the dollar text always matches the bar (e.g. $28.75 / $52.21 at 55%,
+ *   instead of a clamped, full-looking $20 / $20).
+ */
+function apiDollars(plan: CursorPlanUsage, percent: number): { used?: number; limit?: number } {
+  const reportedUsed = centsToUsd(plan.used);
+  const reportedLimit = centsToUsd(plan.limit);
+  const breakdownTotal = centsToUsd(plan.breakdown?.total);
+  const spend =
+    breakdownTotal !== undefined && breakdownTotal > (reportedUsed ?? 0)
+      ? breakdownTotal
+      : reportedUsed;
+
+  if (spend === undefined) {
+    return reportedLimit !== undefined && reportedLimit > 0 ? { limit: reportedLimit } : {};
+  }
+  if (spend > 0 && percent > 0) {
+    const impliedPercent =
+      reportedLimit !== undefined && reportedLimit > 0 ? (spend / reportedLimit) * 100 : undefined;
+    // 1-point tolerance so ordinary rounding drift in the reported percent
+    // doesn't override a limit the spend already agrees with.
+    if (impliedPercent === undefined || Math.abs(impliedPercent - percent) > 1) {
+      return { used: spend, limit: spend / (percent / 100) };
+    }
+  }
+  return {
+    used: spend,
+    ...(reportedLimit !== undefined && reportedLimit > 0 ? { limit: reportedLimit } : {}),
+  };
+}
+
 /** billingCycleEnd may be unix seconds/ms (as a string) or ISO-8601. */
 function toResetMs(value: string | undefined): number | undefined {
   if (!value) return undefined;
@@ -94,16 +140,13 @@ export function parseCursorUsage(
 
   const apiPercent = clampPercent(plan.apiPercentUsed);
   if (apiPercent !== undefined) {
-    const used = centsToUsd(plan.used);
-    const limit = centsToUsd(plan.limit);
     windows.push({
       id: "cursor-api",
       label: "API",
       usedPercent: apiPercent,
       unit: "percent",
       currency: "USD",
-      ...(used !== undefined ? { used } : {}),
-      ...(limit !== undefined && limit > 0 ? { limit } : {}),
+      ...apiDollars(plan, apiPercent),
       ...withReset,
     });
   }

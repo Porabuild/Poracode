@@ -51,7 +51,7 @@ describe("parseCursorUsage", () => {
           limit: 25000, // cents
           totalPercentUsed: 49,
           autoPercentUsed: 34,
-          apiPercentUsed: 100,
+          apiPercentUsed: 37.4, // agrees with 9347/25000 → dollars pass through
         },
         onDemand: { used: 0, limit: 0, enabled: false },
       },
@@ -68,10 +68,61 @@ describe("parseCursorUsage", () => {
     expect(auto.usedPercent).toBe(34);
     expect(auto.resetsAt).toBe(1_719_600_000_000);
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
-    expect(api.usedPercent).toBe(100);
+    expect(api.usedPercent).toBeCloseTo(37.4);
     expect(api.used).toBeCloseTo(93.47);
     expect(api.limit).toBeCloseTo(250);
     expect(api.resetsAt).toBe(1_719_600_000_000);
+  });
+
+  it("treats breakdown.total as real spend and derives the allowance from the percent", () => {
+    // Live payload shape: used/limit/remaining clamp at the included $20 while
+    // breakdown.total carries the real spend ($20 included + $8.75 bonus
+    // consumed = $28.75). The authoritative 55.07% then implies a ~$52.21
+    // allowance (28.75 / 0.5507), keeping the dollars consistent with the bar.
+    const body = {
+      membershipType: "pro",
+      individualUsage: {
+        plan: {
+          used: 2000,
+          limit: 2000,
+          remaining: 0,
+          breakdown: { included: 2000, bonus: 875, total: 2875 },
+          autoPercentUsed: 2.65,
+          apiPercentUsed: 55.07,
+        },
+      },
+    };
+    const snap = parseCursorUsage(body, {}, NOW);
+    const api = snap.windows.find((w) => w.id === "cursor-api")!;
+    expect(api.usedPercent).toBeCloseTo(55.07);
+    expect(api.used).toBeCloseTo(28.75);
+    expect(api.limit).toBeCloseTo(52.21, 1);
+  });
+
+  it("derives the allowance when the clamped dollars disagree with the percent (no breakdown)", () => {
+    // Older payloads without a breakdown: used/limit cap at the plan price
+    // ($20/$20) while the percent says 44% consumed → allowance ≈ $45.45.
+    const body = {
+      membershipType: "pro",
+      individualUsage: {
+        plan: { used: 2000, limit: 2000, autoPercentUsed: 3, apiPercentUsed: 44 },
+      },
+    };
+    const snap = parseCursorUsage(body, {}, NOW);
+    const api = snap.windows.find((w) => w.id === "cursor-api")!;
+    expect(api.usedPercent).toBe(44);
+    expect(api.used).toBeCloseTo(20);
+    expect(api.limit).toBeCloseTo(45.45, 1);
+  });
+
+  it("keeps the vendor limit when the dollars already agree with the percent", () => {
+    const body = {
+      individualUsage: { plan: { used: 9347, limit: 25000, apiPercentUsed: 37.39 } },
+    };
+    const snap = parseCursorUsage(body, {}, NOW);
+    const api = snap.windows.find((w) => w.id === "cursor-api")!;
+    expect(api.used).toBeCloseTo(93.47);
+    expect(api.limit).toBeCloseTo(250);
   });
 
   it("adds an on-demand window only when enabled", () => {
