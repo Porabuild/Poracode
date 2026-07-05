@@ -9,9 +9,19 @@
 // several forced reflows (`scrollHeight` reads) per frame.
 //
 // Only one pointer drag can be active at a time, so a single boolean suffices.
+// Backed by a one-field Zustand store so the subscribe/getSnapshot contract is
+// the same store machinery used everywhere else in the renderer; consumers that
+// read the flag imperatively (ChatPane's drag-coalesced layout path keeps an
+// effect-event read + a transition subscription for drag-end reconcile) keep
+// working unchanged via the thin wrappers below.
 
-let resizing = false;
-const listeners = new Set<(resizing: boolean) => void>();
+import { create } from "zustand";
+
+interface PanelResizeState {
+  resizing: boolean;
+}
+
+export const usePanelResizeStore = create<PanelResizeState>(() => ({ resizing: false }));
 
 function setDocumentPanelResizing(next: boolean): void {
   if (typeof document === "undefined") return;
@@ -19,27 +29,22 @@ function setDocumentPanelResizing(next: boolean): void {
 }
 
 export function isPanelResizing(): boolean {
-  return resizing;
+  return usePanelResizeStore.getState().resizing;
 }
 
 export function beginPanelResize(): void {
-  if (resizing) return;
-  resizing = true;
+  if (usePanelResizeStore.getState().resizing) return;
   setDocumentPanelResizing(true);
-  for (const listener of listeners) listener(true);
+  usePanelResizeStore.setState({ resizing: true });
 }
 
 export function endPanelResize(): void {
-  if (!resizing) return;
-  resizing = false;
+  if (!usePanelResizeStore.getState().resizing) return;
   setDocumentPanelResizing(false);
-  for (const listener of listeners) listener(false);
+  usePanelResizeStore.setState({ resizing: false });
 }
 
 /** Subscribe to resize start/end transitions. Returns an unsubscribe fn. */
 export function subscribePanelResize(listener: (resizing: boolean) => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
+  return usePanelResizeStore.subscribe((state) => listener(state.resizing));
 }
