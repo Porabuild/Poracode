@@ -417,6 +417,14 @@ export class ThreadOutputPipeline {
       }
     }
 
+    // Invalid-session-ref detection must run BEFORE the launching→idle flip
+    // below: both are gated on `launching`, and `updateState` mutates status
+    // synchronously, so a check placed after the flip can never match.
+    if (this.detectsInvalidSessionRefOnLaunch(session, dataAfterOsc)) {
+      this.options.onRecoverInvalidSessionRef(session);
+      return;
+    }
+
     if (session.status === "launching") {
       this.updateState(session, "idle", "none");
     }
@@ -468,24 +476,6 @@ export class ThreadOutputPipeline {
         ) {
           this.flushPendingTerminalWritesIfIdle(session);
         }
-        if (
-          session.status === "launching" &&
-          session.sessionRef &&
-          session.adapter.detectInvalidSessionRef
-        ) {
-          const lastHome = Math.max(
-            dataAfterOsc.lastIndexOf("\x1b[H"),
-            dataAfterOsc.lastIndexOf("\x1b[1;1H"),
-          );
-          const combined =
-            lastHome >= 0 ? dataAfterOsc.slice(lastHome) : session.prevChunk + dataAfterOsc;
-          session.prevChunk = combined.length > 8192 ? combined.slice(-8192) : combined;
-          const stripped = stripAnsiPreservingLayout(combined);
-          if (session.adapter.detectInvalidSessionRef?.(stripped)) {
-            this.options.onRecoverInvalidSessionRef(session);
-            return;
-          }
-        }
         const shouldApplyHookFallback = session.adapter.shouldApplyTerminalStatusWhileHookActive;
         const rawHint =
           shouldApplyHookFallback && session.adapter.detectTerminalStatus
@@ -530,16 +520,6 @@ export class ThreadOutputPipeline {
       const combined =
         lastHome >= 0 ? dataAfterOsc.slice(lastHome) : session.prevChunk + dataAfterOsc;
       session.prevChunk = combined.length > 8192 ? combined.slice(-8192) : combined;
-      const stripped = stripAnsiPreservingLayout(combined);
-
-      if (
-        session.status === "launching" &&
-        session.sessionRef &&
-        session.adapter.detectInvalidSessionRef?.(stripped)
-      ) {
-        this.options.onRecoverInvalidSessionRef(session);
-        return;
-      }
 
       // L2 `detectTerminalStatus` must see only this `data` chunk — not
       // `stripped` from merged `prevChunk` + chunk, or old "Working" rows in
@@ -683,6 +663,31 @@ export class ThreadOutputPipeline {
         this.flushPendingTerminalWritesIfIdle(session);
       }
     }
+  }
+
+  /**
+   * A resume spawn whose session ref the provider no longer recognizes prints
+   * an error banner instead of a TUI. Detect that banner while the thread is
+   * still `launching` so the manager can respawn without the stale ref.
+   * `prevChunk` is intentionally NOT persisted here — the terminal-observer
+   * block later in `handlePtyData` owns that write.
+   */
+  private detectsInvalidSessionRefOnLaunch(session: SessionRuntime, dataAfterOsc: string): boolean {
+    if (
+      session.status !== "launching" ||
+      !session.sessionRef ||
+      !session.adapter.detectInvalidSessionRef ||
+      session.adapter.capabilities.presentationMode !== "terminal"
+    ) {
+      return false;
+    }
+    const lastHome = Math.max(
+      dataAfterOsc.lastIndexOf("\x1b[H"),
+      dataAfterOsc.lastIndexOf("\x1b[1;1H"),
+    );
+    const combined =
+      lastHome >= 0 ? dataAfterOsc.slice(lastHome) : session.prevChunk + dataAfterOsc;
+    return session.adapter.detectInvalidSessionRef(stripAnsiPreservingLayout(combined));
   }
 
   private writeHintLog(

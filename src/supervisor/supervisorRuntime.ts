@@ -1332,9 +1332,9 @@ export class SupervisorRuntime {
   }
 
   private spawnThread(input: unknown): unknown {
-    return (
-      this.threadSessionManager as unknown as { spawnThread: (value: unknown) => unknown }
-    ).spawnThread(input);
+    return this.threadSessionManager.spawnThreadForTests(
+      input as Parameters<typeof this.threadSessionManager.spawnThreadForTests>[0],
+    );
   }
 
   /**
