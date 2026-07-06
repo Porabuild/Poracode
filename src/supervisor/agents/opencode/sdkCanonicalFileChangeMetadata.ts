@@ -1,3 +1,5 @@
+import { readStringField } from "../fileChangeSummary";
+
 interface NormalizedOpenCodeChange {
   path?: string;
   kind: { type: string; move_path: string | null };
@@ -97,16 +99,4 @@ function normalizeOpenCodeChangeType(type: string | undefined): string {
 
 function readOpenCodeMetadataPath(record: Record<string, unknown>): string | undefined {
   return readStringField(record, "relativePath", "relative_path", "path", "filePath", "file_path");
-}
-
-function readStringField(
-  input: Record<string, unknown> | undefined,
-  ...keys: string[]
-): string | undefined {
-  if (!input) return undefined;
-  for (const key of keys) {
-    const value = input[key];
-    if (typeof value === "string" && value.trim().length > 0) return value.trim();
-  }
-  return undefined;
 }

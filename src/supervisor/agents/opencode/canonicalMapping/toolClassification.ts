@@ -4,7 +4,8 @@
  */
 
 import type { CanonicalItemType } from "@/shared/contracts";
-import { normalizeToolName, readOpenCodePath, readStringField } from "./readers";
+import { readStringField } from "../../fileChangeSummary";
+import { normalizeToolName, readOpenCodePath } from "./readers";
 
 export function classifyToolItemType(toolName: string): CanonicalItemType {
   const n = normalizeToolName(toolName);

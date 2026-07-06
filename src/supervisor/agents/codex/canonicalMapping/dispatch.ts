@@ -27,10 +27,10 @@ import {
   readCodexPlanSteps,
   readItem,
   readItemId,
-  readStringField,
   readTurnId,
   readTurnState,
 } from "./readers";
+import { readStringField } from "../../fileChangeSummary";
 import { extractCodexFileChangePath, readCommandAggregatedOutput } from "./toolExtraction";
 import { createCodexContextUsageEvent, createCodexTokenUsageEvent } from "./usage";
 
@@ -356,7 +356,7 @@ export function mapCodexNotification(
   if (method === "item/mcpToolCall/progress") {
     const codexItemId = readItemId(params);
     const internalId = codexItemId ? state.itemIdMap.get(codexItemId) : undefined;
-    const message = readStringField(params?.message);
+    const message = readStringField(params, "message");
     if (!internalId || !message) return [];
     return [
       {

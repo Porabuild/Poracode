@@ -1,7 +1,14 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { readStoredBoolean } from "@/renderer/utils/localStorage";
 
-const COLLAPSED_STORAGE_KEY = "lightcode-sidebar-collapsed";
+/**
+ * Legacy hand-rolled key, read once as the initial seed so existing installs
+ * keep their collapsed state; the `persist` envelope (PERSIST_KEY) takes over
+ * on the first write.
+ */
+const LEGACY_COLLAPSED_KEY = "lightcode-sidebar-collapsed";
+const PERSIST_KEY = "lightcode-sidebar-overlay";
 
 interface SidebarOverlayState {
   isCollapsed: boolean;
@@ -26,32 +33,35 @@ interface SidebarOverlayState {
   setSkipTransition: (next: boolean) => void;
 }
 
-export const useSidebarOverlayStore = create<SidebarOverlayState>((set) => ({
-  isCollapsed: readStoredBoolean(COLLAPSED_STORAGE_KEY, false),
-  isNarrow: false,
-  closingOverlay: false,
-  overlayReady: false,
-  shellWidth: 0,
-  skipTransition: false,
-  setCollapsed: (next) =>
-    set((s) => {
-      if (s.isCollapsed === next) return s;
-      try {
-        localStorage.setItem(COLLAPSED_STORAGE_KEY, String(next));
-      } catch {
-        /* ignore */
-      }
-      return { isCollapsed: next };
+export const useSidebarOverlayStore = create<SidebarOverlayState>()(
+  persist(
+    (set) => ({
+      isCollapsed: readStoredBoolean(LEGACY_COLLAPSED_KEY, false),
+      isNarrow: false,
+      closingOverlay: false,
+      overlayReady: false,
+      shellWidth: 0,
+      skipTransition: false,
+      setCollapsed: (next) => set((s) => (s.isCollapsed === next ? s : { isCollapsed: next })),
+      setNarrow: (next) => set((s) => (s.isNarrow === next ? s : { isNarrow: next })),
+      setClosingOverlay: (next) =>
+        set((s) => (s.closingOverlay === next ? s : { closingOverlay: next })),
+      setOverlayReady: (next) => set((s) => (s.overlayReady === next ? s : { overlayReady: next })),
+      setShellWidth: (next) =>
+        set((s) => (Math.abs(s.shellWidth - next) < 0.5 ? s : { shellWidth: next })),
+      setSkipTransition: (next) =>
+        set((s) => (s.skipTransition === next ? s : { skipTransition: next })),
     }),
-  setNarrow: (next) => set((s) => (s.isNarrow === next ? s : { isNarrow: next })),
-  setClosingOverlay: (next) =>
-    set((s) => (s.closingOverlay === next ? s : { closingOverlay: next })),
-  setOverlayReady: (next) => set((s) => (s.overlayReady === next ? s : { overlayReady: next })),
-  setShellWidth: (next) =>
-    set((s) => (Math.abs(s.shellWidth - next) < 0.5 ? s : { shellWidth: next })),
-  setSkipTransition: (next) =>
-    set((s) => (s.skipTransition === next ? s : { skipTransition: next })),
-}));
+    {
+      name: PERSIST_KEY,
+      version: 1,
+      storage: createJSONStorage(() => localStorage),
+      // Only the user's collapse preference survives relaunch; the overlay
+      // animation and measurement flags are session-scoped.
+      partialize: (state) => ({ isCollapsed: state.isCollapsed }),
+    },
+  ),
+);
 
 export function selectShouldOverlay(s: SidebarOverlayState): boolean {
   return !s.isCollapsed && s.isNarrow;

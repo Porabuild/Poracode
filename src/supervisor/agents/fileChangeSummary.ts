@@ -4,6 +4,24 @@ import { countLineChangeStats } from "@/shared/lineUnifiedDiff";
 
 type DiffSummary = NonNullable<FileChangePayload["diffSummary"]>;
 
+/**
+ * Read the first usable string field from a loosely-typed provider payload,
+ * trying `keys` in order. This is the single cross-provider semantic (pinned
+ * in fileChangeSummary.test.ts): values are trimmed, and blank or
+ * whitespace-only strings are treated as absent, falling through to the next
+ * key. Provider mappers must not keep local variants with different
+ * trim/empty behavior.
+ */
+export function readStringField(input: unknown, ...keys: string[]): string | undefined {
+  if (!input || typeof input !== "object") return undefined;
+  const record = input as Record<string, unknown>;
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim().length > 0) return value.trim();
+  }
+  return undefined;
+}
+
 export function readDiffSummary(...sources: unknown[]): DiffSummary | undefined {
   for (const source of sources) {
     const summary = readDiffSummaryInner(source);
@@ -122,7 +140,8 @@ function stripDiffPathQuotes(path: string | undefined): string | undefined {
 }
 
 function readPathField(record: Record<string, unknown>): string | undefined {
-  const keys = [
+  return readStringField(
+    record,
     "path",
     "file_path",
     "filePath",
@@ -131,12 +150,7 @@ function readPathField(record: Record<string, unknown>): string | undefined {
     "relativePath",
     "notebook_path",
     "notebookPath",
-  ];
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === "string" && value.trim().length > 0) return value.trim();
-  }
-  return undefined;
+  );
 }
 
 function readFirstStructuredChangePath(changes: unknown): string | undefined {

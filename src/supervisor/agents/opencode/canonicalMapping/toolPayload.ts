@@ -10,10 +10,10 @@
 
 import type { CanonicalItemType } from "@/shared/contracts";
 import type { ToolState } from "@opencode-ai/sdk/v2";
-import { readDiffSummary, readFileChangePath } from "../../fileChangeSummary";
+import { readDiffSummary, readFileChangePath, readStringField } from "../../fileChangeSummary";
 import { normalizeOpenCodeFileChangeMetadata } from "../sdkCanonicalFileChangeMetadata";
 import { inferFileChangeKind } from "./fileChangeKind";
-import { normalizeToolName, readStringField, toolStateStatus } from "./readers";
+import { normalizeToolName, toolStateStatus } from "./readers";
 import {
   extractOpenCodePlanSteps,
   openCodeToolKind,

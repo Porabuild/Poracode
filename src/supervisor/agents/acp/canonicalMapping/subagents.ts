@@ -7,7 +7,8 @@
  */
 
 import type { RuntimeEvent } from "@/shared/contracts";
-import { firstNonEmptyLine, normalizeToolText, readStringField } from "./contentExtraction";
+import { readStringField } from "../../fileChangeSummary";
+import { firstNonEmptyLine, normalizeToolText } from "./contentExtraction";
 import type { ActiveAcpSubAgent, AcpMapperState, AcpToolCallItemState } from "./state";
 import { newItemId } from "./state";
 

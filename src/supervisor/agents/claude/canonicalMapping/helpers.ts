@@ -208,8 +208,3 @@ export function extractText(value: unknown): string {
   if (typeof obj.thinking === "string") return obj.thinking;
   return extractText(obj.content);
 }
-
-export function readStringField(input: Record<string, unknown>, field: string): string | undefined {
-  const value = input[field];
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
-}

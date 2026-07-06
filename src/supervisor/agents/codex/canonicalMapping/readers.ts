@@ -6,6 +6,8 @@
  * dependencies on the rest of the mapper.
  */
 
+import { readStringField } from "../../fileChangeSummary";
+
 export interface CodexItemPayload {
   id?: string;
   type?: string;
@@ -110,21 +112,14 @@ export function readTurnState(
 export function readCodexErrorMessage(
   params: Record<string, unknown> | undefined,
 ): string | undefined {
-  const direct =
-    readStringField(params?.message) ?? readStringField(params?.errorMessage) ?? undefined;
+  const direct = readStringField(params, "message", "errorMessage");
   if (direct) return direct;
-  const error = params?.error;
-  if (error && typeof error === "object") {
-    const message = readStringField((error as Record<string, unknown>).message);
-    if (message) return message;
-  }
+  const message = readStringField(params?.error, "message");
+  if (message) return message;
   const turn = params?.turn;
   if (turn && typeof turn === "object") {
-    const turnError = (turn as Record<string, unknown>).error;
-    if (turnError && typeof turnError === "object") {
-      const message = readStringField((turnError as Record<string, unknown>).message);
-      if (message) return message;
-    }
+    const turnMessage = readStringField((turn as Record<string, unknown>).error, "message");
+    if (turnMessage) return turnMessage;
   }
   return undefined;
 }
@@ -137,7 +132,7 @@ export function readCodexPlanSteps(
   return rawPlan.flatMap((entry) => {
     if (!entry || typeof entry !== "object") return [];
     const record = entry as Record<string, unknown>;
-    const step = readStringField(record.step)?.trim();
+    const step = readStringField(record, "step");
     if (!step) return [];
     return [
       {
@@ -184,10 +179,6 @@ export function readPathField(record: Record<string, unknown>): string | undefin
     if (typeof value === "string" && value.trim().length > 0) return value.trim();
   }
   return undefined;
-}
-
-export function readStringField(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
 }
 
 export function readNonEmptyString(value: unknown): string | undefined {

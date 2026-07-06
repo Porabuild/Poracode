@@ -1,6 +1,6 @@
 import type { RuntimeEvent } from "@/shared/contracts";
+import { readStringField } from "../../fileChangeSummary";
 import type { ClaudeMapperState, ToolItemState } from "../sdkCanonicalMappingState";
-import { readStringField } from "./helpers";
 import { applyPlanAggregatorInput } from "./planMapping";
 import { isSubAgentToolName } from "./toolClassification";
 import { toolPayload } from "./toolPayload";

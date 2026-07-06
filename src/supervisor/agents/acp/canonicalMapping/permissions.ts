@@ -9,7 +9,8 @@ import type {
   PermissionRequestDetails,
   RuntimeEvent,
 } from "@/shared/contracts";
-import { isApplyPatchToolName, normalizeToolText, readStringField } from "./contentExtraction";
+import { readStringField } from "../../fileChangeSummary";
+import { isApplyPatchToolName, normalizeToolText } from "./contentExtraction";
 import type { AcpMapperState } from "./state";
 
 /**

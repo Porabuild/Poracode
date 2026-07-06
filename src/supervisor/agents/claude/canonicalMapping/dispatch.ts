@@ -1,6 +1,6 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { RuntimeEvent, ToolCallProgress, TurnState } from "@/shared/contracts";
-import { readFileChangePath } from "../../fileChangeSummary";
+import { readFileChangePath, readStringField } from "../../fileChangeSummary";
 import type { ClaudeMapperState } from "../sdkCanonicalMappingState";
 import { completeActiveGoalEvents } from "./goal";
 import {
@@ -10,7 +10,6 @@ import {
   fileChangeMetadataFromToolResult,
   inputFingerprint,
   newItemId,
-  readStringField,
   tryParseJsonRecord,
 } from "./helpers";
 import { applyPlanAggregatorInput, bindTaskCreateResult } from "./planMapping";

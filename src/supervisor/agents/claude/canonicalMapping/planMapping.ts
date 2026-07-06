@@ -9,8 +9,8 @@ import {
   type PlanAggregatorState,
   type PlanStepStatus,
 } from "../../planAggregator";
+import { readStringField } from "../../fileChangeSummary";
 import type { ClaudeMapperState, ToolItemState } from "../sdkCanonicalMappingState";
-import { readStringField } from "./helpers";
 
 function ensurePlanAggregator(state: ClaudeMapperState): PlanAggregatorState {
   if (!state.planAggregator) {

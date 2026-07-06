@@ -10,16 +10,14 @@ import {
   joinAcpContentFileChangeDiffs,
   summarizeAcpContentFileChanges,
 } from "../acpFileChangeContent";
-import { readDiffSummary } from "../../fileChangeSummary";
+import { classifyFileChangeKind, normalizeDiffSummaryForKind } from "../../fileChangeKind";
+import { readDiffSummary, readStringField } from "../../fileChangeSummary";
 import {
-  classifyFileChangeKind,
   extractFileChangePath,
   extractToolCallContentImages,
   extractToolCallContentText,
   extractToolLocations,
-  normalizeDiffSummaryForKind,
   normalizeToolText,
-  readStringField,
 } from "./contentExtraction";
 import { closeOpenContentItems, resetMapperForTurnEnd } from "./state";
 import type { AcpMapperState, AcpToolCallItemState } from "./state";

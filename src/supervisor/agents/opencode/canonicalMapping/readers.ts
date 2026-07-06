@@ -6,6 +6,7 @@
  */
 
 import type { ToolState } from "@opencode-ai/sdk/v2";
+import { readStringField } from "../../fileChangeSummary";
 
 /** Longest suffix of `emitted` that is a prefix of `full`. */
 export function suffixPrefixOverlap(emitted: string, full: string): number {
@@ -18,18 +19,6 @@ export function suffixPrefixOverlap(emitted: string, full: string): number {
 
 export function normalizeToolName(toolName: string): string {
   return toolName.trim().toLowerCase();
-}
-
-export function readStringField(
-  input: Record<string, unknown> | undefined,
-  ...keys: string[]
-): string | undefined {
-  if (!input) return undefined;
-  for (const key of keys) {
-    const value = input[key];
-    if (typeof value === "string" && value.trim().length > 0) return value.trim();
-  }
-  return undefined;
 }
 
 export function readOpenCodePath(input: Record<string, unknown> | undefined): string | undefined {

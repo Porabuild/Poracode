@@ -8,6 +8,7 @@
 
 import type { CanonicalItemType } from "@/shared/contracts";
 import { extractLeadingPath } from "@/shared/extractLeadingPath";
+import { inferFileChangeKindFromSource } from "../../fileChangeKind";
 import { canonicalTypeFor } from "../canonicalMappingState";
 import {
   isCodexCollabAgentToolCall,
@@ -170,20 +171,16 @@ export function extractCodexWebSearchQuery(source: CodexItemPayload): string | u
 
 /**
  * Classify a codex `fileChange` item into create / edit / delete. Codex carries
- * the kind on `item.changeKind` (preferred) or implicitly through `item.kind`
- * / `item.type`; older shapes don't tell us, so default to `edit` to match
- * historical behavior.
+ * the kind on `item.changeKind` (preferred), the structured `changes` array, or
+ * implicitly through `item.kind` / `item.type`; older shapes don't tell us, so
+ * default to `edit` to match historical behavior. Structured evidence goes
+ * through the shared cross-provider inference.
  */
 export function classifyCodexFileChangeKind(
   source: CodexItemPayload,
 ): "create" | "edit" | "delete" {
-  const direct = String(source.changeKind ?? "").toLowerCase();
-  if (direct === "create" || direct === "add") return "create";
-  if (direct === "delete" || direct === "remove") return "delete";
-  if (direct === "edit" || direct === "update" || direct === "modify") return "edit";
-
-  const changesKind = classifyCodexChangesKind(source.changes);
-  if (changesKind) return changesKind;
+  const inferred = inferFileChangeKindFromSource(source);
+  if (inferred) return inferred;
 
   const kind = String(source.kind ?? "").toLowerCase();
   if (/\b(create|add)\b/.test(kind)) return "create";
@@ -194,24 +191,6 @@ export function classifyCodexFileChangeKind(
   if (/delete|remove/.test(type)) return "delete";
 
   return "edit";
-}
-
-function classifyCodexChangesKind(changes: unknown): "create" | "edit" | "delete" | undefined {
-  if (!Array.isArray(changes) || changes.length === 0) return undefined;
-  const kinds = changes
-    .map((change) => {
-      if (!change || typeof change !== "object") return undefined;
-      const kind = (change as Record<string, unknown>).kind;
-      if (!kind || typeof kind !== "object") return undefined;
-      const type = String((kind as Record<string, unknown>).type ?? "").toLowerCase();
-      if (type === "add" || type === "create") return "create" as const;
-      if (type === "delete" || type === "remove") return "delete" as const;
-      if (type === "update" || type === "modify" || type === "move") return "edit" as const;
-      return undefined;
-    })
-    .filter((kind): kind is "create" | "edit" | "delete" => kind !== undefined);
-  if (kinds.length === 0) return undefined;
-  return kinds.every((kind) => kind === kinds[0]) ? kinds[0] : "edit";
 }
 
 export function readCodexChangesDiffSummary(

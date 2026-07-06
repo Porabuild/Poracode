@@ -15,17 +15,6 @@ export function normalizeToolText(value: string | null | undefined): string | un
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function readStringField(input: unknown, key: string): string | undefined {
-  if (!input || typeof input !== "object") return undefined;
-  const v = (input as Record<string, unknown>)[key];
-  return typeof v === "string" && v.length > 0 ? v : undefined;
-}
-
-function readStringAllowEmpty(input: Record<string, unknown>, key: string): string | undefined {
-  const value = input[key];
-  return typeof value === "string" ? value : undefined;
-}
-
 export function firstNonEmptyLine(text: string): string | undefined {
   return text
     .split(/\r?\n/)
@@ -63,101 +52,6 @@ function readToolLocationPath(
   if (locations.length === 0) return undefined;
   const lowerKind = (kind ?? "").toLowerCase();
   return lowerKind === "move" ? locations[locations.length - 1]?.path : locations[0]?.path;
-}
-
-export function classifyFileChangeKind(
-  kind: string | undefined,
-  title: string | undefined,
-  ...sources: unknown[]
-): "create" | "edit" | "delete" {
-  const k = (kind ?? "").toLowerCase();
-  const t = (title ?? "").toLowerCase();
-  for (const source of sources) {
-    const inferred = inferFileChangeKindFromSource(source);
-    if (inferred) return inferred;
-  }
-  if (k === "delete" || /\bdelete\b/.test(t)) return "delete";
-  if (k === "create" || /\b(create|add)\b/.test(t)) return "create";
-  if ((k === "write" || /\bwrite\b/.test(t)) && sources.some(sourceHasFileContent)) return "create";
-  return "edit";
-}
-
-export function normalizeDiffSummaryForKind(
-  changeKind: "create" | "edit" | "delete",
-  summary: { added: number; removed: number },
-): { added: number; removed: number } {
-  if (changeKind === "create") return { added: summary.added, removed: 0 };
-  if (changeKind === "delete") return { added: 0, removed: summary.removed };
-  return summary;
-}
-
-function inferFileChangeKindFromSource(source: unknown): "create" | "edit" | "delete" | undefined {
-  if (typeof source === "string") {
-    if (/^\*\*\*\s+Add File:/m.test(source)) return "create";
-    if (/^\*\*\*\s+Delete File:/m.test(source)) return "delete";
-    if (/^\*\*\*\s+Update File:/m.test(source)) return "edit";
-    if (/^(?:new file mode|--- \/dev\/null\b)/m.test(source)) return "create";
-    if (/^(?:deleted file mode|\+\+\+ \/dev\/null\b)/m.test(source)) return "delete";
-    if (/^@@ -\d+(?:,\d+)? \+\d+(?:,\d+)? @@/m.test(source)) return "edit";
-    return undefined;
-  }
-  if (!source || typeof source !== "object") return undefined;
-  const record = source as Record<string, unknown>;
-  const changesKind = inferStructuredChangesKind(record.changes);
-  if (changesKind) return changesKind;
-  const diffKind = inferFileChangeKindFromSource(record.diff);
-  if (diffKind) return diffKind;
-  const patchKind =
-    inferFileChangeKindFromSource(record.patchText) ??
-    inferFileChangeKindFromSource(record.patch_text) ??
-    inferFileChangeKindFromSource(record.patch);
-  if (patchKind) return patchKind;
-  const directKind =
-    readStringField(record, "changeKind") ?? readStringField(record, "change_kind");
-  const normalizedKind = directKind?.toLowerCase();
-  if (normalizedKind === "create" || normalizedKind === "add") return "create";
-  if (normalizedKind === "delete" || normalizedKind === "remove") return "delete";
-  if (normalizedKind === "edit" || normalizedKind === "update") return "edit";
-  const oldText =
-    readStringAllowEmpty(record, "oldText") ?? readStringAllowEmpty(record, "old_text");
-  const newText =
-    readStringAllowEmpty(record, "newText") ?? readStringAllowEmpty(record, "new_text");
-  if (oldText !== undefined && oldText.trim().length === 0 && newText && newText.length > 0) {
-    return "create";
-  }
-  if (newText !== undefined && newText.trim().length === 0 && oldText && oldText.length > 0) {
-    return "delete";
-  }
-  return undefined;
-}
-
-function inferStructuredChangesKind(changes: unknown): "create" | "edit" | "delete" | undefined {
-  if (!Array.isArray(changes) || changes.length === 0) return undefined;
-  const kinds = changes.flatMap((change) => {
-    if (!change || typeof change !== "object") return [];
-    const record = change as Record<string, unknown>;
-    const kind = record.kind && typeof record.kind === "object" ? record.kind : record;
-    const type =
-      readStringField(kind, "type") ??
-      readStringField(kind, "changeKind") ??
-      readStringField(kind, "change_kind");
-    if (!type) return [];
-    const normalized = type.toLowerCase();
-    if (normalized === "add" || normalized === "create") return ["create" as const];
-    if (normalized === "delete" || normalized === "remove") return ["delete" as const];
-    if (normalized === "edit" || normalized === "update") return ["edit" as const];
-    return [];
-  });
-  if (kinds.length === 0) return undefined;
-  const uniqueKinds = new Set(kinds);
-  return uniqueKinds.size === 1 ? kinds[0] : undefined;
-}
-
-function sourceHasFileContent(source: unknown): boolean {
-  if (!source || typeof source !== "object") return false;
-  const record = source as Record<string, unknown>;
-  if (typeof record.content === "string" && readFileChangePath(record)) return true;
-  return sourceHasFileContent(record.args) || sourceHasFileContent(record.input);
 }
 
 /** Recognise Droid/Codex `ApplyPatch`, `apply_patch`, `apply-patch` tool names. */

@@ -14,7 +14,7 @@ import type {
   RuntimeEvent,
   UserInputOption,
 } from "@/shared/contracts";
-import { readStringField } from "./readers";
+import { readStringField } from "../../fileChangeSummary";
 
 const CODEX_APPROVAL_METHODS = new Set([
   "item/fileRead/requestApproval",
@@ -90,9 +90,9 @@ export function mapCodexServerRequest(
   params: Record<string, unknown> | undefined,
 ): RuntimeEvent | undefined {
   if (method === "mcpServer/elicitation/request") {
-    const message = readStringField(params?.message);
-    const serverName = readStringField(params?.serverName);
-    const mode = readStringField(params?.mode);
+    const message = readStringField(params, "message");
+    const serverName = readStringField(params, "serverName");
+    const mode = readStringField(params, "mode");
     if (!message || !serverName || (mode !== "form" && mode !== "url")) {
       return undefined;
     }
@@ -133,7 +133,7 @@ export function mapCodexServerRequest(
 
   if (!CODEX_APPROVAL_METHODS.has(method)) return undefined;
 
-  const reason = readStringField(params?.reason);
+  const reason = readStringField(params, "reason");
 
   if (method === "item/permissions/requestApproval") {
     return {
@@ -157,7 +157,7 @@ export function mapCodexServerRequest(
   }
 
   if (method === "item/commandExecution/requestApproval") {
-    const command = readStringField(params?.command) ?? "command";
+    const command = readStringField(params, "command") ?? "command";
     const decisions = readAvailableDecisions(params, [
       "accept",
       "acceptForSession",
@@ -176,7 +176,7 @@ export function mapCodexServerRequest(
           displayName: "Run",
           toolInput: {
             command,
-            ...(readStringField(params?.cwd) ? { cwd: readStringField(params?.cwd) } : {}),
+            ...(readStringField(params, "cwd") ? { cwd: readStringField(params, "cwd") } : {}),
           },
         }),
         options: codexDecisionOptions(decisions),
@@ -200,7 +200,7 @@ export function mapCodexServerRequest(
           displayName: "Run",
           toolInput: {
             command: command.length > 0 ? command.join(" ") : "command",
-            ...(readStringField(params?.cwd) ? { cwd: readStringField(params?.cwd) } : {}),
+            ...(readStringField(params, "cwd") ? { cwd: readStringField(params, "cwd") } : {}),
           },
         }),
         options: codexDecisionOptions(["accept", "acceptForSession", "decline", "cancel"]),
@@ -220,8 +220,8 @@ export function mapCodexServerRequest(
           toolName: "file_read",
           displayName: "Read file",
           toolInput: {
-            ...(readStringField(params?.path) ? { path: readStringField(params?.path) } : {}),
-            ...(readStringField(params?.cwd) ? { cwd: readStringField(params?.cwd) } : {}),
+            ...(readStringField(params, "path") ? { path: readStringField(params, "path") } : {}),
+            ...(readStringField(params, "cwd") ? { cwd: readStringField(params, "cwd") } : {}),
           },
         }),
         options: codexDecisionOptions(["accept", "decline", "cancel"]),
@@ -248,12 +248,12 @@ export function mapCodexServerRequest(
           toolName: "file_change",
           displayName: "Edit files",
           toolInput: {
-            ...(readStringField(params?.command)
-              ? { command: readStringField(params?.command) }
+            ...(readStringField(params, "command")
+              ? { command: readStringField(params, "command") }
               : {}),
-            ...(readStringField(params?.cwd) ? { cwd: readStringField(params?.cwd) } : {}),
-            ...(readStringField(params?.grantRoot)
-              ? { grantRoot: readStringField(params?.grantRoot) }
+            ...(readStringField(params, "cwd") ? { cwd: readStringField(params, "cwd") } : {}),
+            ...(readStringField(params, "grantRoot")
+              ? { grantRoot: readStringField(params, "grantRoot") }
               : {}),
             ...(params?.fileChanges !== undefined ? { fileChanges: params.fileChanges } : {}),
           },
@@ -264,7 +264,7 @@ export function mapCodexServerRequest(
   }
 
   // item/tool/requestApproval
-  const approvalToolName = readStringField(params?.name);
+  const approvalToolName = readStringField(params, "name");
   return {
     type: "request.opened",
     threadId,
@@ -297,10 +297,7 @@ export function translateCodexCanonicalResponse(
   // `{ optionId }` envelope to unwrap.
   if (CODEX_FORM_METHODS.has(method)) return response;
 
-  const optionId =
-    response && typeof response === "object" && "optionId" in response
-      ? readStringField((response as { optionId: unknown }).optionId)
-      : undefined;
+  const optionId = readStringField(response, "optionId");
   if (!optionId) return response;
 
   if (method === "item/permissions/requestApproval") {
