@@ -1,11 +1,11 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
 import { readStoredBoolean } from "@/renderer/utils/localStorage";
+import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
 
 /**
  * Legacy hand-rolled key, read once as the initial seed so existing installs
- * keep their collapsed state; the `persist` envelope (PERSIST_KEY) takes over
- * on the first write.
+ * keep their collapsed state; the slice under PERSIST_KEY takes over on the
+ * first write.
  */
 const LEGACY_COLLAPSED_KEY = "lightcode-sidebar-collapsed";
 const PERSIST_KEY = "lightcode-sidebar-overlay";
@@ -33,35 +33,34 @@ interface SidebarOverlayState {
   setSkipTransition: (next: boolean) => void;
 }
 
-export const useSidebarOverlayStore = create<SidebarOverlayState>()(
-  persist(
-    (set) => ({
-      isCollapsed: readStoredBoolean(LEGACY_COLLAPSED_KEY, false),
-      isNarrow: false,
-      closingOverlay: false,
-      overlayReady: false,
-      shellWidth: 0,
-      skipTransition: false,
-      setCollapsed: (next) => set((s) => (s.isCollapsed === next ? s : { isCollapsed: next })),
-      setNarrow: (next) => set((s) => (s.isNarrow === next ? s : { isNarrow: next })),
-      setClosingOverlay: (next) =>
-        set((s) => (s.closingOverlay === next ? s : { closingOverlay: next })),
-      setOverlayReady: (next) => set((s) => (s.overlayReady === next ? s : { overlayReady: next })),
-      setShellWidth: (next) =>
-        set((s) => (Math.abs(s.shellWidth - next) < 0.5 ? s : { shellWidth: next })),
-      setSkipTransition: (next) =>
-        set((s) => (s.skipTransition === next ? s : { skipTransition: next })),
-    }),
-    {
-      name: PERSIST_KEY,
-      version: 1,
-      storage: createJSONStorage(() => localStorage),
-      // Only the user's collapse preference survives relaunch; the overlay
-      // animation and measurement flags are session-scoped.
-      partialize: (state) => ({ isCollapsed: state.isCollapsed }),
-    },
-  ),
-);
+const initialPersisted = readPersistedSlice<{ isCollapsed: boolean }>(PERSIST_KEY);
+
+export const useSidebarOverlayStore = create<SidebarOverlayState>()((set) => ({
+  isCollapsed: initialPersisted?.isCollapsed ?? readStoredBoolean(LEGACY_COLLAPSED_KEY, false),
+  isNarrow: false,
+  closingOverlay: false,
+  overlayReady: false,
+  shellWidth: 0,
+  skipTransition: false,
+  setCollapsed: (next) => set((s) => (s.isCollapsed === next ? s : { isCollapsed: next })),
+  setNarrow: (next) => set((s) => (s.isNarrow === next ? s : { isNarrow: next })),
+  setClosingOverlay: (next) =>
+    set((s) => (s.closingOverlay === next ? s : { closingOverlay: next })),
+  setOverlayReady: (next) => set((s) => (s.overlayReady === next ? s : { overlayReady: next })),
+  setShellWidth: (next) =>
+    set((s) => (Math.abs(s.shellWidth - next) < 0.5 ? s : { shellWidth: next })),
+  setSkipTransition: (next) =>
+    set((s) => (s.skipTransition === next ? s : { skipTransition: next })),
+}));
+
+// Only the user's collapse preference survives relaunch; the overlay animation
+// and measurement flags (shellWidth/isNarrow/…) are session-scoped. Persisting
+// just this slice keeps the ResizeObserver-driven setShellWidth/setNarrow writes
+// off localStorage — they change the store many times per resize but never the
+// persisted value.
+persistStoreSlice(useSidebarOverlayStore, PERSIST_KEY, (state) => ({
+  isCollapsed: state.isCollapsed,
+}));
 
 export function selectShouldOverlay(s: SidebarOverlayState): boolean {
   return !s.isCollapsed && s.isNarrow;

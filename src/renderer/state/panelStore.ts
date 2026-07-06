@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
 import type { ThreadSortMode } from "@/renderer/views/MainView/parts/Sidebar/parts/sortMode";
 import { useFileEditorStore } from "./fileEditorStore";
 
@@ -86,8 +86,8 @@ interface PanelState {
 
 /**
  * Legacy hand-rolled storage keys, read once as the initial seed so existing
- * installs keep their state; the `persist` envelope (PERSIST_KEY) takes over
- * on the first write and wins on every launch where it exists.
+ * installs keep their state; the slice under PERSIST_KEY takes over on the first
+ * write and wins on every launch where it exists.
  */
 const LEGACY_GIT_CONTEXT_KEY = "lightcode-git-panel-context";
 const LEGACY_DRAWER_WIDTH_KEY = "lightcode-browser-drawer-width";
@@ -121,212 +121,204 @@ function loadInitialDrawerWidth(): number {
   }
 }
 
-export const usePanelStore = create<PanelState>()(
-  persist(
-    (set) => ({
-      gitReviewContext: loadInitialGitContext(),
-      gitReviewAsPanel: false,
-      gitOverlayOpen: false,
-      prReviewContext: null,
-      filesPanelContext: null,
-      rightPanelTab: "git",
-      browserPanelOpen: false,
-      usagePanelOpen: false,
-      notesPanelOpen: false,
-      browserOverlayOpen: false,
-      browserOverlayMaximized: false,
-      browserOverlayDrawerWidth: loadInitialDrawerWidth(),
-      settingsOpen: false,
-      settingsSection: null,
-      projectSettingsId: null,
-      threadSortMode: "updated",
-      threadSearchOpen: false,
-      createProjectModalOpen: false,
-      cloneProjectModalOpen: false,
+const initialPersisted = readPersistedSlice<{
+  gitReviewContext: GitReviewContext | null;
+  browserOverlayDrawerWidth: number;
+}>(PERSIST_KEY);
 
-      setGitReviewContext: (ctx) => {
-        const prev = usePanelStore.getState().gitReviewContext;
-        if (
-          (prev === null && ctx === null) ||
-          (prev !== null &&
-            ctx !== null &&
-            prev.projectId === ctx.projectId &&
-            prev.worktreePath === ctx.worktreePath)
-        ) {
-          return;
-        }
-        set({ gitReviewContext: ctx });
-      },
-      setGitReviewAsPanel: (v) =>
-        set((state) => (state.gitReviewAsPanel === v ? {} : { gitReviewAsPanel: v })),
-      setGitOverlayOpen: (v) =>
-        set((state) => (state.gitOverlayOpen === v ? {} : { gitOverlayOpen: v })),
-      setPrReviewContext: (ctx) =>
-        set((state) => {
-          const prev = state.prReviewContext;
-          if (
-            (prev === null && ctx === null) ||
-            (prev !== null &&
-              ctx !== null &&
-              prev.projectId === ctx.projectId &&
-              prev.worktreePath === ctx.worktreePath &&
-              prev.prNumber === ctx.prNumber &&
-              prev.prKey === ctx.prKey)
-          ) {
-            return {};
-          }
-          return { prReviewContext: ctx };
-        }),
-      setFilesPanelContext: (ctx) =>
-        set((state) => {
-          const prev = state.filesPanelContext;
-          if (
-            (prev === null && ctx === null) ||
-            (prev !== null &&
-              ctx !== null &&
-              prev.projectId === ctx.projectId &&
-              prev.projectName === ctx.projectName &&
-              prev.worktreePath === ctx.worktreePath &&
-              prev.rootLabel === ctx.rootLabel)
-          ) {
-            return {};
-          }
-          return { filesPanelContext: ctx };
-        }),
-      setRightPanelTab: (tab) =>
-        set((state) => (state.rightPanelTab === tab ? {} : { rightPanelTab: tab })),
-      // Toggling the docked right-panel browser is independent of the floating
-      // overlay (drawer/fullscreen): hiding the panel must NOT tear down an active
-      // overlay, otherwise maximizing the browser and then hiding the right panel
-      // would make the fullscreen page vanish. Callers that genuinely want to
-      // dismiss both (e.g. the last tab closing) close the overlay explicitly.
-      setBrowserPanelOpen: (v) =>
-        set((state) => (state.browserPanelOpen === v ? {} : { browserPanelOpen: v })),
-      // NOTE: overlay state is intentionally independent of the right-panel
-      // browser in both directions. Opening the overlay does NOT enable the
-      // right-panel browser tab, and closing the overlay leaves the right panel in
-      // whatever state the user had it. Maximized resets on close so the next open
-      // lands in drawer mode.
-      setBrowserOverlayOpen: (v) =>
-        set((state) =>
-          state.browserOverlayOpen === v
-            ? {}
-            : {
-                browserOverlayOpen: v,
-                ...(v ? {} : { browserOverlayMaximized: false }),
-              },
-        ),
-      setBrowserOverlayMaximized: (v) =>
-        set((state) => (state.browserOverlayMaximized === v ? {} : { browserOverlayMaximized: v })),
-      setBrowserOverlayDrawerWidth: (v) =>
-        set((state) => {
-          const clamped = clampDrawerWidth(v);
-          if (state.browserOverlayDrawerWidth === clamped) return {};
-          return { browserOverlayDrawerWidth: clamped };
-        }),
-      openBrowserPanel: () =>
-        set((state) =>
-          state.browserPanelOpen && state.rightPanelTab === "browser"
-            ? {}
-            : { browserPanelOpen: true, rightPanelTab: "browser" as const },
-        ),
-      setUsagePanelOpen: (v) =>
-        set((state) => (state.usagePanelOpen === v ? {} : { usagePanelOpen: v })),
-      openUsagePanel: () =>
-        set((state) =>
-          state.usagePanelOpen && state.rightPanelTab === "usage"
-            ? {}
-            : { usagePanelOpen: true, rightPanelTab: "usage" as const },
-        ),
-      setNotesPanelOpen: (v) =>
-        set((state) => (state.notesPanelOpen === v ? {} : { notesPanelOpen: v })),
-      openNotesPanel: () =>
-        set((state) =>
-          state.notesPanelOpen && state.rightPanelTab === "notes"
-            ? {}
-            : { notesPanelOpen: true, rightPanelTab: "notes" as const },
-        ),
-      setThreadSortMode: (mode) =>
-        set((state) => (state.threadSortMode === mode ? {} : { threadSortMode: mode })),
-      openSettings: () =>
-        set((state) =>
-          state.settingsOpen && state.settingsSection === null
-            ? {}
-            : { settingsOpen: true, settingsSection: null },
-        ),
-      openSettingsSection: (section) => set({ settingsOpen: true, settingsSection: section }),
-      clearSettingsSection: () =>
-        set((state) => (state.settingsSection === null ? {} : { settingsSection: null })),
-      closeSettings: () => set((state) => (state.settingsOpen ? { settingsOpen: false } : {})),
-      openProjectSettings: (projectId) =>
-        set((state) =>
-          state.projectSettingsId === projectId ? {} : { projectSettingsId: projectId },
-        ),
-      closeProjectSettings: () =>
-        set((state) => (state.projectSettingsId === null ? {} : { projectSettingsId: null })),
-      openThreadSearch: () =>
-        set((state) => (state.threadSearchOpen ? {} : { threadSearchOpen: true })),
-      closeThreadSearch: () =>
-        set((state) => (state.threadSearchOpen ? { threadSearchOpen: false } : {})),
-      openCreateProjectModal: () =>
-        set((state) => (state.createProjectModalOpen ? {} : { createProjectModalOpen: true })),
-      closeCreateProjectModal: () =>
-        set((state) => (state.createProjectModalOpen ? { createProjectModalOpen: false } : {})),
-      openCloneProjectModal: () =>
-        set((state) => (state.cloneProjectModalOpen ? {} : { cloneProjectModalOpen: true })),
-      closeCloneProjectModal: () =>
-        set((state) => (state.cloneProjectModalOpen ? { cloneProjectModalOpen: false } : {})),
-      closeAllPanels: () => {
-        set((state) => {
-          // The floating browser overlay (drawer/fullscreen) is intentionally NOT
-          // touched here: it is a standalone surface with its own close controls.
-          // Closing the docked right panel — including the narrow-viewport auto-hide
-          // that fires when the window shrinks — must not tear it down, otherwise a
-          // maximized browser vanishes the moment the right panel auto-closes.
-          if (
-            state.gitReviewContext === null &&
-            state.filesPanelContext === null &&
-            !state.browserPanelOpen &&
-            !state.usagePanelOpen &&
-            !state.notesPanelOpen
-          ) {
-            return {};
-          }
-          return {
-            gitReviewContext: null,
-            filesPanelContext: null,
-            browserPanelOpen: false,
-            usagePanelOpen: false,
-            notesPanelOpen: false,
-          };
-        });
-      },
-    }),
-    {
-      name: PERSIST_KEY,
-      version: 1,
-      // Synchronous localStorage hydration so the restored git panel and
-      // drawer width are in the store before the first paint.
-      storage: createJSONStorage(() => localStorage),
-      // Only the two cross-launch slices persist; every other panel/overlay
-      // flag is session-scoped and must reset on launch.
-      partialize: (state) => ({
-        gitReviewContext: state.gitReviewContext,
-        browserOverlayDrawerWidth: state.browserOverlayDrawerWidth,
-      }),
-      merge: (persisted, current) => {
-        const stored = (persisted ?? {}) as Partial<PanelState>;
-        return {
-          ...current,
-          ...stored,
-          browserOverlayDrawerWidth: clampDrawerWidth(
-            stored.browserOverlayDrawerWidth ?? current.browserOverlayDrawerWidth,
-          ),
-        };
-      },
-    },
+export const usePanelStore = create<PanelState>()((set) => ({
+  gitReviewContext: initialPersisted
+    ? (initialPersisted.gitReviewContext ?? null)
+    : loadInitialGitContext(),
+  gitReviewAsPanel: false,
+  gitOverlayOpen: false,
+  prReviewContext: null,
+  filesPanelContext: null,
+  rightPanelTab: "git",
+  browserPanelOpen: false,
+  usagePanelOpen: false,
+  notesPanelOpen: false,
+  browserOverlayOpen: false,
+  browserOverlayMaximized: false,
+  browserOverlayDrawerWidth: clampDrawerWidth(
+    initialPersisted?.browserOverlayDrawerWidth ?? loadInitialDrawerWidth(),
   ),
-);
+  settingsOpen: false,
+  settingsSection: null,
+  projectSettingsId: null,
+  threadSortMode: "updated",
+  threadSearchOpen: false,
+  createProjectModalOpen: false,
+  cloneProjectModalOpen: false,
+
+  setGitReviewContext: (ctx) => {
+    const prev = usePanelStore.getState().gitReviewContext;
+    if (
+      (prev === null && ctx === null) ||
+      (prev !== null &&
+        ctx !== null &&
+        prev.projectId === ctx.projectId &&
+        prev.worktreePath === ctx.worktreePath)
+    ) {
+      return;
+    }
+    set({ gitReviewContext: ctx });
+  },
+  setGitReviewAsPanel: (v) =>
+    set((state) => (state.gitReviewAsPanel === v ? {} : { gitReviewAsPanel: v })),
+  setGitOverlayOpen: (v) =>
+    set((state) => (state.gitOverlayOpen === v ? {} : { gitOverlayOpen: v })),
+  setPrReviewContext: (ctx) =>
+    set((state) => {
+      const prev = state.prReviewContext;
+      if (
+        (prev === null && ctx === null) ||
+        (prev !== null &&
+          ctx !== null &&
+          prev.projectId === ctx.projectId &&
+          prev.worktreePath === ctx.worktreePath &&
+          prev.prNumber === ctx.prNumber &&
+          prev.prKey === ctx.prKey)
+      ) {
+        return {};
+      }
+      return { prReviewContext: ctx };
+    }),
+  setFilesPanelContext: (ctx) =>
+    set((state) => {
+      const prev = state.filesPanelContext;
+      if (
+        (prev === null && ctx === null) ||
+        (prev !== null &&
+          ctx !== null &&
+          prev.projectId === ctx.projectId &&
+          prev.projectName === ctx.projectName &&
+          prev.worktreePath === ctx.worktreePath &&
+          prev.rootLabel === ctx.rootLabel)
+      ) {
+        return {};
+      }
+      return { filesPanelContext: ctx };
+    }),
+  setRightPanelTab: (tab) =>
+    set((state) => (state.rightPanelTab === tab ? {} : { rightPanelTab: tab })),
+  // Toggling the docked right-panel browser is independent of the floating
+  // overlay (drawer/fullscreen): hiding the panel must NOT tear down an active
+  // overlay, otherwise maximizing the browser and then hiding the right panel
+  // would make the fullscreen page vanish. Callers that genuinely want to
+  // dismiss both (e.g. the last tab closing) close the overlay explicitly.
+  setBrowserPanelOpen: (v) =>
+    set((state) => (state.browserPanelOpen === v ? {} : { browserPanelOpen: v })),
+  // NOTE: overlay state is intentionally independent of the right-panel
+  // browser in both directions. Opening the overlay does NOT enable the
+  // right-panel browser tab, and closing the overlay leaves the right panel in
+  // whatever state the user had it. Maximized resets on close so the next open
+  // lands in drawer mode.
+  setBrowserOverlayOpen: (v) =>
+    set((state) =>
+      state.browserOverlayOpen === v
+        ? {}
+        : {
+            browserOverlayOpen: v,
+            ...(v ? {} : { browserOverlayMaximized: false }),
+          },
+    ),
+  setBrowserOverlayMaximized: (v) =>
+    set((state) => (state.browserOverlayMaximized === v ? {} : { browserOverlayMaximized: v })),
+  setBrowserOverlayDrawerWidth: (v) =>
+    set((state) => {
+      const clamped = clampDrawerWidth(v);
+      if (state.browserOverlayDrawerWidth === clamped) return {};
+      return { browserOverlayDrawerWidth: clamped };
+    }),
+  openBrowserPanel: () =>
+    set((state) =>
+      state.browserPanelOpen && state.rightPanelTab === "browser"
+        ? {}
+        : { browserPanelOpen: true, rightPanelTab: "browser" as const },
+    ),
+  setUsagePanelOpen: (v) =>
+    set((state) => (state.usagePanelOpen === v ? {} : { usagePanelOpen: v })),
+  openUsagePanel: () =>
+    set((state) =>
+      state.usagePanelOpen && state.rightPanelTab === "usage"
+        ? {}
+        : { usagePanelOpen: true, rightPanelTab: "usage" as const },
+    ),
+  setNotesPanelOpen: (v) =>
+    set((state) => (state.notesPanelOpen === v ? {} : { notesPanelOpen: v })),
+  openNotesPanel: () =>
+    set((state) =>
+      state.notesPanelOpen && state.rightPanelTab === "notes"
+        ? {}
+        : { notesPanelOpen: true, rightPanelTab: "notes" as const },
+    ),
+  setThreadSortMode: (mode) =>
+    set((state) => (state.threadSortMode === mode ? {} : { threadSortMode: mode })),
+  openSettings: () =>
+    set((state) =>
+      state.settingsOpen && state.settingsSection === null
+        ? {}
+        : { settingsOpen: true, settingsSection: null },
+    ),
+  openSettingsSection: (section) => set({ settingsOpen: true, settingsSection: section }),
+  clearSettingsSection: () =>
+    set((state) => (state.settingsSection === null ? {} : { settingsSection: null })),
+  closeSettings: () => set((state) => (state.settingsOpen ? { settingsOpen: false } : {})),
+  openProjectSettings: (projectId) =>
+    set((state) => (state.projectSettingsId === projectId ? {} : { projectSettingsId: projectId })),
+  closeProjectSettings: () =>
+    set((state) => (state.projectSettingsId === null ? {} : { projectSettingsId: null })),
+  openThreadSearch: () =>
+    set((state) => (state.threadSearchOpen ? {} : { threadSearchOpen: true })),
+  closeThreadSearch: () =>
+    set((state) => (state.threadSearchOpen ? { threadSearchOpen: false } : {})),
+  openCreateProjectModal: () =>
+    set((state) => (state.createProjectModalOpen ? {} : { createProjectModalOpen: true })),
+  closeCreateProjectModal: () =>
+    set((state) => (state.createProjectModalOpen ? { createProjectModalOpen: false } : {})),
+  openCloneProjectModal: () =>
+    set((state) => (state.cloneProjectModalOpen ? {} : { cloneProjectModalOpen: true })),
+  closeCloneProjectModal: () =>
+    set((state) => (state.cloneProjectModalOpen ? { cloneProjectModalOpen: false } : {})),
+  closeAllPanels: () => {
+    set((state) => {
+      // The floating browser overlay (drawer/fullscreen) is intentionally NOT
+      // touched here: it is a standalone surface with its own close controls.
+      // Closing the docked right panel — including the narrow-viewport auto-hide
+      // that fires when the window shrinks — must not tear it down, otherwise a
+      // maximized browser vanishes the moment the right panel auto-closes.
+      if (
+        state.gitReviewContext === null &&
+        state.filesPanelContext === null &&
+        !state.browserPanelOpen &&
+        !state.usagePanelOpen &&
+        !state.notesPanelOpen
+      ) {
+        return {};
+      }
+      return {
+        gitReviewContext: null,
+        filesPanelContext: null,
+        browserPanelOpen: false,
+        usagePanelOpen: false,
+        notesPanelOpen: false,
+      };
+    });
+  },
+}));
+
+// Only the two cross-launch slices persist; every other panel/overlay flag is
+// session-scoped and resets on launch. Persisting just this slice keeps the
+// frequent session-only toggles (right-panel tab, settings/search/modal open,
+// sort mode, …) off localStorage — they change the store constantly but never
+// the persisted value. Initial hydration is synchronous, seeded above from
+// readPersistedSlice so the restored git panel and drawer width are present
+// before first paint.
+persistStoreSlice(usePanelStore, PERSIST_KEY, (state) => ({
+  gitReviewContext: state.gitReviewContext,
+  browserOverlayDrawerWidth: state.browserOverlayDrawerWidth,
+}));
 
 // Returns true when any full-window overlay (z-50) is currently rendered above
 // the right panel (z-10). Used by the browser sync layer to force the in-app
