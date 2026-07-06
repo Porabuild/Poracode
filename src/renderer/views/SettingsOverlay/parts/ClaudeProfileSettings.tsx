@@ -16,6 +16,7 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   claudeProfileKind,
+  extractClaudeProfileInstanceId,
   parseClaudeProfileInstanceConfig,
   type AgentInstanceConfig,
   type ClaudeProfileInstanceConfig,
@@ -764,4 +765,20 @@ export function ClaudeProfileSettings(props: {
       ) : null}
     </div>
   );
+}
+
+/**
+ * Registry-driven settings panel for the Claude family: the base agent page
+ * manages the profile list; a profile page shows that profile's own settings.
+ * Wired via `NATIVE_AGENT_REGISTRY_ENTRIES[claude].settingsPanel`.
+ */
+export function ClaudeAgentSettingsPanel(props: {
+  agentKind: string;
+  onOpenProfile?: ((profileKind: string) => void) | undefined;
+}) {
+  const instanceId = extractClaudeProfileInstanceId(props.agentKind);
+  if (instanceId !== undefined) {
+    return <ClaudeProfileProviderSettings key={props.agentKind} instanceId={instanceId} />;
+  }
+  return <ClaudeProfileSettings onOpenProfile={props.onOpenProfile} />;
 }

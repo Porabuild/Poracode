@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
-import type { AgentKind, ProjectLocation } from "@/shared/contracts";
-import { getWslCommand } from "../../agents/base";
+import type { ProjectLocation } from "@/shared/contracts";
+import { type AgentAdapter, getWslCommand } from "../../agents/base";
 
 const GHOSTTY_TERM = "xterm-ghostty";
 const FALLBACK_TERM = "xterm-256color";
@@ -53,16 +53,17 @@ const ITERM2_STATUS_ENV = {
 };
 
 export function getIterm2StatusL2TerminalEnv(input: {
-  agentKind: AgentKind;
-  projectLocation: ProjectLocation;
+  adapter: Pick<AgentAdapter, "partialL1" | "spoofsIterm2StatusEnv">;
   disableCliHookPlugin: boolean;
   cliHookEnvInjected: boolean;
 }): Record<string, string> {
-  if (input.agentKind === "copilot") {
+  // Partial-L1 CLIs have no hook-driven turn-finished signal, so OSC 9;4
+  // progress stays load-bearing even while hook env is injected.
+  if (input.adapter.partialL1) {
     return ITERM2_STATUS_ENV;
   }
 
-  if (input.agentKind !== "claude" && input.agentKind !== "gemini") {
+  if (!input.adapter.spoofsIterm2StatusEnv) {
     return {};
   }
 

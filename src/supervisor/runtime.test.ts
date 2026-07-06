@@ -55,6 +55,7 @@ vi.mock("./agents/binaryResolver", async (importActual) => {
 vi.spyOn(console, "warn").mockImplementation(() => {});
 vi.spyOn(console, "log").mockImplementation(() => {});
 
+import { codexExtraArgsPosition } from "./agents/codex/argv";
 import { SupervisorRuntime } from "./supervisorRuntime";
 
 const tempDirs: string[] = [];
@@ -2276,6 +2277,7 @@ describe("SupervisorRuntime thread input", () => {
         presentationMode: "terminal" as const,
       },
       detectInstall: vi.fn<() => void>(),
+      extraArgsPosition: codexExtraArgsPosition,
       buildLaunchArgv: vi.fn<() => { binary: string; args: string[] }>(() => ({
         binary: "codex",
         args: ["hello"],
@@ -2352,6 +2354,7 @@ describe("SupervisorRuntime thread input", () => {
         presentationMode: "terminal" as const,
       },
       detectInstall: vi.fn<() => void>(),
+      extraArgsPosition: codexExtraArgsPosition,
       buildLaunchArgv: vi.fn<() => void>(),
       buildResumeArgv: vi.fn<() => { binary: string; args: string[] }>(() => ({
         binary: "codex",

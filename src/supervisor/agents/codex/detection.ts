@@ -202,6 +202,10 @@ export const codexDefaultCapabilities: AgentCapability = {
   defaultApprovalPolicy: "on-request",
   defaultSandboxMode: "workspace-write",
   bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
+  // MCP config rides the `-c` launch argv in both presentations — baked in at
+  // spawn, read-only once the session is running.
+  browserMcpScope: { terminal: "launch", gui: "launch" },
+  subagentMcpScope: { terminal: "launch", gui: "launch" },
   settingDefs: [],
   slashCommands: CODEX_BUILT_IN_SLASH_COMMANDS,
 };

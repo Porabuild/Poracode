@@ -15,7 +15,7 @@ import {
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { CodexStructuredSession } from "./acp";
-import { buildCodexArgvFor, primeCodexGoalsSupport } from "./argv";
+import { buildCodexArgvFor, codexExtraArgsPosition, primeCodexGoalsSupport } from "./argv";
 import { codexDefaultCapabilities, codexDetectionSpec } from "./detection";
 import { detectRateLimitPrompt } from "./rateLimitPrompt";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
@@ -195,6 +195,7 @@ export function createCodexAdapter(): AgentAdapter {
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
       return buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions);
     },
+    extraArgsPosition: codexExtraArgsPosition,
     createInitialSessionRef() {
       return undefined;
     },

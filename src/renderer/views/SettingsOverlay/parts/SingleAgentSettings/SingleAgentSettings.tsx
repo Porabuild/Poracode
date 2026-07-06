@@ -9,7 +9,7 @@ import type {
   AgentStatus,
   AgentTerminalAuthMethod,
 } from "@/shared/contracts";
-import { extractClaudeProfileInstanceId, isClaudeProfileKind } from "@/shared/contracts";
+import { baseAgentKind, extractClaudeProfileInstanceId } from "@/shared/contracts";
 import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -38,8 +38,7 @@ import {
 import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
 import { SettingsPage } from "../SettingsForm";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../agentRegistryNative";
-import { ClaudeProfileProviderSettings, ClaudeProfileSettings } from "../ClaudeProfileSettings";
-import { OpenCodeProviderSettings } from "../OpenCodeProviderSettings";
+import { ClaudeProfileProviderSettings } from "../ClaudeProfileSettings";
 import { AgentSettingRow } from "./parts/AgentSettingRow";
 import { ModelVisibilityDropdown } from "./parts/ModelVisibilityDropdown";
 import { AgentEnvironmentRow, AgentInstallEnvironmentRow } from "./parts/AgentEnvironmentRow";
@@ -79,10 +78,11 @@ export function SingleAgentSettings(props: {
   }>();
   const [installPendingEnvKey, setInstallPendingEnvKey] = useState<string | undefined>();
   const [updatePending, setUpdatePending] = useState(false);
-  // Antigravity's signed-in account lives behind its language server (the
-  // credential sits in the OS keyring), so it isn't in the detected status.
-  // Resolved lazily when this page opens; undefined for every other agent.
-  const [antigravityAccount, setAntigravityAccount] = useState<AgentProviderMetadata | undefined>();
+  // Some providers' signed-in accounts aren't part of the detected status
+  // (e.g. Antigravity's credential sits behind its language server). Resolved
+  // lazily via the registry entry's `accountResolver` when this page opens;
+  // undefined for agents without a resolver.
+  const [providerAccount, setProviderAccount] = useState<AgentProviderMetadata | undefined>();
   const [binaryUpdatePendingEnvKey, setBinaryUpdatePendingEnvKey] = useState<string | undefined>();
   // After a successful update we hide the stale version and show a loader on
   // that row until `refreshAgentStatuses` returns with the freshly-detected
@@ -103,6 +103,11 @@ export function SingleAgentSettings(props: {
   const installedStatuses = [...installedHere, ...installedWsl];
   const nativeRegistryEntry = NATIVE_AGENT_REGISTRY_ENTRIES.find(
     (entry) => entry.id === props.agentKind,
+  );
+  // Provider-specific settings UI resolves by base kind so instance-scoped
+  // kinds (Claude profiles "claude:<id>") render their provider's panel.
+  const providerEntry = NATIVE_AGENT_REGISTRY_ENTRIES.find(
+    (entry) => entry.id === baseAgentKind(props.agentKind),
   );
   const installableHere = nativeRegistryEntry
     ? agentStatuses.filter(
@@ -188,26 +193,26 @@ export function SingleAgentSettings(props: {
     };
   }, [props.agentKind, registryAgentId]);
 
-  // Resolve the Antigravity account on open. The supervisor reuses a running
-  // `agy` language server or briefly spawns one to read GetUserStatus, so this
-  // can take a moment; it stays undefined (no account line) when unavailable.
+  // Resolve the provider account on open. Resolvers may briefly spawn a
+  // helper process (e.g. Antigravity's `agy` language server), so this can
+  // take a moment; it stays undefined (no account line) when unavailable.
+  const accountResolver = providerEntry?.accountResolver;
   useEffect(() => {
-    if (props.agentKind !== "antigravity") {
-      setAntigravityAccount(undefined);
+    if (!accountResolver) {
+      setProviderAccount(undefined);
       return;
     }
     let cancelled = false;
-    readBridge()
-      .getAntigravityAccount({ wslDistros })
-      .then((result) => {
-        if (!cancelled) setAntigravityAccount(result.account);
+    accountResolver(wslDistros)
+      .then((account) => {
+        if (!cancelled) setProviderAccount(account);
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.agentKind, wslProjectDistrosKey]);
+  }, [accountResolver, wslProjectDistrosKey]);
 
   if (!agent) {
     if (claudeProfileInstanceId && claudeProfileInstance?.driver === "claude") {
@@ -632,7 +637,7 @@ export function SingleAgentSettings(props: {
     return (
       <AgentEnvironmentRow
         key={`${status.kind}-${envKey}`}
-        accountMetadata={antigravityAccount}
+        accountMetadata={providerAccount}
         acpInstanceId={acpInstanceId}
         agentLabel={agent.label}
         authMethods={methods}
@@ -734,27 +739,18 @@ export function SingleAgentSettings(props: {
       </div>
 
       <div className="space-y-4">
-        {props.agentKind === "claude" ? (
-          <ClaudeProfileSettings onOpenProfile={props.onOpenProfile} />
-        ) : null}
-        {isClaudeProfileKind(props.agentKind) ? (
-          <ClaudeProfileProviderSettings
-            key={props.agentKind}
-            instanceId={claudeProfileInstanceId ?? ""}
-          />
-        ) : null}
-
-        {props.agentKind === "opencode" ? (
-          <OpenCodeProviderSettings
+        {providerEntry?.settingsPanel ? (
+          <providerEntry.settingsPanel
             agentKind={props.agentKind}
             statuses={installedStatuses}
             wslDistros={wslDistros}
+            onOpenProfile={props.onOpenProfile}
           />
         ) : null}
 
-        {/* OpenCode authenticates per AI provider (handled above), so its
-            generic single sign-in row would be redundant. */}
-        {hasAuthSettings && props.agentKind !== "opencode" && (
+        {/* Panels that own auth UI (e.g. OpenCode's per-AI-provider sign-in)
+            make the generic single sign-in row redundant. */}
+        {hasAuthSettings && providerEntry?.ownsAuthUi !== true && (
           <div className="space-y-2">
             {envVarAuthMethod && acpInstanceId ? (
               <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface-secondary px-3 py-2 text-foreground">
@@ -950,6 +946,7 @@ export function SingleAgentSettings(props: {
                 key={providerMenuKey(provider)}
                 settingsKey={providerVisibilityKey(provider)}
                 provider={provider}
+                showProviderLabel={modelVisibilityProviders.length > 1}
               />
             ))}
           </div>

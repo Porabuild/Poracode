@@ -1,16 +1,12 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import {
   allUsageProviderDescriptors,
-  collectClaude,
   createUsageCollectorRegistry,
   type HostPort,
   type UsageCollectorRegistry,
   type UsageSnapshot,
 } from "@lightcode/agents-usage";
 import { coalesceByKey } from "@/shared/coalesce";
-import { claudeProfileKind, parseClaudeProfileInstanceConfig } from "@/shared/contracts";
 import type { ProviderUsagePayload, ProviderUsageResponse } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import {
@@ -19,10 +15,15 @@ import {
   type SharedSettings,
   type UsageSettings,
 } from "@/shared/settings";
-import { refreshRejectedClaudeToken, resolveClaudeToken } from "./claudeCredentials";
+import {
+  collectClaudeProfile,
+  readClaudeUsageProfiles,
+  shouldPreserveClaudeAuthMiss,
+  withClaudeEstimatedCost,
+  type ClaudeUsageProfile,
+} from "../agents/claude/claudeUsageProfiles";
 import { createLocalUsageCollectors, type LocalUsageCollector } from "./localUsageCollectors";
 import { createNodeUsageHost } from "./usageHost";
-import { scanClaudeCost } from "./usageCostScanner";
 
 /**
  * Periodic/on-demand provider usage collection, modeled on AgentStatusService:
@@ -67,15 +68,6 @@ interface UsageCacheFile {
   snapshots?: UsageSnapshot[];
 }
 
-interface ClaudeUsageProfile {
-  providerId: string;
-  configDir: string;
-}
-
-function isClaudeUsageProvider(id: string): boolean {
-  return id === "claude" || id.startsWith("claude:");
-}
-
 function hasDisplayableUsage(snapshot: UsageSnapshot): boolean {
   return (
     snapshot.windows.length > 0 ||
@@ -83,13 +75,6 @@ function hasDisplayableUsage(snapshot: UsageSnapshot): boolean {
     snapshot.tokens !== undefined ||
     snapshot.credits !== undefined
   );
-}
-
-function resolveNativeTildePath(rawPath: string): string {
-  const trimmed = rawPath.trim();
-  if (trimmed === "~") return homedir();
-  if (trimmed.startsWith("~/")) return join(homedir(), trimmed.slice(2));
-  return trimmed;
 }
 
 export class UsageService {
@@ -114,7 +99,7 @@ export class UsageService {
   private defaultProviderIds(): string[] {
     const baseIds = [...(this.options.providerIds ?? DEFAULT_PROVIDER_IDS)];
     if (this.options.providerIds) return baseIds;
-    return [...baseIds, ...this.readClaudeUsageProfiles().keys()];
+    return [...baseIds, ...this.claudeUsageProfiles().keys()];
   }
 
   /** Read shared settings from disk (defaults if absent). */
@@ -132,31 +117,14 @@ export class UsageService {
     return this.readSharedSettings().usage;
   }
 
-  private readClaudeUsageProfiles(): Map<string, ClaudeUsageProfile> {
-    const profiles = new Map<string, ClaudeUsageProfile>();
-    const { agentInstances } = this.readSharedSettings();
-    for (const instance of Object.values(agentInstances)) {
-      if (instance.enabled === false || instance.driver !== "claude") continue;
-      try {
-        const cfg = parseClaudeProfileInstanceConfig(instance.config);
-        const providerId = claudeProfileKind(instance.id);
-        profiles.set(providerId, {
-          providerId,
-          configDir: resolveNativeTildePath(cfg.configDir),
-        });
-      } catch {
-        // Malformed profile records are ignored by the agent registry too.
-      }
-    }
-    return profiles;
+  private claudeUsageProfiles(): Map<string, ClaudeUsageProfile> {
+    return readClaudeUsageProfiles(this.readSharedSettings());
   }
 
   /** A provider id this service can collect (package registry or supervisor-local). */
   private isSupported(id: string): boolean {
     return (
-      this.registry.has(id) ||
-      this.localCollectors.has(id) ||
-      this.readClaudeUsageProfiles().has(id)
+      this.registry.has(id) || this.localCollectors.has(id) || this.claudeUsageProfiles().has(id)
     );
   }
 
@@ -243,7 +211,7 @@ export class UsageService {
   }
 
   private async runRefresh(ids: string[]): Promise<ProviderUsageResponse> {
-    const claudeProfiles = this.readClaudeUsageProfiles();
+    const claudeProfiles = this.claudeUsageProfiles();
     const registryIds = ids.filter((id) => this.registry.has(id));
     const localIds = ids.filter((id) => this.localCollectors.has(id));
     const claudeProfileIds = ids.filter((id) => claudeProfiles.has(id));
@@ -256,7 +224,7 @@ export class UsageService {
       Promise.all(
         claudeProfileIds.flatMap((id) => {
           const profile = claudeProfiles.get(id);
-          return profile ? [this.collectClaudeProfile(profile)] : [];
+          return profile ? [collectClaudeProfile(profile, this.host)] : [];
         }),
       ),
     ]);
@@ -279,15 +247,13 @@ export class UsageService {
    * On a transient failure (rate-limit / error) keep the last-known usage
    * snapshot instead of flushing the UI to empty.
    *
-   * Claude's OAuth access token can expire while the CLI has been idle, and a
-   * one-off usage auth miss does not prove the user has signed out. Match the
-   * stale-while-revalidate behavior of comparable usage tools for
-   * Claude/Claude-profile auth-missing after a prior successful read. First-time
-   * auth-missing still renders as not signed in.
+   * Provider auth-miss preservation (currently Claude-only, see
+   * `shouldPreserveClaudeAuthMiss`) matches the stale-while-revalidate
+   * behavior of comparable usage tools for auth-missing after a prior
+   * successful read. First-time auth-missing still renders as not signed in.
    */
   private preserveOnTransientFailure(snap: UsageSnapshot): UsageSnapshot {
-    const preserveClaudeAuthMiss =
-      snap.status === "auth-missing" && isClaudeUsageProvider(snap.providerId);
+    const preserveClaudeAuthMiss = shouldPreserveClaudeAuthMiss(snap);
     if (snap.status !== "rate-limited" && snap.status !== "error" && !preserveClaudeAuthMiss) {
       return snap;
     }
@@ -326,62 +292,16 @@ export class UsageService {
     return { providerId: id, status: "error", windows: [], fetchedAt: now };
   }
 
-  private async collectClaudeProfile(profile: ClaudeUsageProfile): Promise<UsageSnapshot> {
-    const now = this.host.now();
-    const scopedHost: HostPort = {
-      http: this.host.http,
-      now: () => this.host.now(),
-      credentials: {
-        getOAuthToken: () => resolveClaudeToken({ CLAUDE_CONFIG_DIR: profile.configDir }),
-        refreshOAuthToken: (_providerId, token) =>
-          refreshRejectedClaudeToken(token, { CLAUDE_CONFIG_DIR: profile.configDir }),
-        getSecret: (providerId, key) => this.host.credentials.getSecret(providerId, key),
-      },
-      ...(this.host.clientVersions ? { clientVersions: this.host.clientVersions } : {}),
-      ...(this.host.log ? { log: this.host.log } : {}),
-    };
-    try {
-      const snapshot = await collectClaude(scopedHost);
-      return { ...snapshot, providerId: profile.providerId };
-    } catch (error) {
-      return {
-        providerId: profile.providerId,
-        status: "error",
-        windows: [],
-        fetchedAt: now,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
-
   /**
-   * Merge estimated 30-day cost + tokens (from local logs at API rates) into the
-   * Claude snapshot. Best-effort and cached; never throws into the refresh.
+   * Merge estimated 30-day cost + tokens (from local logs at API rates) into
+   * Claude snapshots. Best-effort and cached; never throws into the refresh.
    */
   private async withEstimatedCost(
     snapshots: UsageSnapshot[],
     profiles: Map<string, ClaudeUsageProfile>,
   ): Promise<UsageSnapshot[]> {
     return Promise.all(
-      snapshots.map(async (snapshot) => {
-        const profile = profiles.get(snapshot.providerId);
-        const isBaseClaude = snapshot.providerId === "claude";
-        if (!isBaseClaude && !profile) return snapshot;
-        try {
-          const scan = await scanClaudeCost(
-            this.host.now(),
-            profile ? { CLAUDE_CONFIG_DIR: profile.configDir } : undefined,
-          );
-          if (!scan.estimate) return snapshot;
-          return {
-            ...snapshot,
-            cost: scan.estimate.cost,
-            tokens: scan.estimate.tokens,
-          };
-        } catch {
-          return snapshot;
-        }
-      }),
+      snapshots.map((snapshot) => withClaudeEstimatedCost(snapshot, profiles, this.host.now())),
     );
   }
 

@@ -86,6 +86,26 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
   return args;
 }
 
+/**
+ * Hook-launch flags must stay in the option section of the argv. Appending
+ * them after positional session ids / prompts makes Codex treat
+ * `--enable <hooks-feature>` as trailing user input instead of a real flag.
+ */
+export function codexExtraArgsPosition(
+  args: string[],
+  prompt: string,
+  sessionRef?: SessionRef,
+): number {
+  let trailingPositionals = 0;
+  if (args[0] === "resume" || sessionRef) {
+    trailingPositionals += 1;
+  }
+  if (prompt.trim().length > 0) {
+    trailingPositionals += 1;
+  }
+  return Math.max(args.length - trailingPositionals, args[0] === "resume" ? 1 : 0);
+}
+
 export function buildCodexArgvFor(
   location: ProjectLocation,
   config: ThreadConfig,

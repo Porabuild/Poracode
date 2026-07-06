@@ -1,5 +1,6 @@
-import type { ThreadConfig } from "@/shared/contracts";
+import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { CLAUDE_CONTEXT_MANAGED_MODEL_IDS, CLAUDE_DEFAULT_APPROVAL_POLICY } from "./detection";
+import { prepareClaudeMergedSettingsFile } from "./mergedSettings";
 
 /**
  * Re-attach the `[<size>]` suffix Claude's CLI uses to pick a context-window
@@ -55,4 +56,39 @@ export function buildClaudeArgs(
     args.push(prompt);
   }
   return args;
+}
+
+/**
+ * Hook-launch flags land before the trailing prompt positional (when
+ * present) so Claude's CLI keeps reading them as options.
+ */
+export function claudeExtraArgsPosition(args: string[], prompt: string): number {
+  return prompt.trim().length > 0 ? args.length - 1 : args.length;
+}
+
+/**
+ * Swap the hook plugin's `--settings <path>` for a sibling file with the
+ * session flags merged in (ultracode and/or fast mode). Claude's CLI keeps
+ * only the first `--settings` it sees and silently drops the rest, so the
+ * inline flags and the plugin's hooks file can't coexist as separate flags —
+ * they have to be one file.
+ */
+export async function rewriteClaudeLaunchArgsForConfig(
+  args: string[],
+  config: ThreadConfig,
+  projectLocation: ProjectLocation,
+): Promise<string[]> {
+  const flags: Record<string, unknown> = {};
+  if (config.effort === "ultracode") flags.ultracode = true;
+  if (config.fast === true) flags.fastMode = true;
+  if (Object.keys(flags).length === 0) return args;
+  const idx = args.findIndex((arg, i) => arg === "--settings" && i + 1 < args.length);
+  if (idx < 0) return args;
+  const originalPath = args[idx + 1];
+  if (!originalPath) return args;
+  const rewritten = await prepareClaudeMergedSettingsFile(originalPath, projectLocation, flags);
+  if (!rewritten) return args;
+  const out = [...args];
+  out[idx + 1] = rewritten;
+  return out;
 }

@@ -13,8 +13,8 @@ import type {
   UpdateAgentBinaryResult,
   GetLatestAgentVersionPayload,
   GetLatestAgentVersionResult,
-  GetAntigravityAccountPayload,
-  GetAntigravityAccountResult,
+  ResolveAgentAccountPayload,
+  ResolveAgentAccountResult,
   RemoveAcpRegistryAgentPayload,
 } from "@/shared/contracts";
 import {
@@ -45,7 +45,6 @@ import { type AgentAdapter, type AgentEnvContext } from "../agents/base";
 import { getLatestVersionForAdapter, runUpdateCommandWithFallback } from "../agents/updateAgent";
 import { clearAgentBinaryPathCache } from "../agents/binaryResolver";
 import type { AgentStatusService } from "./agentStatusService";
-import { probeAntigravityAccount } from "./antigravityAccountProbe";
 import type { SupervisorSharedSettingsCache } from "./supervisorSharedSettings";
 
 export interface AgentRegistryServiceDeps {
@@ -66,11 +65,12 @@ export interface AgentRegistryServiceDeps {
  * unchanged.
  */
 export class AgentRegistryService {
-  /** Short-lived cache for the resolved Antigravity account, so reopening the
-   * settings page doesn't re-spawn `agy` each time. */
-  private antigravityAccountCache:
-    | { value: NonNullable<GetAntigravityAccountResult["account"]>; at: number }
-    | undefined;
+  /** Short-lived per-kind cache for resolved provider accounts, so reopening
+   * the settings page doesn't re-run a possibly process-spawning probe. */
+  private readonly agentAccountCache = new Map<
+    string,
+    { value: NonNullable<ResolveAgentAccountResult["account"]>; at: number }
+  >();
 
   constructor(private readonly deps: AgentRegistryServiceDeps) {}
 
@@ -264,28 +264,28 @@ export class AgentRegistryService {
     return getLatestVersionForAdapter(adapter);
   }
 
-  async getAntigravityAccount(
-    payload: GetAntigravityAccountPayload,
-  ): Promise<GetAntigravityAccountResult> {
+  async resolveAgentAccount(
+    payload: ResolveAgentAccountPayload,
+  ): Promise<ResolveAgentAccountResult> {
+    const adapter = this.deps.adapters.get(payload.agentKind);
+    if (!adapter?.resolveAccount) return {};
+
     const ACCOUNT_TTL_MS = 5 * 60_000;
-    const cached = this.antigravityAccountCache;
+    const cached = this.agentAccountCache.get(payload.agentKind);
     if (cached && Date.now() - cached.at < ACCOUNT_TTL_MS) return { account: cached.value };
 
     const wslDistros = payload.wslDistros ?? [];
     const { windows } = await this.agentStatusService.getAgentStatuses({ wslDistros });
-    const native = windows.find((status) => status.kind === "antigravity" && status.installed);
-    // Spawning `agy` is only safe once the user is signed in (the config-dir
-    // probe's soft signal) — a never-authenticated spawn would drop into the
-    // interactive OAuth flow. Otherwise restrict to reusing a running LS.
-    const account = await probeAntigravityAccount({
-      ...(native?.executablePath ? { executablePath: native.executablePath } : {}),
-      wslDistros,
-      allowSpawn: native?.authState === "authenticated",
-    }).catch((error) => {
-      console.warn("[supervisor] antigravity account probe failed:", error);
-      return undefined;
-    });
-    if (account) this.antigravityAccountCache = { value: account, at: Date.now() };
+    const native = windows.find((status) => status.kind === payload.agentKind && status.installed);
+    const account = await adapter
+      .resolveAccount({ ...(native ? { status: native } : {}), wslDistros })
+      .catch((error) => {
+        console.warn(`[supervisor] ${payload.agentKind} account probe failed:`, error);
+        return undefined;
+      });
+    if (account) {
+      this.agentAccountCache.set(payload.agentKind, { value: account, at: Date.now() });
+    }
     return account ? { account } : {};
   }
 

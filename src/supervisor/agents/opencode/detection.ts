@@ -63,6 +63,28 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
+  // Browser MCP: no per-thread gating point in either presentation — the TUI
+  // reads install-time global config, and the GUI shares pooled `opencode
+  // serve` processes.
+  //
+  // Subagents GUI is "launch": the structured session hosts the subagents MCP
+  // by acquiring a DEDICATED per-thread `opencode serve` (pool key includes
+  // the thread id) and registering the server dynamically via `client.mcp.add`
+  // (mirroring the browser MCP), so the per-thread bearer token never touches
+  // the GLOBAL `~/.config/opencode/opencode.json` (where it would be clobbered
+  // by the next launch) nor a POOLED server shared by sibling threads (where
+  // it would misattribute their spawns). The dedicated server dies with the
+  // thread. See `opencode/sdkClient.ts` (`dedicatedKey` + `syncSubagentMcp`).
+  //
+  // Subagents TUI stays "none": the terminal TUI reads the same global config,
+  // and an always-present `{env:...}` template entry (the only
+  // per-process-gatable shape, since OpenCode rejects a templated `enabled`)
+  // would pollute the GUI shared-pool servers with a broken empty-URL
+  // `subagents` entry. OpenCode can still be SPAWNED as a subagent — children
+  // run through the SDK session and the run manager's recursion guard never
+  // sets `subagentMcp`.
+  browserMcpScope: { terminal: "none", gui: "none" },
+  subagentMcpScope: { terminal: "none", gui: "launch" },
   settingDefs: [
     {
       key: OPENCODE_BROWSER_MCP_SETTING_KEY,

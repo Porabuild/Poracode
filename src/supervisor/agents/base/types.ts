@@ -204,6 +204,8 @@ export type CapabilitiesProbeResult = Partial<AgentCapability> & {
   authLogoutSupported?: boolean;
   authState?: AuthState;
   providerMetadata?: AgentProviderMetadata;
+  /** Prefer the terminal `loginCommand` over agent-owned auth methods in login UIs. */
+  preferTerminalLogin?: boolean;
 };
 
 export interface DetectionSpec {
@@ -255,10 +257,40 @@ export interface AgentLauncher {
     sessionRef: SessionRef,
     launchOptions?: AgentLaunchOptions,
   ): AgentArgvSpec;
+  /**
+   * Index at which hook-launch extra CLI args are inserted into the argv.
+   * Omit to append at the end. Adapters whose CLIs read trailing tokens as
+   * positionals (session id, prompt) return an index before them so
+   * `--enable <feature>`-style flags stay in the option section.
+   */
+  extraArgsPosition?(args: string[], prompt: string, sessionRef?: SessionRef): number;
+  /**
+   * Rewrite the launch argv for per-thread config flags that must be folded
+   * into an existing flag's payload instead of appended — e.g. Claude merges
+   * ultracode / fast-mode into the hook plugin's `--settings` file because
+   * the CLI keeps only the first `--settings` it sees. Return `args`
+   * unchanged when nothing applies.
+   */
+  rewriteLaunchArgsForConfig?(
+    args: string[],
+    config: ThreadConfig,
+    projectLocation: ProjectLocation,
+  ): Promise<string[]>;
 }
 
 export interface AgentDetector {
   detectInstall(ctx?: AgentEnvContext): Promise<AgentStatus>;
+  /**
+   * Resolve the provider's signed-in account when it isn't part of the
+   * detected status (e.g. Antigravity's credential sits in the OS keyring
+   * behind its language server). `status` is the provider's freshest native
+   * detection result (undefined when not installed). Implementations must
+   * never trigger an interactive auth flow.
+   */
+  resolveAccount?(input: {
+    status?: AgentStatus;
+    wslDistros: string[];
+  }): Promise<AgentProviderMetadata | undefined>;
 }
 
 /**
@@ -289,6 +321,14 @@ export interface AgentPromptFormatter {
 export interface AgentTerminalObserver {
   isReadyForInitialPrompt?(text: string): boolean;
   detectTerminalStatus?(text: string): TerminalStatusHint | null;
+  /**
+   * Spoof `TERM_PROGRAM=iTerm.app` in the agent PTY so the CLI emits iTerm2
+   * OSC 9;4 progress sequences for L2 status detection. Suppressed while the
+   * CLI hook plugin owns status (hook env injected and not disabled).
+   * Partial-L1 adapters (`partialL1`) keep the spoof on unconditionally —
+   * their hooks never emit a turn-finished event, so OSC stays load-bearing.
+   */
+  readonly spoofsIterm2StatusEnv?: boolean;
   shouldApplyTerminalStatusWhileHookActive?(hint: TerminalStatusHint): boolean;
   detectInvalidSessionRef?(text: string): boolean;
   detectAutoResponse?(text: string): string | null;

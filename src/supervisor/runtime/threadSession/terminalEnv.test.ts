@@ -71,13 +71,14 @@ describe("resolveTerminalColorEnv", () => {
 });
 
 describe("getIterm2StatusL2TerminalEnv", () => {
-  it("spoofs iTerm for Claude when CLI hooks are not active", async () => {
+  const spoofingAdapter = { spoofsIterm2StatusEnv: true } as const;
+
+  it("spoofs iTerm for spoofing adapters when CLI hooks are not active", async () => {
     const { getIterm2StatusL2TerminalEnv } = await loadTerminalEnv();
 
     expect(
       getIterm2StatusL2TerminalEnv({
-        agentKind: "claude",
-        projectLocation: { kind: "windows", path: "C:\\repo" },
+        adapter: spoofingAdapter,
         disableCliHookPlugin: false,
         cliHookEnvInjected: false,
       }),
@@ -87,26 +88,24 @@ describe("getIterm2StatusL2TerminalEnv", () => {
     });
   });
 
-  it("does not spoof iTerm for Claude while hooks are active", async () => {
+  it("does not spoof iTerm while hooks are active", async () => {
     const { getIterm2StatusL2TerminalEnv } = await loadTerminalEnv();
 
     expect(
       getIterm2StatusL2TerminalEnv({
-        agentKind: "claude",
-        projectLocation: { kind: "windows", path: "C:\\repo" },
+        adapter: spoofingAdapter,
         disableCliHookPlugin: false,
         cliHookEnvInjected: true,
       }),
     ).toEqual({});
   });
 
-  it("spoofs iTerm for Claude when hooks are injected but disabled", async () => {
+  it("spoofs iTerm when hooks are injected but disabled", async () => {
     const { getIterm2StatusL2TerminalEnv } = await loadTerminalEnv();
 
     expect(
       getIterm2StatusL2TerminalEnv({
-        agentKind: "claude",
-        projectLocation: { kind: "windows", path: "C:\\repo" },
+        adapter: spoofingAdapter,
         disableCliHookPlugin: true,
         cliHookEnvInjected: true,
       }),
@@ -116,29 +115,12 @@ describe("getIterm2StatusL2TerminalEnv", () => {
     });
   });
 
-  it("spoofs iTerm for Gemini when CLI hooks are not active", async () => {
+  it("spoofs iTerm for partial-L1 adapters even while hooks are active", async () => {
     const { getIterm2StatusL2TerminalEnv } = await loadTerminalEnv();
 
     expect(
       getIterm2StatusL2TerminalEnv({
-        agentKind: "gemini",
-        projectLocation: { kind: "windows", path: "C:\\repo" },
-        disableCliHookPlugin: false,
-        cliHookEnvInjected: false,
-      }),
-    ).toEqual({
-      TERM_PROGRAM: "iTerm.app",
-      TERM_PROGRAM_VERSION: "3.6.6",
-    });
-  });
-
-  it("spoofs iTerm for Copilot even while partial hooks are active", async () => {
-    const { getIterm2StatusL2TerminalEnv } = await loadTerminalEnv();
-
-    expect(
-      getIterm2StatusL2TerminalEnv({
-        agentKind: "copilot",
-        projectLocation: { kind: "windows", path: "C:\\repo" },
+        adapter: { partialL1: true },
         disableCliHookPlugin: false,
         cliHookEnvInjected: true,
       }),
@@ -148,13 +130,12 @@ describe("getIterm2StatusL2TerminalEnv", () => {
     });
   });
 
-  it("does not spoof iTerm for other agents", async () => {
+  it("does not spoof iTerm for adapters without the capability", async () => {
     const { getIterm2StatusL2TerminalEnv } = await loadTerminalEnv();
 
     expect(
       getIterm2StatusL2TerminalEnv({
-        agentKind: "codex",
-        projectLocation: { kind: "windows", path: "C:\\repo" },
+        adapter: {},
         disableCliHookPlugin: false,
         cliHookEnvInjected: false,
       }),

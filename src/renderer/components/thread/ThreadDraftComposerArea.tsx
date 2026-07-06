@@ -26,7 +26,7 @@ import {
   type VoiceInputHandle,
   useAttachments,
 } from "@/renderer/components/composer";
-import { getBrowserMcpScope } from "@/renderer/components/composer/browserMcpScope";
+import { browserMcpServer } from "@/renderer/components/composer/composerMcpServers";
 import { getTriggerWords } from "@/renderer/components/providers";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
@@ -276,13 +276,17 @@ export function ThreadDraftComposerArea(props: {
   const showCommandPanel = filteredCommands.length > 0;
   const authRequired = props.selectedAgent.authState === "missing";
   const isHomeScope = isHomeProjectId(props.project.id);
-  const browserMcpScope = getBrowserMcpScope(props.selectedAgent.kind, props.presentationMode);
+  const browserMcpScope = browserMcpServer.getScope(
+    props.selectedAgent.capabilities,
+    props.presentationMode,
+  );
   // Registry-driven MCP toggles: the "+" add menu and enabled chips both iterate
   // this list, so a new MCP server means adding one descriptor to the registry.
   const mcpServers = composerMcpServers.map((descriptor) => ({
     descriptor,
     enabled: props.config[descriptor.configKey] === true,
-    visible: descriptor.getScope(props.selectedAgent.kind, props.presentationMode) !== "none",
+    visible:
+      descriptor.getScope(props.selectedAgent.capabilities, props.presentationMode) !== "none",
     onToggle: (next: boolean) => props.onConfigChange(mcpTogglePatch(descriptor.configKey, next)),
   }));
   const enabledMcpServers = mcpServers.filter((server) => server.enabled);

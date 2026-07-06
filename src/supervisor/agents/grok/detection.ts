@@ -104,6 +104,9 @@ async function probeCapabilities(
     ...(dedupedAuth?.length ? { authMethods: dedupedAuth } : {}),
     // Grok always supports `grok logout` when the binary is present (CLI + ACP path).
     authLogoutSupported: true,
+    // Grok's supported sign-in path is its CLI login flow; ACP auth methods
+    // exist but the terminal command is what login UIs should lead with.
+    preferTerminalLogin: true,
     ...(probe?.authState ? { authState: probe.authState } : {}),
     ...(providerMetadata ? { providerMetadata } : {}),
   };

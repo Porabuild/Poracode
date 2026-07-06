@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { isClaudeProfileKind, type AgentStatus } from "@/shared/contracts";
+import { baseAgentKind, isClaudeProfileKind, type AgentStatus } from "@/shared/contracts";
 import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -144,8 +144,20 @@ export function SettingsSidebar(props: {
   const { t } = useLingui();
   const { isCollapsed, collapse, expand } = useSidebar();
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
-  const primaryAgents = installedAgents.filter((agent) => !isClaudeProfileKind(agent.kind));
-  const claudeProfileAgents = installedAgents.filter((agent) => isClaudeProfileKind(agent.kind));
+  // Instance-scoped kinds (e.g. Claude profiles "claude:<id>") nest under
+  // their base agent's sidebar entry when the base itself is installed;
+  // instance kinds without an installed base (ACP registry agents) stay
+  // top-level.
+  const installedKinds = new Set(installedAgents.map((agent) => agent.kind));
+  const nestsUnderBase = (agent: AgentStatus) => {
+    const base = baseAgentKind(agent.kind);
+    return base !== agent.kind && installedKinds.has(base);
+  };
+  const primaryAgents = installedAgents.filter((agent) => !nestsUnderBase(agent));
+  const instanceAgentsFor = (baseKind: string) =>
+    installedAgents.filter(
+      (agent) => nestsUnderBase(agent) && baseAgentKind(agent.kind) === baseKind,
+    );
   const isAgentsActive =
     activeSection === "agents" ||
     activeSection === "acpRegistry" ||
@@ -441,32 +453,30 @@ export function SettingsSidebar(props: {
                       isActive={activeSection === `agents:${agent.kind}`}
                       onPress={() => onSectionChange(`agents:${agent.kind}`)}
                     />
-                    {agent.kind === "claude"
-                      ? claudeProfileAgents.map((profile) => {
-                          const profileNeedsAttention = attentionAgentKinds.has(profile.kind);
-                          return (
-                            <SidebarButton
-                              key={profile.kind}
-                              iconOnly
-                              className="ml-3 h-7 w-7"
-                              icon={
-                                <span className="relative flex size-3.5 items-center justify-center">
-                                  {renderAgentIcon(profile, {
-                                    disabled: disabledAgents.includes(profile.kind),
-                                    className: "size-3.5",
-                                  })}
-                                  {profileNeedsAttention ? (
-                                    <AlertTriangle className="absolute -right-1 -top-1 size-2.5 text-warning" />
-                                  ) : null}
-                                </span>
-                              }
-                              label={profile.label}
-                              isActive={activeSection === `agents:${profile.kind}`}
-                              onPress={() => onSectionChange(`agents:${profile.kind}`)}
-                            />
-                          );
-                        })
-                      : null}
+                    {instanceAgentsFor(agent.kind).map((profile) => {
+                      const profileNeedsAttention = attentionAgentKinds.has(profile.kind);
+                      return (
+                        <SidebarButton
+                          key={profile.kind}
+                          iconOnly
+                          className="ml-3 h-7 w-7"
+                          icon={
+                            <span className="relative flex size-3.5 items-center justify-center">
+                              {renderAgentIcon(profile, {
+                                disabled: disabledAgents.includes(profile.kind),
+                                className: "size-3.5",
+                              })}
+                              {profileNeedsAttention ? (
+                                <AlertTriangle className="absolute -right-1 -top-1 size-2.5 text-warning" />
+                              ) : null}
+                            </span>
+                          }
+                          label={profile.label}
+                          isActive={activeSection === `agents:${profile.kind}`}
+                          onPress={() => onSectionChange(`agents:${profile.kind}`)}
+                        />
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -672,9 +682,9 @@ export function SettingsSidebar(props: {
                               isActive={activeSection === `agents:${agent.kind}`}
                               onPress={() => onSectionChange(`agents:${agent.kind}`)}
                             />
-                            {agent.kind === "claude" && claudeProfileAgents.length > 0 ? (
+                            {instanceAgentsFor(agent.kind).length > 0 ? (
                               <div className="space-y-0.5 pl-5">
-                                {claudeProfileAgents.map((profile) => {
+                                {instanceAgentsFor(agent.kind).map((profile) => {
                                   const profileDisabled = disabledAgents.includes(profile.kind);
                                   const profileNeedsAttention = attentionAgentKinds.has(
                                     profile.kind,

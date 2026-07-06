@@ -148,7 +148,7 @@ const getLatestAgentVersionMock = vi.hoisted(() =>
     .mockResolvedValue({}),
 );
 
-const getAntigravityAccountMock = vi.hoisted(() =>
+const resolveAgentAccountMock = vi.hoisted(() =>
   vi
     .fn<
       (payload: { wslDistros?: string[] }) => Promise<{
@@ -188,7 +188,7 @@ vi.mock("@/renderer/bridge", () => ({
     focusWindow: focusWindowMock,
     listAcpRegistry: listAcpRegistryMock,
     getLatestAgentVersion: getLatestAgentVersionMock,
-    getAntigravityAccount: getAntigravityAccountMock,
+    resolveAgentAccount: resolveAgentAccountMock,
     updateAgentBinary: updateAgentBinaryMock,
     getAgentHookPluginStatuses: getAgentHookPluginStatusesMock,
     installAgentHookPlugin: installAgentHookPluginMock,
@@ -331,7 +331,7 @@ describe("SingleAgentSettings", () => {
     focusWindowMock.mockReset().mockResolvedValue(undefined);
     listAcpRegistryMock.mockReset().mockResolvedValue([]);
     getLatestAgentVersionMock.mockReset().mockResolvedValue({});
-    getAntigravityAccountMock.mockReset().mockResolvedValue({});
+    resolveAgentAccountMock.mockReset().mockResolvedValue({});
     updateAgentBinaryMock.mockReset().mockResolvedValue({ ok: true });
     toastMock.danger.mockReset();
     toastMock.success.mockReset();
@@ -717,6 +717,8 @@ describe("SingleAgentSettings", () => {
         label: "Grok Build",
         authState: "missing",
         loginCommand: "grok login --device-auth",
+        // Probe-reported: Grok's CLI login is the supported sign-in path.
+        preferTerminalLogin: true,
         authMethods: [{ id: "grok.com", name: "Grok" }],
       }),
     ];
@@ -746,7 +748,7 @@ describe("SingleAgentSettings", () => {
         ],
       }),
     ];
-    getAntigravityAccountMock.mockResolvedValue({
+    resolveAgentAccountMock.mockResolvedValue({
       account: { authenticatedAs: "user@example.com", plan: "Google AI Pro" },
     });
 
@@ -754,7 +756,10 @@ describe("SingleAgentSettings", () => {
 
     // Account line resolves out-of-band via the bridge, so it appears async.
     expect(await screen.findByText(/user@example\.com · Google AI Pro/)).toBeInTheDocument();
-    expect(getAntigravityAccountMock).toHaveBeenCalledWith({ wslDistros: [] });
+    expect(resolveAgentAccountMock).toHaveBeenCalledWith({
+      agentKind: "antigravity",
+      wslDistros: [],
+    });
 
     const row = envRow("Default");
     // No `agy logout` exists, so authLogoutSupported is absent → Re-login, never Logout.
@@ -776,13 +781,18 @@ describe("SingleAgentSettings", () => {
     ];
     // Even once the shared account resolves, it must not appear on an env whose
     // own auth state is unauthenticated (avoids "account + Login required").
-    getAntigravityAccountMock.mockResolvedValue({
+    resolveAgentAccountMock.mockResolvedValue({
       account: { authenticatedAs: "user@example.com", plan: "Google AI Pro" },
     });
 
     render(<SingleAgentSettings agentKind="antigravity" />);
 
-    await waitFor(() => expect(getAntigravityAccountMock).toHaveBeenCalledWith({ wslDistros: [] }));
+    await waitFor(() =>
+      expect(resolveAgentAccountMock).toHaveBeenCalledWith({
+        agentKind: "antigravity",
+        wslDistros: [],
+      }),
+    );
     const row = envRow("Default");
     expect(within(row).queryByText(/user@example\.com/)).not.toBeInTheDocument();
 

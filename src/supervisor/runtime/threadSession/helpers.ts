@@ -1,16 +1,11 @@
 import type { IPty } from "node-pty";
 import type { ProjectLocation, RuntimeEvent } from "@/shared/contracts";
-import { isClaudeProfileKind } from "@/shared/contracts";
 import type { SessionRuntime } from "../sessionTypes";
 
 export function shouldPrimeNativeProjectShellEnv(
   location: ProjectLocation,
 ): location is Extract<ProjectLocation, { kind: "windows" | "posix" }> {
   return location.kind === "posix" || (process.platform === "win32" && location.kind === "windows");
-}
-
-export function isClaudeAdapterKind(kind: string): boolean {
-  return kind === "claude" || isClaudeProfileKind(kind);
 }
 
 export function hookDebugProjectLabel(loc: ProjectLocation): string {

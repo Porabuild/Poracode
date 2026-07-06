@@ -162,6 +162,32 @@ const agentPresentationCapabilityOverrideSchema = z
   })
   .partial();
 
+/**
+ * How a composer MCP toggle (Browser / Subagents) gates per-thread for one
+ * presentation mode:
+ *
+ * - "always":  the MCP server set is rebuilt on every turn (e.g. Claude SDK
+ *              GUI). Badge is toggleable mid-thread.
+ * - "launch":  the MCP server set is baked in at thread/session start
+ *              (Codex `-c` argv, ACP `newSession.mcpServers`). Badge controls
+ *              launch; once running it is read-only.
+ * - "none":    no per-thread gating point exists (e.g. Claude TUI: no MCP
+ *              wired; install-time / launch-time global config).
+ */
+export const composerMcpScopeSchema = z.enum(["none", "launch", "always"]);
+export type ComposerMcpScope = z.infer<typeof composerMcpScopeSchema>;
+
+/**
+ * Per-presentation composer MCP scopes, declared by each provider adapter.
+ * Absent values fall back to the generic behavior: `terminal` → "none",
+ * `gui` → "launch" (structured runtimes bake MCP config at session start).
+ */
+export const composerMcpScopesSchema = z.object({
+  terminal: composerMcpScopeSchema.optional(),
+  gui: composerMcpScopeSchema.optional(),
+});
+export type ComposerMcpScopes = z.infer<typeof composerMcpScopesSchema>;
+
 export const agentCapabilitySchema = z.object({
   models: z.array(labeledOptionSchema).default([]),
   efforts: z.array(z.string().min(1)).default([]),
@@ -224,6 +250,10 @@ export const agentCapabilitySchema = z.object({
   presentationModes: z.array(threadPresentationModeSchema).optional(),
   requiresTerminalFocusBeforeInput: z.boolean().optional(),
   bypassPermissions: bypassPermissionsSchema.optional(),
+  /** Composer Browser-MCP toggle gating. See {@link composerMcpScopesSchema}. */
+  browserMcpScope: composerMcpScopesSchema.optional(),
+  /** Composer Subagents-MCP toggle gating. See {@link composerMcpScopesSchema}. */
+  subagentMcpScope: composerMcpScopesSchema.optional(),
   settingDefs: z.array(agentSettingDefSchema).default([]),
   /** Populated when the Claude Agent SDK init probe succeeds (install detection). */
   slashCommands: z.array(agentSlashCommandSchema).optional(),
@@ -251,6 +281,12 @@ export const agentStatusSchema = z.object({
   update: agentUpdateInfoSchema.optional(),
   authState: authStateSchema,
   loginCommand: z.string().min(1).optional(),
+  /**
+   * Prefer the terminal `loginCommand` over agent-owned/browser auth methods
+   * in login UIs. Reported by the provider's capabilities probe (e.g. Grok's
+   * CLI login is the supported path even though ACP advertises auth methods).
+   */
+  preferTerminalLogin: z.boolean().optional(),
   providerMetadata: agentProviderMetadataSchema.optional(),
   authMethods: z.array(agentAuthMethodSchema).optional(),
   authLogoutSupported: z.boolean().optional(),
@@ -456,20 +492,22 @@ export const getLatestAgentVersionResultSchema = z.object({
 });
 export type GetLatestAgentVersionResult = z.infer<typeof getLatestAgentVersionResultSchema>;
 
-export const getAntigravityAccountPayloadSchema = z.object({
-  /** WSL distros to include when scanning for an already-running language server. */
+export const resolveAgentAccountPayloadSchema = z.object({
+  agentKind: agentKindSchema,
+  /** WSL distros to include when probing for provider-side account state. */
   wslDistros: z.array(z.string()).optional(),
 });
-export type GetAntigravityAccountPayload = z.infer<typeof getAntigravityAccountPayloadSchema>;
+export type ResolveAgentAccountPayload = z.infer<typeof resolveAgentAccountPayloadSchema>;
 
-export const getAntigravityAccountResultSchema = z.object({
+export const resolveAgentAccountResultSchema = z.object({
   /**
-   * Signed-in identity (email) + plan, resolved from the Antigravity language
-   * server. Undefined when no LS could be reached (and none could be spawned).
+   * Signed-in identity (email) + plan resolved by the provider adapter's
+   * `resolveAccount` hook. Undefined when the adapter has no hook or the
+   * account could not be resolved.
    */
   account: agentProviderMetadataSchema.optional(),
 });
-export type GetAntigravityAccountResult = z.infer<typeof getAntigravityAccountResultSchema>;
+export type ResolveAgentAccountResult = z.infer<typeof resolveAgentAccountResultSchema>;
 
 export function areAgentSlashCommandsEqual(
   left: readonly AgentSlashCommand[] | undefined,

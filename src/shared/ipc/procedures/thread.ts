@@ -22,7 +22,7 @@ import {
   updateAcpRegistryAgentPayloadSchema,
   updateAgentBinaryPayloadSchema,
   getLatestAgentVersionPayloadSchema,
-  getAntigravityAccountPayloadSchema,
+  resolveAgentAccountPayloadSchema,
   writeTerminalPayloadSchema,
 } from "../../contracts";
 import type {
@@ -61,8 +61,8 @@ import type {
   UpdateAgentBinaryResult,
   GetLatestAgentVersionPayload,
   GetLatestAgentVersionResult,
-  GetAntigravityAccountPayload,
-  GetAntigravityAccountResult,
+  ResolveAgentAccountPayload,
+  ResolveAgentAccountResult,
   WriteTerminalPayload,
 } from "../../contracts";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
@@ -135,11 +135,11 @@ export const threadProcedures = {
     GetLatestAgentVersionResult,
     "supervisor"
   >("getLatestAgentVersion", "supervisor", getLatestAgentVersionPayloadSchema),
-  getAntigravityAccount: definePayloadProcedure<
-    GetAntigravityAccountPayload,
-    GetAntigravityAccountResult,
+  resolveAgentAccount: definePayloadProcedure<
+    ResolveAgentAccountPayload,
+    ResolveAgentAccountResult,
     "supervisor"
-  >("getAntigravityAccount", "supervisor", getAntigravityAccountPayloadSchema),
+  >("resolveAgentAccount", "supervisor", resolveAgentAccountPayloadSchema),
   removeAcpRegistryAgent: definePayloadProcedure<
     RemoveAcpRegistryAgentPayload,
     AcpRegistryMutationResult,

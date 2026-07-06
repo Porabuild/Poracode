@@ -33,9 +33,12 @@ const execFileAsync = promisify(execFile);
  * on the project location (e.g. `grok login --device-auth` on WSL). v3 adds
  * `AgentCapability.fastDisabledReason` (Claude fast-mode org gating). v4 adds
  * `AgentCapability.supportsOneShot` (so one-shot-only AI settings selectors can
- * hide interactive-only providers like Factory Droid / Grok).
+ * hide interactive-only providers like Factory Droid / Grok). v5 adds
+ * `AgentStatus.preferTerminalLogin` (probe-reported; replaces the renderer's
+ * hardcoded Grok check) and `AgentCapability.browserMcpScope` /
+ * `subagentMcpScope` (adapter-declared; replace the renderer shadow tables).
  */
-export const STATUS_CACHE_VERSION = 4;
+export const STATUS_CACHE_VERSION = 5;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

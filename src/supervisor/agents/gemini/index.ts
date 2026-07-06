@@ -184,6 +184,7 @@ export function createGeminiAdapter(): AgentAdapter {
     },
     handleOscNotification: iterm2ProgressOscHint,
     handleOscTitle: geminiOscTitleHint,
+    spoofsIterm2StatusEnv: true,
     shouldApplyTerminalStatusWhileHookActive: geminiHookActiveTerminalFallback,
     detectInvalidSessionRef: detectGeminiInvalidSessionRef,
 

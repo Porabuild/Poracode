@@ -13,6 +13,12 @@ import {
 export function ModelVisibilityDropdown(props: {
   settingsKey: string;
   provider: ProviderModelMenuProvider;
+  /**
+   * Include the provider label in the row title. Set when the agent expands
+   * to multiple visibility providers (e.g. Cursor's terminal + GUI model
+   * surfaces) so sibling rows stay distinguishable.
+   */
+  showProviderLabel?: boolean;
 }) {
   const { t } = useLingui();
   const { settingsKey, provider } = props;
@@ -89,7 +95,7 @@ export function ModelVisibilityDropdown(props: {
     <div className="flex items-center justify-between gap-4 py-2 border-b border-border/10 last:border-0 group">
       <div className="flex flex-col min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">
-          {provider.kind === "cursor" ? t`Visible ${provider.label} models` : t`Visible models`}
+          {props.showProviderLabel ? t`Visible ${provider.label} models` : t`Visible models`}
         </p>
         <p className="text-[11px] text-muted line-clamp-1 group-hover:line-clamp-none transition-all">
           <Trans>Toggle models off to hide them from the selector.</Trans>

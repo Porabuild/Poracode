@@ -41,7 +41,7 @@ import { ensureNodePtySpawnHelperExecutable } from "../../nodePty";
 import type { SessionRuntime } from "../sessionTypes";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
-import { applyClaudeMergedSettingsRewrite, mergeCliHookExtraArgs } from "./cliHookArgs";
+import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookArgs";
 import type { CliHookSessionCoordinator } from "./cliHookPlugin";
 import {
   shouldPrimeNativeProjectShellEnv,
@@ -366,7 +366,7 @@ export class SpawnPipeline {
         payload.sessionRef,
       );
     }
-    argv.args = await applyClaudeMergedSettingsRewrite(
+    argv.args = await applyLaunchArgsConfigRewrite(
       adapter,
       argv.args,
       payload.config,
@@ -574,7 +574,7 @@ export class SpawnPipeline {
         session.sessionRef,
       );
     }
-    argv.args = await applyClaudeMergedSettingsRewrite(
+    argv.args = await applyLaunchArgsConfigRewrite(
       session.adapter,
       argv.args,
       config,
@@ -645,8 +645,7 @@ export class SpawnPipeline {
     Object.assign(
       agentEnv,
       getIterm2StatusL2TerminalEnv({
-        agentKind: input.agentKind,
-        projectLocation: input.projectLocation,
+        adapter: input.adapter,
         disableCliHookPlugin: ctx.options.readDisableCliHookPlugin(),
         cliHookEnvInjected,
       }),

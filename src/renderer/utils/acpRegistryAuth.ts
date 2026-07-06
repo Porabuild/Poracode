@@ -22,7 +22,7 @@ export function registryAdapterKind(agentId: string): string {
 }
 
 export function shouldPreferTerminalLogin(status: AgentStatus): boolean {
-  return status.kind === "grok" && Boolean(status.loginCommand);
+  return status.preferTerminalLogin === true && Boolean(status.loginCommand);
 }
 
 export function isEnvVarAuthMethod(

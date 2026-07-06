@@ -74,34 +74,34 @@ msgid "{0} — Terminal"
 msgstr "{0} – Terminal"
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} ({envName}) is already up to date."
 msgstr "{0} ({envName}) ist bereits aktuell."
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} ({envName}) updated to v{newVersion}."
 msgstr "{0} ({envName}) auf v{newVersion} aktualisiert."
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} ({envName}) updated."
 msgstr "{0} ({envName}) aktualisiert."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} authenticated."
 msgstr "{0} authentifiziert."
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} credentials removed."
 msgstr "{0}-Anmeldeinformationen entfernt."
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} credentials saved."
 msgstr "{0}-Anmeldeinformationen gespeichert."
 
@@ -111,7 +111,7 @@ msgid "{0} devices"
 msgstr "{0} Geräte"
 
 #. placeholder {0}: props.agentLabel
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "{0} hooks installed for {envName}."
 msgstr "{0}-Hooks für {envName} installiert."
 
@@ -121,7 +121,7 @@ msgid "{0} hooks installed."
 msgstr "{0}-Hooks installiert."
 
 #. placeholder {0}: props.agentLabel
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "{0} hooks removed for {envName}."
 msgstr "{0}-Hooks für {envName} entfernt."
 
@@ -131,7 +131,7 @@ msgid "{0} install targets"
 msgstr "{0} Installationsziele"
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} is already up to date."
 msgstr "{0} ist bereits aktuell."
 
@@ -141,7 +141,7 @@ msgid "{0} limit"
 msgstr "{0}-Grenze"
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} logged out."
 msgstr "{0} hat sich abgemeldet."
 
@@ -203,12 +203,12 @@ msgid "{0} updated to v{1}."
 msgstr "{0} auf Version {1} aktualisiert."
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} updated to v{latestRegistryVersion}."
 msgstr "{0} auf Version {latestRegistryVersion} aktualisiert."
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} updated to v{newVersion}."
 msgstr "{0} auf Version {newVersion} aktualisiert."
 
@@ -218,7 +218,7 @@ msgid "{0} updated to v{resolvedLatest}."
 msgstr "{0} auf Version {resolvedLatest} aktualisiert."
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} updated."
 msgstr "{0} aktualisiert."
 
@@ -271,7 +271,7 @@ msgstr "{days} Tage"
 msgid "{days}d ago"
 msgstr "vor {days} d"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{envOrAgentLabel} needs authentication."
 msgstr "{envOrAgentLabel} benötigt eine Authentifizierung."
 
@@ -325,16 +325,16 @@ msgid "{label} usage — open usage panel"
 msgstr "{label}-Nutzung – Nutzungsbereich öffnen"
 
 #. placeholder {0}: method.name
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{loginLabel} {0}"
 msgstr "{loginLabel}{0}"
 
 #. placeholder {0}: method.name
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{loginLabel} {0} {env}"
 msgstr "{loginLabel}{0}{env}"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{loginLabel} {env}"
 msgstr "{loginLabel}{env}"
 
@@ -350,7 +350,7 @@ msgstr "{meta} · läuft ab am {expiresAt}"
 msgid "{minutes}m ago"
 msgstr "vor {minutes} min"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{missingAuthLabel} needs authentication."
 msgstr "{missingAuthLabel} benötigt eine Authentifizierung."
 
@@ -407,7 +407,7 @@ msgid "{usedLabel} tokens"
 msgstr "{usedLabel} Token"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount} von {totalCount} sichtbar"
 
@@ -652,7 +652,7 @@ msgstr "Eine benutzerdefinierte Basis-URL bekanntgeben, z. B. für einen "
 "Reverse-Proxy oder Tunnel. Für automatisch leer lassen."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "Agent"
 
@@ -671,15 +671,15 @@ msgstr "Agenten-Chat (ACP / Markdown). Befehlszeilen verwenden diese Größe "
 msgid "Agent encountered an error."
 msgstr "Der Agent hat einen Fehler festgestellt."
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is active and ready"
 msgstr "Der Agent ist aktiv und bereit"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is currently disabled"
 msgstr "Der Agent ist derzeit deaktiviert"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent not found"
 msgstr "Agent nicht gefunden"
 
@@ -707,7 +707,7 @@ msgstr "Agent:{subagent}"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agents"
 msgstr "Agenten"
 
@@ -960,7 +960,7 @@ msgstr "Browserauswahl angehängt."
 msgid "Audio"
 msgstr "Audio"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "Authentifizierung"
 
@@ -1444,11 +1444,11 @@ msgstr "Wählen Sie einen Ordner…"
 msgid "Choose a parent folder"
 msgstr "Übergeordneten Ordner auswählen"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
 msgstr "Wählen Sie aus, wie Sie sich für {env} anmelden möchten."
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in."
 msgstr "Wählen Sie aus, wie Sie sich anmelden möchten."
 
@@ -1528,7 +1528,7 @@ msgstr "Thread-Suche leeren"
 msgid "CLI"
 msgstr "CLI"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "CLI hooks"
 msgstr "CLI-Hooks"
 
@@ -1853,20 +1853,21 @@ msgstr "Schließen Sie die {0}-Anmeldung ab, bevor dieser Thread ausgeführt "
 "werden kann."
 
 #. placeholder {0}: singleMethod.name
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Complete {0} sign-in for {env}."
 msgstr "Schließen Sie die {0}-Anmeldung für {env} ab."
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {1}: envVarAuthMethod.name
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Complete {0} sign-in or save {1} credentials."
 msgstr "Schließen Sie die {0}-Anmeldung ab oder speichern Sie die "
 "{1}-Anmeldeinformationen."
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {0}: singleMethod.name
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Complete {0} sign-in."
 msgstr "Schließen Sie die {0}-Anmeldung ab."
 
@@ -2226,7 +2227,7 @@ msgstr "Es wurde ein Arbeitsbaum für „{newBranch}“ erstellt, aber die "
 "Änderungen widersprachen und verbleiben in einem Git-Stash – lösen Sie "
 "sie im Arbeitsbaum auf."
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
 msgstr "Anmeldeinformationen sind konfiguriert."
 
@@ -2280,7 +2281,7 @@ msgstr "Dunkel"
 msgid "Decline"
 msgstr "Ablehnen"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Default"
 msgstr "Standard"
 
@@ -2717,7 +2718,7 @@ msgstr "Projekt aktivieren"
 msgid "Enable providers in settings"
 msgstr "Aktivieren Sie Anbieter in den Einstellungen"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Enabled"
 msgstr "Aktiviert"
 
@@ -3345,7 +3346,7 @@ msgid "Hide {label} circle in sidebar"
 msgstr "{label}-Ring in der Seitenleiste ausblenden"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Hide all"
 msgstr "Alles ausblenden"
 
@@ -3487,12 +3488,13 @@ msgstr "installieren"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Install"
 msgstr "Installieren"
 
 #. placeholder {0}: props.agentLabel
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Install {0} for {env}."
 msgstr "Installieren Sie {0} für {env}."
 
@@ -3502,11 +3504,11 @@ msgid "Install {0} to create a thread."
 msgstr "Installieren Sie {0}, um einen Thread zu erstellen."
 
 #. placeholder {0}: props.agentLabel
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Install {0}."
 msgstr "Installieren Sie {0}."
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Install {env}"
 msgstr "Installieren Sie {env}"
 
@@ -3557,12 +3559,13 @@ msgstr "v{updateVersion} installieren"
 msgid "Install v{version}"
 msgstr "v{version} installieren"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Installed"
 msgstr "Installiert"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
 msgstr "Installieren"
 
@@ -3786,22 +3789,23 @@ msgstr "Melde dich bei Tailscale an, um HTTPS-Zugriff über MagicDNS zu "
 #~ msgstr "Melden Sie sich bei Tailscale an, um HTTPS-Zugriff über MagicDNS "
 #~ "einzurichten."
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Logging in"
 msgstr "Anmelden"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Logging out"
 msgstr "Abmelden"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "login"
 msgstr "Login"
 
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Login"
 msgstr "Login"
 
@@ -3810,16 +3814,18 @@ msgstr "Login"
 msgid "Login {0}"
 msgstr "Anmelden {0}"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Login required"
 msgstr "Anmeldung erforderlich"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
 msgstr "Abmelden"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Logout {env}"
 msgstr "Abmelden {env}"
 
@@ -4373,7 +4379,7 @@ msgstr "Keine Agenten in dieser Phase."
 msgid "No agents installed yet"
 msgstr "Es sind noch keine Agenten installiert"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "No agents installed."
 msgstr "Keine Agenten installiert."
 
@@ -4512,7 +4518,7 @@ msgstr "Kein Mikrofon gefunden."
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "No models found"
 msgstr "Keine Modelle gefunden"
 
@@ -4651,7 +4657,8 @@ msgstr "Kein Git-Repository"
 msgid "Not found"
 msgstr "Nicht gefunden"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Not installed"
 msgstr "Nicht installiert"
 
@@ -4964,7 +4971,7 @@ msgstr "Modellauswahl öffnen"
 msgid "Opened {0} (#{1})"
 msgstr "{0} geöffnet (#{1})"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing "
 "hooks are never installed automatically."
 msgstr "Optionale Status-Hooks. Installierte Hooks werden automatisch "
@@ -5339,7 +5346,7 @@ msgstr "Prompts"
 msgid "Proposed plan"
 msgstr "Vorgeschlagener Plan"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "provider"
 msgstr "Anbieter"
 
@@ -5357,7 +5364,7 @@ msgid "Provider presets"
 msgstr "Anbieter-Voreinstellungen"
 
 #. plural
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "providers"
 msgstr "Anbieter"
 
@@ -5506,7 +5513,8 @@ msgstr "Rate-Limit erreicht. Versuchen Sie es in Kürze noch einmal."
 msgid "Re-applying local changes has conflicts"
 msgstr "Das erneute Anwenden lokaler Änderungen führt zu Konflikten"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Re-login"
 msgstr "Erneut anmelden"
 
@@ -5601,12 +5609,12 @@ msgid "Refresh registry"
 msgstr "Registry aktualisieren"
 
 #. placeholder {0}: status.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Refreshing {0} authentication status."
 msgstr "Der {0}-Authentifizierungsstatus wird aktualisiert."
 
 #. placeholder {0}: status.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Refreshing {env} {0} authentication status."
 msgstr "Der {env}-{0}-Authentifizierungsstatus wird aktualisiert."
 
@@ -6050,7 +6058,7 @@ msgstr "{0} ausführen"
 msgid "Run {0} before this thread can run."
 msgstr "Führen Sie {0} aus, bevor dieser Thread ausgeführt werden kann."
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Run {loginCommand} to sign in."
 msgstr "Führen Sie {loginCommand} aus, um sich anzumelden."
 
@@ -6113,12 +6121,12 @@ msgstr "Laufzeitoptionen"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
 msgstr "Speichern"
 
 #. placeholder {0}: envVarAuthMethod.name
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save {0} credentials."
 msgstr "{0}-Anmeldeinformationen speichern."
 
@@ -6134,7 +6142,7 @@ msgstr "Datei speichern"
 msgid "Save shortcut"
 msgstr "Tastenkürzel speichern"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Saved credentials are shared across all environments."
 msgstr "Gespeicherte Anmeldeinformationen werden in allen Umgebungen gemeinsam "
 "genutzt."
@@ -6180,7 +6188,7 @@ msgid "Scroll speed multiplier for the terminal scrollback buffer."
 msgstr "Scrollgeschwindigkeitsmultiplikator für den Terminal-Scrollback-Puffer."
 
 #: src/renderer/components/terminal/XTermSurface.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ChatPane/ChatScrollControls.tsx
 msgid "Scroll to bottom"
 msgstr "Nach unten scrollen"
 
@@ -6213,13 +6221,13 @@ msgid "Search files"
 msgstr "Dateien durchsuchen"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models"
 msgstr "Modelle suchen"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Search models..."
 msgstr "Modelle suchen..."
 
@@ -6414,7 +6422,7 @@ msgstr "Zeigen Sie einen projektlosen Home-Bereich für Agentensitzungen auf "
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"
 msgstr "Alle anzeigen"
 
@@ -6554,7 +6562,7 @@ msgstr "Melde dich auf dem gekoppelten Desktop an und aktualisiere dann diesen "
 msgid "Sign in required"
 msgstr "Anmeldung erforderlich"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
 msgstr "Mit der Agent-CLI anmelden."
 
@@ -6571,7 +6579,7 @@ msgstr "{label} abmelden"
 msgid "Sign out of {0}"
 msgstr "Bei {0} abmelden"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "Signed in"
 msgstr "Angemeldet"
 
@@ -6584,12 +6592,12 @@ msgstr "Anmelden"
 msgid "Signing in…"
 msgstr "Anmelden…"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Signing out {env}. Detected agents will refresh when it finishes."
 msgstr "{env} wird abgemeldet. Erkannte Agenten werden aktualisiert, wenn der "
 "Vorgang abgeschlossen ist."
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Wird abgemeldet. Erkannte Agenten werden aktualisiert, wenn der Vorgang "
 "abgeschlossen ist."
@@ -7176,7 +7184,7 @@ msgstr "Theme und Chat-Schriftgröße"
 msgid "Thinking"
 msgstr "Denkt …"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "This agent is not installed."
 msgstr "Dieser Agent ist nicht installiert."
 
@@ -7206,7 +7214,7 @@ msgid "This device has no usable camera. Enter the endpoint and token below to "
 msgstr "Dieses Gerät hat keine nutzbare Kamera. Gib stattdessen unten Endpoint "
 "und Token ein, um zu koppeln."
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "this environment"
 msgstr "dieser Umgebung"
 
@@ -7376,7 +7384,7 @@ msgstr "Schnellmodus umschalten"
 msgid "Toggle File Tree"
 msgstr "Dateibaum umschalten"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Schalten Sie Modelle aus, um sie aus der Auswahl auszublenden."
 
@@ -7488,7 +7496,7 @@ msgstr "In die Seite tippen (zuerst ein Feld antippen)"
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to authenticate {0}."
 msgstr "{0} konnte nicht authentifiziert werden."
 
@@ -7535,7 +7543,7 @@ msgid "Unable to load thread."
 msgstr "Thread konnte nicht geladen werden."
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to log out {0}."
 msgstr "Abmelden von {0} nicht möglich."
 
@@ -7561,7 +7569,7 @@ msgstr "Kopplung mit diesem Desktop nicht möglich."
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to refresh {0} status."
 msgstr "Der Status „{0}“ konnte nicht aktualisiert werden."
 
@@ -7575,7 +7583,7 @@ msgid "Unable to refresh Claude profiles."
 msgstr "Claude-Profile können nicht aktualisiert werden."
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to remove {0} credentials."
 msgstr "{0}-Anmeldeinformationen können nicht entfernt werden."
 
@@ -7593,7 +7601,7 @@ msgid "Unable to revoke remote session."
 msgstr "Remote-Sitzung konnte nicht widerrufen werden."
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to save {0} credentials."
 msgstr "{0}-Anmeldeinformationen können nicht gespeichert werden."
 
@@ -7624,17 +7632,17 @@ msgid "Unable to start the thread."
 msgstr "Thread konnte nicht gestartet werden."
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to update {0} ({envName}): {detailText}"
 msgstr "{0} ({envName}) kann nicht aktualisiert werden: {detailText}"
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to update {0} ({envName})."
 msgstr "{0} ({envName}) kann nicht aktualisiert werden."
 
 #. placeholder {0}: props.agentLabel
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unable to update {0} hooks."
 msgstr "{0}-Hooks können nicht aktualisiert werden."
 
@@ -7645,14 +7653,14 @@ msgid "Unable to update {0}: {1}"
 msgstr "{0} kann nicht aktualisiert werden: {1}"
 
 #. placeholder {0}: agent.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to update {0}: {detailText}"
 msgstr "{0} kann nicht aktualisiert werden: {detailText}"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to update {0}."
 msgstr "{0} kann nicht aktualisiert werden."
 
@@ -7686,7 +7694,7 @@ msgstr "Gruppierung aller aufheben"
 msgid "Unified view"
 msgstr "Einheitliche Ansicht"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Uninstall"
 msgstr "Deinstallieren"
 
@@ -7761,7 +7769,7 @@ msgstr "Alles aus dem Staging entfernen"
 msgid "unstaged"
 msgstr "nicht bereitgestellt"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"
 msgstr "Nicht unterstützt"
 
@@ -7770,12 +7778,12 @@ msgid "Up one level"
 msgstr "Eine Ebene nach oben"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Update"
 msgstr "Aktualisieren"
 
 #. placeholder {0}: props.agentLabel
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0} to {updateLabel}"
 msgstr "Aktualisieren Sie {0} auf {updateLabel}"
 
@@ -7799,17 +7807,17 @@ msgstr "Update-Methode"
 msgid "Update task"
 msgstr "Aufgabe aktualisieren"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel}"
 msgstr "Update auf {updateLabel}"
 
 #. placeholder {0}: props.agentLabel
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel} for {0}"
 msgstr "Update auf {updateLabel} für {0}"
 
 #. placeholder {0}: props.agentLabel
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update to {updateLabel} for {0} ({env})"
 msgstr "Update auf {updateLabel} für {0} ({env})"
 
@@ -7818,7 +7826,7 @@ msgstr "Update auf {updateLabel} für {0} ({env})"
 msgid "Update to v{0}"
 msgstr "Update auf v{0}"
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Update to v{latestRegistryVersion}"
 msgstr "Update auf v{latestRegistryVersion}"
 
@@ -7840,12 +7848,12 @@ msgid "Updating"
 msgstr "Wird aktualisiert …"
 
 #. placeholder {0}: props.agentLabel
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "{0} wird aktualisiert"
 
 #. placeholder {0}: props.agentLabel
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0} ({env})"
 msgstr "Aktualisieren von {0} ({env})"
 
@@ -7929,7 +7937,7 @@ msgid "Using the built-in Claude model list."
 msgstr "Die integrierte Claude-Modellliste wird verwendet."
 
 #. placeholder {0}: status.bundledVersion
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "v{0} available"
 msgstr "v{0} verfügbar"
 
@@ -7943,7 +7951,7 @@ msgid "Version"
 msgstr "Version"
 
 #. placeholder {0}: metadata.authMethod
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "über {0}"
 
@@ -7973,13 +7981,13 @@ msgid "View-only — this connection can't manage projects."
 msgstr "Nur Lesezugriff – diese Verbindung kann keine Projekte verwalten."
 
 #. placeholder {0}: provider.label
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Visible {0} models"
 msgstr "Sichtbare {0}-Modelle"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Visible models"
 msgstr "Sichtbare Modelle"
 
@@ -8001,25 +8009,25 @@ msgstr "Spracheingabemodell"
 msgid "Wait for the thread to finish starting."
 msgstr "Warten Sie, bis der Thread gestartet ist."
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {authEnv} {authMethodName} authentication. Detected agents "
 "will refresh when it finishes."
 msgstr "Warten auf {authEnv}-{authMethodName}-Authentifizierung. Erkannte "
 "Agenten werden aktualisiert, wenn der Vorgang abgeschlossen ist."
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {authMethodName} authentication. Detected agents will "
 "refresh when it finishes."
 msgstr "Warten auf {authMethodName}-Authentifizierung. Erkannte Agenten werden "
 "aktualisiert, wenn der Vorgang abgeschlossen ist."
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {env} {methodName} authentication. Detected agents will "
 "refresh when it finishes."
 msgstr "Warten auf {env}-{methodName}-Authentifizierung. Erkannte Agenten "
 "werden aktualisiert, wenn der Vorgang abgeschlossen ist."
 
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Waiting for {methodName} authentication. Detected agents will refresh "
 "when it finishes."
 msgstr "Warten auf {methodName}-Authentifizierung. Erkannte Agenten werden "
@@ -8148,7 +8156,7 @@ msgid "Where the terminal panel appears."
 msgstr "Wo das Terminal-Panel erscheint."
 
 #. placeholder {0}: env || t`this environment`
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Will run in {0}:"
 msgstr "Wird in {0} ausgeführt:"
 

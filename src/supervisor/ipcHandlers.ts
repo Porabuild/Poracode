@@ -16,7 +16,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     updateAcpRegistryAgent: (payload) => runtime.updateAcpRegistryAgent(payload),
     updateAgentBinary: (payload) => runtime.updateAgentBinary(payload),
     getLatestAgentVersion: (payload) => runtime.getLatestAgentVersion(payload),
-    getAntigravityAccount: (payload) => runtime.getAntigravityAccount(payload),
+    resolveAgentAccount: (payload) => runtime.resolveAgentAccount(payload),
     removeAcpRegistryAgent: (payload) => runtime.removeAcpRegistryAgent(payload),
     setAcpRegistryAgentAuth: (payload) => runtime.setAcpRegistryAgentAuth(payload),
     authenticateAcpAgent: (payload) => runtime.authenticateAcpAgent(payload),

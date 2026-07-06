@@ -1,9 +1,13 @@
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { Globe, Users, type LucideIcon } from "lucide-react";
-import type { ThreadConfig, ThreadPresentationMode } from "@/shared/contracts";
-import { getBrowserMcpScope } from "./browserMcpScope";
-import { getSubagentMcpScope } from "./subagentMcpScope";
+import type {
+  AgentCapability,
+  ComposerMcpScope,
+  ComposerMcpScopes,
+  ThreadConfig,
+  ThreadPresentationMode,
+} from "@/shared/contracts";
 
 /**
  * Registry of composer MCP toggles. Adding a third MCP server means appending
@@ -16,11 +20,26 @@ import { getSubagentMcpScope } from "./subagentMcpScope";
  * settingsOptions.ts pattern.
  */
 
-/** Per-thread gating for a composer MCP toggle; see `browserMcpScope.ts`. */
-export type ComposerMcpScope = "none" | "launch" | "always";
+export type { ComposerMcpScope };
 
 /** `ThreadConfig` keys that hold the per-thread enable flag for each MCP. */
 export type ComposerMcpConfigKey = "browserMcp" | "subagentMcp";
+
+/**
+ * Resolve an adapter-declared per-presentation scope pair to the active
+ * presentation's scope. Absent values fall back to the generic behavior:
+ * structured (GUI) runtimes bake MCP config at session start ("launch"),
+ * terminal TUIs have no per-thread gating point ("none").
+ */
+function resolveMcpScope(
+  scopes: ComposerMcpScopes | undefined,
+  presentationMode: ThreadPresentationMode,
+): ComposerMcpScope {
+  if (presentationMode === "gui") {
+    return scopes?.gui ?? "launch";
+  }
+  return scopes?.terminal ?? "none";
+}
 
 export interface ComposerMcpServerDescriptor {
   id: "browser" | "subagents";
@@ -32,7 +51,10 @@ export interface ComposerMcpServerDescriptor {
   enabledTitle: MessageDescriptor;
   /** aria-label for the chip's remove button. */
   disableLabel: MessageDescriptor;
-  getScope: (agentKind: string, presentationMode: ThreadPresentationMode) => ComposerMcpScope;
+  getScope: (
+    capabilities: AgentCapability,
+    presentationMode: ThreadPresentationMode,
+  ) => ComposerMcpScope;
 }
 
 export const browserMcpServer: ComposerMcpServerDescriptor = {
@@ -42,7 +64,8 @@ export const browserMcpServer: ComposerMcpServerDescriptor = {
   label: msg`Browser`,
   enabledTitle: msg`Browser MCP enabled for this thread`,
   disableLabel: msg`Disable Browser MCP`,
-  getScope: getBrowserMcpScope,
+  getScope: (capabilities, presentationMode) =>
+    resolveMcpScope(capabilities.browserMcpScope, presentationMode),
 };
 
 export const subagentMcpServer: ComposerMcpServerDescriptor = {
@@ -52,7 +75,8 @@ export const subagentMcpServer: ComposerMcpServerDescriptor = {
   label: msg`Subagents`,
   enabledTitle: msg`Subagents enabled for this thread`,
   disableLabel: msg`Disable Subagents`,
-  getScope: getSubagentMcpScope,
+  getScope: (capabilities, presentationMode) =>
+    resolveMcpScope(capabilities.subagentMcpScope, presentationMode),
 };
 
 export const composerMcpServers: readonly ComposerMcpServerDescriptor[] = [

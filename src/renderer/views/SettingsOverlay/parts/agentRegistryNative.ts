@@ -1,7 +1,21 @@
+import type { ComponentType } from "react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import type { AgentKind, Project } from "@/shared/contracts";
-import { isMac, isWindows } from "@/renderer/bridge";
+import type { AgentKind, AgentProviderMetadata, AgentStatus, Project } from "@/shared/contracts";
+import { isMac, isWindows, readBridge } from "@/renderer/bridge";
+import { ClaudeAgentSettingsPanel } from "./ClaudeProfileSettings";
+import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
+
+/**
+ * Props handed to a provider's `settingsPanel`. Panels may consume any
+ * subset; `SingleAgentSettings` supplies them all.
+ */
+export interface NativeAgentSettingsPanelProps {
+  agentKind: string;
+  statuses: readonly AgentStatus[];
+  wslDistros: string[];
+  onOpenProfile?: ((profileKind: string) => void) | undefined;
+}
 
 export interface NativeAgentRegistryEntry {
   id: AgentKind;
@@ -15,6 +29,25 @@ export interface NativeAgentRegistryEntry {
    * offered) since the upstream installer does not support Windows yet.
    */
   supportsWindows?: boolean;
+  /**
+   * Provider-specific settings UI rendered by `SingleAgentSettings` below the
+   * environment rows. Matched by `baseAgentKind`, so instance-scoped kinds
+   * (Claude profiles) render their base provider's panel.
+   */
+  settingsPanel?: ComponentType<NativeAgentSettingsPanelProps>;
+  /**
+   * The provider's `settingsPanel` owns sign-in UI, so `SingleAgentSettings`
+   * suppresses its generic auth section (e.g. OpenCode authenticates per AI
+   * provider — a generic single sign-in row would be redundant).
+   */
+  ownsAuthUi?: boolean;
+  /**
+   * Resolve the provider's signed-in account when it isn't part of the
+   * detected status (e.g. Antigravity's credential sits in the OS keyring
+   * behind its language server). Called when the agent's settings page opens;
+   * resolving `undefined` hides the account line.
+   */
+  accountResolver?: (wslDistros: string[]) => Promise<AgentProviderMetadata | undefined>;
 }
 
 const POSIX_MISSING_CURL_NPM_MESSAGE =
@@ -87,6 +120,7 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
         windows:
           "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://claude.ai/install.ps1 | iex } elseif (Get-Command curl.exe -ErrorAction SilentlyContinue) { cmd /c \"curl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd\" } elseif (Get-Command winget -ErrorAction SilentlyContinue) { winget install Anthropic.ClaudeCode } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod, curl, or WinGet first, then refresh detected agents.' }",
       }),
+    settingsPanel: ClaudeAgentSettingsPanel,
   },
   {
     id: "opencode",
@@ -109,6 +143,8 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
         windows:
           "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g opencode-ai } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
       }),
+    settingsPanel: OpenCodeProviderSettings,
+    ownsAuthUi: true,
   },
   {
     id: "grok",
@@ -139,6 +175,12 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
           "else printf 'curl is required to install Antigravity. Install curl, then refresh detected agents.\\n'; fi",
         "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://antigravity.google/cli/install.ps1 | iex } elseif (Get-Command curl.exe -ErrorAction SilentlyContinue) { cmd /c \"curl -fsSL https://antigravity.google/cli/install.cmd -o install.cmd && install.cmd && del install.cmd\" } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod or curl first, then refresh detected agents.' }",
       ),
+    // Antigravity's signed-in account lives behind its language server (the
+    // credential sits in the OS keyring), so it isn't in the detected status.
+    accountResolver: (wslDistros) =>
+      readBridge()
+        .resolveAgentAccount({ agentKind: "antigravity", wslDistros })
+        .then((result) => result.account),
   },
   {
     id: "commandcode",

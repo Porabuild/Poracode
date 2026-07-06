@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { batchWslCommandsAsync } from "../agents/base";
-import { windowsPowershellPath } from "./windowsPowershell";
+import { batchWslCommandsAsync } from "../base";
+import { windowsPowershellPath } from "../../runtime/windowsPowershell";
 
 /**
  * Process- and port-discovery for the Antigravity language server. `agy` runs

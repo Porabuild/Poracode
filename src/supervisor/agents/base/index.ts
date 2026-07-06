@@ -651,6 +651,7 @@ export async function detectAgentInstall(
   let probedAuthLogoutSupported: boolean | undefined;
   let probedAuthState: AuthState | undefined;
   let probedProviderMetadata: AgentProviderMetadata | undefined;
+  let probedPreferTerminalLogin: boolean | undefined;
   if (executablePath) {
     const probeCtx: DetectProbeCtx = { location, executablePath, version, probeEnv: spec.probeEnv };
     const [capabilityPartial, nextStatusProbeResult] = await Promise.all([
@@ -663,9 +664,13 @@ export async function detectAgentInstall(
         authLogoutSupported: probeAuthLogoutSupported,
         authState: probeAuthStateValue,
         providerMetadata: probeProviderMetadata,
+        preferTerminalLogin: probePreferTerminalLogin,
         ...capabilityRest
       } = capabilityPartial;
       capabilities = { ...capabilities, ...capabilityRest };
+      if (probePreferTerminalLogin) {
+        probedPreferTerminalLogin = true;
+      }
       if (probeAuthMethods?.length) {
         probedAuthMethods = probeAuthMethods;
       }
@@ -720,6 +725,7 @@ export async function detectAgentInstall(
     label: spec.label,
     installed: executablePath !== undefined,
     ...(loginCommand ? { loginCommand } : {}),
+    ...(probedPreferTerminalLogin ? { preferTerminalLogin: true } : {}),
     ...(executablePath ? { executablePath } : {}),
     ...(version ? { version } : {}),
     ...(spec.update ? { update: spec.update } : {}),

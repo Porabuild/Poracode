@@ -52,10 +52,7 @@ import { RuntimeEventRouter } from "./threadSession/runtimeEventRouter";
 import type { ThreadSessionManagerOptions } from "./threadSession/managerOptions";
 import { PtyLifecycle } from "./threadSession/ptyLifecycle";
 import { describeSpawnFailure, sanitizedProcessEnv } from "./threadSession/spawnDiagnostics";
-import {
-  applyClaudeMergedSettingsRewrite,
-  mergeCliHookExtraArgs,
-} from "./threadSession/cliHookArgs";
+import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./threadSession/cliHookArgs";
 import { CliHookSessionCoordinator } from "./threadSession/cliHookPlugin";
 import { StructuredInterruptWatchdog } from "./threadSession/structuredInterruptWatchdog";
 import { SteerCoordinator, clearPendingSteerSlot } from "./threadSession/steerCoordinator";
@@ -968,7 +965,7 @@ export class ThreadSessionManager {
           session.launchPrompt,
         );
       }
-      argv.args = await applyClaudeMergedSettingsRewrite(
+      argv.args = await applyLaunchArgsConfigRewrite(
         session.adapter,
         argv.args,
         session.config,

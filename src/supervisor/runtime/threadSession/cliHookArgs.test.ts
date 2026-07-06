@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentAdapter } from "../../agents/base";
 import type { ProjectLocation, SessionRef, ThreadConfig } from "@/shared/contracts";
 
-// applyClaudeMergedSettingsRewrite's only I/O is the merged-settings file write;
-// mock it so the swap branch is unit-testable without touching disk.
+// rewriteClaudeLaunchArgsForConfig's only I/O is the merged-settings file
+// write; mock it so the swap branch is unit-testable without touching disk.
 vi.mock("../../agents/claude/mergedSettings", () => ({
   prepareClaudeMergedSettingsFile: vi.fn<
     (
@@ -15,11 +15,20 @@ vi.mock("../../agents/claude/mergedSettings", () => ({
 }));
 
 import { prepareClaudeMergedSettingsFile } from "../../agents/claude/mergedSettings";
-import { applyClaudeMergedSettingsRewrite, mergeCliHookExtraArgs } from "./cliHookArgs";
+import {
+  claudeExtraArgsPosition,
+  rewriteClaudeLaunchArgsForConfig,
+} from "../../agents/claude/argv";
+import { codexExtraArgsPosition } from "../../agents/codex/argv";
+import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookArgs";
 
-function adapter(kind: string): AgentAdapter {
-  return { kind } as unknown as AgentAdapter;
-}
+const codexAdapter = { kind: "codex", extraArgsPosition: codexExtraArgsPosition } as AgentAdapter;
+const claudeAdapter = {
+  kind: "claude",
+  extraArgsPosition: claudeExtraArgsPosition,
+  rewriteLaunchArgsForConfig: rewriteClaudeLaunchArgsForConfig,
+} as AgentAdapter;
+const genericAdapter = { kind: "gemini" } as AgentAdapter;
 
 const NATIVE: ProjectLocation = { kind: "windows", path: "C:\\proj" };
 const sessionRef = { id: "sess-1" } as unknown as SessionRef;
@@ -28,11 +37,11 @@ describe("mergeCliHookExtraArgs", () => {
   it("returns argv unchanged when there are no hook extras", () => {
     const args = ["codex", "--config", "x"];
     // Same reference — nothing to merge.
-    expect(mergeCliHookExtraArgs(adapter("codex"), args, [], "")).toBe(args);
+    expect(mergeCliHookExtraArgs(codexAdapter, args, [], "")).toBe(args);
   });
 
-  it("appends extras for a generic adapter (fallback path)", () => {
-    expect(mergeCliHookExtraArgs(adapter("gemini"), ["gemini"], ["--flag"], "")).toEqual([
+  it("appends extras for an adapter without extraArgsPosition (fallback path)", () => {
+    expect(mergeCliHookExtraArgs(genericAdapter, ["gemini"], ["--flag"], "")).toEqual([
       "gemini",
       "--flag",
     ]);
@@ -40,7 +49,7 @@ describe("mergeCliHookExtraArgs", () => {
 
   it("appends extras for a codex launch (no trailing positionals)", () => {
     // Launch: args[0] !== "resume", no sessionRef, empty prompt -> insertAt = args.length.
-    expect(mergeCliHookExtraArgs(adapter("codex"), ["codex"], ["--enable", "hooks"], "")).toEqual([
+    expect(mergeCliHookExtraArgs(codexAdapter, ["codex"], ["--enable", "hooks"], "")).toEqual([
       "codex",
       "--enable",
       "hooks",
@@ -52,7 +61,7 @@ describe("mergeCliHookExtraArgs", () => {
     // The hook flags must land between "resume" and the id so Codex doesn't read
     // `--enable <feature>` as trailing user input.
     const out = mergeCliHookExtraArgs(
-      adapter("codex"),
+      codexAdapter,
       ["resume", "sess-1"],
       ["--enable", "hooks"],
       "",
@@ -63,7 +72,7 @@ describe("mergeCliHookExtraArgs", () => {
 
   it("counts a non-empty prompt as an extra trailing positional for codex resume", () => {
     const out = mergeCliHookExtraArgs(
-      adapter("codex"),
+      codexAdapter,
       ["resume", "sess-1"],
       ["--enable", "hooks"],
       "do the thing",
@@ -75,7 +84,7 @@ describe("mergeCliHookExtraArgs", () => {
 
   it("inserts claude extras before the last positional when a prompt is present", () => {
     const out = mergeCliHookExtraArgs(
-      adapter("claude"),
+      claudeAdapter,
       ["claude", "-p", "hello"],
       ["--hook", "x"],
       "hello",
@@ -84,7 +93,7 @@ describe("mergeCliHookExtraArgs", () => {
   });
 
   it("appends claude extras when there is no prompt", () => {
-    expect(mergeCliHookExtraArgs(adapter("claude"), ["claude"], ["--hook", "x"], "")).toEqual([
+    expect(mergeCliHookExtraArgs(claudeAdapter, ["claude"], ["--hook", "x"], "")).toEqual([
       "claude",
       "--hook",
       "x",
@@ -92,35 +101,35 @@ describe("mergeCliHookExtraArgs", () => {
   });
 });
 
-describe("applyClaudeMergedSettingsRewrite", () => {
+describe("applyLaunchArgsConfigRewrite", () => {
   beforeEach(() => {
     vi.mocked(prepareClaudeMergedSettingsFile).mockReset();
   });
 
-  it("passes through unchanged for a non-Claude adapter", async () => {
+  it("passes through unchanged for an adapter without a rewrite hook", async () => {
     const args = ["codex", "--settings", "/x"];
     const config = { effort: "ultracode" } as ThreadConfig;
-    await expect(
-      applyClaudeMergedSettingsRewrite(adapter("codex"), args, config, NATIVE),
-    ).resolves.toBe(args);
+    await expect(applyLaunchArgsConfigRewrite(codexAdapter, args, config, NATIVE)).resolves.toBe(
+      args,
+    );
     expect(prepareClaudeMergedSettingsFile).not.toHaveBeenCalled();
   });
 
   it("passes through when no inline flags need merging", async () => {
     const args = ["claude", "--settings", "/x"];
     const config = { effort: "high" } as ThreadConfig; // not ultracode, fast unset
-    await expect(
-      applyClaudeMergedSettingsRewrite(adapter("claude"), args, config, NATIVE),
-    ).resolves.toBe(args);
+    await expect(applyLaunchArgsConfigRewrite(claudeAdapter, args, config, NATIVE)).resolves.toBe(
+      args,
+    );
     expect(prepareClaudeMergedSettingsFile).not.toHaveBeenCalled();
   });
 
   it("passes through when there is no --settings flag to swap", async () => {
     const args = ["claude", "-p", "hi"];
     const config = { effort: "ultracode" } as ThreadConfig;
-    await expect(
-      applyClaudeMergedSettingsRewrite(adapter("claude"), args, config, NATIVE),
-    ).resolves.toBe(args);
+    await expect(applyLaunchArgsConfigRewrite(claudeAdapter, args, config, NATIVE)).resolves.toBe(
+      args,
+    );
     expect(prepareClaudeMergedSettingsFile).not.toHaveBeenCalled();
   });
 
@@ -128,7 +137,7 @@ describe("applyClaudeMergedSettingsRewrite", () => {
     vi.mocked(prepareClaudeMergedSettingsFile).mockResolvedValue("/merged/settings.json");
     const args = ["claude", "--settings", "/orig/path"];
     const config = { effort: "ultracode", fast: true } as ThreadConfig;
-    const out = await applyClaudeMergedSettingsRewrite(adapter("claude"), args, config, NATIVE);
+    const out = await applyLaunchArgsConfigRewrite(claudeAdapter, args, config, NATIVE);
     expect(out).toEqual(["claude", "--settings", "/merged/settings.json"]);
     expect(prepareClaudeMergedSettingsFile).toHaveBeenCalledWith("/orig/path", NATIVE, {
       ultracode: true,
@@ -140,8 +149,8 @@ describe("applyClaudeMergedSettingsRewrite", () => {
     vi.mocked(prepareClaudeMergedSettingsFile).mockResolvedValue(undefined);
     const args = ["claude", "--settings", "/orig/path"];
     const config = { effort: "ultracode" } as ThreadConfig;
-    await expect(
-      applyClaudeMergedSettingsRewrite(adapter("claude"), args, config, NATIVE),
-    ).resolves.toBe(args);
+    await expect(applyLaunchArgsConfigRewrite(claudeAdapter, args, config, NATIVE)).resolves.toBe(
+      args,
+    );
   });
 });

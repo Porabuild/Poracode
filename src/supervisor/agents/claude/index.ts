@@ -23,7 +23,7 @@ import {
   type CreateStructuredSessionInput,
   type DetectProbeCtx,
 } from "../base";
-import { buildClaudeArgs } from "./argv";
+import { buildClaudeArgs, claudeExtraArgsPosition, rewriteClaudeLaunchArgsForConfig } from "./argv";
 import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./detection";
 import { probeClaudeCapabilities } from "./probe";
 import { ClaudeSdkSession } from "./sdkSession";
@@ -267,6 +267,8 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       const env = profileEnv(location);
       return { binary: "claude", args, ...(env ? { env } : {}) };
     },
+    extraArgsPosition: claudeExtraArgsPosition,
+    rewriteLaunchArgsForConfig: rewriteClaudeLaunchArgsForConfig,
     createInitialSessionRef() {
       return undefined;
     },
@@ -302,6 +304,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     },
     handleOscNotification: iterm2ProgressOscHint,
     handleOscTitle: brailleSpinnerOscTitleHint,
+    spoofsIterm2StatusEnv: true,
     oscHintsDeferToHookPlugin: true,
     workingSilenceTimeoutMs: null,
     defaultOneShotModel: "haiku",

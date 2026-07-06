@@ -122,8 +122,8 @@ import type {
   UpdateAgentBinaryResult,
   GetLatestAgentVersionPayload,
   GetLatestAgentVersionResult,
-  GetAntigravityAccountPayload,
-  GetAntigravityAccountResult,
+  ResolveAgentAccountPayload,
+  ResolveAgentAccountResult,
   SetPendingSteerPayload,
   ClearPendingSteerPayload,
   ListProjectTreePayload,
@@ -615,10 +615,10 @@ export class SupervisorRuntime {
     return this.agentRegistryService.getLatestAgentVersion(payload);
   }
 
-  async getAntigravityAccount(
-    payload: GetAntigravityAccountPayload,
-  ): Promise<GetAntigravityAccountResult> {
-    return this.agentRegistryService.getAntigravityAccount(payload);
+  async resolveAgentAccount(
+    payload: ResolveAgentAccountPayload,
+  ): Promise<ResolveAgentAccountResult> {
+    return this.agentRegistryService.resolveAgentAccount(payload);
   }
 
   async removeAcpRegistryAgent(
