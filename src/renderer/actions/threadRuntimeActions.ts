@@ -1,6 +1,7 @@
 import type {
   ProjectLocation,
   PromptSegment,
+  SendThreadInputPayload,
   Thread,
   ThreadConfig,
   ThreadServerRequestId,
@@ -25,24 +26,32 @@ function resolveThreadProjectLocation(
   return { thread, projectLocation: resolveProjectLocation(project.location, thread.worktreePath) };
 }
 
+/** Minimal transport a prompt submit needs; the desktop injects the local IPC
+ * bridge, the mobile PWA injects the remote desktop client. */
+export interface ThreadInputTransport {
+  sendThreadInput: (payload: SendThreadInputPayload) => Promise<unknown>;
+}
+
 /**
- * Submit a prompt to a running thread. Optimistically paints the user_message
- * for GUI threads (the supervisor reuses the same item id, so the live event
- * dedupes), flips the runtime to "working", captures a file checkpoint, then
- * forwards the prompt over IPC. On error, rolls back the optimistic
- * working-state flip and forces the active turn closed.
- *
- * Extracted byte-for-byte from the former ThreadPane.onSubmitInput inline
- * handler — this is the app's most critical action.
+ * Submit a prompt to a running thread — the single implementation behind the
+ * desktop action ({@link submitThreadInput}) and the mobile PWA's remote
+ * `sendPrompt`. Optimistically paints the user_message for GUI threads (the
+ * supervisor reuses the same item id, so the live event dedupes), flips the
+ * runtime to "working", runs the injected checkpoint capture (desktop-only),
+ * then forwards the prompt over the injected transport. On error, rolls back
+ * the optimistic working-state flip and forces the active turn closed —
+ * rejecting so promise-chained UI (e.g. the mobile dock collapse) only reacts
+ * to a successful send.
  */
-export async function submitThreadInput(
-  threadId: string,
-  prompt: string,
-  segments?: PromptSegment[],
-): Promise<void> {
-  const resolved = resolveThreadProjectLocation(threadId);
-  if (!resolved) return;
-  const { thread, projectLocation } = resolved;
+export async function performThreadInputSubmit(input: {
+  thread: Thread;
+  prompt: string;
+  segments?: PromptSegment[];
+  transport: ThreadInputTransport;
+  /** Desktop-only: capture a file checkpoint keyed to the optimistic user message. */
+  captureCheckpoint?: (checkpointItemId: string) => Promise<void>;
+}): Promise<void> {
+  const { thread, prompt, segments, transport } = input;
 
   // Optimistic user_message for GUI threads: paint the typed prompt
   // into the chat pane synchronously so it shows before the IPC
@@ -74,16 +83,12 @@ export async function submitThreadInput(
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     });
     markedWorking = true;
-    if (!isHomeProjectId(thread.projectId)) {
-      await captureFileCheckpoint({
-        threadId: thread.id,
-        checkpointItemId: optimisticUserMessageItemId,
-        projectLocation,
-      });
+    if (input.captureCheckpoint) {
+      await input.captureCheckpoint(optimisticUserMessageItemId);
     }
   }
   try {
-    await readBridge().sendThreadInput({
+    await transport.sendThreadInput({
       threadId: thread.id,
       prompt,
       ...(segments ? { segments } : {}),
@@ -104,6 +109,37 @@ export async function submitThreadInput(
   }
   captureThreadInputSubmitted(thread, segments);
   store.touchThread(thread.id);
+}
+
+/**
+ * Desktop entry point: resolves the thread and its project location from the
+ * store, then submits over the local IPC bridge with checkpoint capture.
+ *
+ * Extracted byte-for-byte from the former ThreadPane.onSubmitInput inline
+ * handler — this is the app's most critical action.
+ */
+export async function submitThreadInput(
+  threadId: string,
+  prompt: string,
+  segments?: PromptSegment[],
+): Promise<void> {
+  const resolved = resolveThreadProjectLocation(threadId);
+  if (!resolved) return;
+  const { thread, projectLocation } = resolved;
+  await performThreadInputSubmit({
+    thread,
+    prompt,
+    ...(segments ? { segments } : {}),
+    transport: readBridge(),
+    captureCheckpoint: async (checkpointItemId) => {
+      if (isHomeProjectId(thread.projectId)) return;
+      await captureFileCheckpoint({
+        threadId: thread.id,
+        checkpointItemId,
+        projectLocation,
+      });
+    },
+  });
 }
 
 /**

@@ -109,12 +109,14 @@ function armDialogAutoResponder(
   const state = { stopped: false };
   void (async () => {
     while (!state.stopped) {
-      const text = decodeScrollbackText(runtime.readTerminalScrollback(threadId));
+      const text = decodeScrollbackText(
+        runtime.threadSessionManager.readTerminalScrollback(threadId),
+      );
       for (const r of responders) {
         if (!r.fired && r.needle.test(text)) {
           r.fired = true;
           try {
-            await runtime.writeTerminal({ threadId, data: r.response });
+            await runtime.threadSessionManager.writeTerminal({ threadId, data: r.response });
             // eslint-disable-next-line no-console
             console.log(`[int-test] auto-respond → ${r.reason}`);
           } catch {
@@ -160,13 +162,19 @@ async function waitForSessionRef(
     // Also check the live snapshot — some adapters surface sessionRef via the
     // CLI hook channel without ever emitting a populated thread-state event
     // before we poll.
-    const snapshot = runtime.getThreadSnapshots().find((s) => s.threadId === threadId);
+    const snapshot = runtime.threadSessionManager
+      .getThreadSnapshots()
+      .find((s) => s.threadId === threadId);
     if (snapshot?.sessionRef?.providerSessionId) {
       return snapshot.sessionRef;
     }
     await sleep(500);
   }
-  const tail = runtime.readTerminalScrollback(threadId).slice(-600).replace(/\s+/g, " ").trim();
+  const tail = runtime.threadSessionManager
+    .readTerminalScrollback(threadId)
+    .slice(-600)
+    .replace(/\s+/g, " ")
+    .trim();
   const recentThreadStates = events
     .filter((e) => e.type === "thread-state" && (e as { threadId?: string }).threadId === threadId)
     .slice(-5)
@@ -212,7 +220,7 @@ async function waitForTurnComplete(
   let lastChangeAt = Date.now();
   let promptSeen = false;
   while (Date.now() < deadline) {
-    const scrollback = runtime.readTerminalScrollback(threadId);
+    const scrollback = runtime.threadSessionManager.readTerminalScrollback(threadId);
     if (!promptSeen) {
       promptSeen = scrollback.includes(promptToken);
       if (promptSeen) {
@@ -242,7 +250,7 @@ async function waitForScrollbackMatch(
   const deadline = Date.now() + timeoutMs;
   let lastScrollback = "";
   while (Date.now() < deadline) {
-    const scrollback = runtime.readTerminalScrollback(threadId);
+    const scrollback = runtime.threadSessionManager.readTerminalScrollback(threadId);
     lastScrollback = scrollback;
     if (scrollback.includes(needle)) {
       return scrollback;
@@ -383,7 +391,7 @@ describe("provider lifecycle: create → unload → resume → initial message v
       let resumeStarted = false;
       const stopResponder = armDialogAutoResponder(ctx.runtime, threadId, kind);
       try {
-        await ctx.runtime.startThread(startPayload);
+        await ctx.runtime.threadSessionManager.startThread(startPayload);
         const sessionRef = await waitForSessionRef(
           ctx.runtime,
           ctx.events,
@@ -398,7 +406,7 @@ describe("provider lifecycle: create → unload → resume → initial message v
 
         // Unload — close the live thread, leaving the discovered sessionRef
         // as the resume handle.
-        await ctx.runtime.closeThread({ threadId });
+        await ctx.runtime.threadSessionManager.closeThread({ threadId });
         await sleep(750);
 
         // Resume — same threadId, supply the sessionRef so the supervisor's
@@ -414,7 +422,7 @@ describe("provider lifecycle: create → unload → resume → initial message v
           presentationMode: "terminal",
         };
         resumeStarted = true;
-        await ctx.runtime.startThread(resumePayload);
+        await ctx.runtime.threadSessionManager.startThread(resumePayload);
 
         // After resume, the provider CLI normally reprints prior conversation
         // history into the PTY. Assert the original prompt's token is back
@@ -426,12 +434,12 @@ describe("provider lifecycle: create → unload → resume → initial message v
           SCROLLBACK_WAIT_TIMEOUT_MS,
         );
 
-        const scrollback = ctx.runtime.readTerminalScrollback(threadId);
+        const scrollback = ctx.runtime.threadSessionManager.readTerminalScrollback(threadId);
         expect(scrollback).toContain(PROMPT_TOKEN);
       } finally {
         stopResponder();
         try {
-          await ctx.runtime.closeThread({ threadId });
+          await ctx.runtime.threadSessionManager.closeThread({ threadId });
         } catch {
           // best-effort
         }

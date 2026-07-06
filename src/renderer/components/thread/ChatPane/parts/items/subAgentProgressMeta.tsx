@@ -2,10 +2,7 @@ import { Fragment } from "react";
 import type { ToolCallProgress } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
-import {
-  formatBracketParamHints,
-  stripBracketParams,
-} from "@/renderer/components/common/ProviderModelMenu/parts/modelShortcutLabel";
+import { formatBracketParamHints, stripBracketParams } from "@/shared/modelLabels";
 
 export type SubAgentProgressPartKind = "model" | "tokens" | "live" | "steps";
 

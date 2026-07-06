@@ -99,7 +99,7 @@ describe("agent status cache", () => {
     });
 
     const cached = (
-      runtime as unknown as {
+      runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
           windows: unknown[];
           wsl: unknown[];
@@ -206,7 +206,7 @@ describe("agent status cache", () => {
 
     const runtime = makeRuntime(() => {});
     const cached = (
-      runtime as unknown as {
+      runtime.agentStatusService as unknown as {
         readCachedStatuses: (wslDistros: readonly string[]) => {
           windows: AgentStatus[];
           wsl: AgentStatus[];

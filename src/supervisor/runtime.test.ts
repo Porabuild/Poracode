@@ -217,7 +217,7 @@ describe("SupervisorRuntime thread input", () => {
       session,
     );
 
-    await runtime.sendThreadInput({
+    await runtime.threadSessionManager.sendThreadInput({
       threadId: session.threadId,
       prompt: "hello",
       config: {
@@ -265,7 +265,7 @@ describe("SupervisorRuntime thread input", () => {
     );
 
     await expect(
-      runtime.sendThreadInput({
+      runtime.threadSessionManager.sendThreadInput({
         threadId: session.threadId,
         prompt: "hello",
         config: {
@@ -308,7 +308,7 @@ describe("SupervisorRuntime thread input", () => {
       session,
     );
 
-    await runtime.sendThreadInput({
+    await runtime.threadSessionManager.sendThreadInput({
       threadId: session.threadId,
       prompt: "hello",
       config: {
@@ -351,7 +351,10 @@ describe("SupervisorRuntime thread input", () => {
       session,
     );
 
-    await runtime.rollbackThreadConversation({ threadId: session.threadId, numTurns: 2 });
+    await runtime.threadSessionManager.rollbackThreadConversation({
+      threadId: session.threadId,
+      numTurns: 2,
+    });
 
     expect(rollbackThread).toHaveBeenCalledWith(2);
   });
@@ -366,7 +369,10 @@ describe("SupervisorRuntime thread input", () => {
     );
 
     await expect(
-      runtime.rollbackThreadConversation({ threadId: session.threadId, numTurns: 1 }),
+      runtime.threadSessionManager.rollbackThreadConversation({
+        threadId: session.threadId,
+        numTurns: 1,
+      }),
     ).rejects.toThrow("Codex does not support checkpoint rollback.");
     expect(session.structuredSession.startTurn).not.toHaveBeenCalled();
   });
@@ -443,7 +449,7 @@ describe("SupervisorRuntime thread input", () => {
       }
     ).sessions.get("thread-gui-queue")!.status = "working";
 
-    await runtime.sendThreadInput({
+    await runtime.threadSessionManager.sendThreadInput({
       threadId: "thread-gui-queue",
       prompt: "first",
       config: {
@@ -451,7 +457,7 @@ describe("SupervisorRuntime thread input", () => {
       },
       userMessageItemId: "user-first",
     });
-    await runtime.sendThreadInput({
+    await runtime.threadSessionManager.sendThreadInput({
       threadId: "thread-gui-queue",
       prompt: "second",
       config: {
@@ -644,7 +650,7 @@ describe("SupervisorRuntime thread input", () => {
       }
     ).sessions.get("thread-gui-error")!.status = "working";
 
-    await runtime.sendThreadInput({
+    await runtime.threadSessionManager.sendThreadInput({
       threadId: "thread-gui-error",
       prompt: "redirect",
       config: { model: "gpt-5.4" },
@@ -724,7 +730,7 @@ describe("SupervisorRuntime thread input", () => {
       }
     ).sessions.get("thread-gui-post-error")!.status = "error";
 
-    await runtime.sendThreadInput({
+    await runtime.threadSessionManager.sendThreadInput({
       threadId: "thread-gui-post-error",
       prompt: "retry this",
       config: { model: "gpt-5.4" },
@@ -769,7 +775,7 @@ describe("SupervisorRuntime thread input", () => {
       session,
     );
 
-    await runtime.writeTerminal({
+    await runtime.threadSessionManager.writeTerminal({
       threadId: session.threadId,
       data: "hello\r",
     });
@@ -1065,7 +1071,7 @@ describe("SupervisorRuntime thread input", () => {
       }
     ).handlePtyData(session, "b".repeat(120_000));
 
-    const scrollback = runtime.readTerminalScrollback(session.threadId);
+    const scrollback = runtime.threadSessionManager.readTerminalScrollback(session.threadId);
     expect(scrollback).toHaveLength(100_000);
     expect(scrollback.startsWith("b")).toBe(true);
   });
@@ -1340,7 +1346,7 @@ describe("SupervisorRuntime thread input", () => {
     );
 
     try {
-      await runtime.closeThread({ threadId: shell.shellId });
+      await runtime.threadSessionManager.closeThread({ threadId: shell.shellId });
     } finally {
       processKillSpy.mockRestore();
       if (platformDescriptor) {
@@ -1506,7 +1512,7 @@ describe("SupervisorRuntime thread input", () => {
         }
       ).adapters.set("codex", adapter);
 
-      await runtime.startThread({
+      await runtime.threadSessionManager.startThread({
         threadId: "thread-3",
         projectLocation: {
           kind: "windows",
@@ -1603,7 +1609,7 @@ describe("SupervisorRuntime thread input", () => {
       adapter,
     );
 
-    await runtime.startThread({
+    await runtime.threadSessionManager.startThread({
       threadId: "thread-gui-start",
       projectLocation: {
         kind: "windows",
@@ -1737,7 +1743,7 @@ describe("SupervisorRuntime thread input", () => {
       adapter,
     );
 
-    await runtime.startThread({
+    await runtime.threadSessionManager.startThread({
       threadId: "thread-gui-complete-only",
       projectLocation: {
         kind: "windows",
@@ -1837,7 +1843,7 @@ describe("SupervisorRuntime thread input", () => {
       adapter,
     );
 
-    await runtime.startThread({
+    await runtime.threadSessionManager.startThread({
       threadId: "thread-gui-quick-stop",
       projectLocation: {
         kind: "windows",
@@ -1856,7 +1862,7 @@ describe("SupervisorRuntime thread input", () => {
     });
 
     emitted.length = 0;
-    await runtime.interruptThread({ threadId: "thread-gui-quick-stop" });
+    await runtime.threadSessionManager.interruptThread({ threadId: "thread-gui-quick-stop" });
 
     expect(interruptTurn).toHaveBeenCalledTimes(1);
     expect(emitted).toContainEqual(
@@ -1936,7 +1942,7 @@ describe("SupervisorRuntime thread input", () => {
       adapter,
     );
 
-    const startPromise = runtime.startThread({
+    const startPromise = runtime.threadSessionManager.startThread({
       threadId: "thread-gui-pre-session-stop",
       projectLocation: {
         kind: "windows",
@@ -1965,7 +1971,7 @@ describe("SupervisorRuntime thread input", () => {
     );
 
     emitted.length = 0;
-    await runtime.interruptThread({ threadId: "thread-gui-pre-session-stop" });
+    await runtime.threadSessionManager.interruptThread({ threadId: "thread-gui-pre-session-stop" });
     const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
     expect(emitted).toContainEqual(
@@ -2075,7 +2081,7 @@ describe("SupervisorRuntime thread input", () => {
       adapter,
     );
 
-    const startPromise = runtime.startThread({
+    const startPromise = runtime.threadSessionManager.startThread({
       threadId: "thread-gui-activate-stop",
       projectLocation: {
         kind: "windows",
@@ -2095,7 +2101,7 @@ describe("SupervisorRuntime thread input", () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    await runtime.interruptThread({ threadId: "thread-gui-activate-stop" });
+    await runtime.threadSessionManager.interruptThread({ threadId: "thread-gui-activate-stop" });
 
     resolveStructuredSession?.({
       launchOptions: {},
@@ -2202,7 +2208,7 @@ describe("SupervisorRuntime thread input", () => {
       adapter,
     );
 
-    await runtime.startThread({
+    await runtime.threadSessionManager.startThread({
       threadId: "thread-gui-goal",
       projectLocation: {
         kind: "windows",
@@ -2308,7 +2314,7 @@ describe("SupervisorRuntime thread input", () => {
       extraArgs: ["--enable", "hooks"],
     }));
 
-    await runtime.startThread({
+    await runtime.threadSessionManager.startThread({
       threadId: "thread-hook-order",
       projectLocation: {
         kind: "windows",
@@ -2385,7 +2391,7 @@ describe("SupervisorRuntime thread input", () => {
       extraArgs: ["--enable", "hooks"],
     }));
 
-    await runtime.startThread({
+    await runtime.threadSessionManager.startThread({
       threadId: "thread-hook-resume-order",
       projectLocation: {
         kind: "windows",
@@ -2551,7 +2557,7 @@ describe("SupervisorRuntime thread input", () => {
       );
 
       const spicyPrompt = "let's `do` $this\nwith 'quotes'";
-      await runtime.startThread({
+      await runtime.threadSessionManager.startThread({
         threadId: "thread-prompt-quoting",
         projectLocation,
         agentKind: "claude",

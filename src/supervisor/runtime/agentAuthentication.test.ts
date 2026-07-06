@@ -133,7 +133,7 @@ describe("authenticateAcpAgent", () => {
     verifyAcpGenericAuthenticationMock.mockResolvedValueOnce(true);
 
     const runtime = makeRuntime(() => {});
-    await runtime.authenticateAcpAgent({
+    await runtime.agentRegistryService.authenticateAcpAgent({
       agentKind: "acp-generic:my-acp",
       methodId: "browser-login",
     });
@@ -160,7 +160,7 @@ describe("authenticateAcpAgent", () => {
 
     const runtime = makeRuntime(() => {});
     await expect(
-      runtime.authenticateAcpAgent({
+      runtime.agentRegistryService.authenticateAcpAgent({
         agentKind: "acp-generic:my-acp",
         methodId: "browser-login",
       }),

@@ -80,7 +80,9 @@ describe("ipcProcedureMap", () => {
   it("returns LSP request results from the supervisor dispatcher", async () => {
     const result = { items: [{ label: "completion" }] };
     const runtime = {
-      lspSendMessage: vi.fn<() => Promise<unknown>>().mockResolvedValue(result),
+      lspManager: {
+        sendMessage: vi.fn<() => Promise<unknown>>().mockResolvedValue(result),
+      },
     } as never;
 
     const handlers = createSupervisorIpcHandlers(runtime);

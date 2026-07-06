@@ -1,126 +1,242 @@
 import { defineSupervisorIpcHandlers, type SupervisorIpcHandlerMap } from "@/shared/ipc";
 import type { SupervisorRuntime } from "./supervisorRuntime";
 
+/**
+ * Maps IPC procedures straight onto the runtime's services. Payload → argument
+ * unpacking lives here; `SupervisorRuntime` itself only hosts service wiring
+ * and the few cross-service orchestrations (worktree removal/prune, project
+ * relocation, sync, snapshots, clone) that the map calls through `runtime`.
+ */
 export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): SupervisorIpcHandlerMap {
+  const registry = runtime.agentRegistryService;
+  const usage = runtime.usageService;
+  const hookPlugins = runtime.cliHookPluginCoordinator;
+  const threads = runtime.threadSessionManager;
+  const git = runtime.gitService;
+  const checkpoints = runtime.gitCheckpointService;
+  const github = runtime.githubService;
+  const generation = runtime.generationService;
+  const fileIndex = runtime.fileIndexService;
+  const projectTree = runtime.projectTreeService;
+  const lsp = runtime.lspManager;
   return defineSupervisorIpcHandlers({
-    listWslDistros: () => runtime.listWslDistros(),
-    getAgentStatuses: (payload) => runtime.getAgentStatuses(payload),
-    refreshAgentStatuses: (payload) => runtime.refreshAgentStatuses(payload),
-    getProviderUsage: (payload) => runtime.getProviderUsage(payload),
-    refreshProviderUsage: (payload) => runtime.refreshProviderUsage(payload),
-    getAgentHookPluginStatuses: (payload) => runtime.getAgentHookPluginStatuses(payload),
-    installAgentHookPlugin: (payload) => runtime.installAgentHookPlugin(payload),
-    uninstallAgentHookPlugin: (payload) => runtime.uninstallAgentHookPlugin(payload),
-    listAcpRegistry: () => runtime.listAcpRegistry(),
-    installAcpRegistryAgent: (payload) => runtime.installAcpRegistryAgent(payload),
-    updateAcpRegistryAgent: (payload) => runtime.updateAcpRegistryAgent(payload),
-    updateAgentBinary: (payload) => runtime.updateAgentBinary(payload),
-    getLatestAgentVersion: (payload) => runtime.getLatestAgentVersion(payload),
-    resolveAgentAccount: (payload) => runtime.resolveAgentAccount(payload),
-    removeAcpRegistryAgent: (payload) => runtime.removeAcpRegistryAgent(payload),
-    setAcpRegistryAgentAuth: (payload) => runtime.setAcpRegistryAgentAuth(payload),
-    authenticateAcpAgent: (payload) => runtime.authenticateAcpAgent(payload),
-    logoutAcpAgent: (payload) => runtime.logoutAcpAgent(payload),
-    getThreadSnapshots: () => runtime.getThreadSnapshots(),
-    startThread: (payload) => runtime.startThread(payload),
-    sendThreadInput: (payload) => runtime.sendThreadInput(payload),
-    interruptThread: (payload) => runtime.interruptThread(payload),
-    rollbackThreadConversation: (payload) => runtime.rollbackThreadConversation(payload),
-    setPendingSteer: (payload) => runtime.setPendingSteer(payload),
-    clearPendingSteer: (payload) => runtime.clearPendingSteer(payload),
-    writeTerminal: (payload) => runtime.writeTerminal(payload),
-    stageThreadInput: (payload) => runtime.stageThreadInput(payload),
-    resizeTerminal: (payload) => runtime.resizeTerminal(payload),
-    resolveThreadServerRequest: (payload) => runtime.resolveThreadServerRequest(payload),
-    closeThread: (payload) => runtime.closeThread(payload),
-    startShell: (payload) => runtime.startShell(payload),
-    extractContext: (payload) => runtime.extractContext(payload),
-    cancelExtractContext: ({ threadId }) => runtime.cancelExtractContext(threadId),
-    readTerminalScrollback: ({ threadId }) => runtime.readTerminalScrollback(threadId),
-    readTerminalSize: ({ threadId }) => runtime.readTerminalSize(threadId),
-    subagentSubscribe: (payload) => runtime.subagentSubscribe(payload),
+    listWslDistros: () => registry.listWslDistros(),
+    getAgentStatuses: (payload) => registry.getAgentStatuses(payload),
+    refreshAgentStatuses: (payload) => registry.refreshAgentStatuses(payload),
+    getProviderUsage: (payload) => usage.getProviderUsage(payload),
+    refreshProviderUsage: (payload) => usage.refreshProviderUsage(payload),
+    getAgentHookPluginStatuses: (payload) => hookPlugins.getStatuses(payload),
+    installAgentHookPlugin: (payload) => hookPlugins.installPlugin(payload),
+    uninstallAgentHookPlugin: (payload) => hookPlugins.uninstallPlugin(payload),
+    listAcpRegistry: () => registry.listAcpRegistry(),
+    installAcpRegistryAgent: (payload) => registry.installAcpRegistryAgent(payload),
+    updateAcpRegistryAgent: (payload) => registry.updateAcpRegistryAgent(payload),
+    updateAgentBinary: (payload) => registry.updateAgentBinary(payload),
+    getLatestAgentVersion: (payload) => registry.getLatestAgentVersion(payload),
+    resolveAgentAccount: (payload) => registry.resolveAgentAccount(payload),
+    removeAcpRegistryAgent: (payload) => registry.removeAcpRegistryAgent(payload),
+    setAcpRegistryAgentAuth: (payload) => registry.setAcpRegistryAgentAuth(payload),
+    authenticateAcpAgent: (payload) => registry.authenticateAcpAgent(payload),
+    logoutAcpAgent: (payload) => registry.logoutAcpAgent(payload),
+    getThreadSnapshots: () => threads.getThreadSnapshots(),
+    startThread: (payload) => threads.startThread(payload),
+    sendThreadInput: (payload) => threads.sendThreadInput(payload),
+    interruptThread: (payload) => threads.interruptThread(payload),
+    rollbackThreadConversation: (payload) => threads.rollbackThreadConversation(payload),
+    setPendingSteer: (payload) => threads.setPendingSteer(payload),
+    clearPendingSteer: (payload) => threads.clearPendingSteer(payload),
+    writeTerminal: (payload) => threads.writeTerminal(payload),
+    stageThreadInput: (payload) => threads.stageThreadInput(payload),
+    resizeTerminal: (payload) => threads.resizeTerminal(payload),
+    resolveThreadServerRequest: (payload) => threads.resolveThreadServerRequest(payload),
+    closeThread: (payload) => threads.closeThread(payload),
+    startShell: (payload) => threads.startShell(payload),
+    extractContext: (payload) => generation.extractContext(payload),
+    cancelExtractContext: ({ threadId }) => generation.cancelExtractContext(threadId),
+    readTerminalScrollback: ({ threadId }) => threads.readTerminalScrollback(threadId),
+    readTerminalSize: ({ threadId }) => threads.readTerminalSize(threadId),
+    subagentSubscribe: (payload) => threads.subagentSubscribe(payload),
     subagentUnsubscribe: async (payload) => {
-      runtime.subagentUnsubscribe(payload);
+      threads.subagentUnsubscribe(payload);
     },
-    workflowGetRun: (payload) => runtime.workflowGetRun(payload),
-    createFileCheckpoint: (payload) => runtime.createFileCheckpoint(payload),
-    finalizeFileCheckpoint: (payload) => runtime.finalizeFileCheckpoint(payload),
-    listFileCheckpoints: (payload) => runtime.listFileCheckpoints(payload),
-    restoreFileCheckpoint: (payload) => runtime.restoreFileCheckpoint(payload),
-    getGitStatus: (payload) => runtime.getGitStatus(payload),
-    getGitDiff: (payload) => runtime.getGitDiff(payload),
-    getGitDiffBatch: (payload) => runtime.getGitDiffBatch(payload),
-    getGitFileContent: (payload) => runtime.getGitFileContent(payload),
-    gitStage: (payload) => runtime.gitStage(payload),
-    gitUnstage: (payload) => runtime.gitUnstage(payload),
-    gitRevert: (payload) => runtime.gitRevert(payload),
-    gitStageAll: (payload) => runtime.gitStageAll(payload),
-    gitUnstageAll: (payload) => runtime.gitUnstageAll(payload),
-    gitRevertAll: (payload) => runtime.gitRevertAll(payload),
-    gitCommit: (payload) => runtime.gitCommit(payload),
-    gitInit: (payload) => runtime.gitInit(payload),
-    gitAddRemote: (payload) => runtime.gitAddRemote(payload),
-    generateCommitMessage: (payload) => runtime.generateCommitMessage(payload),
-    generateTitle: (payload) => runtime.generateTitle(payload),
-    generatePrSummary: (payload) => runtime.generatePrSummary(payload),
-    gitListBranches: (payload) => runtime.gitListBranches(payload),
-    gitFetch: (payload) => runtime.gitFetch(payload),
-    gitListWorktrees: (payload) => runtime.gitListWorktrees(payload),
-    gitAddWorktree: (payload) => runtime.gitAddWorktree(payload),
+    workflowGetRun: async (payload) => {
+      const { readWorkflowRun } = await import("./workflows/transcriptReader");
+      // `run` is null when the manifest hasn't been written yet (normal for the
+      // first few seconds after a workflow launches). Pass it through verbatim
+      // so the renderer keeps the row in a "starting…" state while polling.
+      const run = await readWorkflowRun({
+        manifestPath: payload.manifestPath,
+        location: payload.location,
+        ...(payload.transcriptDir ? { transcriptDir: payload.transcriptDir } : {}),
+        ...(payload.includeAgentChats ? { includeAgentChats: true } : {}),
+      });
+      return { run };
+    },
+    createFileCheckpoint: async (payload) => ({
+      checkpoint: await checkpoints.create(payload),
+    }),
+    finalizeFileCheckpoint: async (payload) => ({
+      checkpoint: await checkpoints.finalize(payload),
+    }),
+    listFileCheckpoints: (payload) => checkpoints.list(payload),
+    restoreFileCheckpoint: async (payload) => {
+      await checkpoints.restore(payload);
+    },
+    getGitStatus: (payload) => git.getStatus(payload.projectLocation),
+    getGitDiff: (payload) => git.getDiff(payload.projectLocation, payload.filePath, payload.staged),
+    getGitDiffBatch: (payload) => git.getDiffBatch(payload.projectLocation, payload.untrackedPaths),
+    getGitFileContent: (payload) =>
+      git.getFileContent(payload.projectLocation, payload.filePath, payload.staged),
+    gitStage: (payload) => git.stage(payload.projectLocation, payload.filePath),
+    gitUnstage: (payload) => git.unstage(payload.projectLocation, payload.filePath),
+    gitRevert: (payload) => git.revert(payload.projectLocation, payload.filePath),
+    gitStageAll: (payload) => git.stageAll(payload.projectLocation),
+    gitUnstageAll: (payload) => git.unstageAll(payload.projectLocation),
+    gitRevertAll: (payload) => git.revertAll(payload.projectLocation),
+    gitCommit: async (payload) => {
+      const { hash } = await git.commit(
+        payload.projectLocation,
+        payload.message,
+        payload.addAll ?? false,
+      );
+      return { hash, message: payload.message };
+    },
+    gitInit: (payload) => git.init(payload.projectLocation),
+    gitAddRemote: (payload) => git.addRemote(payload.projectLocation, payload.remote, payload.url),
+    generateCommitMessage: (payload) => generation.generateCommitMessage(payload),
+    generateTitle: (payload) => generation.generateTitle(payload),
+    generatePrSummary: (payload) => generation.generatePrSummary(payload),
+    gitListBranches: (payload) => git.listBranches(payload.projectLocation, payload.includeRemote),
+    gitFetch: (payload) => git.fetch(payload.projectLocation, payload.remote, payload.prune),
+    gitListWorktrees: (payload) => git.listWorktrees(payload.projectLocation),
+    gitAddWorktree: (payload) =>
+      git.addWorktree(
+        payload.projectLocation,
+        payload.path,
+        payload.branch,
+        payload.createBranch,
+        payload.startPoint,
+        payload.copyIgnoredPatterns,
+        payload.transferUncommitted,
+        payload.keepChangesInSource,
+        {
+          ...(payload.worktreeRoot ? { root: payload.worktreeRoot } : {}),
+          ...(payload.worktreeOmitRepoDir ? { omitRepoDir: true } : {}),
+        },
+      ),
     gitRemoveWorktree: (payload) => runtime.gitRemoveWorktree(payload),
     gitPruneWorktrees: (payload) => runtime.gitPruneWorktrees(payload),
-    gitDeleteBranch: (payload) => runtime.gitDeleteBranch(payload),
-    gitSwitchBranch: (payload) => runtime.gitSwitchBranch(payload),
-    gitPull: (payload) => runtime.gitPull(payload),
-    gitPullRebase: (payload) => runtime.gitPullRebase(payload),
-    gitPush: (payload) => runtime.gitPush(payload),
-    gitSync: (payload) => runtime.gitSync(payload),
-    gitSyncRebase: (payload) => runtime.gitSyncRebase(payload),
-    gitGetWorktreeSourceBranch: (payload) => runtime.gitGetWorktreeSourceBranch(payload),
+    gitDeleteBranch: (payload) =>
+      payload.remote
+        ? git.deleteRemoteBranch(payload.projectLocation, payload.remote, payload.branch)
+        : git.deleteBranch(payload.projectLocation, payload.branch, payload.force),
+    gitSwitchBranch: (payload) =>
+      git.switchBranch(payload.projectLocation, payload.branch, payload.createNew),
+    gitPull: (payload) => git.pull(payload.projectLocation, payload.remote ?? "origin"),
+    gitPullRebase: (payload) => git.pullRebase(payload.projectLocation, payload.remote ?? "origin"),
+    gitPush: (payload) =>
+      git.push(
+        payload.projectLocation,
+        payload.remote ?? "origin",
+        payload.branch,
+        payload.setUpstream ?? false,
+      ),
+    gitSync: (payload) => runtime.gitSync(payload, false),
+    gitSyncRebase: (payload) => runtime.gitSync(payload, true),
+    gitGetWorktreeSourceBranch: (payload) =>
+      git.getWorktreeSourceBranch(
+        payload.projectLocation,
+        payload.branch,
+        payload.sourceBranchOverride,
+      ),
     gitProjectSnapshot: (payload) => runtime.gitProjectSnapshot(payload),
-    gitWorktreeStatusBatch: (payload) => runtime.gitWorktreeStatusBatch(payload),
-    gitMergeToSource: (payload) => runtime.gitMergeToSource(payload),
-    gitPullFromSource: (payload) => runtime.gitPullFromSource(payload),
-    gitAbortMerge: (payload) => runtime.gitAbortMerge(payload),
-    gitFinishMerge: (payload) => runtime.gitFinishMerge(payload),
-    gitWatchProject: (payload) => runtime.gitWatchProject(payload),
-    gitWatchWorktrees: (payload) => runtime.gitWatchWorktrees(payload),
-    gitUnwatchProject: (payload) => runtime.gitUnwatchProject(payload),
+    gitWorktreeStatusBatch: async (payload) => ({
+      statuses: await git.getWorktreeStatusBatch(
+        payload.projectLocation,
+        payload.worktreePaths,
+        payload.detail ?? "full",
+      ),
+    }),
+    gitMergeToSource: (payload) =>
+      git.mergeToSource(
+        payload.projectLocation,
+        payload.worktreeLocation,
+        payload.worktreeBranch,
+        payload.sourceBranch,
+      ),
+    gitPullFromSource: (payload) =>
+      git.pullFromSource(
+        payload.worktreeLocation,
+        payload.sourceBranch,
+        payload.preserveLocalChanges,
+      ),
+    gitAbortMerge: (payload) => git.abortMerge(payload.worktreeLocation),
+    gitFinishMerge: (payload) => git.finishMerge(payload.worktreeLocation),
+    gitWatchProject: async (payload) => {
+      runtime.projectWatcher.watch(payload.projectId, payload.projectLocation);
+    },
+    gitWatchWorktrees: async (payload) => {
+      runtime.projectWatcher.watchWorktrees(payload.projectId, payload.worktreePaths);
+    },
+    gitUnwatchProject: async (payload) => {
+      runtime.projectWatcher.unwatch(payload.projectId);
+    },
     relocateProject: (payload) => runtime.relocateProject(payload),
-    searchProjectFiles: (payload) => runtime.searchProjectFiles(payload),
-    listProjectTree: (payload) => runtime.listProjectTree(payload),
-    browseHostDirectory: (payload) => runtime.browseHostDirectory(payload),
-    searchProjectTree: (payload) => runtime.searchProjectTree(payload),
-    readProjectFile: (payload) => runtime.readProjectFile(payload),
-    readAbsoluteFile: (payload) => runtime.readAbsoluteFile(payload),
-    readExternalFile: (payload) => runtime.readExternalFile(payload),
-    writeProjectFile: (payload) => runtime.writeProjectFile(payload),
-    writeExternalFile: (payload) => runtime.writeExternalFile(payload),
-    createProjectEntry: (payload) => runtime.createProjectEntry(payload),
-    renameProjectEntry: (payload) => runtime.renameProjectEntry(payload),
-    moveProjectEntry: (payload) => runtime.moveProjectEntry(payload),
-    deleteProjectEntry: (payload) => runtime.deleteProjectEntry(payload),
+    searchProjectFiles: (payload) => fileIndex.searchProjectFiles(payload),
+    listProjectTree: (payload) => projectTree.listProjectTree(payload),
+    browseHostDirectory: (payload) => projectTree.browseHostDirectory(payload),
+    searchProjectTree: (payload) => projectTree.searchProjectTree(payload),
+    readProjectFile: (payload) => projectTree.readProjectFile(payload),
+    readAbsoluteFile: (payload) => projectTree.readAbsoluteFile(payload),
+    readExternalFile: (payload) => projectTree.readExternalFile(payload),
+    writeProjectFile: (payload) => projectTree.writeProjectFile(payload),
+    writeExternalFile: (payload) => projectTree.writeExternalFile(payload),
+    createProjectEntry: (payload) => projectTree.createProjectEntry(payload),
+    renameProjectEntry: (payload) => projectTree.renameProjectEntry(payload),
+    moveProjectEntry: (payload) => projectTree.moveProjectEntry(payload),
+    deleteProjectEntry: (payload) => projectTree.deleteProjectEntry(payload),
     detectSetupScript: (payload) => runtime.detectSetupScript(payload),
-    ghCheckAvailable: (payload) => runtime.ghCheckAvailable(payload),
-    ghCreatePr: (payload) => runtime.ghCreatePr(payload),
-    ghGetPrForBranch: (payload) => runtime.ghGetPrForBranch(payload),
-    ghListPrs: (payload) => runtime.ghListPrs(payload),
-    ghMergePr: (payload) => runtime.ghMergePr(payload),
-    ghClosePr: (payload) => runtime.ghClosePr(payload),
-    ghReopenPr: (payload) => runtime.ghReopenPr(payload),
-    ghMarkPrReady: (payload) => runtime.ghMarkPrReady(payload),
-    ghGetPrChecks: (payload) => runtime.ghGetPrChecks(payload),
-    ghGetPrFiles: (payload) => runtime.ghGetPrFiles(payload),
-    ghGetPrDiff: (payload) => runtime.ghGetPrDiff(payload),
-    ghSubmitPrReview: (payload) => runtime.ghSubmitPrReview(payload),
-    ghUpdatePrBranch: (payload) => runtime.ghUpdatePrBranch(payload),
-    ghGetPrDetails: (payload) => runtime.ghGetPrDetails(payload),
-    ghPostPrComment: (payload) => runtime.ghPostPrComment(payload),
-    ghListAccounts: (payload) => runtime.ghListAccounts(payload),
-    ghListRepos: (payload) => runtime.ghListRepos(payload),
+    ghCheckAvailable: (payload) => github.checkGhAvailable(payload.projectLocation),
+    ghCreatePr: (payload) =>
+      github.createPr(
+        payload.projectLocation,
+        payload.branch,
+        payload.baseBranch,
+        payload.title,
+        payload.body,
+        payload.isDraft,
+      ),
+    ghGetPrForBranch: (payload) => github.getPrForBranch(payload.projectLocation, payload.branch),
+    ghListPrs: async (payload) => ({ prs: await github.listPrs(payload.projectLocation) }),
+    ghMergePr: (payload) =>
+      github.mergePr(payload.projectLocation, payload.prNumber, payload.method, payload.admin),
+    ghClosePr: (payload) => github.closePr(payload.projectLocation, payload.prNumber),
+    ghReopenPr: (payload) => github.reopenPr(payload.projectLocation, payload.prNumber),
+    ghMarkPrReady: (payload) => github.markPrReady(payload.projectLocation, payload.prNumber),
+    ghGetPrChecks: (payload) => github.getPrChecks(payload.projectLocation, payload.branch),
+    ghGetPrFiles: (payload) => github.getPrFiles(payload.projectLocation, payload.prNumber),
+    ghGetPrDiff: (payload) => github.getPrDiff(payload.projectLocation, payload.prNumber),
+    ghSubmitPrReview: (payload) =>
+      github.submitPrReview(
+        payload.projectLocation,
+        payload.prNumber,
+        payload.decision,
+        payload.body,
+      ),
+    ghUpdatePrBranch: (payload) =>
+      github.updatePrBranch(payload.projectLocation, payload.prNumber, payload.rebase),
+    ghGetPrDetails: (payload) => github.getPrDetails(payload.projectLocation, payload.prNumber),
+    ghPostPrComment: (payload) =>
+      github.postPrComment(payload.projectLocation, payload.prNumber, payload.body),
+    ghListAccounts: (payload) => github.listAccounts(payload.runtime),
+    ghListRepos: (payload) => github.listRepos(payload.runtime, payload.account),
     cloneRepo: (payload) => runtime.cloneRepo(payload),
-    lspStart: (payload) => runtime.lspStart(payload),
-    lspStop: (payload) => runtime.lspStop(payload),
-    lspSendMessage: (payload) => runtime.lspSendMessage(payload),
+    lspStart: async (payload) => {
+      await lsp.start(payload);
+    },
+    lspStop: async (payload) => {
+      await lsp.stop(payload);
+    },
+    lspSendMessage: (payload) => lsp.sendMessage(payload),
   });
 }

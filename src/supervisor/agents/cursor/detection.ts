@@ -10,6 +10,11 @@ import type {
 import { compactAgentProviderMetadata } from "@/shared/contracts";
 import { parseCursorModelId } from "@/shared/cursorModelId";
 import {
+  formatBracketParamHints,
+  formatCursorBaseModelLabel,
+  stripBracketParams,
+} from "@/shared/modelLabels";
+import {
   buildAgentCommand,
   readAgentCommandOutput,
   readCommandOutputAsync,
@@ -349,86 +354,10 @@ export function buildCursorModelPickerCapabilities(
   };
 }
 
-function parseCursorAcpModelParams(id: string): Record<string, string> {
-  const match = /\[([^\]]*)\]/.exec(id);
-  const raw = match?.[1]?.trim();
-  if (!raw) return {};
-
-  const params: Record<string, string> = {};
-  for (const part of raw.split(",")) {
-    const [rawKey, rawValue] = part.split("=");
-    const key = rawKey?.trim();
-    const value = rawValue?.trim();
-    if (key && value) params[key] = value;
-  }
-  return params;
-}
-
-function cursorAcpBaseModelId(id: string): string {
-  return id.replace(/\[[^\]]*\]/g, "");
-}
-
-function formatCursorAcpBaseLabel(baseId: string, fallbackLabel: string): string {
-  if (baseId === "default") return "Auto";
-  if (/^composer-(\d+)$/i.test(baseId)) {
-    return baseId.replace(/^composer-(\d+)$/i, "Composer $1");
-  }
-
-  const codexMatch = /^gpt-(\d+(?:\.\d+)?)-codex(?:-(spark|max|mini))?$/i.exec(baseId);
-  if (codexMatch) {
-    const suffix = codexMatch[2]
-      ? ` ${codexMatch[2].charAt(0).toUpperCase()}${codexMatch[2].slice(1)}`
-      : "";
-    return `Codex ${codexMatch[1]}${suffix}`;
-  }
-
-  const gptMatch = /^gpt-(\d+(?:\.\d+)?)(?:-(mini|nano))?$/i.exec(baseId);
-  if (gptMatch) {
-    const suffix = gptMatch[2]
-      ? ` ${gptMatch[2].charAt(0).toUpperCase()}${gptMatch[2].slice(1)}`
-      : "";
-    return `GPT-${gptMatch[1]}${suffix}`;
-  }
-
-  const claudeMatch = /^claude-(opus|sonnet|haiku)-(\d+)(?:-(\d+))?$/i.exec(baseId);
-  if (claudeMatch) {
-    const family = claudeMatch[1]!;
-    const version = claudeMatch[3] ? `${claudeMatch[2]}.${claudeMatch[3]}` : claudeMatch[2]!;
-    return `${family.charAt(0).toUpperCase()}${family.slice(1)} ${version}`;
-  }
-
-  const familyMatch = /^(gemini|grok|kimi)-(.+)$/i.exec(baseId);
-  const labelSource = familyMatch ? `${familyMatch[1]}-${familyMatch[2]}` : fallbackLabel || baseId;
-  return labelSource
-    .replace(/\[[^\]]*\]/g, "")
-    .split(/[-_]/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function formatCursorAcpParamLabel(key: string, value: string): string | undefined {
-  if (key === "context") return value.toUpperCase();
-  if (key === "reasoning" || key === "effort") {
-    if (value === "xhigh") return "Extra High";
-    return value.charAt(0).toUpperCase() + value.slice(1);
-  }
-  if (key === "thinking") return undefined;
-  if (key === "fast") return value === "true" ? "Fast" : undefined;
-  return undefined;
-}
-
 function formatCursorAcpModelLabel(model: LabeledOption): string {
-  const baseId = cursorAcpBaseModelId(model.id);
-  const baseLabel = formatCursorAcpBaseLabel(baseId, model.label);
-  const params = parseCursorAcpModelParams(model.id);
-  const paramLabels = ["context", "reasoning", "effort", "thinking", "fast"]
-    .map((key) => {
-      const value = params[key];
-      return value ? formatCursorAcpParamLabel(key, value) : undefined;
-    })
-    .filter((label): label is string => Boolean(label));
-  return paramLabels.length > 0 ? `${baseLabel} · ${paramLabels.join(" · ")}` : baseLabel;
+  const baseLabel = formatCursorBaseModelLabel(stripBracketParams(model.id), model.label);
+  const hints = formatBracketParamHints(model.id);
+  return hints ? `${baseLabel} · ${hints}` : baseLabel;
 }
 
 export function buildCursorAcpModelPickerCapabilities(

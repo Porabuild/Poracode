@@ -574,6 +574,118 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
   });
 });
 
+describe("ThreadOutputPipeline / invalid session-ref detection on launch", () => {
+  function recoveryPipeline() {
+    const onRecoverInvalidSessionRef = vi.fn<(session: SessionRuntime) => void>();
+    const p = new ThreadOutputPipeline({
+      emit: vi.fn<() => void>(),
+      isDev: false,
+      logWriter: { append: vi.fn<() => void>() } as never,
+      resolveLogPath: () => "",
+      resolveHintLogPath: () => "",
+      readDisableCliHookPlugin: () => false,
+      onRecoverInvalidSessionRef,
+      onStartQueuedLaunchPrompt: vi.fn<() => void>(),
+      onStartSessionRefDiscovery: vi.fn<() => void>(),
+    });
+    return { p, onRecoverInvalidSessionRef };
+  }
+
+  function launchingSession(overrides: Record<string, unknown> = {}): SessionRuntime {
+    return {
+      threadId: "t1",
+      status: "launching",
+      attention: "none",
+      config: {},
+      sessionRef: { value: "sess-1", source: "hook", discoveredAt: "2026-01-01T00:00:00.000Z" },
+      launchPrompt: "",
+      prevChunk: "",
+      outputLength: 0,
+      ptyOscCarry: "",
+      adapter: {
+        capabilities: { presentationMode: "terminal" },
+        detectInvalidSessionRef: (text: string) => text.includes("No conversation found"),
+      },
+      pty: { write: vi.fn<(data: string) => void>() },
+      ...overrides,
+    } as unknown as SessionRuntime;
+  }
+
+  it("recovers and skips the launching→idle flip when the resume error lands", () => {
+    const { p, onRecoverInvalidSessionRef } = recoveryPipeline();
+    const session = launchingSession();
+
+    p.handlePtyData(session, "Error: No conversation found with session ID sess-1\r\n");
+
+    expect(onRecoverInvalidSessionRef).toHaveBeenCalledExactlyOnceWith(session);
+    // The recovery path must return before the launching→idle flip — a session
+    // flipped idle here would spawn the replacement from the wrong state.
+    expect(session.status).toBe("launching");
+  });
+
+  it("flips launching→idle without recovery when the output is clean", () => {
+    const { p, onRecoverInvalidSessionRef } = recoveryPipeline();
+    const session = launchingSession();
+
+    p.handlePtyData(session, "Welcome back!\r\n");
+
+    expect(onRecoverInvalidSessionRef).not.toHaveBeenCalled();
+    expect(session.status).toBe("idle");
+  });
+
+  it("does not recover when the session has no sessionRef to invalidate", () => {
+    const { p, onRecoverInvalidSessionRef } = recoveryPipeline();
+    const session = launchingSession({ sessionRef: undefined });
+
+    p.handlePtyData(session, "No conversation found\r\n");
+
+    expect(onRecoverInvalidSessionRef).not.toHaveBeenCalled();
+    expect(session.status).toBe("idle");
+  });
+
+  it("does not recover when the adapter has no detector", () => {
+    const { p, onRecoverInvalidSessionRef } = recoveryPipeline();
+    const session = launchingSession({
+      adapter: { capabilities: { presentationMode: "terminal" } },
+    });
+
+    p.handlePtyData(session, "No conversation found\r\n");
+
+    expect(onRecoverInvalidSessionRef).not.toHaveBeenCalled();
+    expect(session.status).toBe("idle");
+  });
+
+  it("does not recover once the session has left launching", () => {
+    const { p, onRecoverInvalidSessionRef } = recoveryPipeline();
+    const session = launchingSession({ status: "idle" });
+
+    p.handlePtyData(session, "No conversation found\r\n");
+
+    expect(onRecoverInvalidSessionRef).not.toHaveBeenCalled();
+  });
+
+  it("combines prevChunk with the new data when the error is split across chunks", () => {
+    const { p, onRecoverInvalidSessionRef } = recoveryPipeline();
+    const session = launchingSession({ prevChunk: "Error: No conversation " });
+
+    p.handlePtyData(session, "found with session ID sess-1");
+
+    expect(onRecoverInvalidSessionRef).toHaveBeenCalledExactlyOnceWith(session);
+  });
+
+  it("only inspects output after the last home-cursor sequence (TUI repaint)", () => {
+    const { p, onRecoverInvalidSessionRef } = recoveryPipeline();
+    const session = launchingSession();
+
+    // The error text precedes a full-screen repaint; the repainted frame is
+    // clean, so recovery must not fire on the stale pre-repaint content.
+    p.handlePtyData(session, "No conversation found\x1b[H\x1b[2JWelcome back!");
+
+    expect(onRecoverInvalidSessionRef).not.toHaveBeenCalled();
+    expect(session.status).toBe("idle");
+  });
+});
+
 describe("ThreadOutputPipeline / user-interrupt recovery timer", () => {
   function busySession(): SessionRuntime {
     return {

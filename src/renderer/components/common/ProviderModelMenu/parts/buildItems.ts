@@ -6,12 +6,12 @@ import {
   type AgentStatus,
   type ThreadPresentationMode,
 } from "@/shared/contracts";
+import { stripBracketParams } from "@/shared/modelLabels";
 import { deriveSubProvider, listSubProviderOrder } from "./deriveSubProvider";
 import {
   formatShortcutFallbackLabel,
   formatShortcutModelLabel,
   modelLookupAliases,
-  stripBracketParams,
 } from "./modelShortcutLabel";
 import {
   providerLabelForPresentation,

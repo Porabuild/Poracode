@@ -4,11 +4,7 @@ import { ChevronDown, GitFork } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
-import {
-  changeThreadConfig,
-  resolveThreadServerRequest,
-  submitThreadInput,
-} from "@/renderer/actions/threadRuntimeActions";
+import { changeThreadConfig } from "@/renderer/actions/threadRuntimeActions";
 import { BranchSelector, type BranchSelection } from "../common";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import {
@@ -22,18 +18,12 @@ import {
   useAttachments,
 } from "../composer";
 import type { MentionInputHandle, VoiceInputHandle } from "../composer";
-import { flattenSegments } from "../composer/serializeMentions";
 import { getTriggerWords } from "@/renderer/components/providers";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { captureProductEvent, threadProductProperties } from "@/renderer/analytics/posthog";
 import { useAppStore } from "@/renderer/state/appStore";
-import {
-  buildLcSelectorFence,
-  buildSelectorPlainText,
-  useBrowserAttachInbox,
-} from "@/renderer/state/browserAttachInbox";
+import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import { useComposerUiStore } from "@/renderer/state/composerUiStore";
-import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThread } from "@/renderer/state/useThread";
@@ -44,11 +34,11 @@ import { ThreadContextIndicator } from "./ThreadContextIndicator";
 import { getApprovalDenyOption } from "./ThreadRuntimeRequestPanel/helpers";
 import { hasReportedContextUsage, resolveThreadContextUsageSummary } from "./threadContextUsage";
 import { buildControls } from "./buildModelPickerControls";
+import { submitComposerPrompt } from "./threadComposerSubmit";
 import {
   filterSlashCommands,
   handleSlashCommandPanelKeyDown,
   resolveAvailableSlashCommands,
-  resolveLocalSlashCommandAction,
 } from "./threadSlashCommands";
 import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
@@ -345,155 +335,28 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   }
 
   function submitPrompt(segments: PromptSegment[]) {
-    const attachmentSegments = attachments.toSegments();
-    // The `lc-selector` fence is parsed only by the GUI chat SelectorBadge; a
-    // terminal-native agent reads raw text, so submit a plain sentence instead.
-    const selectorSegments: PromptSegment[] = attachments.attachments
-      .filter((a) => a.selector && a.sourceUrl)
-      .map((a) => ({
-        kind: "text" as const,
-        content: usesTerminalPresentation
-          ? `\n\n${buildSelectorPlainText({ selector: a.selector ?? "", sourceUrl: a.sourceUrl ?? "" })}\n`
-          : buildLcSelectorFence({
-              selector: a.selector ?? "",
-              sourceUrl: a.sourceUrl ?? "",
-              attachmentName: a.name,
-            }),
-      }));
-    const allSegments = [...attachmentSegments, ...selectorSegments, ...segments];
-    const flat = flattenSegments(allSegments);
-    if (flat.length === 0 || !canSubmit) return;
-    const localAction = resolveLocalSlashCommandAction(flat, {
-      agentKind: thread.agentKind,
+    submitComposerPrompt(segments, {
+      thread,
+      agentStatus,
       presentationMode,
+      usesTerminalPresentation,
+      canSubmit,
+      usesPendingSteerPath,
+      needsFocusBeforeInput,
+      activeRuntimeRequest,
+      approvalDenyOption,
+      attachments,
+      mentionRef,
+      terminalPaneRef: props.terminalPaneRef,
+      latestSegmentsRef,
+      submittedRef,
+      setPrompt,
+      setHasContent,
+      setIsSubmitting,
+      requestOpenControl: (target) =>
+        setControlOpenRequest((prev) => ({ target, nonce: (prev?.nonce ?? 0) + 1 })),
+      onSubmitInput: props.onSubmitInput,
     });
-    if (localAction?.kind === "set-mode") {
-      changeThreadConfig(thread.id, { ...thread.config, mode: localAction.mode });
-      mentionRef.current?.clear();
-      mentionRef.current?.focus();
-      setPrompt("");
-      setHasContent(false);
-      latestSegmentsRef.current = [];
-      return;
-    }
-    if (localAction?.kind === "open-control") {
-      setControlOpenRequest((prev) => ({
-        target: localAction.target,
-        nonce: (prev?.nonce ?? 0) + 1,
-      }));
-      mentionRef.current?.clear();
-      setPrompt("");
-      setHasContent(false);
-      latestSegmentsRef.current = [];
-      return;
-    }
-    if (localAction?.kind === "toggle-fast") {
-      if (agentStatus && supportsUsableFastMode(agentStatus.capabilities, thread.config.model)) {
-        changeThreadConfig(thread.id, { ...thread.config, fast: thread.config.fast !== true });
-      }
-      mentionRef.current?.clear();
-      mentionRef.current?.focus();
-      setPrompt("");
-      setHasContent(false);
-      latestSegmentsRef.current = [];
-      return;
-    }
-    const submittedInputSegments = segments;
-    const submittedAttachments = attachments.attachments;
-    const clearSubmittedComposer = () => {
-      mentionRef.current?.clear();
-      mentionRef.current?.focus();
-      setPrompt("");
-      setHasContent(false);
-      latestSegmentsRef.current = [];
-      attachments.clearAll();
-    };
-    const restoreSubmittedComposer = () => {
-      mentionRef.current?.restoreFromSegments(submittedInputSegments);
-      mentionRef.current?.focus();
-      setPrompt(flat);
-      setHasContent(flat.length > 0);
-      if (submittedAttachments.length > 0) {
-        attachments.restore(submittedAttachments);
-      }
-    };
-    let clearedBeforeSendSettled = false;
-    submittedRef.current = true;
-    setIsSubmitting(true);
-    if (!usesTerminalPresentation) {
-      useAppStore.getState().requestChatScrollToBottom(thread.id);
-    }
-
-    const focusPromise = needsFocusBeforeInput
-      ? (props.terminalPaneRef.current?.focus(), new Promise<void>((r) => setTimeout(r, 80)))
-      : Promise.resolve();
-
-    // If an approval is pending, send a decline before submitting the message.
-    // The user's text becomes the next turn; the supervisor sees the denial
-    // first, then the follow-up prompt explaining what to do differently.
-    const denyPendingApproval = () => {
-      if (!activeRuntimeRequest || !approvalDenyOption) return Promise.resolve();
-      const rollback = applyOptimisticRequestResolution(
-        thread.id,
-        activeRuntimeRequest,
-        "declined",
-      );
-      return resolveThreadServerRequest(thread.id, {
-        requestId: activeRuntimeRequest.requestId,
-        method: "requestPermission",
-        response: { optionId: approvalDenyOption.optionId },
-      }).catch((err) => {
-        console.error("[chat] auto-deny on composer submit failed", err);
-        rollback();
-        throw err;
-      });
-    };
-
-    // GUI threads + working status → stage as pending steer (replace-latest).
-    // The supervisor fires the cancel and drains the slot when the in-flight
-    // turn returns with `cancelled` stopReason. No optimistic chat paint —
-    // the strip above the composer is the visual confirmation; the real
-    // user_message item lands when the turn drains and starts.
-    const submit =
-      props.onSubmitInput ??
-      ((outgoingPrompt: string, outgoingSegments?: PromptSegment[]) =>
-        submitThreadInput(thread.id, outgoingPrompt, outgoingSegments));
-    const runSubmission = () =>
-      usesPendingSteerPath
-        ? readBridge().setPendingSteer({
-            threadId: thread.id,
-            prompt: flat,
-            ...(allSegments.length > 0 ? { segments: allSegments } : {}),
-            config: thread.config,
-          })
-        : submit(flat, allSegments.length > 0 ? allSegments : undefined);
-
-    if (!usesTerminalPresentation) {
-      clearSubmittedComposer();
-      clearedBeforeSendSettled = true;
-    }
-
-    void focusPromise
-      .then(denyPendingApproval)
-      .then(runSubmission)
-      .then(() => {
-        if (!clearedBeforeSendSettled) {
-          clearSubmittedComposer();
-        }
-      })
-      .catch((error: unknown) => {
-        // Leave the prompt intact so the user can retry.
-        if (clearedBeforeSendSettled) {
-          restoreSubmittedComposer();
-        }
-        toast.danger(friendlyError(error));
-      })
-      .finally(() => {
-        // The composer is now either cleared (success) or restored (failure);
-        // either way the refs reflect the real state, so re-arm draft-saving.
-        submittedRef.current = false;
-        setIsSubmitting(false);
-      });
   }
 
   function handleCancelPendingSteer() {
@@ -564,6 +427,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   useEffect(() => {
     const tid = thread.id;
     return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- reading the latest refs at unmount is the point: they mirror the live composer state
       if (submittedRef.current) return;
       const segments = latestSegmentsRef.current;
       const atts = attachmentsRef.current;

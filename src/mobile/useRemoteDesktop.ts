@@ -10,7 +10,6 @@ import {
   type Thread,
   type ThreadStatus,
 } from "@/shared/contracts";
-import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import {
   filterKnownRemoteAccessScopes,
@@ -21,6 +20,7 @@ import {
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
 import { reconnectBackoffDelay } from "@/shared/remote/backoff";
+import { performThreadInputSubmit } from "@/renderer/actions/threadRuntimeActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { readBridge } from "@/renderer/bridge";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
@@ -770,61 +770,22 @@ export function useRemoteDesktop() {
   }
 
   /**
-   * Mirrors the desktop's `submitThreadInput` action: paint an optimistic
-   * user_message for GUI threads (the supervisor reuses the same item id, so
-   * the live event dedupes), then forward the prompt.
+   * The desktop's submit core with the remote client as transport: optimistic
+   * user_message paint, working flip, rollback, and touch all come from
+   * `performThreadInputSubmit`. No checkpoint capture — checkpoints are a
+   * desktop-local concern. Rejects on transport failure so callers (the
+   * mobile composer dock collapse) only react to successful sends.
    */
   async function sendPrompt(prompt: string, segments?: PromptSegment[]) {
     const desktop = activeDesktop;
     const thread = selectedThread;
     if (!desktop || !thread || prompt.length === 0) return;
-    const store = useAppStore.getState();
-    const presentation = thread.presentationMode ?? "terminal";
-    let userMessageItemId: string | undefined;
-    let markedWorking = false;
-    if (presentation === "gui") {
-      userMessageItemId = `user-${crypto.randomUUID()}`;
-      store.applyRuntimeEvent(thread.id, {
-        type: "item.started",
-        threadId: thread.id,
-        itemId: userMessageItemId,
-        itemType: "user_message",
-        payload: { content: buildPromptContentBlocks(prompt, segments) },
-      });
-      store.applyRuntimeEvent(thread.id, {
-        type: "item.completed",
-        threadId: thread.id,
-        itemId: userMessageItemId,
-      });
-      store.updateThreadRuntime(thread.id, {
-        status: "working",
-        attention: "working",
-        canResumeWithConfig: thread.canResumeWithConfig,
-        ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-      });
-      markedWorking = true;
-    }
-    try {
-      await clientFor(desktop).sendThreadInput({
-        threadId: thread.id,
-        prompt,
-        ...(segments ? { segments } : {}),
-        config: thread.config,
-        ...(userMessageItemId ? { userMessageItemId } : {}),
-      });
-    } catch (error) {
-      if (markedWorking) {
-        store.updateThreadRuntime(thread.id, {
-          status: thread.status,
-          attention: thread.attention,
-          canResumeWithConfig: thread.canResumeWithConfig,
-          forceCloseActiveTurn: true,
-          ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-        });
-      }
-      throw error;
-    }
-    store.touchThread(thread.id);
+    await performThreadInputSubmit({
+      thread,
+      prompt,
+      ...(segments ? { segments } : {}),
+      transport: clientFor(desktop),
+    });
   }
 
   async function interrupt() {
