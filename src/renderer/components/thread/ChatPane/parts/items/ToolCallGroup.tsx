@@ -19,6 +19,13 @@ import {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatFilePath } from "./ChatFilePath";
+import {
+  ChatRowMeta,
+  chatRowBodyClass,
+  chatRowClass,
+  chatRowHoverClass,
+  chatRowShellClass,
+} from "./chatRow";
 import { CommandOutputViewport } from "./CommandOutputViewport";
 import { iconForCommandIntent } from "./CommandExecution";
 import { formatDiffSummaryLabel, formatKindVerb } from "./FileChange";
@@ -101,7 +108,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
     !showAll && hasOverflowRows ? items.slice(-TOOL_CALL_GROUP_MAX_VISIBLE_ROWS) : items;
 
   return (
-    <div className="w-full rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1">
+    <div className={chatRowShellClass}>
       <Disclosure
         className="text-[length:var(--lc-chat-font-size-command)] leading-tight"
         isExpanded={isExpanded}
@@ -111,8 +118,8 @@ export const ToolCallGroup = memo(function ToolCallGroup({
         }}
       >
         <Disclosure.Heading>
-          <Disclosure.Trigger className="flex w-full min-w-0 items-center gap-2 py-0 text-left">
-            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden whitespace-nowrap text-[color:var(--muted)]">
+          <Disclosure.Trigger className={`${chatRowClass} gap-2 ${chatRowHoverClass}`}>
+            <div className="flex min-w-0 items-center gap-2 overflow-hidden whitespace-nowrap text-[color:var(--muted)]">
               {sameFileEditSummary ? (
                 <SameFileEditGroupTitle summary={sameFileEditSummary} />
               ) : (
@@ -137,7 +144,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
           </Disclosure.Trigger>
         </Disclosure.Heading>
         <Disclosure.Content>
-          <Disclosure.Body className="mt-0.5 border-t border-[color:var(--border)] pt-1">
+          <Disclosure.Body className={`${chatRowBodyClass} pt-1`}>
             {hasOverflowRows && !sameFileEditSummary ? (
               <div className="mb-1 flex justify-center">
                 <button
@@ -255,17 +262,13 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
 
   if (!row.hasDetails) {
     return (
-      <div className="flex min-w-0 items-center gap-1.5 py-0.5 text-[length:var(--lc-chat-font-size-command)] leading-tight">
+      <div className="flex w-fit max-w-full min-w-0 items-center gap-1.5 py-0.5 text-[length:var(--lc-chat-font-size-command)] leading-tight">
         <Icon className="size-3 shrink-0 text-[color:var(--muted)]" />
         <InlineRowTitle
           title={row.title}
           {...(row.titleParts ? { titleParts: row.titleParts } : {})}
         />
-        {row.rightLabel ? (
-          <span className={`shrink-0 tabular-nums font-medium ${row.rightLabelClassName}`}>
-            {row.rightLabel}
-          </span>
-        ) : null}
+        <ChatRowMeta label={row.rightLabel} className={row.rightLabelClassName} />
       </div>
     );
   }
@@ -280,17 +283,13 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
       }}
     >
       <Disclosure.Heading>
-        <Disclosure.Trigger className="flex w-full min-w-0 items-center gap-1.5 py-0.5 text-left">
+        <Disclosure.Trigger className="flex w-fit max-w-full min-w-0 items-center gap-1.5 rounded-md py-0.5 text-left transition-colors hover:bg-[var(--row-hover)]">
           <Icon className="size-3 shrink-0 text-[color:var(--muted)]" />
           <InlineRowTitle
             title={row.title}
             {...(row.titleParts ? { titleParts: row.titleParts } : {})}
           />
-          {row.rightLabel ? (
-            <span className={`shrink-0 tabular-nums font-medium ${row.rightLabelClassName}`}>
-              {row.rightLabel}
-            </span>
-          ) : null}
+          <ChatRowMeta label={row.rightLabel} className={row.rightLabelClassName} />
           <Disclosure.Indicator className="size-3.5 shrink-0 text-[color:var(--muted)]" />
         </Disclosure.Trigger>
       </Disclosure.Heading>
@@ -365,7 +364,7 @@ function InlineRowTitle({
 }) {
   if (titleParts) {
     return (
-      <code className="flex min-w-0 flex-1 items-baseline overflow-hidden font-mono !text-[color:var(--muted)]">
+      <code className="flex min-w-0 items-baseline overflow-hidden font-mono !text-[color:var(--muted)]">
         <span className="shrink-0 whitespace-pre">{titleParts.prefix}</span>
         {titleParts.filePath ? (
           <>
@@ -383,9 +382,7 @@ function InlineRowTitle({
       </code>
     );
   }
-  return (
-    <code className="min-w-0 flex-1 truncate font-mono !text-[color:var(--muted)]">{title}</code>
-  );
+  return <code className="min-w-0 truncate font-mono !text-[color:var(--muted)]">{title}</code>;
 }
 
 function getInlineRow(

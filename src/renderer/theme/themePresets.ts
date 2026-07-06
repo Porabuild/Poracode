@@ -54,7 +54,7 @@ export const THEME_SPECS: AppThemeSpec[] = [
     dark: {
       bg: "#070709",
       surface: "#0e0e14",
-      fg: "#eaf0fb",
+      fg: "#fafafa",
       accent: "#8892ef",
       accentFg: "#0a0a12",
       border: "#24242e",

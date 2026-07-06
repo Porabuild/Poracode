@@ -884,14 +884,22 @@
     color-scheme: dark;
     /* Poracode "moonlight" — dark/cool surfaces, indigo accent. */
     --background: #070709;
-    --foreground: #eaf0fb;
+    /* Primary text is a neutral off-white (no blue/violet chroma) so active
+       rows and chat prose read clean and "clear" like the Lightcode Legacy
+       theme. The moonlight coolness lives in the surfaces/accent, not the
+       text — a tinted foreground made active text look violet. */
+    --foreground: #fafafa;
     --surface: #0e0e14;
     --surface-secondary: #1a1a1e;
     /* Matches --composer-surface so chat bubbles (user message) and the
        composer read as one surface. */
     --surface-tertiary: #17171d;
     --overlay: #19191c;
-    --muted: #9ba6be;
+    /* Neutral cool-grey for secondary text — deliberately low chroma so it
+       reads as grey (not the old blue/violet cast). Kept a step below the
+       bright foreground so idle/secondary rows recede clearly from active
+       (foreground) ones. */
+    --muted: oklch(0.7 0.01 255);
     --scrollbar: #3a3a48;
     --default: #242429;
     --accent: #8892ef;
@@ -904,6 +912,10 @@
     --segment: #2e2f33;
     --border: oklch(0.31 0.006 286 / 0.9);
     --separator: oklch(0.3 0.006 286 / 0.85);
+    /* Brighter selected-row wash on dark so the active thread/list item reads
+       as a clearer, whiter highlight, well separated from the dimmed idle
+       rows (base is 11%). */
+    --row-active: color-mix(in oklab, var(--foreground) 20%, transparent);
 
     /* App-specific */
     --sidebar-background: #0e0e14;

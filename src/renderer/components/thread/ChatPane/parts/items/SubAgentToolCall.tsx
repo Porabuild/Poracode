@@ -17,6 +17,7 @@ import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { getChildItemIdsStoreSelector } from "../../chatPaneSelectors";
 import { extractAcpResultPart } from "./acpToolPayload";
 import { ChatFilePath } from "./ChatFilePath";
+import { chatRowClass, chatRowHoverClass } from "./chatRow";
 import { ItemMarkdown } from "./ItemMarkdown";
 import { SubAgentProgressMeta, hasSubAgentProgressMeta } from "./subAgentProgressMeta";
 import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
@@ -91,18 +92,18 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
   );
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-1">
+    <div className="flex w-full min-w-0 flex-col gap-1 pl-4">
       <button
         type="button"
         onClick={() => openSubAgent(threadId, item.id)}
-        className="group flex w-full min-w-0 items-center gap-1.5 rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-left text-[length:var(--lc-chat-font-size-command)] leading-tight transition-colors hover:bg-foreground/5"
+        className={`group ${chatRowClass} gap-1.5 text-[length:var(--lc-chat-font-size-command)] leading-tight ${chatRowHoverClass}`}
         aria-label={t`Open subagent: ${display.title}`}
       >
         <span className="size-3 shrink-0 text-[color:var(--muted)]">
           <Icon className="size-3" />
         </span>
         {display.parts ? (
-          <code className="flex min-w-0 flex-1 items-baseline overflow-hidden font-mono text-[color:var(--muted)]">
+          <code className="flex min-w-0 items-baseline overflow-hidden font-mono text-[color:var(--muted)]">
             <span className="shrink-0 whitespace-pre">{display.parts.prefix}</span>
             {display.parts.filePath ? (
               <ChatFilePath
@@ -116,7 +117,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
             )}
           </code>
         ) : (
-          <code className="block min-w-0 flex-1 truncate font-mono text-[color:var(--muted)]">
+          <code className="block min-w-0 truncate font-mono text-[color:var(--muted)]">
             {display.title}
           </code>
         )}
@@ -144,7 +145,7 @@ function SubAgentResultDisclosure({ text }: { text: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const actions = useChatPaneActions();
   return (
-    <div className="flex w-full flex-col items-stretch justify-center px-3 py-2 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+    <div className="flex w-full flex-col items-stretch justify-center px-2 py-2 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
       <button
         type="button"
         onClick={() => {

@@ -2,6 +2,13 @@ import { Disclosure, Tooltip } from "@heroui/react";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatFilePath } from "./ChatFilePath";
+import {
+  ChatRowMeta,
+  chatRowBodyClass,
+  chatRowClass,
+  chatRowHoverClass,
+  chatRowShellClass,
+} from "./chatRow";
 
 export interface ChatItemAccordionProps {
   /** Leading icon (sized 12px to match the command row icon). */
@@ -43,11 +50,13 @@ export interface ChatItemAccordionProps {
  * Disclosure transitions are globally disabled in `styles.css` for perf — the
  * panel snaps open/closed.
  */
-const shellClass =
-  "w-full rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1";
+// ChatItemAccordion's variant of the shared quiet-row recipe (see `chatRow`):
+// dense `gap-1.5`, plus a `<code>`-muting override for the title's mono text.
+// `rowClass` is the static form (rows with no body to expand); `triggerClass`
+// adds the hover affordance for clickable (has-body) rows.
+const rowClass = `${chatRowClass} gap-1.5 [&>code]:!text-[color:var(--muted)]`;
 
-const triggerClass =
-  "flex w-full min-w-0 items-center gap-1.5 py-0 text-left [&>code]:!text-[color:var(--muted)]";
+const triggerClass = `${rowClass} ${chatRowHoverClass}`;
 
 // `w-full` is load-bearing: HeroUI's `Tooltip.Trigger` computes to
 // `display: inline-flex`, so this `<code>` is a flex item. Without an explicit
@@ -121,7 +130,7 @@ export function ChatItemAccordion({
   );
 
   const titleNode = (
-    <span className="min-w-0 flex-1">
+    <span className="min-w-0">
       <Tooltip delay={300} isDisabled={!isOverflowing || !titleString}>
         <Tooltip.Trigger className="block min-w-0 w-full">{titleContent}</Tooltip.Trigger>
         <Tooltip.Content placement="top" className="max-w-[80vw] break-all">
@@ -133,24 +142,18 @@ export function ChatItemAccordion({
 
   if (!hasBody) {
     return (
-      <div className={shellClass}>
-        <div
-          className={`${triggerClass} text-[length:var(--lc-chat-font-size-command)] leading-tight`}
-        >
+      <div className={chatRowShellClass}>
+        <div className={`${rowClass} text-[length:var(--lc-chat-font-size-command)] leading-tight`}>
           <span className="size-3 shrink-0 text-[color:var(--muted)]">{icon}</span>
           {titleNode}
-          {rightLabel ? (
-            <span className={`shrink-0 tabular-nums font-medium ${rightLabelClassName}`}>
-              {rightLabel}
-            </span>
-          ) : null}
+          <ChatRowMeta label={rightLabel} className={rightLabelClassName} />
         </div>
       </div>
     );
   }
 
   return (
-    <div className={shellClass}>
+    <div className={chatRowShellClass}>
       <Disclosure
         className="text-[length:var(--lc-chat-font-size-command)] leading-tight"
         isExpanded={isExpanded ?? false}
@@ -163,17 +166,13 @@ export function ChatItemAccordion({
           <Disclosure.Trigger className={triggerClass}>
             <span className="size-3 shrink-0 text-[color:var(--muted)]">{icon}</span>
             {titleNode}
-            {rightLabel ? (
-              <span className={`shrink-0 tabular-nums font-medium ${rightLabelClassName}`}>
-                {rightLabel}
-              </span>
-            ) : null}
+            <ChatRowMeta label={rightLabel} className={rightLabelClassName} />
             <Disclosure.Indicator className="size-3.5 shrink-0 text-[color:var(--muted)]" />
           </Disclosure.Trigger>
         </Disclosure.Heading>
         <Disclosure.Content>
           <div className="min-h-0 overflow-hidden">
-            <Disclosure.Body className="mt-0.5 border-t border-[color:var(--border)] pt-2.5">
+            <Disclosure.Body className={`${chatRowBodyClass} pt-2.5`}>
               {isExpanded ? children : null}
             </Disclosure.Body>
           </div>
