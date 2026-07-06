@@ -4,6 +4,13 @@ import { useLingui } from "@lingui/react/macro";
 import { GitBranch } from "lucide-react";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
+import {
+  ChatRowMetaSeparator,
+  chatRowBodyClass,
+  chatRowClass,
+  chatRowHoverClass,
+  chatRowShellClass,
+} from "./chatRow";
 import { ItemMarkdown } from "./ItemMarkdown";
 
 /**
@@ -106,30 +113,31 @@ function WorkflowResultShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="w-full rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1">
+    <div className={chatRowShellClass}>
       <Disclosure
         className="text-[length:var(--lc-chat-font-size-command)] leading-tight"
         isExpanded={isExpanded}
         onExpandedChange={onToggle}
       >
         <Disclosure.Heading>
-          <Disclosure.Trigger className="flex w-full min-w-0 items-center gap-2 py-0 text-left">
+          <Disclosure.Trigger className={`${chatRowClass} gap-2 ${chatRowHoverClass}`}>
             <span className="flex shrink-0 items-center gap-1 text-[color:var(--muted)]">
               <GitBranch className="size-3" />
               <code className="font-mono !text-[color:var(--muted)]">{label}</code>
             </span>
             {countLabel ? (
-              <code className="font-mono tabular-nums !text-[color:var(--muted)]">
-                {countLabel}
-              </code>
+              <>
+                <ChatRowMetaSeparator />
+                <code className="font-mono tabular-nums !text-[color:var(--muted)]">
+                  {countLabel}
+                </code>
+              </>
             ) : null}
-            <Disclosure.Indicator className="ml-auto size-3.5 shrink-0 text-[color:var(--muted)]" />
+            <Disclosure.Indicator className="size-3.5 shrink-0 text-[color:var(--muted)]" />
           </Disclosure.Trigger>
         </Disclosure.Heading>
         <Disclosure.Content>
-          <Disclosure.Body className="mt-0.5 border-t border-[color:var(--border)] pt-1">
-            {children}
-          </Disclosure.Body>
+          <Disclosure.Body className={`${chatRowBodyClass} pt-1`}>{children}</Disclosure.Body>
         </Disclosure.Content>
       </Disclosure>
     </div>

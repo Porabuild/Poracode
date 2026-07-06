@@ -97,7 +97,7 @@ export const Reasoning = memo(function Reasoning({ item }: ReasoningProps) {
     // tile, dotted left rule when expanded, italic body. Equal vertical
     // padding so it doesn't visually bias toward the message above or below.
     return (
-      <div className="flex w-full flex-col items-stretch justify-center px-3 py-2 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+      <div className="flex w-full flex-col items-stretch justify-center py-2 pl-6 pr-3 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
         <button
           type="button"
           onClick={() => {
@@ -125,7 +125,7 @@ export const Reasoning = memo(function Reasoning({ item }: ReasoningProps) {
   }
 
   return (
-    <Surface variant="transparent" className={chatMessageSurfaceClass}>
+    <Surface variant="transparent" className={`${chatMessageSurfaceClass} pl-6`}>
       <div className="flex min-w-0 flex-col gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
         <div className="inline-flex items-center gap-1.5">
           <Brain
