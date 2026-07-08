@@ -1,5 +1,14 @@
 const path = require("path");
 
+// TypeScript 7 note: this site type-checks with the native TS7 compiler
+// (`pnpm typecheck`), which has no JS API until 7.1. Next's build-time
+// TypeScript step requires `typescript/lib/typescript.js` (TS6 API) and
+// otherwise aborts — unless it can resolve `@typescript/native-preview`,
+// its marker for "a native TS compiler is in use", in which case it skips
+// build-time type checking. devDependencies therefore alias
+// `@typescript/native-preview` to the same GA `typescript@7` package.
+// Remove the alias once Next supports the canonical typescript@7 package.
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // With typescript@7 installed, Next cannot read the `@/*` alias from
