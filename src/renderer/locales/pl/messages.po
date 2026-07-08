@@ -3346,6 +3346,10 @@ msgstr "Identyfikator"
 msgid "Hard Reload"
 msgstr "Twarde przeładowanie"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/DraftIndicator.tsx
+msgid "Has unsent draft"
+msgstr "Zawiera niewysłaną wersję roboczą"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
@@ -4320,8 +4324,8 @@ msgid "New thread — {projectName}"
 msgstr "Nowy wątek — {projectName}"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
-msgid "New thread (draft)"
-msgstr "Nowy wątek (wersja robocza)"
+#~ msgid "New thread (draft)"
+#~ msgstr "Nowy wątek (wersja robocza)"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "New thread from this to-do"

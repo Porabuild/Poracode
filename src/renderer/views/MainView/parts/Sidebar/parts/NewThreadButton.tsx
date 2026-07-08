@@ -4,6 +4,7 @@ import { useDraggable } from "@dnd-kit/react";
 import { useLingui } from "@lingui/react/macro";
 import { ContextMenu, SidebarButton } from "@/renderer/components/common";
 import type { DragSourceData } from "@/renderer/dnd";
+import { DraftIndicator } from "./DraftIndicator";
 
 export function NewThreadButton(props: {
   projectId: string;
@@ -45,13 +46,15 @@ export function NewThreadButton(props: {
         liveText
         ref={newThreadRef}
         icon={<Plus className="size-4" />}
-        label={props.hasDraft ? t`New thread (draft)` : t`New thread`}
+        label={
+          <span className="flex items-center gap-1.5">
+            <span className="min-w-0 truncate">{t`New thread`}</span>
+            {props.hasDraft && <DraftIndicator />}
+          </span>
+        }
         isActive={props.isActive}
         isDraggingAnything={props.isDraggingAnything}
         onPress={props.onPress}
-        suffix={
-          props.hasDraft ? <span className="size-1.5 shrink-0 rounded-full bg-accent" /> : undefined
-        }
       />
     </ContextMenu>
   );

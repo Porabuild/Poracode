@@ -3355,6 +3355,10 @@ msgstr "Identifiant"
 msgid "Hard Reload"
 msgstr "Rechargement forcé"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/DraftIndicator.tsx
+msgid "Has unsent draft"
+msgstr "Contient un brouillon non envoyé"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
@@ -4331,8 +4335,8 @@ msgid "New thread — {projectName}"
 msgstr "Nouveau fil de discussion — {projectName}"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
-msgid "New thread (draft)"
-msgstr "Nouveau fil de discussion (brouillon)"
+#~ msgid "New thread (draft)"
+#~ msgstr "Nouveau fil de discussion (brouillon)"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "New thread from this to-do"

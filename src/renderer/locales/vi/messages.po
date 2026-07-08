@@ -3326,6 +3326,10 @@ msgstr "Handle"
 msgid "Hard Reload"
 msgstr "Tải lại cứng"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/DraftIndicator.tsx
+msgid "Has unsent draft"
+msgstr "Có bản nháp chưa gửi"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
@@ -4301,8 +4305,8 @@ msgid "New thread — {projectName}"
 msgstr "Luồng mới — {projectName}"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
-msgid "New thread (draft)"
-msgstr "Luồng mới (bản nháp)"
+#~ msgid "New thread (draft)"
+#~ msgstr "Luồng mới (bản nháp)"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "New thread from this to-do"

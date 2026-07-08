@@ -5,6 +5,7 @@ import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { createArrayKeyedMap } from "@/renderer/state/derivations";
+import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -255,4 +256,12 @@ export function useThreadPendingLaunch(threadId: string): {
 /** Whether a persisted draft exists for this project. */
 export function useHasDraft(projectId: string): boolean {
   return useAppStore((s) => projectId in s.draftContents);
+}
+
+/** Whether an already-launched thread has unsent composer content saved for it. */
+export function useThreadHasDraft(threadId: string): boolean {
+  return useAppStore((s) => {
+    const draft = s.threadDraftContents[threadId];
+    return !!draft && isDraftContentNonEmpty(draft);
+  });
 }

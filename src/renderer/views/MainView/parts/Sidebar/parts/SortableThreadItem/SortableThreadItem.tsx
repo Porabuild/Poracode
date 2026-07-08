@@ -23,12 +23,14 @@ import { readBridge } from "@/renderer/bridge";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { useWorktreeGitItems } from "@/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions";
 import { gitMenuIcons } from "@/renderer/views/MainView/parts/Sidebar/parts/gitMenuIcons";
+import { DraftIndicator } from "../DraftIndicator";
 import { InlineRenameInput } from "../InlineRenameInput";
 import { ThreadItemSuffix } from "./parts/ThreadItemSuffix";
 import {
   useCurrentThreadIdsCount,
   useIsCurrentThread,
   useProjectAgentStatuses,
+  useThreadHasDraft,
 } from "@/renderer/hooks/uiSelectors";
 import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import { openGitReview } from "@/renderer/actions/panelActions";
@@ -75,6 +77,7 @@ export function SortableThreadItem(props: {
   } = props;
   const { t } = useLingui();
   const isCurrentThread = useIsCurrentThread(thread.id);
+  const hasDraft = useThreadHasDraft(thread.id);
   const currentThreadCount = useCurrentThreadIdsCount();
   const projectAgents = useProjectAgentStatuses(project.location);
   const worktreeGitItems = useWorktreeGitItems(
@@ -313,10 +316,17 @@ export function SortableThreadItem(props: {
                 }}
                 onCancel={() => props.setEditingThreadId(null)}
               />
-            ) : thread.done ? (
-              <span className="opacity-50 line-through">{thread.title}</span>
             ) : (
-              thread.title
+              <span className="flex items-center gap-1.5">
+                <span className="min-w-0 truncate">
+                  {thread.done ? (
+                    <span className="opacity-50 line-through">{thread.title}</span>
+                  ) : (
+                    thread.title
+                  )}
+                </span>
+                {hasDraft && <DraftIndicator />}
+              </span>
             )
           }
           tooltip={editingThreadId === thread.id ? undefined : thread.title}

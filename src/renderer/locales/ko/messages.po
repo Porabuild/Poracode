@@ -3283,6 +3283,10 @@ msgstr "핸들"
 msgid "Hard Reload"
 msgstr "강제 새로고침"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/DraftIndicator.tsx
+msgid "Has unsent draft"
+msgstr "보내지 않은 초안이 있습니다"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
@@ -4246,8 +4250,8 @@ msgid "New thread — {projectName}"
 msgstr "새 스레드 — {projectName}"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
-msgid "New thread (draft)"
-msgstr "새 스레드(초안)"
+#~ msgid "New thread (draft)"
+#~ msgstr "새 스레드(초안)"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "New thread from this to-do"

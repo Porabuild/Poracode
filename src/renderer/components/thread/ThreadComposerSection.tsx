@@ -26,6 +26,7 @@ import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import { useComposerUiStore } from "@/renderer/state/composerUiStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { useThread } from "@/renderer/state/useThread";
 import { selectActiveSubAgentParentItemIds } from "./ChatPane/chatPaneSelectors";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
@@ -429,10 +430,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     return () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps -- reading the latest refs at unmount is the point: they mirror the live composer state
       if (submittedRef.current) return;
-      const segments = latestSegmentsRef.current;
-      const atts = attachmentsRef.current;
-      if (segments.length > 0 || atts.length > 0) {
-        saveThreadDraftContent(tid, { segments, attachments: atts });
+      const content = { segments: latestSegmentsRef.current, attachments: attachmentsRef.current };
+      if (isDraftContentNonEmpty(content)) {
+        saveThreadDraftContent(tid, content);
       } else {
         clearThreadDraftContent(tid);
       }

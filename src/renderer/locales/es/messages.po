@@ -3345,6 +3345,10 @@ msgstr "Identificador"
 msgid "Hard Reload"
 msgstr "Recarga forzada"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/DraftIndicator.tsx
+msgid "Has unsent draft"
+msgstr "Tiene un borrador sin enviar"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
@@ -4323,8 +4327,8 @@ msgid "New thread — {projectName}"
 msgstr "Nuevo hilo — {projectName}"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
-msgid "New thread (draft)"
-msgstr "Nuevo hilo (borrador)"
+#~ msgid "New thread (draft)"
+#~ msgstr "Nuevo hilo (borrador)"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "New thread from this to-do"

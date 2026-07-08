@@ -7,6 +7,11 @@ export interface DraftContent {
   attachments: Attachment[];
 }
 
+/** Canonical "draft is worth keeping/showing" test — keep all save/indicator sites on this. */
+export function isDraftContentNonEmpty(content: DraftContent): boolean {
+  return content.segments.length > 0 || content.attachments.length > 0;
+}
+
 export interface PendingDraftWorktreeSelection {
   branch: string;
   baseBranch: string;

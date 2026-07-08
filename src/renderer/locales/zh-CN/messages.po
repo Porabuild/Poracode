@@ -3275,6 +3275,10 @@ msgstr "用户名"
 msgid "Hard Reload"
 msgstr "硬重载"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/DraftIndicator.tsx
+msgid "Has unsent draft"
+msgstr "有未发送的草稿"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
@@ -4235,8 +4239,8 @@ msgid "New thread — {projectName}"
 msgstr "新线程 —{projectName}"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
-msgid "New thread (draft)"
-msgstr "新线程（草稿）"
+#~ msgid "New thread (draft)"
+#~ msgstr "新线程（草稿）"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "New thread from this to-do"

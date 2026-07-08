@@ -128,8 +128,11 @@ export function SidebarButton(props: {
       isOpen={isTooltipOpen}
       onOpenChange={(open) => {
         if (open) {
+          // Labels may truncate on the wrapper itself or on a nested `.truncate`
+          // element (e.g. a title inside a flex row with trailing markers).
           const el = labelRef.current;
-          if (el && el.scrollWidth > el.clientWidth) {
+          const measured = el?.querySelector<HTMLElement>(".truncate") ?? el;
+          if (measured && measured.scrollWidth > measured.clientWidth) {
             setIsTooltipOpen(true);
           }
         } else {

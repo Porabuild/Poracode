@@ -3344,6 +3344,10 @@ msgstr "Нік"
 msgid "Hard Reload"
 msgstr "Жорстке перезавантаження"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/DraftIndicator.tsx
+msgid "Has unsent draft"
+msgstr "Є невідправлена чернетка"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
@@ -4319,8 +4323,8 @@ msgid "New thread — {projectName}"
 msgstr "Новий тред — {projectName}"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
-msgid "New thread (draft)"
-msgstr "Новий тред (чернетка)"
+#~ msgid "New thread (draft)"
+#~ msgstr "Новий тред (чернетка)"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "New thread from this to-do"

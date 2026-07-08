@@ -10,9 +10,10 @@ type MockContextMenuItem = {
   disabledReason?: string;
 };
 
-const { sortableRefMock, contextMenuItemsMock } = vi.hoisted(() => ({
+const { sortableRefMock, contextMenuItemsMock, useThreadHasDraftMock } = vi.hoisted(() => ({
   sortableRefMock: vi.fn<(element: HTMLElement | null) => void>(),
   contextMenuItemsMock: vi.fn<(items: MockContextMenuItem[]) => void>(),
+  useThreadHasDraftMock: vi.fn<(threadId: string) => boolean>(),
 }));
 
 vi.mock("@dnd-kit/react/sortable", () => ({
@@ -41,6 +42,7 @@ vi.mock("@/renderer/hooks/uiSelectors", () => ({
   useCurrentThreadIdsCount: () => 1,
   useProjectAgentStatuses: () => [],
   useIsCurrentThread: () => false,
+  useThreadHasDraft: (threadId: string) => useThreadHasDraftMock(threadId),
 }));
 
 vi.mock("@/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions", () => ({
@@ -112,6 +114,42 @@ describe("SortableThreadItem", () => {
   beforeEach(() => {
     sortableRefMock.mockClear();
     contextMenuItemsMock.mockClear();
+    useThreadHasDraftMock.mockReset();
+    useThreadHasDraftMock.mockReturnValue(false);
+  });
+
+  it("shows the draft dot after the title when the thread has an unsent draft", () => {
+    useThreadHasDraftMock.mockReturnValue(true);
+
+    const { getByLabelText } = render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+
+    expect(getByLabelText("Has unsent draft")).toBeInTheDocument();
+  });
+
+  it("hides the draft dot when the thread has no draft", () => {
+    const { queryByLabelText } = render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+
+    expect(queryByLabelText("Has unsent draft")).not.toBeInTheDocument();
   });
 
   it("registers the row element as the sortable element", () => {

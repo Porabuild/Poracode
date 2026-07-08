@@ -40,6 +40,7 @@ import {
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
@@ -499,10 +500,9 @@ export function ThreadDraftComposerArea(props: {
     const pid = props.project.id;
     return () => {
       if (submittedRef.current) return;
-      const segments = latestSegmentsRef.current;
-      const atts = attachmentsRef.current;
-      if (segments.length > 0 || atts.length > 0) {
-        saveDraftContent(pid, { segments, attachments: atts });
+      const content = { segments: latestSegmentsRef.current, attachments: attachmentsRef.current };
+      if (isDraftContentNonEmpty(content)) {
+        saveDraftContent(pid, content);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup-only effect keyed on project
