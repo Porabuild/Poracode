@@ -127,7 +127,7 @@
     "shiki": "^4.3.0",
     "streamdown": "^2.5.0",
     "tailwindcss": "^4.3.2",
-    "vscode-jsonrpc": "^8.2.1",
+    "vscode-jsonrpc": "^9.0.1",
     "vscode-languageserver-protocol": "^3.18.2",
     "ws": "^8.21.0",
     "zod": "^4.4.3",
