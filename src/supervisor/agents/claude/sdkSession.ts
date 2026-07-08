@@ -25,6 +25,7 @@ import type {
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { buildClaudeBrowserMcpServers } from "./mcpBrowser";
+import { buildClaudeChromeMcpServers } from "./mcpChrome";
 import { buildClaudeSubagentMcpServers } from "./mcpSubagent";
 import {
   createKnownSessionRef,
@@ -666,7 +667,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         this.currentConfig.subagentMcp === true,
         this.input.subagentMcp,
       );
-      const mcpServers = { ...browserMcpServers, ...subagentMcpServers };
+      const chromeMcpServers = buildClaudeChromeMcpServers(
+        this.input.projectLocation,
+        this.input.mcpIdentity ?? { threadId: this.input.threadId },
+      );
+      const mcpServers = { ...browserMcpServers, ...subagentMcpServers, ...chromeMcpServers };
       const hasMcpServers = Object.keys(mcpServers).length > 0;
       let spawnClaudeCodeProcess: ((spawnOptions: SpawnOptions) => SpawnedProcess) | undefined;
       switch (this.input.projectLocation.kind) {

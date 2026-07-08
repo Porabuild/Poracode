@@ -4,6 +4,10 @@ export interface ToolContext {
   manager: BrowserPanelManager;
   allowEval: boolean;
   allowDataAccess: boolean;
+  /** Calling thread + its task title (from the MCP URL) — agent tabs join a
+   *  per-thread group named after the task. */
+  threadId?: string;
+  threadTitle?: string;
 }
 
 export interface ToolSpec {

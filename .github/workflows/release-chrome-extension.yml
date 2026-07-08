@@ -1,0 +1,326 @@
+name: Release Chrome Extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Chrome extension version (e.g. 0.1.0). If empty, manifest.json is used."
+        required: false
+        type: string
+        default: ""
+      dry_run:
+        description: "Dry run — skip tag push, GitHub Release, and Web Store publish"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-chrome-extension-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ── Step 1: Resolve version, commit if needed, tag, push ─────────
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Resolve version
+        id: resolve
+        run: |
+          INPUT_VERSION="${{ inputs.version }}"
+          MANIFEST_VERSION=$(node -p "require('./chrome-extension/manifest.json').version")
+          if [ -z "$INPUT_VERSION" ]; then
+            VERSION="$MANIFEST_VERSION"
+            echo "Using manifest.json version: $VERSION"
+          else
+            VERSION="$INPUT_VERSION"
+            echo "Using workflow input version: $VERSION"
+          fi
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Chrome extension release version must be X.Y.Z, got '$VERSION'."
+            exit 1
+          fi
+          TAG="chrome-extension-v$VERSION"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG already exists"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Require changelog entry
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const version = "${{ steps.resolve.outputs.version }}";
+          const path = "chrome-extension/CHANGELOG.md";
+          const changelog = fs.readFileSync(path, "utf8");
+          const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const heading = new RegExp(`^##\\s+${escaped}\\s+-\\s+\\d{4}-\\d{2}-\\d{2}\\s*$`, "m");
+
+          if (!heading.test(changelog)) {
+            console.error(`::error::${path} needs a '## ${version} - YYYY-MM-DD' entry before releasing.`);
+            process.exit(1);
+          }
+          console.log(`Changelog entry for ${version} is present.`);
+          NODE
+
+      - name: Bump manifest.json if needed
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = "chrome-extension/manifest.json";
+          const manifest = JSON.parse(fs.readFileSync(path, "utf8"));
+          const next = "${{ steps.resolve.outputs.version }}";
+
+          if (manifest.version !== next) {
+            manifest.version = next;
+            fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + "\n");
+            console.log(`Updated ${path} to ${next}.`);
+          } else {
+            console.log(`${path} already at ${next}; no bump needed.`);
+          }
+          NODE
+
+      - name: Commit and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add chrome-extension/manifest.json
+          if git diff --cached --quiet; then
+            echo "No manifest changes; tagging HEAD as-is."
+          else
+            git commit -m "release: ${{ steps.resolve.outputs.tag }}"
+          fi
+          git tag "${{ steps.resolve.outputs.tag }}"
+
+      - name: Push commit and tag
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git push origin HEAD
+          git push origin "${{ steps.resolve.outputs.tag }}"
+
+  # ── Step 2: Package the exact tagged extension ───────────────────
+  package:
+    needs: prepare
+    runs-on: ubuntu-latest
+    outputs:
+      zip_name: ${{ steps.package.outputs.zip_name }}
+
+    steps:
+      - name: Checkout extension source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.dry_run && github.sha || needs.prepare.outputs.tag }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install packaging tools
+        run: sudo apt-get update && sudo apt-get install -y zip unzip
+
+      - name: Apply dry-run manifest version
+        if: ${{ inputs.dry_run }}
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = "chrome-extension/manifest.json";
+          const manifest = JSON.parse(fs.readFileSync(path, "utf8"));
+          manifest.version = "${{ needs.prepare.outputs.version }}";
+          fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + "\n");
+          NODE
+
+      - name: Package extension
+        id: package
+        run: |
+          set -euo pipefail
+          version="${{ needs.prepare.outputs.version }}"
+          zip_name="poracode-chrome-extension-v${version}.zip"
+          mkdir -p dist
+          cd chrome-extension
+          zip -r "../dist/${zip_name}" manifest.json background.js popup.html popup.js icons
+          cd ..
+          unzip -t "dist/${zip_name}"
+          echo "zip_name=${zip_name}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: poracode-chrome-extension-v${{ needs.prepare.outputs.version }}
+          path: dist/${{ steps.package.outputs.zip_name }}
+          if-no-files-found: error
+
+  # ── Step 3: Create GitHub Release with extension notes ───────────
+  release:
+    needs: [prepare, package]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - name: Download extension package
+        uses: actions/download-artifact@v8
+        with:
+          name: poracode-chrome-extension-v${{ needs.prepare.outputs.version }}
+          path: release-assets
+
+      - name: Extract release notes
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const version = "${{ needs.prepare.outputs.version }}";
+          const changelog = fs.readFileSync("chrome-extension/CHANGELOG.md", "utf8");
+          const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const match = new RegExp(`^##\\s+${escaped}\\s+-\\s+\\d{4}-\\d{2}-\\d{2}\\s*$`, "m").exec(changelog);
+
+          if (!match) {
+            console.error(`::error::No release notes found for Chrome extension ${version}.`);
+            process.exit(1);
+          }
+
+          const bodyStart = match.index + match[0].length;
+          const rest = changelog.slice(bodyStart);
+          const nextHeading = rest.search(/^##\s+/m);
+          const body = (nextHeading >= 0 ? rest.slice(0, nextHeading) : rest).trim();
+
+          if (!body) {
+            console.error(`::error::Release notes for Chrome extension ${version} are empty.`);
+            process.exit(1);
+          }
+
+          fs.writeFileSync("release-notes.md", body + "\n");
+          NODE
+
+      - name: Create GitHub Release (draft)
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: Poracode Chrome Extension ${{ needs.prepare.outputs.tag }}
+          draft: true
+          fail_on_unmatched_files: true
+          body_path: release-notes.md
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ needs.prepare.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false --latest=false
+
+  # ── Step 4: Submit the same package to Chrome Web Store ──────────
+  publish:
+    needs: [prepare, package, release]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    environment: chrome-extension
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Download extension package
+        uses: actions/download-artifact@v8
+        with:
+          name: poracode-chrome-extension-v${{ needs.prepare.outputs.version }}
+          path: dist
+
+      - name: Upload and submit package
+        env:
+          CLIENT_ID: ${{ secrets.CHROME_WEBSTORE_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CHROME_WEBSTORE_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CHROME_WEBSTORE_REFRESH_TOKEN }}
+          PUBLISHER_ID: ${{ secrets.CHROME_WEBSTORE_PUBLISHER_ID }}
+          EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          ZIP_NAME: ${{ needs.package.outputs.zip_name }}
+        run: |
+          set -euo pipefail
+
+          for name in CLIENT_ID CLIENT_SECRET REFRESH_TOKEN PUBLISHER_ID EXTENSION_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::${name} is required in the chrome-extension environment."
+              exit 1
+            fi
+          done
+
+          zip_path="dist/${ZIP_NAME}"
+          item="publishers/${PUBLISHER_ID}/items/${EXTENSION_ID}"
+
+          token_json=$(curl -fsS "https://oauth2.googleapis.com/token" \
+            -d "client_id=${CLIENT_ID}" \
+            -d "client_secret=${CLIENT_SECRET}" \
+            -d "refresh_token=${REFRESH_TOKEN}" \
+            -d "grant_type=refresh_token")
+          access_token=$(node -e '
+            const fs = require("node:fs");
+            const data = JSON.parse(fs.readFileSync(0, "utf8"));
+            if (!data.access_token) process.exit(1);
+            process.stdout.write(data.access_token);
+          ' <<< "${token_json}")
+
+          upload_json=$(curl -fsS \
+            -H "Authorization: Bearer ${access_token}" \
+            -X POST \
+            -T "${zip_path}" \
+            "https://chromewebstore.googleapis.com/upload/v2/${item}:upload")
+
+          state=$(node -e '
+            const fs = require("node:fs");
+            const data = JSON.parse(fs.readFileSync(0, "utf8"));
+            process.stdout.write(data.uploadState || data.lastAsyncUploadState || "");
+          ' <<< "${upload_json}")
+
+          for _ in {1..12}; do
+            if [ "${state}" != "IN_PROGRESS" ]; then
+              break
+            fi
+            sleep 10
+            status_json=$(curl -fsS \
+              -H "Authorization: Bearer ${access_token}" \
+              "https://chromewebstore.googleapis.com/v2/${item}:fetchStatus")
+            state=$(node -e '
+              const fs = require("node:fs");
+              const data = JSON.parse(fs.readFileSync(0, "utf8"));
+              process.stdout.write(data.lastAsyncUploadState || data.uploadState || "");
+            ' <<< "${status_json}")
+          done
+
+          if [ "${state}" != "SUCCEEDED" ]; then
+            echo "::error::Chrome Web Store upload did not succeed; final state was '${state}'."
+            exit 1
+          fi
+
+          curl -fsS \
+            -H "Authorization: Bearer ${access_token}" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d '{"publishType":"DEFAULT_PUBLISH","blockOnWarnings":true}' \
+            "https://chromewebstore.googleapis.com/v2/${item}:publish"

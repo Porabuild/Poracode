@@ -11,6 +11,7 @@
  */
 
 import type { ProjectLocation } from "@/shared/contracts";
+import { encodeThreadQuery, type McpThreadIdentity } from "@/shared/browserMcpThread";
 
 /** Minimal shape needed to pick native-vs-WSL - accepts a `ProjectLocation` or
  *  a stripped-down `{ kind, distro? }` so internal installers can call without
@@ -94,6 +95,7 @@ export async function resolveBrowserMcpHttpConfigForLaunch(
   location: BrowserMcpLocation,
   enabled: boolean,
   bridge?: BrowserMcpBridge,
+  identity?: McpThreadIdentity,
 ): Promise<BrowserMcpHttpConfig | undefined> {
   if (!enabled) return undefined;
   if (location.kind === "wsl") {
@@ -102,12 +104,14 @@ export async function resolveBrowserMcpHttpConfigForLaunch(
     if (!env) return undefined;
     const handle = await bridge.ensureBridge(location.distro);
     if (!handle) return undefined;
-    const url = `${handle.baseUrl.replace(/\/$/, "")}/mcp`;
+    const url = encodeThreadQuery(`${handle.baseUrl.replace(/\/$/, "")}/mcp`, identity);
     return {
       url,
       token: handle.secret,
       headers: { Authorization: `Bearer ${handle.secret}` },
     };
   }
-  return resolveBrowserMcpHttpConfig(location) ?? undefined;
+  const cfg = resolveBrowserMcpHttpConfig(location);
+  if (!cfg) return undefined;
+  return { ...cfg, url: encodeThreadQuery(cfg.url, identity) };
 }

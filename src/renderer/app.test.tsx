@@ -145,6 +145,7 @@ const { bridge, remoteThreadCommandListeners } = vi.hoisted(() => {
       onSharedSettingsChanged: vi.fn<() => () => void>(() => () => undefined),
       onNotificationClick: vi.fn<() => () => void>(() => () => undefined),
       publishRemoteGitSummaries: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      appendUsageEvents: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       browserGetState: vi
         .fn<() => Promise<{ tabs: []; activeTabId: null }>>()
         .mockResolvedValue({ tabs: [], activeTabId: null }),

@@ -122,7 +122,11 @@ export type BrowserEvent =
   | { type: "usage-login-confirmation-closed"; requestId: string }
   | { type: "usage-login-device-code"; deviceCode: UsageLoginDeviceCode }
   | { type: "usage-login-device-code-cleared"; providerId: string }
-  | { type: "picker-cancelled" };
+  | { type: "picker-cancelled" }
+  // Headless agent activity: while active the renderer keeps the browser's
+  // <webview>s mounted off-screen (so tabs can be driven with the panel closed);
+  // when it goes idle the renderer unmounts them to free resources.
+  | { type: "automation-active"; active: boolean };
 
 /** Emitted by the main process when the user clicks an OS notification. */
 export type NotificationClickEvent = {

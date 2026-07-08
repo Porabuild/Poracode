@@ -1617,6 +1617,7 @@ msgid "Close goal"
 msgstr "Ziel schließen"
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Close group"
 msgstr "Gruppe schließen"
 
@@ -1753,6 +1754,11 @@ msgstr "Composer einklappen"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "Fehler einklappen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Collapse group"
+msgstr "Gruppe einklappen"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -2847,6 +2853,11 @@ msgstr "Alles erweitern"
 msgid "Expand error"
 msgstr "Fehler erweitern"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Expand group"
+msgstr "Gruppe ausklappen"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
 msgstr "Zum Prüfen oder Entziehen des Zugriffs erweitern."
@@ -3307,6 +3318,10 @@ msgstr "Verstanden"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "Gruppe"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "Group name"
+msgstr "Gruppenname"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Group open threads"
@@ -4289,6 +4304,10 @@ msgstr "Neuer schneller Thread"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
 msgstr "Neuer Tab"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "New tab in group"
+msgstr "Neuer Tab in Gruppe"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/QuickCompose.tsx
@@ -6372,6 +6391,10 @@ msgstr "Claude Code-Konten nach Konfigurationsverzeichnis trennen oder ein "
 #~ msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
 #~ msgstr "Remotezugriff über die HTTPS-MagicDNS-URL Ihres Tailnets bereitstellen."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "Set group color"
+msgstr "Gruppenfarbe festlegen"
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
 msgstr "Legen Sie ein experimentelles Ziel fest oder zeigen Sie es an"
@@ -7683,6 +7706,10 @@ msgstr "Thread konnte nicht aktualisiert werden."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Nicht zugewiesen"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "Ungroup"
+msgstr "Gruppierung aufheben"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Ungroup All"

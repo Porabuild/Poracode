@@ -8,6 +8,7 @@ export function useBrowserSync(): void {
   const upsertTab = useBrowserPanelStore((s) => s.upsertTab);
   const setAttention = useBrowserPanelStore((s) => s.setAttention);
   const setPickerActive = useBrowserPanelStore((s) => s.setPickerActive);
+  const setAutomationActive = useBrowserPanelStore((s) => s.setAutomationActive);
   const setUsageLoginConfirmation = useBrowserPanelStore((s) => s.setUsageLoginConfirmation);
   const clearUsageLoginConfirmation = useBrowserPanelStore((s) => s.clearUsageLoginConfirmation);
   const setUsageLoginDeviceCode = useBrowserPanelStore((s) => s.setUsageLoginDeviceCode);
@@ -56,6 +57,8 @@ export function useBrowserSync(): void {
           }
           panel.openBrowserPanel();
         }
+      } else if (event.type === "automation-active") {
+        setAutomationActive(event.active);
       } else if (event.type === "picker-cancelled") {
         setPickerActive(false);
       } else if (event.type === "usage-login-confirmation") {
@@ -83,6 +86,7 @@ export function useBrowserSync(): void {
     upsertTab,
     setAttention,
     setPickerActive,
+    setAutomationActive,
     setUsageLoginConfirmation,
     clearUsageLoginConfirmation,
     setUsageLoginDeviceCode,

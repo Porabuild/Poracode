@@ -1,11 +1,11 @@
-import type { CdpClient } from "./cdpClient";
+import type { CdpSession } from "./cdpClient";
 
 interface RuntimeEvalResult {
   result: { type: string; subtype?: string; value?: unknown; description?: string };
   exceptionDetails?: { text?: string; exception?: { description?: string } };
 }
 
-export async function evalJs<T = unknown>(cdp: CdpClient, expression: string): Promise<T> {
+export async function evalJs<T = unknown>(cdp: CdpSession, expression: string): Promise<T> {
   const res = await cdp.send<RuntimeEvalResult>("Runtime.evaluate", {
     expression,
     returnByValue: true,
@@ -20,12 +20,12 @@ export async function evalJs<T = unknown>(cdp: CdpClient, expression: string): P
   return res.result.value as T;
 }
 
-export async function navigate(cdp: CdpClient, url: string): Promise<void> {
+export async function navigate(cdp: CdpSession, url: string): Promise<void> {
   await cdp.send("Page.enable");
   await cdp.send("Page.navigate", { url });
 }
 
-export async function reload(cdp: CdpClient): Promise<void> {
+export async function reload(cdp: CdpSession): Promise<void> {
   await cdp.send("Page.reload");
 }
 
@@ -34,7 +34,7 @@ interface HistoryResp {
   entries: Array<{ id: number; url: string; title: string }>;
 }
 
-export async function back(cdp: CdpClient): Promise<boolean> {
+export async function back(cdp: CdpSession): Promise<boolean> {
   const h = await cdp.send<HistoryResp>("Page.getNavigationHistory");
   if (h.currentIndex <= 0) return false;
   const entry = h.entries[h.currentIndex - 1];
@@ -43,7 +43,7 @@ export async function back(cdp: CdpClient): Promise<boolean> {
   return true;
 }
 
-export async function forward(cdp: CdpClient): Promise<boolean> {
+export async function forward(cdp: CdpSession): Promise<boolean> {
   const h = await cdp.send<HistoryResp>("Page.getNavigationHistory");
   if (h.currentIndex >= h.entries.length - 1) return false;
   const entry = h.entries[h.currentIndex + 1];
@@ -53,7 +53,7 @@ export async function forward(cdp: CdpClient): Promise<boolean> {
 }
 
 export async function captureScreenshotPng(
-  cdp: CdpClient,
+  cdp: CdpSession,
   options: {
     fullPage?: boolean;
     clip?: { x: number; y: number; width: number; height: number };
@@ -63,9 +63,14 @@ export async function captureScreenshotPng(
     /** When true, allow the clip to reference document coordinates outside the
      *  current viewport so capture can happen without scrolling the page. */
     captureBeyondViewport?: boolean;
+    /** Capture from the renderer's frame instead of the on-screen GPU surface.
+     *  Required for headless/off-screen tabs, whose surface never composites a
+     *  frame (so the default `fromSurface: true` capture hangs). */
+    fromSurface?: boolean;
   },
 ): Promise<Buffer> {
   const params: Record<string, unknown> = { format: options.format ?? "png" };
+  if (options.fromSurface === false) params.fromSurface = false;
   if (options.format === "jpeg" && typeof options.quality === "number") {
     params.quality = Math.max(1, Math.min(100, Math.floor(options.quality)));
   }
@@ -98,7 +103,7 @@ export async function captureScreenshotPng(
 }
 
 export async function queryFirstRect(
-  cdp: CdpClient,
+  cdp: CdpSession,
   selector: string,
 ): Promise<{ x: number; y: number; width: number; height: number } | null> {
   const expr = `(() => {
@@ -115,7 +120,7 @@ export async function queryFirstRect(
  *  the element into view. Used for off-viewport screenshot clips paired with
  *  `captureBeyondViewport: true` so the user does not see the page scroll. */
 export async function queryFirstDocumentRect(
-  cdp: CdpClient,
+  cdp: CdpSession,
   selector: string,
 ): Promise<{ x: number; y: number; width: number; height: number } | null> {
   const expr = `(() => {
@@ -133,7 +138,7 @@ export async function queryFirstDocumentRect(
 }
 
 export async function waitForSelector(
-  cdp: CdpClient,
+  cdp: CdpSession,
   selector: string,
   timeoutMs: number,
 ): Promise<boolean> {
@@ -156,7 +161,7 @@ export async function waitForSelector(
  * cheap to serialize and small enough to feed back into an LLM context.
  */
 export async function pageSnapshot(
-  cdp: CdpClient,
+  cdp: CdpSession,
   options: {
     maxNodes?: number;
     offset?: number;
@@ -286,7 +291,7 @@ export async function pageSnapshot(
 }
 
 export async function getElementInfo(
-  cdp: CdpClient,
+  cdp: CdpSession,
   selector: string,
   fields: ReadonlyArray<"text" | "html" | "value" | "attr" | "count" | "box" | "styles">,
   attrName?: string,
@@ -320,7 +325,7 @@ export async function getElementInfo(
 }
 
 export async function getElementState(
-  cdp: CdpClient,
+  cdp: CdpSession,
   selector: string,
 ): Promise<{
   exists: boolean;
@@ -346,7 +351,7 @@ export async function getElementState(
 }
 
 export async function waitForJs(
-  cdp: CdpClient,
+  cdp: CdpSession,
   expression: string,
   timeoutMs: number,
 ): Promise<unknown> {
@@ -364,7 +369,7 @@ export async function waitForJs(
   throw new Error(`Timed out waiting for: ${expression}`);
 }
 
-export async function waitForText(cdp: CdpClient, text: string, timeoutMs: number): Promise<void> {
+export async function waitForText(cdp: CdpSession, text: string, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + Math.max(50, Math.min(60_000, timeoutMs));
   const literal = JSON.stringify(text);
   while (Date.now() < deadline) {
@@ -379,7 +384,7 @@ export async function waitForText(cdp: CdpClient, text: string, timeoutMs: numbe
 }
 
 export async function waitForUrl(
-  cdp: CdpClient,
+  cdp: CdpSession,
   pattern: string,
   timeoutMs: number,
 ): Promise<string> {
@@ -402,7 +407,7 @@ export async function waitForUrl(
 }
 
 export async function findByA11y(
-  cdp: CdpClient,
+  cdp: CdpSession,
   query: {
     role?: string;
     name?: string;
@@ -623,7 +628,7 @@ export async function findByA11y(
 }
 
 export async function querySelectorAllSnapshot(
-  cdp: CdpClient,
+  cdp: CdpSession,
   selector: string,
   limit: number = 20,
   offset: number = 0,
@@ -674,7 +679,7 @@ export interface CdpCookie {
   sameSite?: "Strict" | "Lax" | "None";
 }
 
-export async function getCookies(cdp: CdpClient, urls?: string[]): Promise<CdpCookie[]> {
+export async function getCookies(cdp: CdpSession, urls?: string[]): Promise<CdpCookie[]> {
   await cdp.send("Network.enable");
   const params: Record<string, unknown> = {};
   if (urls && urls.length > 0) params.urls = urls;
@@ -683,7 +688,7 @@ export async function getCookies(cdp: CdpClient, urls?: string[]): Promise<CdpCo
 }
 
 export async function setCookie(
-  cdp: CdpClient,
+  cdp: CdpSession,
   cookie: {
     name: string;
     value: string;
@@ -702,7 +707,7 @@ export async function setCookie(
 }
 
 export async function clearCookies(
-  cdp: CdpClient,
+  cdp: CdpSession,
   filter?: { name?: string; domain?: string; url?: string },
 ): Promise<{ cleared: number }> {
   await cdp.send("Network.enable");
@@ -740,7 +745,7 @@ function storageRef(kind: StorageKind): string {
 }
 
 export async function storageGetAll(
-  cdp: CdpClient,
+  cdp: CdpSession,
   kind: StorageKind,
 ): Promise<Array<{ key: string; value: string }>> {
   const ref = storageRef(kind);
@@ -756,7 +761,7 @@ export async function storageGetAll(
 }
 
 export async function storageGet(
-  cdp: CdpClient,
+  cdp: CdpSession,
   kind: StorageKind,
   key: string,
 ): Promise<string | null> {
@@ -765,7 +770,7 @@ export async function storageGet(
 }
 
 export async function storageSet(
-  cdp: CdpClient,
+  cdp: CdpSession,
   kind: StorageKind,
   key: string,
   value: string,
@@ -774,12 +779,16 @@ export async function storageSet(
   await evalJs(cdp, `${ref}.setItem(${JSON.stringify(key)}, ${JSON.stringify(value)})`);
 }
 
-export async function storageRemove(cdp: CdpClient, kind: StorageKind, key: string): Promise<void> {
+export async function storageRemove(
+  cdp: CdpSession,
+  kind: StorageKind,
+  key: string,
+): Promise<void> {
   const ref = storageRef(kind);
   await evalJs(cdp, `${ref}.removeItem(${JSON.stringify(key)})`);
 }
 
-export async function storageClear(cdp: CdpClient, kind: StorageKind): Promise<void> {
+export async function storageClear(cdp: CdpSession, kind: StorageKind): Promise<void> {
   const ref = storageRef(kind);
   await evalJs(cdp, `${ref}.clear()`);
 }
@@ -824,7 +833,7 @@ function flattenFrameTree(tree: RawFrameTree, out: FrameTreeFrame[]): void {
   for (const c of tree.childFrames ?? []) flattenFrameTree(c, out);
 }
 
-export async function getFrameTree(cdp: CdpClient): Promise<FrameTreeFrame[]> {
+export async function getFrameTree(cdp: CdpSession): Promise<FrameTreeFrame[]> {
   await cdp.send("Page.enable");
   const res = await cdp.send<{ frameTree: RawFrameTree }>("Page.getFrameTree");
   const out: FrameTreeFrame[] = [];
@@ -837,7 +846,7 @@ export async function getFrameTree(cdp: CdpClient): Promise<FrameTreeFrame[]> {
 // ============================================================================
 
 export async function addInitScript(
-  cdp: CdpClient,
+  cdp: CdpSession,
   source: string,
 ): Promise<{ identifier: string }> {
   await cdp.send("Page.enable");
@@ -847,11 +856,11 @@ export async function addInitScript(
   return res;
 }
 
-export async function removeInitScript(cdp: CdpClient, identifier: string): Promise<void> {
+export async function removeInitScript(cdp: CdpSession, identifier: string): Promise<void> {
   await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
 }
 
-export async function addInitStyle(cdp: CdpClient, css: string): Promise<{ identifier: string }> {
+export async function addInitStyle(cdp: CdpSession, css: string): Promise<{ identifier: string }> {
   // Inject a script that appends a <style> tag on every new document load.
   const source = `(() => {
     if (!document || !document.documentElement) return;
@@ -863,7 +872,7 @@ export async function addInitStyle(cdp: CdpClient, css: string): Promise<{ ident
   return await addInitScript(cdp, source);
 }
 
-export async function evaluateOneShotStyle(cdp: CdpClient, css: string): Promise<void> {
+export async function evaluateOneShotStyle(cdp: CdpSession, css: string): Promise<void> {
   await evalJs(
     cdp,
     `(() => {

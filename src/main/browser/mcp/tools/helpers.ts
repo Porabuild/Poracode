@@ -6,15 +6,36 @@ export function clampInteger(value: unknown, fallback: number, min: number, max:
   return Math.max(min, Math.min(max, Math.floor(value)));
 }
 
+/** createTab options for an agent-created tab, carrying the calling thread so it
+ *  joins that thread's tab group (named by the task). */
+export function agentTabOpts(ctx: ToolContext): {
+  agent: true;
+  threadId?: string;
+  threadTitle?: string;
+} {
+  return {
+    agent: true,
+    ...(ctx.threadId ? { threadId: ctx.threadId } : {}),
+    ...(ctx.threadTitle ? { threadTitle: ctx.threadTitle } : {}),
+  };
+}
+
 export async function resolveTabId(
   ctx: ToolContext,
   payload: Record<string, unknown>,
 ): Promise<string> {
   const requested = typeof payload.tabId === "string" ? payload.tabId : null;
-  if (requested) return requested;
+  if (requested) {
+    // Marks agent activity + revives the tab if it was unmounted while idle.
+    await ctx.manager.ensureTabReady(requested);
+    return requested;
+  }
   const active = ctx.manager.getActiveTab();
-  if (active) return active.tabId;
-  const info = await ctx.manager.createTab({ activate: true });
+  if (active) {
+    await ctx.manager.ensureTabReady(active.tabId);
+    return active.tabId;
+  }
+  const info = await ctx.manager.createTab({ activate: true }, agentTabOpts(ctx));
   return info.tabId;
 }
 

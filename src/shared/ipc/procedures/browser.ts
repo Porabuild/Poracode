@@ -9,6 +9,29 @@ export const browserRectSchema = z.object({
 });
 export type BrowserRect = z.infer<typeof browserRectSchema>;
 
+export const browserTabGroupColorSchema = z.enum([
+  "purple",
+  "blue",
+  "green",
+  "red",
+  "yellow",
+  "cyan",
+  "orange",
+  "gray",
+]);
+export type BrowserTabGroupColor = z.infer<typeof browserTabGroupColorSchema>;
+
+export const browserTabGroupSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  color: browserTabGroupColorSchema,
+  collapsed: z.boolean(),
+  /** Present when the group is owned by a thread — the renderer resolves this to
+   *  the thread's live title for display. */
+  threadId: z.string().optional(),
+});
+export type BrowserTabGroupInfo = z.infer<typeof browserTabGroupSchema>;
+
 export const browserTabSchema = z.object({
   tabId: z.string(),
   url: z.string(),
@@ -18,6 +41,7 @@ export const browserTabSchema = z.object({
   canGoBack: z.boolean(),
   canGoForward: z.boolean(),
   devToolsOpen: z.boolean().optional(),
+  groupId: z.string().optional(),
 });
 export type BrowserTabInfo = z.infer<typeof browserTabSchema>;
 
@@ -35,6 +59,7 @@ export const browserStateSchema = z.object({
   extracted: z.boolean().optional(),
   bookmarks: z.array(browserBookmarkSchema).optional(),
   bookmarkBarVisible: z.boolean().optional(),
+  groups: z.array(browserTabGroupSchema).optional(),
 });
 export type BrowserState = z.infer<typeof browserStateSchema>;
 
@@ -61,6 +86,25 @@ export const browserMoveTabPayloadSchema = z.object({
 export const browserAttachWebContentsPayloadSchema = z.object({
   tabId: z.string().min(1),
   webContentsId: z.number().int().nonnegative(),
+});
+
+export const browserSetGroupCollapsedPayloadSchema = z.object({
+  groupId: z.string().min(1),
+  collapsed: z.boolean(),
+});
+
+export const browserGroupIdPayloadSchema = z.object({
+  groupId: z.string().min(1),
+});
+
+export const browserRenameGroupPayloadSchema = z.object({
+  groupId: z.string().min(1),
+  title: z.string(),
+});
+
+export const browserSetGroupColorPayloadSchema = z.object({
+  groupId: z.string().min(1),
+  color: browserTabGroupColorSchema,
 });
 
 export const browserCapturePreviewResultSchema = z.object({
@@ -159,6 +203,36 @@ export const browserProcedures = {
     void,
     "main-local"
   >("browserMoveTab", "main-local", browserMoveTabPayloadSchema),
+  browserSetGroupCollapsed: definePayloadProcedure<
+    z.infer<typeof browserSetGroupCollapsedPayloadSchema>,
+    void,
+    "main-local"
+  >("browserSetGroupCollapsed", "main-local", browserSetGroupCollapsedPayloadSchema),
+  browserUngroupGroup: definePayloadProcedure<
+    z.infer<typeof browserGroupIdPayloadSchema>,
+    void,
+    "main-local"
+  >("browserUngroupGroup", "main-local", browserGroupIdPayloadSchema),
+  browserCloseGroup: definePayloadProcedure<
+    z.infer<typeof browserGroupIdPayloadSchema>,
+    void,
+    "main-local"
+  >("browserCloseGroup", "main-local", browserGroupIdPayloadSchema),
+  browserNewTabInGroup: definePayloadProcedure<
+    z.infer<typeof browserGroupIdPayloadSchema>,
+    void,
+    "main-local"
+  >("browserNewTabInGroup", "main-local", browserGroupIdPayloadSchema),
+  browserRenameGroup: definePayloadProcedure<
+    z.infer<typeof browserRenameGroupPayloadSchema>,
+    void,
+    "main-local"
+  >("browserRenameGroup", "main-local", browserRenameGroupPayloadSchema),
+  browserSetGroupColor: definePayloadProcedure<
+    z.infer<typeof browserSetGroupColorPayloadSchema>,
+    void,
+    "main-local"
+  >("browserSetGroupColor", "main-local", browserSetGroupColorPayloadSchema),
   browserNavigate: definePayloadProcedure<
     z.infer<typeof browserNavigatePayloadSchema>,
     void,

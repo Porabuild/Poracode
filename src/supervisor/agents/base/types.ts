@@ -18,6 +18,7 @@ import type {
   ThreadStatus,
 } from "@/shared/contracts";
 import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
+import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { SubagentMcpHttpConfig } from "@/supervisor/agents/subagentMcp";
 
@@ -130,6 +131,7 @@ export interface CreateStructuredSessionInput {
   config: ThreadConfig;
   agentSettings?: Record<string, boolean | string>;
   env?: Record<string, string>;
+  mcpIdentity?: McpThreadIdentity;
   browserMcp?: BrowserMcpHttpConfig;
   subagentMcp?: SubagentMcpHttpConfig;
   sessionRef?: SessionRef;

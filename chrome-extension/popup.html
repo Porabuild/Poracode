@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Poracode</title>
+    <style>
+      :root {
+        --bg: #100e17;
+        --card: rgba(255, 255, 255, 0.04);
+        --border: rgba(255, 255, 255, 0.08);
+        --text: #eceaf3;
+        --muted: rgba(236, 234, 243, 0.5);
+        --accent: #7d6cf6;
+        --on: #46d17f;
+        --on-bg: rgba(70, 209, 127, 0.12);
+        --idle: #e6b34a;
+        --idle-bg: rgba(230, 179, 74, 0.12);
+        --err: #ff6a5a;
+        --err-bg: rgba(255, 106, 90, 0.12);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        /* Let the browser composite rounded body corners without a bg fill. */
+        background: transparent;
+      }
+      body {
+        width: 340px;
+        margin: 0;
+        padding: 22px 22px 20px;
+        border-radius: 16px;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          sans-serif;
+        font-size: 13px;
+        text-align: center;
+      }
+      .logo {
+        width: 46px;
+        height: 46px;
+        border-radius: 12px;
+        display: block;
+        margin: 0 auto;
+      }
+      .wordmark {
+        font-size: 17px;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+        margin: 9px 0 16px;
+      }
+      .wordmark .dot {
+        color: var(--accent);
+      }
+      .card {
+        border: 1px solid var(--border);
+        background: var(--card);
+        border-radius: 12px;
+        padding: 13px 14px;
+        text-align: left;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 11px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 600;
+        background: rgba(127, 127, 127, 0.14);
+        color: var(--muted);
+      }
+      .pill .pdot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+        flex: none;
+      }
+      .pill.on {
+        background: var(--on-bg);
+        color: var(--on);
+      }
+      .pill.idle {
+        background: var(--idle-bg);
+        color: var(--idle);
+      }
+      .pill.err {
+        background: var(--err-bg);
+        color: var(--err);
+      }
+      .desc {
+        color: var(--muted);
+        font-size: 11.5px;
+        line-height: 1.45;
+        margin-top: 10px;
+      }
+      .version {
+        color: var(--muted);
+        font-size: 11px;
+        margin-top: 7px;
+        opacity: 0.75;
+      }
+    </style>
+  </head>
+  <body>
+    <img class="logo" src="icons/icon-128.png" alt="Poracode" />
+    <div class="wordmark">Pora<span class="dot">.</span>code</div>
+    <div class="card">
+      <span class="pill" id="pill"
+        ><span class="pdot"></span><span id="statusText">Checking…</span></span
+      >
+      <div class="desc" id="desc"></div>
+      <div class="version" id="version"></div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1618,6 +1618,7 @@ msgid "Close goal"
 msgstr "Закрыть цель"
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Close group"
 msgstr "Закрыть группу"
 
@@ -1754,6 +1755,11 @@ msgstr "Свернуть Composer"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "Свернуть ошибку"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Collapse group"
+msgstr "Свернуть группу"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -2840,6 +2846,11 @@ msgstr "Развернуть всё"
 msgid "Expand error"
 msgstr "Развернуть ошибку"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Expand group"
+msgstr "Развернуть группу"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
 msgstr "Разверните, чтобы проверить или отозвать доступ."
@@ -3299,6 +3310,10 @@ msgstr "Понятно"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "Группа"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "Group name"
+msgstr "Название группы"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Group open threads"
@@ -4278,6 +4293,10 @@ msgstr "Новый быстрый тред"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
 msgstr "Новая вкладка"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "New tab in group"
+msgstr "Новая вкладка в группе"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/QuickCompose.tsx
@@ -6352,6 +6371,10 @@ msgstr "Разделяйте аккаунты Claude Code по каталогу 
 #~ msgstr "Предоставляйте удалённый доступ через HTTPS-URL MagicDNS вашей сети "
 #~ "Tailscale."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "Set group color"
+msgstr "Задать цвет группы"
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
 msgstr "Задать или просмотреть экспериментальную цель"
@@ -7651,6 +7674,10 @@ msgstr "Не удалось обновить поток."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Не назначено"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "Ungroup"
+msgstr "Разгруппировать"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Ungroup All"

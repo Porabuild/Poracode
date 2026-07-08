@@ -260,6 +260,14 @@ export class BrowserTab {
       this.teardownListeners();
       this._webContents = null;
       this._cdp = null;
+      // The tab can be unmounted when the headless browser goes idle, then
+      // remounted on the next automation. Re-arm the attach promise so a later
+      // whenAttached() waits for that fresh attach instead of resolving stale.
+      if (!this.destroyed) {
+        this.attachedPromise = new Promise<void>((resolve) => {
+          this.resolveAttached = resolve;
+        });
+      }
     };
     wc.on("destroyed", onDestroyed);
     this.wcCleanups.push(() => wc.removeListener("destroyed", onDestroyed));

@@ -34,6 +34,7 @@ export type {
 export {
   browserPickResultSchema,
   browserStateSchema,
+  browserTabGroupSchema,
   browserTabSchema,
   type BrowserBookmarkInfo,
   type BrowserHistoryEntryInfo,
@@ -42,6 +43,8 @@ export {
   type BrowserState,
   type BrowserStartPickerResult,
   type BrowserSuggestResult,
+  type BrowserTabGroupColor,
+  type BrowserTabGroupInfo,
   type BrowserTabInfo,
 } from "./procedures/browser";
 export {

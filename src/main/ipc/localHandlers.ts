@@ -400,6 +400,23 @@ export function createLocalIpcHandlers(
     browserMoveTab: ({ tabId, targetTabId, position }) => {
       requireBrowserPanel(options.getBrowserPanelManager).moveTab(tabId, targetTabId, position);
     },
+    browserSetGroupCollapsed: ({ groupId, collapsed }) => {
+      requireBrowserPanel(options.getBrowserPanelManager).setGroupCollapsed(groupId, collapsed);
+    },
+    browserUngroupGroup: ({ groupId }) => {
+      requireBrowserPanel(options.getBrowserPanelManager).ungroupGroup(groupId);
+    },
+    browserCloseGroup: ({ groupId }) =>
+      requireBrowserPanel(options.getBrowserPanelManager).closeGroup(groupId),
+    browserNewTabInGroup: async ({ groupId }) => {
+      await requireBrowserPanel(options.getBrowserPanelManager).newTabInGroup(groupId);
+    },
+    browserRenameGroup: ({ groupId, title }) => {
+      requireBrowserPanel(options.getBrowserPanelManager).renameGroup(groupId, title);
+    },
+    browserSetGroupColor: ({ groupId, color }) => {
+      requireBrowserPanel(options.getBrowserPanelManager).setGroupColor(groupId, color);
+    },
     browserNavigate: ({ tabId, url }) =>
       requireBrowserPanel(options.getBrowserPanelManager).navigate(tabId, url),
     browserBack: ({ tabId }) => requireBrowserPanel(options.getBrowserPanelManager).back(tabId),

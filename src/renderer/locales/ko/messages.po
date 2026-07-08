@@ -1590,6 +1590,7 @@ msgid "Close goal"
 msgstr "목표 닫기"
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Close group"
 msgstr "그룹 닫기"
 
@@ -1726,6 +1727,11 @@ msgstr "작성기 접기"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "오류 접기"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Collapse group"
+msgstr "그룹 접기"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -2794,6 +2800,11 @@ msgstr "모두 펼치기"
 msgid "Expand error"
 msgstr "확장 오류"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Expand group"
+msgstr "그룹 펼치기"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
 msgstr "펼쳐서 액세스를 검토하거나 취소합니다."
@@ -3235,6 +3246,10 @@ msgstr "확인"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "그룹"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "Group name"
+msgstr "그룹 이름"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Group open threads"
@@ -4202,6 +4217,10 @@ msgstr "새 빠른 스레드"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
 msgstr "새 탭"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "New tab in group"
+msgstr "그룹에 새 탭"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/QuickCompose.tsx
@@ -6249,6 +6268,10 @@ msgstr "Claude Code 계정을 설정 디렉터리별로 분리하거나, 프로�
 #~ msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
 #~ msgstr "테일넷의 HTTPS MagicDNS URL을 통해 원격 액세스를 제공합니다."
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "Set group color"
+msgstr "그룹 색상 설정"
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
 msgstr "실험 목표 설정 또는 보기"
@@ -7526,6 +7549,10 @@ msgstr "스레드를 업데이트할 수 없습니다."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "미지정"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "Ungroup"
+msgstr "그룹 해제"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Ungroup All"

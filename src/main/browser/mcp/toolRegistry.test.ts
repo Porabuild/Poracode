@@ -99,6 +99,7 @@ function createDispatchContext(send: ReturnType<typeof vi.fn>): ToolContext {
       }),
       getActiveTab: () => tab,
       getTab: () => tab,
+      ensureTabReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       createTab: vi.fn<() => Promise<unknown>>().mockResolvedValue({ tabId: "tab-1" }),
       setActiveTab: vi.fn<() => void>(),
       closeTab: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),

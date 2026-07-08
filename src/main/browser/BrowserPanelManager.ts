@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { BrowserWindow, shell } from "electron";
-import type {
-  BrowserEvent,
-  BrowserState,
-  BrowserStartPickerResult,
-  BrowserTabInfo,
+import {
+  IPC_EVENT_CHANNELS,
+  type BrowserEvent,
+  type BrowserState,
+  type BrowserStartPickerResult,
+  type BrowserTabGroupInfo,
+  type BrowserTabInfo,
 } from "@/shared/ipc";
 import type { UsageLoginConfirmationAction, UsageLoginDeviceCode } from "@/shared/contracts";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
@@ -12,9 +14,9 @@ import type { BrowserLinkOpenTarget, BrowserLinkPresentationMode } from "@/share
 import { dbGetState, dbSetState } from "../db";
 import { readSharedSettingsFile } from "../sharedSettingsFile";
 import { saveClipboardImageFile } from "../attachments/localFiles";
-import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
 import { BrowserLoginCaptureCoordinator } from "./BrowserLoginCaptureCoordinator";
 import { BrowserTab, resolveWebContentsById } from "./BrowserTab";
+import { BrowserTabGroups } from "./BrowserTabGroups";
 import { BrowserHistoryStore, fetchSearchSuggestions } from "./browserHistory";
 import { BrowserBookmarkStore, type BrowserBookmark } from "./browserBookmarks";
 import { PICKER_COMMIT_ORIGIN, onPickerCommit } from "./picker/pickerProtocol";
@@ -23,12 +25,16 @@ import { buildPickerScript } from "./picker/pickerScript";
 const PERSIST_KEY = "browser-panel-tabs-v1";
 const PERSIST_DEBOUNCE_MS = 750;
 const ATTACH_TIMEOUT_MS = 8000;
+// How long the browser stays "active" (webviews kept mounted for headless work)
+// after the last agent tool call, before the renderer unmounts them.
+const AUTOMATION_GRACE_MS = 45_000;
 const INTERNAL_BROWSER_PROTOCOLS = new Set(["http:", "https:"]);
 const SYSTEM_BROWSER_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 
 interface PersistedTabsState {
-  tabs: Array<{ url: string; title: string }>;
+  tabs: Array<{ url: string; title: string; groupId?: string }>;
   activeIndex: number | null;
+  groups?: BrowserTabGroupInfo[];
 }
 
 interface PendingPicker {
@@ -55,6 +61,7 @@ interface BrowserPanelManagerOptions {
 
 export class BrowserPanelManager {
   private tabs: BrowserTab[] = [];
+  private readonly tabGroups = new BrowserTabGroups();
   private activeTabId: string | null = null;
   private hosts = new Set<BrowserWindow>();
   /** Out-of-window observers (remote access gateway) fed the same events as
@@ -66,6 +73,8 @@ export class BrowserPanelManager {
   private readonly history = new BrowserHistoryStore();
   private readonly bookmarks = new BrowserBookmarkStore();
   private restored = false;
+  private automationActive = false;
+  private automationTimer: ReturnType<typeof setTimeout> | null = null;
   private pickerKeyCleanup: (() => void) | null = null;
   private readonly loginCoordinator = new BrowserLoginCaptureCoordinator({
     createTab: (payload) => this.createTab(payload),
@@ -88,14 +97,17 @@ export class BrowserPanelManager {
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null;
       try {
+        const groups = this.tabGroups.serialize();
         const state: PersistedTabsState = {
           tabs: this.tabs.map((t) => {
             const s = t.snapshot();
-            return { url: s.url, title: s.title };
+            const groupId = this.tabGroups.groupIdForTab(t.tabId);
+            return { url: s.url, title: s.title, ...(groupId ? { groupId } : {}) };
           }),
           activeIndex: this.activeTabId
             ? this.tabs.findIndex((t) => t.tabId === this.activeTabId)
             : null,
+          ...(groups ? { groups } : {}),
         };
         dbSetState(PERSIST_KEY, JSON.stringify(state));
       } catch {}
@@ -116,12 +128,22 @@ export class BrowserPanelManager {
       return;
     }
     if (!parsed || parsed.tabs.length === 0) return;
+    this.tabGroups.restore(parsed.groups);
     for (let i = 0; i < parsed.tabs.length; i++) {
       const entry = parsed.tabs[i];
       if (!entry || typeof entry.url !== "string" || entry.url.length === 0) continue;
       const isActive = parsed.activeIndex === i;
-      await this.createTab({ url: entry.url, activate: isActive }).catch(() => {});
+      // Restored tabs are dormant: don't wake the browser or block on attach —
+      // they mount lazily when the user opens the panel or the agent uses them.
+      const info = await this.createTab(
+        { url: entry.url, activate: isActive },
+        { markActivity: false, awaitAttach: false },
+      ).catch(() => null);
+      // Persisted order is already contiguous, so just re-map (no reorder).
+      if (info && entry.groupId) this.tabGroups.assignRestoredTab(info.tabId, entry.groupId);
     }
+    this.tabGroups.pruneEmptyGroups();
+    this.emitState();
   }
 
   bindHost(window: BrowserWindow): void {
@@ -148,6 +170,10 @@ export class BrowserPanelManager {
     if (this.persistTimer) {
       clearTimeout(this.persistTimer);
       this.persistTimer = null;
+    }
+    if (this.automationTimer) {
+      clearTimeout(this.automationTimer);
+      this.automationTimer = null;
     }
     this.clearPickerShortcut();
     this.loginCoordinator.cancelLoginConfirmations();
@@ -222,6 +248,46 @@ export class BrowserPanelManager {
     this.emit({ type: "open-panel" });
   }
 
+  /**
+   * Mark agent browser activity. Tells the renderer to keep the browser's
+   * <webview>s mounted (off-screen, headless) so the agent can drive tabs with
+   * the panel closed; a grace timer flips it back to idle (unmount) once the
+   * agent stops. Called from tab-resolution so passive/metadata tools don't
+   * needlessly wake the browser.
+   */
+  markAutomationActivity(): void {
+    if (!this.automationActive) {
+      this.automationActive = true;
+      this.emit({ type: "automation-active", active: true });
+    }
+    if (this.automationTimer) clearTimeout(this.automationTimer);
+    this.automationTimer = setTimeout(() => {
+      this.automationTimer = null;
+      this.automationActive = false;
+      this.emit({ type: "automation-active", active: false });
+    }, AUTOMATION_GRACE_MS);
+  }
+
+  /**
+   * Ensure a tab is mounted + attached before a tool drives it. Marks activity
+   * (so the renderer mounts the headless host) and, if the tab was unmounted
+   * while idle, waits for it to remount + re-attach.
+   */
+  async ensureTabReady(tabId: string): Promise<void> {
+    this.markAutomationActivity();
+    const tab = this.findTab(tabId);
+    if (!tab || tab.isAttached()) return;
+    await this.awaitAttach(tab);
+  }
+
+  /** Wait for a tab's `<webview>` to mount + attach, capped at ATTACH_TIMEOUT_MS. */
+  private awaitAttach(tab: BrowserTab): Promise<void> {
+    return Promise.race([
+      tab.whenAttached(),
+      new Promise<void>((resolve) => setTimeout(resolve, ATTACH_TIMEOUT_MS)),
+    ]);
+  }
+
   private hasHostWindow(): boolean {
     for (const host of this.hosts) {
       if (!host.isDestroyed()) return true;
@@ -280,6 +346,7 @@ export class BrowserPanelManager {
 
   private toInfo(t: BrowserTab): BrowserTabInfo {
     const s = t.snapshot();
+    const groupId = this.tabGroups.groupIdForTab(s.tabId);
     return {
       tabId: s.tabId,
       url: s.url,
@@ -289,6 +356,7 @@ export class BrowserPanelManager {
       canGoForward: s.canGoForward,
       devToolsOpen: s.devToolsOpen,
       ...(s.faviconUrl ? { faviconUrl: s.faviconUrl } : {}),
+      ...(groupId ? { groupId } : {}),
     };
   }
 
@@ -299,7 +367,52 @@ export class BrowserPanelManager {
       extracted: this.options.isExtracted?.() === true,
       bookmarks: this.bookmarks.list(),
       bookmarkBarVisible: this.bookmarks.isBarVisible(),
+      groups: this.tabGroups.snapshot(),
     };
+  }
+
+  // -- Tab groups -----------------------------------------------------------
+
+  setGroupCollapsed(groupId: string, collapsed: boolean): void {
+    if (!this.tabGroups.setCollapsed(groupId, collapsed)) return;
+    this.emitState();
+    this.schedulePersist();
+  }
+
+  /** Remove a group and detach all its tabs (the tabs themselves stay open). */
+  ungroupGroup(groupId: string): void {
+    if (!this.tabGroups.ungroup(groupId)) return;
+    this.emitState();
+    this.schedulePersist();
+  }
+
+  renameGroup(groupId: string, title: string): void {
+    if (!this.tabGroups.rename(groupId, title)) return;
+    this.emitState();
+    this.schedulePersist();
+  }
+
+  setGroupColor(groupId: string, color: BrowserTabGroupInfo["color"]): void {
+    if (!this.tabGroups.setColor(groupId, color)) return;
+    this.emitState();
+    this.schedulePersist();
+  }
+
+  /** Close every tab in a group (the group is pruned once empty). */
+  async closeGroup(groupId: string): Promise<void> {
+    const ids = this.tabGroups.tabIdsInGroup(groupId);
+    for (const tabId of ids) {
+      await this.closeTab(tabId);
+    }
+  }
+
+  /** Open a new tab already inside `groupId`. */
+  async newTabInGroup(groupId: string): Promise<BrowserTabInfo> {
+    const info = await this.createTab({ activate: true });
+    if (!this.tabGroups.assignTabToGroup(this.tabs, info.tabId, groupId)) return info;
+    this.emitState();
+    this.schedulePersist();
+    return info;
   }
 
   addBookmark(bookmark: BrowserBookmark): void {
@@ -336,7 +449,19 @@ export class BrowserPanelManager {
     tab.attach(wc);
   }
 
-  async createTab(payload: { url?: string; activate?: boolean }): Promise<BrowserTabInfo> {
+  async createTab(
+    payload: { url?: string; activate?: boolean },
+    opts: {
+      markActivity?: boolean;
+      awaitAttach?: boolean;
+      agent?: boolean;
+      threadId?: string;
+      threadTitle?: string;
+    } = {},
+  ): Promise<BrowserTabInfo> {
+    // Creating a tab is agent activity (mounts the headless host). Restore
+    // passes markActivity:false so reopening the app doesn't wake dormant tabs.
+    if (opts.markActivity !== false) this.markAutomationActivity();
     const tabId = `tab-${randomUUID()}`;
     const tab = new BrowserTab({
       tabId,
@@ -355,6 +480,13 @@ export class BrowserPanelManager {
       },
     });
     this.tabs.push(tab);
+    // Agent-created tabs auto-join a group (parity with the external extension)
+    // so they're visually distinct from the user's tabs. Tabs carrying a thread
+    // get that thread's own group (named after its task); the rest fall back to
+    // the shared "Poracode" group.
+    if (opts.agent) {
+      this.tabGroups.assignAgentTab(this.tabs, tabId, opts.threadId, opts.threadTitle);
+    }
     const shouldActivate = payload.activate !== false;
     if (shouldActivate || this.activeTabId === null) {
       this.activeTabId = tabId;
@@ -363,10 +495,9 @@ export class BrowserPanelManager {
     this.schedulePersist();
     // Wait for the renderer to mount the <webview> and attach its webContents
     // so callers (e.g. MCP) can immediately use cdp / dialogs / network.
-    await Promise.race([
-      tab.whenAttached(),
-      new Promise<void>((resolve) => setTimeout(resolve, ATTACH_TIMEOUT_MS)),
-    ]);
+    if (opts.awaitAttach !== false) {
+      await this.awaitAttach(tab);
+    }
     return this.toInfo(tab);
   }
 
@@ -392,6 +523,7 @@ export class BrowserPanelManager {
     }
     if (position === "after") to += 1;
     this.tabs.splice(to, 0, tab);
+    this.tabGroups.moveTabToTargetGroup(tabId, targetTabId);
     this.emitState();
     this.schedulePersist();
   }
@@ -402,6 +534,7 @@ export class BrowserPanelManager {
     const [tab] = this.tabs.splice(idx, 1);
     if (!tab) return;
     await tab.destroy();
+    this.tabGroups.removeTab(tabId);
     if (this.activeTabId === tabId) {
       const next = this.tabs[idx] ?? this.tabs[idx - 1] ?? this.tabs[0];
       this.activeTabId = next?.tabId ?? null;

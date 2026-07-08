@@ -46,6 +46,26 @@ class ScreenshotTimeoutError extends Error {
   }
 }
 
+/** `webContents.capturePage()` throws (e.g. "UnknownVizError") when the tab
+ *  isn't composited — which is the case while the browser runs headless
+ *  off-screen. Return null in that case so the caller falls through to the CDP
+ *  capture path, which forces a frame regardless of on-screen visibility. */
+async function tryCapturePage(
+  promise: Promise<NativeImage>,
+  timeoutMs: number,
+  operation: string,
+): Promise<NativeImage | null> {
+  try {
+    return await withScreenshotTimeout(promise, timeoutMs, operation);
+  } catch (err) {
+    // A genuine timeout (the page is stuck) is a real result — surface it. Only
+    // a capture *failure* (e.g. off-screen "UnknownVizError") falls through to
+    // the CDP path.
+    if (err instanceof ScreenshotTimeoutError) throw err;
+    return null;
+  }
+}
+
 async function withScreenshotTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
@@ -229,6 +249,11 @@ export async function runScreenshotTool(
     allowJpegFallback: payload.format !== "png",
   };
 
+  // Set when capturePage() can't read the surface (tab running headless
+  // off-screen). Switches the CDP capture to `fromSurface: false` so it renders
+  // from the renderer frame rather than waiting on a non-existent GPU surface.
+  let headlessFallback = false;
+
   try {
     // Prefer `webContents.capturePage` for in-viewport captures — it reads
     // the renderer's already-painted bitmap without resizing the page, so
@@ -263,7 +288,7 @@ export async function runScreenshotTool(
       );
       if (!viewport.rect) throw new Error(`selector not found: ${selector}`);
       if (viewport.inView) {
-        const img = await withScreenshotTimeout(
+        const img = await tryCapturePage(
           tab.webContents.capturePage({
             x: Math.max(0, Math.floor(viewport.rect.x)),
             y: Math.max(0, Math.floor(viewport.rect.y)),
@@ -273,15 +298,19 @@ export async function runScreenshotTool(
           timeoutMs,
           "viewport selector screenshot",
         );
-        return screenshotResultFromNativeImage(img, screenshotOptions);
+        if (img) return screenshotResultFromNativeImage(img, screenshotOptions);
+        // null → tab is off-screen/headless; fall through to the CDP path.
+        headlessFallback = true;
       }
     } else if (!selector && !fullPage) {
-      const img = await withScreenshotTimeout(
+      const img = await tryCapturePage(
         tab.webContents.capturePage(),
         timeoutMs,
         "viewport screenshot",
       );
-      return screenshotResultFromNativeImage(img, screenshotOptions);
+      if (img) return screenshotResultFromNativeImage(img, screenshotOptions);
+      // null → tab is off-screen/headless; fall through to the CDP path.
+      headlessFallback = true;
     }
 
     // Off-viewport selector or fullPage — must use CDP, which will visibly
@@ -297,14 +326,21 @@ export async function runScreenshotTool(
         height: Math.max(1, Math.ceil(rect.height)),
       };
     }
+    // Headless viewport capture has no clip; render the whole document instead.
+    const effectiveFullPage = fullPage || (headlessFallback && !selector);
+    const cdpFromSurface = headlessFallback ? { fromSurface: false as const } : {};
+    // Rendering a full document from the renderer is slower than a surface read,
+    // so give headless captures more headroom than the (tight) default.
+    const cdpTimeout = headlessFallback ? Math.max(timeoutMs, 5000) : timeoutMs;
     const bytes = await withScreenshotTimeout(
       captureScreenshotPng(tab.cdp, {
-        fullPage,
+        fullPage: effectiveFullPage,
         format,
         quality,
+        ...cdpFromSurface,
         ...(clip ? { clip, captureBeyondViewport: true } : {}),
       }),
-      timeoutMs,
+      cdpTimeout,
       "cdp screenshot",
     );
     if (bytes.length <= maxBytes || payload.format === "png") {
@@ -324,13 +360,14 @@ export async function runScreenshotTool(
     ]) {
       const retry = await withScreenshotTimeout(
         captureScreenshotPng(tab.cdp, {
-          fullPage,
+          fullPage: effectiveFullPage,
           format: next.format,
           quality: next.quality,
           scale: next.scale,
+          ...cdpFromSurface,
           ...(clip ? { clip, captureBeyondViewport: true } : {}),
         }),
-        timeoutMs,
+        cdpTimeout,
         "cdp screenshot retry",
       );
       if (retry.length <= maxBytes) {

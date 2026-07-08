@@ -1588,6 +1588,7 @@ msgid "Close goal"
 msgstr "关闭目标"
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Close group"
 msgstr "关闭组"
 
@@ -1724,6 +1725,11 @@ msgstr "折叠输入框"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "折叠错误"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Collapse group"
+msgstr "折叠分组"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -2789,6 +2795,11 @@ msgstr "全部展开"
 msgid "Expand error"
 msgstr "展开错误"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+msgid "Expand group"
+msgstr "展开分组"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
 msgstr "展开以查看或撤销访问权限。"
@@ -3227,6 +3238,10 @@ msgstr "知道了"
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Group"
 msgstr "分组"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "Group name"
+msgstr "分组名称"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Group open threads"
@@ -4191,6 +4206,10 @@ msgstr "新快速线程"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "New tab"
 msgstr "新标签页"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "New tab in group"
+msgstr "在分组中新建标签页"
 
 #: src/mobile/RootLayout.tsx
 #: src/mobile/views/QuickCompose.tsx
@@ -6234,6 +6253,10 @@ msgstr "按配置目录区分Claude Code账户，或将配置指向外部服务�
 #~ msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
 #~ msgstr "通过您的 Tailscale 网络的 HTTPS MagicDNS URL 提供远程访问。"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "Set group color"
+msgstr "设置分组颜色"
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Set or view an experimental goal"
 msgstr "设置或查看实验目标"
@@ -7506,6 +7529,10 @@ msgstr "无法更新线程。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "未分配"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
+msgid "Ungroup"
+msgstr "取消分组"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Ungroup All"

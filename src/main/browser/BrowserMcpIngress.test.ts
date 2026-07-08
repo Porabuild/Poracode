@@ -86,6 +86,7 @@ describe("BrowserMcpIngress", () => {
           }),
           getActiveTab: () => tab,
           getTab: () => tab,
+          ensureTabReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
           createTab: vi.fn<() => Promise<unknown>>().mockResolvedValue({ tabId: "tab-1" }),
           reload: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         }) as unknown as BrowserPanelManager,
@@ -128,7 +129,9 @@ describe("BrowserMcpIngress", () => {
     const press = await callTool("press", { selector: "input", key: "Enter" });
     expect(press.result.isError).toBeUndefined();
 
-    expect(revealPanel).toHaveBeenCalledTimes(5);
+    // Agent tool calls run headless: they must NOT force the browser panel
+    // open (the tab's <webview> stays alive off-screen instead).
+    expect(revealPanel).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalledWith("Input.insertText", { text: "hello" });
     expect(send.mock.calls.some(([method]) => String(method).startsWith("Input."))).toBe(false);
     expect(tab.webContents.executeJavaScript).toHaveBeenCalled();

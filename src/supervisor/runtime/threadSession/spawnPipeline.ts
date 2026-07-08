@@ -17,6 +17,7 @@ import {
   areAgentSlashCommandsEqual,
   isThreadConfigEqual,
 } from "@/shared/contracts";
+import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import {
   resolveBrowserMcpHttpConfigForLaunch,
   type BrowserMcpHttpConfig,
@@ -179,10 +180,15 @@ export class SpawnPipeline {
       await primeProjectShellEnv(payload.projectLocation.path);
     }
 
+    const mcpIdentity = {
+      threadId: payload.threadId,
+      title: initialPrompt.split("\n", 1)[0]?.trim() ?? "",
+    };
     const browserMcp = await this.resolveBrowserMcpForLaunch(
       adapter,
       payload.projectLocation,
       payload.config,
+      mcpIdentity,
     );
     const subagentMcp = await this.resolveSubagentMcpForLaunch(
       payload.threadId,
@@ -197,6 +203,7 @@ export class SpawnPipeline {
       payload.config,
       browserMcp,
       subagentMcp,
+      mcpIdentity,
       payload.sessionRef,
       requestedPresentation,
     );
@@ -459,10 +466,12 @@ export class SpawnPipeline {
       return;
     }
 
+    const mcpIdentity = { threadId: session.threadId };
     const browserMcp = await this.resolveBrowserMcpForLaunch(
       session.adapter,
       session.projectLocation,
       config,
+      mcpIdentity,
     );
     const subagentMcp = await this.resolveSubagentMcpForLaunch(
       session.threadId,
@@ -477,6 +486,7 @@ export class SpawnPipeline {
       config,
       browserMcp,
       subagentMcp,
+      mcpIdentity,
       session.sessionRef,
       session.presentationMode,
     );
@@ -932,6 +942,7 @@ export class SpawnPipeline {
     adapter: AgentAdapter,
     location: ProjectLocation,
     config: ThreadConfig,
+    identity?: McpThreadIdentity,
   ): Promise<BrowserMcpHttpConfig | undefined> {
     const enabled = this.ctx.isBrowserMcpEnabledForLaunch(adapter, config);
     if (!enabled) return undefined;
@@ -939,6 +950,7 @@ export class SpawnPipeline {
       location,
       enabled,
       this.ctx.options.wslBridge,
+      identity,
     );
     return cfg;
   }
@@ -1005,6 +1017,7 @@ export class SpawnPipeline {
     config: ThreadConfig,
     browserMcp: BrowserMcpHttpConfig | undefined,
     subagentMcp: SubagentMcpHttpConfig | undefined,
+    mcpIdentity: McpThreadIdentity | undefined,
     sessionRef?: SessionRef,
     presentationMode?: ThreadPresentationMode,
   ): Promise<StructuredSessionHandle | undefined> {
@@ -1017,6 +1030,7 @@ export class SpawnPipeline {
         projectLocation,
         config,
         agentSettings: this.ctx.resolveAgentSettings(adapter),
+        ...(mcpIdentity ? { mcpIdentity } : {}),
         ...(browserMcp ? { browserMcp } : {}),
         ...(subagentMcp ? { subagentMcp } : {}),
         ...(sessionRef ? { sessionRef } : {}),

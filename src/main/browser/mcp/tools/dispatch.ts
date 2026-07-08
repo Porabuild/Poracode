@@ -37,7 +37,14 @@ import {
   setCheckedSelector,
   typeIntoSelector,
 } from "../../pageDriver";
-import { clampInteger, requireTab, resolveSelectorArg, resolveTabId } from "./helpers";
+import { glideCursorToSelector } from "../../cursorOverlay";
+import {
+  agentTabOpts,
+  clampInteger,
+  requireTab,
+  resolveSelectorArg,
+  resolveTabId,
+} from "./helpers";
 import { runScreenshotTool } from "./screenshot";
 import { compactToolSpec, normalizeToolName, TOOLS } from "./specs";
 import type { ToolContext } from "./types";
@@ -105,7 +112,7 @@ export async function dispatchTool(
     case "new_tab": {
       const url = typeof payload.url === "string" ? payload.url : undefined;
       const activate = payload.activate !== false;
-      return await ctx.manager.createTab({ ...(url ? { url } : {}), activate });
+      return await ctx.manager.createTab({ ...(url ? { url } : {}), activate }, agentTabOpts(ctx));
     }
     case "activate_tab": {
       ctx.manager.setActiveTab(String(payload.tabId ?? ""));
@@ -172,6 +179,7 @@ export async function dispatchTool(
       const { tab } = await requireTab(ctx, payload);
       const selector = await resolveSelectorArg(tab, payload);
       if (!selector) throw new Error("selector or ref required");
+      await glideCursorToSelector(tab.cdp, selector);
       await clickSelector(tab.webContents, selector);
       return { ok: true };
     }
@@ -179,6 +187,7 @@ export async function dispatchTool(
       const { tab } = await requireTab(ctx, payload);
       const selector = await resolveSelectorArg(tab, payload);
       if (!selector) throw new Error("selector or ref required");
+      await glideCursorToSelector(tab.cdp, selector);
       await doubleClickSelector(tab.webContents, selector);
       return { ok: true };
     }
@@ -186,6 +195,7 @@ export async function dispatchTool(
       const { tab } = await requireTab(ctx, payload);
       const selector = await resolveSelectorArg(tab, payload);
       if (!selector) throw new Error("selector or ref required");
+      await glideCursorToSelector(tab.cdp, selector);
       await focusSelector(tab.webContents, selector);
       return { ok: true };
     }
@@ -195,6 +205,7 @@ export async function dispatchTool(
       const submit = payload.submit === true;
       const selector = await resolveSelectorArg(tab, payload);
       if (!selector) throw new Error("selector or ref required");
+      await glideCursorToSelector(tab.cdp, selector);
       await typeIntoSelector(tab.webContents, selector, text, submit);
       return { ok: true };
     }
@@ -204,6 +215,7 @@ export async function dispatchTool(
       const submit = payload.submit === true;
       const selector = await resolveSelectorArg(tab, payload);
       if (!selector) throw new Error("selector or ref required");
+      await glideCursorToSelector(tab.cdp, selector);
       await fillSelector(tab.webContents, selector, text, submit);
       return { ok: true };
     }
@@ -211,6 +223,7 @@ export async function dispatchTool(
       const { tab } = await requireTab(ctx, payload);
       const selector = await resolveSelectorArg(tab, payload);
       if (!selector) throw new Error("selector or ref required");
+      await glideCursorToSelector(tab.cdp, selector);
       await setCheckedSelector(tab.webContents, selector, true);
       return { ok: true };
     }
@@ -218,6 +231,7 @@ export async function dispatchTool(
       const { tab } = await requireTab(ctx, payload);
       const selector = await resolveSelectorArg(tab, payload);
       if (!selector) throw new Error("selector or ref required");
+      await glideCursorToSelector(tab.cdp, selector);
       await setCheckedSelector(tab.webContents, selector, false);
       return { ok: true };
     }
@@ -227,6 +241,7 @@ export async function dispatchTool(
       if (!value) throw new Error("value required");
       const selector = await resolveSelectorArg(tab, payload);
       if (!selector) throw new Error("selector or ref required");
+      await glideCursorToSelector(tab.cdp, selector);
       await selectOption(tab.webContents, selector, value);
       return { ok: true };
     }
@@ -315,6 +330,7 @@ export async function dispatchTool(
       const { tab } = await requireTab(ctx, payload);
       const selector = await resolveSelectorArg(tab, payload);
       if (!selector) throw new Error("selector or ref required");
+      await glideCursorToSelector(tab.cdp, selector);
       await hoverSelector(tab.webContents, selector);
       return { ok: true };
     }
@@ -326,6 +342,9 @@ export async function dispatchTool(
       const selector = hasTarget ? await resolveSelectorArg(tab, payload) : undefined;
       if (hasTarget && !selector) throw new Error("selector or ref required");
       const shift = payload.shift === true;
+      // Glide to a concrete target (like the other element-acting cases); an
+      // untargeted page-level press has nowhere to move the cursor.
+      if (selector) await glideCursorToSelector(tab.cdp, selector);
       await pressKey(tab.webContents, key, selector ?? undefined, { shift });
       return { ok: true };
     }

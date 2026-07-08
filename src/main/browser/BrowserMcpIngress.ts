@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { randomBytes, randomUUID } from "node:crypto";
-import { readBoundedNodeRequestBody, writeJsonResponse } from "@/shared/http";
+import { decodeThreadIdentity, type McpThreadIdentity } from "@/shared/browserMcpThread";
+import { isLocalhostOrigin, readBoundedNodeRequestBody, writeJsonResponse } from "@/shared/http";
 import type { BrowserPanelManager } from "./BrowserPanelManager";
 import {
   BROWSER_MCP_INSTRUCTIONS,
@@ -9,7 +10,6 @@ import {
   formatToolResult,
   isKnownToolName,
   type McpToolResult,
-  normalizeToolName,
   type ToolContext,
 } from "./mcp/toolRegistry";
 
@@ -21,7 +21,6 @@ export interface BrowserMcpIngressInfo {
 
 const MAX_BODY = 1024 * 1024;
 const MCP_PROTOCOL_VERSION = "2025-03-26";
-const PASSIVE_TOOLS = new Set(["api", "list_tabs", "get_url", "get_title"]);
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -101,13 +100,15 @@ export class BrowserMcpIngress {
     this.server = null;
   }
 
-  private buildContext(): ToolContext | null {
+  private buildContext(identity: McpThreadIdentity): ToolContext | null {
     const manager = this.getManager?.();
     if (!manager) return null;
     return {
       manager,
       allowEval: this.allowEval,
       allowDataAccess: this.allowDataAccess,
+      ...(identity.threadId ? { threadId: identity.threadId } : {}),
+      ...(identity.title ? { threadTitle: identity.title } : {}),
     };
   }
 
@@ -147,7 +148,7 @@ export class BrowserMcpIngress {
           res.setHeader("Access-Control-Allow-Origin", origin);
           res.setHeader(
             "Access-Control-Allow-Headers",
-            "Authorization, X-Poracode-Token, Content-Type, Mcp-Session-Id",
+            "Authorization, X-Lightcode-Token, Content-Type, Mcp-Session-Id",
           );
           res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
         }
@@ -185,6 +186,7 @@ export class BrowserMcpIngress {
   }
 
   private async handleMcp(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const identity = decodeThreadIdentity(req.url);
     const raw = await this.readBody(req);
     let body: unknown;
     try {
@@ -211,13 +213,13 @@ export class BrowserMcpIngress {
     if (Array.isArray(body)) {
       const out: JsonRpcResponse[] = [];
       for (const m of body) {
-        const reply = await this.handleSingle(m);
+        const reply = await this.handleSingle(m, identity);
         if (reply) out.push(reply);
       }
       this.sendJson(res, 200, out);
       return;
     }
-    const reply = await this.handleSingle(body);
+    const reply = await this.handleSingle(body, identity);
     if (!reply) {
       // notification — no response
       res.statusCode = 202;
@@ -227,7 +229,10 @@ export class BrowserMcpIngress {
     this.sendJson(res, 200, reply);
   }
 
-  private async handleSingle(message: unknown): Promise<JsonRpcResponse | null> {
+  private async handleSingle(
+    message: unknown,
+    identity: McpThreadIdentity,
+  ): Promise<JsonRpcResponse | null> {
     if (!isJsonRpcRequest(message)) return null;
     const { id = null, method, params } = message;
     try {
@@ -266,7 +271,7 @@ export class BrowserMcpIngress {
             },
           };
         }
-        const ctx = this.buildContext();
+        const ctx = this.buildContext(identity);
         if (!ctx) {
           return {
             jsonrpc: "2.0",
@@ -277,9 +282,9 @@ export class BrowserMcpIngress {
             },
           };
         }
-        if (shouldRevealPanelForTool(name)) {
-          ctx.manager.revealPanel();
-        }
+        // Agent tool calls no longer force the browser panel open — the tab's
+        // <webview> stays alive off-screen (see BrowserHost "background" mode),
+        // so the agent works headless without stealing the user's UI.
         let raw: unknown;
         try {
           raw = await dispatchTool(name, args, ctx);
@@ -311,17 +316,6 @@ export class BrowserMcpIngress {
   }
 }
 
-const LOCALHOST_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
-
-function isLocalhostOrigin(origin: string): boolean {
-  try {
-    const url = new URL(origin);
-    return LOCALHOST_HOSTS.has(url.hostname);
-  } catch {
-    return false;
-  }
-}
-
 function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
   return (
     typeof value === "object" &&
@@ -329,8 +323,4 @@ function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
     (value as { jsonrpc?: unknown }).jsonrpc === "2.0" &&
     typeof (value as { method?: unknown }).method === "string"
   );
-}
-
-function shouldRevealPanelForTool(name: string): boolean {
-  return !PASSIVE_TOOLS.has(normalizeToolName(name));
 }

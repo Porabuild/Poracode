@@ -51,10 +51,14 @@ describe("BrowserPanel", () => {
     vi.clearAllMocks();
     useBrowserPanelStore.setState({
       tabs: [],
+      groups: [],
       activeTabId: null,
       extracted: false,
+      bookmarks: [],
+      bookmarkBarVisible: false,
       pickerActive: false,
       attentionTabId: null,
+      automationActive: false,
     });
     usePanelStore.setState({
       browserPanelOpen: false,
@@ -97,6 +101,35 @@ describe("BrowserPanel", () => {
     expect(webviews[0]?.getAttribute("allowpopups")).toBe("true");
     expect((webviews[0] as HTMLElement).style.display).toBe("flex");
     expect((webviews[1] as HTMLElement).style.display).toBe("none");
+  });
+
+  it("updates tab group membership from browser state", () => {
+    const tab = {
+      tabId: "tab-1",
+      url: "https://example.com/",
+      title: "Example",
+      loading: false,
+      canGoBack: false,
+      canGoForward: false,
+    };
+
+    act(() => {
+      useBrowserPanelStore.getState().setState({
+        tabs: [tab],
+        activeTabId: "tab-1",
+      });
+    });
+    expect(useBrowserPanelStore.getState().tabs[0]?.groupId).toBeUndefined();
+
+    act(() => {
+      useBrowserPanelStore.getState().setState({
+        tabs: [{ ...tab, groupId: "group-1" }],
+        activeTabId: "tab-1",
+        groups: [{ id: "group-1", title: "Group", color: "purple", collapsed: false }],
+      });
+    });
+
+    expect(useBrowserPanelStore.getState().tabs[0]?.groupId).toBe("group-1");
   });
 
   it("keeps the same webview mounted when browser panel goes fullscreen", () => {

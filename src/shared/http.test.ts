@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readBoundedResponseBody } from "./http";
+import { isLocalhostOrigin, readBoundedResponseBody } from "./http";
 
 describe("readBoundedResponseBody", () => {
   it("reads streamed response chunks", async () => {
@@ -43,5 +43,18 @@ describe("readBoundedResponseBody", () => {
 
     await expect(readBoundedResponseBody(response, 3)).rejects.toThrow("response body too large");
     expect(canceled).toBe(true);
+  });
+});
+
+describe("isLocalhostOrigin", () => {
+  it("accepts loopback origins", () => {
+    expect(isLocalhostOrigin("http://localhost:3000")).toBe(true);
+    expect(isLocalhostOrigin("http://127.0.0.1:3000")).toBe(true);
+    expect(isLocalhostOrigin("http://[::1]:3000")).toBe(true);
+  });
+
+  it("rejects non-loopback and invalid origins", () => {
+    expect(isLocalhostOrigin("https://example.com")).toBe(false);
+    expect(isLocalhostOrigin("not a url")).toBe(false);
   });
 });

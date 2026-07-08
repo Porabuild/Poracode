@@ -1,5 +1,7 @@
 import type { ServerResponse } from "node:http";
 
+const LOCALHOST_ORIGIN_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
 /** Collect a fetch `Headers` object into a plain record. */
 export function headersToRecord(headers: Headers): Record<string, string> {
   const record: Record<string, string> = {};
@@ -91,4 +93,12 @@ export function writeJsonResponse(
   }
   const json = JSON.stringify(data);
   res.end(options?.trailingNewline ? `${json}\n` : json);
+}
+
+export function isLocalhostOrigin(origin: string): boolean {
+  try {
+    return LOCALHOST_ORIGIN_HOSTS.has(new URL(origin).hostname);
+  } catch {
+    return false;
+  }
 }

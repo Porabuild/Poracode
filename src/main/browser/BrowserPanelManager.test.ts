@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { BrowserTabGroupInfo } from "@/shared/ipc";
 
 const resolveWebContentsById = vi.hoisted(() => vi.fn<(id: number) => unknown>());
 
@@ -22,6 +23,12 @@ vi.mock("../attachments/localFiles", () => ({
 
 vi.mock("@/shared/ipc", () => ({
   IPC_EVENT_CHANNELS: { browserEvent: "browser-event" },
+  browserTabGroupSchema: {
+    safeParse: vi.fn<(value: unknown) => { success: true; data: unknown }>((value) => ({
+      success: true,
+      data: value,
+    })),
+  },
 }));
 
 vi.mock("./picker/pickerProtocol", () => ({
@@ -54,6 +61,41 @@ function createManagerWithTab() {
     isDestroyed: () => false,
   };
   return { tab, host, hostWebContents };
+}
+
+function createFakeTab(tabId: string) {
+  return {
+    tabId,
+    snapshot: () => ({
+      tabId,
+      url: `https://${tabId}.test/`,
+      title: tabId,
+      loading: false,
+      canGoBack: false,
+      canGoForward: false,
+      devToolsOpen: false,
+    }),
+  };
+}
+
+function seedGroupState(
+  manager: unknown,
+  tabs: ReturnType<typeof createFakeTab>[],
+  groups: BrowserTabGroupInfo[],
+  tabGroupPairs: Array<[string, string]>,
+): void {
+  const state = manager as {
+    tabs: ReturnType<typeof createFakeTab>[];
+    tabGroups: {
+      restore(groups: BrowserTabGroupInfo[]): void;
+      assignRestoredTab(tabId: string, groupId: string): boolean;
+    };
+  };
+  state.tabs = tabs;
+  state.tabGroups.restore(groups);
+  for (const [tabId, groupId] of tabGroupPairs) {
+    state.tabGroups.assignRestoredTab(tabId, groupId);
+  }
 }
 
 describe("BrowserPanelManager", () => {
@@ -93,5 +135,63 @@ describe("BrowserPanelManager", () => {
 
     expect(resolveWebContentsById).toHaveBeenCalledWith(99);
     expect(tab.attach).toHaveBeenCalledWith(guestWebContents);
+  });
+
+  it("moves ungrouped tabs into the target tab's group", async () => {
+    const { BrowserPanelManager } = await import("./BrowserPanelManager");
+    const manager = new BrowserPanelManager(
+      { settingsPath: "settings.json" } as never,
+      "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
+    );
+    const group = {
+      id: "group-agent",
+      title: "Poracode",
+      color: "purple",
+      collapsed: false,
+    } satisfies BrowserTabGroupInfo;
+
+    seedGroupState(
+      manager,
+      [createFakeTab("tab-free"), createFakeTab("tab-a"), createFakeTab("tab-b")],
+      [group],
+      [
+        ["tab-a", group.id],
+        ["tab-b", group.id],
+      ],
+    );
+
+    manager.moveTab("tab-free", "tab-a", "after");
+
+    const state = manager.snapshot();
+    expect(state.tabs.map((t) => t.tabId)).toEqual(["tab-a", "tab-free", "tab-b"]);
+    expect(state.tabs.find((t) => t.tabId === "tab-free")?.groupId).toBe(group.id);
+  });
+
+  it("removes a tab from its group when moved beside an ungrouped tab", async () => {
+    const { BrowserPanelManager } = await import("./BrowserPanelManager");
+    const manager = new BrowserPanelManager(
+      { settingsPath: "settings.json" } as never,
+      "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
+    );
+    const group = {
+      id: "group-agent",
+      title: "Poracode",
+      color: "purple",
+      collapsed: false,
+    } satisfies BrowserTabGroupInfo;
+
+    seedGroupState(
+      manager,
+      [createFakeTab("tab-a"), createFakeTab("tab-free")],
+      [group],
+      [["tab-a", group.id]],
+    );
+
+    manager.moveTab("tab-a", "tab-free", "after");
+
+    const state = manager.snapshot();
+    expect(state.tabs.map((t) => t.tabId)).toEqual(["tab-free", "tab-a"]);
+    expect(state.tabs.find((t) => t.tabId === "tab-a")?.groupId).toBeUndefined();
+    expect(state.groups).toEqual([]);
   });
 });

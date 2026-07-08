@@ -16,7 +16,19 @@ import { BrowserPanel } from "./BrowserPanel";
 
 const MemoBrowserPanel = memo(BrowserPanel);
 
-type BrowserHostMode = "hidden" | "docked" | "drawer" | "fullscreen";
+type BrowserHostMode = "hidden" | "background" | "docked" | "drawer" | "fullscreen";
+
+// Box the browser lives in while the panel/overlay are closed but tabs are alive
+// (headless agent work). It sits IN-window (top-left) at `opacity:0` so the
+// <webview> keeps a live, painting guest surface — a fully off-screen webview
+// never paints, which breaks screenshots — while being completely invisible to
+// the user (opacity:0 composites transparently, unlike display:none which
+// suspends paint). Capture works because `webContents.capturePage()` reads the
+// guest's OWN surface, not the composited-at-0-opacity result. A negative
+// z-index keeps it under the app too; pointer-events are disabled regardless.
+const HEADLESS_Z = "-1";
+const HEADLESS_WIDTH = 1280;
+const HEADLESS_HEIGHT = 800;
 
 /**
  * Mounts the in-app browser exactly once, in a `document.body` portal, and
@@ -45,6 +57,8 @@ export function BrowserHost() {
   const setBrowserOverlayMaximized = usePanelStore((s) => s.setBrowserOverlayMaximized);
   const setRightPanelTab = usePanelStore((s) => s.setRightPanelTab);
   const extracted = useBrowserPanelStore((s) => s.extracted);
+  const hasTabs = useBrowserPanelStore((s) => s.tabs.length > 0);
+  const automationActive = useBrowserPanelStore((s) => s.automationActive);
 
   const mode: BrowserHostMode = extracted
     ? "hidden"
@@ -52,9 +66,11 @@ export function BrowserHost() {
       ? browserOverlayMaximized
         ? "fullscreen"
         : "drawer"
-      : browserPanelOpen
+      : browserPanelOpen && rightPanelTab === "browser"
         ? "docked"
-        : "hidden";
+        : // Panel + overlay both closed: keep tabs alive off-screen so the agent
+          // can drive them headless (no forced panel reveal).
+          "background";
 
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [isResizing, setIsResizing] = useState(false);
@@ -88,6 +104,20 @@ export function BrowserHost() {
       w.style.height = "";
       // Clear the docked z-index override so the drawer class (z-60) wins.
       w.style.zIndex = "";
+      return;
+    }
+    if (mode === "background") {
+      Object.assign(w.style, {
+        top: "0px",
+        left: "0px",
+        right: "auto",
+        bottom: "auto",
+        width: `${HEADLESS_WIDTH}px`,
+        height: `${HEADLESS_HEIGHT}px`,
+        maxWidth: "",
+      });
+      // Behind the opaque app UI: painting (so screenshots work) but unseen.
+      w.style.zIndex = HEADLESS_Z;
       return;
     }
     // docked
@@ -140,7 +170,11 @@ export function BrowserHost() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, browserPanelOpen]);
 
+  // Extracted → the standalone window owns the browser. Background renders the
+  // webviews off-screen ONLY while the agent is actively automating (and there
+  // are tabs); when idle it unmounts to free resources.
   if (mode === "hidden") return null;
+  if (mode === "background" && (!hasTabs || !automationActive)) return null;
 
   function restoreOrCloseOverlay() {
     setBrowserOverlayMaximized(false);
@@ -179,7 +213,9 @@ export function BrowserHost() {
       ? "fixed z-30 flex min-h-0 flex-col overflow-hidden bg-[var(--content-background)]"
       : mode === "drawer"
         ? "fixed z-[60] flex min-h-0 flex-col overflow-hidden rounded-3xl border border-border bg-background shadow-2xl"
-        : "fixed z-[80] flex min-h-0 flex-col overflow-hidden bg-background";
+        : mode === "background"
+          ? "fixed flex min-h-0 flex-col overflow-hidden pointer-events-none opacity-0 bg-[var(--content-background)]"
+          : "fixed z-[80] flex min-h-0 flex-col overflow-hidden bg-background";
 
   // Give the static modes (drawer/fullscreen) a definite box at first render,
   // mirroring the values the layout effect re-applies below. The embedded
@@ -199,10 +235,20 @@ export function BrowserHost() {
         }
       : mode === "fullscreen"
         ? { top: 0, left: 0, right: 0, bottom: 0 }
-        : mode === "docked" && !dockedVisible
-          ? { display: "none" }
-          : undefined;
+        : mode === "background"
+          ? {
+              top: 0,
+              left: 0,
+              width: HEADLESS_WIDTH,
+              height: HEADLESS_HEIGHT,
+              zIndex: Number(HEADLESS_Z),
+            }
+          : mode === "docked" && !dockedVisible
+            ? { display: "none" }
+            : undefined;
 
+  // Keep the active tab painting (display:flex) even off-screen so the agent
+  // can screenshot it headlessly; only the docked-but-not-selected case hides.
   const browserVisible = mode === "docked" ? dockedVisible : true;
 
   return createPortal(

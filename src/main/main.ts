@@ -16,6 +16,8 @@ import {
 import {
   BrowserMcpIngress,
   BrowserPanelManager,
+  ChromeBridgeServer,
+  ChromeMcpIngress,
   installPickerProtocolHandler,
   registerPickerProtocolScheme,
 } from "./browser";
@@ -122,6 +124,8 @@ let lightcodePaths: LightcodePaths | null = null;
 let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
 let browserMcpIngress: BrowserMcpIngress | null = null;
+let chromeBridgeServer: ChromeBridgeServer | null = null;
+let chromeMcpIngress: ChromeMcpIngress | null = null;
 let remoteAccessServer: RemoteAccessServer | null = null;
 let remoteAccessStartPromise: Promise<RemoteAccessServerInfo> | null = null;
 let pushCoordinator: PushCoordinator | null = null;
@@ -177,15 +181,23 @@ function resolveWindowChromeOptions(): {
 }
 
 function primeBrowserAllowFlags(): void {
-  if (!browserMcpIngress || !lightcodePaths) return;
+  if (!lightcodePaths) return;
+  let allowEval = false;
+  let allowDataAccess = false;
   try {
     const s = readSharedSettingsFile(lightcodePaths.settingsPath);
-    browserMcpIngress.setAllowEval(s.browser?.allowEval === true);
-    browserMcpIngress.setAllowDataAccess(s.browser?.allowDataAccess === true);
+    allowEval = s.browser?.allowEval === true;
+    allowDataAccess = s.browser?.allowDataAccess === true;
   } catch {
-    browserMcpIngress.setAllowEval(false);
-    browserMcpIngress.setAllowDataAccess(false);
+    allowEval = false;
+    allowDataAccess = false;
   }
+  // The embedded browser and the external Chrome bridge share the same
+  // eval / data-access gates from browser settings.
+  browserMcpIngress?.setAllowEval(allowEval);
+  browserMcpIngress?.setAllowDataAccess(allowDataAccess);
+  chromeMcpIngress?.setAllowEval(allowEval);
+  chromeMcpIngress?.setAllowDataAccess(allowDataAccess);
 }
 
 function handleMainWindowClose(event: Electron.Event): void {
@@ -371,12 +383,18 @@ if (!hasSingleInstanceLock) {
       wslHelpersDir,
       secretStorageKey,
       resolveExtraEnv: () => {
-        const info = browserMcpIngress?.getInfo();
-        if (!info) return {};
-        return {
-          LIGHTCODE_BROWSER_MCP_URL: info.url,
-          LIGHTCODE_BROWSER_MCP_TOKEN: info.token,
-        };
+        const env: Record<string, string> = {};
+        const browserInfo = browserMcpIngress?.getInfo();
+        if (browserInfo) {
+          env.LIGHTCODE_BROWSER_MCP_URL = browserInfo.url;
+          env.LIGHTCODE_BROWSER_MCP_TOKEN = browserInfo.token;
+        }
+        const chromeInfo = chromeMcpIngress?.getInfo();
+        if (chromeInfo) {
+          env.LIGHTCODE_CHROME_MCP_URL = chromeInfo.url;
+          env.LIGHTCODE_CHROME_MCP_TOKEN = chromeInfo.token;
+        }
+        return env;
       },
       assignPid: async (pid) => {
         await windowsJobObjectManager?.assignPid(pid);
@@ -427,10 +445,25 @@ if (!hasSingleInstanceLock) {
     });
     browserMcpIngress = new BrowserMcpIngress();
     browserMcpIngress.setManagerAccessor(() => browserPanelManager);
+    // External-Chrome control: a localhost WS bridge the companion extension
+    // connects to, plus a `chrome` MCP ingress agents reach the same way as the
+    // embedded `browser` server. They live side by side.
+    chromeBridgeServer = new ChromeBridgeServer({
+      pairingFilePath: join(lightcodePaths.baseDir, "chrome-bridge.json"),
+    });
+    chromeMcpIngress = new ChromeMcpIngress();
+    chromeMcpIngress.setConnectionAccessor(() => chromeBridgeServer?.getConnection() ?? null);
     primeBrowserAllowFlags();
     const mcpInfoReady = browserMcpIngress.start().catch((err) => {
       console.error("[lightcode] browser MCP ingress failed to start:", err);
       return null;
+    });
+    const chromeMcpReady = chromeMcpIngress.start().catch((err) => {
+      console.error("[lightcode] chrome MCP ingress failed to start:", err);
+      return null;
+    });
+    chromeBridgeServer.start().catch((err) => {
+      console.error("[lightcode] chrome bridge server failed to start:", err);
     });
 
     const writeSharedSettingsPatch = (patch: {
@@ -863,6 +896,7 @@ if (!hasSingleInstanceLock) {
     }
 
     await mcpInfoReady;
+    await chromeMcpReady;
     supervisorClient.start(lightcodePaths.baseDir);
 
     if (readSharedSettingsFile(lightcodePaths.settingsPath).remoteAccessEnabled) {
@@ -948,6 +982,10 @@ if (!hasSingleInstanceLock) {
       windowsJobObjectManager = null;
       browserMcpIngress?.dispose();
       browserMcpIngress = null;
+      chromeMcpIngress?.dispose();
+      chromeMcpIngress = null;
+      chromeBridgeServer?.dispose();
+      chromeBridgeServer = null;
       void remoteAccessServer?.dispose();
       remoteAccessServer = null;
       browserExtractWindow?.close();
