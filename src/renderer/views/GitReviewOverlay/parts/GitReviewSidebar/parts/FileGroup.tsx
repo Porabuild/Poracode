@@ -12,6 +12,7 @@ import { StackedFileCard } from "../../GitStackedDiff";
 import { useGitReviewRowPadX } from "../gitReviewPadXContext";
 import { useGitTouch } from "../gitTouchContext";
 import { FileRow } from "./FileRow";
+import { reconcileStagingStatus } from "./reconcileStagingStatus";
 
 export function FileGroup(props: {
   title: string;
@@ -62,20 +63,26 @@ export function FileGroup(props: {
     useGitStore.getState().optimisticStageAll(storeKey, isWorktree);
     await readBridge()
       .gitStageAll({ projectLocation: project.location })
-      .catch((error: unknown) => {
-        toast.danger(friendlyError(error));
-        onRefresh();
-      });
+      .then(
+        () => reconcileStagingStatus({ projectLocation: project.location, storeKey, isWorktree }),
+        (error: unknown) => {
+          toast.danger(friendlyError(error));
+          onRefresh();
+        },
+      );
   }
 
   async function handleUnstageAll() {
     useGitStore.getState().optimisticUnstageAll(storeKey, isWorktree);
     await readBridge()
       .gitUnstageAll({ projectLocation: project.location })
-      .catch((error: unknown) => {
-        toast.danger(friendlyError(error));
-        onRefresh();
-      });
+      .then(
+        () => reconcileStagingStatus({ projectLocation: project.location, storeKey, isWorktree }),
+        (error: unknown) => {
+          toast.danger(friendlyError(error));
+          onRefresh();
+        },
+      );
   }
 
   async function handleRevertAll() {

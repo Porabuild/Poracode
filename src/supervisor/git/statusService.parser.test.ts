@@ -15,7 +15,13 @@ import {
   expandUntrackedEntries,
   parseDiffNumstat,
   parseStatusPorcelainV2,
+  unquoteGitPath,
 } from "./statusService";
+
+// git C-quotes non-ASCII bytes as octal-escaped UTF-8 wrapped in double quotes.
+// `файл.txt` → ф=\321\204 а=\320\260 й=\320\271 л=\320\273 then `.txt`.
+const QUOTED_CYRILLIC = '"\\321\\204\\320\\260\\320\\271\\320\\273.txt"';
+const DECODED_CYRILLIC = "файл.txt";
 
 describe("parseStatusPorcelainV2", () => {
   it("captures branch, upstream, ahead/behind from the header lines", () => {
@@ -120,6 +126,75 @@ describe("parseStatusPorcelainV2", () => {
     expect(ahead).toBe(0);
     expect(behind).toBe(0);
   });
+
+  it("decodes a C-quoted non-ASCII path back to real UTF-8", () => {
+    const output = [
+      "# branch.head main",
+      `1 M. N... 100644 100644 100644 aaa aaa ${QUOTED_CYRILLIC}`,
+    ].join("\n");
+    const { staged } = parseStatusPorcelainV2(output);
+    expect(staged[0]!.path).toBe(DECODED_CYRILLIC);
+  });
+
+  it("decodes a C-quoted path containing a literal double quote", () => {
+    // git still quotes double-quote/backslash/control chars even with
+    // core.quotepath=false: `a"b.txt` → `"a\"b.txt"`.
+    const output = [
+      "# branch.head main",
+      '1 M. N... 100644 100644 100644 aaa aaa "a\\"b.txt"',
+    ].join("\n");
+    const { staged } = parseStatusPorcelainV2(output);
+    expect(staged[0]!.path).toBe('a"b.txt');
+  });
+
+  it("decodes both the new and old quoted paths of a rename", () => {
+    const output = [
+      "# branch.head main",
+      `2 R. N... 100644 100644 100644 aaa aaa R100 ${QUOTED_CYRILLIC}\t"\\320\\261.txt"`,
+    ].join("\n");
+    const { staged } = parseStatusPorcelainV2(output);
+    expect(staged[0]!.path).toBe(DECODED_CYRILLIC);
+    expect(staged[0]!.oldPath).toBe("б.txt");
+  });
+
+  it("decodes a C-quoted `u ` conflict path", () => {
+    const output = [
+      "# branch.head main",
+      `u UU N... 100644 100644 100644 100644 aaa bbb ccc ${QUOTED_CYRILLIC}`,
+    ].join("\n");
+    const { conflictFiles } = parseStatusPorcelainV2(output);
+    expect(conflictFiles).toEqual([DECODED_CYRILLIC]);
+  });
+
+  it("leaves an unquoted (raw UTF-8) path untouched", () => {
+    const output = ["# branch.head main", `? ${DECODED_CYRILLIC}`].join("\n");
+    const { unstaged } = parseStatusPorcelainV2(output);
+    expect(unstaged[0]!.path).toBe(DECODED_CYRILLIC);
+  });
+});
+
+describe("unquoteGitPath", () => {
+  it("decodes multi-byte octal escapes as UTF-8 bytes, not code points", () => {
+    // `\321\204` are the two UTF-8 bytes of `ф`; decoding per-byte then reading
+    // the buffer as UTF-8 must reassemble the single code point.
+    expect(unquoteGitPath('"\\321\\204"')).toBe("ф");
+    expect(unquoteGitPath(QUOTED_CYRILLIC)).toBe(DECODED_CYRILLIC);
+  });
+
+  it("decodes the simple C escapes", () => {
+    expect(unquoteGitPath('"a\\tb"')).toBe("a\tb");
+    expect(unquoteGitPath('"a\\nb"')).toBe("a\nb");
+    expect(unquoteGitPath('"a\\"b.txt"')).toBe('a"b.txt');
+    expect(unquoteGitPath('"a\\\\b.txt"')).toBe("a\\b.txt");
+  });
+
+  it("returns unquoted input unchanged (raw UTF-8 or plain ASCII)", () => {
+    expect(unquoteGitPath("src/plain.ts")).toBe("src/plain.ts");
+    expect(unquoteGitPath(DECODED_CYRILLIC)).toBe(DECODED_CYRILLIC);
+    expect(unquoteGitPath("")).toBe("");
+    // A path only prefixed with a quote is not a fully-quoted blob.
+    expect(unquoteGitPath('"partial')).toBe('"partial');
+  });
 });
 
 describe("parseDiffNumstat", () => {
@@ -150,6 +225,53 @@ describe("parseDiffNumstat", () => {
 
   it("skips malformed lines that lack a path", () => {
     expect(parseDiffNumstat("3\t1")).toEqual([]);
+  });
+
+  it("resolves a brace rename with a common prefix to the new path", () => {
+    expect(parseDiffNumstat("1\t0\tsrc/{old.txt => new.txt}")).toEqual([
+      { path: "src/new.txt", insertions: 1, deletions: 0 },
+    ]);
+  });
+
+  it("resolves a brace rename with a common prefix AND suffix to the new path", () => {
+    expect(parseDiffNumstat("1\t0\tsrc/{a => b}/file.txt")).toEqual([
+      { path: "src/b/file.txt", insertions: 1, deletions: 0 },
+    ]);
+  });
+
+  it("resolves an empty-side brace rename to the new path", () => {
+    expect(parseDiffNumstat("2\t1\tdir/{ => sub}/file.txt")).toEqual([
+      { path: "dir/sub/file.txt", insertions: 2, deletions: 1 },
+    ]);
+    // Reverse (removal) side collapses the adjacent slashes back to the new path.
+    expect(parseDiffNumstat("2\t1\tdir/{sub => }/file.txt")).toEqual([
+      { path: "dir/file.txt", insertions: 2, deletions: 1 },
+    ]);
+  });
+
+  it("resolves a plain `old => new` rename (no common prefix) to the new path", () => {
+    expect(parseDiffNumstat("1\t0\tsrc/old.txt => deep/dir/new.txt")).toEqual([
+      { path: "deep/dir/new.txt", insertions: 1, deletions: 0 },
+    ]);
+  });
+
+  it("returns 0/0 for a binary rename line (`-\\t-\\t{old => new}`)", () => {
+    expect(parseDiffNumstat("-\t-\tsrc/{old.png => new.png}")).toEqual([
+      { path: "src/new.png", insertions: 0, deletions: 0 },
+    ]);
+  });
+
+  it("decodes a whole-field C-quoted non-ASCII path", () => {
+    expect(parseDiffNumstat(`3\t1\t${QUOTED_CYRILLIC}`)).toEqual([
+      { path: DECODED_CYRILLIC, insertions: 3, deletions: 1 },
+    ]);
+  });
+
+  it("decodes each independently-quoted side of a plain rename to the new path", () => {
+    // git quotes each side of a rename separately: `"old" => "new"`.
+    expect(parseDiffNumstat(`4\t2\t"\\320\\261.txt" => ${QUOTED_CYRILLIC}`)).toEqual([
+      { path: DECODED_CYRILLIC, insertions: 4, deletions: 2 },
+    ]);
   });
 });
 
@@ -225,6 +347,49 @@ describe("buildGitStatusResultFromOutputs", () => {
     expect(result.unstaged[0]!.deletions).toBe(0);
     expect(result.totalInsertions).toBe(7);
     expect(result.totalDeletions).toBe(1);
+  });
+
+  it("backfills rename numstat counts onto a porcelain-v2 rename entry", () => {
+    // Porcelain v2 carries the new path (`src/new.txt`); numstat emits the
+    // combined rename syntax, which must resolve to the same new path.
+    const result = buildGitStatusResultFromOutputs({
+      isRepo: true,
+      statusOutput: [
+        "# branch.head main",
+        "2 R. N... 100644 100644 100644 aaa aaa R83 src/new.txt\tsrc/old.txt",
+      ].join("\n"),
+      remoteOutput: "",
+      stagedNumstat: "4\t2\tsrc/{old.txt => new.txt}",
+      unstagedNumstat: "",
+    });
+    expect(result.staged).toHaveLength(1);
+    expect(result.staged[0]!.path).toBe("src/new.txt");
+    expect(result.staged[0]!.oldPath).toBe("src/old.txt");
+    expect(result.staged[0]!.insertions).toBe(4);
+    expect(result.staged[0]!.deletions).toBe(2);
+    expect(result.totalInsertions).toBe(4);
+    expect(result.totalDeletions).toBe(2);
+  });
+
+  it("merges numstat counts onto a porcelain entry when both paths are C-quoted", () => {
+    // End-to-end: the porcelain path and the numstat path both arrive C-quoted
+    // and must decode to the SAME real path so the count backfill matches.
+    const result = buildGitStatusResultFromOutputs({
+      isRepo: true,
+      statusOutput: [
+        "# branch.head main",
+        `1 .M N... 100644 100644 100644 aaa aaa ${QUOTED_CYRILLIC}`,
+      ].join("\n"),
+      remoteOutput: "",
+      stagedNumstat: "",
+      unstagedNumstat: `5\t2\t${QUOTED_CYRILLIC}`,
+    });
+    expect(result.unstaged).toHaveLength(1);
+    expect(result.unstaged[0]!.path).toBe(DECODED_CYRILLIC);
+    expect(result.unstaged[0]!.insertions).toBe(5);
+    expect(result.unstaged[0]!.deletions).toBe(2);
+    expect(result.totalInsertions).toBe(5);
+    expect(result.totalDeletions).toBe(2);
   });
 
   it("returns hasRemote=false when remoteOutput is empty", () => {

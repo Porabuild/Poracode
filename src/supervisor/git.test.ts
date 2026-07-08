@@ -57,15 +57,25 @@ vi.mock("node:child_process", async () => {
 
 import { computeDefaultWorktreePath, GitService, parseRemoteUrl } from "./git";
 
+// Every git invocation is prefixed with `-c core.quotepath=false` (see
+// withQuotePathDisabled in git/exec.ts) so non-ASCII paths print as raw UTF-8.
+const GIT_QUOTEPATH_PREFIX = ["-c", "core.quotepath=false"];
+
+/** Strip the leading `-c core.quotepath=false` pair from a recorded arg array. */
+function gitSubcommandArgs(args: string[]): string[] {
+  return args[0] === "-c" && args[1] === "core.quotepath=false" ? args.slice(2) : args;
+}
+
 /** Helper to set up execFile mock for git commands. */
 function mockGitCommands(handler: (args: string[]) => { stdout?: string; error?: Error }) {
   execFileMock.mockImplementation(
     (
       _cmd: string,
-      args: string[],
+      rawArgs: string[],
       _opts: unknown,
       callback: (error: Error | null, result: { stdout: string; stderr: string }) => void,
     ) => {
+      const args = gitSubcommandArgs(rawArgs);
       const result = handler(args);
       if (result.error) {
         callback(result.error, { stdout: "", stderr: result.error.message });
@@ -215,8 +225,10 @@ describe("GitService.addWorktree", () => {
     const configCall = execFileMock.mock.calls.find(
       (call: unknown[]) =>
         Array.isArray(call[1]) &&
-        (call[1] as string[])[0] === "config" &&
-        (call[1] as string[]).includes("branch.lightcode/brave-heron.lightcodeSource"),
+        gitSubcommandArgs(call[1] as string[])[0] === "config" &&
+        gitSubcommandArgs(call[1] as string[]).includes(
+          "branch.lightcode/brave-heron.lightcodeSource",
+        ),
     );
     expect(configCall).toBeDefined();
     expect(configCall![1]).toContain("master");
@@ -247,7 +259,9 @@ describe("GitService.addWorktree", () => {
       "lightcode/silver-meadow-abcd",
     );
 
-    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    const commands = execFileMock.mock.calls.map((c: unknown[]) =>
+      gitSubcommandArgs(c[1] as string[]).join(" "),
+    );
     expect(
       commands.some((c) =>
         c.includes(
@@ -262,8 +276,10 @@ describe("GitService.addWorktree", () => {
     const configCall = execFileMock.mock.calls.find(
       (call: unknown[]) =>
         Array.isArray(call[1]) &&
-        (call[1] as string[])[0] === "config" &&
-        (call[1] as string[]).includes("branch.lightcode/brave-heron.lightcodeSource"),
+        gitSubcommandArgs(call[1] as string[])[0] === "config" &&
+        gitSubcommandArgs(call[1] as string[]).includes(
+          "branch.lightcode/brave-heron.lightcodeSource",
+        ),
     );
     expect(configCall).toBeDefined();
     expect(configCall![1]).toContain("origin/lightcode/silver-meadow-abcd");
@@ -289,7 +305,9 @@ describe("GitService.addWorktree", () => {
       "main",
     );
 
-    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    const commands = execFileMock.mock.calls.map((c: unknown[]) =>
+      gitSubcommandArgs(c[1] as string[]).join(" "),
+    );
     expect(
       commands.some(
         (c) => c.includes("worktree add -b lightcode/brave-heron") && c.endsWith("main"),
@@ -323,7 +341,7 @@ describe("GitService.addWorktree", () => {
     );
 
     const wtAdd = execFileMock.mock.calls
-      .map((c: unknown[]) => (c[1] as string[]).join(" "))
+      .map((c: unknown[]) => gitSubcommandArgs(c[1] as string[]).join(" "))
       .find((c) => c.startsWith("worktree add -b lightcode/brave-heron"));
     expect(wtAdd?.endsWith("upstream/feature/x")).toBe(true);
   });
@@ -354,7 +372,7 @@ describe("GitService.addWorktree", () => {
     );
 
     const wtAdd = execFileMock.mock.calls
-      .map((c: unknown[]) => (c[1] as string[]).join(" "))
+      .map((c: unknown[]) => gitSubcommandArgs(c[1] as string[]).join(" "))
       .find((c) => c.startsWith("worktree add -b lightcode/brave-heron"));
     expect(wtAdd?.endsWith("origin/feature/x")).toBe(true);
   });
@@ -377,7 +395,9 @@ describe("GitService.addWorktree", () => {
       "feature/x",
     );
 
-    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    const commands = execFileMock.mock.calls.map((c: unknown[]) =>
+      gitSubcommandArgs(c[1] as string[]).join(" "),
+    );
     const wtAdd = commands.find((c) => c.startsWith("worktree add -b lightcode/brave-heron"));
     expect(wtAdd?.endsWith("feature/x")).toBe(true);
     expect(commands.some((c) => c === "remote")).toBe(false);
@@ -416,6 +436,7 @@ describe("GitService.addWorktree", () => {
         expect.objectContaining({ linuxPath: "/home/demo/work/lightcode" }),
         expect.objectContaining({
           args: [
+            ...GIT_QUOTEPATH_PREFIX,
             "worktree",
             "add",
             expect.stringMatching(
@@ -472,7 +493,9 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
 
     expect(result.changesTransferred).toBe(true);
 
-    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    const commands = execFileMock.mock.calls.map((c: unknown[]) =>
+      gitSubcommandArgs(c[1] as string[]).join(" "),
+    );
     expect(commands.some((c) => c.startsWith("stash push -u"))).toBe(true);
     expect(commands.some((c) => c.startsWith("worktree add -b feature/x"))).toBe(true);
     // Never relies on stash@{0}: apply/drop are pinned to the captured SHA.
@@ -483,7 +506,8 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
     const applyCwds = execFileMock.mock.calls
       .filter(
         (c: unknown[]) =>
-          Array.isArray(c[1]) && (c[1] as string[]).join(" ") === "stash apply --index stashsha",
+          Array.isArray(c[1]) &&
+          gitSubcommandArgs(c[1] as string[]).join(" ") === "stash apply --index stashsha",
       )
       .map((c: unknown[]) => (c[2] as { cwd?: string }).cwd);
     expect(applyCwds).toEqual([worktreePath]);
@@ -521,7 +545,9 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
 
     expect(result.changesTransferred).toBe(true);
 
-    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    const commands = execFileMock.mock.calls.map((c: unknown[]) =>
+      gitSubcommandArgs(c[1] as string[]).join(" "),
+    );
     expect(commands).not.toContain("stash pop");
 
     // Copy semantics: the pinned stash is applied into BOTH the worktree and the
@@ -529,7 +555,8 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
     const applyCwds = execFileMock.mock.calls
       .filter(
         (c: unknown[]) =>
-          Array.isArray(c[1]) && (c[1] as string[]).join(" ") === "stash apply --index stashsha",
+          Array.isArray(c[1]) &&
+          gitSubcommandArgs(c[1] as string[]).join(" ") === "stash apply --index stashsha",
       )
       .map((c: unknown[]) => (c[2] as { cwd?: string }).cwd);
     expect(applyCwds).toContain(worktreePath);
@@ -568,7 +595,9 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
     // The source was already left clean by the stash push; a conflicting apply
     // keeps the work recoverable in the stash rather than dropping it.
     expect(result.changesTransferred).toBe(false);
-    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    const commands = execFileMock.mock.calls.map((c: unknown[]) =>
+      gitSubcommandArgs(c[1] as string[]).join(" "),
+    );
     expect(commands.some((c) => c.startsWith("stash drop"))).toBe(false);
   });
 
@@ -590,7 +619,7 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
     );
 
     const stashCall = execFileMock.mock.calls.find(
-      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[])[0] === "stash",
+      (c: unknown[]) => Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[])[0] === "stash",
     );
     expect(stashCall).toBeUndefined();
   });
@@ -616,7 +645,9 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
       true,
     );
 
-    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    const commands = execFileMock.mock.calls.map((c: unknown[]) =>
+      gitSubcommandArgs(c[1] as string[]).join(" "),
+    );
     // The worktree is still created, but the unrelated stash is never applied or
     // dropped — no data loss.
     expect(commands.some((c) => c.startsWith("worktree add -b feature/x"))).toBe(true);
@@ -638,7 +669,7 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
     const gitExec = vi.fn<
       (location: WslLocation, input: WslGitExecInput) => Promise<WslGitExecResult>
     >(async (_location, input) => {
-      const args = input.args;
+      const args = gitSubcommandArgs(input.args);
       if (args[0] === "status" && args[1] === "--porcelain") {
         return { ok: true, stdout: " M src/file.ts\n", stderr: "", exitCode: 0 };
       }
@@ -671,7 +702,7 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
       );
 
       const applyCalls = gitExec.mock.calls.filter(
-        ([, input]) => input.args.join(" ") === "stash apply --index stashsha",
+        ([, input]) => gitSubcommandArgs(input.args).join(" ") === "stash apply --index stashsha",
       );
       expect(applyCalls[0]?.[0]).toMatchObject({
         kind: "wsl",
@@ -706,7 +737,8 @@ describe("GitService.revert", () => {
     await new GitService().revert(location, "README.md");
 
     const checkoutCall = execFileMock.mock.calls.find(
-      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("checkout"),
+      (c: unknown[]) =>
+        Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[]).includes("checkout"),
     );
     expect(checkoutCall).toBeDefined();
     expect(checkoutCall![1]).toContain("README.md");
@@ -721,7 +753,8 @@ describe("GitService.revert", () => {
     await new GitService().revert(location, "README.md");
 
     const cleanCall = execFileMock.mock.calls.find(
-      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("clean"),
+      (c: unknown[]) =>
+        Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[]).includes("clean"),
     );
     expect(cleanCall).toBeDefined();
     expect(cleanCall![1]).toContain("README.md");
@@ -739,13 +772,15 @@ describe("GitService.revert", () => {
     await new GitService().revert(location, "docs/new-name.md");
 
     const cleanCall = execFileMock.mock.calls.find(
-      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("clean"),
+      (c: unknown[]) =>
+        Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[]).includes("clean"),
     );
     expect(cleanCall).toBeDefined();
     expect(cleanCall![1]).toContain("docs/new-name.md");
 
     const checkoutCall = execFileMock.mock.calls.find(
-      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("checkout"),
+      (c: unknown[]) =>
+        Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[]).includes("checkout"),
     );
     expect(checkoutCall).toBeDefined();
     expect(checkoutCall![1]).toContain("docs/old-name.md");
@@ -800,7 +835,7 @@ describe("GitService.commit", () => {
         expect.objectContaining({ linuxPath: "/home/demo/work/repo" }),
         expect.objectContaining({
           cwd: "/home/demo/work/repo",
-          args: ["commit", "-m", message],
+          args: [...GIT_QUOTEPATH_PREFIX, "commit", "-m", message],
           loginEnv: true,
           timeoutMs: expect.any(Number),
         }),
@@ -861,7 +896,7 @@ describe("GitService.init", () => {
 
     expect(execFileMock).toHaveBeenCalledWith(
       "git",
-      ["init"],
+      [...GIT_QUOTEPATH_PREFIX, "init"],
       expect.objectContaining({ cwd: location.path }),
       expect.any(Function),
     );
@@ -885,7 +920,7 @@ describe("GitService.addRemote", () => {
 
     expect(execFileMock).toHaveBeenCalledWith(
       "git",
-      ["remote", "add", "origin", "https://github.com/demo/repo.git"],
+      [...GIT_QUOTEPATH_PREFIX, "remote", "add", "origin", "https://github.com/demo/repo.git"],
       expect.objectContaining({ cwd: location.path }),
       expect.any(Function),
     );
@@ -926,7 +961,7 @@ describe("GitService WSL bridge exec", () => {
         expect.objectContaining({ distro: "Ubuntu" }),
         expect.objectContaining({
           cwd: "/home/demo/work/repo",
-          args: ["log", "--oneline", "main..HEAD"],
+          args: [...GIT_QUOTEPATH_PREFIX, "log", "--oneline", "main..HEAD"],
           loginEnv: true,
         }),
       );
@@ -940,7 +975,7 @@ describe("GitService WSL bridge exec", () => {
     const gitExec = vi.fn<
       (location: WslLocation, input: WslGitExecInput) => Promise<WslGitExecResult>
     >(async (_location, input) => {
-      if (input.args[0] === "remote") {
+      if (gitSubcommandArgs(input.args)[0] === "remote") {
         return { ok: true, stdout: "origin\n", stderr: "", exitCode: 0 };
       }
       return { ok: true, stdout: "", stderr: "", exitCode: 0 };
@@ -963,12 +998,15 @@ describe("GitService WSL bridge exec", () => {
       expect(gitExec).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({ distro: "Ubuntu" }),
-        expect.objectContaining({ args: ["remote"], loginEnv: true }),
+        expect.objectContaining({ args: [...GIT_QUOTEPATH_PREFIX, "remote"], loginEnv: true }),
       );
       expect(gitExec).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({ distro: "Ubuntu" }),
-        expect.objectContaining({ args: ["fetch", "origin"], loginEnv: true }),
+        expect.objectContaining({
+          args: [...GIT_QUOTEPATH_PREFIX, "fetch", "origin"],
+          loginEnv: true,
+        }),
       );
       expect(execFileMock).not.toHaveBeenCalled();
     } finally {
@@ -996,7 +1034,7 @@ describe("GitService WSL bridge exec", () => {
     expect(execFileMock).toHaveBeenCalledTimes(1);
     expect(execFileMock).toHaveBeenCalledWith(
       "git",
-      ["remote"],
+      [...GIT_QUOTEPATH_PREFIX, "remote"],
       expect.objectContaining({ cwd: "C:\\Users\\demo\\work\\not-repo" }),
       expect.any(Function),
     );
@@ -1024,7 +1062,7 @@ describe("GitService WSL bridge exec", () => {
       expect(gitExec).toHaveBeenCalledTimes(1);
       expect(gitExec).toHaveBeenCalledWith(
         expect.objectContaining({ distro: "Ubuntu" }),
-        expect.objectContaining({ args: ["remote"], loginEnv: true }),
+        expect.objectContaining({ args: [...GIT_QUOTEPATH_PREFIX, "remote"], loginEnv: true }),
       );
       expect(execFileMock).not.toHaveBeenCalled();
     } finally {
@@ -1059,7 +1097,7 @@ describe("GitService WSL bridge exec", () => {
       expect(gitExec).toHaveBeenCalledTimes(1);
       expect(gitExec).toHaveBeenCalledWith(
         expect.objectContaining({ distro: "Ubuntu" }),
-        expect.objectContaining({ args: ["remote"], loginEnv: true }),
+        expect.objectContaining({ args: [...GIT_QUOTEPATH_PREFIX, "remote"], loginEnv: true }),
       );
       expect(execFileMock).not.toHaveBeenCalled();
     } finally {
@@ -1107,9 +1145,11 @@ describe("GitService.getDiff", () => {
     const result = await new GitService().getDiff(location, "src/file.ts", false);
 
     expect(result.diff).toBe(headDiff);
-    expect(execFileMock.mock.calls.some((call) => (call[1] as string[]).includes("HEAD"))).toBe(
-      true,
-    );
+    expect(
+      execFileMock.mock.calls.some((call) =>
+        gitSubcommandArgs(call[1] as string[]).includes("HEAD"),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -1264,7 +1304,7 @@ describe("GitService.getStatus", () => {
           commands: expect.arrayContaining([
             expect.objectContaining({
               cwd: "/home/demo/work/repo",
-              args: ["status", "--porcelain=v2", "-b"],
+              args: [...GIT_QUOTEPATH_PREFIX, "status", "--porcelain=v2", "-b"],
             }),
           ]),
         }),
@@ -1373,14 +1413,16 @@ describe("GitService.pullFromSource", () => {
 
     expect(result).toEqual({ merged: true, fastForward: true });
     const mergeCall = execFileMock.mock.calls.find(
-      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("merge"),
+      (c: unknown[]) =>
+        Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[]).includes("merge"),
     );
     expect(mergeCall![1]).toContain("--ff-only");
     expect(mergeCall![1]).toContain("origin/main");
     expect(
       execFileMock.mock.calls.some(
         (c: unknown[]) =>
-          Array.isArray(c[1]) && (c[1] as string[]).join(" ") === "fetch origin --prune",
+          Array.isArray(c[1]) &&
+          gitSubcommandArgs(c[1] as string[]).join(" ") === "fetch origin --prune",
       ),
     ).toBe(true);
   });
@@ -1396,7 +1438,8 @@ describe("GitService.pullFromSource", () => {
 
     expect(result).toEqual({ merged: true, fastForward: false });
     const mergeCall = execFileMock.mock.calls.find(
-      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("merge"),
+      (c: unknown[]) =>
+        Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[]).includes("merge"),
     );
     expect(mergeCall![1]).toContain("--no-ff");
   });
@@ -1411,7 +1454,7 @@ describe("GitService.pullFromSource", () => {
     await expect(new GitService().pullFromSource(location, "main")).rejects.toThrow("fetch failed");
     expect(
       execFileMock.mock.calls.some(
-        (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[])[0] === "merge",
+        (c: unknown[]) => Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[])[0] === "merge",
       ),
     ).toBe(false);
   });
@@ -1444,7 +1487,7 @@ describe("GitService.pullFromSource", () => {
     expect(result).toMatchObject({ merged: false, fastForward: false, needsStash: true });
     expect(
       execFileMock.mock.calls.some(
-        (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[])[0] === "merge",
+        (c: unknown[]) => Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[])[0] === "merge",
       ),
     ).toBe(false);
   });
@@ -1458,7 +1501,9 @@ describe("GitService.pullFromSource", () => {
     const result = await new GitService().pullFromSource(location, "main", true);
 
     expect(result).toEqual({ merged: true, fastForward: true });
-    const commands = execFileMock.mock.calls.map((c: unknown[]) => (c[1] as string[]).join(" "));
+    const commands = execFileMock.mock.calls.map((c: unknown[]) =>
+      gitSubcommandArgs(c[1] as string[]).join(" "),
+    );
     expect(commands).toContain("stash push -u -m Poracode: before pull from main");
     expect(commands).toContain("merge --ff-only origin/main");
     expect(commands).toContain("stash pop");
@@ -1512,7 +1557,8 @@ describe("GitService.mergeToSource (non-FF path)", () => {
     await new GitService().mergeToSource(repoLocation, worktreeLocation, "feature", "main");
 
     const mergeCalls = execFileMock.mock.calls.filter(
-      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("merge"),
+      (c: unknown[]) =>
+        Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[]).includes("merge"),
     );
     expect(mergeCalls.length).toBeGreaterThan(0);
     const mergeArgs = mergeCalls[0]![1] as string[];
@@ -1574,15 +1620,15 @@ describe("GitService.mergeToSource (source branch checked out elsewhere)", () =>
     const worktreeAddCall = execFileMock.mock.calls.find(
       (call: unknown[]) =>
         Array.isArray(call[1]) &&
-        (call[1] as string[])[0] === "worktree" &&
-        (call[1] as string[])[1] === "add",
+        gitSubcommandArgs(call[1] as string[])[0] === "worktree" &&
+        gitSubcommandArgs(call[1] as string[])[1] === "add",
     );
     expect(worktreeAddCall).toBeUndefined();
 
     const mergeCall = execFileMock.mock.calls.find(
       (call: unknown[]) =>
         Array.isArray(call[1]) &&
-        (call[1] as string[])[0] === "merge" &&
+        gitSubcommandArgs(call[1] as string[])[0] === "merge" &&
         (call[2] as { cwd?: string }).cwd === repoLocation.path,
     );
     expect(mergeCall).toBeDefined();
@@ -1620,7 +1666,8 @@ describe("GitService.mergeToSource (source branch checked out elsewhere)", () =>
     expect(result.error).toContain("has uncommitted changes");
 
     const mergeCall = execFileMock.mock.calls.find(
-      (call: unknown[]) => Array.isArray(call[1]) && (call[1] as string[])[0] === "merge",
+      (call: unknown[]) =>
+        Array.isArray(call[1]) && gitSubcommandArgs(call[1] as string[])[0] === "merge",
     );
     expect(mergeCall).toBeUndefined();
   });
@@ -1676,14 +1723,17 @@ describe("GitService.getWorktreeSourceBranch", () => {
     const configCall = execFileMock.mock.calls.find(
       (call: unknown[]) =>
         Array.isArray(call[1]) &&
-        (call[1] as string[])[0] === "config" &&
-        (call[1] as string[])[1] !== "--get" &&
-        (call[1] as string[]).includes("branch.lightcode/brave-heron.lightcodeSource"),
+        gitSubcommandArgs(call[1] as string[])[0] === "config" &&
+        gitSubcommandArgs(call[1] as string[])[1] !== "--get" &&
+        gitSubcommandArgs(call[1] as string[]).includes(
+          "branch.lightcode/brave-heron.lightcodeSource",
+        ),
     );
     expect(configCall).toBeDefined();
     expect(configCall![1]).toContain("master");
     const revListCall = execFileMock.mock.calls.find(
-      (call: unknown[]) => Array.isArray(call[1]) && (call[1] as string[])[0] === "rev-list",
+      (call: unknown[]) =>
+        Array.isArray(call[1]) && gitSubcommandArgs(call[1] as string[])[0] === "rev-list",
     );
     expect(revListCall![1]).toContain("origin/master...lightcode/brave-heron");
   });
@@ -1712,8 +1762,8 @@ describe("GitService.push", () => {
     const pushCall = execFileMock.mock.calls.find(
       (call: unknown[]) =>
         Array.isArray(call[1]) &&
-        (call[1] as string[])[0] === "push" &&
-        (call[1] as string[]).includes("--set-upstream"),
+        gitSubcommandArgs(call[1] as string[])[0] === "push" &&
+        gitSubcommandArgs(call[1] as string[]).includes("--set-upstream"),
     );
     expect(pushCall).toBeDefined();
     expect(pushCall![1]).toEqual(
@@ -1748,10 +1798,16 @@ describe("GitService.removeWorktree", () => {
     const removeCall = execFileMock.mock.calls.find(
       (call: unknown[]) =>
         Array.isArray(call[1]) &&
-        (call[1] as string[])[0] === "worktree" &&
-        (call[1] as string[])[1] === "remove",
+        gitSubcommandArgs(call[1] as string[])[0] === "worktree" &&
+        gitSubcommandArgs(call[1] as string[])[1] === "remove",
     );
-    expect(removeCall?.[1]).toEqual(["worktree", "remove", "--force", "--force", worktreePath]);
+    expect(gitSubcommandArgs(removeCall?.[1] as string[])).toEqual([
+      "worktree",
+      "remove",
+      "--force",
+      "--force",
+      worktreePath,
+    ]);
   });
 
   it("does not prune worktrees from a sibling path with the same prefix", async () => {
@@ -1788,10 +1844,10 @@ describe("GitService.removeWorktree", () => {
     const removeCalls = execFileMock.mock.calls.filter(
       (call: unknown[]) =>
         Array.isArray(call[1]) &&
-        (call[1] as string[])[0] === "worktree" &&
-        (call[1] as string[])[1] === "remove",
+        gitSubcommandArgs(call[1] as string[])[0] === "worktree" &&
+        gitSubcommandArgs(call[1] as string[])[1] === "remove",
     );
-    expect(removeCalls.map((call) => call[1])).toEqual([
+    expect(removeCalls.map((call) => gitSubcommandArgs(call[1] as string[]))).toEqual([
       ["worktree", "remove", "--force", "--force", staleManagedPath],
     ]);
   });
@@ -1907,7 +1963,8 @@ describe("GitService.removeWorktree", () => {
     const gitExec = vi.fn<
       (location: WslLocation, input: WslGitExecInput) => Promise<WslGitExecResult>
     >(async (_location, input) => {
-      if (input.args[0] === "worktree" && input.args[1] === "remove") {
+      const args = gitSubcommandArgs(input.args);
+      if (args[0] === "worktree" && args[1] === "remove") {
         return {
           ok: false,
           stdout: "",
@@ -1915,7 +1972,7 @@ describe("GitService.removeWorktree", () => {
           exitCode: 1,
         };
       }
-      if (input.args[0] === "worktree" && input.args[1] === "list") {
+      if (args[0] === "worktree" && args[1] === "list") {
         return {
           ok: true,
           stdout: "worktree /home/demo/work/repo\nHEAD abc123\nbranch refs/heads/main\n\n",
@@ -1964,7 +2021,7 @@ describe("GitService.deleteBranch", () => {
 
     expect(forceDeleteAttempted).toBe(true);
     const softDeleteCall = execFileMock.mock.calls.find(
-      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("-d"),
+      (c: unknown[]) => Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[]).includes("-d"),
     );
     expect(softDeleteCall).toBeUndefined();
   });
@@ -1993,8 +2050,8 @@ describe("GitService.deleteBranch", () => {
     const pruneCall = execFileMock.mock.calls.find(
       (c: unknown[]) =>
         Array.isArray(c[1]) &&
-        (c[1] as string[])[0] === "worktree" &&
-        (c[1] as string[])[1] === "prune",
+        gitSubcommandArgs(c[1] as string[])[0] === "worktree" &&
+        gitSubcommandArgs(c[1] as string[])[1] === "prune",
     );
     expect(pruneCall).toBeDefined();
   });
@@ -2011,7 +2068,7 @@ describe("GitService.deleteBranch", () => {
       "not fully merged",
     );
     const forceDeleteCall = execFileMock.mock.calls.find(
-      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("-D"),
+      (c: unknown[]) => Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[]).includes("-D"),
     );
     expect(forceDeleteCall).toBeUndefined();
   });
@@ -2032,7 +2089,7 @@ describe("GitService.deleteRemoteBranch", () => {
 
     await new GitService().deleteRemoteBranch(location, "origin", "feature/x");
 
-    expect(execFileMock.mock.calls.map((call) => call[1])).toEqual([
+    expect(execFileMock.mock.calls.map((call) => gitSubcommandArgs(call[1] as string[]))).toEqual([
       ["push", "origin", "--delete", "feature/x"],
       ["update-ref", "-d", "refs/remotes/origin/feature/x"],
     ]);
@@ -2055,7 +2112,8 @@ describe("GitService.abortMerge", () => {
     await new GitService().abortMerge(location);
 
     const mergeCall = execFileMock.mock.calls.find(
-      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes("merge"),
+      (c: unknown[]) =>
+        Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[]).includes("merge"),
     );
     expect(mergeCall).toBeDefined();
     expect(mergeCall![1]).toContain("--abort");

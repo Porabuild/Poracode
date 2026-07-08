@@ -19,6 +19,7 @@ import { openFileInEditor } from "@/renderer/utils/gitHelpers";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { useGitReviewRowPadX } from "../gitReviewPadXContext";
 import { useGitTouch } from "../gitTouchContext";
+import { reconcileStagingStatus } from "./reconcileStagingStatus";
 
 const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
 
@@ -70,18 +71,24 @@ export function FileRow(props: {
       store.optimisticUnstageFile(storeKey, path, isWorktree);
       await readBridge()
         .gitUnstage({ projectLocation: project.location, filePath: path })
-        .catch((error: unknown) => {
-          toast.danger(friendlyError(error));
-          onRefresh();
-        });
+        .then(
+          () => reconcileStagingStatus({ projectLocation: project.location, storeKey, isWorktree }),
+          (error: unknown) => {
+            toast.danger(friendlyError(error));
+            onRefresh();
+          },
+        );
     } else {
       store.optimisticStageFile(storeKey, path, isWorktree);
       await readBridge()
         .gitStage({ projectLocation: project.location, filePath: path })
-        .catch((error: unknown) => {
-          toast.danger(friendlyError(error));
-          onRefresh();
-        });
+        .then(
+          () => reconcileStagingStatus({ projectLocation: project.location, storeKey, isWorktree }),
+          (error: unknown) => {
+            toast.danger(friendlyError(error));
+            onRefresh();
+          },
+        );
     }
   }
 

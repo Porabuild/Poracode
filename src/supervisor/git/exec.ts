@@ -28,6 +28,21 @@ export const GIT_HOOK_TIMEOUT = 300_000;
 // mid-delete leaves a half-removed husk that later removals refuse to touch.
 export const GIT_WORKTREE_REMOVE_TIMEOUT = 600_000;
 
+/**
+ * Force `core.quotepath=false` on every git invocation. With the default
+ * (`true`), git C-quotes non-ASCII bytes in porcelain/numstat output — e.g.
+ * `файл.txt` prints as `"\321\204\320\260\320\271\320\273.txt"` — which our
+ * parsers would then treat as the literal path, corrupting the git panel and
+ * every per-path operation. Passing it via `-c` overrides the user's config for
+ * this process only. The `-c` pair MUST precede the git subcommand.
+ */
+const QUOTEPATH_DISABLE_ARGS = ["-c", "core.quotepath=false"];
+
+/** Prepend the quotepath override in front of a git subcommand's args. */
+export function withQuotePathDisabled(args: string[]): string[] {
+  return [...QUOTEPATH_DISABLE_ARGS, ...args];
+}
+
 let wslGitBridgeClient: WslBridgeClient | undefined;
 
 export function setWslGitBridgeClient(client: WslBridgeClient | undefined): void {
@@ -51,9 +66,11 @@ export async function execGitBatchWslBridge(
     throw new Error(`WSL bridge unavailable for Git in distro "${location.distro}"`);
   }
   const result = await client.gitBatch(location, {
-    commands: commands.map((command) =>
-      command.loginEnv === undefined ? { ...command, loginEnv: true } : command,
-    ),
+    commands: commands.map((command) => ({
+      ...command,
+      args: withQuotePathDisabled(command.args),
+      ...(command.loginEnv === undefined ? { loginEnv: true } : {}),
+    })),
     timeoutMs,
   });
   return result.results;
@@ -94,7 +111,7 @@ export async function execGit(
     }
 
     const env = { ...process.env, GIT_OPTIONAL_LOCKS: "0", ...(options?.env ?? {}) };
-    const { stdout } = await execFileAsync("git", args, {
+    const { stdout } = await execFileAsync("git", withQuotePathDisabled(args), {
       cwd: location.path,
       env,
       timeout,
@@ -125,7 +142,7 @@ async function execGitWslBridge(
   }
   return await client.gitExec(location, {
     cwd: location.linuxPath,
-    args,
+    args: withQuotePathDisabled(args),
     loginEnv: true,
     timeoutMs,
     ...(env ? { env } : {}),

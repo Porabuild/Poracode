@@ -27,6 +27,7 @@ import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { openFileInEditor } from "@/renderer/utils/gitHelpers";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import { useGitReviewRowPadX } from "./GitReviewSidebar/gitReviewPadXContext";
+import { reconcileStagingStatus } from "./GitReviewSidebar/parts/reconcileStagingStatus";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -165,11 +166,31 @@ export function StackedFileCard(props: {
     if (file.staged) {
       await readBridge()
         .gitUnstage({ projectLocation: project.location, filePath: file.path })
-        .catch(() => onRefresh());
+        .then(
+          () =>
+            storeKey
+              ? reconcileStagingStatus({
+                  projectLocation: project.location,
+                  storeKey,
+                  isWorktree: isWorktree ?? false,
+                })
+              : undefined,
+          () => onRefresh(),
+        );
     } else {
       await readBridge()
         .gitStage({ projectLocation: project.location, filePath: file.path })
-        .catch(() => onRefresh());
+        .then(
+          () =>
+            storeKey
+              ? reconcileStagingStatus({
+                  projectLocation: project.location,
+                  storeKey,
+                  isWorktree: isWorktree ?? false,
+                })
+              : undefined,
+          () => onRefresh(),
+        );
     }
   }
 

@@ -11,6 +11,7 @@ import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { useGitReviewRowPadX } from "../gitReviewPadXContext";
 import { useGitTouch } from "../gitTouchContext";
 import { ConflictFileCard } from "./ConflictFileCard";
+import { reconcileStagingStatus } from "./reconcileStagingStatus";
 
 const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
 
@@ -53,7 +54,10 @@ export function ConflictGroup(props: {
     useGitStore.getState().optimisticStageFile(storeKey, path, isWorktree);
     await readBridge()
       .gitStage({ projectLocation: project.location, filePath: path })
-      .catch(() => onRefresh());
+      .then(
+        () => reconcileStagingStatus({ projectLocation: project.location, storeKey, isWorktree }),
+        () => onRefresh(),
+      );
   }
 
   const sorted = files.toSorted(compareFilesByDirThenName);
