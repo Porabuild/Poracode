@@ -19,7 +19,9 @@ import type {
 import { buildPairingUrl } from "@/shared/remote/pairingUrl";
 import { RemoteHttpError, RemoteAuthStore, type AuthenticatedRemoteSession } from "./auth";
 import type { RemoteAccessIdentity } from "./identity";
+import type { PortProxy } from "./portForward/portProxy";
 import type { RemoteBrowserGateway } from "./RemoteBrowserGateway";
+import type { RemotePortForwardGateway } from "./RemotePortForwardGateway";
 import { normalizeHostForUrl, RemoteServerSecurity } from "./server/security";
 import type {
   BufferedSupervisorEvent,
@@ -105,6 +107,16 @@ export interface RemoteAccessServerOptions {
   dispatchThreadCommand?(command: RemoteThreadCommand): boolean;
   /** Built-in browser bridge: tab commands plus screencast mirroring. */
   readonly browser?: RemoteBrowserGateway;
+  /** Local dev-server discovery + raw TCP port forwarding. Absent on hosts
+   * that don't support it (returns 503). */
+  readonly portForward?: RemotePortForwardGateway;
+  /** Authenticated HTTP/WS reverse-proxy session layer sitting in front of
+   * `portForward`'s raw TCP forwards (see `/forward/<id>/enter` and the proxy
+   * fallthrough in `httpRouter`). Absent on hosts that don't support it
+   * (`POST /api/ports/enter` returns 503; the proxy fallthrough and enter
+   * route simply have no session to resolve, so they behave as if no forward
+   * were ever opened). */
+  readonly portProxy?: PortProxy;
   /**
    * Remote-editable desktop settings (the AI helpers). `update` merges a
    * patch into the settings file and notifies the desktop renderer; both
@@ -225,6 +237,8 @@ export class RemoteAccessServer {
       requireInfo: () => this.requireInfo(),
       requireSettingsGateway: () => this.requireSettingsGateway(),
       requireBrowserGateway: () => this.requireBrowserGateway(),
+      requirePortForwardGateway: () => this.requirePortForwardGateway(),
+      requirePortProxy: () => this.requirePortProxy(),
       requirePushRegistrations: () => this.requirePushRegistrations(),
       publishSupervisorEvent: (event) => this.publishSupervisorEvent(event),
       publishThreadsChanged: (threadIds) => this.publishThreadsChanged(threadIds),
@@ -387,11 +401,9 @@ export class RemoteAccessServer {
     });
   }
 
-  private requireOption<K extends "browser" | "pushRegistrations" | "settings">(
-    key: K,
-    code: string,
-    message: string,
-  ): NonNullable<RemoteAccessServerOptions[K]> {
+  private requireOption<
+    K extends "browser" | "portForward" | "portProxy" | "pushRegistrations" | "settings",
+  >(key: K, code: string, message: string): NonNullable<RemoteAccessServerOptions[K]> {
     const value = this.options[key];
     if (!value) {
       throw new RemoteHttpError(code, message, 503);
@@ -404,6 +416,22 @@ export class RemoteAccessServer {
       "browser",
       "browser_unavailable",
       "The desktop browser is not available.",
+    );
+  }
+
+  private requirePortForwardGateway(): RemotePortForwardGateway {
+    return this.requireOption(
+      "portForward",
+      "ports_unavailable",
+      "Port forwarding is not available on this desktop.",
+    );
+  }
+
+  private requirePortProxy(): PortProxy {
+    return this.requireOption(
+      "portProxy",
+      "ports_unavailable",
+      "Port forwarding is not available on this desktop.",
     );
   }
 

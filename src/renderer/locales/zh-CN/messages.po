@@ -524,6 +524,10 @@ msgstr "{title} 的操作"
 msgid "Active"
 msgstr "活动"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Active forwards"
+msgstr "活跃的转发"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Activity"
 msgstr "活动"
@@ -1262,6 +1266,10 @@ msgstr "仅缓存"
 msgid "Camera access blocked"
 msgstr "摄像头访问已被阻止"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Can't load ports"
+msgstr "无法加载端口"
+
 #. Dialog button: dismiss without deleting
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
@@ -1589,6 +1597,14 @@ msgstr "关闭文件操作"
 #: src/renderer/components/find/FindBar.tsx
 msgid "Close find"
 msgstr "关闭查找"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Close forward a port"
+msgstr "关闭转发端口"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Close forward actions"
+msgstr "关闭转发操作"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
@@ -2011,6 +2027,7 @@ msgid "Conversation"
 msgstr "对话"
 
 #: src/mobile/UserMessageActionsSheet.tsx
+#: src/mobile/views/PortsView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
@@ -2093,6 +2110,10 @@ msgstr "复制 Tailscale URL"
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "将未提交的更改复制到此处（将它们保留在此分支上）"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Copy URL"
+msgstr "复制 URL"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
@@ -2402,6 +2423,10 @@ msgstr "无法访问桌面。"
 msgid "Desktop Settings"
 msgstr "桌面设置"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Detected"
+msgstr "已检测到"
+
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected <0>({0})</0>"
@@ -2429,6 +2454,10 @@ msgstr "正在检测代理……"
 msgid "Dev"
 msgstr "开发"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Dev servers listening on your desktop's localhost."
+msgstr "监听桌面端 localhost 的开发服务器。"
+
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
 msgstr "仅开发覆盖。仅在 LIGHTCODE DEV 版本中可见。"
@@ -2441,6 +2470,10 @@ msgstr "输入框语音输入按钮使用的设备。"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
 msgstr "当此桌面可访问时，设备可以配对。"
+
+#: src/mobile/views/PortsView.tsx
+#~ msgid "Direct connection required"
+#~ msgstr "需要直接连接"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
@@ -2729,6 +2762,10 @@ msgstr "请输入有效的桌面端点。"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
 msgstr "进入计划模式"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Enter the port a dev server on your desktop is listening on."
+msgstr "输入桌面端某个开发服务器正在监听的端口。"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
@@ -3098,10 +3135,15 @@ msgid "Format files"
 msgstr "格式化文件"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/PortsView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "前进"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Forward a port"
+msgstr "转发端口"
 
 #. placeholder {0}: activeRequest.providerLabel
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
@@ -3704,6 +3746,11 @@ msgstr "本地"
 msgid "Local changes need to be stashed before pulling from {branch}"
 msgstr "从 {branch} 拉取之前需要暂存（stash）本地更改"
 
+#. placeholder {0}: forward.targetPort
+#: src/mobile/views/PortsView.tsx
+msgid "localhost:{0} on desktop"
+msgstr "桌面上的 localhost:{0}"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
@@ -3764,6 +3811,10 @@ msgstr "最长连续天数"
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Longest task"
 msgstr "最长任务"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Looking for dev servers…"
+msgstr "正在查找开发服务器…"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a "
@@ -4385,6 +4436,14 @@ msgstr "暂无数据。"
 msgid "No description"
 msgstr "无描述"
 
+#: src/mobile/views/PortsView.tsx
+msgid "No desktop connection"
+msgstr "无桌面连接"
+
+#: src/mobile/views/PortsView.tsx
+msgid "No dev servers detected"
+msgstr "未检测到开发服务器"
+
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
 msgid "No diff available for {0}"
@@ -4945,6 +5004,10 @@ msgstr "配对"
 msgid "Pair a connection"
 msgstr "配对连接"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Pair a desktop from Connections to forward its ports."
+msgstr "在“连接”中配对一台桌面设备以转发其端口。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "将手机、平板电脑或浏览器与此桌面配对。"
@@ -5119,6 +5182,35 @@ msgstr "将此配置指向非Anthropic服务商（z.ai，…），并自定义�
 msgid "Popular editor themes adapted to Poracode. Each follows the light or "
 "dark mode above."
 msgstr "流行的编辑器主题适应 Poracode。每个都遵循上面的浅色或深色模式。"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Port"
+msgstr "端口"
+
+#. placeholder {0}: forward.targetPort
+#. placeholder {0}: props.forward.targetPort
+#: src/mobile/views/PortsView.tsx
+msgid "Port {0}"
+msgstr "端口 {0}"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Port forwarding isn't available on this desktop."
+msgstr "此桌面不支持端口转发。"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Port forwarding isn't enabled"
+msgstr "未启用端口转发"
+
+#: src/mobile/views/PortsView.tsx
+#~ msgid "Port forwarding needs a direct connection to the desktop. It isn't "
+#~ "available over a relay or tunnel."
+#~ msgstr "端口转发需要与桌面直接连接，无法通过中继或隧道使用。"
+
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
+#: src/mobile/views/PortsView.tsx
+msgid "Ports"
+msgstr "端口"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "PR actions"
@@ -5412,6 +5504,10 @@ msgstr "重新应用本地更改有冲突"
 msgid "Re-login"
 msgstr "重新登录"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Re-pair this connection to grant access to port forwarding."
+msgstr "重新配对此连接以授予端口转发的访问权限。"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
 msgstr "就绪"
@@ -5467,6 +5563,7 @@ msgstr "隐藏通知内容"
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
+#: src/mobile/views/PortsView.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -5824,6 +5921,7 @@ msgid "Restore thread"
 msgstr "恢复线程"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
 msgid "Retry"
 msgstr "重试"
@@ -6562,6 +6660,10 @@ msgstr "开始"
 msgid "Start {appName} to see usage"
 msgstr "启动{appName}以查看用量"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Start a dev server on your desktop, then tap refresh."
+msgstr "在桌面上启动一个开发服务器，然后点击刷新。"
+
 #: src/renderer/commands/registry.ts
 msgid "Start a new thread as panel instead of page"
 msgstr "以面板而非页面形式开始一个新线程"
@@ -6672,6 +6774,10 @@ msgstr "状态："
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
 msgstr "停止"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Stop forwarding"
+msgstr "停止转发"
 
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Stop response"
@@ -7641,6 +7747,10 @@ msgstr "更新分支"
 msgid "Update error: {detail}"
 msgstr "更新错误：{detail}"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Update Lightcode on your desktop to use port forwarding."
+msgstr "请在桌面端更新 Lightcode 以使用端口转发。"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update method"
 msgstr "更新方法"
@@ -7912,6 +8022,10 @@ msgstr "正在预热 WSL shell 环境..."
 #: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
 msgid "Web search"
 msgstr "网页搜索"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Web server"
+msgstr "Web 服务器"
 
 #. External link to the product website
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx

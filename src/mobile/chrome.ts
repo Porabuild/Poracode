@@ -46,6 +46,9 @@ export function getChrome(pathname: string): Chrome {
   if (pathname === "/more/browser") {
     return { layout: "subscreen", title: msg`Browser`, backTo: "/threads" };
   }
+  if (pathname === "/more/ports") {
+    return { layout: "subscreen", title: msg`Ports`, backTo: "/threads" };
+  }
   if (pathname === "/more/projects") {
     return { layout: "subscreen", title: msg`Projects`, backTo: "/threads" };
   }

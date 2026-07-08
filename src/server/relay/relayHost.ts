@@ -4,9 +4,11 @@ import { toWebSocketUrl } from "@/shared/remote";
 import {
   DEFAULT_RELAY_MAX_BODY_BYTES,
   LIGHTCODE_RELAY_PROTOCOL_VERSION,
+  RELAY_FORWARD_SESSION_COOKIE_NAME,
   relayServerFrameSchema,
   relayWebSocketPayloadLimit,
   safeJsonParse,
+  setCookiesInclude,
   type RelayHostFrame,
   type RelayRequestFrame,
   type RelayWsOpenFrame,
@@ -47,7 +49,13 @@ export interface RelayHostOptions {
   /** Injectable for tests. */
   readonly socketFactory?: (url: string) => RelaySocket;
   readonly fetchImpl?: typeof fetch;
-  readonly wsFactory?: (url: string) => RelaySocket;
+  /**
+   * Dials the server's OWN local WebSocket endpoint for a relayed `ws-open`.
+   * `headers` carries the visitor's (routing-cookie-stripped) `Cookie` header
+   * when present, e.g. `Cookie: lc_forward=...` so a port-forwarded dev
+   * server's session resolves exactly as a direct LAN WS upgrade would.
+   */
+  readonly wsFactory?: (url: string, headers?: Record<string, string>) => RelaySocket;
 }
 
 /**
@@ -112,8 +120,13 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
 
   const defaultSocketFactory = (url: string): RelaySocket =>
     new WebSocket(url, { maxPayload: maxWebSocketPayloadBytes }) as unknown as RelaySocket;
+  const defaultLocalWsFactory = (url: string, headers?: Record<string, string>): RelaySocket =>
+    new WebSocket(url, {
+      maxPayload: maxWebSocketPayloadBytes,
+      ...(headers ? { headers } : {}),
+    }) as unknown as RelaySocket;
   const makeControl = options.socketFactory ?? defaultSocketFactory;
-  const makeLocalWs = options.wsFactory ?? defaultSocketFactory;
+  const makeLocalWs = options.wsFactory ?? defaultLocalWsFactory;
 
   const closeSocket = (socket: RelaySocket): void => {
     try {
@@ -198,6 +211,14 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
           method: frame.method,
           headers: requestHeaders,
           signal: controller.signal,
+          // The local server may reply with a 3xx (e.g. the port-forward
+          // `/forward/<id>/enter` route redirecting to `/` after minting its
+          // session cookie). Node's fetch (undici) only opaque-redirect-filters
+          // "manual" responses when the request came from a Window/Document
+          // context — a plain server-side fetch like this one gets the real
+          // status/Location/Set-Cookie back, which is exactly what needs to
+          // tunnel to the visitor unfollowed.
+          redirect: "manual",
           ...(body !== undefined ? { body } : {}),
         }),
         timeoutPromise,
@@ -206,12 +227,27 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
         readBoundedResponseBody(response, maxBodyBytes),
         timeoutPromise,
       ]);
+      // `headersToRecord` iterates the fetch `Headers` API generically, which
+      // collapses/loses repeated `set-cookie` entries (the Headers API has no
+      // reliable generic multi-value read for it) — so `set-cookie` is dropped
+      // from the plain header record and sent separately via `getSetCookie()`,
+      // the one API that returns every value intact.
+      const responseHeaders = headersToRecord(response.headers);
+      delete responseHeaders["set-cookie"];
+      const setCookies = response.headers.getSetCookie();
       if (control === sourceControl) {
         sendOn(sourceControl, {
           t: "res",
           id: frame.id,
           status: response.status,
-          headers: headersToRecord(response.headers),
+          headers: responseHeaders,
+          ...(setCookies.length > 0 ? { setCookies } : {}),
+          // The relay reacts to this flag alone (never sniffs `setCookies`), so
+          // the knowledge that this host mints a port-forward session cookie
+          // lives here in the host adapter rather than in the transport.
+          ...(setCookiesInclude(setCookies, RELAY_FORWARD_SESSION_COOKIE_NAME)
+            ? { bindVisitor: true }
+            : {}),
           body: Buffer.from(buffer).toString("base64"),
         });
       }
@@ -237,7 +273,10 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
   function handleWsOpen(frame: RelayWsOpenFrame, sourceControl: RelaySocket): void {
     let local: RelaySocket;
     try {
-      local = makeLocalWs(`${localWsBase}${frame.path}`);
+      local = makeLocalWs(
+        `${localWsBase}${frame.path}`,
+        frame.cookie ? { cookie: frame.cookie } : undefined,
+      );
     } catch (error) {
       options.reportError?.(error);
       if (control === sourceControl) {

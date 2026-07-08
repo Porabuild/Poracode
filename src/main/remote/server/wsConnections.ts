@@ -5,6 +5,7 @@ import { remoteWebSocketClientMessageSchema } from "@/shared/remote";
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
 import type { RemoteBrowserFrame } from "../RemoteBrowserGateway";
 import type { RemoteServerContext } from "./context";
+import { isReservedForwardProxyPath, proxyForwardedWebSocketUpgrade } from "./portForwardProxy";
 import { MAX_JSON_BODY_BYTES } from "./requestBody";
 
 export const DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES = MAX_JSON_BODY_BYTES;
@@ -59,6 +60,20 @@ export async function handleUpgrade(
   try {
     const url = new URL(req.url ?? "/", ctx.requireInfo().httpBaseUrl);
     if (url.pathname !== "/ws") {
+      // Not the app's own WebSocket endpoint: the only other legitimate
+      // upgrade is a forwarded dev server's own WebSocket (e.g. Vite/webpack
+      // HMR) reached through an authenticated `lc_forward` session. Anything
+      // else (no session, no PortProxy wired up on this host, or a path
+      // reserved for the app itself — see `isReservedForwardProxyPath`, kept
+      // in sync with the HTTP proxy fallthrough in `httpRouter`) is dropped,
+      // matching the pre-existing behavior for unknown upgrade paths.
+      const targetPort = isReservedForwardProxyPath(url.pathname)
+        ? null
+        : (ctx.options.portProxy?.resolveSession(req.headers.cookie) ?? null);
+      if (targetPort) {
+        proxyForwardedWebSocketUpgrade(req, socket, head, targetPort);
+        return;
+      }
       socket.destroy();
       return;
     }

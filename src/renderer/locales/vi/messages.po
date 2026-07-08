@@ -528,6 +528,10 @@ msgstr "Hành động cho {title}"
 msgid "Active"
 msgstr "Đang hoạt động"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Active forwards"
+msgstr "Chuyển tiếp đang hoạt động"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Activity"
 msgstr "Hoạt động"
@@ -1279,6 +1283,10 @@ msgstr "Chỉ có trong bộ nhớ đệm"
 msgid "Camera access blocked"
 msgstr "Quyền truy cập camera bị chặn"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Can't load ports"
+msgstr "Không thể tải danh sách cổng"
+
 #. Dialog button: dismiss without deleting
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
@@ -1608,6 +1616,14 @@ msgstr "Đóng thao tác tệp"
 #: src/renderer/components/find/FindBar.tsx
 msgid "Close find"
 msgstr "Đóng tìm kiếm"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Close forward a port"
+msgstr "Đóng chuyển tiếp cổng"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Close forward actions"
+msgstr "Đóng các thao tác chuyển tiếp"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
@@ -2035,6 +2051,7 @@ msgid "Conversation"
 msgstr "Cuộc trò chuyện"
 
 #: src/mobile/UserMessageActionsSheet.tsx
+#: src/mobile/views/PortsView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
@@ -2118,6 +2135,10 @@ msgstr "Sao chép URL Tailscale"
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Sao chép các thay đổi chưa được cam kết tại đây (giữ chúng trên nhánh "
 "này)"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Copy URL"
+msgstr "Sao chép URL"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
@@ -2431,6 +2452,10 @@ msgstr "Không thể kết nối tới desktop."
 msgid "Desktop Settings"
 msgstr "Cài đặt máy tính"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Detected"
+msgstr "Đã phát hiện"
+
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected <0>({0})</0>"
@@ -2458,6 +2483,10 @@ msgstr "Đang phát hiện tác nhân…"
 msgid "Dev"
 msgstr "Dev"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Dev servers listening on your desktop's localhost."
+msgstr "Máy chủ phát triển đang lắng nghe trên localhost của máy tính bạn."
+
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
 msgstr "Ghi đè chỉ dành cho phát triển. Chỉ hiển thị trong bản dựng LIGHTCODE "
@@ -2471,6 +2500,10 @@ msgstr "Thiết bị được dùng cho nút nhập giọng nói của khung so�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
 msgstr "Thiết bị có thể ghép nối khi máy tính này có thể truy cập được."
+
+#: src/mobile/views/PortsView.tsx
+#~ msgid "Direct connection required"
+#~ msgstr "Cần kết nối trực tiếp"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
@@ -2768,6 +2801,11 @@ msgstr "Nhập endpoint desktop hợp lệ."
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
 msgstr "Vào chế độ kế hoạch"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Enter the port a dev server on your desktop is listening on."
+msgstr "Nhập cổng mà một máy chủ phát triển trên máy tính của bạn đang lắng "
+"nghe."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
@@ -3145,10 +3183,15 @@ msgid "Format files"
 msgstr "Định dạng tập tin"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/PortsView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "Chuyển tiếp"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Forward a port"
+msgstr "Chuyển tiếp một cổng"
 
 #. placeholder {0}: activeRequest.providerLabel
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
@@ -3766,6 +3809,11 @@ msgstr "Cục bộ"
 msgid "Local changes need to be stashed before pulling from {branch}"
 msgstr "Các thay đổi cục bộ cần được lưu tạm trước khi kéo từ {branch}"
 
+#. placeholder {0}: forward.targetPort
+#: src/mobile/views/PortsView.tsx
+msgid "localhost:{0} on desktop"
+msgstr "localhost:{0} trên máy tính"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
@@ -3826,6 +3874,10 @@ msgstr "Chuỗi ngày dài nhất"
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Longest task"
 msgstr "Tác vụ dài nhất"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Looking for dev servers…"
+msgstr "Đang tìm máy chủ phát triển…"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a "
@@ -4451,6 +4503,14 @@ msgstr "Chưa có dữ liệu."
 msgid "No description"
 msgstr "Không có mô tả"
 
+#: src/mobile/views/PortsView.tsx
+msgid "No desktop connection"
+msgstr "Không có kết nối máy tính"
+
+#: src/mobile/views/PortsView.tsx
+msgid "No dev servers detected"
+msgstr "Không phát hiện máy chủ phát triển nào"
+
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
 msgid "No diff available for {0}"
@@ -5019,6 +5079,10 @@ msgstr "Ghép đôi"
 msgid "Pair a connection"
 msgstr "Ghép đôi một kết nối"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Pair a desktop from Connections to forward its ports."
+msgstr "Ghép đôi một máy tính từ Kết nối để chuyển tiếp các cổng của nó."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Ghép đôi điện thoại, máy tính bảng hoặc trình duyệt với máy tính này."
@@ -5195,6 +5259,36 @@ msgid "Popular editor themes adapted to Poracode. Each follows the light or "
 "dark mode above."
 msgstr "Các chủ đề biên tập phổ biến được điều chỉnh cho phù hợp với Poracode. "
 "Mỗi cái đều theo chế độ sáng hoặc tối ở trên."
+
+#: src/mobile/views/PortsView.tsx
+msgid "Port"
+msgstr "Cổng"
+
+#. placeholder {0}: forward.targetPort
+#. placeholder {0}: props.forward.targetPort
+#: src/mobile/views/PortsView.tsx
+msgid "Port {0}"
+msgstr "Cổng {0}"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Port forwarding isn't available on this desktop."
+msgstr "Chuyển tiếp cổng không khả dụng trên máy tính này."
+
+#: src/mobile/views/PortsView.tsx
+msgid "Port forwarding isn't enabled"
+msgstr "Chưa bật chuyển tiếp cổng"
+
+#: src/mobile/views/PortsView.tsx
+#~ msgid "Port forwarding needs a direct connection to the desktop. It isn't "
+#~ "available over a relay or tunnel."
+#~ msgstr "Chuyển tiếp cổng cần kết nối trực tiếp đến máy tính. Tính năng này "
+#~ "không khả dụng qua relay hoặc tunnel."
+
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
+#: src/mobile/views/PortsView.tsx
+msgid "Ports"
+msgstr "Cổng"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "PR actions"
@@ -5492,6 +5586,10 @@ msgstr "Áp dụng lại các thay đổi cục bộ có xung đột"
 msgid "Re-login"
 msgstr "Đăng nhập lại"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Re-pair this connection to grant access to port forwarding."
+msgstr "Ghép đôi lại kết nối này để cấp quyền truy cập chuyển tiếp cổng."
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
 msgstr "Sẵn sàng"
@@ -5551,6 +5649,7 @@ msgstr "Ẩn nội dung thông báo"
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
+#: src/mobile/views/PortsView.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -5910,6 +6009,7 @@ msgid "Restore thread"
 msgstr "Khôi phục luồng"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
 msgid "Retry"
 msgstr "Thử lại"
@@ -6659,6 +6759,11 @@ msgstr "Bắt đầu"
 msgid "Start {appName} to see usage"
 msgstr "Khởi động {appName} để xem mức sử dụng"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Start a dev server on your desktop, then tap refresh."
+msgstr "Khởi động một máy chủ phát triển trên máy tính của bạn, sau đó nhấn làm "
+"mới."
+
 #: src/renderer/commands/registry.ts
 msgid "Start a new thread as panel instead of page"
 msgstr "Mở luồng mới dưới dạng bảng thay vì trang"
@@ -6772,6 +6877,10 @@ msgstr "Tình trạng:"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
 msgstr "Dừng lại"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Stop forwarding"
+msgstr "Dừng chuyển tiếp"
 
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Stop response"
@@ -7761,6 +7870,11 @@ msgstr "Cập nhật nhánh"
 msgid "Update error: {detail}"
 msgstr "Lỗi cập nhật: {detail}"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Update Lightcode on your desktop to use port forwarding."
+msgstr "Cập nhật Lightcode trên máy tính của bạn để sử dụng tính năng chuyển "
+"tiếp cổng."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update method"
 msgstr "Phương thức cập nhật"
@@ -8038,6 +8152,10 @@ msgstr "Đang khởi động môi trường shell WSL…"
 #: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
 msgid "Web search"
 msgstr "Tìm kiếm trên web"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Web server"
+msgstr "Máy chủ web"
 
 #. External link to the product website
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx

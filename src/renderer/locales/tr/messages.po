@@ -530,6 +530,10 @@ msgstr "{title} için işlemler"
 msgid "Active"
 msgstr "Aktif"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Active forwards"
+msgstr "Etkin yönlendirmeler"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Activity"
 msgstr "Etkinlik"
@@ -1282,6 +1286,10 @@ msgstr "Yalnızca önbellekte"
 msgid "Camera access blocked"
 msgstr "Kamera erişimi engellendi"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Can't load ports"
+msgstr "Portlar yüklenemedi"
+
 #. Dialog button: dismiss without deleting
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
@@ -1612,6 +1620,14 @@ msgstr "Dosya eylemlerini kapat"
 #: src/renderer/components/find/FindBar.tsx
 msgid "Close find"
 msgstr "Aramayı kapat"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Close forward a port"
+msgstr "Port yönlendirmeyi kapat"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Close forward actions"
+msgstr "Yönlendirme eylemlerini kapat"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Close goal"
@@ -2040,6 +2056,7 @@ msgid "Conversation"
 msgstr "Konuşma"
 
 #: src/mobile/UserMessageActionsSheet.tsx
+#: src/mobile/views/PortsView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
@@ -2123,6 +2140,10 @@ msgstr "Tailscale URL'sini Kopyala"
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Taahhüt edilmemiş değişiklikleri buraya kopyalayın (onları bu dalda "
 "tutar)"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Copy URL"
+msgstr "URL'yi kopyala"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
@@ -2436,6 +2457,10 @@ msgstr "Masaüstüne ulaşılamıyor."
 msgid "Desktop Settings"
 msgstr "Masaüstü Ayarları"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Detected"
+msgstr "Algılanan"
+
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected <0>({0})</0>"
@@ -2463,6 +2488,10 @@ msgstr "Aracılar algılanıyor…"
 msgid "Dev"
 msgstr "Geliştirici"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Dev servers listening on your desktop's localhost."
+msgstr "Masaüstünüzün localhost'unda dinleyen geliştirme sunucuları."
+
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
 msgstr "Yalnızca geliştirme amaçlı geçersiz kılmalar. Yalnızca LIGHTCODE DEV "
@@ -2476,6 +2505,10 @@ msgstr "Oluşturucu ses giriş düğmesi tarafından kullanılan cihaz."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
 msgstr "Cihazlar bu masaüstüne erişilebildiği sürece eşleşebilir."
+
+#: src/mobile/views/PortsView.tsx
+#~ msgid "Direct connection required"
+#~ msgstr "Doğrudan bağlantı gerekiyor"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
@@ -2774,6 +2807,10 @@ msgstr "Geçerli bir masaüstü uç noktası girin."
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
 msgstr "Plan moduna girin"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Enter the port a dev server on your desktop is listening on."
+msgstr "Masaüstünüzdeki bir geliştirme sunucusunun dinlediği portu girin."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
@@ -3156,10 +3193,15 @@ msgid "Format files"
 msgstr "Dosyaları biçimlendir"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/PortsView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Forward"
 msgstr "İleri"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Forward a port"
+msgstr "Bir portu yönlendir"
 
 #. placeholder {0}: activeRequest.providerLabel
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
@@ -3779,6 +3821,11 @@ msgstr "Yerel"
 msgid "Local changes need to be stashed before pulling from {branch}"
 msgstr "{branch}'dan çekilmeden önce yerel değişikliklerin saklanması gerekiyor"
 
+#. placeholder {0}: forward.targetPort
+#: src/mobile/views/PortsView.tsx
+msgid "localhost:{0} on desktop"
+msgstr "localhost:{0} masaüstünde"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Location"
@@ -3840,6 +3887,10 @@ msgstr "En uzun seri"
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Longest task"
 msgstr "En uzun görev"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Looking for dev servers…"
+msgstr "Geliştirme sunucuları aranıyor…"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a "
@@ -4465,6 +4516,14 @@ msgstr "Henüz veri yok."
 msgid "No description"
 msgstr "Açıklama yok"
 
+#: src/mobile/views/PortsView.tsx
+msgid "No desktop connection"
+msgstr "Masaüstü bağlantısı yok"
+
+#: src/mobile/views/PortsView.tsx
+msgid "No dev servers detected"
+msgstr "Geliştirme sunucusu algılanmadı"
+
 #. placeholder {0}: entry.filePath
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
 msgid "No diff available for {0}"
@@ -5034,6 +5093,10 @@ msgstr "Eşleştir"
 msgid "Pair a connection"
 msgstr "Bir bağlantı eşleştir"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Pair a desktop from Connections to forward its ports."
+msgstr "Portlarını yönlendirmek için Bağlantılar'dan bir masaüstü eşleştirin."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Bir telefonu, tableti veya tarayıcıyı bu masaüstüyle eşleştirin."
@@ -5210,6 +5273,36 @@ msgid "Popular editor themes adapted to Poracode. Each follows the light or "
 "dark mode above."
 msgstr "Poracode'a uyarlanmış popüler editör temaları. Her biri yukarıdaki açık "
 "veya karanlık modunu takip eder."
+
+#: src/mobile/views/PortsView.tsx
+msgid "Port"
+msgstr "Port"
+
+#. placeholder {0}: forward.targetPort
+#. placeholder {0}: props.forward.targetPort
+#: src/mobile/views/PortsView.tsx
+msgid "Port {0}"
+msgstr "Port {0}"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Port forwarding isn't available on this desktop."
+msgstr "Bu masaüstünde port yönlendirme kullanılamıyor."
+
+#: src/mobile/views/PortsView.tsx
+msgid "Port forwarding isn't enabled"
+msgstr "Port yönlendirme etkin değil"
+
+#: src/mobile/views/PortsView.tsx
+#~ msgid "Port forwarding needs a direct connection to the desktop. It isn't "
+#~ "available over a relay or tunnel."
+#~ msgstr "Port yönlendirme, masaüstüne doğrudan bağlantı gerektirir. Röle veya "
+#~ "tünel üzerinden kullanılamaz."
+
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
+#: src/mobile/views/PortsView.tsx
+msgid "Ports"
+msgstr "Portlar"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "PR actions"
@@ -5506,6 +5599,11 @@ msgstr "Yerel değişikliklerin yeniden uygulanmasında çakışmalar var"
 msgid "Re-login"
 msgstr "Yeniden giriş yap"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Re-pair this connection to grant access to port forwarding."
+msgstr "Port yönlendirmeye erişim izni vermek için bu bağlantıyı yeniden "
+"eşleştirin."
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
 msgstr "Hazır"
@@ -5565,6 +5663,7 @@ msgstr "Bildirim içeriğini gizle"
 #. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
+#: src/mobile/views/PortsView.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
@@ -5924,6 +6023,7 @@ msgid "Restore thread"
 msgstr "Konuyu geri yükle"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
 msgid "Retry"
 msgstr "Tekrar dene"
@@ -6677,6 +6777,11 @@ msgstr "Başlat"
 msgid "Start {appName} to see usage"
 msgstr "Kullanımı görmek için {appName} uygulamasını başlatın"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Start a dev server on your desktop, then tap refresh."
+msgstr "Masaüstünüzde bir geliştirme sunucusu başlatın, ardından yenile'ye "
+"dokunun."
+
 #: src/renderer/commands/registry.ts
 msgid "Start a new thread as panel instead of page"
 msgstr "Yeni bir konuyu sayfa yerine panel olarak başlatın"
@@ -6791,6 +6896,10 @@ msgstr "Durum:"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
 msgstr "Durdur"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Stop forwarding"
+msgstr "Yönlendirmeyi durdur"
 
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Stop response"
@@ -7781,6 +7890,11 @@ msgstr "Şubeyi güncelle"
 msgid "Update error: {detail}"
 msgstr "Güncelleme hatası: {detail}"
 
+#: src/mobile/views/PortsView.tsx
+msgid "Update Lightcode on your desktop to use port forwarding."
+msgstr "Port yönlendirmeyi kullanmak için masaüstünüzdeki Lightcode'u "
+"güncelleyin."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update method"
 msgstr "Güncelleme yöntemi"
@@ -8058,6 +8172,10 @@ msgstr "WSL kabuk ortamı ısınıyor…"
 #: src/renderer/components/thread/ChatPane/parts/items/WebSearchItem.tsx
 msgid "Web search"
 msgstr "Web araması"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Web server"
+msgstr "Web sunucusu"
 
 #. External link to the product website
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx

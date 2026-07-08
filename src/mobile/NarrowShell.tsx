@@ -6,6 +6,7 @@ import {
   FolderGit2,
   Gauge,
   Globe,
+  Plug,
   Search,
   Server,
   Settings2,
@@ -285,6 +286,7 @@ export function NarrowShell(props: {
                 icon: <FolderGit2 className="size-4 text-muted" />,
               },
               { id: "browser", label: t`Browser`, icon: <Globe className="size-4 text-muted" /> },
+              { id: "ports", label: t`Ports`, icon: <Plug className="size-4 text-muted" /> },
               {
                 id: "settings",
                 label: t`Settings`,
@@ -301,7 +303,9 @@ export function NarrowShell(props: {
                       ? "/more/projects"
                       : id === "browser"
                         ? "/more/browser"
-                        : "/more";
+                        : id === "ports"
+                          ? "/more/ports"
+                          : "/more";
               void navigate({ to });
             }}
             trigger={({ open }) => (

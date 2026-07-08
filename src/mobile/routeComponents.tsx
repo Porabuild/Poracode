@@ -44,6 +44,9 @@ import { ThreadView } from "./views/ThreadView";
 const BrowserView = lazy(() =>
   import("./views/BrowserView").then((module) => ({ default: module.BrowserView })),
 );
+const PortsView = lazy(() =>
+  import("./views/PortsView").then((module) => ({ default: module.PortsView })),
+);
 const WorkspaceView = lazy(() =>
   import("./views/WorkspaceView").then((module) => ({ default: module.WorkspaceView })),
 );
@@ -494,6 +497,14 @@ export function BrowserRoute() {
   return (
     <LazyRoute>
       <BrowserView />
+    </LazyRoute>
+  );
+}
+
+export function PortsRoute() {
+  return (
+    <LazyRoute>
+      <PortsView />
     </LazyRoute>
   );
 }

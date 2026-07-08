@@ -10,6 +10,7 @@ import { patchSharedSettingsFile, readSharedSettingsFile } from "@/main/sharedSe
 import { SupervisorClient } from "@/main/supervisor/SupervisorClient";
 import {
   createPersistentRemoteAuthStore,
+  createPortForwarding,
   createPushGateway,
   PushCoordinator,
   PushRegistrationStore,
@@ -171,6 +172,12 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
       : remoteAccessAdvertisedHost({ bindHost: host }));
   const pairingAppUrl = options.pairingAppUrl ?? remoteAccessPairingAppUrl();
 
+  const portForwardPort = options.port ?? remoteAccessPort();
+  const portForwarding = createPortForwarding({
+    bindHost: host,
+    remoteAccessPort: portForwardPort,
+  });
+
   const server = new RemoteAccessServer({
     appVersion: options.appVersion,
     identity,
@@ -189,6 +196,8 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
       upsert: (registration) => pushStore.upsert(registration),
       remove: (deviceId) => pushStore.remove(deviceId),
     },
+    portForward: portForwarding.gateway,
+    portProxy: portForwarding.proxy,
   });
   serverRef = server;
 
@@ -223,8 +232,13 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
       relayHandle?.dispose();
       relayHandle = null;
       // Await the HTTP server close FIRST so in-flight requests finish before
-      // the database (which they may read/write) is torn down.
+      // the database (which they may read/write) is torn down — and before
+      // the port-forward gateway/proxy are disposed: a POST /api/ports/forward
+      // in flight during shutdown must not race a gateway torn down out from
+      // under it (the gateway's own `disposed` guard makes this airtight
+      // regardless of ordering, but disposing after keeps the two aligned).
       await server.dispose();
+      portForwarding.dispose();
       supervisorClient.dispose();
       closeDatabase();
     },

@@ -21,6 +21,10 @@ export const remoteAccessScopeSchema = z.enum([
   // Create/clone/remove projects on the desktop or server. Sensitive: it writes
   // the project list and can clone arbitrary repos, so it gates its own routes.
   "projects:manage",
+  // Discover local dev servers and open/close a raw TCP port forward from the
+  // desktop's LAN-reachable interface to 127.0.0.1:<port>. Gates its own
+  // routes (see RemotePortForwardGateway).
+  "ports:forward",
 ]);
 export type RemoteAccessScope = z.infer<typeof remoteAccessScopeSchema>;
 
@@ -226,6 +230,85 @@ export const remoteThreadsChangedEventSchema = z.object({
   threadIds: z.array(z.string().min(1)),
 });
 export type RemoteThreadsChangedEvent = z.infer<typeof remoteThreadsChangedEventSchema>;
+
+/**
+ * Port forwarding. Lets a paired client discover dev servers listening on the
+ * desktop's localhost (Vite, Next.js, …) and open a raw TCP proxy from the
+ * desktop's LAN-reachable interface to `127.0.0.1:<targetPort>`, so a phone
+ * browser can reach it directly at `http://<advertisedHost>:<listenPort>/`.
+ * Raw TCP piping (not an HTTP proxy) means WebSocket upgrades (Vite HMR) pass
+ * through unmodified. All routes require `ports:forward`. The framework-guess
+ * label map for well-known ports lives in the gateway
+ * (`RemotePortForwardGateway`), not here.
+ */
+export const detectedPortSchema = z.object({
+  port: z.number().int().min(1).max(65535),
+  protocol: z.enum(["http", "unknown"]),
+  label: z.string().min(1).optional(),
+});
+export type DetectedPort = z.infer<typeof detectedPortSchema>;
+
+export const activePortForwardSchema = z.object({
+  id: z.string().min(1),
+  targetPort: z.number().int().min(1).max(65535),
+  listenPort: z.number().int().min(1).max(65535),
+  createdAt: z.number().int().nonnegative(),
+});
+export type ActivePortForward = z.infer<typeof activePortForwardSchema>;
+
+/** Response for `GET /api/ports`: a fresh scan plus currently-open forwards. */
+export const remotePortsStateSchema = z.object({
+  detected: z.array(detectedPortSchema),
+  forwards: z.array(activePortForwardSchema),
+});
+export type RemotePortsState = z.infer<typeof remotePortsStateSchema>;
+
+/** Request body for `POST /api/ports/forward`. */
+export const remotePortForwardRequestSchema = z.object({
+  targetPort: z.number().int().min(1).max(65535),
+});
+export type RemotePortForwardRequest = z.infer<typeof remotePortForwardRequestSchema>;
+
+/** Response for `POST /api/ports/forward`. The client reaches the raw
+ * `listenPort` on the same host it already talks to the desktop on (which it
+ * derives from its own endpoint), so no host is echoed here. `enterPath` is the
+ * authenticated HTTP/WS reverse-proxy entry point (absent on a host that has a
+ * port-forward gateway but no `PortProxy` wired up): a path-only URL —
+ * `/forward/<id>/enter?fwt=<token>` — that a browser navigation resolves
+ * against the desktop's advertised origin. Unlike `listenPort` (raw TCP, LAN
+ * only), this works in every connectivity mode (LAN, tailscale-serve HTTPS,
+ * the self-hosted relay) because it rides the remote-access server's own
+ * authenticated HTTP endpoint. */
+export const remotePortForwardResultSchema = z.object({
+  forward: activePortForwardSchema,
+  enterPath: z.string().min(1).optional(),
+});
+export type RemotePortForwardResult = z.infer<typeof remotePortForwardResultSchema>;
+
+/** Request body for `POST /api/ports/unforward`. */
+export const remotePortUnforwardRequestSchema = z.object({
+  id: z.string().min(1),
+});
+export type RemotePortUnforwardRequest = z.infer<typeof remotePortUnforwardRequestSchema>;
+
+export const remotePortUnforwardResultSchema = z.object({ ok: z.literal(true) });
+export type RemotePortUnforwardResult = z.infer<typeof remotePortUnforwardResultSchema>;
+
+/** Request body for `POST /api/ports/enter`: mints a fresh enter token for an
+ * already-open forward. The mobile app calls this right before opening the
+ * forwarded tab so the token in `enterPath` is always fresh, rather than
+ * reusing the (possibly stale) one returned by the original `forward` call. */
+export const remotePortEnterRequestSchema = z.object({
+  id: z.string().min(1),
+});
+export type RemotePortEnterRequest = z.infer<typeof remotePortEnterRequestSchema>;
+
+/** Response for `POST /api/ports/enter`. See {@link remotePortForwardResultSchema}
+ * for what `enterPath` resolves to. */
+export const remotePortEnterResultSchema = z.object({
+  enterPath: z.string().min(1),
+});
+export type RemotePortEnterResult = z.infer<typeof remotePortEnterResultSchema>;
 
 /**
  * Push notifications, iOS Live Activities & Android live-update notifications.

@@ -8,6 +8,10 @@ import {
   remoteBrowserStateSchema,
   remoteEnvironmentDescriptorSchema,
   remoteHttpErrorSchema,
+  remotePortEnterResultSchema,
+  remotePortForwardResultSchema,
+  remotePortUnforwardResultSchema,
+  remotePortsStateSchema,
   remotePushRegistrationResultSchema,
   remoteSettingsSchema,
   remoteProjectCommandResultSchema,
@@ -23,6 +27,9 @@ import {
   type RemoteBrowserState,
   type RemoteClientMetadata,
   type RemoteEnvironmentDescriptor,
+  type RemotePortEnterResult,
+  type RemotePortForwardResult,
+  type RemotePortsState,
   type RemoteProjectCommand,
   type RemoteProjectCommandResult,
   type RemotePushRegistration,
@@ -554,6 +561,46 @@ export class RemoteDesktopClient {
   async projectCommand(command: RemoteProjectCommand): Promise<RemoteProjectCommandResult> {
     return remoteProjectCommandResultSchema.parse(
       await this.requestJson("/api/projects/command", { method: "POST", body: command }),
+    );
+  }
+
+  /**
+   * Discover dev servers listening on the paired desktop's localhost, plus any
+   * forwards already open. Requires the `ports:forward` scope. Runs a fresh
+   * scan on every call (fast — a handful of concurrent, short-timeout probes).
+   */
+  async listPorts(): Promise<RemotePortsState> {
+    return remotePortsStateSchema.parse(await this.requestJson("/api/ports"));
+  }
+
+  /**
+   * Opens a raw TCP proxy from the desktop's LAN-reachable interface to
+   * `127.0.0.1:targetPort`, so a phone browser can load it directly at
+   * `http://<advertisedHost>:<listenPort>/`. Idempotent per `targetPort` (a
+   * second call returns the existing forward). Requires `ports:forward`.
+   */
+  async startPortForward(targetPort: number): Promise<RemotePortForwardResult> {
+    return remotePortForwardResultSchema.parse(
+      await this.requestJson("/api/ports/forward", { method: "POST", body: { targetPort } }),
+    );
+  }
+
+  /** Closes a port forward by id. Requires `ports:forward`. */
+  async stopPortForward(id: string): Promise<void> {
+    remotePortUnforwardResultSchema.parse(
+      await this.requestJson("/api/ports/unforward", { method: "POST", body: { id } }),
+    );
+  }
+
+  /**
+   * Mints a fresh enter token for an already-open forward (the one returned by
+   * {@link startPortForward} may have expired — tokens are TTL'd). Requires
+   * `ports:forward`. Throws `forward_not_found` (404) if the forward has since
+   * closed.
+   */
+  async enterPortForward(id: string): Promise<RemotePortEnterResult> {
+    return remotePortEnterResultSchema.parse(
+      await this.requestJson("/api/ports/enter", { method: "POST", body: { id } }),
     );
   }
 

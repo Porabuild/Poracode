@@ -15,6 +15,7 @@ import {
   DesktopsRoute,
   MoreRoute,
   NewThreadRoute,
+  PortsRoute,
   ProjectsRoute,
   SettingsListRoute,
   SettingsSectionRoute,
@@ -85,6 +86,12 @@ const browserRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/more/browser",
   component: BrowserRoute,
+});
+
+const portsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/more/ports",
+  component: PortsRoute,
 });
 
 const projectsRoute = createRoute({
@@ -201,6 +208,7 @@ const routeTree = rootRoute.addChildren([
   moreRoute,
   usageRoute,
   browserRoute,
+  portsRoute,
   projectsRoute,
   settingsRoute,
   settingsSectionRoute,

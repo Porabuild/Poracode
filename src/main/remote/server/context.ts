@@ -7,7 +7,9 @@ import type {
 } from "@/shared/remote";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { AuthenticatedRemoteSession, RemoteAuthStore } from "../auth";
+import type { PortProxy } from "../portForward/portProxy";
 import type { RemoteBrowserGateway } from "../RemoteBrowserGateway";
+import type { RemotePortForwardGateway } from "../RemotePortForwardGateway";
 import type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "../RemoteAccessServer";
 import type { RemoteServerSecurity } from "./security";
 
@@ -44,6 +46,8 @@ export interface RemoteServerContext {
   requireInfo(): RemoteAccessServerInfo;
   requireSettingsGateway(): NonNullable<RemoteAccessServerOptions["settings"]>;
   requireBrowserGateway(): RemoteBrowserGateway;
+  requirePortForwardGateway(): RemotePortForwardGateway;
+  requirePortProxy(): PortProxy;
   requirePushRegistrations(): NonNullable<RemoteAccessServerOptions["pushRegistrations"]>;
   publishSupervisorEvent(event: RemoteBroadcastEvent): void;
   publishThreadsChanged(threadIds: readonly string[]): void;

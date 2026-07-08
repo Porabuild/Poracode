@@ -1,6 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import {
   remoteBrowserCommandSchema,
+  remotePortEnterRequestSchema,
+  remotePortEnterResultSchema,
+  remotePortForwardRequestSchema,
+  remotePortForwardResultSchema,
+  remotePortUnforwardRequestSchema,
+  remotePortsStateSchema,
   remoteProjectCommandSchema,
   remotePushRegistrationSchema,
   remotePushUnregisterSchema,
@@ -32,6 +38,7 @@ import {
 } from "../../profile";
 import { RemoteHttpError } from "../auth";
 import {
+  buildForwardEnterErrorPageHtml,
   buildLocalPairingIconSvg,
   buildLocalPairingManifestJson,
   buildLocalPairingPageHtml,
@@ -40,6 +47,11 @@ import {
 import { tryServeBuiltMobileApp } from "../staticMobileApp";
 import type { RemoteServerContext } from "./context";
 import { writeError, writeHtml, writeJson, writeText } from "./httpResponses";
+import {
+  buildForwardSessionCookieHeader,
+  isReservedForwardProxyPath,
+  proxyForwardedHttpRequest,
+} from "./portForwardProxy";
 import { readJsonBody } from "./requestBody";
 import { DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT } from "./security";
 import {
@@ -149,6 +161,21 @@ export async function handleHttp(
 
   try {
     const url = new URL(req.url ?? "/", ctx.requireInfo().httpBaseUrl);
+    // Lazily resolve the forward session at most once per request, and only for
+    // the two branches that consume it (the `/assets/` branch and the reverse-
+    // proxy fallthrough) — the vast majority of requests hit an explicit app
+    // route above and never touch it. Memoized (not `??=`) because `null` is a
+    // real "no session" result that must not trigger a re-resolve, and because
+    // `resolveSession` slides the session's TTL, so it must run at most once.
+    let sessionResolved = false;
+    let sessionPort: number | null = null;
+    const forwardTargetPort = (): number | null => {
+      if (!sessionResolved) {
+        sessionResolved = true;
+        sessionPort = ctx.options.portProxy?.resolveSession(req.headers.cookie) ?? null;
+      }
+      return sessionPort;
+    };
     if (req.method === "GET" && url.pathname === "/.well-known/lightcode/environment") {
       writeJson(res, 200, descriptor(ctx));
       return;
@@ -173,6 +200,16 @@ export async function handleHttp(
       return;
     }
     if (req.method === "GET" && url.pathname.startsWith("/assets/")) {
+      // An active forward session wins over the bundled mobile PWA: a
+      // forwarded dev server's own `/assets/*` files (e.g. a Vite bundle) must
+      // stay reachable rather than being shadowed by this reservation. No
+      // session (or no `portProxy` wired up) falls through to the PWA lookup
+      // exactly as before this feature existed.
+      const targetPort = forwardTargetPort();
+      if (targetPort) {
+        proxyForwardedHttpRequest(req, res, targetPort);
+        return;
+      }
       if (tryServeBuiltMobileApp(url.pathname, res)) {
         return;
       }
@@ -192,6 +229,27 @@ export async function handleHttp(
     }
     if (req.method === "GET" && url.pathname === "/app-icon.svg") {
       writeText(res, 200, buildLocalPairingIconSvg(), "image/svg+xml; charset=utf-8");
+      return;
+    }
+    // Plain browser navigation (no bearer header available to a top-level
+    // GET), so this is deliberately not scope-gated: the capability is the
+    // one-time-ish `fwt` token itself, minted server-side by a bearer-gated
+    // route (`POST /api/ports/forward` or `POST /api/ports/enter`).
+    const forwardEnterMatch =
+      req.method === "GET" ? /^\/forward\/([^/]+)\/enter$/.exec(url.pathname) : null;
+    if (forwardEnterMatch) {
+      const forwardId = decodeURIComponent(forwardEnterMatch[1] ?? "");
+      const token = url.searchParams.get("fwt") ?? "";
+      const consumed = ctx.options.portProxy?.consumeEnterToken(forwardId, token) ?? null;
+      if (!consumed) {
+        writeHtml(res, 400, buildForwardEnterErrorPageHtml());
+        return;
+      }
+      res.writeHead(302, {
+        location: "/",
+        "set-cookie": buildForwardSessionCookieHeader(consumed.sessionId, consumed.maxAgeMs),
+      });
+      res.end();
       return;
     }
     if (req.method === "POST" && url.pathname === "/oauth/token") {
@@ -279,6 +337,52 @@ export async function handleHttp(
       ctx.security.requireBearer(req, ["session:operate"]);
       const command = remoteBrowserCommandSchema.parse(await readJsonBody(req));
       writeJson(res, 200, { state: await ctx.requireBrowserGateway().command(command) });
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/api/ports") {
+      ctx.security.requireBearer(req, ["ports:forward"]);
+      const gateway = ctx.requirePortForwardGateway();
+      const detected = await gateway.scanPorts();
+      writeJson(
+        res,
+        200,
+        remotePortsStateSchema.parse({ detected, forwards: gateway.listForwards() }),
+      );
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/ports/forward") {
+      ctx.security.requireBearer(req, ["ports:forward"]);
+      const { targetPort } = remotePortForwardRequestSchema.parse(await readJsonBody(req));
+      const forward = await ctx.requirePortForwardGateway().startForward(targetPort);
+      // `portProxy` is absent on a host that only has the raw-TCP gateway
+      // wired up (e.g. an older build mid-rollout); `enterPath` is then
+      // omitted rather than the whole response failing.
+      const enterPath = ctx.options.portProxy?.issueEnterToken(forward.id).path;
+      writeJson(
+        res,
+        200,
+        remotePortForwardResultSchema.parse({
+          forward,
+          ...(enterPath ? { enterPath } : {}),
+        }),
+      );
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/ports/enter") {
+      ctx.security.requireBearer(req, ["ports:forward"]);
+      const { id } = remotePortEnterRequestSchema.parse(await readJsonBody(req));
+      if (ctx.requirePortForwardGateway().getForward(id) === null) {
+        throw new RemoteHttpError("forward_not_found", "Port forward not found.", 404);
+      }
+      const { path } = ctx.requirePortProxy().issueEnterToken(id);
+      writeJson(res, 200, remotePortEnterResultSchema.parse({ enterPath: path }));
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/ports/unforward") {
+      ctx.security.requireBearer(req, ["ports:forward"]);
+      const { id } = remotePortUnforwardRequestSchema.parse(await readJsonBody(req));
+      await ctx.requirePortForwardGateway().stopForward(id);
+      writeJson(res, 200, { ok: true });
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/git/call") {
@@ -381,6 +485,18 @@ export async function handleHttp(
           threadId,
         });
         writeJson(res, 200, { ok: true });
+        return;
+      }
+    }
+    // Reverse-proxy fallthrough: anything above is a reserved app route (see
+    // `isReservedForwardProxyPath`), so only reachable here for a path a
+    // forwarded dev server itself owns. An `lc_forward` session cookie
+    // resolves it straight to that dev server; no session (or no `portProxy`
+    // wired up on this host) 404s exactly as before this feature existed.
+    if (!isReservedForwardProxyPath(url.pathname)) {
+      const targetPort = forwardTargetPort();
+      if (targetPort) {
+        proxyForwardedHttpRequest(req, res, targetPort);
         return;
       }
     }

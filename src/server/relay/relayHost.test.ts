@@ -278,6 +278,115 @@ describe("startRelayHost", () => {
     handle.dispose();
   });
 
+  it("requests manual redirects and forwards a 3xx status/location without following it", async () => {
+    const control = fakeSocket();
+    let capturedInit: RequestInit | undefined;
+    const handle = startRelayHost({
+      relayUrl: "ws://relay.test/host",
+      serverId: "srv-1",
+      secret: "secret",
+      localHttpUrl: "http://127.0.0.1:38987",
+      socketFactory: () => control,
+      fetchImpl: async (_url, init) => {
+        capturedInit = init;
+        return new Response(null, { status: 307, headers: { location: "/elsewhere" } });
+      },
+    });
+
+    control.onopen?.();
+    control.onmessage?.(
+      frame({ t: "req", id: "req-1", method: "GET", path: "/some/path", headers: {} }),
+    );
+
+    await vi.waitFor(() => {
+      expect(control.sent.map((data) => JSON.parse(data) as unknown)).toContainEqual({
+        t: "res",
+        id: "req-1",
+        status: 307,
+        headers: { location: "/elsewhere" },
+        body: "",
+      });
+    });
+    // Node's fetch would otherwise silently follow the redirect and hand back
+    // the *followed* response, hiding the 3xx/Location from the visitor.
+    expect(capturedInit?.redirect).toBe("manual");
+    handle.dispose();
+  });
+
+  it("forwards Set-Cookie values as a `setCookies` array (with bindVisitor when the forward session cookie is present), separately from the plain header record", async () => {
+    const control = fakeSocket();
+    const handle = startRelayHost({
+      relayUrl: "ws://relay.test/host",
+      serverId: "srv-1",
+      secret: "secret",
+      localHttpUrl: "http://127.0.0.1:38987",
+      socketFactory: () => control,
+      fetchImpl: async () => {
+        const headers = new Headers();
+        headers.append("set-cookie", "lc_forward=abc123; Path=/; HttpOnly");
+        headers.append("set-cookie", "unrelated=xyz; Path=/");
+        headers.set("location", "/");
+        return new Response(null, { status: 302, headers });
+      },
+    });
+
+    control.onopen?.();
+    control.onmessage?.(
+      frame({ t: "req", id: "req-1", method: "GET", path: "/forward/f1/enter", headers: {} }),
+    );
+
+    await vi.waitFor(() => {
+      const sent = control.sent.map((data) => JSON.parse(data) as unknown);
+      // The host sets `bindVisitor` (not the relay sniffing `setCookies`) when
+      // its response mints the forward-session cookie, so the relay can bind the
+      // visitor for prefixless routing without inspecting the tunneled cookies.
+      expect(sent).toContainEqual({
+        t: "res",
+        id: "req-1",
+        status: 302,
+        headers: { location: "/" },
+        setCookies: ["lc_forward=abc123; Path=/; HttpOnly", "unrelated=xyz; Path=/"],
+        bindVisitor: true,
+        body: "",
+      });
+    });
+    handle.dispose();
+  });
+
+  it("omits bindVisitor when the response carries Set-Cookie but not the forward session cookie", async () => {
+    const control = fakeSocket();
+    const handle = startRelayHost({
+      relayUrl: "ws://relay.test/host",
+      serverId: "srv-1",
+      secret: "secret",
+      localHttpUrl: "http://127.0.0.1:38987",
+      socketFactory: () => control,
+      fetchImpl: async () => {
+        const headers = new Headers();
+        headers.append("set-cookie", "unrelated=xyz; Path=/");
+        return new Response(null, { status: 200, headers });
+      },
+    });
+
+    control.onopen?.();
+    control.onmessage?.(
+      frame({ t: "req", id: "req-2", method: "GET", path: "/api/snapshot", headers: {} }),
+    );
+
+    await vi.waitFor(() => {
+      const sent = control.sent.map((data) => JSON.parse(data) as unknown);
+      expect(sent).toContainEqual({
+        t: "res",
+        id: "req-2",
+        status: 200,
+        headers: {},
+        setCookies: ["unrelated=xyz; Path=/"],
+        body: "",
+      });
+    });
+    handle.dispose();
+  });
+
   it("rejects local HTTP responses that exceed the relay body limit", async () => {
     const control = fakeSocket();
     const handle = startRelayHost({

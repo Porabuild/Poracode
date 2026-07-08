@@ -66,6 +66,25 @@ export const relayResponseFrameSchema = z.object({
   id: z.string().min(1),
   status: z.number().int(),
   headers: z.record(z.string(), z.string()),
+  /**
+   * Raw `Set-Cookie` header values, one entry each. The fetch `Headers` API
+   * collapses/loses multiple `set-cookie` entries when iterated generically
+   * (see `headers` above, which is built with a plain iteration and so must
+   * never be trusted for cookies), so the host populates this separately from
+   * `response.headers.getSetCookie()`. Additive/optional so older hosts that
+   * don't send it still work (just without cookie passthrough).
+   */
+  setCookies: z.array(z.string()).optional(),
+  /**
+   * Set by the host when the visitor's browser should be bound to this host for
+   * subsequent prefixless requests (the host mints its own port-forward session
+   * cookie in this response). The relay reacts to this flag alone and mints its
+   * `RELAY_ROUTING_COOKIE_NAME` routing cookie — it does NOT inspect `setCookies`
+   * for the forward-session cookie itself, keeping all port-forward semantics in
+   * the host adapter (relayHost.ts) rather than the transport. Additive/optional
+   * so older hosts that don't send it still work (just without prefixless
+   * routing). */
+  bindVisitor: z.boolean().optional(),
   /** base64 response body. */
   body: z.string(),
 });
@@ -83,6 +102,15 @@ export const relayWsOpenFrameSchema = z.object({
   id: z.string().min(1),
   /** Path + query (e.g. `/ws?ticket=...`). */
   path: z.string().min(1),
+  /**
+   * The visitor's raw `Cookie` header, forwarded so the host's own local
+   * WebSocket connection (e.g. a port-forwarded dev server reached through an
+   * `lc_forward` session, see `RELAY_FORWARD_SESSION_COOKIE_NAME`) can resolve
+   * session auth exactly as a direct LAN WS upgrade would. The relay's own
+   * `RELAY_ROUTING_COOKIE_NAME` cookie is stripped before this is populated.
+   * Omitted when the visitor sent no cookies.
+   */
+  cookie: z.string().optional(),
 });
 
 /** Bidirectional: a WebSocket text frame for channel `id`. */
@@ -154,4 +182,108 @@ export function parseRelayVisitorPath(
   }
   if (!serverId) return null;
   return { serverId, path: match[2] && match[2].length > 0 ? match[2] : "/" };
+}
+
+/**
+ * The desktop's port-forward proxy session cookie (see
+ * `src/main/remote/portForward/portProxy.ts`'s `FORWARD_SESSION_COOKIE_NAME`).
+ * Duplicated here rather than imported: this module is shared with the
+ * standalone self-hosted relay server, which does not depend on `src/main`.
+ * Keep the literal in sync if the desktop's cookie name ever changes.
+ *
+ * Consumed by the HOST adapter (`src/server/relay/relayHost.ts`), NOT the relay:
+ * the host detects it in a tunneled response's `Set-Cookie` and signals the
+ * relay via the response frame's `bindVisitor` flag to mint its own routing
+ * cookie. The relay itself never inspects this cookie, so all port-forward
+ * semantics stay in the host adapter that owns the local server's behavior.
+ */
+export const RELAY_FORWARD_SESSION_COOKIE_NAME = "lc_forward";
+
+/**
+ * The relay's own routing cookie. Minted by the relay itself (never by a
+ * host) the first time it observes `RELAY_FORWARD_SESSION_COOKIE_NAME` roll by
+ * in a tunneled response, binding the visitor's browser to the `serverId` that
+ * issued it. This lets prefixless requests/upgrades (e.g. Vite/webpack HMR
+ * assets and sockets that don't carry the `/s/<id>` prefix) still route to the
+ * right host. Always stripped from the `Cookie` header before a request is
+ * framed to a host — hosts never need to see it.
+ */
+export const RELAY_ROUTING_COOKIE_NAME = "lc_relay";
+
+/** Extracts a single cookie's value from a raw `Cookie` request header. */
+export function parseCookieValue(cookieHeader: string | undefined, name: string): string | null {
+  if (!cookieHeader) return null;
+  for (const crumb of cookieHeader.split(";")) {
+    const eq = crumb.indexOf("=");
+    if (eq === -1) continue;
+    const key = crumb.slice(0, eq).trim();
+    if (key !== name) continue;
+    const value = crumb.slice(eq + 1).trim();
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
+  return null;
+}
+
+/**
+ * Removes a single named cookie crumb from a raw `Cookie` header, leaving any
+ * other cookies intact. Returns `undefined` when nothing is left (or nothing
+ * was passed in).
+ */
+export function stripCookieCrumb(
+  cookieHeader: string | undefined,
+  name: string,
+): string | undefined {
+  if (!cookieHeader) return undefined;
+  const remaining = cookieHeader
+    .split(";")
+    .map((crumb) => crumb.trim())
+    .filter((crumb) => {
+      const eq = crumb.indexOf("=");
+      const key = eq === -1 ? crumb : crumb.slice(0, eq);
+      return key !== name;
+    });
+  return remaining.length > 0 ? remaining.join("; ") : undefined;
+}
+
+/** True when one of the raw `Set-Cookie` header values names cookie `name`. */
+export function setCookiesInclude(
+  setCookies: readonly string[] | undefined,
+  name: string,
+): boolean {
+  if (!setCookies) return false;
+  return setCookies.some((raw) => {
+    const eq = raw.indexOf("=");
+    const key = (eq === -1 ? raw : raw.slice(0, eq)).trim();
+    return key === name;
+  });
+}
+
+/**
+ * Builds the `Set-Cookie` header the relay mints to bind a visitor's browser
+ * to `serverId` for prefixless requests (see `RELAY_ROUTING_COOKIE_NAME`). No
+ * `Secure` attribute: the relay listens plain HTTP behind a fronting TLS
+ * proxy, so `Secure` would make browsers drop the cookie entirely. 12h
+ * lifetime matches the desktop's own forward-session TTL.
+ *
+ * Known limitation (accepted v2 behavior, not a bug): this cookie is
+ * `Path=/`, unscoped to a `serverId`, and shares its name across every host
+ * registered on this relay origin. If two desktops (A and B) are paired
+ * through the *same* relay origin and a browser has tabs open to both, then
+ * opening a forward on B overwrites the browser's `lc_forward`/`lc_relay`
+ * cookie jar entries that were pointing at A — there is no way to shard a
+ * single cookie name per host with prefixless routing on one origin. A's
+ * still-open tab keeps working against whatever forward/session was current
+ * when it last loaded, then degrades (stale session, wrong upstream) until
+ * the user reloads it — after which it too follows B, since the jar now only
+ * remembers B. Last-enter-wins, and it self-heals on reload. Scoping relay
+ * origins per-account/per-desktop (rather than sharing one relay origin
+ * across independent desktops) avoids the collision entirely; that's expected
+ * to be the common case, so this is not being fixed for v2.
+ */
+export function buildRelayRoutingCookieHeader(serverId: string): string {
+  return `${RELAY_ROUTING_COOKIE_NAME}=${encodeURIComponent(serverId)}; Max-Age=43200; Path=/; HttpOnly; SameSite=Lax`;
 }

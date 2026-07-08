@@ -1,6 +1,12 @@
 import { randomBytes } from "node:crypto";
-import { connect, createServer as createNetServer, type Socket } from "node:net";
-import { WebSocket } from "ws";
+import {
+  createServer as createHttpServer,
+  request as httpRequestNode,
+  type IncomingHttpHeaders,
+  type Server as HttpServer,
+} from "node:http";
+import { connect, createServer as createNetServer, type AddressInfo, type Socket } from "node:net";
+import { WebSocket, WebSocketServer } from "ws";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -23,12 +29,14 @@ import {
   dbUpsertThread,
 } from "../db";
 import { RemoteAuthStore } from "./auth";
+import { PortProxy } from "./portForward/portProxy";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
   type RemoteAccessServerOptions,
 } from "./RemoteAccessServer";
 import { RemoteBrowserGateway } from "./RemoteBrowserGateway";
+import { RemotePortForwardGateway } from "./RemotePortForwardGateway";
 
 vi.mock("../db", () => {
   // Backs dbGetState/dbSetState with a real in-memory map so the profile
@@ -325,6 +333,74 @@ async function openRawWebSocket(info: RemoteAccessServerInfo, ticket: string): P
     });
   });
   return socket;
+}
+
+/** A tiny "dev server" stand-in for the forward-proxy tests: echoes back the
+ * request path+query and the `Host` header it received, so tests can assert
+ * the proxy rewrote `Host` to `localhost:<port>` and forwarded the path/query
+ * verbatim (including a nested path with a query string). Bound to `host`
+ * (default `127.0.0.1`; pass `::1` to simulate a dev server that bound
+ * IPv6-only, e.g. `vite --port …` on a system where the bare hostname
+ * `localhost` resolves to IPv6 first). */
+function startUpstreamHttpServer(
+  host = "127.0.0.1",
+): Promise<{ port: number; server: HttpServer }> {
+  return new Promise((resolve, reject) => {
+    const server = createHttpServer((req, res) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ url: req.url, host: req.headers.host }));
+    });
+    server.once("error", reject);
+    server.listen(0, host, () => {
+      resolve({ port: (server.address() as AddressInfo).port, server });
+    });
+  });
+}
+
+/** Whether this machine can bind an IPv6 loopback listener at all — some CI
+ * hosts disable IPv6 entirely, in which case the `::1`-only tests below must
+ * skip rather than fail. */
+function detectIpv6LoopbackSupport(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const probe = createNetServer();
+    probe.once("error", () => resolve(false));
+    probe.listen(0, "::1", () => {
+      probe.close(() => resolve(true));
+    });
+  });
+}
+
+const ipv6Supported = await detectIpv6LoopbackSupport();
+
+/**
+ * A raw (non-`fetch`) GET so the test can inspect a 3xx response's `Location`
+ * and `Set-Cookie` headers directly — `fetch`'s `redirect: "manual"` mode
+ * returns an opaque-redirect filtered response (status 0, no headers) per the
+ * Fetch spec, which would hide exactly what these tests need to assert.
+ */
+function rawGet(url: URL): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
+  return new Promise((resolve, reject) => {
+    const req = httpRequestNode(url, { method: "GET" }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk: Buffer) => chunks.push(chunk));
+      res.on("end", () =>
+        resolve({
+          status: res.statusCode ?? 0,
+          headers: res.headers,
+          body: Buffer.concat(chunks).toString("utf8"),
+        }),
+      );
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
+
+/** Extracts the `lc_forward` cookie value from a raw `Set-Cookie` header. */
+function extractForwardCookieValue(setCookieHeader: string): string {
+  const match = /^lc_forward=([^;]+)/.exec(setCookieHeader);
+  if (!match?.[1]) throw new Error(`Expected an lc_forward cookie, got: ${setCookieHeader}`);
+  return match[1];
 }
 
 describe("RemoteAccessServer", () => {
@@ -2141,6 +2217,503 @@ describe("RemoteAccessServer", () => {
       status: { status: "unavailable" },
     });
     ws.close();
+  });
+
+  it("serves port discovery/forwarding via the injected gateway, scope-gated", async () => {
+    // A real loopback TCP echo server stands in for a "dev server" the phone
+    // wants to reach through the forward.
+    const echo = createNetServer((socket) => socket.pipe(socket));
+    await new Promise<void>((resolve) => echo.listen(0, "127.0.0.1", resolve));
+    const targetPort = (echo.address() as AddressInfo).port;
+
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      portForward: new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] }),
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const forwardToken = await issueAccessToken(info, ["ports:forward"]);
+    // The startup pairing credential is one-time-use; mint a fresh one for
+    // the second (scope-limited) token exchange.
+    const readOnlyCredential = new URLSearchParams(
+      new URL(server.issuePairingUrl()).hash.slice(1),
+    ).get("token");
+    const readOnlyTokenResponse = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        grantType: "pairing-token",
+        credential: readOnlyCredential,
+        scopes: ["session:read"],
+      }),
+    });
+    const readOnlyToken = ((await readOnlyTokenResponse.json()) as { accessToken: string })
+      .accessToken;
+
+    // Missing the ports:forward scope is rejected.
+    const forbidden = await fetch(new URL("/api/ports", info.httpBaseUrl), {
+      headers: { authorization: `Bearer ${readOnlyToken}` },
+    });
+    expect(forbidden.status).toBe(403);
+
+    const headers = {
+      authorization: `Bearer ${forwardToken}`,
+      "content-type": "application/json",
+    };
+
+    const emptyState = await fetch(new URL("/api/ports", info.httpBaseUrl), { headers });
+    expect(emptyState.status).toBe(200);
+    await expect(emptyState.json()).resolves.toEqual({ detected: [], forwards: [] });
+
+    const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ targetPort }),
+    });
+    expect(forwardResponse.status).toBe(200);
+    const forwardResult = (await forwardResponse.json()) as {
+      forward: { id: string; targetPort: number; listenPort: number };
+    };
+    expect(forwardResult.forward.targetPort).toBe(targetPort);
+
+    // Idempotent: forwarding the same target port again returns the same forward.
+    const secondForwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ targetPort }),
+    });
+    await expect(secondForwardResponse.json()).resolves.toEqual(forwardResult);
+
+    // Bytes actually round-trip through the forward to the echo server.
+    const client = connect(forwardResult.forward.listenPort, "127.0.0.1");
+    await new Promise<void>((resolve, reject) => {
+      client.once("connect", () => resolve());
+      client.once("error", reject);
+    });
+    const echoed = await new Promise<string>((resolve) => {
+      client.once("data", (data) => resolve(data.toString("utf8")));
+      client.write("ping");
+    });
+    expect(echoed).toBe("ping");
+    client.end();
+
+    const stateWithForward = await fetch(new URL("/api/ports", info.httpBaseUrl), { headers });
+    await expect(stateWithForward.json()).resolves.toMatchObject({
+      forwards: [{ id: forwardResult.forward.id, targetPort }],
+    });
+
+    const unforwardResponse = await fetch(new URL("/api/ports/unforward", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ id: forwardResult.forward.id }),
+    });
+    expect(unforwardResponse.status).toBe(200);
+    await expect(unforwardResponse.json()).resolves.toEqual({ ok: true });
+
+    const stateAfterUnforward = await fetch(new URL("/api/ports", info.httpBaseUrl), { headers });
+    await expect(stateAfterUnforward.json()).resolves.toMatchObject({ forwards: [] });
+
+    await new Promise<void>((resolve) => echo.close(() => resolve()));
+  });
+
+  it("returns ports_unavailable when no port-forward gateway is injected", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["ports:forward"]);
+
+    const response = await fetch(new URL("/api/ports", info.httpBaseUrl), {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "ports_unavailable" },
+    });
+  });
+
+  it("proxies HTTP requests to a forwarded dev server through an authenticated enter-token/cookie session", async () => {
+    const upstream = await startUpstreamHttpServer();
+    const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+    const portProxy = new PortProxy({ gateway });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      portForward: gateway,
+      portProxy,
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const token = await issueAccessToken(info, ["ports:forward"]);
+    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+    const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ targetPort: upstream.port }),
+    });
+    const forwardResult = (await forwardResponse.json()) as {
+      forward: { id: string };
+      enterPath: string;
+    };
+    expect(forwardResult.enterPath).toMatch(
+      new RegExp(`^/forward/${forwardResult.forward.id}/enter\\?fwt=.+`),
+    );
+
+    // `POST /api/ports/enter` mints a fresh token for an already-open forward
+    // (what the mobile app calls right before opening the tab).
+    const enterMintResponse = await fetch(new URL("/api/ports/enter", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ id: forwardResult.forward.id }),
+    });
+    expect(enterMintResponse.status).toBe(200);
+    const enterMintResult = (await enterMintResponse.json()) as { enterPath: string };
+    expect(enterMintResult.enterPath).not.toBe(forwardResult.enterPath);
+
+    const enterResponse = await rawGet(new URL(enterMintResult.enterPath, info.httpBaseUrl));
+    expect(enterResponse.status).toBe(302);
+    expect(enterResponse.headers.location).toBe("/");
+    const setCookie = enterResponse.headers["set-cookie"]?.[0];
+    expect(setCookie).toBeTruthy();
+    expect(setCookie).toContain("HttpOnly");
+    expect(setCookie).toContain("SameSite=Lax");
+    expect(setCookie).toContain("Path=/");
+    expect(setCookie).not.toContain("Secure");
+    expect(setCookie).not.toContain("Domain=");
+    const cookieHeader = `lc_forward=${extractForwardCookieValue(setCookie!)}`;
+
+    const rootResponse = await fetch(new URL("/", info.httpBaseUrl), {
+      headers: { cookie: cookieHeader },
+    });
+    expect(rootResponse.status).toBe(200);
+    await expect(rootResponse.json()).resolves.toEqual({
+      url: "/",
+      host: `localhost:${upstream.port}`,
+    });
+
+    // Absolute nested path + query string proxy verbatim, and the upstream
+    // sees the rewritten Host (not the remote-access server's own host:port).
+    const nestedResponse = await fetch(new URL("/some/nested/path?q=1", info.httpBaseUrl), {
+      headers: { cookie: cookieHeader },
+    });
+    expect(nestedResponse.status).toBe(200);
+    await expect(nestedResponse.json()).resolves.toEqual({
+      url: "/some/nested/path?q=1",
+      host: `localhost:${upstream.port}`,
+    });
+
+    await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
+  });
+
+  // Reproduces the real-world defect this pair of IPv6 tests guards against:
+  // `vite --port …` (and other tools that bind the bare hostname `localhost`)
+  // can end up bound to `::1` only on some systems, so the HTTP reverse proxy
+  // must fall back from 127.0.0.1 to ::1, not just the raw TCP forward.
+  it.skipIf(!ipv6Supported)(
+    "proxies HTTP requests to an IPv6-only forwarded dev server through an authenticated enter-token/cookie session",
+    async () => {
+      const upstream = await startUpstreamHttpServer("::1");
+      const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+      const portProxy = new PortProxy({ gateway });
+      const server = new RemoteAccessServer({
+        appVersion: "1.0.0",
+        identity: { desktopId: "desktop-test", label: "Test Desktop" },
+        host: "127.0.0.1",
+        port: 0,
+        callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+        portForward: gateway,
+        portProxy,
+      });
+      servers.push(server);
+      const info = await server.start();
+
+      const token = await issueAccessToken(info, ["ports:forward"]);
+      const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+
+      const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ targetPort: upstream.port }),
+      });
+      const forwardResult = (await forwardResponse.json()) as {
+        forward: { id: string };
+        enterPath: string;
+      };
+
+      const enterResponse = await rawGet(new URL(forwardResult.enterPath, info.httpBaseUrl));
+      expect(enterResponse.status).toBe(302);
+      const setCookie = enterResponse.headers["set-cookie"]?.[0];
+      expect(setCookie).toBeTruthy();
+      const cookieHeader = `lc_forward=${extractForwardCookieValue(setCookie!)}`;
+
+      const rootResponse = await fetch(new URL("/", info.httpBaseUrl), {
+        headers: { cookie: cookieHeader },
+      });
+      expect(rootResponse.status).toBe(200);
+      await expect(rootResponse.json()).resolves.toEqual({
+        url: "/",
+        host: `localhost:${upstream.port}`,
+      });
+
+      await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
+    },
+  );
+
+  it("lets an active forward session win over the bundled mobile PWA for /assets/*, and leaves the no-session PWA/404 fallback unchanged", async () => {
+    const upstream = await startUpstreamHttpServer();
+    const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+    const portProxy = new PortProxy({ gateway });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      portForward: gateway,
+      portProxy,
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const token = await issueAccessToken(info, ["ports:forward"]);
+    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ targetPort: upstream.port }),
+    });
+    const forwardResult = (await forwardResponse.json()) as { enterPath: string };
+    const enterResponse = await rawGet(new URL(forwardResult.enterPath, info.httpBaseUrl));
+    const cookieHeader = `lc_forward=${extractForwardCookieValue(enterResponse.headers["set-cookie"]![0]!)}`;
+
+    // With a valid forward session cookie, `/assets/app.js` reaches the
+    // forwarded dev server: the upstream stand-in echoes the request
+    // url/host as distinctive JSON, which is nothing the bundled PWA would
+    // ever serve at that path.
+    const assetWithSession = await fetch(new URL("/assets/app.js", info.httpBaseUrl), {
+      headers: { cookie: cookieHeader },
+    });
+    expect(assetWithSession.status).toBe(200);
+    await expect(assetWithSession.json()).resolves.toEqual({
+      url: "/assets/app.js",
+      host: `localhost:${upstream.port}`,
+    });
+
+    // Without a session cookie, `/assets/*` keeps falling through to the
+    // bundled-PWA lookup — which 404s here since there is no built renderer
+    // dist in this test environment — exactly as before this feature existed.
+    const assetWithoutSession = await fetch(new URL("/assets/app.js", info.httpBaseUrl));
+    expect(assetWithoutSession.status).toBe(404);
+
+    await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
+  });
+
+  it("rejects an invalid or expired forward enter token with a plain error page and no cookie", async () => {
+    const upstream = await startUpstreamHttpServer();
+    const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+    const portProxy = new PortProxy({ gateway, enterTokenTtlMs: 10 });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      portForward: gateway,
+      portProxy,
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    // An outright bogus token/forward id.
+    const invalidResponse = await fetch(
+      new URL("/forward/nonexistent-id/enter?fwt=bogus", info.httpBaseUrl),
+    );
+    expect(invalidResponse.status).toBe(400);
+    expect(invalidResponse.headers.getSetCookie()).toEqual([]);
+    await expect(invalidResponse.text()).resolves.toContain("<html");
+
+    // A real token that has since expired (10ms TTL configured above).
+    const token = await issueAccessToken(info, ["ports:forward"]);
+    const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ targetPort: upstream.port }),
+    });
+    const forwardResult = (await forwardResponse.json()) as { enterPath: string };
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const expiredResponse = await fetch(new URL(forwardResult.enterPath, info.httpBaseUrl));
+    expect(expiredResponse.status).toBe(400);
+    expect(expiredResponse.headers.getSetCookie()).toEqual([]);
+
+    await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
+  });
+
+  it("invalidates a forward's cookie sessions as soon as the forward is stopped", async () => {
+    const upstream = await startUpstreamHttpServer();
+    const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+    const portProxy = new PortProxy({ gateway });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      portForward: gateway,
+      portProxy,
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const token = await issueAccessToken(info, ["ports:forward"]);
+    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ targetPort: upstream.port }),
+    });
+    const forwardResult = (await forwardResponse.json()) as {
+      forward: { id: string };
+      enterPath: string;
+    };
+    const enterResponse = await rawGet(new URL(forwardResult.enterPath, info.httpBaseUrl));
+    const cookieHeader = `lc_forward=${extractForwardCookieValue(enterResponse.headers["set-cookie"]![0]!)}`;
+
+    const beforeStop = await fetch(new URL("/", info.httpBaseUrl), {
+      headers: { cookie: cookieHeader },
+    });
+    expect(beforeStop.status).toBe(200);
+
+    const unforwardResponse = await fetch(new URL("/api/ports/unforward", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ id: forwardResult.forward.id }),
+    });
+    expect(unforwardResponse.status).toBe(200);
+
+    const afterStop = await fetch(new URL("/", info.httpBaseUrl), {
+      headers: { cookie: cookieHeader },
+    });
+    expect(afterStop.status).toBe(404);
+
+    await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
+  });
+
+  it("proxies WebSocket upgrades (e.g. Vite/webpack HMR) to a forwarded dev server via the cookie session", async () => {
+    const upstreamWss = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    await new Promise<void>((resolve) => upstreamWss.once("listening", resolve));
+    upstreamWss.on("connection", (ws) => {
+      ws.on("message", (data) => ws.send(data.toString()));
+    });
+    const upstreamPort = (upstreamWss.address() as AddressInfo).port;
+
+    const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+    const portProxy = new PortProxy({ gateway });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      portForward: gateway,
+      portProxy,
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const token = await issueAccessToken(info, ["ports:forward"]);
+    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ targetPort: upstreamPort }),
+    });
+    const forwardResult = (await forwardResponse.json()) as { enterPath: string };
+    const enterResponse = await rawGet(new URL(forwardResult.enterPath, info.httpBaseUrl));
+    const cookieValue = extractForwardCookieValue(enterResponse.headers["set-cookie"]![0]!);
+
+    const wsUrl = new URL("/anything", info.httpBaseUrl);
+    wsUrl.protocol = "ws:";
+    const client = new WebSocket(wsUrl, { headers: { cookie: `lc_forward=${cookieValue}` } });
+    await new Promise<void>((resolve, reject) => {
+      client.once("open", resolve);
+      client.once("error", reject);
+    });
+    const echoed = await new Promise<string>((resolve, reject) => {
+      client.once("message", (data) => resolve(data.toString()));
+      client.once("error", reject);
+      client.send("ping-through-the-proxy");
+    });
+    expect(echoed).toBe("ping-through-the-proxy");
+    client.close();
+
+    await new Promise<void>((resolve) => upstreamWss.close(() => resolve()));
+  });
+
+  it("does not proxy reserved app routes even with a valid forward session cookie", async () => {
+    const upstream = await startUpstreamHttpServer();
+    const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+    const portProxy = new PortProxy({ gateway });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      portForward: gateway,
+      portProxy,
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const token = await issueAccessToken(info, ["ports:forward"]);
+    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ targetPort: upstream.port }),
+    });
+    const forwardResult = (await forwardResponse.json()) as { enterPath: string };
+    const enterResponse = await rawGet(new URL(forwardResult.enterPath, info.httpBaseUrl));
+    const cookieHeader = `lc_forward=${extractForwardCookieValue(enterResponse.headers["set-cookie"]![0]!)}`;
+
+    // `/api/snapshot` is a reserved app route: a forward session cookie alone
+    // must not satisfy it — it still requires its own bearer token.
+    const snapshotResponse = await fetch(new URL("/api/snapshot", info.httpBaseUrl), {
+      headers: { cookie: cookieHeader },
+    });
+    expect(snapshotResponse.status).toBe(401);
+
+    await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
+  });
+
+  it("404s the proxy fallthrough path when there is no forward session cookie", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const response = await fetch(new URL("/some/random/path", info.httpBaseUrl));
+    expect(response.status).toBe(404);
   });
 
   it("serves and updates remote-editable settings", async () => {

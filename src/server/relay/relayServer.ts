@@ -5,12 +5,16 @@ import type { Duplex } from "node:stream";
 import { WebSocket, WebSocketServer } from "ws";
 import { readBoundedNodeRequestBody } from "@/shared/http";
 import {
+  buildRelayRoutingCookieHeader,
   DEFAULT_RELAY_MAX_BODY_BYTES,
+  parseCookieValue,
   parseRelayVisitorPath,
+  RELAY_ROUTING_COOKIE_NAME,
   relayHostFrameSchema,
   relayPublicUrl,
   relayWebSocketPayloadLimit,
   safeJsonParse,
+  stripCookieCrumb,
   type RelayServerFrame,
 } from "@/shared/remote/relayProtocol";
 
@@ -77,7 +81,13 @@ interface SecretBinding {
 interface PendingRequest {
   readonly serverId: string;
   readonly timer: ReturnType<typeof setTimeout>;
-  resolve(result: { status: number; headers: Record<string, string>; body: Buffer }): void;
+  resolve(result: {
+    status: number;
+    headers: Record<string, string>;
+    body: Buffer;
+    setCookies?: string[];
+    bindVisitor?: boolean;
+  }): void;
   reject(error: Error): void;
 }
 
@@ -202,13 +212,14 @@ export class RelayServer {
       res.end("ok");
       return;
     }
-    const route = parseRelayVisitorPath(url.pathname);
-    if (!route) {
+    const dispatch = this.resolveVisitorDispatch(req, url);
+    if (!dispatch) {
       res.writeHead(404, { "content-type": "text/plain" });
       res.end("not found");
       return;
     }
-    const host = this.liveHost(route.serverId);
+    const { serverId, path: dispatchPath } = dispatch;
+    const host = this.liveHost(serverId);
     if (!host) {
       res.writeHead(502, { "content-type": "text/plain" });
       res.end("server offline");
@@ -228,12 +239,20 @@ export class RelayServer {
       if (typeof value === "string") headers[key] = value;
       else if (Array.isArray(value)) headers[key] = value.join(", ");
     }
-    const path = `${route.path}${url.search}`;
+    // The relay's own routing cookie is never something a host should see.
+    if (headers.cookie) {
+      const stripped = stripCookieCrumb(headers.cookie, RELAY_ROUTING_COOKIE_NAME);
+      if (stripped) headers.cookie = stripped;
+      else delete headers.cookie;
+    }
+    const path = `${dispatchPath}${url.search}`;
     try {
       const result = await new Promise<{
         status: number;
         headers: Record<string, string>;
         body: Buffer;
+        setCookies?: string[];
+        bindVisitor?: boolean;
       }>((resolve, reject) => {
         const timer = setTimeout(() => {
           const pending = this.pending.get(id);
@@ -242,7 +261,7 @@ export class RelayServer {
           }
         }, this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
         this.pending.set(id, {
-          serverId: route.serverId,
+          serverId,
           timer,
           resolve: (value) => {
             clearTimeout(timer);
@@ -270,12 +289,43 @@ export class RelayServer {
       });
       // Strip hop-by-hop headers the relay shouldn't echo verbatim.
       const { "content-length": _cl, "transfer-encoding": _te, ...rest } = result.headers;
-      res.writeHead(result.status, rest);
+      const responseHeaders: Record<string, string | string[]> = { ...rest };
+      if (result.setCookies && result.setCookies.length > 0) {
+        // Bind this visitor to `serverId` for subsequent prefixless requests
+        // (dev-server assets/HMR sockets that don't carry the `/s/<id>`
+        // prefix) when the host signals it via `bindVisitor`. The relay stays a
+        // dumb tunnel: it never inspects the tunneled cookies itself — the host
+        // adapter owns all port-forward semantics (see relayHost.ts).
+        responseHeaders["set-cookie"] =
+          result.bindVisitor === true
+            ? [...result.setCookies, buildRelayRoutingCookieHeader(serverId)]
+            : [...result.setCookies];
+      }
+      res.writeHead(result.status, responseHeaders);
       res.end(result.body);
     } catch (error) {
       res.writeHead(502, { "content-type": "text/plain" });
       res.end(error instanceof Error ? error.message : "relay error");
     }
+  }
+
+  /**
+   * Resolves which live host a visitor HTTP/WS request dispatches to, and the
+   * path to forward (relative to that host's server root). Prefers the
+   * `/s/<serverId>/...` prefix; falls back to the `RELAY_ROUTING_COOKIE_NAME`
+   * cookie for prefixless requests (dev-server assets/sockets that don't carry
+   * the prefix) bound by a prior `/s/<id>/forward/.../enter` round-trip.
+   * Returns `null` when neither resolves to a live, registered host.
+   */
+  private resolveVisitorDispatch(
+    req: IncomingMessage,
+    url: URL,
+  ): { readonly serverId: string; readonly path: string } | null {
+    const route = parseRelayVisitorPath(url.pathname);
+    if (route) return route;
+    const cookieServerId = parseCookieValue(req.headers.cookie, RELAY_ROUTING_COOKIE_NAME);
+    if (!cookieServerId || !this.liveHost(cookieServerId)) return null;
+    return { serverId: cookieServerId, path: url.pathname };
   }
 
   private handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void {
@@ -284,11 +334,16 @@ export class RelayServer {
       this.wss.handleUpgrade(req, socket, head, (ws) => this.handleHostControl(ws));
       return;
     }
-    const route = parseRelayVisitorPath(url.pathname);
-    const host = route ? this.liveHost(route.serverId) : undefined;
-    if (route && host) {
+    const dispatch = this.resolveVisitorDispatch(req, url);
+    const host = dispatch ? this.liveHost(dispatch.serverId) : undefined;
+    if (dispatch && host) {
+      // The relay's own routing cookie is never something a host should see;
+      // everything else (incl. `lc_forward`) is forwarded so the host's local
+      // WS connection can resolve a port-forward session exactly as a direct
+      // LAN WS upgrade would.
+      const cookie = stripCookieCrumb(req.headers.cookie, RELAY_ROUTING_COOKIE_NAME);
       this.wss.handleUpgrade(req, socket, head, (ws) =>
-        this.handleVisitorWs(ws, host, route.serverId, `${route.path}${url.search}`),
+        this.handleVisitorWs(ws, host, dispatch.serverId, `${dispatch.path}${url.search}`, cookie),
       );
       return;
     }
@@ -348,6 +403,8 @@ export class RelayServer {
             status: frame.status,
             headers: frame.headers,
             body: Buffer.from(frame.body, "base64"),
+            ...(frame.setCookies ? { setCookies: frame.setCookies } : {}),
+            ...(frame.bindVisitor === true ? { bindVisitor: true } : {}),
           });
         }
         return;
@@ -417,11 +474,12 @@ export class RelayServer {
     host: RegisteredHost,
     serverId: string,
     path: string,
+    cookie: string | undefined,
   ): void {
     this.trackWebSocket(visitor);
     const id = randomUUID();
     this.visitors.set(id, { serverId, socket: visitor });
-    if (!this.sendToHost(host, { t: "ws-open", id, path })) {
+    if (!this.sendToHost(host, { t: "ws-open", id, path, ...(cookie ? { cookie } : {}) })) {
       this.visitors.delete(id);
       visitor.close(1012, "server offline");
       return;

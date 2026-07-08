@@ -44,7 +44,9 @@ import { configureSecretStorageKey } from "@/shared/secretStorage";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
 import {
   createPersistentRemoteAuthStore,
+  createPortForwarding,
   createPushGateway,
+  type PortForwarding,
   PushCoordinator,
   PushRegistrationStore,
   readOrCreateRemoteAccessIdentity,
@@ -129,6 +131,11 @@ let chromeMcpIngress: ChromeMcpIngress | null = null;
 let remoteAccessServer: RemoteAccessServer | null = null;
 let remoteAccessStartPromise: Promise<RemoteAccessServerInfo> | null = null;
 let pushCoordinator: PushCoordinator | null = null;
+/** The paired raw-TCP gateway + authenticated HTTP/WS proxy backing port
+ * forwarding (see `createPortForwarding`). Built against a restart attempt's
+ * bind host/port and reused/cleared as one unit — both hold in-memory state
+ * that would otherwise leak across a rebuild. */
+let portForwarding: PortForwarding | null = null;
 /**
  * Tailscale HTTPS serve state for the remote-access server. `serveActiveUrl` is
  * the advertised `https://…ts.net/` URL when our `tailscale serve` mapping is
@@ -565,6 +572,13 @@ if (!hasSingleInstanceLock) {
         devMobileAppUrl = devUrl.toString();
       }
       const authStore = createPersistentRemoteAuthStore(paths.baseDir);
+      // Reused (not rebuilt) across a restart (e.g. an advertised-URL change):
+      // it owns live TCP listeners, so recreating it here would leak the old
+      // ones. `stopRemoteAccessServer` (a full disable) disposes and clears it.
+      portForwarding ??= createPortForwarding({
+        bindHost: remoteHost,
+        remoteAccessPort: remoteAccessPort(),
+      });
       const pushStore = new PushRegistrationStore(paths.baseDir);
       pushCoordinator = new PushCoordinator({
         store: pushStore,
@@ -602,6 +616,8 @@ if (!hasSingleInstanceLock) {
           return true;
         },
         browser: new RemoteBrowserGateway(() => browserPanelManager),
+        portForward: portForwarding.gateway,
+        portProxy: portForwarding.proxy,
         // Remote-editable settings (the AI helpers). Reads/writes the same
         // settings file as the renderer; after a remote write the desktop
         // renderer is told so its store reflects the change without restart.
@@ -632,6 +648,12 @@ if (!hasSingleInstanceLock) {
           if (remoteAccessServer === server) {
             remoteAccessServer = null;
           }
+          // Built (`??=` above) against this attempt's bind host/port; without
+          // clearing it here, a later retry after the user changes those
+          // settings would silently reuse a unit constructed with the stale
+          // config.
+          portForwarding?.dispose();
+          portForwarding = null;
           console.error(
             "[lightcode] remote access failed to start:",
             error instanceof Error ? error.message : String(error),
@@ -657,14 +679,24 @@ if (!hasSingleInstanceLock) {
 
     const stopRemoteAccessServer = () => {
       const server = remoteAccessServer;
+      const forwarding = portForwarding;
       remoteAccessServer = null;
       remoteAccessStartPromise = null;
       pushCoordinator = null;
+      portForwarding = null;
       teardownTailscaleServe();
-      if (!server) return;
+      if (!server) {
+        forwarding?.dispose();
+        return;
+      }
       // dispose() is async (it awaits the HTTP close); the desktop owns the DB
       // independently of the server, so there's no teardown ordering to await
-      // here — fire-and-forget, logging any failure.
+      // here — fire-and-forget, logging any failure. The port-forward gateway
+      // (and its proxy) are disposed only after the server's own dispose()
+      // resolves: it gives in-flight requests up to 5s to finish, and a POST
+      // /api/ports/forward in flight during shutdown must complete (or
+      // self-close, per the gateway's `disposed` guard) against a gateway that
+      // isn't torn down out from under it mid-request.
       void server
         .dispose()
         .then(() => console.log("[lightcode] remote access disabled"))
@@ -673,7 +705,10 @@ if (!hasSingleInstanceLock) {
             "[lightcode] remote access failed to stop cleanly:",
             error instanceof Error ? error.message : String(error),
           ),
-        );
+        )
+        .finally(() => {
+          forwarding?.dispose();
+        });
     };
 
     /**
@@ -988,6 +1023,8 @@ if (!hasSingleInstanceLock) {
       chromeBridgeServer = null;
       void remoteAccessServer?.dispose();
       remoteAccessServer = null;
+      portForwarding?.dispose();
+      portForwarding = null;
       browserExtractWindow?.close();
       browserExtractWindow = null;
       browserPanelManager?.dispose();

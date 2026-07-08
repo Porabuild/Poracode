@@ -2,20 +2,46 @@ function jsonForScript(value: string): string {
   return JSON.stringify(value).replaceAll("<", "\\u003c");
 }
 
-export function buildLocalPairingPageHtml(input: { readonly httpBaseUrl: string }): string {
-  const endpointJson = jsonForScript(input.httpBaseUrl);
-
+/**
+ * Shared skeleton for the two server-rendered dark pages in this file (the
+ * pairing fallback and the forward-enter error). Both are emitted outside the
+ * renderer bundle, so they carry no i18n and hand-roll their own minimal HTML.
+ * The shell owns the doctype, viewport/theme meta, `Poracode` title, and the
+ * `<style>`/`<body>` wrappers so that boilerplate lives in one place; each
+ * caller supplies any extra `<head>` markup, its page-specific CSS, and the
+ * `<body>` inner markup.
+ */
+function buildDarkPageShell(input: {
+  readonly headExtra?: string;
+  readonly css: string;
+  readonly body: string;
+}): string {
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#070709" />
-  <title>Poracode</title>
-  <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="icon" href="/app-icon.svg" />
+  <title>Poracode</title>${input.headExtra ?? ""}
   <style>
-    :root {
+${input.css}
+  </style>
+</head>
+<body>
+${input.body}
+</body>
+</html>
+`;
+}
+
+export function buildLocalPairingPageHtml(input: { readonly httpBaseUrl: string }): string {
+  const endpointJson = jsonForScript(input.httpBaseUrl);
+
+  return buildDarkPageShell({
+    headExtra: `
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/app-icon.svg" />`,
+    css: `    :root {
       color-scheme: dark;
       --bg: #070709;
       --panel: #0e0e14;
@@ -78,11 +104,8 @@ export function buildLocalPairingPageHtml(input: { readonly httpBaseUrl: string 
       background: rgba(255, 255, 255, 0.04);
       color: var(--muted);
       font-size: 13px;
-    }
-  </style>
-</head>
-<body>
-  <div class="app">
+    }`,
+    body: `  <div class="app">
     <main>
       <h1>Poracode</h1>
       <p>The mobile web app bundle is not available from this desktop build. Rebuild Poracode so <span class="inline-code">mobile.html</span> is included in the renderer output, then open the pairing link again.</p>
@@ -92,10 +115,54 @@ export function buildLocalPairingPageHtml(input: { readonly httpBaseUrl: string 
   </div>
   <script>
     document.getElementById("endpoint").textContent = ${endpointJson};
-  </script>
-</body>
-</html>
-`;
+  </script>`,
+  });
+}
+
+/** Plain error page for a failed `GET /forward/<id>/enter` (invalid/expired
+ * token, or a forward that was stopped since the token was minted). Server-
+ * rendered outside the renderer bundle, so — like the rest of this file — it
+ * carries no i18n; the phone only lands here on a broken/expired deep link. */
+export function buildForwardEnterErrorPageHtml(): string {
+  return buildDarkPageShell({
+    css: `    :root {
+      color-scheme: dark;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #070709;
+      color: #eaf0fb;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    main {
+      width: min(100%, 480px);
+      display: grid;
+      gap: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 20px;
+      background: #0e0e14;
+    }
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+    }
+    p {
+      margin: 0;
+      color: #9ba6be;
+      line-height: 1.45;
+    }`,
+    body: `  <main>
+    <h1>Link expired</h1>
+    <p>This forwarded-port link is invalid, expired, or the forward was closed on the desktop. Reopen it from the app.</p>
+  </main>`,
+  });
 }
 
 const LOCAL_PAIRING_MANIFEST_JSON = JSON.stringify({
