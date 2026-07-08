@@ -50,10 +50,12 @@ export function DeleteWorktreeDialog(props: {
           </AlertDialog.Header>
           <AlertDialog.Body>
             <Checkbox isSelected={dontAskAgain} onChange={setDontAskAgain}>
-              <Checkbox.Control>
-                <Checkbox.Indicator />
-              </Checkbox.Control>
-              <Trans>Don&apos;t ask again</Trans>
+              <Checkbox.Content>
+                <Checkbox.Control>
+                  <Checkbox.Indicator />
+                </Checkbox.Control>
+                <Trans>Don&apos;t ask again</Trans>
+              </Checkbox.Content>
             </Checkbox>
           </AlertDialog.Body>
           <AlertDialog.Footer>

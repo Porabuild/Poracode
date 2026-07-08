@@ -22,14 +22,14 @@ pnpm run dev
 
 Handy scripts:
 
-| Script               | What it does                      |
-| -------------------- | --------------------------------- |
-| `pnpm run dev`       | Run the Electron app in dev mode  |
-| `pnpm run typecheck` | Type-check with `tsgo`            |
-| `pnpm run lint`      | Lint with `oxlint`                |
-| `pnpm run fmt`       | Format with `oxfmt`               |
-| `pnpm run test`      | Run the test suite (`vitest`)     |
-| `pnpm run build`     | Build renderer + electron bundles |
+| Script               | What it does                                |
+| -------------------- | ------------------------------------------- |
+| `pnpm run dev`       | Run the Electron app in dev mode            |
+| `pnpm run typecheck` | Type-check with TypeScript 7 (native `tsc`) |
+| `pnpm run lint`      | Lint with `oxlint`                          |
+| `pnpm run fmt`       | Format with `oxfmt`                         |
+| `pnpm run test`      | Run the test suite (`vitest`)               |
+| `pnpm run build`     | Build renderer + electron bundles           |
 
 ## Pull request flow
 

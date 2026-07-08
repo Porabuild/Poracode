@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { ArrowLeft, Columns2, ExternalLink, RefreshCw, Rows2 } from "lucide-react";
 import { Link, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { Project, ProjectLocation } from "@/shared/contracts";
+import type { PrDetails, PrFile, Project, ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -20,8 +20,101 @@ import type { PrTabCounts, PrTabKey } from "./parts/PrTabsPill";
 import { PrConversationTab } from "./parts/PrConversationTab";
 import { PrCommitsTab } from "./parts/PrCommitsTab";
 import { PrChecksTab } from "./parts/PrChecksTab";
+import type { PrChecksStatus } from "@/renderer/utils/prStatus";
 
 const DIFF_MODE = { Split: 1, Unified: 4 } as const;
+
+/** Main tabbed content area: header/meta row plus the conversation, commits,
+ *  checks, and changes panels. Hoisted to module scope (was an inline IIFE
+ *  in `PrReviewOverlay`'s `content` prop) so it isn't redefined every render. */
+function PrReviewContent(props: {
+  contentRef: RefObject<HTMLDivElement | null>;
+  metaInHeader: boolean;
+  prKey: string;
+  cacheKey: string;
+  details: PrDetails | undefined;
+  files: PrFile[] | undefined;
+  rawDiff: string | undefined;
+  activeTab: PrTabKey;
+  onActiveTabChange: (key: PrTabKey) => void;
+  checksStatus: PrChecksStatus | undefined;
+  effectiveLocation: ProjectLocation;
+  prNumber: number;
+  loading: boolean;
+  onLoad: () => void;
+  selectedFile: string | null;
+  diffMode: number;
+}) {
+  const {
+    contentRef,
+    metaInHeader,
+    prKey,
+    cacheKey,
+    details,
+    files,
+    rawDiff,
+    activeTab,
+    onActiveTabChange,
+    checksStatus,
+    effectiveLocation,
+    prNumber,
+    loading,
+    onLoad,
+    selectedFile,
+    diffMode,
+  } = props;
+
+  const counts: PrTabCounts = {
+    conversation:
+      (details?.comments.length ?? 0) +
+      (details?.reviews.filter(
+        (r) => r.body || r.state === "APPROVED" || r.state === "CHANGES_REQUESTED",
+      ).length ?? 0),
+    commits: details?.commits.length ?? 0,
+    checks: details?.checks.length ?? 0,
+    changes: files?.length ?? 0,
+  };
+
+  return (
+    <div ref={contentRef} className="flex h-full min-h-0 flex-col">
+      {!metaInHeader && (
+        <div className="px-6 pt-2">
+          <PrMetaRow prKey={prKey} cacheKey={cacheKey} />
+        </div>
+      )}
+      <PrHeaderCard cacheKey={cacheKey} />
+      <div className="min-h-0 flex-1">
+        <PrTabs
+          active={activeTab}
+          onChange={onActiveTabChange}
+          counts={counts}
+          checksStatus={checksStatus}
+          pillInHeaderBreakpoint="never"
+          conversationPanel={
+            <PrConversationTab
+              cacheKey={cacheKey}
+              projectLocation={effectiveLocation}
+              prNumber={prNumber}
+              loading={loading}
+              onPosted={onLoad}
+            />
+          }
+          commitsPanel={<PrCommitsTab cacheKey={cacheKey} prKey={prKey} loading={loading} />}
+          checksPanel={<PrChecksTab cacheKey={cacheKey} loading={loading} />}
+          changesPanel={
+            <PrDiffContent
+              files={files ?? []}
+              rawDiff={rawDiff ?? ""}
+              selectedFile={selectedFile}
+              diffMode={diffMode}
+              loading={loading}
+            />
+          }
+        />
+      </div>
+    </div>
+  );
+}
 
 export function PrReviewOverlay(props: {
   project: Project;
@@ -209,57 +302,26 @@ export function PrReviewOverlay(props: {
           onRefresh={() => void load()}
         />
       }
-      content={(() => {
-        const counts: PrTabCounts = {
-          conversation:
-            (details?.comments.length ?? 0) +
-            (details?.reviews.filter(
-              (r) => r.body || r.state === "APPROVED" || r.state === "CHANGES_REQUESTED",
-            ).length ?? 0),
-          commits: details?.commits.length ?? 0,
-          checks: details?.checks.length ?? 0,
-          changes: files?.length ?? 0,
-        };
-        return (
-          <div ref={contentRef} className="flex h-full min-h-0 flex-col">
-            {!metaInHeader && (
-              <div className="px-6 pt-2">
-                <PrMetaRow prKey={prKey} cacheKey={cacheKey} />
-              </div>
-            )}
-            <PrHeaderCard cacheKey={cacheKey} />
-            <div className="min-h-0 flex-1">
-              <PrTabs
-                active={activeTab}
-                onChange={setActiveTab}
-                counts={counts}
-                checksStatus={combinedChecksStatus}
-                pillInHeaderBreakpoint="never"
-                conversationPanel={
-                  <PrConversationTab
-                    cacheKey={cacheKey}
-                    projectLocation={effectiveLocation}
-                    prNumber={prNumber}
-                    loading={loading}
-                    onPosted={() => void load()}
-                  />
-                }
-                commitsPanel={<PrCommitsTab cacheKey={cacheKey} prKey={prKey} loading={loading} />}
-                checksPanel={<PrChecksTab cacheKey={cacheKey} loading={loading} />}
-                changesPanel={
-                  <PrDiffContent
-                    files={files ?? []}
-                    rawDiff={rawDiff ?? ""}
-                    selectedFile={selectedFile}
-                    diffMode={diffMode}
-                    loading={loading}
-                  />
-                }
-              />
-            </div>
-          </div>
-        );
-      })()}
+      content={
+        <PrReviewContent
+          contentRef={contentRef}
+          metaInHeader={metaInHeader}
+          prKey={prKey}
+          cacheKey={cacheKey}
+          details={details}
+          files={files}
+          rawDiff={rawDiff}
+          activeTab={activeTab}
+          onActiveTabChange={setActiveTab}
+          checksStatus={combinedChecksStatus}
+          effectiveLocation={effectiveLocation}
+          prNumber={prNumber}
+          loading={loading}
+          onLoad={() => void load()}
+          selectedFile={selectedFile}
+          diffMode={diffMode}
+        />
+      }
     />
   );
 }

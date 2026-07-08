@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { createPortal } from "react-dom";
@@ -29,6 +30,9 @@ type BrowserHostMode = "hidden" | "background" | "docked" | "drawer" | "fullscre
 const HEADLESS_Z = "-1";
 const HEADLESS_WIDTH = 1280;
 const HEADLESS_HEIGHT = 800;
+
+// Step used when the drawer's resize handle is nudged via arrow keys.
+const DRAWER_RESIZE_STEP_PX = 24;
 
 /**
  * Mounts the in-app browser exactly once, in a `document.body` portal, and
@@ -205,6 +209,19 @@ export function BrowserHost() {
     window.addEventListener("mouseup", onUp);
   }
 
+  // Keyboard equivalent of dragging: the handle sits on the drawer's left
+  // edge, so ArrowLeft (drag left) grows the drawer and ArrowRight (drag
+  // right) shrinks it — matching handleResizeStart's drag semantics.
+  function handleResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      setDrawerWidth(drawerWidth + DRAWER_RESIZE_STEP_PX);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      setDrawerWidth(drawerWidth - DRAWER_RESIZE_STEP_PX);
+    }
+  }
+
   // Docked z-index defaults to z-30 here; while the host panel is floating as a
   // fixed overlay, the positioning effect lifts it to 55 imperatively (see the
   // docked branch above) so it never re-renders the embedded webview.
@@ -264,10 +281,12 @@ export function BrowserHost() {
         {mode === "drawer" ? (
           <div
             role="separator"
+            tabIndex={0}
             aria-orientation="vertical"
             aria-label={t`Resize browser drawer`}
             className="absolute left-0 top-0 bottom-0 z-10 w-1.5 cursor-ew-resize transition-colors hover:bg-foreground/15"
             onMouseDown={handleResizeStart}
+            onKeyDown={handleResizeKeyDown}
           />
         ) : null}
         <MemoBrowserPanel visible={browserVisible} />

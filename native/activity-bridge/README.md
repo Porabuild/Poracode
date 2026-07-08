@@ -32,7 +32,7 @@ const handle = await ActivityBridge.addListener("activityTokenUpdate", ({ activi
 
 This package ships **plain `.ts` sources** — `main`/`module`/`types` all point
 at `src/index.ts` (same pattern as `packages/agents-usage`). Vite compiles it
-into the mobile bundle and `tsgo`/`tsc` typecheck it because
+into the mobile bundle and `tsc` typechecks it because
 `native/activity-bridge/src` is listed in the root `tsconfig.json#include`.
 There is no `dist/` build step to run.
 

@@ -3,7 +3,6 @@ import type { MessageDescriptor } from "@lingui/core";
 import {
   AI_LANGUAGE_VALUES,
   LOCALE_SETTING_VALUES,
-  SUPPORTED_LOCALES,
   type AiContentLanguage,
   type LocaleSetting,
 } from "@/shared/locale";

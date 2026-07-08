@@ -74,7 +74,13 @@ vi.mock("@/renderer/components/thread/ThreadComposerSection", () => ({
     return (
       <div data-testid="thread-composer-section">
         <div data-composer-input-anchor="">
-          <div role="textbox" tabIndex={0} contentEditable suppressContentEditableWarning />
+          <div
+            role="textbox"
+            tabIndex={0}
+            contentEditable
+            suppressContentEditableWarning
+            aria-label="Composer input"
+          />
         </div>
       </div>
     );

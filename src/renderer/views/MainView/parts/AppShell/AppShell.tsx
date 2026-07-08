@@ -314,6 +314,7 @@ function ShellSidebarResizeHandle(props: {
   forceSidebarExpanded: boolean;
   onHoverChange: (hovered: boolean) => void;
   onResizeStart: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onResizeKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
 }) {
   const { t } = useLingui();
   const { isCollapsed, isOverlay } = useSidebarOverlayStore(
@@ -344,7 +345,9 @@ function ShellSidebarResizeHandle(props: {
         props.onHoverChange(false);
         props.onResizeStart(event);
       }}
+      onKeyDown={props.onResizeKeyDown}
       role="separator"
+      tabIndex={0}
       aria-orientation="vertical"
       aria-label={t`Resize sidebar`}
     />
@@ -389,6 +392,10 @@ export function AppShell(props: {
     handlePanelResizeStart,
     handlePanelBottomResizeStart,
     handleGitPanelResizeStart,
+    handleSidebarResizeKeyDown,
+    handlePanelResizeKeyDown,
+    handlePanelBottomResizeKeyDown,
+    handleGitPanelResizeKeyDown,
   } = useResizablePanels({
     sidebarRef,
     panelRef,
@@ -563,6 +570,7 @@ export function AppShell(props: {
         forceSidebarExpanded={forceSidebarExpanded}
         onHoverChange={setIsSidebarHandleHovered}
         onResizeStart={handleSidebarResizeStart}
+        onResizeKeyDown={handleSidebarResizeKeyDown}
       />
 
       <div
@@ -618,6 +626,9 @@ export function AppShell(props: {
                 targetWidth={rightPanelAsOverlay ? overlayRightPanelWidth : panelWidth}
                 targetHeight={panelHeight}
                 onResizeStart={isBottom ? handlePanelBottomResizeStart : handlePanelResizeStart}
+                onResizeKeyDown={
+                  isBottom ? handlePanelBottomResizeKeyDown : handlePanelResizeKeyDown
+                }
                 panelRef={panelRef}
                 panelInnerRef={panelInnerRef}
                 ariaLabel={t`Resize terminal panel`}
@@ -636,6 +647,7 @@ export function AppShell(props: {
               isOpen={gitPanelOpen}
               targetWidth={gitPanelAsOverlay ? overlayGitPanelWidth : gitPanelWidth}
               onResizeStart={handleGitPanelResizeStart}
+              onResizeKeyDown={handleGitPanelResizeKeyDown}
               panelRef={gitPanelRef}
               panelInnerRef={gitPanelInnerRef}
               ariaLabel={t`Resize git panel`}

@@ -19,6 +19,9 @@ const GIT_PANEL_MIN_WIDTH = 280;
 const GIT_PANEL_MAX_WIDTH = 900;
 const GIT_PANEL_DEFAULT_WIDTH = 350;
 
+// Step used when a resize handle is nudged via arrow keys instead of dragged.
+const KEY_RESIZE_STEP_PX = 24;
+
 export const CONTENT_MIN_WIDTH = 540;
 
 export type ResizeTarget = "sidebar" | "panel" | "panel-bottom" | "git-panel";
@@ -321,6 +324,103 @@ export function useResizablePanels(refs: {
     ],
   );
 
+  // Keyboard equivalent of dragging a handle: nudges the target size by a
+  // fixed step, clamped the same way `flush` clamps drag deltas, then persists
+  // immediately (there's no drag "end" event to persist on).
+  const nudgeResize = useCallback(
+    (target: ResizeTarget, deltaPx: number) => {
+      if (target === "sidebar") {
+        const next = Math.min(
+          SIDEBAR_MAX_WIDTH,
+          Math.max(SIDEBAR_MIN_WIDTH, sizeRef.current.sidebarWidth + deltaPx),
+        );
+        sizeRef.current.sidebarWidth = next;
+        applySidebarWidth(next);
+        setSidebarWidth(next);
+      } else if (target === "panel") {
+        const next = Math.min(
+          PANEL_MAX_WIDTH,
+          Math.max(PANEL_MIN_WIDTH, sizeRef.current.panelWidth + deltaPx),
+        );
+        sizeRef.current.panelWidth = next;
+        applyPanelWidth(next);
+        setPanelWidth(next);
+      } else if (target === "panel-bottom") {
+        const next = Math.min(
+          PANEL_BOTTOM_MAX_HEIGHT,
+          Math.max(PANEL_BOTTOM_MIN_HEIGHT, sizeRef.current.panelHeight + deltaPx),
+        );
+        sizeRef.current.panelHeight = next;
+        applyPanelHeight(next);
+        setPanelHeight(next);
+      } else {
+        const next = Math.min(
+          GIT_PANEL_MAX_WIDTH,
+          Math.max(GIT_PANEL_MIN_WIDTH, sizeRef.current.gitPanelWidth + deltaPx),
+        );
+        sizeRef.current.gitPanelWidth = next;
+        applyGitPanelWidth(next);
+        setGitPanelWidth(next);
+      }
+    },
+    [applyGitPanelWidth, applyPanelHeight, applyPanelWidth, applySidebarWidth],
+  );
+
+  const handleSidebarResizeKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        nudgeResize("sidebar", -KEY_RESIZE_STEP_PX);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        nudgeResize("sidebar", KEY_RESIZE_STEP_PX);
+      }
+    },
+    [nudgeResize],
+  );
+
+  // The right panel and git panel are anchored to the right edge; their
+  // handle sits on the panel's left side, so ArrowLeft (drag left) grows the
+  // panel and ArrowRight (drag right) shrinks it — matching drag semantics.
+  const handlePanelResizeKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        nudgeResize("panel", KEY_RESIZE_STEP_PX);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        nudgeResize("panel", -KEY_RESIZE_STEP_PX);
+      }
+    },
+    [nudgeResize],
+  );
+
+  const handlePanelBottomResizeKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        nudgeResize("panel-bottom", KEY_RESIZE_STEP_PX);
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        nudgeResize("panel-bottom", -KEY_RESIZE_STEP_PX);
+      }
+    },
+    [nudgeResize],
+  );
+
+  const handleGitPanelResizeKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        nudgeResize("git-panel", KEY_RESIZE_STEP_PX);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        nudgeResize("git-panel", -KEY_RESIZE_STEP_PX);
+      }
+    },
+    [nudgeResize],
+  );
+
   const handleSidebarResizeStart = useCallback(
     (e: React.MouseEvent) => {
       startResize("sidebar", e);
@@ -358,6 +458,10 @@ export function useResizablePanels(refs: {
     handlePanelResizeStart,
     handlePanelBottomResizeStart,
     handleGitPanelResizeStart,
+    handleSidebarResizeKeyDown,
+    handlePanelResizeKeyDown,
+    handlePanelBottomResizeKeyDown,
+    handleGitPanelResizeKeyDown,
     cancelActiveResize,
     updatePanelWidth,
     updateGitPanelWidth,

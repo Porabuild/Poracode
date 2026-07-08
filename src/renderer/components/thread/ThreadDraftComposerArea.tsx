@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Tooltip, toast } from "@heroui/react";
 import { Download, Webhook, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -22,6 +22,7 @@ import {
   ComposerVoiceInput,
   MentionInput,
   openAttachmentLightbox,
+  type ComposerMcpMenuItem,
   type MentionInputHandle,
   type VoiceInputHandle,
   useAttachments,
@@ -183,6 +184,32 @@ function HookInstallProposal(props: {
         </span>
       </ThreadDockHeader>
     </ThreadDockSection>
+  );
+}
+
+function DraftComposerAfterControls(props: {
+  mcpServers: readonly ComposerMcpMenuItem[];
+  isRemote: boolean;
+  onPickFiles: () => void;
+  showVoiceInputButton: boolean;
+  isDisabled: boolean;
+  mentionRef: RefObject<MentionInputHandle | null>;
+  voiceInputRef: RefObject<VoiceInputHandle | null>;
+}) {
+  return (
+    <>
+      <ComposerAddMenu
+        mcpServers={props.mcpServers}
+        showFileOption={!props.isRemote}
+        onPickFiles={props.onPickFiles}
+      />
+      <ComposerVoiceInput
+        show={props.showVoiceInputButton}
+        isDisabled={props.isDisabled}
+        mentionRef={props.mentionRef}
+        voiceInputRef={props.voiceInputRef}
+      />
+    </>
   );
 }
 
@@ -668,27 +695,23 @@ export function ThreadDraftComposerArea(props: {
           const segments = mentionRef.current?.serializeSegments() ?? [];
           submitSegments([...attachments.toSegments(), ...segments], prompt);
         }}
-        afterControls={() => (
-          <>
-            <ComposerAddMenu
-              mcpServers={mcpServers}
-              showFileOption={!isRemote}
-              onPickFiles={() => {
-                void readBridge()
-                  .pickFiles()
-                  .then((paths) => {
-                    if (paths) attachments.addFiles(paths);
-                  });
-              }}
-            />
-            <ComposerVoiceInput
-              show={showVoiceInputButton}
-              isDisabled={authRequired || agentUpdating || isSubmitting}
-              mentionRef={mentionRef}
-              voiceInputRef={voiceInputRef}
-            />
-          </>
-        )}
+        afterControls={
+          <DraftComposerAfterControls
+            mcpServers={mcpServers}
+            isRemote={isRemote}
+            onPickFiles={() => {
+              void readBridge()
+                .pickFiles()
+                .then((paths) => {
+                  if (paths) attachments.addFiles(paths);
+                });
+            }}
+            showVoiceInputButton={showVoiceInputButton}
+            isDisabled={authRequired || agentUpdating || isSubmitting}
+            mentionRef={mentionRef}
+            voiceInputRef={voiceInputRef}
+          />
+        }
       />
       {props.gitBranch ? (
         <div data-draft-worktree-row="" className="mt-1.5 flex flex-wrap items-center gap-1 px-1">

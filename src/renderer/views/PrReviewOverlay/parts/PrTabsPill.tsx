@@ -47,6 +47,12 @@ function CountChip(props: { value: number; active: boolean }) {
   );
 }
 
+/** Builds the `trailing` render function for a tab's count chip, capturing
+ *  `count` as a parameter instead of a render-time closure. */
+function makeCountTrailing(count: number) {
+  return (isActive: boolean) => <CountChip value={count} active={isActive} />;
+}
+
 export function PrTabsPill(props: {
   active: PrTabKey;
   onChange: (key: PrTabKey) => void;
@@ -68,9 +74,7 @@ export function PrTabsPill(props: {
       id: def.id,
       label: t(def.label),
       icon: <Icon className={iconClassName} />,
-      ...(count > 0
-        ? { trailing: (isActive: boolean) => <CountChip value={count} active={isActive} /> }
-        : {}),
+      ...(count > 0 ? { trailing: makeCountTrailing(count) } : {}),
     };
   });
 

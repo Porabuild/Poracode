@@ -15,8 +15,15 @@ function isDiagnosticOnlyError(error: string): boolean {
 }
 
 export function nonDiagnosticErrors(message: SDKMessage): string[] {
-  if (!("errors" in message) || !Array.isArray(message.errors)) return [];
-  return message.errors.filter(
+  // The SDK's `errors` field only exists on `SDKResultError` — a single member
+  // of a very large `SDKMessage` union. Read it through an explicitly typed
+  // intermediate (rather than narrowing `message` in place and calling
+  // `.filter` off it) because TS's overload resolution for `Array.prototype
+  // .filter` falls back to an implicit `any` callback parameter when resolved
+  // directly against a property access narrowed off a union this large.
+  const errors: string[] | undefined = "errors" in message ? message.errors : undefined;
+  if (!Array.isArray(errors)) return [];
+  return errors.filter(
     (error): error is string => typeof error === "string" && !isDiagnosticOnlyError(error),
   );
 }

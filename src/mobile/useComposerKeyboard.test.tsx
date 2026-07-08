@@ -30,7 +30,13 @@ function ComposerKeyboardHarness(props: { readonly onBeforeGuardedFocus?: () => 
   return (
     <div ref={ref}>
       <div data-composer-input-anchor="">
-        <div role="textbox" tabIndex={0} contentEditable suppressContentEditableWarning />
+        <div
+          role="textbox"
+          tabIndex={0}
+          contentEditable
+          suppressContentEditableWarning
+          aria-label="Composer input"
+        />
       </div>
       <output aria-label="lift offset">{liftOffset}</output>
       <output aria-label="measuring keyboard">{String(measuringKeyboard)}</output>

@@ -65,6 +65,31 @@ export function ConnectionControl(props: {
   );
 }
 
+/** Trigger button for the home screen's "More" `SheetMenu`: opens the sheet
+ * of quick-access destinations on press. */
+function MoreMenuTrigger(props: { readonly onPress: () => void }) {
+  const { t } = useLingui();
+  return (
+    <button
+      className="m-home-compose-action"
+      type="button"
+      aria-label={t`More`}
+      onClick={props.onPress}
+    >
+      <Ellipsis className="size-5" />
+    </button>
+  );
+}
+
+/**
+ * Renders the "More" `SheetMenu`'s `trigger` function. Kept at module scope
+ * (rather than an inline arrow in JSX) so `NarrowShell`'s render body never
+ * defines a fresh component.
+ */
+function renderMoreMenuTrigger(api: { readonly open: () => void; readonly isOpen: boolean }) {
+  return <MoreMenuTrigger onPress={api.open} />;
+}
+
 /** Phone chrome: route-aware top bar + the routed page. Navigation is
  * header-driven (search / More) with edge-swipe back — no bottom tab bar. */
 export function NarrowShell(props: {
@@ -308,16 +333,7 @@ export function NarrowShell(props: {
                           : "/more";
               void navigate({ to });
             }}
-            trigger={({ open }) => (
-              <button
-                className="m-home-compose-action"
-                type="button"
-                aria-label={t`More`}
-                onClick={open}
-              >
-                <Ellipsis className="size-5" />
-              </button>
-            )}
+            trigger={renderMoreMenuTrigger}
           />
         </div>
       ) : null}

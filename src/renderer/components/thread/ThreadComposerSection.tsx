@@ -1,4 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { Tooltip, toast } from "@heroui/react";
 import { ChevronDown, GitFork } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
@@ -79,6 +86,20 @@ type ThreadComposerSectionProps = {
 export function ThreadComposerSection(props: ThreadComposerSectionProps) {
   const thread = useThread(props.threadId) ?? props.fallbackThread;
   return <ThreadComposerSectionInner {...props} thread={thread} />;
+}
+
+type ComposerAfterControlsProps = {
+  renderExtras: () => ReactNode;
+  renderVoiceInput: () => ReactNode;
+};
+
+function ComposerAfterControls({ renderExtras, renderVoiceInput }: ComposerAfterControlsProps) {
+  return (
+    <>
+      {renderExtras()}
+      {renderVoiceInput()}
+    </>
+  );
 }
 
 function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread: Thread }) {
@@ -769,11 +790,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     return isCliThread
                       ? { leadingControls: renderExtras, afterControls: renderVoiceInput }
                       : {
-                          afterControls: () => (
-                            <>
-                              {renderExtras()}
-                              {renderVoiceInput()}
-                            </>
+                          afterControls: (
+                            <ComposerAfterControls
+                              renderExtras={renderExtras}
+                              renderVoiceInput={renderVoiceInput}
+                            />
                           ),
                         };
                   })()}

@@ -206,7 +206,7 @@ function ActiveSubAgentRow({
   } ${!isDone ? "bg-accent/10" : ""}`;
 
   return (
-    <li className="group relative flex" role="listitem">
+    <li className="group relative flex">
       <button
         type="button"
         onClick={() => openSubAgent(threadId, item.id)}

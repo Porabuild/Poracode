@@ -59,7 +59,7 @@ export function LanguageSelector() {
       </button>
 
       {open && (
-        <ul
+        <div
           role="listbox"
           aria-label={t("lang.label")}
           className="absolute right-0 z-50 mt-2 max-h-80 w-48 overflow-y-auto rounded-xl border border-white/10 bg-black/95 p-1 shadow-2xl shadow-black/50 backdrop-blur"
@@ -67,24 +67,25 @@ export function LanguageSelector() {
           {LOCALES.map((l) => {
             const selected = l.code === locale;
             return (
-              <li key={l.code} role="option" aria-selected={selected}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    if (l.code !== locale) router.push(pathForLocale(l.code));
-                  }}
-                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-left text-sm transition-colors hover:bg-white/10 ${
-                    selected ? "text-white" : "text-gray-300"
-                  }`}
-                >
-                  <span>{l.label}</span>
-                  {selected && <Check className="h-3.5 w-3.5 text-gray-300" />}
-                </button>
-              </li>
+              <button
+                key={l.code}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onClick={() => {
+                  setOpen(false);
+                  if (l.code !== locale) router.push(pathForLocale(l.code));
+                }}
+                className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-left text-sm transition-colors hover:bg-white/10 ${
+                  selected ? "text-white" : "text-gray-300"
+                }`}
+              >
+                <span>{l.label}</span>
+                {selected && <Check className="h-3.5 w-3.5 text-gray-300" />}
+              </button>
             );
           })}
-        </ul>
+        </div>
       )}
     </div>
   );

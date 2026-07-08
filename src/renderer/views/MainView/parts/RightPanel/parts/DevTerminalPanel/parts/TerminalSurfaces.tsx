@@ -8,6 +8,7 @@ import type { TerminalSize } from "@/shared/contracts";
 const SPLIT_MIN_PERCENT = 15;
 const SPLIT_DEFAULT_PERCENT = 50;
 const SPLIT_STORAGE_KEY = "lightcode-split-percent";
+const SPLIT_KEY_STEP_PERCENT = 2;
 
 function readSplitPercent(): number {
   try {
@@ -134,6 +135,38 @@ export function TerminalSurfaces(props: {
     document.addEventListener("mouseup", onMouseUp);
   }
 
+  function applySplitPercent(next: number) {
+    const clamped = Math.min(Math.max(next, SPLIT_MIN_PERCENT), 100 - SPLIT_MIN_PERCENT);
+    splitPercentRef.current = clamped;
+    if (firstPaneRef.current) {
+      firstPaneRef.current.style.flexBasis = `${clamped}%`;
+    }
+    setSplitPercent(clamped);
+  }
+
+  function handleResizeKeyDown(e: React.KeyboardEvent) {
+    switch (e.key) {
+      case "ArrowLeft":
+        e.preventDefault();
+        applySplitPercent(splitPercentRef.current - SPLIT_KEY_STEP_PERCENT);
+        break;
+      case "ArrowRight":
+        e.preventDefault();
+        applySplitPercent(splitPercentRef.current + SPLIT_KEY_STEP_PERCENT);
+        break;
+      case "Home":
+        e.preventDefault();
+        applySplitPercent(SPLIT_MIN_PERCENT);
+        break;
+      case "End":
+        e.preventDefault();
+        applySplitPercent(100 - SPLIT_MIN_PERCENT);
+        break;
+      default:
+        break;
+    }
+  }
+
   if (activeTab?.splitId) {
     return (
       <div ref={containerRef} className="flex h-full min-h-0 w-full">
@@ -167,9 +200,14 @@ export function TerminalSurfaces(props: {
         <div
           className="lightcode-pane-divider"
           onMouseDown={handleResizeStart}
+          onKeyDown={handleResizeKeyDown}
           role="separator"
+          tabIndex={0}
           aria-orientation="vertical"
           aria-label={t`Resize split`}
+          aria-valuenow={Math.round(splitPercent)}
+          aria-valuemin={SPLIT_MIN_PERCENT}
+          aria-valuemax={100 - SPLIT_MIN_PERCENT}
         />
         <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
           {tabs

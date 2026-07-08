@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -51,6 +51,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
   } = useElementPicker();
   const everHadTabsRef = useRef(false);
   const hasActiveTab = tabs.length > 0 && activeTabId !== null;
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const createTab = useCallback(async () => {
     try {
@@ -58,17 +59,27 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
     } catch {}
   }, []);
 
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!activeTabId || !isBrowserReloadShortcut(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const bridge = readBridge();
-    if (event.shiftKey) {
-      bridge.browserHardReload({ tabId: activeTabId }).catch(() => {});
-      return;
-    }
-    bridge.browserReload({ tabId: activeTabId }).catch(() => {});
-  };
+  // Attached imperatively (rather than a JSX onKeyDown) because this container
+  // is a plain grouping element, not a widget — the reload shortcut is a
+  // global-ish capture over the panel's focused descendants, not an
+  // interaction of the group itself.
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!activeTabId || !isBrowserReloadShortcut(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const bridge = readBridge();
+      if (event.shiftKey) {
+        bridge.browserHardReload({ tabId: activeTabId }).catch(() => {});
+        return;
+      }
+      bridge.browserReload({ tabId: activeTabId }).catch(() => {});
+    };
+    el.addEventListener("keydown", handleKeyDown);
+    return () => el.removeEventListener("keydown", handleKeyDown);
+  }, [activeTabId]);
 
   const onPick = useCallback(() => {
     void startPicker();
@@ -116,11 +127,11 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
   );
   return (
     <div
+      ref={rootRef}
       data-lightcode-browser=""
       role="group"
       aria-label={t`Browser`}
       className="flex h-full w-full min-h-0 flex-col bg-[var(--content-background)]"
-      onKeyDown={onKeyDown}
     >
       {browserOverlayOpen || isWindowSurface ? (
         <div

@@ -93,6 +93,22 @@ function ChecksGlyph(props: { readonly status: string | undefined }) {
   return <CheckCircle2 className="size-4 text-muted/70" />;
 }
 
+/** Builds the `SheetMenu` trigger button for the merge-method menu, capturing
+ *  `mergingMethod`/`t` as parameters instead of a render-time closure. */
+function makeMergeMenuTrigger(mergingMethod: PrMergeMethod | null, t: TranslateFn) {
+  return ({ open }: { readonly open: () => void }) => (
+    <button
+      type="button"
+      className="m-git-head__btn"
+      aria-label={t`Merge options`}
+      disabled={mergingMethod !== null}
+      onClick={open}
+    >
+      <ChevronRight className="size-4 rotate-90" />
+    </button>
+  );
+}
+
 /**
  * GitHub-style PR overview: identity + description, then tappable summary rows
  * ("N files changed", "N commits", "Conversation", "Checks") that drill into the
@@ -321,17 +337,7 @@ export function PrOverviewPage() {
                       },
                     ]}
                     onSelect={(method) => void handleMerge(method as PrMergeMethod)}
-                    trigger={({ open }) => (
-                      <button
-                        type="button"
-                        className="m-git-head__btn"
-                        aria-label={t`Merge options`}
-                        disabled={mergingMethod !== null}
-                        onClick={open}
-                      >
-                        <ChevronRight className="size-4 rotate-90" />
-                      </button>
-                    )}
+                    trigger={makeMergeMenuTrigger(mergingMethod, t)}
                   />
                 </div>
               ) : null}

@@ -29,18 +29,14 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
       <ThreadDockHeader icon={Terminal} title={t`Commands`} countLabel={String(commands.length)} />
 
       <div className="px-1 pb-1">
-        <ul
+        <div
           className="max-h-[min(12rem,32vh)] space-y-0 overflow-y-auto [scrollbar-gutter:stable]"
           role="listbox"
         >
           {commands.map((cmd, index) => {
             const isActive = index === activeIndex;
             return (
-              <li
-                key={cmd.id}
-                role="presentation"
-                onMouseEnter={() => props.onActiveIndexChange(index)}
-              >
+              <div key={cmd.id} onMouseEnter={() => props.onActiveIndexChange(index)}>
                 <button
                   ref={isActive ? activeRowRef : undefined}
                   aria-selected={isActive}
@@ -63,10 +59,10 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
                     <span className="shrink-0 text-muted/60">{cmd.argumentHint}</span>
                   )}
                 </button>
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
       </div>
     </ThreadDockSection>
   );

@@ -68,6 +68,10 @@ export function MentionPopover(props: {
               key={`${entry.type}:${entry.path}`}
               role="option"
               aria-selected={isActive}
+              // Virtual-focus combobox pattern: the contentEditable textbox in
+              // MentionInput keeps real DOM focus and drives selection via
+              // arrow keys, so options never enter the tab order themselves.
+              tabIndex={-1}
               className={`lightcode-mention-popover__item ${isActive ? "lightcode-mention-popover__item--active" : ""}`}
               onMouseEnter={() => onActiveIndexChange(index)}
               onMouseDown={(e) => {

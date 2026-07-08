@@ -69,6 +69,10 @@ export function BrowserTabGroupMenu(props: {
     <div
       ref={ref}
       role="menu"
+      // Focus lands on the natively-focusable input/buttons inside (see the
+      // focus-on-open effect above); the menu container itself is never the
+      // direct focus target, so it stays out of the tab order.
+      tabIndex={-1}
       className="fixed z-[200] w-52 rounded-lg border border-border bg-[var(--content-background)] p-1.5 shadow-xl"
       style={{ left, top }}
       onContextMenu={(e) => e.preventDefault()}

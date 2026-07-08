@@ -731,6 +731,7 @@ export const MentionInput = forwardRef<
         contentEditable={!disabled}
         suppressContentEditableWarning
         role="textbox"
+        tabIndex={0}
         aria-disabled={disabled || undefined}
         aria-multiline="true"
         aria-placeholder={placeholder}

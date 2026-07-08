@@ -19,6 +19,33 @@ import { worktreeBranchOf, worktreeSiblingIds } from "./threadUtils";
 import type { ThreadAction } from "./useRemoteDesktop";
 import type { WorkspaceTab } from "./views/WorkspaceView";
 
+function ThreadActionsMenuTrigger(props: { readonly open: () => void; readonly label: string }) {
+  return (
+    <Button
+      isIconOnly
+      className="m-topbar__actions"
+      aria-label={props.label}
+      size="sm"
+      variant="ghost"
+      onPress={props.open}
+    >
+      <Ellipsis className="size-4" />
+    </Button>
+  );
+}
+
+/**
+ * Builds the `SheetMenu` `trigger` render-prop for `ThreadActionsMenu`. Defined
+ * at module scope (rather than as an inline arrow in the render body) so the
+ * callback isn't redefined as an anonymous nested function on every render —
+ * `SheetMenu` calls this directly (not as a JSX component).
+ */
+function createThreadActionsMenuTrigger(label: string) {
+  return function renderThreadActionsMenuTrigger(api: { readonly open: () => void }) {
+    return <ThreadActionsMenuTrigger open={api.open} label={label} />;
+  };
+}
+
 /**
  * The PWA shows one thread at a time, so the actions the desktop sidebar
  * hides behind hover/context menus live here, next to the thread title — as a
@@ -121,18 +148,7 @@ function ThreadActionsMenu(props: {
       closeLabel={t`Close thread actions`}
       items={items}
       onSelect={handleSelect}
-      trigger={({ open }) => (
-        <Button
-          isIconOnly
-          className="m-topbar__actions"
-          aria-label={t`Thread actions`}
-          size="sm"
-          variant="ghost"
-          onPress={open}
-        >
-          <Ellipsis className="size-4" />
-        </Button>
-      )}
+      trigger={createThreadActionsMenuTrigger(t`Thread actions`)}
     />
   );
 }

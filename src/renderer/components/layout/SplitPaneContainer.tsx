@@ -15,6 +15,9 @@ import {
 
 const DIVIDER_SIZE = 8;
 const ROOT_INSERT_ZONE_INSET = DIVIDER_SIZE / 2;
+// Step (in percent of the split's available space) used when a divider is
+// nudged via arrow keys instead of dragged.
+const KEY_RESIZE_STEP_PERCENT = 2;
 
 export type Rect = { left: number; top: number; width: number; height: number };
 type ContainerSize = { width: number; height: number };
@@ -140,6 +143,7 @@ const Divider = React.memo(
     divider: RenderedDivider;
     registerRef: (zoneId: string, element: HTMLDivElement | null) => void;
     onResizeStart: (event: React.MouseEvent, zoneId: string) => void;
+    onResizeKeyDown: (event: React.KeyboardEvent, zoneId: string) => void;
   }) {
     const { divider } = props;
 
@@ -157,7 +161,9 @@ const Divider = React.memo(
           position: "absolute",
         }}
         onMouseDown={(event) => props.onResizeStart(event, divider.zoneId)}
+        onKeyDown={(event) => props.onResizeKeyDown(event, divider.zoneId)}
         role="separator"
+        tabIndex={0}
         aria-orientation={divider.parentAxis === "vertical" ? "vertical" : "horizontal"}
         aria-label={
           divider.parentAxis === "vertical" ? i18n._(msg`Resize column`) : i18n._(msg`Resize row`)
@@ -476,6 +482,53 @@ export function SplitPaneContainer(props: {
     [applyTransientLayout, bumpLayoutTick],
   );
 
+  // Keyboard equivalent of dragging a divider: nudges the adjacent panes'
+  // sizes by a fixed percent step and persists immediately, since there's no
+  // drag "end" event to persist on.
+  const nudgeDivider = useCallback(
+    (zoneId: string, deltaPercent: number) => {
+      const divider = latestDividersRef.current.get(zoneId);
+      if (!divider) return;
+
+      const storageKey = divider.storageKey;
+      const initialSizes =
+        committedSizesRef.current.get(storageKey) ??
+        readStoredSizes(storageKey, divider.childCount);
+      const beforeIndex = divider.dividerIndex - 1;
+      const afterIndex = divider.dividerIndex;
+      const beforeStart = initialSizes[beforeIndex]!;
+      const afterStart = initialSizes[afterIndex]!;
+      const newBefore = beforeStart + deltaPercent;
+      const newAfter = afterStart - deltaPercent;
+      if (newBefore < MIN_PANE_PERCENT || newAfter < MIN_PANE_PERCENT) return;
+
+      const next = [...initialSizes];
+      next[beforeIndex] = newBefore;
+      next[afterIndex] = newAfter;
+      committedSizesRef.current.set(storageKey, next);
+      writeStoredSizes(storageKey, next);
+      bumpLayoutTick();
+    },
+    [bumpLayoutTick],
+  );
+
+  const handleResizeKeyDown = useCallback(
+    (event: React.KeyboardEvent, zoneId: string) => {
+      const divider = latestDividersRef.current.get(zoneId);
+      if (!divider) return;
+      const isVertical = divider.parentAxis === "vertical";
+      const decreaseKey = isVertical ? "ArrowLeft" : "ArrowUp";
+      const increaseKey = isVertical ? "ArrowRight" : "ArrowDown";
+      if (event.key !== decreaseKey && event.key !== increaseKey) return;
+      event.preventDefault();
+      nudgeDivider(
+        zoneId,
+        event.key === increaseKey ? KEY_RESIZE_STEP_PERCENT : -KEY_RESIZE_STEP_PERCENT,
+      );
+    },
+    [nudgeDivider],
+  );
+
   // Root-insert-zone indices: when the root is a split aligned with the edge,
   // the index appends/prepends within that split; otherwise it wraps the layout.
   const rootSplit = props.layout.kind === "split" ? props.layout : null;
@@ -526,6 +579,7 @@ export function SplitPaneContainer(props: {
             divider={divider}
             registerRef={registerDividerRef}
             onResizeStart={handleResizeStart}
+            onResizeKeyDown={handleResizeKeyDown}
           />
         ))}
       </div>

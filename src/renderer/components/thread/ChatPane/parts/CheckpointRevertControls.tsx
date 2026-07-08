@@ -111,10 +111,12 @@ export const RevertCheckpointDialog = memo(function RevertCheckpointDialog(props
             ) : null}
             <div className="mt-2">
               <Checkbox isSelected={props.dontAskAgain} onChange={props.onDontAskAgainChange}>
-                <Checkbox.Control>
-                  <Checkbox.Indicator />
-                </Checkbox.Control>
-                <Trans>Don&apos;t ask again</Trans>
+                <Checkbox.Content>
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <Trans>Don&apos;t ask again</Trans>
+                </Checkbox.Content>
               </Checkbox>
             </div>
           </AlertDialog.Body>

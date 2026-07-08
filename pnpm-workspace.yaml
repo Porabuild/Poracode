@@ -50,15 +50,6 @@ nodeLinker: hoisted
 
 minimumReleaseAgeExclude:
   - electron@41.7.0
-  - "@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.197"
-  - "@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.197"
-  - "@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.197"
-  - "@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.197"
-  - "@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.197"
-  - "@anthropic-ai/claude-agent-sdk-linux-x64@0.3.197"
-  - "@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.197"
-  - "@anthropic-ai/claude-agent-sdk-win32-x64@0.3.197"
-  - "@anthropic-ai/claude-agent-sdk@0.3.197"
   # Already present in the lockfile when the supply-chain guard was added.
   - "react@19.2.7"
   - "react-dom@19.2.7"
@@ -106,6 +97,31 @@ minimumReleaseAgeExclude:
   # 2026-06-16 Dependabot advisory batch: hono security patch published within
   # the 7-day guard window, adopted immediately (alerts #124-#128).
   - "hono@4.12.25"
+  # 2026-07-08: TypeScript 7.0 GA (official Microsoft package) — TS7 migration;
+  # remove after 2026-07-15 when it ages past the window. The @typescript/
+  # typescript-* entries are its platform binaries (optionalDependencies of the
+  # same release), pinned exactly like the esbuild/claude-agent-sdk entries.
+  - "typescript@7.0.2"
+  - "@typescript/typescript-aix-ppc64@7.0.2"
+  - "@typescript/typescript-darwin-arm64@7.0.2"
+  - "@typescript/typescript-darwin-x64@7.0.2"
+  - "@typescript/typescript-freebsd-arm64@7.0.2"
+  - "@typescript/typescript-freebsd-x64@7.0.2"
+  - "@typescript/typescript-linux-arm@7.0.2"
+  - "@typescript/typescript-linux-arm64@7.0.2"
+  - "@typescript/typescript-linux-loong64@7.0.2"
+  - "@typescript/typescript-linux-mips64el@7.0.2"
+  - "@typescript/typescript-linux-ppc64@7.0.2"
+  - "@typescript/typescript-linux-riscv64@7.0.2"
+  - "@typescript/typescript-linux-s390x@7.0.2"
+  - "@typescript/typescript-linux-x64@7.0.2"
+  - "@typescript/typescript-netbsd-arm64@7.0.2"
+  - "@typescript/typescript-netbsd-x64@7.0.2"
+  - "@typescript/typescript-openbsd-arm64@7.0.2"
+  - "@typescript/typescript-openbsd-x64@7.0.2"
+  - "@typescript/typescript-sunos-x64@7.0.2"
+  - "@typescript/typescript-win32-arm64@7.0.2"
+  - "@typescript/typescript-win32-x64@7.0.2"
 
 # Supply-chain guard: refuse to install any package version published less
 # than this many minutes ago. 7 days catches the typical window in which

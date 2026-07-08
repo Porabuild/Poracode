@@ -131,6 +131,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
       type="button"
       role="switch"
       aria-checked={thinkingValue}
+      aria-label={t`Thinking`}
       className="flex h-9 w-full items-center justify-between gap-3 px-3 text-left text-sm text-foreground hover:bg-surface-hover focus-visible:outline-none"
       onClick={() => startTransition(() => onThinkingChange?.(!thinkingValue))}
     >

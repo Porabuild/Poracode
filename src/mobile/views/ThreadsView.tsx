@@ -600,6 +600,40 @@ function GroupActionsSheet(props: {
   );
 }
 
+/** Trigger button for the project filter's `SheetMenu`: shows the active
+ * project label and chevron, opening the picker on press. */
+function ProjectFilterTrigger(props: {
+  readonly label: string;
+  readonly isOpen: boolean;
+  readonly onPress: () => void;
+}) {
+  const { t } = useLingui();
+  return (
+    <Button
+      aria-label={t`Project`}
+      aria-expanded={props.isOpen}
+      className="m-threads__project-btn text-foreground"
+      size="sm"
+      variant="ghost"
+      onPress={props.onPress}
+    >
+      <span className="truncate">{props.label}</span>
+      <ChevronDown className="size-3.5 text-muted" />
+    </Button>
+  );
+}
+
+/**
+ * Binds the project filter's current label to a `SheetMenu` `trigger`
+ * function. Curried at module scope (rather than an inline arrow in JSX) so
+ * `ThreadsView`'s render body never defines a fresh component.
+ */
+function renderProjectFilterTrigger(label: string) {
+  return (api: { readonly open: () => void; readonly isOpen: boolean }) => (
+    <ProjectFilterTrigger label={label} isOpen={api.isOpen} onPress={api.open} />
+  );
+}
+
 /** Scroll travel (px) in one direction before the chrome collapses/reveals. */
 const CHROME_SCROLL_SLOP_PX = 6;
 
@@ -741,19 +775,7 @@ export function ThreadsView(props: ThreadsViewProps) {
           })),
         ]}
         onSelect={(id) => props.onProjectFilterChange(id === "all" ? null : id)}
-        trigger={({ open, isOpen }) => (
-          <Button
-            aria-label={t`Project`}
-            aria-expanded={isOpen}
-            className="m-threads__project-btn text-foreground"
-            size="sm"
-            variant="ghost"
-            onPress={open}
-          >
-            <span className="truncate">{currentProjectLabel}</span>
-            <ChevronDown className="size-3.5 text-muted" />
-          </Button>
-        )}
+        trigger={renderProjectFilterTrigger(currentProjectLabel)}
       />
     ) : null;
 

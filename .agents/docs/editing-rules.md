@@ -184,4 +184,4 @@ If a child needs a store value, the child reads it via a hook. Do not pass `sele
 
 - Target: ES2024, strict mode, bundler module resolution.
 - `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` are enabled.
-- Primary typecheck: `tsgo` (TypeScript native Rust implementation). Compat check: `tsc`.
+- Typecheck: `tsc` (TypeScript 7, native Go implementation).

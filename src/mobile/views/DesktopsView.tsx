@@ -100,6 +100,42 @@ function DesktopRowButton(props: {
   );
 }
 
+function DesktopRowTrigger(props: {
+  readonly open: () => void;
+  readonly title: string;
+  readonly desktop: StoredDesktop;
+  readonly isActive: boolean;
+  readonly onSwitch: () => void;
+}) {
+  return (
+    <DesktopRowButton
+      title={props.title}
+      desktop={props.desktop}
+      isActive={props.isActive}
+      onSwitch={props.onSwitch}
+      onMenu={props.open}
+    />
+  );
+}
+
+/**
+ * Builds the `SheetMenu` `trigger` render-prop for a `DesktopRow`. Defined at
+ * module scope (rather than as an inline arrow in `DesktopRow`'s render body)
+ * so the callback isn't redefined as an anonymous nested function on every
+ * render — `SheetMenu` calls this directly (not as a JSX component), so the
+ * row's live values are threaded through as explicit arguments.
+ */
+function createDesktopRowTrigger(extra: {
+  readonly title: string;
+  readonly desktop: StoredDesktop;
+  readonly isActive: boolean;
+  readonly onSwitch: () => void;
+}) {
+  return function renderDesktopRowTrigger(api: { readonly open: () => void }) {
+    return <DesktopRowTrigger open={api.open} {...extra} />;
+  };
+}
+
 function DesktopRow(props: {
   readonly desktop: StoredDesktop;
   readonly isActive: boolean;
@@ -146,15 +182,12 @@ function DesktopRow(props: {
         if (id === "rename") setRenaming(true);
         if (id === "forget") props.onForget();
       }}
-      trigger={({ open }) => (
-        <DesktopRowButton
-          title={title}
-          desktop={desktop}
-          isActive={props.isActive}
-          onSwitch={props.onSwitch}
-          onMenu={open}
-        />
-      )}
+      trigger={createDesktopRowTrigger({
+        title,
+        desktop,
+        isActive: props.isActive,
+        onSwitch: props.onSwitch,
+      })}
     />
   );
 }

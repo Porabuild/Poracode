@@ -62,7 +62,7 @@ export function ThreadContextDock({
           <div className={fillClassName} />
         </div>
         {summary.breakdown.length > 0 ? (
-          <ul className="grid gap-1" role="list">
+          <ul className="grid gap-1">
             {summary.breakdown.map((entry) => (
               <li
                 key={entry.id}

@@ -22,6 +22,7 @@ import {
   KeyRound,
   Moon,
 } from "lucide-react";
+import Link from "next/link";
 import { motion, useMotionValue, useSpring, useReducedMotion, useInView } from "framer-motion";
 import { downloadUrlFor, type ReleaseInfo } from "@/lib/releases";
 import { useI18n } from "@/lib/i18n/I18nProvider";
@@ -316,7 +317,7 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
       </div>
 
       {/* ── §0 Announcement bar ─────────────────────────────────── */}
-      <a
+      <Link
         href="/changelog"
         className="group relative z-40 flex h-9 items-center justify-center gap-2 border-b border-white/[0.06] bg-tile text-center"
       >
@@ -325,21 +326,21 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
           {versionLabel}
         </span>
         <ArrowUpRight className="h-3 w-3 text-accent transition-transform group-hover:translate-x-0.5" />
-      </a>
+      </Link>
 
       {/* ── §1 Nav ──────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-night/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5 sm:px-8">
-          <a href="/" aria-label="Poracode" className="transition-opacity hover:opacity-90">
+          <Link href="/" aria-label="Poracode" className="transition-opacity hover:opacity-90">
             <BrandLockup />
-          </a>
+          </Link>
           <div className="flex items-center gap-1 sm:gap-2">
-            <a
+            <Link
               href="/changelog"
               className="hidden rounded-md px-3 py-2 font-mono text-[13px] text-dim transition-colors hover:bg-white/[0.04] hover:text-moon sm:inline-flex"
             >
               {t("nav.changelog")}
-            </a>
+            </Link>
             <a
               href="https://github.com/poracode/poracode"
               target="_blank"
@@ -395,19 +396,19 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
             {t("hero.downloadFor", { platform: platform.label })}
           </a>
           <div className="flex items-center gap-5">
-            <a
+            <Link
               href="/download"
               className="text-sm text-dim underline-offset-4 transition-colors hover:text-moon hover:underline"
             >
               {t("nav.otherPlatforms")}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/nightly"
               className="inline-flex items-center gap-1.5 text-sm text-dim transition-colors hover:text-ice"
             >
               <Moon className="h-3.5 w-3.5" />
               {t("nav.nightly")}
-            </a>
+            </Link>
           </div>
         </motion.div>
 
@@ -593,12 +594,12 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
           </div>
           <p className="font-mono text-[12px] text-dim">{t("footer.copyright", { year: 2026 })}</p>
           <div className="flex items-center gap-6">
-            <a
+            <Link
               href="/changelog"
               className="font-mono text-[13px] text-dim transition-colors hover:text-moon"
             >
               {t("nav.changelog")}
-            </a>
+            </Link>
             <a
               href="https://github.com/poracode/poracode"
               className="font-mono text-[13px] text-dim transition-colors hover:text-moon"

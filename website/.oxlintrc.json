@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "extends": ["../.oxlintrc.json"],
+  "plugins": ["import", "react", "jsx-a11y", "node", "nextjs"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  }
+}

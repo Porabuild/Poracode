@@ -96,7 +96,6 @@ export function ThreadDockList({
               ? `max-h-[min(12rem,32vh)] ${spacingClass} overflow-y-auto [scrollbar-gutter:stable]`
               : `min-h-0 h-full ${spacingClass} overflow-y-auto [scrollbar-gutter:stable]`
         }
-        role="list"
       >
         {children}
       </ul>
@@ -120,7 +119,7 @@ export const ThreadDockRow = forwardRef<
 
   if (onClick) {
     return (
-      <li ref={ref} className="flex" role="listitem">
+      <li ref={ref} className="flex">
         <button
           type="button"
           onClick={onClick}
@@ -135,13 +134,7 @@ export const ThreadDockRow = forwardRef<
   }
 
   return (
-    <li
-      ref={ref}
-      className={innerClass}
-      role="listitem"
-      title={title}
-      aria-current={isActive ? "step" : undefined}
-    >
+    <li ref={ref} className={innerClass} title={title} aria-current={isActive ? "step" : undefined}>
       {children}
     </li>
   );

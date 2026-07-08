@@ -58,10 +58,8 @@ msgstr "{0, plural, one {alvo} other {alvos}}"
 
 #. placeholder {0}: props.checkpointGuard.sharedThreadCount
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
-msgid "{0, plural, other {# other chats use this same tree. File restore could "
-"overwrite their changes.}}"
-msgstr "{0, plural, other {# outros chats usam esta mesma árvore. A restauração "
-"de arquivos pode substituir suas alterações.}}"
+msgid "{0, plural, other {# other chats use this same tree. File restore could overwrite their changes.}}"
+msgstr "{0, plural, other {# outros chats usam esta mesma árvore. A restauração de arquivos pode substituir suas alterações.}}"
 
 #. placeholder {0}: target.title
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -239,8 +237,7 @@ msgstr "há {0} meses"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "{agentLabel}: {statusLabel}. Hover for status details."
-msgstr "{agentLabel}: {statusLabel}. Passe o mouse para ver os detalhes do "
-"status."
+msgstr "{agentLabel}: {statusLabel}. Passe o mouse para ver os detalhes do status."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "{agentLead} needs your input to continue."
@@ -251,10 +248,8 @@ msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {# commit} other {# commits}}"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
-msgid "{conversationCount, plural, one {# comment or review} other {# comments "
-"& reviews}}"
-msgstr "{conversationCount, plural, one {# comentário ou revisão} other {# "
-"comentários e revisões}}"
+msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
+msgstr "{conversationCount, plural, one {# comentário ou revisão} other {# comentários e revisões}}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
@@ -277,8 +272,7 @@ msgstr "{envOrAgentLabel} precisa de autenticação."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
-msgstr "{filesCount, plural, one {# arquivo alterado} other {# arquivos "
-"alterados}}"
+msgstr "{filesCount, plural, one {# arquivo alterado} other {# arquivos alterados}}"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "{filteredCount} / {totalCount} matches"
@@ -302,8 +296,7 @@ msgstr "há {hours}h"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
-msgstr "{installedCount, plural, one {# agente pronto} other {# agentes "
-"prontos}}"
+msgstr "{installedCount, plural, one {# agente pronto} other {# agentes prontos}}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -652,10 +645,8 @@ msgid "Add to Home Screen"
 msgstr "Adicionar à tela inicial"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty "
-"for automatic."
-msgstr "Anuncie uma URL base personalizada, por exemplo, um proxy reverso ou "
-"túnel. Deixe em branco para automático."
+msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
+msgstr "Anuncie uma URL base personalizada, por exemplo, um proxy reverso ou túnel. Deixe em branco para automático."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -667,10 +658,8 @@ msgid "Agent ({subagent}): {description}"
 msgstr "Agente ({subagent}):{description}"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Agent chat (ACP / markdown). Command rows use this size minus 1 px; tool "
-"and plan lines minus 2 px."
-msgstr "Bate-papo do agente (ACP / markdown). As linhas de comando usam esse "
-"tamanho menos 1 px; linhas de ferramenta e plano menos 2 px."
+msgid "Agent chat (ACP / markdown). Command rows use this size minus 1 px; tool and plan lines minus 2 px."
+msgstr "Bate-papo do agente (ACP / markdown). As linhas de comando usam esse tamanho menos 1 px; linhas de ferramenta e plano menos 2 px."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -731,10 +720,8 @@ msgid "AI"
 msgstr "IA"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "AI agent orchestrator — manage coding agents via Terminal and Native "
-"ACP."
-msgstr "Orquestrador de agentes de IA — gerencie agentes de codificação via "
-"Terminal e ACP nativo."
+msgid "AI agent orchestrator — manage coding agents via Terminal and Native ACP."
+msgstr "Orquestrador de agentes de IA — gerencie agentes de codificação via Terminal e ACP nativo."
 
 #: src/renderer/views/ProfileOverlay/parts/AiActions.tsx
 msgid "AI git actions"
@@ -789,10 +776,8 @@ msgid "Allow agents to read/write cookies and storage"
 msgstr "Permitir que os agentes leiam/escrevam cookies e armazenamento"
 
 #: src/mobile/QrScanner.tsx
-msgid "Allow camera access for this site in your browser settings and try again "
-"— or enter the endpoint and token below."
-msgstr "Permita o acesso à câmera para este site nas configurações do navegador "
-"e tente novamente, ou informe o endpoint e o token abaixo."
+msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
+msgstr "Permita o acesso à câmera para este site nas configurações do navegador e tente novamente, ou informe o endpoint e o token abaixo."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -800,10 +785,8 @@ msgid "Allow eval"
 msgstr "Permitir avaliação"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
-msgid "Allow the browser to show notifications while the app is in the "
-"background."
-msgstr "Permita que o navegador mostre notificações enquanto o app estiver em "
-"segundo plano."
+msgid "Allow the browser to show notifications while the app is in the background."
+msgstr "Permita que o navegador mostre notificações enquanto o app estiver em segundo plano."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Already used by {conflict}"
@@ -819,10 +802,8 @@ msgid "Always excluded"
 msgstr "Sempre excluído"
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
-msgid "Another chat uses this same tree. File restore could overwrite that "
-"chat's changes."
-msgstr "Outro chat usa esta mesma árvore. A restauração de arquivos pode "
-"substituir as alterações do bate-papo."
+msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
+msgstr "Outro chat usa esta mesma árvore. A restauração de arquivos pode substituir as alterações do bate-papo."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
@@ -901,27 +882,21 @@ msgid "Archived Threads"
 msgstr "Tópicos arquivados"
 
 #: src/mobile/views/SettingsView.tsx
-msgid "Archived threads are managed from the desktop app. Restoring or deleting "
-"them from this device isn't available yet."
-msgstr "Os tópicos arquivados são gerenciados pelo app desktop. Restaurá-los ou "
-"excluí-los deste dispositivo ainda não está disponível."
+msgid "Archived threads are managed from the desktop app. Restoring or deleting them from this device isn't available yet."
+msgstr "Os tópicos arquivados são gerenciados pelo app desktop. Restaurá-los ou excluí-los deste dispositivo ainda não está disponível."
 
 #. placeholder {0}: file.path
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Are you sure you want to revert <0>{0}</0>? This cannot be undone."
-msgstr "Tem certeza de que deseja reverter <0>{0}</0>? Isto não pode ser "
-"desfeito."
+msgstr "Tem certeza de que deseja reverter <0>{0}</0>? Isto não pode ser desfeito."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 msgid "Are you sure you want to revert <0>{path}</0>? This cannot be undone."
-msgstr "Tem certeza de que deseja reverter <0>{path}</0>? Isto não pode ser "
-"desfeito."
+msgstr "Tem certeza de que deseja reverter <0>{path}</0>? Isto não pode ser desfeito."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
-msgid "Are you sure you want to revert all unstaged changes? This cannot be "
-"undone."
-msgstr "Tem certeza de que deseja reverter todas as alterações não preparadas? "
-"Isto não pode ser desfeito."
+msgid "Are you sure you want to revert all unstaged changes? This cannot be undone."
+msgstr "Tem certeza de que deseja reverter todas as alterações não preparadas? Isto não pode ser desfeito."
 
 #. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -1014,10 +989,8 @@ msgstr "Mostrar painel do terminal automaticamente"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
-msgid "Automatically show the terminal panel when running commands or creating "
-"worktrees."
-msgstr "Mostrar automaticamente o painel do terminal ao executar comandos ou "
-"criar árvores de trabalho."
+msgid "Automatically show the terminal panel when running commands or creating worktrees."
+msgstr "Mostrar automaticamente o painel do terminal ao executar comandos ou criar árvores de trabalho."
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "available"
@@ -1075,8 +1048,7 @@ msgstr "Tarefas em segundo plano"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Base branch is ahead — branch must be updated first."
-msgstr "A ramificação base está à frente — a ramificação deve ser atualizada "
-"primeiro."
+msgstr "A ramificação base está à frente — a ramificação deve ser atualizada primeiro."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1086,17 +1058,13 @@ msgstr "Pasta base"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
-msgid "Base font size for agent terminals. Auto-shrinks in narrow or short "
-"panes."
-msgstr "Tamanho de fonte base para terminais de agente. Encolhe automaticamente "
-"em painéis estreitos ou curtos."
+msgid "Base font size for agent terminals. Auto-shrinks in narrow or short panes."
+msgstr "Tamanho de fonte base para terminais de agente. Encolhe automaticamente em painéis estreitos ou curtos."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
-msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short "
-"panes."
-msgstr "Tamanho base da fonte do painel do terminal. Encolhe automaticamente em "
-"painéis estreitos ou curtos."
+msgid "Base font size for the terminal panel. Auto-shrinks in narrow or short panes."
+msgstr "Tamanho base da fonte do painel do terminal. Encolhe automaticamente em painéis estreitos ou curtos."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Bash output"
@@ -1132,11 +1100,8 @@ msgid "Binary files can't be edited here."
 msgstr "Arquivos binários não podem ser editados aqui."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
-msgid "Blocked by the browser. Allow notifications for this site in the browser "
-"settings to get alerts while the app is in the background."
-msgstr "Bloqueado pelo navegador. Permita notificações para este site nas "
-"configurações do navegador para receber alertas enquanto o app estiver "
-"em segundo plano."
+msgid "Blocked by the browser. Allow notifications for this site in the browser settings to get alerts while the app is in the background."
+msgstr "Bloqueado pelo navegador. Permita notificações para este site nas configurações do navegador para receber alertas enquanto o app estiver em segundo plano."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "blocked:"
@@ -1159,10 +1124,8 @@ msgid "Bottom"
 msgstr "Inferior"
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash "
-"them before merging"
-msgstr "Branch '{branch}' tem alterações não confirmadas em '{path}' - confirme "
-"ou guarde-as antes de mesclar"
+msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
+msgstr "Branch '{branch}' tem alterações não confirmadas em '{path}' - confirme ou guarde-as antes de mesclar"
 
 #. placeholder {0}: props.branch
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
@@ -1187,8 +1150,7 @@ msgstr "Trazer de volta ao painel"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring it back into this panel, or jump to the window it’s running in."
-msgstr "Traga-o de volta para este painel ou vá para a janela em que ele está "
-"sendo executado."
+msgstr "Traga-o de volta para este painel ou vá para a janela em que ele está sendo executado."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -1340,13 +1302,11 @@ msgstr "cancelado"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot create a default worktree path without a branch name"
-msgstr "Não é possível criar um caminho de worktree padrão sem um nome de "
-"branch"
+msgstr "Não é possível criar um caminho de worktree padrão sem um nome de branch"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot switch branches — commit or stash your changes first"
-msgstr "Não é possível alternar entre branches — faça commit ou stash das suas "
-"alterações primeiro"
+msgstr "Não é possível alternar entre branches — faça commit ou stash das suas alterações primeiro"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
@@ -1472,10 +1432,8 @@ msgstr "Escolha o tópico ao qual anexar"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Choose whether links from Poracode and browser popups stay in Poracode "
-"or open externally."
-msgstr "Escolha se os links do Poracode e os pop-ups do navegador permanecem no "
-"Poracode ou abrem externamente."
+msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
+msgstr "Escolha se os links do Poracode e os pop-ups do navegador permanecem no Poracode ou abrem externamente."
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
@@ -1543,8 +1501,7 @@ msgstr "Ganchos CLI"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
-msgstr "Clique em um atalho para gravar uma nova tecla, ou ＋ para adicionar "
-"outro."
+msgstr "Clique em um atalho para gravar uma nova tecla, ou ＋ para adicionar outro."
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -1955,12 +1912,8 @@ msgid "Connect the AI providers OpenCode can use and sign out of them here."
 msgstr "Conecte os provedores de IA que o OpenCode pode usar e saia deles aqui."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Connect to another Lightcode desktop or a headless server to browse and "
-"manage its projects from here. Get its endpoint and pairing token from "
-"Settings → Remote Access on that machine."
-msgstr "Conecte-se a outro desktop do Lightcode ou a um servidor headless para "
-"navegar e gerenciar seus projetos aqui. Obtenha o endpoint e o token de "
-"pareamento em Configurações → Acesso remoto naquela máquina."
+msgid "Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
+msgstr "Conecte-se a outro desktop do Lightcode ou a um servidor headless para navegar e gerenciar seus projetos aqui. Obtenha o endpoint e o token de pareamento em Configurações → Acesso remoto naquela máquina."
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
@@ -2045,11 +1998,8 @@ msgid "Continue in..."
 msgstr "Continuar em..."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
-msgid "Control which files appear in the @file mention search. Per-project "
-"overrides live in each project's settings."
-msgstr "Controle quais arquivos aparecem na pesquisa de menção @file. As "
-"substituições por projeto estão disponíveis nas configurações de cada "
-"projeto."
+msgid "Control which files appear in the @file mention search. Per-project overrides live in each project's settings."
+msgstr "Controle quais arquivos aparecem na pesquisa de menção @file. As substituições por projeto estão disponíveis nas configurações de cada projeto."
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -2176,10 +2126,8 @@ msgid "Couldn't clone the repository."
 msgstr "Não foi possível clonar o repositório."
 
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
-msgid "Couldn't copy your uncommitted changes into the new worktree — they "
-"remain on the current branch."
-msgstr "Não foi possível copiar suas alterações não commitadas para o novo "
-"worktree — elas permanecem no branch atual."
+msgid "Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch."
+msgstr "Não foi possível copiar suas alterações não commitadas para o novo worktree — elas permanecem no branch atual."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Couldn't create the project."
@@ -2194,10 +2142,8 @@ msgid "Couldn't list repositories."
 msgstr "Não foi possível listar os repositórios."
 
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
-msgid "Couldn't load the changelog. Check your connection, or view it on "
-"GitHub."
-msgstr "Não foi possível carregar o registro de alterações. Verifique sua "
-"conexão ou veja no GitHub."
+msgid "Couldn't load the changelog. Check your connection, or view it on GitHub."
+msgstr "Não foi possível carregar o registro de alterações. Verifique sua conexão ou veja no GitHub."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2261,11 +2207,8 @@ msgid "Create:"
 msgstr "Criar:"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
-msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and "
-"remain in a git stash — resolve them in the worktree."
-msgstr "Criou uma árvore de trabalho em \"{newBranch}\", mas as alterações "
-"entraram em conflito e permanecem em um git stash — resolva-as na "
-"árvore de trabalho."
+msgid "Created a worktree on \"{newBranch}\", but the changes conflicted and remain in a git stash — resolve them in the worktree."
+msgstr "Criou uma árvore de trabalho em \"{newBranch}\", mas as alterações entraram em conflito e permanecem em um git stash — resolva-as na árvore de trabalho."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
@@ -2298,8 +2241,7 @@ msgstr "Personalizado"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Custom commands available from the project context menu (right-click)."
-msgstr "Comandos personalizados disponíveis no menu de contexto do projeto "
-"(clique com o botão direito)."
+msgstr "Comandos personalizados disponíveis no menu de contexto do projeto (clique com o botão direito)."
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
@@ -2496,8 +2438,7 @@ msgstr "Servidores de desenvolvimento escutando no localhost do seu desktop."
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
-msgstr "Substituições apenas de desenvolvimento. Visível apenas na compilação "
-"LIGHTCODE DEV."
+msgstr "Substituições apenas de desenvolvimento. Visível apenas na compilação LIGHTCODE DEV."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2534,10 +2475,8 @@ msgid "Disable Subagents"
 msgstr "Desativar subagentes"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "Disable tiers an external provider collapses (e.g. keep only High and "
-"Max)."
-msgstr "Desative níveis que um provedor externo agrupa (ex.: manter apenas High "
-"e Max)."
+msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
+msgstr "Desative níveis que um provedor externo agrupa (ex.: manter apenas High e Max)."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
@@ -2631,8 +2570,7 @@ msgstr "Baixar imagem"
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Downloading into “{0}”. This can take a moment for large repositories."
-msgstr "Baixando em “{0}”. Isso pode demorar um pouco para repositórios "
-"grandes."
+msgstr "Baixando em “{0}”. Isso pode demorar um pouco para repositórios grandes."
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -2655,8 +2593,7 @@ msgstr "Rascunho"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Drag to reorder how providers appear in the model picker."
-msgstr "Arraste para reordenar como os provedores aparecem no seletor de "
-"modelos."
+msgstr "Arraste para reordenar como os provedores aparecem no seletor de modelos."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
 msgid "Drag to reorder; double-click to edit"
@@ -2668,19 +2605,12 @@ msgstr "Solte aqui para anexar"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Drops incoming hook envelopes on the supervisor so agents fall back to "
-"L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. "
-"Takes effect on the next hook event — no restart needed."
-msgstr "Descarta envelopes de gancho recebidos no supervisor para que os "
-"agentes retornem ao L2 (progresso do OSC 9;4) sem tocar nas "
-"notificações de instalação ou do iTerm2. Entra em vigor no próximo "
-"evento de gancho — não é necessário reiniciar."
+msgid "Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed."
+msgstr "Descarta envelopes de gancho recebidos no supervisor para que os agentes retornem ao L2 (progresso do OSC 9;4) sem tocar nas notificações de instalação ou do iTerm2. Entra em vigor no próximo evento de gancho — não é necessário reiniciar."
 
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
-msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk "
-"refactors, Claude Opus for anything subtle."
-msgstr "ex.: Codex GPT-5.5 fast para consultas rápidas, OpenCode GLM para "
-"refatorações em massa, Claude Opus para qualquer coisa sutil."
+msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactors, Claude Opus for anything subtle."
+msgstr "ex.: Codex GPT-5.5 fast para consultas rápidas, OpenCode GLM para refatorações em massa, Claude Opus para qualquer coisa sutil."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "e.g. Work"
@@ -2741,15 +2671,12 @@ msgstr "Ativar esforço {tierLabel}"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Enable language server support for type checking, completions, and "
-"diagnostics. Requires a language server installed."
-msgstr "Habilite o suporte a language server para verificação de tipos, "
-"autocompletar e diagnósticos. Requer um language server instalado."
+msgid "Enable language server support for type checking, completions, and diagnostics. Requires a language server installed."
+msgstr "Habilite o suporte a language server para verificação de tipos, autocompletar e diagnósticos. Requer um language server instalado."
 
 #: src/renderer/components/composer/voiceError.ts
 msgid "Enable microphone access in your system settings, then try again."
-msgstr "Ative o acesso ao microfone nas configurações do sistema e tente "
-"novamente."
+msgstr "Ative o acesso ao microfone nas configurações do sistema e tente novamente."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2773,13 +2700,8 @@ msgid "Enabled agents, model visibility and order"
 msgstr "Agentes ativados, visibilidade e ordem de modelos"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session "
-"tokens and storage often holds auth state — only enable when you trust "
-"both the agent and the sites it visits."
-msgstr "Ativa <0>cookies</0> e <1>armazenamento</1>. Os cookies podem conter "
-"tokens de sessão e o armazenamento geralmente mantém o estado de "
-"autenticação – ativado apenas quando você confia no agente e nos sites "
-"que ele visita."
+msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
+msgstr "Ativa <0>cookies</0> e <1>armazenamento</1>. Os cookies podem conter tokens de sessão e o armazenamento geralmente mantém o estado de autenticação – ativado apenas quando você confia no agente e nos sites que ele visita."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -2796,8 +2718,7 @@ msgstr "Aprimorado (ganchos)"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
-msgstr "Digite uma URL de origem completa, como https://code.example.com, sem "
-"caminho."
+msgstr "Digite uma URL de origem completa, como https://code.example.com, sem caminho."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Enter a repository URL."
@@ -2813,8 +2734,7 @@ msgstr "Entrar no modo de plano"
 
 #: src/mobile/views/PortsView.tsx
 msgid "Enter the port a dev server on your desktop is listening on."
-msgstr "Informe a porta em que um servidor de desenvolvimento do seu desktop "
-"está escutando."
+msgstr "Informe a porta em que um servidor de desenvolvimento do seu desktop está escutando."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
@@ -3013,10 +2933,8 @@ msgstr "O arquivo não existe mais no disco."
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/DiffSection.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
-msgid "File too large to display ({0, plural, one {# line changed} other {# "
-"lines changed}})"
-msgstr "Arquivo muito grande para exibir ({0, plural, one {# linha alterada} "
-"other {# linhas alteradas}})"
+msgid "File too large to display ({0, plural, one {# line changed} other {# lines changed}})"
+msgstr "Arquivo muito grande para exibir ({0, plural, one {# linha alterada} other {# linhas alteradas}})"
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File uses an unsupported encoding."
@@ -3039,8 +2957,7 @@ msgstr "Arquivos para {0}"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Files matching these globs are hidden from the @file mention search."
-msgstr "Os arquivos que correspondem a esses globs ficam ocultos na pesquisa de "
-"menção @file."
+msgstr "Os arquivos que correspondem a esses globs ficam ocultos na pesquisa de menção @file."
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "Filter by project"
@@ -3078,51 +2995,39 @@ msgstr "Concluído · Aguardando sua resposta"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Antigravity CLI integration using Poracode's native runtime."
-msgstr "Integração CLI Antigravity de primeira classe usando tempo de execução "
-"nativo do Poracode."
+msgstr "Integração CLI Antigravity de primeira classe usando tempo de execução nativo do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Claude Code integration using Poracode's native SDK runtime."
-msgstr "Integração de primeira classe com Claude Code usando o tempo de "
-"execução SDK nativo do Poracode."
+msgstr "Integração de primeira classe com Claude Code usando o tempo de execução SDK nativo do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Codex CLI integration using Poracode's native app-server "
-"runtime."
-msgstr "Integração Codex CLI de primeira classe usando o tempo de execução "
-"nativo do servidor de aplicativos do Poracode."
+msgid "First-class Codex CLI integration using Poracode's native app-server runtime."
+msgstr "Integração Codex CLI de primeira classe usando o tempo de execução nativo do servidor de aplicativos do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Command Code CLI integration using Poracode's native "
-"runtime."
-msgstr "Integração de primeira classe da CLI Command Code usando o tempo de "
-"execução nativo do Poracode."
+msgid "First-class Command Code CLI integration using Poracode's native runtime."
+msgstr "Integração de primeira classe da CLI Command Code usando o tempo de execução nativo do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Cursor Agent integration using Poracode's native runtime."
-msgstr "Integração de primeira classe do Cursor Agent usando o runtime nativo "
-"do Poracode."
+msgstr "Integração de primeira classe do Cursor Agent usando o runtime nativo do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Gemini CLI integration using Poracode's native runtime."
-msgstr "Integração de primeira classe do Gemini CLI usando o runtime nativo do "
-"Poracode."
+msgstr "Integração de primeira classe do Gemini CLI usando o runtime nativo do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class GitHub Copilot CLI integration using Poracode's native "
-"runtime."
-msgstr "Integração de primeira classe do GitHub Copilot CLI usando o runtime "
-"nativo do Poracode."
+msgid "First-class GitHub Copilot CLI integration using Poracode's native runtime."
+msgstr "Integração de primeira classe do GitHub Copilot CLI usando o runtime nativo do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Grok Build CLI integration using Poracode's native runtime."
-msgstr "Integração Grok Build CLI de primeira classe usando o tempo de execução "
-"nativo do Poracode."
+msgstr "Integração Grok Build CLI de primeira classe usando o tempo de execução nativo do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
-msgstr "Integração OpenCode de primeira classe usando o tempo de execução SDK "
-"nativo do Poracode."
+msgstr "Integração OpenCode de primeira classe usando o tempo de execução SDK nativo do Poracode."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
@@ -3163,14 +3068,11 @@ msgstr "Caminho da pasta no servidor"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds."
-msgstr "Pasta que contém todas as árvores de trabalho. Dica: um Dev Drive aqui "
-"acelera as builds."
+msgstr "Pasta que contém todas as árvores de trabalho. Dica: um Dev Drive aqui acelera as builds."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
-msgid "Folder that holds this project's worktrees. Reset to use the global "
-"setting."
-msgstr "Pasta que contém as árvores de trabalho deste projeto. Redefina para "
-"usar a configuração global."
+msgid "Folder that holds this project's worktrees. Reset to use the global setting."
+msgstr "Pasta que contém as árvores de trabalho deste projeto. Redefina para usar a configuração global."
 
 #: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
@@ -3213,18 +3115,12 @@ msgid "Found a signed-in {0} session."
 msgstr "Encontrada uma sessão {0} conectada."
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Frost the sidebar with the system blur material (vibrancy), echoing "
-"recent macOS. Falls back to a translucent tint where unsupported."
-msgstr "Aplica o efeito fosco à barra lateral com o material de desfoque do "
-"sistema (vibrância), à semelhança do macOS recente. Recorre a um tom "
-"translúcido onde não houver suporte."
+msgid "Frost the sidebar with the system blur material (vibrancy), echoing recent macOS. Falls back to a translucent tint where unsupported."
+msgstr "Aplica o efeito fosco à barra lateral com o material de desfoque do sistema (vibrância), à semelhança do macOS recente. Recorre a um tom translúcido onde não houver suporte."
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Frosting of the {appearance}-mode sidebar over the system blur. Higher "
-"holds the theme color; lower shows more of what's behind."
-msgstr "Efeito fosco da barra lateral no modo {appearance} sobre o desfoque do "
-"sistema. Maior mantém a cor do tema; menor mostra mais do que está "
-"atrás."
+msgid "Frosting of the {appearance}-mode sidebar over the system blur. Higher holds the theme color; lower shows more of what's behind."
+msgstr "Efeito fosco da barra lateral no modo {appearance} sobre o desfoque do sistema. Maior mantém a cor do tema; menor mostra mais do que está atrás."
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -3318,11 +3214,8 @@ msgid "GitHub Repository"
 msgstr "Repositório GitHub"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
-msgid "Gitignored files to copy from the main project into each new worktree. "
-"Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
-msgstr "Arquivos gitignorados para copiar do projeto principal para cada nova "
-"árvore de trabalho. Padrões estilo Gitignore, um por linha (por "
-"exemplo, <0>.env.*</0>)."
+msgid "Gitignored files to copy from the main project into each new worktree. Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
+msgstr "Arquivos gitignorados para copiar do projeto principal para cada nova árvore de trabalho. Padrões estilo Gitignore, um por linha (por exemplo, <0>.env.*</0>)."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "GLM 5.2 (optional label)"
@@ -3391,10 +3284,8 @@ msgstr "Há um rascunho não enviado"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-msgid "Hidden resumable threads are swept every 5 minutes and unloaded after "
-"this idle age."
-msgstr "Tópicos recuperáveis ocultos são varridos a cada 5 minutos e "
-"descarregados após esse período ocioso."
+msgid "Hidden resumable threads are swept every 5 minutes and unloaded after this idle age."
+msgstr "Tópicos recuperáveis ocultos são varridos a cada 5 minutos e descarregados após esse período ocioso."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
@@ -3428,8 +3319,7 @@ msgstr "Ocultar teclado"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Hide models you don't use from the model picker across every provider."
-msgstr "Oculte os modelos que você não usa no seletor de modelos de todos os "
-"provedores."
+msgstr "Oculte os modelos que você não usa no seletor de modelos de todos os provedores."
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 msgid "Hide panel"
@@ -3501,11 +3391,8 @@ msgid "Improved"
 msgstr "Melhorado"
 
 #: src/mobile/QrScanner.tsx
-msgid "In-app camera scanning only works over HTTPS. Use your phone's camera "
-"app to scan the desktop QR code, or enter the endpoint and token below."
-msgstr "A leitura pela câmera dentro do app só funciona por HTTPS. Use o app de "
-"câmera do telefone para escanear o QR code do desktop, ou informe o "
-"endpoint e o token abaixo."
+msgid "In-app camera scanning only works over HTTPS. Use your phone's camera app to scan the desktop QR code, or enter the endpoint and token below."
+msgstr "A leitura pela câmera dentro do app só funciona por HTTPS. Use o app de câmera do telefone para escanear o QR code do desktop, ou informe o endpoint e o token abaixo."
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -3582,8 +3469,7 @@ msgstr "Instalar no WSL: {distro}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install native providers first; use ACP for additional protocol agents."
-msgstr "Instale os provedores nativos primeiro; use ACP para agentes de "
-"protocolo adicionais."
+msgstr "Instale os provedores nativos primeiro; use ACP para agentes de protocolo adicionais."
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
@@ -3630,10 +3516,8 @@ msgstr "Instalando neste terminal. Fecha quando terminar."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
-msgid "Instructions agents follow when choosing which agent or model to "
-"delegate to."
-msgstr "Instruções que os agentes seguem ao escolher para qual agente ou modelo "
-"delegar."
+msgid "Instructions agents follow when choosing which agent or model to delegate to."
+msgstr "Instruções que os agentes seguem ao escolher para qual agente ou modelo delegar."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
@@ -3663,8 +3547,7 @@ msgstr "Manter branch"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
-msgstr "Mantém o sistema ativo enquanto qualquer thread estiver trabalhando "
-"ativamente."
+msgstr "Mantém o sistema ativo enquanto qualquer thread estiver trabalhando ativamente."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Kill bash"
@@ -3677,17 +3560,13 @@ msgstr "Idioma"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Language for AI-generated commit messages and pull request summaries. "
-"Thread titles always follow the app language."
-msgstr "Idioma das mensagens de commit e dos resumos de pull request gerados "
-"por IA. Os títulos dos tópicos sempre seguem o idioma do aplicativo."
+msgid "Language for AI-generated commit messages and pull request summaries. Thread titles always follow the app language."
+msgstr "Idioma das mensagens de commit e dos resumos de pull request gerados por IA. Os títulos dos tópicos sempre seguem o idioma do aplicativo."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Language the speech model should expect when transcribing composer "
-"dictation."
-msgstr "Idioma que o modelo de fala deve esperar ao transcrever o ditado do "
-"compositor."
+msgid "Language the speech model should expect when transcribing composer dictation."
+msgstr "Idioma que o modelo de fala deve esperar ao transcrever o ditado do compositor."
 
 #. placeholder {0}: agent.lastToolName
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -3715,12 +3594,8 @@ msgid "Less"
 msgstr "Menos"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the "
-"embedded page. Off by default — turn on only when you trust the loaded "
-"sites and the agent."
-msgstr "Permite que os agentes chamem <0>eval</0> para executar JavaScript "
-"arbitrário dentro da página incorporada. Desativado por padrão – ative "
-"somente quando você confiar nos sites carregados e no agente."
+msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the embedded page. Off by default — turn on only when you trust the loaded sites and the agent."
+msgstr "Permite que os agentes chamem <0>eval</0> para executar JavaScript arbitrário dentro da página incorporada. Desativado por padrão – ative somente quando você confiar nos sites carregados e no agente."
 
 #. About page label: software license row
 #. Link to the license file
@@ -3827,8 +3702,7 @@ msgstr "Locais"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Local changes need to be stashed before pulling from {branch}"
-msgstr "As alterações locais precisam ser armazenadas (stash) antes de fazer "
-"pull de {branch}"
+msgstr "As alterações locais precisam ser armazenadas (stash) antes de fazer pull de {branch}"
 
 #. placeholder {0}: forward.targetPort
 #: src/mobile/views/PortsView.tsx
@@ -3901,10 +3775,8 @@ msgid "Looking for dev servers…"
 msgstr "Procurando servidores de desenvolvimento…"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Make the sidebar translucent — the system blur material on Windows 11, a "
-"translucent tint elsewhere."
-msgstr "Torna a barra lateral translúcida — o material de desfoque do sistema "
-"no Windows 11, um tom translúcido nas demais plataformas."
+msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
+msgstr "Torna a barra lateral translúcida — o material de desfoque do sistema no Windows 11, um tom translúcido nas demais plataformas."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "Manage remote servers"
@@ -4004,7 +3876,6 @@ msgstr "Mesclar localmente e remover árvore de trabalho"
 msgid "Merge method"
 msgstr "Método de mesclagem"
 
-#: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge options"
 msgstr "Opções de mesclagem"
@@ -4218,10 +4089,8 @@ msgid "Move todo dock to right panel"
 msgstr "Mover dock de tarefas para o painel direito"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
-msgid "Moved your changes into a new worktree on \"{newBranch}\". "
-"\"{currentBranch}\" is now clean."
-msgstr "Movemos suas alterações para uma nova árvore de trabalho em "
-"\"{newBranch}\". \"{currentBranch}\" agora está limpo."
+msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
+msgstr "Movemos suas alterações para uma nova árvore de trabalho em \"{newBranch}\". \"{currentBranch}\" agora está limpo."
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Moving changes…"
@@ -4333,8 +4202,7 @@ msgstr "Nova linha"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New phones, tablets, and browsers appear here after pairing."
-msgstr "Novos celulares, tablets e navegadores aparecerão aqui após o "
-"pareamento."
+msgstr "Novos celulares, tablets e navegadores aparecerão aqui após o pareamento."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
@@ -4553,10 +4421,8 @@ msgid "No files match \"{0}\"."
 msgstr "Nenhum arquivo corresponde a \"{0}\"."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or "
-"<1>paste a clone URL</1>."
-msgstr "Nenhuma conta GitHub CLI encontrada. Faça login com <0>gh auth "
-"login</0> ou <1>cole um URL clone</1>."
+msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or <1>paste a clone URL</1>."
+msgstr "Nenhuma conta GitHub CLI encontrada. Faça login com <0>gh auth login</0> ou <1>cole um URL clone</1>."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
@@ -4644,8 +4510,7 @@ msgstr "Nenhum provedor pronto ainda"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "No remote configured. Add a remote to enable push and pull."
-msgstr "Nenhum controle remoto configurado. Adicione um controle remoto para "
-"ativar push e pull."
+msgstr "Nenhum controle remoto configurado. Adicione um controle remoto para ativar push e pull."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No repositories found."
@@ -4916,8 +4781,7 @@ msgstr "Abrir revisão do Git"
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open git review as a right-side panel or a full page."
-msgstr "Abra a revisão do Git como um painel do lado direito ou uma página "
-"inteira."
+msgstr "Abra a revisão do Git como um painel do lado direito ou uma página inteira."
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 msgid "Open image preview"
@@ -4992,11 +4856,8 @@ msgid "Open Settings"
 msgstr "Abrir configurações"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the "
-"QR code from here — or enter the endpoint and pairing token manually."
-msgstr "Abra Configurações → Acesso remoto no Poracode no seu desktop e "
-"escaneie o código QR daqui — ou insira o endpoint e o token de "
-"pareamento manualmente."
+msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
+msgstr "Abra Configurações → Acesso remoto no Poracode no seu desktop e escaneie o código QR daqui — ou insira o endpoint e o token de pareamento manualmente."
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -5033,19 +4894,12 @@ msgid "Opened {0} (#{1})"
 msgstr "Aberto {0} (#{1})"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
-msgid "Optional status hooks. Installed hooks update automatically; missing "
-"hooks are never installed automatically."
-msgstr "Ganchos de status opcionais. Os ganchos instalados são atualizados "
-"automaticamente; ganchos ausentes nunca são instalados automaticamente."
+msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
+msgstr "Ganchos de status opcionais. Os ganchos instalados são atualizados automaticamente; ganchos ausentes nunca são instalados automaticamente."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Optional. Enabling this runs tailscale serve for the remote access port, "
-"then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it "
-"off to use the LAN address or Public URL below."
-msgstr "Opcional. Ao ativar, o tailscale serve é executado para a porta de "
-"acesso remoto; depois, novos códigos de pareamento usam a URL HTTPS "
-"MagicDNS do seu tailnet. Deixe desativado para usar o endereço LAN ou a "
-"URL pública abaixo."
+msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
+msgstr "Opcional. Ao ativar, o tailscale serve é executado para a porta de acesso remoto; depois, novos códigos de pareamento usam a URL HTTPS MagicDNS do seu tailnet. Deixe desativado para usar o endereço LAN ou a URL pública abaixo."
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
@@ -5067,16 +4921,12 @@ msgid "Over pace — runs out early"
 msgstr "Acima do ritmo — acaba cedo"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and "
-"ANTHROPIC_AUTH_TOKEN."
-msgstr "Substitua os padrões do Claude — ex.: ANTHROPIC_BASE_URL e "
-"ANTHROPIC_AUTH_TOKEN."
+msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN."
+msgstr "Substitua os padrões do Claude — ex.: ANTHROPIC_BASE_URL e ANTHROPIC_AUTH_TOKEN."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
-msgid "Override where this project's worktrees are created. Applies to "
-"worktrees created from now on."
-msgstr "Substitui onde as árvores de trabalho deste projeto são criadas. "
-"Aplica-se às árvores de trabalho criadas a partir de agora."
+msgid "Override where this project's worktrees are created. Applies to worktrees created from now on."
+msgstr "Substitui onde as árvores de trabalho deste projeto são criadas. Aplica-se às árvores de trabalho criadas a partir de agora."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
@@ -5271,18 +5121,13 @@ msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Aponte para o QR code em Configurações → Acesso remoto"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env "
-"vars, model names, and effort levels."
-msgstr "Aponte este perfil para um provedor não Anthropic (z.ai, …) com "
-"variáveis de ambiente, nomes de modelo e níveis de esforço "
-"personalizados."
+msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env vars, model names, and effort levels."
+msgstr "Aponte este perfil para um provedor não Anthropic (z.ai, …) com variáveis de ambiente, nomes de modelo e níveis de esforço personalizados."
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Popular editor themes adapted to Poracode. Each follows the light or "
-"dark mode above."
-msgstr "Temas de editores populares adaptados ao Poracode. Cada um segue o modo "
-"claro ou escuro acima."
+msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
+msgstr "Temas de editores populares adaptados ao Poracode. Cada um segue o modo claro ou escuro acima."
 
 #: src/mobile/views/PortsView.tsx
 msgid "Port"
@@ -5303,10 +5148,8 @@ msgid "Port forwarding isn't enabled"
 msgstr "O encaminhamento de portas não está ativado"
 
 #: src/mobile/views/PortsView.tsx
-#~ msgid "Port forwarding needs a direct connection to the desktop. It isn't "
-#~ "available over a relay or tunnel."
-#~ msgstr "O encaminhamento de portas precisa de uma conexão direta com o desktop. "
-#~ "Não está disponível por meio de um relay ou túnel."
+#~ msgid "Port forwarding needs a direct connection to the desktop. It isn't available over a relay or tunnel."
+#~ msgstr "O encaminhamento de portas precisa de uma conexão direta com o desktop. Não está disponível por meio de um relay ou túnel."
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
@@ -5419,8 +5262,7 @@ msgstr "Configurações do projeto"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Project-specific overrides on top of the global search settings."
-msgstr "Substituições específicas do projeto nas configurações de pesquisa "
-"global."
+msgstr "Substituições específicas do projeto nas configurações de pesquisa global."
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
@@ -5429,10 +5271,8 @@ msgid "Projects"
 msgstr "Projetos"
 
 #: src/mobile/setupEmptyState.tsx
-msgid "Projects live on the connected desktop. Add one before starting a "
-"thread."
-msgstr "Os projetos ficam no desktop conectado. Adicione um antes de iniciar "
-"uma conversa."
+msgid "Projects live on the connected desktop. Add one before starting a thread."
+msgstr "Os projetos ficam no desktop conectado. Adicione um antes de iniciar uma conversa."
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Prompt"
@@ -5501,8 +5341,7 @@ msgstr "Puxar ↓{behind}"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pull did not complete. Your local changes remain in a Poracode stash."
-msgstr "O pull não foi concluído. Suas alterações locais permanecem em um stash "
-"do Poracode."
+msgstr "O pull não foi concluído. Suas alterações locais permanecem em um stash do Poracode."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pull failed: {detail}"
@@ -5567,10 +5406,8 @@ msgid "Push failed: {detail}"
 msgstr "Falha no envio: {detail}"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Push updates to paired mobile devices when threads finish or need you, "
-"even when the app is closed."
-msgstr "Envie atualizações para os dispositivos móveis pareados quando os "
-"tópicos terminarem ou precisarem de você, mesmo com o app fechado."
+msgid "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
+msgstr "Envie atualizações para os dispositivos móveis pareados quando os tópicos terminarem ou precisarem de você, mesmo com o app fechado."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"
@@ -5612,8 +5449,7 @@ msgstr "Faça login novamente"
 
 #: src/mobile/views/PortsView.tsx
 msgid "Re-pair this connection to grant access to port forwarding."
-msgstr "Pareie esta conexão novamente para conceder acesso ao encaminhamento de "
-"portas."
+msgstr "Pareie esta conexão novamente para conceder acesso ao encaminhamento de portas."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
@@ -5624,16 +5460,12 @@ msgid "Ready for Review"
 msgstr "Pronto para revisão"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Ready. New pairing codes will advertise the Tailscale HTTPS URL when "
-"serve is active."
-msgstr "Pronto. Novos códigos de pareamento anunciarão a URL HTTPS do Tailscale "
-"quando o serve estiver ativo."
+msgid "Ready. New pairing codes will advertise the Tailscale HTTPS URL when serve is active."
+msgstr "Pronto. Novos códigos de pareamento anunciarão a URL HTTPS do Tailscale quando o serve estiver ativo."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing "
-"codes."
-msgstr "Pronto. Ative para anunciar a URL HTTPS do Tailscale em novos códigos "
-"de pareamento."
+msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing codes."
+msgstr "Pronto. Ative para anunciar a URL HTTPS do Tailscale em novos códigos de pareamento."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Reasoning"
@@ -5661,11 +5493,8 @@ msgstr "Reconectando ao desktop…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Reconstructed from local logs at public API rates — it does not reflect "
-"your real bill on subscription plans. Shown only in the usage panel."
-msgstr "Reconstruído a partir de registros locais com taxas de API públicas — "
-"não reflete sua fatura real em planos de assinatura. Mostrado apenas no "
-"painel de uso."
+msgid "Reconstructed from local logs at public API rates — it does not reflect your real bill on subscription plans. Shown only in the usage panel."
+msgstr "Reconstruído a partir de registros locais com taxas de API públicas — não reflete sua fatura real em planos de assinatura. Mostrado apenas no painel de uso."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Redact notification content"
@@ -5796,10 +5625,8 @@ msgstr "Remover {pattern}"
 
 #. placeholder {0}: removeConfirm.target.name
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "Remove <0>{0}</0> and permanently delete all of its threads? This cannot "
-"be undone."
-msgstr "Remover <0>{0}</0> e excluir permanentemente todos os seus tópicos? "
-"Isso não pode ser desfeito."
+msgid "Remove <0>{0}</0> and permanently delete all of its threads? This cannot be undone."
+msgstr "Remover <0>{0}</0> e excluir permanentemente todos os seus tópicos? Isso não pode ser desfeito."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 msgid "Remove action"
@@ -5955,8 +5782,7 @@ msgstr "alterações solicitadas"
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Required reviews, conversations, or status checks not met."
-msgstr "Avaliações, conversas ou verificações de status necessárias não "
-"atendidas."
+msgstr "Avaliações, conversas ou verificações de status necessárias não atendidas."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "reset"
@@ -6184,14 +6010,11 @@ msgstr "em execução"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Runs before a worktree is removed (e.g., <0>rm -rf node_modules</0>)."
-msgstr "É executado antes que uma árvore de trabalho seja removida (por "
-"exemplo, <0>rm -rf node_modules</0>)."
+msgstr "É executado antes que uma árvore de trabalho seja removida (por exemplo, <0>rm -rf node_modules</0>)."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
-msgid "Runs in a terminal after a new worktree is created (e.g., <0>pnpm "
-"install</0>)."
-msgstr "É executado em um terminal após a criação de uma nova árvore de "
-"trabalho (por exemplo, <0>pnpm install</0>)."
+msgid "Runs in a terminal after a new worktree is created (e.g., <0>pnpm install</0>)."
+msgstr "É executado em um terminal após a criação de uma nova árvore de trabalho (por exemplo, <0>pnpm install</0>)."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Runs out early"
@@ -6253,26 +6076,20 @@ msgid "Scan QR code"
 msgstr "Escanear QR code"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of "
-"seconds."
-msgstr "Verificando {wslDistro} em busca de CLIs instaladas. Isso geralmente "
-"leva alguns segundos."
+msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
+msgstr "Verificando {wslDistro} em busca de CLIs instaladas. Isso geralmente leva alguns segundos."
 
 #: src/mobile/QrScanner.tsx
 msgid "Scanning needs a secure connection"
 msgstr "O escaneamento precisa de uma conexão segura"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Scanning Windows and WSL for installed CLIs. This usually takes a couple "
-"of seconds."
-msgstr "Verificando Windows e WSL em busca de CLIs instaladas. Isso geralmente "
-"leva alguns segundos."
+msgid "Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds."
+msgstr "Verificando Windows e WSL em busca de CLIs instaladas. Isso geralmente leva alguns segundos."
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
-msgid "Scanning your system for installed CLIs. This usually takes a couple of "
-"seconds."
-msgstr "Verificando seu sistema em busca de CLIs instaladas. Isso geralmente "
-"leva alguns segundos."
+msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
+msgstr "Verificando seu sistema em busca de CLIs instaladas. Isso geralmente leva alguns segundos."
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -6282,8 +6099,7 @@ msgstr "Scripts"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Scroll speed multiplier for the terminal scrollback buffer."
-msgstr "Multiplicador de velocidade de rolagem para o buffer de rolagem do "
-"terminal."
+msgstr "Multiplicador de velocidade de rolagem para o buffer de rolagem do terminal."
 
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/components/thread/ChatPane/ChatScrollControls.tsx
@@ -6442,10 +6258,8 @@ msgid "Send a message..."
 msgstr "Envie uma mensagem..."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-msgid "Send generic text instead of conversation titles through Apple's push "
-"service."
-msgstr "Enviar texto genérico em vez dos títulos das conversas pelo serviço "
-"push da Apple."
+msgid "Send generic text instead of conversation titles through Apple's push service."
+msgstr "Enviar texto genérico em vez dos títulos das conversas pelo serviço push da Apple."
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -6457,12 +6271,8 @@ msgid "Sent selection to terminal."
 msgstr "Seleção enviada para o terminal."
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-msgid "Separate Claude Code accounts by config directory, or point a profile at "
-"an external provider (z.ai, …). Open a profile to configure its env "
-"vars, models, and effort."
-msgstr "Separe contas do Claude Code por diretório de configuração ou aponte um "
-"perfil para um provedor externo (z.ai, …). Abra um perfil para "
-"configurar suas variáveis de ambiente, modelos e esforço."
+msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
+msgstr "Separe contas do Claude Code por diretório de configuração ou aponte um perfil para um provedor externo (z.ai, …). Abra um perfil para configurar suas variáveis de ambiente, modelos e esforço."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
@@ -6514,8 +6324,7 @@ msgstr "Mostrar círculo de {label} na barra lateral"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show a projectless Home scope for OS-level agent sessions."
-msgstr "Mostre um escopo inicial sem projeto para sessões de agente no nível do "
-"sistema operacional."
+msgstr "Mostre um escopo inicial sem projeto para sessões de agente no nível do sistema operacional."
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
@@ -6538,10 +6347,8 @@ msgstr "Mostrar círculos na barra lateral"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Show compact per-provider usage rings in the sidebar. Hide individual "
-"providers' circles in the list below."
-msgstr "Mostre anéis de uso compactos por provedor na barra lateral. Oculte os "
-"círculos de provedores individuais na lista abaixo."
+msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
+msgstr "Mostre anéis de uso compactos por provedor na barra lateral. Oculte os círculos de provedores individuais na lista abaixo."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Show composer"
@@ -6690,8 +6497,7 @@ msgstr "Fazendo login…"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Signing out {env}. Detected agents will refresh when it finishes."
-msgstr "Saindo de {env}. Os agentes detectados serão atualizados quando "
-"terminar."
+msgstr "Saindo de {env}. Os agentes detectados serão atualizados quando terminar."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Signing out. Detected agents will refresh when it finishes."
@@ -6719,10 +6525,8 @@ msgid "Some checks are failing or pending."
 msgstr "Algumas verificações estão falhando ou pendentes."
 
 #: src/mobile/QrScanner.tsx
-msgid "Something went wrong starting the camera. Enter the endpoint and token "
-"below to pair instead."
-msgstr "Algo deu errado ao iniciar a câmera. Informe o endpoint e o token "
-"abaixo para parear manualmente."
+msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
+msgstr "Algo deu errado ao iniciar a câmera. Informe o endpoint e o token abaixo para parear manualmente."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Sort by created"
@@ -6788,8 +6592,7 @@ msgstr "Inicie o {appName} para ver o uso"
 
 #: src/mobile/views/PortsView.tsx
 msgid "Start a dev server on your desktop, then tap refresh."
-msgstr "Inicie um servidor de desenvolvimento no seu desktop e toque em "
-"atualizar."
+msgstr "Inicie um servidor de desenvolvimento no seu desktop e toque em atualizar."
 
 #: src/renderer/commands/registry.ts
 msgid "Start a new thread as panel instead of page"
@@ -6805,8 +6608,7 @@ msgstr "Inicie um novo tópico com esta tarefa"
 
 #: src/mobile/views/ThreadsView.tsx
 msgid "Start a new thread to put an agent to work from this device."
-msgstr "Inicie uma nova thread para colocar um agente para trabalhar a partir "
-"deste dispositivo."
+msgstr "Inicie uma nova thread para colocar um agente para trabalhar a partir deste dispositivo."
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Start dictation"
@@ -6831,11 +6633,8 @@ msgstr "Inicie o Tailscale para habilitar o acesso HTTPS pelo MagicDNS."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
-msgid "Start the composer collapsed in terminal-native threads. A collapsed "
-"composer routes browser element picks straight to the terminal."
-msgstr "Inicie o compositor recolhido em threads nativos do terminal. Um "
-"compositor recolhido encaminha as seleções de elementos do navegador "
-"direto para o terminal."
+msgid "Start the composer collapsed in terminal-native threads. A collapsed composer routes browser element picks straight to the terminal."
+msgstr "Inicie o compositor recolhido em threads nativos do terminal. Um compositor recolhido encaminha as seleções de elementos do navegador direto para o terminal."
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Start voice input"
@@ -6884,10 +6683,8 @@ msgid "Status"
 msgstr "Status"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
-msgid "Status is inferred from terminal output (L2). Install the hook plugin in "
-"settings for structured updates."
-msgstr "O status é inferido da saída do terminal (L2). Instale o plugin hook "
-"nas configurações para atualizações estruturadas."
+msgid "Status is inferred from terminal output (L2). Install the hook plugin in settings for structured updates."
+msgstr "O status é inferido da saída do terminal (L2). Instale o plugin hook nas configurações para atualizações estruturadas."
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Status is provided by the agent control protocol (ACP)."
@@ -7133,8 +6930,7 @@ msgstr "Tirar captura de tela"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."
-msgstr "Toque em + para adicionar uma pasta ou clonar um repositório no seu "
-"desktop."
+msgstr "Toque em + para adicionar uma pasta ou clonar um repositório no seu desktop."
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Tap + to pair with Poracode on your desktop."
@@ -7241,29 +7037,20 @@ msgstr "a pasta escolhida"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "The default background refresh cadence, used for any provider without "
-"its own interval set below. Set to 0 to turn off (manual only). The "
-"2-minute floor respects provider rate limits."
-msgstr "A cadência padrão de atualização em segundo plano, usada para qualquer "
-"provedor sem um intervalo próprio definido abaixo. Defina como 0 para "
-"desligar (somente manual). O piso de 2 minutos respeita os limites de "
-"tarifa do provedor."
+msgid "The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits."
+msgstr "A cadência padrão de atualização em segundo plano, usada para qualquer provedor sem um intervalo próprio definido abaixo. Defina como 0 para desligar (somente manual). O piso de 2 minutos respeita os limites de tarifa do provedor."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."
 msgstr "O servidor do desktop ainda está iniciando."
 
 #: src/renderer/RendererCrashScreen.tsx
-msgid "The normal app shell could not render. The diagnostics below are shown "
-"before reload so the failure can be investigated."
-msgstr "O shell normal do aplicativo não pôde ser renderizado. Os diagnósticos "
-"abaixo são mostrados antes da recarga para que a falha possa ser "
-"investigada."
+msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
+msgstr "O shell normal do aplicativo não pôde ser renderizado. Os diagnósticos abaixo são mostrados antes da recarga para que a falha possa ser investigada."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
-msgstr "A localização do repositório no disco. Atualize-a se você moveu a "
-"pasta."
+msgstr "A localização do repositório no disco. Atualize-a se você moveu a pasta."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -7289,30 +7076,20 @@ msgid "This agent is not installed."
 msgstr "Este agente não está instalado."
 
 #: src/mobile/routeComponents.tsx
-msgid "This app is served over HTTPS but the desktop is on plain HTTP, which "
-"browsers block. Open the pairing link directly from the desktop (LAN), "
-"or expose the desktop over HTTPS."
-msgstr "Este app é servido por HTTPS, mas o desktop está em HTTP simples, que "
-"os navegadores bloqueiam. Abra o link de pareamento diretamente no "
-"desktop (LAN) ou exponha o desktop por HTTPS."
+msgid "This app is served over HTTPS but the desktop is on plain HTTP, which browsers block. Open the pairing link directly from the desktop (LAN), or expose the desktop over HTTPS."
+msgstr "Este app é servido por HTTPS, mas o desktop está em HTTP simples, que os navegadores bloqueiam. Abra o link de pareamento diretamente no desktop (LAN) ou exponha o desktop por HTTPS."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
-msgid "This browser does not support system notifications here; you will still "
-"see in-app toasts."
-msgstr "Este navegador não oferece suporte a notificações do sistema aqui; você "
-"ainda verá avisos no app."
+msgid "This browser does not support system notifications here; you will still see in-app toasts."
+msgstr "Este navegador não oferece suporte a notificações do sistema aqui; você ainda verá avisos no app."
 
 #: src/mobile/views/ManageProjectsView.tsx
-msgid "This connection can view projects but not manage them. Re-pair to "
-"enable."
-msgstr "Esta conexão pode ver projetos, mas não gerenciá-los. Faça o pareamento "
-"novamente para habilitar."
+msgid "This connection can view projects but not manage them. Re-pair to enable."
+msgstr "Esta conexão pode ver projetos, mas não gerenciá-los. Faça o pareamento novamente para habilitar."
 
 #: src/mobile/QrScanner.tsx
-msgid "This device has no usable camera. Enter the endpoint and token below to "
-"pair instead."
-msgstr "Este dispositivo não tem câmera utilizável. Informe o endpoint e o "
-"token abaixo para parear manualmente."
+msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
+msgstr "Este dispositivo não tem câmera utilizável. Informe o endpoint e o token abaixo para parear manualmente."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "this environment"
@@ -7343,19 +7120,14 @@ msgid "This permanently deletes the branch \"{0}\"."
 msgstr "Isso exclui permanentemente o branch \"{0}\"."
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
-msgid "This removes later messages and restores files when a checkpoint "
-"snapshot is available."
-msgstr "Isso remove mensagens posteriores e restaura arquivos quando um "
-"instantâneo do ponto de verificação estiver disponível."
+msgid "This removes later messages and restores files when a checkpoint snapshot is available."
+msgstr "Isso remove mensagens posteriores e restaura arquivos quando um instantâneo do ponto de verificação estiver disponível."
 
 #. placeholder {0}: pendingDelete.branch.name
 #. placeholder {1}: pendingDelete.threadCount
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
-msgid "This removes the worktree on \"{0}\" and closes {1, plural, one {# "
-"linked thread} other {# linked threads}}, then deletes the branch."
-msgstr "Isso remove a árvore de trabalho em \"{0}\" e fecha {1, plural, one {# "
-"tópico vinculado} other {# tópicos vinculados}}, e depois exclui o "
-"branch."
+msgid "This removes the worktree on \"{0}\" and closes {1, plural, one {# linked thread} other {# linked threads}}, then deletes the branch."
+msgstr "Isso remove a árvore de trabalho em \"{0}\" e fecha {1, plural, one {# tópico vinculado} other {# tópicos vinculados}}, e depois exclui o branch."
 
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
@@ -7364,18 +7136,13 @@ msgstr "Isso remove a árvore de trabalho em \"{0}\" e depois exclui o branch."
 
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
-msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree "
-"directory?"
-msgstr "Este tópico usa a árvore de trabalho <0>{0}</0>. Remover também o "
-"diretório da árvore de trabalho?"
+msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
+msgstr "Este tópico usa a árvore de trabalho <0>{0}</0>. Remover também o diretório da árvore de trabalho?"
 
 #. placeholder {0}: activeDialog.sourceBranch
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
-msgid "This worktree has local changes. Poracode can temporarily stash them, "
-"pull from {0}, then re-apply your changes."
-msgstr "Esta árvore de trabalho possui alterações locais. O Poracode pode "
-"armazená-las temporariamente, fazer pull de {0} e depois reaplicar suas "
-"alterações."
+msgid "This worktree has local changes. Poracode can temporarily stash them, pull from {0}, then re-apply your changes."
+msgstr "Esta árvore de trabalho possui alterações locais. O Poracode pode armazená-las temporariamente, fazer pull de {0} e depois reaplicar suas alterações."
 
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
 msgid "Thought"
@@ -7451,11 +7218,8 @@ msgstr "Tópicos"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
-msgid "Threads marked done that have not been touched for this many days are "
-"archived automatically on app launch. Set to 0 to disable."
-msgstr "Tópicos marcados como concluídos que não foram tocados por tantos dias "
-"são arquivados automaticamente na inicialização do aplicativo. Defina "
-"como 0 para desativar."
+msgid "Threads marked done that have not been touched for this many days are archived automatically on app launch. Set to 0 to disable."
+msgstr "Tópicos marcados como concluídos que não foram tocados por tantos dias são arquivados automaticamente na inicialização do aplicativo. Defina como 0 para desativar."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -7541,12 +7305,8 @@ msgid "Track {label} usage"
 msgstr "Rastrear o uso de {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Track per-provider session, weekly, and monthly usage. Windows are "
-"reported by each provider; estimated cost is reconstructed from local "
-"logs."
-msgstr "Acompanhe a sessão por provedor, o uso semanal e mensal. As janelas são "
-"informadas por cada provedor; o custo estimado é reconstruído a partir "
-"de registros locais."
+msgid "Track per-provider session, weekly, and monthly usage. Windows are reported by each provider; estimated cost is reconstructed from local logs."
+msgstr "Acompanhe a sessão por provedor, o uso semanal e mensal. As janelas são informadas por cada provedor; o custo estimado é reconstruído a partir de registros locais."
 
 #: src/mobile/settingsSections.ts
 msgid "Tracking and display"
@@ -7575,10 +7335,8 @@ msgid "Turn on remote access to show a pairing code."
 msgstr "Ative o acesso remoto para mostrar um código de pareamento."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Turn tracking on or off per provider. Disabled providers are skipped by "
-"the auto-refresh."
-msgstr "Ative ou desative o rastreamento por provedor. Provedores desativados "
-"são ignorados pela atualização automática."
+msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
+msgstr "Ative ou desative o rastreamento por provedor. Provedores desativados são ignorados pela atualização automática."
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type a command"
@@ -7692,8 +7450,7 @@ msgstr "Não foi possível remover a árvore de trabalho."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to resolve home directory for WSL distro \"{distro}\""
-msgstr "Não foi possível resolver o diretório inicial da distribuição WSL "
-"\"{distro}\""
+msgstr "Não foi possível resolver o diretório inicial da distribuição WSL \"{distro}\""
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to revoke remote session."
@@ -7904,8 +7661,7 @@ msgstr "Erro de atualização: {detail}"
 
 #: src/mobile/views/PortsView.tsx
 msgid "Update Lightcode on your desktop to use port forwarding."
-msgstr "Atualize o Lightcode no seu desktop para usar o encaminhamento de "
-"portas."
+msgstr "Atualize o Lightcode no seu desktop para usar o encaminhamento de portas."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update method"
@@ -8010,20 +7766,16 @@ msgstr "Usar arquivos de ignore"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
-msgid "Use one global folder, or nest worktrees inside each project at "
-".poracode/worktrees."
-msgstr "Use uma única pasta global ou aninhe as árvores de trabalho dentro de "
-"cada projeto em .poracode/worktrees."
+msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
+msgstr "Use uma única pasta global ou aninhe as árvores de trabalho dentro de cada projeto em .poracode/worktrees."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
 msgstr "Usar sessão"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
-msgid "Use this account for usage tracking, or change users in the browser "
-"before continuing."
-msgstr "Use esta conta para monitorar o uso ou altere os usuários no navegador "
-"antes de continuar."
+msgid "Use this account for usage tracking, or change users in the browser before continuing."
+msgstr "Use esta conta para monitorar o uso ou altere os usuários no navegador antes de continuar."
 
 #: src/mobile/views/HostFolderPicker.tsx
 msgid "Use this folder"
@@ -8120,28 +7872,20 @@ msgid "Wait for the thread to finish starting."
 msgstr "Aguarde o tópico terminar de iniciar."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Waiting for {authEnv} {authMethodName} authentication. Detected agents "
-"will refresh when it finishes."
-msgstr "Aguardando autenticação {authEnv} {authMethodName}. Os agentes "
-"detectados serão atualizados quando terminar."
+msgid "Waiting for {authEnv} {authMethodName} authentication. Detected agents will refresh when it finishes."
+msgstr "Aguardando autenticação {authEnv} {authMethodName}. Os agentes detectados serão atualizados quando terminar."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Waiting for {authMethodName} authentication. Detected agents will "
-"refresh when it finishes."
-msgstr "Aguardando autenticação {authMethodName}. Os agentes detectados serão "
-"atualizados quando terminar."
+msgid "Waiting for {authMethodName} authentication. Detected agents will refresh when it finishes."
+msgstr "Aguardando autenticação {authMethodName}. Os agentes detectados serão atualizados quando terminar."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Waiting for {env} {methodName} authentication. Detected agents will "
-"refresh when it finishes."
-msgstr "Aguardando autenticação {env} {methodName}. Os agentes detectados serão "
-"atualizados quando terminar."
+msgid "Waiting for {env} {methodName} authentication. Detected agents will refresh when it finishes."
+msgstr "Aguardando autenticação {env} {methodName}. Os agentes detectados serão atualizados quando terminar."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Waiting for {methodName} authentication. Detected agents will refresh "
-"when it finishes."
-msgstr "Aguardando autenticação {methodName}. Os agentes detectados serão "
-"atualizados quando terminar."
+msgid "Waiting for {methodName} authentication. Detected agents will refresh when it finishes."
+msgstr "Aguardando autenticação {methodName}. Os agentes detectados serão atualizados quando terminar."
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"
@@ -8197,12 +7941,8 @@ msgstr "Site"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "What the Create PR button does by default: open a dialog to edit the "
-"title and description first, or auto-generate them and create the PR in "
-"one click. You can also switch this from the button's menu."
-msgstr "O que o botão Criar PR faz por padrão: abra uma caixa de diálogo para "
-"editar primeiro o título e a descrição ou gere-os automaticamente e "
-"crie o PR com um clique. Você também pode mudar isso no menu do botão."
+msgid "What the Create PR button does by default: open a dialog to edit the title and description first, or auto-generate them and create the PR in one click. You can also switch this from the button's menu."
+msgstr "O que o botão Criar PR faz por padrão: abra uma caixa de diálogo para editar primeiro o título e a descrição ou gere-os automaticamente e crie o PR com um clique. Você também pode mudar isso no menu do botão."
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
@@ -8220,16 +7960,12 @@ msgstr "Quando ativada, a pesquisa respeita as entradas <0>.gitignore</0>."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "When links open in a Poracode browser tab, choose where the browser is "
-"revealed."
-msgstr "Quando os links são abertos em uma guia do navegador Poracode, escolha "
-"onde o navegador é revelado."
+msgid "When links open in a Poracode browser tab, choose where the browser is revealed."
+msgstr "Quando os links são abertos em uma guia do navegador Poracode, escolha onde o navegador é revelado."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
-msgid "When off, suppress notifications from terminal threads whose status "
-"comes from the OSC fallback (no CLI hook plugin)."
-msgstr "Quando desativado, suprime notificações de tópicos de terminal cujo "
-"status vem do fallback OSC (sem plug-in de gancho CLI)."
+msgid "When off, suppress notifications from terminal threads whose status comes from the OSC fallback (no CLI hook plugin)."
+msgstr "Quando desativado, suprime notificações de tópicos de terminal cujo status vem do fallback OSC (sem plug-in de gancho CLI)."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8238,29 +7974,21 @@ msgstr "Quando exibir alertas no aplicativo para tópicos visíveis."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "When you close the window, keep Poracode running in the system tray. "
-"Disable to quit on close."
-msgstr "Ao fechar a janela, mantenha o Poracode em execução na bandeja do "
-"sistema. Desative para sair ao fechar."
+msgid "When you close the window, keep Poracode running in the system tray. Disable to quit on close."
+msgstr "Ao fechar a janela, mantenha o Poracode em execução na bandeja do sistema. Desative para sair ao fechar."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
-msgid "Where a browser element-picker selection goes in terminal-native "
-"threads. A collapsed composer always routes to the terminal."
-msgstr "Para onde vai uma seleção do seletor de elementos do navegador em "
-"tópicos nativos do terminal. Um compositor recolhido sempre roteia para "
-"o terminal."
+msgid "Where a browser element-picker selection goes in terminal-native threads. A collapsed composer always routes to the terminal."
+msgstr "Para onde vai uma seleção do seletor de elementos do navegador em tópicos nativos do terminal. Um compositor recolhido sempre roteia para o terminal."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"
 msgstr "Por onde você quer começar?"
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
-msgid "Where Poracode creates git worktrees for new branches. Changes apply to "
-"worktrees created from now on; existing worktrees stay where they are."
-msgstr "Onde o Poracode cria árvores de trabalho do git para novos branches. As "
-"alterações se aplicam às árvores de trabalho criadas a partir de agora; "
-"as árvores de trabalho existentes permanecem onde estão."
+msgid "Where Poracode creates git worktrees for new branches. Changes apply to worktrees created from now on; existing worktrees stay where they are."
+msgstr "Onde o Poracode cria árvores de trabalho do git para novos branches. As alterações se aplicam às árvores de trabalho criadas a partir de agora; as árvores de trabalho existentes permanecem onde estão."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -8280,8 +8008,7 @@ msgstr "Janelas"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Windows is not supported yet. Install inside WSL or on macOS/Linux."
-msgstr "O Windows ainda não é compatível. Instale dentro do WSL ou no "
-"macOS/Linux."
+msgstr "O Windows ainda não é compatível. Instale dentro do WSL ou no macOS/Linux."
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Work"
@@ -8301,17 +8028,12 @@ msgid "Workflow"
 msgstr "Fluxo de trabalho"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
-msgid "Workflow finished. Child agents ran in a separate process and aren’t "
-"streamed here yet."
-msgstr "Fluxo de trabalho concluído. Os agentes filhos foram executados em um "
-"processo separado e ainda não foram transmitidos aqui."
+msgid "Workflow finished. Child agents ran in a separate process and aren’t streamed here yet."
+msgstr "Fluxo de trabalho concluído. Os agentes filhos foram executados em um processo separado e ainda não foram transmitidos aqui."
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
-msgid "Workflow is running in the background. Child agents run in a separate "
-"process and aren’t streamed here yet."
-msgstr "O fluxo de trabalho está sendo executado em segundo plano. Os agentes "
-"filhos são executados em um processo separado e ainda não são "
-"transmitidos aqui."
+msgid "Workflow is running in the background. Child agents run in a separate process and aren’t streamed here yet."
+msgstr "O fluxo de trabalho está sendo executado em segundo plano. Os agentes filhos são executados em um processo separado e ainda não são transmitidos aqui."
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Workflow phases"
@@ -8376,10 +8098,8 @@ msgid "Worktree mode"
 msgstr "Modo árvore de trabalho"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
-msgid "Worktree root for this project (a Linux path). Reset to use the global "
-"setting."
-msgstr "Raiz da árvore de trabalho para este projeto (um caminho Linux). "
-"Redefina para usar a configuração global."
+msgid "Worktree root for this project (a Linux path). Reset to use the global setting."
+msgstr "Raiz da árvore de trabalho para este projeto (um caminho Linux). Redefina para usar a configuração global."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx

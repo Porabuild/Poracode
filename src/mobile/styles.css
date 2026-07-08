@@ -4220,34 +4220,34 @@ html:active-view-transition-type(screen)::view-transition-new(m-topbar) {
    screen slides in over it; the new root is the empty shell behind the lifted
    screen, so keep it hidden rather than letting it cross-fade the old chrome
    away mid-slide. */
-html:active-view-transition-type(screen):active-view-transition-type(push)::view-transition-old(
-    m-topbar
-  ),
-html:active-view-transition-type(screen):active-view-transition-type(push)::view-transition-old(
-    root
-  ) {
+html:active-view-transition-type(screen):active-view-transition-type(
+  push
+)::view-transition-old(m-topbar),
+html:active-view-transition-type(screen):active-view-transition-type(
+  push
+)::view-transition-old(root) {
   animation: m-vt-hold 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
-html:active-view-transition-type(screen):active-view-transition-type(push)::view-transition-new(
-    root
-  ) {
+html:active-view-transition-type(screen):active-view-transition-type(
+  push
+)::view-transition-new(root) {
   animation: m-vt-hide 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
 /* SCREEN POP — the revealed page paints fully from the first frame beneath the
    departing screen (no fade-in), and the old root (the empty shell behind the
    lifted screen) stays out of the blend. */
-html:active-view-transition-type(screen):active-view-transition-type(pop)::view-transition-new(
-    m-topbar
-  ),
-html:active-view-transition-type(screen):active-view-transition-type(pop)::view-transition-new(
-    root
-  ) {
+html:active-view-transition-type(screen):active-view-transition-type(
+  pop
+)::view-transition-new(m-topbar),
+html:active-view-transition-type(screen):active-view-transition-type(
+  pop
+)::view-transition-new(root) {
   animation: m-vt-hold 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
-html:active-view-transition-type(screen):active-view-transition-type(pop)::view-transition-old(
-    root
-  ) {
+html:active-view-transition-type(screen):active-view-transition-type(
+  pop
+)::view-transition-old(root) {
   animation: m-vt-hide 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 

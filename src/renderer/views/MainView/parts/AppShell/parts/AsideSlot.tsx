@@ -1,4 +1,4 @@
-import type { CSSProperties, MouseEvent, ReactNode, RefObject } from "react";
+import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode, RefObject } from "react";
 
 export type AsideOrientation = "vertical" | "horizontal";
 
@@ -9,6 +9,7 @@ export function AsideSlot(props: {
   targetWidth?: number;
   targetHeight?: number;
   onResizeStart: (event: MouseEvent<HTMLDivElement>) => void;
+  onResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
   panelRef: RefObject<HTMLDivElement | null>;
   panelInnerRef: RefObject<HTMLDivElement | null>;
   ariaLabel: string;
@@ -25,6 +26,7 @@ export function AsideSlot(props: {
     targetWidth,
     targetHeight,
     onResizeStart,
+    onResizeKeyDown,
     panelRef,
     panelInnerRef,
     ariaLabel,
@@ -120,7 +122,9 @@ export function AsideSlot(props: {
             isHorizontal ? "lightcode-resize-handle-horizontal" : "lightcode-resize-handle"
           }
           onMouseDown={onResizeStart}
+          onKeyDown={onResizeKeyDown}
           role="separator"
+          tabIndex={0}
           aria-orientation={orientation}
           aria-label={ariaLabel}
         />

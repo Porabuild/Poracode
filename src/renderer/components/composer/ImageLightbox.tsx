@@ -119,7 +119,7 @@ export function ImageLightboxView(props: {
   if (!current) return null;
 
   return createPortal(
-    <div // eslint-disable-line jsx-a11y/click-events-have-key-events -- keyboard nav handled via useEffect
+    <div // eslint-disable-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop click-to-dismiss is mouse-only by design; Escape (handled via the useEffect above) is the keyboard equivalent
       className="lightcode-image-lightbox"
       onClick={onClose}
       role="dialog"

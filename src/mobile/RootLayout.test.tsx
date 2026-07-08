@@ -72,7 +72,12 @@ vi.mock("@/renderer/views/MainView/parts/PullFromSourceDialog", () => ({
 vi.mock("./components", () => ({
   ConnectionBanner: () => null,
   ConnectionPill: (props: { state: string }) => (
-    <button type="button" data-testid="connection-pill" data-state={props.state} />
+    <button
+      type="button"
+      data-testid="connection-pill"
+      data-state={props.state}
+      aria-label="Connection status"
+    />
   ),
   // Functional stand-in: renders the trigger plus one button per item, so
   // tests can drive the header quick menu without the portal/animation layer.

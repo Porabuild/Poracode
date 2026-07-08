@@ -85,6 +85,41 @@ function ActiveForwardRowButton(props: {
   );
 }
 
+function ActiveForwardRowTrigger(props: {
+  readonly open: () => void;
+  readonly forward: ActivePortForward;
+  readonly meta: string;
+  readonly opening: boolean;
+  readonly onOpen: () => void;
+}) {
+  return (
+    <ActiveForwardRowButton
+      forward={props.forward}
+      meta={props.meta}
+      opening={props.opening}
+      onOpen={props.onOpen}
+      onMenu={props.open}
+    />
+  );
+}
+
+/**
+ * Builds the `SheetMenu` `trigger` render-prop for `ActiveForwardRow`. Defined
+ * at module scope (rather than as an inline arrow in the render body) so the
+ * callback isn't redefined as an anonymous nested function on every render —
+ * `SheetMenu` calls this directly (not as a JSX component).
+ */
+function createActiveForwardRowTrigger(extra: {
+  readonly forward: ActivePortForward;
+  readonly meta: string;
+  readonly opening: boolean;
+  readonly onOpen: () => void;
+}) {
+  return function renderActiveForwardRowTrigger(api: { readonly open: () => void }) {
+    return <ActiveForwardRowTrigger open={api.open} {...extra} />;
+  };
+}
+
 function ActiveForwardRow(props: {
   readonly forward: ActivePortForward;
   readonly meta: string;
@@ -119,15 +154,12 @@ function ActiveForwardRow(props: {
         if (id === "copy") props.onCopy();
         if (id === "stop") props.onStop();
       }}
-      trigger={({ open }) => (
-        <ActiveForwardRowButton
-          forward={props.forward}
-          meta={props.meta}
-          opening={props.opening}
-          onOpen={props.onOpen}
-          onMenu={open}
-        />
-      )}
+      trigger={createActiveForwardRowTrigger({
+        forward: props.forward,
+        meta: props.meta,
+        opening: props.opening,
+        onOpen: props.onOpen,
+      })}
     />
   );
 }

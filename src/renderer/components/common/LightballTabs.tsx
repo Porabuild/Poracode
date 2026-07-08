@@ -79,7 +79,7 @@ export function LightballTabs<K extends string>(props: {
     buttonRefs.current[id]?.focus();
   }
 
-  function handleKey(event: KeyboardEvent<HTMLDivElement>) {
+  function handleKey(event: KeyboardEvent<HTMLButtonElement>) {
     const enabled = tabs.filter((t) => !t.disabled);
     if (enabled.length === 0) return;
     const currentIdx = Math.max(
@@ -114,7 +114,6 @@ export function LightballTabs<K extends string>(props: {
       ref={listRef}
       role="tablist"
       aria-label={ariaLabel}
-      onKeyDown={handleKey}
       className={`relative inline-flex h-7 items-center ${containerRadiusClass} ${containerChromeClass} p-0.5 ${className ?? ""}`}
     >
       <FlyingLightball
@@ -140,6 +139,7 @@ export function LightballTabs<K extends string>(props: {
               tabIndex={isActive ? 0 : -1}
               disabled={tab.disabled}
               onClick={() => selectTab(tab.id)}
+              onKeyDown={handleKey}
               className={`relative ${equalWidth ? "flex-1" : ""} flex h-full items-center justify-center gap-1.5 ${tabRadiusClass} px-3 text-[11px] font-semibold tracking-tight outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-focus/50 ${
                 litText ? "text-foreground" : "text-muted/60"
               }`}
