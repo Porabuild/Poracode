@@ -1,4 +1,12 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
@@ -15,11 +23,15 @@ import {
   runThreadAction,
 } from "./navHelpers";
 import {
+  clearPairingLaunch,
   isMixedContentEndpoint,
   normalizePairingEndpoint,
   parsePairingLaunch,
   parsePairingUrl,
+  subscribePairingLaunch,
 } from "./pairing";
+import { MobileSetupEmptyState, type MobileSetupKind } from "./setupEmptyState";
+import { useGitSummaryHydration } from "./useGitSummaryHydration";
 import { useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
 import { DesktopsView } from "./views/DesktopsView";
 import { ManageProjectsView } from "./views/ManageProjectsView";
@@ -60,7 +72,7 @@ function LazyRoute(props: { readonly children: ReactNode }) {
   return (
     <Suspense
       fallback={
-        <div className="m-page">
+        <div className="m-page m-route-loading">
           <div className="text-sm text-muted">
             <Trans>Loading…</Trans>
           </div>
@@ -73,12 +85,53 @@ function LazyRoute(props: { readonly children: ReactNode }) {
 }
 
 /**
+ * Suspense boundary for the fullscreen overlay routes (workspace, terminal).
+ * Their push/pop navigations slide via the `m-screen` view-transition group,
+ * and the view transition captures whatever the route renders at commit time —
+ * on a cold chunk that's the fallback, so the fallback itself must be a
+ * fullscreen, `m-screen`-named surface or the slide has nothing to animate
+ * (the old page then just dissolves via the root cross-fade, and the late-
+ * arriving screen paints with no coherent entry). The idle warmup below makes
+ * this fallback a rare slow-network sight.
+ */
+function FullscreenLazyRoute(props: { readonly children: ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <section className="m-screen-loading">
+          <div className="text-sm text-muted">
+            <Trans>Loading…</Trans>
+          </div>
+        </section>
+      }
+    >
+      {props.children}
+    </Suspense>
+  );
+}
+
+// Warm the fullscreen screens' chunks once the first paint has settled, so the
+// first push into workspace/terminal captures real content for its slide
+// instead of the cold Suspense fallback.
+if (typeof window !== "undefined") {
+  const warmFullscreenChunks = () => {
+    void import("./views/WorkspaceView");
+    void import("./views/TerminalView");
+  };
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(warmFullscreenChunks, { timeout: 4_000 });
+  } else {
+    window.setTimeout(warmFullscreenChunks, 2_000);
+  }
+}
+
+/**
  * Shared thread detail pane. Used by the /thread/:id route and, in the wide
  * layout, by the /threads route (where the list lives in the sidebar and the
  * detail shows the selected thread, or an empty state when none is selected).
  */
 function ThreadDetail(props: { readonly thread: Thread | null; readonly hideHeader: boolean }) {
-  const { remote } = useMobileApp();
+  const remote = useRemote();
   const navigate = useNavigate();
   const thread = props.thread;
   // Still fetching this thread's history when no snapshot matches it yet.
@@ -156,6 +209,7 @@ export function ThreadsRoute() {
     setProjectFilter,
     threadSearchOpen,
     setThreadSearchOpen,
+    threadSearchHost,
     setChromeHidden,
   } = useMobileApp();
   const navigate = useNavigate();
@@ -163,6 +217,22 @@ export function ThreadsRoute() {
   // The home composer's expand state (kept here so the list's empty-state
   // "New thread" button grows the same bubble as a tap on it).
   const [composeExpanded, setComposeExpanded] = useState(false);
+  const readyToCompose = remote.connection === "online" && remote.projects.length > 0;
+  const needsDesktop = remote.connection !== "online";
+  const setupKind: MobileSetupKind | null = readyToCompose
+    ? null
+    : needsDesktop
+      ? "desktop"
+      : "project";
+  const setupEmptyState =
+    setupKind === null ? null : (
+      <MobileSetupEmptyState
+        kind={setupKind}
+        onAction={(kind) =>
+          void navigate(kind === "desktop" ? { to: "/desktops" } : { to: "/more/projects" })
+        }
+      />
+    );
 
   // The narrow list is the "away from every thread" surface: reset the shared
   // view so threads finishing from here on count as unwatched (the store
@@ -187,6 +257,7 @@ export function ThreadsRoute() {
         projectFilter={projectFilter}
         loading={!remote.booted}
         searchOpen={threadSearchOpen}
+        searchContainer={threadSearchHost}
         onSearchOpenChange={setThreadSearchOpen}
         onChromeHiddenChange={setChromeHidden}
         onProjectFilterChange={setProjectFilter}
@@ -226,22 +297,25 @@ export function ThreadsRoute() {
             },
           })
         }
+        {...(setupEmptyState ? { emptyStateOverride: setupEmptyState } : {})}
       />
-      <QuickCompose
-        expanded={composeExpanded}
-        onExpandedChange={setComposeExpanded}
-        onStarted={(threadId) => {
-          setComposeExpanded(false);
-          void navigate({ to: "/thread/$threadId", params: { threadId } });
-        }}
-      />
+      {readyToCompose ? (
+        <QuickCompose
+          expanded={composeExpanded}
+          onExpandedChange={setComposeExpanded}
+          onStarted={(threadId) => {
+            setComposeExpanded(false);
+            void navigate({ to: "/thread/$threadId", params: { threadId } });
+          }}
+        />
+      ) : null}
     </>
   );
 }
 
 export function ThreadRoute() {
   const { threadId } = threadRouteApi.useParams();
-  const { remote } = useMobileApp();
+  const remote = useRemote();
   const isWide = useMediaQuery(WIDE_SHELL_QUERY);
   // Track existence rather than the array reference (which changes every render)
   // so the open effect only re-runs when the routed thread appears/leaves.
@@ -266,16 +340,36 @@ export function NewThreadRoute() {
   return (
     <NewThreadFlow
       onStarted={(threadId) => void navigate({ to: "/thread/$threadId", params: { threadId } })}
+      onSetupAction={(kind) =>
+        void navigate(kind === "desktop" ? { to: "/desktops" } : { to: "/more/projects" })
+      }
     />
   );
 }
 
 export function DesktopsRoute() {
-  const { remote } = useMobileApp();
+  const remote = useRemote();
   const navigate = useNavigate();
   const { t } = useLingui();
-  const [manualEndpoint, setManualEndpoint] = useState(() => parsePairingLaunch().endpoint);
-  const [manualToken, setManualToken] = useState("");
+  // A launch/deep-link pairing offer prefills the form for the user to CONFIRM
+  // (see useDeepLinkPairing). Reactive so a warm deep link re-prefills.
+  const launch = useSyncExternalStore(
+    subscribePairingLaunch,
+    parsePairingLaunch,
+    parsePairingLaunch,
+  );
+  const [manualEndpoint, setManualEndpoint] = useState(launch.endpoint);
+  const [manualToken, setManualToken] = useState(launch.credential ?? "");
+  const lastLaunchRef = useRef(launch);
+  useEffect(() => {
+    if (launch !== lastLaunchRef.current) {
+      lastLaunchRef.current = launch;
+      if (launch.credential) {
+        setManualEndpoint(launch.endpoint);
+        setManualToken(launch.credential);
+      }
+    }
+  }, [launch]);
   const manualEndpointValue = manualEndpoint.trim();
   const manualTokenValue = manualToken.trim();
   const manualPairingLink =
@@ -300,6 +394,7 @@ export function DesktopsRoute() {
     }
     try {
       await remote.pairDesktop(normalizedEndpoint, credential);
+      clearPairingLaunch();
       setManualToken("");
       void navigate({ to: "/threads" });
     } catch (error) {
@@ -335,7 +430,7 @@ export function DesktopsRoute() {
       manualEndpoint={manualEndpoint}
       manualToken={manualToken}
       canPair={canPairManually}
-      showPairingHint={parsePairingLaunch().credential !== null}
+      showPairingHint={launch.credential !== null}
       pairing={remote.connection === "pairing"}
       onEndpointChange={setManualEndpoint}
       onTokenChange={setManualToken}
@@ -404,7 +499,7 @@ export function BrowserRoute() {
 }
 
 function SettingsRoute(props: { readonly sectionId: string | null }) {
-  const { remote } = useMobileApp();
+  const remote = useRemote();
   const navigate = useNavigate();
 
   return (
@@ -440,9 +535,14 @@ export function SettingsSectionRoute() {
 export function WorkspaceRoute() {
   const { threadId } = workspaceRouteApi.useParams();
   const { tab, file, folder, line } = workspaceRouteApi.useSearch();
-  const { remote } = useMobileApp();
+  const remote = useRemote();
   const navigate = useNavigate();
   const { t } = useLingui();
+  const thread = remote.threads.find((entry) => entry.id === threadId) ?? null;
+  const project = thread
+    ? (remote.projects.find((entry) => entry.id === thread.projectId) ?? null)
+    : null;
+  useGitSummaryHydration(thread, project);
 
   // A non-repo thread still has a Files tab; the Changes tab only appears when
   // the thread's working tree is a git repo (per the cached summary).
@@ -461,8 +561,9 @@ export function WorkspaceRoute() {
   // The workspace belongs to a thread; closing returns there deterministically
   // (robust even on a fresh load with no back-history).
   return (
-    <LazyRoute>
+    <FullscreenLazyRoute>
       <WorkspaceView
+        key={threadId}
         gitTarget={gitTarget}
         filesTarget={filesTarget}
         initialTab={isRepo ? tab : "files"}
@@ -506,14 +607,14 @@ export function WorkspaceRoute() {
             });
         }}
       />
-    </LazyRoute>
+    </FullscreenLazyRoute>
   );
 }
 
 export function TerminalRoute() {
   const { projectId } = terminalRouteApi.useParams();
   const { worktree, action, fromThread } = terminalRouteApi.useSearch();
-  const { remote } = useMobileApp();
+  const remote = useRemote();
   const navigate = useNavigate();
   const project = remote.projects.find((entry) => entry.id === projectId);
   const sourceThread = fromThread
@@ -541,7 +642,7 @@ export function TerminalRoute() {
     void navigate({ to: "/threads" });
   }
   return (
-    <LazyRoute>
+    <FullscreenLazyRoute>
       {/*
         TanStack Router keeps this component mounted across param/search changes,
         but TerminalView seeds its tabs once and starts each shell keyed on its
@@ -557,6 +658,6 @@ export function TerminalRoute() {
         {...(projectAction?.command ? { initialCommand: projectAction.command } : {})}
         onClose={closeTerminal}
       />
-    </LazyRoute>
+    </FullscreenLazyRoute>
   );
 }

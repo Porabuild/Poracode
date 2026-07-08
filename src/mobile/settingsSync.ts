@@ -19,6 +19,10 @@ import type { RemoteDesktopClient } from "./remoteClient";
 
 let desktopSettings: RemoteSettings | null = null;
 let pendingPushes = 0;
+// Monotonic id of the most recent push. Only its resolution may write back to
+// desktopSettings, so a slow or failed earlier push can't clobber the value a
+// newer push already committed (nor a late push repopulate after a reset).
+let latestPushToken = 0;
 
 /** Remote-editable values are JSON data (scalars plus the agent/model
  * records); structural comparison is what "changed" means here. */
@@ -42,6 +46,9 @@ export function applyDesktopSettings(settings: RemoteSettings): void {
 /** Forget the synced snapshot (disconnect / switching desktops). */
 export function resetDesktopSettings(): void {
   desktopSettings = null;
+  // Invalidate any in-flight push so its late resolution can't repopulate the
+  // snapshot for a desktop we've since switched away from.
+  latestPushToken += 1;
 }
 
 /** Forwards changed remote-editable keys to the desktop. No-op until the
@@ -65,14 +72,18 @@ export function pushDesktopSettingsDiff(
   // (the store writes the full object on every change) don't re-send.
   desktopSettings = merged;
   pendingPushes += 1;
+  const token = ++latestPushToken;
   client
     .updateSettings(patch)
     .then((next) => {
-      desktopSettings = next;
+      // Ignore an out-of-order resolution from a superseded push.
+      if (token === latestPushToken) desktopSettings = next;
     })
     .catch(() => {
+      // Only the latest push's failure invalidates the snapshot; an older push
+      // failing after a newer one succeeded must not discard the newer value.
       // Next hydration restores the desktop's truth.
-      desktopSettings = null;
+      if (token === latestPushToken) desktopSettings = null;
     })
     .finally(() => {
       pendingPushes -= 1;

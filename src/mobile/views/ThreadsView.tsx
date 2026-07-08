@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type UIEvent as ReactUIEvent,
+} from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -16,14 +24,17 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import type { UIEvent as ReactUIEvent } from "react";
 import type { Project, Thread } from "@/shared/contracts";
 import { getBasename } from "@/shared/pathUtils";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { ThreadProviderIcon, getStatusTone } from "@/renderer/components/providers";
+import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput";
 import {
+  entryIsStarred,
+  entryLatestDate,
   groupThreads,
+  isRecent,
   type ThreadListEntry,
 } from "@/renderer/views/MainView/parts/Sidebar/parts/groupThreads";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
@@ -33,6 +44,13 @@ import { useKeyboardOffset } from "../useKeyboardOffset";
 import { GitSummaryBadge, WorktreeGitSummaryBadge } from "../GitSummaryParts";
 import { worktreeBranchOf, worktreeSiblingIds } from "../threadUtils";
 import type { ThreadAction } from "../useRemoteDesktop";
+import { normalizeSearchText, threadMatchesSearch } from "./threadSearch";
+import {
+  groupEntryKey,
+  groupEntryTitle,
+  groupLatestUpdatedAt,
+  type GroupEntry,
+} from "./threadGrouping";
 
 export interface ThreadsViewProps {
   readonly projects: readonly Project[];
@@ -44,11 +62,11 @@ export interface ThreadsViewProps {
   readonly loading?: boolean;
   /**
    * Header-driven search (narrow home screen): when set, the always-visible
-   * inline search box is replaced by a floating input that slides in under the
-   * header while `searchOpen` is true. Leave unset for the inline box (wide
-   * sidebar).
+   * inline search box is replaced by an input rendered into the shell header
+   * while `searchOpen` is true. Leave unset for the inline box (wide sidebar).
    */
   readonly searchOpen?: boolean;
+  readonly searchContainer?: HTMLElement | null;
   readonly onSearchOpenChange?: (open: boolean) => void;
   /** Reports scroll direction so the shell can collapse/reveal its chrome. */
   readonly onChromeHiddenChange?: (hidden: boolean) => void;
@@ -81,6 +99,8 @@ export interface ThreadsViewProps {
     readonly worktreePath?: string;
     readonly sourceThreadId?: string;
   }) => void;
+  /** Replaces the default no-threads empty state when setup blocks composition. */
+  readonly emptyStateOverride?: ReactNode;
 }
 
 /** Placeholder rows shown on first load before any thread data arrives. */
@@ -99,29 +119,6 @@ function ThreadListSkeleton() {
       ))}
     </div>
   );
-}
-
-function normalizeSearchText(value: string | undefined): string {
-  return value?.trim().toLowerCase() ?? "";
-}
-
-function threadMatchesSearch(
-  thread: Thread,
-  projectName: string | undefined,
-  query: string,
-): boolean {
-  const haystack = [
-    thread.title,
-    projectName,
-    thread.worktreeBranch,
-    thread.worktreePath,
-    thread.agentKind,
-    thread.groupName,
-  ]
-    .map(normalizeSearchText)
-    .filter(Boolean)
-    .join(" ");
-  return haystack.includes(query);
 }
 
 /** Long-press (touch) or right-click context menu for a thread row. */
@@ -315,7 +312,8 @@ function ThreadRow(props: {
 }) {
   const { thread } = props;
   const { t } = useLingui();
-  const tone = getStatusTone(thread);
+  const hasLiveWorkflow = useThreadHasLiveWorkflow(thread.id);
+  const tone = getStatusTone(thread, { hasLiveWorkflow });
   const live = tone !== "inactive" && tone !== "done";
   const worktreeName =
     !props.hideWorktree && thread.worktreePath ? getBasename(thread.worktreePath) : undefined;
@@ -330,7 +328,7 @@ function ThreadRow(props: {
       onClick={props.onPress}
       {...longPressHandlers}
     >
-      <ThreadProviderIcon thread={thread} className="size-4 shrink-0" />
+      <ThreadProviderIcon thread={thread} tone={tone} className="size-4 shrink-0" />
       <span className="m-thread-row__body">
         <span className="m-thread-row__title" data-done={thread.done || undefined}>
           {thread.title}
@@ -356,32 +354,6 @@ function ThreadRow(props: {
         />
       </span>
     </button>
-  );
-}
-
-type GroupEntry = Extract<ThreadListEntry, { kind: "worktree-group" | "thread-group" }>;
-
-/** Stable collapse key per group: worktree path or explicit group id. */
-function groupEntryKey(entry: GroupEntry): string {
-  return entry.kind === "worktree-group"
-    ? `wt:${entry.group.worktreePath}`
-    : `group:${entry.group.groupId}`;
-}
-
-/** Header label: the branch (or worktree folder), else the group's name. */
-function groupEntryTitle(entry: GroupEntry): string {
-  if (entry.kind === "worktree-group") {
-    const { worktreeBranch, worktreePath } = entry.group;
-    if (worktreeBranch && worktreeBranch !== worktreePath) return worktreeBranch;
-    return getBasename(worktreePath);
-  }
-  return entry.group.groupName;
-}
-
-function groupLatestUpdatedAt(threads: readonly Thread[]): string {
-  return threads.reduce(
-    (latest, thread) => (thread.updatedAt > latest ? thread.updatedAt : latest),
-    threads[0]!.updatedAt,
   );
 }
 
@@ -648,9 +620,13 @@ export function ThreadsView(props: ThreadsViewProps) {
   const groupMenu = useSheet<GroupEntry>();
   const [query, setQuery] = useState("");
 
-  // Header-driven (floating) search vs. the wide sidebar's inline box.
+  // Header-driven search vs. the wide sidebar's inline box.
   const floatingSearch = props.searchOpen !== undefined;
-  const searchVisible = floatingSearch ? props.searchOpen === true : props.threads.length > 0;
+  // While booting (threads unknown) the inline box renders anyway so the
+  // header doesn't pop in once cached/live data lands.
+  const searchVisible = floatingSearch
+    ? props.searchOpen === true
+    : props.threads.length > 0 || props.loading === true;
   // Closing the floating search keeps the box mounted briefly so it can play
   // its exit animation back into the header icon. The exiting flag flips
   // during render (not in an effect): the box must swap to the exit animation
@@ -742,8 +718,11 @@ export function ThreadsView(props: ThreadsViewProps) {
   const currentProjectLabel = props.projectFilter
     ? (projectNames.get(props.projectFilter) ?? t`Project`)
     : t`All projects`;
+  // Render the trigger while projects are still unknown (booting with a cold
+  // cache) so it doesn't pop in when data arrives; single-project setups
+  // resolve to no picker as usual once loading settles.
   const projectPicker =
-    pickerProjects.length > 1 ? (
+    pickerProjects.length > 1 || (props.projects.length === 0 && props.loading === true) ? (
       <SheetMenu
         label={t`Filter by project`}
         closeLabel={t`Close project filter`}
@@ -813,10 +792,10 @@ export function ThreadsView(props: ThreadsViewProps) {
       ) : null}
     </label>
   );
-  // Floating mode overlays the search under the header; inline mode keeps it
-  // pinned in the picker row. While closing, the overlay lingers with
+  // Header mode portals the search into the shell's topbar zone; inline mode
+  // keeps it pinned in the picker row. While closing, the search lingers with
   // [data-closing] until its shrink-into-the-icon animation finishes.
-  const searchOverlay =
+  const searchOverlayNode =
     floatingSearch && (searchVisible || searchExiting) ? (
       <div
         ref={searchFloatRef}
@@ -835,6 +814,10 @@ export function ThreadsView(props: ThreadsViewProps) {
         {searchField}
       </div>
     ) : null;
+  const searchOverlay =
+    props.searchContainer && searchOverlayNode
+      ? createPortal(searchOverlayNode, props.searchContainer)
+      : searchOverlayNode;
   const inlineSearch = !floatingSearch && searchVisible ? searchField : null;
   const controls =
     inlineSearch || projectPicker ? (
@@ -844,9 +827,14 @@ export function ThreadsView(props: ThreadsViewProps) {
       </div>
     ) : null;
 
-  if (visibleThreads.length === 0 && props.loading) {
+  // Show the boot skeleton only when NOT searching: a search that matches
+  // nothing during the pre-boot cache load should render "No matching threads",
+  // not six fake shimmer rows.
+  if (visibleThreads.length === 0 && props.loading && searchQuery.length === 0) {
     return (
       <div className="m-threads">
+        {controls}
+        {searchOverlay}
         <ThreadListSkeleton />
       </div>
     );
@@ -854,38 +842,38 @@ export function ThreadsView(props: ThreadsViewProps) {
 
   if (visibleThreads.length === 0) {
     const filteredOut = projectFilteredThreads.length > 0 && searchQuery.length > 0;
+    const emptyStateOverride = !filteredOut ? props.emptyStateOverride : undefined;
     return (
       <div className="m-threads">
         {controls}
         {searchOverlay}
-        <EmptyState
-          icon={<History className="size-5" />}
-          title={
-            filteredOut
-              ? t`No matching threads`
-              : props.projectFilter
-                ? t`No threads in this project`
-                : t`No threads yet`
-          }
-          hint={
-            filteredOut
-              ? t`Try a different search or project filter.`
-              : t`Start a new thread to put an agent to work from this device.`
-          }
-          action={
-            filteredOut ? (
-              <Button size="sm" variant="secondary" onPress={() => setQuery("")}>
-                <X className="size-4" />
-                <Trans>Clear search</Trans>
-              </Button>
-            ) : (
-              <Button className="text-white" size="sm" variant="secondary" onPress={props.onNew}>
-                <Plus className="size-4" />
-                <Trans>New thread</Trans>
-              </Button>
-            )
-          }
-        />
+        {emptyStateOverride ?? (
+          <EmptyState
+            icon={<History className="size-5" />}
+            title={
+              filteredOut
+                ? t`No matching threads`
+                : props.projectFilter
+                  ? t`No threads in this project`
+                  : t`No threads yet`
+            }
+            hint={
+              filteredOut
+                ? t`Try a different search or project filter.`
+                : t`Start a new thread to put an agent to work from this device.`
+            }
+            {...(filteredOut
+              ? {
+                  action: (
+                    <Button size="sm" variant="secondary" onPress={() => setQuery("")}>
+                      <X className="size-4" />
+                      <Trans>Clear search</Trans>
+                    </Button>
+                  ),
+                }
+              : {})}
+          />
+        )}
       </div>
     );
   }
@@ -893,7 +881,27 @@ export function ThreadsView(props: ThreadsViewProps) {
   // Collapse threads that share a worktree (or an explicit group) into one
   // header. Standalone threads stay as plain rows. Reuses the desktop sidebar's
   // grouping so both surfaces agree on what counts as a group.
-  const entries = groupThreads([...visibleThreads]);
+  const groupedEntries = groupThreads([...visibleThreads]);
+  // Split into Pinned / Current (updated < 24h) / Older sections, floated in
+  // that order and labeled — mirroring the desktop sidebar. `visibleThreads` is
+  // already recency-sorted, so these stable partitions keep that order within
+  // each section. Pinning any group member floats the whole group (entryIsStarred).
+  const pinnedEntries = groupedEntries.filter(entryIsStarred);
+  const unpinnedEntries = groupedEntries.filter((entry) => !entryIsStarred(entry));
+  const currentEntries = unpinnedEntries.filter((entry) =>
+    isRecent(entryLatestDate(entry, "updatedAt")),
+  );
+  const olderEntries = unpinnedEntries.filter(
+    (entry) => !isRecent(entryLatestDate(entry, "updatedAt")),
+  );
+  const sections = [
+    { key: "pinned", label: t`Pinned`, entries: pinnedEntries },
+    { key: "current", label: t`Current`, entries: currentEntries },
+    { key: "older", label: t`Older`, entries: olderEntries },
+  ].filter((section) => section.entries.length > 0);
+  // A lone section spans the whole list, so its label would be noise; only show
+  // the headers once there is an actual boundary between two or more sections.
+  const showSectionLabels = sections.length > 1;
 
   // A worktree-group child drops its worktree + git badges (the header carries
   // them); any group child drops the project name (the header carries that too).
@@ -910,6 +918,35 @@ export function ThreadsView(props: ThreadsViewProps) {
     />
   );
 
+  const renderEntry = (entry: ThreadListEntry) => {
+    if (entry.kind === "thread") return renderThreadRow(entry.thread);
+
+    const key = groupEntryKey(entry);
+    const isCollapsed = collapsed.has(key);
+    // The worktree path is project-unique, so a group is always one project;
+    // surface its name only in the cross-project "All" view.
+    const headerProjectName = props.projectFilter
+      ? undefined
+      : projectNames.get(entry.group.threads[0]!.projectId);
+    const groupKind = entry.kind === "worktree-group" ? "worktree" : "thread";
+    return (
+      <div className="m-thread-group" key={key} data-collapsed={isCollapsed || undefined}>
+        <ThreadGroupHeader
+          entry={entry}
+          projectName={headerProjectName}
+          collapsed={isCollapsed}
+          onToggle={() => toggleCollapsed(key)}
+          onMenu={() => groupMenu.open(entry)}
+        />
+        {isCollapsed ? null : (
+          <div className="m-thread-group__items">
+            {entry.group.threads.map((thread) => renderThreadRow(thread, groupKind))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const menuThread = threadMenu.target;
   const menuGroupEntry = groupMenu.target;
 
@@ -918,34 +955,12 @@ export function ThreadsView(props: ThreadsViewProps) {
       {controls}
       {searchOverlay}
       <div className="m-thread-list" onScroll={handleListScroll}>
-        {entries.map((entry) => {
-          if (entry.kind === "thread") return renderThreadRow(entry.thread);
-
-          const key = groupEntryKey(entry);
-          const isCollapsed = collapsed.has(key);
-          // The worktree path is project-unique, so a group is always one
-          // project; surface its name only in the cross-project "All" view.
-          const headerProjectName = props.projectFilter
-            ? undefined
-            : projectNames.get(entry.group.threads[0]!.projectId);
-          const groupKind = entry.kind === "worktree-group" ? "worktree" : "thread";
-          return (
-            <div className="m-thread-group" key={key} data-collapsed={isCollapsed || undefined}>
-              <ThreadGroupHeader
-                entry={entry}
-                projectName={headerProjectName}
-                collapsed={isCollapsed}
-                onToggle={() => toggleCollapsed(key)}
-                onMenu={() => groupMenu.open(entry)}
-              />
-              {isCollapsed ? null : (
-                <div className="m-thread-group__items">
-                  {entry.group.threads.map((thread) => renderThreadRow(thread, groupKind))}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {sections.map((section) => (
+          <Fragment key={section.key}>
+            {showSectionLabels ? <div className="m-thread-section">{section.label}</div> : null}
+            {section.entries.map((entry) => renderEntry(entry))}
+          </Fragment>
+        ))}
       </div>
       {menuThread ? (
         <ThreadActionsSheet

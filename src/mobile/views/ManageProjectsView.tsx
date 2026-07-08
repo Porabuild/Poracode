@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { Button } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { FolderOpen, FolderPlus, GitBranch, Loader2, Trash2 } from "lucide-react";
 import type { Project } from "@/shared/contracts";
 import { cloneFolderNameFromUrl } from "@/shared/createProject";
 import type { RemoteProjectCommand } from "@/shared/remote";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
-import { BottomSheet, useSheet } from "../components";
+import { useLongPress } from "@/renderer/hooks/useLongPress";
+import { Fab, BottomSheet, EmptyState, FullScreenDrawer, useSheet } from "../components";
 import { HostFolderPicker } from "./HostFolderPicker";
 
 export interface ManageProjectsViewProps {
@@ -18,6 +19,25 @@ export interface ManageProjectsViewProps {
 
 function projectPath(project: Project): string {
   return "path" in project.location ? project.location.path : project.location.uncPath;
+}
+
+/** The flat card from ThreadRow. There is no primary tap action for a project,
+ * so the remove flow hangs off a long-press (same gesture as thread rows)
+ * instead of a visible trash button. */
+function ProjectRow(props: { readonly project: Project; readonly onMenu: (() => void) | null }) {
+  const { project } = props;
+  const longPressHandlers = useLongPress(props.onMenu);
+  return (
+    <div className="m-thread-row" {...longPressHandlers}>
+      <FolderOpen className="size-4 shrink-0 text-muted" />
+      <span className="m-thread-row__body">
+        <span className="m-thread-row__title">{project.name}</span>
+        <span className="m-thread-row__meta">
+          <span className="m-thread-row__meta-item">{projectPath(project)}</span>
+        </span>
+      </span>
+    </div>
+  );
 }
 
 /**
@@ -32,6 +52,9 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
   const [cloneUrl, setCloneUrl] = useState("");
   const [pickerTarget, setPickerTarget] = useState<"folder" | "clone" | null>(null);
   const { busy, error, run } = useAsyncOperation();
+  // The add-a-folder / clone forms now live in a full-screen drawer opened from
+  // the FAB, so the list isn't buried under a permanent form.
+  const addDrawer = useSheet<true>();
   // Removing a project cascade-deletes all its threads on the server, so gate it
   // behind a confirm sheet (mirrors FilesView / GitActionSheet's confirm step).
   const removeConfirm = useSheet<Project>();
@@ -46,7 +69,7 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
         : null;
 
   return (
-    <section className="m-page">
+    <section className={props.canManage ? "m-page m-page--fab" : "m-page"}>
       <div className="m-page-head">
         <div>
           <h1>
@@ -61,32 +84,41 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
       {props.projects.length > 0 ? (
         <div className="m-thread-list">
           {props.projects.map((project) => (
-            <div key={project.id} className="m-thread-row">
-              <span className="m-thread-row__body">
-                <span className="m-thread-row__title">{project.name}</span>
-                <span className="m-thread-row__meta">
-                  <span className="m-thread-row__meta-item">{projectPath(project)}</span>
-                </span>
-              </span>
-              {props.canManage ? (
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="tertiary"
-                  aria-label={t`Remove project`}
-                  isDisabled={busy}
-                  onPress={() => removeConfirm.open(project)}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              ) : null}
-            </div>
+            <ProjectRow
+              key={project.id}
+              project={project}
+              onMenu={props.canManage && !busy ? () => removeConfirm.open(project) : null}
+            />
           ))}
         </div>
-      ) : null}
+      ) : props.canManage ? (
+        <EmptyState
+          icon={<FolderOpen className="size-5" />}
+          title={<Trans>No projects yet</Trans>}
+          hint={<Trans>Tap + to add a folder or clone a repository on your desktop.</Trans>}
+        />
+      ) : (
+        <EmptyState
+          icon={<FolderOpen className="size-5" />}
+          title={<Trans>No projects</Trans>}
+          hint={
+            <Trans>This connection can view projects but not manage them. Re-pair to enable.</Trans>
+          }
+        />
+      )}
 
       {props.canManage ? (
-        <>
+        <Fab label={t`Add a project`} onPress={() => addDrawer.open(true)} />
+      ) : null}
+
+      {props.canManage && addDrawer.target ? (
+        <FullScreenDrawer
+          title={t`Add a project`}
+          label={t`Add a project`}
+          closeLabel={t`Close add project`}
+          closing={addDrawer.closing}
+          onClose={addDrawer.close}
+        >
           <div className="m-card">
             <h2 className="m-card__title">
               <FolderPlus className="size-4" />
@@ -117,6 +149,7 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
                   run(async () => {
                     await props.onCommand({ kind: "add-existing", path: folderPath.trim() });
                     setFolderPath("");
+                    addDrawer.close();
                   })
                 }
               >
@@ -176,6 +209,8 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
                       source: { kind: "url", url: cloneUrl.trim() },
                     });
                     setCloneUrl("");
+                    setCloneParent("");
+                    addDrawer.close();
                   })
                 }
               >
@@ -186,14 +221,8 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
           </div>
 
           {error ? <p className="m-card__hint m-card__hint--accent">{error}</p> : null}
-        </>
-      ) : (
-        <div className="m-card">
-          <p className="m-card__hint">
-            <Trans>This connection can view projects but not manage them. Re-pair to enable.</Trans>
-          </p>
-        </div>
-      )}
+        </FullScreenDrawer>
+      ) : null}
 
       {pickerConfig ? (
         <HostFolderPicker
@@ -221,9 +250,6 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
                 its threads? This cannot be undone.
               </Trans>
             </p>
-            <button type="button" className="m-sheet-action" onClick={removeConfirm.close}>
-              <Trans>Cancel</Trans>
-            </button>
             <button
               type="button"
               className="m-sheet-action text-danger"
@@ -231,7 +257,16 @@ export function ManageProjectsView(props: ManageProjectsViewProps) {
               onClick={() => {
                 const projectId = removeConfirm.target!.id;
                 removeConfirm.close();
-                run(() => props.onCommand({ kind: "remove", projectId }));
+                // The drawer that renders `run`'s captured error is closed during
+                // the remove flow, so a failure would be silent — surface it as a
+                // toast (same message handling as useAsyncOperation).
+                void props
+                  .onCommand({ kind: "remove", projectId })
+                  .catch((removeError: unknown) => {
+                    toast.danger(
+                      removeError instanceof Error ? removeError.message : String(removeError),
+                    );
+                  });
               }}
             >
               <Trash2 className="size-4" />

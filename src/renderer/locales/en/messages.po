@@ -18,6 +18,7 @@ msgid "(Draft)"
 msgstr "(Draft)"
 
 #: src/mobile/GitSummaryParts.tsx
+#: src/mobile/views/WorkspaceView.tsx
 msgid "(no branch)"
 msgstr "(no branch)"
 
@@ -36,7 +37,7 @@ msgid "{0, plural, one {# paired connection} other {# paired connections}}"
 msgstr "{0, plural, one {# paired connection} other {# paired connections}}"
 
 #. placeholder {0}: remote.desktops.length
-#: src/mobile/RootLayout.tsx
+#: src/mobile/WideShell.tsx
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# paired desktop} other {# paired desktops}}"
 
@@ -506,20 +507,16 @@ msgstr "Action name"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Actions"
 msgstr "Actions"
 
-#. placeholder {0}: props.entry.name
 #. placeholder {0}: thread.title
-#: src/mobile/views/FilesView.tsx
 #: src/mobile/views/ThreadsView.tsx
 msgid "Actions for {0}"
 msgstr "Actions for {0}"
 
-#: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/ThreadsView.tsx
 msgid "Actions for {title}"
 msgstr "Actions for {title}"
@@ -552,6 +549,11 @@ msgstr "Add"
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "Add a local project"
+
+#: src/mobile/setupEmptyState.tsx
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Add a project"
+msgstr "Add a project"
 
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
@@ -605,6 +607,7 @@ msgstr "Add pattern"
 msgid "Add profile"
 msgstr "Add profile"
 
+#: src/mobile/setupEmptyState.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Add project"
 msgstr "Add project"
@@ -1184,7 +1187,8 @@ msgstr "Browse for parent folder"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Browse your GitHub repositories or paste a clone URL."
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
@@ -1276,7 +1280,6 @@ msgstr "Camera access blocked"
 #. Dialog button: dismiss without deleting
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1570,6 +1573,10 @@ msgstr "Close {closeTarget}"
 msgid "Close {purposeNoun} terminal"
 msgstr "Close {purposeNoun} terminal"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Close add project"
+msgstr "Close add project"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close browser"
 msgstr "Close browser"
@@ -1624,6 +1631,10 @@ msgstr "Close merge options"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Close overlay"
 msgstr "Close overlay"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Close pairing"
+msgstr "Close pairing"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
@@ -1895,6 +1906,7 @@ msgstr "Conflict Resolver"
 msgid "Conflicts"
 msgstr "Conflicts"
 
+#: src/mobile/setupEmptyState.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect"
 msgstr "Connect"
@@ -1902,6 +1914,14 @@ msgstr "Connect"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect a server"
 msgstr "Connect a server"
+
+#: src/mobile/setupEmptyState.tsx
+msgid "Connect desktop"
+msgstr "Connect desktop"
+
+#: src/mobile/setupEmptyState.tsx
+msgid "Connect Poracode on your desktop before starting a thread."
+msgstr "Connect Poracode on your desktop before starting a thread."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Connect the AI providers OpenCode can use and sign out of them here."
@@ -1935,7 +1955,8 @@ msgstr "Connection error."
 msgid "Connection failed."
 msgstr "Connection failed."
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
 #: src/mobile/views/DesktopsView.tsx
 msgid "Connections"
 msgstr "Connections"
@@ -2222,6 +2243,10 @@ msgstr "Credentials are configured."
 msgid "Credits"
 msgstr "Credits"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Current"
+msgstr "Current"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "current streak"
 msgstr "current streak"
@@ -2394,7 +2419,7 @@ msgstr "Desktop endpoint"
 msgid "Desktop is unreachable."
 msgstr "Desktop is unreachable."
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
 msgstr "Desktop Settings"
@@ -2438,10 +2463,6 @@ msgstr "Device used by the composer voice input button."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
 msgstr "Devices can pair while this desktop is reachable."
-
-#: src/renderer/components/composer/ComposerAddMenu.tsx
-#~ msgid "Disable"
-#~ msgstr "Disable"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
@@ -2490,7 +2511,7 @@ msgstr "Discard changes"
 msgid "Discard changes to <0>{title}</0>? This cannot be undone."
 msgstr "Discard changes to <0>{title}</0>? This cannot be undone."
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/useOpenFile.ts
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -2662,10 +2683,6 @@ msgstr "Effort levels"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Electron"
 msgstr "Electron"
-
-#: src/renderer/components/composer/ComposerAddMenu.tsx
-#~ msgid "Enable"
-#~ msgstr "Enable"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
@@ -2916,7 +2933,6 @@ msgid "File"
 msgstr "File"
 
 #: src/mobile/views/FilesView.tsx
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 msgid "File actions"
 msgstr "File actions"
 
@@ -3182,12 +3198,6 @@ msgstr "Generates commit messages from staged changes."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Generates short titles for new threads."
-
-#: src/mobile/push/MobilePushSettings.tsx
-msgid "Get alerts through Apple's push service when this desktop's threads "
-"finish or need you — even while the app is closed."
-msgstr "Get alerts through Apple's push service when this desktop's threads "
-"finish or need you — even while the app is closed."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -3512,10 +3522,6 @@ msgstr "Install Tailscale"
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "Install Tailscale to enable HTTPS access through MagicDNS."
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Install Tailscale to set up HTTPS access through MagicDNS."
-#~ msgstr "Install Tailscale to set up HTTPS access through MagicDNS."
-
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
@@ -3751,10 +3757,6 @@ msgstr "Location"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Log in to Tailscale to enable HTTPS access through MagicDNS."
 msgstr "Log in to Tailscale to enable HTTPS access through MagicDNS."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Log in to Tailscale to set up HTTPS access through MagicDNS."
-#~ msgstr "Log in to Tailscale to set up HTTPS access through MagicDNS."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Logging in"
@@ -4056,7 +4058,8 @@ msgstr "Models"
 msgid "Modes"
 msgstr "Modes"
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "More"
@@ -4217,7 +4220,7 @@ msgstr "New file"
 msgid "New File"
 msgstr "New File"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/useFileTree.ts
 msgid "New file name"
 msgstr "New file name"
 
@@ -4230,7 +4233,7 @@ msgstr "New folder"
 msgid "New Folder"
 msgstr "New Folder"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/useFileTree.ts
 msgid "New folder name"
 msgstr "New folder name"
 
@@ -4260,9 +4263,9 @@ msgstr "New tab"
 msgid "New tab in group"
 msgstr "New tab in group"
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
 #: src/mobile/views/QuickCompose.tsx
-#: src/mobile/views/ThreadsView.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
@@ -4401,9 +4404,13 @@ msgstr "No commands found"
 msgid "No commits found."
 msgstr "No commits found."
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/WideShell.tsx
 msgid "No connection paired"
 msgstr "No connection paired"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "No connections yet"
+msgstr "No connections yet"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No content streams."
@@ -4507,17 +4514,18 @@ msgstr "No patterns."
 msgid "No phases yet."
 msgstr "No phases yet."
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "No projects"
 msgstr "No projects"
 
-#: src/mobile/views/NewThreadView.tsx
-msgid "No projects available"
-msgstr "No projects available"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "No projects on this server."
 msgstr "No projects on this server."
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "No projects yet"
+msgstr "No projects yet"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
@@ -4685,6 +4693,7 @@ msgstr "Offline"
 msgid "Offline. Showing the last synced data."
 msgstr "Offline. Showing the last synced data."
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Older"
 msgstr "Older"
@@ -4722,14 +4731,6 @@ msgstr "Open {label}"
 #: src/renderer/commands/registry.ts
 msgid "Open a new browser tab"
 msgstr "Open a new browser tab"
-
-#: src/mobile/views/NewThreadView.tsx
-#~ msgid "Open a project in Lightcode on your desktop, then refresh."
-#~ msgstr "Open a project in Lightcode on your desktop, then refresh."
-
-#: src/mobile/views/NewThreadView.tsx
-msgid "Open a project in Poracode on your desktop, then refresh."
-msgstr "Open a project in Poracode on your desktop, then refresh."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
@@ -4890,14 +4891,6 @@ msgid "Open Settings"
 msgstr "Open Settings"
 
 #: src/mobile/views/DesktopsView.tsx
-#~ msgid "Open Settings → Remote Access in Lightcode on your desktop, then scan "
-#~ "the QR code from here — or enter the endpoint and pairing token "
-#~ "manually."
-#~ msgstr "Open Settings → Remote Access in Lightcode on your desktop, then scan "
-#~ "the QR code from here — or enter the endpoint and pairing token "
-#~ "manually."
-
-#: src/mobile/views/DesktopsView.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the "
 "QR code from here — or enter the endpoint and pairing token manually."
 msgstr "Open Settings → Remote Access in Poracode on your desktop, then scan "
@@ -5025,6 +5018,7 @@ msgid "Pairing"
 msgstr "Pairing"
 
 #: src/mobile/components.tsx
+#: src/mobile/useRemoteDesktop.ts
 msgid "Pairing expired — pair again to reconnect."
 msgstr "Pairing expired — pair again to reconnect."
 
@@ -5290,10 +5284,17 @@ msgstr "Project Settings"
 msgid "Project-specific overrides on top of the global search settings."
 msgstr "Project-specific overrides on top of the global search settings."
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Projects"
 msgstr "Projects"
+
+#: src/mobile/setupEmptyState.tsx
+msgid "Projects live on the connected desktop. Add one before starting a "
+"thread."
+msgstr "Projects live on the connected desktop. Add one before starting a "
+"thread."
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Prompt"
@@ -5425,14 +5426,6 @@ msgstr "Push ↑{ahead}"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Push failed: {detail}"
 msgstr "Push failed: {detail}"
-
-#: src/mobile/push/MobilePushSettings.tsx
-msgid "Push notifications"
-msgstr "Push notifications"
-
-#: src/mobile/push/MobilePushSettings.tsx
-msgid "Push notifications may be unavailable for this desktop."
-msgstr "Push notifications may be unavailable for this desktop."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Push updates to paired mobile devices when threads finish or need you, "
@@ -6215,7 +6208,7 @@ msgstr "Search shortcuts"
 msgid "Search the current view"
 msgstr "Search the current view"
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -6321,10 +6314,6 @@ msgstr "Separate Claude Code accounts by config directory, or point a profile "
 "at an external provider (z.ai, …). Open a profile to configure its env "
 "vars, models, and effort."
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
-#~ msgstr "Serve remote access over your tailnet's HTTPS MagicDNS URL."
-
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
 msgstr "Set group color"
@@ -6337,7 +6326,8 @@ msgstr "Set or view an experimental goal"
 msgid "Set shortcut"
 msgstr "Set shortcut"
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -6681,10 +6671,6 @@ msgstr "Start Tailscale"
 msgid "Start Tailscale to enable HTTPS access through MagicDNS."
 msgstr "Start Tailscale to enable HTTPS access through MagicDNS."
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Start Tailscale to set up HTTPS access through MagicDNS."
-#~ msgstr "Start Tailscale to set up HTTPS access through MagicDNS."
-
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Start the composer collapsed in terminal-native threads. A collapsed "
@@ -6982,6 +6968,14 @@ msgstr "Tailscale URL"
 msgid "Take Screenshot"
 msgstr "Take Screenshot"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Tap + to add a folder or clone a repository on your desktop."
+msgstr "Tap + to add a folder or clone a repository on your desktop."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Tap + to pair with Poracode on your desktop."
+msgstr "Tap + to pair with Poracode on your desktop."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Target branch"
 msgstr "Target branch"
@@ -7056,10 +7050,6 @@ msgstr "Terminal tabs"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "Test microphone"
-
-#: src/mobile/routeComponents.tsx
-#~ msgid "That QR code isn't a Lightcode pairing link."
-#~ msgstr "That QR code isn't a Lightcode pairing link."
 
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Poracode pairing link."
@@ -7222,7 +7212,7 @@ msgstr "This worktree has local changes. Poracode can temporarily stash them, "
 msgid "Thought"
 msgstr "Thought"
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/NarrowShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
@@ -7495,7 +7485,7 @@ msgstr "Unable to merge"
 msgid "Unable to open {0} login."
 msgstr "Unable to open {0} login."
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/useOpenFile.ts
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "Unable to open file"
@@ -7799,9 +7789,11 @@ msgstr "Updating {0}"
 msgid "Updating {0} ({env})"
 msgstr "Updating {0} ({env})"
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
 #: src/mobile/settingsSections.ts
 #: src/mobile/ThreadUsageIndicator.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx

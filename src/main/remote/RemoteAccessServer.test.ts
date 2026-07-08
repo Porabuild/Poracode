@@ -10,12 +10,15 @@ import type { BrowserPanelManager } from "../browser";
 import {
   dbDeleteProject,
   dbDeleteThread,
+  dbGetThreadCompletedTurns,
   dbGetProjects,
   dbGetThread,
   dbGetThreadContextUsage,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeSummaries,
   dbGetThreads,
+  dbReplaceThreadRuntimeItems,
+  dbReplaceThreadRuntimeSnapshot,
   dbUpsertProject,
   dbUpsertThread,
 } from "../db";
@@ -44,6 +47,8 @@ vi.mock("../db", () => {
     dbGetThreadRuntimeSummaries: vi.fn<() => Record<string, unknown>>(() => ({})),
     dbGetThread: vi.fn<(threadId: string) => unknown>(() => null),
     dbGetThreads: vi.fn<() => unknown[]>(() => []),
+    dbReplaceThreadRuntimeItems: vi.fn<(...args: unknown[]) => void>(),
+    dbReplaceThreadRuntimeSnapshot: vi.fn<(...args: unknown[]) => void>(),
     dbUpsertProject: vi.fn<(project: unknown, sortOrder: number) => void>(),
     dbDeleteProject: vi.fn<(projectId: string) => void>(),
     dbUpsertThread: vi.fn<(thread: unknown, sortOrder: number) => void>(),
@@ -79,12 +84,15 @@ afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.dispose()));
   vi.mocked(dbDeleteProject).mockReset();
   vi.mocked(dbDeleteThread).mockReset();
+  vi.mocked(dbGetThreadCompletedTurns).mockReset().mockReturnValue([]);
   vi.mocked(dbGetProjects).mockReset().mockReturnValue([]);
   vi.mocked(dbGetThreadContextUsage).mockReset().mockReturnValue(null);
   vi.mocked(dbGetThreadRuntimeItems).mockReset().mockReturnValue([]);
   vi.mocked(dbGetThreadRuntimeSummaries).mockReset().mockReturnValue({});
   vi.mocked(dbGetThread).mockReset().mockReturnValue(null);
   vi.mocked(dbGetThreads).mockReset().mockReturnValue([]);
+  vi.mocked(dbReplaceThreadRuntimeItems).mockReset();
+  vi.mocked(dbReplaceThreadRuntimeSnapshot).mockReset();
   vi.mocked(dbUpsertProject).mockReset();
   vi.mocked(dbUpsertThread).mockReset();
 });
@@ -320,6 +328,170 @@ async function openRawWebSocket(info: RemoteAccessServerInfo, ticket: string): P
 }
 
 describe("RemoteAccessServer", () => {
+  it("persists remotely broadcast thread-state transitions", () => {
+    const initialStartedAt = "2026-01-01T00:00:00.000Z";
+    const db = mockThreadDb([
+      createTestThread({
+        id: "thread-remote",
+        status: "launching",
+        attention: "none",
+        canResumeWithConfig: false,
+        presentationMode: "gui",
+        threadStatusSource: "server",
+        activeTurnStartedAt: initialStartedAt,
+      }),
+    ]);
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+
+    server.publishSupervisorEvent({
+      type: "thread-state",
+      threadId: "thread-remote",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      threadStatusSource: "server",
+    });
+
+    expect(db.threads()[0]).toMatchObject({
+      id: "thread-remote",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: initialStartedAt,
+    });
+    expect(db.threads()[0]?.lastTurnEndedAt).toBeTruthy();
+  });
+
+  it("persists thread-state even when the stored row carries no status source", () => {
+    // Rows written before the thread_status_source column existed (or by code
+    // paths that never set it) read back with threadStatusSource undefined; a
+    // source-tagged event must still persist or the row freezes at its
+    // creation status and snapshots re-serve "launching"/"working" forever.
+    const db = mockThreadDb([
+      createTestThread({ id: "thread-legacy", status: "launching", presentationMode: "gui" }),
+    ]);
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+
+    server.publishSupervisorEvent({
+      type: "thread-state",
+      threadId: "thread-legacy",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+      threadStatusSource: "server",
+    });
+
+    expect(db.threads()[0]).toMatchObject({
+      id: "thread-legacy",
+      status: "idle",
+      threadStatusSource: "server",
+    });
+  });
+
+  it("persists thread-state across a status source change", () => {
+    const db = mockThreadDb([
+      createTestThread({
+        id: "thread-terminal",
+        status: "working",
+        presentationMode: "terminal",
+        threadStatusSource: "terminal_parse",
+      }),
+    ]);
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+
+    server.publishSupervisorEvent({
+      type: "thread-state",
+      threadId: "thread-terminal",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+      threadStatusSource: "cli_hook",
+    });
+
+    expect(db.threads()[0]).toMatchObject({
+      id: "thread-terminal",
+      status: "idle",
+      threadStatusSource: "cli_hook",
+    });
+  });
+
+  it("flushes runtime items before a settling thread-state can be snapshotted", () => {
+    mockThreadDb([
+      createTestThread({
+        id: "thread-runtime",
+        status: "working",
+        attention: "working",
+        presentationMode: "gui",
+        activeTurnStartedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    ]);
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+
+    server.publishSupervisorEvent({
+      type: "thread-runtime-events",
+      threadId: "thread-runtime",
+      events: [
+        {
+          type: "item.started",
+          threadId: "thread-runtime",
+          itemId: "assistant-1",
+          itemType: "assistant_message",
+        },
+        {
+          type: "content.delta",
+          threadId: "thread-runtime",
+          itemId: "assistant-1",
+          stream: "assistant_text",
+          delta: "hello",
+        },
+        { type: "item.completed", threadId: "thread-runtime", itemId: "assistant-1" },
+      ],
+    });
+    expect(dbReplaceThreadRuntimeItems).not.toHaveBeenCalled();
+
+    server.publishSupervisorEvent({
+      type: "thread-state",
+      threadId: "thread-runtime",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+    });
+
+    expect(dbReplaceThreadRuntimeItems).toHaveBeenCalledWith("thread-runtime", [
+      expect.objectContaining({
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "hello" },
+      }),
+    ]);
+  });
+
   it("serves descriptor, snapshot, and websocket supervisor events", async () => {
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
       async () => "" as never,
@@ -666,6 +838,43 @@ describe("RemoteAccessServer", () => {
     });
   });
 
+  it("trusts loopback web origins only in dev", async () => {
+    // Dev: the Vite-served mobile PWA (localhost:3100) pairs without an explicit
+    // pairingAppUrl/trustedCorsOrigins entry.
+    const devServer = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-dev", label: "Dev Desktop" },
+      isDev: true,
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(devServer);
+    const devInfo = await devServer.start();
+    const devDescriptorUrl = new URL("/.well-known/lightcode/environment", devInfo.httpBaseUrl);
+    const devResponse = await fetch(devDescriptorUrl, {
+      headers: { origin: "http://localhost:3100" },
+    });
+    expect(devResponse.status).toBe(200);
+    expect(devResponse.headers.get("access-control-allow-origin")).toBe("http://localhost:3100");
+
+    // Production (isDev unset) never trusts an arbitrary loopback dev origin.
+    const prodServer = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-prod", label: "Prod Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(prodServer);
+    const prodInfo = await prodServer.start();
+    const prodResponse = await fetch(
+      new URL("/.well-known/lightcode/environment", prodInfo.httpBaseUrl),
+      { headers: { origin: "http://localhost:3100" } },
+    );
+    expect(prodResponse.status).toBe(403);
+  });
+
   it("advertises a full advertisedBaseUrl over host/port (https → wss)", async () => {
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",
@@ -779,6 +988,39 @@ describe("RemoteAccessServer", () => {
     expect(settingsPairing.origin).toBe(startupPairing.origin);
     expect(settingsPairing.pathname).toBe("/pair");
     expect(settingsPairing.searchParams.get("host")).toBe(info.httpBaseUrl);
+  });
+
+  it("rejects an unauthenticated /api/git/call before parsing or the procedure allowlist", async () => {
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => {
+      throw new Error("supervisor must not be reached for an unauthenticated call");
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    // A known-but-unauthenticated procedure and an unknown one must BOTH return
+    // 401 — if the allowlist were checked before auth, the unknown one would
+    // return 403, leaking which procedures exist to an unauthenticated caller.
+    const unknown = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ procedure: "definitelyNotAProcedure", payload: {} }),
+    });
+    const known = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ procedure: "readProjectFile", payload: {} }),
+    });
+
+    expect(unknown.status).toBe(401);
+    expect(known.status).toBe(401);
+    expect(callSupervisor).not.toHaveBeenCalled();
   });
 
   it("allows paired clients to search, list, read, write, and mutate project files through the remote bridge", async () => {

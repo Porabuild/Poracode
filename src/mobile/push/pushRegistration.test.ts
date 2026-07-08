@@ -6,6 +6,17 @@ type RegistrationHandler = (token: { value: string }) => void;
 /** Captured "registration" listeners, so a test can deliver a token to them. */
 const registrationHandlers: RegistrationHandler[] = [];
 
+/** Per-test FCM availability reported by the app-local PushSupport plugin. */
+let pushSupportConfigured: (() => Promise<{ configured: boolean }>) | null = null;
+
+vi.mock("@capacitor/core", () => ({
+  registerPlugin: () => ({
+    isConfigured: () => {
+      if (!pushSupportConfigured) return Promise.reject(new Error("not implemented"));
+      return pushSupportConfigured();
+    },
+  }),
+}));
 vi.mock("@capacitor/push-notifications", () => ({
   PushNotifications: {
     requestPermissions: vi.fn<() => Promise<{ receive: string }>>(async () => ({
@@ -40,6 +51,7 @@ import {
   __resetPushRegistrationForTests,
   registerIfChanged,
   syncPushRegistration,
+  teardownPushListeners,
 } from "./pushRegistration";
 
 function setPlatform(platform: string): void {
@@ -65,6 +77,31 @@ function reg(partial: Partial<RemotePushRegistration>): RemotePushRegistration {
 describe("registerIfChanged (fingerprint guard)", () => {
   beforeEach(() => {
     __resetPushRegistrationForTests();
+  });
+
+  it("keeps the fingerprint when only listeners are torn down (reconnect)", async () => {
+    const client = fakeClient();
+    expect(await registerIfChanged(client, reg({ deviceToken: "tok" }))).toBe(true);
+
+    await teardownPushListeners();
+
+    expect(await registerIfChanged(client, reg({ deviceToken: "tok" }))).toBe(false);
+    expect(client.registerPush).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-sends after teardownPushListeners resets the fingerprint (desktop switch)", async () => {
+    const clientA = fakeClient();
+    expect(await registerIfChanged(clientA, reg({ deviceToken: "tok" }))).toBe(true);
+    expect(await registerIfChanged(clientA, reg({ deviceToken: "tok" }))).toBe(false);
+
+    // A desktop switch tears down listeners AND the deviceId-keyed fingerprint
+    // cache, so the new desktop's client receives the same tokens instead of
+    // being silently suppressed as "already sent".
+    await teardownPushListeners({ resetSentState: true });
+
+    const clientB = fakeClient();
+    expect(await registerIfChanged(clientB, reg({ deviceToken: "tok" }))).toBe(true);
+    expect(clientB.registerPush).toHaveBeenCalledTimes(1);
   });
 
   it("sends the first registration and suppresses an identical repeat", async () => {
@@ -107,10 +144,37 @@ describe("syncPushRegistration (platform-aware)", () => {
     __resetPushRegistrationForTests();
     registrationHandlers.length = 0;
     vi.clearAllMocks();
+    pushSupportConfigured = async () => ({ configured: true });
   });
 
   afterEach(() => {
+    pushSupportConfigured = null;
     delete (globalThis as { Capacitor?: unknown }).Capacitor;
+  });
+
+  it("skips Android registration when the build has no Firebase config", async () => {
+    setPlatform("android");
+    pushSupportConfigured = async () => ({ configured: false });
+    const client = fakeClient();
+
+    await syncPushRegistration(client, { deviceId: DEVICE_ID });
+
+    const { PushNotifications } = await import("@capacitor/push-notifications");
+    expect(PushNotifications.requestPermissions).not.toHaveBeenCalled();
+    expect(PushNotifications.register).not.toHaveBeenCalled();
+    expect(registrationHandlers).toHaveLength(0);
+  });
+
+  it("skips Android registration when the shell lacks the PushSupport plugin", async () => {
+    setPlatform("android");
+    pushSupportConfigured = null;
+    const client = fakeClient();
+
+    await syncPushRegistration(client, { deviceId: DEVICE_ID });
+
+    const { PushNotifications } = await import("@capacitor/push-notifications");
+    expect(PushNotifications.register).not.toHaveBeenCalled();
+    expect(registrationHandlers).toHaveLength(0);
   });
 
   it("registers the FCM token as platform 'android' and skips ActivityBridge", async () => {

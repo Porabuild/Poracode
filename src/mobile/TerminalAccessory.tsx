@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Keyboard, RotateCw } from "lucide-react";
@@ -155,19 +155,37 @@ export function TerminalAccessory(props: {
     }
   }
 
+  // beforeinput handles the insertion and preventDefault()s the paired input
+  // event. Some Android IME/GBoard paths ignore that cancellation and still
+  // deliver the character via `input`; this guard drops that duplicate. Cleared
+  // on a microtask so it only suppresses the immediately-following input event,
+  // never a later standalone one (e.g. composition/autocorrect that fires only
+  // `input`).
+  const beforeInputHandledRef = useRef(false);
+
   function onBeforeInput(event: FormEvent<HTMLInputElement>): void {
     const native = event.nativeEvent as InputEvent;
     const inputType = native.inputType ?? "";
     if (inputType.startsWith("insert") && native.data) {
       event.preventDefault();
+      beforeInputHandledRef.current = true;
+      queueMicrotask(() => {
+        beforeInputHandledRef.current = false;
+      });
       sendText(native.data);
     }
   }
 
   function onInput(event: FormEvent<HTMLInputElement>): void {
     const value = event.currentTarget.value;
-    if (!value) return;
     event.currentTarget.value = "";
+    if (beforeInputHandledRef.current) {
+      // Already sent via beforeinput; the value only arrived because the WebView
+      // ignored preventDefault. Drop the duplicate.
+      beforeInputHandledRef.current = false;
+      return;
+    }
+    if (!value) return;
     sendText(value);
   }
 

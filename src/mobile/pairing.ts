@@ -1,4 +1,5 @@
 import { parsePairingUrlParts } from "@/shared/remote/pairingUrl";
+import { isNativeApp } from "./pwaInstall";
 
 export interface PairingLaunch {
   readonly endpoint: string;
@@ -32,6 +33,17 @@ export function normalizePairingEndpoint(value: string): string {
   return normalizeEndpoint(url.toString());
 }
 
+/** Non-throwing wrapper: a crafted/malformed `host` (e.g. `http://[`) makes
+ * `new URL` throw, which would otherwise propagate out of the boot-time
+ * capture and white-screen the pairing UI. Returns "" for anything invalid. */
+function safeNormalizePairingEndpoint(value: string): string {
+  try {
+    return normalizePairingEndpoint(value);
+  } catch {
+    return "";
+  }
+}
+
 let captured: PairingLaunch | null = null;
 
 /**
@@ -46,8 +58,13 @@ export function capturePairingLaunch(location: Location = window.location): Pair
   if (captured) return captured;
   const query = new URLSearchParams(location.search);
   const hash = new URLSearchParams(location.hash.slice(1));
+  const host = query.get("host");
   captured = {
-    endpoint: normalizePairingEndpoint(query.get("host") ?? location.origin),
+    endpoint: host
+      ? safeNormalizePairingEndpoint(host)
+      : isNativeApp()
+        ? ""
+        : safeNormalizePairingEndpoint(location.origin),
     credential: hash.get("token"),
   };
   if (captured.credential) {
@@ -58,6 +75,44 @@ export function capturePairingLaunch(location: Location = window.location): Pair
 
 export function parsePairingLaunch(): PairingLaunch {
   return captured ?? capturePairingLaunch();
+}
+
+const launchListeners = new Set<() => void>();
+
+function emitPairingLaunchChange(): void {
+  for (const listener of launchListeners) listener();
+}
+
+/** Subscribe to pairing-launch changes (for `useSyncExternalStore`). Fires when
+ * a native deep link supplies a new offer via {@link setPairingLaunch}. */
+export function subscribePairingLaunch(listener: () => void): () => void {
+  launchListeners.add(listener);
+  return () => {
+    launchListeners.delete(listener);
+  };
+}
+
+/**
+ * Feed a pairing offer from a native deep link into the same captured-launch
+ * slot the PWA boot path uses, so the pairing screen surfaces it for the user
+ * to CONFIRM — rather than pairing silently (a tapped attacker link must not
+ * bind the device to an arbitrary endpoint without consent). Notifies
+ * subscribers so an already-mounted pairing screen re-prefills.
+ */
+export function setPairingLaunch(launch: PairingLaunch): void {
+  captured = launch;
+  emitPairingLaunchChange();
+}
+
+/**
+ * Consume any pending launch/deep-link pairing credential after it has been
+ * accepted. The next read re-captures from the current app URL, which has
+ * already had the original credential stripped (PWA boot) or never carried it
+ * (native app-link handoff), so the old token cannot reopen the pairing drawer.
+ */
+export function clearPairingLaunch(): void {
+  captured = null;
+  emitPairingLaunchChange();
 }
 
 /**
@@ -85,11 +140,15 @@ export function parsePairingUrl(value: string): PairingLaunch | null {
  * (mixed content is blocked by the browser). This is the common failure when
  * the PWA is hosted (e.g. on Vercel) but the desktop only exposes plain http
  * on the LAN. Loopback is exempt — browsers treat it as a secure context.
+ * The native shells are exempt too: they serve the bundle from an https/app
+ * scheme origin but allow cleartext LAN traffic themselves (Android
+ * `cleartext`/`allowMixedContent`, iOS ATS exceptions).
  */
 export function isMixedContentEndpoint(
   endpoint: string,
   location: Location = window.location,
 ): boolean {
+  if (isNativeApp()) return false;
   if (location.protocol !== "https:") return false;
   try {
     const url = new URL(endpoint);

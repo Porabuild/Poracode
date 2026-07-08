@@ -537,7 +537,8 @@ describe("GitReviewSidebar", () => {
 
     expect(screen.queryByTitle("Open in editor")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    // No kebab on touch: press-and-hold (contextmenu) the row opens the sheet.
+    fireEvent.contextMenu(screen.getByRole("button", { name: /conflict\.ts/i }));
 
     expect(openFileMenu).toHaveBeenCalledWith({
       path: "src/conflict.ts",

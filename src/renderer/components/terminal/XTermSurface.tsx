@@ -59,7 +59,7 @@ const TERMINAL_INTERNAL_SCROLLBAR_WIDTH = 0.01;
 // (`oklch(...)`, `color-mix(...)`) that xterm's renderer cannot parse, so each is
 // normalized to an xterm-safe `#hex`/`rgba()` string; we fall back to fixed
 // light/dark values when a property is unset or unparseable.
-function getTerminalTheme(appearance: "light" | "dark") {
+function getTerminalTheme(appearance: "light" | "dark", backgroundVar = "--content-background") {
   const rootStyles =
     typeof window !== "undefined" ? window.getComputedStyle(document.documentElement) : null;
   const readVar = (name: string) =>
@@ -71,7 +71,7 @@ function getTerminalTheme(appearance: "light" | "dark") {
       : { background: "#f1f1ef", foreground: "#132034", cursor: "#1d4c89" };
 
   return {
-    background: readVar("--content-background") || fallback.background,
+    background: readVar(backgroundVar) || fallback.background,
     foreground: readVar("--foreground") || fallback.foreground,
     cursor: readVar("--accent") || fallback.cursor,
     selectionBackground:
@@ -104,6 +104,12 @@ export const XTermSurface = forwardRef<
     touchScrollEnabled?: boolean;
     /** Keep touch gestures from focusing xterm's hidden textarea. */
     suppressTouchKeyboard?: boolean;
+    /**
+     * CSS custom property the terminal background is read from. Surfaces that
+     * sit directly on the app background (the mobile terminal screen) pass
+     * `--background` so the canvas blends into the page.
+     */
+    themeBackgroundVar?: string;
     /**
      * Pluggable output feed. When provided (the remote PWA), the surface gets
      * PTY bytes / reset / exit through this subscription instead of the local
@@ -139,6 +145,7 @@ export const XTermSurface = forwardRef<
     resizeTerminalOnFit = true,
     touchScrollEnabled = false,
     suppressTouchKeyboard = false,
+    themeBackgroundVar = "--content-background",
     outputSource,
     initialScrollback,
   } = props;
@@ -354,7 +361,7 @@ export const XTermSurface = forwardRef<
       rescaleOverlappingGlyphs: true,
       macOptionIsMeta: true,
       wordSeparator: " ()[]{}'\",;:",
-      theme: getTerminalTheme(appearance),
+      theme: getTerminalTheme(appearance, themeBackgroundVar),
       vtExtensions: {
         kittyKeyboard: true,
         win32InputMode: true,
@@ -856,11 +863,11 @@ export const XTermSurface = forwardRef<
     const frame = requestAnimationFrame(() => {
       const terminal = terminalRef.current;
       if (terminal) {
-        terminal.options.theme = getTerminalTheme(appearance);
+        terminal.options.theme = getTerminalTheme(appearance, themeBackgroundVar);
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [appearance, themePreset]);
+  }, [appearance, themePreset, themeBackgroundVar]);
 
   const contextMenuItems: ContextMenuItem[] = [
     { id: "copy", label: t`Copy`, isDisabled: !hasSelection },

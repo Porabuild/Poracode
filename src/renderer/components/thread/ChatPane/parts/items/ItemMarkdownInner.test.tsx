@@ -125,6 +125,19 @@ describe("ItemMarkdownInner", () => {
     expect(container.querySelector("p")?.textContent).toBe("line 1\nline 2");
   });
 
+  it("caps markdown images so tall screenshots do not fill the chat", () => {
+    render(
+      <AppProvider>
+        <ItemMarkdownInner text={"![Tall screenshot](https://example.test/tall-screenshot.png)"} />
+      </AppProvider>,
+    );
+
+    const img = screen.getByAltText("Tall screenshot");
+    expect(img).toHaveClass("max-h-[min(22rem,45vh)]", "max-w-full", "object-contain");
+    expect(img).toHaveAttribute("decoding", "async");
+    expect(img).toHaveAttribute("draggable", "false");
+  });
+
   it("normalizes absolute markdown link hrefs to project file chips", () => {
     const actions = makeActions();
 

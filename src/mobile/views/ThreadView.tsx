@@ -28,6 +28,7 @@ import { WorkspaceChip } from "../GitSummaryParts";
 import { TerminalAccessory } from "../TerminalAccessory";
 import { ThreadTitleRow } from "../ThreadTitleRow";
 import { ThreadUsageIndicator } from "../ThreadUsageIndicator";
+import { useGitSummaryHydration } from "../useGitSummaryHydration";
 import { useKeyboardOffset } from "../useKeyboardOffset";
 import type { ThreadAction } from "../useRemoteDesktop";
 import type { WorkspaceTab } from "./WorkspaceView";
@@ -88,6 +89,7 @@ export function ThreadView(props: ThreadViewProps) {
   const { t } = useLingui();
   const thread = props.thread;
   const project = useProject(thread?.projectId);
+  useGitSummaryHydration(thread, project);
   const projectAgentStatuses = useProjectAgentStatuses(project?.location);
   const terminalPaneRef = useRef<TerminalPaneHandle | null>(null);
   const terminalSurfaceRef = useRef<XTermSurfaceHandle | null>(null);
@@ -115,6 +117,15 @@ export function ThreadView(props: ThreadViewProps) {
       terminalPaneRef.current = null;
     };
   }, []);
+
+  // Cancel a pending terminal-reload restart if this reused view switches to
+  // another thread — or unmounts — during the 250ms close→start gap (see
+  // reloadTerminal). latestThreadIdRef tracks the currently-shown thread so the
+  // delayed startThread can bail when it no longer matches.
+  const reloadTimerRef = useRef(0);
+  const latestThreadIdRef = useRef<string | undefined>(thread?.id);
+  latestThreadIdRef.current = thread?.id;
+  useEffect(() => () => window.clearTimeout(reloadTimerRef.current), []);
 
   // A fresh thread starts collapsed; ThreadView is reused across thread switches,
   // so reset the controlled expansion when the active thread changes.
@@ -155,7 +166,11 @@ export function ThreadView(props: ThreadViewProps) {
       .closeThread({ threadId: liveThread.id })
       .catch(() => undefined)
       .finally(() => {
-        window.setTimeout(() => {
+        window.clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = window.setTimeout(() => {
+          // The view may have been reused for a different thread (or unmounted)
+          // during the gap — don't reopen a PTY the user has navigated away from.
+          if (latestThreadIdRef.current !== liveThread.id) return;
           void bridge
             .startThread({
               threadId: liveThread.id,

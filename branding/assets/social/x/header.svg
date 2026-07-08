@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 500" width="1500" height="500">
+  <!-- X header 1500x500. Night canvas, centered Pora.code lockup. Flat, brand-clean, no orange.
+       Note: X overlays the avatar bottom-left and crops ~60px top/bottom on some clients,
+       so the lockup is centered and kept clear of the lower-left safe zone. -->
+  <rect width="1500" height="500" fill="#070709"/>
+
+  <!-- faint baseline hairline for structure -->
+  <rect x="470" y="372" width="560" height="1" fill="#EAF0FB" opacity="0.06"/>
+
+  <!-- Pora "P." glyph, mark master scaled to ~150px, centered at (750,150) -->
+  <g transform="translate(569.6,-14.7) scale(0.349)">
+    <path fill-rule="evenodd" fill="#EAF0FB"
+      d="M352,300 H556 A152,152 0 0 1 556,604 H472 V730 H352 Z
+         M472,392 H548 A60,60 0 0 1 548,512 H472 Z"/>
+    <circle cx="636" cy="694" r="46" fill="#8B7BFF"/>
+  </g>
+
+  <!-- Logotype: Pora.code — Pora 700, code 600, indigo baseline dot (true circle) -->
+  <text x="742" y="330" text-anchor="end" font-family="Geist, Inter, system-ui, sans-serif"
+        font-weight="700" font-size="92" letter-spacing="-3" fill="#EAF0FB">Pora</text>
+  <circle cx="750" cy="322" r="9" fill="#8B7BFF"/>
+  <text x="758" y="330" text-anchor="start" font-family="Geist, Inter, system-ui, sans-serif"
+        font-weight="600" font-size="92" letter-spacing="-3" fill="#EAF0FB">code</text>
+
+  <!-- Descriptor + active-cursor dot -->
+  <text x="750" y="418" text-anchor="middle" font-family="Geist, Inter, system-ui, sans-serif"
+        font-weight="400" font-size="27" letter-spacing="0.2" fill="#9BA6BE">The universal AI coding-agent orchestrator</text>
+  <rect x="1015" y="399" width="4" height="24" rx="2" fill="#8B7BFF"/>
+</svg>

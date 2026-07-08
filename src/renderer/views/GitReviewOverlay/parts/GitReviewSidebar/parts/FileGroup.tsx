@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { AlertDialog, Button, toast } from "@heroui/react";
-import { ChevronDown, ChevronRight, Minus, MoreVertical, Plus, Undo2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Minus, Plus, Undo2 } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitFileChange, Project } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { compareFilesByDirThenName } from "@/renderer/utils/gitHelpers";
+import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { StackedFileCard } from "../../GitStackedDiff";
 import { useGitReviewRowPadX } from "../gitReviewPadXContext";
 import { useGitTouch } from "../gitTouchContext";
@@ -49,6 +50,8 @@ export function FileGroup(props: {
   const { t } = useLingui();
   const rowPadX = useGitReviewRowPadX();
   const touch = useGitTouch();
+  const openGroupMenu = () => touch?.openGroupMenu({ title, staged });
+  const longPressHandlers = useLongPress(touch ? openGroupMenu : null);
   const [expanded, setExpanded] = useState(true);
   const [revertAllOpen, setRevertAllOpen] = useState(false);
   const inlineDiffs = mode === "panel";
@@ -96,6 +99,7 @@ export function FileGroup(props: {
     <div>
       <div
         className={`group/header flex w-full items-center gap-1 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-muted ${rowPadX}`}
+        {...longPressHandlers}
       >
         <button
           type="button"
@@ -108,20 +112,10 @@ export function FileGroup(props: {
         </button>
         <span className="ml-auto flex items-center gap-0.5">
           {touch ? (
-            <>
-              <span className="mr-1 flex items-center gap-0.5 text-[11px] leading-4 font-medium font-normal tabular-nums">
-                {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
-                {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
-              </span>
-              <button
-                type="button"
-                aria-label={`${title} actions`}
-                className="rounded p-1 text-muted/70 active:bg-[var(--row-hover)]"
-                onClick={() => touch.openGroupMenu({ title, staged })}
-              >
-                <MoreVertical className="size-4" />
-              </button>
-            </>
+            <span className="flex items-center gap-0.5 text-[11px] leading-4 font-medium font-normal tabular-nums">
+              {totalInsertions > 0 && <span className="text-success">+{totalInsertions}</span>}
+              {totalDeletions > 0 && <span className="text-danger">-{totalDeletions}</span>}
+            </span>
           ) : (
             <>
               <span className="mr-1.5 flex items-center gap-0.5 text-[10px] leading-4 font-medium font-normal group-hover/header:hidden">

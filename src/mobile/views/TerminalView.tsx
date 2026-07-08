@@ -79,6 +79,7 @@ function TerminalTabPane(props: {
         terminalId={props.tab.shellId}
         initialScrollback=""
         baseFontSize={props.baseFontSize}
+        themeBackgroundVar="--background"
         onExited={(exitCode) => props.onExited(props.tab.id, exitCode)}
       />
     </div>

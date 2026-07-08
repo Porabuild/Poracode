@@ -1,5 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { normalizePairingEndpoint, parsePairingUrl } from "./pairing";
+
+const globalWithCapacitor = globalThis as typeof globalThis & {
+  Capacitor?: { isNativePlatform: () => boolean };
+};
+
+function locationFromUrl(value: string): Location {
+  return new URL(value) as unknown as Location;
+}
+
+async function importFreshPairing() {
+  vi.resetModules();
+  return import("./pairing");
+}
+
+afterEach(() => {
+  delete globalWithCapacitor.Capacitor;
+});
 
 describe("parsePairingUrl", () => {
   it("reads the token from the hash and the endpoint from the origin", () => {
@@ -71,5 +88,76 @@ describe("normalizePairingEndpoint", () => {
     expect(normalizePairingEndpoint("https://relay.example.test/s/server-1/app")).toBe(
       "https://relay.example.test/s/server-1/",
     );
+  });
+});
+
+describe("capturePairingLaunch", () => {
+  it("defaults to the current origin for LAN PWA launches", async () => {
+    const { capturePairingLaunch } = await importFreshPairing();
+
+    expect(capturePairingLaunch(locationFromUrl("http://192.168.1.20:38987/app"))).toEqual({
+      endpoint: "http://192.168.1.20:38987/",
+      credential: null,
+    });
+  });
+
+  it("leaves native Capacitor launches blank when no desktop host is present", async () => {
+    globalWithCapacitor.Capacitor = { isNativePlatform: () => true };
+    const { capturePairingLaunch } = await importFreshPairing();
+
+    expect(capturePairingLaunch(locationFromUrl("capacitor://localhost/"))).toEqual({
+      endpoint: "",
+      credential: null,
+    });
+  });
+
+  it("uses the host parameter for native app-link launches", async () => {
+    globalWithCapacitor.Capacitor = { isNativePlatform: () => true };
+    const { capturePairingLaunch } = await importFreshPairing();
+
+    expect(
+      capturePairingLaunch(
+        locationFromUrl("capacitor://localhost/pair?host=http%3A%2F%2F192.168.1.20%3A38987%2F"),
+      ),
+    ).toEqual({
+      endpoint: "http://192.168.1.20:38987/",
+      credential: null,
+    });
+  });
+
+  it("does not throw on a malformed host param (white-screen guard)", async () => {
+    const { capturePairingLaunch } = await importFreshPairing();
+    // `http://[` makes new URL throw inside normalizePairingEndpoint; capture
+    // must swallow it and yield an empty endpoint rather than propagating out of
+    // render. (No #token, so this stays in the node env's window-free path.)
+    expect(capturePairingLaunch(locationFromUrl("http://192.168.1.20/app?host=http://["))).toEqual({
+      endpoint: "",
+      credential: null,
+    });
+  });
+});
+
+describe("isMixedContentEndpoint", () => {
+  it("flags http LAN endpoints on hosted https pages", async () => {
+    const { isMixedContentEndpoint } = await importFreshPairing();
+
+    expect(
+      isMixedContentEndpoint(
+        "http://192.168.1.20:38987/",
+        locationFromUrl("https://app.lightcodeapp.com/app"),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not flag http LAN endpoints inside the native shell", async () => {
+    globalWithCapacitor.Capacitor = { isNativePlatform: () => true };
+    const { isMixedContentEndpoint } = await importFreshPairing();
+
+    expect(
+      isMixedContentEndpoint(
+        "http://10.0.2.2:38999/",
+        locationFromUrl("https://localhost/index.html"),
+      ),
+    ).toBe(false);
   });
 });

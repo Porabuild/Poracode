@@ -1,21 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import {
-  Check,
-  Download,
-  Ellipsis,
-  Laptop,
-  Link2,
-  Loader2,
-  Pencil,
-  QrCode,
-  Smartphone,
-  Trash2,
-} from "lucide-react";
+import { Check, Download, Laptop, Loader2, Pencil, QrCode, Smartphone, Trash2 } from "lucide-react";
+import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { formatShortDateTime } from "@/renderer/utils/formatTime";
 import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput";
-import { SheetMenu } from "../components";
+import { Fab, EmptyState, FullScreenDrawer, SheetMenu, useSheet } from "../components";
 import { QrScanner } from "../QrScanner";
 import { isNativeApp, isStandaloneDisplay, promptInstall, useCanInstall } from "../pwaInstall";
 import type { StoredDesktop } from "../storage";
@@ -74,9 +64,42 @@ function endpointHost(endpoint: string): string {
   }
 }
 
-/** Same card recipe as the thread rows; the switch target and the actions menu
- * are sibling buttons so the card stays one flat tap surface. Renaming swaps the
- * switch button for an inline input, mirroring the thread title row. */
+/** The flat tappable card from ThreadRow: tap switches, long-press opens the
+ * actions sheet (no visible menu button). Renaming swaps the card for an inline
+ * input, mirroring the thread title row. */
+function DesktopRowButton(props: {
+  readonly title: string;
+  readonly desktop: StoredDesktop;
+  readonly isActive: boolean;
+  readonly onSwitch: () => void;
+  readonly onMenu: () => void;
+}) {
+  const { desktop, title } = props;
+  const { t } = useLingui();
+  const longPressHandlers = useLongPress(props.onMenu);
+  return (
+    <button type="button" className="m-thread-row" onClick={props.onSwitch} {...longPressHandlers}>
+      <Laptop className="size-4 shrink-0 text-muted" />
+      <span className="m-thread-row__body">
+        <span className="m-thread-row__title">{title}</span>
+        <span className="m-thread-row__meta">
+          <span className="m-thread-row__meta-item">{endpointHost(desktop.endpoint)}</span>
+          <span className="m-thread-row__meta-item">
+            {desktop.lastConnectedAt
+              ? t`Live ${formatShortDateTime(desktop.lastConnectedAt)}`
+              : t`Cached only`}
+          </span>
+        </span>
+      </span>
+      {props.isActive ? (
+        <span className="m-thread-row__side">
+          <Check className="size-4 shrink-0 text-accent" aria-label={t`Active`} />
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 function DesktopRow(props: {
   readonly desktop: StoredDesktop;
   readonly isActive: boolean;
@@ -88,80 +111,72 @@ function DesktopRow(props: {
   const { t } = useLingui();
   const [renaming, setRenaming] = useState(false);
   const title = desktopTitle(desktop.label);
+  if (renaming) {
+    return (
+      <div className="m-thread-row">
+        <Laptop className="size-4 shrink-0 text-muted" />
+        <span className="min-w-0 flex-1">
+          <InlineRenameInput
+            initialValue={title}
+            ariaLabel={t`Rename connection`}
+            onCommit={(value) => {
+              props.onRename(value);
+              setRenaming(false);
+            }}
+            onCancel={() => setRenaming(false)}
+          />
+        </span>
+      </div>
+    );
+  }
   return (
-    <div className="m-thread-row m-desktop-row" data-active={props.isActive || undefined}>
-      {renaming ? (
-        <div className="m-desktop-row__main">
-          <Laptop className="size-4 shrink-0" />
-          <span className="min-w-0 flex-1">
-            <InlineRenameInput
-              initialValue={title}
-              ariaLabel={t`Rename connection`}
-              onCommit={(value) => {
-                props.onRename(value);
-                setRenaming(false);
-              }}
-              onCancel={() => setRenaming(false)}
-            />
-          </span>
-        </div>
-      ) : (
-        <button type="button" className="m-desktop-row__main" onClick={props.onSwitch}>
-          <Laptop className="size-4 shrink-0" />
-          <span className="m-thread-row__body">
-            <span className="m-thread-row__title">{title}</span>
-            <span className="m-thread-row__meta">
-              <span className="m-thread-row__meta-item">{endpointHost(desktop.endpoint)}</span>
-              <span className="m-thread-row__meta-item">
-                {desktop.lastConnectedAt
-                  ? t`Live ${formatShortDateTime(desktop.lastConnectedAt)}`
-                  : t`Cached only`}
-              </span>
-            </span>
-          </span>
-          {props.isActive ? (
-            <Check className="m-desktop-row__check size-4 shrink-0" aria-label={t`Active`} />
-          ) : null}
-        </button>
+    <SheetMenu
+      label={title}
+      closeLabel={t`Close connection actions`}
+      items={[
+        { id: "rename", label: t`Rename`, icon: <Pencil className="size-4 text-muted" /> },
+        {
+          id: "forget",
+          label: t`Remove connection`,
+          icon: <Trash2 className="size-4" />,
+          tone: "danger",
+        },
+      ]}
+      onSelect={(id) => {
+        if (id === "rename") setRenaming(true);
+        if (id === "forget") props.onForget();
+      }}
+      trigger={({ open }) => (
+        <DesktopRowButton
+          title={title}
+          desktop={desktop}
+          isActive={props.isActive}
+          onSwitch={props.onSwitch}
+          onMenu={open}
+        />
       )}
-      <SheetMenu
-        label={title}
-        closeLabel={t`Close connection actions`}
-        items={[
-          { id: "rename", label: t`Rename`, icon: <Pencil className="size-4 text-muted" /> },
-          {
-            id: "forget",
-            label: t`Remove connection`,
-            icon: <Trash2 className="size-4" />,
-            tone: "danger",
-          },
-        ]}
-        onSelect={(id) => {
-          if (id === "rename") setRenaming(true);
-          if (id === "forget") props.onForget();
-        }}
-        trigger={({ open }) => (
-          <Button
-            isIconOnly
-            aria-label={t`Actions for ${title}`}
-            size="sm"
-            variant="tertiary"
-            onPress={open}
-          >
-            <Ellipsis className="size-4" />
-          </Button>
-        )}
-      />
-    </div>
+    />
   );
 }
 
 export function DesktopsView(props: DesktopsViewProps) {
   const { t } = useLingui();
   const [scanning, setScanning] = useState(false);
-  const { pairing, onScan } = props;
+  const { pairing, onScan, showPairingHint } = props;
+  // The pairing form now lives in a full-screen drawer opened from the FAB.
+  const pairDrawer = useSheet<true>();
+  const { open: openPairDrawer } = pairDrawer;
+  // A deep-link launch pre-fills the fields and flags the hint — surface the
+  // form immediately (once) so the handoff doesn't dead-end on the list.
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (showPairingHint && !autoOpened.current) {
+      autoOpened.current = true;
+      openPairDrawer(true);
+    }
+  }, [showPairingHint, openPairDrawer]);
   return (
-    <section className="m-page m-desktops">
+    <section className="m-page m-desktops m-page--fab">
       {scanning ? (
         <QrScanner
           onResult={(value) => {
@@ -199,77 +214,89 @@ export function DesktopsView(props: DesktopsViewProps) {
             />
           ))}
         </div>
-      ) : null}
+      ) : (
+        <EmptyState
+          icon={<Laptop className="size-5" />}
+          title={<Trans>No connections yet</Trans>}
+          hint={<Trans>Tap + to pair with Poracode on your desktop.</Trans>}
+        />
+      )}
 
-      <div className="m-card">
-        <h2 className="m-card__title">
-          <Link2 className="size-4" />
-          <Trans>Pair a connection</Trans>
-        </h2>
-        <p className="m-card__hint">
-          <Trans>
-            Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from
-            here — or enter the endpoint and pairing token manually.
-          </Trans>
-        </p>
-        {props.showPairingHint ? (
-          <p className="m-card__hint m-card__hint--accent">
-            <Trans>Pairing link detected.</Trans>
-          </p>
-        ) : null}
-        <Button
-          className="m-form__submit text-foreground mb-2.5"
-          size="sm"
-          variant="tertiary"
-          isDisabled={pairing ?? false}
-          onPress={() => setScanning(true)}
+      <Fab label={t`Pair a connection`} onPress={() => pairDrawer.open(true)} />
+
+      {pairDrawer.target ? (
+        <FullScreenDrawer
+          title={t`Pair a connection`}
+          label={t`Pair a connection`}
+          closeLabel={t`Close pairing`}
+          closing={pairDrawer.closing}
+          onClose={pairDrawer.close}
         >
-          <QrCode className="size-4" />
-          <Trans>Scan QR code</Trans>
-        </Button>
-        <InstallAppButton />
-        <div className="m-form">
-          <label className="m-field">
-            <span className="m-field__label">
-              <Trans>Endpoint</Trans>
-            </span>
-            <input
-              value={props.manualEndpoint}
-              aria-label={t`Endpoint`}
-              inputMode="url"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-              placeholder="http://192.168.1.20:38987/"
-              onChange={(event) => props.onEndpointChange(event.currentTarget.value)}
-            />
-          </label>
-          <label className="m-field">
-            <span className="m-field__label">
-              <Trans>Pairing token</Trans>
-            </span>
-            <input
-              value={props.manualToken}
-              aria-label={t`Pairing token`}
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-              placeholder="lc_pair_…"
-              onChange={(event) => props.onTokenChange(event.currentTarget.value)}
-            />
-          </label>
+          <p className="m-card__hint">
+            <Trans>
+              Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from
+              here — or enter the endpoint and pairing token manually.
+            </Trans>
+          </p>
+          {showPairingHint ? (
+            <p className="m-card__hint m-card__hint--accent">
+              <Trans>Pairing link detected.</Trans>
+            </p>
+          ) : null}
           <Button
             className="m-form__submit text-foreground"
             size="sm"
             variant="tertiary"
-            isDisabled={pairing || !props.canPair}
-            onPress={props.onPair}
+            isDisabled={pairing ?? false}
+            onPress={() => setScanning(true)}
           >
-            {pairing ? <Loader2 className="size-4 m-spin" /> : <Smartphone className="size-4" />}
-            {pairing ? t`Pairing…` : t`Pair`}
+            <QrCode className="size-4" />
+            <Trans>Scan QR code</Trans>
           </Button>
-        </div>
-      </div>
+          <InstallAppButton />
+          <div className="m-form">
+            <label className="m-field">
+              <span className="m-field__label">
+                <Trans>Endpoint</Trans>
+              </span>
+              <input
+                value={props.manualEndpoint}
+                aria-label={t`Endpoint`}
+                inputMode="url"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="http://192.168.1.20:38987/"
+                onChange={(event) => props.onEndpointChange(event.currentTarget.value)}
+              />
+            </label>
+            <label className="m-field">
+              <span className="m-field__label">
+                <Trans>Pairing token</Trans>
+              </span>
+              <input
+                value={props.manualToken}
+                aria-label={t`Pairing token`}
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="lc_pair_…"
+                onChange={(event) => props.onTokenChange(event.currentTarget.value)}
+              />
+            </label>
+            <Button
+              className="m-form__submit text-foreground"
+              size="sm"
+              variant="tertiary"
+              isDisabled={pairing || !props.canPair}
+              onPress={props.onPair}
+            >
+              {pairing ? <Loader2 className="size-4 m-spin" /> : <Smartphone className="size-4" />}
+              {pairing ? t`Pairing…` : t`Pair`}
+            </Button>
+          </div>
+        </FullScreenDrawer>
+      ) : null}
     </section>
   );
 }

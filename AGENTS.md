@@ -112,3 +112,4 @@ toast.warning(i18n._(msg`Unable to install ${label}.`));
 - [UI Patterns & Component Reuse](.agents/docs/ui-patterns.md)
 - [Editing & React Patterns](.agents/docs/editing-rules.md)
 - [Internationalization (i18n)](.agents/docs/i18n.md)
+- [Mobile Dev & Remote Pairing](docs/MOBILE_DEV.md) — `pnpm run dev:ios`, simulator pairing, deep linking

@@ -57,6 +57,9 @@ export function rowToThread(row: typeof schema.threads.$inferSelect): Thread {
     config: JSON.parse(row.config),
     status: row.status as Thread["status"],
     attention: row.attention as Thread["attention"],
+    ...(row.threadStatusSource
+      ? { threadStatusSource: row.threadStatusSource as Thread["threadStatusSource"] }
+      : {}),
     canResumeWithConfig: row.canResumeWithConfig,
     ...(row.sessionRef ? { sessionRef: JSON.parse(row.sessionRef) } : {}),
     ...(row.worktreePath ? { worktreePath: row.worktreePath } : {}),

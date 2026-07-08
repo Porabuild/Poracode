@@ -1,446 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { Button, toast } from "@heroui/react";
-import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
-import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import {
-  ChevronLeft,
-  Ellipsis,
-  FolderGit2,
-  Gauge,
-  Globe,
-  Plus,
-  Search,
-  Server,
-  Settings2,
-} from "lucide-react";
-import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { toast } from "@heroui/react";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { PullFromSourceDialog } from "@/renderer/views/MainView/parts/PullFromSourceDialog";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { ConnectionBanner, ConnectionPill, SheetMenu } from "./components";
-import { preselectWorktreeDraft, runThreadAction, threadIdFromPath } from "./navHelpers";
 import { MobileAppProvider, type MobileAppContextValue } from "./remoteContext";
 import { getStoredPreference, setStoredPreference } from "./storage";
-import { ThreadTitleRow } from "./ThreadTitleRow";
-import { ThreadUsageIndicator } from "./ThreadUsageIndicator";
 import { UserMessageActionsSheet } from "./UserMessageActionsSheet";
 import { useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
-import { useRemoteDesktop, type RemoteDesktopSession } from "./useRemoteDesktop";
-import { useSwipeBack } from "./useSwipeBack";
-import { getSettingsSectionLabel, isDesktopSettingsSection } from "./settingsSections";
+import { useDeepLinkPairing } from "./useDeepLinkPairing";
+import { useRemoteDesktop } from "./useRemoteDesktop";
+import { getChrome } from "./chrome";
+import { NarrowShell } from "./NarrowShell";
+import { WideShell } from "./WideShell";
 import { usePushLifecycle } from "./push/usePushLifecycle";
-import { ThreadsView } from "./views/ThreadsView";
 
 const PROJECT_FILTER_PREF = "threads.projectFilter";
-
-/** Route-derived narrow-layout chrome: home, a pushed subscreen, or a thread. */
-type Chrome =
-  | { readonly layout: "home" }
-  | {
-      readonly layout: "subscreen";
-      readonly title: MessageDescriptor;
-      readonly backTo: "/threads" | "/more" | "/more/settings";
-    }
-  | { readonly layout: "thread" }
-  | { readonly layout: "fullscreen" };
-
-function getChrome(pathname: string): Chrome {
-  if (pathname.startsWith("/thread/")) return { layout: "thread" };
-  if (
-    pathname.startsWith("/workspace/") ||
-    pathname.startsWith("/pr/") ||
-    pathname.startsWith("/terminal/")
-  ) {
-    // These render their own full-screen chrome (own header + back button), so
-    // the shell shows no top bar at all.
-    return { layout: "fullscreen" };
-  }
-  const sectionMatch = /^\/more\/settings\/(.+)$/.exec(pathname);
-  if (sectionMatch?.[1]) {
-    const id = decodeURIComponent(sectionMatch[1]);
-    // Device sections are listed flat on the More screen; only desktop-syncing
-    // sections sit behind the Desktop Settings subscreen.
-    return {
-      layout: "subscreen",
-      title: getSettingsSectionLabel(id) ?? msg`Settings`,
-      backTo: isDesktopSettingsSection(id) ? "/more/settings" : "/more",
-    };
-  }
-  if (pathname === "/more/settings") {
-    return { layout: "subscreen", title: msg`Desktop Settings`, backTo: "/more" };
-  }
-  // These are pushed straight from the home header's quick menu.
-  if (pathname === "/more/usage") {
-    return { layout: "subscreen", title: msg`Usage`, backTo: "/threads" };
-  }
-  if (pathname === "/more/browser") {
-    return { layout: "subscreen", title: msg`Browser`, backTo: "/threads" };
-  }
-  if (pathname === "/more/projects") {
-    return { layout: "subscreen", title: msg`Projects`, backTo: "/threads" };
-  }
-  if (pathname === "/more") {
-    return { layout: "subscreen", title: msg`Settings`, backTo: "/threads" };
-  }
-  if (pathname === "/new") {
-    return { layout: "subscreen", title: msg`New thread`, backTo: "/threads" };
-  }
-  if (pathname === "/desktops") {
-    return { layout: "subscreen", title: msg`Connections`, backTo: "/threads" };
-  }
-  return { layout: "home" };
-}
-
-function Brand(props: { readonly subtitle?: string | undefined; readonly onPress: () => void }) {
-  // Desktop labels default to "Poracode on <host>"; the header only needs the
-  // host. Accept the legacy "Lightcode on …" prefix for desktops paired before
-  // the rebrand so their stored labels still render cleanly.
-  const label = props.subtitle?.replace(/^(?:Poracode|Lightcode)\s+on\s+/i, "");
-  return (
-    <button className="m-brand" type="button" onClick={props.onPress}>
-      <span className="m-brand__title">{label || "Poracode"}</span>
-    </button>
-  );
-}
-
-function ConnectionControl(props: {
-  readonly remote: RemoteDesktopSession;
-  readonly onPair: () => void;
-}) {
-  const { remote } = props;
-  // Healthy is silent: the pill appears only when the session needs attention
-  // (booting/pairing spinner, reconnecting, offline, expired, errored) and is
-  // itself the recovery action.
-  if (remote.connection === "online") return null;
-  return (
-    <ConnectionPill
-      state={remote.connection}
-      onPress={() => {
-        if (remote.connection === "unauthorized") {
-          props.onPair();
-        } else {
-          remote.reconnect();
-        }
-      }}
-    />
-  );
-}
-
-/** Phone chrome: route-aware top bar + the routed page. Navigation is
- * header-driven (search / More) with edge-swipe back — no bottom tab bar. */
-function NarrowShell(props: {
-  readonly remote: RemoteDesktopSession;
-  readonly chrome: Chrome;
-  readonly pathname: string;
-  readonly searchOpen: boolean;
-  readonly onToggleSearch: () => void;
-  readonly chromeHidden: boolean;
-}) {
-  const { remote, chrome, pathname } = props;
-  const navigate = useNavigate();
-  const { t } = useLingui();
-  const shellRef = useRef<HTMLDivElement | null>(null);
-
-  // Edge-swipe back mirrors the header back button: subscreens pop to their
-  // parent, a thread pops to the list. Home has nowhere to go; fullscreen
-  // routes own their chrome (and their own horizontal gestures).
-  const swipeBackTo =
-    chrome.layout === "thread" ? "/threads" : chrome.layout === "subscreen" ? chrome.backTo : null;
-  useSwipeBack(shellRef, swipeBackTo !== null, () => {
-    if (swipeBackTo) void navigate({ to: swipeBackTo });
-  });
-
-  // `remote.selectedThread` falls back to the most-recent thread, so on a stale
-  // /thread/:id deep link (thread deleted elsewhere) it points at the wrong
-  // thread. Only trust it for thread chrome when it matches the routed id;
-  // otherwise the header must not offer actions that would hit that other thread.
-  const routedThreadId = threadIdFromPath(pathname);
-  const headerThread =
-    chrome.layout === "thread" &&
-    remote.selectedThread &&
-    remote.selectedThread.id === routedThreadId
-      ? remote.selectedThread
-      : null;
-
-  // Fullscreen routes (git panel, PR review) render their own chrome.
-  if (chrome.layout === "fullscreen") {
-    return (
-      <div className="m-shell" ref={shellRef}>
-        <Outlet />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="m-shell"
-      ref={shellRef}
-      data-chrome-hidden={(chrome.layout === "home" && props.chromeHidden) || undefined}
-    >
-      <header className="m-topbar">
-        {chrome.layout === "thread" ? (
-          <>
-            <button
-              className="m-back"
-              type="button"
-              onClick={() => void navigate({ to: "/threads" })}
-            >
-              <ChevronLeft className="size-5" />
-            </button>
-            {headerThread ? (
-              <ThreadTitleRow
-                thread={headerThread}
-                threads={remote.threads}
-                onAction={(action) =>
-                  runThreadAction(
-                    remote,
-                    headerThread,
-                    action,
-                    () => void navigate({ to: "/threads" }),
-                  )
-                }
-                onNewThreadInWorktree={(input) => {
-                  preselectWorktreeDraft(input);
-                  void navigate({ to: "/new" });
-                }}
-                onDeleteWorktreeGroup={(input) => {
-                  void remote.deleteWorktreeGroup(input);
-                  void navigate({ to: "/threads" });
-                }}
-                onOpenTerminal={() =>
-                  void navigate({
-                    to: "/terminal/$projectId",
-                    params: { projectId: headerThread.projectId },
-                    search: {
-                      fromThread: headerThread.id,
-                      ...(headerThread.worktreePath ? { worktree: headerThread.worktreePath } : {}),
-                    },
-                  })
-                }
-              />
-            ) : (
-              <span className="m-topbar__thread">
-                <span className="m-topbar__title">
-                  <Trans>Thread</Trans>
-                </span>
-              </span>
-            )}
-            {headerThread ? <ThreadUsageIndicator thread={headerThread} /> : null}
-          </>
-        ) : chrome.layout === "subscreen" ? (
-          <>
-            <button
-              className="m-back"
-              type="button"
-              onClick={() => void navigate({ to: chrome.backTo })}
-            >
-              <ChevronLeft className="size-5" />
-            </button>
-            <span className="m-topbar__thread">
-              <span className="m-topbar__title">{t(chrome.title)}</span>
-            </span>
-          </>
-        ) : (
-          <>
-            <Brand
-              subtitle={remote.activeDesktop?.label}
-              onPress={() => void navigate({ to: "/threads" })}
-            />
-            <button
-              className="m-topbar-icon"
-              type="button"
-              aria-label={t`Search threads`}
-              aria-pressed={props.searchOpen}
-              onClick={props.onToggleSearch}
-            >
-              <Search className="size-5" />
-            </button>
-            {/* Quick-access destinations live in a sheet menu; Settings (the
-                full page) is deliberately the last entry. */}
-            <SheetMenu
-              label={t`More`}
-              items={[
-                { id: "usage", label: t`Usage`, icon: <Gauge className="size-4 text-muted" /> },
-                {
-                  id: "desktops",
-                  label: t`Connections`,
-                  icon: <Server className="size-4 text-muted" />,
-                },
-                {
-                  id: "projects",
-                  label: t`Projects`,
-                  icon: <FolderGit2 className="size-4 text-muted" />,
-                },
-                { id: "browser", label: t`Browser`, icon: <Globe className="size-4 text-muted" /> },
-                {
-                  id: "settings",
-                  label: t`Settings`,
-                  icon: <Settings2 className="size-4 text-muted" />,
-                },
-              ]}
-              onSelect={(id) => {
-                const to =
-                  id === "usage"
-                    ? "/more/usage"
-                    : id === "desktops"
-                      ? "/desktops"
-                      : id === "projects"
-                        ? "/more/projects"
-                        : id === "browser"
-                          ? "/more/browser"
-                          : "/more";
-                void navigate({ to });
-              }}
-              trigger={({ open }) => (
-                <button className="m-topbar-icon" type="button" aria-label={t`More`} onClick={open}>
-                  <Ellipsis className="size-5" />
-                </button>
-              )}
-            />
-          </>
-        )}
-        <ConnectionControl remote={remote} onPair={() => void navigate({ to: "/desktops" })} />
-      </header>
-
-      <main className="m-main">
-        <Outlet />
-      </main>
-    </div>
-  );
-}
-
-/** Tablet/desktop chrome: a persistent thread sidebar + the routed detail pane. */
-function WideShell(props: {
-  readonly remote: RemoteDesktopSession;
-  readonly pathname: string;
-  readonly projectFilter: string | null;
-  readonly setProjectFilter: (next: string | null) => void;
-}) {
-  const { remote, pathname, projectFilter, setProjectFilter } = props;
-  const navigate = useNavigate();
-  const { t } = useLingui();
-  const selectedThreadId = threadIdFromPath(pathname);
-
-  return (
-    <div className="m-shell m-shell--wide">
-      <aside className="m-sidebar">
-        <header className="m-sidebar__head">
-          <Brand
-            subtitle={remote.activeDesktop?.label}
-            onPress={() => void navigate({ to: "/threads" })}
-          />
-          <ConnectionControl remote={remote} onPair={() => void navigate({ to: "/desktops" })} />
-        </header>
-        <div className="m-sidebar__actions">
-          <Button
-            className="flex-1 text-white"
-            size="sm"
-            variant="secondary"
-            onPress={() => void navigate({ to: "/new" })}
-          >
-            <Plus className="size-4" />
-            <Trans>New thread</Trans>
-          </Button>
-          <Button
-            aria-label={t`Usage`}
-            className="text-foreground"
-            size="sm"
-            variant="secondary"
-            isIconOnly
-            onPress={() => void navigate({ to: "/more/usage" })}
-          >
-            <Gauge className="size-4" />
-          </Button>
-          <Button
-            aria-label={t`More`}
-            className="text-foreground"
-            size="sm"
-            variant="secondary"
-            isIconOnly
-            onPress={() => void navigate({ to: "/more" })}
-          >
-            <Ellipsis className="size-4" />
-          </Button>
-        </div>
-        <div className="m-sidebar__scroll">
-          <ThreadsView
-            projects={remote.projects}
-            threads={remote.threads}
-            selectedThreadId={selectedThreadId}
-            projectFilter={projectFilter}
-            loading={!remote.booted}
-            onProjectFilterChange={setProjectFilter}
-            onOpenThread={(thread) => {
-              void remote.openThread(thread);
-              void navigate({ to: "/thread/$threadId", params: { threadId: thread.id } });
-            }}
-            onThreadAction={(thread, action) => {
-              void remote.applyThreadAction(thread, action);
-            }}
-            onDeleteWorktreeGroup={(input) => {
-              void remote.deleteWorktreeGroup(input);
-            }}
-            onNew={() => void navigate({ to: "/new" })}
-            onNewThreadInWorktree={(input) => {
-              preselectWorktreeDraft(input);
-              void navigate({ to: "/new" });
-            }}
-            onOpenTerminal={(input) =>
-              void navigate({
-                to: "/terminal/$projectId",
-                params: { projectId: input.projectId },
-                search: {
-                  ...(input.sourceThreadId ? { fromThread: input.sourceThreadId } : {}),
-                  ...(input.worktreePath ? { worktree: input.worktreePath } : {}),
-                },
-              })
-            }
-            onRunProjectAction={(input) =>
-              void navigate({
-                to: "/terminal/$projectId",
-                params: { projectId: input.projectId },
-                search: {
-                  action: input.actionId,
-                  ...(input.sourceThreadId ? { fromThread: input.sourceThreadId } : {}),
-                  ...(input.worktreePath ? { worktree: input.worktreePath } : {}),
-                },
-              })
-            }
-          />
-        </div>
-        <footer className="m-sidebar__foot">
-          <button
-            type="button"
-            className="m-sidebar__desktops"
-            data-active={pathname === "/desktops"}
-            onClick={() => void navigate({ to: "/desktops" })}
-          >
-            <Server className="size-4" />
-            <span>
-              <strong>{remote.activeDesktop?.label ?? t`No connection paired`}</strong>
-              <span>
-                <Plural
-                  value={remote.desktops.length}
-                  one="# paired desktop"
-                  other="# paired desktops"
-                />
-              </span>
-            </span>
-          </button>
-        </footer>
-      </aside>
-      <main className="m-detail">
-        <ConnectionBanner
-          state={remote.connection}
-          message={remote.message}
-          onReconnect={remote.reconnect}
-          onPair={() => void navigate({ to: "/desktops" })}
-        />
-        <Outlet />
-      </main>
-    </div>
-  );
-}
 
 /**
  * Root route component: owns the single remote session, exposes it to every
@@ -460,7 +34,13 @@ export function RootLayout() {
     activeDesktop: remote.activeDesktop,
   });
 
+  // Universal Links: route a pairing link that opens the installed app (cold
+  // start or foregrounded) to the connections screen for the user to confirm.
+  // Also surfaces a PWA boot launch captured from window.location.
+  useDeepLinkPairing();
+
   const [threadSearchOpen, setThreadSearchOpen] = useState(false);
+  const [threadSearchHost, setThreadSearchHost] = useState<HTMLDivElement | null>(null);
   const [chromeHidden, setChromeHidden] = useState(false);
   // A hidden header on /threads must not leak into the next screen; the list
   // remounts scrolled to top on return, so re-anchor on every route change.
@@ -470,9 +50,16 @@ export function RootLayout() {
 
   const [projectFilter, setProjectFilterState] = useState<string | null>(null);
   useEffect(() => {
+    let cancelled = false;
     void getStoredPreference(PROJECT_FILTER_PREF).then((stored) => {
-      if (stored) setProjectFilterState(stored);
+      if (cancelled || !stored) return;
+      // Don't clobber a filter the user picked while this async read was still
+      // in flight; only seed when nothing has been chosen yet.
+      setProjectFilterState((current) => current ?? stored);
     });
+    return () => {
+      cancelled = true;
+    };
   }, []);
   const validProjectFilter =
     projectFilter && remote.projects.some((project) => project.id === projectFilter)
@@ -544,12 +131,16 @@ export function RootLayout() {
         ? entry.worktreePath === gitReviewContext.worktreePath
         : !entry.worktreePath;
     });
-    if (!thread) return;
+    // Consume the one-shot signal unconditionally so the overlay/panel flags
+    // never stay stuck set — even when no open thread matches the worktree
+    // (e.g. it was archived while the worktree persists), where there is simply
+    // no workspace screen to route to.
     handledGitContextRef.current = gitReviewContext;
     const panelStore = usePanelStore.getState();
     panelStore.setGitOverlayOpen(false);
     panelStore.setGitReviewAsPanel(false);
     panelStore.setGitReviewContext(null);
+    if (!thread) return;
     void navigate({
       to: "/workspace/$threadId",
       params: { threadId: thread.id },
@@ -564,6 +155,7 @@ export function RootLayout() {
     setProjectFilter,
     threadSearchOpen,
     setThreadSearchOpen,
+    threadSearchHost,
     setChromeHidden,
   };
 
@@ -582,7 +174,8 @@ export function RootLayout() {
           chrome={getChrome(pathname)}
           pathname={pathname}
           searchOpen={threadSearchOpen}
-          onToggleSearch={() => setThreadSearchOpen(!threadSearchOpen)}
+          onSearchOpenChange={setThreadSearchOpen}
+          onSearchHostChange={setThreadSearchHost}
           chromeHidden={chromeHidden}
         />
       )}

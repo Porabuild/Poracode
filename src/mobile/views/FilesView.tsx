@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "@heroui/react";
+import { useRef, useState, type CSSProperties } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   ChevronLeft,
@@ -10,7 +9,6 @@ import {
   FolderOpen,
   FolderPlus,
   Loader2,
-  MoreHorizontal,
   Pencil,
   Save,
   Search,
@@ -23,9 +21,13 @@ import type {
   ProjectLocation,
   ProjectTreeEntry,
 } from "@/shared/contracts";
-import { readBridge } from "@/renderer/bridge";
+import { useLongPress } from "@/renderer/hooks/useLongPress";
+import { screenStateTransition } from "../navHelpers";
+import { useGuardedInputKeyboard } from "../useGuardedInputKeyboard";
 import { HighlightedEditor } from "../HighlightedEditor";
-import { BottomSheet, useSheet } from "../components";
+import { BottomSheet, Fab, useSheet } from "../components";
+import { parentPath, useFileTree } from "./useFileTree";
+import { useOpenFile } from "./useOpenFile";
 
 export interface FilesTarget {
   readonly project: Project;
@@ -34,63 +36,9 @@ export interface FilesTarget {
   readonly worktreePath?: string | undefined;
 }
 
-interface OpenFileState {
-  readonly path: string;
-  readonly status: AbsoluteFileReadStatus;
-  readonly modifiedAtMs: number;
-  readonly content: string;
-  readonly savedContent: string;
-  readonly isLoading: boolean;
-  readonly readOnly: boolean;
-}
-
-interface TreeRow {
-  readonly entry: ProjectTreeEntry;
-  readonly depth: number;
-}
-
-function joinPath(parent: string, name: string): string {
-  return parent ? `${parent}/${name}` : name;
-}
-
 function locationKey(location: ProjectLocation): string {
   if (location.kind === "wsl") return `${location.kind}:${location.distro}:${location.linuxPath}`;
   return `${location.kind}:${location.path}`;
-}
-
-function parentPath(path: string): string {
-  const index = path.lastIndexOf("/");
-  return index === -1 ? "" : path.slice(0, index);
-}
-
-function ancestorPaths(path: string): string[] {
-  const parts = path.split("/").filter(Boolean);
-  const ancestors: string[] = [];
-  for (let i = 1; i <= parts.length; i += 1) {
-    ancestors.push(parts.slice(0, i).join("/"));
-  }
-  return ancestors;
-}
-
-function isAbsolutePath(path: string): boolean {
-  return path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path) || path.startsWith("\\\\");
-}
-
-function flattenRows(
-  directoryEntries: Record<string, ProjectTreeEntry[]>,
-  expandedPaths: Record<string, boolean>,
-): TreeRow[] {
-  const rows: TreeRow[] = [];
-  const visit = (directoryPath: string, depth: number) => {
-    for (const entry of directoryEntries[directoryPath] ?? []) {
-      rows.push({ entry, depth });
-      if (entry.type === "directory" && expandedPaths[entry.path]) {
-        visit(entry.path, depth + 1);
-      }
-    }
-  };
-  visit("", 0);
-  return rows;
 }
 
 function fileStatusMessage(status: AbsoluteFileReadStatus) {
@@ -98,31 +46,6 @@ function fileStatusMessage(status: AbsoluteFileReadStatus) {
   if (status === "binary") return <Trans>Binary files can't be edited here.</Trans>;
   if (status === "too_large") return <Trans>This file is too large for the built-in editor.</Trans>;
   return <Trans>This file uses an unsupported encoding.</Trans>;
-}
-
-function toastError(error: unknown): void {
-  toast.danger(error instanceof Error ? error.message : String(error));
-}
-
-function buildOpenFile(
-  path: string,
-  result: {
-    readonly status: AbsoluteFileReadStatus;
-    readonly modifiedAtMs?: number;
-    readonly content?: string;
-  },
-  readOnly: boolean,
-): OpenFileState {
-  const content = result.status === "ready" ? (result.content ?? "") : "";
-  return {
-    path,
-    status: result.status,
-    modifiedAtMs: result.modifiedAtMs ?? 0,
-    content,
-    savedContent: content,
-    isLoading: false,
-    readOnly,
-  };
 }
 
 /**
@@ -149,310 +72,63 @@ export function FilesView(props: {
   const rootKey = `${props.target.project.id}:${props.target.worktreePath ?? ""}:${locationKey(
     props.target.projectLocation,
   )}`;
-  const [directoryEntries, setDirectoryEntries] = useState<Record<string, ProjectTreeEntry[]>>({});
-  const [expandedPaths, setExpandedPaths] = useState<Record<string, boolean>>({ "": true });
-  const [loadingPaths, setLoadingPaths] = useState<Record<string, boolean>>({});
-  const [query, setQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<ProjectTreeEntry[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [openFile, setOpenFile] = useState<OpenFileState | null>(null);
-  const [saving, setSaving] = useState(false);
-  const appliedInitialTargetRef = useRef<string | null>(null);
-  const entrySheet = useSheet<ProjectTreeEntry>();
 
-  const isDirty =
-    openFile?.status === "ready" &&
-    !openFile.readOnly &&
-    !openFile.isLoading &&
-    openFile.content !== openFile.savedContent;
-
-  function setPathLoading(path: string, value: boolean) {
-    setLoadingPaths((current) => {
-      const next = { ...current };
-      if (value) next[path] = true;
-      else delete next[path];
-      return next;
-    });
-  }
-
-  async function loadDirectory(directoryPath: string) {
-    setPathLoading(directoryPath, true);
-    try {
-      const result = await readBridge().listProjectTree({
-        projectLocation: props.target.projectLocation,
-        directoryPath,
-      });
-      setDirectoryEntries((current) => ({
-        ...current,
-        [result.directoryPath]: result.entries,
-      }));
-    } catch (error) {
-      toastError(error);
-    } finally {
-      setPathLoading(directoryPath, false);
-    }
-  }
-
-  async function reloadParent(path: string) {
-    await loadDirectory(parentPath(path));
-  }
-
-  function resetSearch() {
-    setQuery("");
-    setSearchResults([]);
-  }
-
-  async function createEntry(type: "file" | "directory") {
-    const label = type === "file" ? t`New file name` : t`New folder name`;
-    const rawName = window.prompt(label);
-    const name = rawName?.trim();
-    if (!name) return;
-    const path = joinPath("", name);
-    try {
-      await readBridge().createProjectEntry({
-        projectLocation: props.target.projectLocation,
-        path,
-        type,
-      });
-      resetSearch();
-      await loadDirectory("");
-      if (type === "file") await openPath(path);
-      else {
-        setExpandedPaths((current) => ({ ...current, [path]: true }));
-        await loadDirectory(path);
-      }
-    } catch (error) {
-      toastError(error);
-    }
-  }
-
-  async function renameEntry(entry: ProjectTreeEntry, nextName: string) {
-    try {
-      await readBridge().renameProjectEntry({
-        projectLocation: props.target.projectLocation,
-        path: entry.path,
-        nextName,
-      });
-      resetSearch();
-      await reloadParent(entry.path);
-    } catch (error) {
-      toastError(error);
-    }
-  }
-
-  async function deleteEntry(entry: ProjectTreeEntry) {
-    try {
-      await readBridge().deleteProjectEntry({
-        projectLocation: props.target.projectLocation,
-        path: entry.path,
-      });
-      resetSearch();
-      await reloadParent(entry.path);
-    } catch (error) {
-      toastError(error);
-    }
-  }
-
-  function confirmDiscard(): boolean {
-    if (!openFile || !isDirty) return true;
-    const path = openFile.path;
-    return window.confirm(t`Discard unsaved changes in ${path}?`);
-  }
-
-  function closeEditor() {
-    if (!confirmDiscard()) return;
-    setOpenFile(null);
-  }
-
-  async function openPath(path: string) {
-    if (!confirmDiscard()) return;
-    const absolute = isAbsolutePath(path);
-    setOpenFile({
-      path,
-      status: "ready",
-      modifiedAtMs: 0,
-      content: "",
-      savedContent: "",
-      isLoading: true,
-      readOnly: absolute,
-    });
-    try {
-      if (absolute) {
-        const result = await readBridge().readAbsoluteFile({
-          projectLocation: props.target.projectLocation,
-          absolutePath: path,
-        });
-        setOpenFile(buildOpenFile(path, result, true));
-        return;
-      }
-
-      const result = await readBridge().readProjectFile({
-        projectLocation: props.target.projectLocation,
-        path,
-      });
-      setOpenFile(buildOpenFile(result.path, result, false));
-    } catch (error) {
-      setOpenFile(null);
-      toast.danger(error instanceof Error ? error.message : t`Unable to open file`);
-    }
-  }
-
-  async function toggleDirectory(path: string) {
-    const isExpanded = expandedPaths[path] ?? false;
-    if (!isExpanded && !(path in directoryEntries)) {
-      await loadDirectory(path);
-    }
-    setExpandedPaths((current) => ({ ...current, [path]: !isExpanded }));
-  }
-
-  async function openSearchResult(entry: ProjectTreeEntry) {
-    setQuery("");
-    setSearchResults([]);
-    const parent = parentPath(entry.path);
-    setExpandedPaths((current) => ({
-      ...current,
-      [parent]: true,
-      ...(entry.type === "directory" ? { [entry.path]: true } : {}),
-    }));
-    await loadDirectory(parent);
-    if (entry.type === "directory") {
-      await loadDirectory(entry.path);
-      return;
-    }
-    await openPath(entry.path);
-  }
-
-  async function revealFolder(path: string) {
-    const ancestors = ancestorPaths(path);
-    setQuery("");
-    setSearchResults([]);
-    setExpandedPaths((current) => ({
-      ...current,
-      ...Object.fromEntries(ancestors.map((ancestor) => [ancestor, true])),
-    }));
-    await loadDirectory(parentPath(path));
-    await loadDirectory(path);
-  }
-
-  async function saveOpenFile() {
-    if (!openFile || openFile.status !== "ready" || openFile.readOnly || !isDirty || saving) {
-      return;
-    }
-    setSaving(true);
-    try {
-      const result = await readBridge().writeProjectFile({
-        projectLocation: props.target.projectLocation,
-        path: openFile.path,
-        content: openFile.content,
-        baseModifiedAtMs: openFile.modifiedAtMs,
-      });
-      setOpenFile((current) =>
-        current?.path === openFile.path
-          ? {
-              ...current,
-              modifiedAtMs: result.modifiedAtMs,
-              savedContent: current.content,
-            }
-          : current,
-      );
-    } catch (error) {
-      toastError(error);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  useEffect(() => {
-    setDirectoryEntries({});
-    setExpandedPaths({ "": true });
-    setLoadingPaths({});
-    setQuery("");
-    setSearchResults([]);
-    setOpenFile(null);
-    void loadDirectory("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- rootKey captures the target project/worktree identity
-  }, [rootKey]);
-
-  useEffect(() => {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setSearchResults([]);
-      setSearching(false);
-      return;
-    }
-
-    let cancelled = false;
-    setSearching(true);
-    const handle = window.setTimeout(() => {
-      void readBridge()
-        .searchProjectTree({
-          projectLocation: props.target.projectLocation,
-          query: trimmed,
-          limit: 80,
-        })
-        .then((result) => {
-          if (!cancelled) setSearchResults(result.entries);
-        })
-        .catch(() => {
-          if (!cancelled) setSearchResults([]);
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, 140);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(handle);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- rootKey captures the target project/worktree identity
-  }, [query, rootKey]);
-
-  // The shell's shared refresh button bumps refreshSignal; skip the initial 0.
-  useEffect(() => {
-    if (props.refreshSignal > 0) void loadDirectory("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- driven only by the signal
-  }, [props.refreshSignal]);
-
-  useEffect(() => {
-    const targetKey = props.initialFilePath
-      ? `${rootKey}:file:${props.initialFilePath}:${props.initialLineNumber ?? ""}:${
-          props.initialOpenKey ?? ""
-        }`
-      : props.initialFolderPath
-        ? `${rootKey}:folder:${props.initialFolderPath}`
-        : null;
-    if (!targetKey || appliedInitialTargetRef.current === targetKey) return;
-    appliedInitialTargetRef.current = targetKey;
-    if (props.initialFilePath) {
-      void openPath(props.initialFilePath);
-    } else if (props.initialFolderPath) {
-      void revealFolder(props.initialFolderPath);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- open the route-provided path once per target key
-  }, [
+  const tree = useFileTree({
+    projectLocation: props.target.projectLocation,
     rootKey,
-    props.initialFilePath,
-    props.initialFolderPath,
-    props.initialLineNumber,
-    props.initialOpenKey,
-  ]);
+    refreshSignal: props.refreshSignal,
+    ...(props.onRefreshingChange ? { onRefreshingChange: props.onRefreshingChange } : {}),
+  });
+  const {
+    expandedPaths,
+    loadingPaths,
+    query,
+    setQuery,
+    searchResults,
+    searching,
+    rows,
+    rootLoading,
+    toggleDirectory,
+    revealFolder,
+    createEntry,
+    renameEntry,
+    deleteEntry,
+    openSearchResult,
+  } = tree;
 
-  useEffect(() => {
-    props.onRefreshingChange?.(Boolean(loadingPaths[""]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mirror root-load busy state up
-  }, [loadingPaths[""]]);
+  const openFileHook = useOpenFile({
+    projectLocation: props.target.projectLocation,
+    rootKey,
+    ...(props.initialFilePath !== undefined ? { initialFilePath: props.initialFilePath } : {}),
+    ...(props.initialFolderPath !== undefined
+      ? { initialFolderPath: props.initialFolderPath }
+      : {}),
+    ...(props.initialLineNumber !== undefined
+      ? { initialLineNumber: props.initialLineNumber }
+      : {}),
+    ...(props.initialOpenKey !== undefined ? { initialOpenKey: props.initialOpenKey } : {}),
+    ...(props.onImmersiveChange ? { onImmersiveChange: props.onImmersiveChange } : {}),
+    revealFolder,
+  });
+  const { openFile, isDirty, saving, openPath, saveOpenFile, closeEditor, setOpenFileContent } =
+    openFileHook;
 
-  useEffect(() => {
-    props.onImmersiveChange?.(openFile !== null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the open/closed transition matters
-  }, [openFile?.path ?? null]);
-
-  const rows = useMemo(
-    () => flattenRows(directoryEntries, expandedPaths),
-    [directoryEntries, expandedPaths],
+  // The bottom search bar sits at the screen edge; a natively tap-focused
+  // input there makes iOS pan the whole layout viewport. Run the composer's
+  // guarded-focus choreography: intercept the tap, raise the keyboard through
+  // the hidden primer when it's closed, lift the bar by the (remembered or
+  // measured) keyboard height, then focus the real input with preventScroll.
+  // `--m-keyboard-offset` drives the CSS transform on `.m-files-controls`.
+  const searchBarRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  // The bar unmounts behind the fullscreen editor; re-key so the hook re-wires
+  // its listeners onto the fresh node when the tree view returns.
+  const { liftOffset: searchLift } = useGuardedInputKeyboard(
+    searchBarRef,
+    searchInputRef,
+    openFile ? null : `tree:${rootKey}`,
   );
-  const rootLoading = loadingPaths[""] && rows.length === 0;
+  const entrySheet = useSheet<ProjectTreeEntry>();
 
   return (
     <div className="m-ws-pane">
@@ -472,15 +148,6 @@ export function FilesView(props: {
                 {openFile.path}
                 {isDirty ? " *" : ""}
               </span>
-              <button
-                type="button"
-                className="m-files-save"
-                disabled={!isDirty || saving || openFile.isLoading}
-                onClick={() => void saveOpenFile()}
-              >
-                {saving ? <Loader2 className="size-4 m-spin" /> : <Save className="size-4" />}
-                <span>{t`Save`}</span>
-              </button>
             </header>
             {openFile.isLoading ? (
               <div className="m-files-status">
@@ -495,41 +162,22 @@ export function FilesView(props: {
                   ? { initialLineNumber: props.initialLineNumber }
                   : {})}
                 {...(openFile.readOnly ? { readOnly: true } : {})}
-                onChange={(next) =>
-                  setOpenFile((current) =>
-                    current?.path === openFile.path ? { ...current, content: next } : current,
-                  )
-                }
+                onChange={(next) => setOpenFileContent(openFile.path, next)}
               />
             ) : (
               <div className="m-files-status">{fileStatusMessage(openFile.status)}</div>
             )}
+            {!openFile.readOnly && openFile.status === "ready" && !openFile.isLoading ? (
+              <Fab
+                label={t`Save`}
+                disabled={!isDirty || saving}
+                onPress={() => void saveOpenFile()}
+                icon={saving ? <Loader2 className="size-5 m-spin" /> : <Save className="size-5" />}
+              />
+            ) : null}
           </div>
         ) : (
           <div className="m-files-tree">
-            <div className="m-files-search">
-              <Search className="size-3.5 shrink-0 text-muted" />
-              <input
-                value={query}
-                placeholder={t`Search files`}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-              {query ? (
-                <button type="button" aria-label={t`Clear search`} onClick={() => setQuery("")}>
-                  <X className="size-3.5" />
-                </button>
-              ) : null}
-            </div>
-            <div className="m-files-toolbar">
-              <button type="button" onClick={() => void createEntry("file")}>
-                <FilePlus2 className="size-4" />
-                <span>{t`New file`}</span>
-              </button>
-              <button type="button" onClick={() => void createEntry("directory")}>
-                <FolderPlus className="size-4" />
-                <span>{t`New folder`}</span>
-              </button>
-            </div>
             <div className="m-files-list">
               {query.trim() ? (
                 searching ? (
@@ -545,7 +193,7 @@ export function FilesView(props: {
                       depth={0}
                       expanded={false}
                       loading={false}
-                      onPress={() => void openSearchResult(entry)}
+                      onPress={() => void openSearchResult(entry, openPath)}
                       onActions={() => entrySheet.open(entry)}
                     />
                   ))
@@ -571,13 +219,48 @@ export function FilesView(props: {
                       if (row.entry.type === "directory") {
                         void toggleDirectory(row.entry.path);
                       } else {
-                        void openPath(row.entry.path);
+                        screenStateTransition("push", () => void openPath(row.entry.path));
                       }
                     }}
                     onActions={() => entrySheet.open(row.entry)}
                   />
                 ))
               )}
+            </div>
+            <div
+              className="m-files-controls"
+              style={{ "--m-keyboard-offset": `${searchLift}px` } as CSSProperties}
+            >
+              <div className="m-files-search" ref={searchBarRef}>
+                <Search className="size-4 shrink-0 text-muted" />
+                <input
+                  ref={searchInputRef}
+                  value={query}
+                  placeholder={t`Search files`}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+                {query ? (
+                  <button type="button" aria-label={t`Clear search`} onClick={() => setQuery("")}>
+                    <X className="size-4" />
+                  </button>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                className="m-files-action"
+                aria-label={t`New file`}
+                onClick={() => void createEntry("file", openPath)}
+              >
+                <FilePlus2 className="size-5" />
+              </button>
+              <button
+                type="button"
+                className="m-files-action"
+                aria-label={t`New folder`}
+                onClick={() => void createEntry("directory", openPath)}
+              >
+                <FolderPlus className="size-5" />
+              </button>
             </div>
             {entrySheet.target ? (
               <FileActionsSheet
@@ -603,48 +286,39 @@ function FileRow(props: {
   readonly onPress: () => void;
   readonly onActions: () => void;
 }) {
-  const { t } = useLingui();
   const isDirectory = props.entry.type === "directory";
+  const longPressHandlers = useLongPress(props.onActions);
   return (
-    <div className="m-file-row-shell">
-      <button
-        type="button"
-        className="m-file-row"
-        style={{ paddingLeft: `${props.depth * 0.875 + 0.625}rem` }}
-        onClick={props.onPress}
-      >
-        <span className="m-file-row__chevron">
-          {isDirectory && props.entry.hasChildren ? (
-            props.loading ? (
-              <Loader2 className="size-3.5 m-spin" />
-            ) : (
-              <ChevronRight className={`size-3.5 ${props.expanded ? "rotate-90" : ""}`} />
-            )
-          ) : null}
-        </span>
-        {isDirectory ? (
-          props.expanded ? (
-            <FolderOpen className="size-4 shrink-0 text-accent" />
+    <button
+      type="button"
+      className="m-file-row"
+      style={{ paddingLeft: `${props.depth * 0.875 + 0.625}rem` }}
+      onClick={props.onPress}
+      {...longPressHandlers}
+    >
+      <span className="m-file-row__chevron">
+        {isDirectory && props.entry.hasChildren ? (
+          props.loading ? (
+            <Loader2 className="size-3.5 m-spin" />
           ) : (
-            <Folder className="size-4 shrink-0 text-muted" />
+            <ChevronRight className={`size-3.5 ${props.expanded ? "rotate-90" : ""}`} />
           )
-        ) : (
-          <File className="size-4 shrink-0 text-muted" />
-        )}
-        <span className="m-file-row__name">{props.entry.name}</span>
-        {props.entry.path !== props.entry.name ? (
-          <span className="m-file-row__path">{parentPath(props.entry.path)}</span>
         ) : null}
-      </button>
-      <button
-        type="button"
-        className="m-file-row__action"
-        aria-label={t`Actions for ${props.entry.name}`}
-        onClick={props.onActions}
-      >
-        <MoreHorizontal className="size-4" />
-      </button>
-    </div>
+      </span>
+      {isDirectory ? (
+        props.expanded ? (
+          <FolderOpen className="size-4 shrink-0 text-accent" />
+        ) : (
+          <Folder className="size-4 shrink-0 text-muted" />
+        )
+      ) : (
+        <File className="size-4 shrink-0 text-muted" />
+      )}
+      <span className="m-file-row__name">{props.entry.name}</span>
+      {props.entry.path !== props.entry.name ? (
+        <span className="m-file-row__path">{parentPath(props.entry.path)}</span>
+      ) : null}
+    </button>
   );
 }
 

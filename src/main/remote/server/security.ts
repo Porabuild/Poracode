@@ -54,6 +54,28 @@ function resolveRateLimitClient(req: IncomingMessage): string {
   return firstHop && firstHop.length > 0 ? firstHop : remoteAddress;
 }
 
+/**
+ * A loopback web origin (any port), e.g. `http://localhost:3100` or
+ * `http://127.0.0.1:8080`. Trusted only in dev so the Vite-served mobile PWA can
+ * pair against a loopback headless server without a hardcoded origin entry.
+ */
+function isLoopbackWebOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    const host = url.hostname;
+    return (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1" ||
+      host === "[::1]" ||
+      host.endsWith(".localhost")
+    );
+  } catch {
+    return false;
+  }
+}
+
 function normalizeCorsOrigin(rawOrigin: string): string | null {
   const trimmed = rawOrigin.trim().replace(/\/+$/, "");
   if (!trimmed || trimmed === "null") return null;
@@ -115,6 +137,7 @@ export class RemoteServerSecurity {
 
   private isTrustedCorsOrigin(origin: string): boolean {
     if (NATIVE_WEBVIEW_ORIGINS.has(origin)) return true;
+    if (this.ctx.options.isDev && isLoopbackWebOrigin(origin)) return true;
     const key = this.ctx.getHttpBaseUrl();
     let cache = this.trustedCorsOrigins;
     if (!cache || cache.key !== key) {

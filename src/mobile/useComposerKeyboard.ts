@@ -3,6 +3,22 @@ import { flushSync } from "react-dom";
 import type { RefObject } from "react";
 import { describeElement, keyboardDebug } from "./composerKeyboardDebug";
 import { focusWithoutScroll, lockComposeScroll, unlockComposeScroll } from "./composeScrollLock";
+import {
+  COLD_KEYBOARD_PROBE_TIMEOUT_MS,
+  COLD_KEYBOARD_STABLE_MS,
+  KEYBOARD_OPEN_THRESHOLD_PX,
+  MIRRORED_POINTER_WINDOW_MS,
+  afterNextFrame,
+  afterTwoFrames,
+  computeGuardedLiftOffset,
+  focusKeyboardPrimer,
+  getFocusSentinel,
+  getKeyboardPrimer,
+  isPrimerAbandoned,
+  recallKeyboardHeight,
+  rememberKeyboardHeight,
+  resetKeyboardHeightMemoryForTests,
+} from "./keyboardFocusShared";
 import { suppressNextGhostTap } from "./suppressGhostTap";
 import { useKeyboardOffset } from "./useKeyboardOffset";
 
@@ -11,7 +27,7 @@ function isKeyboardTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.closest("[data-composer-input-anchor]") !== null;
 }
 
-/**
+/*
  * The keyboard's height only becomes measurable AFTER its appear animation
  * ends (iOS reports the visual-viewport change once, at the end). A composer
  * sitting at the bottom edge would spend that whole animation underneath the
@@ -28,35 +44,15 @@ function isKeyboardTarget(target: EventTarget | null): boolean {
  * only the caret waits. Probes are disabled after one times out with no
  * keyboard (hardware keyboard: nothing will ever be measured) and re-enabled
  * the moment any keyboard height is observed.
+ *
+ * The primer element, thresholds, and height memory live in
+ * keyboardFocusShared.ts, shared with the files-search guarded focus
+ * (useGuardedInputKeyboard).
  */
-const KEYBOARD_HEIGHT_KEY = "lightcode-mobile-keyboard-height";
-const COLD_KEYBOARD_PROBE_TIMEOUT_MS = 1_200;
-const COLD_KEYBOARD_STABLE_MS = 80;
 const GUARDED_FOCUS_SETTLE_MS = 450;
-const KEYBOARD_OPEN_THRESHOLD_PX = 120;
-let recalledKeyboardHeight: number | null = null;
-
-function recallKeyboardHeight(): number {
-  if (recalledKeyboardHeight === null) {
-    const raw = window.localStorage.getItem(KEYBOARD_HEIGHT_KEY);
-    const parsed = raw ? Number(raw) : 0;
-    recalledKeyboardHeight = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-  }
-  return recalledKeyboardHeight;
-}
-
-function rememberKeyboardHeight(px: number): void {
-  if (px <= 0 || px === recalledKeyboardHeight) return;
-  recalledKeyboardHeight = px;
-  try {
-    window.localStorage.setItem(KEYBOARD_HEIGHT_KEY, String(Math.round(px)));
-  } catch {
-    // Best-effort persistence; the module-level cache still covers the session.
-  }
-}
 
 export function resetComposerKeyboardMemoryForTests(): void {
-  recalledKeyboardHeight = null;
+  resetKeyboardHeightMemoryForTests();
 }
 
 /** Focus the composer's input (a contenteditable) inside `root`. */
@@ -68,52 +64,6 @@ function getComposerInput(root: HTMLElement | null): HTMLElement | null {
   );
 }
 
-function getFocusSentinel(root: HTMLElement): HTMLElement {
-  const existing = document.querySelector<HTMLElement>("[data-composer-focus-sentinel]");
-  if (existing) return existing;
-
-  const sentinel = document.createElement("div");
-  sentinel.tabIndex = -1;
-  sentinel.setAttribute("aria-hidden", "true");
-  sentinel.setAttribute("data-composer-focus-sentinel", "");
-  sentinel.style.position = "fixed";
-  sentinel.style.top = "0";
-  sentinel.style.left = "0";
-  sentinel.style.width = "1px";
-  sentinel.style.height = "1px";
-  sentinel.style.opacity = "0";
-  sentinel.style.pointerEvents = "none";
-  (document.body ?? root).append(sentinel);
-  return sentinel;
-}
-
-function getKeyboardPrimer(root: HTMLElement): HTMLInputElement {
-  const existing = document.querySelector<HTMLInputElement>("[data-composer-keyboard-primer]");
-  if (existing) return existing;
-
-  const primer = document.createElement("input");
-  primer.type = "text";
-  primer.tabIndex = -1;
-  primer.setAttribute("aria-hidden", "true");
-  primer.setAttribute("data-composer-keyboard-primer", "");
-  primer.style.position = "fixed";
-  primer.style.top = "0";
-  primer.style.left = "0";
-  primer.style.width = "1px";
-  primer.style.height = "1px";
-  primer.style.padding = "0";
-  primer.style.border = "0";
-  primer.style.opacity = "0";
-  primer.style.fontSize = "16px";
-  primer.style.pointerEvents = "none";
-  (document.body ?? root).append(primer);
-  return primer;
-}
-
-function isKeyboardPrimer(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && target.hasAttribute("data-composer-keyboard-primer");
-}
-
 /** Focus through a fixed non-editable target so iOS does not pan before edit focus. */
 function focusComposerInputFromNeutralTarget(root: HTMLElement | null): void {
   if (!root) return;
@@ -121,22 +71,6 @@ function focusComposerInputFromNeutralTarget(root: HTMLElement | null): void {
   if (!input) return;
   focusWithoutScroll(getFocusSentinel(root));
   focusWithoutScroll(input);
-}
-
-function focusKeyboardPrimer(root: HTMLElement): void {
-  focusWithoutScroll(getKeyboardPrimer(root));
-}
-
-function afterNextFrame(callback: () => void): void {
-  if (typeof window.requestAnimationFrame === "function") {
-    window.requestAnimationFrame(callback);
-  } else {
-    window.setTimeout(callback, 0);
-  }
-}
-
-function afterTwoFrames(callback: () => void): void {
-  afterNextFrame(() => afterNextFrame(callback));
 }
 
 interface ComposerKeyboardOptions {
@@ -500,7 +434,7 @@ export function useComposerKeyboard(
       runGuardedFocus(root, "touchstart", event);
     };
     const handlePointerDown = (event: PointerEvent) => {
-      if (lastTouchStartAt > 0 && Date.now() - lastTouchStartAt < 700) {
+      if (lastTouchStartAt > 0 && Date.now() - lastTouchStartAt < MIRRORED_POINTER_WINDOW_MS) {
         if (isKeyboardTarget(event.target)) {
           keyboardDebug("pointerdown-skip-after-touchstart", {
             target: describeElement(event.target instanceof Element ? event.target : null),
@@ -549,7 +483,7 @@ export function useComposerKeyboard(
     };
     const handleDocumentFocusOut = (event: FocusEvent) => {
       if (!pendingColdFocusRef.current) return;
-      if (!isKeyboardPrimer(event.target) || isKeyboardTarget(event.relatedTarget)) return;
+      if (!isPrimerAbandoned(event, isKeyboardTarget)) return;
       keyboardDebug("primer-focusout-cancel", {
         relatedTarget: describeElement(
           event.relatedTarget instanceof Element ? event.relatedTarget : null,
@@ -584,19 +518,13 @@ export function useComposerKeyboard(
     // eslint-disable-next-line react-hooks/exhaustive-deps -- listeners are scoped to the composer root/key; handlers read current refs
   }, [ref, key]);
 
-  const recalledHeight = recallKeyboardHeight();
   const measuringKeyboard = inputFocused && coldKeyboardProbeActive;
-  // While the probe runs, pin the lift to the remembered height: iOS emits
-  // interim viewport sizes during the first keyboard reveal, and following
-  // them live would visibly bounce the dock. Once the probe hands focus to
-  // the real editor, the measured offset wins so a changed keyboard height
-  // reconciles with a normal transition.
-  const liftOffset = inputFocused
-    ? measuringKeyboard
-      ? coldProbeLiftRef.current
-      : keyboardOffset > 0
-        ? keyboardOffset
-        : recalledHeight
-    : 0;
+  const liftOffset = computeGuardedLiftOffset({
+    focused: inputFocused,
+    probing: measuringKeyboard,
+    coldProbeLift: coldProbeLiftRef.current,
+    keyboardOffset,
+    recalledHeight: recallKeyboardHeight(),
+  });
   return { focusComposer, inputFocused, liftOffset, measuringKeyboard };
 }

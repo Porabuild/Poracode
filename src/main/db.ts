@@ -20,6 +20,7 @@ export {
   dbSetState,
   dbUpsertProject,
   dbUpsertThread,
+  dbMarkLiveThreadsInactive,
   dbDeleteThread,
   dbDeleteProject,
 } from "./db/projectsThreads";

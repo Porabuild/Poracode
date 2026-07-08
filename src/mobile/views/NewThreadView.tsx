@@ -1,13 +1,11 @@
 import { useEffect } from "react";
-import { Trans } from "@lingui/react/macro";
-import { FolderOpen } from "lucide-react";
 import type { Project } from "@/shared/contracts";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useProjectAgentStatuses } from "@/renderer/hooks/uiSelectors";
-import { EmptyState } from "../components";
+import { MobileSetupEmptyState, type MobileSetupKind } from "../setupEmptyState";
 
 /**
  * New-thread screen: the desktop's draft view rendered as-is — project
@@ -16,6 +14,8 @@ import { EmptyState } from "../components";
  */
 export function NewThreadView(props: {
   readonly project: Project | null;
+  readonly setupKind?: MobileSetupKind;
+  readonly onSetupAction?: (kind: MobileSetupKind) => void;
   readonly onStart: (project: Project, input: DraftStartInput) => void | Promise<void>;
 }) {
   const project = props.project;
@@ -34,14 +34,23 @@ export function NewThreadView(props: {
   const projectLocation = project?.location;
   useEffect(() => {
     if (!projectId || !projectLocation) return;
+    let bridge: ReturnType<typeof readBridge>;
+    try {
+      bridge = readBridge();
+    } catch {
+      return;
+    }
     const store = useGitStore.getState();
+    // `Promise.resolve().then(...)` defers each bridge call so a *synchronous*
+    // throw from the IPC method surfaces as a rejection its `.catch` swallows,
+    // rather than escaping this un-try/caught `Promise.all`.
     void Promise.all([
-      readBridge()
-        .getGitStatus({ projectLocation })
+      Promise.resolve()
+        .then(() => bridge.getGitStatus({ projectLocation }))
         .then((status) => store.setStatus(projectId, status))
         .catch(() => undefined),
-      readBridge()
-        .gitProjectSnapshot({ projectLocation, includeGhCheck: true })
+      Promise.resolve()
+        .then(() => bridge.gitProjectSnapshot({ projectLocation, includeGhCheck: true }))
         .then((snapshot) =>
           store.setProjectSnapshot(projectId, {
             ...(snapshot.status ? { status: snapshot.status } : {}),
@@ -57,10 +66,9 @@ export function NewThreadView(props: {
   if (!project) {
     return (
       <section className="m-draft">
-        <EmptyState
-          icon={<FolderOpen className="size-5" />}
-          title={<Trans>No projects available</Trans>}
-          hint={<Trans>Open a project in Poracode on your desktop, then refresh.</Trans>}
+        <MobileSetupEmptyState
+          kind={props.setupKind ?? "project"}
+          {...(props.onSetupAction ? { onAction: props.onSetupAction } : {})}
         />
       </section>
     );

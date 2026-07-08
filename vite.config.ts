@@ -101,9 +101,28 @@ function resizeObserverLoopErrorFilter(): Plugin {
   };
 }
 
+function mobileDevIndex(): Plugin {
+  return {
+    name: "lightcode:mobile-dev-index",
+    apply: "serve",
+    configureServer(server) {
+      if (!mobileOnly) return;
+
+      server.middlewares.use((req, _res, next) => {
+        const [pathname, query] = (req.url ?? "").split("?", 2);
+        if (pathname === "/" || pathname === "/index.html") {
+          req.url = `/mobile.html${query ? `?${query}` : ""}`;
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   plugins: [
     resizeObserverLoopErrorFilter(),
+    mobileDevIndex(),
     reactDevtoolsStandalone(),
     react(),
     // The Lingui macro must expand BEFORE the React Compiler. Babel applies
@@ -211,6 +230,14 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     forwardConsole: true,
+    watch: {
+      ignored: [
+        "**/ios/App/App/public/**",
+        "**/ios/DerivedData/**",
+        "**/ios/capacitor-cordova-ios-plugins/**",
+        "**/android/app/src/main/assets/public/**",
+      ],
+    },
     // Bind all interfaces so phones on the LAN can load the mobile PWA
     // (mobile.html) straight from the dev server with HMR; the remote access
     // server redirects /app and /pair here in dev.

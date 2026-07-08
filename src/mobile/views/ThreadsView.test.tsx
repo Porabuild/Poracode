@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, createEvent, fireEvent, screen } from "@testing-library/react";
 import type { Project, Thread } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import { __resetCollapsedGroupCache, ThreadsView } from "./ThreadsView";
+import { __resetCollapsedGroupCache, ThreadsView, type ThreadsViewProps } from "./ThreadsView";
 
 // Keep these tests focused on grouping: stub the provider icon/status helpers
 // (which pull in the full provider manifest). The git badges become testid
@@ -70,6 +70,7 @@ function renderView(
       sourceThreadId?: string;
     }) => void;
     projects?: Project[];
+    emptyStateOverride?: ThreadsViewProps["emptyStateOverride"];
   },
 ) {
   return render(
@@ -86,6 +87,7 @@ function renderView(
       onDeleteWorktreeGroup={handlers?.onDeleteWorktreeGroup ?? (() => {})}
       onOpenTerminal={handlers?.onOpenTerminal ?? (() => {})}
       onRunProjectAction={handlers?.onRunProjectAction ?? (() => {})}
+      {...(handlers?.emptyStateOverride ? { emptyStateOverride: handlers.emptyStateOverride } : {})}
     />,
   );
 }
@@ -297,6 +299,74 @@ describe("ThreadsView grouping", () => {
     expect(screen.getByTestId("row-git-e")).toBeTruthy();
   });
 
+  // Timestamps resolved against real wall-clock so `isRecent` (< 24h) is stable.
+  const recentIso = () => new Date(Date.now() - 60_000).toISOString();
+  const oldIso = () => new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
+  function rowTitles(container: HTMLElement): (string | null)[] {
+    return [...container.querySelectorAll(".m-thread-row__title")].map((el) => el.textContent);
+  }
+
+  it("floats a pinned thread above more recent unpinned ones", () => {
+    // As in the bug report: the pinned thread is older, yet must sit on top.
+    const { container } = renderView([
+      makeThread({ id: "a", title: "Recent", updatedAt: recentIso() }),
+      makeThread({ id: "b", title: "Pinned", starred: true, updatedAt: oldIso() }),
+    ]);
+
+    expect(rowTitles(container)).toEqual(["Pinned", "Recent"]);
+  });
+
+  it("floats a group holding a pinned thread above unpinned rows", () => {
+    const { container } = renderView([
+      makeThread({ id: "a", title: "Recent", updatedAt: recentIso() }),
+      makeThread({
+        id: "b",
+        title: "Bravo",
+        starred: true,
+        updatedAt: oldIso(),
+        worktreePath: "/repo/wt",
+        worktreeBranch: "feature/x",
+      }),
+      makeThread({
+        id: "c",
+        title: "Charlie",
+        updatedAt: oldIso(),
+        worktreePath: "/repo/wt",
+        worktreeBranch: "feature/x",
+      }),
+    ]);
+
+    // Pinning any member floats the whole worktree group ahead of the unpinned row.
+    const titles = rowTitles(container);
+    expect(titles.indexOf("Bravo")).toBeLessThan(titles.indexOf("Recent"));
+  });
+
+  it("labels the Pinned / Current / Older sections when all three are present", () => {
+    const { container } = renderView([
+      makeThread({ id: "c", title: "Current one", updatedAt: recentIso() }),
+      makeThread({ id: "o", title: "Old one", updatedAt: oldIso() }),
+      makeThread({ id: "p", title: "Pinned one", starred: true, updatedAt: oldIso() }),
+    ]);
+
+    expect(
+      [...container.querySelectorAll(".m-thread-section")].map((el) => el.textContent),
+    ).toEqual(["Pinned", "Current", "Older"]);
+    // Rows follow the labeled order: pinned, then current, then older.
+    expect(rowTitles(container)).toEqual(["Pinned one", "Current one", "Old one"]);
+  });
+
+  it("omits section labels when every thread lands in one section", () => {
+    const { container } = renderView([
+      makeThread({ id: "a", title: "Alpha", updatedAt: recentIso() }),
+      makeThread({ id: "b", title: "Bravo", updatedAt: recentIso() }),
+    ]);
+
+    // Two recent, unpinned threads → a single "Current" section; a lone label
+    // over the whole list would be noise, so none renders.
+    expect(container.querySelector(".m-thread-section")).toBeNull();
+  });
+
   it("filters threads from the touch search box", () => {
     renderView([
       makeThread({ id: "a", title: "Alpha" }),
@@ -327,6 +397,28 @@ describe("ThreadsView grouping", () => {
     fireEvent.click(screen.getByText("Clear search"));
     expect(screen.getByText("Alpha")).toBeTruthy();
     expect(screen.getByText("Bravo")).toBeTruthy();
+  });
+
+  it("does not render a center new-thread button for the empty list", () => {
+    renderView([]);
+
+    expect(screen.getByText("No threads yet")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "New thread" })).toBeNull();
+  });
+
+  it("can replace the no-threads content with setup guidance", () => {
+    renderView([], {
+      emptyStateOverride: (
+        <div>
+          <span>Connect desktop</span>
+          <button type="button">Connect</button>
+        </div>
+      ),
+    });
+
+    expect(screen.getByText("Connect desktop")).toBeTruthy();
+    expect(screen.queryByText("No threads yet")).toBeNull();
+    expect(screen.getByRole("button", { name: "Connect" })).toBeTruthy();
   });
 
   it("remembers a collapsed group across a remount within the session", () => {

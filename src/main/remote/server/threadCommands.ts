@@ -34,6 +34,13 @@ import { sortOrderForThread } from "./snapshots";
  * against its own payload schema before reaching the supervisor.
  */
 export async function runGitCall(ctx: RemoteServerContext, req: IncomingMessage): Promise<unknown> {
+  // Reject unauthenticated callers BEFORE reading/parsing the body or revealing
+  // whether a procedure is allowlisted. Otherwise an unauthenticated request can
+  // distinguish a known-but-invalid procedure (403) from a known one (401) — a
+  // pre-auth enumeration oracle — and forces the server to buffer+parse up to
+  // 1MB per unauthenticated request. `[]` requires only a valid token (no scope);
+  // the per-procedure scope is still enforced below once the procedure is known.
+  ctx.security.requireBearer(req, []);
   const { procedure, payload } = remoteGitCallPayloadSchema.parse(await readJsonBody(req));
   if (!isGitRemoteProcedure(procedure)) {
     throw new RemoteHttpError(

@@ -15,6 +15,7 @@ type ClientMock = {
   websocketUrl: Mock<(...a: unknown[]) => string>;
   parseSocketMessage: Mock<(raw: string) => unknown>;
   startThread: Mock<(...a: unknown[]) => Promise<void>>;
+  sendThreadCommand: Mock<(...a: unknown[]) => Promise<void>>;
 };
 
 // ── Hoisted mock state ──────────────────────────────────────────────
@@ -53,6 +54,10 @@ const h = vi.hoisted(() => {
     applyThreadSnapshot: vi.fn<(...a: unknown[]) => void>(),
     applyAgentStatuses: vi.fn<(...a: unknown[]) => void>(),
     resetRemoteStores: vi.fn<(...a: unknown[]) => void>(),
+    // pwaInstall.isNativeApp / push registration spies
+    isNativeApp: true,
+    deviceId: "device-1",
+    unregisterPush: vi.fn<(client: unknown, deviceId: string) => Promise<void>>(async () => {}),
   };
 });
 
@@ -131,6 +136,7 @@ function clientFor(desktopId: string): ClientMock {
       websocketUrl: vi.fn<(...a: unknown[]) => string>(() => "ws://x/ws"),
       parseSocketMessage: vi.fn<(raw: string) => unknown>(),
       startThread: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
+      sendThreadCommand: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
     };
     h.clients.set(desktopId, client);
   }
@@ -158,6 +164,7 @@ vi.mock("./remoteClient", () => ({
     websocketUrl = (...a: unknown[]) => this.#c().websocketUrl(...a);
     parseSocketMessage = (raw: string) => this.#c().parseSocketMessage(raw);
     startThread = (...a: unknown[]) => this.#c().startThread(...a);
+    sendThreadCommand = (...a: unknown[]) => this.#c().sendThreadCommand(...a);
   },
 }));
 
@@ -165,6 +172,7 @@ vi.mock("./storage", () => ({
   listStoredDesktops: vi.fn<() => Promise<StoredDesktop[]>>(async () => [...h.storedDesktops]),
   getActiveDesktopId: vi.fn<() => Promise<string | null>>(async () => h.activeDesktopId),
   setActiveDesktopId: (...a: [string]) => h.setActiveDesktopId(...a),
+  readShellSnapshotMirror: vi.fn<() => unknown>(() => null),
   getStoredShellSnapshot: vi.fn<(id: string) => Promise<unknown>>(async (id: string) =>
     h.storedShell.get(id),
   ),
@@ -183,6 +191,7 @@ vi.mock("./storage", () => ({
   renameDesktop: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
   forgetDesktop: (...a: [string]) => h.forgetDesktop(...a),
   getStoredShellSnapshotKey: vi.fn<(...a: unknown[]) => unknown>(),
+  getOrCreateDeviceId: vi.fn<() => Promise<string>>(async () => h.deviceId),
 }));
 
 vi.mock("./storeSync", () => ({
@@ -222,6 +231,12 @@ vi.mock("./pairing", () => ({
 vi.mock("./presentation", () => ({
   sortThreadsByRecency: (threads: Array<{ id: string; archived?: boolean }>) =>
     threads.filter((t) => !t.archived),
+}));
+vi.mock("./pwaInstall", () => ({
+  isNativeApp: () => h.isNativeApp,
+}));
+vi.mock("./push/pushRegistration", () => ({
+  unregisterPush: (...a: [unknown, string]) => h.unregisterPush(...a),
 }));
 
 // A controllable WebSocket that never actually opens (so the socket effect
@@ -269,6 +284,8 @@ describe("useRemoteDesktop", () => {
     h.activeDesktopId = null;
     h.storedShell.clear();
     h.storedThread.clear();
+    h.isNativeApp = true;
+    h.deviceId = "device-1";
     for (const fn of [
       h.saveShellSnapshot,
       h.markDesktopConnected,
@@ -279,6 +296,7 @@ describe("useRemoteDesktop", () => {
       h.resetRemoteStores,
       h.setActiveDesktopId,
       h.forgetDesktop,
+      h.unregisterPush,
     ]) {
       fn.mockClear();
     }
@@ -346,6 +364,19 @@ describe("useRemoteDesktop", () => {
     expect(view.result.current.message).toBe("unreachable");
   });
 
+  it("applies the first live snapshot immediately after pairing", async () => {
+    const view = await mountWith([], null);
+    const client = clientFor("d1");
+    client.snapshot.mockResolvedValue(snapshotFor("d1", ["paired-thread"]));
+
+    await act(async () => {
+      await view.result.current.pairDesktop("http://d1.local", "cred");
+    });
+
+    expect(view.result.current.activeDesktopId).toBe("d1");
+    expect(h.applyShellSnapshot).toHaveBeenCalledWith(expect.objectContaining({ __from: "d1" }));
+  });
+
   it("[#3] does not auto-start a terminal thread when only a cached snapshot loads", async () => {
     const d = makeDesktop("d1");
     const terminalThread = {
@@ -392,6 +423,58 @@ describe("useRemoteDesktop", () => {
     expect(h.applyThreadSnapshot).toHaveBeenCalledWith(expect.anything(), { fromServer: false });
   });
 
+  it("opening a DONE thread propagates the un-done to the desktop", async () => {
+    const d = makeDesktop("d1");
+    // A GUI thread with an idle status is not startable (so ensureThreadRunning
+    // stays out of the way) — this isolates the done-propagation behavior.
+    const doneThread = {
+      id: "done1",
+      projectId: "p",
+      title: "done1",
+      agentKind: "codex" as const,
+      config: { model: "m" },
+      status: "idle" as const,
+      attention: "none" as const,
+      canResumeWithConfig: false,
+      archived: false,
+      done: true,
+      starred: false,
+      presentationMode: "gui" as const,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const client = clientFor("d1");
+    const view = await mountWith([d], "d1");
+    client.sendThreadCommand.mockClear();
+
+    await act(async () => {
+      await view.result.current.openThread(doneThread as never);
+    });
+
+    // The local store clear alone never reaches the desktop DB, so the next
+    // snapshot would revert `done` back to true. Opening a done thread must
+    // forward a set-done:false command — mirroring the desktop, which clears
+    // `done` in its own authoritative, persisted store.
+    expect(client.sendThreadCommand).toHaveBeenCalledWith({
+      kind: "set-done",
+      done: false,
+      threadId: "done1",
+    });
+  });
+
+  it("opening a thread that is not done sends no set-done command", async () => {
+    const d = makeDesktop("d1");
+    const client = clientFor("d1");
+    const view = await mountWith([d], "d1");
+    client.sendThreadCommand.mockClear();
+
+    await act(async () => {
+      await view.result.current.openThread({ id: "t1", done: false } as never);
+    });
+
+    expect(client.sendThreadCommand).not.toHaveBeenCalled();
+  });
+
   it("[#4] forgetting a NON-active desktop does not reset the active session", async () => {
     const dA = makeDesktop("A");
     const dB = makeDesktop("B");
@@ -424,6 +507,36 @@ describe("useRemoteDesktop", () => {
     expect(view.result.current.activeDesktopId).toBe("B");
   });
 
+  it("[#4] forgetting a desktop best-effort unregisters push for that desktop's client", async () => {
+    const dA = makeDesktop("A");
+    const view = await mountWith([dA], "A");
+
+    await act(async () => {
+      await view.result.current.forget(dA);
+    });
+
+    await waitFor(() => expect(h.unregisterPush).toHaveBeenCalled());
+    expect(h.unregisterPush).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: dA.endpoint }),
+      h.deviceId,
+    );
+  });
+
+  it("[#4] forgetting a desktop still removes it even when push unregister rejects", async () => {
+    const dA = makeDesktop("A");
+    const view = await mountWith([dA], "A");
+    h.unregisterPush.mockRejectedValueOnce(new Error("desktop offline"));
+
+    await act(async () => {
+      await view.result.current.forget(dA);
+    });
+
+    // forgetDesktop (credential deletion) must not be blocked or skipped by a
+    // failing/offline push unregister.
+    expect(h.forgetDesktop).toHaveBeenCalledWith("A");
+    await waitFor(() => expect(h.unregisterPush).toHaveBeenCalled());
+  });
+
   it("[#6] an unrelated thread's event refresh does not refetch the selected thread's history", async () => {
     const d = makeDesktop("d1");
     const client = clientFor("d1");
@@ -449,6 +562,38 @@ describe("useRemoteDesktop", () => {
       await view.result.current.refresh(d, { refreshSelectedThread: true });
     });
     expect(client.threadHistory).toHaveBeenCalled();
+  });
+
+  it("[#8] skips shell-snapshot persistence when snapshotSeq has not advanced", async () => {
+    const d = makeDesktop("d1");
+    const client = clientFor("d1");
+    // Every snapshot carries seq 1.
+    client.snapshot.mockResolvedValue(snapshotFor("d1"));
+    const view = await mountWith([d], "d1");
+
+    // Establish a persisted baseline of seq 1 for this desktop, then reset the
+    // spies and refresh again with the same seq.
+    await act(async () => {
+      await view.result.current.refresh(d);
+    });
+    h.saveShellSnapshot.mockClear();
+    h.markDesktopConnected.mockClear();
+    await act(async () => {
+      await view.result.current.refresh(d);
+    });
+    // In-memory application still runs...
+    expect(h.applyShellSnapshot).toHaveBeenCalled();
+    // ...but the persistence side effects are skipped.
+    expect(h.saveShellSnapshot).not.toHaveBeenCalled();
+    expect(h.markDesktopConnected).not.toHaveBeenCalled();
+
+    // A snapshot whose seq advanced re-persists.
+    client.snapshot.mockResolvedValue({ ...snapshotFor("d1"), snapshotSeq: 2 });
+    await act(async () => {
+      await view.result.current.refresh(d);
+    });
+    expect(h.saveShellSnapshot).toHaveBeenCalledTimes(1);
+    expect(h.markDesktopConnected).toHaveBeenCalledWith("d1", 2);
   });
 
   it("[#7] a failed refresh does not knock a live socket offline", async () => {
@@ -515,6 +660,62 @@ describe("useRemoteDesktop", () => {
         await vi.advanceTimersByTimeAsync(6000);
       });
       expect(socket.readyState).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("[#9] a piggybacking event refresh does not downgrade a pending recovery refresh", async () => {
+    const d = makeDesktop("d1");
+    const client = clientFor("d1");
+    client.snapshot.mockResolvedValue(snapshotFor("d1", ["selected", "other"]));
+    client.parseSocketMessage.mockImplementation((raw: string) => JSON.parse(raw) as unknown);
+    const view = await mountWith([d], "d1");
+
+    // Select a thread so a recovery refresh would re-fetch its history.
+    await act(async () => {
+      await view.result.current.openThread({ id: "selected" } as never);
+    });
+
+    await waitFor(() => expect(FakeWebSocket.instances.length).toBeGreaterThan(0));
+    const socket = FakeWebSocket.instances[0]!;
+
+    vi.useFakeTimers();
+    try {
+      // Socket opens → schedules a RECOVERY refresh (auxiliary + selected-thread
+      // history) on the 600ms debounce.
+      await act(async () => {
+        socket.readyState = 1;
+        for (const cb of socket.listeners.get("open") ?? []) cb({});
+      });
+
+      // Only assert on the coalesced refresh, not mount/open bookkeeping.
+      client.agentStatuses.mockClear();
+      client.threadHistory.mockClear();
+
+      // An UNRELATED thread's status event lands inside the debounce window,
+      // scheduling a plain event refresh that coalesces with the pending one.
+      await act(async () => {
+        for (const cb of socket.listeners.get("message") ?? []) {
+          cb({
+            data: JSON.stringify({
+              type: "event",
+              seq: 1,
+              event: { type: "thread-state", threadId: "other" },
+            }),
+          });
+        }
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(700);
+      });
+
+      // Recovery flags survived: the auxiliary re-poll AND the selected thread's
+      // history were both refreshed (both would be skipped if the event refresh
+      // had clobbered the pending recovery one).
+      expect(client.agentStatuses).toHaveBeenCalled();
+      expect(client.threadHistory).toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }

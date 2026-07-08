@@ -29,10 +29,14 @@ interface BrowserMirrorStore {
   status: RemoteBrowserMirrorStatus | null;
   /** True while the BrowserView wants frames; survives socket reconnects. */
   watching: boolean;
+  /** True while the view is temporarily backgrounded: suppresses frames
+   * (including across reconnects) without discarding the watching intent. */
+  paused: boolean;
   setState(state: RemoteBrowserState): void;
   setFrame(frame: BrowserMirrorFrame): void;
   setStatus(status: RemoteBrowserMirrorStatus): void;
   setWatching(watching: boolean): void;
+  setPaused(paused: boolean): void;
   reset(): void;
 }
 
@@ -41,6 +45,7 @@ export const useBrowserMirrorStore = create<BrowserMirrorStore>()((set) => ({
   frame: null,
   status: null,
   watching: false,
+  paused: false,
   // The reused desktop components (BrowserTabStrip, …) read tab state from
   // the renderer's browser panel store, so mirror it on every update.
   setState: (state) => {
@@ -50,8 +55,9 @@ export const useBrowserMirrorStore = create<BrowserMirrorStore>()((set) => ({
   setFrame: (frame) => set({ frame }),
   setStatus: (status) => set({ status }),
   setWatching: (watching) => set({ watching }),
+  setPaused: (paused) => set({ paused }),
   reset: () => {
-    set({ state: null, frame: null, status: null, watching: false });
+    set({ state: null, frame: null, status: null, watching: false, paused: false });
     useBrowserPanelStore.getState().setState({ tabs: [], activeTabId: null });
   },
 }));
@@ -64,7 +70,10 @@ let sender: BrowserSocketSender | null = null;
  * fresh sender re-subscribes automatically when the view is still watching. */
 export function setBrowserSocketSender(next: BrowserSocketSender | null): void {
   sender = next;
-  if (next && useBrowserMirrorStore.getState().watching) {
+  const { watching, paused } = useBrowserMirrorStore.getState();
+  // Only re-subscribe a view that still wants frames AND isn't paused, so a
+  // reconnect while backgrounded doesn't resume streaming to a hidden view.
+  if (next && watching && !paused) {
     next({ type: "browser-watch" });
   }
 }
@@ -74,7 +83,9 @@ function send(message: RemoteWebSocketClientMessage): boolean {
 }
 
 export function startBrowserWatch(): void {
-  useBrowserMirrorStore.getState().setWatching(true);
+  const store = useBrowserMirrorStore.getState();
+  store.setWatching(true);
+  store.setPaused(false);
   send({ type: "browser-watch" });
 }
 
@@ -83,13 +94,18 @@ export function stopBrowserWatch(): void {
   send({ type: "browser-unwatch" });
 }
 
-/** Pause frames without giving up the watching intent (background tab). */
+/** Pause frames without giving up the watching intent (background tab). The
+ * paused flag survives reconnects so {@link setBrowserSocketSender} won't
+ * silently resume streaming to a hidden view. */
 export function pauseBrowserWatch(): void {
+  useBrowserMirrorStore.getState().setPaused(true);
   send({ type: "browser-unwatch" });
 }
 
 export function resumeBrowserWatch(): void {
-  if (useBrowserMirrorStore.getState().watching) {
+  const store = useBrowserMirrorStore.getState();
+  store.setPaused(false);
+  if (store.watching) {
     send({ type: "browser-watch" });
   }
 }

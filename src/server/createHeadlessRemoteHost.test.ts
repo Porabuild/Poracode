@@ -26,6 +26,7 @@ vi.mock("@/main/db", () => ({
   dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
   dbGetThreadContextUsage: vi.fn<() => unknown>(() => null),
   dbUpsertThread: vi.fn<() => void>(),
+  dbMarkLiveThreadsInactive: vi.fn<() => void>(),
   dbDeleteThread: vi.fn<() => void>(),
 }));
 

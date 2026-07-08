@@ -1,4 +1,5 @@
 import { useEffect, useRef, type RefObject } from "react";
+import { startsInHorizontalScroller } from "./startsInHorizontalScroller";
 
 /** Gesture starts only from the left screen edge, like the iOS back swipe. */
 const EDGE_START_PX = 28;
@@ -34,7 +35,10 @@ export function useSwipeBack(
     let startY = 0;
 
     const onTouchStart = (event: TouchEvent) => {
-      if (event.touches.length !== 1) {
+      // Drop the gesture when it starts on horizontally-scrollable content (a
+      // wide diff/code block/terminal flush to the left edge) — that's the user
+      // panning it, not a back-swipe. Mirrors useSwipeTabs.
+      if (event.touches.length !== 1 || startsInHorizontalScroller(event.target)) {
         tracking = false;
         return;
       }

@@ -7,7 +7,7 @@ import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
 import { buildBranchPrKey } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { useMobileApp } from "../../remoteContext";
+import { useRemote } from "../../remoteContext";
 import { PrContextProvider, type PrContextValue, type PrPageKey } from "./prContext";
 
 const prLayoutApi = getRouteApi("/pr/$prNumber");
@@ -48,7 +48,7 @@ async function fetchPr(
 export function PrLayout() {
   const { prNumber: prNumberParam } = prLayoutApi.useParams();
   const { project: projectId, worktree, prKey: explicitPrKey } = prLayoutApi.useSearch();
-  const { remote } = useMobileApp();
+  const remote = useRemote();
   const navigate = useNavigate();
   const router = useRouter();
   const [loading, setLoading] = useState(false);

@@ -11,6 +11,9 @@ import {
   dispatchRemoteSupervisorEvent as dispatchRemoteSupervisorEventCore,
   type RemoteDispatchHooks,
 } from "@/renderer/state/remote";
+import { createInitialRuntimeEventState } from "@/renderer/state/slices/runtimeEventSlice";
+import { createInitialSubAgentOverlayState } from "@/renderer/state/slices/subAgentOverlaySlice";
+import { createInitialPendingSteerState } from "@/renderer/state/slices/pendingSteerSlice";
 
 /**
  * Feeds remote snapshots and live WebSocket events into the same Zustand
@@ -30,7 +33,23 @@ import {
 export { applyThreadSnapshot };
 
 export function applyShellSnapshot(snapshot: RemoteShellSnapshot): void {
-  useAppStore.setState({ projects: snapshot.projects, threads: snapshot.threads });
+  useAppStore.setState((current) => {
+    const currentById = new Map(current.threads.map((thread) => [thread.id, thread]));
+    return {
+      projects: snapshot.projects,
+      // "finished" is a client-side derivation (an unwatched turn completed —
+      // the badge that clears when the user opens the thread); the server only
+      // ever persists "idle". A raw replace would strip the badge on the very
+      // next shell refresh, so keep the local "finished" until the thread is
+      // opened or genuinely changes state.
+      threads: snapshot.threads.map((incoming) => {
+        if (incoming.status !== "idle") return incoming;
+        return currentById.get(incoming.id)?.status === "finished"
+          ? { ...incoming, status: "finished" as const }
+          : incoming;
+      }),
+    };
+  });
   if (snapshot.gitSummariesByThread) {
     useGitSummariesStore.getState().setAll(snapshot.gitSummariesByThread);
   }
@@ -43,13 +62,13 @@ export function resetRemoteStores(): void {
   useAppStore.setState({
     projects: [],
     threads: [],
-    runtimeItemIdsByThread: {},
-    runtimeItemsByIdByThread: {},
-    runtimeRequestsByThread: {},
-    runtimeContextByThread: {},
-    runtimeStructuralVersionByThread: {},
-    runtimeCompletedTurnsByThread: {},
-    pendingSteerByThreadId: {},
+    // Spread the slices' own initial state so every per-thread runtime map is
+    // cleared — a hand-listed subset here previously leaked runtimeOpenTurn,
+    // fileCheckpoint(s|Turns) and openSubAgent maps across desktop switches
+    // (stale "running" badges + unbounded growth).
+    ...createInitialRuntimeEventState(),
+    ...createInitialSubAgentOverlayState(),
+    ...createInitialPendingSteerState(),
   });
 }
 

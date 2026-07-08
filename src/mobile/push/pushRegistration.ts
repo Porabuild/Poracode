@@ -1,3 +1,4 @@
+import { registerPlugin } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { ActivityBridge } from "@lightcode/activity-bridge";
 import type { RemotePushRegistration } from "@/shared/remote";
@@ -31,9 +32,40 @@ function currentPlatform(): "ios" | "android" {
   return cap?.getPlatform?.() === "android" ? "android" : "ios";
 }
 
+/** App-local Android plugin (android/app/.../PushSupportPlugin.java): reports
+ * whether this build carries Firebase config. iOS has no equivalent — APNs
+ * needs no build-time config beyond entitlements. */
+const PushSupport = registerPlugin<{ isConfigured(): Promise<{ configured: boolean }> }>(
+  "PushSupport",
+);
+
+/**
+ * Android push rides on FCM, which the google-services Gradle plugin only
+ * wires up when android/app/google-services.json is present — builds without
+ * it are supported (app-links-only / dev) with push off. In such a build,
+ * `PushNotifications.register()` throws on the native bridge thread
+ * ("Default FirebaseApp is not initialized") and kills the process before any
+ * JS catch can run, so ask the shell first and stay inert when FCM is absent.
+ */
+async function isPushSupported(): Promise<boolean> {
+  if (currentPlatform() !== "android") return true;
+  try {
+    const { configured } = await PushSupport.isConfigured();
+    return configured;
+  } catch {
+    // Shell without the PushSupport plugin — can't verify, so don't risk the
+    // native crash.
+    return false;
+  }
+}
+
 export interface SyncPushOptions {
   readonly deviceId: string;
   readonly appVersion?: string;
+  /** True once the effect that started this sync has been torn down (desktop
+   * switch / unmount). Checked before attaching each listener so a sync that
+   * resumes after cleanup can't orphan listeners bound to a stale client. */
+  readonly shouldCancel?: () => boolean;
 }
 
 /** The cumulative set of tokens already accepted by the desktop, per device. */
@@ -111,12 +143,30 @@ export async function syncPushRegistration(
   opts: SyncPushOptions,
 ): Promise<void> {
   const { deviceId } = opts;
+  const isCancelled = () => opts.shouldCancel?.() ?? false;
   const platform = currentPlatform();
+  if (!(await isPushSupported())) {
+    console.warn("[push] FCM not configured in this build; skipping push registration");
+    return;
+  }
   const base: RemotePushRegistration = {
     deviceId,
     platform,
     ...(opts.appVersion ? { appVersion: opts.appVersion } : {}),
   };
+
+  // Attach a listener only if the sync hasn't been torn down while awaiting;
+  // otherwise remove it immediately so it can't fire against a stale client or
+  // leak into the reset `attached` registry.
+  async function attach(handlePromise: Promise<{ remove: () => Promise<void> }>): Promise<boolean> {
+    const handle = await handlePromise;
+    if (isCancelled()) {
+      await handle.remove().catch(() => {});
+      return false;
+    }
+    attached.push(handle);
+    return true;
+  }
 
   try {
     const permission = await PushNotifications.requestPermissions();
@@ -128,25 +178,38 @@ export async function syncPushRegistration(
   } catch (error) {
     console.warn("[push] requestPermissions/register failed", error);
   }
+  if (isCancelled()) return;
 
   // Device token for ordinary alert pushes.
-  attached.push(
-    await PushNotifications.addListener("registration", (token) => {
-      void registerIfChanged(client, { ...base, deviceToken: token.value });
-    }),
-  );
-  attached.push(
-    await PushNotifications.addListener("registrationError", (error) => {
-      console.warn("[push] APNs registration error", error);
-    }),
-  );
+  if (
+    !(await attach(
+      PushNotifications.addListener("registration", (token) => {
+        void registerIfChanged(client, { ...base, deviceToken: token.value });
+      }),
+    ))
+  ) {
+    return;
+  }
+  if (
+    !(await attach(
+      PushNotifications.addListener("registrationError", (error) => {
+        console.warn("[push] APNs registration error", error);
+      }),
+    ))
+  ) {
+    return;
+  }
   // The foregrounded app already shows its own notifications from the live WS
   // stream (see storeSync). Swallow foreground pushes so we don't double-notify.
-  attached.push(
-    await PushNotifications.addListener("pushNotificationReceived", () => {
-      // no-op: suppress the OS banner while foregrounded
-    }),
-  );
+  if (
+    !(await attach(
+      PushNotifications.addListener("pushNotificationReceived", () => {
+        // no-op: suppress the OS banner while foregrounded
+      }),
+    ))
+  ) {
+    return;
+  }
 
   // Live Activities are iOS-only: Android carries just the FCM token above and
   // never touches the ActivityBridge (its schema rejects iOS-only fields).
@@ -156,7 +219,7 @@ export async function syncPushRegistration(
       const supported = await ActivityBridge.isSupported();
       if (supported.pushToStart) {
         const { token } = await ActivityBridge.getPushToStartToken();
-        if (token) {
+        if (token && !isCancelled()) {
           await registerIfChanged(client, { ...base, pushToStartToken: token });
         }
       }
@@ -164,8 +227,8 @@ export async function syncPushRegistration(
       console.warn("[push] push-to-start token unavailable", error);
     }
 
-    attached.push(
-      await ActivityBridge.addListener("activityTokenUpdate", ({ activityId, token }) => {
+    await attach(
+      ActivityBridge.addListener("activityTokenUpdate", ({ activityId, token }) => {
         void registerIfChanged(client, {
           ...base,
           activityTokens: { [activityId]: token },
@@ -185,10 +248,24 @@ export async function unregisterPush(client: RemoteDesktopClient, deviceId: stri
   }
 }
 
-/** Detach every push/activity listener (desktop switch or app teardown). */
-export async function teardownPushListeners(): Promise<void> {
+export interface TeardownPushListenersOptions {
+  /** Clear the sent-token fingerprint too (desktop identity change / disable). */
+  readonly resetSentState?: boolean;
+}
+
+/** Detach every push/activity listener. */
+export async function teardownPushListeners(
+  options: TeardownPushListenersOptions = {},
+): Promise<void> {
   const handles = attached;
   attached = [];
+  if (options.resetSentState) {
+    // The fingerprint cache is keyed by the stable deviceId, so a switch/re-pair
+    // to a DIFFERENT desktop must clear it or the new desktop's client would
+    // treat the previous desktop's tokens as already sent. Plain reconnects
+    // only detach listeners and intentionally keep the fingerprint.
+    sentByDevice.clear();
+  }
   await Promise.all(handles.map((handle) => handle.remove().catch(() => {})));
   try {
     await ActivityBridge.removeAllListeners();

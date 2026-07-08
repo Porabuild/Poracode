@@ -144,6 +144,27 @@ describe("applyThreadSnapshot", () => {
     expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual(["a"]);
   });
 
+  it("does not let an empty fresh server snapshot erase a streamed transcript", () => {
+    const store = useAppStore.getState();
+    store.applyRuntimeEvents(THREAD_ID, [
+      { type: "item.started", threadId: THREAD_ID, itemId: "a", itemType: "assistant_message" },
+      {
+        type: "content.delta",
+        threadId: THREAD_ID,
+        itemId: "a",
+        stream: "assistant_text",
+        delta: "kept",
+      },
+      { type: "item.completed", threadId: THREAD_ID, itemId: "a" },
+    ]);
+    expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual(["a"]);
+
+    applyThreadSnapshot(makeSnapshot({ status: "idle", items: [] }));
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual(["a"]);
+    expect(assistantStreamText("a")).toBe("kept");
+  });
+
   it("does not let a shorter cached snapshot clobber a longer transcript", () => {
     const store = useAppStore.getState();
     store.applyRuntimeEvents(THREAD_ID, [
@@ -157,5 +178,39 @@ describe("applyThreadSnapshot", () => {
     });
 
     expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual(["a", "b"]);
+  });
+
+  it("keeps a settled GUI thread idle when a trailing runtime event arrives after a server snapshot", () => {
+    useAppStore.setState({ threads: [makeThread("idle")] });
+
+    applyThreadSnapshot(makeSnapshot({ status: "idle", items: [makeItem({ id: "msg-1" })] }));
+
+    expect(useAppStore.getState().runtimeOpenTurnByThread[THREAD_ID]).toBe(false);
+
+    dispatchRemoteSupervisorEvent({
+      type: "thread-runtime-event",
+      threadId: THREAD_ID,
+      event: {
+        type: "item.started",
+        threadId: THREAD_ID,
+        itemId: "late-reasoning",
+        itemType: "reasoning",
+      },
+    });
+    for (const cb of rafCallbacks.filter(Boolean)) cb(0);
+
+    expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+    expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toContain("late-reasoning");
+  });
+
+  it("restores server-settled thread metadata if history arrives after a late runtime event reopened it", () => {
+    useAppStore.setState({
+      threads: [{ ...makeThread("working"), attention: "working" }],
+    });
+
+    applyThreadSnapshot(makeSnapshot({ status: "idle", items: [makeItem({ id: "msg-1" })] }));
+
+    expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+    expect(useAppStore.getState().runtimeOpenTurnByThread[THREAD_ID]).toBe(false);
   });
 });

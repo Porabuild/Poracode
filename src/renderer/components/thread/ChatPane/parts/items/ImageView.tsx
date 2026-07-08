@@ -7,6 +7,7 @@ import { friendlyError } from "@/shared/messages";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { readBridge } from "@/renderer/bridge";
 import { openImageLightbox } from "@/renderer/components/composer";
+import { chatInlineImageClass } from "./chatImageClass";
 import { resolveImageViewSource, type ImageViewSource } from "./imageViewSource";
 import { ToolCall } from "./ToolCall";
 
@@ -63,7 +64,7 @@ export const ImageCard = memo(function ImageCard({ source }: { source: ImageView
           draggable={false}
           decoding="async"
           {...(source.width && source.height ? { width: source.width, height: source.height } : {})}
-          className="block max-h-[22rem] w-auto max-w-full object-contain"
+          className={chatInlineImageClass}
         />
       </button>
       <div className="lightcode-image-action-toolbar pointer-events-none absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">

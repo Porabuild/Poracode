@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom";
 import type { GitAddWorktreePayload, Project, Thread } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { getBasename } from "@/shared/pathUtils";
@@ -7,6 +8,7 @@ import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftCo
 import { useGitSummariesStore } from "./gitSummaries";
 import type { RemoteSession } from "./remoteContext";
 import { isDesktopSettingsSection } from "./settingsSectionIds";
+import { WIDE_SHELL_QUERY } from "./useMediaQuery";
 import type { ThreadAction } from "./useRemoteDesktop";
 import type { FilesTarget } from "./views/FilesView";
 import type { GitTarget } from "./views/GitView";
@@ -57,6 +59,30 @@ export function preselectWorktreeDraft(input: {
   useAppStore.getState().openDraft(input.projectId);
 }
 
+/**
+ * Run a local state swap as a native screen slide (View Transitions API),
+ * matching the router's push/pop for in-view drill-downs that aren't route
+ * navigations — e.g. the fullscreen file editor inside the workspace screen.
+ * The swapped screen must carry a `view-transition-name` (the workspace's
+ * `m-screen`) for the styles.css push/pop animations to pick it up. Falls back
+ * to an instant swap without the API, on the wide layout (not a phone stack),
+ * or under reduced motion — mirroring the router's gating.
+ */
+export function screenStateTransition(type: "push" | "pop", update: () => void): void {
+  const doc = document as unknown as {
+    startViewTransition?: (options: { update: () => void; types: string[] }) => unknown;
+  };
+  if (
+    !doc.startViewTransition ||
+    window.matchMedia(WIDE_SHELL_QUERY).matches ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    update();
+    return;
+  }
+  doc.startViewTransition({ update: () => flushSync(update), types: [type] });
+}
+
 /** Extract the thread id from a `/thread/:id` pathname (decoded), or null. */
 export function threadIdFromPath(pathname: string): string | null {
   const match = /^\/thread\/(.+)$/.exec(pathname);
@@ -72,11 +98,19 @@ export function threadIdFromPath(pathname: string): string | null {
  * calling `history.back()`, so history index can't tell us the direction —
  * comparing depth gives the correct visual direction regardless.
  */
+/**
+ * True for routes that render a fullscreen overlay screen with their own
+ * chrome and no `.m-main` (RootLayout's "fullscreen" layout). These carry the
+ * `m-screen` view-transition name; navigations into/out of them add the
+ * `screen` transition type so the page chrome holds steady under the slide.
+ */
+export function isFullscreenScreenPath(path: string): boolean {
+  return path.startsWith("/workspace/") || path.startsWith("/pr/") || path.startsWith("/terminal/");
+}
+
 export function screenDepth(path: string): number {
   if (path.startsWith("/thread/")) return 1;
-  if (path.startsWith("/workspace/") || path.startsWith("/pr/") || path.startsWith("/terminal/")) {
-    return 2;
-  }
+  if (isFullscreenScreenPath(path)) return 2;
   // A desktop-syncing section is pushed from the Desktop Settings list (depth
   // 2); a device section is pushed straight from the Settings page (depth 1).
   const sectionMatch = /^\/more\/settings\/(.+)$/.exec(path);

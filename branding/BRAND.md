@@ -157,6 +157,13 @@ Outputs to `branding/assets/out/`:
 - `build/` — `icon.{png,icns,ico}` + ladder; `icon-nightly.{png,icns,ico}` + ladder
 - `website/` — `favicon.ico`, `favicon-48x48.png`, `favicon-96x96.png`, `icon-192.png`, `icon-512.png`, `icon.png`
 
+Native Capacitor projects (writes into `ios/` and `android/` in place — app
+icons, Android adaptive-icon layers, and dark splash screens):
+
+```
+node branding/assets/build-native-assets.mjs
+```
+
 ---
 
 ## 10. Domains, handles, trademark

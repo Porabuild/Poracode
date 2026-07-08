@@ -124,3 +124,27 @@ export function groupThreads(threads: Thread[]): ThreadListEntry[] {
 
   return entries;
 }
+
+/**
+ * A list entry counts as pinned when it is a starred standalone thread, or a
+ * group holding at least one starred thread — so pinning any member floats the
+ * whole group to the top. Shared by the desktop sidebar and the mobile list.
+ */
+export function entryIsStarred(entry: ThreadListEntry): boolean {
+  if (entry.kind === "thread") return entry.thread.starred;
+  return entry.group.threads.some((thread) => thread.starred);
+}
+
+/** True when an ISO timestamp falls within the last 24 hours. */
+export function isRecent(iso: string): boolean {
+  return Date.now() - new Date(iso).getTime() < 24 * 60 * 60 * 1000;
+}
+
+/** The latest `field` timestamp across an entry — its own, or its group's newest. */
+export function entryLatestDate(entry: ThreadListEntry, field: "updatedAt" | "createdAt"): string {
+  if (entry.kind === "thread") return entry.thread[field];
+  return entry.group.threads.reduce(
+    (latest, thread) => (thread[field] > latest ? thread[field] : latest),
+    entry.group.threads[0]![field],
+  );
+}

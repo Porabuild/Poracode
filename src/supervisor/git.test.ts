@@ -8,8 +8,8 @@ import type {
   WslLocation,
 } from "./wsl/bridge/client";
 
-const { execFileMock, mkdirMock, readFileMock, readWslCommandOutputAsync, statMock } = vi.hoisted(
-  () => ({
+const { execFileMock, mkdirMock, readFileMock, readWslCommandOutputAsync, rmMock, statMock } =
+  vi.hoisted(() => ({
     execFileMock:
       vi.fn<
         (
@@ -23,9 +23,9 @@ const { execFileMock, mkdirMock, readFileMock, readWslCommandOutputAsync, statMo
     readFileMock: vi.fn<() => Promise<string | Buffer>>(),
     readWslCommandOutputAsync:
       vi.fn<() => Promise<{ ok: boolean; stdout: string; stderr: string }>>(),
+    rmMock: vi.fn<() => Promise<void>>(),
     statMock: vi.fn<() => Promise<{ isFile(): boolean; size: number; mtimeMs: number }>>(),
-  }),
-);
+  }));
 
 vi.mock("./agents/base", async () => {
   const actual = await vi.importActual<typeof import("./agents/base")>("./agents/base");
@@ -41,6 +41,7 @@ vi.mock("node:fs/promises", async () => {
     ...actual,
     mkdir: mkdirMock,
     readFile: readFileMock,
+    rm: rmMock,
     stat: statMock,
   };
 });
@@ -1849,6 +1850,30 @@ describe("GitService.removeWorktree", () => {
 
     expect(removeCalls).toBe(0);
     expect(pruneCalls).toBe(1);
+  });
+
+  it("deletes the directory itself when a forced removal is interrupted", async () => {
+    const listedPath = worktreePath.replace(/\\/g, "/");
+    let listCalls = 0;
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "remove") {
+        return { error: new Error("Command failed: git worktree remove") };
+      }
+      if (args[0] === "worktree" && args[1] === "list") {
+        listCalls++;
+        if (listCalls === 1) {
+          return {
+            stdout: `worktree ${location.path}\nHEAD abc123\nbranch refs/heads/main\n\nworktree ${listedPath}\nHEAD def456\nbranch refs/heads/feature-x\n\n`,
+          };
+        }
+        return { stdout: `worktree ${location.path}\nHEAD abc123\nbranch refs/heads/main\n\n` };
+      }
+      return { stdout: "" };
+    });
+
+    await new GitService().removeWorktree(location, worktreePath, true);
+
+    expect(rmMock).toHaveBeenCalledWith(worktreePath, { recursive: true, force: true });
   });
 
   it("throws when prune does not remove the worktree registration", async () => {

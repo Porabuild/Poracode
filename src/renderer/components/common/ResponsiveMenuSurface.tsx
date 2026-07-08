@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from
 import { createPortal } from "react-dom";
 import { Popover } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { X } from "lucide-react";
 import { isRemoteSession } from "@/renderer/bridge";
+import { SheetGrabber, useSheetGrabber } from "@/renderer/components/common/useSheetGrabber";
 
 /** The placement union HeroUI's popover accepts, derived from the component. */
 type Placement = ComponentProps<typeof Popover.Content>["placement"];
@@ -39,7 +39,7 @@ export function ResponsiveMenuSurface(props: {
   /** Trigger button. On desktop it is wrapped by `Popover.Trigger`. */
   readonly trigger: ReactNode;
   /** Menu body, rendered inside the popover dialog or the drawer. */
-  readonly children: ReactNode;
+  readonly children: ReactNode | ((state: { readonly expanded: boolean }) => ReactNode);
   /** Accessible name + heading for the drawer (mobile only). */
   readonly label: string;
   /** Desktop popover placement. */
@@ -61,6 +61,17 @@ export function ResponsiveMenuSurface(props: {
   const [rendered, setRendered] = useState(props.isOpen);
   const [closing, setClosing] = useState(false);
   const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { sheetRef, expanded, dragging, grabberHandlers } = useSheetGrabber({
+    expandable: true,
+    closing,
+    onClose: () => props.onOpenChange(false),
+    resetOnOpen: mobile && props.isOpen,
+  });
+  const body =
+    typeof props.children === "function"
+      ? props.children({ expanded: mobile ? expanded : false })
+      : props.children;
+
   useEffect(() => {
     if (!mobile) return;
     if (props.isOpen) {
@@ -110,7 +121,7 @@ export function ResponsiveMenuSurface(props: {
             <Popover.Dialog
               {...(props.dialogClassName ? { className: props.dialogClassName } : {})}
             >
-              {props.children}
+              {body}
             </Popover.Dialog>
           </Popover.Content>
         ) : null}
@@ -137,19 +148,19 @@ export function ResponsiveMenuSurface(props: {
                 aria-label={t`Close`}
                 onClick={() => props.onOpenChange(false)}
               />
-              <div className="m-sheet" role="dialog" aria-label={props.label}>
+              <div
+                ref={sheetRef}
+                className="m-sheet"
+                data-expanded={expanded || undefined}
+                data-dragging={dragging || undefined}
+                role="dialog"
+                aria-label={props.label}
+              >
+                <SheetGrabber handlers={grabberHandlers} />
                 <div className="m-sheet-head">
                   <span className="truncate">{props.label}</span>
-                  <button
-                    type="button"
-                    className="m-sheet-close"
-                    aria-label={t`Close`}
-                    onClick={() => props.onOpenChange(false)}
-                  >
-                    <X className="size-4" />
-                  </button>
                 </div>
-                <div className="flex min-h-0 flex-1 flex-col">{props.children}</div>
+                <div className="flex min-h-0 flex-1 flex-col">{body}</div>
               </div>
             </div>,
             document.body,

@@ -23,16 +23,27 @@ const config: CapacitorConfig = {
   appId: "com.lightcodeapp.mobile",
   appName: "Poracode",
   webDir: "dist/mobile",
+  backgroundColor: "#070709",
   server: {
     androidScheme: "https",
     // Allow the paired desktop's plain-http LAN endpoint (Android).
     cleartext: true,
   },
   ios: {
-    contentInset: "always",
+    backgroundColor: "#070709",
+    contentInset: "never",
   },
   android: {
     allowMixedContent: true,
+    backgroundColor: "#070709",
+  },
+  plugins: {
+    // The app is dark-only, so pin light system-bar icons regardless of the
+    // OS theme (the DEFAULT style follows the system, which would render dark
+    // icons over our dark chrome in light mode).
+    SystemBars: {
+      style: "DARK",
+    },
   },
 };
 

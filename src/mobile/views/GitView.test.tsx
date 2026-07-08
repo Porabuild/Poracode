@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitProjectSnapshotResult, GitStatusResult, Project } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -32,11 +32,15 @@ vi.mock("@heroui/react", async (importOriginal) => {
 vi.mock("@/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar", () => ({
   GitReviewSidebar: (props: {
     readonly onRefresh: () => void;
+    readonly onSelectFile: (path: string, staged: boolean) => void;
     readonly onLaunchConflictResolverThread?: (input: unknown) => void;
   }) => (
     <>
       <button type="button" onClick={props.onRefresh}>
         Refresh changes
+      </button>
+      <button type="button" onClick={() => props.onSelectFile("src/App.tsx", false)}>
+        Open src/App.tsx diff
       </button>
       <button
         type="button"
@@ -113,6 +117,10 @@ describe("GitView", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("reports failed refresh fetches instead of silently doing nothing", async () => {
     const project = makeProject();
     bridge.gitFetch.mockRejectedValueOnce(new Error("fetch failed"));
@@ -154,5 +162,48 @@ describe("GitView", () => {
       prompt: "Resolve conflicts",
       presentationMode: "gui",
     });
+  });
+
+  it("holds the workspace chrome until a diff covers it and restores it before closing", () => {
+    vi.useFakeTimers();
+    const project = makeProject();
+    const onImmersiveChange = vi.fn<(immersive: boolean) => void>();
+
+    render(
+      <GitView
+        target={{ project }}
+        refreshSignal={0}
+        onClose={() => undefined}
+        onImmersiveChange={onImmersiveChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open src/App.tsx diff" }));
+
+    expect(document.querySelector(".m-git-diff")).toHaveAttribute("data-state", "entering");
+    expect(onImmersiveChange).toHaveBeenLastCalledWith(false);
+    expect(onImmersiveChange).not.toHaveBeenCalledWith(true);
+
+    act(() => {
+      vi.advanceTimersByTime(260);
+    });
+
+    expect(document.querySelector(".m-git-diff")).toHaveAttribute("data-state", "open");
+    expect(onImmersiveChange).toHaveBeenLastCalledWith(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to changes" }));
+
+    expect(document.querySelector(".m-git-diff")).toHaveAttribute("data-state", "closing");
+    expect(onImmersiveChange).toHaveBeenLastCalledWith(false);
+
+    act(() => {
+      vi.advanceTimersByTime(259);
+    });
+    expect(document.querySelector(".m-git-diff")).not.toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(document.querySelector(".m-git-diff")).toBeNull();
   });
 });

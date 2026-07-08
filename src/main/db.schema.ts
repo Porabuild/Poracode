@@ -28,6 +28,7 @@ export const threads = sqliteTable("threads", {
   config: text("config").notNull(), // JSON
   status: text("status").notNull(),
   attention: text("attention").notNull(),
+  threadStatusSource: text("thread_status_source"), // "cli_hook" | "terminal_parse" | "server"
   canResumeWithConfig: integer("can_resume_with_config", { mode: "boolean" })
     .notNull()
     .default(false),

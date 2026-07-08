@@ -25,7 +25,10 @@ export function ThreadDraftCompactHeader(props: {
 }) {
   const { t } = useLingui();
   return (
-    <div className={`px-2 ${props.headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}>
+    <div
+      data-draft-compact-header=""
+      className={`px-2 ${props.headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}
+    >
       <div
         ref={props.dragHandleRef}
         className={`${props.dragHandleRef ? "lightcode-content-over-drag-region cursor-grab active:cursor-grabbing" : "lightcode-content-over-drag-region--drag"} ${props.alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
@@ -104,7 +107,7 @@ export function ThreadDraftDropIndicators(props: {
 
 export function ThreadDraftHero(props: { compact?: boolean | undefined }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center">
+    <div data-draft-hero="" className="flex flex-1 flex-col items-center justify-center">
       <div className="w-full max-w-[920px] overflow-visible pb-3 text-center">
         <h1
           className={`inline-flex items-baseline gap-3 overflow-visible pb-[0.12em] leading-[1.28] font-semibold tracking-normal ${props.compact ? "text-[clamp(1.375rem,2.75vw,1.875rem)]" : "text-[clamp(1.875rem,4.25vw,3.125rem)]"}`}

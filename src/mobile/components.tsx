@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ReactNode } from "react";
-import { Check, ChevronRight, Columns2, Loader2, Rows2, Wifi, WifiOff } from "lucide-react";
+import { Check, ChevronRight, Columns2, Loader2, Plus, Rows2, Wifi, WifiOff } from "lucide-react";
+import { SheetGrabber, useSheetGrabber } from "@/renderer/components/common/useSheetGrabber";
 import type { ThreadStatus } from "@/shared/contracts";
 import { CONNECTION_LABELS, type ConnectionState } from "./useRemoteDesktop";
 import { THREAD_STATUS_LABELS, threadStatusTone } from "./presentation";
@@ -242,6 +243,12 @@ export function BottomSheet(props: {
   readonly children: ReactNode;
 }) {
   const { t } = useLingui();
+  const { sheetRef, expanded, dragging, grabberHandlers } = useSheetGrabber({
+    expandable: true,
+    closing: props.closing,
+    onClose: props.onClose,
+  });
+
   return createPortal(
     <div className="m-sheet-backdrop" data-closing={props.closing || undefined}>
       <button
@@ -250,11 +257,114 @@ export function BottomSheet(props: {
         aria-label={props.closeLabel ?? t`Close`}
         onClick={props.onClose}
       />
-      <div className="m-sheet" role="dialog" aria-label={props.label}>
+      <div
+        ref={sheetRef}
+        className="m-sheet"
+        data-expanded={expanded || undefined}
+        data-dragging={dragging || undefined}
+        role="dialog"
+        aria-label={props.label}
+      >
+        <SheetGrabber handlers={grabberHandlers} />
         {props.children}
       </div>
     </div>,
     document.body,
+  );
+}
+
+/**
+ * A tall, near-fullscreen drawer that slides up over the whole pane — the mobile
+ * stand-in for a modal form. Where {@link BottomSheet} hosts a short action list,
+ * this hosts a scrolling form behind a titled header, dismissed by dragging the
+ * grabber down (or tapping the scrim / pressing Escape), opened from a
+ * {@link Fab}. Portaled to <body> like the other drawers; drive
+ * `closing`/`onClose` with {@link useSheet} so the slide-out plays.
+ */
+export function FullScreenDrawer(props: {
+  /** Header heading. */
+  readonly title: ReactNode;
+  /** Dialog accessible name. */
+  readonly label: string;
+  /** Scrim (dismiss) accessible name; defaults to "Close". */
+  readonly closeLabel?: string;
+  readonly closing?: boolean | undefined;
+  readonly onClose: () => void;
+  readonly children: ReactNode;
+}) {
+  const { t } = useLingui();
+  const { onClose } = props;
+  const {
+    sheetRef: drawerRef,
+    dragging,
+    grabberHandlers,
+  } = useSheetGrabber({
+    expandable: false,
+    closing: props.closing,
+    onClose,
+  });
+  // Close on Escape, matching the folder picker and composer drawers.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="m-sheet-backdrop" data-closing={props.closing || undefined}>
+      <button
+        type="button"
+        className="m-sheet-scrim"
+        aria-label={props.closeLabel ?? t`Close`}
+        onClick={props.onClose}
+      />
+      <div
+        ref={drawerRef}
+        className="m-drawer"
+        data-dragging={dragging || undefined}
+        role="dialog"
+        aria-modal="true"
+        aria-label={props.label}
+      >
+        <SheetGrabber handlers={grabberHandlers} />
+        <div className="m-drawer__head">
+          <span className="m-drawer__title truncate">{props.title}</span>
+        </div>
+        <div className="m-drawer__body">{props.children}</div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/**
+ * Shared circular floating action button (glass surface, bottom-right of the
+ * pane) — the one base component every screen-level circle button should
+ * render through, so save/add/etc. all read as the same control instead of
+ * bespoke solid-fill circles. Defaults to the add glyph since list-then-form
+ * screens (Connections, Projects) were its first use, opening a
+ * {@link FullScreenDrawer} for the creation form.
+ */
+export function Fab(props: {
+  /** Accessible name, e.g. "Pair a connection". */
+  readonly label: string;
+  readonly onPress: () => void;
+  /** Defaults to a plus glyph. */
+  readonly icon?: ReactNode;
+  readonly disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className="m-fab"
+      aria-label={props.label}
+      disabled={props.disabled}
+      onClick={props.onPress}
+    >
+      {props.icon ?? <Plus className="size-5" />}
+    </button>
   );
 }
 

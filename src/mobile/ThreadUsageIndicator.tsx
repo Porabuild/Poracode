@@ -130,7 +130,7 @@ function UsageDrawer(props: {
         </span>
         <button
           type="button"
-          className="m-sheet-close"
+          className="m-sheet-head-action"
           aria-label={t`Refresh`}
           disabled={refreshing}
           onClick={() => void refresh()}

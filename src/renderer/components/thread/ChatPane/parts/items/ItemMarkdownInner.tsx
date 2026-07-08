@@ -23,6 +23,7 @@ import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { LC_SELECTOR_LANG, tryParseSelectorPayload } from "./SelectorBadge";
 import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./ItemMarkdown";
+import { chatInlineImageClass } from "./chatImageClass";
 import { normalizeHighlightLanguage } from "./languageDetect";
 import { parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
 import {
@@ -131,6 +132,17 @@ const MD_COMPONENTS: StreamdownComponents = {
   a({ href, children }) {
     return <MdAnchor href={href ?? ""}>{children}</MdAnchor>;
   },
+  img({ alt, className, ...rest }) {
+    return (
+      <img
+        {...rest}
+        alt={alt ?? ""}
+        className={className ? `${markdownImageClass} ${className}` : markdownImageClass}
+        decoding="async"
+        draggable={false}
+      />
+    );
+  },
   // Render a clean native table with HeroUI-themed styling. Override
   // Streamdown's default wrapper (which includes copy/download/fullscreen
   // controls) and replace its memoized sub-components with native HTML
@@ -169,6 +181,7 @@ const inlineCodeChipClass =
   "rounded border-0 bg-foreground/10 px-[0.35em] py-[0.1em] font-mono text-[0.875em] leading-none align-baseline text-foreground [overflow-wrap:anywhere]";
 const markdownCodeBlockClass =
   "not-prose my-2 min-w-0 overflow-x-hidden rounded bg-foreground/10 px-[0.5em] py-[0.25em] font-mono text-[0.875em] leading-snug text-foreground";
+const markdownImageClass = `not-prose my-2 rounded-lg border border-[color:var(--border)] bg-[var(--composer-surface)] ${chatInlineImageClass}`;
 
 function MdCode(props: { className: string; isBlock?: boolean; children?: ReactNode }) {
   const actions = useChatPaneActions();

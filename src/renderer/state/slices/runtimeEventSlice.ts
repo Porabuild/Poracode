@@ -166,16 +166,40 @@ export function getRuntimeItemPayload<T>(
   return item.type === expectedType ? (item.payload as T | undefined) : undefined;
 }
 
+/**
+ * Fresh per-thread runtime maps. Extracted so a full reset (e.g. the mobile
+ * client switching desktops) can restore EVERY runtime map by spreading this,
+ * instead of a hand-maintained list that silently drifts when a new map is
+ * added here. The slice creator below spreads it too, so a newly-added map is
+ * a type error until it lands in this factory.
+ */
+export function createInitialRuntimeEventState(): Pick<
+  RuntimeEventSlice,
+  | "runtimeItemIdsByThread"
+  | "runtimeItemsByIdByThread"
+  | "runtimeRequestsByThread"
+  | "runtimeContextByThread"
+  | "runtimeStructuralVersionByThread"
+  | "runtimeCompletedTurnsByThread"
+  | "runtimeOpenTurnByThread"
+  | "fileCheckpointsByThread"
+  | "fileCheckpointTurnsByThread"
+> {
+  return {
+    runtimeItemIdsByThread: {},
+    runtimeItemsByIdByThread: {},
+    runtimeRequestsByThread: {},
+    runtimeContextByThread: {},
+    runtimeStructuralVersionByThread: {},
+    runtimeCompletedTurnsByThread: {},
+    runtimeOpenTurnByThread: {},
+    fileCheckpointsByThread: {},
+    fileCheckpointTurnsByThread: {},
+  };
+}
+
 export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) => ({
-  runtimeItemIdsByThread: {},
-  runtimeItemsByIdByThread: {},
-  runtimeRequestsByThread: {},
-  runtimeContextByThread: {},
-  runtimeStructuralVersionByThread: {},
-  runtimeCompletedTurnsByThread: {},
-  runtimeOpenTurnByThread: {},
-  fileCheckpointsByThread: {},
-  fileCheckpointTurnsByThread: {},
+  ...createInitialRuntimeEventState(),
 
   applyRuntimeEvent: (threadId, event) =>
     set((state) => applyRuntimeEventsToState(state, threadId, [event])),

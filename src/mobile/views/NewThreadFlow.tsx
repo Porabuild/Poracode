@@ -5,7 +5,8 @@ import type { Project } from "@/shared/contracts";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useAppStore } from "@/renderer/state/appStore";
 import { selectDraftProject } from "../navHelpers";
-import { useMobileApp } from "../remoteContext";
+import { useRemote } from "../remoteContext";
+import type { MobileSetupKind } from "../setupEmptyState";
 import { NewThreadView } from "./NewThreadView";
 
 /**
@@ -13,8 +14,11 @@ import { NewThreadView } from "./NewThreadView";
  * by the /new route and the home screen's expanding composer sheet. On a
  * successful start the caller receives the new thread id to route to.
  */
-export function NewThreadFlow(props: { readonly onStarted: (threadId: string) => void }) {
-  const { remote } = useMobileApp();
+export function NewThreadFlow(props: {
+  readonly onStarted: (threadId: string) => void;
+  readonly onSetupAction?: (kind: MobileSetupKind) => void;
+}) {
+  const remote = useRemote();
   const { t } = useLingui();
   const [draftProjectId, setDraftProjectId] = useState<string | null>(null);
   const [draftNonce, setDraftNonce] = useState(0);
@@ -44,5 +48,13 @@ export function NewThreadFlow(props: { readonly onStarted: (threadId: string) =>
       });
   }
 
-  return <NewThreadView key={String(draftNonce)} project={draftProject} onStart={startFromDraft} />;
+  return (
+    <NewThreadView
+      key={String(draftNonce)}
+      project={draftProject}
+      setupKind={remote.connection === "online" ? "project" : "desktop"}
+      {...(props.onSetupAction ? { onSetupAction: props.onSetupAction } : {})}
+      onStart={startFromDraft}
+    />
+  );
 }

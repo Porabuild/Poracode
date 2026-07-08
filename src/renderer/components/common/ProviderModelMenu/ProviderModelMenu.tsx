@@ -32,6 +32,7 @@ const MODEL_MENU_ROW_HEIGHT = 28;
  * stay compact. Threaded through the virtualizer so the JS row math and the
  * rendered row height never disagree (a mismatch desyncs the scroll spacers). */
 const MODEL_MENU_ROW_HEIGHT_MOBILE = 44;
+const MODEL_MENU_EXPANDED_MOBILE_CHROME_HEIGHT = 180;
 const MODEL_MENU_PROVIDER_HEADER_BOTTOM_GAP = 4;
 const MODEL_MENU_MAX_HEIGHT = 288;
 const MODEL_MENU_LISTBOX_PADDING_BOTTOM = 6;
@@ -214,6 +215,14 @@ function splitModelLabel(label: string): { name: string; hint?: string } {
     name: label.slice(0, separatorIdx),
     hint: label.slice(separatorIdx + 3),
   };
+}
+
+function expandedMobileModelMenuMaxHeight(): number {
+  if (typeof window === "undefined") return MODEL_MENU_MAX_HEIGHT;
+  return Math.max(
+    MODEL_MENU_MAX_HEIGHT,
+    window.innerHeight - MODEL_MENU_EXPANDED_MOBILE_CHROME_HEIGHT,
+  );
 }
 
 function refsForPresentation(
@@ -407,7 +416,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     </Button>
   );
 
-  const content = (
+  const renderContent = ({ expanded }: { readonly expanded: boolean }) => (
     <>
       <div className="lightcode-model-menu-search flex items-center gap-2 border-b border-border px-3 py-2">
         <Search className="size-3.5 shrink-0 text-muted" />
@@ -441,6 +450,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           selectedKeys={selectedKeys}
           scrollRef={windowedListRef}
           modelRowHeight={mobile ? MODEL_MENU_ROW_HEIGHT_MOBILE : MODEL_MENU_ROW_HEIGHT}
+          mobileExpanded={mobile && expanded}
           toggleFavorite={(providerKind, modelId, rowPresentationMode) =>
             toggleFavoriteModel(
               providerKind,
@@ -475,7 +485,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       contentClassName="w-96 p-0"
       dialogClassName="flex max-h-[28rem] flex-col overflow-hidden !p-0"
     >
-      {content}
+      {renderContent}
     </ResponsiveMenuSurface>
   );
 }
@@ -487,6 +497,7 @@ function WindowedProviderModelList(props: {
   scrollRef: RefObject<HTMLDivElement | null>;
   /** Height of a model row; larger on mobile so drawer rows are finger-sized. */
   modelRowHeight: number;
+  mobileExpanded: boolean;
   toggleFavorite: (
     providerKind: string,
     modelId: string,
@@ -494,8 +505,16 @@ function WindowedProviderModelList(props: {
   ) => void;
   onSelect: (itemId: string) => void;
 }) {
-  const { domIdPrefix, items, selectedKeys, scrollRef, modelRowHeight, toggleFavorite, onSelect } =
-    props;
+  const {
+    domIdPrefix,
+    items,
+    selectedKeys,
+    scrollRef,
+    modelRowHeight,
+    mobileExpanded,
+    toggleFavorite,
+    onSelect,
+  } = props;
   const { t } = useLingui();
   const [visibleRow, setVisibleRow] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
@@ -531,9 +550,12 @@ function WindowedProviderModelList(props: {
   }, [activeIndex, initialActiveRowId, meta]);
 
   const totalHeight = meta.totalHeight;
+  const maxViewportHeight = mobileExpanded
+    ? expandedMobileModelMenuMaxHeight()
+    : MODEL_MENU_MAX_HEIGHT;
   const viewportHeight = Math.min(
     totalHeight + MODEL_MENU_LISTBOX_VERTICAL_PADDING,
-    MODEL_MENU_MAX_HEIGHT,
+    maxViewportHeight,
   );
   const visibleRowCount = Math.max(1, Math.ceil(viewportHeight / modelRowHeight));
   const clampedVisibleRow = Math.min(visibleRow, Math.max(0, items.length - 1));
@@ -640,7 +662,9 @@ function WindowedProviderModelList(props: {
       aria-activedescendant={
         activeIndex >= 0 ? `${domIdPrefix}-${items[activeIndex]?.id}` : undefined
       }
-      className="lightcode-model-menu-listbox no-scrollbar max-h-72 overflow-y-auto pb-1.5 outline-none"
+      className={`lightcode-model-menu-listbox no-scrollbar overflow-y-auto pb-1.5 outline-none ${
+        mobileExpanded ? "max-h-none" : "max-h-72"
+      }`}
       style={{ height: viewportHeight }}
       tabIndex={0}
       onScroll={(event) => {

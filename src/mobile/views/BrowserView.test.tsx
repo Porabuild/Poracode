@@ -57,4 +57,18 @@ describe("mobile BrowserView", () => {
       expect(toastDanger).toHaveBeenCalledWith("Desktop browser is unavailable");
     });
   });
+
+  it("shows browser unavailability instead of spinning when no state has loaded", () => {
+    useBrowserMirrorStore.getState().reset();
+    useBrowserMirrorStore.getState().setStatus({
+      status: "unavailable",
+      tabId: null,
+      reason: "Browser mirroring is not available on this desktop.",
+    });
+
+    render(<BrowserView />);
+
+    expect(screen.getByText("Browser mirroring is not available on this desktop.")).toBeTruthy();
+    expect(screen.queryByText("Connecting to the desktop browser…")).toBeNull();
+  });
 });

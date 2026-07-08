@@ -1,14 +1,30 @@
 // @vitest-environment jsdom
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import { TerminalRoute, ThreadRoute } from "./routeComponents";
+import { clearPairingLaunch, parsePairingLaunch, setPairingLaunch } from "./pairing";
+import {
+  DesktopsRoute,
+  TerminalRoute,
+  ThreadRoute,
+  ThreadsRoute,
+  WorkspaceRoute,
+} from "./routeComponents";
 
 // Counts TerminalView mount events so a target change can be asserted to
 // remount (fresh PTY) rather than reuse the stale one.
 const terminalMounts = vi.hoisted(() => ({ count: 0 }));
+const workspaceMounts = vi.hoisted(() => ({ count: 0 }));
+const desktopView = vi.hoisted(() => ({
+  lastProps: null as null | {
+    readonly manualEndpoint: string;
+    readonly manualToken: string;
+    readonly showPairingHint: boolean;
+    readonly onPair: () => void;
+  },
+}));
 
 const fixtures = vi.hoisted(() => {
   const project: Project = {
@@ -37,17 +53,34 @@ const fixtures = vi.hoisted(() => {
   };
 
   return {
+    project,
     params: { threadId: routedThread.id, projectId: project.id },
-    search: {} as { worktree?: string; action?: string; fromThread?: string },
+    search: {} as {
+      worktree?: string;
+      action?: string;
+      fromThread?: string;
+      tab?: "changes" | "files";
+    },
     navigate: vi.fn<(options: unknown) => void>(),
     remote: {
       booted: true,
+      connection: "online",
+      activeDesktop: {
+        desktopId: "desktop-1",
+        label: "Poracode on Mac",
+        scopes: ["projects:manage"],
+      },
+      desktops: [],
+      activeDesktopId: "desktop-1",
       projects: [project],
       selectedThread,
       selectedThreadSnapshot: { thread: routedThread },
       threads: [selectedThread, routedThread],
       openThread: vi.fn<(thread: Thread) => Promise<void>>().mockResolvedValue(undefined),
       sendPrompt: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      pairDesktop: vi
+        .fn<(endpoint: string, credential: string) => Promise<void>>()
+        .mockResolvedValue(undefined),
       applyThreadAction: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       deleteWorktreeGroup: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     },
@@ -67,7 +100,12 @@ vi.mock("./remoteContext", () => ({
     remote: fixtures.remote,
     projectFilter: null,
     setProjectFilter: () => undefined,
+    threadSearchOpen: false,
+    setThreadSearchOpen: () => undefined,
+    threadSearchHost: null,
+    setChromeHidden: () => undefined,
   }),
+  useRemote: () => fixtures.remote,
 }));
 
 vi.mock("./useMediaQuery", () => ({
@@ -104,20 +142,58 @@ vi.mock("./views/TerminalView", () => ({
   },
 }));
 
+vi.mock("./views/WorkspaceView", () => ({
+  WorkspaceView: () => {
+    useEffect(() => {
+      workspaceMounts.count += 1;
+    }, []);
+    return <div data-testid="workspace-view" />;
+  },
+}));
+
 vi.mock("./views/NewThreadView", () => ({
   NewThreadView: () => null,
 }));
 
+vi.mock("./views/QuickCompose", () => ({
+  QuickCompose: () => <div data-testid="quick-compose" />,
+}));
+
 vi.mock("./views/ThreadsView", () => ({
-  ThreadsView: () => null,
+  ThreadsView: (props: { emptyStateOverride?: ReactNode }) => (
+    <div data-testid="threads-view">
+      {props.emptyStateOverride ? <div>{props.emptyStateOverride}</div> : null}
+    </div>
+  ),
 }));
 
 vi.mock("./views/DesktopsView", () => ({
-  DesktopsView: () => null,
+  DesktopsView: (props: {
+    readonly manualEndpoint: string;
+    readonly manualToken: string;
+    readonly showPairingHint: boolean;
+    readonly onPair: () => void;
+  }) => {
+    desktopView.lastProps = props;
+    return (
+      <div>
+        <span data-testid="manual-endpoint">{props.manualEndpoint}</span>
+        <span data-testid="manual-token">{props.manualToken}</span>
+        <span data-testid="pairing-hint">{String(props.showPairingHint)}</span>
+        <button type="button" onClick={props.onPair}>
+          Pair
+        </button>
+      </div>
+    );
+  },
 }));
 
 vi.mock("./views/MoreView", () => ({
   MoreView: () => null,
+}));
+
+vi.mock("./useGitSummaryHydration", () => ({
+  useGitSummaryHydration: () => undefined,
 }));
 
 describe("mobile route components", () => {
@@ -125,9 +201,73 @@ describe("mobile route components", () => {
     fixtures.params.threadId = "thread-routed";
     fixtures.params.projectId = "project-1";
     fixtures.search = {};
+    fixtures.remote.connection = "online";
+    fixtures.remote.projects = [fixtures.project];
+    fixtures.remote.activeDesktop = {
+      desktopId: "desktop-1",
+      label: "Poracode on Mac",
+      scopes: ["projects:manage"],
+    };
+    fixtures.remote.desktops = [];
+    fixtures.remote.activeDesktopId = "desktop-1";
     fixtures.navigate.mockReset();
     fixtures.remote.openThread.mockClear();
+    fixtures.remote.pairDesktop.mockClear();
+    desktopView.lastProps = null;
+    clearPairingLaunch();
     terminalMounts.count = 0;
+    workspaceMounts.count = 0;
+  });
+
+  it("replaces the empty thread content with a desktop setup prompt while disconnected", () => {
+    fixtures.remote.connection = "offline";
+
+    render(<ThreadsRoute />);
+
+    expect(screen.queryByTestId("quick-compose")).toBeNull();
+    expect(screen.getByText("Connect desktop")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+    expect(fixtures.navigate).toHaveBeenCalledWith({ to: "/desktops" });
+  });
+
+  it("shows an add-project prompt instead of the home composer when no project is available", () => {
+    fixtures.remote.projects = [];
+
+    render(<ThreadsRoute />);
+
+    expect(screen.queryByTestId("quick-compose")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add project" }));
+    expect(fixtures.navigate).toHaveBeenCalledWith({ to: "/more/projects" });
+  });
+
+  it("renders the home composer only after a connected desktop has projects", () => {
+    render(<ThreadsRoute />);
+
+    expect(screen.getByTestId("quick-compose")).toBeTruthy();
+  });
+
+  it("consumes a deep-link pairing credential after a successful pair", async () => {
+    setPairingLaunch({
+      endpoint: "http://192.168.1.20:38987/",
+      credential: "lc_pair_once",
+    });
+
+    render(<DesktopsRoute />);
+
+    expect(screen.getByTestId("manual-endpoint")).toHaveTextContent("http://192.168.1.20:38987/");
+    expect(screen.getByTestId("manual-token")).toHaveTextContent("lc_pair_once");
+    expect(screen.getByTestId("pairing-hint")).toHaveTextContent("true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Pair" }));
+
+    await waitFor(() =>
+      expect(fixtures.remote.pairDesktop).toHaveBeenCalledWith(
+        "http://192.168.1.20:38987/",
+        "lc_pair_once",
+      ),
+    );
+    expect(parsePairingLaunch().credential).toBeNull();
+    expect(fixtures.navigate).toHaveBeenCalledWith({ to: "/threads" });
   });
 
   it("renders the empty thread state for a missing routed thread instead of the stale selection", () => {
@@ -161,6 +301,19 @@ describe("mobile route components", () => {
       to: "/thread/$threadId",
       params: { threadId: "thread-routed" },
     });
+  });
+
+  it("remounts the workspace when the routed thread target changes", async () => {
+    fixtures.params.threadId = "thread-routed";
+    fixtures.search = { tab: "files" };
+    const { rerender } = render(<WorkspaceRoute />);
+    await screen.findByTestId("workspace-view");
+    expect(workspaceMounts.count).toBe(1);
+
+    fixtures.params.threadId = "thread-selected";
+    rerender(<WorkspaceRoute />);
+
+    await waitFor(() => expect(workspaceMounts.count).toBe(2));
   });
 
   it("remounts the terminal (fresh shell) when the target changes", async () => {

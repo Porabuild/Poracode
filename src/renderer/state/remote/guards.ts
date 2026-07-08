@@ -1,5 +1,6 @@
 export function shouldReplaceRuntimeItemsFromSnapshot(input: {
   readonly existingCount: number;
+  readonly existingHasObservedLiveItems: boolean;
   readonly snapshotItemCount: number;
   readonly threadActive: boolean;
   /**
@@ -13,6 +14,11 @@ export function shouldReplaceRuntimeItemsFromSnapshot(input: {
 }): boolean {
   if (input.existingCount === 0) return true;
   if (input.snapshotItemCount > input.existingCount) return true;
+  // An empty server history is not enough evidence to erase transcript items
+  // that already streamed into this client. Mobile/headless histories can
+  // briefly be empty while durable runtime persistence catches up; explicit
+  // resets clear live items through the `thread-reset` event path instead.
+  if (input.snapshotItemCount === 0 && input.existingHasObservedLiveItems) return false;
   // A live turn's WebSocket deltas are fresher than any debounced snapshot, so
   // never let a same/shorter snapshot clobber them.
   if (input.threadActive) return false;

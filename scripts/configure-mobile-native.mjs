@@ -2,6 +2,10 @@ import { cpSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = process.cwd();
+// Domain that owns pairing/universal links. The installed app claims
+// `applinks:<host>` so https://<host>/pair opens the app instead of the hosted
+// PWA. Override with LIGHTCODE_MOBILE_APP_HOST (e.g. a staging domain).
+const DEFAULT_MOBILE_APP_HOST = "poracode.com";
 const appHost = readAppHost();
 const requireAndroidLinks =
   readBoolEnv("LIGHTCODE_MOBILE_REQUIRE_NATIVE_LINKS") ||
@@ -21,11 +25,12 @@ if (!appHost) {
   console.log("[configure-mobile-native] LIGHTCODE_MOBILE_APP_HOST not set; skipping app links.");
 } else {
   configureAndroid(appHost);
-  configureIos(appHost);
+  configureIosAppLinks(appHost);
 }
 
 // Push notifications & Live Activities are independent of the app-link host, so
 // they run whenever the native project is present (no-op otherwise).
+configureIosLocalNetworking();
 configureIosLiveActivities();
 copyWidgetExtensionSources();
 configureAndroidPush();
@@ -42,7 +47,7 @@ function readBoolEnv(key) {
 }
 
 function readAppHost() {
-  const raw = readEnv("LIGHTCODE_MOBILE_APP_HOST");
+  const raw = readEnv("LIGHTCODE_MOBILE_APP_HOST") || DEFAULT_MOBILE_APP_HOST;
   if (!raw) return "";
   try {
     return new URL(raw.includes("://") ? raw : `https://${raw}`).host;
@@ -89,14 +94,23 @@ function configureAndroid(host) {
   console.log("[configure-mobile-native] configured Android app links.");
 }
 
-function configureIos(host) {
+function configureIosLocalNetworking() {
   const infoPlistPath = resolve(root, "ios/App/App/Info.plist");
   if (!existsSync(infoPlistPath)) {
-    console.log("[configure-mobile-native] ios/ not present; skipping iOS native config.");
+    console.log("[configure-mobile-native] ios/ not present; skipping iOS ATS config.");
     return;
   }
 
   configureIosAts(infoPlistPath);
+}
+
+function configureIosAppLinks(host) {
+  const infoPlistPath = resolve(root, "ios/App/App/Info.plist");
+  if (!existsSync(infoPlistPath)) {
+    console.log("[configure-mobile-native] ios/ not present; skipping iOS app links.");
+    return;
+  }
+
   configureIosEntitlements(host);
 }
 

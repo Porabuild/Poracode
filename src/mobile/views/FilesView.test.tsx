@@ -99,12 +99,12 @@ describe("FilesView", () => {
     expect(bridge.readProjectFile).not.toHaveBeenCalled();
     expect(editor).toHaveValue("# Plan");
     expect(editor).toHaveAttribute("readonly");
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
 
     fireEvent.change(editor, { target: { value: "# Changed" } });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     });
   });
 
@@ -155,7 +155,7 @@ describe("FilesView", () => {
       />,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "Actions for app.ts" }));
+    fireEvent.contextMenu((await screen.findByText("app.ts")).closest("button")!);
     fireEvent.click(screen.getByRole("button", { name: "Rename" }));
 
     await waitFor(() => {
@@ -166,7 +166,7 @@ describe("FilesView", () => {
       });
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Actions for app.ts" }));
+    fireEvent.contextMenu((await screen.findByText("app.ts")).closest("button")!);
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     fireEvent.click(screen.getAllByRole("button", { name: "Delete" }).at(-1)!);
 

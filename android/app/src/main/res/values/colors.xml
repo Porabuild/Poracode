@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches capacitor.config.ts backgroundColor. Painted behind the
+         WebView, so the safe-area strips stay dark when Capacitor's SystemBars
+         fallback (WebView < Chromium 140) insets the WebView from the bars. -->
+    <color name="windowBackground">#FF070709</color>
+</resources>

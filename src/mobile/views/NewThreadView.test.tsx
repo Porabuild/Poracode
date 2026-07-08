@@ -112,7 +112,7 @@ describe("NewThreadView git hydration", () => {
   it("skips hydration and shows the empty state when there is no project", () => {
     render(<NewThreadView project={null} onStart={vi.fn<() => void>()} />);
 
-    expect(screen.getByText("No projects available")).toBeTruthy();
+    expect(screen.getByText("Add a project")).toBeTruthy();
     expect(bridge.getGitStatus).not.toHaveBeenCalled();
     expect(bridge.gitProjectSnapshot).not.toHaveBeenCalled();
   });

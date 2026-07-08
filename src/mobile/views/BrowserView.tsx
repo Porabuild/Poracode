@@ -633,17 +633,34 @@ export function BrowserView() {
   // Watch over the WS; the HTTP fetch backfills tab state for the first paint
   // (and when the socket is still reconnecting).
   useEffect(() => {
+    let cancelled = false;
     startBrowserWatch();
+    // Snapshot the store identity at request time: this HTTP fetch is only a
+    // first-paint/reconnect backfill, so if a WS frame updates the store while
+    // it's in flight (fresher) — or the view unmounts — skip applying the older
+    // snapshot, which would otherwise revert e.g. a just-created tab.
+    const stateAtRequest = useBrowserMirrorStore.getState().state;
     getRemoteBridgeClient()
       ?.browserState()
-      .then((next) => useBrowserMirrorStore.getState().setState(next))
-      .catch(() => {});
+      .then((next) => {
+        if (cancelled || useBrowserMirrorStore.getState().state !== stateAtRequest) return;
+        useBrowserMirrorStore.getState().setState(next);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        useBrowserMirrorStore.getState().setStatus({
+          status: "unavailable",
+          tabId: null,
+          reason: friendlyError(error),
+        });
+      });
     const onVisibility = () => {
       if (document.visibilityState === "hidden") pauseBrowserWatch();
       else resumeBrowserWatch();
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      cancelled = true;
       document.removeEventListener("visibilitychange", onVisibility);
       stopBrowserWatch();
     };
@@ -654,6 +671,7 @@ export function BrowserView() {
   }
 
   const mirrorActive = status?.status === "active" && frame !== null;
+  const unavailable = status?.status === "unavailable";
 
   return (
     <section className="m-browser">
@@ -670,7 +688,14 @@ export function BrowserView() {
       ) : null}
       <div className="m-browser__stage">
         {frame ? <MirrorSurface frame={frame} /> : null}
-        {!state ? (
+        {unavailable ? (
+          <div className="m-browser__status" data-dim={frame ? "true" : undefined}>
+            <p>{status.reason ?? t`Mirroring is unavailable.`}</p>
+            <Button size="sm" variant="secondary" onPress={() => startBrowserWatch()}>
+              <Trans>Retry</Trans>
+            </Button>
+          </div>
+        ) : !state ? (
           <div className="m-browser__status">
             <p>
               <Loader2 className="m-spin size-4" />{" "}
@@ -683,18 +708,9 @@ export function BrowserView() {
           </div>
         ) : !mirrorActive ? (
           <div className="m-browser__status" data-dim={frame ? "true" : undefined}>
-            {status?.status === "unavailable" ? (
-              <>
-                <p>{status.reason ?? t`Mirroring is unavailable.`}</p>
-                <Button size="sm" variant="secondary" onPress={() => startBrowserWatch()}>
-                  <Trans>Retry</Trans>
-                </Button>
-              </>
-            ) : (
-              <p>
-                <Loader2 className="m-spin size-4" /> <Trans>Starting mirror…</Trans>
-              </p>
-            )}
+            <p>
+              <Loader2 className="m-spin size-4" /> <Trans>Starting mirror…</Trans>
+            </p>
           </div>
         ) : null}
       </div>

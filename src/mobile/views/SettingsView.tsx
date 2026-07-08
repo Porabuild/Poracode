@@ -15,8 +15,6 @@ import { TerminalSettings } from "@/renderer/views/SettingsOverlay/parts/Termina
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import { UsageSettings } from "@/renderer/views/SettingsOverlay/parts/UsageSettings";
 import { MoreRow } from "../components";
-import { isNativeApp } from "../pwaInstall";
-import { MobilePushSettings } from "../push/MobilePushSettings";
 import { DESKTOP_SETTINGS_SECTIONS, type MobileSettingsSectionId } from "../settingsSections";
 import type { ThreadAction } from "../useRemoteDesktop";
 
@@ -98,12 +96,7 @@ const SECTION_RENDERERS: Record<
   profile: () => <ProfileSettings />,
   general: () => <GeneralSettings />,
   appearance: () => <AppearanceSettings />,
-  notifications: () => (
-    <>
-      <NotificationSettings />
-      {isNativeApp() ? <MobilePushSettings /> : null}
-    </>
-  ),
+  notifications: () => <NotificationSettings />,
   terminal: () => <TerminalSettings />,
   git: () => <GitSettings />,
   usage: () => <UsageSettings />,

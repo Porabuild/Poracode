@@ -1,10 +1,12 @@
 import DexieDatabase, { type EntityTable } from "dexie";
+import type { ThreadStatus } from "@/shared/contracts";
 import type {
   RemoteAccessScope,
   RemoteEnvironmentDescriptor,
   RemoteShellSnapshot,
   RemoteThreadSnapshot,
 } from "@/shared/remote";
+import { deleteDesktopToken, getDesktopToken, setDesktopToken } from "./tokenVault";
 
 export interface StoredDesktop {
   readonly desktopId: string;
@@ -58,12 +60,44 @@ class PoracodeMobileDatabase extends DexieDatabase {
 
 export const mobileDb = new PoracodeMobileDatabase();
 
+/**
+ * Synchronous localStorage mirror of the active desktop's last shell snapshot.
+ * IndexedDB has no sync API, so without this the first paint always renders
+ * with empty threads/projects and the header controls pop in once the Dexie
+ * read resolves. The mirror is a fast-path seed only — the Dexie row stays the
+ * authoritative cache and overwrites the seed as soon as it loads.
+ */
+const SHELL_MIRROR_KEY = "lightcode-mobile.shellSnapshotMirror";
+
+export function readShellSnapshotMirror(): StoredShellSnapshot | null {
+  try {
+    const raw = localStorage.getItem(SHELL_MIRROR_KEY);
+    return raw ? (JSON.parse(raw) as StoredShellSnapshot) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeShellSnapshotMirror(entry: StoredShellSnapshot): void {
+  try {
+    localStorage.setItem(SHELL_MIRROR_KEY, JSON.stringify(entry));
+  } catch {
+    // Quota or serialization failure only loses the fast-path seed.
+  }
+}
+
+function clearShellSnapshotMirror(desktopId?: string): void {
+  try {
+    if (desktopId && readShellSnapshotMirror()?.desktopId !== desktopId) return;
+    localStorage.removeItem(SHELL_MIRROR_KEY);
+  } catch {
+    // Ignore — same as write failures.
+  }
+}
+
 const ACTIVE_DESKTOP_KEY = "activeDesktopId";
 /** Stable per-install identity used as the push-registration upsert key. */
 const DEVICE_ID_KEY = "pushDeviceId";
-/** Per-desktop push opt-in flag (`push.enabled:<desktopId>` → "1" | "0"). */
-const PUSH_ENABLED_PREFIX = "push.enabled:";
-
 export async function getStoredPreference(key: string): Promise<string | null> {
   return (await mobileDb.preferences.get(key))?.value ?? null;
 }
@@ -78,7 +112,9 @@ export async function setStoredPreference(key: string, value: string): Promise<v
  * once (a random UUID, well over the protocol's 8-char minimum) and persisted;
  * every later call returns the same value.
  */
-export async function getOrCreateDeviceId(): Promise<string> {
+let deviceIdPromise: Promise<string> | null = null;
+
+async function createOrReadDeviceId(): Promise<string> {
   const existing = await getStoredPreference(DEVICE_ID_KEY);
   if (existing) return existing;
   const deviceId = crypto.randomUUID();
@@ -86,17 +122,48 @@ export async function getOrCreateDeviceId(): Promise<string> {
   return deviceId;
 }
 
-/** Whether the user has opted this desktop into Apple push notifications. */
-export async function isPushEnabled(desktopId: string): Promise<boolean> {
-  return (await getStoredPreference(`${PUSH_ENABLED_PREFIX}${desktopId}`)) === "1";
+export function getOrCreateDeviceId(): Promise<string> {
+  // Memoize the in-flight promise so concurrent first-run callers (push
+  // registration + a settings read) share ONE generate-and-persist instead of
+  // each minting a different UUID via a check-then-act race. `??=` runs
+  // synchronously (no await between check and assign), so the race can't slip
+  // through. Cleared on failure so a transient error doesn't wedge it.
+  deviceIdPromise ??= createOrReadDeviceId().catch((error: unknown) => {
+    deviceIdPromise = null;
+    throw error;
+  });
+  return deviceIdPromise;
 }
 
-export async function setPushEnabled(desktopId: string, enabled: boolean): Promise<void> {
-  await setStoredPreference(`${PUSH_ENABLED_PREFIX}${desktopId}`, enabled ? "1" : "0");
+/**
+ * Return a desktop row with its `accessToken` populated for consumers.
+ *
+ * The token lives in {@link import("./tokenVault")} (the OS keystore on
+ * native, a WebCrypto-encrypted Dexie vault on web) and the row here holds an
+ * empty `accessToken` once it has been moved there, so it is rehydrated from
+ * the vault on read. Two extra cases:
+ *  - Lazy migration: a legacy row still carrying a plaintext token (paired
+ *    before the vault existed for this platform) is moved into the vault and
+ *    blanked on first read.
+ *  - Graceful degradation: if the vault is unavailable or the read fails, the
+ *    row is returned as-is (plaintext if it never migrated, empty if it did
+ *    but the vault can't be reached) rather than throwing — the user re-pairs
+ *    instead of the app breaking.
+ */
+async function hydrateDesktopToken(row: StoredDesktop): Promise<StoredDesktop> {
+  if (row.accessToken) {
+    // Legacy plaintext row: migrate it into the vault, then blank the row.
+    const migrated = await setDesktopToken(row.desktopId, row.accessToken);
+    if (migrated) await mobileDb.desktops.put({ ...row, accessToken: "" });
+    return row;
+  }
+  const token = await getDesktopToken(row.desktopId);
+  return token ? { ...row, accessToken: token } : row;
 }
 
 export async function listStoredDesktops(): Promise<StoredDesktop[]> {
-  return await mobileDb.desktops.orderBy("updatedAt").reverse().toArray();
+  const rows = await mobileDb.desktops.orderBy("updatedAt").reverse().toArray();
+  return await Promise.all(rows.map((row) => hydrateDesktopToken(row)));
 }
 
 export async function getActiveDesktopId(): Promise<string | null> {
@@ -104,6 +171,11 @@ export async function getActiveDesktopId(): Promise<string | null> {
 }
 
 export async function setActiveDesktopId(desktopId: string): Promise<void> {
+  // The mirror must only ever seed the active desktop's data; drop it when the
+  // selection moves elsewhere so the next boot can't flash another desktop's
+  // threads. The next saveShellSnapshot for the new desktop repopulates it.
+  const mirror = readShellSnapshotMirror();
+  if (mirror && mirror.desktopId !== desktopId) clearShellSnapshotMirror();
   await mobileDb.preferences.put({ key: ACTIVE_DESKTOP_KEY, value: desktopId });
 }
 
@@ -124,11 +196,13 @@ export async function saveShellSnapshot(
   desktopId: string,
   snapshot: RemoteShellSnapshot,
 ): Promise<void> {
-  await mobileDb.shellSnapshots.put({
+  const entry: StoredShellSnapshot = {
     desktopId,
     snapshot,
     updatedAt: new Date().toISOString(),
-  });
+  };
+  await mobileDb.shellSnapshots.put(entry);
+  writeShellSnapshotMirror(entry);
   await pruneOrphanThreadSnapshots(desktopId, snapshot);
 }
 
@@ -171,6 +245,36 @@ async function pruneOrphanThreadSnapshots(
   }
 }
 
+/**
+ * Minimum spacing between full-transcript writes for a thread that is still
+ * actively streaming ("working"). During a run the transcript blob is re-fetched
+ * and rewritten on every ~1s debounced refresh; throttling those writes avoids
+ * hammering Dexie/IndexedDB with near-duplicate blobs.
+ */
+export const THREAD_SNAPSHOT_THROTTLE_MS = 5000;
+
+/**
+ * Decide whether the open thread's transcript snapshot should be persisted now.
+ *
+ * Only an actively-streaming ("working") thread rewrites its full transcript on
+ * every refresh, so those writes are throttled to at most once per
+ * {@link THREAD_SNAPSHOT_THROTTLE_MS}. Every other status — including the
+ * post-run settle states (`idle`, `finished`, `error`) and the paused
+ * mid-turn states (`needs_approval`, `needs_reply`) — persists immediately, so
+ * the final snapshot after a run ends and any paused state are always cached.
+ *
+ * `now` is injected so the predicate stays deterministic under test.
+ */
+export function shouldPersistThreadSnapshot(
+  status: ThreadStatus,
+  lastSavedAt: number | undefined,
+  now: number,
+): boolean {
+  if (status !== "working") return true;
+  if (lastSavedAt === undefined) return true;
+  return now - lastSavedAt >= THREAD_SNAPSHOT_THROTTLE_MS;
+}
+
 export async function saveThreadSnapshot(
   desktopId: string,
   threadId: string,
@@ -194,21 +298,35 @@ export async function saveDesktop(input: {
   readonly scopes: RemoteAccessScope[];
 }): Promise<StoredDesktop> {
   const now = new Date().toISOString();
-  const existing = await mobileDb.desktops.get(input.descriptor.desktopId);
-  const desktop: StoredDesktop = {
-    desktopId: input.descriptor.desktopId,
-    label: input.descriptor.label,
-    endpoint: input.endpoint,
-    appVersion: input.descriptor.appVersion,
-    accessToken: input.accessToken,
-    tokenExpiresAt: input.tokenExpiresAt,
-    scopes: input.scopes,
-    lastSeenSeq: existing?.lastSeenSeq ?? 0,
-    pairedAt: existing?.pairedAt ?? now,
-    updatedAt: now,
-    lastConnectedAt: now,
-  };
-  await mobileDb.desktops.put(desktop);
+  // Keep the bearer token in the secure vault (OS keystore on native,
+  // WebCrypto-encrypted Dexie on web) and blank the Dexie row. If the vault
+  // write fails, leave the token in the row so pairing is not silently
+  // broken. The returned object always carries the live token so the caller
+  // can connect immediately without a vault round-trip. Done BEFORE the Dexie
+  // transaction so the row read-modify-write below is atomic (the vault is a
+  // separate, non-Dexie store).
+  const persistedToVault = await setDesktopToken(input.descriptor.desktopId, input.accessToken);
+  let desktop!: StoredDesktop;
+  // Read existing + write in one rw transaction so a concurrent
+  // markDesktopConnected can't slip a lastSeenSeq/lastConnectedAt update between
+  // our get and put and then be silently clobbered by the stale read.
+  await mobileDb.transaction("rw", mobileDb.desktops, async () => {
+    const existing = await mobileDb.desktops.get(input.descriptor.desktopId);
+    desktop = {
+      desktopId: input.descriptor.desktopId,
+      label: input.descriptor.label,
+      endpoint: input.endpoint,
+      appVersion: input.descriptor.appVersion,
+      accessToken: input.accessToken,
+      tokenExpiresAt: input.tokenExpiresAt,
+      scopes: input.scopes,
+      lastSeenSeq: existing?.lastSeenSeq ?? 0,
+      pairedAt: existing?.pairedAt ?? now,
+      updatedAt: now,
+      lastConnectedAt: now,
+    };
+    await mobileDb.desktops.put(persistedToVault ? { ...desktop, accessToken: "" } : desktop);
+  });
   await setActiveDesktopId(desktop.desktopId);
   return desktop;
 }
@@ -219,20 +337,26 @@ export async function saveDesktop(input: {
  * `updatedAt` is left untouched so renaming doesn't reorder the desktop list.
  */
 export async function renameDesktop(desktopId: string, label: string): Promise<void> {
-  const existing = await mobileDb.desktops.get(desktopId);
-  if (!existing) return;
-  await mobileDb.desktops.put({ ...existing, label });
+  await mobileDb.transaction("rw", mobileDb.desktops, async () => {
+    const existing = await mobileDb.desktops.get(desktopId);
+    if (!existing) return;
+    await mobileDb.desktops.put({ ...existing, label });
+  });
 }
 
 export async function markDesktopConnected(desktopId: string, seq?: number): Promise<void> {
-  const existing = await mobileDb.desktops.get(desktopId);
-  if (!existing) return;
-  const now = new Date().toISOString();
-  await mobileDb.desktops.put({
-    ...existing,
-    ...(seq === undefined ? {} : { lastSeenSeq: seq }),
-    lastConnectedAt: now,
-    updatedAt: now,
+  await mobileDb.transaction("rw", mobileDb.desktops, async () => {
+    const existing = await mobileDb.desktops.get(desktopId);
+    if (!existing) return;
+    const now = new Date().toISOString();
+    await mobileDb.desktops.put({
+      ...existing,
+      // Monotonic: an out-of-order/lagging seq (overlapping refreshes, replayed
+      // catch-up) must never move the resume high-water mark backwards.
+      ...(seq === undefined ? {} : { lastSeenSeq: Math.max(existing.lastSeenSeq, seq) }),
+      lastConnectedAt: now,
+      updatedAt: now,
+    });
   });
 }
 
@@ -246,17 +370,21 @@ export async function forgetDesktop(desktopId: string): Promise<void> {
     async () => {
       await mobileDb.desktops.delete(desktopId);
       await mobileDb.shellSnapshots.delete(desktopId);
-      const snapshots = await mobileDb.threadSnapshots
+      clearShellSnapshotMirror(desktopId);
+      const snapshotIds = await mobileDb.threadSnapshots
         .where("desktopId")
         .equals(desktopId)
-        .toArray();
-      await mobileDb.threadSnapshots.bulkDelete(snapshots.map((entry) => entry.id));
+        .primaryKeys();
+      await mobileDb.threadSnapshots.bulkDelete(snapshotIds);
       const active = await getActiveDesktopId();
       if (active === desktopId) {
         await mobileDb.preferences.delete(ACTIVE_DESKTOP_KEY);
       }
     },
   );
+  // Drop the vault entry too (best-effort). Done outside the Dexie transaction
+  // since the vault is a separate, non-Dexie store.
+  await deleteDesktopToken(desktopId);
 }
 
 function threadSnapshotKey(desktopId: string, threadId: string): string {

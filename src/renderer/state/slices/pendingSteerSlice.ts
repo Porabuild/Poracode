@@ -12,8 +12,17 @@ export interface PendingSteerSlice {
   clearAllPendingSteer(threadId: string): void;
 }
 
+/** Fresh pending-steer map; spread into both the slice and full resets so the
+ * two never drift (see {@link createInitialRuntimeEventState}). */
+export function createInitialPendingSteerState(): Pick<
+  PendingSteerSlice,
+  "pendingSteerByThreadId"
+> {
+  return { pendingSteerByThreadId: {} };
+}
+
 export const createPendingSteerSlice: SliceCreator<PendingSteerSlice> = (set) => ({
-  pendingSteerByThreadId: {},
+  ...createInitialPendingSteerState(),
   setPendingSteer: (threadId, pending) =>
     set((state) => {
       const current = state.pendingSteerByThreadId[threadId];

@@ -33,6 +33,8 @@ import {
   WebSocketHeartbeat,
 } from "./server/wsConnections";
 import { handleHttp } from "./server/httpRouter";
+import { RemoteRuntimePersistence } from "./server/runtimePersistence";
+import { persistRemoteThreadStateEvent } from "./server/threadStatePersistence";
 
 const EVENT_BUFFER_LIMIT = 500;
 
@@ -45,6 +47,14 @@ export interface RemoteAccessServerInfo {
 export interface RemoteAccessServerOptions {
   readonly appVersion: string;
   readonly identity: RemoteAccessIdentity;
+  /**
+   * Dev mode. Loosens CORS to trust any loopback web origin
+   * (`http://localhost:<port>` / `http://127.0.0.1:<port>` / `[::1]`), so the
+   * mobile PWA served from the Vite dev server (`localhost:3100`) can pair
+   * without an explicit `pairingAppUrl`/`trustedCorsOrigins` entry. Never widens
+   * trust beyond loopback, and is off in production.
+   */
+  readonly isDev?: boolean;
   readonly host: string;
   readonly advertisedHost?: string;
   /**
@@ -167,6 +177,7 @@ export class RemoteAccessServer {
   private readonly clientLiveness = new Map<WebSocket, boolean>();
   /** Per-connection terminal ids the client opted into live `terminal-output` for. */
   private readonly terminalWatches = new Map<WebSocket, Set<string>>();
+  private readonly runtimePersistence = new RemoteRuntimePersistence();
   private readonly eventBuffer: BufferedSupervisorEvent[] = [];
   private readonly context: RemoteServerContext;
   private seq = 0;
@@ -260,6 +271,7 @@ export class RemoteAccessServer {
    * immediately; active requests are given a short grace period to finish.
    */
   async dispose(): Promise<void> {
+    this.runtimePersistence.dispose();
     this.heartbeat.stop();
     for (const client of this.clients.keys()) {
       client.terminate();
@@ -307,6 +319,11 @@ export class RemoteAccessServer {
   /** Pushes an event onto the replayable WS event stream. Out-of-band desktop
    * events (git summaries) ride the same stream as supervisor events. */
   publishSupervisorEvent(event: RemoteBroadcastEvent): void {
+    this.runtimePersistence.handleEvent(event);
+    if (event.type === "thread-state") {
+      persistRemoteThreadStateEvent(event);
+    }
+
     // Terminal output is high-volume and ephemeral: keep it off the replayable
     // event stream (replaying PTY bytes would garble the screen) and only send
     // it to clients that opted into that terminal via `terminal-watch`.

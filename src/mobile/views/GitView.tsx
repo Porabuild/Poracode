@@ -27,6 +27,20 @@ const ALWAYS_EXPANDED = {
   expand: () => {},
 };
 
+const DIFF_DRILL_TRANSITION_MS = 260;
+
+type DiffDrillState = "closed" | "entering" | "open" | "closing";
+
+function getDiffDrillTransitionMs() {
+  if (
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    return 0;
+  }
+  return DIFF_DRILL_TRANSITION_MS;
+}
+
 export interface GitTarget {
   readonly project: Project;
   /** Worktree status key (the worktree path) or undefined for the main repo. */
@@ -84,10 +98,13 @@ export function GitView(props: {
 
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [selectedStaged, setSelectedStaged] = useState(false);
+  const [diffDrillState, setDiffDrillState] = useState<DiffDrillState>("closed");
   const [diffMode, setDiffMode] = useState<number>(DIFF_MODE.Unified);
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const singleFileScrollRef = useRef<HTMLDivElement>(null);
+  const diffDrillTimerRef = useRef<number | null>(null);
+  const onImmersiveChangeRef = useRef(props.onImmersiveChange);
   const sheet = useSheet<GitSheetTarget>();
 
   const gitStatus = useGitTargetStatus(target);
@@ -165,13 +182,58 @@ export function GitView(props: {
   }, [refreshing]);
 
   useEffect(() => {
-    props.onImmersiveChange?.(selectedFile !== null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mirror drill-down state up
-  }, [selectedFile]);
+    onImmersiveChangeRef.current = props.onImmersiveChange;
+  }, [props.onImmersiveChange]);
+
+  useEffect(
+    () => () => {
+      if (diffDrillTimerRef.current !== null) {
+        window.clearTimeout(diffDrillTimerRef.current);
+        diffDrillTimerRef.current = null;
+      }
+      onImmersiveChangeRef.current?.(false);
+    },
+    [],
+  );
+
+  function clearDiffDrillTimer() {
+    if (diffDrillTimerRef.current === null) return;
+    window.clearTimeout(diffDrillTimerRef.current);
+    diffDrillTimerRef.current = null;
+  }
+
+  function afterDiffDrillTransition(callback: () => void) {
+    const duration = getDiffDrillTransitionMs();
+    if (duration === 0) {
+      callback();
+      return;
+    }
+    diffDrillTimerRef.current = window.setTimeout(() => {
+      diffDrillTimerRef.current = null;
+      callback();
+    }, duration);
+  }
 
   function openDiff(path: string, staged: boolean) {
+    clearDiffDrillTimer();
+    onImmersiveChangeRef.current?.(false);
     setSelectedStaged(staged);
     setSelectedFile(path);
+    setDiffDrillState("entering");
+    afterDiffDrillTransition(() => {
+      setDiffDrillState("open");
+      onImmersiveChangeRef.current?.(true);
+    });
+  }
+
+  function closeDiff() {
+    clearDiffDrillTimer();
+    onImmersiveChangeRef.current?.(false);
+    setDiffDrillState("closing");
+    afterDiffDrillTransition(() => {
+      setSelectedFile(null);
+      setDiffDrillState("closed");
+    });
   }
 
   const touchActions: GitTouchActions = {
@@ -203,13 +265,13 @@ export function GitView(props: {
           />
 
           {selectedFile ? (
-            <div className="m-git-diff">
+            <div className="m-git-diff" data-state={diffDrillState}>
               <header className="m-git-head">
                 <button
                   className="m-back"
                   type="button"
                   aria-label={t`Back to changes`}
-                  onClick={() => setSelectedFile(null)}
+                  onClick={closeDiff}
                 >
                   <ChevronLeft className="size-5" />
                 </button>

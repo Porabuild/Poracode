@@ -181,7 +181,7 @@ export function initDatabase(dbPath: string) {
 
   // Baseline schema version for future DB migrations.
   // New upgrade steps should live behind this gate when we need them.
-  const SCHEMA_VERSION = 19;
+  const SCHEMA_VERSION = 20;
 
   const storedVersion = Number(
     (
@@ -355,6 +355,15 @@ export function initDatabase(dbPath: string) {
         );
         CREATE INDEX IF NOT EXISTS idx_usage_events_kind ON usage_events (kind);
       `);
+    }
+
+    if (storedVersion < 20) {
+      // Persist the thread status source so headless status persistence can
+      // round-trip it (previously in-memory only; dropped on DB write).
+      const cols = sqlite.prepare("PRAGMA table_info(threads)").all() as { name: string }[];
+      if (!cols.some((c) => c.name === "thread_status_source")) {
+        sqlite.exec("ALTER TABLE threads ADD COLUMN thread_status_source TEXT");
+      }
     }
 
     sqlite

@@ -10,6 +10,7 @@ import {
 } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import { rm } from "node:fs/promises";
 import {
   computeDefaultWorktreePath,
   ensureWorktreeParentExists,
@@ -17,7 +18,9 @@ import {
   GIT_HOOK_TIMEOUT,
   GIT_NETWORK_TIMEOUT,
   GIT_STATUS_TIMEOUT,
+  GIT_WORKTREE_REMOVE_TIMEOUT,
   normalizeWorktreePath,
+  removeWslPathViaBridge,
   resolveBuiltInWorktreeRoot,
   type WorktreePathOptions,
 } from "./exec";
@@ -34,6 +37,15 @@ function isPathUnderRoot(path: string, root: string): boolean {
   if (!path.startsWith(root)) return false;
   const next = path.charAt(root.length);
   return next === "/" || next === "\\";
+}
+
+async function removeWorktreeDirectory(location: ProjectLocation, path: string): Promise<void> {
+  if (location.kind === "wsl") {
+    const removed = await removeWslPathViaBridge(location, path, { recursive: true, force: true });
+    if (!removed) throw new Error(`WSL bridge unavailable to delete "${path}"`);
+    return;
+  }
+  await rm(path, { recursive: true, force: true });
 }
 
 /** Argv for `git branch` to feed {@link parseBranchListOutput}. */
@@ -306,7 +318,7 @@ export class GitWorktreeService {
 
     const removeArgs = ["worktree", "remove", ...(force ? ["--force", "--force"] : []), path];
     try {
-      await execGit(location, removeArgs);
+      await execGit(location, removeArgs, { timeout: GIT_WORKTREE_REMOVE_TIMEOUT });
       if (branchToDelete) {
         await this.deleteBranch(location, branchToDelete, force).catch((error) => {
           console.warn(
@@ -318,6 +330,16 @@ export class GitWorktreeService {
     } catch (error) {
       if (!force || registeredWorktree?.isMain) {
         throw error;
+      }
+      // `git worktree remove` refuses husks left by an interrupted removal
+      // (directory present, `.git` link gone), and `git worktree prune` skips
+      // entries whose directory still exists — delete the directory ourselves
+      // so the prune below can drop the registration. Only for paths git
+      // actually listed as worktrees; never rm an arbitrary caller path.
+      if (registeredWorktree) {
+        await removeWorktreeDirectory(location, registeredWorktree.path).catch((rmError) => {
+          console.warn("[git] failed to delete worktree directory during fallback:", rmError);
+        });
       }
       await execGit(location, ["worktree", "prune"]);
       const { worktrees } = await this.listWorktrees(location);

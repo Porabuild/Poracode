@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { FloatingComposerDock } from "../FloatingComposerDock";
+import { useRemote } from "../remoteContext";
 import { NewThreadFlow } from "./NewThreadFlow";
 
 /**
@@ -11,8 +13,8 @@ import { NewThreadFlow } from "./NewThreadFlow";
  *
  * All keyboard mechanics and the dock chrome live in FloatingComposerDock,
  * shared with the live-thread composer so both feel like the same component.
- * This route owns the home-specific controlled expanded state so other
- * affordances (the empty-state "New thread" button) can open the same bubble.
+ * This route owns the home-specific controlled expanded state so the same
+ * bubble handles both compact and expanded start flows.
  *
  */
 export function QuickCompose(props: {
@@ -21,17 +23,26 @@ export function QuickCompose(props: {
   readonly onStarted: (threadId: string) => void;
 }) {
   const { t } = useLingui();
+  const remote = useRemote();
+  const { expanded, onExpandedChange, onStarted } = props;
+  const ready = remote.connection === "online" && remote.projects.length > 0;
+
+  useEffect(() => {
+    if (!ready && expanded) onExpandedChange(false);
+  }, [ready, expanded, onExpandedChange]);
+
+  if (!ready) return null;
 
   return (
     <FloatingComposerDock
       keyboardKey="home-draft"
-      expanded={props.expanded}
+      expanded={expanded}
       focusOnExpand
       scrimLabel={t`Close composer`}
       collapsedTapLabel={t`New thread`}
-      onExpandedChange={props.onExpandedChange}
+      onExpandedChange={onExpandedChange}
     >
-      <NewThreadFlow onStarted={props.onStarted} />
+      <NewThreadFlow onStarted={onStarted} />
     </FloatingComposerDock>
   );
 }

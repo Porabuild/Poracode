@@ -89,7 +89,12 @@ pnpm run cap:sync              # after every web build; syncs and patches native
 
 Commit `android/` and `ios/` once you customize them (icons, splash, signing,
 store signing/export options). Until then, the release workflow bootstraps them
-in CI with `cap add`. `scripts/configure-mobile-native.mjs` applies the native
+in CI with `cap add`. Brand the freshly generated projects (Poracode app icons,
+adaptive-icon layers, dark splash screens) with:
+
+````bash
+node branding/assets/build-native-assets.mjs
+``` `scripts/configure-mobile-native.mjs` applies the native
 pieces Lightcode needs after each sync:
 
 - Android App Links intent filter for `https://<LIGHTCODE_MOBILE_APP_HOST>/pair`
@@ -282,3 +287,4 @@ Android-only deployment works without the other's env being present):
 | `FCM_PROJECT_ID`   | Firebase project id (the `{project}` in the v1 send URL).       |
 | `FCM_CLIENT_EMAIL` | Service-account client email (the OAuth2 JWT `iss`).            |
 | `FCM_PRIVATE_KEY`  | Service-account private key (PEM; `\n`-escapes are normalized). |
+````

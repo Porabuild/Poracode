@@ -32,7 +32,8 @@ import {
   setBrowserSocketSender,
 } from "./browserMirror";
 import { buildGitAddWorktreePayload } from "./navHelpers";
-import { parsePairingLaunch } from "./pairing";
+import { isNativeApp } from "./pwaInstall";
+import { unregisterPush } from "./push/pushRegistration";
 import {
   handleTerminalServerMessage,
   resetTerminalFeed,
@@ -52,15 +53,18 @@ import {
 import {
   forgetDesktop,
   getActiveDesktopId,
+  getOrCreateDeviceId,
   getStoredShellSnapshot,
   getStoredThreadSnapshot,
   listStoredDesktops,
   markDesktopConnected,
+  readShellSnapshotMirror,
   renameDesktop,
   saveDesktop,
   saveShellSnapshot,
   saveThreadSnapshot,
   setActiveDesktopId,
+  shouldPersistThreadSnapshot,
   type StoredDesktop,
 } from "./storage";
 
@@ -105,13 +109,32 @@ const REMOTE_THREAD_APPEAR_ATTEMPTS = 10;
 const REMOTE_THREAD_APPEAR_DELAY_MS = 250;
 /** How long to wait for a health-check pong before treating the socket as dead. */
 const HEALTH_PING_TIMEOUT_MS = 5000;
+// Foreground keepalive: periodically probe a seemingly-open socket so a
+// half-open stream (e.g. a Wi-Fi→cellular handoff that fires no offline/close
+// event) is detected while the app stays visible, not only on resume.
+const HEALTH_PING_INTERVAL_MS = 25000;
+// Force-close a WebSocket handshake that never completes (routable-but-dead
+// host / captive portal) so a stuck `connecting` flag can't wedge reconnects.
+const CONNECT_TIMEOUT_MS = 15000;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function describeError(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function firstThreadIdByRecency(threads: readonly Thread[]): string | undefined {
+  return sortThreadsByRecency(threads)[0]?.id;
+}
+
 function isUnauthorizedRemoteError(error: unknown): error is RemoteClientError {
-  return error instanceof RemoteClientError && error.status === 401;
+  return error instanceof RemoteClientError && (error.status === 401 || error.status === 403);
+}
+
+function isUnauthorizedClose(code: number, reason: string): boolean {
+  return code === 1008 || reason === "Remote access session expired";
 }
 
 /** Status-affecting events warrant a snapshot refresh; streaming deltas don't. */
@@ -158,8 +181,17 @@ const MOBILE_GUI_START_STATUSES = new Set<ThreadStatus>(["inactive"]);
  */
 export function useRemoteDesktop() {
   const [desktops, setDesktops] = useState<StoredDesktop[]>([]);
-  const [activeDesktopId, setActiveDesktop] = useState<string | null>(null);
-  const [snapshot, setSnapshot] = useState<RemoteShellSnapshot | null>(null);
+  const [activeDesktopId, setActiveDesktopState] = useState<string | null>(null);
+  // Seeded synchronously from the localStorage mirror so the first paint
+  // already shows the last session's threads/projects instead of an empty
+  // shell (IndexedDB reads can't complete before first render). The Dexie
+  // cache (loadCached) and the live refresh overwrite the seed moments later.
+  const [snapshot, setSnapshot] = useState<RemoteShellSnapshot | null>(() => {
+    const mirror = readShellSnapshotMirror();
+    if (!mirror) return null;
+    applyShellSnapshot(mirror.snapshot);
+    return mirror.snapshot;
+  });
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [threadSnapshot, setThreadSnapshot] = useState<RemoteThreadSnapshot | null>(null);
   const [connection, setConnection] = useState<ConnectionState>("booting");
@@ -179,6 +211,17 @@ export function useRemoteDesktop() {
   // so an HTTP-only success/failure doesn't flap the connection pill while the
   // WebSocket (the real source of "Live") is up or down.
   const socketOpenRef = useRef(false);
+  // Highest shell-snapshot seq successfully persisted this session, per desktop.
+  // The server bumps snapshotSeq on every remotely-consumed event (see
+  // RemoteAccessServer), so an unchanged seq means the shell snapshot content is
+  // identical and the Dexie write + desktop-row bump + reloadDesktops() can be
+  // skipped. Kept in a ref (not `desktop.lastSeenSeq`, which can lag) and reset
+  // on every session change so the first refresh after boot/switch always
+  // persists (bumping lastConnectedAt/updatedAt for list ordering).
+  const persistedShellSeqRef = useRef<Map<string, number>>(new Map());
+  // Last transcript-snapshot save time per `desktopId:threadId`, used to throttle
+  // full-blob writes while a thread is actively streaming.
+  const threadSnapshotSavedAtRef = useRef<Map<string, number>>(new Map());
 
   const activeDesktop = desktops.find((desktop) => desktop.desktopId === activeDesktopId) ?? null;
   const storeThreads = useAppStore(useShallow((state) => state.threads));
@@ -199,20 +242,20 @@ export function useRemoteDesktop() {
   useEffect(() => {
     let cancelled = false;
     async function boot() {
-      const launch = parsePairingLaunch();
-      const stored = await listStoredDesktops();
-      const active = await getActiveDesktopId();
+      const [stored, active] = await Promise.all([listStoredDesktops(), getActiveDesktopId()]);
       if (cancelled) return;
       setDesktops(stored);
-      setActiveDesktop(active ?? stored[0]?.desktopId ?? null);
-      if (launch.credential) {
-        await pairDesktop(launch.endpoint, launch.credential);
-        // The pairing params were already stripped from the URL by
-        // capturePairingLaunch() before the router started; nothing to clean.
-        return;
-      }
+      // A pairing launch (`?host=…#token=…`) is NOT auto-paired here — that would
+      // silently bind the device to whatever endpoint a tapped link carries.
+      // `useDeepLinkPairing` routes it to the /desktops screen for the user to
+      // confirm instead. Boot just continues into the last active desktop.
       const desktopId = active ?? stored[0]?.desktopId;
+      setActiveDesktopSelection(desktopId ?? null);
       if (!desktopId) {
+        // A mirror seed without any paired desktop is stale (e.g. the Dexie DB
+        // was cleared but localStorage survived) — drop it instead of showing
+        // ghost threads on an unpaired install.
+        if (snapshot) resetSessionState();
         setConnection("offline");
         return;
       }
@@ -226,9 +269,7 @@ export function useRemoteDesktop() {
       .catch((error: unknown) => {
         if (cancelled) return;
         setConnection("error");
-        setMessage(
-          error instanceof Error ? error.message : i18n._(msg`Unable to start mobile app.`),
-        );
+        setMessage(describeError(error, i18n._(msg`Unable to start mobile app.`)));
       })
       .finally(() => {
         if (!cancelled) setBooted(true);
@@ -264,6 +305,12 @@ export function useRemoteDesktop() {
     let connecting = false;
     let timer = 0;
     let refreshTimer = 0;
+    // Debounced refreshes coalesce; keep the STRONGEST flags requested since the
+    // last flush so an event-driven refresh can't downgrade a pending recovery
+    // one (which would drop the auxiliary re-poll + selected-thread re-fetch that
+    // heal the gaps left by a disconnect/resync).
+    let pendingRecovery = false;
+    let pendingRefreshSelected = false;
     // Consecutive failed connect attempts since the last successful open;
     // drives the exponential backoff and resets to 0 on every open().
     let attempt = 0;
@@ -276,6 +323,8 @@ export function useRemoteDesktop() {
     // a close to fall into the reconnect path.
     let pingTimer = 0;
     let pendingPingId: string | null = null;
+    // Watchdog for a handshake stuck in CONNECTING (see CONNECT_TIMEOUT_MS).
+    let connectWatchdog = 0;
 
     /**
      * Debounced snapshot refresh.
@@ -292,9 +341,18 @@ export function useRemoteDesktop() {
         recovery ||
         (options.triggerThreadId !== undefined &&
           options.triggerThreadId === selectedThreadIdRef.current);
+      pendingRecovery ||= recovery;
+      pendingRefreshSelected ||= refreshSelectedThread;
       window.clearTimeout(refreshTimer);
       refreshTimer = window.setTimeout(() => {
-        void refresh(desktop, { refreshSelectedThread, includeAuxiliary: recovery });
+        const runRecovery = pendingRecovery;
+        const runRefreshSelected = pendingRefreshSelected;
+        pendingRecovery = false;
+        pendingRefreshSelected = false;
+        void refresh(desktop, {
+          refreshSelectedThread: runRefreshSelected,
+          includeAuxiliary: runRecovery,
+        });
       }, 600);
     }
 
@@ -329,8 +387,16 @@ export function useRemoteDesktop() {
           }
           const socket = new WebSocket(client.websocketUrl(ticket, lastSeenSeq));
           ws = socket;
+          // A handshake that never resolves would otherwise keep `connecting`
+          // true forever, no-oping every reconnect path; force-close it so the
+          // close handler can reset state and schedule a retry.
+          window.clearTimeout(connectWatchdog);
+          connectWatchdog = window.setTimeout(() => {
+            if (socket.readyState === WebSocket.CONNECTING) socket.close();
+          }, CONNECT_TIMEOUT_MS);
           socket.addEventListener("open", () => {
             connecting = false;
+            window.clearTimeout(connectWatchdog);
             attempt = 0;
             socketOpenRef.current = true;
             setConnection("online");
@@ -386,14 +452,24 @@ export function useRemoteDesktop() {
               // Bad frames are ignored; HTTP refresh remains authoritative.
             }
           });
-          socket.addEventListener("close", () => {
+          socket.addEventListener("close", (event) => {
             connecting = false;
+            window.clearTimeout(connectWatchdog);
             socketOpenRef.current = false;
             pendingPingId = null;
             window.clearTimeout(pingTimer);
             if (ws === socket) ws = null;
             setBrowserSocketSender(null);
             setTerminalSocketSender(null);
+            if (isUnauthorizedClose(event.code, event.reason)) {
+              setConnection("unauthorized");
+              setMessage(
+                event.reason
+                  ? event.reason
+                  : i18n._(msg`Pairing expired — pair again to reconnect.`),
+              );
+              return;
+            }
             scheduleReconnect();
           });
         } catch (error) {
@@ -427,6 +503,10 @@ export function useRemoteDesktop() {
         socket.send(JSON.stringify({ type: "ping", id, sentAt: Date.now() }));
       } catch {
         // Send failed on an ostensibly-open socket → it's dead; close now.
+        // Clear the outstanding-ping marker synchronously so a resume that lands
+        // before the async close event isn't blocked from probing/reconnecting.
+        pendingPingId = null;
+        window.clearTimeout(pingTimer);
         socket.close();
         return;
       }
@@ -469,6 +549,11 @@ export function useRemoteDesktop() {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     document.addEventListener("visibilitychange", handleVisibility);
+    // Foreground keepalive so a half-open socket is caught even without a
+    // visibility/online transition (e.g. a network handoff on a visible tab).
+    const heartbeat = window.setInterval(() => {
+      if (document.visibilityState === "visible") sendHealthPing();
+    }, HEALTH_PING_INTERVAL_MS);
 
     connect();
     return () => {
@@ -477,6 +562,8 @@ export function useRemoteDesktop() {
       window.clearTimeout(timer);
       window.clearTimeout(refreshTimer);
       window.clearTimeout(pingTimer);
+      window.clearTimeout(connectWatchdog);
+      window.clearInterval(heartbeat);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       document.removeEventListener("visibilitychange", handleVisibility);
@@ -498,21 +585,40 @@ export function useRemoteDesktop() {
   async function reloadDesktops(nextActive?: string) {
     const stored = await listStoredDesktops();
     setDesktops(stored);
-    setActiveDesktop(nextActive ?? (await getActiveDesktopId()) ?? stored[0]?.desktopId ?? null);
+    setActiveDesktopSelection(
+      nextActive ?? (await getActiveDesktopId()) ?? stored[0]?.desktopId ?? null,
+    );
   }
 
   async function loadCached(desktopId: string) {
     const cached = await getStoredShellSnapshot(desktopId);
+    if (desktopId !== activeDesktopIdRef.current) return;
     if (!cached) return;
     setSnapshot(cached.snapshot);
     applyShellSnapshot(cached.snapshot);
-    const firstThreadId = sortThreadsByRecency(cached.snapshot.threads)[0]?.id ?? null;
+    const firstThreadId = firstThreadIdByRecency(cached.snapshot.threads) ?? null;
     setSelectedThreadId((current) => current ?? firstThreadId);
     setConnection("offline");
   }
 
   function clientFor(desktop: StoredDesktop): RemoteDesktopClient {
     return new RemoteDesktopClient(desktop.endpoint, desktop.accessToken);
+  }
+
+  function setActiveDesktopSelection(desktopId: string | null) {
+    activeDesktopIdRef.current = desktopId;
+    setActiveDesktopState(desktopId);
+  }
+
+  /**
+   * Downgrade the connection pill after a failed HTTP request: unauthorized
+   * errors force re-pairing; otherwise only drop to "offline" when the live
+   * socket isn't up (a working socket keeps the pill "online" despite HTTP
+   * hiccups).
+   */
+  function downgradeConnectionOnError(error: unknown) {
+    if (isUnauthorizedRemoteError(error)) setConnection("unauthorized");
+    else if (!socketOpenRef.current) setConnection("offline");
   }
 
   /** Clear all state tied to a desktop session (on pair/switch/forget). */
@@ -524,6 +630,11 @@ export function useRemoteDesktop() {
     setSnapshot(null);
     setThreadSnapshot(null);
     setSelectedThreadId(null);
+    // Drop the per-desktop persistence bookkeeping so the first refresh after a
+    // pair/switch always re-persists (bumping the desktop's ordering timestamps)
+    // even when returning to a desktop whose seq hasn't advanced meanwhile.
+    persistedShellSeqRef.current.clear();
+    threadSnapshotSavedAtRef.current.clear();
   }
 
   async function pairDesktop(endpoint: string, credential: string) {
@@ -543,9 +654,7 @@ export function useRemoteDesktop() {
       // Roll the pill back so the pairing controls re-enable, then rethrow so
       // the caller (DesktopsRoute) can toast the reason.
       setConnection(priorConnection);
-      setMessage(
-        error instanceof Error ? error.message : i18n._(msg`Unable to pair with that desktop.`),
-      );
+      setMessage(describeError(error, i18n._(msg`Unable to pair with that desktop.`)));
       throw error;
     }
     resetSessionState();
@@ -599,33 +708,41 @@ export function useRemoteDesktop() {
         if (statuses.status === "fulfilled") applyAgentStatuses(statuses.value);
         if (desktopSettings.status === "fulfilled") applyDesktopSettings(desktopSettings.value);
       }
-      setSelectedThreadId(
-        (current) => current ?? sortThreadsByRecency(next.threads)[0]?.id ?? null,
-      );
+      setSelectedThreadId((current) => current ?? firstThreadIdByRecency(next.threads) ?? null);
       // Only report a live connection when the socket is actually open. HTTP
       // can succeed while the WS is blocked; downgrading/upgrading purely off
       // HTTP results makes the pill flap. Leave a live socket's "online" alone.
       if (socketOpenRef.current) setConnection("online");
       setMessage("");
-      // Persist to Dexie in its OWN try/catch, outside the reachability path: a
-      // transient IndexedDB write failure must surface as a banner, not flip a
-      // live connection offline (the server was clearly reachable — we just got
-      // the snapshot from it).
-      try {
-        await Promise.all([
-          saveShellSnapshot(desktop.desktopId, next),
-          markDesktopConnected(desktop.desktopId, next.snapshotSeq),
-        ]);
-      } catch (error) {
-        setMessage(
-          error instanceof Error ? error.message : i18n._(msg`Couldn't cache offline data.`),
-        );
+      // The shell snapshot content is keyed by snapshotSeq: an unchanged seq
+      // means nothing the snapshot carries has changed since the last persist,
+      // so skip the Dexie write, the desktop-row bump, AND the reloadDesktops()
+      // that follows (which on native rehydrates every desktop's token from the
+      // OS keystore). The in-memory application above still runs on every
+      // refresh — only the persistence side effects are elided. The first
+      // refresh per desktop this session has no recorded seq, so it always
+      // persists (bumping lastConnectedAt/updatedAt for list ordering).
+      const lastPersistedSeq = persistedShellSeqRef.current.get(desktop.desktopId);
+      if (lastPersistedSeq !== next.snapshotSeq) {
+        // Persist to Dexie in its OWN try/catch, outside the reachability path: a
+        // transient IndexedDB write failure must surface as a banner, not flip a
+        // live connection offline (the server was clearly reachable — we just got
+        // the snapshot from it).
+        try {
+          await Promise.all([
+            saveShellSnapshot(desktop.desktopId, next),
+            markDesktopConnected(desktop.desktopId, next.snapshotSeq),
+          ]);
+          persistedShellSeqRef.current.set(desktop.desktopId, next.snapshotSeq);
+        } catch (error) {
+          setMessage(describeError(error, i18n._(msg`Couldn't cache offline data.`)));
+        }
+        // Do NOT force the active desktop here — only switchDesktop/pair set it.
+        // Forcing it would flip the user back to a stale desktop when a late
+        // refresh of a previous desktop resolves after a switch.
+        await reloadDesktops();
       }
-      // Do NOT force the active desktop here — only switchDesktop/pair set it.
-      // Forcing it would flip the user back to a stale desktop when a late
-      // refresh of a previous desktop resolves after a switch.
-      await reloadDesktops();
-      const threadId = selectedThreadIdRef.current ?? sortThreadsByRecency(next.threads)[0]?.id;
+      const threadId = selectedThreadIdRef.current ?? firstThreadIdByRecency(next.threads);
       if (options.refreshSelectedThread && threadId) {
         await loadThreadSnapshot(threadId, desktop, { preferCache: false });
       }
@@ -634,9 +751,8 @@ export function useRemoteDesktop() {
       // A failed refresh must not knock a live socket offline (transient HTTP
       // or Dexie hiccup while deltas keep streaming). Surface the message; only
       // downgrade the pill when the socket isn't actually up.
-      setMessage(error instanceof Error ? error.message : i18n._(msg`Desktop is unreachable.`));
-      if (isUnauthorizedRemoteError(error)) setConnection("unauthorized");
-      else if (!socketOpenRef.current) setConnection("offline");
+      setMessage(describeError(error, i18n._(msg`Desktop is unreachable.`)));
+      downgradeConnectionOnError(error);
       return null;
     }
   }
@@ -662,11 +778,23 @@ export function useRemoteDesktop() {
     // populates state.view, and a finished thread stays "Finished" forever.
     // ThreadsRoute resets the view to home on the way back so unwatched
     // completions keep earning their badge.
+    const wasDone = thread.done === true;
     useAppStore.getState().openThread(thread.id);
     setSelectedThreadId(thread.id);
     setThreadSnapshot((current) => (current?.thread.id === thread.id ? current : null));
     const desktop = activeDesktop;
     if (!desktop) return;
+    // The store clear above only touches this PWA's in-memory mirror. Unlike
+    // the desktop — whose renderer store is authoritative and persisted — it
+    // never reaches the desktop DB, so the next snapshot would revert `done`
+    // back to true. Propagate the un-done to the desktop (best-effort, the same
+    // command the explicit "Unmark done" menu sends) so opening a done thread
+    // actually clears it there too, matching desktop behaviour.
+    if (wasDone) {
+      void clientFor(desktop)
+        .sendThreadCommand({ kind: "set-done", done: false, threadId: thread.id })
+        .catch(() => undefined);
+    }
     const loaded = await loadThreadSnapshot(thread.id, desktop, { preferCache: true });
     // Only auto-(re)start a thread when the status came from a FRESH server
     // snapshot. If the history fetch failed and we fell back to a CACHED
@@ -678,7 +806,7 @@ export function useRemoteDesktop() {
         await ensureThreadRunning(loaded.snapshot.thread, desktop, loaded.snapshot.terminalSize);
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : i18n._(msg`Unable to start the thread.`));
+      setMessage(describeError(error, i18n._(msg`Unable to start the thread.`)));
     }
   }
 
@@ -707,16 +835,31 @@ export function useRemoteDesktop() {
       setThreadSnapshot(next);
       // A fresh server history IS authoritative (fromServer defaults to true).
       applyThreadSnapshot(next, { fromServer: true });
-      try {
-        await saveThreadSnapshot(desktop.desktopId, threadId, next);
-      } catch {
-        // Caching is best-effort; a Dexie write failure must not flip offline
-        // (the server was reachable) — the in-memory snapshot is already applied.
+      // Throttle the full-transcript write while the thread is actively
+      // streaming: during a run the blob is re-fetched and rewritten on every
+      // ~1s refresh. Non-running statuses (including the final post-run
+      // snapshot) always persist immediately. Only the persistence is
+      // throttled — the in-memory snapshot above is always applied.
+      const snapshotKey = `${desktop.desktopId}:${threadId}`;
+      const now = Date.now();
+      if (
+        shouldPersistThreadSnapshot(
+          next.thread.status,
+          threadSnapshotSavedAtRef.current.get(snapshotKey),
+          now,
+        )
+      ) {
+        try {
+          await saveThreadSnapshot(desktop.desktopId, threadId, next);
+          threadSnapshotSavedAtRef.current.set(snapshotKey, now);
+        } catch {
+          // Caching is best-effort; a Dexie write failure must not flip offline
+          // (the server was reachable) — the in-memory snapshot is already applied.
+        }
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : i18n._(msg`Unable to load thread.`));
-      if (isUnauthorizedRemoteError(error)) setConnection("unauthorized");
-      else if (!socketOpenRef.current) setConnection("offline");
+      setMessage(describeError(error, i18n._(msg`Unable to load thread.`)));
+      downgradeConnectionOnError(error);
     }
     return latest;
   }
@@ -810,9 +953,7 @@ export function useRemoteDesktop() {
         worktreePath = created.path;
         isNewWorktree = true;
       } catch (error) {
-        setMessage(
-          error instanceof Error ? error.message : i18n._(msg`Couldn't create the worktree.`),
-        );
+        setMessage(describeError(error, i18n._(msg`Couldn't create the worktree.`)));
         return null;
       }
     }
@@ -879,9 +1020,7 @@ export function useRemoteDesktop() {
     try {
       await clientFor(desktop).sendThreadCommand({ ...action, threadId: thread.id });
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : i18n._(msg`Unable to update the thread.`),
-      );
+      setMessage(describeError(error, i18n._(msg`Unable to update the thread.`)));
       void refresh(desktop, { refreshSelectedThread: true });
     }
   }
@@ -912,16 +1051,14 @@ export function useRemoteDesktop() {
         threadIds: [...input.threadIds],
       });
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : i18n._(msg`Unable to delete the worktree.`),
-      );
+      setMessage(describeError(error, i18n._(msg`Unable to delete the worktree.`)));
       void refresh(desktop, { refreshSelectedThread: true });
     }
   }
 
   async function switchDesktop(desktop: StoredDesktop) {
     await setActiveDesktopId(desktop.desktopId);
-    setActiveDesktop(desktop.desktopId);
+    setActiveDesktopSelection(desktop.desktopId);
     resetSessionState();
     await loadCached(desktop.desktopId);
     await refresh(desktop);
@@ -929,6 +1066,19 @@ export function useRemoteDesktop() {
 
   async function forget(desktop: StoredDesktop) {
     const wasActive = desktop.desktopId === activeDesktopIdRef.current;
+    // Best-effort: tell the desktop to drop this device's push registration
+    // before its credentials are deleted below. The desktop may be offline or
+    // unreachable, so this must never block or fail the unpair — it's fired
+    // and forgotten, capturing the client (endpoint + token) now so it can
+    // still complete after forgetDesktop() removes the stored credentials.
+    if (isNativeApp()) {
+      const client = clientFor(desktop);
+      void getOrCreateDeviceId()
+        .then((deviceId) => unregisterPush(client, deviceId))
+        .catch((error: unknown) => {
+          console.warn("[push] unregisterPush on unpair failed", error);
+        });
+    }
     await forgetDesktop(desktop.desktopId);
     if (!wasActive) {
       // Forgetting a background desktop must NOT blank the active desktop's

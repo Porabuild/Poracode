@@ -45,6 +45,9 @@ export function GitActionSheet(props: {
     onClose,
   } = props;
   const [confirmingRevert, setConfirmingRevert] = useState(false);
+  // Guards the async revert against a double-tap: the sheet stays mounted until
+  // the bridge call resolves, so the confirm button must disable in the gap.
+  const [reverting, setReverting] = useState(false);
 
   async function recoverFromMutationError(error: unknown) {
     toast.danger(friendlyError(error));
@@ -138,9 +141,11 @@ export function GitActionSheet(props: {
           <button
             type="button"
             className="m-sheet-action text-danger"
+            disabled={reverting}
             onClick={() => {
-              if (target.kind === "file") void revertFile(target.file);
-              else void revertAll();
+              if (reverting) return;
+              setReverting(true);
+              void (target.kind === "file" ? revertFile(target.file) : revertAll());
             }}
           >
             <Undo2 className="size-4" />

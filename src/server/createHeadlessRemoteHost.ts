@@ -1,4 +1,10 @@
-import { closeDatabase, dbGetProjects, dbGetThreads, initDatabase } from "@/main/db";
+import {
+  closeDatabase,
+  dbGetProjects,
+  dbGetThreads,
+  dbMarkLiveThreadsInactive,
+  initDatabase,
+} from "@/main/db";
 import { prepareLightcodeDataRoot } from "@/main/lightcodeData";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "@/main/sharedSettingsFile";
 import { SupervisorClient } from "@/main/supervisor/SupervisorClient";
@@ -106,6 +112,10 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
   const isDev = options.isDev ?? false;
   const paths = prepareLightcodeDataRoot(options.baseDir);
   initDatabase(paths.dbPath);
+  // No agent session survived the restart; without a renderer to run
+  // markThreadsInactiveOnLaunch, stale live statuses would be re-served to
+  // every client snapshot until the next supervisor event for that thread.
+  dbMarkLiveThreadsInactive();
   configureSecretStorageKey(options.secretStorageKey);
 
   const identity = readOrCreateRemoteAccessIdentity(paths.baseDir);
@@ -151,12 +161,20 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
   });
 
   const host = options.host ?? remoteAccessHost();
-  const advertisedHost = options.advertisedHost ?? remoteAccessAdvertisedHost({ bindHost: host });
+  // In dev, advertise loopback by default so the iOS simulator's WebView can
+  // reach the server (iOS ATS `NSAllowsLocalNetworking` permits loopback but not
+  // a plain-http LAN IP). An explicit env/option override still wins.
+  const advertisedHost =
+    options.advertisedHost ??
+    (isDev
+      ? process.env.LIGHTCODE_REMOTE_ACCESS_ADVERTISED_HOST?.trim() || "127.0.0.1"
+      : remoteAccessAdvertisedHost({ bindHost: host }));
   const pairingAppUrl = options.pairingAppUrl ?? remoteAccessPairingAppUrl();
 
   const server = new RemoteAccessServer({
     appVersion: options.appVersion,
     identity,
+    isDev,
     authStore,
     host,
     port: options.port ?? remoteAccessPort(),

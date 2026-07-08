@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useNavigate } from "@tanstack/react-router";
@@ -9,6 +9,7 @@ import { BranchSelector, type BranchSelection } from "@/renderer/components/comm
 import { useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchNamePrKey } from "@/renderer/state/gitSelectors";
 import type { ConflictResolverLaunchInput } from "@/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useConflictResolver";
+import { useSwipeTabs } from "../useSwipeTabs";
 import { FilesView, type FilesTarget } from "./FilesView";
 import { GitView, useGitTargetStatus, type GitTarget } from "./GitView";
 
@@ -75,6 +76,13 @@ export function WorkspaceView(props: {
   const immersive = tabState[activeTabKey].immersive;
   const refreshing = tabState[activeTabKey].refreshing;
 
+  // Horizontal swipe switches Changes ↔ Files. Disabled while a diff/editor is
+  // open (immersive) or when there's only the Files tab.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useSwipeTabs(bodyRef, showChanges && !immersive, (direction) => {
+    setUserTab(direction === "left" ? "files" : "changes");
+  });
+
   function updateTab(key: WorkspaceTab, patch: Partial<WorkspaceTabState>) {
     setTabState((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
   }
@@ -83,11 +91,11 @@ export function WorkspaceView(props: {
 
   const gitStatus = useGitTargetStatus(gitTarget);
 
-  const branch =
-    gitStatus?.branch ||
-    gitTarget?.worktreeBranch ||
-    gitTarget?.project.name ||
-    filesTarget.rootLabel;
+  // A stable "project / branch" breadcrumb that reads the same on both tabs and
+  // matches the thread page's WorkspaceChip. The project segment is static; only
+  // the branch segment stays interactive (the branch selector) on a main repo.
+  const projectLabel = gitTarget ? gitTarget.project.name : filesTarget.rootLabel;
+  const branchLabel = gitStatus?.branch || gitTarget?.worktreeBranch || "";
   const ahead = gitStatus?.ahead ?? 0;
   const behind = gitStatus?.behind ?? 0;
 
@@ -190,34 +198,41 @@ export function WorkspaceView(props: {
               <ChevronLeft className="size-5" />
             </button>
             <span className="m-git-head__title">
-              {onChanges && gitTarget && !gitTarget.statusKey && gitStatus?.branch ? (
-                <BranchSelector
-                  className="m-git-head__branch-selector"
-                  projectId={gitTarget.project.id}
-                  currentBranch={gitStatus.branch}
-                  value={gitStatus.branch}
-                  onSwitchBranch={(branchName, createNew) => {
-                    void switchBranch(branchName, createNew);
-                  }}
-                  onSelect={selectBranch}
-                  onOpenPrReview={openPrReview}
-                  hideWorktreeToggle
-                  popoverPlacement="bottom"
-                  trigger={
-                    <button
-                      type="button"
-                      className="m-git-head__branch-trigger"
-                      aria-label={t`Switch branch`}
-                    >
-                      <GitBranch className="size-3.5 shrink-0 text-muted/60" />
-                      <span className="m-git-head__branch">{gitStatus.branch}</span>
-                    </button>
-                  }
-                />
-              ) : onChanges ? (
+              {gitTarget ? (
+                <GitBranch className="size-3.5 shrink-0 text-muted/60" />
+              ) : (
+                <FolderTree className="size-3.5 shrink-0 text-muted/60" />
+              )}
+              <span className="m-git-head__project">{projectLabel}</span>
+              {gitTarget ? (
                 <>
-                  <GitBranch className="size-3.5 shrink-0 text-muted/60" />
-                  <span className="m-git-head__branch">{branch}</span>
+                  <span className="m-git-head__sep">/</span>
+                  {!gitTarget.statusKey && gitStatus?.branch ? (
+                    <BranchSelector
+                      className="m-git-head__branch-selector"
+                      projectId={gitTarget.project.id}
+                      currentBranch={gitStatus.branch}
+                      value={gitStatus.branch}
+                      onSwitchBranch={(branchName, createNew) => {
+                        void switchBranch(branchName, createNew);
+                      }}
+                      onSelect={selectBranch}
+                      onOpenPrReview={openPrReview}
+                      hideWorktreeToggle
+                      popoverPlacement="bottom"
+                      trigger={
+                        <button
+                          type="button"
+                          className="m-git-head__branch-trigger"
+                          aria-label={t`Switch branch`}
+                        >
+                          <span className="m-git-head__branch">{gitStatus.branch}</span>
+                        </button>
+                      }
+                    />
+                  ) : (
+                    <span className="m-git-head__branch">{branchLabel || t`(no branch)`}</span>
+                  )}
                   {ahead > 0 || behind > 0 ? (
                     <span className="shrink-0 text-xs text-muted/70">
                       {ahead > 0 ? `↑${ahead}` : ""}
@@ -225,12 +240,7 @@ export function WorkspaceView(props: {
                     </span>
                   ) : null}
                 </>
-              ) : (
-                <>
-                  <FolderTree className="size-3.5 shrink-0 text-muted/60" />
-                  <span className="m-git-head__branch">{filesTarget.rootLabel}</span>
-                </>
-              )}
+              ) : null}
             </span>
             <span className="m-git-head__actions">
               <button
@@ -272,7 +282,7 @@ export function WorkspaceView(props: {
         </>
       )}
 
-      <div className="m-workspace__body">
+      <div className="m-workspace__body" ref={bodyRef}>
         {gitTarget ? (
           <div className={onChanges ? "m-ws-tab" : "m-ws-tab m-ws-tab--hidden"}>
             <GitView

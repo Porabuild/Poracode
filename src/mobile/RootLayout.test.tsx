@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import type { ReactNode } from "react";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { StrictMode, type ReactNode } from "react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -17,7 +17,10 @@ const remoteMock = vi.hoisted(() => ({
     connection: "online",
     message: null,
     desktops: [{ id: "desktop-1", label: "Poracode on Mac" }],
-    activeDesktop: { id: "desktop-1", label: "Poracode on Mac" },
+    activeDesktop: { id: "desktop-1", label: "Poracode on Mac" } as {
+      id: string;
+      label: string;
+    } | null,
     projects: [
       {
         id: "project-1",
@@ -68,7 +71,9 @@ vi.mock("@/renderer/views/MainView/parts/PullFromSourceDialog", () => ({
 
 vi.mock("./components", () => ({
   ConnectionBanner: () => null,
-  ConnectionPill: () => null,
+  ConnectionPill: (props: { state: string }) => (
+    <button type="button" data-testid="connection-pill" data-state={props.state} />
+  ),
   // Functional stand-in: renders the trigger plus one button per item, so
   // tests can drive the header quick menu without the portal/animation layer.
   SheetMenu: (props: {
@@ -127,6 +132,9 @@ describe("mobile RootLayout", () => {
   beforeEach(() => {
     routerMock.navigate.mockReset();
     routerMock.pathname = "/threads";
+    remoteMock.session.connection = "online";
+    remoteMock.session.desktops = [{ id: "desktop-1", label: "Poracode on Mac" }];
+    remoteMock.session.activeDesktop = { id: "desktop-1", label: "Poracode on Mac" };
     remoteMock.session.selectedThread = null;
     usePanelStore.setState({
       gitReviewContext: null,
@@ -147,6 +155,9 @@ describe("mobile RootLayout", () => {
     expect(search).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(search);
     expect(search).toHaveAttribute("aria-pressed", "true");
+    fireEvent.pointerDown(search);
+    fireEvent.click(search);
+    expect(search).toHaveAttribute("aria-pressed", "false");
 
     // The ⋯ quick menu hosts every secondary destination; Settings is last.
     fireEvent.click(screen.getByText("Usage"));
@@ -155,6 +166,33 @@ describe("mobile RootLayout", () => {
     expect(routerMock.navigate).toHaveBeenCalledWith({ to: "/desktops" });
     fireEvent.click(screen.getByText("Settings"));
     expect(routerMock.navigate).toHaveBeenCalledWith({ to: "/more" });
+  });
+
+  it("keeps the disconnected icon hidden until a desktop is active", () => {
+    remoteMock.session.connection = "offline";
+    remoteMock.session.desktops = [];
+    remoteMock.session.activeDesktop = null;
+
+    render(<RootLayout />);
+
+    expect(screen.queryByTestId("connection-pill")).not.toBeInTheDocument();
+  });
+
+  it("places the home connection indicator after the desktop name before the More menu", () => {
+    remoteMock.session.connection = "offline";
+
+    render(<RootLayout />);
+
+    const brand = screen.getByText("Mac").closest("button");
+    const connection = screen.getByTestId("connection-pill");
+    const more = screen.getByLabelText("More");
+    expect(brand).not.toBeNull();
+    expect(
+      brand!.compareDocumentPosition(connection) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      connection.compareDocumentPosition(more) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("shows a generic thread header (no thread-scoped actions) on a stale deep link", () => {
@@ -179,6 +217,38 @@ describe("mobile RootLayout", () => {
     const row = screen.getByTestId("thread-title-row");
     expect(row).toHaveAttribute("data-thread-id", "thread-1");
     expect(screen.getByTestId("thread-usage")).toHaveAttribute("data-thread-id", "thread-1");
+  });
+
+  it("holds the previous thread header while pushing into the workspace screen", () => {
+    vi.useFakeTimers();
+    try {
+      remoteMock.session.selectedThread = remoteMock.session.threads[0]!;
+      routerMock.pathname = "/thread/thread-1";
+      const { container, rerender } = render(
+        <StrictMode>
+          <RootLayout />
+        </StrictMode>,
+      );
+
+      routerMock.pathname = "/workspace/thread-1";
+      rerender(
+        <StrictMode>
+          <RootLayout />
+        </StrictMode>,
+      );
+
+      const heldHeader = container.querySelector(".m-topbar--transition-hold");
+      expect(heldHeader).toBeInTheDocument();
+      expect(heldHeader).toHaveAttribute("data-chrome-layout", "thread");
+      expect(heldHeader).toHaveAttribute("aria-hidden", "true");
+      expect(heldHeader).toHaveAttribute("inert");
+      expect(screen.getByTestId("thread-title-row")).toHaveAttribute("data-thread-id", "thread-1");
+
+      act(() => vi.advanceTimersByTime(1200));
+      expect(container.querySelector(".m-topbar--transition-hold")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("bridges desktop git-review signals to the workspace changes route", async () => {

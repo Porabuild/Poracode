@@ -23,6 +23,10 @@ export const GIT_CLONE_TIMEOUT = 600_000;
 // Operations that invoke user-defined hooks (pre-commit lint/typecheck/test, etc.).
 // Generous bound so common hook chains complete; still finite so a hung hook can't pin the UI forever.
 export const GIT_HOOK_TIMEOUT = 300_000;
+// Removing a worktree deletes its whole checkout from disk. Worktrees can carry
+// multi-gigabyte ignored trees (node_modules, build output), and killing git
+// mid-delete leaves a half-removed husk that later removals refuse to touch.
+export const GIT_WORKTREE_REMOVE_TIMEOUT = 600_000;
 
 let wslGitBridgeClient: WslBridgeClient | undefined;
 

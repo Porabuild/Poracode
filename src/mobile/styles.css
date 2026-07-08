@@ -25,6 +25,23 @@ html {
    (This stylesheet loads only in the PWA, so these rules never reach desktop.) */
 :root {
   --m-tap-min: 44px;
+  --m-floating-control-height: var(--m-tap-min);
+  --m-floating-control-line-height: calc(var(--m-floating-control-height) - 2px);
+  --m-floating-control-gap: 0.625rem;
+  --m-floating-control-radius: 999px;
+  --m-floating-control-inner-size: calc(var(--m-floating-control-height) - 0.5rem);
+
+  /* One translucent "glass" surface shared by every floating control — the
+     files search pill, the round add buttons, the FAB, and the collapsed
+     composer bubbles. They all read as the same material; lowering
+     --m-glass-alpha makes every one of them more transparent at once, and the
+     backdrop blur on each carries legibility. */
+  --m-glass-alpha: 64%;
+  --m-glass-surface: color-mix(
+    in oklab,
+    var(--composer-surface, var(--surface, var(--content-background))) var(--m-glass-alpha),
+    transparent
+  );
 }
 
 /* Reused HeroUI buttons render at their "sm" size (~32px tall) throughout the
@@ -45,7 +62,8 @@ body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
-  background: var(--sidebar-background, var(--background));
+  background: #070709;
+  background: var(--background, #070709);
 }
 
 /* Pin the shell to the visual viewport. On iOS standalone, 100dvh can fall
@@ -64,7 +82,8 @@ body {
 }
 
 body.bg-background {
-  background: var(--sidebar-background, var(--background));
+  background: #070709;
+  background: var(--background, #070709);
 }
 
 /* ── Shell ─────────────────────────────────────────────────────── */
@@ -73,7 +92,7 @@ body.bg-background {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--sidebar-background, var(--background));
+  background: var(--background, #070709);
   color: var(--foreground, inherit);
 }
 
@@ -96,6 +115,15 @@ body.bg-background {
 
 .m-main > .m-page {
   overflow-y: auto;
+}
+
+.m-route-loading {
+  min-height: 100%;
+  align-items: center;
+  justify-content: center;
+  background: var(--background, #070709);
+  padding-top: calc(0.75rem + env(safe-area-inset-top));
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
 }
 
 /* The threads screen scrolls its list, not the whole pane, so the project
@@ -145,8 +173,8 @@ body.bg-background {
   gap: 0.5rem;
   min-height: var(--m-tap-min);
   padding: env(safe-area-inset-top) 0.625rem 0;
-  border-bottom: 1px solid var(--hairline, var(--border));
-  background: var(--sidebar-background, var(--background));
+  border-bottom: none;
+  background: var(--background, #070709);
 }
 
 .m-topbar__thread {
@@ -184,7 +212,7 @@ body.bg-background {
   order: 2;
 }
 
-.m-topbar .m-connection {
+.m-topbar[data-chrome-layout="thread"] .m-connection {
   order: 3;
 }
 
@@ -202,8 +230,11 @@ body.bg-background {
   cursor: pointer;
 }
 
+/* Header icon buttons (back, More/search, usage) share the lighter
+   `--row-hover` press wash — the heavier `--row-active` is tuned for
+   full-width list rows and reads as a solid block on a small header chip. */
 .m-back:active {
-  background: var(--row-active, var(--row-hover));
+  background: var(--row-hover);
 }
 
 .m-brand {
@@ -220,6 +251,28 @@ body.bg-background {
   color: inherit;
   cursor: pointer;
   text-align: left;
+}
+
+.m-home-brand-cluster {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-self: stretch;
+  align-items: center;
+  justify-content: center;
+}
+
+.m-home-brand-cluster .m-brand {
+  flex: 0 1 auto;
+  max-width: min(16rem, 70vw);
+  justify-content: center;
+  padding-inline: 0.5rem;
+  text-align: center;
+}
+
+.m-home-brand-cluster .m-connection {
+  width: 2rem;
+  margin-right: 0;
 }
 
 .m-brand__title {
@@ -433,12 +486,12 @@ body.bg-background {
 }
 
 .m-topbar-icon:active {
-  background: var(--row-active, var(--row-hover));
+  background: var(--row-hover);
 }
 
-/* The search icon hands off to the floating pill: while the pill is open
+/* The search action hands off to the floating pill: while the pill is open
    (aria-pressed) the glyph dips away, and springs back when the pill
-   collapses into it. */
+   collapses. */
 .m-topbar-icon > svg {
   transition:
     transform 0.2s cubic-bezier(0.32, 0.72, 0, 1),
@@ -448,6 +501,93 @@ body.bg-background {
 .m-topbar-icon[aria-pressed="true"] > svg {
   transform: scale(0.72);
   opacity: 0.45;
+}
+
+.m-home-compose-actions {
+  position: absolute;
+  right: 0.75rem;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: 0.75rem;
+  z-index: 6;
+  display: flex;
+  height: var(--m-floating-control-height);
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+  transition:
+    transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease;
+}
+
+.m-home-compose-action,
+.m-files-action,
+.m-fab {
+  display: inline-flex;
+  width: var(--m-floating-control-height);
+  height: var(--m-floating-control-height);
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--foreground);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.m-home-compose-action,
+.m-files-search,
+.m-files-action,
+.m-fab {
+  box-sizing: border-box;
+  border: 1px solid var(--hairline, var(--border));
+  border-radius: var(--m-floating-control-radius);
+  background: var(--m-glass-surface);
+  pointer-events: auto;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.m-home-compose-action:active,
+.m-fab:active {
+  background: var(--row-active, var(--row-hover));
+}
+
+.m-fab:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.m-home-compose-action > svg {
+  transition:
+    transform 0.2s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.2s ease;
+}
+
+.m-home-compose-action[aria-pressed="true"] > svg {
+  transform: scale(0.72);
+  opacity: 0.45;
+}
+
+.m-topbar-search {
+  box-sizing: border-box;
+  height: 0;
+  flex: none;
+  overflow: hidden;
+  background: var(--background, #070709);
+  padding: 0 0.625rem;
+  opacity: 0;
+  transition:
+    height 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    padding-top 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    padding-bottom 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.18s ease;
+}
+
+.m-topbar-search:not(:empty) {
+  height: calc(var(--m-tap-min) + 1rem);
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  opacity: 1;
 }
 
 /* ── Scroll-aware chrome (home screen) ─────────────────────────────
@@ -469,6 +609,13 @@ body.bg-background {
 }
 
 .m-shell[data-chrome-hidden] .m-compose-dock:not([data-expanded]) {
+  transform: translateY(calc(100% + 1.5rem + env(safe-area-inset-bottom)));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.m-shell[data-chrome-hidden] .m-home-compose-actions,
+.m-shell:has(.m-compose-dock[data-expanded]) .m-home-compose-actions {
   transform: translateY(calc(100% + 1.5rem + env(safe-area-inset-bottom)));
   opacity: 0;
   pointer-events: none;
@@ -552,7 +699,7 @@ body.bg-background {
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  background: var(--content-background, var(--background));
+  background: var(--background, #070709);
 }
 
 .m-detail > .m-threads,
@@ -584,6 +731,7 @@ body.bg-background {
 
 .m-thread-search {
   display: flex;
+  box-sizing: border-box;
   min-width: 0;
   min-height: var(--m-tap-min);
   flex: 1;
@@ -603,6 +751,11 @@ body.bg-background {
   background: transparent;
   color: var(--foreground);
   font-size: 16px;
+  line-height: 1;
+  min-height: var(--m-floating-control-line-height);
+  height: var(--m-floating-control-line-height);
+  padding-block: calc((var(--m-floating-control-line-height) - 16px) / 2);
+  -webkit-appearance: none;
 }
 
 .m-thread-search button {
@@ -629,27 +782,18 @@ body.bg-background {
   flex: none;
 }
 
-/* Header-toggled search: floats over the top of the list (above the picker
-   row). The pill wears the composer bubble's translucent chrome and scales
-   out of the header search icon when toggled on; [data-closing] plays the
-   reverse — shrinking back into the icon — before the box unmounts. */
+/* Header-toggled search: rendered in the topbar zone above the list. The pill
+   wears the composer bubble's translucent chrome and scales out from the
+   header center when toggled on; [data-closing] plays the reverse before the
+   box unmounts. */
 .m-search-float {
-  position: absolute;
-  top: 0.375rem;
-  right: 0.5rem;
-  left: 0.5rem;
-  z-index: 6;
   display: flex;
-  /* Under the header search icon: one icon button + the topbar edge padding
-     in from the overlay's right edge. Vertically the origin hugs the shell's
-     top edge — the icon itself sits above `.m-main`, whose overflow:hidden
-     would clip the pill the moment it shrinks past that boundary. */
-  transform-origin: calc(100% - 4.75rem) -0.375rem;
+  transform-origin: center center;
   animation: m-search-float-in 0.35s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* The exit easing is the enter curve time-reversed (ease-in): the pill
-   leaves its place slowly, then accelerates as it is absorbed into the icon —
+   leaves its place slowly, then accelerates as it collapses toward center,
    mirroring how it decelerates into place on open. */
 .m-search-float[data-closing] {
   pointer-events: none;
@@ -659,7 +803,7 @@ body.bg-background {
 .m-search-float .m-thread-search {
   flex: 1;
   border-radius: 1.375rem;
-  background: color-mix(in oklab, var(--surface, var(--content-background)) 92%, transparent);
+  background: var(--m-glass-surface);
   padding-left: 0.875rem;
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
   backdrop-filter: blur(12px);
@@ -701,8 +845,15 @@ body.bg-background {
   left: 0.75rem;
   z-index: 5;
   transition:
+    right 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+    left 0.28s cubic-bezier(0.32, 0.72, 0, 1),
     transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
     opacity 0.2s ease;
+}
+
+.m-compose-dock {
+  right: calc(0.75rem + var(--m-floating-control-height) + var(--m-floating-control-gap));
+  left: calc(0.75rem + var(--m-floating-control-height) + var(--m-floating-control-gap));
 }
 
 /* Ride above the on-screen keyboard while expanded (the dock is anchored to
@@ -710,6 +861,11 @@ body.bg-background {
 .m-compose-dock[data-expanded],
 .m-thread-compose-dock[data-expanded] {
   transform: translateY(calc(-1 * var(--m-keyboard-offset, 0px)));
+}
+
+.m-compose-dock[data-expanded] {
+  right: 0.75rem;
+  left: 0.75rem;
 }
 
 /* Cold first focus: before iOS reports a keyboard height there is no reliable
@@ -754,17 +910,14 @@ body.bg-background {
 .m-compose-bubble {
   /* Anchors the collapsed tap overlay. */
   position: relative;
+  box-sizing: border-box;
   overflow: hidden;
-  /* The collapsed content is exactly one 2.75rem input line + the border;
+  /* The collapsed content is exactly one compact control line + the border;
      capping right at it keeps the collapse animation from overshooting. */
-  max-height: calc(2.75rem + 2px);
+  max-height: var(--m-floating-control-height);
   border: 1px solid var(--hairline, var(--border));
-  border-radius: 1.375rem;
-  background: color-mix(
-    in oklab,
-    var(--composer-surface, var(--surface, var(--content-background))) 92%,
-    transparent
-  );
+  border-radius: var(--m-floating-control-radius);
+  background: var(--m-glass-surface);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
@@ -842,9 +995,16 @@ body.bg-background {
 }
 
 /* Collapsed: only the prompt input (single line) remains visible — project
-   row, worktree row, and the composer's docks/attachments are trimmed away. */
+   row, worktree row, toolbar controls/probes, and attachment docks are trimmed
+   away. The compact home pill is only an opener; no nested send/collapse
+   control should peek out from the clipped composer below it. */
 .m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-controls],
 .m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-worktree-row],
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-compact-header],
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-hero],
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-toolbar,
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-drop-overlay,
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-border-glow,
 .m-compose-dock:not([data-expanded])
   .m-compose-bubble
   .lightcode-composer-shell
@@ -852,8 +1012,8 @@ body.bg-background {
   display: none;
 }
 
-/* Same one-line metrics as the live-thread pill: a 2.75rem centered text
-   line, no wrapper padding — the desktop editor's own top-heavy padding
+/* Same one-line metrics as the live-thread pill: one compact control line,
+   no wrapper padding — the desktop editor's own top-heavy padding
    otherwise leaves dead air above the placeholder and clips below. The draft
    body wrapper carries its own pt-2/pb-2/px-3 in full (non-compact) mode and
    must be zeroed too, or the whole shell rides 0.5rem low in the pill. */
@@ -866,71 +1026,31 @@ body.bg-background {
   transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* The 44px mobile tap floor on HeroUI buttons would overflow the 2.75rem
-   line and get clipped; inside a compact pill the send/stop goes back to its
-   desktop 2.25rem — centered by the 0.25rem insets. */
-.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-send,
+/* Inner actions stay inside the shared compact line and are centered by the
+   0.25rem insets. */
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
   .lightcode-composer-shell
   .lightcode-composer-send {
-  width: 2.25rem;
-  height: 2.25rem;
-  min-width: 2.25rem;
-  min-height: 2.25rem;
+  width: var(--m-floating-control-inner-size);
+  height: var(--m-floating-control-inner-size);
+  min-width: var(--m-floating-control-inner-size);
+  min-height: var(--m-floating-control-inner-size);
 }
 
 .m-compose-dock:not([data-expanded]) .m-compose-bubble [data-composer-input-anchor] {
-  max-height: 2.75rem;
+  max-height: var(--m-floating-control-line-height);
 }
 
 .m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-mention-input {
-  min-height: 2.75rem;
-  max-height: 2.75rem;
-  padding: calc((2.75rem - 1lh) / 2) 1rem;
-}
-
-/* …plus the send button once there is something to send: the toolbar keeps
-   only it, pinned to the input row's right edge. */
-.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-toolbar {
-  display: none;
-}
-
-.m-compose-dock:not([data-expanded])
-  .m-compose-bubble:has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  .lightcode-composer-toolbar {
-  position: absolute;
-  /* Centers the 2.25rem send button in the 2.75rem line. */
-  right: 0.25rem;
-  bottom: 0.25rem;
-  /* Above the tap overlay: sending a kept draft must not re-expand. */
-  z-index: 3;
-  display: flex;
-  height: auto !important;
-}
-
-.m-compose-dock:not([data-expanded])
-  .m-compose-bubble
-  .lightcode-composer-toolbar
-  > :not(:has(.lightcode-composer-send)),
-.m-compose-dock:not([data-expanded])
-  .m-compose-bubble
-  .lightcode-composer-toolbar
-  > :has(.lightcode-composer-send)
-  > :not(.lightcode-composer-send) {
-  display: none;
+  min-height: var(--m-floating-control-line-height);
+  max-height: var(--m-floating-control-line-height);
+  padding: calc((var(--m-floating-control-line-height) - 1lh) / 2) 1rem;
 }
 
 .m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-shell {
   position: relative;
-}
-
-/* Keep the input clear of the pinned send button. */
-.m-compose-dock:not([data-expanded])
-  .m-compose-bubble:has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  [data-composer-input-anchor] {
-  margin-right: 2.75rem;
 }
 
 /* Collapsed, a transparent overlay owns the whole bubble tap. The input must
@@ -952,6 +1072,22 @@ body.bg-background {
   flex-direction: column;
   gap: 0.375rem;
   padding: 0.125rem 0.5rem 0.625rem;
+}
+
+/* Recency/pin section captions (Pinned / Current / Older). A small muted label
+   introducing the rows beneath it; the extra top padding gives each section
+   after the first some breathing room, and the first one sits flush. */
+.m-thread-section {
+  padding: 0.5rem 0.5rem 0.0625rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.m-thread-section:first-child {
+  padding-top: 0.125rem;
 }
 
 /* Card-style rows: on touch there is no hover, so the surface + hairline
@@ -1340,11 +1476,14 @@ body.bg-background {
   padding: 0.375rem 0.5rem;
 }
 
-/* Full-bleed variant for the standalone terminal overlay (no card chrome). */
+/* Full-bleed variant for the standalone terminal overlay (no card chrome).
+   Sits directly on the app background — the xterm canvas matches via the
+   `--background` theme override in TerminalView. */
 .m-terminal-live--full {
   margin: 0;
   border: none;
   border-radius: 0;
+  background: var(--background, #070709);
 }
 
 .m-terminal-tab-pane {
@@ -1375,7 +1514,7 @@ body.bg-background {
   flex-direction: column;
   gap: 0.375rem;
   border-top: 1px solid var(--hairline, var(--border));
-  background: var(--sidebar-background, var(--background));
+  background: var(--background, #070709);
   padding: 0.375rem 0.375rem calc(0.375rem + env(safe-area-inset-bottom));
 }
 
@@ -1402,6 +1541,7 @@ body.bg-background {
 .m-terminal-bottom-dock .m-terminal-accessory {
   border-width: 1px;
   border-radius: 0.625rem;
+  background: transparent;
   padding-bottom: 0.375rem;
 }
 
@@ -1658,46 +1798,6 @@ body.bg-background {
   gap: 0.375rem;
 }
 
-/* Reuses the .m-thread-row card; the inner button is the switch target so
-   the forget action can sit beside it without nesting buttons. The card's
-   own padding moves onto the inner button. */
-.m-desktop-row {
-  padding: 0 0.375rem 0 0;
-  cursor: default;
-}
-
-.m-desktop-row__main {
-  display: flex;
-  min-width: 0;
-  min-height: 3.25rem;
-  flex: 1;
-  align-items: center;
-  gap: 0.625rem;
-  border: none;
-  border-radius: 0.625rem 0 0 0.625rem;
-  background: transparent;
-  padding: 0.5rem 0.25rem 0.5rem 0.625rem;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-
-.m-desktop-row__main:active {
-  background: var(--row-hover);
-}
-
-.m-desktop-row__main > svg {
-  color: var(--muted);
-}
-
-.m-desktop-row[data-active="true"] .m-desktop-row__main > svg {
-  color: var(--accent);
-}
-
-.m-desktop-row__check {
-  color: var(--accent);
-}
-
 /* ── More tab ──────────────────────────────────────────────────── */
 
 .m-more-list {
@@ -1773,7 +1873,7 @@ body.bg-background {
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  background: var(--content-background, var(--background));
+  background: var(--background, #070709);
 }
 
 .m-browser__stage {
@@ -1990,7 +2090,7 @@ body.bg-background {
 
 .m-main .m-thread .lightcode-composer-shell [data-composer-input-anchor] {
   overflow: hidden;
-  max-height: 2.75rem;
+  max-height: var(--m-floating-control-line-height);
   transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
@@ -2091,12 +2191,8 @@ body.bg-background {
 }
 
 .m-main .m-thread .m-thread-compose-dock:not([data-expanded]) .lightcode-composer-shell {
-  border-radius: 1.375rem;
-  background: color-mix(
-    in oklab,
-    var(--composer-surface, var(--surface, var(--content-background))) 92%,
-    transparent
-  );
+  border-radius: var(--m-floating-control-radius);
+  background: var(--m-glass-surface);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
@@ -2140,12 +2236,70 @@ body.bg-background {
   animation-play-state: running;
 }
 
-/* Compact + nothing typed: the summary trio sits where the placeholder would
-   be — one line total. The overlaid toolbar is tap-transparent (the whole
-   line focuses the input underneath); only the send/stop button stays
-   directly interactive, since it can be enabled with an empty prompt (a
-   running thread's stop, attachments). With a value the toolbar falls back
-   to its own row below the input (the rules above), send at its right. */
+/* Compact state: empty prompts show the summary trio in the placeholder slot;
+   typed prompts reserve the same one-line pill and pin the send action to the
+   right edge so it is not clipped below the collapsed bubble. */
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  [data-composer-input-anchor] {
+  margin-right: var(--m-floating-control-height);
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .lightcode-composer-toolbar {
+  position: absolute;
+  right: 0.25rem;
+  bottom: 0.25rem;
+  z-index: 3;
+  display: flex;
+  height: auto !important;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .lightcode-composer-toolbar
+  > :not(:has(.lightcode-composer-send)) {
+  display: none;
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .lightcode-composer-toolbar
+  > :has(.lightcode-composer-send) {
+  display: flex;
+  margin-left: 0;
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .lightcode-composer-toolbar
+  > :has(.lightcode-composer-send)
+  > :not(.lightcode-composer-send) {
+  display: none;
+}
+
+.m-main
+  .m-thread
+  .m-thread-compose-dock:not([data-expanded])
+  .lightcode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .lightcode-composer-send {
+  pointer-events: auto;
+}
+
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
@@ -2188,8 +2342,8 @@ body.bg-background {
   content: none;
 }
 
-/* Shared compact line metrics with the home bubble: one 2.75rem line, text
-   vertically centered (the desktop editor's padding is top-heavy). */
+/* Shared compact line metrics with the home bubble: one compact control line,
+   text vertically centered (the desktop editor's padding is top-heavy). */
 .m-main .m-thread .lightcode-composer-shell .lightcode-mention-input {
   transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -2199,9 +2353,9 @@ body.bg-background {
   .m-thread-compose-dock:not([data-expanded])
   .lightcode-composer-shell
   .lightcode-mention-input {
-  min-height: 2.75rem;
-  max-height: 2.75rem;
-  padding: calc((2.75rem - 1lh) / 2) 1rem;
+  min-height: var(--m-floating-control-line-height);
+  max-height: var(--m-floating-control-line-height);
+  padding: calc((var(--m-floating-control-line-height) - 1lh) / 2) 1rem;
 }
 
 /* In the placeholder slot the trio reads as plain muted labels, not
@@ -2434,7 +2588,7 @@ body.bg-background {
   z-index: 50;
   display: flex;
   flex-direction: column;
-  background: var(--content-background, var(--background));
+  background: var(--background, #070709);
 }
 
 .m-workspace__body {
@@ -2477,29 +2631,54 @@ body.bg-background {
   flex: 1;
 }
 
+/* The desktop git column carries an opaque surface (`--content-background`) and
+   no bottom inset. On the phone the rows should sit flat on the screen
+   background and the commit/PR footer must clear the home indicator, so drop
+   the surface fill and reserve the bottom safe area on the column here (desktop
+   rendering of GitReviewSidebar is untouched). Selected/active row states keep
+   their own `--row-hover` fills. */
+.m-workspace .lightcode-overlay-surface {
+  background: transparent;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Commit-message generate (sparkle) button. The mobile shell raises HeroUI
+   icon buttons to a 44px tap target, so center that actual hit target instead
+   of the desktop 1.5rem visual size. Use margin instead of translateY(-50%):
+   HeroUI's pressed state replaces the button's transform with `scale()`. */
+.m-workspace .lc-commit-message {
+  padding-right: calc(var(--m-tap-min) + 0.5rem);
+}
+
+.m-workspace .lc-commit-generate {
+  top: 50%;
+  right: 0;
+  margin-top: calc((var(--m-tap-min) / -2) - 2px);
+}
+
 /* iOS-style segmented control switching Changes / Files. */
 .m-seg {
   display: flex;
   flex: none;
-  gap: 0.1875rem;
-  margin: 0.5rem 0.75rem;
-  padding: 0.1875rem;
-  border-radius: 0.625rem;
+  gap: 0.125rem;
+  margin: 0.375rem 0.75rem;
+  padding: 0.125rem;
+  border-radius: 0.5rem;
   background: var(--row-hover);
 }
 
 .m-seg__btn {
   display: inline-flex;
-  min-height: 2.375rem;
+  min-height: 1.875rem;
   flex: 1;
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 0.5rem;
+  border-radius: 0.4375rem;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
@@ -2581,15 +2760,98 @@ body.bg-background {
   border-top: 1px solid var(--hairline, var(--border));
   border-radius: 1rem 1rem 0 0;
   background: var(--sidebar-background, var(--background));
-  padding: 0.625rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  padding: 0.375rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  transform: translateY(var(--m-sheet-drag-y, 0));
   animation: m-sheet-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+  transition:
+    height 0.22s cubic-bezier(0.32, 0.72, 0, 1),
+    max-height 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-sheet[data-expanded] {
+  height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
+  max-height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
+}
+
+.m-sheet[data-dragging] {
+  transition: none;
+}
+
+.m-sheet-grabber {
+  display: flex;
+  height: 1.125rem;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+}
+
+.m-sheet-grabber:active {
+  cursor: grabbing;
+}
+
+.m-sheet-grabber span {
+  width: 2.25rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 24%, transparent);
 }
 
 /* Exit easing is the enter curve time-reversed (ease-in): the sheet detaches
    slowly, then accelerates off-screen — mirroring how it decelerates into
    place on open. */
-.m-sheet-backdrop[data-closing] .m-sheet {
+.m-sheet-backdrop[data-closing] .m-sheet,
+.m-sheet-backdrop[data-closing] .m-drawer {
   animation: m-sheet-out 0.2s cubic-bezier(1, 0, 0.68, 0.28) forwards;
+}
+
+/* ── Full-screen form drawer (Connections pairing, Projects add) ──── */
+
+/* Tall variant of the bottom sheet: it fills the pane below the status bar to
+   host a scrolling creation form with a titled header. Reuses the sheet's
+   backdrop, slide-in, and slide-out (above). */
+.m-drawer {
+  position: relative;
+  display: flex;
+  height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
+  max-height: calc(100dvh - env(safe-area-inset-top) - 0.75rem);
+  flex-direction: column;
+  border-top: 1px solid var(--hairline, var(--border));
+  border-radius: 1rem 1rem 0 0;
+  background: var(--sidebar-background, var(--background));
+  padding: 0.375rem 0.875rem calc(0.875rem + env(safe-area-inset-bottom));
+  transform: translateY(var(--m-sheet-drag-y, 0));
+  animation: m-sheet-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.m-drawer[data-dragging] {
+  transition: none;
+}
+
+.m-drawer__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0 0.5rem 0.25rem;
+}
+
+.m-drawer__title {
+  min-width: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.m-drawer__body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
 }
 
 @keyframes m-sheet-backdrop-in {
@@ -2611,6 +2873,10 @@ body.bg-background {
 }
 
 @keyframes m-sheet-out {
+  from {
+    transform: translateY(var(--m-sheet-drag-y, 0));
+  }
+
   to {
     transform: translateY(100%);
   }
@@ -2626,8 +2892,8 @@ body.bg-background {
   font-weight: 600;
 }
 
-/* Close affordance in a drawer header (composer menu drawers). */
-.m-sheet-close {
+/* Optional non-dismissive action in a drawer header, e.g. refresh. */
+.m-sheet-head-action {
   display: inline-flex;
   width: var(--m-tap-min);
   height: var(--m-tap-min);
@@ -2641,7 +2907,7 @@ body.bg-background {
   cursor: pointer;
 }
 
-.m-sheet-close:active {
+.m-sheet-head-action:active {
   background: var(--row-hover);
   color: var(--foreground);
 }
@@ -2698,12 +2964,11 @@ body.bg-background {
   min-height: var(--m-tap-min);
 }
 
-/* The model picker's search row and the list's sticky header each draw a bottom
-   hairline; in the drawer they double up with a 1px seam of drawer background
-   between them. Drop the search row's border in the drawer so only the sticky
-   header's hairline shows. */
+/* The model picker's search row and the list's sticky header each draw a
+   hairline. In the drawer, keeping the search border transparent still reserves
+   a 1px strip above the sticky header, so remove that border entirely. */
 .m-sheet .lightcode-model-menu-search {
-  border-bottom-color: transparent;
+  border-bottom-width: 0;
 }
 
 /* ── Host folder picker (project add-existing / clone parent) ─────── */
@@ -2719,7 +2984,7 @@ body.bg-background {
   border-top: 1px solid var(--hairline, var(--border));
   border-radius: 1rem 1rem 0 0;
   background: var(--sidebar-background, var(--background));
-  padding: 0.625rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
+  padding: 0.375rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
   animation: m-sheet-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
@@ -2812,8 +3077,8 @@ body.bg-background {
   padding-top: 0.5rem;
 }
 
-/* Reuses the .m-thread-row card the same way .m-desktop-row does: the inner
-   button is the activate target so the close action sits beside it. */
+/* Reuses the .m-thread-row card: the inner button is the activate target so
+   the close action sits beside it. */
 .m-tab-row {
   flex: none;
   padding: 0 0.375rem 0 0;
@@ -2934,7 +3199,23 @@ body.bg-background {
   z-index: 50;
   display: flex;
   flex-direction: column;
-  background: var(--content-background, var(--background));
+  background: var(--background, #070709);
+}
+
+/* Cold-chunk Suspense fallback for the fullscreen screens (workspace,
+   terminal). Must be a fullscreen surface carrying the m-screen transition
+   name so a push into a not-yet-loaded screen still slides something coherent
+   in (see FullscreenLazyRoute in routeComponents.tsx). */
+.m-screen-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--background, #070709);
 }
 
 .m-git-overlay__body {
@@ -2960,8 +3241,8 @@ body.bg-background {
   gap: 0.5rem;
   min-height: var(--m-tap-min);
   padding: env(safe-area-inset-top) 0.5rem 0;
-  border-bottom: 1px solid var(--hairline, var(--border));
-  background: var(--sidebar-background, var(--background));
+  border-bottom: none;
+  background: var(--background, #070709);
 }
 
 .m-git-head__title {
@@ -2973,12 +3254,29 @@ body.bg-background {
   font-size: 0.8125rem;
 }
 
-.m-git-head__branch {
-  min-width: 0;
+.m-git-head__project {
+  flex: none;
+  max-width: 45%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--muted);
+}
+
+.m-git-head__sep {
+  flex: none;
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.m-git-head__branch {
+  min-width: 1.5rem;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+  font-weight: 600;
 }
 
 .m-git-head__branch-selector {
@@ -3128,12 +3426,24 @@ body.bg-background {
 
 /* Diff drill-down overlaid above the file list. */
 .m-git-diff {
-  position: absolute;
+  /* Anchor to the viewport, not .m-workspace__body: the body moves when the
+     workspace header/segmented control hide after the enter animation. */
+  position: fixed;
   inset: 0;
   z-index: 10;
   display: flex;
   flex-direction: column;
-  background: var(--content-background, var(--background));
+  background: var(--background, #070709);
+  will-change: transform;
+}
+
+.m-git-diff[data-state="entering"] {
+  animation: m-vt-in-right 0.26s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.m-git-diff[data-state="closing"] {
+  pointer-events: none;
+  animation: m-vt-out-right 0.26s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
 .m-git-diff__body {
@@ -3151,6 +3461,12 @@ body.bg-background {
   font-weight: 500;
 }
 
+/* The diff line-number gutter is compacted adaptively for narrow panels in
+   src/renderer/styles.css (.diff-view-wrapper container query, ≤768px). That
+   stylesheet is imported by the mobile entry too (src/mobile/main.tsx), and a
+   phone's diff container is always < 768px, so it covers the mobile Git diff
+   here without a mobile-specific rule. */
+
 /* ── Project files / editor (the workspace Files tab) ──────────── */
 
 .m-files-body {
@@ -3164,6 +3480,7 @@ body.bg-background {
 
 .m-files-tree,
 .m-files-editor {
+  position: relative;
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -3171,17 +3488,33 @@ body.bg-background {
   flex-direction: column;
 }
 
+.m-files-controls {
+  position: absolute;
+  right: 0.75rem;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  left: 0.75rem;
+  z-index: 4;
+  display: flex;
+  height: var(--m-floating-control-height);
+  align-items: center;
+  gap: var(--m-floating-control-gap);
+  pointer-events: none;
+  /* Ride above the on-screen keyboard while the search field is focused, like
+     the composer dock (the bar is anchored to the layout viewport, which iOS
+     keeps full-height under the keyboard). `--m-keyboard-offset` is set inline
+     by FilesView, gated on the search input's focus. */
+  transform: translateY(calc(-1 * var(--m-keyboard-offset, 0px)));
+  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 .m-files-search {
   display: flex;
-  flex: none;
+  min-width: 0;
+  height: var(--m-floating-control-height);
+  flex: 1;
   align-items: center;
   gap: 0.5rem;
-  min-height: var(--m-tap-min);
-  margin: 0.625rem 0.75rem 0.375rem;
-  border: 1px solid var(--field-border, var(--border));
-  border-radius: 0.625rem;
-  background: var(--field-background, var(--surface, var(--background)));
-  padding: 0.25rem 0.375rem 0.25rem 0.625rem;
+  padding: 0.25rem 0.375rem 0.25rem 1rem;
 }
 
 .m-files-search input {
@@ -3197,12 +3530,13 @@ body.bg-background {
 
 .m-files-search button {
   display: flex;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: var(--m-floating-control-inner-size);
+  height: var(--m-floating-control-inner-size);
+  flex: none;
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 0.375rem;
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -3213,32 +3547,7 @@ body.bg-background {
   color: var(--foreground);
 }
 
-.m-files-toolbar {
-  display: flex;
-  flex: none;
-  gap: 0.5rem;
-  padding: 0 0.5rem 0.375rem;
-}
-
-.m-files-toolbar button {
-  display: inline-flex;
-  min-width: 0;
-  height: var(--m-tap-min);
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  border: 1px solid var(--hairline, var(--border));
-  border-radius: 0.5rem;
-  background: var(--surface, var(--content-background));
-  padding: 0 0.625rem;
-  color: var(--foreground);
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.m-files-toolbar button:active {
+.m-files-action:active {
   background: var(--row-hover);
 }
 
@@ -3246,26 +3555,15 @@ body.bg-background {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding: 0.125rem 0.5rem calc(0.75rem + env(safe-area-inset-bottom));
-}
-
-.m-file-row-shell {
-  display: flex;
-  width: 100%;
-  min-height: var(--m-tap-min);
-  align-items: center;
-  border-radius: 0.5rem;
-}
-
-.m-file-row-shell:active {
-  background: var(--row-hover);
+  padding: 0.125rem 0.5rem calc(5rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
 }
 
 .m-file-row {
   display: flex;
+  width: 100%;
   min-width: 0;
   min-height: var(--m-tap-min);
-  flex: 1;
   align-items: center;
   gap: 0.5rem;
   border: none;
@@ -3275,6 +3573,17 @@ body.bg-background {
   color: inherit;
   cursor: pointer;
   text-align: left;
+  -webkit-touch-callout: none;
+}
+
+.m-file-row,
+.m-file-row * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.m-file-row:active {
+  background: var(--row-hover);
 }
 
 .m-file-row__chevron {
@@ -3309,34 +3618,17 @@ body.bg-background {
   color: var(--muted);
 }
 
-.m-file-row__action {
-  display: flex;
-  width: 2.75rem;
-  min-height: var(--m-tap-min);
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 0.5rem;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.m-file-row__action:active {
-  background: var(--row-hover);
-  color: var(--foreground);
-}
-
 .m-files-editor__head {
   display: flex;
   min-height: var(--m-tap-min);
   flex: none;
   align-items: center;
   gap: 0.5rem;
-  border-bottom: 1px solid var(--hairline, var(--border));
-  background: var(--sidebar-background, var(--background));
-  padding: 0 0.5rem;
+  border-bottom: none;
+  background: var(--background, #070709);
+  /* The editor is immersive (the shell hides its safe-area-padded header), so
+     this head sits at the screen edge and must clear the status bar itself. */
+  padding: env(safe-area-inset-top) 0.5rem 0;
 }
 
 .m-files-editor__path {
@@ -3347,27 +3639,6 @@ body.bg-background {
   white-space: nowrap;
   font-size: 0.8125rem;
   font-weight: 500;
-}
-
-.m-files-save {
-  display: inline-flex;
-  height: var(--m-tap-min);
-  flex: none;
-  align-items: center;
-  gap: 0.375rem;
-  border: none;
-  border-radius: 0.5rem;
-  background: var(--accent);
-  padding: 0 0.625rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--accent-foreground, white);
-  cursor: pointer;
-}
-
-.m-files-save:disabled {
-  opacity: 0.45;
-  pointer-events: none;
 }
 
 /* Syntax-highlighted code editor: a Shiki-rendered backdrop with a transparent
@@ -3381,7 +3652,7 @@ body.bg-background {
   min-height: 0;
   flex: 1;
   overflow: auto;
-  background: var(--content-background, var(--background));
+  background: var(--background, #070709);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -3484,7 +3755,8 @@ body.bg-background {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding: 0.5rem 0.875rem calc(1rem + env(safe-area-inset-bottom));
+  padding: 0.5rem 0.875rem calc(5rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
 }
 
 /* The desktop SettingRow is a single label/control line; on a phone wide
@@ -3503,18 +3775,26 @@ body.bg-background {
   margin-left: auto;
 }
 
-/* Full-height host for reused desktop panels (usage, browser). */
+/* Full-height host for reused desktop panels (usage, projects). */
 .m-subscreen {
   display: flex;
   min-width: 0;
   min-height: 0;
   flex: 1;
   flex-direction: column;
+  background: var(--background, #070709);
+  /* Reused desktop panels pin their own footer/action bar to the bottom with
+     no safe-area awareness. Reserve the gesture-bar inset here so that content
+     (e.g. the Usage "Updated … ago" footer) clears the system bar once the
+     WebView draws edge-to-edge (Chromium ≥ 140); it collapses to 0 on the
+     native-inset fallback and on desktop. */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .m-subscreen > * {
   min-height: 0;
   flex: 1;
+  background: var(--background, #070709);
 }
 
 .m-card {
@@ -3522,6 +3802,38 @@ body.bg-background {
   border-radius: 0.625rem;
   background: var(--surface, var(--content-background));
   padding: 0.625rem 0.75rem 0.75rem;
+}
+
+/* Cards rendered inside the full-screen drawer are already on the drawer
+   surface, so drop their border and padding — the drawer body owns the gutter
+   and section spacing. */
+.m-drawer__body .m-card {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+/* ── Floating add button (FAB) ──────────────────────────────────── */
+
+/* Pinned to the pane's bottom-right, above the scrolling list (z 40) and below
+   the drawers it opens (z 60). No transformed ancestor sits between it and the
+   viewport, so `fixed` resolves to the viewport and it stays put while the list
+   scrolls. Screens that show it add `.m-page--fab` so the last row clears it. */
+/* Positioning only — shape, glass surface, size and neutral icon color come
+   from the shared floating-control recipe above, so the add FAB matches the
+   home-screen glass buttons (search / more) rather than being a bespoke solid
+   accent circle. */
+.m-fab {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  z-index: 40;
+}
+
+/* Reserve room so the last list row can scroll clear of the floating button. */
+.m-page--fab {
+  padding-bottom: calc(1rem + var(--m-floating-control-height) + env(safe-area-inset-bottom));
 }
 
 .m-card__title {
@@ -3777,9 +4089,24 @@ body.bg-background {
  * Naming an element pulls it into its own transition group: the page (.m-main)
  * gets the sliding animation below, while the chrome groups stay in place and
  * only cross-fade their contents (e.g. the title). Fullscreen routes
- * (workspace / PR) have no .m-main and cross-fade via the root snapshot; the
- * terminal renders .m-git-overlay inside .m-main, so naming that class too would
- * collide — hence only .m-main carries the page name. */
+ * (workspace / PR / terminal) render their own full-window overlay instead of
+ * .m-main, so they carry a second page name (m-screen) that shares the same
+ * push/pop slide. .m-main and the fullscreen overlays never coexist in one DOM
+ * state — a route renders one or the other — so the two names never collide;
+ * across a navigation the old page's name and the new page's name differ, which
+ * is exactly what lets them slide as a pair (old out, new in).
+ *
+ * Navigations into/out of a fullscreen screen additionally carry the "screen"
+ * type (router.tsx). It fixes two incoherencies of the split old page:
+ * - Layering: on pop, spec group order appends the new page's groups AFTER the
+ *   old m-screen, which would paint the revealed page ON TOP of the outgoing
+ *   slide. The m-screen group is explicitly z-indexed above the page groups.
+ * - Schedules: the old page's topbar and root snapshots would run their
+ *   default 0.25s cross-fades on their own clock under the 0.32s slide — the
+ *   title and floating chrome visibly dissolve before the screen covers them.
+ *   The "screen" rules hold them steady instead: on push the old page sits
+ *   (with only .m-main's parallax) until covered; on pop the revealed page is
+ *   fully painted from the first frame beneath the departing screen. */
 .m-topbar {
   view-transition-name: m-topbar;
 }
@@ -3788,31 +4115,156 @@ body.bg-background {
   view-transition-name: m-main;
 }
 
+/* Fullscreen chrome keeps .m-main mounted (stable Outlet position — see
+   NarrowShell in RootLayout.tsx) but the visible page is the fixed m-screen
+   overlay rendered inside it. Drop the page name so the m-main group doesn't
+   also participate in the transition (matching the old DOM shape, where the
+   fullscreen state had no .m-main at all): on push only the old page's m-main
+   slides out under the incoming screen, and on pop the returning page's m-main
+   is a new-only group that slides back in. */
+.m-shell[data-chrome="fullscreen"] .m-main {
+  view-transition-name: none;
+}
+
+/* Fullscreen chrome also keeps the top bar mounted (NarrowShell renders it in
+   every layout). The opaque z-50 overlay covers it; `visibility: hidden` (not
+   display: none) removes it from hit-testing/a11y while PRESERVING its layout
+   height, so .m-main — and the thread page snapshotted inside it on a pop —
+   never shifts up into the status-bar safe zone. Dropping its transition name
+   keeps the m-topbar group old-/new-only across a screen push/pop, exactly as
+   when the bar was unmounted, so the underlying header holds steady beneath
+   the sliding screen instead of cross-fading with a hidden counterpart. */
+.m-shell[data-chrome="fullscreen"] .m-topbar {
+  visibility: hidden;
+  view-transition-name: none;
+}
+
+/* During a push from a thread into a fullscreen workspace, Android WebView can
+   drop the old-only m-topbar transition image before the m-screen slide ends.
+   RootLayout renders this frozen copy as the fullscreen state's new m-topbar
+   image, so the browser has a paired header snapshot to hold for the whole
+   transition while the real fullscreen top bar remains hidden. */
+.m-shell[data-chrome="fullscreen"] .m-topbar.m-topbar--transition-hold {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 1;
+  visibility: visible;
+  pointer-events: none;
+  view-transition-name: m-topbar;
+}
+
+/* Fullscreen overlay routes (workspace / PR / terminal) slide like a nested
+   page even though they render outside .m-main. Only one is ever mounted at a
+   time (incl. the cold-chunk fallback, which Suspense swaps for the real
+   screen), so this shared name is safe. */
+.m-workspace,
+.m-git-overlay,
+.m-screen-loading {
+  view-transition-name: m-screen;
+}
+
+/* The screen's group always layers above the page/chrome groups: a push slides
+   it in over the old page, a pop slides it away revealing the page beneath.
+   Group DOM order alone cannot guarantee this — new-only groups are appended
+   after old ones, which would invert the pop. */
+::view-transition-group(m-screen) {
+  z-index: 1;
+}
+
 /* iOS-style easing, matched to the bottom-sheet timing. */
-::view-transition-group(m-main) {
+::view-transition-group(m-main),
+::view-transition-group(m-screen) {
   animation-duration: 0.32s;
   animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* PUSH — the incoming page slides in from the right over the outgoing one, which
    drifts left with a subtle parallax. */
-html:active-view-transition-type(push)::view-transition-old(m-main) {
+html:active-view-transition-type(push)::view-transition-old(m-main),
+html:active-view-transition-type(push)::view-transition-old(m-screen) {
   animation: m-vt-out-left 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
-html:active-view-transition-type(push)::view-transition-new(m-main) {
+html:active-view-transition-type(push)::view-transition-new(m-main),
+html:active-view-transition-type(push)::view-transition-new(m-screen) {
   animation: m-vt-in-right 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
 /* POP — the outgoing page slides off to the right, revealing the previous one
    underneath (which un-parallaxes back into place). */
-html:active-view-transition-type(pop)::view-transition-old(m-main) {
+html:active-view-transition-type(pop)::view-transition-old(m-main),
+html:active-view-transition-type(pop)::view-transition-old(m-screen) {
   z-index: 1;
   animation: m-vt-out-right 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
-html:active-view-transition-type(pop)::view-transition-new(m-main) {
+html:active-view-transition-type(pop)::view-transition-new(m-main),
+html:active-view-transition-type(pop)::view-transition-new(m-screen) {
   animation: m-vt-in-left 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
+/* SCREEN (both directions) — the top bar must simply sit still under the
+   sliding screen: on push it is an old-only group (the fullscreen state drops
+   its name), on pop a new-only group, and a singleton image otherwise gets the
+   UA's default cross-fade (fade-out for old, fade-in for new) on its own 0.25s
+   clock — which reads as the header dissolving while the screen is still
+   mid-slide. Pin BOTH images with a single-type selector (no chained
+   :active-view-transition-type, which is the fragile part on older WebViews)
+   so the header holds until the z-1 m-screen group covers or reveals it.
+   Android WebView can discard an old-only image with `animation: none`, so use
+   an explicit no-op animation that lasts as long as the screen slide. */
+html:active-view-transition-type(screen)::view-transition-old(m-topbar),
+html:active-view-transition-type(screen)::view-transition-new(m-topbar) {
+  animation: m-vt-hold 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* SCREEN PUSH — hold the old page steady (no topbar/root fades) while the
+   screen slides in over it; the new root is the empty shell behind the lifted
+   screen, so keep it hidden rather than letting it cross-fade the old chrome
+   away mid-slide. */
+html:active-view-transition-type(screen):active-view-transition-type(push)::view-transition-old(
+    m-topbar
+  ),
+html:active-view-transition-type(screen):active-view-transition-type(push)::view-transition-old(
+    root
+  ) {
+  animation: m-vt-hold 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+html:active-view-transition-type(screen):active-view-transition-type(push)::view-transition-new(
+    root
+  ) {
+  animation: m-vt-hide 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* SCREEN POP — the revealed page paints fully from the first frame beneath the
+   departing screen (no fade-in), and the old root (the empty shell behind the
+   lifted screen) stays out of the blend. */
+html:active-view-transition-type(screen):active-view-transition-type(pop)::view-transition-new(
+    m-topbar
+  ),
+html:active-view-transition-type(screen):active-view-transition-type(pop)::view-transition-new(
+    root
+  ) {
+  animation: m-vt-hold 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+html:active-view-transition-type(screen):active-view-transition-type(pop)::view-transition-old(
+    root
+  ) {
+  animation: m-vt-hide 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes m-vt-hold {
+  from,
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes m-vt-hide {
+  from,
+  to {
+    opacity: 0;
+    transform: none;
+  }
+}
 @keyframes m-vt-in-right {
   from {
     transform: translateX(100%);
@@ -3845,8 +4297,12 @@ html:active-view-transition-type(pop)::view-transition-new(m-main) {
   /* Sheets snap in/out instead of sliding (useSheet still defers the unmount). */
   .m-sheet-backdrop,
   .m-sheet,
+  .m-drawer,
+  .m-git-diff[data-state="entering"],
+  .m-git-diff[data-state="closing"],
   .m-sheet-backdrop[data-closing],
-  .m-sheet-backdrop[data-closing] .m-sheet {
+  .m-sheet-backdrop[data-closing] .m-sheet,
+  .m-sheet-backdrop[data-closing] .m-drawer {
     animation: none;
   }
 

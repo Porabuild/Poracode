@@ -130,7 +130,14 @@ function captureAncestorScrollers(source: HTMLElement | null | undefined) {
 
 function mergeCapturedScrollers(next: readonly CapturedScroller[]): void {
   for (const entry of next) {
-    if (!capturedScrollers.some((existing) => existing.element === entry.element)) {
+    const index = capturedScrollers.findIndex((existing) => existing.element === entry.element);
+    if (index >= 0) {
+      // Refresh the baseline to the ancestor's CURRENT position: the user may
+      // have scrolled it since the initial lock, and re-asserting the stale
+      // lock-time top would snap their content back (the docstring promises a
+      // refresh here).
+      capturedScrollers[index] = entry;
+    } else {
       capturedScrollers.push(entry);
     }
   }

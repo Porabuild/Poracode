@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { ActivityBridge } from "@lightcode/activity-bridge";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { RemoteDesktopClient } from "../remoteClient";
 import { isNativeApp } from "../pwaInstall";
-import { getOrCreateDeviceId, isPushEnabled } from "../storage";
+import { getOrCreateDeviceId } from "../storage";
 import { configureLiveActivities } from "./liveActivityController";
-import { syncPushRegistration, teardownPushListeners } from "./pushRegistration";
+import { syncPushRegistration, teardownPushListeners, unregisterPush } from "./pushRegistration";
 
 /** Just the connection fields the push lifecycle needs from the remote session. */
 export interface PushLifecycleInput {
@@ -26,17 +27,23 @@ export interface PushLifecycleInput {
  *  - Live Activity context tracks the active desktop identity (not the socket),
  *    so an activity keeps driving across reconnects and only tears down on a
  *    desktop switch / unpair.
- *  - Push registration runs once the socket is live AND the user opted this
- *    desktop into push. The fingerprint guard inside `syncPushRegistration`
- *    absorbs the reconnect churn that flips `connected` on every WS resume.
+ *  - Push registration follows the existing notification master switch. The
+ *    fingerprint guard inside `syncPushRegistration` absorbs the reconnect
+ *    churn that flips `connected` on every WS resume.
  */
 export function usePushLifecycle(input: PushLifecycleInput): void {
+  const notificationsEnabled = useSharedSettings((state) => state.notificationsEnabled);
   const { connected } = input;
   const desktop = input.activeDesktop;
   const desktopId = desktop?.desktopId;
   const desktopLabel = desktop?.label;
   const endpoint = desktop?.endpoint;
   const accessToken = desktop?.accessToken;
+
+  // Latest label read without re-running the effect below — a rename must not
+  // tear down the running activity (see the deps note).
+  const desktopLabelRef = useRef(desktopLabel);
+  desktopLabelRef.current = desktopLabel;
 
   // Live Activity context — keyed on the desktop identity.
   useEffect(() => {
@@ -46,7 +53,10 @@ export function usePushLifecycle(input: PushLifecycleInput): void {
       try {
         const supported = await ActivityBridge.isSupported();
         if (!cancelled && supported.liveActivities) {
-          configureLiveActivities({ desktopId, desktopName: desktopLabel ?? desktopId });
+          configureLiveActivities({
+            desktopId,
+            desktopName: desktopLabelRef.current ?? desktopId,
+          });
         }
       } catch {
         // Live Activities unsupported on this OS — stay inert.
@@ -57,23 +67,40 @@ export function usePushLifecycle(input: PushLifecycleInput): void {
       // Ends any running activity and clears tracked threads on switch/unpair.
       configureLiveActivities(null);
     };
-  }, [desktopId, desktopLabel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on desktopId only; a same-desktop rename updates desktopLabelRef without ending the running activity
+  }, [desktopId]);
+
+  // Desktop identity lifecycle: switching desktops, re-pairing (new token), or
+  // unmounting leaves the previous desktop's registration scope. Clear the
+  // fingerprint there; plain connected/offline flips below only detach
+  // listeners and keep the reconnect dedupe state.
+  useEffect(() => {
+    if (!isNativeApp() || !desktopId || !endpoint || !accessToken) return;
+    return () => {
+      void teardownPushListeners({ resetSentState: true });
+    };
+  }, [desktopId, endpoint, accessToken]);
 
   // Push registration — keyed on the live socket + desktop connection identity.
   useEffect(() => {
-    if (!isNativeApp() || !connected || !desktopId || !endpoint || !accessToken) return;
+    if (!isNativeApp() || !desktopId || !endpoint || !accessToken) return;
     let cancelled = false;
     const client = new RemoteDesktopClient(endpoint, accessToken);
     void (async () => {
-      const enabled = await isPushEnabled(desktopId);
-      if (cancelled || !enabled) return;
+      if (!notificationsEnabled) {
+        await teardownPushListeners({ resetSentState: true });
+        const deviceId = await getOrCreateDeviceId();
+        if (!cancelled) await unregisterPush(client, deviceId);
+        return;
+      }
+      if (!connected) return;
       const deviceId = await getOrCreateDeviceId();
       if (cancelled) return;
-      await syncPushRegistration(client, { deviceId });
+      await syncPushRegistration(client, { deviceId, shouldCancel: () => cancelled });
     })();
     return () => {
       cancelled = true;
       void teardownPushListeners();
     };
-  }, [connected, desktopId, endpoint, accessToken]);
+  }, [connected, desktopId, endpoint, accessToken, notificationsEnabled]);
 }

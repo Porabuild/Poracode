@@ -23,6 +23,8 @@ export const MobileTerminal = forwardRef<
     readonly onTerminalResize?: (size: TerminalSize) => void;
     readonly fixedTerminalSize?: TerminalSize;
     readonly resizeTerminalOnFit?: boolean;
+    /** CSS var the terminal background reads from (see XTermSurface). */
+    readonly themeBackgroundVar?: string;
   }
 >(function MobileTerminal(props, ref) {
   const { terminalId } = props;
@@ -47,6 +49,7 @@ export const MobileTerminal = forwardRef<
       touchScrollEnabled
       readOnly={props.readOnly ?? false}
       {...(props.baseFontSize ? { baseFontSize: props.baseFontSize } : {})}
+      {...(props.themeBackgroundVar ? { themeBackgroundVar: props.themeBackgroundVar } : {})}
       {...(props.fixedTerminalSize ? { fixedTerminalSize: props.fixedTerminalSize } : {})}
       {...(props.className ? { className: props.className } : {})}
       {...(props.onExited ? { onExited: props.onExited } : {})}

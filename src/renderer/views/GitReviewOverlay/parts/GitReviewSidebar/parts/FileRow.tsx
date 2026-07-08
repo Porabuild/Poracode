@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "@heroui/react";
-import { FileEdit, Lock, Minus, MoreVertical, Plus, Undo2 } from "lucide-react";
+import { FileEdit, Lock, Minus, Plus, Undo2 } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
@@ -16,8 +16,9 @@ import {
 } from "@/renderer/components/common";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { openFileInEditor } from "@/renderer/utils/gitHelpers";
+import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { useGitReviewRowPadX } from "../gitReviewPadXContext";
-import { useGitTouch, useLongPress } from "../gitTouchContext";
+import { useGitTouch } from "../gitTouchContext";
 
 const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
 
@@ -58,7 +59,7 @@ export function FileRow(props: {
       deletions: file.deletions,
     });
   }
-  const longPress = useLongPress(openMenu);
+  const longPressHandlers = useLongPress(touch ? openMenu : null);
 
   if (!file) return null;
 
@@ -123,17 +124,8 @@ export function FileRow(props: {
               ? "text-muted active:bg-[var(--row-hover)]"
               : "text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
         }`}
-        onClick={(event) => {
-          // A long-press fires before the synthetic click on touch release;
-          // swallow that click so press-and-hold never also opens the file.
-          if (touch && longPress.firedRef.current) {
-            longPress.firedRef.current = false;
-            event.preventDefault();
-            return;
-          }
-          onSelect();
-        }}
-        {...(touch ? { ...longPress.handlers, style: longPress.style } : {})}
+        onClick={onSelect}
+        {...longPressHandlers}
         onDragStart={(event) => {
           event.dataTransfer.setData(
             COMPOSER_FILE_DRAG_TYPE,
@@ -156,24 +148,9 @@ export function FileRow(props: {
           }
         />
         {touch ? (
-          <span className="flex shrink-0 items-center gap-1.5">
-            <span className="flex items-center justify-end text-[11px] leading-4 font-medium tabular-nums">
-              {file.insertions > 0 && <span className="text-success">+{file.insertions}</span>}
-              {file.deletions > 0 && <span className="ml-0.5 text-danger">-{file.deletions}</span>}
-            </span>
-            <span
-              role="button"
-              tabIndex={0}
-              aria-label={t`File actions`}
-              className="-mr-1 rounded p-1 text-muted/70 active:bg-[var(--row-hover)]"
-              onClick={(e) => {
-                e.stopPropagation();
-                openMenu();
-              }}
-              onKeyDown={(e) => handleKeyActivate(e, openMenu, { stopPropagation: true })}
-            >
-              <MoreVertical className="size-4" />
-            </span>
+          <span className="flex shrink-0 items-center justify-end text-[11px] leading-4 font-medium tabular-nums">
+            {file.insertions > 0 && <span className="text-success">+{file.insertions}</span>}
+            {file.deletions > 0 && <span className="ml-0.5 text-danger">-{file.deletions}</span>}
           </span>
         ) : (
           <span className="relative w-14 shrink-0">

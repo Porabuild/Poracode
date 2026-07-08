@@ -3,10 +3,11 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  Navigate,
   redirect,
 } from "@tanstack/react-router";
 import { capturePairingLaunch } from "./pairing";
-import { navigationTransitionType } from "./navHelpers";
+import { isFullscreenScreenPath, navigationTransitionType } from "./navHelpers";
 import { RootLayout } from "./RootLayout";
 import { WIDE_SHELL_QUERY } from "./useMediaQuery";
 import {
@@ -233,7 +234,14 @@ function navigationTransitionTypes(fromPath: string | undefined, toPath: string)
   // double-animates. Skip our transition for that specific gesture-driven pop.
   if (lastNavWasGesture && fromPath === "/more/browser") return false;
   const type = navigationTransitionType(fromPath, toPath);
-  return type ? [type] : false;
+  if (!type) return false;
+  // Fullscreen overlay screens (workspace / PR / terminal) carry the m-screen
+  // transition group; the extra `screen` type lets the CSS hold the page
+  // chrome steady while the screen slides over (push) or away (pop).
+  if (isFullscreenScreenPath(toPath) || (fromPath && isFullscreenScreenPath(fromPath))) {
+    return [type, "screen"];
+  }
+  return [type];
 }
 
 export const router = createRouter({
@@ -245,8 +253,11 @@ export const router = createRouter({
     types: ({ fromLocation, toLocation }) =>
       navigationTransitionTypes(fromLocation?.pathname, toLocation.pathname),
   },
-  // The shell handles "no route" by redirecting to /threads via the index route.
-  defaultNotFoundComponent: () => null,
+  // Any unmatched path (a stale/typo deep link, a route removed in a later
+  // version) redirects to /threads. Rendering null here would leave the home
+  // chrome over a permanently blank body; only the exact "/" is handled by the
+  // index route's redirect.
+  defaultNotFoundComponent: () => <Navigate to="/threads" replace />,
 });
 
 // Record the history action for each navigation (see `lastNavWasGesture`). This

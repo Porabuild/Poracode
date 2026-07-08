@@ -59,14 +59,20 @@ export function applyThreadSnapshot(
 ): void {
   const threadId = snapshot.thread.id;
   const state = useAppStore.getState();
+  syncThreadMetadataFromSnapshot(snapshot, options);
 
   // While a turn is streaming, live WebSocket events are fresher than the
   // desktop's debounced DB snapshot. Still accept a snapshot that has more
   // items than the cache; otherwise opening an active thread from stale
   // offline data can miss everything emitted before the socket resumed.
-  const existingCount = state.runtimeItemIdsByThread[threadId]?.length ?? 0;
+  const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
+  const existingItems = state.runtimeItemsByIdByThread[threadId];
+  const existingHasObservedLiveItems = existingIds.some(
+    (itemId) => existingItems?.[itemId]?.observedLive === true,
+  );
   const shouldReplaceItems = shouldReplaceRuntimeItemsFromSnapshot({
-    existingCount,
+    existingCount: existingIds.length,
+    existingHasObservedLiveItems,
     snapshotItemCount: snapshot.runtimeItems.length,
     threadActive: isThreadTurnActive(snapshot.thread.status),
     fromServer: options.fromServer,
@@ -101,6 +107,7 @@ export function applyThreadSnapshot(
   if (turns.length > 0) {
     state.hydrateThreadCompletedTurns(threadId, turns);
   }
+  syncRuntimeTurnBoundaryFromSnapshot(snapshot, options);
   if (snapshot.contextUsage) {
     const contextUsage = snapshot.contextUsage;
     useAppStore.setState((current) => ({
@@ -109,6 +116,41 @@ export function applyThreadSnapshot(
   }
 
   syncRuntimeRequestsFromSnapshot(snapshot);
+}
+
+function syncThreadMetadataFromSnapshot(
+  snapshot: RemoteThreadSnapshot,
+  options: { readonly fromServer: boolean },
+): void {
+  if (!options.fromServer) return;
+  useAppStore.setState((current) => {
+    let changed = false;
+    const threads = current.threads.map((thread) => {
+      if (thread.id !== snapshot.thread.id) return thread;
+      changed = true;
+      return snapshot.thread;
+    });
+    return changed ? { threads } : {};
+  });
+}
+
+function syncRuntimeTurnBoundaryFromSnapshot(
+  snapshot: RemoteThreadSnapshot,
+  options: { readonly fromServer: boolean },
+): void {
+  if (!options.fromServer) return;
+  if (snapshot.thread.presentationMode !== "gui") return;
+  if (isThreadTurnActive(snapshot.thread.status)) return;
+  const threadId = snapshot.thread.id;
+  useAppStore.setState((current) => {
+    if (current.runtimeOpenTurnByThread[threadId] === false) return {};
+    return {
+      runtimeOpenTurnByThread: {
+        ...current.runtimeOpenTurnByThread,
+        [threadId]: false,
+      },
+    };
+  });
 }
 
 /**

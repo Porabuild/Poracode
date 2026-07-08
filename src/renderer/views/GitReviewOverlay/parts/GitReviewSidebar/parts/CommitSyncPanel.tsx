@@ -145,7 +145,7 @@ export function CommitSyncPanel(props: {
                   isIconOnly
                   size="sm"
                   variant="ghost"
-                  className="absolute top-1.5 right-1 size-6 min-w-0"
+                  className="lc-commit-generate !absolute top-1.5 right-1 size-6 min-w-0"
                   isDisabled={isGenerating || !hasAnyChanges}
                   isPending={isGenerating}
                   onPress={() => void handleGenerateMessage()}

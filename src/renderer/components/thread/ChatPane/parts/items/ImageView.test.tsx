@@ -81,6 +81,7 @@ describe("ImageView", () => {
     expect(img.getAttribute("width")).toBe("1");
     expect(img.getAttribute("height")).toBe("1");
     expect(img.getAttribute("loading")).toBeNull();
+    expect(img).toHaveClass("max-h-[min(22rem,45vh)]", "max-w-full", "object-contain");
     // The prompt lives only on the <img> alt for a11y — it is not written as a
     // visible caption (the picture may be shared, not "generated").
     expect(screen.queryByText("A red square")).toBeNull();

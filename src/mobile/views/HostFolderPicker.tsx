@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ChevronRight, CornerLeftUp, File, Folder, House, Loader2, X } from "lucide-react";
+import { ChevronRight, CornerLeftUp, File, Folder, House, Loader2 } from "lucide-react";
 import type { HostDirectoryEntry } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
@@ -75,16 +75,11 @@ export function HostFolderPicker(props: {
         onClick={props.onClose}
       />
       <div className="m-picker" role="dialog" aria-label={props.title}>
+        <div className="m-sheet-grabber" aria-hidden="true">
+          <span />
+        </div>
         <div className="m-sheet-head">
           <span className="truncate">{props.title}</span>
-          <button
-            type="button"
-            className="m-sheet-close"
-            aria-label={t`Close`}
-            onClick={props.onClose}
-          >
-            <X className="size-4" />
-          </button>
         </div>
 
         <div className="m-picker__bar">

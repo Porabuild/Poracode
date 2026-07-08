@@ -1,7 +1,14 @@
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { isThreadTurnActive, type Thread } from "@/shared/contracts";
-import { groupThreads, type ThreadListEntry, type WorktreeThreadGroup } from "./groupThreads";
+import {
+  entryIsStarred,
+  entryLatestDate,
+  groupThreads,
+  isRecent,
+  type ThreadListEntry,
+  type WorktreeThreadGroup,
+} from "./groupThreads";
 import type { ThreadSortMode } from "./sortMode";
 
 export type SidebarRow =
@@ -36,23 +43,6 @@ export type SidebarRow =
 export const SIDEBAR_THREAD_LIST_PAGE_SIZE = 10;
 
 const EMPTY_THREAD_ID_SET: ReadonlySet<string> = new Set();
-
-function isRecent(iso: string): boolean {
-  return Date.now() - new Date(iso).getTime() < 24 * 60 * 60 * 1000;
-}
-
-function getEntryDate(entry: ThreadListEntry, field: "updatedAt" | "createdAt"): string {
-  if (entry.kind === "thread") return entry.thread[field];
-  return entry.group.threads.reduce(
-    (latest, t) => (t[field] > latest ? t[field] : latest),
-    entry.group.threads[0]![field],
-  );
-}
-
-function entryIsStarred(entry: ThreadListEntry): boolean {
-  if (entry.kind === "thread") return entry.thread.starred;
-  return entry.group.threads.some((t) => t.starred);
-}
 
 /** Pinned or attention-needing threads are never hidden behind "See more". */
 function threadIsProtected(thread: Thread, liveWorkflowThreadIds: ReadonlySet<string>): boolean {
@@ -207,8 +197,8 @@ export function buildSidebarProjectRows(input: {
   );
   const starredEntries = entries.filter(entryIsStarred);
   const unstarredEntries = entries.filter((e) => !entryIsStarred(e));
-  const recentEntries = unstarredEntries.filter((e) => isRecent(getEntryDate(e, dateField)));
-  const olderEntries = unstarredEntries.filter((e) => !isRecent(getEntryDate(e, dateField)));
+  const recentEntries = unstarredEntries.filter((e) => isRecent(entryLatestDate(e, dateField)));
+  const olderEntries = unstarredEntries.filter((e) => !isRecent(entryLatestDate(e, dateField)));
 
   const { visible, hiddenCount } = selectVisible(
     [...starredEntries, ...recentEntries, ...olderEntries],

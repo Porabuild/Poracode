@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, notInArray } from "drizzle-orm";
 import type { Project, Thread } from "@/shared/contracts";
 import * as schema from "../db.schema";
 import { getDb } from "./connection";
@@ -87,6 +87,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
       config: JSON.stringify(thread.config),
       status: thread.status,
       attention: thread.attention,
+      threadStatusSource: thread.threadStatusSource ?? null,
       canResumeWithConfig: thread.canResumeWithConfig,
       sessionRef: thread.sessionRef ? JSON.stringify(thread.sessionRef) : null,
       terminalPrompt: null,
@@ -115,6 +116,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
         config: JSON.stringify(thread.config),
         status: thread.status,
         attention: thread.attention,
+        threadStatusSource: thread.threadStatusSource ?? null,
         canResumeWithConfig: thread.canResumeWithConfig,
         sessionRef: thread.sessionRef ? JSON.stringify(thread.sessionRef) : null,
         terminalPrompt: null,
@@ -135,6 +137,20 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
         lastTurnEndedAt: thread.lastTurnEndedAt ?? null,
       },
     })
+    .run();
+}
+
+/**
+ * No agent session survives a host restart, so any persisted live status
+ * ("launching"/"working"/...) is stale by definition once the process boots.
+ * DB-level counterpart of the renderer's `markThreadsInactiveOnLaunch`; the
+ * headless server calls it at startup since it has no renderer to self-heal.
+ */
+export function dbMarkLiveThreadsInactive(): void {
+  const db = getDb();
+  db.update(schema.threads)
+    .set({ status: "inactive", attention: "none", activeTurnStartedAt: null })
+    .where(notInArray(schema.threads.status, ["inactive", "error"]))
     .run();
 }
 

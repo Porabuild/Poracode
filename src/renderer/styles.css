@@ -2791,6 +2791,82 @@ html[data-platform="darwin"] .lightcode-sidebar-project-nudge {
   --diff-add-content-highlight--: transparent;
 }
 
+/* Adaptive diff line-number gutter.
+   In unified mode @git-diff-view reserves TWO number columns (old + new) and
+   sizes the gutter to (aside + 5px) * 2 ≈ 90px. That's fine on the full-width
+   Git review, but wastes a quarter of the width in a narrow panel — the chat
+   inline diff, a split editor, PR file cards, or a small window — half of it an
+   empty old-number column on added/new files. We collapse the gutter to the
+   single relevant number whenever the diff's OWN container is ≤768px wide.
+
+   This is a container query, not a viewport media query: a 420px chat pane
+   inside an 1800px window still compacts, and a full-width review stays as-is.
+   .diff-view-wrapper is the library's per-diff root (w-full block), so its
+   inline-size tracks the panel width. This stylesheet is imported by both the
+   desktop renderer and the mobile entry (src/mobile/main.tsx), so one rule set
+   covers every surface, phones included.
+
+   Each unified row nests three spans in .diff-line-num: [old-num][10px spacer]
+   [new-num]. Added lines leave the old span empty, deletions leave the new span
+   empty (and drop its data-attribute), context lines fill both — so we key off
+   position (:nth-child) + :empty, not the data-line-*-num attributes. The
+   number column is shared with the hunk "expand" cells (.diff-line-hunk-action,
+   a different class that also forces ~90px); in this auto-layout table the
+   widest cell wins the column, so both must shrink together.
+
+   Gated on @supports selector(:has(*)) so engines without :has() keep the
+   default gutter — no regression, just no improvement. */
+.diff-view-wrapper {
+  container-type: inline-size;
+}
+
+@supports selector(:has(*)) {
+  @container (max-width: 768px) {
+    .diff-view-wrapper .diff-line-num,
+    .diff-view-wrapper .diff-line-hunk-action {
+      width: 48px !important;
+      min-width: 48px !important;
+      max-width: none !important;
+      padding-left: 4px !important;
+      padding-right: 6px !important;
+    }
+
+    /* Drop the 10px spacer between the old/new numbers. */
+    .diff-view-wrapper .diff-line-num > div > span:nth-child(2) {
+      display: none !important;
+    }
+
+    /* Added / context lines: the new-line number (3rd span) is present — show it
+       alone, full width, and hide the old-line number. */
+    .diff-view-wrapper
+      .diff-line-num
+      > div:has(> span:nth-child(3):not(:empty))
+      > span:nth-child(1) {
+      display: none !important;
+    }
+    .diff-view-wrapper
+      .diff-line-num
+      > div:has(> span:nth-child(3):not(:empty))
+      > span:nth-child(3) {
+      width: 100% !important;
+    }
+
+    /* Pure deletion lines: no new-line number (3rd span empty) — show the old. */
+    .diff-view-wrapper .diff-line-num > div:has(> span:nth-child(3):empty) > span:nth-child(3) {
+      display: none !important;
+    }
+    .diff-view-wrapper .diff-line-num > div:has(> span:nth-child(3):empty) > span:nth-child(1) {
+      width: 100% !important;
+    }
+  }
+}
+
+/* Keep the diff's horizontal scroll self-contained so a sideways swipe or
+   trackpad gesture through long lines doesn't trigger back navigation. */
+.diff-table-scroll-container {
+  overscroll-behavior-x: contain;
+}
+
 /* ── Markdown Preview ─────────────────────────────────────── */
 
 .lightcode-markdown-preview {

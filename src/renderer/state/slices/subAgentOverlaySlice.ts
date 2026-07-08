@@ -11,8 +11,17 @@ export interface SubAgentOverlaySlice {
   closeSubAgent: (threadId: string) => void;
 }
 
+/** Fresh sub-agent-overlay map; spread into both the slice and full resets so
+ * the two never drift (see {@link createInitialRuntimeEventState}). */
+export function createInitialSubAgentOverlayState(): Pick<
+  SubAgentOverlaySlice,
+  "openSubAgentByThread"
+> {
+  return { openSubAgentByThread: {} };
+}
+
 export const createSubAgentOverlaySlice: SliceCreator<SubAgentOverlaySlice> = (set) => ({
-  openSubAgentByThread: {},
+  ...createInitialSubAgentOverlayState(),
   openSubAgent: (threadId, parentItemId) =>
     set((state) =>
       state.openSubAgentByThread[threadId] === parentItemId

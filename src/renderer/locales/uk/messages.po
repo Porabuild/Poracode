@@ -18,6 +18,7 @@ msgid "(Draft)"
 msgstr "(Чернетка)"
 
 #: src/mobile/GitSummaryParts.tsx
+#: src/mobile/views/WorkspaceView.tsx
 msgid "(no branch)"
 msgstr "(немає гілки)"
 
@@ -37,7 +38,7 @@ msgstr "{0, plural, one {# підключення} few {# підключення
 "other {# підключення}}"
 
 #. placeholder {0}: remote.desktops.length
-#: src/mobile/RootLayout.tsx
+#: src/mobile/WideShell.tsx
 msgid "{0, plural, one {# paired desktop} other {# paired desktops}}"
 msgstr "{0, plural, one {# підключений десктоп} few {# підключені десктопи} "
 "many {# підключених десктопів} other {# підключеного десктопа}}"
@@ -515,20 +516,16 @@ msgstr "Назва дії"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionsSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Actions"
 msgstr "Дії"
 
-#. placeholder {0}: props.entry.name
 #. placeholder {0}: thread.title
-#: src/mobile/views/FilesView.tsx
 #: src/mobile/views/ThreadsView.tsx
 msgid "Actions for {0}"
 msgstr "Дії для {0}"
 
-#: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/ThreadsView.tsx
 msgid "Actions for {title}"
 msgstr "Дії для {title}"
@@ -561,6 +558,11 @@ msgstr "Додати"
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "Додати локальний проєкт"
+
+#: src/mobile/setupEmptyState.tsx
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Add a project"
+msgstr "Додати проєкт"
 
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
@@ -614,6 +616,7 @@ msgstr "Додати шаблон"
 msgid "Add profile"
 msgstr "Додати профіль"
 
+#: src/mobile/setupEmptyState.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Add project"
 msgstr "Додати проєкт"
@@ -1194,7 +1197,8 @@ msgstr "Вибрати батьківську папку"
 msgid "Browse your GitHub repositories or paste a clone URL."
 msgstr "Перегляньте свої репозиторії GitHub або вставте URL для клонування."
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
@@ -1286,7 +1290,6 @@ msgstr "Доступ до камери заблоковано"
 #. Dialog button: dismiss without deleting
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
-#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1582,6 +1585,10 @@ msgstr "Закрыть {closeTarget}"
 msgid "Close {purposeNoun} terminal"
 msgstr "Закрити термінал {purposeNoun}"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Close add project"
+msgstr "Закрити додавання проєкту"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Close browser"
 msgstr "Закрити браузер"
@@ -1636,6 +1643,10 @@ msgstr "Закрити параметри злиття"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "Close overlay"
 msgstr "Закрити накладання"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Close pairing"
+msgstr "Закрити підключення"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
@@ -1907,6 +1918,7 @@ msgstr "Вирішення конфліктів"
 msgid "Conflicts"
 msgstr "Конфлікти"
 
+#: src/mobile/setupEmptyState.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect"
 msgstr "Підключити"
@@ -1914,6 +1926,14 @@ msgstr "Підключити"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect a server"
 msgstr "Підключити сервер"
+
+#: src/mobile/setupEmptyState.tsx
+msgid "Connect desktop"
+msgstr "Підключити комп’ютер"
+
+#: src/mobile/setupEmptyState.tsx
+msgid "Connect Poracode on your desktop before starting a thread."
+msgstr "Підключіть Poracode на комп’ютері, перш ніж почати тред."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Connect the AI providers OpenCode can use and sign out of them here."
@@ -1949,7 +1969,8 @@ msgstr "Помилка підключення."
 msgid "Connection failed."
 msgstr "Не вдалося підключитися."
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
 #: src/mobile/views/DesktopsView.tsx
 msgid "Connections"
 msgstr "Підключення"
@@ -2237,6 +2258,10 @@ msgstr "Облікові дані налаштовано."
 msgid "Credits"
 msgstr "Кредити"
 
+#: src/mobile/views/ThreadsView.tsx
+msgid "Current"
+msgstr "Поточні"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "current streak"
 msgstr "поточна серія"
@@ -2410,7 +2435,7 @@ msgstr "Кінцева точка робочого стола"
 msgid "Desktop is unreachable."
 msgstr "Десктоп недоступний."
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
 msgstr "Налаштування робочого стола"
@@ -2454,10 +2479,6 @@ msgstr "Пристрій, який використовує кнопка гол�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
 msgstr "Пристрої можуть сполучатися, доки цей робочий стіл доступний."
-
-#: src/renderer/components/composer/ComposerAddMenu.tsx
-#~ msgid "Disable"
-#~ msgstr "Вимкнути"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
@@ -2506,7 +2527,7 @@ msgstr "Відкинути зміни"
 msgid "Discard changes to <0>{title}</0>? This cannot be undone."
 msgstr "Відкинути зміни в <0>{title}</0>? Це не можна буде скасувати."
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/useOpenFile.ts
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -2681,10 +2702,6 @@ msgstr "Рівні зусиль"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Electron"
 msgstr "Electron"
-
-#: src/renderer/components/composer/ComposerAddMenu.tsx
-#~ msgid "Enable"
-#~ msgstr "Увімкнути"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
@@ -2938,7 +2955,6 @@ msgid "File"
 msgstr "Файл"
 
 #: src/mobile/views/FilesView.tsx
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileRow.tsx
 msgid "File actions"
 msgstr "Дії з файлом"
 
@@ -3212,13 +3228,6 @@ msgstr "Генерує повідомлення комітів із підгот
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Генерує короткі заголовки для нових тредів."
-
-#: src/mobile/push/MobilePushSettings.tsx
-msgid "Get alerts through Apple's push service when this desktop's threads "
-"finish or need you — even while the app is closed."
-msgstr "Отримуйте сповіщення через push-сервіс Apple, коли треди цього десктопа "
-"завершуються або потребують вашої уваги — навіть коли застосунок "
-"закрито."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -3547,11 +3556,6 @@ msgstr "Встановити Tailscale"
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "Установіть Tailscale, щоб увімкнути HTTPS-доступ через MagicDNS."
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Install Tailscale to set up HTTPS access through MagicDNS."
-#~ msgstr "Встановіть Tailscale, щоб налаштувати доступ через HTTPS за допомогою "
-#~ "MagicDNS."
-
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Install update"
@@ -3789,11 +3793,6 @@ msgstr "Розташування"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Log in to Tailscale to enable HTTPS access through MagicDNS."
 msgstr "Увійдіть у Tailscale, щоб увімкнути HTTPS-доступ через MagicDNS."
-
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Log in to Tailscale to set up HTTPS access through MagicDNS."
-#~ msgstr "Увійдіть у Tailscale, щоб налаштувати доступ через HTTPS за допомогою "
-#~ "MagicDNS."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Logging in"
@@ -4095,7 +4094,8 @@ msgstr "Моделі"
 msgid "Modes"
 msgstr "Режими"
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "Більше"
@@ -4256,7 +4256,7 @@ msgstr "Новий файл"
 msgid "New File"
 msgstr "Новий файл"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/useFileTree.ts
 msgid "New file name"
 msgstr "Назва нового файла"
 
@@ -4269,7 +4269,7 @@ msgstr "Нова папка"
 msgid "New Folder"
 msgstr "Нова папка"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/useFileTree.ts
 msgid "New folder name"
 msgstr "Назва нової папки"
 
@@ -4299,9 +4299,9 @@ msgstr "Нова вкладка"
 msgid "New tab in group"
 msgstr "Нова вкладка в групі"
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
 #: src/mobile/views/QuickCompose.tsx
-#: src/mobile/views/ThreadsView.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
@@ -4440,9 +4440,13 @@ msgstr "Команд не знайдено"
 msgid "No commits found."
 msgstr "Коміти не знайдено."
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/WideShell.tsx
 msgid "No connection paired"
 msgstr "Немає спарених підключень"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "No connections yet"
+msgstr "Ще немає підключень"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No content streams."
@@ -4546,17 +4550,18 @@ msgstr "Немає шаблонів."
 msgid "No phases yet."
 msgstr "Фаз поки немає."
 
+#: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "No projects"
 msgstr "Немає проєктів"
 
-#: src/mobile/views/NewThreadView.tsx
-msgid "No projects available"
-msgstr "Немає доступних проєктів"
-
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "No projects on this server."
 msgstr "На цьому сервері немає проєктів."
+
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "No projects yet"
+msgstr "Ще немає проєктів"
 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
@@ -4725,6 +4730,7 @@ msgstr "Офлайн"
 msgid "Offline. Showing the last synced data."
 msgstr "Офлайн. Показано останні синхронізовані дані."
 
+#: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 msgid "Older"
 msgstr "Старіші"
@@ -4762,14 +4768,6 @@ msgstr "Відкрити {label}"
 #: src/renderer/commands/registry.ts
 msgid "Open a new browser tab"
 msgstr "Відкрити нову вкладку браузера"
-
-#: src/mobile/views/NewThreadView.tsx
-#~ msgid "Open a project in Lightcode on your desktop, then refresh."
-#~ msgstr "Відкрийте проєкт у Lightcode на десктопі, потім оновіть."
-
-#: src/mobile/views/NewThreadView.tsx
-msgid "Open a project in Poracode on your desktop, then refresh."
-msgstr "Відкрийте проєкт у Poracode на комп'ютері, потім оновіть."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Open a terminal"
@@ -4930,14 +4928,6 @@ msgid "Open Settings"
 msgstr "Відкрити налаштування"
 
 #: src/mobile/views/DesktopsView.tsx
-#~ msgid "Open Settings → Remote Access in Lightcode on your desktop, then scan "
-#~ "the QR code from here — or enter the endpoint and pairing token "
-#~ "manually."
-#~ msgstr "Відкрийте Налаштування → Віддалений доступ у Lightcode на десктопі, "
-#~ "потім відскануйте QR-код звідси або введіть endpoint і токен "
-#~ "підключення вручну."
-
-#: src/mobile/views/DesktopsView.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the "
 "QR code from here — or enter the endpoint and pairing token manually."
 msgstr "Відкрийте «Налаштування → Віддалений доступ» у Poracode на комп'ютері, "
@@ -5066,6 +5056,7 @@ msgid "Pairing"
 msgstr "Підключення"
 
 #: src/mobile/components.tsx
+#: src/mobile/useRemoteDesktop.ts
 msgid "Pairing expired — pair again to reconnect."
 msgstr "Підключення протерміновано — підключіть знову, щоб відновити з'єднання."
 
@@ -5333,10 +5324,17 @@ msgid "Project-specific overrides on top of the global search settings."
 msgstr "Перевизначення для конкретного проєкту поверх глобальних налаштувань "
 "пошуку."
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Projects"
 msgstr "Проєкти"
+
+#: src/mobile/setupEmptyState.tsx
+msgid "Projects live on the connected desktop. Add one before starting a "
+"thread."
+msgstr "Проєкти розміщені на підключеному комп’ютері. Додайте проєкт, перш ніж "
+"почати тред."
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Prompt"
@@ -5468,14 +5466,6 @@ msgstr "Push ↑{ahead}"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Push failed: {detail}"
 msgstr "Збій push: {detail}"
-
-#: src/mobile/push/MobilePushSettings.tsx
-msgid "Push notifications"
-msgstr "Push-сповіщення"
-
-#: src/mobile/push/MobilePushSettings.tsx
-msgid "Push notifications may be unavailable for this desktop."
-msgstr "Push-сповіщення можуть бути недоступні для цього десктопа."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Push updates to paired mobile devices when threads finish or need you, "
@@ -6261,7 +6251,7 @@ msgstr "Пошук комбінацій клавіш"
 msgid "Search the current view"
 msgstr "Пошук у поточному поданні"
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search threads"
@@ -6367,11 +6357,6 @@ msgstr "Розділяйте облікові записи Claude Code за ка
 "профіль, щоб налаштувати його змінні середовища, моделі та рівень "
 "зусиль."
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Serve remote access over your tailnet's HTTPS MagicDNS URL."
-#~ msgstr "Надавайте віддалений доступ через HTTPS URL MagicDNS вашої мережі "
-#~ "Tailscale."
-
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
 msgstr "Задати колір групи"
@@ -6384,7 +6369,8 @@ msgstr "Задати або переглянути експерименталь�
 msgid "Set shortcut"
 msgstr "Призначити комбінацію клавіш"
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -6729,11 +6715,6 @@ msgstr "Запустити Tailscale"
 msgid "Start Tailscale to enable HTTPS access through MagicDNS."
 msgstr "Запустіть Tailscale, щоб увімкнути HTTPS-доступ через MagicDNS."
 
-#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
-#~ msgid "Start Tailscale to set up HTTPS access through MagicDNS."
-#~ msgstr "Запустіть Tailscale, щоб налаштувати доступ через HTTPS за допомогою "
-#~ "MagicDNS."
-
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Start the composer collapsed in terminal-native threads. A collapsed "
@@ -7031,6 +7012,15 @@ msgstr "URL Tailscale"
 msgid "Take Screenshot"
 msgstr "Зробити знімок екрана"
 
+#: src/mobile/views/ManageProjectsView.tsx
+msgid "Tap + to add a folder or clone a repository on your desktop."
+msgstr "Натисніть +, щоб додати папку або клонувати репозиторій на вашому "
+"робочому столі."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Tap + to pair with Poracode on your desktop."
+msgstr "Натисніть +, щоб підключитися до Poracode на вашому робочому столі."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Target branch"
 msgstr "Цільова гілка"
@@ -7105,10 +7095,6 @@ msgstr "Вкладки термінала"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "Перевірити мікрофон"
-
-#: src/mobile/routeComponents.tsx
-#~ msgid "That QR code isn't a Lightcode pairing link."
-#~ msgstr "Цей QR-код не є посиланням підключення Lightcode."
 
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Poracode pairing link."
@@ -7275,7 +7261,7 @@ msgstr "У цьому worktree є локальні зміни. Poracode може
 msgid "Thought"
 msgstr "Думка"
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/NarrowShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
@@ -7549,7 +7535,7 @@ msgstr "Не вдалося виконати merge"
 msgid "Unable to open {0} login."
 msgstr "Не вдалося відкрити вхід у {0}."
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/useOpenFile.ts
 #: src/renderer/commands/registry.ts
 msgid "Unable to open file"
 msgstr "Не вдалося відкрити файл"
@@ -7853,9 +7839,11 @@ msgstr "Оновлення {0}"
 msgid "Updating {0} ({env})"
 msgstr "Оновлення {0} ({env})"
 
-#: src/mobile/RootLayout.tsx
+#: src/mobile/chrome.ts
+#: src/mobile/NarrowShell.tsx
 #: src/mobile/settingsSections.ts
 #: src/mobile/ThreadUsageIndicator.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { RemoteGitSummaries } from "@/shared/remote";
+import type { RemoteGitSummaries, RemoteThreadGitSummary } from "@/shared/remote";
 
 /**
  * Read-only per-thread git/PR summaries from the paired desktop. Hydrated
@@ -9,12 +9,36 @@ import type { RemoteGitSummaries } from "@/shared/remote";
 
 interface GitSummariesStore {
   byThread: RemoteGitSummaries;
+  localByThread: RemoteGitSummaries;
+  remoteByThread: RemoteGitSummaries;
   setAll(byThread: RemoteGitSummaries): void;
+  setThread(threadId: string, summary: RemoteThreadGitSummary): void;
   reset(): void;
+}
+
+function mergeSummaries(
+  localByThread: RemoteGitSummaries,
+  remoteByThread: RemoteGitSummaries,
+): RemoteGitSummaries {
+  return { ...localByThread, ...remoteByThread };
 }
 
 export const useGitSummariesStore = create<GitSummariesStore>()((set) => ({
   byThread: {},
-  setAll: (byThread) => set({ byThread }),
-  reset: () => set({ byThread: {} }),
+  localByThread: {},
+  remoteByThread: {},
+  setAll: (remoteByThread) =>
+    set((state) => ({
+      remoteByThread,
+      byThread: mergeSummaries(state.localByThread, remoteByThread),
+    })),
+  setThread: (threadId, summary) =>
+    set((state) => {
+      const localByThread = { ...state.localByThread, [threadId]: summary };
+      return {
+        localByThread,
+        byThread: mergeSummaries(localByThread, state.remoteByThread),
+      };
+    }),
+  reset: () => set({ byThread: {}, localByThread: {}, remoteByThread: {} }),
 }));
