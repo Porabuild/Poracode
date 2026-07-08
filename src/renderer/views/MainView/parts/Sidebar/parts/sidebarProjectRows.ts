@@ -44,6 +44,18 @@ export const SIDEBAR_THREAD_LIST_PAGE_SIZE = 10;
 
 const EMPTY_THREAD_ID_SET: ReadonlySet<string> = new Set();
 
+/**
+ * Collapse state for both group kinds lives in one map: worktree groups are
+ * keyed by worktree path and start collapsed on launch; manual thread groups
+ * are keyed `group:<groupId>` and start expanded.
+ */
+export function isSidebarGroupCollapsed(
+  collapsedWorktrees: Record<string, boolean>,
+  key: string,
+): boolean {
+  return collapsedWorktrees[key] ?? !key.startsWith("group:");
+}
+
 /** Pinned or attention-needing threads are never hidden behind "See more". */
 function threadIsProtected(thread: Thread, liveWorkflowThreadIds: ReadonlySet<string>): boolean {
   return (
@@ -89,7 +101,7 @@ function pushEntryRows(
     projectId: string;
     dndGroup: string;
     dndDisabled: boolean;
-    collapsedWorktrees: Record<string, boolean>;
+    isCollapsed: (key: string) => boolean;
     nextUngroupedIndex: () => number;
   },
 ) {
@@ -117,7 +129,7 @@ function pushEntryRows(
       sortableGroup: input.dndGroup,
       sortDisabled: input.dndDisabled,
     });
-    if (!(input.collapsedWorktrees[entry.group.worktreePath] ?? false)) {
+    if (!input.isCollapsed(entry.group.worktreePath)) {
       entry.group.threads.forEach((thread, threadIndex) => {
         rows.push({
           kind: "thread",
@@ -139,7 +151,7 @@ function pushEntryRows(
     key: `group:${groupKey}`,
     entry,
   });
-  if (!(input.collapsedWorktrees[`group:${groupKey}`] ?? false)) {
+  if (!input.isCollapsed(`group:${groupKey}`)) {
     entry.group.threads.forEach((thread, threadIndex) => {
       rows.push({
         kind: "thread",
@@ -159,6 +171,8 @@ export function buildSidebarProjectRows(input: {
   projectThreads: Thread[];
   sortMode: ThreadSortMode;
   collapsedWorktrees: Record<string, boolean>;
+  /** Treat every group as expanded regardless of collapse state (keyboard navigation). */
+  expandAllGroups?: boolean;
   /** Max list items shown before "See more"; protected items are always kept. */
   visibleLimit: number;
   /** Threads with a live background workflow — kept visible like working ones. */
@@ -167,6 +181,8 @@ export function buildSidebarProjectRows(input: {
   const rows: SidebarRow[] = [];
   const dndGroup = `project-entries:${input.projectId}`;
   const liveWorkflowThreadIds = input.liveWorkflowThreadIds ?? EMPTY_THREAD_ID_SET;
+  const isCollapsed = (key: string) =>
+    input.expandAllGroups ? false : isSidebarGroupCollapsed(input.collapsedWorktrees, key);
 
   if (input.sortMode === "manual") {
     const orderedThreads = [...input.projectThreads].sort(
@@ -218,20 +234,14 @@ export function buildSidebarProjectRows(input: {
         projectId: input.projectId,
         dndGroup,
         dndDisabled: true,
-        collapsedWorktrees: input.collapsedWorktrees,
+        isCollapsed,
         nextUngroupedIndex,
       });
       const isLast = i === list.length - 1;
       if (isLast) return;
-      if (
-        entry.kind === "worktree-group" &&
-        !(input.collapsedWorktrees[entry.group.worktreePath] ?? false)
-      ) {
+      if (entry.kind === "worktree-group" && !isCollapsed(entry.group.worktreePath)) {
         rows.push({ kind: "divider", key: `wt-divider:${entry.group.worktreePath}` });
-      } else if (
-        entry.kind === "thread-group" &&
-        !(input.collapsedWorktrees[`group:${entry.group.groupId}`] ?? false)
-      ) {
+      } else if (entry.kind === "thread-group" && !isCollapsed(`group:${entry.group.groupId}`)) {
         rows.push({ kind: "divider", key: `group-divider:${entry.group.groupId}` });
       }
     });

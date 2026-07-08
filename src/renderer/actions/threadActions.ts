@@ -135,6 +135,7 @@ export function switchToAdjacentThread(current: Thread, direction: "next" | "pre
     projectThreads,
     sortMode: usePanelStore.getState().threadSortMode,
     collapsedWorktrees: {},
+    expandAllGroups: true,
     visibleLimit: Number.MAX_SAFE_INTEGER,
   }).flatMap((row) => (row.kind === "thread" ? [row.thread.id] : []));
 

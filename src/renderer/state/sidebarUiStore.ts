@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { captureProductEvent } from "@/renderer/analytics/posthog";
-import { SIDEBAR_THREAD_LIST_PAGE_SIZE } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
+import {
+  isSidebarGroupCollapsed,
+  SIDEBAR_THREAD_LIST_PAGE_SIZE,
+} from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 
 /**
  * Legacy hand-rolled key, read once as the initial seed so existing installs
@@ -70,13 +73,13 @@ export const useSidebarUiStore = create<SidebarUiState>()(
         }),
       setWorktreeCollapsed: (key, collapsed) =>
         set((state) => {
-          if ((state.collapsedWorktrees[key] ?? false) === collapsed) return {};
+          if (isSidebarGroupCollapsed(state.collapsedWorktrees, key) === collapsed) return {};
           captureProductEvent("ui.worktree_group_toggled", { collapsed });
           return { collapsedWorktrees: { ...state.collapsedWorktrees, [key]: collapsed } };
         }),
       toggleWorktreeCollapsed: (key) =>
         set((state) => {
-          const collapsed = !(state.collapsedWorktrees[key] ?? false);
+          const collapsed = !isSidebarGroupCollapsed(state.collapsedWorktrees, key);
           captureProductEvent("ui.worktree_group_toggled", { collapsed });
           return {
             collapsedWorktrees: {
@@ -118,5 +121,5 @@ export function useThreadListLimit(projectId: string): number {
 }
 
 export function useIsWorktreeCollapsed(key: string): boolean {
-  return useSidebarUiStore((s) => s.collapsedWorktrees[key] ?? false);
+  return useSidebarUiStore((s) => isSidebarGroupCollapsed(s.collapsedWorktrees, key));
 }
