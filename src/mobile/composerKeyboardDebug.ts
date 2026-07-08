@@ -39,7 +39,7 @@ export function describeElement(element: Element | null): string | null {
 export function keyboardDebug(event: string, data: Record<string, unknown> = {}): void {
   if (!debugEnabled()) return;
   const viewport = window.visualViewport;
-  console.log("[mobile-composer-keyboard]", event, {
+  const payload = {
     ...data,
     active: describeElement(document.activeElement),
     scrollY: window.scrollY,
@@ -53,5 +53,6 @@ export function keyboardDebug(event: string, data: Record<string, unknown> = {})
           scale: viewport.scale,
         }
       : null,
-  });
+  };
+  console.log("[mobile-composer-keyboard]", event, payload, JSON.stringify(payload));
 }

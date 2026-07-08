@@ -4,7 +4,11 @@ import { useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetComposerKeyboardMemoryForTests, useComposerKeyboard } from "./useComposerKeyboard";
 
-const keyboardMock = vi.hoisted(() => ({ offset: 0 }));
+const keyboardMock = vi.hoisted(() => ({
+  offset: 0,
+  liftOffset: undefined as number | undefined,
+  visibilityOffset: undefined as number | undefined,
+}));
 const scrollLockMock = vi.hoisted(() => ({
   lockComposeScroll: vi.fn<(source?: HTMLElement | null) => void>(),
   unlockComposeScroll: vi.fn<() => void>(),
@@ -14,7 +18,12 @@ const scrollLockMock = vi.hoisted(() => ({
 }));
 
 vi.mock("./useKeyboardOffset", () => ({
+  useKeyboardGeometry: () => ({
+    liftOffset: keyboardMock.liftOffset ?? keyboardMock.offset,
+    visibilityOffset: keyboardMock.visibilityOffset ?? keyboardMock.offset,
+  }),
   useKeyboardOffset: () => keyboardMock.offset,
+  useKeyboardVisibilityOffset: () => keyboardMock.offset,
 }));
 
 vi.mock("./composeScrollLock", () => scrollLockMock);
@@ -89,7 +98,10 @@ async function waitForTwoFrames(): Promise<void> {
 describe("useComposerKeyboard", () => {
   beforeEach(() => {
     keyboardMock.offset = 0;
+    keyboardMock.liftOffset = undefined;
+    keyboardMock.visibilityOffset = undefined;
     window.localStorage.clear();
+    vi.unstubAllGlobals();
     resetComposerKeyboardMemoryForTests();
     scrollLockMock.lockComposeScroll.mockClear();
     scrollLockMock.unlockComposeScroll.mockClear();
@@ -273,6 +285,34 @@ describe("useComposerKeyboard", () => {
       expect(document.activeElement).toBe(input);
     } finally {
       vi.useRealTimers();
+      restoreVisualViewport();
+    }
+  });
+
+  it("focuses directly on Android and ignores legacy shared remembered height", () => {
+    const restoreVisualViewport = installVisualViewport();
+    vi.stubGlobal("Capacitor", { getPlatform: () => "android" });
+    window.localStorage.setItem("lightcode-mobile-keyboard-height", "480");
+    window.localStorage.setItem("lightcode-mobile-keyboard-height:android", "336");
+    resetComposerKeyboardMemoryForTests();
+
+    try {
+      render(<ComposerKeyboardHarness />);
+      const input = screen.getByRole("textbox");
+
+      const pointerDown = createEvent.pointerDown(input, {
+        pointerType: "touch",
+        cancelable: true,
+      });
+      fireEvent(input, pointerDown);
+
+      expect(document.activeElement).toBe(input);
+      expect(document.activeElement).not.toHaveAttribute("data-composer-keyboard-primer");
+      expect(screen.getByLabelText("lift offset")).toHaveTextContent("0");
+      expect(screen.getByLabelText("measuring keyboard")).toHaveTextContent("false");
+      expect(window.localStorage.getItem("lightcode-mobile-keyboard-height")).toBe("480");
+      expect(window.localStorage.getItem("lightcode-mobile-keyboard-height:android")).toBe("336");
+    } finally {
       restoreVisualViewport();
     }
   });

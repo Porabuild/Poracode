@@ -460,6 +460,138 @@ describe("watcher git status refresh", () => {
     expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(worktreeStatus);
   });
 
+  it("escalates a summary poll to a full refresh when a file was staged externally", async () => {
+    // Previously the file was unstaged/modified with real counts...
+    const previousWorktreeStatus: GitStatusResult = {
+      ...status,
+      branch: "feature/wt",
+      unstaged: [
+        { path: "src/changed.ts", status: "M", staged: false, insertions: 5, deletions: 1 },
+      ],
+      totalInsertions: 5,
+      totalDeletions: 1,
+    };
+    // A summary poll now reports it staged (an external `git add`) with 0/0 —
+    // no backfill key matches, so the counts can't be recovered from cache.
+    const summaryWorktreeStatus: GitStatusResult = {
+      ...status,
+      detail: "summary",
+      branch: "feature/wt",
+      staged: [{ path: "src/changed.ts", status: "M", staged: true, insertions: 0, deletions: 0 }],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    };
+    // The follow-up full refresh recovers the real cumulative counts.
+    const fullWorktreeStatus: GitStatusResult = {
+      ...status,
+      branch: "feature/wt",
+      staged: [{ path: "src/changed.ts", status: "M", staged: true, insertions: 5, deletions: 1 }],
+      unstaged: [],
+      totalInsertions: 5,
+      totalDeletions: 1,
+    };
+    const getGitStatus = vi.fn<() => Promise<GitStatusResult>>().mockResolvedValue(status);
+    const gitWorktreeStatusBatch = vi
+      .fn<
+        (payload: {
+          projectLocation: ProjectLocation;
+          worktreePaths: string[];
+          detail?: "summary" | "full";
+        }) => Promise<{ statuses: Record<string, GitStatusResult> }>
+      >()
+      .mockImplementation(async ({ detail }) => ({
+        statuses: {
+          "/repo-wt": detail === "full" ? fullWorktreeStatus : summaryWorktreeStatus,
+        },
+      }));
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      value: { platform: "darwin", getGitStatus, gitWorktreeStatusBatch },
+    });
+    useGitStore.getState().setWorktreeStatus("/repo-wt", previousWorktreeStatus);
+    useAppStore.setState({ threads: [worktreeThread] });
+
+    await refreshGitProject(project, "poll", "status");
+    // The escalation fires fire-and-forget after the poll resolves — flush it.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(gitWorktreeStatusBatch).toHaveBeenCalledWith({
+      projectLocation: location,
+      worktreePaths: ["/repo-wt"],
+      detail: "summary",
+    });
+    expect(gitWorktreeStatusBatch).toHaveBeenCalledWith({
+      projectLocation: location,
+      worktreePaths: ["/repo-wt"],
+      detail: "full",
+    });
+    expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(fullWorktreeStatus);
+  });
+
+  it("retries summary-to-full escalation after a transient full refresh failure", async () => {
+    const previousWorktreeStatus: GitStatusResult = {
+      ...status,
+      branch: "feature/wt",
+      unstaged: [
+        { path: "src/changed.ts", status: "M", staged: false, insertions: 5, deletions: 1 },
+      ],
+      totalInsertions: 5,
+      totalDeletions: 1,
+    };
+    const summaryWorktreeStatus: GitStatusResult = {
+      ...status,
+      detail: "summary",
+      branch: "feature/wt",
+      staged: [{ path: "src/changed.ts", status: "M", staged: true, insertions: 0, deletions: 0 }],
+      unstaged: [],
+      totalInsertions: 0,
+      totalDeletions: 0,
+    };
+    const fullWorktreeStatus: GitStatusResult = {
+      ...status,
+      branch: "feature/wt",
+      staged: [{ path: "src/changed.ts", status: "M", staged: true, insertions: 5, deletions: 1 }],
+      unstaged: [],
+      totalInsertions: 5,
+      totalDeletions: 1,
+    };
+    const getGitStatus = vi.fn<() => Promise<GitStatusResult>>().mockResolvedValue(status);
+    let fullAttempts = 0;
+    const gitWorktreeStatusBatch = vi
+      .fn<
+        (payload: {
+          projectLocation: ProjectLocation;
+          worktreePaths: string[];
+          detail?: "summary" | "full";
+        }) => Promise<{ statuses: Record<string, GitStatusResult> }>
+      >()
+      .mockImplementation(async ({ detail }) => {
+        if (detail === "full") {
+          fullAttempts += 1;
+          if (fullAttempts === 1) throw new Error("bridge unavailable");
+          return { statuses: { "/repo-wt": fullWorktreeStatus } };
+        }
+        return { statuses: { "/repo-wt": summaryWorktreeStatus } };
+      });
+    Object.defineProperty(window, "lightcode", {
+      configurable: true,
+      value: { platform: "darwin", getGitStatus, gitWorktreeStatusBatch },
+    });
+    useGitStore.getState().setWorktreeStatus("/repo-wt", previousWorktreeStatus);
+    useAppStore.setState({ threads: [worktreeThread] });
+
+    await refreshGitProject(project, "poll", "status");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(summaryWorktreeStatus);
+
+    await refreshGitProject(project, "poll", "status");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fullAttempts).toBe(2);
+    expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(fullWorktreeStatus);
+  });
+
   it("preserves cached worktree diff stats during fetch refreshes", async () => {
     const cachedWorktreeStatus: GitStatusResult = {
       ...status,

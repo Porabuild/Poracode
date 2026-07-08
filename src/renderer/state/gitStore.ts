@@ -78,11 +78,74 @@ function upsertByPath(list: readonly FileChange[], item: FileChange): FileChange
   return [...list.filter((f) => f.path !== item.path), item];
 }
 
-/** Bulk variant of upsertByPath — incoming entries win over any same-path entries in `list`. */
-function upsertManyByPath(list: readonly FileChange[], items: readonly FileChange[]): FileChange[] {
+/**
+ * Insert `item`, summing its +/- into any existing same-path entry (keeping that
+ * entry's position). When a file is staged, re-modified, then staged again, git's
+ * truth is the cumulative HEAD→index diff — so the optimistic move must add the
+ * new hunk's counts onto the already-staged counts rather than replace them.
+ * Summing is exact when edits don't overlap lines; the follow-up full refresh
+ * reconciles precisely regardless.
+ */
+function upsertSummingByPath(list: readonly FileChange[], item: FileChange): FileChange[] {
+  let matched = false;
+  const merged = list.map((f) => {
+    if (f.path !== item.path) return f;
+    matched = true;
+    return {
+      ...item,
+      insertions: f.insertions + item.insertions,
+      deletions: f.deletions + item.deletions,
+    };
+  });
+  return matched ? merged : [...merged, item];
+}
+
+/** Bulk variant of {@link upsertSummingByPath}. */
+function upsertManySummingByPath(
+  list: readonly FileChange[],
+  items: readonly FileChange[],
+): FileChange[] {
   if (items.length === 0) return [...list];
-  const incomingPaths = new Set(items.map((f) => f.path));
-  return [...list.filter((f) => !incomingPaths.has(f.path)), ...items];
+  let result: FileChange[] = [...list];
+  for (const item of items) {
+    result = upsertSummingByPath(result, item);
+  }
+  return result;
+}
+
+/** Key used to backfill summary-poll +/- counts from a prior store snapshot. */
+function summaryBackfillKey(file: FileChange): string {
+  return `${file.staged}\0${file.path}\0${file.oldPath ?? ""}\0${file.status}`;
+}
+
+/**
+ * True when an incoming summary status carries a file row that has no matching
+ * entry in the previous store snapshot — i.e. {@link mergeSummaryFiles} can't
+ * backfill its +/- counts because the row moved sections, changed status, or is
+ * brand new (e.g. an external `git add` in a terminal). Such a row would
+ * otherwise display 0/0 (or stale) forever, since summary polls never carry real
+ * counts and the file watcher ignores the `.git/index` write that produced it.
+ * Untracked ("?") rows count as a miss too: full refreshes fill their insertion
+ * counts, so a missed untracked row is also stale at 0. Callers escalate to a
+ * full refresh when this returns true.
+ */
+export function summaryBackfillMissed(
+  previous: GitStatusResult | undefined,
+  incoming: GitStatusResult,
+): boolean {
+  if (incoming.detail !== "summary") return false;
+  const previousKeys = new Set<string>();
+  if (previous) {
+    for (const file of previous.staged) previousKeys.add(summaryBackfillKey(file));
+    for (const file of previous.unstaged) previousKeys.add(summaryBackfillKey(file));
+  }
+  for (const file of incoming.staged) {
+    if (!previousKeys.has(summaryBackfillKey(file))) return true;
+  }
+  for (const file of incoming.unstaged) {
+    if (!previousKeys.has(summaryBackfillKey(file))) return true;
+  }
+  return false;
 }
 
 function removeByPath(list: readonly FileChange[], path: string): FileChange[] {
@@ -146,16 +209,9 @@ function mergeSummaryFiles(
   incoming: readonly FileChange[],
 ): FileChange[] {
   if (incoming.length === 0) return [];
-  const previousByKey = new Map(
-    previous.map((file) => [
-      `${file.staged}\0${file.path}\0${file.oldPath ?? ""}\0${file.status}`,
-      file,
-    ]),
-  );
+  const previousByKey = new Map(previous.map((file) => [summaryBackfillKey(file), file]));
   return incoming.map((file) => {
-    const previousFile = previousByKey.get(
-      `${file.staged}\0${file.path}\0${file.oldPath ?? ""}\0${file.status}`,
-    );
+    const previousFile = previousByKey.get(summaryBackfillKey(file));
     return previousFile
       ? { ...file, insertions: previousFile.insertions, deletions: previousFile.deletions }
       : file;
@@ -604,7 +660,7 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
           ...state[bucket],
           [key]: {
             ...status,
-            staged: upsertByPath(status.staged, moved),
+            staged: upsertSummingByPath(status.staged, moved),
             unstaged: removeByPath(status.unstaged, filePath),
           },
         },
@@ -625,7 +681,7 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
           [key]: {
             ...status,
             staged: removeByPath(status.staged, filePath),
-            unstaged: upsertByPath(status.unstaged, moved),
+            unstaged: upsertSummingByPath(status.unstaged, moved),
           },
         },
       };
@@ -646,7 +702,7 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
           ...state[bucket],
           [key]: {
             ...status,
-            staged: upsertManyByPath(status.staged, moved),
+            staged: upsertManySummingByPath(status.staged, moved),
             unstaged: [],
           },
         },
@@ -701,7 +757,7 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
           [key]: {
             ...status,
             staged: [],
-            unstaged: upsertManyByPath(status.unstaged, moved),
+            unstaged: upsertManySummingByPath(status.unstaged, moved),
           },
         },
       };

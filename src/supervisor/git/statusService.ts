@@ -37,6 +37,74 @@ interface DiffStatEntry {
   deletions: number;
 }
 
+/**
+ * Decode git's C-quoted path form. We force `core.quotepath=false` on every git
+ * invocation (see {@link withQuotePathDisabled}), so non-ASCII bytes come
+ * through raw — but git ALWAYS quotes a path that contains a double quote,
+ * backslash, or control character, regardless of that setting. When `raw` is
+ * such a quoted blob (starts and ends with `"`) strip the quotes and decode the
+ * C escapes; otherwise return it unchanged.
+ *
+ * Octal escapes (`\NNN`) are raw UTF-8 BYTES, not code points, so decoded bytes
+ * are accumulated into a Buffer and read back as UTF-8 once at the end — decoding
+ * each escape as a character would mojibake any multi-byte sequence.
+ */
+export function unquoteGitPath(raw: string): string {
+  if (raw.length < 2 || !raw.startsWith('"') || !raw.endsWith('"')) {
+    return raw;
+  }
+  const body = raw.slice(1, -1);
+  const bytes: number[] = [];
+  const pushUtf8 = (char: string): void => {
+    for (const b of Buffer.from(char, "utf-8")) bytes.push(b);
+  };
+  for (let i = 0; i < body.length; i += 1) {
+    const ch = body[i]!;
+    if (ch !== "\\") {
+      pushUtf8(ch);
+      continue;
+    }
+    const next = body[i + 1];
+    if (next === undefined) {
+      bytes.push(0x5c); // trailing backslash — keep literal
+      break;
+    }
+    if (next >= "0" && next <= "7") {
+      // Octal escape: up to 3 octal digits collapse to one byte.
+      let oct = "";
+      let j = i + 1;
+      while (j < body.length && oct.length < 3 && body[j]! >= "0" && body[j]! <= "7") {
+        oct += body[j]!;
+        j += 1;
+      }
+      bytes.push(parseInt(oct, 8) & 0xff);
+      i = j - 1;
+      continue;
+    }
+    switch (next) {
+      case "\\":
+        bytes.push(0x5c);
+        break;
+      case '"':
+        bytes.push(0x22);
+        break;
+      case "t":
+        bytes.push(0x09);
+        break;
+      case "n":
+        bytes.push(0x0a);
+        break;
+      case "r":
+        bytes.push(0x0d);
+        break;
+      default:
+        pushUtf8(next); // unknown escape — keep the escaped char literally
+    }
+    i += 1;
+  }
+  return Buffer.from(bytes).toString("utf-8");
+}
+
 function parseUntrackedPaths(output: string): string[] {
   return output
     .split("\0")
@@ -78,14 +146,14 @@ export function parseStatusPorcelainV2(output: string): ParsedPorcelainStatus {
     if (line.startsWith("u ")) {
       mergeInProgress = true;
       const parts = line.split(" ");
-      const path = toForwardSlash(parts.slice(10).join(" "));
+      const path = toForwardSlash(unquoteGitPath(parts.slice(10).join(" ")));
       conflictFiles.push(path);
       continue;
     }
 
     if (line.startsWith("? ")) {
       unstaged.push({
-        path: toForwardSlash(line.slice(2)),
+        path: toForwardSlash(unquoteGitPath(line.slice(2))),
         status: "?",
         staged: false,
         insertions: 0,
@@ -105,8 +173,8 @@ export function parseStatusPorcelainV2(output: string): ParsedPorcelainStatus {
     const indexStatus = xy[0]!;
     const worktreeStatus = xy[1]!;
 
-    const path = toForwardSlash(fields.slice(kind === "2" ? 9 : 8).join(" "));
-    const oldPath = kind === "2" ? toForwardSlash(parts[1] ?? "") : undefined;
+    const path = toForwardSlash(unquoteGitPath(fields.slice(kind === "2" ? 9 : 8).join(" ")));
+    const oldPath = kind === "2" ? toForwardSlash(unquoteGitPath(parts[1] ?? "")) : undefined;
 
     if (indexStatus !== ".") {
       staged.push({
@@ -142,14 +210,63 @@ export function parseStatusPorcelainV2(output: string): ParsedPorcelainStatus {
   };
 }
 
+/**
+ * `git diff --numstat` collapses a rename into the source/destination combined
+ * syntax in its path field. Resolve it to the NEW path so counts merge against
+ * the porcelain-v2 rename entries (which carry the new path):
+ *   - brace form: `src/{old => new}/file.txt` → `src/new/file.txt`
+ *   - empty side: `dir/{ => sub}/file.txt`   → `dir/sub/file.txt`
+ *   - plain form: `src/old.txt => deep/new.txt` → `deep/new.txt`
+ * A literal ` => ` inside a filename is vanishingly rare; the brace form is
+ * unambiguous, and the plain form is only applied when no braces are present.
+ *
+ * C-quoting is decoded per side, because git quotes each side of a rename
+ * independently (e.g. `"\321\204.txt" => "\320\261.txt"`) rather than the field
+ * as a whole. A non-rename field that is quoted as a whole (`"\321\204.txt"`)
+ * is decoded on the return path. The brace form with an embedded quote is rare;
+ * when git quotes the whole `prefix{old => new}suffix` field we decode it first
+ * so the braces are visible, then resolve.
+ */
+function resolveNumstatRenamePath(rawPath: string): string {
+  // Plain `old => new` rename with no braces: git quotes each side on its own,
+  // so split on the arrow and decode only the new side. Guarded by the absence
+  // of `{` so the brace form falls through to the dedicated handling below.
+  const plainArrow = rawPath.indexOf(" => ");
+  if (plainArrow !== -1 && rawPath.indexOf("{") === -1) {
+    return unquoteGitPath(rawPath.slice(plainArrow + " => ".length));
+  }
+  // Brace form (and whole-field-quoted non-renames): decode any whole-field
+  // quoting first so the `{`/`}`/`=>` structure is visible to the resolver.
+  const decoded = unquoteGitPath(rawPath);
+  const braceStart = decoded.indexOf("{");
+  if (braceStart !== -1) {
+    const braceEnd = decoded.indexOf("}", braceStart);
+    const arrow = decoded.indexOf(" => ", braceStart);
+    if (braceEnd !== -1 && arrow !== -1 && arrow < braceEnd) {
+      const prefix = decoded.slice(0, braceStart);
+      const suffix = decoded.slice(braceEnd + 1);
+      const newInner = decoded.slice(arrow + " => ".length, braceEnd);
+      // An empty side (`{ => sub}` / `{sub => }`) leaves the prefix/suffix
+      // slashes adjacent; collapse the resulting `//` back to a single `/`.
+      return `${prefix}${newInner}${suffix}`.replace(/\/{2,}/g, "/");
+    }
+  }
+  return decoded;
+}
+
 export function parseDiffNumstat(output: string): DiffStatEntry[] {
   const entries: DiffStatEntry[] = [];
   for (const line of output.trim().split(/\r?\n/)) {
     if (!line) continue;
-    const [insertionsRaw, deletionsRaw, path] = line.split("\t");
-    if (!path) continue;
+    // numstat has exactly two leading numeric fields; the path is the rest,
+    // rejoined so a tab inside a filename isn't truncated.
+    const parts = line.split("\t");
+    const insertionsRaw = parts[0];
+    const deletionsRaw = parts[1];
+    const rawPath = parts.slice(2).join("\t");
+    if (!rawPath) continue;
     entries.push({
-      path: toForwardSlash(path),
+      path: toForwardSlash(resolveNumstatRenamePath(rawPath)),
       insertions: Number.isNaN(Number(insertionsRaw ?? "0"))
         ? 0
         : parseInt(insertionsRaw ?? "0", 10),

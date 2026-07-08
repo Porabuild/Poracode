@@ -19,13 +19,18 @@ helper:
 | --------------------------------- | -------------------------------------------------------- | ------- |
 | `dev:mobile:server`               | Headless remote server (`build:electron` + `server.cjs`) | `38987` |
 | `dev:mobile`                      | Vite dev server for the mobile target (HMR)              | `3100`  |
-| `dev:ios:app` / `dev:android:app` | `cap run <platform> --live-reload` (waits for `:3100`)   | —       |
+| `dev:ios:app` / `dev:android:app` | target-resolving `cap run <platform> --live-reload`      | —       |
 | `android-reverse-server-port.mjs` | Android only: keeps `adb reverse tcp:38987` applied      | —       |
 
 `dev:mobile:server` sets `LIGHTCODE_IS_DEV=1`, which turns on two dev-only
 conveniences in the server (see [Why dev mode matters](#why-dev-mode-matters)):
 loopback advertising + loopback CORS. **No other env vars are needed** — pairing
 works against `http://127.0.0.1:38987/` out of the box.
+
+The iOS and Android launch wrappers pass an explicit native target so Capacitor
+does not stop at an interactive device picker under `concurrently`. Override the
+automatic choice with `LIGHTCODE_IOS_TARGET=<simulator-udid>` or
+`LIGHTCODE_ANDROID_TARGET=<device-or-avd-id>`.
 
 The endpoint is the **same on both platforms**: the iOS simulator shares the
 Mac's loopback natively, and on Android the reverse-port helper maps the

@@ -120,7 +120,12 @@ vi.mock("@/renderer/state/useThread", () => ({
 }));
 
 vi.mock("../useKeyboardOffset", () => ({
+  useKeyboardGeometry: () => ({
+    liftOffset: fixtures.keyboardOffset,
+    visibilityOffset: fixtures.keyboardOffset,
+  }),
   useKeyboardOffset: () => fixtures.keyboardOffset,
+  useKeyboardVisibilityOffset: () => fixtures.keyboardOffset,
 }));
 
 describe("mobile ThreadView", () => {

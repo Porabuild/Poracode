@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, FocusEvent as ReactFocusEvent, ReactNode } from "react";
 import { keyboardDebug } from "./composerKeyboardDebug";
+import { recallKeyboardHeight } from "./keyboardFocusShared";
+import { isAndroidRuntime } from "./mobilePlatform";
 import { suppressNextGhostTap } from "./suppressGhostTap";
 import { useComposerKeyboard } from "./useComposerKeyboard";
+
+const KEYBOARD_VISIBILITY_OFFSET_VAR = "--m-keyboard-visibility-offset";
 
 export function FloatingComposerDock(props: {
   readonly children: ReactNode;
@@ -30,6 +34,7 @@ export function FloatingComposerDock(props: {
   const wasExpandedRef = useRef(expanded);
   const skipNextFocusOnExpandRef = useRef(false);
   const onComposerFocusChange = props.onComposerFocusChange;
+  const androidRuntime = isAndroidRuntime();
 
   const setExpanded = (next: boolean) => {
     if (!next) {
@@ -40,11 +45,23 @@ export function FloatingComposerDock(props: {
     }
     props.onExpandedChange?.(next);
   };
+  const preseedAndroidKeyboardOffset = () => {
+    if (!androidRuntime) return;
+    const rememberedHeight = recallKeyboardHeight();
+    if (rememberedHeight > 0) {
+      document.documentElement.style.setProperty(
+        KEYBOARD_VISIBILITY_OFFSET_VAR,
+        `${rememberedHeight}px`,
+      );
+    }
+  };
+
   const { focusComposer, inputFocused, liftOffset, measuringKeyboard } = useComposerKeyboard(
     bubbleRef,
     props.keyboardKey,
     {
       onBeforeGuardedFocus: () => {
+        preseedAndroidKeyboardOffset();
         keyboardDebug("dock-before-guarded-focus-expand", {
           expanded,
           controlled: props.expanded !== undefined,
@@ -60,6 +77,7 @@ export function FloatingComposerDock(props: {
         // the composer's geometry and the expansion can animate in sync with
         // the keyboard rise. The probe-completion path calls onBeforeGuardedFocus
         // (instant) to assert final geometry right before the caret lands.
+        preseedAndroidKeyboardOffset();
         keyboardDebug("dock-probe-expand-animated", {
           expanded,
           controlled: props.expanded !== undefined,
@@ -69,6 +87,7 @@ export function FloatingComposerDock(props: {
         onComposerFocusChange?.(true);
       },
       onKeyboardProbeStart: () => {
+        preseedAndroidKeyboardOffset();
         keyboardDebug("dock-keyboard-probe-start-no-expand", {
           expanded,
           controlled: props.expanded !== undefined,
@@ -181,6 +200,7 @@ export function FloatingComposerDock(props: {
       <div
         className={props.dockClassName ?? "m-compose-dock"}
         data-expanded={expanded || undefined}
+        data-android-runtime={androidRuntime || undefined}
         data-instant-expand={instantExpand || undefined}
         data-measuring-keyboard={hideDockForMeasuring || undefined}
         style={{ "--m-keyboard-offset": `${liftOffset}px` } as CSSProperties}

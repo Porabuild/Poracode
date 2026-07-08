@@ -863,6 +863,11 @@ body.bg-background {
   transform: translateY(calc(-1 * var(--m-keyboard-offset, 0px)));
 }
 
+.m-compose-dock[data-expanded][data-android-runtime],
+.m-thread-compose-dock[data-expanded][data-android-runtime] {
+  bottom: env(safe-area-inset-bottom);
+}
+
 .m-compose-dock[data-expanded] {
   right: 0.75rem;
   left: 0.75rem;
@@ -3928,6 +3933,19 @@ body.bg-background {
   gap: 0.5rem;
   padding: 2rem 1.25rem;
   text-align: center;
+}
+
+.m-main:has(.m-compose-dock[data-android-runtime]) .m-empty,
+.m-main:has(.m-thread-compose-dock[data-android-runtime]) .m-empty {
+  transform: translateY(
+    calc(
+      min(
+          var(--m-keyboard-visibility-offset, 0px),
+          max(0px, calc(var(--m-viewport-baseline-height, 100dvh) - 100dvh))
+        ) /
+        2
+    )
+  );
 }
 
 .m-empty__icon {

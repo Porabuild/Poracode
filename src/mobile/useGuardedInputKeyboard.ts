@@ -16,8 +16,9 @@ import {
   recallKeyboardHeight,
   rememberKeyboardHeight,
 } from "./keyboardFocusShared";
+import { isAndroidRuntime } from "./mobilePlatform";
 import { suppressNextGhostTap } from "./suppressGhostTap";
-import { useKeyboardOffset } from "./useKeyboardOffset";
+import { useKeyboardGeometry } from "./useKeyboardOffset";
 
 /**
  * Guarded keyboard focus for a plain bottom-anchored input (the files search
@@ -47,10 +48,17 @@ export function useGuardedInputKeyboard(
   inputRef: RefObject<HTMLInputElement | null>,
   key?: string | null,
 ): { readonly inputFocused: boolean; readonly liftOffset: number } {
-  const rawKeyboardOffset = useKeyboardOffset();
+  const keyboardGeometry = useKeyboardGeometry();
+  const rawKeyboardOffset = keyboardGeometry.visibilityOffset;
   const keyboardOffset = rawKeyboardOffset > KEYBOARD_OPEN_THRESHOLD_PX ? rawKeyboardOffset : 0;
+  const rawKeyboardLiftOffset = keyboardGeometry.liftOffset;
+  const keyboardLiftOffset =
+    rawKeyboardLiftOffset > KEYBOARD_OPEN_THRESHOLD_PX ? rawKeyboardLiftOffset : 0;
+  const useColdKeyboardPrimer = !isAndroidRuntime();
   const keyboardOffsetRef = useRef(keyboardOffset);
+  const keyboardLiftOffsetRef = useRef(keyboardLiftOffset);
   keyboardOffsetRef.current = keyboardOffset;
+  keyboardLiftOffsetRef.current = keyboardLiftOffset;
 
   const [inputFocused, setInputFocused] = useState(false);
   const [probeActive, setProbeActive] = useState(false);
@@ -88,7 +96,7 @@ export function useGuardedInputKeyboard(
     pendingColdFocusRef.current = false;
     window.clearTimeout(stableTimerRef.current);
     window.clearTimeout(probeTimeoutRef.current);
-    rememberKeyboardHeight(keyboardOffsetRef.current);
+    rememberKeyboardHeight(keyboardLiftOffsetRef.current);
     // The delayed synthesized click of the gesture that started the probe can
     // still arrive at the original coordinates — now over the list the lifted
     // bar slid away from. Swallow it.
@@ -110,13 +118,13 @@ export function useGuardedInputKeyboard(
     // A probe in flight sees interim mid-animation sizes; it remembers the
     // stable value itself when it resolves.
     if (!pendingColdFocusRef.current) {
-      rememberKeyboardHeight(keyboardOffset);
+      rememberKeyboardHeight(keyboardLiftOffset);
       return;
     }
     window.clearTimeout(stableTimerRef.current);
     stableTimerRef.current = window.setTimeout(finishColdProbe, COLD_KEYBOARD_STABLE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- helper closures read current refs; keyed to viewport offset changes
-  }, [keyboardOffset]);
+  }, [keyboardLiftOffset, keyboardOffset]);
 
   // iOS's keyboard-dismiss key hides the keyboard WITHOUT blurring. Drop the
   // lifted/locked state when that happens so the bar rides down with it.
@@ -167,6 +175,7 @@ export function useGuardedInputKeyboard(
         window.visualViewport !== undefined &&
         window.visualViewport !== null &&
         keyboardOffsetRef.current === 0 &&
+        useColdKeyboardPrimer &&
         !probeFutileRef.current;
       if (probeCold) {
         coldProbeLiftRef.current = recallKeyboardHeight();
@@ -261,8 +270,8 @@ export function useGuardedInputKeyboard(
     focused: inputFocused,
     probing: probeActive,
     coldProbeLift: coldProbeLiftRef.current,
-    keyboardOffset,
-    recalledHeight: recallKeyboardHeight(),
+    keyboardOffset: keyboardLiftOffset,
+    recalledHeight: useColdKeyboardPrimer ? recallKeyboardHeight() : 0,
   });
   return { inputFocused, liftOffset };
 }

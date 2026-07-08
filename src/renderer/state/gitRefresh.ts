@@ -1,5 +1,6 @@
 import type {
   GitStatusDetail,
+  GitStatusResult,
   PrData,
   ProjectLocation,
   RemoteHostPlatform,
@@ -7,7 +8,7 @@ import type {
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
-import { useGitStore } from "@/renderer/state/gitStore";
+import { summaryBackfillMissed, useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchNamePrKey, buildBranchPrKey } from "@/renderer/state/gitSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
@@ -103,6 +104,80 @@ function getWorktreeStatusDetail(
 
 export function getWatcherRefreshMode(projectId: string): GitRefreshMode {
   return useGitStore.getState().statuses[projectId]?.isRepo === false ? "full" : "status";
+}
+
+/** Worktree paths with an in-flight summary→full escalation, so poll bursts don't stack requests. */
+const summaryFullEscalationInFlight = new Set<string>();
+const summaryFullEscalationPending = new Set<string>();
+
+/**
+ * A summary poll never carries real +/- counts — `mergeSummaryStatus` backfills
+ * them from the prior store snapshot. When a row can't be backfilled (it moved
+ * sections, changed status, or is brand new — e.g. an external `git add` in a
+ * terminal that the file watcher ignores), the counts stay 0/stale forever. This
+ * returns the worktree paths whose incoming summary status has such a miss,
+ * comparing against the CURRENT store snapshot (must be called BEFORE the summary
+ * status is merged in, or the miss becomes invisible).
+ */
+function findSummaryBackfillMisses(statuses: Record<string, GitStatusResult>): string[] {
+  const store = useGitStore.getState();
+  const missed: string[] = [];
+  for (const [worktreePath, status] of Object.entries(statuses)) {
+    if (summaryBackfillMissed(store.worktreeStatuses[worktreePath], status)) {
+      missed.push(worktreePath);
+    }
+  }
+  return missed;
+}
+
+/**
+ * Fetch a FULL worktree status for paths whose summary poll couldn't be
+ * backfilled and write the exact counts into the store. Fire-and-forget and
+ * deduped per path so overlapping poll cycles don't stack requests. This
+ * deliberately outlives the triggering refresh — `git add`/`reset` fire no
+ * watcher event, so this is the only path that reconciles externally-staged
+ * counts — and the store write is idempotent (`setWorktreeStatuses` dedupes), so
+ * it applies unconditionally rather than gating on the refresh token.
+ */
+function escalateSummaryToFull(location: ProjectLocation, worktreePaths: readonly string[]): void {
+  const paths = worktreePaths.filter((p) => !summaryFullEscalationInFlight.has(p));
+  if (paths.length === 0) return;
+  for (const p of paths) summaryFullEscalationInFlight.add(p);
+  void readBridge()
+    .gitWorktreeStatusBatch({
+      projectLocation: location,
+      worktreePaths: [...paths],
+      detail: "full",
+    })
+    .then((batch) => {
+      if (Object.keys(batch.statuses).length > 0) {
+        useGitStore.getState().setWorktreeStatuses(batch.statuses);
+        for (const p of Object.keys(batch.statuses)) summaryFullEscalationPending.delete(p);
+      }
+    })
+    .catch(() => undefined)
+    .finally(() => {
+      for (const p of paths) summaryFullEscalationInFlight.delete(p);
+    });
+}
+
+/**
+ * Merge a batch of worktree summary statuses into the store, escalating any path
+ * whose counts couldn't be backfilled to a follow-up full refresh. The miss
+ * check runs against the pre-merge store state.
+ */
+function applyWorktreeStatusBatch(
+  location: ProjectLocation,
+  statuses: Record<string, GitStatusResult>,
+): void {
+  const missed = findSummaryBackfillMisses(statuses);
+  for (const p of missed) summaryFullEscalationPending.add(p);
+  for (const [p, status] of Object.entries(statuses)) {
+    if (status.detail !== "summary") summaryFullEscalationPending.delete(p);
+  }
+  useGitStore.getState().setWorktreeStatuses(statuses);
+  const stale = Object.keys(statuses).filter((p) => summaryFullEscalationPending.has(p));
+  if (stale.length > 0) escalateSummaryToFull(location, stale);
 }
 
 type ActiveGitProject = { id: string; location: ProjectLocation };
@@ -517,7 +592,7 @@ async function refreshProjectStatusOnly(
     .catch(() => undefined);
   if (!isActive() || !batch) return;
   if (Object.keys(batch.statuses).length > 0) {
-    useGitStore.getState().setWorktreeStatuses(batch.statuses);
+    applyWorktreeStatusBatch(project.location, batch.statuses);
   }
 }
 
@@ -637,7 +712,7 @@ export async function refreshGitProject(
                   .then((batch) => {
                     if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
                     if (Object.keys(batch.statuses).length > 0) {
-                      useGitStore.getState().setWorktreeStatuses(batch.statuses);
+                      applyWorktreeStatusBatch(project.location, batch.statuses);
                     }
                   })
                   .catch(() => undefined);

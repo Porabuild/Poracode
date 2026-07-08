@@ -40,7 +40,7 @@ import {
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { BottomSheet, EmptyState, SheetMenu, Skeleton, useSheet } from "../components";
-import { useKeyboardOffset } from "../useKeyboardOffset";
+import { useKeyboardVisibilityOffset } from "../useKeyboardOffset";
 import { GitSummaryBadge, WorktreeGitSummaryBadge } from "../GitSummaryParts";
 import { worktreeBranchOf, worktreeSiblingIds } from "../threadUtils";
 import type { ThreadAction } from "../useRemoteDesktop";
@@ -696,7 +696,7 @@ export function ThreadsView(props: ThreadsViewProps) {
   // the keyboard WITHOUT blurring the input (Android's back button, iPad's
   // keyboard-dismiss key): once the keyboard has been up while searching, its
   // offset falling back to 0 closes the box.
-  const keyboardOffset = useKeyboardOffset();
+  const keyboardOffset = useKeyboardVisibilityOffset();
   const keyboardWasUpRef = useRef(false);
   const onSearchOpenChange = props.onSearchOpenChange;
   useEffect(() => {

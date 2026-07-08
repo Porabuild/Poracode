@@ -30,7 +30,7 @@
     "build:mobile": "cross-env LIGHTCODE_BUILD_TARGET=mobile vite build && node scripts/finalize-mobile-build.mjs",
     "cap:configure": "node scripts/configure-mobile-native.mjs",
     "cap:sync": "pnpm run build:mobile && cap sync && pnpm run cap:configure",
-    "cap:dev:ios": "cap run ios --live-reload --host localhost --port 3100",
+    "cap:dev:ios": "node scripts/cap-run-ios.mjs",
     "cap:dev:android": "node scripts/cap-run-android.mjs",
     "dev:mobile:server": "pnpm run build:electron && cross-env LIGHTCODE_IS_DEV=1 node dist/main/server.cjs",
     "dev:ios": "concurrently -k -n server,vite,ios -c blue,cyan,magenta \"pnpm run dev:mobile:server\" \"pnpm run dev:mobile\" \"pnpm run dev:ios:app\"",

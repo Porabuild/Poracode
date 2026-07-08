@@ -9,6 +9,7 @@
  */
 
 import { focusWithoutScroll } from "./composeScrollLock";
+import { getMobileRuntimePlatform } from "./mobilePlatform";
 
 /**
  * The keyboard's height only becomes measurable AFTER its appear animation
@@ -17,6 +18,7 @@ import { focusWithoutScroll } from "./composeScrollLock";
  * later focuses.
  */
 const KEYBOARD_HEIGHT_KEY = "lightcode-mobile-keyboard-height";
+const ANDROID_KEYBOARD_HEIGHT_KEY = `${KEYBOARD_HEIGHT_KEY}:android`;
 /** Give up a cold-keyboard probe after this long with no measurement. */
 export const COLD_KEYBOARD_PROBE_TIMEOUT_MS = 1_200;
 /** The measured offset must hold this long before the real input is focused. */
@@ -31,9 +33,15 @@ export const MIRRORED_POINTER_WINDOW_MS = 700;
 
 let recalledKeyboardHeight: number | null = null;
 
+function keyboardHeightStorageKey(): string {
+  return getMobileRuntimePlatform() === "android"
+    ? ANDROID_KEYBOARD_HEIGHT_KEY
+    : KEYBOARD_HEIGHT_KEY;
+}
+
 export function recallKeyboardHeight(): number {
   if (recalledKeyboardHeight === null) {
-    const raw = window.localStorage.getItem(KEYBOARD_HEIGHT_KEY);
+    const raw = window.localStorage.getItem(keyboardHeightStorageKey());
     const parsed = raw ? Number(raw) : 0;
     recalledKeyboardHeight = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   }
@@ -44,7 +52,7 @@ export function rememberKeyboardHeight(px: number): void {
   if (px <= 0 || px === recalledKeyboardHeight) return;
   recalledKeyboardHeight = px;
   try {
-    window.localStorage.setItem(KEYBOARD_HEIGHT_KEY, String(Math.round(px)));
+    window.localStorage.setItem(keyboardHeightStorageKey(), String(Math.round(px)));
   } catch {
     // Best-effort persistence; the module-level cache still covers the session.
   }

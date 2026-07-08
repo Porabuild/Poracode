@@ -6,7 +6,7 @@ import type {
   PrData,
   PrDetails,
 } from "@/shared/contracts";
-import { useGitStore } from "./gitStore";
+import { summaryBackfillMissed, useGitStore } from "./gitStore";
 
 const baseStatus: GitStatusResult = {
   isRepo: true,
@@ -208,7 +208,7 @@ describe("gitStore batch updates", () => {
     expect(status.totalDeletions).toBe(2);
   });
 
-  it("dedupes by path when staging an MM file (one entry, latest stats win)", () => {
+  it("sums stats when staging a file that already has a staged entry (MM)", () => {
     const stagedM = {
       path: "src/foo.ts",
       status: "M",
@@ -233,13 +233,34 @@ describe("gitStore batch updates", () => {
 
     const status = useGitStore.getState().statuses["p1"]!;
     expect(status.staged).toHaveLength(1);
+    // Git's HEAD→index diff is cumulative: 10+3 insertions, 2+1 deletions.
     expect(status.staged[0]).toMatchObject({
       path: "src/foo.ts",
       staged: true,
-      insertions: 3,
-      deletions: 1,
+      insertions: 13,
+      deletions: 3,
     });
     expect(status.unstaged).toHaveLength(0);
+  });
+
+  it("sums stats when unstaging a file that already has an unstaged entry", () => {
+    useGitStore.getState().setStatus("p1", {
+      ...baseStatus,
+      staged: [{ path: "src/foo.ts", status: "M", staged: true, insertions: 4, deletions: 1 }],
+      unstaged: [{ path: "src/foo.ts", status: "M", staged: false, insertions: 3, deletions: 2 }],
+    });
+
+    useGitStore.getState().optimisticUnstageFile("p1", "src/foo.ts", false);
+
+    const status = useGitStore.getState().statuses["p1"]!;
+    expect(status.staged).toHaveLength(0);
+    expect(status.unstaged).toHaveLength(1);
+    expect(status.unstaged[0]).toMatchObject({
+      path: "src/foo.ts",
+      staged: false,
+      insertions: 7,
+      deletions: 3,
+    });
   });
 
   it("moves staged conflict files out of the conflict list", () => {
@@ -261,7 +282,7 @@ describe("gitStore batch updates", () => {
     ]);
   });
 
-  it("dedupes by path when stage-all merges unstaged into already-staged entries", () => {
+  it("sums stats when stage-all merges unstaged into already-staged entries", () => {
     useGitStore.getState().setStatus("p1", {
       ...baseStatus,
       staged: [
@@ -279,30 +300,32 @@ describe("gitStore batch updates", () => {
     const status = useGitStore.getState().statuses["p1"]!;
     const byPath = new Map(status.staged.map((f) => [f.path, f]));
     expect(status.staged).toHaveLength(3);
-    expect(byPath.get("a.ts")).toMatchObject({ insertions: 2, deletions: 1, staged: true });
+    // a.ts already staged (5/0) + newly staged hunk (2/1) → cumulative 7/1.
+    expect(byPath.get("a.ts")).toMatchObject({ insertions: 7, deletions: 1, staged: true });
     expect(byPath.get("b.ts")).toMatchObject({ insertions: 50, deletions: 0, staged: true });
     expect(byPath.get("c.ts")).toMatchObject({ insertions: 7, status: "A", staged: true });
     expect(status.unstaged).toHaveLength(0);
   });
 
-  it("dedupes by path on repeated stage-all calls (no accumulation)", () => {
+  it("sums stats when unstage-all merges staged into already-unstaged entries", () => {
     useGitStore.getState().setStatus("p1", {
       ...baseStatus,
-      staged: [{ path: "a.ts", status: "M", staged: true, insertions: 5, deletions: 0 }],
-      unstaged: [{ path: "a.ts", status: "M", staged: false, insertions: 1, deletions: 0 }],
+      staged: [
+        { path: "a.ts", status: "M", staged: true, insertions: 5, deletions: 1 },
+        { path: "b.ts", status: "M", staged: true, insertions: 8, deletions: 0 },
+      ],
+      unstaged: [{ path: "a.ts", status: "M", staged: false, insertions: 2, deletions: 3 }],
     });
 
-    useGitStore.getState().optimisticStageAll("p1", false);
-    // Simulate a second click before the real status fetch lands by re-introducing an unstaged entry.
-    useGitStore.getState().setStatus("p1", {
-      ...useGitStore.getState().statuses["p1"]!,
-      unstaged: [{ path: "a.ts", status: "M", staged: false, insertions: 2, deletions: 0 }],
-    });
-    useGitStore.getState().optimisticStageAll("p1", false);
+    useGitStore.getState().optimisticUnstageAll("p1", false);
 
     const status = useGitStore.getState().statuses["p1"]!;
-    expect(status.staged).toHaveLength(1);
-    expect(status.staged[0]).toMatchObject({ path: "a.ts", insertions: 2, staged: true });
+    const byPath = new Map(status.unstaged.map((f) => [f.path, f]));
+    expect(status.staged).toHaveLength(0);
+    expect(status.unstaged).toHaveLength(2);
+    // a.ts already unstaged (2/3) + unstaged staged hunk (5/1) → cumulative 7/4.
+    expect(byPath.get("a.ts")).toMatchObject({ insertions: 7, deletions: 4, staged: false });
+    expect(byPath.get("b.ts")).toMatchObject({ insertions: 8, deletions: 0, staged: false });
   });
 
   it("batches PR updates without rewriting equal entries", () => {
@@ -364,5 +387,61 @@ describe("gitStore batch updates", () => {
     const secondDetails = useGitStore.getState().prDetails;
     expect(secondDetails).not.toBe(firstDetails);
     expect(secondDetails["p1#42"]?.checks[0]?.conclusion).toBe("SUCCESS");
+  });
+});
+
+describe("summaryBackfillMissed", () => {
+  const summaryOf = (overrides: Partial<GitStatusResult>): GitStatusResult => ({
+    ...baseStatus,
+    detail: "summary",
+    ...overrides,
+  });
+
+  it("returns false for a non-summary incoming status", () => {
+    const incoming: GitStatusResult = {
+      ...baseStatus,
+      unstaged: [{ path: "a.ts", status: "M", staged: false, insertions: 0, deletions: 0 }],
+    };
+    expect(summaryBackfillMissed(undefined, incoming)).toBe(false);
+  });
+
+  it("returns false when every summary row matches a previous entry", () => {
+    const previous: GitStatusResult = {
+      ...baseStatus,
+      staged: [{ path: "a.ts", status: "M", staged: true, insertions: 5, deletions: 1 }],
+      unstaged: [{ path: "b.ts", status: "M", staged: false, insertions: 2, deletions: 0 }],
+    };
+    const incoming = summaryOf({
+      staged: [{ path: "a.ts", status: "M", staged: true, insertions: 0, deletions: 0 }],
+      unstaged: [{ path: "b.ts", status: "M", staged: false, insertions: 0, deletions: 0 }],
+    });
+    expect(summaryBackfillMissed(previous, incoming)).toBe(false);
+  });
+
+  it("returns true when a file moved sections (external git add) — key no longer matches", () => {
+    // Previously unstaged/modified; an external `git add` now reports it staged.
+    const previous: GitStatusResult = {
+      ...baseStatus,
+      unstaged: [{ path: "a.ts", status: "M", staged: false, insertions: 5, deletions: 1 }],
+    };
+    const incoming = summaryOf({
+      staged: [{ path: "a.ts", status: "M", staged: true, insertions: 0, deletions: 0 }],
+    });
+    expect(summaryBackfillMissed(previous, incoming)).toBe(true);
+  });
+
+  it("returns true when the previous snapshot is missing entirely", () => {
+    const incoming = summaryOf({
+      unstaged: [{ path: "a.ts", status: "M", staged: false, insertions: 0, deletions: 0 }],
+    });
+    expect(summaryBackfillMissed(undefined, incoming)).toBe(true);
+  });
+
+  it("treats a brand-new untracked row as a miss (full refresh fills its counts)", () => {
+    const previous: GitStatusResult = { ...baseStatus };
+    const incoming = summaryOf({
+      unstaged: [{ path: "new.ts", status: "?", staged: false, insertions: 0, deletions: 0 }],
+    });
+    expect(summaryBackfillMissed(previous, incoming)).toBe(true);
   });
 });

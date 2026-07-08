@@ -19,8 +19,9 @@ import {
   rememberKeyboardHeight,
   resetKeyboardHeightMemoryForTests,
 } from "./keyboardFocusShared";
+import { isAndroidRuntime } from "./mobilePlatform";
 import { suppressNextGhostTap } from "./suppressGhostTap";
-import { useKeyboardOffset } from "./useKeyboardOffset";
+import { useKeyboardGeometry } from "./useKeyboardOffset";
 
 /** True when the element lives in the input area that summons the keyboard. */
 function isKeyboardTarget(target: EventTarget | null): boolean {
@@ -116,9 +117,15 @@ export function useComposerKeyboard(
   readonly liftOffset: number;
   readonly measuringKeyboard: boolean;
 } {
-  const rawKeyboardOffset = useKeyboardOffset();
+  const keyboardGeometry = useKeyboardGeometry();
+  const rawKeyboardOffset = keyboardGeometry.visibilityOffset;
   const keyboardOffset = rawKeyboardOffset > KEYBOARD_OPEN_THRESHOLD_PX ? rawKeyboardOffset : 0;
+  const rawKeyboardLiftOffset = keyboardGeometry.liftOffset;
+  const keyboardLiftOffset =
+    rawKeyboardLiftOffset > KEYBOARD_OPEN_THRESHOLD_PX ? rawKeyboardLiftOffset : 0;
+  const useColdKeyboardPrimer = !isAndroidRuntime();
   const keyboardOffsetRef = useRef(keyboardOffset);
+  const keyboardLiftOffsetRef = useRef(keyboardLiftOffset);
   const [inputFocused, setInputFocused] = useState(false);
   const [coldKeyboardProbeActive, setColdKeyboardProbeActive] = useState(false);
   const suppressNextFocusOutUnlockRef = useRef(false);
@@ -140,6 +147,7 @@ export function useComposerKeyboard(
   const onKeyboardProbeStartRef = useRef(options.onKeyboardProbeStart);
   const onKeyboardProbeExpandRef = useRef(options.onKeyboardProbeExpand);
   keyboardOffsetRef.current = keyboardOffset;
+  keyboardLiftOffsetRef.current = keyboardLiftOffset;
   onBeforeGuardedFocusRef.current = options.onBeforeGuardedFocus;
   onKeyboardProbeStartRef.current = options.onKeyboardProbeStart;
   onKeyboardProbeExpandRef.current = options.onKeyboardProbeExpand;
@@ -156,6 +164,7 @@ export function useComposerKeyboard(
     window.visualViewport !== undefined &&
     window.visualViewport !== null &&
     keyboardOffsetRef.current === 0 &&
+    useColdKeyboardPrimer &&
     !probeFutileRef.current;
 
   const cancelColdKeyboardProbe = (reason: string) => {
@@ -176,6 +185,7 @@ export function useComposerKeyboard(
     keyboardDebug("real-focus-prepare", {
       rootConnected: root.isConnected,
       keyboardOffset: keyboardOffsetRef.current,
+      keyboardLiftOffset: keyboardLiftOffsetRef.current,
       recalledHeight: recallKeyboardHeight(),
     });
     pendingColdFocusRef.current = false;
@@ -183,7 +193,7 @@ export function useComposerKeyboard(
     window.clearTimeout(coldKeyboardProbeTimerRef.current);
     // The offset has now been stable for the settle window — this is the
     // trustworthy per-device height (interim mid-animation values are not).
-    rememberKeyboardHeight(keyboardOffsetRef.current);
+    rememberKeyboardHeight(keyboardLiftOffsetRef.current);
     armGuardedFocusSettle();
     // The expansion (and the full-screen scrim) render hundreds of ms after
     // the tap that started the probe — past the ghost-tap guard armed at
@@ -368,7 +378,9 @@ export function useComposerKeyboard(
   useEffect(() => {
     keyboardDebug("offset-change", {
       rawKeyboardOffset,
+      rawKeyboardLiftOffset,
       keyboardOffset,
+      keyboardLiftOffset,
       pendingColdFocus: pendingColdFocusRef.current,
       coldKeyboardProbeActive,
       inputFocused,
@@ -379,10 +391,14 @@ export function useComposerKeyboard(
       probeFutileRef.current = false;
       // A probe in flight sees interim mid-animation sizes; it remembers the
       // stable value itself when it resolves.
-      if (!pendingColdFocusRef.current) rememberKeyboardHeight(keyboardOffset);
+      if (!pendingColdFocusRef.current) {
+        rememberKeyboardHeight(useColdKeyboardPrimer ? keyboardLiftOffset : keyboardOffset);
+      }
       keyboardDebug("keyboard-measured", {
         rawKeyboardOffset,
+        rawKeyboardLiftOffset,
         keyboardOffset,
+        keyboardLiftOffset,
         pendingColdFocus: pendingColdFocusRef.current,
       });
       const root = ref.current;
@@ -393,7 +409,7 @@ export function useComposerKeyboard(
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- debug logs and helper closures read current refs; this effect is keyed to viewport offset changes
-  }, [keyboardOffset, rawKeyboardOffset, ref]);
+  }, [keyboardLiftOffset, keyboardOffset, rawKeyboardLiftOffset, rawKeyboardOffset, ref]);
 
   // iOS's keyboard-dismiss key hides the keyboard WITHOUT blurring, leaving
   // the editable as document.activeElement. Drop our lifted/locked state when
@@ -523,8 +539,13 @@ export function useComposerKeyboard(
     focused: inputFocused,
     probing: measuringKeyboard,
     coldProbeLift: coldProbeLiftRef.current,
-    keyboardOffset,
-    recalledHeight: recallKeyboardHeight(),
+    keyboardOffset: keyboardLiftOffset,
+    recalledHeight: useColdKeyboardPrimer ? recallKeyboardHeight() : 0,
   });
-  return { focusComposer, inputFocused, liftOffset, measuringKeyboard };
+  return {
+    focusComposer,
+    inputFocused,
+    liftOffset,
+    measuringKeyboard,
+  };
 }

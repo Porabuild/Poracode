@@ -15,7 +15,12 @@ const scrollLockMock = vi.hoisted(() => ({
 }));
 
 vi.mock("./useKeyboardOffset", () => ({
+  useKeyboardGeometry: () => ({
+    liftOffset: keyboardMock.offset,
+    visibilityOffset: keyboardMock.offset,
+  }),
   useKeyboardOffset: () => keyboardMock.offset,
+  useKeyboardVisibilityOffset: () => keyboardMock.offset,
 }));
 
 vi.mock("./composeScrollLock", () => scrollLockMock);
