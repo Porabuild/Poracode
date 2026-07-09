@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
@@ -16,12 +16,13 @@ import { ToolCallSections, type ToolCallSection } from "./ToolCallSections";
 import {
   extractAcpAddedFileText,
   extractAcpArgsPart,
-  extractAcpDiffSummary,
   extractAcpDiffResultPart,
   extractAcpResultPart,
   readAcpContentEditTexts,
+  type DiffSummary,
   type ExtractedPart,
 } from "./acpToolPayload";
+import { getFileChangeCollapsedHeader } from "./collapsedHeaderCache";
 import { InlineDiffView } from "./InlineDiffView";
 import { detectLanguageFromPath } from "./languageDetect";
 import { FileContentPlaceholder, useReadAbsoluteFile } from "./useReadAbsoluteFile";
@@ -36,70 +37,61 @@ export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const stream = item.streams.file_change_output;
   const hasStream = !!stream && stream.length > 0;
-  const isCreate = payload?.changeKind === "create";
-  const argContent = isCreate ? extractCreateContent(payload) : undefined;
-  const diffPart = !isCreate ? extractAcpDiffResultPart(payload) : undefined;
-  const diffText = diffPart?.text ? diffPart.text : undefined;
-  const contentEdit = readAcpContentEditTexts(payload);
+  const header = payload ? getFileChangeCollapsedHeader(item, payload) : null;
   const paneActions = useChatPaneActions();
 
   // Some SDKs (e.g. Claude `Write`) don't surface the new file contents on
   // `args.content`; fall back to an on-demand disk read when expanded.
   const fetchTarget =
-    isCreate &&
-    argContent === undefined &&
-    diffText === undefined &&
-    payload?.path &&
-    payload.path.length > 0 &&
+    header &&
+    header.changeKind === "create" &&
+    !header.hasArgContent &&
+    !header.hasDiffText &&
+    header.hasPath &&
     paneActions?.projectLocation
-      ? { path: payload.path, projectLocation: paneActions.projectLocation }
+      ? { path: header.path, projectLocation: paneActions.projectLocation }
       : null;
   const fetched = useReadAbsoluteFile(isExpanded ? fetchTarget : null);
 
-  const sections = useMemo<ToolCallSection[]>(() => {
-    if (!isExpanded || !payload) return [];
-    if (
-      hasStream ||
-      argContent !== undefined ||
-      diffText !== undefined ||
-      fetched.content !== undefined
-    )
-      return [];
-    const argsPart = extractAcpArgsPart(payload);
-    const resultPart = extractAcpResultPart(payload);
-    const path = payload.path;
-    return [
-      { label: "args", part: enrichLanguage(argsPart, path) },
-      { label: "result", part: resultPart },
-    ];
-  }, [isExpanded, payload, hasStream, argContent, diffText, fetched.content]);
-  if (!payload) return null;
-  const right = formatRightLabel(payload, t);
-  const fallbackTitle = readPayloadString(payload, "title") ?? readPayloadString(payload, "name");
+  if (!payload || !header) return null;
+
+  // Body-only extraction — collapsed remounts only need the cached header.
+  const argContent = isExpanded && header.hasArgContent ? extractCreateContent(payload) : undefined;
+  const diffText =
+    isExpanded && header.hasDiffText ? extractAcpDiffResultPart(payload)?.text : undefined;
+  const contentEdit = isExpanded ? readAcpContentEditTexts(payload) : undefined;
+  const sections: ToolCallSection[] =
+    isExpanded &&
+    !hasStream &&
+    !header.hasArgContent &&
+    !header.hasDiffText &&
+    fetched.content === undefined
+      ? [
+          { label: "args", part: enrichLanguage(extractAcpArgsPart(payload), payload.path) },
+          { label: "result", part: extractAcpResultPart(payload) },
+        ]
+      : [];
   const hasDetails =
     hasStream ||
-    argContent !== undefined ||
-    diffText !== undefined ||
+    header.hasArgContent ||
+    header.hasDiffText ||
     fetchTarget !== null ||
-    hasAuxFields(payload);
-  const kindVerb = formatKindVerb(payload.changeKind);
-  const hasPath = !!payload.path && payload.path.length > 0;
-  const showsFallback =
-    !hasPath && !!fallbackTitle && fallbackTitle.toLowerCase() !== kindVerb.toLowerCase();
-  const withPath = hasPath || showsFallback;
-  const kindLabel = localizeKindLabel(payload.changeKind, withPath, t);
+    header.hasAuxFields;
+  const right = formatRightLabel(header.payloadStatus, header.diffSummary, t);
   const titleNode = (
     <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
-      <span className="shrink-0 !text-[color:var(--muted)]">{kindLabel}</span>
-      {hasPath ? (
+      <span className="shrink-0 !text-[color:var(--muted)]">
+        {localizeKindLabel(header.changeKind, header.withPath, t)}
+      </span>
+      {header.hasPath ? (
         <ChatFilePath
           className="flex-1"
-          path={payload.path}
+          path={header.path}
           basenameClassName="!text-[color:var(--foreground)]"
           dirClassName="!text-[color:var(--muted)]"
         />
-      ) : showsFallback ? (
-        <span className="min-w-0 truncate !text-[color:var(--muted)]">{fallbackTitle}</span>
+      ) : header.showsFallback && header.fallbackTitle ? (
+        <span className="min-w-0 truncate !text-[color:var(--muted)]">{header.fallbackTitle}</span>
       ) : null}
     </span>
   );
@@ -146,12 +138,6 @@ function extractCreateContent(payload: unknown): string | undefined {
   if (!args || typeof args !== "object" || Array.isArray(args)) return undefined;
   const content = (args as Record<string, unknown>).content;
   return typeof content === "string" && content.length > 0 ? content : undefined;
-}
-
-function hasAuxFields(payload: unknown): boolean {
-  if (!payload || typeof payload !== "object") return false;
-  const p = payload as Record<string, unknown>;
-  return p.args !== undefined || p.result !== undefined;
 }
 
 function readPayloadString(payload: unknown, key: string): string | undefined {
@@ -221,9 +207,13 @@ export function formatDiffSummaryLabel(
   );
 }
 
-function formatRightLabel(payload: FileChangePayload, t: TranslateFn): ReactNode | undefined {
-  if (payload.status === "error") {
+function formatRightLabel(
+  payloadStatus: FileChangePayload["status"] | undefined,
+  diffSummary: DiffSummary | undefined,
+  t: TranslateFn,
+): ReactNode | undefined {
+  if (payloadStatus === "error") {
     return <CircleAlert className="size-3 text-danger" aria-label={t(msg`error`)} />;
   }
-  return formatDiffSummaryLabel(payload.diffSummary ?? extractAcpDiffSummary(payload));
+  return formatDiffSummaryLabel(diffSummary);
 }

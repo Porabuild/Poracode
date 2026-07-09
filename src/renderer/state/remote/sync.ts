@@ -200,9 +200,11 @@ function flushPendingRuntimeEvents(): void {
   runtimeFlushHandle = null;
   if (pendingRuntimeEvents.size === 0) return;
   const store = useAppStore.getState();
-  for (const [threadId, events] of pendingRuntimeEvents) {
-    store.applyRuntimeEvents(threadId, events);
-  }
+  const batches = [...pendingRuntimeEvents.entries()].map(([threadId, events]) => ({
+    threadId,
+    events,
+  }));
+  store.applyRuntimeEventBatches(batches);
   pendingRuntimeEvents.clear();
 }
 

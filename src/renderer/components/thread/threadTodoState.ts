@@ -58,12 +58,11 @@ export function selectThreadTodoDockItem(
   state: AppStoreState,
   threadId: string,
 ): RuntimeChatItem | null {
-  return (
-    selectLatestThreadTodoDockCandidate(
-      state.runtimeItemIdsByThread[threadId],
-      state.runtimeItemsByIdByThread[threadId],
-    )?.item ?? null
-  );
+  // Reuse the dock-state cache so streaming deltas (which do not change plans)
+  // do not rescan every runtime item on each Zustand subscriber pass.
+  const dockState = selectThreadTodoDockState(state, threadId);
+  if (!dockState) return null;
+  return state.runtimeItemsByIdByThread[threadId]?.[dockState.sourceItemId] ?? null;
 }
 
 export function getThreadTodoDockStateFromThreadItems(

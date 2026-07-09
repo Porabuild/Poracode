@@ -347,6 +347,83 @@ describe("ChatPane", () => {
     await waitFor(() => expect(metrics.getScrollTop()).toBe(80));
   });
 
+  it("does not re-stick when the scrollbar thumb is dragged away from the bottom", async () => {
+    // Regression: native scrollbar thumbs often never fire pointerdown on the
+    // scroller (Windows overlay scrollbars) — only scroll. Sticky used to
+    // require a prior intent flag to release, so ResizeObserver re-pins yanked
+    // the thumb back to the bottom mid-drag.
+    const thread = makeThread();
+    seedAssistantMessage(thread.id, "Inspect output");
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const scrollElement = getScrollElement(container);
+    const contentElement = getContentElement(scrollElement);
+    const metrics = installScrollMetrics(scrollElement, {
+      scrollHeight: 200,
+      clientHeight: 100,
+      scrollTop: 0,
+    });
+
+    act(() => {
+      metrics.setScrollTop(200);
+      fireEvent.scroll(scrollElement);
+    });
+
+    act(() => {
+      // No pointerdown — mirrors a native thumb drag that only emits scroll.
+      metrics.setScrollTop(80);
+      fireEvent.scroll(scrollElement);
+    });
+
+    act(() => {
+      metrics.setScrollHeight(300);
+      MockResizeObserver.notify(contentElement);
+    });
+
+    await waitFor(() => expect(metrics.getScrollTop()).toBe(80));
+  });
+
+  it("does not re-stick when the scrollbar thumb is dragged while content height grows", async () => {
+    // Working-thread regression: a thumb drag often coincides with streaming
+    // growth. Height growth must not be treated as a layout clamp that keeps
+    // sticky on — otherwise the next ResizeObserver re-pin yanks the thumb.
+    const thread = makeThread();
+    seedAssistantMessage(thread.id, "Inspect output");
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const scrollElement = getScrollElement(container);
+    const contentElement = getContentElement(scrollElement);
+    const metrics = installScrollMetrics(scrollElement, {
+      scrollHeight: 200,
+      clientHeight: 100,
+      scrollTop: 0,
+    });
+
+    act(() => {
+      metrics.setScrollTop(200);
+      fireEvent.scroll(scrollElement);
+    });
+
+    act(() => {
+      // Thumb drag + live stream in the same scroll tick: height grew, scrollTop
+      // moved up, no pointerdown.
+      metrics.setScrollHeight(280);
+      metrics.setScrollTop(80);
+      fireEvent.scroll(scrollElement);
+    });
+
+    act(() => {
+      metrics.setScrollHeight(360);
+      MockResizeObserver.notify(contentElement);
+    });
+
+    await waitFor(() => expect(metrics.getScrollTop()).toBe(80));
+  });
+
   it("does not snap back to the bottom after a tiny upward scroll within the bottom epsilon", async () => {
     // Regression: a wheel-up of only 1–3 px disables sticky in the wheel
     // handler, but the resulting scroll event arrives with `isAtBottom` still
@@ -474,6 +551,92 @@ describe("ChatPane", () => {
     });
 
     await waitFor(() => expect(metrics.getScrollTop()).toBe(300));
+  });
+
+  it("keeps sticky after a tool-collapse click whose height compensation moves scrollTop up", async () => {
+    // Regression: pointerdown on the disclosure used to arm user-scroll intent.
+    // Sticky row-height compensation then decreased scrollTop, and the scroll
+    // handler treated that as a user scroll-away — leaving the chat stranded
+    // above the bottom after collapsing a tool while pinned.
+    const thread = makeThread();
+    seedAssistantMessage(thread.id, "Inspect output");
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const scrollElement = getScrollElement(container);
+    const contentElement = getContentElement(scrollElement);
+    const metrics = installScrollMetrics(scrollElement, {
+      scrollHeight: 320,
+      clientHeight: 100,
+      scrollTop: 0,
+    });
+
+    act(() => {
+      metrics.setScrollTop(320);
+      fireEvent.scroll(scrollElement);
+    });
+
+    const toolButton = document.createElement("button");
+    toolButton.type = "button";
+    contentElement.append(toolButton);
+
+    act(() => {
+      fireEvent.pointerDown(toolButton);
+      metrics.setScrollHeight(220);
+      metrics.setScrollTop(80);
+      fireEvent.scroll(scrollElement);
+    });
+
+    act(() => {
+      MockResizeObserver.notify(contentElement);
+    });
+
+    await waitFor(() => expect(metrics.getScrollTop()).toBe(220));
+    toolButton.remove();
+  });
+
+  it("keeps sticky after a tool-expand click whose content growth leaves scrollTop above the bottom", async () => {
+    // Same pointer-intent bug as collapse: expanding a tool grows scrollHeight
+    // while the click armed user-scroll intent. Without the control-click
+    // guard, sticky is released and the chat stays mid-transcript.
+    const thread = makeThread();
+    seedAssistantMessage(thread.id, "Inspect output");
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const scrollElement = getScrollElement(container);
+    const contentElement = getContentElement(scrollElement);
+    const metrics = installScrollMetrics(scrollElement, {
+      scrollHeight: 220,
+      clientHeight: 100,
+      scrollTop: 0,
+    });
+
+    act(() => {
+      metrics.setScrollTop(220);
+      fireEvent.scroll(scrollElement);
+    });
+
+    const toolButton = document.createElement("button");
+    toolButton.type = "button";
+    contentElement.append(toolButton);
+
+    act(() => {
+      fireEvent.pointerDown(toolButton);
+      metrics.setScrollHeight(420);
+      // Browser leaves scrollTop where it was; we are no longer at bottom until
+      // sticky re-pins.
+      fireEvent.scroll(scrollElement);
+    });
+
+    act(() => {
+      MockResizeObserver.notify(contentElement);
+    });
+
+    await waitFor(() => expect(metrics.getScrollTop()).toBe(420));
+    toolButton.remove();
   });
 
   it("re-pins after todo dock layout changes when the thread was already at the bottom", async () => {

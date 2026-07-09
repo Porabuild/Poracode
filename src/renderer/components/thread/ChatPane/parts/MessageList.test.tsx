@@ -236,7 +236,17 @@ describe("MessageList", () => {
     expect(scrollElement.scrollTop).toBe(160);
   });
 
-  it("compensates rows above the viewport during active upward scroll", () => {
+  it("compensates rows above the viewport when idle", () => {
+    const { scrollElement, shouldAdjust, commit } = renderCompensationList();
+
+    scrollElement.scrollTop = 120;
+    expect(shouldAdjust({ start: 0, size: 80 }, -40, idleVirtualizer)).toBe(false);
+
+    commit();
+    expect(scrollElement.scrollTop).toBe(80);
+  });
+
+  it("defers above-viewport compensation during active upward scroll until settle", () => {
     const { scrollElement, shouldAdjust, commit } = renderCompensationList();
 
     scrollElement.scrollTop = 120;
@@ -248,6 +258,11 @@ describe("MessageList", () => {
     ).toBe(false);
 
     commit();
+    // First scroll-back after opening mounts estimated rows; applying each
+    // measure delta mid-gesture fights the user. Buffer until settle.
+    expect(scrollElement.scrollTop).toBe(120);
+
+    scrollElement.dispatchEvent(new Event("scrollend"));
     expect(scrollElement.scrollTop).toBe(80);
   });
 
@@ -325,6 +340,62 @@ describe("MessageList", () => {
     expect(scrollElement.scrollTop).toBe(184);
   });
 
+  it("does not apply sticky measure compensation while the user has scroll intent", () => {
+    const actions = {
+      openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
+      revealProjectFolderInTree: vi.fn<(path: string) => void>(),
+      showProjectEntryInExplorer: vi.fn<(path: string) => void>(),
+      onContentHeightChange: vi.fn<() => void>(),
+      isStickToBottom: vi.fn<() => boolean>().mockReturnValue(true),
+      hasRecentUserScrollIntent: vi.fn<() => boolean>().mockReturnValue(true),
+      projectLocation: { kind: "windows" as const, path: "C:\\repo" },
+      projectRootNames: new Set<string>(),
+    };
+    const { scrollElement, shouldAdjust, commit } = renderCompensationList(actions);
+
+    expect(
+      shouldAdjust({ start: 96, size: 100 }, 40, {
+        isScrolling: true,
+        scrollDirection: "backward",
+      }),
+    ).toBe(false);
+
+    commit();
+    // Sticky + intent (scrollbar thumb drag) — do not yank scrollTop.
+    expect(scrollElement.scrollTop).toBe(160);
+  });
+
+  it("still applies above-viewport compensation while the user has scroll intent", () => {
+    // Regression: discarding ALL measure compensation during intent fixed sticky
+    // yank but made scroll-back jump — estimated rows above the viewport shrink
+    // with no scrollTop correction. Above-viewport deltas must still apply.
+    const noteProgrammaticScroll = vi.fn<(scrollTop: number) => void>();
+    const actions = {
+      openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
+      revealProjectFolderInTree: vi.fn<(path: string) => void>(),
+      showProjectEntryInExplorer: vi.fn<(path: string) => void>(),
+      onContentHeightChange: vi.fn<() => void>(),
+      isStickToBottom: vi.fn<() => boolean>().mockReturnValue(false),
+      hasRecentUserScrollIntent: vi.fn<() => boolean>().mockReturnValue(true),
+      noteProgrammaticScroll,
+      projectLocation: { kind: "windows" as const, path: "C:\\repo" },
+      projectRootNames: new Set<string>(),
+    };
+    const { scrollElement, shouldAdjust, commit } = renderCompensationList(actions);
+
+    scrollElement.scrollTop = 120;
+    expect(
+      shouldAdjust({ start: 0, size: 80 }, -40, {
+        isScrolling: true,
+        scrollDirection: "backward",
+      }),
+    ).toBe(false);
+
+    commit();
+    expect(scrollElement.scrollTop).toBe(80);
+    expect(noteProgrammaticScroll).toHaveBeenCalledWith(80);
+  });
+
   it("compensates streaming row height changes when bottom-sticky", () => {
     const actions = {
       openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
@@ -345,34 +416,39 @@ describe("MessageList", () => {
 
   it("measures newly mounted rows synchronously so estimate corrections land pre-paint", () => {
     const scrollElement = document.createElement("div");
-    optionsMeasureElementMock.mockReturnValue(132);
+    const offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+      configurable: true,
+      get() {
+        return 132;
+      },
+    });
 
-    render(
-      <MessageList
-        threadId="thread-1"
-        entries={makeEntries(["item-1", "item-2", "item-3", "item-4"])}
-        scrollElement={scrollElement}
-      />,
-    );
+    try {
+      render(
+        <MessageList
+          threadId="thread-1"
+          entries={makeEntries(["item-1", "item-2", "item-3", "item-4"])}
+          scrollElement={scrollElement}
+        />,
+      );
 
-    expect(measureElementMock).toHaveBeenCalledWith(
-      document.querySelector("[data-item-id='item-2']"),
-    );
-    expect(measureElementMock).toHaveBeenCalledWith(
-      document.querySelector("[data-item-id='item-3']"),
-    );
-    expect(optionsMeasureElementMock).toHaveBeenCalledWith(
-      document.querySelector("[data-item-id='item-2']"),
-      undefined,
-      expect.any(Object),
-    );
-    expect(optionsMeasureElementMock).toHaveBeenCalledWith(
-      document.querySelector("[data-item-id='item-3']"),
-      undefined,
-      expect.any(Object),
-    );
-    expect(resizeItemMock).toHaveBeenCalledWith(1, 132);
-    expect(resizeItemMock).toHaveBeenCalledWith(2, 132);
+      expect(measureElementMock).toHaveBeenCalledWith(
+        document.querySelector("[data-item-id='item-2']"),
+      );
+      expect(measureElementMock).toHaveBeenCalledWith(
+        document.querySelector("[data-item-id='item-3']"),
+      );
+      // One forced resizeItem with a single offsetHeight read — not a second
+      // pass through options.measureElement (that used to double-measure).
+      expect(optionsMeasureElementMock).not.toHaveBeenCalled();
+      expect(resizeItemMock).toHaveBeenCalledWith(1, 132);
+      expect(resizeItemMock).toHaveBeenCalledWith(2, 132);
+    } finally {
+      if (offsetHeight) {
+        Object.defineProperty(HTMLElement.prototype, "offsetHeight", offsetHeight);
+      }
+    }
   });
 
   it("registers TanStack scrollToIndex as the bottom scroll handler", () => {

@@ -158,15 +158,26 @@ export function MessageList({
     virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, delta, instance) => {
       if (!scrollElement) return false;
       const isAboveViewport = item.start + item.size <= scrollElement.scrollTop;
-      if (parentActions?.isStickToBottom?.() || isAboveViewport) {
+      const stickToBottom = parentActions?.isStickToBottom?.() === true;
+      const hasIntent = parentActions?.hasRecentUserScrollIntent?.() === true;
+      // Sticky / in-viewport measure while the user is scrolling away must not
+      // write scrollTop — that yanks a thumb/wheel drag back toward the bottom.
+      // Above-viewport deltas are different: they keep the same pixels on screen
+      // when an estimated row mounts shorter/taller, so they must still apply
+      // (synchronously) or scroll-back jumps.
+      if (hasIntent && (stickToBottom || !isAboveViewport)) {
+        return false;
+      }
+      if (stickToBottom || isAboveViewport) {
         pendingScrollCompensationRef.current += delta;
-        // Only an above-viewport correction during an active upward (backward)
-        // momentum scroll needs to be deferred on iOS. The stick-to-bottom write
-        // lands at the bottom where there is no upward momentum to cancel, so it
-        // stays synchronous and keeps the streaming pin intact.
+        // Defer above-viewport corrections only for momentum coasts without a
+        // hard intent flag (iOS / trackpad). While intent is active we apply
+        // above-viewport deltas in the same frame as the measure. Sticky pin
+        // writes stay synchronous when there is no intent.
         if (
-          deferScrollCompensation &&
           isAboveViewport &&
+          !stickToBottom &&
+          !hasIntent &&
           instance?.isScrolling &&
           instance.scrollDirection === "backward"
         ) {
@@ -178,47 +189,65 @@ export function MessageList({
     return () => {
       virtualizer.shouldAdjustScrollPositionOnItemSizeChange = undefined;
     };
-  }, [deferScrollCompensation, parentActions, scrollElement, virtualizer]);
+  }, [parentActions, scrollElement, virtualizer]);
 
   // Intentionally dependency-free: runs after every commit, once row refs have
   // synchronously measured newly mounted rows, so the scroll correction lands
   // before the browser paints the row's real height.
   useLayoutEffect(() => {
     if (pendingScrollCompensationRef.current === 0 || !scrollElement) return;
-    // On iOS the buffered delta is held until the gesture settles (see the
-    // effect below) so the write never lands mid-momentum. Everywhere else it
-    // applies synchronously, in the same paint as the row-height change.
+    // Buffered deltas are held until the gesture settles (see the effect below)
+    // so the write never lands mid-momentum. Sticky / intent above-viewport
+    // corrections still apply synchronously, in the same paint as the measure.
     if (isCompensationDeferredRef.current) {
       // Arm the settle flush from the commit itself, not just from scroll
       // events — so a deferral set on the final scroll tick of a coast (where no
       // further scroll arrives to re-arm) is still flushed once activity idles,
-      // even on iOS versions without `scrollend`.
+      // even on platforms without `scrollend`.
       scheduleCompensationFlushRef.current?.();
       return;
     }
+    parentActions?.noteProgrammaticScroll?.(
+      scrollElement.scrollTop + pendingScrollCompensationRef.current,
+    );
     scrollElement.scrollTop += pendingScrollCompensationRef.current;
     pendingScrollCompensationRef.current = 0;
   });
 
-  // iOS only: apply the buffered scroll compensation in a single write once the
-  // momentum scroll has settled. A `scroll`-idle debounce covers both a short
-  // flick and a long inertial coast; `scrollend` (iOS 17+) gives a crisper
-  // signal; and a new `touchstart` (which itself cancels any in-flight momentum)
-  // bounds the visible drift to a single gesture. All three fire only when no
-  // inertial scroll is in flight, so the write cannot cancel momentum. On other
-  // platforms `deferScrollCompensation` is false and this attaches nothing.
+  // Apply buffered scroll compensation in a single write once an upward scroll
+  // has settled. A `scroll`-idle debounce covers both a short flick and a long
+  // inertial coast; `scrollend` gives a crisper signal when available. Sticky
+  // corrections never enter this path (they stay synchronous above).
   useLayoutEffect(() => {
-    if (!deferScrollCompensation || !scrollElement) return;
+    if (!scrollElement) return;
     const flushCompensation = () => {
       if (compensationFlushTimerRef.current !== null) {
         clearTimeout(compensationFlushTimerRef.current);
         compensationFlushTimerRef.current = null;
       }
-      isCompensationDeferredRef.current = false;
-      if (pendingScrollCompensationRef.current !== 0) {
-        scrollElement.scrollTop += pendingScrollCompensationRef.current;
-        pendingScrollCompensationRef.current = 0;
+      if (pendingScrollCompensationRef.current === 0) {
+        isCompensationDeferredRef.current = false;
+        return;
       }
+      // Intent still active — keep any leftover buffer and retry after settle.
+      // Do not discard: that used to jump scroll-back when estimate→measure
+      // shrinks landed above the viewport with no compensation.
+      if (parentActions?.hasRecentUserScrollIntent?.()) {
+        isCompensationDeferredRef.current = true;
+        if (compensationFlushTimerRef.current === null) {
+          compensationFlushTimerRef.current = window.setTimeout(
+            flushCompensation,
+            COMPENSATION_SETTLE_MS,
+          );
+        }
+        return;
+      }
+      isCompensationDeferredRef.current = false;
+      parentActions?.noteProgrammaticScroll?.(
+        scrollElement.scrollTop + pendingScrollCompensationRef.current,
+      );
+      scrollElement.scrollTop += pendingScrollCompensationRef.current;
+      pendingScrollCompensationRef.current = 0;
     };
     const scheduleFlush = () => {
       if (!isCompensationDeferredRef.current) return;
@@ -234,23 +263,32 @@ export function MessageList({
     scheduleCompensationFlushRef.current = scheduleFlush;
     scrollElement.addEventListener("scroll", scheduleFlush, { passive: true });
     scrollElement.addEventListener("scrollend", flushCompensation);
-    scrollElement.addEventListener("touchstart", flushCompensation, { passive: true });
+    if (deferScrollCompensation) {
+      // iOS: a new touchstart itself cancels any in-flight momentum — flush then
+      // so visible drift is bounded to a single gesture.
+      scrollElement.addEventListener("touchstart", flushCompensation, { passive: true });
+    }
     return () => {
       scheduleCompensationFlushRef.current = null;
       scrollElement.removeEventListener("scroll", scheduleFlush);
       scrollElement.removeEventListener("scrollend", flushCompensation);
-      scrollElement.removeEventListener("touchstart", flushCompensation);
+      if (deferScrollCompensation) {
+        scrollElement.removeEventListener("touchstart", flushCompensation);
+      }
       if (compensationFlushTimerRef.current !== null) {
         clearTimeout(compensationFlushTimerRef.current);
         compensationFlushTimerRef.current = null;
       }
       // Don't strand a buffered delta when the thread unmounts mid-flick.
       if (pendingScrollCompensationRef.current !== 0) {
+        parentActions?.noteProgrammaticScroll?.(
+          scrollElement.scrollTop + pendingScrollCompensationRef.current,
+        );
         scrollElement.scrollTop += pendingScrollCompensationRef.current;
         pendingScrollCompensationRef.current = 0;
       }
     };
-  }, [deferScrollCompensation, scrollElement]);
+  }, [deferScrollCompensation, parentActions, scrollElement]);
 
   useLayoutEffect(() => {
     const virtualSizeBox = virtualSizeBoxRef.current;
@@ -296,14 +334,12 @@ export function MessageList({
         // TanStack reads data-index during measurement; keep reused rows aligned.
         element.dataset.index = String(index);
       }
+      // Register with TanStack's ResizeObserver cache. measureElement skips
+      // resizeItem while isScrolling, so scroll-back still needs a forced sync
+      // size — but only one offsetHeight read (the old path measured twice).
       virtualizer.measureElement(element);
       if (!element) return;
-      // Measure newly mounted rows before paint so estimate corrections do not
-      // arrive from ResizeObserver a frame later and jump the scroll position.
-      virtualizer.resizeItem(
-        index,
-        virtualizer.options.measureElement(element, undefined, virtualizer),
-      );
+      virtualizer.resizeItem(index, element.offsetHeight);
     },
     [virtualizer],
   );

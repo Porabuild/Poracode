@@ -83,8 +83,14 @@ function flushPendingRuntimeEvents(): void {
   if (pendingRuntimeEvents.size === 0) return;
   const store = useAppStore.getState();
   const threads = store.threads;
-  for (const [threadId, events] of pendingRuntimeEvents) {
-    store.applyRuntimeEvents(threadId, events);
+  const batches = [...pendingRuntimeEvents.entries()].map(([threadId, events]) => ({
+    threadId,
+    events,
+  }));
+  // One Zustand set for all concurrent streams — avoids N selector passes when
+  // several chats are working in the background / being switched between.
+  store.applyRuntimeEventBatches(batches);
+  for (const { threadId, events } of batches) {
     // Durable usage capture at the canonical layer (all providers normalized).
     // Thread metadata is resolved lazily inside, so pure-delta frames are free.
     recordRuntimeUsage(threadId, events, threads);

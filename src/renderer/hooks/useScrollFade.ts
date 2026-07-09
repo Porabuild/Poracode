@@ -62,10 +62,23 @@ export function useScrollFade<T extends HTMLElement = HTMLDivElement>(
     const el = scrollEl;
     if (!el) return;
 
+    let lastTopFade = Number.NaN;
+    let lastBottomFade = Number.NaN;
     const update = () => {
       const { scrollTop, scrollHeight, clientHeight } = el;
-      const topFade = Math.min(maxFadePx, scrollTop);
-      const bottomFade = Math.min(maxFadePx, Math.max(0, scrollHeight - scrollTop - clientHeight));
+      // Quantize to whole pixels so sub-pixel virtualizer churn does not keep
+      // rewriting identical-looking fade masks during thread-open measure.
+      const topFade = Math.min(maxFadePx, Math.round(scrollTop));
+      const bottomFade = Math.min(
+        maxFadePx,
+        Math.max(0, Math.round(scrollHeight - scrollTop - clientHeight)),
+      );
+      // Skip style writes when the mask sizes are unchanged. Thread switches
+      // fire many programmatic scrolls + ResizeObserver callbacks; rewriting
+      // identical CSS vars still costs style invalidation in the profile.
+      if (topFade === lastTopFade && bottomFade === lastBottomFade) return;
+      lastTopFade = topFade;
+      lastBottomFade = bottomFade;
       el.style.setProperty("--top-fade-size", `${topFade}px`);
       el.style.setProperty("--bottom-fade-size", `${bottomFade}px`);
     };
@@ -78,7 +91,10 @@ export function useScrollFade<T extends HTMLElement = HTMLDivElement>(
     };
 
     update();
-    el.addEventListener("scroll", update, { passive: true });
+    // Coalesce scroll-driven updates with resize onto the same rAF. During
+    // stick-to-bottom thread opens, scrollTop is written many times per frame;
+    // a sync listener re-reads layout on each write.
+    el.addEventListener("scroll", scheduleUpdate, { passive: true });
 
     const observer = new ResizeObserver(scheduleUpdate);
     observer.observe(el);
@@ -86,7 +102,7 @@ export function useScrollFade<T extends HTMLElement = HTMLDivElement>(
     if (contentEl) observer.observe(contentEl);
 
     return () => {
-      el.removeEventListener("scroll", update);
+      el.removeEventListener("scroll", scheduleUpdate);
       observer.disconnect();
       if (resizeFrameRef.current !== null) {
         cancelAnimationFrame(resizeFrameRef.current);

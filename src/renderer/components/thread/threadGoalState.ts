@@ -52,12 +52,10 @@ export function selectThreadGoalDockItem(
   state: AppStoreState,
   threadId: string,
 ): RuntimeChatItem | null {
-  return (
-    selectLatestThreadGoalCandidate(
-      state.runtimeItemIdsByThread[threadId],
-      state.runtimeItemsByIdByThread[threadId],
-    )?.item ?? null
-  );
+  // Reuse the dock-state cache so non-goal streaming deltas skip a full scan.
+  const dockState = selectThreadGoalDockState(state, threadId);
+  if (!dockState) return null;
+  return state.runtimeItemsByIdByThread[threadId]?.[dockState.sourceItemId] ?? null;
 }
 
 export function getThreadGoalDockStateFromThreadItems(

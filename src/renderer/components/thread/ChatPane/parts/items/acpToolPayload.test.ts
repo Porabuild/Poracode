@@ -324,6 +324,43 @@ describe("acpToolPayload", () => {
     });
   });
 
+  it("summarizes from a precomputed diff part instead of re-synthesizing", () => {
+    // Payload alone would summarize to {added:1,removed:1}; the hint winning
+    // proves the fallback used it rather than rebuilding the diff.
+    const payload = {
+      args: {
+        patchText: [
+          "*** Begin Patch",
+          "*** Update File: src/foo.ts",
+          "@@",
+          "-old",
+          "+new",
+          "*** End Patch",
+        ].join("\n"),
+      },
+    };
+    const precomputed = {
+      text: ["--- a/x.ts", "+++ b/x.ts", "@@ -1,1 +1,3 @@", "-a", "+b", "+c", "+d", ""].join("\n"),
+      language: "diff" as const,
+    };
+    expect(extractAcpDiffSummary(payload, precomputed)).toEqual({ added: 3, removed: 1 });
+  });
+
+  it("prefers content-edit stats over a precomputed diff part", () => {
+    const payload = {
+      path: "src/app.ts",
+      editOldText: "const oldValue = true;\n",
+      editNewText: "const oldValue = false;\n",
+    };
+    const precomputed = {
+      text: ["--- a/x.ts", "+++ b/x.ts", "@@ -1,0 +1,3 @@", "+one", "+two", "+three", ""].join(
+        "\n",
+      ),
+      language: "diff" as const,
+    };
+    expect(extractAcpDiffSummary(payload, precomputed)).toEqual({ added: 1, removed: 1 });
+  });
+
   it("synthesizes diffs and summaries from create content args", () => {
     const payload = {
       name: "Write",

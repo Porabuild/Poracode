@@ -630,4 +630,60 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     store.getState().hydrateThreadRuntimeItems("t1", [seeded]);
     expect(store.getState().runtimeItemsByIdByThread["t1"]?.["i1"]?.observedLive).toBeUndefined();
   });
+
+  it("applies concurrent thread batches in a single store update", () => {
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "a1",
+      itemType: "assistant_message",
+    });
+    apply("t2", {
+      type: "item.started",
+      threadId: "t2",
+      itemId: "b1",
+      itemType: "assistant_message",
+    });
+
+    let setCount = 0;
+    const unsub = store.subscribe(() => {
+      setCount += 1;
+    });
+
+    store.getState().applyRuntimeEventBatches([
+      {
+        threadId: "t1",
+        events: [
+          {
+            type: "content.delta",
+            threadId: "t1",
+            itemId: "a1",
+            stream: "assistant_text",
+            delta: "hello",
+          },
+        ],
+      },
+      {
+        threadId: "t2",
+        events: [
+          {
+            type: "content.delta",
+            threadId: "t2",
+            itemId: "b1",
+            stream: "assistant_text",
+            delta: "world",
+          },
+        ],
+      },
+    ]);
+    unsub();
+
+    expect(setCount).toBe(1);
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["a1"]?.streams.assistant_text).toBe(
+      "hello",
+    );
+    expect(store.getState().runtimeItemsByIdByThread["t2"]?.["b1"]?.streams.assistant_text).toBe(
+      "world",
+    );
+  });
 });

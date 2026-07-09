@@ -9,6 +9,16 @@ export type ChatPaneActions = {
   showProjectEntryInExplorer?: ((path: string) => void) | undefined;
   onContentHeightChange: () => void;
   isStickToBottom?: () => boolean;
+  /** True while the user is mid wheel / scrollbar / pointer scroll-away. */
+  hasRecentUserScrollIntent?: () => boolean;
+  /** Mark the next scroll event matching this scrollTop as our own write. */
+  noteProgrammaticScroll?: ((scrollTop: number) => void) | undefined;
+  /**
+   * True while the thread-open measurement storm is still settling. Shared
+   * epoch owned by the scroll controls — rows remount constantly under
+   * virtualization, so per-row mount clocks must not stand in for this.
+   */
+  isThreadOpenSettling?: () => boolean;
   registerVirtualScrollToBottom?: (handler: (() => void) | null) => void;
   projectLocation: ProjectLocation;
   /**

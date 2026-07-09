@@ -27,6 +27,7 @@ import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/Chat
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
 import { selectVisibleThreadTimelineEntries, type ChatTimelineEntry } from "./chatPaneSelectors";
+import { shouldMarkUserScrollIntentFromPointerTarget } from "./chatScrollGeometry";
 import { normalizeChatProjectPath } from "./chatPathUtils";
 import { formatElapsed } from "./formatElapsed";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
@@ -156,6 +157,11 @@ export function ChatPane(props: ChatPaneProps) {
           }),
       onContentHeightChange: () => scrollControlsRef.current?.onContentHeightChange(),
       isStickToBottom: () => scrollControlsRef.current?.isStickToBottom() ?? false,
+      hasRecentUserScrollIntent: () =>
+        scrollControlsRef.current?.hasRecentUserScrollIntent() ?? false,
+      noteProgrammaticScroll: (scrollTop) =>
+        scrollControlsRef.current?.noteProgrammaticScroll(scrollTop),
+      isThreadOpenSettling: () => scrollControlsRef.current?.isThreadOpenSettling() ?? false,
       registerVirtualScrollToBottom: (handler) => {
         virtualScrollToBottomRef.current = handler;
       },
@@ -300,8 +306,20 @@ export function ChatPane(props: ChatPaneProps) {
                 scrollControlsRef.current?.disableStickToBottom();
               }
             }}
-            onPointerDownCapture={() => {
+            onPointerDownCapture={(event) => {
+              // Only arm scroll-intent for real scroll gestures (scrollbar /
+              // empty-canvas drags). Tool expand/collapse clicks must not —
+              // sticky row-height compensation then looks like a user
+              // scroll-away and strands the transcript above the bottom.
+              if (!shouldMarkUserScrollIntentFromPointerTarget(event.target)) return;
               scrollControlsRef.current?.markUserScrollIntent();
+              // Unpin immediately — same as wheel-up. Native scrollbar thumbs
+              // are not DOM nodes and often overlay the content box (Windows
+              // overlay scrollbars), so gutter hit-testing is unreliable.
+              // Waiting for the first scroll event leaves sticky on long enough
+              // for row-measure ResizeObservers to re-pin and yank the thumb
+              // back to the bottom while the user is still dragging.
+              scrollControlsRef.current?.disableStickToBottom();
             }}
             onKeyDownCapture={(event) => {
               if (isScrollNavigationKey(event.key)) {

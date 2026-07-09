@@ -257,7 +257,15 @@ export function extractAcpPatchTargetPath(payload: unknown): string | undefined 
   return uniquePaths.size === 1 ? paths[0] : undefined;
 }
 
-export function extractAcpDiffSummary(payload: unknown): DiffSummary | undefined {
+/**
+ * Callers that already ran `extractAcpDiffResultPart` on the same payload can
+ * pass it as `precomputedDiffPart` to skip re-synthesizing the diff in the
+ * fallback branch; the higher-priority summary sources are still checked first.
+ */
+export function extractAcpDiffSummary(
+  payload: unknown,
+  precomputedDiffPart?: ExtractedPart,
+): DiffSummary | undefined {
   const contentEdit = readAcpContentEditTexts(payload);
   if (contentEdit) {
     const stats = countLineChangeStats(contentEdit.oldText, contentEdit.newText);
@@ -265,7 +273,7 @@ export function extractAcpDiffSummary(payload: unknown): DiffSummary | undefined
   }
   const changesSummary = summarizeStructuredFileChanges(payload);
   if (changesSummary) return changesSummary;
-  const diffPart = extractAcpDiffResultPart(payload);
+  const diffPart = precomputedDiffPart ?? extractAcpDiffResultPart(payload);
   return diffPart.text ? summarizeDiffText(diffPart.text) : undefined;
 }
 

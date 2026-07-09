@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
@@ -16,14 +16,15 @@ import { ToolCallSections, type ToolCallSection } from "./ToolCallSections";
 import {
   extractAcpArgsPart,
   extractAcpDiffResultPart,
-  extractAcpDiffSummary,
   extractAcpResultPart,
   extractReadFileResultPart,
   readAcpContentEditTexts,
+  type DiffSummary,
 } from "./acpToolPayload";
+import { getToolCallCollapsedHeader } from "./collapsedHeaderCache";
 import { formatDiffSummaryLabel } from "./FileChange";
 import { InlineDiffView } from "./InlineDiffView";
-import { deriveToolDisplay, isSkillTool } from "./toolDisplay";
+import { isSkillTool } from "./toolDisplay";
 import { FileContentPlaceholder, useReadAbsoluteFile } from "./useReadAbsoluteFile";
 
 interface ToolCallProps {
@@ -35,51 +36,49 @@ export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
   const payload = item.payload as ToolCallPayload | undefined;
   const [isExpanded, setIsExpanded] = useState(false);
   const paneActions = useChatPaneActions();
-  const lazyReadPath = pickLazyReadPath(payload);
+  // Header cache is only meaningful for normal tool rows. Compaction / plan
+  // proposals short-circuit below — still call the hook with a null target so
+  // hook order stays stable across those branches.
+  const header =
+    payload?.name && !isContextCompactionToolCall(item) && !isPlanProposalToolCall(item)
+      ? getToolCallCollapsedHeader(item, payload)
+      : null;
   const fetchTarget =
-    lazyReadPath && paneActions?.projectLocation
-      ? { path: lazyReadPath, projectLocation: paneActions.projectLocation }
+    header?.lazyReadPath && paneActions?.projectLocation
+      ? { path: header.lazyReadPath, projectLocation: paneActions.projectLocation }
       : null;
   const fetched = useReadAbsoluteFile(isExpanded ? fetchTarget : null);
-  const readResultPart =
-    payload && isReadLikeToolPayload(payload) && !lazyReadPath
-      ? extractReadFileResultPart(payload)
-      : undefined;
-  const hasReadResult = !!readResultPart && readResultPart.text.length > 0;
-  const diffPart =
-    payload && isEditLikeToolPayload(payload) ? extractAcpDiffResultPart(payload) : undefined;
-  const diffText = diffPart?.text ? diffPart.text : undefined;
-  const contentEdit = readAcpContentEditTexts(payload);
-  const sections = useMemo<ToolCallSection[]>(() => {
-    if (!isExpanded || !payload) return [];
-    if (lazyReadPath || hasReadResult || diffText !== undefined) return [];
-    const isSkill = isSkillTool(payload);
-    return [
-      { label: "args", part: extractAcpArgsPart(payload) },
-      {
-        label: "result",
-        part: extractAcpResultPart(payload),
-        ...(isSkill ? { renderAsMarkdown: true } : {}),
-      },
-    ];
-  }, [isExpanded, payload, lazyReadPath, hasReadResult, diffText]);
+
   if (!payload?.name) return null;
   if (isContextCompactionToolCall(item)) return <ContextCompaction item={item} />;
   if (isPlanProposalToolCall(item)) return <PlanProposal item={item} />;
+  if (!header) return null;
+
+  // Body-only extraction — skipped while collapsed so remounts don't re-walk
+  // ACP result/diff blobs just to paint the header.
+  const readResultPart =
+    isExpanded && !header.lazyReadPath && header.hasReadResult
+      ? extractReadFileResultPart(payload)
+      : undefined;
+  const diffText =
+    isExpanded && header.hasDiffText ? extractAcpDiffResultPart(payload)?.text : undefined;
+  const contentEdit = isExpanded ? readAcpContentEditTexts(payload) : undefined;
+  const sections: ToolCallSection[] =
+    isExpanded && !header.lazyReadPath && !header.hasReadResult && !header.hasDiffText
+      ? [
+          { label: "args", part: extractAcpArgsPart(payload) },
+          {
+            label: "result",
+            part: extractAcpResultPart(payload),
+            ...(isSkillTool(payload) ? { renderAsMarkdown: true } : {}),
+          },
+        ]
+      : [];
   const hasDetails =
-    payload.args !== undefined ||
-    payload.result !== undefined ||
-    fetchTarget !== null ||
-    diffText !== undefined ||
-    hasReadResult;
-  const display = deriveToolDisplay(payload);
+    header.hasAuxDetails || fetchTarget !== null || header.hasDiffText || header.hasReadResult;
+  const display = header.display;
   const Icon = display.Icon;
-  const status = resolveToolStatus(
-    item,
-    payload,
-    diffText ? extractAcpDiffSummary(payload) : undefined,
-    t,
-  );
+  const status = resolveToolStatus(item, header.payloadStatus, header.diffSummary, t);
 
   return (
     <ChatItemAccordion
@@ -101,7 +100,7 @@ export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
         ) : (
           <FileContentPlaceholder state={fetched.state} reason={fetched.reason} />
         )
-      ) : readResultPart && hasReadResult ? (
+      ) : readResultPart && header.hasReadResult ? (
         <CommandOutputViewport text={readResultPart.text} language={readResultPart.language} />
       ) : diffText !== undefined ? (
         <InlineDiffView
@@ -116,19 +115,6 @@ export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
   );
 });
 
-/**
- * For ACP read tools that didn't carry the file content in the result (e.g.
- * Gemini's `read_file` only reports `locations[]`), pick a path so the
- * accordion body can lazy-fetch from disk with syntax highlighting. Returns
- * undefined when the result is already populated — those use the existing
- * read-file result extractor instead.
- */
-function pickLazyReadPath(payload: ToolCallPayload | undefined): string | undefined {
-  if (!payload || !isReadLikeToolPayload(payload)) return undefined;
-  if (payload.result !== undefined) return undefined;
-  return payload.locations?.find((location) => location.path.length > 0)?.path;
-}
-
 interface ToolStatusDisplay {
   rightLabel: ReactNode;
   rightLabelClassName: string;
@@ -136,18 +122,18 @@ interface ToolStatusDisplay {
 
 function resolveToolStatus(
   item: RuntimeChatItem,
-  payload: ToolCallPayload,
-  diffSummary: ReturnType<typeof extractAcpDiffSummary> | undefined,
+  payloadStatus: ToolCallPayload["status"] | undefined,
+  diffSummary: DiffSummary | undefined,
   t: TranslateFn,
 ): ToolStatusDisplay {
-  const isRunning = item.state !== "completed" || payload.status === "running";
+  const isRunning = item.state !== "completed" || payloadStatus === "running";
   if (isRunning) {
     return {
       rightLabel: <PixelLoader size="xxs" className="text-[color:var(--muted)]" />,
       rightLabelClassName: "!text-[color:var(--muted)]",
     };
   }
-  if (payload.status === "error") {
+  if (payloadStatus === "error") {
     return {
       rightLabel: <CircleAlert className="size-3 text-danger" aria-label={t(msg`error`)} />,
       rightLabelClassName: "text-danger",
@@ -160,30 +146,4 @@ function resolveToolStatus(
     };
   }
   return { rightLabel: null, rightLabelClassName: "!text-[color:var(--muted)]" };
-}
-
-function isReadLikeToolPayload(payload: ToolCallPayload): boolean {
-  if (payload.kind === "read") return true;
-  if (payload.name === "Read" || payload.name === "NotebookRead") return true;
-  const title = payload.title?.trim() || payload.name.trim();
-  return /^(?:view|read)(?:ing)?(?:\s|:|$)/i.test(title);
-}
-
-function isEditLikeToolPayload(payload: ToolCallPayload): boolean {
-  switch (payload.kind) {
-    case "edit":
-    case "delete":
-    case "move":
-      return true;
-  }
-  if (
-    ["Edit", "Write", "MultiEdit", "NotebookEdit", "Patch", "ApplyPatch", "apply_patch"].includes(
-      payload.name,
-    )
-  )
-    return true;
-  const title = payload.title?.trim() || payload.name.trim();
-  return /^(?:edit|editing|write|writing|patch|patching|create|creating|delete|deleting|remove|removing)(?:\s|:|$)/i.test(
-    title,
-  );
 }

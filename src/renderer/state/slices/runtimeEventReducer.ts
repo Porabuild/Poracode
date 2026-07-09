@@ -25,6 +25,20 @@ export function applyRuntimeEventsToState(
   threadId: string,
   events: RuntimeEvent[],
 ): Partial<RuntimeEventState> {
+  return applyRuntimeEventBatchesToState(state, [{ threadId, events }]);
+}
+
+/**
+ * Apply runtime events for one or more threads in a single reducer pass so the
+ * rAF flush can commit concurrent streams with one Zustand `set()` instead of
+ * one per thread (each `set` re-runs every subscribed selector).
+ */
+export function applyRuntimeEventBatchesToState(
+  state: AppStoreState,
+  batches: ReadonlyArray<{ threadId: string; events: RuntimeEvent[] }>,
+): Partial<RuntimeEventState> {
+  if (batches.length === 0) return {};
+
   let nextState: RuntimeEventState = {
     runtimeItemIdsByThread: state.runtimeItemIdsByThread,
     runtimeItemsByIdByThread: state.runtimeItemsByIdByThread,
@@ -36,31 +50,44 @@ export function applyRuntimeEventsToState(
     threads: state.threads ?? [],
   };
   let changed = false;
-  let bumpStructural = false;
+  const structuralBumpThreadIds = new Set<string>();
+  const dirtyThreadIds = new Set<string>();
 
-  for (const event of coalesceRuntimeEvents(events)) {
-    const patch = applyRuntimeEventToRuntimeState(nextState, threadId, event);
-    if (Object.keys(patch).length === 0) continue;
-    nextState = { ...nextState, ...patch };
-    const reopenPatch = reopenGuiTurnForLiveRuntimeActivity(nextState, threadId, event);
-    if (Object.keys(reopenPatch).length > 0) {
-      nextState = { ...nextState, ...reopenPatch };
+  for (const batch of batches) {
+    if (batch.events.length === 0) continue;
+    const { threadId, events } = batch;
+    let batchChanged = false;
+    for (const event of coalesceRuntimeEvents(events)) {
+      const patch = applyRuntimeEventToRuntimeState(nextState, threadId, event);
+      if (Object.keys(patch).length === 0) continue;
+      nextState = { ...nextState, ...patch };
+      const reopenPatch = reopenGuiTurnForLiveRuntimeActivity(nextState, threadId, event);
+      if (Object.keys(reopenPatch).length > 0) {
+        nextState = { ...nextState, ...reopenPatch };
+      }
+      batchChanged = true;
+      if (eventAffectsStructuralVersion(event)) structuralBumpThreadIds.add(threadId);
     }
-    changed = true;
-    if (eventAffectsStructuralVersion(event)) bumpStructural = true;
+    if (batchChanged) {
+      changed = true;
+      dirtyThreadIds.add(threadId);
+    }
   }
 
   if (!changed) return {};
-  if (bumpStructural) {
-    nextState = {
-      ...nextState,
-      runtimeStructuralVersionByThread: {
-        ...nextState.runtimeStructuralVersionByThread,
-        [threadId]: (nextState.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
-      },
-    };
+  for (const threadId of dirtyThreadIds) {
+    markThreadRuntimeForPersistence(threadId);
   }
-  markThreadRuntimeForPersistence(threadId);
+  if (structuralBumpThreadIds.size > 0) {
+    let runtimeStructuralVersionByThread = nextState.runtimeStructuralVersionByThread;
+    for (const threadId of structuralBumpThreadIds) {
+      runtimeStructuralVersionByThread = {
+        ...runtimeStructuralVersionByThread,
+        [threadId]: (runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+      };
+    }
+    nextState = { ...nextState, runtimeStructuralVersionByThread };
+  }
   return {
     ...nextState,
   };
@@ -78,39 +105,41 @@ function reopenGuiTurnForLiveRuntimeActivity(
   // yet -> open !== false) still reopens, preserving the safety net.
   if (state.runtimeOpenTurnByThread[threadId] === false) return {};
   if (!isLiveAssistantActivity(state, threadId, event)) return {};
-  let changed = false;
-  let nextCompletedTurns = state.runtimeCompletedTurnsByThread;
-  const nowIso = new Date().toISOString();
-  const threads = state.threads.map((thread) => {
-    if (
-      thread.id !== threadId ||
-      thread.presentationMode !== "gui" ||
-      (thread.status !== "idle" && thread.status !== "finished")
-    ) {
-      return thread;
-    }
 
-    changed = true;
-    const activeTurnStartedAt = thread.lastTurnStartedAt ?? thread.updatedAt ?? nowIso;
-    const startedAt = parseTurnMs(thread.lastTurnStartedAt);
-    const endedAt = parseTurnMs(thread.lastTurnEndedAt);
-    if (startedAt !== null && endedAt !== null) {
-      nextCompletedTurns = removeCompletedTurnWindow(
-        nextCompletedTurns,
-        threadId,
-        startedAt,
-        endedAt,
-      );
-    }
-    return {
-      ...thread,
-      status: "working" as const,
-      attention: "working" as const,
-      activeTurnStartedAt,
-      lastTurnEndedAt: undefined,
-    };
-  });
-  if (!changed) return {};
+  // Fast path: already working (or not a reopen candidate). Streaming deltas
+  // hit this on every frame — avoid mapping the full threads array.
+  const threadIndex = state.threads.findIndex((thread) => thread.id === threadId);
+  if (threadIndex < 0) return {};
+  const thread = state.threads[threadIndex]!;
+  if (
+    thread.presentationMode !== "gui" ||
+    (thread.status !== "idle" && thread.status !== "finished")
+  ) {
+    return {};
+  }
+
+  const nowIso = new Date().toISOString();
+  const activeTurnStartedAt = thread.lastTurnStartedAt ?? thread.updatedAt ?? nowIso;
+  const startedAt = parseTurnMs(thread.lastTurnStartedAt);
+  const endedAt = parseTurnMs(thread.lastTurnEndedAt);
+  let nextCompletedTurns = state.runtimeCompletedTurnsByThread;
+  if (startedAt !== null && endedAt !== null) {
+    nextCompletedTurns = removeCompletedTurnWindow(
+      nextCompletedTurns,
+      threadId,
+      startedAt,
+      endedAt,
+    );
+  }
+
+  const threads = state.threads.slice();
+  threads[threadIndex] = {
+    ...thread,
+    status: "working" as const,
+    attention: "working" as const,
+    activeTurnStartedAt,
+    lastTurnEndedAt: undefined,
+  };
   return {
     threads,
     ...(nextCompletedTurns !== state.runtimeCompletedTurnsByThread

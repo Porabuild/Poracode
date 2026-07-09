@@ -25,15 +25,17 @@ import { chatPromptSurfaceClass } from "./chatMessageSurface";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { ItemMarkdown } from "./ItemMarkdown";
 import { extractSelectorPayloads } from "./SelectorBadge";
+import {
+  hasUserMessageVisualOverflow,
+  shouldNotifyUserMessageHeightChange,
+  userMessageCollapsedHeightCache,
+} from "./userMessageOverflow";
 
 interface UserMessageProps {
   item: RuntimeChatItem;
   checkpointRevert: CheckpointRevertRequest | null;
 }
 
-const COLLAPSED_LINE_COUNT = 4;
-const FALLBACK_LINE_HEIGHT_RATIO = 1.375;
-const OVERFLOW_EPSILON_PX = 2;
 // The height clamp and the fade mask are deliberately separate. The clamp is
 // applied on the very first render — before overflow is measured — so the
 // virtualizer measures the 4-line collapsed height rather than the message's
@@ -83,10 +85,24 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
     // clamped-by-default, and this pass is what lifts that clamp. Relying on the
     // ref-equality short-circuit alone would leave a short message clamped
     // forever (its overflow value never differs from the initial state).
-    if (hasVisualOverflowRef.current !== nextHasVisualOverflow || !hasMeasuredRef.current) {
+    const wasFirstMeasure = !hasMeasuredRef.current;
+    const overflowChanged = hasVisualOverflowRef.current !== nextHasVisualOverflow;
+    if (overflowChanged || wasFirstMeasure) {
       hasVisualOverflowRef.current = nextHasVisualOverflow;
       setHasVisualOverflow(nextHasVisualOverflow);
-      actions?.onContentHeightChange();
+      // Notify scroll controls only when row height can change: overflow flips,
+      // or the first measure lifts the provisional 4-line clamp on a short
+      // message. First-measure + still-overflowing keeps the same clamp height
+      // (fade only), so skip the stick-to-bottom cascade on thread switch.
+      if (
+        shouldNotifyUserMessageHeightChange({
+          wasFirstMeasure,
+          overflowChanged,
+          nextHasVisualOverflow,
+        })
+      ) {
+        actions?.onContentHeightChange();
+      }
     }
     if (!hasMeasuredRef.current) {
       hasMeasuredRef.current = true;
@@ -96,17 +112,57 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
   });
 
   useLayoutEffect(() => {
-    syncVisualOverflow();
+    // Defer the forced layout read until after first paint. Thread switches
+    // mount many user rows; measuring in useLayoutEffect blocked first paint
+    // (~100ms in CDP). Double-rAF lands after the browser has painted the
+    // provisional clamp. Long pastes stay clamped so the virtualizer estimate
+    // does not inflate before this runs.
+    let cancelled = false;
+    let innerFrame: number | null = null;
+    const outerFrame = requestAnimationFrame(() => {
+      innerFrame = requestAnimationFrame(() => {
+        if (!cancelled) syncVisualOverflow();
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(outerFrame);
+      if (innerFrame !== null) cancelAnimationFrame(innerFrame);
+    };
   }, [text, attachments.length]);
+
+  const isThreadOpenSettling = useEffectEvent(() => actions?.isThreadOpenSettling?.() === true);
 
   useLayoutEffect(() => {
     const element = bodyRef.current;
     if (!element) return;
+    let frame: number | null = null;
+    // ResizeObserver always delivers an initial callback on observe(); the
+    // text/attachments effect above already scheduled syncVisualOverflow for
+    // that same layout, so skip it — on every mount, including virtualizer
+    // remounts mid-thread.
+    let sawInitialObservation = false;
     const observer = new ResizeObserver(() => {
-      syncVisualOverflow();
+      if (!sawInitialObservation) {
+        sawInitialObservation = true;
+        return;
+      }
+      // Skip RO-driven remeasures during the thread-open virtualizer storm.
+      // Read the shared epoch from scroll controls — rows remount constantly
+      // while scrolling, so a per-mount clock here would suppress genuine
+      // resizes on freshly remounted rows mid-thread.
+      if (isThreadOpenSettling()) return;
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        syncVisualOverflow();
+      });
     });
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
   }, []);
 
   // On touch (the PWA) there is no hover to reveal the copy/revert strip, and
@@ -458,26 +514,26 @@ function buildUserPromptAttachments(content: CanonicalContentBlock[]): Attachmen
 }
 
 function measureUserMessageOverflow(element: HTMLElement): boolean {
-  const fullHeight = Math.max(element.scrollHeight, element.getBoundingClientRect().height);
-  return fullHeight - getCollapsedHeight(element) > OVERFLOW_EPSILON_PX;
-}
-
-function getCollapsedHeight(element: HTMLElement): number {
-  const style = window.getComputedStyle(element);
-  const fontSize = parseCssPx(style.fontSize) ?? 16;
-  const lineHeight = parseCssLineHeight(style.lineHeight, fontSize);
-  return lineHeight * COLLAPSED_LINE_COUNT;
-}
-
-function parseCssLineHeight(value: string, fontSize: number): number {
-  const parsed = Number.parseFloat(value);
-  if (!Number.isFinite(parsed)) return fontSize * FALLBACK_LINE_HEIGHT_RATIO;
-  if (value.trim().endsWith("px")) return parsed;
-  if (parsed <= 4) return parsed * fontSize;
-  return parsed;
-}
-
-function parseCssPx(value: string): number | null {
-  const parsed = Number.parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  // Chat typography is shared across rows; resolve collapsed height once per
+  // session instead of getComputedStyle on every user message during switch.
+  const collapsedHeightPx = userMessageCollapsedHeightCache.getShared(() =>
+    window.getComputedStyle(element),
+  );
+  const scrollHeight = element.scrollHeight;
+  // Prefer scrollHeight; only pay for getBoundingClientRect when the scroll
+  // metric is still within epsilon of the collapsed height (ambiguous clamp).
+  if (
+    hasUserMessageVisualOverflow({
+      fullHeightPx: scrollHeight,
+      collapsedHeightPx,
+    })
+  ) {
+    return true;
+  }
+  const rectHeight = element.getBoundingClientRect().height;
+  if (rectHeight <= scrollHeight) return false;
+  return hasUserMessageVisualOverflow({
+    fullHeightPx: rectHeight,
+    collapsedHeightPx,
+  });
 }

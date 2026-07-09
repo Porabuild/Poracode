@@ -1,4 +1,4 @@
-import { type RefObject } from "react";
+import { useLayoutEffect, type RefObject } from "react";
 import { Trans } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -6,6 +6,7 @@ import { useThread } from "@/renderer/state/useThread";
 import { ChatPane } from "./ChatPane/ChatPane";
 import { ChatRuntimeDebugPanel } from "./ChatPane/ChatRuntimeDebugPanel";
 import { guiChatFontCssVars } from "./ChatPane/chatFontVars";
+import { clearUserMessageCollapsedHeightCache } from "./ChatPane/parts/items/userMessageOverflow";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import { ThreadTodoDock } from "./ThreadTodoDock";
@@ -38,6 +39,9 @@ export function GuiThreadContent(
   const { runtimeDebugOpen } = props;
   const thread = useThread(props.threadId) ?? props.fallbackThread;
   const guiChatFontSize = useSharedSettings((s) => s.guiChatFontSize);
+  useLayoutEffect(() => {
+    clearUserMessageCollapsedHeightCache();
+  }, [guiChatFontSize]);
   const ownDockState = useThreadDockState(thread.id);
   const dockState = props.dockState ?? ownDockState;
   const { todoDockState } = dockState;

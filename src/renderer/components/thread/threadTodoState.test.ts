@@ -3,11 +3,61 @@ import type { AppStoreState } from "@/renderer/state/appStore";
 import {
   areThreadTodoStepsEqual,
   getThreadTodoDockStateForItem,
+  selectThreadTodoDockItem,
   selectThreadTodoDockState,
 } from "./threadTodoState";
 import type { ThreadTodoDockState } from "./threadTodoState";
 
 describe("threadTodoState", () => {
+  it("returns a stable dock item across streaming deltas that do not change plans", () => {
+    const planItem = {
+      id: "plan-1",
+      type: "plan",
+      state: "updated",
+      payload: {
+        steps: [{ step: "Step one", status: "in_progress" }],
+      },
+      streams: {},
+    };
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: ["plan-1", "assistant-1"],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "plan-1": planItem,
+          "assistant-1": {
+            id: "assistant-1",
+            type: "assistant_message",
+            state: "running",
+            payload: {},
+            streams: { assistant_text: "hello" },
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    const first = selectThreadTodoDockItem(state, "t1");
+    expect(first).toBe(planItem);
+
+    const itemsById = state.runtimeItemsByIdByThread.t1!;
+    const nextState = {
+      ...state,
+      runtimeItemsByIdByThread: {
+        t1: {
+          ...itemsById,
+          "assistant-1": {
+            ...itemsById["assistant-1"]!,
+            streams: { assistant_text: "hello world" },
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    expect(selectThreadTodoDockItem(nextState, "t1")).toBe(planItem);
+    expect(selectThreadTodoDockState(nextState, "t1")).toBe(selectThreadTodoDockState(state, "t1"));
+  });
+
   it("selects the latest structured plan item and tracks the active step", () => {
     const state = {
       runtimeItemIdsByThread: {

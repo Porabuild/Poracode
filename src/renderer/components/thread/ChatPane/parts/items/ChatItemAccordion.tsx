@@ -1,5 +1,5 @@
 import { Disclosure, Tooltip } from "@heroui/react";
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatFilePath } from "./ChatFilePath";
 import {
@@ -93,19 +93,16 @@ export function ChatItemAccordion({
   // mode — skip the overflow-tooltip dance.
   const usesPathDisplay = !!titleParts?.filePath;
 
-  useLayoutEffect(() => {
-    if (usesPathDisplay) {
-      setIsOverflowing(false);
-      return;
-    }
+  // Do not force layout (scrollWidth/clientWidth) for every tool row on mount.
+  // Thread switches mount ~overscan rows at once; CDP profiles spent ~140ms+ in
+  // that check. Tooltip overflow is only needed on hover/focus — measure then.
+  const measureTitleOverflow = () => {
+    if (usesPathDisplay) return;
     const el = titleParts ? pathRef.current : codeRef.current;
     if (!el) return;
-    const check = () => setIsOverflowing(el.scrollWidth > el.clientWidth + 1);
-    check();
-    const ro = new ResizeObserver(check);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [titleString, titleParts, usesPathDisplay]);
+    const next = el.scrollWidth > el.clientWidth + 1;
+    setIsOverflowing((prev) => (prev === next ? prev : next));
+  };
 
   const titleContent = titleParts ? (
     <code className={`${codeClass} flex items-baseline overflow-hidden`}>
@@ -130,7 +127,7 @@ export function ChatItemAccordion({
   );
 
   const titleNode = (
-    <span className="min-w-0">
+    <span className="min-w-0" onPointerEnter={measureTitleOverflow} onFocus={measureTitleOverflow}>
       <Tooltip delay={300} isDisabled={!isOverflowing || !titleString}>
         <Tooltip.Trigger className="block min-w-0 w-full">{titleContent}</Tooltip.Trigger>
         <Tooltip.Content placement="top" className="max-w-[80vw] break-all">

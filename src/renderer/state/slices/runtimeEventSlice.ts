@@ -12,7 +12,11 @@ import type {
 } from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { SliceCreator } from "./shared";
-import { applyRuntimeEventsToState, mergeCompletedTurns } from "./runtimeEventReducer";
+import {
+  applyRuntimeEventsToState,
+  applyRuntimeEventBatchesToState,
+  mergeCompletedTurns,
+} from "./runtimeEventReducer";
 
 const STALE_SUB_AGENT_ERROR_MESSAGE = msg`Interrupted: agent session ended before completion.`;
 
@@ -121,6 +125,13 @@ export interface RuntimeEventSlice {
   fileCheckpointTurnsByThread: Record<string, Record<string, FileCheckpointTurn>>;
   applyRuntimeEvent(threadId: string, event: RuntimeEvent): void;
   applyRuntimeEvents(threadId: string, events: RuntimeEvent[]): void;
+  /**
+   * Apply runtime events for multiple threads in one Zustand `set()`. Used by
+   * the rAF flush when several chats stream concurrently.
+   */
+  applyRuntimeEventBatches(
+    batches: ReadonlyArray<{ threadId: string; events: RuntimeEvent[] }>,
+  ): void;
   clearThreadRuntimeEvents(threadId: string): void;
   /**
    * Force-terminate any still-running sub-agent tool_call items in a thread.
@@ -206,6 +217,9 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
 
   applyRuntimeEvents: (threadId, events) =>
     set((state) => applyRuntimeEventsToState(state, threadId, events)),
+
+  applyRuntimeEventBatches: (batches) =>
+    set((state) => applyRuntimeEventBatchesToState(state, batches)),
 
   clearThreadRuntimeEvents: (threadId) =>
     set((state) => {

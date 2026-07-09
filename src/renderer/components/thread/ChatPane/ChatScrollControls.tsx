@@ -12,15 +12,39 @@ import { useLingui } from "@lingui/react/macro";
 import { ArrowDown } from "lucide-react";
 import { useAppStore } from "@/renderer/state/appStore";
 import { isPanelResizing, subscribePanelResize } from "@/renderer/state/panelResizeSignal";
-import { isElementAtBottom } from "./chatScrollGeometry";
+import {
+  BOTTOM_EPSILON_PX,
+  isElementAtBottom,
+  nextShowScrollDown,
+  shouldCoalesceLayoutSync,
+  shouldIgnoreProgrammaticPinScroll,
+  shouldReenableStickToBottom,
+  shouldReleaseStickToBottom,
+  shouldSkipScrollToBottomWrite,
+  shouldTrustCachedAtBottom,
+  nextAtBottomCacheUntil,
+  shouldRepinForContentGrowth,
+  THREAD_OPEN_COALESCE_MS,
+} from "./chatScrollGeometry";
 import { selectChatScrollAnchor, selectChatScrollAnchorForTimeline } from "./chatPaneSelectors";
 
 const USER_SCROLL_INTENT_MS = 750;
+/** Minimum at-bottom cache when no coalesce window is active. */
+const AT_BOTTOM_CACHE_MS = 16;
 
 export type ChatScrollControlsHandle = {
   disableStickToBottom(): void;
   isStickToBottom(): boolean;
   markUserScrollIntent(): void;
+  hasRecentUserScrollIntent(): boolean;
+  /** Mark the next scroll event matching this scrollTop as our own write. */
+  noteProgrammaticScroll(scrollTop: number): void;
+  /**
+   * True while the thread-open measurement storm is assumed to still be
+   * running. Single shared epoch — keyed to the thread opening (and ended
+   * early by a user scroll-away), not to any individual row's mount.
+   */
+  isThreadOpenSettling(): boolean;
   onContentHeightChange(): void;
 };
 
@@ -60,6 +84,13 @@ export const ChatScrollControls = forwardRef<
   const initialSettleRafRef = useRef<number | null>(null);
   const initialSettleSecondRafRef = useRef<number | null>(null);
   const userScrollIntentUntilRef = useRef(0);
+  const programmaticScrollTopRef = useRef<number | null>(null);
+  const programmaticScrollUntilRef = useRef(0);
+  const threadOpenCoalesceUntilRef = useRef(0);
+  const atBottomCachedUntilRef = useRef(0);
+  const lastPinnedScrollHeightRef = useRef(0);
+  const lastSeenScrollHeightRef = useRef(0);
+  const disableStickToBottomRef = useRef<() => void>(() => undefined);
   const [showScrollDown, setShowScrollDown] = useState(false);
 
   function syncBottomStateFromLayout() {
@@ -67,16 +98,27 @@ export const ChatScrollControls = forwardRef<
     if (!el) return;
     const isAtBottom = isElementAtBottom(el);
     if (isAtBottom) stickToBottomRef.current = true;
-    setShowScrollDown(!stickToBottomRef.current && !isAtBottom);
+    setShowScrollDown(nextShowScrollDown({ stickToBottom: stickToBottomRef.current, isAtBottom }));
   }
 
   function disableStickToBottom() {
     if (!stickToBottomRef.current) return;
     cancelScheduledInitialSettle();
+    cancelScheduledLayoutSync();
+    if (pinRafRef.current !== null) {
+      cancelAnimationFrame(pinRafRef.current);
+      pinRafRef.current = null;
+    }
+    // End the open-storm coalesce immediately so a first scroll-away is not
+    // still treated as a measurement settle that wants to re-pin / coalesce.
+    threadOpenCoalesceUntilRef.current = 0;
+    atBottomCachedUntilRef.current = 0;
+    lastPinnedScrollHeightRef.current = 0;
     stickToBottomRef.current = false;
     const el = scrollRef.current;
     setShowScrollDown(!el || !isElementAtBottom(el));
   }
+  disableStickToBottomRef.current = disableStickToBottom;
 
   function markUserScrollIntent() {
     userScrollIntentUntilRef.current = performance.now() + USER_SCROLL_INTENT_MS;
@@ -86,14 +128,114 @@ export const ChatScrollControls = forwardRef<
     return performance.now() <= userScrollIntentUntilRef.current;
   }
 
+  function noteProgrammaticScroll(scrollTop: number) {
+    // Cover the async scroll event that follows a scrollTop write. Match the
+    // written value so a later user thumb-drag (different scrollTop) is never
+    // mistaken for our pin/compensation write.
+    programmaticScrollTopRef.current = scrollTop;
+    programmaticScrollUntilRef.current = performance.now() + 48;
+  }
+
+  function consumeProgrammaticScroll(nextScrollTop: number): boolean {
+    if (performance.now() > programmaticScrollUntilRef.current) {
+      programmaticScrollTopRef.current = null;
+      return false;
+    }
+    const expected = programmaticScrollTopRef.current;
+    if (expected === null) return false;
+    if (Math.abs(nextScrollTop - expected) > BOTTOM_EPSILON_PX) return false;
+    programmaticScrollTopRef.current = null;
+    return true;
+  }
+
+  function writeScrollTop(el: HTMLElement, nextScrollTop: number) {
+    noteProgrammaticScroll(nextScrollTop);
+    el.scrollTop = nextScrollTop;
+  }
+
   function scrollToBottom(options: { reconcileVirtualizer?: boolean } = {}) {
     const el = scrollRef.current;
     if (!el) return;
+    // User is actively scrolling away (wheel / scrollbar / pointer drag).
+    // Never re-pin — ResizeObserver and streaming anchors must not fight the
+    // gesture. Intent alone used to leave sticky on until the first scroll
+    // event; this guard covers that race and any missed disable.
+    if (hasRecentUserScrollIntent() && !isElementAtBottom(el)) {
+      stickToBottomRef.current = false;
+      setShowScrollDown(true);
+      return;
+    }
+    const now = performance.now();
+    const scrollHeight = el.scrollHeight;
+    const reconcileVirtualizer = options.reconcileVirtualizer === true;
+    // Stick-to-bottom storms (thread switch / row measure) call this many times
+    // per frame. If we are already pinned at the same content height, skip
+    // scrollTop writes — they still fire scroll listeners and force style recalc.
+    // Never skip when reconcileVirtualizer is set: open/settle must drive the
+    // virtualizer to the last row. Never skip when scrollHeight grew either —
+    // otherwise chats open mid-transcript after rows measure taller.
+    if (
+      shouldTrustCachedAtBottom({
+        now,
+        cachedUntil: atBottomCachedUntilRef.current,
+        scrollHeight,
+        lastPinnedScrollHeight: lastPinnedScrollHeightRef.current,
+        reconcileVirtualizer,
+      })
+    ) {
+      stickToBottomRef.current = true;
+      setShowScrollDown(false);
+      return;
+    }
+    // During the open storm while sticky, only re-pin when scrollHeight grew.
+    if (
+      !reconcileVirtualizer &&
+      !shouldRepinForContentGrowth({
+        stickToBottom: stickToBottomRef.current,
+        now,
+        coalesceUntil: threadOpenCoalesceUntilRef.current,
+        scrollHeight,
+        lastPinnedScrollHeight: lastPinnedScrollHeightRef.current,
+      })
+    ) {
+      atBottomCachedUntilRef.current = nextAtBottomCacheUntil({
+        now,
+        frameCacheMs: AT_BOTTOM_CACHE_MS,
+        coalesceUntil: threadOpenCoalesceUntilRef.current,
+      });
+      stickToBottomRef.current = true;
+      setShowScrollDown(false);
+      return;
+    }
+    if (
+      !reconcileVirtualizer &&
+      shouldSkipScrollToBottomWrite({
+        scrollHeight,
+        scrollTop: el.scrollTop,
+        clientHeight: el.clientHeight,
+        lastPinnedScrollHeight: lastPinnedScrollHeightRef.current,
+      })
+    ) {
+      // Once pinned, trust that until the coalesce window ends — but only for
+      // this scrollHeight (see shouldTrustCachedAtBottom).
+      atBottomCachedUntilRef.current = nextAtBottomCacheUntil({
+        now,
+        frameCacheMs: AT_BOTTOM_CACHE_MS,
+        coalesceUntil: threadOpenCoalesceUntilRef.current,
+      });
+      lastPinnedScrollHeightRef.current = scrollHeight;
+      lastScrollTopRef.current = el.scrollTop;
+      stickToBottomRef.current = true;
+      setShowScrollDown(false);
+      return;
+    }
+    atBottomCachedUntilRef.current = 0;
     const virtualScrollToBottom = virtualScrollToBottomRef.current;
-    if (options.reconcileVirtualizer && virtualScrollToBottom) {
+    if (reconcileVirtualizer && virtualScrollToBottom) {
       virtualScrollToBottom();
     }
-    el.scrollTop = el.scrollHeight;
+    writeScrollTop(el, el.scrollHeight);
+    lastPinnedScrollHeightRef.current = el.scrollHeight;
     lastScrollTopRef.current = el.scrollTop;
     stickToBottomRef.current = true;
     setShowScrollDown(false);
@@ -123,6 +265,17 @@ export const ChatScrollControls = forwardRef<
   }
 
   const syncLayoutNowAndAfterPaint = useEffectEvent(() => {
+    const el = scrollRef.current;
+    const contentHeightChanged = !!el && el.scrollHeight !== lastPinnedScrollHeightRef.current;
+
+    // Height-driven sticky pins must run in this frame. Cancel any pending
+    // coalesce so an earlier open-storm schedule cannot defer the write.
+    if (contentHeightChanged && stickToBottomRef.current) {
+      cancelScheduledLayoutSync();
+      syncLayoutNow();
+      return;
+    }
+
     if (hasScheduledLayoutSync()) return;
     // During an active panel/divider drag the viewport changes every frame, and
     // both this scroller's ResizeObserver and MessageList's totalSize effect
@@ -130,7 +283,19 @@ export const ChatScrollControls = forwardRef<
     // read, no chained settle passes) so the content still reflows and stays
     // bottom-pinned live, but we do at most one forced reflow per frame instead
     // of stacking several. The drag-end reconcile below runs the full settle.
-    if (isPanelResizing()) {
+    //
+    // Same coalescing while the initial thread-open settle is still running, and
+    // for a short window after open while the virtualizer finishes measuring
+    // mounted rows — otherwise each ResizeObserver tick stacks sync
+    // scrollToBottom + two follow-up paints.
+    if (
+      shouldCoalesceLayoutSync({
+        isPanelResizing: isPanelResizing(),
+        initialScrollSettled,
+        now: performance.now(),
+        threadOpenCoalesceUntil: threadOpenCoalesceUntilRef.current,
+      })
+    ) {
       layoutSyncRafRef.current = requestAnimationFrame(() => {
         layoutSyncRafRef.current = null;
         syncLayoutNow();
@@ -176,21 +341,31 @@ export const ChatScrollControls = forwardRef<
     disableStickToBottom,
     isStickToBottom: () => stickToBottomRef.current,
     markUserScrollIntent,
+    hasRecentUserScrollIntent,
+    noteProgrammaticScroll,
+    isThreadOpenSettling: () => performance.now() < threadOpenCoalesceUntilRef.current,
     onContentHeightChange: syncLayoutNowAndAfterPaint,
   }));
 
   useLayoutEffect(() => {
+    threadOpenCoalesceUntilRef.current = performance.now() + THREAD_OPEN_COALESCE_MS;
+    atBottomCachedUntilRef.current = 0;
+    lastPinnedScrollHeightRef.current = 0;
+    lastSeenScrollHeightRef.current = scrollRef.current?.scrollHeight ?? 0;
     scrollToBottom({ reconcileVirtualizer: true });
     scheduleInitialScrollSettle();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- scroll reset is keyed to thread changes; the helper reads refs/state setters only.
   }, [threadId]);
 
   // Preserve the bottom pin when the surrounding thread layout changes, but
-  // keep the user's place if they already scrolled up.
+  // keep the user's place if they already scrolled up. Run synchronously —
+  // dock expand/collapse can shift scrollTop without changing scrollHeight,
+  // and open-storm coalesce would otherwise leave the view stranded for a frame.
   useLayoutEffect(() => {
     if (layoutChangeToken === initialLayoutChangeTokenRef.current) return;
     initialLayoutChangeTokenRef.current = layoutChangeToken;
-    syncLayoutNowAndAfterPaint();
+    cancelScheduledLayoutSync();
+    syncLayoutNow();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- effect is keyed to layout token changes; the helper reads refs/state setters only.
   }, [layoutChangeToken]);
 
@@ -204,6 +379,7 @@ export const ChatScrollControls = forwardRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps -- helper reads refs/state setters only.
   }, [scrollToBottomToken]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- scroll listener is keyed to the scroller/thread; helpers close over refs.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -211,25 +387,59 @@ export const ChatScrollControls = forwardRef<
       const prevScrollTop = lastScrollTopRef.current;
       const nextScrollTop = el.scrollTop;
       lastScrollTopRef.current = nextScrollTop;
+      const nextScrollHeight = el.scrollHeight;
+      const scrollHeightShrunk = nextScrollHeight < lastSeenScrollHeightRef.current;
+      lastSeenScrollHeightRef.current = nextScrollHeight;
+      const isProgrammaticScroll = consumeProgrammaticScroll(nextScrollTop);
+      // Programmatic stick-to-bottom only moves down. Skip layout reads / button
+      // updates for those events — CDP profiles spent tens of ms here per switch.
+      if (
+        shouldIgnoreProgrammaticPinScroll({
+          stickToBottom: stickToBottomRef.current,
+          prevScrollTop,
+          nextScrollTop,
+        })
+      ) {
+        return;
+      }
       const isAtBottom = isElementAtBottom(el);
-      // Only release sticky when the user actually moves away from the bottom.
-      // Bare `!isAtBottom` here would race with virtualizer measurements that
-      // grow `scrollHeight` after a programmatic scroll lands — flipping sticky
-      // off in that one frame, then keeping the button stuck on because the
-      // corrective syncLayoutNow takes the non-sticky branch.
-      if (nextScrollTop < prevScrollTop && !isAtBottom && hasRecentUserScrollIntent()) {
-        cancelScheduledInitialSettle();
-        stickToBottomRef.current = false;
-      } else if (isAtBottom && (nextScrollTop >= prevScrollTop || !hasRecentUserScrollIntent())) {
+      // Release on upward scroll away from the bottom (native scrollbar thumb —
+      // often no pointerdown). Layout clamps that shrink scrollHeight and lower
+      // scrollTop keep sticky; height growth during a live stream must not block
+      // release. Our own scrollTop writes are tagged via noteProgrammaticScroll.
+      if (
+        shouldReleaseStickToBottom({
+          prevScrollTop,
+          nextScrollTop,
+          isAtBottom,
+          isProgrammaticScroll,
+          scrollHeightShrunk,
+        })
+      ) {
+        // Arm intent so ResizeObserver / streaming re-pins stay blocked for the
+        // rest of the thumb drag (which may never have set intent itself).
+        markUserScrollIntent();
+        disableStickToBottomRef.current();
+      } else if (
+        shouldReenableStickToBottom({
+          prevScrollTop,
+          nextScrollTop,
+          isAtBottom,
+          hasRecentUserScrollIntent: hasRecentUserScrollIntent(),
+        })
+      ) {
         // Don't re-enable sticky when the user is actively scrolling upward but
         // is still within `BOTTOM_EPSILON_PX` of the bottom — otherwise a tiny
         // wheel-up gets snapped back by the next streaming delta.
         stickToBottomRef.current = true;
       }
-      setShowScrollDown(!stickToBottomRef.current && !isAtBottom);
+      setShowScrollDown(
+        nextShowScrollDown({ stickToBottom: stickToBottomRef.current, isAtBottom }),
+      );
     };
 
     lastScrollTopRef.current = el.scrollTop;
+    lastSeenScrollHeightRef.current = el.scrollHeight;
     handleScroll();
     el.addEventListener("scroll", handleScroll, { passive: true });
     return () => el.removeEventListener("scroll", handleScroll);
