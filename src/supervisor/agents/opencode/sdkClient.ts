@@ -237,7 +237,7 @@ async function syncBrowserMcp(
   }
   if (input.computerUseMcpEnabled !== true) return;
 
-  const servers = buildOpenCodeComputerUseMcp(input.projectLocation, input.computerUseMcp);
+  const servers = buildOpenCodeComputerUseMcp(input.projectLocation, true, input.computerUseMcp);
   const computerUse = servers?.[COMPUTER_USE_MCP_SERVER_NAME];
   if (!computerUse) return;
   await client.mcp

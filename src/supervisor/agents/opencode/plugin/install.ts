@@ -503,8 +503,7 @@ export function syncOpenCodeBrowserMcpConfigFile(
 ): void {
   const add = {
     ...((browserEnabled ? buildOpenCodeBrowserMcp(location, browserMcp) : undefined) ?? {}),
-    ...((computerUseEnabled ? buildOpenCodeComputerUseMcp(location, computerUseMcp) : undefined) ??
-      {}),
+    ...(buildOpenCodeComputerUseMcp(location, computerUseEnabled, computerUseMcp) ?? {}),
   };
   const update: OpenCodeMcpConfigUpdate = {
     remove: [BROWSER_MCP_SERVER_NAME, COMPUTER_USE_MCP_SERVER_NAME],

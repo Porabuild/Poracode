@@ -9,6 +9,19 @@ import type {
 } from "../mcp/types";
 import { readNumber, runProcess } from "./common";
 
+// Reads the pixel dimensions encoded in a PNG's IHDR chunk (width at byte 16,
+// height at byte 20, both big-endian uint32). Returns null for non-PNG or
+// truncated buffers.
+function readPngPixelSize(bytes: Buffer): { width: number; height: number } | null {
+  const PNG_SIGNATURE = "\x89PNG\r\n\x1a\n";
+  if (bytes.length < 24) return null;
+  if (bytes.toString("latin1", 0, 8) !== PNG_SIGNATURE) return null;
+  const width = bytes.readUInt32BE(16);
+  const height = bytes.readUInt32BE(20);
+  if (width <= 0 || height <= 0) return null;
+  return { width, height };
+}
+
 function hashWindowId(input: string): number {
   let hash = 2166136261;
   for (let i = 0; i < input.length; i += 1) {
@@ -29,10 +42,16 @@ function normalizeWindows(value: unknown): ComputerUseWindow[] {
     const y = typeof obj.y === "number" ? obj.y : 0;
     const width = typeof obj.width === "number" ? obj.width : 0;
     const height = typeof obj.height === "number" ? obj.height : 0;
+    // Per-process identity, captured in listMacWindows (unix pid + the window's
+    // ordinal within that process). We hash on these instead of geometry so the
+    // id stays stable when the user moves or resizes the window. Geometry below
+    // is reported for display/coordinate math only.
+    const pid = typeof obj.pid === "number" ? obj.pid : 0;
+    const index = typeof obj.index === "number" ? obj.index : 0;
     if (!app || width <= 0 || height <= 0) continue;
     windows.push({
       app,
-      id: hashWindowId(`${app}\n${title ?? ""}\n${x},${y},${width},${height}`),
+      id: hashWindowId(`${app}\n${pid}\n${index}`),
       ...(title ? { title } : {}),
       x,
       y,
@@ -58,7 +77,11 @@ const windows = [];
 for (const process of app.applicationProcesses()) {
   if (!process.visible()) continue;
   const appName = process.name();
-  for (const window of process.windows()) {
+  let pid = 0;
+  try { pid = Number(process.unixId()) || 0; } catch {}
+  const procWindows = process.windows();
+  for (let index = 0; index < procWindows.length; index += 1) {
+    const window = procWindows[index];
     let position = [0, 0];
     let size = [0, 0];
     try { position = window.position(); } catch {}
@@ -67,6 +90,8 @@ for (const process of app.applicationProcesses()) {
     try { title = window.name(); } catch {}
     windows.push({
       app: appName,
+      pid,
+      index,
       title,
       x: Number(position[0]) || 0,
       y: Number(position[1]) || 0,
@@ -206,12 +231,26 @@ export class MacComputerUseDriver implements ComputerUseDriver {
           },
         );
         const bytes = await readFile(path);
+        // window.width/height are in POINTS, but `screencapture` encodes the
+        // native pixel resolution (e.g. 2x on Retina). Report the PNG's actual
+        // pixel dimensions so the model's pixel measurements are correct, and,
+        // when they differ from the point size, tell it the scale factor it must
+        // divide by — click/scroll/drag coordinates are interpreted in POINTS.
+        const pixelSize = readPngPixelSize(bytes);
+        const shotWidth = pixelSize?.width ?? width;
+        const shotHeight = pixelSize?.height ?? height;
+        if (pixelSize && pixelSize.width > width) {
+          const scale = Math.round((pixelSize.width / width) * 100) / 100;
+          notes.push(
+            `Screenshot is HiDPI/Retina: it is ${pixelSize.width}x${pixelSize.height} pixels for a ${width}x${height}-point window (scale ${scale}x). Click/scroll/drag coordinates are in POINTS — divide screenshot pixel coordinates by ${scale} before sending them.`,
+          );
+        }
         screenshots.push({
           id: "window",
           mimeType: "image/png",
           data: bytes.toString("base64"),
-          width,
-          height,
+          width: shotWidth,
+          height: shotHeight,
           originX: x,
           originY: y,
           zIndex: 0,
@@ -219,6 +258,11 @@ export class MacComputerUseDriver implements ComputerUseDriver {
       } finally {
         await rm(path, { force: true });
       }
+    }
+    if (input.include_text === true) {
+      notes.push(
+        "The accessibility tree is a placeholder (window title and app name only); detailed macOS accessibility text is not extracted yet. Do not rely on it for element targeting — use the screenshot and coordinate input.",
+      );
     }
     return {
       window,
@@ -254,10 +298,23 @@ export class MacComputerUseDriver implements ComputerUseDriver {
     const x = readNumber(window.x, "window.x") + readNumber(input.x, "x");
     const y = readNumber(window.y, "window.y") + readNumber(input.y, "y");
     const count = Math.max(1, Math.trunc(input.click_count ?? 1));
+    // System Events exposes distinct `click` / `right click` verbs but has no
+    // middle-button verb; throw rather than silently left-clicking.
+    const button = (input.mouse_button ?? "left").trim().toLowerCase();
+    let verb: "click" | "right click";
+    if (button === "right" || button === "r") {
+      verb = "right click";
+    } else if (button === "middle" || button === "m") {
+      throw new Error(
+        "middle-button click is not supported on macOS via System Events; use mouse_button 'left' or 'right'.",
+      );
+    } else {
+      verb = "click";
+    }
     await runAppleScript(`
 tell application "System Events"
-  click at {${x}, ${y}}
-  ${count > 1 ? `click at {${x}, ${y}}` : ""}
+  ${verb} at {${x}, ${y}}
+  ${count > 1 ? `${verb} at {${x}, ${y}}` : ""}
 end tell
 `);
     return { ok: true, mode: "interactive" };
@@ -311,11 +368,28 @@ end tell
   }): Promise<{ ok: true; mode: "interactive" }> {
     const window = await this.getWindow(input.window);
     await activateApp(window.app);
-    const direction = input.scrollY >= 0 ? "down" : "up";
-    const steps = Math.max(1, Math.min(20, Math.round(Math.abs(input.scrollY) / 120)));
+    // NOTE (needs live-mac verification): System Events has no verb to move the
+    // pointer, so we cannot target the (x,y) point the way the Windows driver
+    // does with SetCursorPos; the scroll lands on whatever is under the current
+    // pointer / key focus in the activated app. The `scroll <direction> <n>`
+    // command itself is not documented for System Events and may be unreliable
+    // on some macOS versions. We now honor BOTH axes (previously scrollX was
+    // dropped): vertical via up/down, horizontal via left/right.
+    const commands: string[] = [];
+    if (input.scrollY !== 0) {
+      const vDir = input.scrollY >= 0 ? "down" : "up";
+      const vSteps = Math.max(1, Math.min(20, Math.round(Math.abs(input.scrollY) / 120)));
+      commands.push(`scroll ${vDir} ${vSteps}`);
+    }
+    if (input.scrollX !== 0) {
+      const hDir = input.scrollX >= 0 ? "right" : "left";
+      const hSteps = Math.max(1, Math.min(20, Math.round(Math.abs(input.scrollX) / 120)));
+      commands.push(`scroll ${hDir} ${hSteps}`);
+    }
+    if (commands.length === 0) return { ok: true, mode: "interactive" };
     await runAppleScript(`
 tell application "System Events"
-  scroll ${direction} ${steps}
+  ${commands.join("\n  ")}
 end tell
 `);
     return { ok: true, mode: "interactive" };

@@ -1,5 +1,6 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { isIP } from "node:net";
 import { decodeThreadIdentity, type McpThreadIdentity } from "@/shared/browserMcpThread";
 import { isLocalhostOrigin, readBoundedNodeRequestBody, writeJsonResponse } from "@/shared/http";
 
@@ -125,17 +126,72 @@ export class StreamableHttpMcpIngress<TContext> {
 
   private checkAuth(req: IncomingMessage): boolean {
     const auth = req.headers.authorization;
-    if (auth && auth.startsWith("Bearer ") && auth.slice(7).trim() === this.token) {
+    if (auth && auth.startsWith("Bearer ") && this.tokenMatches(auth.slice(7).trim())) {
       return true;
     }
     const xToken = req.headers["x-lightcode-token"];
-    return typeof xToken === "string" && xToken === this.token;
+    return typeof xToken === "string" && this.tokenMatches(xToken);
+  }
+
+  /**
+   * Constant-time bearer-token comparison. A plain `===` short-circuits on the
+   * first mismatching byte, leaking token bytes through response timing; compare
+   * over the full length instead. `timingSafeEqual` throws on length mismatch,
+   * so gate on length first (the length itself is not secret — the token is a
+   * fixed 64-hex-char string).
+   */
+  private tokenMatches(candidate: string): boolean {
+    const expected = Buffer.from(this.token);
+    const actual = Buffer.from(candidate);
+    if (actual.length !== expected.length) {
+      return false;
+    }
+    return timingSafeEqual(actual, expected);
+  }
+
+  /**
+   * DNS-rebinding defense-in-depth: reject requests whose `Host` header is a
+   * real DNS name rather than a loopback name or a raw IP literal. A rebinding
+   * attack points an attacker-controlled hostname at the loopback address, so
+   * the forged request carries that hostname in `Host`. Loopback (`localhost`)
+   * and IP literals are safe: the browser ingress binds `0.0.0.0` and WSL
+   * agents reach it via the host-gateway IP (an IP literal), so this stays
+   * compatible with every legitimate caller. The port, when present, must match
+   * the bound port.
+   */
+  private isAllowedHost(req: IncomingMessage): boolean {
+    const hostHeader = req.headers.host;
+    if (typeof hostHeader !== "string" || hostHeader.length === 0) {
+      return false;
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(`http://${hostHeader}`);
+    } catch {
+      return false;
+    }
+    const boundPort = this.info?.port;
+    if (boundPort !== undefined && parsed.port !== "" && Number(parsed.port) !== boundPort) {
+      return false;
+    }
+    let hostname = parsed.hostname;
+    if (hostname.startsWith("[") && hostname.endsWith("]")) {
+      hostname = hostname.slice(1, -1);
+    }
+    if (hostname === "localhost") {
+      return true;
+    }
+    return isIP(hostname) !== 0;
   }
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     try {
       if (!req.url) {
         this.sendJson(res, 404, { error: "not found" });
+        return;
+      }
+      if (!this.isAllowedHost(req)) {
+        this.sendJson(res, 403, { error: "forbidden host" });
         return;
       }
       const path = new URL(req.url, "http://x").pathname;

@@ -22,7 +22,7 @@ import {
   registerPickerProtocolScheme,
 } from "./browser";
 import { buildBrowserUserAgent } from "./browser/userAgent";
-import { ComputerUseMcpIngress } from "./computer-use";
+import { ComputerUseMcpIngress, type ComputerUseMcpIngressInfo } from "./computer-use";
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { createMainWindow } from "./window/createMainWindow";
@@ -479,11 +479,19 @@ if (!hasSingleInstanceLock) {
     chromeBridgeServer.start().catch((err) => {
       console.error("[lightcode] chrome bridge server failed to start:", err);
     });
-    computerUseMcpIngress = new ComputerUseMcpIngress();
-    const computerUseMcpInfoReady = computerUseMcpIngress.start().catch((err) => {
-      console.error("[lightcode] computer use MCP ingress failed to start:", err);
-      return null;
-    });
+    // Computer-use drives the host desktop and is only supported on macOS and
+    // Windows (matches createComputerUseDriver). On other platforms the ingress
+    // would advertise tools that all fail and would still inject a token into
+    // launches, so skip it entirely — resolveExtraEnv then naturally yields
+    // nothing because getInfo() stays null.
+    let computerUseMcpInfoReady: Promise<ComputerUseMcpIngressInfo | null> = Promise.resolve(null);
+    if (process.platform === "win32" || process.platform === "darwin") {
+      computerUseMcpIngress = new ComputerUseMcpIngress();
+      computerUseMcpInfoReady = computerUseMcpIngress.start().catch((err) => {
+        console.error("[lightcode] computer use MCP ingress failed to start:", err);
+        return null;
+      });
+    }
 
     const writeSharedSettingsPatch = (patch: {
       [K in keyof SharedSettings]?: SharedSettings[K];

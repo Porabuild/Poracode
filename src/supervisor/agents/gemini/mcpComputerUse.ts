@@ -8,8 +8,10 @@ import type { GeminiMcpServers } from "./mcpBrowser";
 
 export function buildGeminiComputerUseMcpServers(
   location: ComputerUseMcpLocation,
+  enabled: boolean,
   computerUseMcp?: ComputerUseMcpHttpConfig,
 ): GeminiMcpServers | undefined {
+  if (!enabled) return undefined;
   if (location.kind === "wsl" && !computerUseMcp) return undefined;
   const cfg = computerUseMcp ?? resolveComputerUseMcpHttpConfig(location);
   if (!cfg) return undefined;

@@ -24,9 +24,21 @@ export function readWindow(value: unknown): ComputerUseWindow {
 }
 
 export function readNumber(value: unknown, name: string): number {
-  const next = Number(value);
-  if (!Number.isFinite(next)) throw new Error(`${name} is required`);
-  return next;
+  // Number("")/Number(null)/Number("  ")/Number(true) all coerce to a finite
+  // number, so a missing coordinate would silently become 0 (a top-left click).
+  // Require a real number or a strictly-numeric string before coercing.
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error(`${name} is required`);
+    return value;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) throw new Error(`${name} is required`);
+    const next = Number(trimmed);
+    if (!Number.isFinite(next)) throw new Error(`${name} is required`);
+    return next;
+  }
+  throw new Error(`${name} is required`);
 }
 
 export function readString(value: unknown, name: string): string {

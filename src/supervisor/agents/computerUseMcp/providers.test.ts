@@ -52,14 +52,14 @@ describe("Computer Use MCP provider configs", () => {
     expect(buildCodexComputerUseMcpEnv(computerUseMcp)).toEqual({
       LIGHTCODE_COMPUTER_USE_MCP_TOKEN: "computer-use-secret",
     });
-    expect(buildGeminiComputerUseMcpServers(windowsLocation, computerUseMcp)).toEqual({
+    expect(buildGeminiComputerUseMcpServers(windowsLocation, true, computerUseMcp)).toEqual({
       computer_use: {
         httpUrl: computerUseMcp.url,
         headers: computerUseMcp.headers,
         timeout: 30_000,
       },
     });
-    expect(buildOpenCodeComputerUseMcp(windowsLocation, computerUseMcp)).toEqual({
+    expect(buildOpenCodeComputerUseMcp(windowsLocation, true, computerUseMcp)).toEqual({
       computer_use: {
         type: "remote",
         url: computerUseMcp.url,
@@ -67,5 +67,23 @@ describe("Computer Use MCP provider configs", () => {
         enabled: true,
       },
     });
+  });
+
+  it("early-returns for every provider when the thread did not opt in", () => {
+    // The gate must live inside each builder so a call site can never forget it
+    // and leak the desktop-control endpoint into a non-opted-in thread. Env is
+    // set to prove the builders honor `enabled` rather than the env fallback.
+    process.env.LIGHTCODE_COMPUTER_USE_MCP_URL = "http://127.0.0.1:65094";
+    process.env.LIGHTCODE_COMPUTER_USE_MCP_TOKEN = "host-token";
+
+    expect(buildAcpComputerUseMcpServers(windowsLocation, false, computerUseMcp)).toEqual([]);
+    expect(
+      buildClaudeComputerUseMcpServers(windowsLocation, false, computerUseMcp),
+    ).toBeUndefined();
+    expect(buildCodexComputerUseMcpArgs(windowsLocation, false, computerUseMcp)).toEqual([]);
+    expect(
+      buildGeminiComputerUseMcpServers(windowsLocation, false, computerUseMcp),
+    ).toBeUndefined();
+    expect(buildOpenCodeComputerUseMcp(windowsLocation, false, computerUseMcp)).toBeUndefined();
   });
 });

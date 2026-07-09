@@ -66,9 +66,32 @@ export function sanitizeEnv(source: NodeJS.ProcessEnv): Record<string, string> {
   return out;
 }
 
+// The computer-use MCP endpoint drives the host's real mouse/keyboard/windows.
+// Its URL + token arrive in the supervisor's own process.env (the main →
+// supervisor IPC channel) purely so the orchestrator can resolve the per-thread
+// launch config. They must NOT cascade into the base env every spawned PTY /
+// shell inherits — otherwise any subprocess (even a dependency postinstall) in
+// a thread that never opted into computer-use could read the token and drive
+// the desktop, making the per-thread opt-in cosmetic. Strip them from the base
+// env here; the resolved config is injected per-launch only when
+// `config.computerUse === true` (e.g. Codex's `buildCodexComputerUseMcpEnv`,
+// or via MCP-server headers/args for the other providers). `process.env` itself
+// is left intact so `resolveComputerUseMcpHttpConfig` can still resolve the
+// config for opted-in launches.
+const SCOPED_LAUNCH_ONLY_ENV_KEYS = [
+  "LIGHTCODE_COMPUTER_USE_MCP_URL",
+  "LIGHTCODE_COMPUTER_USE_MCP_TOKEN",
+] as const;
+
 // process.env is effectively static after supervisor boot — sanitize once
 // instead of re-scanning ~150–300 entries on every startShell call.
-export const sanitizedProcessEnv = sanitizeEnv(process.env);
+export const sanitizedProcessEnv = ((): Record<string, string> => {
+  const env = sanitizeEnv(process.env);
+  for (const key of SCOPED_LAUNCH_ONLY_ENV_KEYS) {
+    delete env[key];
+  }
+  return env;
+})();
 
 function measureEnvBytes(env: Record<string, string>): number {
   let total = 0;

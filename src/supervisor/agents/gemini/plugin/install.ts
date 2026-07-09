@@ -207,10 +207,11 @@ export function syncGeminiBrowserMcpSettings(
     writeGeminiMcpServer(settingsPath, BROWSER_MCP_SERVER_NAME, entry);
   }
   if (ctx.computerUseMcpEnabled !== undefined) {
-    const entry =
-      ctx.computerUseMcpEnabled && computerUseMcp
-        ? buildGeminiComputerUseMcpServers(location, computerUseMcp)?.[COMPUTER_USE_MCP_SERVER_NAME]
-        : undefined;
+    const entry = buildGeminiComputerUseMcpServers(
+      location,
+      ctx.computerUseMcpEnabled === true,
+      computerUseMcp,
+    )?.[COMPUTER_USE_MCP_SERVER_NAME];
     writeGeminiMcpServer(settingsPath, COMPUTER_USE_MCP_SERVER_NAME, entry);
   }
 }
@@ -292,7 +293,11 @@ export function installGeminiPlugin(
   const nativeCommands = buildNativeHookCommandHeads(wrapperPath);
   const mcpServers = {
     ...(buildGeminiBrowserMcpServers({ kind: "windows" }, ctx?.browserMcp) ?? {}),
-    ...(buildGeminiComputerUseMcpServers({ kind: "windows" }, ctx?.computerUseMcp) ?? {}),
+    ...(buildGeminiComputerUseMcpServers(
+      { kind: "windows" },
+      ctx?.computerUseMcpEnabled === true,
+      ctx?.computerUseMcp,
+    ) ?? {}),
   };
   const settings = renderGeminiSettings({
     headExpression: nativeCommands.command,
@@ -334,7 +339,11 @@ function installGeminiPluginWsl(
     mkdirSync(dirname(uncSettingsPath), { recursive: true });
     const mcpServers = {
       ...(buildGeminiBrowserMcpServers({ kind: "wsl", distro }, browserMcp) ?? {}),
-      ...(buildGeminiComputerUseMcpServers({ kind: "wsl", distro }, computerUseMcp) ?? {}),
+      ...(buildGeminiComputerUseMcpServers(
+        { kind: "wsl", distro },
+        computerUseMcp !== undefined,
+        computerUseMcp,
+      ) ?? {}),
     };
     const settings = renderGeminiSettings({
       headExpression,

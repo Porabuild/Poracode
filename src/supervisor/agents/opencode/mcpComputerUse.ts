@@ -8,8 +8,10 @@ import type { OpenCodeMcpServers } from "./mcpBrowser";
 
 export function buildOpenCodeComputerUseMcp(
   location: ComputerUseMcpLocation,
+  enabled: boolean,
   computerUseMcp?: ComputerUseMcpHttpConfig,
 ): OpenCodeMcpServers | undefined {
+  if (!enabled) return undefined;
   if (location.kind === "wsl" && !computerUseMcp) return undefined;
   const cfg = computerUseMcp ?? resolveComputerUseMcpHttpConfig(location);
   if (!cfg) return undefined;

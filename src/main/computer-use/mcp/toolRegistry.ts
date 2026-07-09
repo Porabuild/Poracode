@@ -26,7 +26,7 @@ const WINDOW_SCHEMA = {
 };
 
 export const COMPUTER_USE_MCP_INSTRUCTIONS =
-  "Use the computer_use MCP server to inspect and control native macOS or Windows apps. Start with computer_use.api or computer_use.list_apps, choose a returned window, then call computer_use.get_window_state before coordinate input. list/get/screenshot operations are passive where the OS allows it; click, drag, scroll, type_text, press_key, set_value, perform_secondary_action, activate_window, and launch_app switch to interactive mode and may activate the target app. Prefer the browser MCP server for web pages. Locked desktops, secure prompts, OS permission prompts, and password/authentication surfaces require the user.";
+  "Use the computer_use MCP server to inspect and control native macOS or Windows apps. Start with computer_use.api or computer_use.list_apps, choose a returned window, then call computer_use.get_window_state before coordinate input. list/get/screenshot operations are passive where the OS allows it; click, drag, scroll, type_text, press_key, activate_window, and launch_app switch to interactive mode and may activate the target app. Coordinates (x/y) are window-relative with the origin at the TOP-LEFT of the window frame (including the title bar), matching the top-left pixel of the most recent get_window_state screenshot for that window; if the window may have moved or resized, call get_window_state again before sending coordinates. If a tool reports that the window is no longer available (windows are re-identified after they move/resize), call computer_use.list_windows or computer_use.get_window to obtain a fresh window id and retry. Prefer the browser MCP server for web pages. Locked desktops, secure prompts, OS permission prompts, and password/authentication surfaces require the user.";
 
 export const TOOLS: ToolSpec[] = [
   {
@@ -57,10 +57,10 @@ export const TOOLS: ToolSpec[] = [
   {
     name: "get_window",
     description:
-      "Refresh a window object returned by list_apps, list_windows, or get_window_state.",
+      "Refresh a window object returned by list_apps, list_windows, or get_window_state. Use this to obtain a fresh window id (with current geometry) whenever a tool reports that the window is no longer available.",
     inputSchema: {
       type: "object",
-      required: ["id"],
+      required: ["app", "id"],
       properties: { app: { type: "string" }, id: { type: "number" } },
     },
   },
@@ -90,7 +90,7 @@ export const TOOLS: ToolSpec[] = [
   {
     name: "click",
     description:
-      "Click window-relative coordinates from the latest screenshot. This is interactive.",
+      "Click window-relative coordinates. x/y have their origin at the TOP-LEFT of the window frame (including the title bar), matching the top-left pixel of the get_window_state screenshot. Coordinates must come from the most recent get_window_state screenshot for this window; if the window may have moved, call get_window_state again first. If this reports the window is no longer available, call list_windows or get_window for a fresh id and retry. This is interactive.",
     inputSchema: {
       type: "object",
       required: ["window", "x", "y"],
@@ -125,7 +125,8 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     name: "scroll",
-    description: "Scroll from window-relative coordinates. This is interactive.",
+    description:
+      "Scroll from window-relative coordinates. x/y have their origin at the TOP-LEFT of the window frame (including the title bar), matching the top-left pixel of the get_window_state screenshot. Coordinates must come from the most recent get_window_state screenshot for this window; if the window may have moved, call get_window_state again first. If this reports the window is no longer available, call list_windows or get_window for a fresh id and retry. This is interactive.",
     inputSchema: {
       type: "object",
       required: ["window", "x", "y", "scrollX", "scrollY"],
@@ -140,7 +141,8 @@ export const TOOLS: ToolSpec[] = [
   },
   {
     name: "drag",
-    description: "Drag between window-relative coordinates. This is interactive.",
+    description:
+      "Drag between window-relative coordinates. from_x/from_y and to_x/to_y have their origin at the TOP-LEFT of the window frame (including the title bar), matching the top-left pixel of the get_window_state screenshot. Coordinates must come from the most recent get_window_state screenshot for this window; if the window may have moved, call get_window_state again first. If this reports the window is no longer available, call list_windows or get_window for a fresh id and retry. This is interactive.",
     inputSchema: {
       type: "object",
       required: ["window", "from_x", "from_y", "to_x", "to_y"],
@@ -153,38 +155,13 @@ export const TOOLS: ToolSpec[] = [
       },
     },
   },
-  {
-    name: "set_value",
-    description:
-      "Set the value of an editable element by accessibility element_index when supported. This is interactive.",
-    inputSchema: {
-      type: "object",
-      required: ["window", "element_index", "value"],
-      properties: {
-        window: WINDOW_SCHEMA,
-        element_index: { type: "number" },
-        value: { type: "string" },
-      },
-    },
-  },
-  {
-    name: "perform_secondary_action",
-    description:
-      "Invoke a secondary accessibility action by element_index when supported. This is interactive.",
-    inputSchema: {
-      type: "object",
-      required: ["window", "element_index", "action"],
-      properties: {
-        window: WINDOW_SCHEMA,
-        element_index: { type: "number" },
-        action: { type: "string" },
-      },
-    },
-  },
 ];
 
 export const TOOL_NAMES = new Set(TOOLS.map((tool) => tool.name));
 
+// Lenience map: these short aliases are NOT advertised via tools/list and are
+// not discoverable through MCP. They only rescue a model that guesses a common
+// short name (e.g. "screenshot") before, or instead of, reading tools/list.
 const TOOL_ALIASES = new Map([
   ["apps", "list_apps"],
   ["windows", "list_windows"],
@@ -275,18 +252,6 @@ export async function dispatchTool(
         from_y: readNumber(args.from_y, "from_y"),
         to_x: readNumber(args.to_x, "to_x"),
         to_y: readNumber(args.to_y, "to_y"),
-      });
-    case "set_value":
-      return await ctx.driver.setValue({
-        window: readWindow(args.window),
-        element_index: readNumber(args.element_index, "element_index"),
-        value: readString(args.value, "value"),
-      });
-    case "perform_secondary_action":
-      return await ctx.driver.performSecondaryAction({
-        window: readWindow(args.window),
-        element_index: readNumber(args.element_index, "element_index"),
-        action: readString(args.action, "action"),
       });
     default:
       throw new Error(`unknown tool: ${name}`);

@@ -76,6 +76,14 @@ public static class LightcodeComputerUseNative {
   [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
   [DllImport("user32.dll")] public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
   [DllImport("user32.dll")] public static extern short VkKeyScan(char ch);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+  [DllImport("user32.dll")] public static extern bool AllowSetForegroundWindow(uint dwProcessId);
+  [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+  [DllImport("user32.dll")] public static extern bool SetProcessDpiAwarenessContext(IntPtr value);
+  [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
 
   public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
   public const uint MOUSEEVENTF_LEFTUP = 0x0004;
@@ -97,18 +105,36 @@ public static class LightcodeComputerUseNative {
     return windows;
   }
 
+  private static INPUT UnicodeInput(char unit, bool up) {
+    var input = new INPUT();
+    input.type = 1;
+    input.U.ki.wScan = unit;
+    input.U.ki.dwFlags = KEYEVENTF_UNICODE | (up ? KEYEVENTF_KEYUP : 0);
+    return input;
+  }
+
   public static void SendUnicodeText(string text) {
     if (String.IsNullOrEmpty(text)) return;
-    var inputs = new INPUT[text.Length * 2];
-    for (var i = 0; i < text.Length; i++) {
-      inputs[i * 2].type = 1;
-      inputs[i * 2].U.ki.wScan = text[i];
-      inputs[i * 2].U.ki.dwFlags = KEYEVENTF_UNICODE;
-      inputs[i * 2 + 1].type = 1;
-      inputs[i * 2 + 1].U.ki.wScan = text[i];
-      inputs[i * 2 + 1].U.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP;
+    var inputs = new List<INPUT>(text.Length * 2);
+    var i = 0;
+    while (i < text.Length) {
+      var c = text[i];
+      if (Char.IsHighSurrogate(c) && i + 1 < text.Length && Char.IsLowSurrogate(text[i + 1])) {
+        // Keep a surrogate pair together: both code units down, then both up.
+        var lo = text[i + 1];
+        inputs.Add(UnicodeInput(c, false));
+        inputs.Add(UnicodeInput(lo, false));
+        inputs.Add(UnicodeInput(c, true));
+        inputs.Add(UnicodeInput(lo, true));
+        i += 2;
+      } else {
+        inputs.Add(UnicodeInput(c, false));
+        inputs.Add(UnicodeInput(c, true));
+        i += 1;
+      }
     }
-    SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
+    var arr = inputs.ToArray();
+    if (arr.Length > 0) SendInput((uint)arr.Length, arr, Marshal.SizeOf(typeof(INPUT)));
   }
 
   public static void Key(ushort vk, bool up) {
@@ -120,6 +146,12 @@ public static class LightcodeComputerUseNative {
   }
 }
 "@
+
+# Make GetWindowRect / capture / SetCursorPos share physical pixels on scaled
+# displays. PER_MONITOR_AWARE_V2 = -4. Guard for pre-1703 hosts that lack the API.
+try { [void][LightcodeComputerUseNative]::SetProcessDpiAwarenessContext([IntPtr](-4)) } catch {}
+
+$ASFW_ANY = [uint32]"0xFFFFFFFF"
 
 function Get-WindowObject([IntPtr]$hWnd) {
   if (-not [LightcodeComputerUseNative]::IsWindow($hWnd)) { return $null }
@@ -172,12 +204,45 @@ function Require-Window($req) {
 
 function Activate-Window($window) {
   $hWnd = [IntPtr]([int64]$window.id)
-  [void][LightcodeComputerUseNative]::ShowWindow($hWnd, 9)
-  Start-Sleep -Milliseconds 40
-  if (-not [LightcodeComputerUseNative]::SetForegroundWindow($hWnd)) {
-    throw "Unable to activate window. The desktop may be locked or another secure surface may be active."
+  # SW_RESTORE (9) un-maximizes a maximized window, which would move/resize it
+  # AFTER the agent's screenshot and break coordinate math. Only restore when the
+  # window is actually minimized; otherwise SW_SHOW (5) leaves geometry untouched.
+  if ([LightcodeComputerUseNative]::IsIconic($hWnd)) {
+    [void][LightcodeComputerUseNative]::ShowWindow($hWnd, 9)
+    Start-Sleep -Milliseconds 40
+  } else {
+    [void][LightcodeComputerUseNative]::ShowWindow($hWnd, 5)
   }
-  Start-Sleep -Milliseconds 40
+  $activated = $false
+  for ($attempt = 0; $attempt -lt 3; $attempt++) {
+    if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true; break }
+    [void][LightcodeComputerUseNative]::AllowSetForegroundWindow($ASFW_ANY)
+    # An alt-key nudge releases the foreground lock so SetForegroundWindow is honored.
+    [LightcodeComputerUseNative]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero)
+    [LightcodeComputerUseNative]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
+    $fg = [LightcodeComputerUseNative]::GetForegroundWindow()
+    $fgPid = [uint32]0
+    $fgThread = [LightcodeComputerUseNative]::GetWindowThreadProcessId($fg, [ref]$fgPid)
+    $cur = [LightcodeComputerUseNative]::GetCurrentThreadId()
+    $attached = $false
+    if ($fgThread -ne $cur) { $attached = [LightcodeComputerUseNative]::AttachThreadInput($fgThread, $cur, $true) }
+    try {
+      [void][LightcodeComputerUseNative]::BringWindowToTop($hWnd)
+      [void][LightcodeComputerUseNative]::SetForegroundWindow($hWnd)
+    } finally {
+      if ($attached) { [void][LightcodeComputerUseNative]::AttachThreadInput($fgThread, $cur, $false) }
+    }
+    Start-Sleep -Milliseconds 60
+    if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true; break }
+  }
+  if (-not $activated) {
+    throw "Focus did not reach the target window. The desktop may be locked or another secure surface may be active."
+  }
+  # Re-capture the window rect AFTER activation: show/restore may have changed the
+  # window geometry, so return the fresh object for coordinate math.
+  $fresh = Get-WindowObject $hWnd
+  if ($null -eq $fresh) { return $window }
+  return $fresh
 }
 
 function Capture-Window($window) {
@@ -222,7 +287,8 @@ function Capture-Window($window) {
 }
 
 function Resolve-Key($token) {
-  $t = ([string]$token).Trim().ToLowerInvariant()
+  $raw = ([string]$token).Trim()
+  $t = $raw.ToLowerInvariant()
   switch ($t) {
     "control" { return 0x11 }
     "ctrl" { return 0x11 }
@@ -234,6 +300,10 @@ function Resolve-Key($token) {
     "alt" { return 0x12 }
     "alt_l" { return 0x12 }
     "alt_r" { return 0x12 }
+    "win" { return 0x5B }
+    "super" { return 0x5B }
+    "meta" { return 0x5B }
+    "cmd" { return 0x5B }
     "return" { return 0x0D }
     "enter" { return 0x0D }
     "tab" { return 0x09 }
@@ -242,6 +312,9 @@ function Resolve-Key($token) {
     "space" { return 0x20 }
     "backspace" { return 0x08 }
     "delete" { return 0x2E }
+    "insert" { return 0x2D }
+    "ins" { return 0x2D }
+    "capslock" { return 0x14 }
     "left" { return 0x25 }
     "arrowleft" { return 0x25 }
     "up" { return 0x26 }
@@ -265,21 +338,55 @@ function Resolve-Key($token) {
   }
   if ($t -match '^f([1-9]|1[0-9]|2[0-4])$') { return 0x70 + [int]$Matches[1] - 1 }
   if ($t -match '^kp_([0-9])$' -or $t -match '^numpad_([0-9])$') { return 0x60 + [int]$Matches[1] }
-  if ($t.Length -eq 1) {
-    $vk = [LightcodeComputerUseNative]::VkKeyScan([char]$t[0])
+  if ($raw.Length -eq 1) {
+    # Return the FULL VkKeyScan result, keeping the shift/ctrl/alt flags in the
+    # high byte so Press-Chord can reproduce them (e.g. '!' => shift+1, 'A' => shift+a).
+    $vk = [LightcodeComputerUseNative]::VkKeyScan([char]$raw[0])
     if ($vk -eq -1) { throw "Unsupported key: $token" }
-    return ($vk -band 0xff)
+    return [int]$vk
   }
   throw "Unsupported key: $token"
 }
 
 function Press-Chord($key) {
-  $tokens = ([string]$key) -split '\+' | ForEach-Object { $_.Trim() } | Where-Object { $_.Length -gt 0 }
+  $rawKey = ([string]$key).Trim()
+  if ($rawKey.Length -eq 0) { throw "key is required" }
+  # Splitting on '+' would drop a standalone or trailing literal '+' (e.g. "+"
+  # or "ctrl++"); special-case it so the plus key is still emitted.
+  if ($rawKey -eq '+') {
+    $tokens = @('+')
+  } else {
+    $tokens = @($rawKey -split '\+' | ForEach-Object { $_.Trim() } | Where-Object { $_.Length -gt 0 })
+    if ($rawKey.EndsWith('+')) { $tokens += '+' }
+  }
   if ($tokens.Count -eq 0) { throw "key is required" }
-  $vks = @($tokens | ForEach-Object { [uint16](Resolve-Key $_) })
-  foreach ($vk in $vks) { [LightcodeComputerUseNative]::Key($vk, $false) }
-  [Array]::Reverse($vks)
-  foreach ($vk in $vks) { [LightcodeComputerUseNative]::Key($vk, $true) }
+  $modVks = New-Object System.Collections.Generic.List[uint16]
+  $baseVks = New-Object System.Collections.Generic.List[uint16]
+  foreach ($tok in $tokens) {
+    $val = [int](Resolve-Key $tok)
+    $vk = [uint16]($val -band 0xff)
+    $mods = ($val -shr 8) -band 0xff
+    if (($mods -band 1) -and (-not $modVks.Contains([uint16]0x10))) { $modVks.Add([uint16]0x10) }
+    if (($mods -band 2) -and (-not $modVks.Contains([uint16]0x11))) { $modVks.Add([uint16]0x11) }
+    if (($mods -band 4) -and (-not $modVks.Contains([uint16]0x12))) { $modVks.Add([uint16]0x12) }
+    $baseVks.Add($vk)
+  }
+  $pressed = New-Object System.Collections.Generic.List[uint16]
+  try {
+    foreach ($vk in $modVks) { [LightcodeComputerUseNative]::Key($vk, $false); $pressed.Add($vk) }
+    foreach ($vk in $baseVks) { [LightcodeComputerUseNative]::Key($vk, $false); $pressed.Add($vk) }
+    for ($i = $baseVks.Count - 1; $i -ge 0; $i--) {
+      [LightcodeComputerUseNative]::Key($baseVks[$i], $true); [void]$pressed.Remove($baseVks[$i])
+    }
+    for ($i = $modVks.Count - 1; $i -ge 0; $i--) {
+      [LightcodeComputerUseNative]::Key($modVks[$i], $true); [void]$pressed.Remove($modVks[$i])
+    }
+  } finally {
+    # Never leave a key physically down system-wide if we threw mid-sequence.
+    for ($i = $pressed.Count - 1; $i -ge 0; $i--) {
+      try { [LightcodeComputerUseNative]::Key($pressed[$i], $true) } catch {}
+    }
+  }
 }
 
 function Mouse-Click($button, $count) {
@@ -359,12 +466,12 @@ switch ([string]$request.action) {
   }
   "activate_window" {
     $window = Require-Window $request.input.window
-    Activate-Window $window
+    $window = Activate-Window $window
     $result = [pscustomobject]@{ ok = $true; mode = "interactive" }
   }
   "click" {
     $window = Require-Window $request.input.window
-    Activate-Window $window
+    $window = Activate-Window $window
     $x = [int]$request.input.x
     $y = [int]$request.input.y
     [void][LightcodeComputerUseNative]::SetCursorPos([int]$window.x + $x, [int]$window.y + $y)
@@ -373,19 +480,19 @@ switch ([string]$request.action) {
   }
   "type_text" {
     $window = Require-Window $request.input.window
-    Activate-Window $window
+    $window = Activate-Window $window
     [LightcodeComputerUseNative]::SendUnicodeText([string]$request.input.text)
     $result = [pscustomobject]@{ ok = $true; mode = "interactive" }
   }
   "press_key" {
     $window = Require-Window $request.input.window
-    Activate-Window $window
+    $window = Activate-Window $window
     Press-Chord $request.input.key
     $result = [pscustomobject]@{ ok = $true; mode = "interactive" }
   }
   "scroll" {
     $window = Require-Window $request.input.window
-    Activate-Window $window
+    $window = Activate-Window $window
     [void][LightcodeComputerUseNative]::SetCursorPos([int]$window.x + [int]$request.input.x, [int]$window.y + [int]$request.input.y)
     if ([int]$request.input.scrollY -ne 0) {
       [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_WHEEL, 0, 0, [uint32](-1 * [int]$request.input.scrollY), [UIntPtr]::Zero)
@@ -397,18 +504,62 @@ switch ([string]$request.action) {
   }
   "drag" {
     $window = Require-Window $request.input.window
-    Activate-Window $window
-    [void][LightcodeComputerUseNative]::SetCursorPos([int]$window.x + [int]$request.input.from_x, [int]$window.y + [int]$request.input.from_y)
-    [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_LEFTDOWN, 0, 0, 0, [UIntPtr]::Zero)
-    Start-Sleep -Milliseconds 40
-    [void][LightcodeComputerUseNative]::SetCursorPos([int]$window.x + [int]$request.input.to_x, [int]$window.y + [int]$request.input.to_y)
-    Start-Sleep -Milliseconds 40
-    [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_LEFTUP, 0, 0, 0, [UIntPtr]::Zero)
+    $window = Activate-Window $window
+    $downSent = $false
+    try {
+      [void][LightcodeComputerUseNative]::SetCursorPos([int]$window.x + [int]$request.input.from_x, [int]$window.y + [int]$request.input.from_y)
+      [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_LEFTDOWN, 0, 0, 0, [UIntPtr]::Zero)
+      $downSent = $true
+      Start-Sleep -Milliseconds 40
+      [void][LightcodeComputerUseNative]::SetCursorPos([int]$window.x + [int]$request.input.to_x, [int]$window.y + [int]$request.input.to_y)
+      Start-Sleep -Milliseconds 40
+      [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_LEFTUP, 0, 0, 0, [UIntPtr]::Zero)
+      $downSent = $false
+    } finally {
+      # Never leave the mouse button physically down if we threw mid-drag.
+      if ($downSent) {
+        try { [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_LEFTUP, 0, 0, 0, [UIntPtr]::Zero) } catch {}
+      }
+    }
     $result = [pscustomobject]@{ ok = $true; mode = "interactive" }
   }
   "launch_app" {
-    Start-Process -FilePath ([string]$request.input.app)
-    $result = [pscustomobject]@{ ok = $true }
+    $app = [string]$request.input.app
+    if ($app.Trim().Length -eq 0) { throw "app is required" }
+    # Defense-in-depth: refuse UNC paths and URL schemes so launch_app can't pull
+    # a remote payload or hand off to a protocol handler.
+    if ($app -match '^\\\\') { throw "UNC paths are not allowed for launch_app." }
+    if ($app -match '^[A-Za-z][A-Za-z0-9+.\-]*://') { throw "URL schemes are not allowed for launch_app." }
+    $proc = Start-Process -FilePath $app -PassThru
+    $window = $null
+    if ($proc -and $proc.Id) {
+      $targetPid = [uint32]$proc.Id
+      # Start-Process returns before the window exists; poll (bounded ~4s) for a
+      # visible, titled top-level window owned by the new process.
+      $deadline = (Get-Date).AddSeconds(4)
+      while ((Get-Date) -lt $deadline -and $null -eq $window) {
+        foreach ($hWnd in [LightcodeComputerUseNative]::Windows()) {
+          $wPid = [uint32]0
+          [void][LightcodeComputerUseNative]::GetWindowThreadProcessId($hWnd, [ref]$wPid)
+          if ($wPid -eq $targetPid) {
+            $candidate = Get-WindowObject $hWnd
+            if ($null -ne $candidate -and $candidate.width -gt 0 -and $candidate.height -gt 0) {
+              $window = $candidate
+              break
+            }
+          }
+        }
+        if ($null -eq $window) { Start-Sleep -Milliseconds 150 }
+      }
+    }
+    if ($null -ne $window) {
+      $result = [pscustomobject]@{
+        ok = $true
+        window = [pscustomobject]@{ app = $window.app; id = $window.id; title = $window.title; x = $window.x; y = $window.y; width = $window.width; height = $window.height }
+      }
+    } else {
+      $result = [pscustomobject]@{ ok = $true; window = $null; note = "App launched but no window became available within the timeout." }
+    }
   }
   "set_value" {
     throw "set_value is not supported yet; click or focus the target field, then use type_text."
@@ -532,7 +683,11 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     return runWindowsComputerUse("drag", input);
   }
 
-  launchApp(input: { app: string }): Promise<{ ok: true }> {
+  launchApp(input: { app: string }): Promise<{
+    ok: true;
+    window?: ComputerUseWindow | null;
+    note?: string;
+  }> {
     return runWindowsComputerUse("launch_app", input);
   }
 

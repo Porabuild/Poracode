@@ -18,10 +18,10 @@ export interface ComputerUseApp {
 }
 
 export interface ComputerUseAccessibilityState {
-  document_text?: string;
-  focused_element?: string;
-  selected_elements?: string[];
-  selected_text?: string;
+  // Only `tree` is populated today, and it holds a placeholder string (window
+  // title + app name) — no driver yet extracts a real accessibility tree.
+  // Callers must not rely on this for element targeting. See the
+  // "accessibility tree is a placeholder" note emitted by get_window_state.
   tree: string;
 }
 
@@ -66,7 +66,11 @@ export interface ComputerUseDriver {
     include_text?: boolean;
     window: ComputerUseWindow;
   }): Promise<ComputerUseWindowState>;
-  launchApp(input: { app: string }): Promise<{ ok: true }>;
+  launchApp(input: { app: string }): Promise<{
+    ok: true;
+    window?: ComputerUseWindow | null;
+    note?: string;
+  }>;
   listApps(): Promise<ComputerUseApp[]>;
   listWindows(): Promise<ComputerUseWindow[]>;
   performSecondaryAction(input: {
