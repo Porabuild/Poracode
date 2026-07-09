@@ -1,5 +1,10 @@
 import { accessSync, constants as fsConstants, existsSync, statSync } from "node:fs";
 import { resolve as resolvePath } from "node:path";
+import {
+  COMPUTER_USE_MCP_TOKEN_ENV,
+  COMPUTER_USE_MCP_URL_ENV,
+} from "@/supervisor/agents/computerUseMcp";
+import { CHROME_MCP_TOKEN_ENV, CHROME_MCP_URL_ENV } from "@/supervisor/agents/chromeMcp";
 
 export function describeSpawnFailure(
   kind: "shell" | "agent",
@@ -66,21 +71,17 @@ export function sanitizeEnv(source: NodeJS.ProcessEnv): Record<string, string> {
   return out;
 }
 
-// The computer-use MCP endpoint drives the host's real mouse/keyboard/windows.
-// Its URL + token arrive in the supervisor's own process.env (the main →
-// supervisor IPC channel) purely so the orchestrator can resolve the per-thread
-// launch config. They must NOT cascade into the base env every spawned PTY /
-// shell inherits — otherwise any subprocess (even a dependency postinstall) in
-// a thread that never opted into computer-use could read the token and drive
-// the desktop, making the per-thread opt-in cosmetic. Strip them from the base
-// env here; the resolved config is injected per-launch only when
-// `config.computerUse === true` (e.g. Codex's `buildCodexComputerUseMcpEnv`,
-// or via MCP-server headers/args for the other providers). `process.env` itself
-// is left intact so `resolveComputerUseMcpHttpConfig` can still resolve the
-// config for opted-in launches.
+// The computer-use and external-Chrome MCP endpoints control the host's real
+// desktop/browser. Their URL + token arrive in the supervisor's process.env
+// purely so the orchestrator can resolve per-thread launch config. They must not
+// cascade into every spawned PTY or shell, which would make opt-in cosmetic.
+// Keep process.env intact for resolution, but strip the secrets from the shared
+// child-process base env; provider adapters inject them only for opted-in launches.
 const SCOPED_LAUNCH_ONLY_ENV_KEYS = [
-  "LIGHTCODE_COMPUTER_USE_MCP_URL",
-  "LIGHTCODE_COMPUTER_USE_MCP_TOKEN",
+  COMPUTER_USE_MCP_URL_ENV,
+  COMPUTER_USE_MCP_TOKEN_ENV,
+  CHROME_MCP_URL_ENV,
+  CHROME_MCP_TOKEN_ENV,
 ] as const;
 
 // process.env is effectively static after supervisor boot — sanitize once

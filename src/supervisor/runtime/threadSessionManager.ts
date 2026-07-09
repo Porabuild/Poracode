@@ -936,9 +936,14 @@ export class ThreadSessionManager {
         session.config,
       );
       const computerUse = this.spawnPipeline.resolveComputerUseMcpForLaunch(
-        session.adapter,
         session.projectLocation,
         session.config,
+        { threadId: session.threadId },
+      );
+      const chromeMcp = this.spawnPipeline.resolveChromeMcpForLaunch(
+        session.projectLocation,
+        session.config,
+        { threadId: session.threadId },
       );
       const cliHookExtras = await this.cliHookPlugin.resolveCliHookPluginExtras(
         session.threadId,
@@ -947,6 +952,7 @@ export class ThreadSessionManager {
         session.config,
         browserMcp,
         computerUse,
+        chromeMcp,
       );
       if (!this.isCurrentSession(session)) {
         return;
@@ -962,6 +968,7 @@ export class ThreadSessionManager {
           browserMcp,
           subagentMcp,
           computerUse,
+          chromeMcp,
         ),
       );
       if (cliHookExtras.extraArgs.length > 0) {

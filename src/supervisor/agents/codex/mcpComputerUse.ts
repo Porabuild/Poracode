@@ -1,11 +1,12 @@
 import {
   COMPUTER_USE_MCP_SERVER_NAME,
-  resolveComputerUseMcpHttpConfig,
+  COMPUTER_USE_MCP_TOKEN_ENV,
+  resolveOrFallbackComputerUseMcpConfig,
   type ComputerUseMcpHttpConfig,
   type ComputerUseMcpLocation,
 } from "@/supervisor/agents/computerUseMcp";
 
-export const CODEX_COMPUTER_USE_MCP_TOKEN_ENV = "LIGHTCODE_COMPUTER_USE_MCP_TOKEN";
+export const CODEX_COMPUTER_USE_MCP_TOKEN_ENV = COMPUTER_USE_MCP_TOKEN_ENV;
 
 export function buildCodexComputerUseMcpArgs(
   location: ComputerUseMcpLocation,
@@ -13,8 +14,7 @@ export function buildCodexComputerUseMcpArgs(
   computerUseMcp?: ComputerUseMcpHttpConfig,
 ): string[] {
   if (!enabled) return [];
-  if (location.kind === "wsl" && !computerUseMcp) return [];
-  const cfg = computerUseMcp ?? resolveComputerUseMcpHttpConfig(location);
+  const cfg = resolveOrFallbackComputerUseMcpConfig(location, computerUseMcp);
   if (!cfg) return [];
 
   const name = COMPUTER_USE_MCP_SERVER_NAME;

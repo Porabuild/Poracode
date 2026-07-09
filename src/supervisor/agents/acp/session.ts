@@ -18,6 +18,7 @@ import {
 } from "./mcpBrowser";
 import { buildAcpSubagentMcpServers } from "./mcpSubagent";
 import { buildAcpComputerUseMcpServers } from "./mcpComputerUse";
+import { buildAcpChromeMcpServers } from "./mcpChrome";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { homedir } from "node:os";
@@ -64,6 +65,7 @@ import type {
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { SubagentMcpHttpConfig } from "@/supervisor/agents/subagentMcp";
 import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
+import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
 import { areAgentSlashCommandsEqual, isThreadConfigEqual } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import {
@@ -156,6 +158,7 @@ export interface AcpStructuredSessionOptions {
   browserMcp?: BrowserMcpHttpConfig;
   subagentMcp?: SubagentMcpHttpConfig;
   computerUseMcp?: ComputerUseMcpHttpConfig;
+  chromeMcp?: ChromeMcpHttpConfig;
 }
 
 export class AcpStructuredSession implements StructuredSessionHandle {
@@ -176,6 +179,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly browserMcp: BrowserMcpHttpConfig | undefined;
   private readonly subagentMcp: SubagentMcpHttpConfig | undefined;
   private readonly computerUseMcp: ComputerUseMcpHttpConfig | undefined;
+  private readonly chromeMcp: ChromeMcpHttpConfig | undefined;
   /** Poracode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
   private readonly stderrChunks: string[] = [];
@@ -272,6 +276,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.browserMcp = options?.browserMcp;
     this.subagentMcp = options?.subagentMcp;
     this.computerUseMcp = options?.computerUseMcp;
+    this.chromeMcp = options?.chromeMcp;
   }
 
   private shouldAutoApproveSyntheticPermissionRequest(): boolean {
@@ -700,6 +705,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         config.computerUse === true,
         this.computerUseMcp,
       ),
+      ...buildAcpChromeMcpServers(this.projectLocation, config.chromeMcp === true, this.chromeMcp),
     ]);
 
     if (sessionRef) {

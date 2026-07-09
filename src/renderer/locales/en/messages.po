@@ -1013,6 +1013,7 @@ msgstr "Avatar color {color}"
 #: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Back"
@@ -1180,8 +1181,8 @@ msgid "Browser is open in a separate window"
 msgstr "Browser is open in a separate window"
 
 #: src/renderer/components/composer/MentionPopover.tsx
-msgid "Browser MCP"
-msgstr "Browser MCP"
+#~ msgid "Browser MCP"
+#~ msgstr "Browser MCP"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Browser MCP enabled for OpenCode"
@@ -1438,6 +1439,14 @@ msgstr "Choose whether links from Poracode and browser popups stay in Poracode o
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
 msgstr "Choose worktree base folder"
+
+#: src/renderer/components/composer/composerMcpServers.ts
+msgid "Chrome"
+msgstr "Chrome"
+
+#: src/renderer/components/composer/composerMcpServers.ts
+msgid "Chrome MCP enabled for this thread"
+msgstr "Chrome MCP enabled for this thread"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -1879,13 +1888,30 @@ msgstr "Composer controls"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/composer/MentionPopover.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Computer Use"
 msgstr "Computer Use"
 
+#: src/renderer/components/composer/ComputerUseOverlay.tsx
+#~ msgid "Computer Use can take over the desktop. Don't use this machine while the agent is clicking or typing."
+#~ msgstr "Computer Use can take over the desktop. Don't use this machine while the agent is clicking or typing."
+
+#: src/renderer/components/composer/ComputerUseOverlay.tsx
+#~ msgid "Computer Use controls the paired desktop. Don't use that machine while the agent is clicking or typing."
+#~ msgstr "Computer Use controls the paired desktop. Don't use that machine while the agent is clicking or typing."
+
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled for this thread"
-msgstr "Computer Use enabled for this thread"
+msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+msgstr "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+msgstr "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled for this thread"
+#~ msgstr "Computer Use enabled for this thread"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -2010,6 +2036,10 @@ msgstr "Continue in..."
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "Control which files appear in the @file mention search. Per-project overrides live in each project's settings."
 msgstr "Control which files appear in the @file mention search. Per-project overrides live in each project's settings."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Controls the paired desktop while the agent clicks or types"
+msgstr "Controls the paired desktop while the agent clicks or types"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -2471,6 +2501,10 @@ msgstr "Disable {tierLabel} effort"
 msgid "Disable Browser MCP"
 msgstr "Disable Browser MCP"
 
+#: src/renderer/components/composer/composerMcpServers.ts
+msgid "Disable Chrome MCP"
+msgstr "Disable Chrome MCP"
+
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
@@ -2712,6 +2746,10 @@ msgstr "Enabled"
 #: src/mobile/settingsSections.ts
 msgid "Enabled agents, model visibility and order"
 msgstr "Enabled agents, model visibility and order"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Enabled servers stay on for new threads"
+msgstr "Enabled servers stay on for new threads"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
@@ -3848,6 +3886,11 @@ msgstr "Maximize"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "Maximize browser"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "MCP server"
+msgstr "MCP server"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -6945,6 +6988,10 @@ msgstr "Tailscale URL"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Take Screenshot"
 msgstr "Take Screenshot"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Takes over the desktop while the agent clicks or types"
+msgstr "Takes over the desktop while the agent clicks or types"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."

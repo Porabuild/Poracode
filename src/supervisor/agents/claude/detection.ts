@@ -92,6 +92,7 @@ export const claudeCapabilities: AgentCapability = {
   // toggles stay live mid-thread. The TUI has no per-thread MCP gating.
   browserMcpScope: { terminal: "none", gui: "always" },
   subagentMcpScope: { terminal: "none", gui: "always" },
+  chromeMcpScope: { terminal: "none", gui: "always" },
   settingDefs: [
     {
       key: "usePowershellTool",

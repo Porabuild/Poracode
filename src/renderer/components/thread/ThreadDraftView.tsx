@@ -11,6 +11,12 @@ import type {
 } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProjectId } from "@/shared/homeScope";
 import { readBridge } from "@/renderer/bridge";
+import {
+  chromeMcpServer,
+  COMPUTER_USE_MCP_ID,
+  getComputerUseScope,
+  resolveMcpScope,
+} from "@/renderer/components/composer";
 import { getConfigNormalizer } from "@/renderer/components/providers/ProviderIcon";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { PixelLoader } from "@/renderer/components/common";
@@ -207,10 +213,14 @@ export function ThreadDraftView(props: {
   const [approvalPolicy, setApprovalPolicy] = useState("");
   const [approvalsReviewer, setApprovalsReviewer] = useState("");
   const [sandboxMode, setSandboxMode] = useState("");
-  // Not persisted across drafts — each new thread starts off.
-  const [browserMcp, setBrowserMcp] = useState(false);
-  const [subagentMcp, setSubagentMcp] = useState(false);
-  const [computerUse, setComputerUse] = useState(false);
+  // Per-draft `@`-mentions of a composer MCP. These are NOT the persistent
+  // enablement (that lives in `enabledMcpServers`); they capture a one-off
+  // mention in this draft and reset with every new thread. The effective launch
+  // flag is `mention || (persistent && scope available)`, computed below.
+  const [browserMcpMention, setBrowserMcpMention] = useState(false);
+  const [subagentMcpMention, setSubagentMcpMention] = useState(false);
+  const [chromeMcpMention, setChromeMcpMention] = useState(false);
+  const [computerUseMention, setComputerUseMention] = useState(false);
   const [worktreeMode, setWorktreeMode] = useState(
     isHomeScope ? false : (lastDraftConfig?.worktreeMode ?? false),
   );
@@ -223,6 +233,8 @@ export function ThreadDraftView(props: {
   // this provider is remembered across new-thread drafts.
   const lastPresentationModeByAgent = useSharedSettings((s) => s.lastPresentationModeByAgent);
   const setLastPresentationMode = useSharedSettings((s) => s.setLastPresentationMode);
+  // Persistent composer MCP enablement (standing default across new threads).
+  const enabledMcpServers = useSharedSettings((s) => s.enabledMcpServers);
   const supportedPresentationModes = selectedAgent
     ? (selectedAgent.capabilities.presentationModes ?? [
         selectedAgent.capabilities.presentationMode,
@@ -608,19 +620,25 @@ export function ThreadDraftView(props: {
   >(() => undefined);
   const onConfigPatch = (patch: Partial<ThreadConfig>) => {
     if ("browserMcp" in patch) {
-      // Per-thread capability flag — not part of ProviderDraftConfig, so it
-      // bypasses the resolver/persistence below.
-      setBrowserMcp(patch.browserMcp === true);
+      // Per-draft mention flag — not part of ProviderDraftConfig, so it bypasses
+      // the resolver/persistence below. Set by an `@browser` mention, cleared by
+      // removing its composer chip.
+      setBrowserMcpMention(patch.browserMcp === true);
       return;
     }
     if ("subagentMcp" in patch) {
-      // Per-thread capability flag — same bypass as browserMcp above.
-      setSubagentMcp(patch.subagentMcp === true);
+      // Per-draft mention flag — same bypass as browserMcp above.
+      setSubagentMcpMention(patch.subagentMcp === true);
+      return;
+    }
+    if ("chromeMcp" in patch) {
+      // Per-draft mention flag — same bypass as browserMcp above.
+      setChromeMcpMention(patch.chromeMcp === true);
       return;
     }
     if ("computerUse" in patch) {
-      // Per-thread capability flag — same bypass as browserMcp above.
-      setComputerUse(patch.computerUse === true);
+      // Per-draft mention flag — same bypass as browserMcp above.
+      setComputerUseMention(patch.computerUse === true);
       return;
     }
     if (!selectedAgentForConfig) return;
@@ -895,6 +913,35 @@ export function ThreadDraftView(props: {
     if (Object.keys(patch).length > 0) onConfigPatch(patch);
   };
 
+  // Effective launch flag for each composer MCP: a per-draft `@`-mention OR a
+  // persistent standing default whose scope the current provider/presentation
+  // actually supports. A persistent enable with a "none" scope must NOT set the
+  // config flag — otherwise the composer would show a phantom "on" state and the
+  // scope-reset effect there would fight it.
+  const hostPlatform = readBridge()?.platform;
+  const effectiveBrowserMcp =
+    browserMcpMention ||
+    (enabledMcpServers.browser === true &&
+      resolveMcpScope(selectedAgent.capabilities.browserMcpScope, presentationMode) !== "none");
+  const effectiveSubagentMcp =
+    subagentMcpMention ||
+    (enabledMcpServers.subagents === true &&
+      resolveMcpScope(selectedAgent.capabilities.subagentMcpScope, presentationMode) !== "none");
+  const effectiveChromeMcp =
+    chromeMcpMention ||
+    (enabledMcpServers.chrome === true &&
+      chromeMcpServer.getScope(selectedAgent.capabilities, presentationMode, project.location) !==
+        "none");
+  const effectiveComputerUse =
+    computerUseMention ||
+    (enabledMcpServers[COMPUTER_USE_MCP_ID] === true &&
+      getComputerUseScope(
+        selectedAgent.capabilities,
+        presentationMode,
+        project.location,
+        hostPlatform,
+      ) !== "none");
+
   return (
     <div
       ref={props.droppableRef}
@@ -964,9 +1011,10 @@ export function ThreadDraftView(props: {
               ...(approvalPolicy ? { approvalPolicy } : {}),
               ...(approvalsReviewer ? { approvalsReviewer } : {}),
               ...(sandboxMode ? { sandboxMode } : {}),
-              ...(browserMcp ? { browserMcp: true } : {}),
-              ...(subagentMcp ? { subagentMcp: true } : {}),
-              ...(computerUse ? { computerUse: true } : {}),
+              ...(effectiveBrowserMcp ? { browserMcp: true } : {}),
+              ...(effectiveSubagentMcp ? { subagentMcp: true } : {}),
+              ...(effectiveChromeMcp ? { chromeMcp: true } : {}),
+              ...(effectiveComputerUse ? { computerUse: true } : {}),
             }}
             compact={props.compact}
             paneCount={props.paneCount}

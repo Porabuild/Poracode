@@ -83,6 +83,12 @@ interface SharedSettingsState extends SharedSettings {
   setSearchExclude: (value: Record<string, boolean>) => void;
   setDisableCliHookPlugin: (value: boolean) => void;
   dismissHookInstallProposal: (key: string) => void;
+  /**
+   * Turn a composer MCP server on/off persistently, keyed by composer MCP id
+   * (`"browser"`, `"subagents"`, `"computer-use"`). Persisted like the other
+   * setters; consumed as the standing default for every new thread.
+   */
+  setMcpServerEnabled: (id: string, enabled: boolean) => void;
   setBrowserSetting: <K extends keyof SharedSettings["browser"]>(
     key: K,
     value: SharedSettings["browser"][K],
@@ -446,6 +452,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ dismissedHookInstallProposals: { ...current, [key]: true } });
     persistSettings(selectSharedSettings(get()));
   },
+  setMcpServerEnabled: (id, enabled) => {
+    const current = get().enabledMcpServers;
+    if ((current[id] ?? false) === enabled) return;
+    set({ enabledMcpServers: { ...current, [id]: enabled } });
+    persistSettings(selectSharedSettings(get()));
+  },
   setBrowserSetting: (key, value) => {
     const current = get().browser;
     if (current[key] === value) return;
@@ -716,6 +728,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     searchExclude: state.searchExclude,
     disableCliHookPlugin: state.disableCliHookPlugin,
     dismissedHookInstallProposals: state.dismissedHookInstallProposals,
+    enabledMcpServers: state.enabledMcpServers,
     notificationsEnabled: state.notificationsEnabled,
     notificationSound: state.notificationSound,
     notificationFilter: state.notificationFilter,

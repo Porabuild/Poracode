@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
+import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
 import type { SubagentMcpHttpConfig } from "@/supervisor/agents/subagentMcp";
 import {
   getGeminiPluginPaths,
@@ -134,6 +135,12 @@ const browserCfg: BrowserMcpHttpConfig = {
   headers: { Authorization: "Bearer browser-secret" },
 };
 
+const chromeCfg: ChromeMcpHttpConfig = {
+  url: "http://127.0.0.1:45679/mcp",
+  token: "chrome-secret",
+  headers: { Authorization: "Bearer chrome-secret" },
+};
+
 type McpSettings = {
   mcpServers?: Record<string, { httpUrl?: string; headers?: Record<string, string> }>;
 };
@@ -165,7 +172,7 @@ describe("syncGeminiSubagentMcpSettings", () => {
     expect(readSettings(settingsPath).mcpServers).toBeUndefined();
   });
 
-  it("coexists with the browser MCP entry (neither sync clobbers the other)", () => {
+  it("coexists with the browser and Chrome MCP entries", () => {
     const baseDir = makeBaseDir();
     const ctx = { envKind: "posix" as const, baseDir };
     const install = installGeminiPlugin(ctx);
@@ -175,6 +182,12 @@ describe("syncGeminiSubagentMcpSettings", () => {
 
     syncGeminiSubagentMcpSettings(ctx, subagentCfg);
     syncGeminiBrowserMcpSettings({ ...ctx, browserMcpEnabled: true }, browserCfg);
+    syncGeminiBrowserMcpSettings(
+      { ...ctx, chromeMcpEnabled: true },
+      undefined,
+      undefined,
+      chromeCfg,
+    );
 
     expect(readSettings(settingsPath).mcpServers).toEqual({
       subagents: {
@@ -187,10 +200,29 @@ describe("syncGeminiSubagentMcpSettings", () => {
         headers: browserCfg.headers,
         timeout: 30_000,
       },
+      chrome: {
+        httpUrl: chromeCfg.url,
+        headers: chromeCfg.headers,
+        timeout: 30_000,
+      },
     });
 
-    // Disabling the browser MCP leaves the subagents entry intact.
+    // Disabling one MCP leaves the other entries intact.
     syncGeminiBrowserMcpSettings({ ...ctx, browserMcpEnabled: false }, undefined);
+    expect(readSettings(settingsPath).mcpServers).toEqual({
+      subagents: {
+        httpUrl: subagentCfg.url,
+        headers: subagentCfg.headers,
+        timeout: 300_000,
+      },
+      chrome: {
+        httpUrl: chromeCfg.url,
+        headers: chromeCfg.headers,
+        timeout: 30_000,
+      },
+    });
+
+    syncGeminiBrowserMcpSettings({ ...ctx, chromeMcpEnabled: false });
     expect(readSettings(settingsPath).mcpServers).toEqual({
       subagents: {
         httpUrl: subagentCfg.url,

@@ -1,17 +1,24 @@
 /**
- * External-Chrome MCP wiring — the sibling of `../browserMcp`. Where
- * `browserMcp` points agents at the embedded browser panel, this points them at
- * the `chrome` Streamable-HTTP ingress that relays to the user's REAL Chrome via
- * the companion extension. The main process injects the URL + token at launch.
+ * External-Chrome MCP wiring — the sibling of `../browserMcp` and
+ * `../computerUseMcp`. Where `browserMcp` points agents at the embedded browser
+ * panel, this points them at the `chrome` Streamable-HTTP ingress that relays to
+ * the user's REAL Chrome via the companion extension. The main process injects
+ * the URL + token at launch. Wired per-thread across every provider (Claude SDK,
+ * Codex argv, ACP, Gemini/OpenCode plugins) and gated behind `config.chromeMcp`.
  *
- * Native (windows/posix) only for now: a WSL agent would need the in-distro
- * bridge reverse-proxy, matching the embedded browser MCP path.
+ * Native (windows/posix) only: a WSL agent would need the in-distro bridge
+ * reverse-proxy, matching the embedded browser MCP path — so WSL declines.
  */
 
 import { encodeThreadQuery, type McpThreadIdentity } from "@/shared/browserMcpThread";
 import type { BrowserMcpLocation } from "@/supervisor/agents/browserMcp";
 
+export type ChromeMcpLocation = BrowserMcpLocation;
+
 export const CHROME_MCP_SERVER_NAME = "chrome";
+
+export const CHROME_MCP_URL_ENV = "LIGHTCODE_CHROME_MCP_URL";
+export const CHROME_MCP_TOKEN_ENV = "LIGHTCODE_CHROME_MCP_TOKEN";
 
 export interface ChromeMcpHttpConfig {
   url: string;
@@ -20,14 +27,14 @@ export interface ChromeMcpHttpConfig {
 }
 
 export function readChromeMcpEnv(): { url: string; token: string } | null {
-  const url = process.env.LIGHTCODE_CHROME_MCP_URL;
-  const token = process.env.LIGHTCODE_CHROME_MCP_TOKEN;
+  const url = process.env[CHROME_MCP_URL_ENV];
+  const token = process.env[CHROME_MCP_TOKEN_ENV];
   if (!url || !token) return null;
   return { url, token };
 }
 
 export function resolveChromeMcpHttpConfig(
-  location: BrowserMcpLocation,
+  location: ChromeMcpLocation,
   identity?: McpThreadIdentity,
 ): ChromeMcpHttpConfig | null {
   const env = readChromeMcpEnv();
@@ -39,4 +46,28 @@ export function resolveChromeMcpHttpConfig(
     token: env.token,
     headers: { Authorization: `Bearer ${env.token}` },
   };
+}
+
+/**
+ * Resolve a ChromeMcpHttpConfig from an optional pre-resolved config or by
+ * falling back to the environment. Returns `undefined` when the config cannot
+ * be resolved (WSL without a launch-time config, or env vars absent).
+ *
+ * Shared guard used by every provider's `buildXxxChromeMcp*()` function.
+ */
+export function resolveOrFallbackChromeMcpConfig(
+  location: ChromeMcpLocation,
+  chromeMcp?: ChromeMcpHttpConfig,
+): ChromeMcpHttpConfig | undefined {
+  if (location.kind === "wsl" && !chromeMcp) return undefined;
+  return chromeMcp ?? resolveChromeMcpHttpConfig(location) ?? undefined;
+}
+
+export function resolveChromeMcpHttpConfigForLaunch(
+  location: ChromeMcpLocation,
+  enabled: boolean,
+  identity?: McpThreadIdentity,
+): ChromeMcpHttpConfig | undefined {
+  if (!enabled) return undefined;
+  return resolveChromeMcpHttpConfig(location, identity) ?? undefined;
 }

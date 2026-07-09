@@ -44,8 +44,14 @@ export interface ComputerUseWindowState {
   window: ComputerUseWindow;
 }
 
+export interface ComputerUseInteractiveResult {
+  ok: true;
+  mode: "interactive";
+  window?: ComputerUseWindow;
+}
+
 export interface ComputerUseDriver {
-  activateWindow(input: { window: ComputerUseWindow }): Promise<{ ok: true; mode: "interactive" }>;
+  activateWindow(input: { window: ComputerUseWindow }): Promise<ComputerUseInteractiveResult>;
   // Release any long-lived resources (e.g. the Windows persistent PowerShell
   // host). No-op for drivers that spawn a fresh process per call.
   dispose(): void;
@@ -55,14 +61,14 @@ export interface ComputerUseDriver {
     window: ComputerUseWindow;
     x?: number;
     y?: number;
-  }): Promise<{ ok: true; mode: "interactive" }>;
+  }): Promise<ComputerUseInteractiveResult>;
   drag(input: {
     from_x: number;
     from_y: number;
     to_x: number;
     to_y: number;
     window: ComputerUseWindow;
-  }): Promise<{ ok: true; mode: "interactive" }>;
+  }): Promise<ComputerUseInteractiveResult>;
   getWindow(input: { app?: string; id: number }): Promise<ComputerUseWindow>;
   getWindowState(input: {
     format?: "jpeg" | "png";
@@ -78,29 +84,19 @@ export interface ComputerUseDriver {
   }>;
   listApps(): Promise<ComputerUseApp[]>;
   listWindows(): Promise<ComputerUseWindow[]>;
-  performSecondaryAction(input: {
-    action: string;
-    element_index: number;
+  pressKey(input: {
+    key: string;
     window: ComputerUseWindow;
-  }): Promise<{ ok: true; mode: "interactive" }>;
-  pressKey(input: { key: string; window: ComputerUseWindow }): Promise<{
-    ok: true;
-    mode: "interactive";
-  }>;
+  }): Promise<ComputerUseInteractiveResult>;
   scroll(input: {
     scrollX: number;
     scrollY: number;
     window: ComputerUseWindow;
     x: number;
     y: number;
-  }): Promise<{ ok: true; mode: "interactive" }>;
-  setValue(input: {
-    element_index: number;
-    value: string;
+  }): Promise<ComputerUseInteractiveResult>;
+  typeText(input: {
+    text: string;
     window: ComputerUseWindow;
-  }): Promise<{ ok: true; mode: "interactive" }>;
-  typeText(input: { text: string; window: ComputerUseWindow }): Promise<{
-    ok: true;
-    mode: "interactive";
-  }>;
+  }): Promise<ComputerUseInteractiveResult>;
 }

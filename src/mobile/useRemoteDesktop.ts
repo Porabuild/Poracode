@@ -65,6 +65,7 @@ import {
   saveThreadSnapshot,
   setActiveDesktopId,
   shouldPersistThreadSnapshot,
+  updateDesktopPlatform,
   type StoredDesktop,
 } from "./storage";
 
@@ -281,7 +282,8 @@ export function useRemoteDesktop() {
   }, []);
 
   // Reused desktop components reach the paired desktop through the bridge
-  // shim; keep it pointed at the active connection.
+  // shim; keep it pointed at the active connection. Pass the host platform so
+  // Computer Use and other host-gated UI key off the desktop, not the phone.
   useEffect(() => {
     if (!activeDesktop) {
       setRemoteBridgeClient(null);
@@ -289,10 +291,16 @@ export function useRemoteDesktop() {
     }
     setRemoteBridgeClient(
       new RemoteDesktopClient(activeDesktop.endpoint, activeDesktop.accessToken),
+      activeDesktop.platform ?? null,
     );
     return () => setRemoteBridgeClient(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the connection identity
-  }, [activeDesktop?.desktopId, activeDesktop?.endpoint, activeDesktop?.accessToken]);
+  }, [
+    activeDesktop?.desktopId,
+    activeDesktop?.endpoint,
+    activeDesktop?.accessToken,
+    activeDesktop?.platform,
+  ]);
 
   useEffect(() => {
     const desktopCandidate = activeDesktop;
@@ -700,13 +708,24 @@ export function useRemoteDesktop() {
       // failure hide threads. Older desktops without the settings endpoint just
       // fall back to cached values.
       if (includeAuxiliary) {
-        const [statuses, desktopSettings] = await Promise.allSettled([
+        const [statuses, desktopSettings, environment] = await Promise.allSettled([
           client.agentStatuses(),
           client.settings(),
+          // Refresh host platform for existing pairings that predate the field
+          // (and keep it current if the user migrates the desktop OS).
+          client.environment(),
         ]);
         if (desktop.desktopId !== activeDesktopIdRef.current) return null;
         if (statuses.status === "fulfilled") applyAgentStatuses(statuses.value);
         if (desktopSettings.status === "fulfilled") applyDesktopSettings(desktopSettings.value);
+        if (environment.status === "fulfilled" && environment.value.platform) {
+          const platform = environment.value.platform;
+          if (desktop.platform !== platform) {
+            await updateDesktopPlatform(desktop.desktopId, platform).catch(() => undefined);
+            // Reload so the bridge effect picks up the new host platform.
+            await reloadDesktops(desktop.desktopId);
+          }
+        }
       }
       setSelectedThreadId((current) => current ?? firstThreadIdByRecency(next.threads) ?? null);
       // Only report a live connection when the socket is actually open. HTTP

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type {
   ComputerUseApp,
   ComputerUseDriver,
+  ComputerUseInteractiveResult,
   ComputerUseWindow,
   ComputerUseWindowState,
 } from "../mcp/types";
@@ -158,16 +159,45 @@ try { [void][LightcodeComputerUseNative]::SetProcessDpiAwarenessContext([IntPtr]
 
 $ASFW_ANY = [uint32]"0xFFFFFFFF"
 
-function Get-WindowObject([IntPtr]$hWnd) {
+# App-specific launch heuristics, consumed generically by the launch_app handler.
+# names:        leaf tokens (lowercase) that select this alias
+# tokenPattern: matched against the AUMID token of a shell:AppsFolder target to
+#               derive a friendly leaf name
+# leaf:         the friendly leaf name used when tokenPattern matches
+# targets:      extra Start-Process targets tried when the primary target yields
+#               no window (e.g. calc.exe redirects to the Store Calculator)
+# hints:        extra title / process-name hints for detecting the redirected window
+$launchAliases = @(
+  @{
+    names = @('calc', 'calculator')
+    tokenPattern = 'Calculator'
+    leaf = 'Calculator'
+    targets = @('shell:AppsFolder\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App', 'calculator:')
+    hints = @('Calculator', 'CalculatorApp')
+  },
+  @{
+    names = @('notepad')
+    tokenPattern = 'Notepad'
+    leaf = 'Notepad'
+    targets = @()
+    hints = @('Notepad')
+  }
+)
+
+function Get-WindowObject([IntPtr]$hWnd, [switch]$AllowHidden, [hashtable]$ProcessMap) {
   if (-not [LightcodeComputerUseNative]::IsWindow($hWnd)) { return $null }
-  if (-not [LightcodeComputerUseNative]::IsWindowVisible($hWnd)) { return $null }
+  if (-not $AllowHidden -and -not [LightcodeComputerUseNative]::IsWindowVisible($hWnd)) { return $null }
   $titleBuilder = [Text.StringBuilder]::new(512)
   [void][LightcodeComputerUseNative]::GetWindowText($hWnd, $titleBuilder, $titleBuilder.Capacity)
   $title = $titleBuilder.ToString()
   if ($title.Trim().Length -eq 0) { return $null }
   $procId = [uint32]0
   [void][LightcodeComputerUseNative]::GetWindowThreadProcessId($hWnd, [ref]$procId)
-  try { $process = Get-Process -Id ([int]$procId) -ErrorAction Stop } catch { $process = $null }
+  if ($null -ne $ProcessMap) {
+    $process = $ProcessMap[[int]$procId]
+  } else {
+    try { $process = Get-Process -Id ([int]$procId) -ErrorAction Stop } catch { $process = $null }
+  }
   $rect = New-Object LightcodeComputerUseNative+RECT
   [void][LightcodeComputerUseNative]::GetWindowRect($hWnd, [ref]$rect)
   $width = [Math]::Max(0, $rect.Right - $rect.Left)
@@ -186,10 +216,19 @@ function Get-WindowObject([IntPtr]$hWnd) {
   }
 }
 
+# Project a window record into the wire shape shared by every action response.
+# Field names and order are the serialized JSON contract — keep them stable.
+function Select-Window($w) {
+  [pscustomobject]@{ app = $w.app; id = $w.id; title = $w.title; x = $w.x; y = $w.y; width = $w.width; height = $w.height }
+}
+
 function Get-WindowList {
+  # Snapshot processes once per listing instead of one Get-Process -Id per window.
+  $processMap = @{}
+  foreach ($proc in (Get-Process)) { $processMap[[int]$proc.Id] = $proc }
   $items = New-Object System.Collections.Generic.List[object]
   foreach ($hWnd in [LightcodeComputerUseNative]::Windows()) {
-    $window = Get-WindowObject $hWnd
+    $window = Get-WindowObject $hWnd -ProcessMap $processMap
     if ($null -ne $window -and $window.width -gt 0 -and $window.height -gt 0) {
       $items.Add($window)
     }
@@ -197,18 +236,109 @@ function Get-WindowList {
   $items
 }
 
+function Window-MatchesApp($candidate, [string]$wantedApp) {
+  if (-not $wantedApp) { return $true }
+  if ([string]::Equals([string]$candidate.app, $wantedApp, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+  $wantedLeaf = [IO.Path]::GetFileNameWithoutExtension($wantedApp)
+  if (-not $wantedLeaf) { return $false }
+  if ([string]::Equals($candidate.displayName, $wantedLeaf, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+  if ($candidate.app -and [IO.Path]::GetFileNameWithoutExtension([string]$candidate.app) -ieq $wantedLeaf) { return $true }
+  return $false
+}
+
+function Recover-Window($req) {
+  $wantedApp = if ($req.app) { [string]$req.app } else { $null }
+  $wantedTitle = if ($req.title) { [string]$req.title } else { $null }
+  for ($recover = 0; $recover -lt 8; $recover++) {
+    $matches = New-Object System.Collections.Generic.List[object]
+    foreach ($candidate in (Get-WindowList)) {
+      if (-not (Window-MatchesApp $candidate $wantedApp)) { continue }
+      $matches.Add($candidate)
+    }
+    if ($matches.Count -gt 0) {
+      # Prefer exact-title matches when possible, then choose foreground/largest
+      # within that pool. WinUI apps can expose duplicate localized titles.
+      $pool = $matches
+      if ($wantedTitle) {
+        $titleMatches = New-Object System.Collections.Generic.List[object]
+        foreach ($candidate in $matches) {
+          if ([string]::Equals([string]$candidate.title, $wantedTitle, [StringComparison]::OrdinalIgnoreCase)) {
+            $titleMatches.Add($candidate)
+          }
+        }
+        if ($titleMatches.Count -gt 0) { $pool = $titleMatches }
+      }
+      $fg = [LightcodeComputerUseNative]::GetForegroundWindow()
+      foreach ($candidate in $pool) {
+        if ([IntPtr]([int64]$candidate.id) -eq $fg) { return $candidate }
+      }
+      $best = $null
+      $bestArea = -1
+      foreach ($candidate in $pool) {
+        $area = [int]$candidate.width * [int]$candidate.height
+        if ($area -gt $bestArea) { $best = $candidate; $bestArea = $area }
+      }
+      return $best
+    }
+    Start-Sleep -Milliseconds 100
+  }
+  return $null
+}
+
 function Require-Window($req) {
   $hWnd = [IntPtr]([int64]$req.id)
-  $window = Get-WindowObject $hWnd
-  if ($null -eq $window) { throw "Window is no longer available." }
-  if ($req.app -and $window.app -ne [string]$req.app) {
-    throw "Window app no longer matches the requested app."
+  # Exact id: allow temporarily-hidden windows (WinUI tab shells often flip
+  # visibility during activation) so we can still activate/recover them.
+  $window = Get-WindowObject $hWnd -AllowHidden
+  if ($null -ne $window) {
+    if ($req.app -and -not (Window-MatchesApp $window ([string]$req.app))) {
+      throw "Window app no longer matches the requested app."
+    }
+    return $window
   }
-  $window
+  $recovered = Recover-Window $req
+  if ($null -ne $recovered) { return $recovered }
+  throw "Window is no longer available. Call list_windows or get_window for a fresh id and retry."
+}
+
+function Try-SetForeground([IntPtr]$hWnd) {
+  [void][LightcodeComputerUseNative]::AllowSetForegroundWindow($ASFW_ANY)
+  $fg = [LightcodeComputerUseNative]::GetForegroundWindow()
+  $fgPid = [uint32]0
+  $fgThread = [LightcodeComputerUseNative]::GetWindowThreadProcessId($fg, [ref]$fgPid)
+  $cur = [LightcodeComputerUseNative]::GetCurrentThreadId()
+  $attached = $false
+  if ($fgThread -ne $cur) { $attached = [LightcodeComputerUseNative]::AttachThreadInput($fgThread, $cur, $true) }
+  try {
+    [void][LightcodeComputerUseNative]::BringWindowToTop($hWnd)
+    [void][LightcodeComputerUseNative]::SetForegroundWindow($hWnd)
+  } finally {
+    if ($attached) { [void][LightcodeComputerUseNative]::AttachThreadInput($fgThread, $cur, $false) }
+  }
+}
+
+function Find-WindowByProcessId([uint32]$targetPid, [int64]$preferId) {
+  $fallback = $null
+  $fg = [LightcodeComputerUseNative]::GetForegroundWindow()
+  foreach ($candidateHwnd in [LightcodeComputerUseNative]::Windows()) {
+    $wPid = [uint32]0
+    [void][LightcodeComputerUseNative]::GetWindowThreadProcessId($candidateHwnd, [ref]$wPid)
+    if ($wPid -ne $targetPid) { continue }
+    $candidate = Get-WindowObject $candidateHwnd -AllowHidden
+    if ($null -eq $candidate -or $candidate.width -le 0 -or $candidate.height -le 0) { continue }
+    if ([int64]$candidate.id -eq $preferId) { return $candidate }
+    if ($candidateHwnd -eq $fg) { return $candidate }
+    if ($null -eq $fallback -and [LightcodeComputerUseNative]::IsWindowVisible($candidateHwnd)) {
+      $fallback = $candidate
+    }
+  }
+  return $fallback
 }
 
 function Activate-Window($window) {
   $hWnd = [IntPtr]([int64]$window.id)
+  $ownerPid = [uint32]0
+  [void][LightcodeComputerUseNative]::GetWindowThreadProcessId($hWnd, [ref]$ownerPid)
   # SW_RESTORE (9) un-maximizes a maximized window, which would move/resize it
   # AFTER the agent's screenshot and break coordinate math. Only restore when the
   # window is actually minimized; otherwise SW_SHOW (5) leaves geometry untouched.
@@ -219,34 +349,70 @@ function Activate-Window($window) {
     [void][LightcodeComputerUseNative]::ShowWindow($hWnd, 5)
   }
   $activated = $false
+  $usedAlt = $false
   for ($attempt = 0; $attempt -lt 3; $attempt++) {
-    if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true; break }
-    [void][LightcodeComputerUseNative]::AllowSetForegroundWindow($ASFW_ANY)
-    # An alt-key nudge releases the foreground lock so SetForegroundWindow is honored.
-    [LightcodeComputerUseNative]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero)
-    [LightcodeComputerUseNative]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
-    $fg = [LightcodeComputerUseNative]::GetForegroundWindow()
-    $fgPid = [uint32]0
-    $fgThread = [LightcodeComputerUseNative]::GetWindowThreadProcessId($fg, [ref]$fgPid)
-    $cur = [LightcodeComputerUseNative]::GetCurrentThreadId()
-    $attached = $false
-    if ($fgThread -ne $cur) { $attached = [LightcodeComputerUseNative]::AttachThreadInput($fgThread, $cur, $true) }
-    try {
-      [void][LightcodeComputerUseNative]::BringWindowToTop($hWnd)
-      [void][LightcodeComputerUseNative]::SetForegroundWindow($hWnd)
-    } finally {
-      if ($attached) { [void][LightcodeComputerUseNative]::AttachThreadInput($fgThread, $cur, $false) }
+    # Some WinUI/Store apps destroy the HWND mid-activation and recreate it.
+    # Re-resolve by owning PID before each attempt so we don't chase a dead handle.
+    if (-not [LightcodeComputerUseNative]::IsWindow($hWnd)) {
+      $replacement = Find-WindowByProcessId $ownerPid ([int64]$window.id)
+      if ($null -eq $replacement) { break }
+      $hWnd = [IntPtr]([int64]$replacement.id)
+      $window = $replacement
     }
+    if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true; break }
+    # Prefer AttachThreadInput alone. The Alt nudge releases the foreground lock
+    # but leaves many apps (WinUI / Store Notepad) in menu mode so type_text is
+    # swallowed by the menu bar — only use it as a fallback.
+    Try-SetForeground $hWnd
     Start-Sleep -Milliseconds 60
     if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true; break }
+    $usedAlt = $true
+    # KEYEVENTF_EXTENDEDKEY (1) matches the documented Alt unlock sequence.
+    [LightcodeComputerUseNative]::keybd_event(0x12, 0, 1, [UIntPtr]::Zero)
+    [LightcodeComputerUseNative]::keybd_event(0x12, 0, 3, [UIntPtr]::Zero)
+    Try-SetForeground $hWnd
+    Start-Sleep -Milliseconds 60
+    if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true; break }
+  }
+  # Final HWND recovery: activation may have succeeded on a replacement window
+  # that became foreground under the same process.
+  if (-not [LightcodeComputerUseNative]::IsWindow($hWnd) -or -not $activated) {
+    $replacement = Find-WindowByProcessId $ownerPid ([int64]$window.id)
+    if ($null -ne $replacement) {
+      $hWnd = [IntPtr]([int64]$replacement.id)
+      $window = $replacement
+      if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) {
+        $activated = $true
+      } elseif (-not $activated) {
+        Try-SetForeground $hWnd
+        Start-Sleep -Milliseconds 60
+        if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true }
+      }
+    }
   }
   if (-not $activated) {
     throw "Focus did not reach the target window. The desktop may be locked or another secure surface may be active."
   }
+  if ($usedAlt) {
+    # Dismiss menu mode left by the Alt nudge so subsequent typing lands in the
+    # document/control instead of the File menu accelerator.
+    [LightcodeComputerUseNative]::Key(0x1B, $false)
+    [LightcodeComputerUseNative]::Key(0x1B, $true)
+    Start-Sleep -Milliseconds 40
+  }
   # Re-capture the window rect AFTER activation: show/restore may have changed the
-  # window geometry, so return the fresh object for coordinate math.
-  $fresh = Get-WindowObject $hWnd
-  if ($null -eq $fresh) { return $window }
+  # window geometry. AllowHidden covers WinUI shells that briefly flip visibility
+  # while becoming foreground; if the original HWND is gone, recover by PID/FG.
+  $fresh = $null
+  if ([LightcodeComputerUseNative]::IsWindow($hWnd)) {
+    $fresh = Get-WindowObject $hWnd -AllowHidden
+  }
+  if ($null -eq $fresh) {
+    $fresh = Find-WindowByProcessId $ownerPid ([int64]$window.id)
+  }
+  if ($null -eq $fresh) {
+    throw "Window is no longer available (destroyed during activation). Call list_windows or get_window for a fresh id and retry."
+  }
   return $fresh
 }
 
@@ -462,7 +628,7 @@ $result = $null
 switch ([string]$request.action) {
   "list_windows" {
     $result = @(Get-WindowList | ForEach-Object {
-      [pscustomobject]@{ app = $_.app; id = $_.id; title = $_.title; x = $_.x; y = $_.y; width = $_.width; height = $_.height }
+      Select-Window $_
     })
   }
   "list_apps" {
@@ -474,19 +640,19 @@ switch ([string]$request.action) {
         displayName = $first.displayName
         isRunning = $true
         windows = @($_.Group | ForEach-Object {
-          [pscustomobject]@{ app = $_.app; id = $_.id; title = $_.title; x = $_.x; y = $_.y; width = $_.width; height = $_.height }
+          Select-Window $_
         })
       }
     })
   }
   "get_window" {
     $window = Require-Window $request.input
-    $result = [pscustomobject]@{ app = $window.app; id = $window.id; title = $window.title; x = $window.x; y = $window.y; width = $window.width; height = $window.height }
+    $result = Select-Window $window
   }
   "get_window_state" {
     $window = Require-Window $request.input.window
     $screenshots = @()
-    $notes = @("Window listing and screenshots are passive. Input actions switch to interactive mode and activate the target window.")
+    $notes = @("Window listing and screenshots are passive and do not steal focus. Input actions switch to interactive mode, bring the target window to the foreground, and take exclusive control of the mouse/keyboard.")
     if ($request.input.include_screenshot -ne $false) {
       $maxDimension = if ($null -ne $request.input.max_dimension) { [int]$request.input.max_dimension } else { 1280 }
       $format = if ($request.input.format) { [string]$request.input.format } else { "jpeg" }
@@ -514,7 +680,7 @@ switch ([string]$request.action) {
       $notes += "Detailed UI Automation text is not available in this Lightcode helper yet."
     }
     $result = [pscustomobject]@{
-      window = [pscustomobject]@{ app = $window.app; id = $window.id; title = $window.title; x = $window.x; y = $window.y; width = $window.width; height = $window.height }
+      window = Select-Window $window
       accessibility = $accessibility
       screenshots = $screenshots
       mode = "passive"
@@ -524,7 +690,11 @@ switch ([string]$request.action) {
   "activate_window" {
     $window = Require-Window $request.input.window
     $window = Activate-Window $window
-    $result = [pscustomobject]@{ ok = $true; mode = "interactive" }
+    $result = [pscustomobject]@{
+      ok = $true
+      mode = "interactive"
+      window = Select-Window $window
+    }
   }
   "click" {
     $window = Require-Window $request.input.window
@@ -533,19 +703,31 @@ switch ([string]$request.action) {
     $y = [int]$request.input.y
     [void][LightcodeComputerUseNative]::SetCursorPos([int]$window.x + $x, [int]$window.y + $y)
     Mouse-Click $request.input.mouse_button $request.input.click_count
-    $result = [pscustomobject]@{ ok = $true; mode = "interactive" }
+    $result = [pscustomobject]@{
+      ok = $true
+      mode = "interactive"
+      window = Select-Window $window
+    }
   }
   "type_text" {
     $window = Require-Window $request.input.window
     $window = Activate-Window $window
     [LightcodeComputerUseNative]::SendUnicodeText([string]$request.input.text)
-    $result = [pscustomobject]@{ ok = $true; mode = "interactive" }
+    $result = [pscustomobject]@{
+      ok = $true
+      mode = "interactive"
+      window = Select-Window $window
+    }
   }
   "press_key" {
     $window = Require-Window $request.input.window
     $window = Activate-Window $window
     Press-Chord $request.input.key
-    $result = [pscustomobject]@{ ok = $true; mode = "interactive" }
+    $result = [pscustomobject]@{
+      ok = $true
+      mode = "interactive"
+      window = Select-Window $window
+    }
   }
   "scroll" {
     $window = Require-Window $request.input.window
@@ -557,7 +739,11 @@ switch ([string]$request.action) {
     if ([int]$request.input.scrollX -ne 0) {
       [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_HWHEEL, 0, 0, [uint32]([int]$request.input.scrollX), [UIntPtr]::Zero)
     }
-    $result = [pscustomobject]@{ ok = $true; mode = "interactive" }
+    $result = [pscustomobject]@{
+      ok = $true
+      mode = "interactive"
+      window = Select-Window $window
+    }
   }
   "drag" {
     $window = Require-Window $request.input.window
@@ -578,51 +764,124 @@ switch ([string]$request.action) {
         try { [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_LEFTUP, 0, 0, 0, [UIntPtr]::Zero) } catch {}
       }
     }
-    $result = [pscustomobject]@{ ok = $true; mode = "interactive" }
+    $result = [pscustomobject]@{
+      ok = $true
+      mode = "interactive"
+      window = Select-Window $window
+    }
   }
   "launch_app" {
     $app = [string]$request.input.app
     if ($app.Trim().Length -eq 0) { throw "app is required" }
     # Defense-in-depth: refuse UNC paths and URL schemes so launch_app can't pull
-    # a remote payload or hand off to a protocol handler.
+    # a remote payload or hand off to a protocol handler. shell:AppsFolder is an
+    # explicit allow-listed exception for Store/UWP aliases (calc, etc.); drive
+    # paths such as C:\Windows\System32\notepad.exe are still allowed.
+    # Mirrored in validateWindowsLaunchAppInput on the Node side — keep in sync.
     if ($app -match '^\\\\') { throw "UNC paths are not allowed for launch_app." }
-    if ($app -match '^[A-Za-z][A-Za-z0-9+.\-]*://') { throw "URL schemes are not allowed for launch_app." }
-    $proc = Start-Process -FilePath $app -PassThru
-    $window = $null
-    if ($proc -and $proc.Id) {
-      $targetPid = [uint32]$proc.Id
-      # Start-Process returns before the window exists; poll (bounded ~4s) for a
-      # visible, titled top-level window owned by the new process.
-      $deadline = (Get-Date).AddSeconds(4)
-      while ((Get-Date) -lt $deadline -and $null -eq $window) {
-        foreach ($hWnd in [LightcodeComputerUseNative]::Windows()) {
-          $wPid = [uint32]0
-          [void][LightcodeComputerUseNative]::GetWindowThreadProcessId($hWnd, [ref]$wPid)
-          if ($wPid -eq $targetPid) {
-            $candidate = Get-WindowObject $hWnd
-            if ($null -ne $candidate -and $candidate.width -gt 0 -and $candidate.height -gt 0) {
-              $window = $candidate
-              break
-            }
-          }
-        }
-        if ($null -eq $window) { Start-Sleep -Milliseconds 150 }
+    $isShellAppsFolder = $app -match '(?i)^shell:AppsFolder\\'
+    $isDrivePath = $app -match '^[A-Za-z]:[\\/]'
+    if (-not $isShellAppsFolder -and -not $isDrivePath -and $app -match '^[A-Za-z][A-Za-z0-9+.\-]*:') {
+      throw "URL schemes are not allowed for launch_app."
+    }
+    if (-not $isShellAppsFolder -and -not $isDrivePath -and $app -match '[\\/]') {
+      throw "Relative paths are not allowed for launch_app."
+    }
+    # Snapshot existing windows so we can detect a newly appeared one when the
+    # launched stub process exits / redirects (e.g. System32\notepad.exe → Store
+    # Notepad, or calc.exe → CalculatorApp under a different PID/path).
+    $beforeIds = New-Object 'System.Collections.Generic.HashSet[int64]'
+    foreach ($existing in (Get-WindowList)) { [void]$beforeIds.Add([int64]$existing.id) }
+    $leaf = if ($isShellAppsFolder) {
+      # shell:AppsFolder\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App → Calculator
+      $token = ($app -split '\\')[-1]
+      $aliasLeaf = $null
+      foreach ($alias in $launchAliases) {
+        if ($token -match $alias.tokenPattern) { $aliasLeaf = $alias.leaf; break }
+      }
+      if ($aliasLeaf) { $aliasLeaf } else { ($token -split '[_.!]')[0] }
+    } else {
+      [IO.Path]::GetFileNameWithoutExtension($app)
+    }
+    # Extra launch targets and title / process-name hints for aliases where
+    # Start-Process alone often fails to resolve to a window (Store redirects,
+    # e.g. calc → CalculatorApp). Declared once in $launchAliases at the top.
+    $launchTargets = New-Object System.Collections.Generic.List[string]
+    $launchTargets.Add($app)
+    $titleHints = New-Object System.Collections.Generic.List[string]
+    if ($leaf) {
+      $titleHints.Add($leaf)
+      foreach ($alias in $launchAliases) {
+        if ($alias.names -notcontains $leaf.ToLowerInvariant()) { continue }
+        foreach ($aliasTarget in $alias.targets) { $launchTargets.Add($aliasTarget) }
+        foreach ($aliasHint in $alias.hints) { $titleHints.Add($aliasHint) }
+        break
       }
     }
+
+    function Find-LaunchedWindow([uint32]$targetPid) {
+      foreach ($hWnd in [LightcodeComputerUseNative]::Windows()) {
+        # Cheap pre-filter: resolve pid + newness from the handle alone and skip
+        # windows that can never match before building the full window object.
+        $wPid = [uint32]0
+        [void][LightcodeComputerUseNative]::GetWindowThreadProcessId($hWnd, [ref]$wPid)
+        $isNew = -not $beforeIds.Contains([int64]$hWnd)
+        $pidMatch = ($targetPid -ne 0 -and $wPid -eq $targetPid)
+        if (-not $isNew -and -not $pidMatch) { continue }
+        $candidate = Get-WindowObject $hWnd
+        if ($null -eq $candidate -or $candidate.width -le 0 -or $candidate.height -le 0) { continue }
+        $hintMatch = $false
+        if ($isNew) {
+          foreach ($hint in $titleHints) {
+            if (
+              ($candidate.title -and $candidate.title -match [regex]::Escape($hint)) -or
+              ($candidate.displayName -and [string]::Equals($candidate.displayName, $hint, [StringComparison]::OrdinalIgnoreCase)) -or
+              ($candidate.app -and [IO.Path]::GetFileNameWithoutExtension([string]$candidate.app) -ieq $hint)
+            ) { $hintMatch = $true; break }
+          }
+        }
+        if ($pidMatch -or $hintMatch) { return $candidate }
+      }
+      return $null
+    }
+
+    $window = $null
+    $anyLaunchAttempted = $false
+    foreach ($target in $launchTargets) {
+      $proc = $null
+      try {
+        $isShellOrProtocol = (
+          $target -match '(?i)^shell:AppsFolder\\' -or
+          $target -match '^[A-Za-z][A-Za-z0-9+.\-]*:'
+        ) -and ($target -notmatch '^[A-Za-z]:\\')
+        if ($isShellOrProtocol) {
+          Start-Process -FilePath $target -ErrorAction Stop | Out-Null
+        } else {
+          $proc = Start-Process -FilePath $target -PassThru -ErrorAction Stop
+        }
+        $anyLaunchAttempted = $true
+      } catch {
+        continue
+      }
+      $targetPid = if ($proc -and $proc.Id) { [uint32]$proc.Id } else { [uint32]0 }
+      # Per-target poll (~3s). If the stub starts but no window appears (common for
+      # calc.exe → Store Calculator), fall through to the next alias.
+      $deadline = (Get-Date).AddSeconds(3)
+      while ((Get-Date) -lt $deadline -and $null -eq $window) {
+        $window = Find-LaunchedWindow $targetPid
+        if ($null -eq $window) { Start-Sleep -Milliseconds 150 }
+      }
+      if ($null -ne $window) { break }
+    }
+    if (-not $anyLaunchAttempted) { throw "Unable to launch app: $app" }
     if ($null -ne $window) {
       $result = [pscustomobject]@{
         ok = $true
-        window = [pscustomobject]@{ app = $window.app; id = $window.id; title = $window.title; x = $window.x; y = $window.y; width = $window.width; height = $window.height }
+        window = Select-Window $window
       }
     } else {
-      $result = [pscustomobject]@{ ok = $true; window = $null; note = "App launched but no window became available within the timeout." }
+      $result = [pscustomobject]@{ ok = $true; window = $null; note = "App launched but no window became available within the timeout. Call list_windows to find it." }
     }
-  }
-  "set_value" {
-    throw "set_value is not supported yet; click or focus the target field, then use type_text."
-  }
-  "perform_secondary_action" {
-    throw "perform_secondary_action is not supported yet; use keyboard navigation or coordinate input."
   }
   default {
     throw "Unknown action: $($request.action)"
@@ -847,6 +1106,21 @@ class PersistentPowerShellHost {
   }
 }
 
+// Defense-in-depth: mirrored in the PowerShell helper's launch_app validation
+// across the process boundary — keep both sides in sync.
+export function validateWindowsLaunchAppInput(app: string): void {
+  if (app.trim().length === 0) throw new Error("app is required");
+  if (/^\\\\/.test(app)) throw new Error("UNC paths are not allowed for launch_app.");
+  const isShellAppsFolder = /^shell:AppsFolder\\/i.test(app);
+  const isDrivePath = /^[A-Za-z]:[\\/]/.test(app);
+  if (!isShellAppsFolder && !isDrivePath && /^[A-Za-z][A-Za-z0-9+.-]*:/.test(app)) {
+    throw new Error("URL schemes are not allowed for launch_app.");
+  }
+  if (!isShellAppsFolder && !isDrivePath && /[\\/]/.test(app)) {
+    throw new Error("Relative paths are not allowed for launch_app.");
+  }
+}
+
 function normalizeArray<T>(value: T | T[] | null | undefined): T[] {
   if (Array.isArray(value)) return value;
   return value == null ? [] : [value];
@@ -883,7 +1157,7 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     return this.host.request("get_window_state", input);
   }
 
-  activateWindow(input: { window: ComputerUseWindow }): Promise<{ ok: true; mode: "interactive" }> {
+  activateWindow(input: { window: ComputerUseWindow }): Promise<ComputerUseInteractiveResult> {
     return this.host.request("activate_window", input);
   }
 
@@ -893,21 +1167,21 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     window: ComputerUseWindow;
     x?: number;
     y?: number;
-  }): Promise<{ ok: true; mode: "interactive" }> {
+  }): Promise<ComputerUseInteractiveResult> {
     return this.host.request("click", input);
   }
 
-  typeText(input: { text: string; window: ComputerUseWindow }): Promise<{
-    ok: true;
-    mode: "interactive";
-  }> {
+  typeText(input: {
+    text: string;
+    window: ComputerUseWindow;
+  }): Promise<ComputerUseInteractiveResult> {
     return this.host.request("type_text", input);
   }
 
-  pressKey(input: { key: string; window: ComputerUseWindow }): Promise<{
-    ok: true;
-    mode: "interactive";
-  }> {
+  pressKey(input: {
+    key: string;
+    window: ComputerUseWindow;
+  }): Promise<ComputerUseInteractiveResult> {
     return this.host.request("press_key", input);
   }
 
@@ -917,7 +1191,7 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     window: ComputerUseWindow;
     x: number;
     y: number;
-  }): Promise<{ ok: true; mode: "interactive" }> {
+  }): Promise<ComputerUseInteractiveResult> {
     return this.host.request("scroll", input);
   }
 
@@ -927,7 +1201,7 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     to_x: number;
     to_y: number;
     window: ComputerUseWindow;
-  }): Promise<{ ok: true; mode: "interactive" }> {
+  }): Promise<ComputerUseInteractiveResult> {
     return this.host.request("drag", input);
   }
 
@@ -936,22 +1210,7 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     window?: ComputerUseWindow | null;
     note?: string;
   }> {
+    validateWindowsLaunchAppInput(input.app);
     return this.host.request("launch_app", input);
-  }
-
-  setValue(input: {
-    element_index: number;
-    value: string;
-    window: ComputerUseWindow;
-  }): Promise<{ ok: true; mode: "interactive" }> {
-    return this.host.request("set_value", input);
-  }
-
-  performSecondaryAction(input: {
-    action: string;
-    element_index: number;
-    window: ComputerUseWindow;
-  }): Promise<{ ok: true; mode: "interactive" }> {
-    return this.host.request("perform_secondary_action", input);
   }
 }

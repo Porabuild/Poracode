@@ -30,6 +30,18 @@ describe("Computer Use MCP provider configs", () => {
     });
   });
 
+  it("tags the endpoint with the owning thread identity", () => {
+    process.env.LIGHTCODE_COMPUTER_USE_MCP_URL = "http://127.0.0.1:65094";
+    process.env.LIGHTCODE_COMPUTER_USE_MCP_TOKEN = "host-token";
+
+    expect(
+      resolveComputerUseMcpHttpConfigForLaunch(windowsLocation, true, {
+        threadId: "thread-1",
+        title: "Desktop task",
+      })?.url,
+    ).toBe("http://127.0.0.1:65094/mcp?thread=thread-1&title=Desktop%20task");
+  });
+
   it("uses the same MCP server shape for each provider adapter", () => {
     expect(buildAcpComputerUseMcpServers(windowsLocation, true, computerUseMcp)).toEqual([
       {

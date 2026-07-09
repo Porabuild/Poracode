@@ -1,10 +1,14 @@
-export { MentionInput, type MentionInputHandle } from "./MentionInput";
+export { MentionInput, type MentionInputHandle, type McpMentionItem } from "./MentionInput";
 export { AttachmentBar, ComputerUseChip, McpChip } from "./AttachmentBar";
 export { ComposerAddMenu, type ComposerMcpMenuItem } from "./ComposerAddMenu";
+export { getComputerUseScope } from "./computerUseScope";
 export {
   browserMcpServer,
+  chromeMcpServer,
   composerMcpServers,
+  COMPUTER_USE_MCP_ID,
   mcpTogglePatch,
+  resolveMcpScope,
   subagentMcpServer,
   type ComposerMcpConfigKey,
   type ComposerMcpServerDescriptor,

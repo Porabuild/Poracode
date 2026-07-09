@@ -1,19 +1,19 @@
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { Globe, Users, type LucideIcon } from "lucide-react";
+import { AppWindow, Globe, Users, type LucideIcon } from "lucide-react";
 import type {
   AgentCapability,
   ComposerMcpScope,
   ComposerMcpScopes,
+  ProjectLocation,
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
 
 /**
- * Registry of composer MCP toggles. Adding a third MCP server means appending
- * one descriptor here — the "+" add menu (`ComposerAddMenu`), the enabled chips
- * (`McpChip`), and the draft/active composers all iterate this list, so no new
- * per-MCP menu/chip code is needed.
+ * Registry of composer MCP toggles. Adding a server means appending one
+ * descriptor here — the "+" add menu (`ComposerAddMenu`), the enabled chips
+ * (`McpChip`), and the draft/active composers all iterate this list.
  *
  * Labels/hints are lazy `msg` descriptors (module-level macros must use `msg`,
  * not `t`) resolved to strings at render time via `useLingui` — see the
@@ -23,7 +23,7 @@ import type {
 export type { ComposerMcpScope };
 
 /** `ThreadConfig` keys that hold the per-thread enable flag for each MCP. */
-export type ComposerMcpConfigKey = "browserMcp" | "subagentMcp";
+export type ComposerMcpConfigKey = "browserMcp" | "subagentMcp" | "chromeMcp";
 
 /**
  * Resolve an adapter-declared per-presentation scope pair to the active
@@ -31,7 +31,7 @@ export type ComposerMcpConfigKey = "browserMcp" | "subagentMcp";
  * structured (GUI) runtimes bake MCP config at session start ("launch"),
  * terminal TUIs have no per-thread gating point ("none").
  */
-function resolveMcpScope(
+export function resolveMcpScope(
   scopes: ComposerMcpScopes | undefined,
   presentationMode: ThreadPresentationMode,
 ): ComposerMcpScope {
@@ -42,7 +42,7 @@ function resolveMcpScope(
 }
 
 export interface ComposerMcpServerDescriptor {
-  id: "browser" | "subagents";
+  id: "browser" | "subagents" | "chrome";
   configKey: ComposerMcpConfigKey;
   icon: LucideIcon;
   /** Menu row + chip label. */
@@ -54,6 +54,7 @@ export interface ComposerMcpServerDescriptor {
   getScope: (
     capabilities: AgentCapability,
     presentationMode: ThreadPresentationMode,
+    projectLocation?: ProjectLocation,
   ) => ComposerMcpScope;
 }
 
@@ -79,10 +80,31 @@ export const subagentMcpServer: ComposerMcpServerDescriptor = {
     resolveMcpScope(capabilities.subagentMcpScope, presentationMode),
 };
 
+export const chromeMcpServer: ComposerMcpServerDescriptor = {
+  id: "chrome",
+  configKey: "chromeMcp",
+  icon: AppWindow,
+  label: msg`Chrome`,
+  enabledTitle: msg`Chrome MCP enabled for this thread`,
+  disableLabel: msg`Disable Chrome MCP`,
+  getScope: (capabilities, presentationMode, projectLocation) =>
+    projectLocation?.kind === "wsl"
+      ? "none"
+      : resolveMcpScope(capabilities.chromeMcpScope, presentationMode),
+};
+
 export const composerMcpServers: readonly ComposerMcpServerDescriptor[] = [
   browserMcpServer,
   subagentMcpServer,
+  chromeMcpServer,
 ];
+
+/**
+ * Persistent-enablement key for Computer Use. It is not a registry descriptor
+ * (its gating lives in `getComputerUseScope`), but it shares the same
+ * `enabledMcpServers` map, so it needs a stable id alongside the registry ones.
+ */
+export const COMPUTER_USE_MCP_ID = "computer-use";
 
 /**
  * Build a `ThreadConfig` patch that flips one MCP toggle. Typed on the shared

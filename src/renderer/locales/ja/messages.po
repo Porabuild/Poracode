@@ -1012,6 +1012,7 @@ msgstr "アバターの色：{color}"
 #: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "戻る"
@@ -1179,8 +1180,8 @@ msgid "Browser is open in a separate window"
 msgstr "ブラウザは別のウィンドウで開いています"
 
 #: src/renderer/components/composer/MentionPopover.tsx
-msgid "Browser MCP"
-msgstr "ブラウザMCP"
+#~ msgid "Browser MCP"
+#~ msgstr "ブラウザMCP"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Browser MCP enabled for OpenCode"
@@ -1437,6 +1438,14 @@ msgstr "Poracode とブラウザのポップアップからのリンクを Porac
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
 msgstr "ワークツリーのベースフォルダーを選択"
+
+#: src/renderer/components/composer/composerMcpServers.ts
+msgid "Chrome"
+msgstr "Chrome"
+
+#: src/renderer/components/composer/composerMcpServers.ts
+msgid "Chrome MCP enabled for this thread"
+msgstr "このスレッドに対して Chrome MCP が有効になっています"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -1878,13 +1887,30 @@ msgstr "コンポーザーの操作"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/composer/MentionPopover.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Computer Use"
 msgstr "コンピュータ操作"
 
+#: src/renderer/components/composer/ComputerUseOverlay.tsx
+#~ msgid "Computer Use can take over the desktop. Don't use this machine while the agent is clicking or typing."
+#~ msgstr "Computer Use はデスクトップを占有することがあります。エージェントがクリックや入力をしている間は、このマシンを使わないでください。"
+
+#: src/renderer/components/composer/ComputerUseOverlay.tsx
+#~ msgid "Computer Use controls the paired desktop. Don't use that machine while the agent is clicking or typing."
+#~ msgstr "Computer Use はペアリングしたデスクトップを操作します。エージェントがクリックや入力をしている間は、そのマシンを使わないでください。"
+
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled for this thread"
-msgstr "このスレッドに対してコンピュータ操作が有効になっています"
+msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+msgstr "Computer Use が有効です — ペアリングしたデスクトップを操作します。エージェントが操作中はそのマシンを使わないでください"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+msgstr "Computer Use が有効です — インタラクティブ操作はデスクトップを占有します。エージェントが操作中はマシンを使わないでください"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled for this thread"
+#~ msgstr "このスレッドに対してコンピュータ操作が有効になっています"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -2009,6 +2035,10 @@ msgstr "...で続行"
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "Control which files appear in the @file mention search. Per-project overrides live in each project's settings."
 msgstr "@file メンション検索に表示されるファイルを制御します。プロジェクトごとのオーバーライドは、各プロジェクトの設定に反映されます。"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Controls the paired desktop while the agent clicks or types"
+msgstr "エージェントがクリックや入力をしている間、ペアリングしたデスクトップを操作します"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -2470,6 +2500,10 @@ msgstr "{tierLabel}の推論レベルを無効化"
 msgid "Disable Browser MCP"
 msgstr "ブラウザMCPを無効にする"
 
+#: src/renderer/components/composer/composerMcpServers.ts
+msgid "Disable Chrome MCP"
+msgstr "Chrome MCPを無効にする"
+
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
@@ -2711,6 +2745,10 @@ msgstr "有効"
 #: src/mobile/settingsSections.ts
 msgid "Enabled agents, model visibility and order"
 msgstr "有効なエージェント、モデルの表示と順序"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Enabled servers stay on for new threads"
+msgstr "有効なサーバーは新しいスレッドでも有効なままです"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
@@ -3847,6 +3885,11 @@ msgstr "最大化する"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "ブラウザを最大化する"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "MCP server"
+msgstr "MCPサーバー"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -6943,6 +6986,10 @@ msgstr "Tailscale URL"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Take Screenshot"
 msgstr "スクリーンショットを撮る"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Takes over the desktop while the agent clicks or types"
+msgstr "エージェントがクリックや入力をしている間、デスクトップを占有します"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."

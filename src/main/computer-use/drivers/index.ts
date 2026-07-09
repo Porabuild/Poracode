@@ -3,8 +3,8 @@ import { MacComputerUseDriver } from "./macos";
 import { WindowsComputerUseDriver } from "./windows";
 
 class UnsupportedComputerUseDriver implements ComputerUseDriver {
-  private unavailable(): never {
-    throw new Error("Computer Use is only available on macOS and Windows.");
+  private unavailable(): Promise<never> {
+    return Promise.reject(new Error("Computer Use is only available on macOS and Windows."));
   }
 
   dispose(): void {
@@ -12,55 +12,47 @@ class UnsupportedComputerUseDriver implements ComputerUseDriver {
   }
 
   listApps(): Promise<never> {
-    return Promise.reject(this.unavailable());
+    return this.unavailable();
   }
 
   listWindows(): Promise<never> {
-    return Promise.reject(this.unavailable());
+    return this.unavailable();
   }
 
   getWindow(): Promise<never> {
-    return Promise.reject(this.unavailable());
+    return this.unavailable();
   }
 
   getWindowState(): Promise<never> {
-    return Promise.reject(this.unavailable());
+    return this.unavailable();
   }
 
   activateWindow(): Promise<never> {
-    return Promise.reject(this.unavailable());
+    return this.unavailable();
   }
 
   click(): Promise<never> {
-    return Promise.reject(this.unavailable());
+    return this.unavailable();
   }
 
   typeText(): Promise<never> {
-    return Promise.reject(this.unavailable());
+    return this.unavailable();
   }
 
   pressKey(): Promise<never> {
-    return Promise.reject(this.unavailable());
+    return this.unavailable();
   }
 
   scroll(): Promise<never> {
-    return Promise.reject(this.unavailable());
+    return this.unavailable();
   }
 
   drag(): Promise<never> {
-    return Promise.reject(this.unavailable());
+    return this.unavailable();
   }
 
   launchApp(): Promise<never> {
-    return Promise.reject(this.unavailable());
-  }
-
-  setValue(): Promise<never> {
-    return Promise.reject(this.unavailable());
-  }
-
-  performSecondaryAction(): Promise<never> {
-    return Promise.reject(this.unavailable());
+    return this.unavailable();
   }
 }
 

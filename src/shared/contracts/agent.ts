@@ -254,6 +254,10 @@ export const agentCapabilitySchema = z.object({
   browserMcpScope: composerMcpScopesSchema.optional(),
   /** Composer Subagents-MCP toggle gating. See {@link composerMcpScopesSchema}. */
   subagentMcpScope: composerMcpScopesSchema.optional(),
+  /** Composer Computer-Use-MCP toggle gating. See {@link composerMcpScopesSchema}. */
+  computerUseMcpScope: composerMcpScopesSchema.optional(),
+  /** Composer external-Chrome-MCP toggle gating. See {@link composerMcpScopesSchema}. */
+  chromeMcpScope: composerMcpScopesSchema.optional(),
   settingDefs: z.array(agentSettingDefSchema).default([]),
   /** Populated when the Claude Agent SDK init probe succeeds (install detection). */
   slashCommands: z.array(agentSlashCommandSchema).optional(),

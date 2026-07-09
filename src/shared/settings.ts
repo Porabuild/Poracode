@@ -385,9 +385,20 @@ export const sharedSettingsSchema = z.object({
   /** Per-agent CLI hook plugin support cache. Keyed by AgentKind (and WSL distro when applicable). */
   agentHookSupport: z.record(z.string(), agentHookSupportEntrySchema),
   /**
-   * In-app browser panel + agent MCP bridge settings. Per-thread MCP opt-in
-   * is controlled via the composer "+" menu (sets `thread.config.browserMcp`),
-   * not a global toggle.
+   * Composer MCP servers the user has turned on persistently, keyed by composer
+   * MCP id (`"browser"`, `"subagents"`, `"chrome"`, `"computer-use"`). `true` means the
+   * server is on for every *new* thread whose provider/presentation supports it
+   * (baked into `thread.config` at launch) and shows no composer chip — it is a
+   * standing default rather than a per-thread opt-in. Absent/`false` leaves the
+   * server off unless the draft explicitly `@`-mentions it, which stages a
+   * removable chip for that one thread. Toggled by the composer "+" menu.
+   */
+  enabledMcpServers: z.record(z.string(), z.boolean()).default({}),
+  /**
+   * In-app browser panel + agent MCP bridge settings. Whether the Browser MCP
+   * attaches to a thread is decided per thread: a persistent default in
+   * `enabledMcpServers.browser` or a one-off `@browser` mention, resolved to
+   * `thread.config.browserMcp` at launch. These are the bridge/panel knobs.
    */
   browser: browserSettingsSchema,
   /** Local audio capture and speech-to-text settings. */
@@ -399,8 +410,9 @@ export const sharedSettingsSchema = z.object({
    * `instructions`, guiding how an agent picks which connected agent/model to
    * delegate to when spawning subagents (e.g. "Codex GPT-5.5 fast for quick
    * lookups, Claude Opus for anything subtle"). Empty string = no guidance.
-   * Per-thread opt-in lives on `thread.config.subagentMcp`; this is the global
-   * guidance text shared across every subagent-enabled thread.
+   * Whether a thread gets the subagents MCP lives on `thread.config.subagentMcp`
+   * (persistent default in `enabledMcpServers.subagents` or a `@subagents`
+   * mention); this is the global guidance text shared across every such thread.
    */
   subagentRoutingGuide: z.string(),
 });
@@ -497,6 +509,7 @@ export const defaultSharedSettings: SharedSettings = {
   disableCliHookPlugin: false,
   dismissedHookInstallProposals: {},
   agentHookSupport: {},
+  enabledMcpServers: {},
   browser: {
     allowEval: false,
     allowDataAccess: false,

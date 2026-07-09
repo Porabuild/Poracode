@@ -85,6 +85,8 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   // sets `subagentMcp`.
   browserMcpScope: { terminal: "none", gui: "none" },
   subagentMcpScope: { terminal: "none", gui: "launch" },
+  computerUseMcpScope: { terminal: "none", gui: "none" },
+  chromeMcpScope: { terminal: "none", gui: "launch" },
   settingDefs: [
     {
       key: OPENCODE_BROWSER_MCP_SETTING_KEY,

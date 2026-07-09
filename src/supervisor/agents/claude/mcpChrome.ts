@@ -1,11 +1,15 @@
-import type { McpThreadIdentity } from "@/shared/browserMcpThread";
-import type { BrowserMcpLocation } from "@/supervisor/agents/browserMcp";
-import { CHROME_MCP_SERVER_NAME, resolveChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
+import {
+  CHROME_MCP_SERVER_NAME,
+  resolveOrFallbackChromeMcpConfig,
+  type ChromeMcpHttpConfig,
+  type ChromeMcpLocation,
+} from "@/supervisor/agents/chromeMcp";
 
 /**
  * Claude Agent SDK `mcpServers` entry for the external-Chrome control server.
- * Mirrors `./mcpBrowser.ts` but for the `chrome` ingress. Returns `undefined`
- * when the ingress is not running (env absent) or the location is unsupported.
+ * Mirrors `./mcpComputerUse.ts` but for the `chrome` ingress. Returns
+ * `undefined` when the thread did not opt in, the ingress is not running (env
+ * absent), or the location is unsupported (WSL declines).
  */
 interface ClaudeMcpServers {
   [name: string]: {
@@ -16,10 +20,12 @@ interface ClaudeMcpServers {
 }
 
 export function buildClaudeChromeMcpServers(
-  location: BrowserMcpLocation,
-  identity?: McpThreadIdentity,
+  location: ChromeMcpLocation,
+  enabled: boolean,
+  chromeMcp?: ChromeMcpHttpConfig,
 ): ClaudeMcpServers | undefined {
-  const cfg = resolveChromeMcpHttpConfig(location, identity);
+  if (!enabled) return undefined;
+  const cfg = resolveOrFallbackChromeMcpConfig(location, chromeMcp);
   if (!cfg) return undefined;
   return {
     [CHROME_MCP_SERVER_NAME]: {

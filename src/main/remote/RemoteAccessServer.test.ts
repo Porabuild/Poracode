@@ -593,6 +593,12 @@ describe("RemoteAccessServer", () => {
       desktopId: "desktop-test",
       label: "Test Desktop",
       appVersion: "1.0.0",
+      platform:
+        process.platform === "win32" ||
+        process.platform === "darwin" ||
+        process.platform === "linux"
+          ? process.platform
+          : undefined,
     });
 
     const pairingPageResponse = await fetch(info.pairingUrl);

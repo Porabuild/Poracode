@@ -682,7 +682,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       );
       const chromeMcpServers = buildClaudeChromeMcpServers(
         this.input.projectLocation,
-        this.input.mcpIdentity ?? { threadId: this.input.threadId },
+        this.currentConfig.chromeMcp === true,
+        this.input.chromeMcp,
       );
       const computerUseMcpServers = buildClaudeComputerUseMcpServers(
         this.input.projectLocation,

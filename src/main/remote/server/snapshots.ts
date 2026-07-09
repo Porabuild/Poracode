@@ -32,11 +32,16 @@ export function sortOrderForThread(threads: readonly Thread[], threadId: string)
 
 export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescriptor {
   const info = ctx.requireInfo();
+  const platform =
+    process.platform === "win32" || process.platform === "darwin" || process.platform === "linux"
+      ? process.platform
+      : undefined;
   return remoteEnvironmentDescriptorSchema.parse({
     protocolVersion: LIGHTCODE_REMOTE_PROTOCOL_VERSION,
     desktopId: ctx.options.identity.desktopId,
     label: ctx.options.identity.label,
     appVersion: ctx.options.appVersion,
+    ...(platform ? { platform } : {}),
     auth: {
       policy: "remote-reachable",
       bootstrapMethods: ["one-time-token"],

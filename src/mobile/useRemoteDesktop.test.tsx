@@ -189,6 +189,7 @@ vi.mock("./storage", () => ({
     return desktop;
   }),
   renameDesktop: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
+  updateDesktopPlatform: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
   forgetDesktop: (...a: [string]) => h.forgetDesktop(...a),
   getStoredShellSnapshotKey: vi.fn<(...a: unknown[]) => unknown>(),
   getOrCreateDeviceId: vi.fn<() => Promise<string>>(async () => h.deviceId),

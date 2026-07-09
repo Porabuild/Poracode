@@ -11,9 +11,11 @@ import {
   COMPUTER_USE_MCP_SERVER_NAME,
   type ComputerUseMcpHttpConfig,
 } from "@/supervisor/agents/computerUseMcp";
+import { CHROME_MCP_SERVER_NAME, type ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
 import { buildGeminiBrowserMcpServers, type GeminiMcpServerEntry } from "../mcpBrowser";
 import { buildGeminiSubagentMcpServers } from "../mcpSubagent";
 import { buildGeminiComputerUseMcpServers } from "../mcpComputerUse";
+import { buildGeminiChromeMcpServers } from "../mcpChrome";
 import type { AgentEnvContext } from "../../base";
 import {
   FORWARD_RUNTIME_FILE,
@@ -186,9 +188,16 @@ export function syncGeminiBrowserMcpSettings(
   ctx: AgentEnvContext | undefined,
   browserMcp?: BrowserMcpHttpConfig,
   computerUseMcp?: ComputerUseMcpHttpConfig,
+  chromeMcp?: ChromeMcpHttpConfig,
 ): void {
   if (!ctx) return;
-  if (ctx.browserMcpEnabled === undefined && ctx.computerUseMcpEnabled === undefined) return;
+  if (
+    ctx.browserMcpEnabled === undefined &&
+    ctx.computerUseMcpEnabled === undefined &&
+    ctx.chromeMcpEnabled === undefined
+  ) {
+    return;
+  }
   const paths = getGeminiPluginPaths(ctx);
   if (!paths.settingsPath) return;
   const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
@@ -213,6 +222,12 @@ export function syncGeminiBrowserMcpSettings(
       computerUseMcp,
     )?.[COMPUTER_USE_MCP_SERVER_NAME];
     writeGeminiMcpServer(settingsPath, COMPUTER_USE_MCP_SERVER_NAME, entry);
+  }
+  if (ctx.chromeMcpEnabled !== undefined) {
+    const entry = buildGeminiChromeMcpServers(location, ctx.chromeMcpEnabled === true, chromeMcp)?.[
+      CHROME_MCP_SERVER_NAME
+    ];
+    writeGeminiMcpServer(settingsPath, CHROME_MCP_SERVER_NAME, entry);
   }
 }
 
@@ -278,6 +293,7 @@ export function installGeminiPlugin(
       options.resolvedNodePath,
       ctx.browserMcp,
       ctx.computerUseMcp,
+      ctx.chromeMcp,
     );
   }
 
@@ -297,6 +313,11 @@ export function installGeminiPlugin(
       { kind: "windows" },
       ctx?.computerUseMcpEnabled === true,
       ctx?.computerUseMcp,
+    ) ?? {}),
+    ...(buildGeminiChromeMcpServers(
+      { kind: "windows" },
+      ctx?.chromeMcpEnabled === true,
+      ctx?.chromeMcp,
     ) ?? {}),
   };
   const settings = renderGeminiSettings({
@@ -323,6 +344,7 @@ function installGeminiPluginWsl(
   resolvedNodePath: string,
   browserMcp?: BrowserMcpHttpConfig,
   computerUseMcp?: ComputerUseMcpHttpConfig,
+  chromeMcp?: ChromeMcpHttpConfig,
 ): { ok: true; paths: GeminiPluginPaths; version: string } | { ok: false; reason: string } {
   const staged = stagePluginAssetsToWsl(distro, sourceDir, "gemini", {
     includeForwardRuntime: true,
@@ -343,6 +365,11 @@ function installGeminiPluginWsl(
         { kind: "wsl", distro },
         computerUseMcp !== undefined,
         computerUseMcp,
+      ) ?? {}),
+      ...(buildGeminiChromeMcpServers(
+        { kind: "wsl", distro },
+        chromeMcp !== undefined,
+        chromeMcp,
       ) ?? {}),
     };
     const settings = renderGeminiSettings({

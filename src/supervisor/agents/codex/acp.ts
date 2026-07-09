@@ -401,6 +401,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         ...(input.subagentMcp !== undefined ? { subagentMcp: input.subagentMcp } : {}),
         computerUseMcpEnabled: input.config.computerUse === true,
         ...(input.computerUseMcp !== undefined ? { computerUseMcp: input.computerUseMcp } : {}),
+        chromeMcpEnabled: input.config.chromeMcp === true,
+        ...(input.chromeMcp !== undefined ? { chromeMcp: input.chromeMcp } : {}),
       }),
     );
     const transport = new CodexStdioTransport(appServer);

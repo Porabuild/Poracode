@@ -22,7 +22,11 @@ import {
   registerPickerProtocolScheme,
 } from "./browser";
 import { buildBrowserUserAgent } from "./browser/userAgent";
-import { ComputerUseMcpIngress, type ComputerUseMcpIngressInfo } from "./computer-use";
+import {
+  ComputerUseDesktopOverlay,
+  ComputerUseMcpIngress,
+  type ComputerUseMcpIngressInfo,
+} from "./computer-use";
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { createMainWindow } from "./window/createMainWindow";
@@ -128,6 +132,7 @@ let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
 let browserMcpIngress: BrowserMcpIngress | null = null;
 let computerUseMcpIngress: ComputerUseMcpIngress | null = null;
+let computerUseDesktopOverlay: ComputerUseDesktopOverlay | null = null;
 let chromeBridgeServer: ChromeBridgeServer | null = null;
 let chromeMcpIngress: ChromeMcpIngress | null = null;
 let remoteAccessServer: RemoteAccessServer | null = null;
@@ -486,7 +491,22 @@ if (!hasSingleInstanceLock) {
     // nothing because getInfo() stays null.
     let computerUseMcpInfoReady: Promise<ComputerUseMcpIngressInfo | null> = Promise.resolve(null);
     if (process.platform === "win32" || process.platform === "darwin") {
-      computerUseMcpIngress = new ComputerUseMcpIngress();
+      computerUseDesktopOverlay = new ComputerUseDesktopOverlay({
+        onExit: (threadIds) => {
+          computerUseMcpIngress?.interruptActiveActions();
+          for (const threadId of threadIds) {
+            void supervisorClient.call("interruptThread", { threadId }).catch((error) => {
+              console.error(
+                `[lightcode] failed to interrupt computer-use thread ${threadId}:`,
+                error,
+              );
+            });
+          }
+        },
+      });
+      computerUseMcpIngress = new ComputerUseMcpIngress({
+        onActivity: (event) => computerUseDesktopOverlay?.setActivity(event),
+      });
       computerUseMcpInfoReady = computerUseMcpIngress.start().catch((err) => {
         console.error("[lightcode] computer use MCP ingress failed to start:", err);
         return null;
@@ -1038,6 +1058,8 @@ if (!hasSingleInstanceLock) {
       browserMcpIngress = null;
       computerUseMcpIngress?.dispose();
       computerUseMcpIngress = null;
+      computerUseDesktopOverlay?.dispose();
+      computerUseDesktopOverlay = null;
       chromeMcpIngress?.dispose();
       chromeMcpIngress = null;
       chromeBridgeServer?.dispose();

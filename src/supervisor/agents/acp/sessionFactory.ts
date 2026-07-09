@@ -55,5 +55,6 @@ export function createAcpStructuredSession(
     ...(input.browserMcp !== undefined ? { browserMcp: input.browserMcp } : {}),
     ...(input.subagentMcp !== undefined ? { subagentMcp: input.subagentMcp } : {}),
     ...(input.computerUseMcp !== undefined ? { computerUseMcp: input.computerUseMcp } : {}),
+    ...(input.chromeMcp !== undefined ? { chromeMcp: input.chromeMcp } : {}),
   });
 }

@@ -1,6 +1,6 @@
 import {
   COMPUTER_USE_MCP_SERVER_NAME,
-  resolveComputerUseMcpHttpConfig,
+  resolveOrFallbackComputerUseMcpConfig,
   type ComputerUseMcpHttpConfig,
   type ComputerUseMcpLocation,
 } from "@/supervisor/agents/computerUseMcp";
@@ -19,8 +19,7 @@ export function buildClaudeComputerUseMcpServers(
   computerUseMcp?: ComputerUseMcpHttpConfig,
 ): ClaudeMcpServers | undefined {
   if (!enabled) return undefined;
-  if (location.kind === "wsl" && !computerUseMcp) return undefined;
-  const cfg = computerUseMcp ?? resolveComputerUseMcpHttpConfig(location);
+  const cfg = resolveOrFallbackComputerUseMcpConfig(location, computerUseMcp);
   if (!cfg) return undefined;
   return {
     [COMPUTER_USE_MCP_SERVER_NAME]: {

@@ -115,6 +115,8 @@ export function createOpenCodeAdapter(): AgentAdapter {
         launchOptions?.browserMcp,
         config.computerUse === true,
         launchOptions?.computerUseMcp,
+        config.chromeMcp === true,
+        launchOptions?.chromeMcp,
       );
       syncOpenCodeSubagentMcpConfigFile(_location, launchOptions?.subagentMcp);
       const sessionId = launchOptions?.resumeThreadId;
@@ -133,6 +135,8 @@ export function createOpenCodeAdapter(): AgentAdapter {
         launchOptions?.browserMcp,
         config.computerUse === true,
         launchOptions?.computerUseMcp,
+        config.chromeMcp === true,
+        launchOptions?.chromeMcp,
       );
       syncOpenCodeSubagentMcpConfigFile(_location, launchOptions?.subagentMcp);
       return {

@@ -35,6 +35,8 @@ export const defaultAntigravityCapabilities: AgentCapability = {
   // No dedicated-server hosting path in any presentation.
   browserMcpScope: { terminal: "none", gui: "none" },
   subagentMcpScope: { terminal: "none", gui: "none" },
+  computerUseMcpScope: { terminal: "none", gui: "none" },
+  chromeMcpScope: { terminal: "none", gui: "none" },
   settingDefs: [],
 };
 

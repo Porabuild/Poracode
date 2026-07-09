@@ -119,6 +119,7 @@ describe("sharedSettingsFile", () => {
       favoriteModels: [],
       recentModels: [],
       agentHookSupport: {},
+      enabledMcpServers: {},
       browser: {
         allowEval: false,
         allowDataAccess: false,
@@ -228,6 +229,7 @@ describe("sharedSettingsFile", () => {
       favoriteModels: [],
       recentModels: [],
       agentHookSupport: {},
+      enabledMcpServers: {},
       browser: {
         allowEval: false,
         allowDataAccess: false,

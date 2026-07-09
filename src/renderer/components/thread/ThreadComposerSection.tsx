@@ -7,7 +7,7 @@ import {
   type RefObject,
 } from "react";
 import { Tooltip, toast } from "@heroui/react";
-import { ChevronDown, GitFork } from "lucide-react";
+import { ChevronDown, GitFork, Monitor } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
@@ -20,11 +20,12 @@ import {
   composerMcpServers,
   mcpTogglePatch,
   ComposerVoiceInput,
+  COMPUTER_USE_MCP_ID,
   MentionInput,
   openAttachmentLightbox,
   useAttachments,
 } from "../composer";
-import type { MentionInputHandle, VoiceInputHandle } from "../composer";
+import type { McpMentionItem, MentionInputHandle, VoiceInputHandle } from "../composer";
 import { getTriggerWords } from "@/renderer/components/providers";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { captureProductEvent, threadProductProperties } from "@/renderer/analytics/posthog";
@@ -186,6 +187,28 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ...mcpTogglePatch(descriptor.configKey, next),
       }),
   }));
+  const mcpMentions: McpMentionItem[] = [
+    ...composerMcpServers
+      .filter((descriptor) => thread.config[descriptor.configKey] === true)
+      .map((descriptor) => ({
+        id: descriptor.id,
+        name: t(descriptor.label),
+        icon: descriptor.icon,
+        detail: t`MCP server`,
+        enabled: true,
+      })),
+    ...(thread.config.computerUse === true
+      ? [
+          {
+            id: COMPUTER_USE_MCP_ID,
+            name: t`Computer Use`,
+            icon: Monitor,
+            detail: t`Computer Use`,
+            enabled: true,
+          },
+        ]
+      : []),
+  ];
   const availableCommands = resolveAvailableSlashCommands(
     thread.slashCommands,
     agentStatus?.capabilities.slashCommands,
@@ -608,6 +631,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       }
                       projectLocation={projectLocation}
                       projectId={thread.projectId}
+                      mcpMentions={mcpMentions}
                       triggerWords={getTriggerWords(thread.agentKind, thread.config.model)}
                       onTextChange={(hasText) => {
                         setHasContent(hasText);

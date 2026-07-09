@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type {
   ComputerUseApp,
   ComputerUseDriver,
+  ComputerUseInteractiveResult,
   ComputerUseWindow,
   ComputerUseWindowState,
 } from "../mcp/types";
@@ -69,14 +70,21 @@ async function osascript<T>(script: string): Promise<T> {
   return JSON.parse(stdout.trim()) as T;
 }
 
-async function listMacWindows(): Promise<ComputerUseWindow[]> {
+// `appFilter` (exact process-name match, same resolution the unfiltered path
+// uses) lets interactive actions skip enumerating every visible process's
+// windows — System Events window queries are Apple Events round-trips and are
+// by far the slowest part of each action. list_windows/list_apps pass no
+// filter and keep the full enumeration.
+async function listMacWindows(appFilter?: string): Promise<ComputerUseWindow[]> {
   const raw = await osascript<unknown>(`
 ObjC.import("stdlib");
 const app = Application("System Events");
+const appFilter = ${JSON.stringify(appFilter ?? null)};
 const windows = [];
 for (const process of app.applicationProcesses()) {
   if (!process.visible()) continue;
   const appName = process.name();
+  if (appFilter !== null && appName !== appFilter) continue;
   let pid = 0;
   try { pid = Number(process.unixId()) || 0; } catch {}
   const procWindows = process.windows();
@@ -194,7 +202,7 @@ export class MacComputerUseDriver implements ComputerUseDriver {
   }
 
   async getWindow(input: { app?: string; id: number }): Promise<ComputerUseWindow> {
-    const windows = await listMacWindows();
+    const windows = await listMacWindows(input.app);
     const window = windows.find(
       (candidate) =>
         candidate.id === input.id && (input.app === undefined || candidate.app === input.app),
@@ -216,21 +224,17 @@ export class MacComputerUseDriver implements ComputerUseDriver {
       "macOS window listing and screenshots are passive. Input actions switch to interactive mode and activate the target app.",
       "macOS captures the visible screen region; occluded windows and locked screens may require the user to reveal or unlock the desktop.",
     ];
-    if (
-      input.max_dimension !== undefined ||
-      (input.format !== undefined && input.format !== "png")
-    ) {
-      notes.push(
-        "macOS screenshots are always full-resolution PNG; max_dimension and format are not applied on this platform yet.",
-      );
-    }
     if (input.include_screenshot !== false) {
       const captureDir = join(tmpdir(), "lightcode-computer-use");
       await mkdir(captureDir, { recursive: true });
-      const path = join(
-        captureDir,
-        `capture-${Date.now()}-${Math.random().toString(16).slice(2)}.png`,
-      );
+      // Mirror the Windows driver's defaults: downscale to 1280px max and
+      // encode JPEG (quality 75) so passive captures don't bill multi-MB
+      // Retina PNGs as image tokens on every get_window_state.
+      const maxDimension = input.max_dimension ?? 1280;
+      const format = input.format ?? "jpeg";
+      const token = `capture-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const capturePath = join(captureDir, `${token}.png`);
+      const encodedPath = join(captureDir, `${token}-out.${format === "jpeg" ? "jpg" : "png"}`);
       try {
         const x = readNumber(window.x, "window.x");
         const y = readNumber(window.y, "window.y");
@@ -238,30 +242,55 @@ export class MacComputerUseDriver implements ComputerUseDriver {
         const height = Math.max(1, readNumber(window.height, "window.height"));
         await runProcess(
           "/usr/sbin/screencapture",
-          ["-x", "-R", `${x},${y},${width},${height}`, path],
+          ["-x", "-R", `${x},${y},${width},${height}`, capturePath],
           {
             timeoutMs: 10_000,
             maxBufferBytes: 1024 * 1024,
           },
         );
-        const bytes = await readFile(path);
         // window.width/height are in POINTS, but `screencapture` encodes the
-        // native pixel resolution (e.g. 2x on Retina). Report the PNG's actual
-        // pixel dimensions so the model's pixel measurements are correct, and,
-        // when they differ from the point size, tell it the scale factor it must
-        // divide by — click/scroll/drag coordinates are interpreted in POINTS.
+        // native pixel resolution (e.g. 2x on Retina). Read the PNG's actual
+        // pixel dimensions, then post-process with `sips` (ships with macOS)
+        // to apply max_dimension/format before base64-encoding.
+        let bytes = await readFile(capturePath);
         const pixelSize = readPngPixelSize(bytes);
-        const shotWidth = pixelSize?.width ?? width;
-        const shotHeight = pixelSize?.height ?? height;
-        if (pixelSize && pixelSize.width > width) {
-          const scale = Math.round((pixelSize.width / width) * 100) / 100;
+        let shotWidth = pixelSize?.width ?? width;
+        let shotHeight = pixelSize?.height ?? height;
+        let mimeType = "image/png";
+        const needsResample = maxDimension > 0 && Math.max(shotWidth, shotHeight) > maxDimension;
+        const needsJpeg = format === "jpeg";
+        if (needsResample || needsJpeg) {
+          const sipsArgs: string[] = [];
+          if (needsResample) sipsArgs.push("--resampleHeightWidthMax", String(maxDimension));
+          if (needsJpeg) sipsArgs.push("-s", "format", "jpeg", "-s", "formatOptions", "75");
+          sipsArgs.push(capturePath, "--out", encodedPath);
+          await runProcess("/usr/bin/sips", sipsArgs, { timeoutMs: 10_000 });
+          // Ask sips for the dimensions it actually encoded so the reported
+          // size matches the payload exactly (its rounding may differ by 1px).
+          const { stdout } = await runProcess(
+            "/usr/bin/sips",
+            ["-g", "pixelWidth", "-g", "pixelHeight", encodedPath],
+            { timeoutMs: 10_000 },
+          );
+          const encodedWidth = /pixelWidth:\s*(\d+)/.exec(stdout);
+          const encodedHeight = /pixelHeight:\s*(\d+)/.exec(stdout);
+          if (encodedWidth) shotWidth = Number(encodedWidth[1]);
+          if (encodedHeight) shotHeight = Number(encodedHeight[1]);
+          bytes = await readFile(encodedPath);
+          if (needsJpeg) mimeType = "image/jpeg";
+        }
+        // Click/scroll/drag coordinates are interpreted in POINTS. When the
+        // encoded pixel size differs from the point size (Retina capture,
+        // downscaling, or both), tell the model the factor to divide by.
+        const scale = Math.round((shotWidth / width) * 100) / 100;
+        if (scale !== 1) {
           notes.push(
-            `Screenshot is HiDPI/Retina: it is ${pixelSize.width}x${pixelSize.height} pixels for a ${width}x${height}-point window (scale ${scale}x). Click/scroll/drag coordinates are in POINTS — divide screenshot pixel coordinates by ${scale} before sending them.`,
+            `Screenshot is ${shotWidth}x${shotHeight} pixels for a ${width}x${height}-point window (scale ${scale}x). Click/scroll/drag coordinates are in POINTS — divide screenshot pixel coordinates by ${scale} before sending them.`,
           );
         }
         screenshots.push({
           id: "window",
-          mimeType: "image/png",
+          mimeType,
           data: bytes.toString("base64"),
           width: shotWidth,
           height: shotHeight,
@@ -270,7 +299,8 @@ export class MacComputerUseDriver implements ComputerUseDriver {
           zIndex: 0,
         });
       } finally {
-        await rm(path, { force: true });
+        await rm(capturePath, { force: true });
+        await rm(encodedPath, { force: true });
       }
     }
     if (input.include_text === true) {
@@ -294,7 +324,7 @@ export class MacComputerUseDriver implements ComputerUseDriver {
 
   async activateWindow(input: {
     window: ComputerUseWindow;
-  }): Promise<{ ok: true; mode: "interactive" }> {
+  }): Promise<ComputerUseInteractiveResult> {
     const window = await this.getWindow(input.window);
     await activateApp(window.app);
     return { ok: true, mode: "interactive" };
@@ -306,7 +336,7 @@ export class MacComputerUseDriver implements ComputerUseDriver {
     window: ComputerUseWindow;
     x?: number;
     y?: number;
-  }): Promise<{ ok: true; mode: "interactive" }> {
+  }): Promise<ComputerUseInteractiveResult> {
     const window = await this.getWindow(input.window);
     await activateApp(window.app);
     const x = readNumber(window.x, "window.x") + readNumber(input.x, "x");
@@ -334,10 +364,10 @@ end tell
     return { ok: true, mode: "interactive" };
   }
 
-  async typeText(input: { text: string; window: ComputerUseWindow }): Promise<{
-    ok: true;
-    mode: "interactive";
-  }> {
+  async typeText(input: {
+    text: string;
+    window: ComputerUseWindow;
+  }): Promise<ComputerUseInteractiveResult> {
     const window = await this.getWindow(input.window);
     await activateApp(window.app);
     await runAppleScript(`
@@ -348,10 +378,10 @@ end tell
     return { ok: true, mode: "interactive" };
   }
 
-  async pressKey(input: { key: string; window: ComputerUseWindow }): Promise<{
-    ok: true;
-    mode: "interactive";
-  }> {
+  async pressKey(input: {
+    key: string;
+    window: ComputerUseWindow;
+  }): Promise<ComputerUseInteractiveResult> {
     const window = await this.getWindow(input.window);
     await activateApp(window.app);
     const tokens = input.key
@@ -379,7 +409,7 @@ end tell
     window: ComputerUseWindow;
     x: number;
     y: number;
-  }): Promise<{ ok: true; mode: "interactive" }> {
+  }): Promise<ComputerUseInteractiveResult> {
     const window = await this.getWindow(input.window);
     await activateApp(window.app);
     // NOTE (needs live-mac verification): System Events has no verb to move the
@@ -415,7 +445,7 @@ end tell
     to_x: number;
     to_y: number;
     window: ComputerUseWindow;
-  }): Promise<{ ok: true; mode: "interactive" }> {
+  }): Promise<ComputerUseInteractiveResult> {
     const window = await this.getWindow(input.window);
     await activateApp(window.app);
     const fromX = readNumber(window.x, "window.x") + input.from_x;
@@ -437,17 +467,5 @@ end tell
       await runProcess("/usr/bin/open", ["-a", input.app], { timeoutMs: 10_000 });
     }
     return { ok: true };
-  }
-
-  setValue(): Promise<{ ok: true; mode: "interactive" }> {
-    throw new Error(
-      "set_value is not supported yet; click or focus the target field, then use type_text.",
-    );
-  }
-
-  performSecondaryAction(): Promise<{ ok: true; mode: "interactive" }> {
-    throw new Error(
-      "perform_secondary_action is not supported yet; use keyboard navigation or coordinate input.",
-    );
   }
 }

@@ -76,6 +76,12 @@ export const remoteEnvironmentDescriptorSchema = z.object({
   desktopId: z.string().min(1),
   label: z.string().min(1),
   appVersion: z.string().min(1),
+  /**
+   * Host OS of the paired desktop (`win32` / `darwin` / `linux`). Optional for
+   * older servers; clients that need host-gated features (Computer Use) should
+   * treat a missing value as "unknown" rather than the mobile device's OS.
+   */
+  platform: z.enum(["win32", "darwin", "linux"]).optional(),
   auth: z.object({
     policy: z.literal("remote-reachable"),
     bootstrapMethods: z.array(z.literal("one-time-token")),

@@ -123,6 +123,44 @@ describe("acquireOpenCodeServer", () => {
     headers: { Authorization: "Bearer parent-thread-token" },
   };
 
+  const chromeMcp = {
+    url: "http://127.0.0.1:9401/mcp",
+    token: "chrome-token",
+    headers: { Authorization: "Bearer chrome-token" },
+  };
+
+  it("registers the external Chrome MCP on an opted-in server", async () => {
+    const handle = makeHandle("http://127.0.0.1:4199");
+    mocks.spawnOpenCodeServer.mockReturnValue(handle);
+    const client = makeSubagentClient();
+    mocks.createOpencodeClient.mockReturnValue(client);
+
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    const acquired = await acquireOpenCodeServer({
+      projectLocation: { kind: "posix", path: "/repo-chrome" },
+      chromeMcpEnabled: true,
+      chromeMcp,
+    });
+
+    expect(client.mcp.add).toHaveBeenCalledWith({
+      directory: "/repo-chrome",
+      name: "chrome",
+      config: {
+        type: "remote",
+        url: chromeMcp.url,
+        headers: chromeMcp.headers,
+        enabled: true,
+      },
+    });
+    expect(client.mcp.connect).toHaveBeenCalledWith({
+      directory: "/repo-chrome",
+      name: "chrome",
+    });
+
+    await acquired.dispose();
+    expect(handle.dispose).toHaveBeenCalledTimes(1);
+  });
+
   it("dedicates a per-thread server and registers the subagents MCP via mcp.add", async () => {
     const handle = makeHandle("http://127.0.0.1:4200");
     mocks.spawnOpenCodeServer.mockReturnValue(handle);

@@ -22,6 +22,7 @@ import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { SubagentMcpHttpConfig } from "@/supervisor/agents/subagentMcp";
 import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
+import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
 
 export interface CommandSpec {
   command: string;
@@ -50,6 +51,8 @@ export interface AgentEnvContext {
   browserMcp?: BrowserMcpHttpConfig;
   computerUseMcpEnabled?: boolean;
   computerUseMcp?: ComputerUseMcpHttpConfig;
+  chromeMcpEnabled?: boolean;
+  chromeMcp?: ChromeMcpHttpConfig;
 }
 
 export interface AgentLaunchOptions {
@@ -59,6 +62,7 @@ export interface AgentLaunchOptions {
   browserMcp?: BrowserMcpHttpConfig;
   subagentMcp?: SubagentMcpHttpConfig;
   computerUseMcp?: ComputerUseMcpHttpConfig;
+  chromeMcp?: ChromeMcpHttpConfig;
 }
 
 export interface StructuredSessionUpdate {
@@ -139,6 +143,7 @@ export interface CreateStructuredSessionInput {
   browserMcp?: BrowserMcpHttpConfig;
   subagentMcp?: SubagentMcpHttpConfig;
   computerUseMcp?: ComputerUseMcpHttpConfig;
+  chromeMcp?: ChromeMcpHttpConfig;
   sessionRef?: SessionRef;
   presentationMode?: ThreadPresentationMode;
   loadSessionErrorRewriter?: (error: unknown, sessionId: string) => Error;

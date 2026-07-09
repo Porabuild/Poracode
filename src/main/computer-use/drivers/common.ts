@@ -1,5 +1,8 @@
-import { spawn } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import type { ComputerUseWindow } from "../mcp/types";
+
+const execFileAsync = promisify(execFile);
 
 export function readRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -50,67 +53,18 @@ export function runProcess(
   command: string,
   args: string[],
   options?: {
-    input?: string;
     timeoutMs?: number;
     maxBufferBytes?: number;
   },
 ): Promise<{ stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true,
-    });
-    const maxBufferBytes = options?.maxBufferBytes ?? 12 * 1024 * 1024;
-    const stdout: Buffer[] = [];
-    const stderr: Buffer[] = [];
-    let stdoutBytes = 0;
-    let stderrBytes = 0;
-    let settled = false;
-    const timer =
-      options?.timeoutMs && options.timeoutMs > 0
-        ? setTimeout(() => {
-            if (settled) return;
-            settled = true;
-            child.kill();
-            reject(new Error(`${command} timed out after ${options.timeoutMs}ms`));
-          }, options.timeoutMs)
-        : undefined;
-
-    child.stdout.on("data", (chunk: Buffer) => {
-      stdoutBytes += chunk.length;
-      if (stdoutBytes > maxBufferBytes) {
-        child.kill();
-        return;
-      }
-      stdout.push(chunk);
-    });
-    child.stderr.on("data", (chunk: Buffer) => {
-      stderrBytes += chunk.length;
-      if (stderrBytes <= maxBufferBytes) stderr.push(chunk);
-    });
-    child.on("error", (error) => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      reject(error);
-    });
-    child.on("close", (code) => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      const out = Buffer.concat(stdout).toString("utf8");
-      const err = Buffer.concat(stderr).toString("utf8");
-      if (stdoutBytes > maxBufferBytes) {
-        reject(new Error(`${command} output exceeded ${maxBufferBytes} bytes`));
-        return;
-      }
-      if (code !== 0) {
-        reject(new Error(err.trim() || `${command} exited with code ${code}`));
-        return;
-      }
-      resolve({ stdout: out, stderr: err });
-    });
-    if (options?.input) child.stdin.end(options.input);
-    else child.stdin.end();
+  // Native execFile enforces timeout/maxBuffer and appends stderr to the
+  // thrown error's message ("Command failed: <cmd>\n<stderr>"), so failures
+  // still surface the process's own diagnostics.
+  return execFileAsync(command, args, {
+    windowsHide: true,
+    maxBuffer: options?.maxBufferBytes ?? 12 * 1024 * 1024,
+    ...(options?.timeoutMs !== undefined && options.timeoutMs > 0
+      ? { timeout: options.timeoutMs }
+      : {}),
   });
 }

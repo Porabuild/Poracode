@@ -31,6 +31,10 @@ import {
   type ComputerUseMcpHttpConfig,
 } from "@/supervisor/agents/computerUseMcp";
 import {
+  resolveChromeMcpHttpConfigForLaunch,
+  type ChromeMcpHttpConfig,
+} from "@/supervisor/agents/chromeMcp";
+import {
   type AgentAdapter,
   type AgentLaunchOptions,
   type CommandSpec,
@@ -200,9 +204,14 @@ export class SpawnPipeline {
       payload.config,
     );
     const computerUse = this.resolveComputerUseMcpForLaunch(
-      adapter,
       payload.projectLocation,
       payload.config,
+      mcpIdentity,
+    );
+    const chromeMcp = this.resolveChromeMcpForLaunch(
+      payload.projectLocation,
+      payload.config,
+      mcpIdentity,
     );
     const structuredSession = await this.createStructuredSession(
       adapter,
@@ -213,6 +222,7 @@ export class SpawnPipeline {
       browserMcp,
       subagentMcp,
       computerUse,
+      chromeMcp,
       mcpIdentity,
       payload.sessionRef,
       requestedPresentation,
@@ -344,6 +354,7 @@ export class SpawnPipeline {
       browserMcp,
       subagentMcp,
       computerUse,
+      chromeMcp,
     );
     const argv = payload.sessionRef
       ? adapter.buildResumeArgv(
@@ -375,6 +386,7 @@ export class SpawnPipeline {
       payload.config,
       browserMcp,
       computerUse,
+      chromeMcp,
     );
     if (cliHookExtras.extraArgs.length > 0) {
       argv.args = mergeCliHookExtraArgs(
@@ -491,10 +503,11 @@ export class SpawnPipeline {
       config,
     );
     const computerUse = this.resolveComputerUseMcpForLaunch(
-      session.adapter,
       session.projectLocation,
       config,
+      mcpIdentity,
     );
+    const chromeMcp = this.resolveChromeMcpForLaunch(session.projectLocation, config, mcpIdentity);
     const structuredSession = await this.createStructuredSession(
       session.adapter,
       session.threadId,
@@ -504,6 +517,7 @@ export class SpawnPipeline {
       browserMcp,
       subagentMcp,
       computerUse,
+      chromeMcp,
       mcpIdentity,
       session.sessionRef,
       session.presentationMode,
@@ -577,6 +591,7 @@ export class SpawnPipeline {
       config,
       browserMcp,
       computerUse,
+      chromeMcp,
     );
     if (!ctx.isCurrentSession(session)) {
       await structuredSession?.dispose();
@@ -593,6 +608,7 @@ export class SpawnPipeline {
         browserMcp,
         subagentMcp,
         computerUse,
+        chromeMcp,
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
@@ -950,6 +966,7 @@ export class SpawnPipeline {
     browserMcp: BrowserMcpHttpConfig | undefined,
     subagentMcp: SubagentMcpHttpConfig | undefined,
     computerUse: ComputerUseMcpHttpConfig | undefined,
+    chromeMcp: ChromeMcpHttpConfig | undefined,
   ): AgentLaunchOptions {
     return {
       ...(launchOptions ?? {}),
@@ -957,6 +974,7 @@ export class SpawnPipeline {
       ...(browserMcp !== undefined ? { browserMcp } : {}),
       ...(subagentMcp !== undefined ? { subagentMcp } : {}),
       ...(computerUse !== undefined ? { computerUseMcp: computerUse } : {}),
+      ...(chromeMcp !== undefined ? { chromeMcp } : {}),
     };
   }
 
@@ -986,12 +1004,28 @@ export class SpawnPipeline {
    * `resolveBrowserMcpForLaunch`.
    */
   resolveComputerUseMcpForLaunch(
-    _adapter: AgentAdapter,
     location: ProjectLocation,
     config: ThreadConfig,
+    identity?: McpThreadIdentity,
   ): ComputerUseMcpHttpConfig | undefined {
     const enabled = config.computerUse === true;
-    return resolveComputerUseMcpHttpConfigForLaunch(location, enabled);
+    return resolveComputerUseMcpHttpConfigForLaunch(location, enabled, identity);
+  }
+
+  /**
+   * Resolve the external-Chrome MCP http config for a launch when the thread
+   * opted in (`config.chromeMcp === true`). Mirrors
+   * {@link resolveComputerUseMcpForLaunch}: the per-thread config flag is
+   * authoritative (scope gating lives in the renderer) and the resolver declines
+   * for WSL projects by design.
+   */
+  resolveChromeMcpForLaunch(
+    location: ProjectLocation,
+    config: ThreadConfig,
+    identity?: McpThreadIdentity,
+  ): ChromeMcpHttpConfig | undefined {
+    const enabled = config.chromeMcp === true;
+    return resolveChromeMcpHttpConfigForLaunch(location, enabled, identity);
   }
 
   /**
@@ -1057,6 +1091,7 @@ export class SpawnPipeline {
     browserMcp: BrowserMcpHttpConfig | undefined,
     subagentMcp: SubagentMcpHttpConfig | undefined,
     computerUse: ComputerUseMcpHttpConfig | undefined,
+    chromeMcp: ChromeMcpHttpConfig | undefined,
     mcpIdentity: McpThreadIdentity | undefined,
     sessionRef?: SessionRef,
     presentationMode?: ThreadPresentationMode,
@@ -1074,6 +1109,7 @@ export class SpawnPipeline {
         ...(browserMcp ? { browserMcp } : {}),
         ...(subagentMcp ? { subagentMcp } : {}),
         ...(computerUse ? { computerUseMcp: computerUse } : {}),
+        ...(chromeMcp ? { chromeMcp } : {}),
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),
       });

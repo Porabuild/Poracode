@@ -1013,6 +1013,7 @@ msgstr "Couleur de l'avatar {color}"
 #: src/mobile/views/TerminalView.tsx
 #: src/mobile/views/WorkspaceView.tsx
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Back"
 msgstr "Retour"
@@ -1180,8 +1181,8 @@ msgid "Browser is open in a separate window"
 msgstr "Le navigateur est ouvert dans une fenêtre séparée"
 
 #: src/renderer/components/composer/MentionPopover.tsx
-msgid "Browser MCP"
-msgstr "Navigateur MCP"
+#~ msgid "Browser MCP"
+#~ msgstr "Navigateur MCP"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Browser MCP enabled for OpenCode"
@@ -1438,6 +1439,14 @@ msgstr "Choisissez si les liens de Poracode et les fenêtres contextuelles du na
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Choose worktree base folder"
 msgstr "Choisir le dossier de base des arbres de travail"
+
+#: src/renderer/components/composer/composerMcpServers.ts
+msgid "Chrome"
+msgstr "Chrome"
+
+#: src/renderer/components/composer/composerMcpServers.ts
+msgid "Chrome MCP enabled for this thread"
+msgstr "MCP Chrome activé pour ce fil de discussion"
 
 #. placeholder {0}: trimmedName || displayLabel
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -1879,13 +1888,30 @@ msgstr "Commandes du compositeur"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/composer/MentionPopover.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Computer Use"
 msgstr "Utilisation de l'ordinateur"
 
+#: src/renderer/components/composer/ComputerUseOverlay.tsx
+#~ msgid "Computer Use can take over the desktop. Don't use this machine while the agent is clicking or typing."
+#~ msgstr "Computer Use peut prendre le contrôle du bureau. N'utilisez pas cette machine pendant que l'agent clique ou tape."
+
+#: src/renderer/components/composer/ComputerUseOverlay.tsx
+#~ msgid "Computer Use controls the paired desktop. Don't use that machine while the agent is clicking or typing."
+#~ msgstr "Computer Use contrôle le bureau associé. N'utilisez pas cette machine pendant que l'agent clique ou tape."
+
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled for this thread"
-msgstr "Utilisation de l'ordinateur activée pour ce fil de discussion"
+msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+msgstr "Computer Use activé — contrôle le bureau associé ; n'utilisez pas cette machine pendant que l'agent la contrôle"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+msgstr "Computer Use activé — les actions interactives prennent le contrôle du bureau ; n'utilisez pas la machine pendant que l'agent la contrôle"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled for this thread"
+#~ msgstr "Utilisation de l'ordinateur activée pour ce fil de discussion"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -2010,6 +2036,10 @@ msgstr "Continuez dans..."
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "Control which files appear in the @file mention search. Per-project overrides live in each project's settings."
 msgstr "Contrôlez quels fichiers apparaissent dans la recherche de mention @file. Les remplacements par projet sont disponibles dans les paramètres de chaque projet."
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Controls the paired desktop while the agent clicks or types"
+msgstr "Contrôle le bureau associé pendant que l'agent clique ou tape"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -2471,6 +2501,10 @@ msgstr "Désactiver l'effort {tierLabel}"
 msgid "Disable Browser MCP"
 msgstr "Désactiver le MCP du navigateur"
 
+#: src/renderer/components/composer/composerMcpServers.ts
+msgid "Disable Chrome MCP"
+msgstr "Désactiver le MCP Chrome"
+
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
@@ -2712,6 +2746,10 @@ msgstr "Activé"
 #: src/mobile/settingsSections.ts
 msgid "Enabled agents, model visibility and order"
 msgstr "Agents activés, visibilité et ordre des modèles"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Enabled servers stay on for new threads"
+msgstr "Les serveurs activés restent actifs pour les nouveaux fils de discussion"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
@@ -3848,6 +3886,11 @@ msgstr "Maximiser"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "Maximiser le navigateur"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "MCP server"
+msgstr "Serveur MCP"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -6944,6 +6987,10 @@ msgstr "URL Tailscale"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Take Screenshot"
 msgstr "Prendre une capture d'écran"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Takes over the desktop while the agent clicks or types"
+msgstr "Prend le contrôle du bureau pendant que l'agent clique ou tape"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."

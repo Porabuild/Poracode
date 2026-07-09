@@ -13,6 +13,8 @@ export interface StoredDesktop {
   readonly label: string;
   readonly endpoint: string;
   readonly appVersion: string;
+  /** Host OS of the paired desktop when the server advertises it. */
+  readonly platform?: "win32" | "darwin" | "linux";
   readonly accessToken: string;
   readonly tokenExpiresAt: string;
   readonly scopes: RemoteAccessScope[];
@@ -317,6 +319,7 @@ export async function saveDesktop(input: {
       label: input.descriptor.label,
       endpoint: input.endpoint,
       appVersion: input.descriptor.appVersion,
+      ...(input.descriptor.platform ? { platform: input.descriptor.platform } : {}),
       accessToken: input.accessToken,
       tokenExpiresAt: input.tokenExpiresAt,
       scopes: input.scopes,
@@ -341,6 +344,18 @@ export async function renameDesktop(desktopId: string, label: string): Promise<v
     const existing = await mobileDb.desktops.get(desktopId);
     if (!existing) return;
     await mobileDb.desktops.put({ ...existing, label });
+  });
+}
+
+/** Persist the host OS advertised by the paired desktop (for host-gated UI). */
+export async function updateDesktopPlatform(
+  desktopId: string,
+  platform: "win32" | "darwin" | "linux",
+): Promise<void> {
+  await mobileDb.transaction("rw", mobileDb.desktops, async () => {
+    const existing = await mobileDb.desktops.get(desktopId);
+    if (!existing || existing.platform === platform) return;
+    await mobileDb.desktops.put({ ...existing, platform });
   });
 }
 

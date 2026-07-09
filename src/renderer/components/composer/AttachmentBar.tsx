@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { Tooltip } from "@heroui/react";
 import { Monitor, X } from "lucide-react";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
+import { isRemoteSession } from "@/renderer/bridge";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 import { toLocalFileUrl } from "@/shared/promptContent";
 import type { ComposerMcpServerDescriptor } from "./composerMcpServers";
@@ -17,8 +19,14 @@ import type { Attachment } from "./useAttachments";
  *   can't reconfigure the running session — the icon is informational only, but
  *   rendered as a <button> to match the sibling header status controls.
  */
+/** The subset of a composer MCP descriptor the chip actually renders. */
+type McpChipDescriptor = Pick<
+  ComposerMcpServerDescriptor,
+  "icon" | "label" | "enabledTitle" | "disableLabel"
+>;
+
 export function McpChip(props: {
-  descriptor: ComposerMcpServerDescriptor;
+  descriptor: McpChipDescriptor;
   onRemove?: (() => void) | undefined;
   title?: string;
   variant?: "chip" | "header";
@@ -71,55 +79,38 @@ export function McpChip(props: {
   );
 }
 
+/**
+ * Computer Use is not a composer MCP registry entry (its gating lives in
+ * `getComputerUseScope`), but its chip renders through {@link McpChip} with a
+ * descriptor-shaped constant so there is a single chip implementation.
+ */
+const computerUseChipDescriptor: McpChipDescriptor = {
+  icon: Monitor,
+  label: msg`Computer Use`,
+  enabledTitle: msg`Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it`,
+  disableLabel: msg`Disable Computer Use`,
+};
+
 export function ComputerUseChip(props: {
   onRemove?: (() => void) | undefined;
   title?: string;
   variant?: "chip" | "header";
 }) {
   const { t } = useLingui();
-  const { onRemove, variant = "chip" } = props;
-  const title = props.title ?? t`Computer Use enabled for this thread`;
-  if (variant === "header") {
-    return (
-      <Tooltip delay={0}>
-        <Tooltip.Trigger>
-          <button
-            type="button"
-            className="lightcode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-white/[0.06] hover:text-foreground"
-            aria-label={title}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Monitor className="size-3.5" aria-hidden="true" />
-          </button>
-        </Tooltip.Trigger>
-        <Tooltip.Content>{title}</Tooltip.Content>
-      </Tooltip>
-    );
-  }
+  // Interactive actions steal the real mouse/keyboard on the host desktop —
+  // including when driving from a paired phone.
+  const title =
+    props.title ??
+    (isRemoteSession()
+      ? t`Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it`
+      : t`Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it`);
   return (
-    <div
-      className="lightcode-attachment-chip lightcode-browser-chip"
+    <McpChip
+      descriptor={computerUseChipDescriptor}
+      onRemove={props.onRemove}
       title={title}
-      aria-label={title}
-      role={onRemove ? "group" : "img"}
-    >
-      <Monitor className="size-3 text-muted" aria-hidden="true" />
-      <span className="lightcode-attachment-chip__name">{t`Computer Use`}</span>
-      {onRemove ? (
-        <button
-          type="button"
-          className="lightcode-attachment-chip__delete"
-          aria-label={t`Disable Computer Use`}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-        >
-          <X className="size-2" />
-        </button>
-      ) : null}
-    </div>
+      {...(props.variant !== undefined ? { variant: props.variant } : {})}
+    />
   );
 }
 

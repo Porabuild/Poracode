@@ -2,6 +2,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentKind, ProjectLocation, ThreadServerRequestId } from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
+import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
 import type {
   SubagentMcpHostAccessResolver,
   SubagentMcpHttpConfig,
@@ -31,6 +32,8 @@ export interface ThreadSessionManagerOptions {
     browserMcp?: BrowserMcpHttpConfig;
     computerUseMcpEnabled?: boolean;
     computerUseMcp?: ComputerUseMcpHttpConfig;
+    chromeMcpEnabled?: boolean;
+    chromeMcp?: ChromeMcpHttpConfig;
   }): Promise<{ env: Record<string, string>; extraArgs: string[] } | undefined>;
   wslBridge?: {
     ensureBridge(distro: string): Promise<{ baseUrl: string; secret: string } | undefined>;

@@ -1,8 +1,9 @@
 import type { ComputerUseDriver, ComputerUseScreenshot, ComputerUseWindowState } from "./types";
-import { readNumber, readRecord, readString, readWindow } from "../drivers/common";
+import { readNumber, readString, readWindow } from "../drivers/common";
 
 export interface ToolContext {
   driver: ComputerUseDriver;
+  threadId?: string;
 }
 
 export interface ToolSpec {
@@ -26,7 +27,7 @@ const WINDOW_SCHEMA = {
 };
 
 export const COMPUTER_USE_MCP_INSTRUCTIONS =
-  "Use the computer_use MCP server to inspect and control native macOS or Windows apps. Start with computer_use.api or computer_use.list_apps, choose a returned window, then call computer_use.get_window_state before coordinate input. list/get/screenshot operations are passive where the OS allows it; click, drag, scroll, type_text, press_key, activate_window, and launch_app switch to interactive mode and may activate the target app. Coordinates (x/y) are window-relative with the origin at the TOP-LEFT of the window frame (including the title bar), matching the top-left pixel of the most recent get_window_state screenshot for that window; if the window may have moved or resized, call get_window_state again before sending coordinates. If a tool reports that the window is no longer available (windows are re-identified after they move/resize), call computer_use.list_windows or computer_use.get_window to obtain a fresh window id and retry. Prefer the browser MCP server for web pages. Locked desktops, secure prompts, OS permission prompts, and password/authentication surfaces require the user.";
+  "Use the computer_use MCP server to inspect and control native macOS or Windows apps on the host desktop (including when the user is driving from a paired phone/remote client — agents still run on that desktop). Start with computer_use.api or computer_use.list_apps, choose a returned window, then call computer_use.get_window_state before coordinate input. Prefer ordinary Win32 desktop apps when you have a choice — some Store/WinUI apps recreate window handles during activation, so always prefer the `window` object returned by interactive tools (or re-call list_windows/get_window) before the next click/type. list/get/screenshot operations are passive and do not steal focus; click, drag, scroll, type_text, press_key, activate_window, and launch_app switch to interactive mode, bring the target app to the FOREGROUND, and take exclusive control of the real mouse/keyboard — nobody should use the host machine while interactive computer-use is running. Coordinates (x/y) are window-relative with the origin at the TOP-LEFT of the window frame (including the title bar), matching the top-left pixel of the most recent get_window_state screenshot for that window; if the window may have moved or resized, call get_window_state again before sending coordinates. If a tool reports that the window is no longer available (windows are re-identified after they move/resize), call computer_use.list_windows or computer_use.get_window to obtain a fresh window id and retry. Prefer the browser MCP server for web pages. Locked desktops, secure prompts, OS permission prompts, and password/authentication surfaces require the user.";
 
 export const TOOLS: ToolSpec[] = [
   {
@@ -100,7 +101,7 @@ export const TOOLS: ToolSpec[] = [
         window: WINDOW_SCHEMA,
         x: { type: "number" },
         y: { type: "number" },
-        click_count: { type: "number" },
+        click_count: { type: "integer", minimum: 1, maximum: 2 },
         mouse_button: { type: "string", enum: ["left", "right", "middle", "l", "r", "m"] },
       },
     },
@@ -161,6 +162,16 @@ export const TOOLS: ToolSpec[] = [
 
 export const TOOL_NAMES = new Set(TOOLS.map((tool) => tool.name));
 
+const INTERACTIVE_TOOL_NAMES = new Set([
+  "activate_window",
+  "click",
+  "press_key",
+  "type_text",
+  "scroll",
+  "drag",
+  "launch_app",
+]);
+
 // Lenience map: these short aliases are NOT advertised via tools/list and are
 // not discoverable through MCP. They only rescue a model that guesses a common
 // short name (e.g. "screenshot") before, or instead of, reading tools/list.
@@ -178,6 +189,36 @@ export function normalizeToolName(name: string): string {
 
 export function isKnownToolName(name: string): boolean {
   return TOOL_NAMES.has(normalizeToolName(name));
+}
+
+export function isInteractiveToolName(name: string): boolean {
+  return INTERACTIVE_TOOL_NAMES.has(normalizeToolName(name));
+}
+
+// Tools that can synthesize arbitrary key chords (including Escape). While one
+// is in flight, the desktop overlay must not intercept Escape globally.
+// type_text is deliberately excluded: it types literal text and cannot emit Escape.
+const KEY_CHORD_TOOL_NAMES = new Set(["press_key"]);
+
+export function isKeyChordToolName(name: string): boolean {
+  return KEY_CHORD_TOOL_NAMES.has(normalizeToolName(name));
+}
+
+function readClickCount(value: unknown): number | undefined {
+  if (value === undefined) return undefined;
+  const count = readNumber(value, "click_count");
+  if (!Number.isInteger(count) || count < 1 || count > 2) {
+    throw new Error("click_count must be 1 or 2");
+  }
+  return count;
+}
+
+function readMouseButton(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !["left", "right", "middle", "l", "r", "m"].includes(value)) {
+    throw new Error("mouse_button must be left, right, or middle");
+  }
+  return value;
 }
 
 export async function dispatchTool(
@@ -207,34 +248,31 @@ export async function dispatchTool(
         ...(typeof args.app === "string" ? { app: args.app } : {}),
         id: readNumber(args.id, "id"),
       });
-    case "get_window_state": {
-      const payload = readRecord(args);
+    case "get_window_state":
       return await ctx.driver.getWindowState({
-        window: readWindow(payload.window),
-        ...(typeof payload.include_screenshot === "boolean"
-          ? { include_screenshot: payload.include_screenshot }
+        window: readWindow(args.window),
+        ...(typeof args.include_screenshot === "boolean"
+          ? { include_screenshot: args.include_screenshot }
           : {}),
-        ...(typeof payload.include_text === "boolean"
-          ? { include_text: payload.include_text }
+        ...(typeof args.include_text === "boolean" ? { include_text: args.include_text } : {}),
+        ...(typeof args.max_dimension === "number" && Number.isFinite(args.max_dimension)
+          ? { max_dimension: args.max_dimension }
           : {}),
-        ...(typeof payload.max_dimension === "number" && Number.isFinite(payload.max_dimension)
-          ? { max_dimension: payload.max_dimension }
-          : {}),
-        ...(payload.format === "png" || payload.format === "jpeg"
-          ? { format: payload.format }
-          : {}),
+        ...(args.format === "png" || args.format === "jpeg" ? { format: args.format } : {}),
       });
-    }
     case "activate_window":
       return await ctx.driver.activateWindow({ window: readWindow(args.window) });
-    case "click":
+    case "click": {
+      const clickCount = readClickCount(args.click_count);
+      const mouseButton = readMouseButton(args.mouse_button);
       return await ctx.driver.click({
         window: readWindow(args.window),
         x: readNumber(args.x, "x"),
         y: readNumber(args.y, "y"),
-        ...(typeof args.click_count === "number" ? { click_count: args.click_count } : {}),
-        ...(typeof args.mouse_button === "string" ? { mouse_button: args.mouse_button } : {}),
+        ...(clickCount !== undefined ? { click_count: clickCount } : {}),
+        ...(mouseButton !== undefined ? { mouse_button: mouseButton } : {}),
       });
+    }
     case "press_key":
       return await ctx.driver.pressKey({
         window: readWindow(args.window),

@@ -206,6 +206,8 @@ export const codexDefaultCapabilities: AgentCapability = {
   // spawn, read-only once the session is running.
   browserMcpScope: { terminal: "launch", gui: "launch" },
   subagentMcpScope: { terminal: "launch", gui: "launch" },
+  computerUseMcpScope: { terminal: "launch", gui: "launch" },
+  chromeMcpScope: { terminal: "launch", gui: "launch" },
   settingDefs: [],
   slashCommands: CODEX_BUILT_IN_SLASH_COMMANDS,
 };

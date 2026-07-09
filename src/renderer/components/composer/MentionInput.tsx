@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import type { FileEntry, ProjectLocation, PromptSegment } from "@/shared/contracts";
 import { fileNameFromPath } from "@/shared/promptContent";
 import { createChipElement, type FileMentionData } from "./FileMentionChip";
@@ -8,25 +9,43 @@ import { MentionPopover, type MentionEntry } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
 
-const BROWSER_MENTION_ENTRY: MentionEntry = { type: "browser", path: "browser", name: "Browser" };
-const COMPUTER_USE_MENTION_ENTRY: MentionEntry = {
-  type: "computer_use",
-  path: "computer",
-  name: "Computer Use",
-};
+/**
+ * A composer MCP server offered as an `@`-mention (Browser, Subagents, Computer
+ * Use, …). The caller supplies already-resolved `name`/`icon`/`detail` so this
+ * component stays registry-agnostic; `id` is echoed back via `onMcpMentionSelect`
+ * when the server still needs enabling. Already-enabled servers are inserted as
+ * prompt text so the mention directs the agent for this turn.
+ */
+export interface McpMentionItem {
+  id: string;
+  name: string;
+  icon: LucideIcon;
+  detail: string;
+  enabled: boolean;
+}
+
+/** Stable empty list so an omitted `mcpMentions` prop doesn't churn renders. */
+const EMPTY_MCP_MENTIONS: readonly McpMentionItem[] = [];
 
 export function buildMentionResults(
   fileResults: FileEntry[],
   query: string,
-  showBrowserMention: boolean,
-  showComputerUseMention = false,
+  mcpMentions: readonly McpMentionItem[] = EMPTY_MCP_MENTIONS,
 ): MentionEntry[] {
   const q = query.trim().toLowerCase();
-  const browserResults =
-    showBrowserMention && "browser".startsWith(q) ? [BROWSER_MENTION_ENTRY] : [];
-  const computerUseResults =
-    showComputerUseMention && "computer use".startsWith(q) ? [COMPUTER_USE_MENTION_ENTRY] : [];
-  return [...browserResults, ...computerUseResults, ...fileResults];
+  // Case-insensitive prefix match on the display name, matching the legacy
+  // "browser".startsWith(q) / "computer use".startsWith(q) behavior.
+  const mcpResults: MentionEntry[] = mcpMentions
+    .filter((item) => item.name.toLowerCase().startsWith(q))
+    .map((item) => ({
+      type: "mcp",
+      path: item.id,
+      name: item.name,
+      icon: item.icon,
+      detail: item.detail,
+      enabled: item.enabled,
+    }));
+  return [...mcpResults, ...fileResults];
 }
 
 export interface MentionInputHandle {
@@ -255,10 +274,13 @@ export const MentionInput = forwardRef<
     onTextChange: (hasText: boolean) => void;
     onSubmit: (segments: PromptSegment[]) => void;
     onPasteImage?: (file: File) => void;
-    showBrowserMention?: boolean;
-    onBrowserMentionSelect?: () => void;
-    showComputerUseMention?: boolean;
-    onComputerUseMentionSelect?: () => void;
+    /**
+     * Composer MCP servers to offer as `@`-mentions (Browser, Subagents,
+     * Computer Use). Enabled entries remain as prompt text; disabled entries
+     * call `onMcpMentionSelect` so the composer can enable them first.
+     */
+    mcpMentions?: readonly McpMentionItem[];
+    onMcpMentionSelect?: (id: string) => void;
     onSlashCommandChange?: (query: string | null) => void;
     /**
      * Trigger words to promote into chips as the user types/pastes (e.g. the
@@ -285,15 +307,16 @@ export const MentionInput = forwardRef<
     onTextChange,
     onSubmit,
     onPasteImage,
-    showBrowserMention,
-    onBrowserMentionSelect,
-    showComputerUseMention,
-    onComputerUseMentionSelect,
+    onMcpMentionSelect,
     onSlashCommandChange,
     onInterceptKey,
     triggerWords,
   } = props;
   const triggerWordDefs = triggerWords ?? EMPTY_TRIGGER_WORDS;
+  const mcpMentions = props.mcpMentions ?? EMPTY_MCP_MENTIONS;
+  // Stable dependency key: which MCP mentions are offered, independent of the
+  // array's per-render identity (mirrors the old boolean flags in the effect).
+  const mcpMentionKey = mcpMentions.map((item) => `${item.id}:${item.enabled}`).join(",");
   const editorRef = useRef<HTMLDivElement>(null);
   const lastSlashQueryRef = useRef<string | null>(null);
   const voicePreviewRef = useRef<HTMLSpanElement | null>(null);
@@ -306,16 +329,11 @@ export const MentionInput = forwardRef<
     mention !== null,
     projectId,
   );
-  const results = buildMentionResults(
-    fileResults,
-    mention?.query ?? "",
-    showBrowserMention === true,
-    showComputerUseMention === true,
-  );
+  const results = buildMentionResults(fileResults, mention?.query ?? "", mcpMentions);
 
   useEffect(() => {
     setActiveIndex(0);
-  }, [mention?.query, fileResults, showBrowserMention, showComputerUseMention]);
+  }, [mention?.query, fileResults, mcpMentionKey]);
 
   function insertPlainText(text: string) {
     const editor = editorRef.current;
@@ -565,26 +583,26 @@ export const MentionInput = forwardRef<
     const range = detectTriggerRange("@");
     if (!range) return;
 
-    if (entry.type === "browser") {
+    if (entry.type === "mcp") {
       const sel = window.getSelection();
       if (!sel) return;
       sel.removeAllRanges();
       sel.addRange(range);
       range.deleteContents();
-      setMention(null);
-      onBrowserMentionSelect?.();
-      notifyTextChange();
-      return;
-    }
 
-    if (entry.type === "computer_use") {
-      const sel = window.getSelection();
-      if (!sel) return;
-      sel.removeAllRanges();
-      sel.addRange(range);
-      range.deleteContents();
+      if (entry.enabled) {
+        const mentionText = document.createTextNode(`@${entry.name} `);
+        range.insertNode(mentionText);
+        const nextRange = document.createRange();
+        nextRange.setStartAfter(mentionText);
+        nextRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(nextRange);
+      } else {
+        onMcpMentionSelect?.(entry.path);
+      }
+
       setMention(null);
-      onComputerUseMentionSelect?.();
       notifyTextChange();
       return;
     }

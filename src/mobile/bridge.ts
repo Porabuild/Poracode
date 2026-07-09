@@ -37,10 +37,20 @@ import { applyAgentStatuses } from "./storeSync";
  */
 
 let activeClient: RemoteDesktopClient | null = null;
+/** Host OS of the paired desktop (`win32`/`darwin`/`linux`), when known. */
+let hostPlatform: NodeJS.Platform | null = null;
 
-/** The remote session hook keeps this pointing at the active desktop. */
-export function setRemoteBridgeClient(client: RemoteDesktopClient | null): void {
+/**
+ * The remote session hook keeps this pointing at the active desktop.
+ * Pass the desktop's advertised `platform` so host-gated features (Computer Use)
+ * key off the paired machine, not the phone's user-agent.
+ */
+export function setRemoteBridgeClient(
+  client: RemoteDesktopClient | null,
+  platform?: NodeJS.Platform | null,
+): void {
   activeClient = client;
+  hostPlatform = client ? (platform ?? null) : null;
 }
 
 /** Mobile-native views (BrowserView) call the remote API directly. */
@@ -62,11 +72,22 @@ async function runBrowserCommand(command: RemoteBrowserCommand): Promise<Browser
   return state;
 }
 
-function detectPlatform(): NodeJS.Platform {
+function detectClientPlatform(): NodeJS.Platform {
   const ua = navigator.userAgent;
   if (/Mac|iPhone|iPad|iPod/i.test(ua)) return "darwin";
   if (/Win/i.test(ua)) return "win32";
   return "linux";
+}
+
+/**
+ * Prefer the paired desktop's OS. Fall back to the client UA only when the
+ * server hasn't advertised a platform yet (older desktops / pre-pair).
+ */
+function resolveBridgePlatform(): NodeJS.Platform {
+  if (hostPlatform === "win32" || hostPlatform === "darwin" || hostPlatform === "linux") {
+    return hostPlatform;
+  }
+  return detectClientPlatform();
 }
 
 /** Copy a Uint8Array's bytes into a standalone ArrayBuffer for Blob/clipboard. */
@@ -78,7 +99,10 @@ function toArrayBuffer(data: Uint8Array): ArrayBuffer {
 
 const remoteBridge = {
   // Metadata reads. Analytics/diagnostics stay disabled in remote sessions.
-  platform: detectPlatform(),
+  // `platform` is a getter so it tracks the paired desktop after connect.
+  get platform(): NodeJS.Platform {
+    return resolveBridgePlatform();
+  },
   appVersion: "remote",
   arch: "web",
   chromeVersion: "",
