@@ -202,6 +202,65 @@ describe("transformCursorAcpSessionUpdate", () => {
     expect(input).toEqual(original);
   });
 
+  it("derives a title and kind from `rawInput._toolName` when title/kind are absent", () => {
+    const input = toolCall({ rawInput: { _toolName: "read_file", path: "a.ts" } });
+    const update = transformCursorAcpSessionUpdate(input).update as {
+      title?: unknown;
+      kind?: unknown;
+    };
+    expect(update.title).toBe("Read file");
+    expect(update.kind).toBe("read");
+  });
+
+  it("maps a `grep` _toolName to the search kind", () => {
+    const input = toolCall({ rawInput: { _toolName: "grep" } });
+    const update = transformCursorAcpSessionUpdate(input).update as {
+      title?: unknown;
+      kind?: unknown;
+    };
+    expect(update.title).toBe("Grep");
+    expect(update.kind).toBe("search");
+  });
+
+  it("does not overwrite an existing title/kind from _toolName", () => {
+    const input = toolCall({
+      title: "Reading config",
+      kind: "read",
+      rawInput: { _toolName: "grep" },
+    });
+    const update = transformCursorAcpSessionUpdate(input).update as {
+      title?: unknown;
+      kind?: unknown;
+    };
+    expect(update.title).toBe("Reading config");
+    expect(update.kind).toBe("read");
+  });
+
+  it("leaves the notification untouched when there is no _toolName to recover", () => {
+    const input = toolCall({ rawInput: {} });
+    expect(transformCursorAcpSessionUpdate(input)).toBe(input);
+  });
+
+  it("humanizes an unknown _toolName as a title but leaves kind unset", () => {
+    const input = toolCall({ rawInput: { _toolName: "fetch_web_page" } });
+    const update = transformCursorAcpSessionUpdate(input).update as {
+      title?: unknown;
+      kind?: unknown;
+    };
+    expect(update.title).toBe("Fetch web page");
+    expect(update.kind).toBeUndefined();
+  });
+
+  it("preserves a namespaced MCP _toolName so the renderer can identify the server", () => {
+    const input = toolCall({ rawInput: { _toolName: "mcp__github__search_issues" } });
+    const update = transformCursorAcpSessionUpdate(input).update as {
+      title?: unknown;
+      kind?: unknown;
+    };
+    expect(update.title).toBe("mcp__github__search_issues");
+    expect(update.kind).toBeUndefined();
+  });
+
   it("also rewrites rawOutput on a single-shot completed `tool_call`", () => {
     const input = toolCall({
       kind: "execute",

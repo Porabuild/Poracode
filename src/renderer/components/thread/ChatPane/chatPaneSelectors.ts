@@ -241,6 +241,17 @@ function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
   // null for `error`); excluding them here keeps the virtualized list from
   // allocating an empty slot that shows up as a gap.
   if (item.type === "error") return false;
+  // Tool renderers defer rows without a name. Keep those incomplete calls out
+  // of the virtualized timeline and group counts until a later update names them.
+  if (
+    (item.type === "tool_call" ||
+      item.type === "mcp_tool_call" ||
+      item.type === "image_view" ||
+      item.type === "dynamic_tool_call") &&
+    !(item.payload as Partial<ToolCallPayload> | undefined)?.name?.trim()
+  ) {
+    return false;
+  }
   // The raw provider MCP row for the subagents `run_agent` / `spawn_agent`
   // tools duplicates the synthetic sub-agent tile (`payload.isSubAgent` item,
   // which is NOT matched here). Suppress the raw row so it doesn't render next

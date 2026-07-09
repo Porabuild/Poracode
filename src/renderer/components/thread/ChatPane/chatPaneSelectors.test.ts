@@ -91,6 +91,54 @@ describe("chatPaneSelectors", () => {
     expect(selectVisibleThreadRuntimeItemIds(state, "t1")).toEqual(["assistant-1", "assistant-2"]);
   });
 
+  it("defers unnamed tool calls until an update provides a display name", () => {
+    const itemIds = ["assistant-1", "tool-1"];
+    const unnamedItems = {
+      "assistant-1": {
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "before" },
+      },
+      "tool-1": {
+        id: "tool-1",
+        type: "tool_call",
+        state: "started",
+        payload: { status: "running" },
+        streams: {},
+      },
+    };
+    const unnamedState = {
+      runtimeItemIdsByThread: { deferred: itemIds },
+      runtimeItemsByIdByThread: { deferred: unnamedItems },
+      runtimeStructuralVersionByThread: { deferred: 1 },
+    } as unknown as AppStoreState;
+    const namedState = {
+      ...unnamedState,
+      runtimeItemsByIdByThread: {
+        deferred: {
+          ...unnamedItems,
+          "tool-1": {
+            ...unnamedItems["tool-1"],
+            state: "updated",
+            payload: { name: "Read", status: "running" },
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { deferred: 2 },
+    } as unknown as AppStoreState;
+
+    expect(selectVisibleThreadRuntimeItemIds(unnamedState, "deferred")).toEqual(["assistant-1"]);
+    expect(selectVisibleThreadTimelineEntries(unnamedState, "deferred")).toEqual([
+      { kind: "item", id: "assistant-1" },
+    ]);
+    expect(selectVisibleThreadRuntimeItemIds(namedState, "deferred")).toEqual(itemIds);
+    expect(selectVisibleThreadTimelineEntries(namedState, "deferred")).toEqual([
+      { kind: "item", id: "assistant-1" },
+      { kind: "item", id: "tool-1" },
+    ]);
+  });
+
   it("groups adjacent tool calls into one timeline entry", () => {
     const state = {
       runtimeItemIdsByThread: {

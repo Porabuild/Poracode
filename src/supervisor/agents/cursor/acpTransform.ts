@@ -10,17 +10,17 @@
  * "View shows {content: …}" / "git diff result empty" / "grep result {totalMatches:N}"
  * symptoms come from.
  *
- * This module is the Cursor adapter's bridge. It rewrites the structured
- * `rawOutput` into a text representation the renderer's existing extractors
- * already handle correctly (string results → `asPart` → plain/JSON/diff
- * detection). It is wired only into the Cursor adapter's
- * `createStructuredSession()` and never touches shared mapping code.
+ * This module is the Cursor adapter's bridge. It recovers missing tool labels
+ * from Cursor metadata and rewrites structured `rawOutput` into a text
+ * representation the renderer's existing extractors already handle correctly
+ * (string results → `asPart` → plain/JSON/diff detection). It is wired only into
+ * the Cursor adapter's `createStructuredSession()` and never touches shared
+ * mapping code.
  *
  * The transform is intentionally narrow:
  *  - It only mutates `tool_call` / `tool_call_update` notifications.
- *  - It only rewrites `rawOutput`; `rawInput`, `kind`, `title`, and `locations`
- *    pass through untouched, so Cursor never sends those, the title stays a
- *    generic `View` / `Run` / `Search` / `Edit` — there is nothing to recover.
+ *  - It preserves provider fields except for recovered task metadata, missing
+ *    `title`/`kind`, and formatted `rawOutput`.
  *  - It is pure (no IO, no state) and never throws.
  */
 
@@ -34,7 +34,7 @@ export function transformCursorAcpSessionUpdate(
   if (update.sessionUpdate !== "tool_call" && update.sessionUpdate !== "tool_call_update") {
     return notification;
   }
-  const enriched = enrichCursorTaskToolCall(update);
+  const enriched = enrichCursorToolCall(update);
   const rawOutput = (enriched as { rawOutput?: unknown }).rawOutput;
   if (!isPlainRecord(rawOutput)) {
     return enriched === update ? notification : { ...notification, update: enriched };
@@ -48,6 +48,82 @@ export function transformCursorAcpSessionUpdate(
     ...notification,
     update: { ...enriched, rawOutput: replacement } as SessionNotification["update"],
   };
+}
+
+function enrichCursorToolCall(
+  update: SessionNotification["update"],
+): SessionNotification["update"] {
+  return enrichCursorToolCallLabel(enrichCursorTaskToolCall(update));
+}
+
+/**
+ * Cursor's near-empty initial `tool_call` events frequently omit both `title`
+ * and `kind`, but carry the real tool identity on `rawInput._toolName`
+ * (e.g. `"read_file"`, `"grep"`). Without a label the shared mapper would emit a
+ * nameless (now deferred/hidden) row until a later update fills it in — so
+ * derive an immediate human title, and a canonical `kind` for a confident set of
+ * tool names so `classifyToolCallItemType` picks the right row type/icon. This
+ * is provider-specific: `_toolName` never leaks into shared ACP code. A
+ * pre-existing meaningful `title`/`kind` is always preserved.
+ */
+function enrichCursorToolCallLabel(
+  update: SessionNotification["update"],
+): SessionNotification["update"] {
+  const tool = update as { title?: unknown; kind?: unknown; rawInput?: unknown };
+  const rawInput = tool.rawInput;
+  if (!isPlainRecord(rawInput)) return update;
+  const toolName = readString(rawInput._toolName);
+  if (!toolName) return update;
+  const derivedTitle = readString(tool.title) ? undefined : humanizeCursorToolName(toolName);
+  const derivedKind = readString(tool.kind) ? undefined : cursorKindFromToolName(toolName);
+  if (!derivedTitle && !derivedKind) return update;
+  return {
+    ...update,
+    ...(derivedTitle ? { title: derivedTitle } : {}),
+    ...(derivedKind ? { kind: derivedKind } : {}),
+  } as SessionNotification["update"];
+}
+
+/** Humanize a Cursor tool name while preserving MCP namespace identity. */
+function humanizeCursorToolName(name: string): string {
+  if (/^mcp__.+?__.+$/.test(name) || /^.+?-mcp-server-.+$/.test(name)) return name;
+  const spaced = name.replace(/[_-]+/g, " ").trim();
+  if (spaced.length === 0) return name;
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+/**
+ * Map a confident subset of Cursor `_toolName`s to a canonical ACP tool `kind`
+ * so the row gets the right type/icon before real metadata arrives. Anything
+ * uncertain is left unset (the mapper falls back to the generic bucket).
+ */
+function cursorKindFromToolName(name: string): string | undefined {
+  switch (name.toLowerCase()) {
+    case "read":
+    case "read_file":
+      return "read";
+    case "grep":
+    case "grep_search":
+    case "glob":
+    case "file_search":
+    case "codebase_search":
+    case "list_dir":
+      return "search";
+    case "shell":
+    case "bash":
+    case "terminal":
+    case "run_terminal_cmd":
+      return "execute";
+    case "edit_file":
+    case "write":
+    case "create_file":
+    case "search_replace":
+      return "edit";
+    case "delete_file":
+      return "delete";
+    default:
+      return undefined;
+  }
 }
 
 function enrichCursorTaskToolCall(

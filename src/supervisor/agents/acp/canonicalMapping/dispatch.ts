@@ -12,6 +12,7 @@ import {
 import { parseAcpAgentMessageApiError } from "../acpUserVisibleErrors";
 import { classifyToolCallItemType } from "./contentExtraction";
 import {
+  applyTerminalToolCallName,
   buildAcpToolCallPayload,
   buildAcpToolCallUpdatePayload,
   finalizeToolCallPayload,
@@ -312,8 +313,12 @@ export function mapAcpSessionUpdate(
             },
           })
         : payload;
-      const mergedPayload = mergeToolPayload(item.payload, nextPayload);
-      const emittedPayload = mergeProgressForEmission(nextPayload, mergedPayload);
+      const mergedRaw = mergeToolPayload(item.payload, nextPayload);
+      const emittedRaw = mergeProgressForEmission(nextPayload, mergedRaw);
+      // On completion, guarantee a name so a bare tool call can't finish hidden.
+      const { merged: mergedPayload, emitted: emittedPayload } = isTerminal
+        ? applyTerminalToolCallName(mergedRaw, emittedRaw)
+        : { merged: mergedRaw, emitted: emittedRaw };
       item.payload = mergedPayload;
       events.push({
         type: isTerminal ? "item.completed" : "item.updated",

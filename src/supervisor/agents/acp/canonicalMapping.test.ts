@@ -191,6 +191,134 @@ describe("mapAcpSessionUpdate", () => {
     expect(state.toolCallItems.has("tc-1")).toBe(false);
   });
 
+  it("omits `name` on a bare tool_call so the renderer defers the unnamed row", () => {
+    const state = createAcpMapperState("t-bare");
+    const started = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-bare",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(started[0]?.type).toBe("item.started");
+    const payload = (started[0] as { payload: Record<string, unknown> }).payload;
+    expect(payload.name).toBeUndefined();
+  });
+
+  it("keeps a kind-derived name when only `kind` is present on the initial event", () => {
+    const state = createAcpMapperState("t-kindname");
+    const started = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-k",
+        kind: "read",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect((started[0] as { payload: Record<string, unknown> }).payload.name).toBe("read");
+  });
+
+  it("falls back to a generic name when a bare tool_call completes without ever being named", () => {
+    const state = createAcpMapperState("t-bare-complete");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-x",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const completed = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-x",
+        status: "completed",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(completed[0]?.type).toBe("item.completed");
+    expect((completed[0] as { payload: Record<string, unknown> }).payload.name).toBe("Tool");
+  });
+
+  it("names a single-shot completed bare tool_call with the generic fallback", () => {
+    const state = createAcpMapperState("t-single");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-s",
+        status: "completed",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const completed = events.find((e) => e.type === "item.completed");
+    expect((completed as { payload: Record<string, unknown> }).payload.name).toBe("Tool");
+  });
+
+  it("names an orphaned bare tool_call when the turn ends", () => {
+    const state = createAcpMapperState("t-orphan");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-o",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const closed = closeOpenTurnItems(state);
+    const completed = closed.find((e) => e.type === "item.completed");
+    expect((completed as { payload: Record<string, unknown> }).payload.name).toBe("Tool");
+  });
+
+  it("sets the name from a kind-only update when the tool call has no name yet", () => {
+    const state = createAcpMapperState("t-kindupd");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-ku",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const updated = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-ku",
+        kind: "read",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect((updated[0] as { payload: Record<string, unknown> }).payload.name).toBe("read");
+    expect(state.toolCallItems.get("tc-ku")?.payload.name).toBe("read");
+  });
+
+  it("does not let a kind-only update overwrite a title-derived name", () => {
+    const state = createAcpMapperState("t-merge");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-m",
+        title: "Read config",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const updated = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-m",
+        kind: "read",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    // The kind-only update must not carry a name that would clobber the title.
+    expect((updated[0] as { payload: Record<string, unknown> }).payload.name).toBeUndefined();
+    expect(state.toolCallItems.get("tc-m")?.payload.name).toBe("Read config");
+  });
+
   it("preserves generic ACP Skill and MCP tool names for Grok and Factory-style adapters", () => {
     const state = createAcpMapperState("t-generic-tools");
 

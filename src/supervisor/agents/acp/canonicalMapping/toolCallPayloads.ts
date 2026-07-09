@@ -49,12 +49,18 @@ export function buildAcpToolCallPayload(
   const title = normalizeToolText(toolCall.title);
   const kind = normalizeToolText(toolCall.kind);
   const locations = extractToolLocations(toolCall.locations);
-  const name = title ?? kind ?? "tool";
+  // Only carry a `name` when we actually have one. A bare ACP `tool_call`
+  // (neither `title` nor `kind`, e.g. Cursor's near-empty initial events) must
+  // NOT fabricate a `"tool"` sentinel — that defeats the renderer's
+  // `!payload.name` hide-unnamed guards and paints an anonymous accordion row.
+  // Omitting `name` defers the row until a later update carries a real label;
+  // finalization (`finalizeToolCallPayload`) guarantees it never stays nameless.
+  const name = title ?? kind;
   const contentResult = extractToolCallContentText(toolCall.content, resolveTerminalOutput);
   const images = extractToolCallContentImages(toolCall.content);
   const subAgentModel = isSubAgent ? readStringField(toolCall.rawInput, "model") : undefined;
   const base: Record<string, unknown> = {
-    name,
+    ...(name ? { name } : {}),
     args: toolCall.rawInput,
     status,
     ...(contentResult !== undefined ? { result: contentResult } : {}),
@@ -108,8 +114,8 @@ export function buildAcpToolCallPayload(
     };
   }
   if (itemType === "web_search") {
-    const query = readStringField(toolCall.rawInput, "query") ?? title ?? kind ?? name;
-    return { ...base, query };
+    const query = readStringField(toolCall.rawInput, "query") ?? title ?? kind;
+    return { ...base, ...(query ? { query } : {}) };
   }
   return base;
 }
@@ -154,11 +160,16 @@ export function buildAcpToolCallUpdatePayload(
     payload: item.payload,
     resolveTerminalOutputByCommand,
   });
+  // Never let a kind-only update clobber a better title-derived name. A `title`
+  // always wins; a bare `kind` only sets the name when the tracked item has none
+  // yet (Cursor emits `title`/`kind` piecemeal across updates, and a late `kind`
+  // must not overwrite the human label an earlier `title` already established).
+  const nameUpdate = title ?? (kind && !hasToolCallName(item.payload) ? kind : undefined);
   const payload: Record<string, unknown> = {
     status,
     ...(result !== undefined ? { result } : {}),
     ...(images.length > 0 ? { images } : {}),
-    ...(title || kind ? { name: title ?? kind } : {}),
+    ...(nameUpdate ? { name: nameUpdate } : {}),
     ...(title ? { title } : {}),
     ...(kind ? { kind } : {}),
     ...(locations.length > 0 ? { locations } : {}),
@@ -213,14 +224,57 @@ export function finalizeToolCallPayload(
   state: AcpMapperState,
   item: AcpToolCallItemState,
 ): Record<string, unknown> {
-  if (item.itemType !== "command_execution" || item.payload.result !== undefined) {
-    return item.payload;
+  // A finalized tool call must never remain nameless — the renderer hides
+  // unnamed rows, so a bare ACP call that completes (or is orphaned when the
+  // turn ends) without ever receiving a title/kind would silently vanish.
+  const payload = ensureToolCallName(item.payload);
+  if (item.itemType !== "command_execution" || payload.result !== undefined) {
+    return payload;
   }
   const result = resolveTerminalOutputForCommandPayload(
-    item.payload,
+    payload,
     state.resolveTerminalOutputByCommand,
   );
-  return result !== undefined ? { ...item.payload, result } : item.payload;
+  return result !== undefined ? { ...payload, result } : payload;
+}
+
+const GENERIC_TOOL_NAME = "Tool";
+
+/** Whether a payload already carries a usable (non-empty) `name`. */
+export function hasToolCallName(payload: Record<string, unknown>): boolean {
+  return typeof payload.name === "string" && payload.name.trim().length > 0;
+}
+
+/**
+ * Generic display name for a tool call that reached a terminal state without a
+ * title or kind-derived name. Prefer the tool `kind` if one was ever seen, else
+ * a capitalized generic label the renderer surfaces verbatim (no new
+ * user-facing literal is introduced in the renderer — this originates in the
+ * macro-free supervisor).
+ */
+function toolCallFallbackName(payload: Record<string, unknown>): string {
+  const kind = normalizeToolText(typeof payload.kind === "string" ? payload.kind : undefined);
+  return kind ?? GENERIC_TOOL_NAME;
+}
+
+/** Return `payload` with a guaranteed `name`, falling back when it has none. */
+export function ensureToolCallName(payload: Record<string, unknown>): Record<string, unknown> {
+  return hasToolCallName(payload) ? payload : { ...payload, name: toolCallFallbackName(payload) };
+}
+
+/**
+ * Apply the terminal fallback name to a completing tool call's merged/emitted
+ * payload pair (the `tool_call_update` completion path bypasses
+ * `finalizeToolCallPayload`). Ensures both the tracked state and the emitted
+ * `item.completed` payload carry a name so the row can't finish hidden.
+ */
+export function applyTerminalToolCallName(
+  merged: Record<string, unknown>,
+  emitted: Record<string, unknown>,
+): { merged: Record<string, unknown>; emitted: Record<string, unknown> } {
+  if (hasToolCallName(merged)) return { merged, emitted };
+  const name = toolCallFallbackName(merged);
+  return { merged: { ...merged, name }, emitted: { ...emitted, name } };
 }
 
 /** Close any open assistant/user/reasoning/tool-call/plan items as a turn boundary. */
