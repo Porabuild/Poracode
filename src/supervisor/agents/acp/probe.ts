@@ -17,12 +17,12 @@ import {
   RequestError,
   type Client,
   type AuthMethod,
-  type ModelInfo,
   type SessionNotification,
   type SessionMode,
 } from "@agentclientprotocol/sdk";
 import type { AgentSlashCommand, AuthState, ThreadMode } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
+import { readUnstableSessionModels, type UnstableModelInfo } from "./unstableModelCompat";
 
 const ACP_AUTH_REQUIRED_ERROR = RequestError.authRequired();
 
@@ -173,13 +173,14 @@ export function humanizeModelId(id: string): string {
 }
 
 /**
- * Map ACP `ModelInfo[]` to Poracode model options.
+ * Map the unstable ACP model list (pre-1.0 `ModelInfo[]`, see
+ * `unstableModelCompat.ts`) to Poracode model options.
  *
  * If the agent returns `name` equal to `modelId`, we generate a
  * friendlier label from the ID.
  */
 export function mapAcpModels(
-  availableModels: ModelInfo[],
+  availableModels: UnstableModelInfo[],
 ): Array<{ id: string; label: string; description?: string }> {
   return availableModels.map((m) => {
     const description = m.description?.trim();
@@ -192,7 +193,7 @@ export function mapAcpModels(
 }
 
 function mapAcpModelMetadata(
-  availableModels: ModelInfo[],
+  availableModels: UnstableModelInfo[],
 ): Record<string, Record<string, unknown>> {
   const metadata: Record<string, Record<string, unknown>> = {};
   for (const model of availableModels) {
@@ -509,9 +510,13 @@ export async function probeAcpCapabilities(
         ...(newSessionMeta as Record<string, unknown>),
       };
     }
-    if (result.models?.availableModels?.length) {
-      probeResult.models = mapAcpModels(result.models.availableModels);
-      const modelMetadata = mapAcpModelMetadata(result.models.availableModels);
+    // Unstable pre-1.0 model list (see unstableModelCompat.ts). Read after the
+    // handshake so agents that only speak the removed surface (cursor-agent)
+    // still surface their models; `configOptions` "model" stays primary below.
+    const unstableModels = readUnstableSessionModels(result);
+    if (unstableModels?.availableModels.length) {
+      probeResult.models = mapAcpModels(unstableModels.availableModels);
+      const modelMetadata = mapAcpModelMetadata(unstableModels.availableModels);
       if (Object.keys(modelMetadata).length > 0) {
         probeResult.modelMetadata = modelMetadata;
       }
@@ -734,7 +739,7 @@ export async function logoutAcpAgent(
           throw new Error("ACP logout is not supported by this agent.");
         }
         console.log("%s logging out", tag);
-        await connection.unstable_logout({});
+        await connection.logout({});
       })(),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("ACP logout timed out")), timeoutMs),

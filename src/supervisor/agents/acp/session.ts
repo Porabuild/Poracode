@@ -89,6 +89,7 @@ import {
   resolveAcpMode,
   resolveModelConfigValue,
 } from "./sessionConfig";
+import { setUnstableSessionModel } from "./unstableModelCompat";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -421,7 +422,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         }
       } else {
         try {
-          await this.connection.unstable_setSessionModel({
+          // Fallback for agents without a "model" config option that still
+          // speak the removed pre-1.0 model API (see unstableModelCompat.ts).
+          await setUnstableSessionModel(this.connection, {
             sessionId: this.sessionId,
             modelId: config.model,
           });

@@ -19,3 +19,9 @@ export {
   envContextFromPayload,
   isUnsupportedAcpLogoutError,
 } from "./dispatch";
+export {
+  readUnstableSessionModels,
+  setUnstableSessionModel,
+  type UnstableModelInfo,
+  type UnstableSessionModelState,
+} from "./unstableModelCompat";

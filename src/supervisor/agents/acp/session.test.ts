@@ -64,8 +64,10 @@ function makeConfigSyncSession(
     setSessionMode: vi
       .fn<(args: { sessionId: string; modeId: string }) => Promise<void>>()
       .mockResolvedValue(undefined),
-    unstable_setSessionModel: vi
-      .fn<(args: { sessionId: string; modelId: string }) => Promise<void>>()
+    // Raw request escape hatch used by the unstable `session/set_model`
+    // compat shim (see unstableModelCompat.ts).
+    request: vi
+      .fn<(method: string, params: { sessionId: string; modelId: string }) => Promise<unknown>>()
       .mockResolvedValue(undefined),
     setSessionConfigOption: vi
       .fn<
@@ -847,7 +849,7 @@ describe("ACP turn config sync", () => {
       sessionId: "session-1",
       modeId: "plan",
     });
-    expect(connection.unstable_setSessionModel).toHaveBeenCalledWith({
+    expect(connection.request).toHaveBeenCalledWith("session/set_model", {
       sessionId: "session-1",
       modelId: "model-b",
     });
@@ -941,7 +943,7 @@ describe("ACP turn config sync", () => {
       configId: "model",
       value: "composer-2[fast=true]",
     });
-    expect(connection.unstable_setSessionModel).not.toHaveBeenCalled();
+    expect(connection.request).not.toHaveBeenCalled();
   });
 
   it("prioritizes Cursor-style effort aliases over the base ACP model alias", async () => {
@@ -981,7 +983,7 @@ describe("ACP turn config sync", () => {
       configId: "model",
       value: "gpt-5.5[context=272k,reasoning=high,fast=true]",
     });
-    expect(connection.unstable_setSessionModel).not.toHaveBeenCalled();
+    expect(connection.request).not.toHaveBeenCalled();
   });
 
   it("uses ACP session config options for mode when the agent exposes one", async () => {

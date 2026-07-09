@@ -276,7 +276,7 @@ export function SingleAgentSettings(props: {
   const terminalLoginMethod = findTerminalAuthMethodForStatus(loginStatus);
   const acpInstanceId = acpGenericInstanceId(agent.kind);
   // Native ACP adapters (copilot/gemini/cursor) and generic ACP instances all
-  // speak the same `authenticate()` / `unstable_logout()` over the supervisor's
+  // speak the same `authenticate()` / `logout()` over the supervisor's
   // unified dispatcher. The settings UI lets the user drive a sign-in or
   // sign-out whenever the agent exposes a non-env-var auth method (the env-var
   // case is handled separately by the credential-save block).
@@ -404,7 +404,7 @@ export function SingleAgentSettings(props: {
   };
   const logoutAgent = (status: AgentStatus) => {
     // Native ACP adapters only support sign-out when the agent itself
-    // advertised `unstable_logout` in its capability bag. acp-generic instances
+    // advertised logout support in its capability bag. acp-generic instances
     // always allow it because the local ack clear is what drives the UI state.
     if (!supportsAcpLogoutStatus(status, acpInstanceId)) return;
     const env = envLabelForStatus(status);

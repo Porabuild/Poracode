@@ -1,5 +1,5 @@
 /**
- * Shared dispatcher for ACP `authenticate()` / `unstable_logout()` calls.
+ * Shared dispatcher for ACP `authenticate()` / `logout()` calls.
  *
  * Every ACP-speaking adapter (Copilot, Gemini, Cursor, and the generic
  * acp-generic driver) implements {@link AgentAdapter.buildAcpAuthCommand},

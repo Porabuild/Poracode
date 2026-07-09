@@ -297,7 +297,7 @@ export interface AgentDetector {
 
 /**
  * Optional contract implemented by ACP-speaking adapters so the supervisor can
- * spawn the agent in ACP mode for `authenticate()` / `unstable_logout()` calls
+ * spawn the agent in ACP mode for `authenticate()` / `logout()` calls
  * (separate from the long-running structured session). Each adapter knows the
  * exact flags + executable path resolution for its own binary; returning the
  * same CommandSpec used during `probeAcpCapabilities` keeps the auth handshake

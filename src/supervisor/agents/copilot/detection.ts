@@ -3,7 +3,13 @@ import { Readable, Writable } from "node:stream";
 import { ClientSideConnection, ndJsonStream, PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
 import type { AgentCapability, ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
-import { dedupeAcpAuthMethods, probeAcpCapabilities, type AcpProbeResult } from "../acp";
+import {
+  dedupeAcpAuthMethods,
+  probeAcpCapabilities,
+  readUnstableSessionModels,
+  setUnstableSessionModel,
+  type AcpProbeResult,
+} from "../acp";
 import {
   batchWslCommandsAsync,
   buildAgentCommand,
@@ -170,14 +176,17 @@ async function probeCopilotModelEfforts(
     const modelEfforts: Record<string, string[]> = {};
     const defaultEffort = initialThoughtLevel?.currentValue;
 
-    if (session.models?.currentModelId && initialThoughtLevel?.options.length) {
-      modelEfforts[session.models.currentModelId] = initialThoughtLevel.options;
+    // Unstable pre-1.0 model state (see unstableModelCompat.ts) — the SDK no
+    // longer types the `models` field on the session response.
+    const sessionModels = readUnstableSessionModels(session);
+    if (sessionModels?.currentModelId && initialThoughtLevel?.options.length) {
+      modelEfforts[sessionModels.currentModelId] = initialThoughtLevel.options;
     }
 
     for (const model of models) {
       try {
         updates.length = 0;
-        await connection.unstable_setSessionModel({
+        await setUnstableSessionModel(connection, {
           sessionId: session.sessionId,
           modelId: model.id,
         });

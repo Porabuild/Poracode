@@ -651,7 +651,7 @@ export function setAcpRegistryAgentAuth(input: {
  * path only models browser/CLI login flows that are bound to a single env.
  *
  * Used by the unified ACP auth dispatcher (`runtime.ts`) after a successful
- * `authenticate()` / `unstable_logout()` call against an acp-generic instance.
+ * `authenticate()` / `logout()` call against an acp-generic instance.
  * Native ACP adapters (Copilot, Gemini, Cursor) do NOT call this — their
  * detection probes read the agent's own auth state directly, so an explicit
  * ack would just go stale.
