@@ -4,9 +4,11 @@ import type { Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import {
   deleteThread,
+  openNewThread,
   openThread,
   reopenStoredThread,
   switchToAdjacentThread,
@@ -66,6 +68,56 @@ describe("threadActions", () => {
       tabActivity: {},
     });
     useWorktreeDeleteStore.setState({ dialog: null });
+    useSharedSettings.setState({
+      homeScopeEnabled: false,
+      newThreadMode: "page",
+    });
+  });
+
+  it("discards the replaced draft when starting a sidebar draft for another project", () => {
+    const firstProject = useAppStore.getState().addProject({ kind: "posix", path: "/repo-a" });
+    const secondProject = useAppStore.getState().addProject({ kind: "posix", path: "/repo-b" });
+    useAppStore.setState((state) => ({
+      ...state,
+      view: { kind: "draft", projectId: firstProject.id },
+      draftContents: {
+        [firstProject.id]: {
+          segments: [{ kind: "text", content: "old draft" }],
+          attachments: [],
+        },
+      },
+      draftContentDiscardRequests: {},
+    }));
+
+    openNewThread(secondProject.id);
+
+    expect(useAppStore.getState().view).toEqual({
+      kind: "draft",
+      projectId: secondProject.id,
+    });
+    expect(useAppStore.getState().draftContents[firstProject.id]).toBeUndefined();
+    expect(useAppStore.getState().consumeDraftContentDiscard(firstProject.id)).toBe(true);
+  });
+
+  it("keeps visible draft panes when starting a sidebar draft as a panel", () => {
+    useSharedSettings.setState({ newThreadMode: "panel" });
+    const firstProject = useAppStore.getState().addProject({ kind: "posix", path: "/repo-a" });
+    const secondProject = useAppStore.getState().addProject({ kind: "posix", path: "/repo-b" });
+    const thread = makeThread({ id: "thread-visible", projectId: firstProject.id });
+    const draftPaneId = `draft:${firstProject.id}`;
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [thread],
+      view: { kind: "thread", panes: [thread.id, draftPaneId] },
+      draftContentDiscardRequests: {},
+    }));
+
+    openNewThread(secondProject.id);
+
+    const view = useAppStore.getState().view;
+    expect(view.kind).toBe("thread");
+    expect(view.kind === "thread" && view.panes).toContain(draftPaneId);
+    expect(useAppStore.getState().draftContentDiscardRequests[firstProject.id]).toBeUndefined();
   });
 
   it("hydrates a persisted GUI thread before opening the pane", async () => {

@@ -527,6 +527,7 @@ export function ThreadDraftComposerArea(props: {
     const pid = props.project.id;
     return () => {
       if (submittedRef.current) return;
+      if (useAppStore.getState().consumeDraftContentDiscard(pid)) return;
       const content = { segments: latestSegmentsRef.current, attachments: attachmentsRef.current };
       if (isDraftContentNonEmpty(content)) {
         saveDraftContent(pid, content);

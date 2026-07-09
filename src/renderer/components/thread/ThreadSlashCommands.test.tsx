@@ -162,6 +162,7 @@ describe("ThreadSlashCommands", () => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
     useAppStore.getState().clearDraftContent(draftProject.id);
+    useAppStore.setState({ draftContentDiscardRequests: {} });
     useSharedSettings.setState({ collapseTerminalComposer: false });
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
       configurable: true,
@@ -553,5 +554,66 @@ describe("ThreadSlashCommands", () => {
     expect(onStart).not.toHaveBeenCalled();
     expect(screen.queryByText("Commands")).not.toBeInTheDocument();
     expect(editor.textContent).toBe("/review ");
+  });
+
+  it("saves draft composer content on ordinary unmount", () => {
+    const { unmount } = render(
+      <AppProvider>
+        <ThreadDraftComposerArea
+          project={draftProject}
+          selectedAgent={makeAgentStatus()}
+          controls={[]}
+          config={{ model: "gemini-2.5-pro" }}
+          compact={false}
+          paneCount={1}
+          gitBranch={undefined}
+          worktreeMode={false}
+          supportsModePicker={false}
+          presentationMode="terminal"
+          onConfigChange={() => {}}
+          onWorktreeModeChange={() => {}}
+          onSwitchBranch={() => {}}
+          onRememberPresentationMode={() => {}}
+          onStart={() => {}}
+        />
+      </AppProvider>,
+    );
+
+    typeSlashQuery(screen.getByRole("textbox"), "ordinary draft");
+    unmount();
+
+    expect(useAppStore.getState().draftContents[draftProject.id]).toMatchObject({
+      segments: [{ kind: "text", content: "ordinary draft" }],
+    });
+  });
+
+  it("discards draft composer content when project switching requests it", () => {
+    const { unmount } = render(
+      <AppProvider>
+        <ThreadDraftComposerArea
+          project={draftProject}
+          selectedAgent={makeAgentStatus()}
+          controls={[]}
+          config={{ model: "gemini-2.5-pro" }}
+          compact={false}
+          paneCount={1}
+          gitBranch={undefined}
+          worktreeMode={false}
+          supportsModePicker={false}
+          presentationMode="terminal"
+          onConfigChange={() => {}}
+          onWorktreeModeChange={() => {}}
+          onSwitchBranch={() => {}}
+          onRememberPresentationMode={() => {}}
+          onStart={() => {}}
+        />
+      </AppProvider>,
+    );
+
+    typeSlashQuery(screen.getByRole("textbox"), "discarded draft");
+    useAppStore.getState().discardDraftContent(draftProject.id);
+    unmount();
+
+    expect(useAppStore.getState().draftContents[draftProject.id]).toBeUndefined();
   });
 });

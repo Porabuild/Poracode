@@ -26,8 +26,11 @@ export interface DraftSlice {
   threadDraftContents: Record<string, DraftContent>;
   pendingDraftWorktreeSelections: Record<string, PendingDraftWorktreeSelection>;
   pendingComposerSeeds: Record<string, PendingComposerSeed>;
+  draftContentDiscardRequests: Record<string, true>;
   saveDraftContent: (projectId: string, content: DraftContent) => void;
   clearDraftContent: (projectId: string) => void;
+  discardDraftContent: (projectId: string) => void;
+  consumeDraftContentDiscard: (projectId: string) => boolean;
   saveThreadDraftContent: (threadId: string, content: DraftContent) => void;
   clearThreadDraftContent: (threadId: string) => void;
   setPendingDraftWorktreeSelection: (
@@ -44,6 +47,7 @@ export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
   threadDraftContents: {},
   pendingDraftWorktreeSelections: {},
   pendingComposerSeeds: {},
+  draftContentDiscardRequests: {},
   saveDraftContent: (projectId, content) =>
     set((state) => ({
       draftContents: { ...state.draftContents, [projectId]: content },
@@ -54,6 +58,27 @@ export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
       const { [projectId]: _, ...rest } = state.draftContents;
       return { draftContents: rest };
     }),
+  discardDraftContent: (projectId) =>
+    set((state) => {
+      const { [projectId]: _draft, ...draftContents } = state.draftContents;
+      return {
+        draftContents,
+        draftContentDiscardRequests: {
+          ...state.draftContentDiscardRequests,
+          [projectId]: true,
+        },
+      };
+    }),
+  consumeDraftContentDiscard: (projectId) => {
+    let shouldDiscard = false;
+    set((state) => {
+      if (!(projectId in state.draftContentDiscardRequests)) return {};
+      shouldDiscard = true;
+      const { [projectId]: _, ...rest } = state.draftContentDiscardRequests;
+      return { draftContentDiscardRequests: rest };
+    });
+    return shouldDiscard;
+  },
   saveThreadDraftContent: (threadId, content) =>
     set((state) => ({
       threadDraftContents: { ...state.threadDraftContents, [threadId]: content },

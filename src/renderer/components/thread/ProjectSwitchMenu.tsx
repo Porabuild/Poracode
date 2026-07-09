@@ -45,6 +45,7 @@ export function ProjectSwitchMenu(props: {
   );
   const openDraft = useAppStore((state) => state.openDraft);
   const replacePaneId = useAppStore((state) => state.replacePaneId);
+  const discardDraftContent = useAppStore((state) => state.discardDraftContent);
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -60,6 +61,7 @@ export function ProjectSwitchMenu(props: {
 
   function handleSelect(nextProjectId: string) {
     if (nextProjectId === currentProjectId) return;
+    discardDraftContent(currentProjectId);
     startTransition(() => {
       if (paneId) {
         replacePaneId(paneId, makeDraftPaneId(nextProjectId));

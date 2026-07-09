@@ -1,7 +1,7 @@
 import { startTransition } from "react";
 import type { Thread } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
-import { isDraftPaneId } from "@/shared/paneId";
+import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
@@ -21,6 +21,22 @@ import { getCurrentProjectId } from "./currentProject";
 import { performWorktreeRemoval } from "./worktreeActions";
 
 let openThreadRequestId = 0;
+
+function discardReplacedDraftContents(targetProjectId: string): void {
+  const store = useAppStore.getState();
+  const view = store.view;
+  if (view.kind === "draft") {
+    if (view.projectId !== targetProjectId) store.discardDraftContent(view.projectId);
+    return;
+  }
+  if (view.kind !== "thread") return;
+  for (const paneId of view.panes) {
+    const draftProjectId = parseDraftProjectId(paneId);
+    if (draftProjectId && draftProjectId !== targetProjectId) {
+      store.discardDraftContent(draftProjectId);
+    }
+  }
+}
 
 export function openNewThread(projectId?: string): void {
   openThreadRequestId += 1;
@@ -42,6 +58,7 @@ export function openNewThread(projectId?: string): void {
     if (mode === "panel" && view.kind === "thread" && view.panes.length > 0) {
       useAppStore.getState().openDraftSideBySide(targetProjectId);
     } else {
+      discardReplacedDraftContents(targetProjectId);
       useAppStore.getState().openDraft(targetProjectId);
     }
   });
@@ -73,6 +90,7 @@ export function openNewThreadInWorktree(input: {
     if (mode === "panel" && view.kind === "thread" && view.panes.length > 0) {
       useAppStore.getState().openDraftSideBySide(input.projectId);
     } else {
+      discardReplacedDraftContents(input.projectId);
       useAppStore.getState().openDraft(input.projectId);
     }
   });

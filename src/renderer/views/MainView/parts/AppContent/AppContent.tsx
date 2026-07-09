@@ -285,6 +285,7 @@ export function AppContent() {
     return (
       <div className="h-full">
         <DraftViewContent
+          key={draftProject.id}
           project={draftProject}
           lastDraftConfig={draftLastDraftConfig}
           onStart={(input) => handleDraftStart(draftProject, input)}
