@@ -67,7 +67,7 @@ export const TOOLS: ToolSpec[] = [
   {
     name: "get_window_state",
     description:
-      "Capture a point-in-time passive window screenshot and optional accessibility text.",
+      "Capture a point-in-time passive window screenshot and optional accessibility text. By default the screenshot is a JPEG downscaled so its largest side is at most max_dimension (1280) px to keep the payload small; if it was downscaled, the notes report the scale factor you must divide screenshot pixel coordinates by to get window-relative click coordinates. Pass format:'png' and/or a larger max_dimension for a pixel-exact capture.",
     inputSchema: {
       type: "object",
       required: ["window"],
@@ -75,6 +75,8 @@ export const TOOLS: ToolSpec[] = [
         window: WINDOW_SCHEMA,
         include_screenshot: { type: "boolean" },
         include_text: { type: "boolean" },
+        max_dimension: { type: "number" },
+        format: { type: "string", enum: ["png", "jpeg"] },
       },
     },
   },
@@ -214,6 +216,12 @@ export async function dispatchTool(
           : {}),
         ...(typeof payload.include_text === "boolean"
           ? { include_text: payload.include_text }
+          : {}),
+        ...(typeof payload.max_dimension === "number" && Number.isFinite(payload.max_dimension)
+          ? { max_dimension: payload.max_dimension }
+          : {}),
+        ...(payload.format === "png" || payload.format === "jpeg"
+          ? { format: payload.format }
           : {}),
       });
     }

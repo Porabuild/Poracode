@@ -169,6 +169,10 @@ end tell
 }
 
 export class MacComputerUseDriver implements ComputerUseDriver {
+  dispose(): void {
+    // macOS spawns a fresh osascript per call, so there is nothing to release.
+  }
+
   async listApps(): Promise<ComputerUseApp[]> {
     const windows = await listMacWindows();
     const groups = new Map<string, ComputerUseWindow[]>();
@@ -200,8 +204,10 @@ export class MacComputerUseDriver implements ComputerUseDriver {
   }
 
   async getWindowState(input: {
+    format?: "jpeg" | "png";
     include_screenshot?: boolean;
     include_text?: boolean;
+    max_dimension?: number;
     window: ComputerUseWindow;
   }): Promise<ComputerUseWindowState> {
     const window = await this.getWindow(input.window);
@@ -210,6 +216,14 @@ export class MacComputerUseDriver implements ComputerUseDriver {
       "macOS window listing and screenshots are passive. Input actions switch to interactive mode and activate the target app.",
       "macOS captures the visible screen region; occluded windows and locked screens may require the user to reveal or unlock the desktop.",
     ];
+    if (
+      input.max_dimension !== undefined ||
+      (input.format !== undefined && input.format !== "png")
+    ) {
+      notes.push(
+        "macOS screenshots are always full-resolution PNG; max_dimension and format are not applied on this platform yet.",
+      );
+    }
     if (input.include_screenshot !== false) {
       const captureDir = join(tmpdir(), "lightcode-computer-use");
       await mkdir(captureDir, { recursive: true });

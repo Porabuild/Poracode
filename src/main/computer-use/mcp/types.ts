@@ -46,6 +46,9 @@ export interface ComputerUseWindowState {
 
 export interface ComputerUseDriver {
   activateWindow(input: { window: ComputerUseWindow }): Promise<{ ok: true; mode: "interactive" }>;
+  // Release any long-lived resources (e.g. the Windows persistent PowerShell
+  // host). No-op for drivers that spawn a fresh process per call.
+  dispose(): void;
   click(input: {
     click_count?: number;
     mouse_button?: string;
@@ -62,8 +65,10 @@ export interface ComputerUseDriver {
   }): Promise<{ ok: true; mode: "interactive" }>;
   getWindow(input: { app?: string; id: number }): Promise<ComputerUseWindow>;
   getWindowState(input: {
+    format?: "jpeg" | "png";
     include_screenshot?: boolean;
     include_text?: boolean;
+    max_dimension?: number;
     window: ComputerUseWindow;
   }): Promise<ComputerUseWindowState>;
   launchApp(input: { app: string }): Promise<{

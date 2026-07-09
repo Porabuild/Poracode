@@ -40,6 +40,9 @@ export class ComputerUseMcpIngress {
 
   dispose(): void {
     this.ingress.dispose();
+    // Release the driver's long-lived resources (e.g. the Windows persistent
+    // PowerShell host) so the child process doesn't leak on app teardown.
+    this.driver.dispose?.();
   }
 
   private buildContext(): ToolContext {

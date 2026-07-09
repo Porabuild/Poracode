@@ -1,3 +1,4 @@
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,12 +8,16 @@ import type {
   ComputerUseWindow,
   ComputerUseWindowState,
 } from "../mcp/types";
-import { runProcess } from "./common";
 
 const WINDOWS_HELPER = String.raw`
 $ErrorActionPreference = 'Stop'
-$raw = [Console]::In.ReadToEnd()
-$request = if ($raw.Trim().Length -gt 0) { $raw | ConvertFrom-Json } else { @{} }
+# Long-lived host: compile the native shim ONCE, then serve newline-delimited
+# JSON requests over stdin/stdout. Force UTF-8 on stdout so response strings
+# (titles, notes, emoji) survive; the Node side ASCII-escapes every request so
+# the stdin code page is irrelevant. Warnings go to stderr to keep stdout pure
+# NDJSON.
+try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false) } catch {}
+$WarningPreference = 'SilentlyContinue'
 
 Add-Type -AssemblyName System.Drawing
 Add-Type -TypeDefinition @"
@@ -245,13 +250,14 @@ function Activate-Window($window) {
   return $fresh
 }
 
-function Capture-Window($window) {
+function Capture-Window($window, $maxDimension, $format) {
   $hWnd = [IntPtr]([int64]$window.id)
-  $width = [Math]::Max(1, [int]$window.width)
-  $height = [Math]::Max(1, [int]$window.height)
-  $bitmap = New-Object Drawing.Bitmap($width, $height)
+  $srcWidth = [Math]::Max(1, [int]$window.width)
+  $srcHeight = [Math]::Max(1, [int]$window.height)
+  $bitmap = New-Object Drawing.Bitmap($srcWidth, $srcHeight)
   $graphics = [Drawing.Graphics]::FromImage($bitmap)
   $usedFallback = $false
+  $scaledBitmap = $null
   try {
     $hdc = $graphics.GetHdc()
     try {
@@ -261,26 +267,70 @@ function Capture-Window($window) {
     }
     if (-not $ok) {
       $usedFallback = $true
-      $graphics.CopyFromScreen([int]$window.x, [int]$window.y, 0, 0, [Drawing.Size]::new($width, $height))
+      $graphics.CopyFromScreen([int]$window.x, [int]$window.y, 0, 0, [Drawing.Size]::new($srcWidth, $srcHeight))
+    }
+    # Downscale (preserving aspect) so passive captures don't bill multi-MB PNGs
+    # as image tokens on every get_window_state. Report the ACTUAL encoded pixel
+    # size below so click coordinates can be mapped back to window points.
+    $scale = 1.0
+    $maxDim = [int]$maxDimension
+    if ($maxDim -gt 0) {
+      $largest = [Math]::Max($srcWidth, $srcHeight)
+      if ($largest -gt $maxDim) { $scale = [double]$maxDim / [double]$largest }
+    }
+    $encWidth = [Math]::Max(1, [int][Math]::Round($srcWidth * $scale))
+    $encHeight = [Math]::Max(1, [int][Math]::Round($srcHeight * $scale))
+    $encodeBitmap = $bitmap
+    if ($encWidth -ne $srcWidth -or $encHeight -ne $srcHeight) {
+      $scaledBitmap = New-Object Drawing.Bitmap($encWidth, $encHeight)
+      $sg = [Drawing.Graphics]::FromImage($scaledBitmap)
+      try {
+        $sg.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $sg.PixelOffsetMode = [Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+        $sg.DrawImage($bitmap, 0, 0, $encWidth, $encHeight)
+      } finally {
+        $sg.Dispose()
+      }
+      $encodeBitmap = $scaledBitmap
     }
     $stream = New-Object IO.MemoryStream
     try {
-      $bitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Png)
+      $fmt = ([string]$format).ToLowerInvariant()
+      if ($fmt -eq "png") {
+        $encodeBitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Png)
+        $mime = "image/png"
+      } else {
+        # JPEG (default) at quality 75 for passive captures. WebP has no
+        # .NET Framework encoder, so JPEG is the smallest widely-supported option.
+        $jpegCodec = [Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.FormatID -eq [Drawing.Imaging.ImageFormat]::Jpeg.Guid } | Select-Object -First 1
+        $encoderParams = [Drawing.Imaging.EncoderParameters]::new(1)
+        $encoderParams.Param[0] = [Drawing.Imaging.EncoderParameter]::new([Drawing.Imaging.Encoder]::Quality, [int64]75)
+        try {
+          $encodeBitmap.Save($stream, $jpegCodec, $encoderParams)
+        } finally {
+          $encoderParams.Dispose()
+        }
+        $mime = "image/jpeg"
+      }
       [pscustomobject]@{
         id = "window"
-        mimeType = "image/png"
+        mimeType = $mime
         data = [Convert]::ToBase64String($stream.ToArray())
-        width = $width
-        height = $height
+        width = $encWidth
+        height = $encHeight
         originX = [int]$window.x
         originY = [int]$window.y
         zIndex = 0
         fallback = $usedFallback
+        scale = $scale
+        sourceWidth = $srcWidth
+        sourceHeight = $srcHeight
       }
     } finally {
       $stream.Dispose()
     }
   } finally {
+    if ($null -ne $scaledBitmap) { $scaledBitmap.Dispose() }
     $graphics.Dispose()
     $bitmap.Dispose()
   }
@@ -407,6 +457,8 @@ function Mouse-Click($button, $count) {
   }
 }
 
+function Invoke-ComputerUseAction($request) {
+$result = $null
 switch ([string]$request.action) {
   "list_windows" {
     $result = @(Get-WindowList | ForEach-Object {
@@ -436,8 +488,13 @@ switch ([string]$request.action) {
     $screenshots = @()
     $notes = @("Window listing and screenshots are passive. Input actions switch to interactive mode and activate the target window.")
     if ($request.input.include_screenshot -ne $false) {
-      $capture = Capture-Window $window
+      $maxDimension = if ($null -ne $request.input.max_dimension) { [int]$request.input.max_dimension } else { 1280 }
+      $format = if ($request.input.format) { [string]$request.input.format } else { "jpeg" }
+      $capture = Capture-Window $window $maxDimension $format
       if ($capture.fallback) { $notes += "Passive PrintWindow capture was unavailable; used visible screen-region capture." }
+      if ($capture.scale -ne 1.0) {
+        $notes += "Screenshot was downscaled to $($capture.width)x$($capture.height) px (scale $($capture.scale)) from the $($capture.sourceWidth)x$($capture.sourceHeight) window to shrink the payload. To convert a coordinate you read from this screenshot into the window-relative coordinate for click/scroll/drag, DIVIDE it by $($capture.scale) (both x and y)."
+      }
       $screenshots = @([pscustomobject]@{
         id = $capture.id
         mimeType = $capture.mimeType
@@ -571,8 +628,25 @@ switch ([string]$request.action) {
     throw "Unknown action: $($request.action)"
   }
 }
+return $result
+}
 
-$result | ConvertTo-Json -Depth 32 -Compress
+# Serve one JSON request per stdin line; emit exactly one JSON response line per
+# request. Any throw inside an action becomes an { ok = $false; error } response
+# so a single failing action never tears down the long-lived host.
+while ($null -ne ($line = [Console]::In.ReadLine())) {
+  if ($line.Trim().Length -eq 0) { continue }
+  $reqId = $null
+  try {
+    $request = $line | ConvertFrom-Json
+    $reqId = $request.id
+    $result = Invoke-ComputerUseAction $request
+    $response = [pscustomobject]@{ id = $reqId; ok = $true; result = $result }
+  } catch {
+    $response = [pscustomobject]@{ id = $reqId; ok = $false; error = [string]$_.Exception.Message }
+  }
+  [Console]::Out.WriteLine(($response | ConvertTo-Json -Depth 32 -Compress))
+}
 `;
 
 // The helper is too large to pass via `-EncodedCommand` (base64 of the
@@ -591,18 +665,186 @@ function ensureWindowsHelperScript(): string {
   return path;
 }
 
-async function runWindowsComputerUse<T>(action: string, input?: unknown): Promise<T> {
-  const scriptPath = ensureWindowsHelperScript();
-  const { stdout } = await runProcess(
-    "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-    ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", scriptPath],
-    {
-      input: JSON.stringify({ action, input: input ?? {} }),
-      timeoutMs: 20_000,
-      maxBufferBytes: 24 * 1024 * 1024,
-    },
-  );
-  return JSON.parse(stdout.trim()) as T;
+const POWERSHELL_PATH = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe";
+const REQUEST_TIMEOUT_MS = 20_000;
+// Responses can be multi-MB (screenshots). Cap the accumulated stdout so a
+// runaway/garbage child can't grow the buffer without bound; on overflow we
+// recycle the child.
+const MAX_STDOUT_BUFFER_BYTES = 64 * 1024 * 1024;
+
+interface PendingRequest {
+  reject: (error: Error) => void;
+  resolve: (value: unknown) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
+
+// Escape every non-ASCII UTF-16 code unit so each request line is pure ASCII on
+// the wire. PowerShell's ConvertFrom-Json rebuilds the original string (incl.
+// emoji surrogate pairs) from the \uXXXX escapes, so correct Unicode input
+// (type_text) never depends on the child's stdin code page.
+function toAsciiRequestLine(payload: unknown): string {
+  const json = JSON.stringify(payload);
+  let out = "";
+  for (let i = 0; i < json.length; i += 1) {
+    const code = json.charCodeAt(i);
+    out += code > 0x7f ? `\\u${code.toString(16).padStart(4, "0")}` : json[i];
+  }
+  return `${out}\n`;
+}
+
+// Long-lived PowerShell host. The helper compiles its native shim once and then
+// serves newline-delimited JSON requests, eliminating the ~300ms Add-Type
+// recompile + ~112ms process spawn that the old one-shot model paid per action.
+// Requests are serialized over a single stdin/stdout pipe (SendInput is a global
+// machine action, so serializing shared-driver calls is also semantically
+// correct). Each request carries a monotonic id so responses are matched even
+// though the child processes them one at a time.
+class PersistentPowerShellHost {
+  private child: ChildProcessWithoutNullStreams | null = null;
+  private nextId = 1;
+  private readonly pending = new Map<number, PendingRequest>();
+  private stderrTail = "";
+  private stdoutBuffer = "";
+
+  request<T>(action: string, input?: unknown): Promise<T> {
+    const child = this.ensureChild();
+    const id = this.nextId++;
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const pending = this.pending.get(id);
+        if (!pending) return;
+        this.pending.delete(id);
+        pending.reject(
+          new Error(`computer-use action "${action}" timed out after ${REQUEST_TIMEOUT_MS}ms`),
+        );
+        // A hung native call poisons the shared pipe for every queued request,
+        // so recycle the child; the next request lazily respawns a clean host.
+        this.teardown(new Error("computer-use host was recycled after a timed-out action"), true);
+      }, REQUEST_TIMEOUT_MS);
+      this.pending.set(id, { resolve: resolve as (value: unknown) => void, reject, timer });
+      child.stdin.write(toAsciiRequestLine({ id, action, input: input ?? {} }), (error) => {
+        if (!error) return;
+        const pending = this.pending.get(id);
+        if (!pending) return;
+        this.pending.delete(id);
+        clearTimeout(pending.timer);
+        pending.reject(error);
+      });
+    });
+  }
+
+  dispose(): void {
+    this.teardown(new Error("computer-use host disposed"), true);
+  }
+
+  private ensureChild(): ChildProcessWithoutNullStreams {
+    if (this.child) return this.child;
+    const scriptPath = ensureWindowsHelperScript();
+    const child = spawn(
+      POWERSHELL_PATH,
+      [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        scriptPath,
+      ],
+      { windowsHide: true },
+    ) as ChildProcessWithoutNullStreams;
+    this.child = child;
+    this.stdoutBuffer = "";
+    this.stderrTail = "";
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      if (this.child !== child) return;
+      this.onStdout(chunk);
+    });
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => {
+      this.stderrTail = (this.stderrTail + chunk).slice(-4096);
+    });
+    child.on("error", (error: Error) => {
+      if (this.child !== child) return;
+      this.teardown(new Error(`computer-use host failed: ${error.message}`), false);
+    });
+    child.on("exit", (code, signal) => {
+      if (this.child !== child) return;
+      const detail = this.stderrTail.trim();
+      this.teardown(
+        new Error(
+          `computer-use host exited unexpectedly (code=${code ?? "null"}, signal=${signal ?? "null"})${detail ? `: ${detail}` : ""}`,
+        ),
+        false,
+      );
+    });
+    return child;
+  }
+
+  private onStdout(chunk: string): void {
+    this.stdoutBuffer += chunk;
+    if (this.stdoutBuffer.length > MAX_STDOUT_BUFFER_BYTES) {
+      this.teardown(new Error("computer-use host response exceeded the buffer limit"), true);
+      return;
+    }
+    let newlineIndex = this.stdoutBuffer.indexOf("\n");
+    while (newlineIndex !== -1) {
+      const line = this.stdoutBuffer.slice(0, newlineIndex);
+      this.stdoutBuffer = this.stdoutBuffer.slice(newlineIndex + 1);
+      // PowerShell writes CRLF; trim strips the trailing \r. base64 payloads
+      // contain no newlines, so each response is exactly one line.
+      this.dispatchLine(line.trim());
+      newlineIndex = this.stdoutBuffer.indexOf("\n");
+    }
+  }
+
+  private dispatchLine(line: string): void {
+    if (!line) return;
+    let message: { error?: unknown; id?: unknown; ok?: unknown; result?: unknown };
+    try {
+      message = JSON.parse(line) as typeof message;
+    } catch {
+      // Non-JSON noise on stdout — ignore rather than corrupt a pending request.
+      return;
+    }
+    if (typeof message.id !== "number") return;
+    const pending = this.pending.get(message.id);
+    if (!pending) return;
+    this.pending.delete(message.id);
+    clearTimeout(pending.timer);
+    if (message.ok) {
+      pending.resolve(message.result);
+    } else {
+      pending.reject(
+        new Error(typeof message.error === "string" ? message.error : "computer-use action failed"),
+      );
+    }
+  }
+
+  private teardown(error: Error, kill: boolean): void {
+    const child = this.child;
+    this.child = null;
+    this.stdoutBuffer = "";
+    this.stderrTail = "";
+    const pendings = [...this.pending.values()];
+    this.pending.clear();
+    for (const pending of pendings) {
+      clearTimeout(pending.timer);
+      pending.reject(error);
+    }
+    if (!child) return;
+    child.stdout.removeAllListeners();
+    child.stderr.removeAllListeners();
+    child.removeAllListeners();
+    if (kill) {
+      try {
+        child.kill();
+      } catch {
+        // The child may already be gone; nothing to clean up.
+      }
+    }
+  }
 }
 
 function normalizeArray<T>(value: T | T[] | null | undefined): T[] {
@@ -611,32 +853,38 @@ function normalizeArray<T>(value: T | T[] | null | undefined): T[] {
 }
 
 export class WindowsComputerUseDriver implements ComputerUseDriver {
+  private readonly host = new PersistentPowerShellHost();
+
+  dispose(): void {
+    this.host.dispose();
+  }
+
   async listApps(): Promise<ComputerUseApp[]> {
-    return normalizeArray(
-      await runWindowsComputerUse<ComputerUseApp | ComputerUseApp[]>("list_apps"),
-    );
+    return normalizeArray(await this.host.request<ComputerUseApp | ComputerUseApp[]>("list_apps"));
   }
 
   async listWindows(): Promise<ComputerUseWindow[]> {
     return normalizeArray(
-      await runWindowsComputerUse<ComputerUseWindow | ComputerUseWindow[]>("list_windows"),
+      await this.host.request<ComputerUseWindow | ComputerUseWindow[]>("list_windows"),
     );
   }
 
   getWindow(input: { app?: string; id: number }): Promise<ComputerUseWindow> {
-    return runWindowsComputerUse("get_window", input);
+    return this.host.request("get_window", input);
   }
 
   getWindowState(input: {
+    format?: "jpeg" | "png";
     include_screenshot?: boolean;
     include_text?: boolean;
+    max_dimension?: number;
     window: ComputerUseWindow;
   }): Promise<ComputerUseWindowState> {
-    return runWindowsComputerUse("get_window_state", input);
+    return this.host.request("get_window_state", input);
   }
 
   activateWindow(input: { window: ComputerUseWindow }): Promise<{ ok: true; mode: "interactive" }> {
-    return runWindowsComputerUse("activate_window", input);
+    return this.host.request("activate_window", input);
   }
 
   click(input: {
@@ -646,21 +894,21 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     x?: number;
     y?: number;
   }): Promise<{ ok: true; mode: "interactive" }> {
-    return runWindowsComputerUse("click", input);
+    return this.host.request("click", input);
   }
 
   typeText(input: { text: string; window: ComputerUseWindow }): Promise<{
     ok: true;
     mode: "interactive";
   }> {
-    return runWindowsComputerUse("type_text", input);
+    return this.host.request("type_text", input);
   }
 
   pressKey(input: { key: string; window: ComputerUseWindow }): Promise<{
     ok: true;
     mode: "interactive";
   }> {
-    return runWindowsComputerUse("press_key", input);
+    return this.host.request("press_key", input);
   }
 
   scroll(input: {
@@ -670,7 +918,7 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     x: number;
     y: number;
   }): Promise<{ ok: true; mode: "interactive" }> {
-    return runWindowsComputerUse("scroll", input);
+    return this.host.request("scroll", input);
   }
 
   drag(input: {
@@ -680,7 +928,7 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     to_y: number;
     window: ComputerUseWindow;
   }): Promise<{ ok: true; mode: "interactive" }> {
-    return runWindowsComputerUse("drag", input);
+    return this.host.request("drag", input);
   }
 
   launchApp(input: { app: string }): Promise<{
@@ -688,7 +936,7 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     window?: ComputerUseWindow | null;
     note?: string;
   }> {
-    return runWindowsComputerUse("launch_app", input);
+    return this.host.request("launch_app", input);
   }
 
   setValue(input: {
@@ -696,7 +944,7 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     value: string;
     window: ComputerUseWindow;
   }): Promise<{ ok: true; mode: "interactive" }> {
-    return runWindowsComputerUse("set_value", input);
+    return this.host.request("set_value", input);
   }
 
   performSecondaryAction(input: {
@@ -704,6 +952,6 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     element_index: number;
     window: ComputerUseWindow;
   }): Promise<{ ok: true; mode: "interactive" }> {
-    return runWindowsComputerUse("perform_secondary_action", input);
+    return this.host.request("perform_secondary_action", input);
   }
 }

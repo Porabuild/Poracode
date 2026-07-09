@@ -7,6 +7,10 @@ class UnsupportedComputerUseDriver implements ComputerUseDriver {
     throw new Error("Computer Use is only available on macOS and Windows.");
   }
 
+  dispose(): void {
+    // No long-lived resources to release.
+  }
+
   listApps(): Promise<never> {
     return Promise.reject(this.unavailable());
   }
