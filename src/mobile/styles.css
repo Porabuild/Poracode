@@ -860,11 +860,16 @@ body.bg-background {
    the layout viewport, which iOS keeps full-height under the keyboard). */
 .m-compose-dock[data-expanded],
 .m-thread-compose-dock[data-expanded] {
-  transform: translateY(calc(-1 * var(--m-keyboard-offset, 0px)));
+  transform: translateY(calc(-1 * (var(--m-keyboard-offset, 0px) + var(--m-keyboard-gap, 0px))));
 }
 
 .m-compose-dock[data-expanded][data-android-runtime],
 .m-thread-compose-dock[data-expanded][data-android-runtime] {
+  /* Android resizes the layout viewport around the keyboard, so keep the old
+     stable bottom anchor and add the requested keyboard breathing room as a
+     paint-only shift. Changing `bottom` during WebView resize can bounce the
+     dock against transient viewport heights. */
+  --m-keyboard-gap: 0.75rem;
   bottom: env(safe-area-inset-bottom);
 }
 
