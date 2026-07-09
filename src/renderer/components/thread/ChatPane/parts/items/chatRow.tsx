@@ -23,8 +23,11 @@ export const chatRowShellClass = "w-full pl-4";
 export const chatRowClass =
   "flex w-fit max-w-full min-w-0 items-center rounded-lg px-2 py-1 text-left";
 
-// Hover affordance for rows that expand a body on click.
-export const chatRowHoverClass = "transition-colors hover:bg-[var(--row-hover)]";
+// Hover affordance for rows that expand a body on click. Matches the
+// Thinking/Thought toggle: the row's muted text lights up to foreground
+// (all row content is colored via `var(--muted)`) instead of a background
+// tint.
+export const chatRowHoverClass = "transition-colors hover:[--muted:var(--foreground)]";
 
 // Hairline rule above an expanded row's body. Callers append the top padding
 // (`pt-1` dense, `pt-2.5` roomier).

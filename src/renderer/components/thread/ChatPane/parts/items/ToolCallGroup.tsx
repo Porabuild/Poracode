@@ -283,7 +283,9 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
       }}
     >
       <Disclosure.Heading>
-        <Disclosure.Trigger className="flex w-fit max-w-full min-w-0 items-center gap-1.5 rounded-md py-0.5 text-left transition-colors hover:bg-[var(--row-hover)]">
+        <Disclosure.Trigger
+          className={`flex w-fit max-w-full min-w-0 items-center gap-1.5 rounded-md py-0.5 text-left ${chatRowHoverClass}`}
+        >
           <Icon className="size-3 shrink-0 text-[color:var(--muted)]" />
           <InlineRowTitle
             title={row.title}
