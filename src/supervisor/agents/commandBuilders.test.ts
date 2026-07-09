@@ -409,16 +409,38 @@ describe("agent command builders", () => {
 
   it("builds a Grok one-shot command via the headless `grok -p` path", () => {
     expect(
-      createGrokAdapter().buildOneShotCommand?.("grok-build", undefined, "Summarize this diff"),
+      createGrokAdapter().buildOneShotCommand?.(
+        "grok-composer-2.5-fast",
+        undefined,
+        "Summarize this diff",
+      ),
     ).toEqual({
       command: "grok",
-      args: ["-p", "Summarize this diff", "-m", "grok-build", "--always-approve"],
+      args: ["-p", "Summarize this diff", "-m", "grok-composer-2.5-fast", "--always-approve"],
+      stdin: "",
+    });
+  });
+
+  it("forwards effort to Grok one-shots as --reasoning-effort", () => {
+    expect(
+      createGrokAdapter().buildOneShotCommand?.("grok-4.5", "low", "Summarize this diff"),
+    ).toEqual({
+      command: "grok",
+      args: [
+        "-p",
+        "Summarize this diff",
+        "-m",
+        "grok-4.5",
+        "--reasoning-effort",
+        "low",
+        "--always-approve",
+      ],
       stdin: "",
     });
   });
 
   it("returns undefined for a Grok one-shot when no prompt is supplied", () => {
-    expect(createGrokAdapter().buildOneShotCommand?.("grok-build", undefined, undefined)).toBe(
+    expect(createGrokAdapter().buildOneShotCommand?.("grok-4.5", undefined, undefined)).toBe(
       undefined,
     );
   });

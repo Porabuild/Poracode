@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { PromptSegment } from "@/shared/contracts";
 import { createAcpStructuredSession } from "../acp";
 import {
@@ -23,7 +24,7 @@ import {
 import {
   makeGrokDiscoverSessionRef,
   makeGrokWatchSessionRef,
-  mintGrokSessionIdViaAcpSync,
+  resolveGrokSessionArg,
   snapshotGrokPreSpawnSessions,
 } from "./sessionFiles";
 
@@ -95,35 +96,41 @@ export function createGrokAdapter(): AgentAdapter {
     buildLaunchArgv(location, config, prompt, sessionRef, _launchOptions) {
       const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
       // Snapshot existing session dirs so discoverSessionRef can identify the
-      // new UUID Grok creates if minting fails and the PTY ends up creating
-      // its own session.
+      // new UUID Grok creates if the pre-assigned `-s` id is ever ignored and
+      // the PTY ends up creating its own session.
       snapshotGrokPreSpawnSessions(location, cwd);
 
-      // Resolve a session ID before spawning the PTY: prefer one we already
-      // know (resume), otherwise mint one via a short-lived `grok agent stdio`
-      // handshake so the TUI loads directly into the chat composer. Without
-      // an ID Grok renders its welcome menu in cwds with prior sessions —
-      // that breaks `isReadyForInitialPrompt` and the initial prompt never
-      // gets delivered.
-      let resumeId = sessionRef?.providerSessionId;
-      if (!resumeId) {
-        resumeId = mintGrokSessionIdViaAcpSync(location, 2600, buildGrokAcpArgs(config));
-      }
+      // Resolve the session ID before spawning the PTY: resume a known one
+      // with `-r`, otherwise pre-assign a fresh UUID with `-s` (grok 0.2.93,
+      // works on native and WSL alike). Grok normally materializes the
+      // session dir within ~1s of boot; a known id whose dir never appeared
+      // (launch died at startup) is re-assigned via `-s`
+      // (see resolveGrokSessionArg).
+      const known = sessionRef?.providerSessionId;
+      const sessionId = known ?? randomUUID();
+      const sessionArg = known
+        ? resolveGrokSessionArg(location, cwd, known)
+        : ({ kind: "new", sessionId } as const);
 
-      const args = buildGrokArgs(config, prompt, resumeId);
-      // Returning the minted/resumed id as sessionRef lets the runtime skip
-      // post-spawn discovery on the happy path (mirrors gemini/cursor).
-      // discoverSessionRef stays wired up as the fallback for mint failures
-      // in fresh cwds where Grok creates its own session.
+      const args = buildGrokArgs(config, prompt, sessionArg);
+      // Returning the id as sessionRef lets the runtime skip post-spawn
+      // discovery on the happy path (mirrors gemini/cursor).
+      // discoverSessionRef stays wired up as the fallback.
       return {
         binary: "grok",
         args,
-        ...(resumeId ? { sessionRef: createKnownSessionRef(resumeId) } : {}),
+        sessionRef: createKnownSessionRef(sessionId),
       };
     },
 
-    buildResumeArgv(_location, config, prompt, sessionRef) {
-      const args = buildGrokArgs(config, prompt, sessionRef?.providerSessionId);
+    buildResumeArgv(location, config, prompt, sessionRef) {
+      const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
+      const known = sessionRef?.providerSessionId;
+      const args = buildGrokArgs(
+        config,
+        prompt,
+        known ? resolveGrokSessionArg(location, cwd, known) : undefined,
+      );
       return { binary: "grok", args };
     },
 
@@ -173,6 +180,9 @@ export function createGrokAdapter(): AgentAdapter {
       const t = text.toLowerCase();
       if (t.includes("grok build")) return true;
       if (/type @|mention files|\/ commands/i.test(text)) return true;
+      // 0.2.x composer footer ("Shift+Tab:mode") — present on both the
+      // welcome screen and resumed sessions (verified live on 0.2.93).
+      if (t.includes("shift+tab")) return true;
       return false;
     },
 
@@ -196,13 +206,14 @@ export function createGrokAdapter(): AgentAdapter {
     // One-shot (title / commit) generation reuses Grok's documented headless
     // path: `grok -p <prompt>`. `--always-approve` keeps the non-interactive run
     // from blocking on a tool-approval prompt it cannot answer (mirrors the
-    // launch/ACP bypass in argv.ts). Effort is intentionally not passed: it's
-    // headless-only and Grok does not surface effort tiers (see detection.ts).
-    defaultOneShotModel: "grok-build",
-    buildOneShotCommand(model, _effort, prompt) {
+    // launch/ACP bypass in argv.ts). The default is Grok's own default model —
+    // fast and subscription-covered, ideal for lightweight one-shots.
+    defaultOneShotModel: "grok-composer-2.5-fast",
+    buildOneShotCommand(model, effort, prompt) {
       if (!prompt) return undefined;
       const args = ["-p", prompt];
       if (model) args.push("-m", model);
+      if (effort) args.push("--reasoning-effort", effort);
       args.push("--always-approve");
       return { command: "grok", args, stdin: "" };
     },

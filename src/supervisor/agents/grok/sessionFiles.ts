@@ -1,7 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { Worker } from "node:worker_threads";
 import type { ProjectLocation, SessionRef } from "@/shared/contracts";
 import {
   createKnownSessionRef,
@@ -11,9 +10,16 @@ import {
   statSessionPaths,
   watchSessionPaths,
 } from "../base";
-import { resolveAgentBinaryPath } from "../binaryResolver";
+import type { GrokSessionArg } from "./argv";
 
-const GROK_SESSIONS_ROOT = join(homedir(), ".grok", "sessions");
+// Honor the same GROK_HOME override the CLI (and grokCredentials.ts) support.
+function getNativeGrokSessionsRoot(): string {
+  const grokHome = process.env["GROK_HOME"];
+  return join(
+    grokHome && grokHome.trim().length > 0 ? grokHome : join(homedir(), ".grok"),
+    "sessions",
+  );
+}
 
 // Module-level snapshot captured right before we spawn a PTY for a fresh Grok launch.
 // This lets discoverSessionRef reliably identify the *new* session dir that Grok
@@ -32,7 +38,7 @@ function getGrokCwdSessionsDir(location: ProjectLocation, cwd: string): string |
     if (!home) return null;
     return `${home}/.grok/sessions/${encodeCwdKey(cwd)}`;
   }
-  return join(GROK_SESSIONS_ROOT, encodeCwdKey(cwd));
+  return join(getNativeGrokSessionsRoot(), encodeCwdKey(cwd));
 }
 
 async function getGrokCwdSessionsDirAsync(
@@ -49,7 +55,7 @@ function getGrokSessionsRoot(location: ProjectLocation): string | null {
     const home = getCachedWslHomeDirectory(location.distro);
     return home ? `${home}/.grok/sessions` : null;
   }
-  return GROK_SESSIONS_ROOT;
+  return getNativeGrokSessionsRoot();
 }
 
 /**
@@ -85,6 +91,59 @@ export function snapshotGrokPreSpawnSessions(location: ProjectLocation, cwd: str
 
 function isUuid(s: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
+
+/**
+ * True when the session directory for <cwd>/<sessionId> exists on disk.
+ *
+ * grok 0.2.93 normally writes the session dir within ~1s of TUI boot
+ * (verified live), but a UUID we pre-assigned with `-s` can still be missing
+ * when the launch died at startup (spawn failure, immediate kill) or the TUI
+ * deferred to its welcome/resume menu. Callers use this to decide between
+ * `-r <id>` (resume a real session) and `-s <id>` (re-assign the same id —
+ * `-s` requires the session to not exist and exits 1 on a collision, so the
+ * choice must reflect live disk state, never a timing assumption).
+ *
+ * Returns `undefined` when the check is unavailable (WSL distro home not
+ * cached / UNC bridge unreachable); callers should then default to resume.
+ */
+export function grokSessionDirMaterialized(
+  location: ProjectLocation,
+  cwd: string,
+  sessionId: string,
+): boolean | undefined {
+  if (location.kind === "wsl") {
+    const home = getCachedWslHomeDirectory(location.distro);
+    if (!home) return undefined;
+    const linuxPath = `${home}/.grok/sessions/${encodeCwdKey(cwd)}/${sessionId}`;
+    const uncPath = `\\\\wsl.localhost\\${location.distro}${linuxPath.replaceAll("/", "\\")}`;
+    try {
+      return existsSync(uncPath);
+    } catch {
+      return undefined;
+    }
+  }
+  const dir = getGrokCwdSessionsDir(location, cwd);
+  if (!dir) return undefined;
+  return existsSync(join(dir, sessionId));
+}
+
+/**
+ * Map a known provider session id to the right PTY session flag: `-r` when
+ * the session has materialized, `-s` (re-assign) when it never did. When the
+ * materialization check is unavailable we default to resume — wrongly
+ * re-assigning an existing id makes grok exit 1, while wrongly resuming a
+ * missing one is the same failure mode we had before `-s` existed.
+ */
+export function resolveGrokSessionArg(
+  location: ProjectLocation,
+  cwd: string,
+  knownSessionId: string,
+): GrokSessionArg {
+  const materialized = grokSessionDirMaterialized(location, cwd, knownSessionId);
+  return materialized === false
+    ? { kind: "new", sessionId: knownSessionId }
+    : { kind: "resume", sessionId: knownSessionId };
 }
 
 /**
@@ -146,7 +205,7 @@ export function resolveGrokSessionsWatchPaths(location: ProjectLocation, cwd: st
     return [dir ?? undefined, root ?? undefined].filter((p): p is string => Boolean(p));
   }
   if (dir && existsSync(dir)) return [dir];
-  return [GROK_SESSIONS_ROOT];
+  return [getNativeGrokSessionsRoot()];
 }
 
 export function makeGrokWatchSessionRef() {
@@ -158,125 +217,4 @@ export function makeGrokWatchSessionRef() {
     const label = `grok:${location.kind === "wsl" ? "wsl:" + location.distro : location.kind}`;
     return watchSessionPaths(location, paths, onChanged, label);
   };
-}
-
-/**
- * Worker payload: spawn `grok [flags] agent stdio`, drive `initialize` →
- * `authenticate` → `session/new`, write the returned UUID into the shared
- * buffer, then notify the parent. Runs inside a `worker_threads.Worker` so
- * that `mintGrokSessionIdViaAcpSync` can block via `Atomics.wait` without
- * changing the synchronous `AgentLauncher` interface.
- *
- * NOTE: `spawnSync` is unusable here because Grok 0.1.218 closes the ACP
- * connection as soon as stdin EOFs — usually before it has processed the
- * `session/new` request. We need to keep stdin open until id:3 lands.
- */
-const MINT_WORKER_SCRIPT = `
-const { workerData } = require("worker_threads");
-const { spawn } = require("child_process");
-const { sab, binary, args, cwd } = workerData;
-const signalView = new Int32Array(sab, 0, 1);
-const idView = new Uint8Array(sab, 4, 64);
-
-let resolved = false;
-function finish(sessionId) {
-  if (resolved) return;
-  resolved = true;
-  if (sessionId) {
-    const buf = Buffer.from(sessionId, "utf8");
-    for (let i = 0; i < buf.length && i < 64; i++) idView[i] = buf[i];
-  }
-  Atomics.store(signalView, 0, 1);
-  Atomics.notify(signalView, 0);
-  try { p.kill(); } catch {}
-}
-
-const p = spawn(binary, [...args, "agent", "stdio"], { cwd, stdio: ["pipe","pipe","pipe"], windowsHide: true });
-// Stdin EOF on terminate is the documented Grok-exit signal, but kill the
-// child explicitly too so a future Grok build that keeps the connection open
-// on EOF cannot orphan the process.
-process.on("exit", () => { try { p.kill(); } catch {} });
-let buf = "";
-p.stdout.on("data", (chunk) => {
-  buf += chunk.toString("utf8");
-  let nl;
-  while ((nl = buf.indexOf("\\n")) >= 0) {
-    const line = buf.slice(0, nl).trim();
-    buf = buf.slice(nl + 1);
-    if (!line) continue;
-    try {
-      const msg = JSON.parse(line);
-      if (msg.id === 3 && msg.result && typeof msg.result.sessionId === "string") {
-        finish(msg.result.sessionId);
-        return;
-      }
-    } catch { /* skip non-JSON noise */ }
-  }
-});
-p.on("error", () => finish());
-p.on("close", () => finish());
-
-const reqs = [
-  { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: 1, clientInfo: { name: "lightcode-grok-mint", version: "1" }, clientCapabilities: { auth: { terminal: true } } } },
-  { jsonrpc: "2.0", id: 2, method: "authenticate", params: { methodId: "cached_token" } },
-  { jsonrpc: "2.0", id: 3, method: "session/new", params: { cwd, mcpServers: [] } },
-];
-for (const r of reqs) p.stdin.write(JSON.stringify(r) + "\\n");
-`;
-
-/**
- * Synchronously mint a Grok session ID by spinning up `grok agent stdio` long
- * enough to drive `initialize` → `authenticate` → `session/new`. The returned
- * UUID is then used with the PTY `-r <id>` flag so the TUI loads that session
- * directly instead of rendering the welcome menu (which would otherwise
- * suppress our initial-prompt delivery path).
- *
- * `extraLaunchArgs` should be the output of `buildGrokAcpArgs(config)` so the
- * minted session is born with the right model / effort / permission-mode /
- * always-approve state already recorded in `summary.json`.
- *
- * Returns `undefined` on any failure (timeout, auth error, JSON parse, etc.).
- * Callers must treat undefined as "no minted ID" and proceed without `-r`.
- *
- * WSL is skipped — minting would require routing the ACP child through
- * `wsl.exe`, which is out of scope here.
- */
-export function mintGrokSessionIdViaAcpSync(
-  location: ProjectLocation,
-  timeoutMs = 4500,
-  extraLaunchArgs: string[] = [],
-): string | undefined {
-  if (location.kind === "wsl") return undefined;
-
-  // Use the absolute path resolved during detection. Packaged Electron apps
-  // start with a minimal PATH that may exclude Homebrew/asdf/etc., so a bare
-  // "grok" in the worker's spawn would fail even though detection found the
-  // binary. Mirrors how createCursorChatSync passes resolveAgentBinaryPath().
-  const binary = resolveAgentBinaryPath(location, "grok") ?? "grok";
-
-  // 4 bytes for the Atomics signal (Int32), 64 bytes for the UUID payload.
-  const sab = new SharedArrayBuffer(4 + 64);
-  const signalView = new Int32Array(sab, 0, 1);
-  const idView = new Uint8Array(sab, 4, 64);
-
-  const worker = new Worker(MINT_WORKER_SCRIPT, {
-    eval: true,
-    workerData: { sab, binary, args: extraLaunchArgs, cwd: location.path },
-  });
-  worker.on("error", () => {
-    Atomics.store(signalView, 0, 1);
-    Atomics.notify(signalView, 0);
-  });
-
-  Atomics.wait(signalView, 0, 0, timeoutMs);
-
-  const terminator = idView.indexOf(0);
-  const length = terminator >= 0 ? terminator : idView.length;
-  const sessionId = length > 0 ? Buffer.from(idView.slice(0, length)).toString("utf8") : undefined;
-
-  // Best-effort cleanup. terminate() is async; we don't await because the
-  // worker is fully self-contained and its child has been signalled to die.
-  worker.terminate();
-
-  return sessionId && isUuid(sessionId) ? sessionId : undefined;
 }

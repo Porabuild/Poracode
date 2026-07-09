@@ -6,11 +6,19 @@ describe("buildGrokArgs (TUI/PTY)", () => {
     expect(buildGrokArgs({ mode: "agent" } as any, "", undefined)).toEqual([]);
   });
 
-  it("passes -r <id> when the session id is known", () => {
-    expect(buildGrokArgs({ mode: "agent" } as any, "", "abc-123")).toEqual(["-r", "abc-123"]);
+  it("passes -r <id> when resuming a materialized session", () => {
+    expect(
+      buildGrokArgs({ mode: "agent" } as any, "", { kind: "resume", sessionId: "abc-123" }),
+    ).toEqual(["-r", "abc-123"]);
   });
 
-  it("never emits -c, --no-plan, --permission-mode, or --effort", () => {
+  it("passes -s <id> when pre-assigning a new session id", () => {
+    expect(
+      buildGrokArgs({ mode: "agent" } as any, "", { kind: "new", sessionId: "abc-123" }),
+    ).toEqual(["-s", "abc-123"]);
+  });
+
+  it("never emits -c, --no-plan, or --permission-mode", () => {
     const cases: Array<Partial<{ mode: string; approvalPolicy: string; effort: string }>> = [
       { mode: "agent" },
       { mode: "plan" },
@@ -22,9 +30,20 @@ describe("buildGrokArgs (TUI/PTY)", () => {
       expect(args).not.toContain("-c");
       expect(args).not.toContain("--no-plan");
       expect(args).not.toContain("--permission-mode");
-      expect(args).not.toContain("--effort");
-      expect(args).not.toContain("--reasoning-effort");
     }
+  });
+
+  it("forwards config.effort as --reasoning-effort", () => {
+    expect(buildGrokArgs({ mode: "agent", effort: "low" } as any, "", undefined)).toEqual([
+      "--reasoning-effort",
+      "low",
+    ]);
+  });
+
+  it("omits --reasoning-effort when effort is unset", () => {
+    expect(buildGrokArgs({ mode: "agent" } as any, "", undefined)).not.toContain(
+      "--reasoning-effort",
+    );
   });
 
   it("adds --always-approve when approval policy bypasses permissions", () => {
@@ -48,9 +67,32 @@ describe("buildGrokArgs (TUI/PTY)", () => {
   });
 
   it("passes -m <model> when set", () => {
-    expect(buildGrokArgs({ mode: "agent", model: "grok-build" } as any, "", undefined)).toEqual([
+    expect(buildGrokArgs({ mode: "agent", model: "grok-4.5" } as any, "", undefined)).toEqual([
       "-m",
-      "grok-build",
+      "grok-4.5",
+    ]);
+  });
+
+  it("combines session, model, effort, and bypass flags", () => {
+    expect(
+      buildGrokArgs(
+        {
+          mode: "agent",
+          model: "grok-4.5",
+          effort: "high",
+          approvalPolicy: "bypassPermissions",
+        } as any,
+        "",
+        { kind: "new", sessionId: "abc-123" },
+      ),
+    ).toEqual([
+      "-s",
+      "abc-123",
+      "-m",
+      "grok-4.5",
+      "--reasoning-effort",
+      "high",
+      "--always-approve",
     ]);
   });
 });
@@ -60,7 +102,7 @@ describe("buildGrokAcpArgs (`grok agent stdio` prefix)", () => {
     expect(buildGrokAcpArgs({} as any)).toEqual([]);
   });
 
-  it("never emits --permission-mode, --no-plan, --effort, or --reasoning-effort", () => {
+  it("never emits --permission-mode or --no-plan", () => {
     const args = buildGrokAcpArgs({
       mode: "plan",
       approvalPolicy: "bypassPermissions",
@@ -68,8 +110,10 @@ describe("buildGrokAcpArgs (`grok agent stdio` prefix)", () => {
     } as any);
     expect(args).not.toContain("--permission-mode");
     expect(args).not.toContain("--no-plan");
-    expect(args).not.toContain("--effort");
-    expect(args).not.toContain("--reasoning-effort");
+  });
+
+  it("forwards config.effort as --reasoning-effort", () => {
+    expect(buildGrokAcpArgs({ effort: "medium" } as any)).toEqual(["--reasoning-effort", "medium"]);
   });
 
   it("adds --always-approve when approval policy bypasses permissions", () => {
@@ -79,6 +123,6 @@ describe("buildGrokAcpArgs (`grok agent stdio` prefix)", () => {
   });
 
   it("passes -m <model> when set", () => {
-    expect(buildGrokAcpArgs({ model: "grok-build" } as any)).toEqual(["-m", "grok-build"]);
+    expect(buildGrokAcpArgs({ model: "grok-4.5" } as any)).toEqual(["-m", "grok-4.5"]);
   });
 });

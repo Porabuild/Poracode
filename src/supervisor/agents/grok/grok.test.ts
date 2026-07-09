@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import type { OscNotification, OscTitle } from "@/shared/osc";
+import { createKnownSessionRef } from "../base";
 import { grokDetectionSpec } from "./detection";
 import { createGrokAdapter } from "./index";
 
@@ -11,7 +16,8 @@ function oscNotify(body: string, code: 9 | 99 | 777 = 9): OscNotification {
   return { code, title: "", body, payload: undefined };
 }
 
-// Observed live from `grok 0.1.218` PTY capture (idle → user prompt → response):
+// Observed live from grok PTY captures (0.1.218, re-verified on 0.2.93 —
+// idle title is still plain "grok"):
 //   OSC 0 "grok"                       (idle, frequent)
 //   OSC 0 "⠴ - Waiting - grok"         (working, braille frames ⠴ / ⠦)
 //   OSC 9 "4;0;0"                      (iTerm2 progress: clear → idle)
@@ -109,6 +115,84 @@ describe("grokDetectionSpec", () => {
         : grokDetectionSpec.loginCommand;
 
     expect(loginCommand).toBe("grok login");
+  });
+});
+
+describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", () => {
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const SESSION_ID = "11111111-2222-4333-8444-555555555555";
+  const config = { model: "grok-4.5", mode: "agent" } as ThreadConfig;
+  let grokHome: string;
+  let projectDir: string;
+  let location: ProjectLocation;
+  let previousGrokHome: string | undefined;
+
+  beforeEach(() => {
+    grokHome = mkdtempSync(join(tmpdir(), "grok-home-"));
+    projectDir = join(tmpdir(), "grok-proj");
+    previousGrokHome = process.env["GROK_HOME"];
+    process.env["GROK_HOME"] = grokHome;
+    location = { kind: "windows", path: projectDir } as ProjectLocation;
+  });
+
+  afterEach(() => {
+    if (previousGrokHome === undefined) delete process.env["GROK_HOME"];
+    else process.env["GROK_HOME"] = previousGrokHome;
+    rmSync(grokHome, { recursive: true, force: true });
+  });
+
+  it("pre-assigns a fresh UUID with -s and returns it as the session ref", () => {
+    const adapter = createGrokAdapter();
+    const result = adapter.buildLaunchArgv(location, config, "", undefined, {});
+    expect(result.args[0]).toBe("-s");
+    expect(result.args[1]).toMatch(UUID_RE);
+    expect(result.sessionRef?.providerSessionId).toBe(result.args[1]);
+  });
+
+  it("resumes a known id with -r when the session dir has materialized", () => {
+    mkdirSync(join(grokHome, "sessions", encodeURIComponent(projectDir), SESSION_ID), {
+      recursive: true,
+    });
+    const adapter = createGrokAdapter();
+    const result = adapter.buildLaunchArgv(
+      location,
+      config,
+      "",
+      createKnownSessionRef(SESSION_ID),
+      {},
+    );
+    expect(result.args.slice(0, 2)).toEqual(["-r", SESSION_ID]);
+    expect(result.sessionRef?.providerSessionId).toBe(SESSION_ID);
+  });
+
+  it("re-assigns a known id with -s when the session never materialized", () => {
+    const adapter = createGrokAdapter();
+    const result = adapter.buildLaunchArgv(
+      location,
+      config,
+      "",
+      createKnownSessionRef(SESSION_ID),
+      {},
+    );
+    expect(result.args.slice(0, 2)).toEqual(["-s", SESSION_ID]);
+    expect(result.sessionRef?.providerSessionId).toBe(SESSION_ID);
+  });
+
+  it("buildResumeArgv applies the same materialization fallback", () => {
+    const adapter = createGrokAdapter();
+    const fresh = adapter.buildResumeArgv(location, config, "", createKnownSessionRef(SESSION_ID));
+    expect(fresh.args.slice(0, 2)).toEqual(["-s", SESSION_ID]);
+
+    mkdirSync(join(grokHome, "sessions", encodeURIComponent(projectDir), SESSION_ID), {
+      recursive: true,
+    });
+    const materialized = adapter.buildResumeArgv(
+      location,
+      config,
+      "",
+      createKnownSessionRef(SESSION_ID),
+    );
+    expect(materialized.args.slice(0, 2)).toEqual(["-r", SESSION_ID]);
   });
 });
 
