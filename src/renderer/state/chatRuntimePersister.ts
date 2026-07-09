@@ -248,7 +248,12 @@ function compactRuntimeItemsForPersistence(
   let idx = 0;
   while (idx < items.length) {
     const item = items[idx]!;
-    if (isEmptyCompletedReasoning(item)) {
+    // Error items are session-transient: they describe a failure of the run
+    // that produced them, so persisting them would resurface stale errors in
+    // the composer dock every time the thread is reopened. Dropping them here
+    // covers both the save path and hydration (which re-runs this compactor),
+    // so errors already sitting in older databases are cleaned up on load too.
+    if (item.type === "error" || isEmptyCompletedReasoning(item)) {
       // If a turn marker was anchored to a row we drop on save, keep it
       // attached to the previous surviving row so it renders in the same gap.
       anchorRemap.set(item.id, lastPersistedItemId);

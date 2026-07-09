@@ -173,6 +173,20 @@ describe("prepareRuntimeSnapshotForPersistence", () => {
     expect(ids.some((id) => id.startsWith("tool-call-summary:"))).toBe(false);
   });
 
+  it("drops error items so stale errors do not resurface on reopen", () => {
+    const snapshot = prepareRuntimeSnapshotForPersistence(
+      [
+        makeItem({ id: "user-1", type: "user_message" }),
+        makeItem({ id: "assistant-1", type: "assistant_message" }),
+        makeItem({ id: "err-1", type: "error", payload: { message: "boom" } }),
+      ],
+      [makeTurn("err-1")],
+    );
+
+    expect(snapshot.items.map((item) => item.id)).toEqual(["user-1", "assistant-1"]);
+    expect(snapshot.turns[0]?.anchorItemId).toBe("assistant-1");
+  });
+
   it("keeps dropped-anchor markers attached to the previous surviving row", () => {
     const snapshot = prepareRuntimeSnapshotForPersistence(
       [
