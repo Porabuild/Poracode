@@ -1877,6 +1877,16 @@ msgstr "Composer"
 msgid "Composer controls"
 msgstr "Điều khiển trình soạn thảo"
 
+#: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
+msgid "Computer Use"
+msgstr "Sử dụng máy tính"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled for this thread"
+msgstr "Đã bật sử dụng máy tính cho chủ đề này"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "Thư mục cấu hình"
@@ -2465,6 +2475,10 @@ msgstr "Tắt MCP trình duyệt"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
 msgstr "Vô hiệu hóa plugin hook CLI (L1)"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Disable Computer Use"
+msgstr "Tắt sử dụng máy tính"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Disable Project"

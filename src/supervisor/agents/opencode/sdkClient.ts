@@ -5,11 +5,14 @@ import {
   SUBAGENT_MCP_SERVER_NAME,
   type SubagentMcpHttpConfig,
 } from "@/supervisor/agents/subagentMcp";
+import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { BROWSER_MCP_SERVER_NAME } from "../browserMcp";
+import { COMPUTER_USE_MCP_SERVER_NAME } from "../computerUseMcp";
 import { buildOpenCodeServerCommand } from "./argv";
 import { buildOpenCodeBrowserMcp } from "./mcpBrowser";
 import { buildOpenCodeSubagentMcp } from "./mcpSubagent";
+import { buildOpenCodeComputerUseMcp } from "./mcpComputerUse";
 import { classifyOpenCodeError, isOpenCodeConnectionLoss } from "./opencodeErrors";
 import {
   disposeSpawnedOpenCodeServerHandles,
@@ -171,6 +174,8 @@ export interface AcquireOpenCodeServerInput {
   projectLocation: ProjectLocation;
   browserMcpEnabled?: boolean;
   browserMcp?: BrowserMcpHttpConfig;
+  computerUseMcpEnabled?: boolean;
+  computerUseMcp?: ComputerUseMcpHttpConfig;
   /**
    * Per-thread cross-provider subagents MCP config. When present, the server is
    * dedicated (see `dedicatedKey`) and the `subagents` MCP is registered on it
@@ -196,28 +201,51 @@ export interface AcquireOpenCodeServerInput {
 }
 
 async function syncBrowserMcp(
-  input: Pick<AcquireOpenCodeServerInput, "projectLocation" | "browserMcpEnabled" | "browserMcp">,
+  input: Pick<
+    AcquireOpenCodeServerInput,
+    | "projectLocation"
+    | "browserMcpEnabled"
+    | "browserMcp"
+    | "computerUseMcpEnabled"
+    | "computerUseMcp"
+  >,
   client: OpencodeClient,
 ): Promise<void> {
   const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
-  if (input.browserMcpEnabled === undefined) return;
-  if (!input.browserMcpEnabled) {
+  if (input.browserMcpEnabled === true) {
+    const servers = buildOpenCodeBrowserMcp(input.projectLocation, input.browserMcp);
+    const browser = servers?.[BROWSER_MCP_SERVER_NAME];
+    if (browser) {
+      await client.mcp
+        .add({ directory, name: BROWSER_MCP_SERVER_NAME, config: browser })
+        .catch((err) => {
+          if (isOpenCodeConnectionLoss(err)) throw err;
+        });
+      await client.mcp.connect({ directory, name: BROWSER_MCP_SERVER_NAME });
+    }
+  } else if (input.browserMcpEnabled === false) {
     await client.mcp.disconnect({ directory, name: BROWSER_MCP_SERVER_NAME }).catch((error) => {
       console.warn("[opencode] failed to disconnect browser MCP:", error);
     });
-    return;
   }
 
-  const servers = buildOpenCodeBrowserMcp(input.projectLocation, input.browserMcp);
-  const browser = servers?.[BROWSER_MCP_SERVER_NAME];
-  if (!browser) return;
+  if (input.computerUseMcpEnabled === false) {
+    await client.mcp
+      .disconnect({ directory, name: COMPUTER_USE_MCP_SERVER_NAME })
+      .catch(() => undefined);
+    return;
+  }
+  if (input.computerUseMcpEnabled !== true) return;
 
+  const servers = buildOpenCodeComputerUseMcp(input.projectLocation, input.computerUseMcp);
+  const computerUse = servers?.[COMPUTER_USE_MCP_SERVER_NAME];
+  if (!computerUse) return;
   await client.mcp
-    .add({ directory, name: BROWSER_MCP_SERVER_NAME, config: browser })
+    .add({ directory, name: COMPUTER_USE_MCP_SERVER_NAME, config: computerUse })
     .catch((err) => {
       if (isOpenCodeConnectionLoss(err)) throw err;
     });
-  await client.mcp.connect({ directory, name: BROWSER_MCP_SERVER_NAME });
+  await client.mcp.connect({ directory, name: COMPUTER_USE_MCP_SERVER_NAME });
 }
 
 /**

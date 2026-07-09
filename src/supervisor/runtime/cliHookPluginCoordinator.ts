@@ -20,6 +20,7 @@ import {
   resolveWslHomeDirectoryAsync,
 } from "../agents/base";
 import type { BrowserMcpHttpConfig } from "../agents/browserMcp";
+import type { ComputerUseMcpHttpConfig } from "../agents/computerUseMcp";
 import type { WslBridgeServer } from "../wsl/bridge";
 import { isLightcodeHookDebug } from "./hookDebug";
 import { HookIngress, type HookIngressBootInfo } from "./hookIngress";
@@ -189,6 +190,8 @@ export class CliHookPluginCoordinator {
     projectLocation?: ProjectLocation;
     browserMcpEnabled?: boolean;
     browserMcp?: BrowserMcpHttpConfig;
+    computerUseMcpEnabled?: boolean;
+    computerUseMcp?: ComputerUseMcpHttpConfig;
   }): Promise<{ env: Record<string, string>; extraArgs: string[] } | undefined> {
     // The `disableCliHookPlugin` dev toggle is handled in the supervisor's
     // hook dispatcher (envelopes are dropped on receive). Install, launch
@@ -212,6 +215,10 @@ export class CliHookPluginCoordinator {
     const ctx = this.envContext(input.agentKind, input.projectLocation);
     if (input.browserMcpEnabled !== undefined) ctx.browserMcpEnabled = input.browserMcpEnabled;
     if (input.browserMcp) ctx.browserMcp = input.browserMcp;
+    if (input.computerUseMcpEnabled !== undefined) {
+      ctx.computerUseMcpEnabled = input.computerUseMcpEnabled;
+    }
+    if (input.computerUseMcp) ctx.computerUseMcp = input.computerUseMcp;
     const outcome = await this.ensureInstalledOrUpdated(adapter, slice, ctx);
     if (!outcome.ok) {
       return undefined;

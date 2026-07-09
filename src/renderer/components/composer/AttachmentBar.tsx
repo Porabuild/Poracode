@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Tooltip } from "@heroui/react";
-import { X } from "lucide-react";
+import { Monitor, X } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 import { toLocalFileUrl } from "@/shared/promptContent";
@@ -58,6 +58,58 @@ export function McpChip(props: {
           type="button"
           className="lightcode-attachment-chip__delete"
           aria-label={t(descriptor.disableLabel)}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+        >
+          <X className="size-2" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+export function ComputerUseChip(props: {
+  onRemove?: (() => void) | undefined;
+  title?: string;
+  variant?: "chip" | "header";
+}) {
+  const { t } = useLingui();
+  const { onRemove, variant = "chip" } = props;
+  const title = props.title ?? t`Computer Use enabled for this thread`;
+  if (variant === "header") {
+    return (
+      <Tooltip delay={0}>
+        <Tooltip.Trigger>
+          <button
+            type="button"
+            className="lightcode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-white/[0.06] hover:text-foreground"
+            aria-label={title}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Monitor className="size-3.5" aria-hidden="true" />
+          </button>
+        </Tooltip.Trigger>
+        <Tooltip.Content>{title}</Tooltip.Content>
+      </Tooltip>
+    );
+  }
+  return (
+    <div
+      className="lightcode-attachment-chip lightcode-browser-chip"
+      title={title}
+      aria-label={title}
+      role={onRemove ? "group" : "img"}
+    >
+      <Monitor className="size-3 text-muted" aria-hidden="true" />
+      <span className="lightcode-attachment-chip__name">{t`Computer Use`}</span>
+      {onRemove ? (
+        <button
+          type="button"
+          className="lightcode-attachment-chip__delete"
+          aria-label={t`Disable Computer Use`}
           onMouseDown={(e) => e.preventDefault()}
           onClick={(e) => {
             e.stopPropagation();

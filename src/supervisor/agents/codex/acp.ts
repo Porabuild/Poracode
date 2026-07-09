@@ -399,6 +399,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         ...(input.browserMcp !== undefined ? { browserMcp: input.browserMcp } : {}),
         subagentMcpEnabled: input.config.subagentMcp === true,
         ...(input.subagentMcp !== undefined ? { subagentMcp: input.subagentMcp } : {}),
+        computerUseMcpEnabled: input.config.computerUse === true,
+        ...(input.computerUseMcp !== undefined ? { computerUseMcp: input.computerUseMcp } : {}),
       }),
     );
     const transport = new CodexStdioTransport(appServer);

@@ -7,6 +7,7 @@ import type {
   ThreadStatus,
 } from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
+import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 import { type AgentAdapter, createKnownSessionRef } from "../../agents/base";
 import { hookDebugSpawn } from "../hookDebug";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
@@ -98,6 +99,7 @@ export class CliHookSessionCoordinator {
     projectLocation: ProjectLocation,
     config: ThreadConfig,
     browserMcp: BrowserMcpHttpConfig | undefined,
+    computerUseMcp: ComputerUseMcpHttpConfig | undefined,
   ): Promise<{ env: Record<string, string>; extraArgs: string[] }> {
     const adapter = this.ctx.options.adapters.get(agentKind);
     const liveInputMode = adapter?.capabilities.liveInputMode ?? "terminal";
@@ -120,6 +122,8 @@ export class CliHookSessionCoordinator {
         projectLocation,
         browserMcpEnabled: this.ctx.isBrowserMcpEnabledForLaunch(adapter, config),
         ...(browserMcp !== undefined ? { browserMcp } : {}),
+        computerUseMcpEnabled: config.computerUse === true,
+        ...(computerUseMcp !== undefined ? { computerUseMcp } : {}),
       });
       const merged = resolved ?? { env: {}, extraArgs: [] };
       const hookUrl = merged.env.LIGHTCODE_HOOK_URL;

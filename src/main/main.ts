@@ -22,6 +22,7 @@ import {
   registerPickerProtocolScheme,
 } from "./browser";
 import { buildBrowserUserAgent } from "./browser/userAgent";
+import { ComputerUseMcpIngress } from "./computer-use";
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { createMainWindow } from "./window/createMainWindow";
@@ -126,6 +127,7 @@ let lightcodePaths: LightcodePaths | null = null;
 let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
 let browserMcpIngress: BrowserMcpIngress | null = null;
+let computerUseMcpIngress: ComputerUseMcpIngress | null = null;
 let chromeBridgeServer: ChromeBridgeServer | null = null;
 let chromeMcpIngress: ChromeMcpIngress | null = null;
 let remoteAccessServer: RemoteAccessServer | null = null;
@@ -401,6 +403,11 @@ if (!hasSingleInstanceLock) {
           env.LIGHTCODE_CHROME_MCP_URL = chromeInfo.url;
           env.LIGHTCODE_CHROME_MCP_TOKEN = chromeInfo.token;
         }
+        const computerUseInfo = computerUseMcpIngress?.getInfo();
+        if (computerUseInfo) {
+          env.LIGHTCODE_COMPUTER_USE_MCP_URL = computerUseInfo.url;
+          env.LIGHTCODE_COMPUTER_USE_MCP_TOKEN = computerUseInfo.token;
+        }
         return env;
       },
       assignPid: async (pid) => {
@@ -471,6 +478,11 @@ if (!hasSingleInstanceLock) {
     });
     chromeBridgeServer.start().catch((err) => {
       console.error("[lightcode] chrome bridge server failed to start:", err);
+    });
+    computerUseMcpIngress = new ComputerUseMcpIngress();
+    const computerUseMcpInfoReady = computerUseMcpIngress.start().catch((err) => {
+      console.error("[lightcode] computer use MCP ingress failed to start:", err);
+      return null;
     });
 
     const writeSharedSettingsPatch = (patch: {
@@ -930,8 +942,7 @@ if (!hasSingleInstanceLock) {
       );
     }
 
-    await mcpInfoReady;
-    await chromeMcpReady;
+    await Promise.all([mcpInfoReady, chromeMcpReady, computerUseMcpInfoReady]);
     supervisorClient.start(lightcodePaths.baseDir);
 
     if (readSharedSettingsFile(lightcodePaths.settingsPath).remoteAccessEnabled) {
@@ -1017,6 +1028,8 @@ if (!hasSingleInstanceLock) {
       windowsJobObjectManager = null;
       browserMcpIngress?.dispose();
       browserMcpIngress = null;
+      computerUseMcpIngress?.dispose();
+      computerUseMcpIngress = null;
       chromeMcpIngress?.dispose();
       chromeMcpIngress = null;
       chromeBridgeServer?.dispose();

@@ -1877,6 +1877,16 @@ msgstr "Kompozytor"
 msgid "Composer controls"
 msgstr "Sterowanie kompozytorem"
 
+#: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
+msgid "Computer Use"
+msgstr "Obsługa komputera"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled for this thread"
+msgstr "Włączono obsługę komputera dla tego wątku"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "Katalog konfiguracji"
@@ -2465,6 +2475,10 @@ msgstr "Wyłącz Browser MCP"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
 msgstr "Wyłącz wtyczkę haka CLI (L1)"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Disable Computer Use"
+msgstr "Wyłącz obsługę komputera"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Disable Project"

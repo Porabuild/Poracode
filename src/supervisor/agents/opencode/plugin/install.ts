@@ -17,8 +17,11 @@ import {
   SUBAGENT_MCP_SERVER_NAME,
   type SubagentMcpHttpConfig,
 } from "@/supervisor/agents/subagentMcp";
+import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 import { getCachedWslHomeDirectory, type AgentEnvContext } from "../../base";
 import { BROWSER_MCP_SERVER_NAME } from "../../browserMcp";
+import { COMPUTER_USE_MCP_SERVER_NAME } from "../../computerUseMcp";
+import { buildOpenCodeComputerUseMcp } from "../mcpComputerUse";
 import {
   copyPluginAssetsIfStale,
   createPluginSourceResolver,
@@ -106,7 +109,11 @@ const OPENCODE_CONFIG_FILE_NAME = "opencode.json";
  * All `mcp` server keys Lightcode owns in `opencode.json`. Scrubbed together at
  * install/uninstall so no stale lightcode-managed entry survives a reinstall.
  */
-const LIGHTCODE_MANAGED_MCP_KEYS = [BROWSER_MCP_SERVER_NAME, SUBAGENT_MCP_SERVER_NAME] as const;
+const LIGHTCODE_MANAGED_MCP_KEYS = [
+  BROWSER_MCP_SERVER_NAME,
+  SUBAGENT_MCP_SERVER_NAME,
+  COMPUTER_USE_MCP_SERVER_NAME,
+] as const;
 
 export interface OpenCodePluginPaths {
   pluginDir: string;
@@ -489,13 +496,19 @@ function updateOpenCodeConfigFile(configPath: string, update: OpenCodeMcpConfigU
 
 export function syncOpenCodeBrowserMcpConfigFile(
   location: ProjectLocation,
-  enabled: boolean,
+  browserEnabled: boolean,
   browserMcp?: BrowserMcpHttpConfig,
+  computerUseEnabled = false,
+  computerUseMcp?: ComputerUseMcpHttpConfig,
 ): void {
-  const add = enabled ? buildOpenCodeBrowserMcp(location, browserMcp) : undefined;
+  const add = {
+    ...((browserEnabled ? buildOpenCodeBrowserMcp(location, browserMcp) : undefined) ?? {}),
+    ...((computerUseEnabled ? buildOpenCodeComputerUseMcp(location, computerUseMcp) : undefined) ??
+      {}),
+  };
   const update: OpenCodeMcpConfigUpdate = {
-    remove: [BROWSER_MCP_SERVER_NAME],
-    ...(add ? { add } : {}),
+    remove: [BROWSER_MCP_SERVER_NAME, COMPUTER_USE_MCP_SERVER_NAME],
+    ...(Object.keys(add).length > 0 ? { add } : {}),
   };
   writeOpenCodeConfigUpdate(location, update);
 }

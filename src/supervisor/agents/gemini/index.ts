@@ -100,7 +100,7 @@ export function createGeminiAdapter(): AgentAdapter {
       uninstallGeminiPlugin(ctx);
     },
     async pluginLaunchExtras(ctx) {
-      syncGeminiBrowserMcpSettings(ctx, ctx.browserMcp);
+      syncGeminiBrowserMcpSettings(ctx, ctx.browserMcp, ctx.computerUseMcp);
       const paths = getGeminiPluginPaths(ctx);
       return { env: { GEMINI_CLI_SYSTEM_SETTINGS_PATH: paths.settingsPath } };
     },

@@ -1876,6 +1876,16 @@ msgstr "コンポーザー"
 msgid "Composer controls"
 msgstr "コンポーザーの操作"
 
+#: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
+msgid "Computer Use"
+msgstr "コンピュータ操作"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled for this thread"
+msgstr "このスレッドに対してコンピュータ操作が有効になっています"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "設定ディレクトリ"
@@ -2464,6 +2474,10 @@ msgstr "ブラウザMCPを無効にする"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
 msgstr "CLI フック プラグインを無効にする (L1)"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Disable Computer Use"
+msgstr "コンピュータ操作を無効にする"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Disable Project"

@@ -935,12 +935,18 @@ export class ThreadSessionManager {
         session.projectLocation,
         session.config,
       );
+      const computerUse = this.spawnPipeline.resolveComputerUseMcpForLaunch(
+        session.adapter,
+        session.projectLocation,
+        session.config,
+      );
       const cliHookExtras = await this.cliHookPlugin.resolveCliHookPluginExtras(
         session.threadId,
         session.agentKind,
         session.projectLocation,
         session.config,
         browserMcp,
+        computerUse,
       );
       if (!this.isCurrentSession(session)) {
         return;
@@ -955,6 +961,7 @@ export class ThreadSessionManager {
           undefined,
           browserMcp,
           subagentMcp,
+          computerUse,
         ),
       );
       if (cliHookExtras.extraArgs.length > 0) {

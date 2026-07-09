@@ -1877,6 +1877,16 @@ msgstr "Composer"
 msgid "Composer controls"
 msgstr "Composer-Steuerung"
 
+#: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
+msgid "Computer Use"
+msgstr "Computernutzung"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled for this thread"
+msgstr "Computernutzung für diesen Thread aktiviert"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "Konfigurationsverzeichnis"
@@ -2465,6 +2475,10 @@ msgstr "Browser-MCP deaktivieren"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
 msgstr "CLI-Hook-Plugin deaktivieren (L1)"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Disable Computer Use"
+msgstr "Computernutzung deaktivieren"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Disable Project"

@@ -1,5 +1,5 @@
 export { MentionInput, type MentionInputHandle } from "./MentionInput";
-export { AttachmentBar, McpChip } from "./AttachmentBar";
+export { AttachmentBar, ComputerUseChip, McpChip } from "./AttachmentBar";
 export { ComposerAddMenu, type ComposerMcpMenuItem } from "./ComposerAddMenu";
 export {
   browserMcpServer,

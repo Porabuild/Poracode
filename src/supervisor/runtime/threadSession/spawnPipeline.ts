@@ -27,6 +27,10 @@ import {
   type SubagentMcpHttpConfig,
 } from "@/supervisor/agents/subagentMcp";
 import {
+  resolveComputerUseMcpHttpConfigForLaunch,
+  type ComputerUseMcpHttpConfig,
+} from "@/supervisor/agents/computerUseMcp";
+import {
   type AgentAdapter,
   type AgentLaunchOptions,
   type CommandSpec,
@@ -195,6 +199,11 @@ export class SpawnPipeline {
       payload.projectLocation,
       payload.config,
     );
+    const computerUse = this.resolveComputerUseMcpForLaunch(
+      adapter,
+      payload.projectLocation,
+      payload.config,
+    );
     const structuredSession = await this.createStructuredSession(
       adapter,
       payload.threadId,
@@ -203,6 +212,7 @@ export class SpawnPipeline {
       payload.config,
       browserMcp,
       subagentMcp,
+      computerUse,
       mcpIdentity,
       payload.sessionRef,
       requestedPresentation,
@@ -333,6 +343,7 @@ export class SpawnPipeline {
       structuredSession?.launchOptions,
       browserMcp,
       subagentMcp,
+      computerUse,
     );
     const argv = payload.sessionRef
       ? adapter.buildResumeArgv(
@@ -363,6 +374,7 @@ export class SpawnPipeline {
       payload.projectLocation,
       payload.config,
       browserMcp,
+      computerUse,
     );
     if (cliHookExtras.extraArgs.length > 0) {
       argv.args = mergeCliHookExtraArgs(
@@ -478,6 +490,11 @@ export class SpawnPipeline {
       session.projectLocation,
       config,
     );
+    const computerUse = this.resolveComputerUseMcpForLaunch(
+      session.adapter,
+      session.projectLocation,
+      config,
+    );
     const structuredSession = await this.createStructuredSession(
       session.adapter,
       session.threadId,
@@ -486,6 +503,7 @@ export class SpawnPipeline {
       config,
       browserMcp,
       subagentMcp,
+      computerUse,
       mcpIdentity,
       session.sessionRef,
       session.presentationMode,
@@ -558,6 +576,7 @@ export class SpawnPipeline {
       session.projectLocation,
       config,
       browserMcp,
+      computerUse,
     );
     if (!ctx.isCurrentSession(session)) {
       await structuredSession?.dispose();
@@ -573,6 +592,7 @@ export class SpawnPipeline {
         structuredSession?.launchOptions,
         browserMcp,
         subagentMcp,
+        computerUse,
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
@@ -929,12 +949,14 @@ export class SpawnPipeline {
     launchOptions: AgentLaunchOptions | undefined,
     browserMcp: BrowserMcpHttpConfig | undefined,
     subagentMcp: SubagentMcpHttpConfig | undefined,
+    computerUse: ComputerUseMcpHttpConfig | undefined,
   ): AgentLaunchOptions {
     return {
       ...(launchOptions ?? {}),
       agentSettings: this.ctx.resolveAgentSettings(adapter),
       ...(browserMcp !== undefined ? { browserMcp } : {}),
       ...(subagentMcp !== undefined ? { subagentMcp } : {}),
+      ...(computerUse !== undefined ? { computerUseMcp: computerUse } : {}),
     };
   }
 
@@ -953,6 +975,23 @@ export class SpawnPipeline {
       identity,
     );
     return cfg;
+  }
+
+  /**
+   * Resolve the computer-use MCP http config for a launch when the thread opted
+   * in (`config.computerUse === true`). Unlike browser MCP there is no
+   * force-disable ctx gate — computer-use scope gating happens in the renderer,
+   * so the per-thread config flag is authoritative. The resolver declines for
+   * WSL projects by design (computer-use is disabled for WSL). Parallel to
+   * `resolveBrowserMcpForLaunch`.
+   */
+  resolveComputerUseMcpForLaunch(
+    _adapter: AgentAdapter,
+    location: ProjectLocation,
+    config: ThreadConfig,
+  ): ComputerUseMcpHttpConfig | undefined {
+    const enabled = config.computerUse === true;
+    return resolveComputerUseMcpHttpConfigForLaunch(location, enabled);
   }
 
   /**
@@ -1017,6 +1056,7 @@ export class SpawnPipeline {
     config: ThreadConfig,
     browserMcp: BrowserMcpHttpConfig | undefined,
     subagentMcp: SubagentMcpHttpConfig | undefined,
+    computerUse: ComputerUseMcpHttpConfig | undefined,
     mcpIdentity: McpThreadIdentity | undefined,
     sessionRef?: SessionRef,
     presentationMode?: ThreadPresentationMode,
@@ -1033,6 +1073,7 @@ export class SpawnPipeline {
         ...(mcpIdentity ? { mcpIdentity } : {}),
         ...(browserMcp ? { browserMcp } : {}),
         ...(subagentMcp ? { subagentMcp } : {}),
+        ...(computerUse ? { computerUseMcp: computerUse } : {}),
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),
       });

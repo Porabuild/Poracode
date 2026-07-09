@@ -17,6 +17,7 @@ import {
   AttachmentBar,
   ComposerAddMenu,
   composerMcpServers,
+  ComputerUseChip,
   McpChip,
   mcpTogglePatch,
   ComposerVoiceInput,
@@ -29,6 +30,7 @@ import {
 } from "@/renderer/components/composer";
 import { browserMcpServer } from "@/renderer/components/composer/composerMcpServers";
 import { getTriggerWords } from "@/renderer/components/providers";
+import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 import {
@@ -195,6 +197,11 @@ function DraftComposerAfterControls(props: {
   isDisabled: boolean;
   mentionRef: RefObject<MentionInputHandle | null>;
   voiceInputRef: RefObject<VoiceInputHandle | null>;
+  computerUse: {
+    enabled: boolean;
+    visible: boolean;
+    onToggle: (next: boolean) => void;
+  };
 }) {
   return (
     <>
@@ -202,6 +209,7 @@ function DraftComposerAfterControls(props: {
         mcpServers={props.mcpServers}
         showFileOption={!props.isRemote}
         onPickFiles={props.onPickFiles}
+        computerUse={props.computerUse}
       />
       <ComposerVoiceInput
         show={props.showVoiceInputButton}
@@ -359,6 +367,14 @@ export function ThreadDraftComposerArea(props: {
     if (branchSelection?.worktreePath) return;
     selectNewWorktree({ transferUncommitted: mode === "new-with-changes" });
   }
+
+  const computerUseScope = getComputerUseScope(
+    props.selectedAgent.kind,
+    props.presentationMode,
+    props.project.location,
+  );
+  const computerUseEnabled = props.config.computerUse === true;
+  const onConfigChange = props.onConfigChange;
   const controls: ComposerControl[] = controlOpenRequest
     ? props.controls.map((control) => {
         if (controlOpenRequest.target === "model" && control.kind === "provider-model") {
@@ -389,6 +405,13 @@ export function ThreadDraftComposerArea(props: {
     canTransferUncommitted ? "can-transfer" : "no-transfer",
     controlKinds,
   ].join("|");
+
+  useEffect(() => {
+    if (computerUseScope === "none" && computerUseEnabled) {
+      onConfigChange({ computerUse: false });
+    }
+  }, [computerUseScope, computerUseEnabled, onConfigChange]);
+
   function resetDraftRefs() {
     latestSegmentsRef.current = [];
     attachmentsRef.current = [];
@@ -606,7 +629,8 @@ export function ThreadDraftComposerArea(props: {
               if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
             }}
             leading={
-              enabledMcpServers.length > 0 ? (
+              enabledMcpServers.length > 0 ||
+              (computerUseScope !== "none" && props.config.computerUse === true) ? (
                 <>
                   {enabledMcpServers.map((server) => (
                     <McpChip
@@ -615,6 +639,11 @@ export function ThreadDraftComposerArea(props: {
                       onRemove={() => server.onToggle(false)}
                     />
                   ))}
+                  {computerUseScope !== "none" && props.config.computerUse === true ? (
+                    <ComputerUseChip
+                      onRemove={() => props.onConfigChange({ computerUse: false })}
+                    />
+                  ) : null}
                 </>
               ) : undefined
             }
@@ -638,6 +667,10 @@ export function ThreadDraftComposerArea(props: {
             showBrowserMention={browserMcpScope !== "none" && props.config.browserMcp !== true}
             onBrowserMentionSelect={() => props.onConfigChange({ browserMcp: true })}
             triggerWords={getTriggerWords(props.selectedAgent.kind, props.config.model)}
+            showComputerUseMention={
+              computerUseScope !== "none" && props.config.computerUse !== true
+            }
+            onComputerUseMentionSelect={() => props.onConfigChange({ computerUse: true })}
             {...(!isRemote
               ? {
                   onPasteImage: (file: File) => {
@@ -711,6 +744,11 @@ export function ThreadDraftComposerArea(props: {
             isDisabled={authRequired || agentUpdating || isSubmitting}
             mentionRef={mentionRef}
             voiceInputRef={voiceInputRef}
+            computerUse={{
+              enabled: computerUseEnabled,
+              visible: computerUseScope !== "none",
+              onToggle: (next) => onConfigChange({ computerUse: next }),
+            }}
           />
         }
       />

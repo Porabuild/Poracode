@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Paperclip, Plus } from "lucide-react";
+import { Monitor, Paperclip, Plus } from "lucide-react";
 import type { Selection } from "@heroui/react";
 import { Header, Label, ListBox, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -44,8 +44,18 @@ export function ComposerAddMenu(props: {
   mcpServers: readonly ComposerMcpMenuItem[];
   showFileOption?: boolean;
   onPickFiles: () => void;
+  /**
+   * Computer Use is a launch-time capability handled separately from the MCP
+   * registry (it gates on project location + agent kind, not the shared MCP
+   * scope). Omitted — or with `visible: false` — the row is not offered.
+   */
+  computerUse?: {
+    enabled: boolean;
+    visible: boolean;
+    onToggle: (next: boolean) => void;
+  };
 }) {
-  const { mcpServers, showFileOption = true, onPickFiles } = props;
+  const { mcpServers, showFileOption = true, onPickFiles, computerUse } = props;
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
@@ -55,7 +65,8 @@ export function ComposerAddMenu(props: {
     visibleMcpServers.filter((server) => server.enabled).map((server) => server.descriptor.id),
   );
 
-  if (!showFileOption && visibleMcpServers.length === 0) return null;
+  if (!showFileOption && visibleMcpServers.length === 0 && computerUse?.visible !== true)
+    return null;
 
   const handlePickFiles = () => {
     setIsOpen(false);
@@ -121,6 +132,20 @@ export function ComposerAddMenu(props: {
           })}
         </>
       ) : null}
+      {computerUse?.visible ? (
+        <button
+          type="button"
+          className="m-sheet-action"
+          aria-pressed={computerUse.enabled}
+          onClick={() => computerUse.onToggle(!computerUse.enabled)}
+        >
+          <Monitor className="size-4 text-muted" />
+          <span className="flex-1 truncate">
+            <Trans>Computer Use</Trans>
+          </span>
+          <MenuSwitch checked={computerUse.enabled} />
+        </button>
+      ) : null}
     </div>
   );
 
@@ -172,6 +197,34 @@ export function ComposerAddMenu(props: {
                 </ListBox.Item>
               );
             })}
+          </ListBox>
+        </div>
+      ) : null}
+      {computerUse?.visible ? (
+        <div
+          className={
+            showFileOption || visibleMcpServers.length > 0
+              ? "mt-1 border-t border-border pt-1"
+              : undefined
+          }
+        >
+          <ListBox
+            aria-label={t`Computer Use`}
+            className="lightcode-menu max-h-60 overflow-y-auto"
+            selectionMode="none"
+            onAction={() => computerUse.onToggle(!computerUse.enabled)}
+          >
+            <ListBox.Item
+              id="computer-use"
+              textValue={t`Computer Use`}
+              className="focus-visible:outline-none"
+            >
+              <Monitor className="size-4 text-muted" />
+              <Label className="flex-1 truncate">
+                <Trans>Computer Use</Trans>
+              </Label>
+              <MenuSwitch checked={computerUse.enabled} />
+            </ListBox.Item>
           </ListBox>
         </div>
       ) : null}

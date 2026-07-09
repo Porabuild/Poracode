@@ -361,6 +361,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
   private pendingRequests = new Map<ThreadServerRequestId, PendingRequest>();
   private currentSlashCommands: AgentSlashCommand[] | undefined;
   private browserMcpEnabled = false;
+  private computerUseMcpEnabled = false;
 
   private constructor(input: CreateStructuredSessionInput) {
     this.input = input;
@@ -416,10 +417,13 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
 
     try {
       this.browserMcpEnabled = isOpenCodeBrowserMcpEnabled(this.input.agentSettings);
+      this.computerUseMcpEnabled = this.input.config.computerUse === true;
       syncOpenCodeBrowserMcpConfigFile(
         this.input.projectLocation,
         this.browserMcpEnabled,
         this.input.browserMcp,
+        this.computerUseMcpEnabled,
+        this.input.computerUseMcp,
       );
       // The subagents MCP is hosted, when opted in, by registering it on a
       // dedicated per-thread server via `mcp.add` (see `acquireOpenCodeServer`)
@@ -918,6 +922,10 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       projectLocation: this.input.projectLocation,
       browserMcpEnabled: this.browserMcpEnabled,
       ...(this.input.browserMcp !== undefined ? { browserMcp: this.input.browserMcp } : {}),
+      computerUseMcpEnabled: this.computerUseMcpEnabled,
+      ...(this.input.computerUseMcp !== undefined
+        ? { computerUseMcp: this.input.computerUseMcp }
+        : {}),
       ...(this.input.subagentMcp !== undefined
         ? { subagentMcp: this.input.subagentMcp, dedicatedKey: this.threadId }
         : {}),

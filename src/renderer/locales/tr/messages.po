@@ -1877,6 +1877,16 @@ msgstr "Composer"
 msgid "Composer controls"
 msgstr "Composer denetimleri"
 
+#: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/MentionPopover.tsx
+msgid "Computer Use"
+msgstr "Bilgisayar Kullanımı"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled for this thread"
+msgstr "Bu konu için Bilgisayar Kullanımı etkinleştirildi"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "Yapılandırma dizini"
@@ -2465,6 +2475,10 @@ msgstr "Tarayıcı MCP'yi Devre Dışı Bırak"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Disable CLI hook plugin (L1)"
 msgstr "CLI kanca eklentisini devre dışı bırak (L1)"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Disable Computer Use"
+msgstr "Bilgisayar Kullanımını Devre Dışı Bırak"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "Disable Project"

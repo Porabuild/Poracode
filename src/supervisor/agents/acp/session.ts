@@ -17,6 +17,7 @@ import {
   type AcpHttpMcpServer,
 } from "./mcpBrowser";
 import { buildAcpSubagentMcpServers } from "./mcpSubagent";
+import { buildAcpComputerUseMcpServers } from "./mcpComputerUse";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { homedir } from "node:os";
@@ -62,6 +63,7 @@ import type {
 } from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { SubagentMcpHttpConfig } from "@/supervisor/agents/subagentMcp";
+import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 import { areAgentSlashCommandsEqual, isThreadConfigEqual } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import {
@@ -153,6 +155,7 @@ export interface AcpStructuredSessionOptions {
   extensionNotificationHandler?: import("../base/types").AcpExtensionNotificationHandler;
   browserMcp?: BrowserMcpHttpConfig;
   subagentMcp?: SubagentMcpHttpConfig;
+  computerUseMcp?: ComputerUseMcpHttpConfig;
 }
 
 export class AcpStructuredSession implements StructuredSessionHandle {
@@ -172,6 +175,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly projectLocation: ProjectLocation;
   private readonly browserMcp: BrowserMcpHttpConfig | undefined;
   private readonly subagentMcp: SubagentMcpHttpConfig | undefined;
+  private readonly computerUseMcp: ComputerUseMcpHttpConfig | undefined;
   /** Poracode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
   private readonly stderrChunks: string[] = [];
@@ -267,6 +271,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
     this.browserMcp = options?.browserMcp;
     this.subagentMcp = options?.subagentMcp;
+    this.computerUseMcp = options?.computerUseMcp;
   }
 
   private shouldAutoApproveSyntheticPermissionRequest(): boolean {
@@ -690,6 +695,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.browserMcp,
       )),
       ...buildAcpSubagentMcpServers(config.subagentMcp === true, this.subagentMcp),
+      ...buildAcpComputerUseMcpServers(
+        this.projectLocation,
+        config.computerUse === true,
+        this.computerUseMcp,
+      ),
     ]);
 
     if (sessionRef) {

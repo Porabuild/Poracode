@@ -210,6 +210,7 @@ export function ThreadDraftView(props: {
   // Not persisted across drafts — each new thread starts off.
   const [browserMcp, setBrowserMcp] = useState(false);
   const [subagentMcp, setSubagentMcp] = useState(false);
+  const [computerUse, setComputerUse] = useState(false);
   const [worktreeMode, setWorktreeMode] = useState(
     isHomeScope ? false : (lastDraftConfig?.worktreeMode ?? false),
   );
@@ -617,6 +618,11 @@ export function ThreadDraftView(props: {
       setSubagentMcp(patch.subagentMcp === true);
       return;
     }
+    if ("computerUse" in patch) {
+      // Per-thread capability flag — same bypass as browserMcp above.
+      setComputerUse(patch.computerUse === true);
+      return;
+    }
     if (!selectedAgentForConfig) return;
     hasLocalConfigEditRef.current = true;
     const resolved = resolveProviderDraftConfig(selectedAgentForConfig, {
@@ -960,6 +966,7 @@ export function ThreadDraftView(props: {
               ...(sandboxMode ? { sandboxMode } : {}),
               ...(browserMcp ? { browserMcp: true } : {}),
               ...(subagentMcp ? { subagentMcp: true } : {}),
+              ...(computerUse ? { computerUse: true } : {}),
             }}
             compact={props.compact}
             paneCount={props.paneCount}

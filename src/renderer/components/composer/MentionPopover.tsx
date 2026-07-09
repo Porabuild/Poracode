@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Globe } from "lucide-react";
+import { Globe, Monitor } from "lucide-react";
 import { Trans } from "@lingui/react/macro";
 import type { FileEntry } from "@/shared/contracts";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
@@ -11,7 +11,13 @@ export type BrowserMentionEntry = {
   name: "Browser";
 };
 
-export type MentionEntry = FileEntry | BrowserMentionEntry;
+export type ComputerUseMentionEntry = {
+  type: "computer_use";
+  path: "computer";
+  name: "Computer Use";
+};
+
+export type MentionEntry = FileEntry | BrowserMentionEntry | ComputerUseMentionEntry;
 
 function getParentDir(path: string): string {
   const lastSlash = path.lastIndexOf("/");
@@ -63,6 +69,7 @@ export function MentionPopover(props: {
           const dir = getParentDir(entry.path);
           const isActive = index === activeIndex;
           const isBrowser = entry.type === "browser";
+          const isComputerUse = entry.type === "computer_use";
           return (
             <div
               key={`${entry.type}:${entry.path}`}
@@ -81,6 +88,11 @@ export function MentionPopover(props: {
             >
               {isBrowser ? (
                 <Globe className="lightcode-mention-popover__icon text-muted" aria-hidden="true" />
+              ) : isComputerUse ? (
+                <Monitor
+                  className="lightcode-mention-popover__icon text-muted"
+                  aria-hidden="true"
+                />
               ) : (
                 <img
                   className="lightcode-mention-popover__icon"
@@ -93,6 +105,10 @@ export function MentionPopover(props: {
               {isBrowser ? (
                 <span className="lightcode-mention-popover__detail ml-auto shrink-0 text-xs text-[var(--muted)]">
                   <Trans>Browser MCP</Trans>
+                </span>
+              ) : isComputerUse ? (
+                <span className="lightcode-mention-popover__detail ml-auto shrink-0 text-xs text-[var(--muted)]">
+                  <Trans>Computer Use</Trans>
                 </span>
               ) : dir ? (
                 <span className="lightcode-mention-popover__detail ml-auto shrink-0 text-xs text-[var(--muted)]">

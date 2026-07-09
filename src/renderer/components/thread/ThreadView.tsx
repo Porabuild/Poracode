@@ -19,7 +19,7 @@ import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { useAppStore } from "@/renderer/state/appStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { TuxIcon } from "@/renderer/components/common";
-import { browserMcpServer, McpChip } from "@/renderer/components/composer";
+import { browserMcpServer, ComputerUseChip, McpChip } from "@/renderer/components/composer";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { readBridge } from "@/renderer/bridge";
 import { captureThreadStarted } from "@/renderer/analytics/posthog";
@@ -73,6 +73,7 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.thread.canResumeWithConfig === next.thread.canResumeWithConfig &&
     prev.thread.sessionRef?.providerSessionId === next.thread.sessionRef?.providerSessionId &&
     prev.thread.config.browserMcp === next.thread.config.browserMcp &&
+    prev.thread.config.computerUse === next.thread.config.computerUse &&
     (!configAffectsLaunch || prev.thread.config === next.thread.config) &&
     prev.agentStatus === next.agentStatus &&
     prev.projectLocation === next.projectLocation &&
@@ -193,6 +194,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
   const showBrowserChip =
     thread.config.browserMcp === true ||
     (thread.agentKind === "opencode" && opencodeBrowserMcpEnabled);
+  const showComputerUseChip = thread.config.computerUse === true && !isWsl;
 
   useEffect(() => {
     const presentation =
@@ -391,6 +393,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     : {})}
                 />
               ) : null}
+              {showComputerUseChip ? <ComputerUseChip variant="header" /> : null}
               <div className="flex shrink-0 items-center">
                 {projectName ? (
                   <span className="px-1 text-sm leading-tight text-muted/60 @max-[560px]:text-xs @max-[360px]:text-[11px]">
