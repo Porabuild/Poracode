@@ -704,6 +704,39 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
+  it("steerTurn applies a changed model so a next-turn steer uses the new one", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-steer-model",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    await session.openThread(config);
+    await session.startTurn("first", config);
+    await flushAsyncWork();
+    fake.setModel.mockClear();
+
+    // setModel never affects the in-flight turn, but the steer message may
+    // start the NEXT turn, so the model change must be applied before pushing.
+    await session.steerTurn!("steer this", { model: "opus" });
+    expect(fake.setModel).toHaveBeenCalledWith("opus");
+
+    // Unchanged model on a later steer must not re-send the control request.
+    await session.steerTurn!("again", { model: "opus" });
+    expect(fake.setModel).toHaveBeenCalledTimes(1);
+
+    await session.dispose();
+  });
+
   it("steerTurn falls back to startTurn semantics when no turn is in flight", async () => {
     const fake = createFakeQuery();
     mockSdk.query.mockReturnValue(fake.runtime);

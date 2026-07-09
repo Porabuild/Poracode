@@ -237,15 +237,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.startGoalTracking();
 
     const query = await this.requireQuery();
-    const model = applyClaudeContextSuffix(config.model, config.contextSize);
-    if (model !== this.appliedModel) {
-      try {
-        await query.setModel(model);
-        this.appliedModel = model;
-      } catch {
-        // Older SDK transports can reject live model updates; the launch model still applies.
-      }
-    }
+    await this.syncModel(query, config);
     const permissionMode = permissionModeForConfig(config);
     if (permissionMode !== this.appliedPermissionMode || config.mode === "plan") {
       try {
@@ -296,9 +288,29 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       },
       { type: "item.completed", threadId: this.input.threadId, itemId: userItemId },
     ]);
-    await this.requireQuery();
+    const query = await this.requireQuery();
+    // The SDK never hot-swaps a running turn, but if the steer message ends up
+    // starting the NEXT turn (current turn settles before consuming it), the
+    // model change must already be applied — no startTurn runs for that message.
+    await this.syncModel(query, config);
     const message = await buildSdkUserMessage(prompt, segments);
     this.promptQueue.push(message);
+  }
+
+  /**
+   * Apply the configured model via a live control request when it differs from
+   * the last applied one. setModel takes effect at the next turn boundary; it
+   * never affects an in-flight turn.
+   */
+  private async syncModel(runtime: Query, config: ThreadConfig): Promise<void> {
+    const model = applyClaudeContextSuffix(config.model, config.contextSize);
+    if (model === this.appliedModel) return;
+    try {
+      await runtime.setModel(model);
+      this.appliedModel = model;
+    } catch {
+      // Older SDK transports can reject live model updates; the launch model still applies.
+    }
   }
 
   /**
