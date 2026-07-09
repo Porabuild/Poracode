@@ -1,8 +1,9 @@
-import type {
-  CreateElicitationRequest,
-  CreateElicitationResponse,
-  ElicitationContentValue,
-  ElicitationPropertySchema,
+import {
+  CreateElicitationRequest as AcpCreateElicitationRequest,
+  type CreateElicitationRequest,
+  type CreateElicitationResponse,
+  type ElicitationContentValue,
+  type ElicitationPropertySchema,
 } from "@agentclientprotocol/sdk";
 import type { RuntimeEvent } from "@/shared/contracts";
 import {
@@ -37,10 +38,9 @@ export function normalizeAcpElicitationResponse(
   if (action === "decline") return { action: "decline", ...meta };
   if (action !== "accept") return { action: "cancel", ...meta };
 
-  const content =
-    request.mode === "form"
-      ? normalizeAcpElicitationContent(obj.content, request.requestedSchema.properties ?? {})
-      : undefined;
+  const content = AcpCreateElicitationRequest.isForm(request)
+    ? normalizeAcpElicitationContent(obj.content, request.requestedSchema.properties ?? {})
+    : undefined;
   return {
     action: "accept",
     ...(content !== undefined ? { content } : {}),
@@ -54,7 +54,7 @@ function isAcpAcceptResponse(response: unknown): boolean {
 }
 
 function acpFormQuestionSources(request: CreateElicitationRequest): QuestionAnswerSourceQuestion[] {
-  if (request.mode !== "form") return [];
+  if (!AcpCreateElicitationRequest.isForm(request)) return [];
   const properties = request.requestedSchema.properties ?? {};
   return Object.entries(properties).map(([key, schema]) => {
     const title = readAcpStringField(schema, "title");

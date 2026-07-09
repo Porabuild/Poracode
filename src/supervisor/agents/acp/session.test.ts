@@ -1507,7 +1507,7 @@ describe("ACP elicitation request handling", () => {
           scope: { type: "string" },
           count: { type: "integer" },
           confirm: { type: "boolean" },
-          tags: { type: "array" },
+          tags: { type: "array", items: { type: "string", enum: ["fast", "safe"] } },
         },
       },
     });

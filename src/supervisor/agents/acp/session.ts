@@ -23,6 +23,7 @@ import { homedir } from "node:os";
 import { Readable, Writable } from "node:stream";
 import {
   ClientSideConnection,
+  CreateElicitationRequest as AcpCreateElicitationRequest,
   ndJsonStream,
   PROTOCOL_VERSION,
   RequestError,
@@ -1109,7 +1110,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   ): Promise<CreateElicitationResponse> {
     return new Promise<CreateElicitationResponse>((resolve) => {
       const requestId = `acp-elicit-${this.elicitationRequestSeq++}`;
-      const urlElicitationId = params.mode === "url" ? params.elicitationId : undefined;
+      const urlElicitationId = AcpCreateElicitationRequest.isUrl(params)
+        ? params.elicitationId
+        : undefined;
 
       this.pendingElicitationResolvers.set(requestId, {
         resolve: (response: unknown) => {

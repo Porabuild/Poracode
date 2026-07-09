@@ -435,6 +435,7 @@ describe("ClaudeSdkSession", () => {
       {
         signal: new AbortController().signal,
         toolUseID: "toolu_question",
+        requestId: "req_question",
       },
     );
 
