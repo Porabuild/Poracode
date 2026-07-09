@@ -24,6 +24,7 @@ minimumReleaseAgeExclude:
   - "@typescript/typescript-sunos-x64@7.0.2"
   - "@typescript/typescript-win32-arm64@7.0.2"
   - "@typescript/typescript-win32-x64@7.0.2"
+  - "@types/node@25.9.5"
   - typescript@7.0.2
 onlyBuiltDependencies:
   - sharp
