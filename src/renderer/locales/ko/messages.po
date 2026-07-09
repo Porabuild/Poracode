@@ -6809,6 +6809,10 @@ msgstr "세션이 연결되면 지원 모드가 나타납니다."
 msgid "Support:"
 msgstr "지원:"
 
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Supports Fast mode"
+msgstr "고속 모드 지원"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "메모와 할 일 바꾸기"

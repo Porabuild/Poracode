@@ -45,6 +45,8 @@ export interface ProviderModelRow {
   tooltipDescription?: string;
   /** When true, show the provider icon in the row right rail. */
   showProviderIcon?: boolean;
+  /** When true, this model supports a usable fast mode (drives the fast-mode hint glyph). */
+  supportsFast?: boolean;
   /** When true, the row's persisted favorite state is true (drives the star icon). */
   isFavorite: boolean;
   /** When true, omit the star button — used for read-only contexts (none today). */

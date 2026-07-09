@@ -28,6 +28,12 @@ interface CodexModelEntry {
   isDefault: boolean;
   defaultReasoningEffort: string;
   supportedReasoningEfforts: Array<{ reasoningEffort: string; description: string }>;
+  // Fast/priority service-tier signals (Codex CLI 0.143.0+). Loosely typed —
+  // older CLIs omit both fields, so treat the payload defensively. `["fast"]`
+  // marks a model that honors `service_tier="fast"`; the `serviceTiers` list
+  // carries the matching tier descriptor (e.g. the "priority"/Fast tier).
+  additionalSpeedTiers?: string[];
+  serviceTiers?: Array<{ id: string }>;
 }
 
 /** Raw requirements from `configRequirements/read`. */
@@ -41,6 +47,8 @@ export interface CodexProbeResult {
   efforts?: string[];
   defaultEffort?: string;
   modelEfforts?: Record<string, string[]>;
+  /** Visible model ids that support the Fast/priority service tier. */
+  fastModels?: string[];
   approvalPolicies?: Array<{ id: string; label: string }>;
   sandboxModes?: Array<{ id: string; label: string }>;
   slashCommands?: AgentSlashCommand[];
@@ -123,9 +131,23 @@ export function humanizeCodexModelName(id: string, displayName: string): string 
     .join(" ");
 }
 
+/**
+ * Whether a single model entry advertises the Fast/priority service tier.
+ *
+ * Prefer the explicit `additionalSpeedTiers` list when present; only fall
+ * back to `serviceTiers` (non-empty ⇒ a tier like "priority"/Fast exists)
+ * when `additionalSpeedTiers` is absent.
+ */
+function codexModelSupportsFast(entry: CodexModelEntry): boolean {
+  if (entry.additionalSpeedTiers !== undefined) {
+    return Array.isArray(entry.additionalSpeedTiers) && entry.additionalSpeedTiers.includes("fast");
+  }
+  return Array.isArray(entry.serviceTiers) && entry.serviceTiers.length > 0;
+}
+
 export function mapCodexModels(
   models: CodexModelEntry[],
-): Pick<CodexProbeResult, "models" | "efforts" | "defaultEffort" | "modelEfforts"> {
+): Pick<CodexProbeResult, "models" | "efforts" | "defaultEffort" | "modelEfforts" | "fastModels"> {
   const visible = models.filter((m) => !m.hidden);
   if (visible.length === 0) return {};
 
@@ -176,11 +198,24 @@ export function mapCodexModels(
     }
   }
 
+  // Fast-mode capability. When the payload reports tier data on any visible
+  // model, advertise Fast only for the models that actually support it.
+  // Older Codex CLIs omit both tier fields entirely — in that case keep the
+  // prior behavior and treat every visible model as fast-capable so the Fast
+  // toggle isn't silently dropped after a downgrade.
+  const reportsTierData = visible.some(
+    (m) => m.additionalSpeedTiers !== undefined || m.serviceTiers !== undefined,
+  );
+  const fastModels = reportsTierData
+    ? visible.filter((m) => codexModelSupportsFast(m)).map((m) => m.id)
+    : visible.map((m) => m.id);
+
   return {
     models: mapped,
     efforts: sortedEfforts,
     defaultEffort,
     ...(Object.keys(modelEfforts).length > 0 ? { modelEfforts } : {}),
+    ...(fastModels.length > 0 ? { fastModels } : {}),
   };
 }
 

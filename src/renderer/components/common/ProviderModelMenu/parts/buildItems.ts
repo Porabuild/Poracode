@@ -155,6 +155,17 @@ function joinHints(...hints: Array<string | undefined>): string | undefined {
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
+/**
+ * The model supports fast mode AND the account can actually use it. Mirrors
+ * `supportsUsableFastMode` in the thread helpers, inlined here to keep the
+ * `common/` menu free of a dependency on `components/thread`. Derived from the
+ * same capability object at row-build time, so it can never go stale against
+ * the per-capability `ModelEntry` cache.
+ */
+function supportsFastModel(capability: AgentCapability, modelId: string): boolean {
+  return (capability.fastModels?.includes(modelId) ?? false) && !capability.fastDisabledReason;
+}
+
 function modelHintProps(model: {
   modelDescription?: string;
   contextDescription?: string;
@@ -442,6 +453,10 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
         ...modelHintProps(m),
         ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
         showProviderIcon: true,
+        ...(visibleProvider &&
+        supportsFastModel(visibleProvider.provider.capabilities, m.ref.modelId)
+          ? { supportsFast: true }
+          : {}),
         isFavorite: favoriteStateSet.has(refKey(m.ref)),
       });
     }
@@ -509,6 +524,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
           ...modelHintProps(m),
           ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
           showProviderIcon: true,
+          ...(supportsFastModel(cap, m.id) ? { supportsFast: true } : {}),
           isFavorite: favoriteStateSet.has(`${provider.kind}:${m.id}`),
         });
       }
@@ -543,6 +559,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
         ...(provider.icon ? { providerIcon: provider.icon } : {}),
         ...modelHintProps(m),
         ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
+        ...(supportsFastModel(cap, m.id) ? { supportsFast: true } : {}),
         isFavorite: favoriteStateSet.has(`${provider.kind}:${m.id}`),
       });
     }
@@ -574,6 +591,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
           ...(provider.icon ? { providerIcon: provider.icon } : {}),
           ...modelHintProps(m),
           ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
+          ...(supportsFastModel(cap, m.id) ? { supportsFast: true } : {}),
           isFavorite: favoriteStateSet.has(`${provider.kind}:${m.id}`),
         });
       }

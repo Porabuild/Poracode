@@ -6809,6 +6809,10 @@ msgstr "Support mode appears once the session connects."
 msgid "Support:"
 msgstr "Support:"
 
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Supports Fast mode"
+msgstr "Supports Fast mode"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "Swap notes and to-dos"

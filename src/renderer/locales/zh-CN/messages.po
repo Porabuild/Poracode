@@ -6808,6 +6808,10 @@ msgstr "会话连接后就会出现支持模式。"
 msgid "Support:"
 msgstr "支持："
 
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Supports Fast mode"
+msgstr "支持快速模式"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "切换笔记和待办事项"

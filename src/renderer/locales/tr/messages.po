@@ -6809,6 +6809,10 @@ msgstr "Oturum bağlandığında destek modu görünür."
 msgid "Support:"
 msgstr "Destek:"
 
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Supports Fast mode"
+msgstr "Hızlı modu destekler"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "Notları ve yapılacak işleri değiştir"

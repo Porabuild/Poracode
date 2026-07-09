@@ -45,6 +45,74 @@ describe("formatShortcutModelLabel", () => {
   });
 });
 
+describe("buildProviderModelItems fast-mode flag", () => {
+  const baseCaps = {
+    efforts: [],
+    modelEfforts: {},
+    modes: ["agent" as const],
+    approvalPolicies: [],
+    sandboxModes: [],
+    supportsResume: true,
+    supportsDirectInput: true,
+    liveInputMode: "terminal" as const,
+    presentationMode: "terminal" as const,
+    settingDefs: [],
+  };
+
+  function makeCodexProvider(
+    extra: Partial<ProviderModelMenuProvider["capabilities"]>,
+  ): ProviderModelMenuProvider {
+    return {
+      kind: "codex",
+      label: "Codex",
+      capabilities: {
+        ...baseCaps,
+        models: [
+          { id: "gpt-5.5", label: "GPT-5.5" },
+          { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
+        ],
+        ...extra,
+      },
+    } satisfies ProviderModelMenuProvider;
+  }
+
+  it("sets supportsFast only on models listed in fastModels", () => {
+    const items = buildProviderModelItems({
+      providers: [makeCodexProvider({ fastModels: ["gpt-5.5"] })],
+      search: "",
+    });
+    const rows = items.filter((item) => item.type === "model");
+    const fastRow = rows.find((row) => row.modelId === "gpt-5.5");
+    const otherRow = rows.find((row) => row.modelId === "gpt-5.4-mini");
+    expect(fastRow?.supportsFast).toBe(true);
+    expect(otherRow?.supportsFast).toBeUndefined();
+  });
+
+  it("suppresses supportsFast when fastDisabledReason is set", () => {
+    const items = buildProviderModelItems({
+      providers: [
+        makeCodexProvider({ fastModels: ["gpt-5.5"], fastDisabledReason: "Disabled by org" }),
+      ],
+      search: "",
+    });
+    const fastRow = items.find((item) => item.type === "model" && item.modelId === "gpt-5.5");
+    expect(fastRow?.type === "model" ? fastRow.supportsFast : undefined).toBeUndefined();
+  });
+
+  it("carries supportsFast onto aggregated favorites rows", () => {
+    const items = buildProviderModelItems({
+      providers: [
+        makeCodexProvider({ fastModels: ["gpt-5.5"] }),
+        { kind: "cursor", label: "Cursor", capabilities: { ...baseCaps, models: [] } },
+      ],
+      search: "",
+      favorites: [{ agentKind: "codex", modelId: "gpt-5.5" }],
+    });
+    const favoriteRow = items.find((item) => item.type === "model" && item.id.startsWith("fav:"));
+    expect(favoriteRow?.type === "model" ? favoriteRow.supportsFast : undefined).toBe(true);
+  });
+});
+
 describe("buildProviderModelItems shortcut labels", () => {
   const codexProvider = {
     kind: "codex",

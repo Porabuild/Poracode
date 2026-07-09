@@ -8,7 +8,7 @@ import {
   type RefObject,
 } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Check, ChevronDown, Search, Star } from "lucide-react";
+import { Check, ChevronDown, Search, Star, Zap } from "lucide-react";
 import { Tooltip } from "@heroui/react";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
@@ -791,6 +791,13 @@ function WindowedProviderModelList(props: {
               const content = (
                 <span className="flex min-w-0 flex-1 items-center gap-1.5">
                   <span className="min-w-0 truncate">{name}</span>
+                  {item.supportsFast ? (
+                    <Zap
+                      role="img"
+                      aria-label={t`Supports Fast mode`}
+                      className="size-3 shrink-0 text-muted/60"
+                    />
+                  ) : null}
                   {mutedHint ? (
                     <span className="shrink-0 text-[10px] leading-none text-muted/60">
                       · {mutedHint}

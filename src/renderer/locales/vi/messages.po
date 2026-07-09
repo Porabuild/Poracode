@@ -6809,6 +6809,10 @@ msgstr "Chế độ hỗ trợ xuất hiện khi phiên kết nối."
 msgid "Support:"
 msgstr "Hỗ trợ:"
 
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Supports Fast mode"
+msgstr "Hỗ trợ chế độ nhanh"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "Hoán đổi ghi chú và việc cần làm"

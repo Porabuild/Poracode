@@ -6808,6 +6808,10 @@ msgstr "Le mode support apparaît une fois la session connectée."
 msgid "Support:"
 msgstr "Prise en charge :"
 
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Supports Fast mode"
+msgstr "Compatible avec le mode rapide"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "Basculer entre les notes et les tâches"

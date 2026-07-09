@@ -6809,6 +6809,10 @@ msgstr "Tryb wsparcia pojawi się po nawiązaniu połączenia sesji."
 msgid "Support:"
 msgstr "Wsparcie:"
 
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Supports Fast mode"
+msgstr "Obsługuje tryb szybki"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "Zamień notatki i zadania"

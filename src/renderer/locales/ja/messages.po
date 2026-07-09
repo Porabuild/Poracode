@@ -6807,6 +6807,10 @@ msgstr "セッションが接続されると、サポート モードが表示�
 msgid "Support:"
 msgstr "サポート:"
 
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Supports Fast mode"
+msgstr "高速モードに対応"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "メモやToDoを交換する"

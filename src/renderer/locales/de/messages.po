@@ -6809,6 +6809,10 @@ msgstr "Der Support-Modus wird angezeigt, sobald die Sitzung verbunden ist."
 msgid "Support:"
 msgstr "Unterstützung:"
 
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Supports Fast mode"
+msgstr "Unterstützt Schnellmodus"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "Notizen und Aufgaben tauschen"

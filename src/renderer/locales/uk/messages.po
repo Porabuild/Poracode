@@ -6809,6 +6809,10 @@ msgstr "Режим підтримки з'являється після підк�
 msgid "Support:"
 msgstr "Підтримка:"
 
+#: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
+msgid "Supports Fast mode"
+msgstr "Підтримує швидкий режим"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "Поміняти місцями нотатки та завдання"

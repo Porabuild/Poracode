@@ -219,9 +219,10 @@ export function probeResultToCapabilityPartial(probe: CodexProbeResult): Partial
     ...(probe.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
     ...(probe.sandboxModes?.length ? { sandboxModes: probe.sandboxModes } : {}),
     ...(probe.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),
-    // All Codex models accept the `service_tier="fast"` config knob (per
-    // openai/codex config schema), so every probed model can opt into Fast.
-    ...(probe.models?.length ? { fastModels: probe.models.map((m) => m.id) } : {}),
+    // Only models whose `model/list` entry advertises the Fast/priority service
+    // tier can opt into Fast — the probe filters these from per-model tier data
+    // (with a legacy fallback to all models when the CLI omits the fields).
+    ...(probe.fastModels?.length ? { fastModels: probe.fastModels } : {}),
   };
 }
 

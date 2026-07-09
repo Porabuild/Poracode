@@ -1375,4 +1375,104 @@ describe("mapCodexModels", () => {
       efforts: ["low", "medium", "high"],
     });
   });
+
+  it("advertises Fast only for models whose additionalSpeedTiers include 'fast'", () => {
+    const result = mapCodexModels([
+      {
+        id: "gpt-5.5",
+        model: "gpt-5.5",
+        displayName: "gpt-5.5",
+        hidden: false,
+        isDefault: false,
+        defaultReasoningEffort: "medium",
+        supportedReasoningEfforts: [{ reasoningEffort: "medium", description: "Medium" }],
+        additionalSpeedTiers: ["fast"],
+        serviceTiers: [{ id: "priority" }],
+      },
+      {
+        id: "gpt-5.4",
+        model: "gpt-5.4",
+        displayName: "gpt-5.4",
+        hidden: false,
+        isDefault: true,
+        defaultReasoningEffort: "medium",
+        supportedReasoningEfforts: [{ reasoningEffort: "medium", description: "Medium" }],
+        additionalSpeedTiers: ["fast"],
+        serviceTiers: [{ id: "priority" }],
+      },
+      {
+        id: "gpt-5.4-mini",
+        model: "gpt-5.4-mini",
+        displayName: "gpt-5.4-mini",
+        hidden: false,
+        isDefault: false,
+        defaultReasoningEffort: "medium",
+        supportedReasoningEfforts: [{ reasoningEffort: "medium", description: "Medium" }],
+        additionalSpeedTiers: [],
+        serviceTiers: [],
+      },
+      {
+        id: "gpt-5.3-codex-spark",
+        model: "gpt-5.3-codex-spark",
+        displayName: "gpt-5.3-codex-spark",
+        hidden: false,
+        isDefault: false,
+        defaultReasoningEffort: "medium",
+        supportedReasoningEfforts: [{ reasoningEffort: "medium", description: "Medium" }],
+        additionalSpeedTiers: [],
+        serviceTiers: [],
+      },
+    ]);
+    expect(result.fastModels).toEqual(["gpt-5.5", "gpt-5.4"]);
+  });
+
+  it("treats every visible model as fast-capable when the CLI omits tier fields", () => {
+    const result = mapCodexModels([
+      {
+        id: "gpt-5.4",
+        model: "gpt-5.4",
+        displayName: "gpt-5.4",
+        hidden: false,
+        isDefault: true,
+        defaultReasoningEffort: "medium",
+        supportedReasoningEfforts: [{ reasoningEffort: "medium", description: "Medium" }],
+      },
+      {
+        id: "gpt-5.4-mini",
+        model: "gpt-5.4-mini",
+        displayName: "gpt-5.4-mini",
+        hidden: false,
+        isDefault: false,
+        defaultReasoningEffort: "medium",
+        supportedReasoningEfforts: [{ reasoningEffort: "medium", description: "Medium" }],
+      },
+    ]);
+    expect(result.fastModels).toEqual(["gpt-5.4", "gpt-5.4-mini"]);
+  });
+
+  it("falls back to serviceTiers presence when additionalSpeedTiers is missing", () => {
+    const result = mapCodexModels([
+      {
+        id: "gpt-5.5",
+        model: "gpt-5.5",
+        displayName: "gpt-5.5",
+        hidden: false,
+        isDefault: true,
+        defaultReasoningEffort: "medium",
+        supportedReasoningEfforts: [{ reasoningEffort: "medium", description: "Medium" }],
+        serviceTiers: [{ id: "priority" }],
+      },
+      {
+        id: "gpt-5.4-mini",
+        model: "gpt-5.4-mini",
+        displayName: "gpt-5.4-mini",
+        hidden: false,
+        isDefault: false,
+        defaultReasoningEffort: "medium",
+        supportedReasoningEfforts: [{ reasoningEffort: "medium", description: "Medium" }],
+        serviceTiers: [],
+      },
+    ]);
+    expect(result.fastModels).toEqual(["gpt-5.5"]);
+  });
 });
