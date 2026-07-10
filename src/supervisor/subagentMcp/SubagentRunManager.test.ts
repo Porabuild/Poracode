@@ -12,7 +12,7 @@ import {
   SubagentRunManager,
   SubagentSpawnError,
 } from "./SubagentRunManager";
-import type { SubagentRunHost } from "./types";
+import { buildUnrestrictedChildConfig, type SubagentRunHost } from "./types";
 
 const PARENT = "parent";
 const PROJECT: ProjectLocation = { kind: "posix", path: "/tmp/project" };
@@ -78,6 +78,18 @@ function makeHarness(options?: { models?: Array<{ id: string; label: string }> }
     capabilities: {
       models: options?.models ?? [{ id: "gpt-5.5", label: "GPT-5.5" }],
       efforts: ["low", "high"],
+      fastModels: ["gpt-5.5"],
+      approvalPolicies: [
+        { id: "on-request", label: "On Request" },
+        { id: "never", label: "Full Access" },
+      ],
+      sandboxModes: [
+        { id: "workspace-write", label: "Workspace Write" },
+        { id: "danger-full-access", label: "Full Access" },
+      ],
+      defaultApprovalPolicy: "on-request",
+      defaultSandboxMode: "workspace-write",
+      bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
     },
     createStructuredSession: async (input: CreateStructuredSessionInput) => {
       inputs.push(input);
@@ -96,9 +108,30 @@ function makeHarness(options?: { models?: Array<{ id: string; label: string }> }
               model: "parent-model",
               approvalPolicy: "never",
               sandboxMode: "workspace-write",
+              browserMcp: true,
+              subagentMcp: true,
+              computerUse: true,
+              chromeMcp: true,
             },
           }
         : undefined,
+    resolveParentMcpAccess: async () => ({
+      browserMcp: {
+        url: "http://browser/mcp",
+        token: "browser-token",
+        headers: { Authorization: "Bearer browser-token" },
+      },
+      computerUseMcp: {
+        url: "http://computer/mcp",
+        token: "computer-token",
+        headers: { Authorization: "Bearer computer-token" },
+      },
+      chromeMcp: {
+        url: "http://chrome/mcp",
+        token: "chrome-token",
+        headers: { Authorization: "Bearer chrome-token" },
+      },
+    }),
     appendRuntimeEvent: (threadId, event) => appended.push({ threadId, event }),
   };
 
@@ -110,6 +143,47 @@ function makeHarness(options?: { models?: Array<{ id: string; label: string }> }
 }
 
 describe("SubagentRunManager", () => {
+  it("uses a provider's declared unrestricted posture", () => {
+    expect(
+      buildUnrestrictedChildConfig(
+        { model: "child" },
+        {
+          approvalPolicies: [
+            { id: "on-request", label: "On Request" },
+            { id: "never", label: "Full Access" },
+          ],
+          sandboxModes: [
+            { id: "workspace-write", label: "Workspace Write" },
+            { id: "danger-full-access", label: "Full Access" },
+          ],
+          bypassPermissions: {
+            approvalPolicy: "never",
+            sandboxMode: "danger-full-access",
+          },
+        },
+      ),
+    ).toEqual({
+      model: "child",
+      approvalPolicy: "never",
+      sandboxMode: "danger-full-access",
+    });
+  });
+
+  it("recognizes the ACP auto-approve convention when no bypass posture is declared", () => {
+    expect(
+      buildUnrestrictedChildConfig(
+        { model: "child" },
+        {
+          approvalPolicies: [
+            { id: "default", label: "Supervised" },
+            { id: "never", label: "Auto Approve" },
+          ],
+          sandboxModes: [],
+        },
+      ),
+    ).toEqual({ model: "child", approvalPolicy: "never" });
+  });
+
   it("emits a synthetic sub-agent tool_call tile on spawn", () => {
     const h = makeHarness();
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "do work" });
@@ -123,6 +197,22 @@ describe("SubagentRunManager", () => {
       isSubAgent: true,
       status: "running",
       name: "Codex · GPT-5.5",
+    });
+  });
+
+  it("includes the selected effort and enabled Fast mode in the sub-agent name", () => {
+    const h = makeHarness();
+    h.manager.spawn(PARENT, {
+      agent: "codex",
+      name: "builder",
+      prompt: "do work",
+      effort: "high",
+      fast: true,
+    });
+    const started = h.appended.find((a) => a.event.type === "item.started");
+    const event = started?.event as Extract<RuntimeEvent, { type: "item.started" }> | undefined;
+    expect(event?.payload).toMatchObject({
+      name: "builder — Codex · GPT-5.5 · High · Fast",
     });
   });
 
@@ -145,6 +235,44 @@ describe("SubagentRunManager", () => {
     expect(started).toBeDefined();
     expect(started!.threadId).toBe(PARENT);
     expect(started!.parentItemId).toBe(`sub:${runId}`);
+  });
+
+  it("updates collapsed step progress while child events are buffered", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    h.handles[0]!.emit({
+      type: "item.started",
+      threadId: "child",
+      itemId: "step-1",
+      itemType: "assistant_message",
+    });
+    h.handles[0]!.emit({
+      type: "item.started",
+      threadId: "child",
+      itemId: "nested",
+      itemType: "tool_call",
+      parentItemId: "step-1",
+      payload: { name: "Read", status: "running" },
+    });
+    h.handles[0]!.emit({
+      type: "item.started",
+      threadId: "child",
+      itemId: "step-2",
+      itemType: "tool_call",
+      payload: { name: "Edit", status: "running" },
+    });
+
+    const updates = h.appended
+      .map((entry) => entry.event)
+      .filter(
+        (event): event is Extract<RuntimeEvent, { type: "item.updated" }> =>
+          event.type === "item.updated" && event.itemId === `sub:${runId}`,
+      );
+    expect(updates.map((event) => event.payload)).toEqual([
+      { progress: { stepCount: 1 } },
+      { progress: { stepCount: 2 } },
+    ]);
   });
 
   it("nests a child item under its own prefixed parent when it already has one", async () => {
@@ -253,19 +381,53 @@ describe("SubagentRunManager", () => {
     );
   });
 
-  it("recursion guard: child config never carries subagentMcp/browserMcp and inherits parent posture", async () => {
+  it("uses unrestricted permissions and inherits non-recursive MCPs", async () => {
     const h = makeHarness();
-    h.manager.spawn(PARENT, { agent: "codex", prompt: "go", effort: "high" });
+    h.manager.spawn(PARENT, {
+      agent: "codex",
+      prompt: "go",
+      effort: "high",
+      fast: true,
+    });
     await flush();
     const childInput = h.inputs[0]!;
     expect(childInput.config).not.toHaveProperty("subagentMcp");
-    expect(childInput.config).not.toHaveProperty("browserMcp");
+    expect(childInput.config).toMatchObject({
+      browserMcp: true,
+      computerUse: true,
+      chromeMcp: true,
+    });
     expect(childInput.config.model).toBe("gpt-5.5");
     expect(childInput.config.effort).toBe("high");
+    expect(childInput.config.fast).toBe(true);
     expect(childInput.config.approvalPolicy).toBe("never");
-    expect(childInput.config.sandboxMode).toBe("workspace-write");
+    expect(childInput.config.sandboxMode).toBe("danger-full-access");
     expect(childInput.presentationMode).toBe("gui");
     expect(childInput).not.toHaveProperty("subagentMcp");
+    expect(childInput).toMatchObject({
+      browserMcp: { url: "http://browser/mcp" },
+      computerUseMcp: { url: "http://computer/mcp" },
+      chromeMcp: { url: "http://chrome/mcp" },
+    });
+  });
+
+  it("rejects selections that are not advertised by the structured composer surface", () => {
+    const h = makeHarness();
+    expect(() =>
+      h.manager.spawn(PARENT, {
+        agent: "codex",
+        model: "gpt-5.5",
+        effort: "extreme",
+        prompt: "go",
+      }),
+    ).toThrow("Unsupported reasoning for gpt-5.5: extreme");
+    expect(() =>
+      h.manager.spawn(PARENT, {
+        agent: "codex",
+        model: "unknown",
+        prompt: "go",
+      }),
+    ).toThrow("Unknown model: unknown");
   });
 
   it("drives a CLI-only agent as a one-shot child, streaming stdout into the tile", async () => {
@@ -275,7 +437,13 @@ describe("SubagentRunManager", () => {
     const adapter = {
       kind: "commandcode",
       label: "Command Code",
-      capabilities: { models: [{ id: "cc-1", label: "CC One" }], efforts: [] },
+      capabilities: {
+        models: [{ id: "cc-1", label: "CC One" }],
+        efforts: [],
+        approvalPolicies: [],
+        sandboxModes: [],
+        bypassPermissions: { approvalPolicy: "yolo" },
+      },
       buildSubagentOneShotCommand: () => ({
         command: process.execPath,
         args: ["-e", "process.stdout.write('done work')"],

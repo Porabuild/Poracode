@@ -1,6 +1,5 @@
 import { createRoot, type Root } from "react-dom/client";
-import "@/renderer/styles.css";
-import "./styles.css";
+import "./tailwind.css";
 import {
   createRendererCrashReport,
   RendererCrashScreen,

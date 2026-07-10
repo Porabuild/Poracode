@@ -668,10 +668,9 @@ async function runMockGate(client, gate, fixture) {
             client,
             `(() => ({
               selectControls: document.querySelectorAll('[aria-label="Select"]').length,
-              terminalEntry: /Open a terminal/i.test(document.body.innerText),
             }))()`,
           ),
-        (candidate) => candidate.selectControls > 0 && candidate.terminalEntry,
+        (candidate) => candidate.selectControls > 0,
         "mock provider controls",
       );
       assert(controls.selectControls > 0, "provider model/approval controls did not render");
@@ -696,8 +695,8 @@ async function runMockGate(client, gate, fixture) {
     case "terminal-pty":
       assert(fixture.bridgeKeys.includes("startThread"), "thread launch bridge is missing");
       assert(
-        /Open a terminal/i.test(await evaluate(client, "document.body.innerText")),
-        "terminal entry point did not render",
+        /\bCLI\b/i.test(await evaluate(client, "document.body.innerText")),
+        "terminal presentation control did not render",
       );
       return "terminal launch contract and entry point were checked without spawning a real provider";
     case "visual-a11y": {

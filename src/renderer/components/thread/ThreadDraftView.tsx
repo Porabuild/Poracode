@@ -11,19 +11,19 @@ import type {
 } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProjectId } from "@/shared/homeScope";
 import { readBridge } from "@/renderer/bridge";
+import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
 import {
   chromeMcpServer,
   COMPUTER_USE_MCP_ID,
-  getComputerUseScope,
   resolveMcpScope,
-} from "@/renderer/components/composer";
+} from "@/renderer/components/composer/composerMcpServers";
 import { getConfigNormalizer } from "@/renderer/components/providers/providerComposer";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { PixelLoader } from "@/renderer/components/common";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { capabilitiesForPresentation, filterHiddenModels } from "./threadComposerOptions";
+import { capabilitiesForPresentation, filterHiddenModels } from "@/shared/agentSelection";
 import {
   appendProviderComposerControls,
   buildModelPickerControls,

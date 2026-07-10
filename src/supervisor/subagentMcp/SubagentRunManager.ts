@@ -7,9 +7,11 @@ import type {
   ThreadServerRequestId,
   ToolCallPayload,
 } from "@/shared/contracts";
+import { capabilitiesForPresentation, validateAgentModelSelection } from "@/shared/agentSelection";
+import { formatReasoningLabel } from "@/shared/modelLabels";
 import type { AgentAdapter, StructuredSessionHandle } from "@/supervisor/agents/base";
 import { runOneShotChild, type OneShotChildHandle } from "./oneShotChild";
-import { buildInheritedChildConfig, resolveSubagentExecution } from "./types";
+import { buildUnrestrictedChildConfig, resolveSubagentExecution } from "./types";
 import type {
   SpawnAgentRequest,
   SubagentRunHost,
@@ -45,6 +47,8 @@ interface RunRecord {
   status: SubagentRunStatus;
   /** Accumulated assistant text from `content.delta` events. */
   output: string;
+  /** Direct child items started under the synthetic Agent row. */
+  stepCount: number;
   handle: StructuredSessionHandle | undefined;
   /** One-shot child driver handle (set instead of `handle` for CLI-only agents). */
   oneShot: OneShotChildHandle | undefined;
@@ -128,10 +132,11 @@ export class SubagentRunManager {
     }
     const adapter = this.deps.adapters.get(request.agent as AgentKind);
     if (!adapter) {
-      throw new SubagentSpawnError(`Unknown agent: ${request.agent}`);
+      throw new SubagentSpawnError(`Unknown provider: ${request.agent}`);
     }
-    if (!resolveSubagentExecution(adapter)) {
-      throw new SubagentSpawnError(`Agent ${request.agent} cannot be spawned as a subagent`);
+    const execution = resolveSubagentExecution(adapter);
+    if (!execution) {
+      throw new SubagentSpawnError(`Provider ${request.agent} cannot be spawned as a subagent`);
     }
     const parent = this.deps.host.getParentContext(parentThreadId);
     if (!parent) {
@@ -143,23 +148,42 @@ export class SubagentRunManager {
       );
     }
 
-    const model = request.model ?? adapter.capabilities.models[0]?.id;
+    const capabilities =
+      execution === "structured"
+        ? capabilitiesForPresentation(adapter.capabilities, "gui")
+        : adapter.capabilities;
+    const model = request.model ?? capabilities.models[0]?.id;
     if (!model) {
-      throw new SubagentSpawnError(`Agent ${request.agent} has no available models`);
+      throw new SubagentSpawnError(`Provider ${request.agent} has no available models`);
     }
-    const modelLabel = adapter.capabilities.models.find((m) => m.id === model)?.label ?? model;
+    const selectionError = validateAgentModelSelection(capabilities, {
+      model,
+      ...(request.effort ? { reasoning: request.effort } : {}),
+      ...(request.fast === true ? { fast: true } : {}),
+    });
+    if (selectionError) throw new SubagentSpawnError(selectionError);
+    const modelLabel = capabilities.models.find((m) => m.id === model)?.label ?? model;
     const runName = request.name?.trim();
-    const label = runName
-      ? `${runName} — ${adapter.label} · ${modelLabel}`
-      : `${adapter.label} · ${modelLabel}`;
+    const selectionLabel = [
+      adapter.label,
+      modelLabel,
+      ...(request.effort ? [formatReasoningLabel(request.effort)] : []),
+      ...(request.fast === true ? ["Fast"] : []),
+    ].join(" · ");
+    const label = runName ? `${runName} — ${selectionLabel}` : selectionLabel;
 
     const runId = randomBytes(6).toString("hex");
     const childThreadId = `${parentThreadId}::sub::${runId}`;
 
-    const childConfig = buildInheritedChildConfig(parent.config, {
-      model,
-      ...(request.effort ? { effort: request.effort } : {}),
-    });
+    const childConfig = buildUnrestrictedChildConfig(
+      {
+        model,
+        ...(request.effort ? { effort: request.effort } : {}),
+        ...(request.fast === true ? { fast: true } : {}),
+      },
+      capabilities,
+      parent.config,
+    );
 
     let resolveSettled!: () => void;
     const settledPromise = new Promise<void>((resolve) => {
@@ -172,6 +196,7 @@ export class SubagentRunManager {
       label,
       status: "running",
       output: "",
+      stepCount: 0,
       handle: undefined,
       oneShot: undefined,
       pendingRequestIds: new Set<string>(),
@@ -292,11 +317,16 @@ export class SubagentRunManager {
       return;
     }
     try {
+      const mcpAccess = await this.deps.host.resolveParentMcpAccess?.(record.parentThreadId, {
+        threadId: record.childThreadId,
+        title: record.label,
+      });
       const handle = await adapter.createStructuredSession?.({
         threadId: record.childThreadId,
         projectLocation,
         config: childConfig,
         presentationMode: "gui",
+        ...(mcpAccess ?? {}),
       });
       if (!handle) {
         this.settle(record, "failed", "Failed to create subagent session");
@@ -410,6 +440,17 @@ export class SubagentRunManager {
         this.deps.host.appendRuntimeEvent(record.parentThreadId, this.retag(record, event));
         return;
       case "item.started":
+        if (!event.parentItemId) {
+          record.stepCount += 1;
+          this.deps.host.appendRuntimeEvent(record.parentThreadId, {
+            type: "item.updated",
+            threadId: record.parentThreadId,
+            itemId: syntheticItemId(record.runId),
+            payload: { progress: { stepCount: record.stepCount } },
+          });
+        }
+        this.deps.host.appendRuntimeEvent(record.parentThreadId, this.retag(record, event));
+        return;
       case "item.updated":
       case "item.completed":
         this.deps.host.appendRuntimeEvent(record.parentThreadId, this.retag(record, event));
@@ -495,6 +536,7 @@ export class SubagentRunManager {
       name: record.label,
       status: record.status === "completed" ? "success" : "error",
       isSubAgent: true,
+      ...(record.stepCount > 0 ? { progress: { stepCount: record.stepCount } } : {}),
       ...(text ? { result: text } : {}),
     };
     this.deps.host.appendRuntimeEvent(record.parentThreadId, {

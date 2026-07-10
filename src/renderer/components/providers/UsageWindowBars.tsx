@@ -1,10 +1,10 @@
 import {
   formatResetCountdown,
   projectWindowUsage,
-  type UsageProjection,
   usageWindowDisplayLabel,
-  type UsageWindow,
-} from "@lightcode/agents-usage";
+} from "@lightcode/agents-usage/formatters";
+import type { UsageProjection } from "@lightcode/agents-usage/formatters";
+import type { UsageWindow } from "@lightcode/agents-usage/types";
 import { formatPaceSummary, formatWindowSecondaryValue, formatWindowValue } from "./usageFormat";
 import { usageToneColor } from "./usageTone";
 

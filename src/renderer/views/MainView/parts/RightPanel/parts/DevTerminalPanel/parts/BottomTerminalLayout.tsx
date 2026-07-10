@@ -3,7 +3,7 @@ import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project, TerminalSize } from "@/shared/contracts";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
-import { ContextMenu } from "@/renderer/components/common";
+import { ContextMenu } from "@/renderer/components/common/ContextMenu";
 import { PanelHeaderProjectName } from "@/renderer/components/layout/PanelHeaderProjectName";
 import {
   panelHeaderIconButtonClass,

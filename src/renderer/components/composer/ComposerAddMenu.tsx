@@ -4,7 +4,7 @@ import type { Selection } from "@heroui/react";
 import { Dropdown, Label, Separator } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession } from "@/renderer/bridge";
-import { Button } from "@/renderer/components/common";
+import { Button } from "@/renderer/components/common/Button";
 import {
   ResponsiveMenuSurface,
   useResponsiveMenu,

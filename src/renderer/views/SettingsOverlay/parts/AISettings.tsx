@@ -5,7 +5,7 @@ import { Monitor } from "lucide-react";
 import type { AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { capabilitiesForPresentation } from "@/renderer/components/thread/threadComposerOptions";
+import { capabilitiesForPresentation } from "@/shared/agentSelection";
 import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
 import {
   buildModelPickerControls,

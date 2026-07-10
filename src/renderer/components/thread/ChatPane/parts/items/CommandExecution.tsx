@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import type { CommandExecutionPayload } from "@/shared/contracts";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
-import { PixelLoader } from "@/renderer/components/common";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -390,6 +390,87 @@ describe("ToolCallGroup", () => {
     expect(screen.getByText("Web search")).toBeInTheDocument();
   });
 
+  it("animates running tool titles without adding status text", () => {
+    const threadId = "thread-1";
+    const items: RuntimeChatItem[] = [
+      { ...makeToolItem("tool-1", "Read file"), state: "started" },
+      { ...makeCommandItem("command-1", "pnpm run test"), state: "started" },
+      { ...makeFileChangeItem("file-1"), state: "started" },
+      {
+        ...makeWebSearchItem("web-search-1", { query: "Lightcode", status: "running" }),
+        state: "started",
+      },
+    ];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    const animatedTitles = Array.from(
+      view.container.querySelectorAll("code.lightcode-thinking-text"),
+    );
+    expect(animatedTitles).toHaveLength(4);
+    expect(
+      animatedTitles.map((title) => title.getAttribute("data-lightcode-shimmer-text")),
+    ).toEqual(["Read file", "Check: pnpm run test", "Edit: src/foo.ts", "Lightcode"]);
+    expect(screen.queryByText("Working")).not.toBeInTheDocument();
+    expect(view.container.querySelector(".lightcode-pixel-loader")).toBeNull();
+  });
+
+  it("renders completed reasoning as a collapsed Thought row with a text preview", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeReasoningItem("reasoning-1", "Weighing the tradeoffs before editing the selector."),
+      makeToolItem("tool-1", "Read file"),
+    ];
+    seedThread(threadId, items);
+
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    expect(screen.getByText("1 thought")).toBeInTheDocument();
+    expect(screen.getByText("Thought")).toBeInTheDocument();
+    expect(
+      screen.getByText("Weighing the tradeoffs before editing the selector."),
+    ).toBeInTheDocument();
+  });
+
+  it("auto-expands streaming reasoning inside the group and collapses it on completion", async () => {
+    const threadId = "thread-1";
+    const items: RuntimeChatItem[] = [
+      { ...makeReasoningItem("reasoning-1", "Considering the edge cases"), state: "updated" },
+      makeToolItem("tool-1", "Read file"),
+    ];
+    seedThread(threadId, items);
+
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    // Streaming: shimmering "Thinking" title with the live text expanded below.
+    expect(screen.getByText("Thinking")).toBeInTheDocument();
+    expect(await screen.findByText("Considering the edge cases")).toBeInTheDocument();
+
+    act(() => {
+      seedThread(threadId, [
+        makeReasoningItem("reasoning-1", "Considering the edge cases"),
+        items[1]!,
+      ]);
+    });
+
+    // Completion: auto-collapses into a "Thought" row with the preview as meta.
+    await waitFor(() => expect(screen.getByText("Thought")).toBeInTheDocument());
+    const trigger = screen.getByText("Thought").closest("button");
+    expect(trigger).not.toBeNull();
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("Considering the edge cases")).toBeInTheDocument();
+  });
+
   it("categorizes sub-agent tools as commands", () => {
     const threadId = "thread-1";
     const items = [makeAgentItem("agent-1")];
@@ -443,6 +524,15 @@ function makeCommandItem(id: string, command: string): RuntimeChatItem {
     state: "completed",
     payload: { command, exitCode: 0 },
     streams: {},
+  };
+}
+
+function makeReasoningItem(id: string, text: string): RuntimeChatItem {
+  return {
+    id,
+    type: "reasoning",
+    state: "completed",
+    streams: { reasoning_text: text },
   };
 }
 

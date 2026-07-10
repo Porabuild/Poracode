@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Check, ChevronDown, GitBranch, GitFork } from "lucide-react";
 import { Label, ListBox } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Button } from "@/renderer/components/common";
+import { Button } from "@/renderer/components/common/Button";
 import {
   ResponsiveMenuSurface,
   useResponsiveMenu,

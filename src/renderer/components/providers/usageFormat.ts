@@ -1,10 +1,6 @@
-import {
-  formatResetCountdown,
-  projectWindowUsage,
-  type UsageProjection,
-  type UsageSnapshot,
-  type UsageWindow,
-} from "@lightcode/agents-usage";
+import { formatResetCountdown, projectWindowUsage } from "@lightcode/agents-usage/formatters";
+import type { UsageProjection } from "@lightcode/agents-usage/formatters";
+import type { UsageSnapshot, UsageWindow } from "@lightcode/agents-usage/types";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
 import { usageToneColor } from "./usageTone";

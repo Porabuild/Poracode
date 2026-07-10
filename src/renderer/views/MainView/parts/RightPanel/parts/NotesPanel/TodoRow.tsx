@@ -3,7 +3,7 @@ import { useSortable } from "@dnd-kit/react/sortable";
 import { Check, MessageSquarePlus, Trash2 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { NotesTodoItem } from "@/shared/contracts";
-import { ContextMenu } from "@/renderer/components/common";
+import { ContextMenu } from "@/renderer/components/common/ContextMenu";
 
 const todoActionButtonClass =
   "flex size-[18px] shrink-0 items-center justify-center rounded text-muted/55 transition group-hover/todo:opacity-100 focus-visible:opacity-100";

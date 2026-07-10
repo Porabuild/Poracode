@@ -127,12 +127,13 @@ describe("BrowserTab", () => {
       const webContents = createWebContents("data:text/html,first");
       tab.attach(webContents as never);
 
-      webContents.emit("did-stop-loading");
       expect(webContents.navigationHistory.clear).toHaveBeenCalledTimes(1);
 
       await tab.loadURL("data:text/html,second");
       webContents.emit("did-navigate", {}, "data:text/html,second");
       webContents.emit("did-stop-loading");
+      await webContents.loadURL("data:text/html,first");
+      webContents.emit("did-navigate", {}, "data:text/html,first");
       await vi.advanceTimersByTimeAsync(500);
 
       expect(webContents.navigationHistory.clear).toHaveBeenCalledTimes(1);

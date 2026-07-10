@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode, useEffect, useRef } from "react";
+import { Suspense, type ReactNode, useEffect, useRef } from "react";
 import { useDroppable } from "@dnd-kit/react";
 import { getAppName } from "@/shared/appName";
 import { readBridge } from "@/renderer/bridge";
@@ -14,12 +14,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { useProjectIds } from "@/renderer/state/useThread";
 import { closeAllPanels, dismissRightOverlay } from "@/renderer/actions/panelActions";
 import { setMainPanelDropZoneElement, useIsMainPanelDropActive } from "@/renderer/dnd";
-
-const FileEditorPanel = lazy(() =>
-  import("@/renderer/views/FileEditorOverlay/parts/FileEditorPanel").then((m) => ({
-    default: m.FileEditorPanel,
-  })),
-);
+import { DeferredFileEditorPanel } from "@/renderer/deferredFeatures";
 
 export function MainPageLayout(props: { onTitleClick: () => void }) {
   const { onTitleClick } = props;
@@ -53,7 +48,7 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
         <MainPanelDropZone>
           <AppContent />
           <Suspense>
-            <FileEditorPanel />
+            <DeferredFileEditorPanel />
           </Suspense>
         </MainPanelDropZone>
       }

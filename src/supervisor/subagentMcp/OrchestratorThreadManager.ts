@@ -10,6 +10,7 @@ import type {
   ThreadConfig,
   ThreadStatus,
 } from "@/shared/contracts";
+import { capabilitiesForPresentation, validateAgentModelSelection } from "@/shared/agentSelection";
 import { DEFAULT_TERMINAL_SIZE } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc/events";
 import { makeThreadTitle } from "@/shared/threadTitle";
@@ -19,7 +20,7 @@ import type { AgentAdapter, ThreadHistory } from "@/supervisor/agents/base";
 import { ChildTranscriptBuffer } from "./childTranscriptBuffer";
 import type { TranscriptEntry } from "./childTranscriptBuffer";
 import { truncate } from "./toolResult";
-import { buildInheritedChildConfig, resolveSubagentExecution } from "./types";
+import { buildUnrestrictedChildConfig, resolveSubagentExecution } from "./types";
 
 /**
  * Max live (session-active) orchestrator child threads per parent. Higher than
@@ -71,7 +72,7 @@ export interface OrchestratorThreadState {
  * session manager. Kept minimal (thin hooks only) so the TSM stays lean.
  */
 export interface OrchestratorThreadHost {
-  /** Resolve a live parent thread's project location + config for child inheritance. */
+  /** Resolve a live parent thread's project and non-recursive MCP context. */
   getParentContext(
     threadId: string,
   ): { projectLocation: ProjectLocation; config: ThreadConfig } | undefined;
@@ -117,6 +118,7 @@ export interface CreateChildThreadRequest {
   title?: string;
   model?: string;
   effort?: string;
+  fast?: boolean;
   worktree?: boolean;
   branch?: string;
   baseBranch?: string;
@@ -227,13 +229,13 @@ export class OrchestratorThreadManager {
     const adapter = this.deps.adapters.get(request.agent as AgentKind);
     if (!adapter) {
       throw new OrchestratorThreadError(
-        `Unknown agent: ${request.agent}. Call list_agents for the available agents.`,
+        `Unknown provider: ${request.agent}. Call list_agents for the available providers.`,
       );
     }
     if (resolveSubagentExecution(adapter) !== "structured") {
       throw new OrchestratorThreadError(
-        `Agent ${request.agent} only supports one-shot subagent runs and cannot host a full thread. ` +
-          `Agents eligible for create_thread: ${this.structuredAgentKinds().join(", ") || "none"}.`,
+        `Provider ${request.agent} only supports one-shot subagent runs and cannot host a full thread. ` +
+          `Providers eligible for create_thread: ${this.structuredAgentKinds().join(", ") || "none"}.`,
       );
     }
     const parent = this.deps.host.getParentContext(parentThreadId);
@@ -248,10 +250,17 @@ export class OrchestratorThreadManager {
       );
     }
 
-    const model = request.model ?? adapter.capabilities.models[0]?.id;
+    const capabilities = capabilitiesForPresentation(adapter.capabilities, "gui");
+    const model = request.model ?? capabilities.models[0]?.id;
     if (!model) {
-      throw new OrchestratorThreadError(`Agent ${request.agent} has no available models`);
+      throw new OrchestratorThreadError(`Provider ${request.agent} has no available models`);
     }
+    const selectionError = validateAgentModelSelection(capabilities, {
+      model,
+      ...(request.effort ? { reasoning: request.effort } : {}),
+      ...(request.fast === true ? { fast: true } : {}),
+    });
+    if (selectionError) throw new OrchestratorThreadError(selectionError);
 
     // A custom branch/base_branch implies the caller wants a worktree.
     let worktreePath: string | undefined;
@@ -276,12 +285,18 @@ export class OrchestratorThreadManager {
     const threadId = randomUUID();
     const customTitle = request.title?.trim();
     const title = customTitle || makeThreadTitle(prompt) || "New thread";
-    // Child inherits the parent's approval/sandbox posture but never carries
-    // subagentMcp/browserMcp — depth limit 1: children can't spawn grandchildren.
-    const childConfig = buildInheritedChildConfig(parent.config, {
-      model,
-      ...(request.effort ? { effort: request.effort } : {}),
-    });
+    // Child uses the target provider's unrestricted posture and inherits the
+    // parent's non-recursive MCPs. Subagents MCP is intentionally omitted so
+    // children cannot spawn grandchildren.
+    const childConfig = buildUnrestrictedChildConfig(
+      {
+        model,
+        ...(request.effort ? { effort: request.effort } : {}),
+        ...(request.fast === true ? { fast: true } : {}),
+      },
+      capabilities,
+      parent.config,
+    );
     const childLocation = worktreePath
       ? buildWorktreeLocation(parent.projectLocation, worktreePath)
       : parent.projectLocation;
@@ -523,8 +538,8 @@ export class OrchestratorThreadManager {
       // that falls through to the normal start-a-turn path below.
       throw new OrchestratorThreadError(
         `Thread ${threadId} is blocked waiting for a tool-permission approval that send_to_thread cannot resolve. ` +
-          "A human must approve/deny it in the app UI, or the child should have been created under a more " +
-          "autonomous approval policy (children inherit the parent's approval posture). This is not a message prompt.",
+          "A human must approve or deny it in the app UI. Subagent threads request Full access, but the " +
+          "provider can still surface an approval prompt that this tool cannot answer. This is not a message prompt.",
       );
     }
     const payload: SendThreadInputPayload = { threadId, prompt, config: state.config };

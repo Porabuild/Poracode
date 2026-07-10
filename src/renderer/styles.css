@@ -1,7 +1,3 @@
-@import "tailwindcss";
-@import "@heroui/styles";
-@import "@xterm/xterm/css/xterm.css";
-
 /* Poracode brand type — Geist (Vercel, SIL OFL), bundled for offline use. */
 @font-face {
   font-family: "Geist";
@@ -2548,6 +2544,7 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
   background: rgba(0, 0, 0, 0.82);
   cursor: var(--interactive-cursor);
   animation: lightcode-lightbox-fade-in 150ms ease-out;
+  overflow: hidden;
 }
 
 @keyframes lightcode-lightbox-fade-in {
@@ -2580,13 +2577,36 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
   }
 }
 
+.lightcode-image-lightbox__stage {
+  position: absolute;
+  inset: 3rem 3rem 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+}
+
 .lightcode-image-lightbox__image {
-  max-width: calc(100vw - 6rem);
-  max-height: calc(100vh - 6rem);
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
   border-radius: 0.5rem;
   cursor: default;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  transform-origin: center;
+  transition: transform 120ms ease-out;
+  user-select: none;
+  will-change: transform;
+}
+
+.lightcode-image-lightbox__image--zoomed {
+  cursor: grab;
+}
+
+.lightcode-image-lightbox__image--zoomed:active {
+  cursor: grabbing;
+  transition: none;
 }
 
 .lightcode-image-lightbox__close {
@@ -2604,6 +2624,7 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
   color: white;
   cursor: var(--interactive-cursor);
   transition: background 150ms;
+  z-index: 2;
 }
 
 .lightcode-image-lightbox__close:hover {
@@ -2625,6 +2646,7 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
   color: white;
   cursor: var(--interactive-cursor);
   transition: background 150ms;
+  z-index: 2;
 }
 
 .lightcode-image-lightbox__nav:hover {
@@ -2639,17 +2661,59 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
   right: 1.5rem;
 }
 
-.lightcode-image-lightbox__counter {
+.lightcode-image-lightbox__footer {
   position: absolute;
   bottom: 1.5rem;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 2;
+}
+
+.lightcode-image-lightbox__zoom,
+.lightcode-image-lightbox__counter {
+  display: flex;
+  align-items: center;
   padding: 0.3rem 0.75rem;
   border-radius: 1rem;
   background: rgba(0, 0, 0, 0.5);
   color: rgba(255, 255, 255, 0.8);
   font-size: 0.8125rem;
   user-select: none;
+}
+
+.lightcode-image-lightbox__zoom {
+  gap: 0.25rem;
+  padding: 0.2rem 0.35rem;
+}
+
+.lightcode-image-lightbox__zoom-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 0;
+  border-radius: 50%;
+  color: white;
+  cursor: var(--interactive-cursor);
+  transition: background 150ms;
+}
+
+.lightcode-image-lightbox__zoom-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.lightcode-image-lightbox__zoom-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.lightcode-image-lightbox__zoom-value {
+  min-width: 2.75rem;
+  text-align: center;
 }
 
 /* ── Mention Popover (file search dropdown) ──────────────── */

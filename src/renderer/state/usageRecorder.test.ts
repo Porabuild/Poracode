@@ -275,6 +275,34 @@ describe("usageRecorder item classification", () => {
     );
   });
 
+  it("records raw subagents MCP calls as MCP usage even with a stale subagent flag", () => {
+    const thread = makeThread("subagents-mcp-thread", "claude");
+    recordRuntimeUsage(
+      "subagents-mcp-thread",
+      [
+        {
+          type: "item.started",
+          threadId: "subagents-mcp-thread",
+          itemId: "raw-spawn",
+          itemType: "tool_call",
+          payload: {
+            name: "spawn_agent",
+            serverId: "subagents",
+            isSubAgent: true,
+            status: "running",
+          },
+        },
+      ],
+      [thread],
+    );
+
+    flushNow();
+    expect(emittedEvents()).toContainEqual(
+      expect.objectContaining({ kind: "mcp", provider: "claude", name: "subagents" }),
+    );
+    expect(emittedEvents("subagent")).toEqual([]);
+  });
+
   it("records Codex MCP calls by server instead of generic mcp", () => {
     const thread = makeThread("mcp-thread", "codex");
     recordRuntimeUsage(

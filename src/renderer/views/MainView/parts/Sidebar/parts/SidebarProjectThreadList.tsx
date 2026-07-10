@@ -11,7 +11,7 @@ import { useDragSource } from "@/renderer/dnd";
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
 import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
-import { SidebarButton } from "@/renderer/components/common";
+import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { NewThreadButton } from "./NewThreadButton";
 import { buildSidebarProjectRows, type SidebarRow } from "./sidebarProjectRows";
 import type { ThreadSortMode } from "./sortMode";

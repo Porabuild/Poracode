@@ -8,8 +8,10 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
-import type { ProviderModelMenuProvider } from "@/renderer/components/common";
-import { statusToMenuProvider } from "@/renderer/components/common/ProviderModelMenu";
+import {
+  statusToMenuProvider,
+  type ProviderModelMenuProvider,
+} from "@/renderer/components/common/ProviderModelMenu/parts/buildItems";
 import {
   modelVisibilityKey,
   providerLabelForPresentation,
@@ -18,9 +20,13 @@ import {
 } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { getComposerControls } from "@/renderer/components/providers/providerComposer";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
+import {
+  capabilitiesForPresentation,
+  filterHiddenModels,
+  modelSelectionFor,
+} from "@/shared/agentSelection";
 import type { ComposerControl } from "./ThreadComposer";
 import { formatEffortLabel, supportsUsableFastMode } from "./threadDraftViewHelpers";
-import { capabilitiesForPresentation, filterHiddenModels } from "./threadComposerOptions";
 
 export type ModelPickerConfigPatch = {
   model?: string;
@@ -172,19 +178,18 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
     onConfigPatch,
   } = input;
 
-  const currentEfforts = (filteredCaps.modelEfforts?.[model] ?? filteredCaps.efforts ?? []).map(
-    (id) => ({
-      id,
-      label: formatEffortLabel(id),
-    }),
-  );
+  const modelSelection = modelSelectionFor(filteredCaps, model);
+  const currentEfforts = modelSelection.reasoning.values.map((id) => ({
+    id,
+    label: formatEffortLabel(id),
+  }));
   const selectableEfforts = currentEfforts.length > 1 ? currentEfforts : [];
   const currentContextIds = filteredCaps.modelContextSizes?.[model];
   const currentContextSizes = currentContextIds
     ? (filteredCaps.contextSizes?.filter((c) => currentContextIds.includes(c.id)) ?? [])
     : [];
   const selectableContextSizes = currentContextSizes.length > 1 ? currentContextSizes : [];
-  const supportsFast = includeFastToggle && (filteredCaps.fastModels?.includes(model) ?? false);
+  const supportsFast = includeFastToggle && modelSelection.fast.supported;
   const supportsThinking = filteredCaps.thinkingModels?.includes(model) ?? false;
 
   const controls: ComposerControl[] = [
@@ -229,7 +234,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
   }
 
   if (supportsFast) {
-    const fastDisabledReason = filteredCaps.fastDisabledReason;
+    const fastDisabledReason = modelSelection.fast.disabledReason;
     controls.push({
       kind: "toggle",
       label: "Fast",

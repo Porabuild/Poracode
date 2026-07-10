@@ -238,6 +238,7 @@ function ActiveSubAgentRow({
             liveLabel={liveLabel}
             stepCount={stepCount}
             includeStepCount
+            leadingSeparator
             className="max-w-[45%] shrink-0 text-foreground-muted opacity-80"
             liveMaxClassName="max-w-[20ch]"
             loaderClassName="text-foreground-muted"
@@ -245,6 +246,7 @@ function ActiveSubAgentRow({
         ) : hasSubAgentProgressMeta(progress) ? (
           <SubAgentProgressMeta
             progress={progress}
+            leadingSeparator
             className="max-w-[45%] shrink-0 text-foreground-muted opacity-80"
             loaderClassName="text-foreground-muted"
           />

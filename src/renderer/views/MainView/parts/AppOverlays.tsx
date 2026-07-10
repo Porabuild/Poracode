@@ -1,32 +1,26 @@
-import { lazy, Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { AlertDialog } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
-import { PixelLoader } from "@/renderer/components/common";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
-const FileEditorOverlay = lazy(() =>
-  import("@/renderer/views/FileEditorOverlay/FileEditorOverlay").then((m) => ({
-    default: m.FileEditorOverlay,
-  })),
-);
-import { ProjectSettingsOverlay } from "@/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay";
-import { SettingsOverlay } from "@/renderer/views/SettingsOverlay/SettingsOverlay";
-const GitReviewOverlay = lazy(() =>
-  import("@/renderer/views/GitReviewOverlay/GitReviewOverlay").then((m) => ({
-    default: m.GitReviewOverlay,
-  })),
-);
-const PrReviewOverlay = lazy(() =>
-  import("@/renderer/views/PrReviewOverlay/PrReviewOverlay").then((m) => ({
-    default: m.PrReviewOverlay,
-  })),
-);
+import {
+  DeferredBrowserHost as PrewarmedBrowserHost,
+  DeferredCloneProjectModal as PrewarmedCloneProjectModal,
+  DeferredCreateProjectModal as PrewarmedCreateProjectModal,
+  DeferredFileEditorOverlay,
+  DeferredGitReviewOverlay,
+  DeferredLoginTerminalOverlay as PrewarmedLoginTerminalOverlay,
+  DeferredPrReviewOverlay,
+  DeferredProjectSettingsOverlay,
+  DeferredRemoteThreadView,
+  DeferredSettingsOverlay,
+} from "@/renderer/deferredFeatures";
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { RemoteThreadView } from "@/renderer/views/RemoteThreadView/RemoteThreadView";
 import { resolvePrKey } from "@/renderer/state/gitSelectors";
 
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
@@ -39,11 +33,16 @@ import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import type { UsageLoginConfirmationAction } from "@/shared/contracts";
 import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
 import { WhatsNewOverlay } from "@/renderer/views/WhatsNewOverlay";
-import { BrowserHost } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost";
-import { LoginTerminalOverlay } from "@/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay";
-import { CreateProjectModal } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectModal";
-import { CloneProjectModal } from "@/renderer/views/MainView/parts/CreateProject/CloneProjectModal";
 import { RemoteProjectModal } from "@/renderer/views/RemoteProjectModal/RemoteProjectModal";
+import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
+
+function useEverEnabled(active: boolean): boolean {
+  const [enabled, setEnabled] = useState(active);
+  useEffect(() => {
+    if (active) setEnabled(true);
+  }, [active]);
+  return enabled;
+}
 
 export function AppOverlays() {
   const projects = useAppStore((s) => s.projects);
@@ -71,23 +70,29 @@ export function AppOverlays() {
       <WelcomeOverlay />
       <WhatsNewOverlay />
       <OverlayShell open={settingsOpen} onExited={() => usePanelStore.getState().closeSettings()}>
-        <SettingsOverlay onClose={() => usePanelStore.getState().closeSettings()} />
+        <Suspense fallback={<OverlayLoader />}>
+          <DeferredSettingsOverlay onClose={() => usePanelStore.getState().closeSettings()} />
+        </Suspense>
       </OverlayShell>
       <OverlayShell
         open={remoteThreadOpen}
         onExited={() => useRemoteServersStore.getState().closeRemoteThread()}
       >
-        <RemoteThreadView />
+        <Suspense fallback={<OverlayLoader />}>
+          <DeferredRemoteThreadView />
+        </Suspense>
       </OverlayShell>
       <OverlayShell
         open={!!projectSettingsId}
         onExited={() => usePanelStore.getState().closeProjectSettings()}
       >
         {projectSettingsId && (
-          <ProjectSettingsOverlay
-            projectId={projectSettingsId}
-            onClose={() => usePanelStore.getState().closeProjectSettings()}
-          />
+          <Suspense fallback={<OverlayLoader />}>
+            <DeferredProjectSettingsOverlay
+              projectId={projectSettingsId}
+              onClose={() => usePanelStore.getState().closeProjectSettings()}
+            />
+          </Suspense>
         )}
       </OverlayShell>
       <OverlayShell
@@ -102,7 +107,7 @@ export function AppOverlays() {
               </div>
             }
           >
-            <GitReviewOverlay
+            <DeferredGitReviewOverlay
               key={`${gitReviewContext.projectId}:${gitReviewContext.worktreePath ?? ""}`}
               project={gitReviewProject}
               {...(gitReviewContext.worktreePath
@@ -160,7 +165,7 @@ export function AppOverlays() {
               </div>
             }
           >
-            <PrReviewOverlay
+            <DeferredPrReviewOverlay
               project={prReviewProject}
               prNumber={prReviewContext.prNumber}
               prKey={
@@ -187,18 +192,73 @@ export function AppOverlays() {
       >
         {fileEditorRootContext ? (
           <Suspense>
-            <FileEditorOverlay onClose={() => setFileEditorOverlayMode(null)} />
+            <DeferredFileEditorOverlay onClose={() => setFileEditorOverlayMode(null)} />
           </Suspense>
         ) : null}
       </OverlayShell>
-      <BrowserHost />
+      <DeferredBrowserHost />
       <UsageLoginConfirmationDialog />
-      <LoginTerminalOverlay />
-      <CreateProjectModal />
-      <CloneProjectModal />
       <RemoteProjectModal />
+      <DeferredLoginTerminalOverlay />
+      <DeferredCreateProjectModal />
+      <DeferredCloneProjectModal />
     </>
   );
+}
+
+function OverlayLoader() {
+  return (
+    <div className="flex flex-1 items-center justify-center">
+      <PixelLoader size="lg" />
+    </div>
+  );
+}
+
+function DeferredBrowserHost() {
+  const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
+  const browserOverlayOpen = usePanelStore((s) => s.browserOverlayOpen);
+  const extracted = useBrowserPanelStore((s) => s.extracted);
+  const hasTabs = useBrowserPanelStore((s) => s.tabs.length > 0);
+  const automationActive = useBrowserPanelStore((s) => s.automationActive);
+  const enabled = useEverEnabled(
+    !extracted && (browserPanelOpen || browserOverlayOpen || (hasTabs && automationActive)),
+  );
+
+  return enabled ? (
+    <Suspense>
+      <PrewarmedBrowserHost />
+    </Suspense>
+  ) : null;
+}
+
+function DeferredLoginTerminalOverlay() {
+  const active = useLoginTerminalStore((state) => state.active !== null);
+  const enabled = useEverEnabled(active);
+  return enabled ? (
+    <Suspense>
+      <PrewarmedLoginTerminalOverlay />
+    </Suspense>
+  ) : null;
+}
+
+function DeferredCreateProjectModal() {
+  const open = usePanelStore((state) => state.createProjectModalOpen);
+  const enabled = useEverEnabled(open);
+  return enabled ? (
+    <Suspense>
+      <PrewarmedCreateProjectModal />
+    </Suspense>
+  ) : null;
+}
+
+function DeferredCloneProjectModal() {
+  const open = usePanelStore((state) => state.cloneProjectModalOpen);
+  const enabled = useEverEnabled(open);
+  return enabled ? (
+    <Suspense>
+      <PrewarmedCloneProjectModal />
+    </Suspense>
+  ) : null;
 }
 
 function UsageLoginConfirmationDialog() {

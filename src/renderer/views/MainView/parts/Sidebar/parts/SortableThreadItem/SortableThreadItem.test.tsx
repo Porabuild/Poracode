@@ -24,17 +24,22 @@ vi.mock("@/renderer/dnd", () => ({
   useIsDraggingThread: () => false,
 }));
 
-vi.mock("@/renderer/components/common", () => ({
+vi.mock("@/renderer/components/common/ContextMenu", () => ({
   ContextMenu: (props: { children: ReactNode; items: MockContextMenuItem[] }) => {
     contextMenuItemsMock(props.items);
     return <>{props.children}</>;
   },
+}));
+
+vi.mock("@/renderer/components/common/SidebarButton", () => ({
   SidebarButton: (props: { label: ReactNode }) => <button type="button">{props.label}</button>,
 }));
 
-vi.mock("@/renderer/components/providers", () => ({
-  ProviderIcon: () => null,
+vi.mock("@/renderer/components/providers/ThreadProviderIcon", () => ({
   ThreadProviderIcon: () => null,
+}));
+
+vi.mock("@/renderer/components/providers/statusTone", () => ({
   getStatusTone: () => "default",
 }));
 
@@ -43,6 +48,11 @@ vi.mock("@/renderer/hooks/uiSelectors", () => ({
   useProjectAgentStatuses: () => [],
   useIsCurrentThread: () => false,
   useThreadHasDraft: (threadId: string) => useThreadHasDraftMock(threadId),
+  useIsWorktreeFilesPanelActive: () => false,
+  useIsWorktreeGitPanelActive: () => false,
+  useIsWorktreeTerminalActive: () => false,
+  useIsWorktreeTerminalBusy: () => false,
+  useIsWorktreeTerminalOpen: () => false,
 }));
 
 vi.mock("@/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions", () => ({

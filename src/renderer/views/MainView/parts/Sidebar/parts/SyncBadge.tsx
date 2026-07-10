@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PixelLoader } from "@/renderer/components/common";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";

@@ -7390,6 +7390,7 @@ msgstr "テーマとチャットのフォントサイズ"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "思考中"
@@ -7472,6 +7473,7 @@ msgid "This worktree has local changes. Poracode can temporarily stash them, pul
 msgstr "このワークツリーにはローカルな変更があります。Poracode はそれらを一時的にスタッシュし、{0}からプルして、変更を再適用できます。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 msgid "Thought"
 msgstr "思考"
 
@@ -8521,3 +8523,11 @@ msgstr "WSL ベースフォルダー"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "あなたの名前"
+
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Zoom in"
+msgstr "ズームイン"
+
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Zoom out"
+msgstr "ズームアウト"

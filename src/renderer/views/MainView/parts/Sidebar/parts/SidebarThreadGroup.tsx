@@ -2,7 +2,7 @@ import { Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Archive, Check, ChevronRight, CircleCheck, Columns2, Pencil, Trash2 } from "lucide-react";
 import type { Project } from "@/shared/contracts";
-import { ContextMenu } from "@/renderer/components/common";
+import { ContextMenu } from "@/renderer/components/common/ContextMenu";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { archiveThread, toggleMarkThreadDone } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";

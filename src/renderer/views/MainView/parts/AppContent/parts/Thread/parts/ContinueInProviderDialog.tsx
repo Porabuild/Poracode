@@ -9,7 +9,9 @@ import type {
   Thread,
   ThreadConfig,
 } from "@/shared/contracts";
-import { Button, OptionMenu, PixelLoader } from "@/renderer/components/common";
+import { Button } from "@/renderer/components/common/Button";
+import { OptionMenu } from "@/renderer/components/common/OptionMenu";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getComposerControls } from "@/renderer/components/providers/providerComposer";
@@ -17,7 +19,7 @@ import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import { PermissionIcon } from "@/renderer/components/providers/PermissionIcon";
 import { readBridge } from "@/renderer/bridge";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
-import { filterHiddenModels } from "@/renderer/components/thread/threadComposerOptions";
+import { filterHiddenModels } from "@/shared/agentSelection";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
 type Phase = "select" | "extracting" | "error";

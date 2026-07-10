@@ -3,13 +3,23 @@ import type { PlanAggregatorRole, ToolItemState } from "../sdkCanonicalMappingSt
 import { inputFingerprint } from "./helpers";
 
 /**
- * Whether a tool name launches a sub-agent (Claude `Agent`/`Task`, workflow
- * orchestration, or any *subagent* variant). Single source of truth shared by
- * `classifyToolItemType`, `syncSubAgentModelProgress`, the `isSubAgent` payload
- * flag, and the background-subagent keep-alive registry so they never drift.
+ * Whether a tool name is the sub-agent item itself (Claude `Agent`/`Task` or
+ * workflow orchestration). Single source of truth shared by
+ * `classifyToolItemType`, `syncSubAgentModelProgress`, the
+ * `isSubAgent` payload flag, and the background-subagent keep-alive registry so
+ * they never drift.
+ *
+ * The subagents MCP server exposes commands that create or manage separate
+ * synthetic Agent items. Its raw MCP calls are tools, never agents themselves.
  */
 export function isSubAgentToolName(toolName: string): boolean {
   const name = toolName.toLowerCase();
+  const mcp = parseMcpToolName(name);
+  if (mcp) {
+    const server = mcp.server.replace(/^claude_ai_/, "").replace(/^plugin_[^_]+_/, "");
+    if (server === "subagents") return false;
+    return mcp.tool.includes("subagent") || mcp.tool.includes("sub-agent");
+  }
   return (
     name === "task" ||
     name === "workflow" ||
@@ -17,6 +27,14 @@ export function isSubAgentToolName(toolName: string): boolean {
     name.includes("subagent") ||
     name.includes("sub-agent")
   );
+}
+
+function parseMcpToolName(name: string): { server: string; tool: string } | undefined {
+  const canonical = /^mcp__(.+?)__(.+)$/.exec(name);
+  if (canonical) return { server: canonical[1]!, tool: canonical[2]! };
+  const legacy = /^(.+?)-mcp-server-(.+)$/.exec(name);
+  if (legacy) return { server: legacy[1]!, tool: legacy[2]! };
+  return undefined;
 }
 
 export function classifyToolItemType(toolName: string): CanonicalItemType {

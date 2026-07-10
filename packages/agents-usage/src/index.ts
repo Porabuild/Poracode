@@ -6,9 +6,13 @@
 export * from "./types";
 export * from "./host";
 export * from "./formatters";
-export { builtInUsageProviderDescriptors, createUsageCollectorRegistry } from "./registry";
+export { createUsageCollectorRegistry } from "./registry";
 export type { UsageCollector, UsageCollectorRegistry } from "./registry";
-export { allUsageProviderDescriptors, LOCAL_USAGE_PROVIDER_DESCRIPTORS } from "./providers";
+export {
+  allUsageProviderDescriptors,
+  builtInUsageProviderDescriptors,
+  LOCAL_USAGE_PROVIDER_DESCRIPTORS,
+} from "./providers";
 export { DEFAULT_CLIENT_VERSIONS } from "./clientVersions";
 export { priceTokens, rateForModel, PRICING_TABLE_REVIEWED } from "./pricing";
 export type { ModelRate } from "./pricing";

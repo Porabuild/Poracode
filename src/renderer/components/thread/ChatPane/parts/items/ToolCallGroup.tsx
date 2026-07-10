@@ -11,12 +11,12 @@ import type {
   ToolCallPayload,
   WebSearchPayload,
 } from "@/shared/contracts";
-import { PixelLoader } from "@/renderer/components/common";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { useShimmer } from "@/renderer/thinkingAnimator";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatFilePath } from "./ChatFilePath";
 import {
@@ -25,6 +25,7 @@ import {
   chatRowClass,
   chatRowHoverClass,
   chatRowShellClass,
+  inlineRowTriggerClass,
 } from "./chatRow";
 import { CommandOutputViewport } from "./CommandOutputViewport";
 import { iconForCommandIntent } from "./CommandExecution";
@@ -41,7 +42,8 @@ import {
   extractReadFileResultPart,
 } from "./acpToolPayload";
 import { commandIntentDisplay } from "./commandSummary";
-import { InlineDiffView } from "./InlineDiffView";
+import { LazyInlineDiffView } from "./LazyInlineDiffView";
+import { ReasoningInline } from "./ReasoningInline";
 import { detectLanguageFromPath, type ViewportLanguage } from "./languageDetect";
 import {
   getToolLikePayload,
@@ -171,7 +173,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
               ) : (
                 visibleItems.map((item) => (
                   <div key={item.id} className="animate-tool-call-enter">
-                    <ToolCallInline item={item} />
+                    <GroupRowInline item={item} />
                   </div>
                 ))
               )}
@@ -220,14 +222,14 @@ function SameFileEditGroupBody({ items }: { items: readonly RuntimeChatItem[] })
         if (!row?.bodyText) {
           return (
             <div key={item.id} className="animate-tool-call-enter">
-              <ToolCallInline item={item} />
+              <GroupRowInline item={item} />
             </div>
           );
         }
         return (
           <div key={item.id} className="animate-tool-call-enter">
             {row.bodyKind === "diff" ? (
-              <InlineDiffView
+              <LazyInlineDiffView
                 diffText={row.bodyText}
                 filePath={row.bodyFilePath ?? ""}
                 {...(row.bodyOldText !== undefined && row.bodyNewText !== undefined
@@ -247,11 +249,22 @@ function SameFileEditGroupBody({ items }: { items: readonly RuntimeChatItem[] })
   );
 }
 
+/**
+ * Type dispatch for a row inside a tool-call group. Every call site that
+ * renders group children goes through this so non-tool row types (reasoning
+ * today) get their dedicated renderer everywhere.
+ */
+function GroupRowInline({ item }: { item: RuntimeChatItem }) {
+  if (item.type === "reasoning") return <ReasoningInline item={item} />;
+  return <ToolCallInline item={item} />;
+}
+
 function ToolCallInline({ item }: { item: RuntimeChatItem }) {
   const { t } = useLingui();
   const actions = useChatPaneActions();
   const [isExpanded, setIsExpanded] = useState(false);
   const row = getInlineRow(item, isExpanded, t);
+  const isRunning = item.state !== "completed";
   const fetchTarget =
     row?.fetchPath && actions?.projectLocation
       ? { path: row.fetchPath, projectLocation: actions.projectLocation }
@@ -265,6 +278,7 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
       <div className="flex w-fit max-w-full min-w-0 items-center gap-1.5 py-0.5 text-[length:var(--lc-chat-font-size-command)] leading-tight">
         <Icon className="size-3 shrink-0 text-[color:var(--muted)]" />
         <InlineRowTitle
+          isRunning={isRunning}
           title={row.title}
           {...(row.titleParts ? { titleParts: row.titleParts } : {})}
         />
@@ -283,11 +297,10 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
       }}
     >
       <Disclosure.Heading>
-        <Disclosure.Trigger
-          className={`flex w-fit max-w-full min-w-0 items-center gap-1.5 rounded-md py-0.5 text-left ${chatRowHoverClass}`}
-        >
+        <Disclosure.Trigger className={inlineRowTriggerClass}>
           <Icon className="size-3 shrink-0 text-[color:var(--muted)]" />
           <InlineRowTitle
+            isRunning={isRunning}
             title={row.title}
             {...(row.titleParts ? { titleParts: row.titleParts } : {})}
           />
@@ -308,7 +321,7 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
             )
           ) : row.bodyText ? (
             row.bodyKind === "diff" ? (
-              <InlineDiffView
+              <LazyInlineDiffView
                 diffText={row.bodyText}
                 filePath={row.bodyFilePath ?? ""}
                 {...(row.bodyOldText !== undefined && row.bodyNewText !== undefined
@@ -358,15 +371,23 @@ type InlineRow = {
 };
 
 function InlineRowTitle({
+  isRunning,
   title,
   titleParts,
 }: {
+  isRunning: boolean;
   title: string;
   titleParts?: { prefix: string; path: string; filePath?: boolean };
 }) {
+  const shimmerRef = useShimmer<HTMLElement>(isRunning);
+  const shimmerData = isRunning ? { "data-lightcode-shimmer-text": title } : {};
   if (titleParts) {
     return (
-      <code className="flex min-w-0 items-baseline overflow-hidden font-mono !text-[color:var(--muted)]">
+      <code
+        ref={shimmerRef}
+        className={`flex min-w-0 items-baseline overflow-hidden font-mono !text-[color:var(--muted)] ${isRunning ? "lightcode-thinking-text !flex" : ""}`}
+        {...shimmerData}
+      >
         <span className="shrink-0 whitespace-pre">{titleParts.prefix}</span>
         {titleParts.filePath ? (
           <>
@@ -384,7 +405,15 @@ function InlineRowTitle({
       </code>
     );
   }
-  return <code className="min-w-0 truncate font-mono !text-[color:var(--muted)]">{title}</code>;
+  return (
+    <code
+      ref={shimmerRef}
+      className={`min-w-0 truncate font-mono !text-[color:var(--muted)] ${isRunning ? "lightcode-thinking-text" : ""}`}
+      {...shimmerData}
+    >
+      {title}
+    </code>
+  );
 }
 
 function getInlineRow(
@@ -431,9 +460,7 @@ function getToolCallRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow |
   const isRunning = item.state !== "completed";
   const isError = payload.status === "error";
   const diffSummary = diffText ? extractAcpDiffSummary(payload) : undefined;
-  const rightLabel: ReactNode = isRunning ? (
-    <PixelLoader size="xxs" className="text-[color:var(--muted)]" />
-  ) : isError ? (
+  const rightLabel: ReactNode = isRunning ? undefined : isError ? (
     <ErrorIcon />
   ) : diffSummary ? (
     formatDiffSummaryLabel(diffSummary)
@@ -501,11 +528,7 @@ function getCommandRow(
   const isErrorExit =
     !isRunning &&
     (payload?.status === "error" || (payload?.exitCode != null && payload.exitCode !== 0));
-  const rightLabel: ReactNode = isRunning ? (
-    <PixelLoader size="xxs" className="text-[color:var(--muted)]" />
-  ) : isErrorExit ? (
-    <ErrorIcon />
-  ) : undefined;
+  const rightLabel: ReactNode = isRunning ? undefined : isErrorExit ? <ErrorIcon /> : undefined;
   return {
     Icon: display ? iconForCommandIntent(display.kind) : Terminal,
     title: display?.title ?? t(msg`Run command`),
@@ -540,9 +563,7 @@ function getFileChangeRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow
   const isRunning = item.state !== "completed";
   const diffSummary = payload.diffSummary ?? extractAcpDiffSummary(payload);
   const isError = payload.status === "error";
-  const rightLabel: ReactNode = isRunning ? (
-    <PixelLoader size="xxs" className="text-[color:var(--muted)]" />
-  ) : isError ? (
+  const rightLabel: ReactNode = isRunning ? undefined : isError ? (
     <ErrorIcon />
   ) : diffSummary ? (
     formatDiffSummaryLabel(diffSummary)
@@ -598,9 +619,7 @@ function getWebSearchRow(
       : [];
   const isRunning = item.state !== "completed";
   const resultCount = payload.resultCount ?? deriveResultCount(payload);
-  const rightLabel: ReactNode = isRunning ? (
-    <PixelLoader size="xxs" className="text-[color:var(--muted)]" />
-  ) : resultCount != null ? (
+  const rightLabel: ReactNode = isRunning ? undefined : resultCount != null ? (
     <Plural value={resultCount} one="# result" other="# results" />
   ) : undefined;
   return {

@@ -9,7 +9,8 @@ import {
   resolveSharedUpdateCommand,
 } from "@/shared/agents/updateResolver";
 import { readBridge } from "@/renderer/bridge";
-import { Button, PixelLoader } from "@/renderer/components/common";
+import { Button } from "@/renderer/components/common/Button";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import {
   currentWslDistros,
   envLabelForStatus,

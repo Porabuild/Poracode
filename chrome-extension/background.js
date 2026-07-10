@@ -22,7 +22,10 @@ const IDLE_RETRY_MS = 4000;
 /**
  * Ports to try. Keep this in sync with the app's ChromeBridgeServer scan range.
  */
-const DEFAULT_PORTS = Array.from({ length: 13 }, (_, i) => 47820 + i);
+const DEFAULT_PORTS = [
+  ...Array.from({ length: 13 }, (_, i) => 47820 + i),
+  ...Array.from({ length: 13 }, (_, i) => 32120 + i),
+];
 
 // Each Poracode thread works inside its OWN tab group, named after the thread's
 // task (mirrors the internal browser). The default group (no thread) keeps the

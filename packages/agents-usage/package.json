@@ -27,6 +27,22 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./antigravity": {
+      "types": "./src/collectors/antigravity.ts",
+      "default": "./src/collectors/antigravity.ts"
+    },
+    "./formatters": {
+      "types": "./src/formatters.ts",
+      "default": "./src/formatters.ts"
+    },
+    "./providers": {
+      "types": "./src/providers.ts",
+      "default": "./src/providers.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
     }
   },
   "scripts": {

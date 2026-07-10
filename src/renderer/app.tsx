@@ -1,9 +1,8 @@
 import { toast } from "@heroui/react";
-import "@/renderer/components/providers/bootstrap";
 import { msg as linguiMsg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
-import { useEffect } from "react";
-import { PixelLoader } from "./components/common";
+import { Suspense, useEffect, useState } from "react";
+import { PixelLoader } from "./components/common/PixelLoader";
 import { msg } from "@/shared/messages";
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { SupervisorEvent, UpdateStatus } from "@/shared/ipc";
@@ -40,17 +39,18 @@ import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { titlePromptFromSegments } from "@/shared/threadTitle";
 import { i18n } from "@/renderer/i18n/i18n";
 import { AppProvider } from "./components/ui/provider";
-import { ImageLightboxHost } from "./components/composer";
+import { ImageLightboxHost } from "./components/composer/ImageLightbox";
 import { MainView } from "@/renderer/views/MainView/MainView";
 import {
   primeWorktreeGitState,
   runWorktreeSetupScript,
 } from "@/renderer/views/MainView/parts/AppContent/AppContent";
-import { CommandPalette } from "@/renderer/commands/CommandPalette";
+import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel";
 import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";
 import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics/posthog";
 import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
+import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/deferredFeatures";
 
 // ── Module-level IPC listeners ──────────────────────────────────
 // Subscribes to supervisor events as soon as the module loads,
@@ -446,8 +446,23 @@ function MainApp() {
   return (
     <AppProvider contentReady>
       <MainView storeHydrated={storeHydrated} loadT0={loadT0} />
-      <CommandPalette />
+      <DeferredCommandPalette />
       <ImageLightboxHost />
     </AppProvider>
   );
+}
+
+function DeferredCommandPalette() {
+  const open = useCommandPaletteStore((state) => state.isOpen);
+  const [enabled, setEnabled] = useState(open);
+
+  useEffect(() => {
+    if (open) setEnabled(true);
+  }, [open]);
+
+  return enabled ? (
+    <Suspense>
+      <PrewarmedCommandPalette />
+    </Suspense>
+  ) : null;
 }

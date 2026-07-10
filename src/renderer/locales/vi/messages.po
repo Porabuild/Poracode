@@ -7392,6 +7392,7 @@ msgstr "Giao diện và cỡ chữ chat"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "Đang suy nghĩ"
@@ -7474,6 +7475,7 @@ msgid "This worktree has local changes. Poracode can temporarily stash them, pul
 msgstr "Cây làm việc này có các thay đổi cục bộ. Poracode có thể tạm thời lưu trữ (stash) chúng, kéo (pull) từ {0}, sau đó áp dụng lại các thay đổi của bạn."
 
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 msgid "Thought"
 msgstr "Suy nghĩ"
 
@@ -8523,3 +8525,11 @@ msgstr "Thư mục gốc WSL"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "Tên của bạn"
+
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Zoom in"
+msgstr "Phóng to"
+
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Zoom out"
+msgstr "Thu nhỏ"

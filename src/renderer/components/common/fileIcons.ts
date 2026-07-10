@@ -2,33 +2,18 @@
  * VS Code icon theme resolver.
  *
  * Reads the material-icon-theme manifest (standard VS Code icon theme JSON)
- * and resolves filenames/folder names to icon asset URLs loaded via Vite.
+ * and resolves filenames/folder names to icon asset URLs served from the
+ * generated material-icon asset directory.
  *
  * Architecture: any VS Code icon theme that follows the standard format
  * (iconDefinitions, fileExtensions, fileNames, folderNames, languageIds)
- * can be swapped in by changing the manifest import and icon glob path.
+ * can be swapped in by changing the manifest import and generated asset directory.
  */
 
 // ── Load the manifest ───────────────────────────────────────
 import manifest from "material-icon-theme/dist/material-icons.json";
 
-// ── Load icon URLs via Vite glob (lazy, on-demand by the browser) ───
-// Using ?url so each SVG becomes a separate asset file served on demand
-// instead of inlining all 1221 SVGs as strings into the JS bundle.
-const iconUrlModules = import.meta.glob("~file-icons/*.svg", {
-  eager: true,
-  query: "?url",
-  import: "default",
-}) as Record<string, string>;
-
-// Build lookup: icon name (e.g. "typescript") → asset URL
-const iconUrlMap = new Map<string, string>();
-for (const [path, url] of Object.entries(iconUrlModules)) {
-  const match = path.match(/\/([^/]+)\.svg$/);
-  if (match) {
-    iconUrlMap.set(match[1]!, url);
-  }
-}
+const MATERIAL_ICON_ASSET_PATH = "assets/material-icons/";
 
 // ── Manifest tables ─────────────────────────────────────────
 
@@ -134,18 +119,28 @@ const extToLanguageId: Record<string, string> = {
 
 // ── Resolver ────────────────────────────────────────────────
 
-function resolveIconUrl(iconId: string): string {
+function resolveIconName(iconId: string): string | undefined {
   const def = iconDefinitions[iconId];
-  if (!def) return iconUrlMap.get(defaultFileIcon) ?? "";
+  if (!def) return undefined;
 
   const match = def.iconPath.match(/\/([^/]+)\.svg$/);
-  if (!match) return iconUrlMap.get(defaultFileIcon) ?? "";
-
-  return iconUrlMap.get(match[1]!) ?? iconUrlMap.get(defaultFileIcon) ?? "";
+  return match?.[1];
 }
 
-const defaultFileUrl = resolveIconUrl(defaultFileIcon);
-const defaultFolderUrl = resolveIconUrl(defaultFolderIcon);
+const defaultFileIconName = resolveIconName(defaultFileIcon);
+const defaultFolderIconName = resolveIconName(defaultFolderIcon) ?? defaultFileIconName;
+
+function buildIconUrl(iconName: string | undefined): string {
+  if (!iconName) return "";
+  return `${import.meta.env.BASE_URL}${MATERIAL_ICON_ASSET_PATH}${encodeURIComponent(iconName)}.svg`;
+}
+
+function resolveIconUrl(iconId: string): string {
+  return buildIconUrl(resolveIconName(iconId) ?? defaultFileIconName);
+}
+
+const defaultFileUrl = buildIconUrl(defaultFileIconName);
+const defaultFolderUrl = buildIconUrl(defaultFolderIconName);
 
 // ── Public API ──────────────────────────────────────────────
 

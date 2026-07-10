@@ -18,8 +18,9 @@ import { buildPromptContentBlocks } from "@/shared/promptContent";
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
-import { TuxIcon } from "@/renderer/components/common";
-import { browserMcpServer, ComputerUseChip, McpChip } from "@/renderer/components/composer";
+import { TuxIcon } from "@/renderer/components/common/TuxIcon";
+import { ComputerUseChip, McpChip } from "@/renderer/components/composer/AttachmentBar";
+import { browserMcpServer } from "@/renderer/components/composer/composerMcpServers";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { readBridge } from "@/renderer/bridge";
 import { captureThreadStarted } from "@/renderer/analytics/posthog";

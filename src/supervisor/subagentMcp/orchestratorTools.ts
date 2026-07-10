@@ -16,14 +16,14 @@ export const ORCHESTRATOR_TOOLS: ToolSpec[] = [
   {
     name: "create_thread",
     description:
-      "Create a REAL app thread (visible to the user in the sidebar) running the given agent, optionally in its own fresh git worktree, and start it on the prompt. Returns as soon as the thread is launched — it keeps working in the background; monitor it with wait_for_thread / get_thread. Use this lane for long-lived parallel work items (e.g. one ticket per thread); use spawn_agent/run_agent for quick ephemeral helpers instead. Caps & rules: at most 8 LIVE child threads per parent — a slot frees only via close_thread or the child's session ending (a finished-but-not-closed child still holds its slot). Passing `branch` or `base_branch` implies `worktree: true`. The child INHERITS this thread's approval policy + sandbox mode (you cannot override them per call), so it runs as autonomously — or as gated — as you do. On close_thread the sidebar thread row + its worktree remain for the human (closing frees the slot, it does NOT delete work).",
+      "Create a REAL app thread (visible to the user in the sidebar) using provider/model/reasoning/Fast/permissions values from get_agent, optionally in its own fresh git worktree, and start it on the prompt. Returns as soon as the thread is launched — it keeps working in the background; monitor it with wait_for_thread / get_thread. Use this lane for long-lived parallel work items (e.g. one ticket per thread); use spawn_agent/run_agent for quick ephemeral helpers instead. Caps & rules: at most 8 LIVE child threads per parent — a slot frees only via close_thread or the child's session ending (a finished-but-not-closed child still holds its slot). Passing `branch` or `base_branch` implies `worktree: true`. Subagent permissions default to Full access. On close_thread the sidebar thread row + its worktree remain for the human (closing frees the slot, it does NOT delete work).",
     inputSchema: {
       type: "object",
-      required: ["agent", "prompt"],
+      required: ["provider", "prompt"],
       properties: {
-        agent: {
+        provider: {
           type: "string",
-          description: "Agent kind from list_agents (structured-execution agents only).",
+          description: "Provider id from list_agents (structured-execution providers only).",
         },
         prompt: { type: "string", description: "Self-contained task for the new thread." },
         title: {
@@ -32,9 +32,21 @@ export const ORCHESTRATOR_TOOLS: ToolSpec[] = [
         },
         model: {
           type: "string",
-          description: "Model value from list_agents. Omit for the agent default.",
+          description: "Model value from get_agent. Omit for its defaultModel.",
         },
-        effort: { type: "string", description: "Optional effort/reasoning level." },
+        reasoning: {
+          type: "string",
+          description: "Reasoning value listed on the selected get_agent model.",
+        },
+        fast: {
+          type: "boolean",
+          description: "Enable Fast when the selected model reports fast.available=true.",
+        },
+        permissions: {
+          type: "string",
+          enum: ["full-access"],
+          description: "Permission preset from get_agent. Defaults to full-access.",
+        },
         worktree: {
           type: "boolean",
           description:
@@ -159,16 +171,20 @@ export interface OrchestratorToolContext {
 }
 
 function parseCreateThreadRequest(args: Record<string, unknown>): CreateChildThreadRequest {
-  const agent = typeof args.agent === "string" ? args.agent : "";
+  const agent = typeof args.provider === "string" ? args.provider : "";
   const prompt = typeof args.prompt === "string" ? args.prompt : "";
-  if (!agent) throw new OrchestratorThreadError("agent is required");
+  if (!agent) throw new OrchestratorThreadError("provider is required");
   if (!prompt.trim()) throw new OrchestratorThreadError("prompt is required");
+  if (args.permissions !== undefined && args.permissions !== "full-access") {
+    throw new OrchestratorThreadError("permissions must be full-access for subagents");
+  }
   return {
     agent,
     prompt,
     ...(typeof args.title === "string" ? { title: args.title } : {}),
     ...(typeof args.model === "string" ? { model: args.model } : {}),
-    ...(typeof args.effort === "string" ? { effort: args.effort } : {}),
+    ...(typeof args.reasoning === "string" ? { effort: args.reasoning } : {}),
+    ...(args.fast === true ? { fast: true } : {}),
     ...(args.worktree === true ? { worktree: true } : {}),
     ...(typeof args.branch === "string" && args.branch.trim() ? { branch: args.branch } : {}),
     ...(typeof args.base_branch === "string" && args.base_branch.trim()
@@ -284,7 +300,7 @@ function toWireSummary(summary: ChildThreadSummary): Record<string, unknown> {
   return {
     thread_id: summary.threadId,
     title: summary.title,
-    agent: summary.agent,
+    provider: summary.agent,
     status: summary.status,
     attention: summary.attention,
     created_at: summary.createdAt,

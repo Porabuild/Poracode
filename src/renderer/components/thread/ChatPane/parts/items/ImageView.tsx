@@ -1,13 +1,14 @@
 import { memo, useMemo, useState, type ReactNode } from "react";
 import { Check, Copy, Download, Maximize2 } from "lucide-react";
-import { Tooltip, toast } from "@heroui/react";
+import { Surface, Tooltip, toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { ToolCallPayload } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { readBridge } from "@/renderer/bridge";
-import { openImageLightbox } from "@/renderer/components/composer";
+import { openImageLightbox } from "@/renderer/components/composer/ImageLightbox";
 import { chatInlineImageClass } from "./chatImageClass";
+import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { resolveImageViewSource, type ImageViewSource } from "./imageViewSource";
 import { ToolCall } from "./ToolCall";
 
@@ -31,7 +32,11 @@ export const ImageView = memo(function ImageView({ item }: ImageViewProps) {
   if (!source || payload?.status === "error") {
     return <ToolCall item={item} />;
   }
-  return <ImageCard source={source} />;
+  return (
+    <Surface variant="transparent" className={chatMessageSurfaceClass}>
+      <ImageCard source={source} />
+    </Surface>
+  );
 });
 
 /**

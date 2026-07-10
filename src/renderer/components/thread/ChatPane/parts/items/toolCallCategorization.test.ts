@@ -1,9 +1,26 @@
 import { describe, expect, it } from "vitest";
+import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import {
+  categorizeItem,
   categorizeToolName,
   categorizeVerbPrefix,
   categoryFromSummaryLabel,
+  isToolGroupItem,
 } from "./toolCallCategorization";
+
+describe("categorizeItem", () => {
+  it("maps reasoning items to the thought category and keeps them groupable", () => {
+    const item = {
+      id: "reasoning-1",
+      type: "reasoning",
+      state: "completed",
+      streams: { reasoning_text: "planning" },
+    } as unknown as RuntimeChatItem;
+
+    expect(categorizeItem(item)).toBe("thought");
+    expect(isToolGroupItem(item)).toBe(true);
+  });
+});
 
 describe("categorizeToolName", () => {
   it("maps read tools to viewed", () => {

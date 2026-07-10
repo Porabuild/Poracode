@@ -5,6 +5,7 @@ import type { OrchestratorThreadManager } from "./OrchestratorThreadManager";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { buildSpawnableAgents, classifyModelTier, dispatchTool, TOOLS } from "./toolRegistry";
 import type { SubagentToolContext } from "./toolRegistry";
+import type { SpawnableAgent } from "./types";
 
 describe("classifyModelTier", () => {
   it.each([
@@ -68,9 +69,56 @@ describe("buildSpawnableAgents", () => {
     ]);
     const [agent] = buildSpawnableAgents(adapters, [makeStatus()]);
     expect(agent?.models).toEqual([
-      { value: "claude-haiku-4", label: "Haiku 4", tier: "fast-cheap" },
-      { value: "claude-sonnet-4.5", label: "Sonnet 4.5", tier: "balanced" },
-      { value: "claude-opus-4", label: "Opus 4.8", tier: "max-capability" },
+      {
+        value: "claude-haiku-4",
+        label: "Haiku 4",
+        tier: "fast-cheap",
+        reasoning: { values: [] },
+      },
+      {
+        value: "claude-sonnet-4.5",
+        label: "Sonnet 4.5",
+        tier: "balanced",
+        reasoning: { values: [] },
+      },
+      {
+        value: "claude-opus-4",
+        label: "Opus 4.8",
+        tier: "max-capability",
+        reasoning: { values: [] },
+      },
+    ]);
+    expect(agent?.provider).toEqual({ value: "claude", label: "Claude" });
+    expect(agent?.reasoningOptions).toEqual([]);
+    expect(agent?.permissions).toEqual({
+      options: [{ value: "full-access", label: "Full access" }],
+      default: "full-access",
+    });
+  });
+
+  it("nests composer reasoning and Fast data under each model", () => {
+    const adapters = new Map<AgentKind, AgentAdapter>([
+      [
+        "claude" as AgentKind,
+        { createStructuredSession: async () => ({}) } as unknown as AgentAdapter,
+      ],
+    ]);
+    const status = makeStatus();
+    status.capabilities.modelEfforts = { "claude-opus-4": ["low", "high", "xhigh"] };
+    status.capabilities.defaultEffort = "high";
+    status.capabilities.fastModels = ["claude-opus-4"];
+    const [provider] = buildSpawnableAgents(adapters, [status]);
+    expect(provider?.models[2]).toMatchObject({
+      reasoning: {
+        values: ["low", "high", "xhigh"],
+        default: "high",
+      },
+      fast: { available: true },
+    });
+    expect(provider?.reasoningOptions).toEqual([
+      { value: "low", label: "Low" },
+      { value: "high", label: "High" },
+      { value: "xhigh", label: "Extra High" },
     ]);
   });
 
@@ -134,12 +182,60 @@ function resultText(result: { content: Array<{ text: string }> }): string {
   return result.content[0]?.text ?? "";
 }
 
+describe("provider discovery", () => {
+  const provider: SpawnableAgent = {
+    provider: { value: "codex", label: "Codex" },
+    models: [
+      {
+        value: "gpt-5.5",
+        label: "GPT-5.5",
+        reasoning: { values: ["high"], default: "high" },
+      },
+    ],
+    reasoningOptions: [{ value: "high", label: "High" }],
+    defaultModel: "gpt-5.5",
+    permissions: {
+      options: [{ value: "full-access", label: "Full access" }],
+      default: "full-access",
+    },
+    execution: "structured",
+  };
+
+  it("lists compact summaries and resolves full options by id", async () => {
+    const { ctx } = makeToolContext({});
+    ctx.listSpawnableAgents = async () => [provider];
+
+    const listed = await dispatchTool("list_agents", {}, ctx);
+    expect(JSON.parse(resultText(listed))).toEqual([
+      {
+        id: "codex",
+        label: "Codex",
+        execution: "structured",
+        defaultModel: "gpt-5.5",
+        modelCount: 1,
+      },
+    ]);
+
+    const detail = await dispatchTool("get_agent", { id: "codex" }, ctx);
+    expect(JSON.parse(resultText(detail))).toEqual(provider);
+  });
+
+  it("returns a tool error for an unknown provider id", async () => {
+    const { ctx } = makeToolContext({});
+    ctx.listSpawnableAgents = async () => [provider];
+    const result = await dispatchTool("get_agent", { id: "missing" }, ctx);
+    expect(result.isError).toBe(true);
+    expect(resultText(result)).toContain("Unknown provider id");
+  });
+});
+
 describe("orchestrator tool registration", () => {
   it("registers all orchestrator tools alongside the existing run tools", () => {
     const names = new Set(TOOLS.map((tool) => tool.name));
     for (const name of ORCHESTRATOR_TOOL_NAMES) expect(names.has(name)).toBe(true);
     for (const name of [
       "list_agents",
+      "get_agent",
       "spawn_agent",
       "wait_for_agent",
       "run_agent",
@@ -153,8 +249,12 @@ describe("orchestrator tool registration", () => {
   it("declares required fields on the new tool schemas", () => {
     const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
     expect(byName.get("create_thread")!.inputSchema).toMatchObject({
-      required: ["agent", "prompt"],
+      required: ["provider", "prompt"],
     });
+    expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
+      required: ["provider", "prompt"],
+    });
+    expect(byName.get("get_agent")!.inputSchema).toMatchObject({ required: ["id"] });
     expect(byName.get("get_thread")!.inputSchema).toMatchObject({ required: ["thread_id"] });
     expect(byName.get("read_thread")!.inputSchema).toMatchObject({ required: ["thread_id"] });
     expect(byName.get("send_to_thread")!.inputSchema).toMatchObject({
@@ -185,7 +285,15 @@ describe("orchestrator tool dispatch", () => {
     } as Partial<OrchestratorThreadManager>);
     const result = await dispatchTool(
       "create_thread",
-      { agent: "codex", prompt: "do it", worktree: true },
+      {
+        provider: "codex",
+        model: "gpt-5.5",
+        reasoning: "high",
+        fast: true,
+        permissions: "full-access",
+        prompt: "do it",
+        worktree: true,
+      },
       ctx,
     );
     expect(result.isError).toBeUndefined();
@@ -196,7 +304,17 @@ describe("orchestrator tool dispatch", () => {
       branch: "lightcode/x",
     });
     expect(calls).toEqual([
-      { parent: "parent-1", request: { agent: "codex", prompt: "do it", worktree: true } },
+      {
+        parent: "parent-1",
+        request: {
+          agent: "codex",
+          model: "gpt-5.5",
+          effort: "high",
+          fast: true,
+          prompt: "do it",
+          worktree: true,
+        },
+      },
     ]);
   });
 
@@ -204,7 +322,7 @@ describe("orchestrator tool dispatch", () => {
     const { ctx } = makeToolContext({});
     for (const [name, args] of [
       ["create_thread", { prompt: "x" }],
-      ["create_thread", { agent: "codex" }],
+      ["create_thread", { provider: "codex" }],
       ["get_thread", {}],
       ["read_thread", {}],
       ["send_to_thread", { thread_id: "t" }],

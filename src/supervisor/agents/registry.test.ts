@@ -2,6 +2,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createAgentRegistry } from "./registry";
+import { buildUnrestrictedChildConfig } from "@/supervisor/subagentMcp/types";
 
 const EXPECTED_BUILT_IN_ORDER = [
   "claude",
@@ -14,6 +15,19 @@ const EXPECTED_BUILT_IN_ORDER = [
   "cursor",
   "opencode",
 ] as const;
+
+const EXPECTED_SUBAGENT_APPROVAL_POLICY: Record<(typeof EXPECTED_BUILT_IN_ORDER)[number], string> =
+  {
+    claude: "bypassPermissions",
+    copilot: "never",
+    codex: "never",
+    gemini: "never",
+    grok: "bypassPermissions",
+    antigravity: "yolo",
+    commandcode: "yolo",
+    cursor: "never",
+    opencode: "yolo",
+  };
 
 function detectionProviderKinds(): string[] {
   return readdirSync(import.meta.dirname, { withFileTypes: true })
@@ -46,6 +60,20 @@ describe("built-in agent registry", () => {
     (_kind, adapter) => {
       expect(adapter.label.trim().length).toBeGreaterThan(0);
       expect(adapter.binary?.trim().length).toBeGreaterThan(0);
+    },
+  );
+
+  it.each(adapters.map((adapter) => [adapter.kind, adapter] as const))(
+    "declares an unrestricted subagent posture for %s",
+    (kind, adapter) => {
+      const approvalPolicy =
+        EXPECTED_SUBAGENT_APPROVAL_POLICY[kind as keyof typeof EXPECTED_SUBAGENT_APPROVAL_POLICY];
+      expect(approvalPolicy).toBeDefined();
+      expect(buildUnrestrictedChildConfig({ model: "test" }, adapter.capabilities)).toMatchObject({
+        model: "test",
+        approvalPolicy,
+        ...(kind === "codex" ? { sandboxMode: "danger-full-access" } : {}),
+      });
     },
   );
 });

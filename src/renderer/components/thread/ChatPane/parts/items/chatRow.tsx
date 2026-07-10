@@ -33,6 +33,11 @@ export const chatRowHoverClass = "transition-colors hover:[--muted:var(--foregro
 // (`pt-1` dense, `pt-2.5` roomier).
 export const chatRowBodyClass = "mt-1 border-t border-[var(--hairline)] px-2";
 
+// Disclosure trigger for a dense inline row inside a tool-call group
+// (ToolCallInline, ReasoningInline): icon + title + trailing meta hugging
+// their content, with the shared hover treatment.
+export const inlineRowTriggerClass = `flex w-fit max-w-full min-w-0 items-center gap-1.5 rounded-md py-0.5 text-left ${chatRowHoverClass}`;
+
 // Thin dot between a row's title and its trailing meta label so the two read as
 // distinct once they sit side by side.
 export function ChatRowMetaSeparator() {

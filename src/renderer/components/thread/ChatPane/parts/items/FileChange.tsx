@@ -23,7 +23,7 @@ import {
   type ExtractedPart,
 } from "./acpToolPayload";
 import { getFileChangeCollapsedHeader } from "./collapsedHeaderCache";
-import { InlineDiffView } from "./InlineDiffView";
+import { LazyInlineDiffView } from "./LazyInlineDiffView";
 import { detectLanguageFromPath } from "./languageDetect";
 import { FileContentPlaceholder, useReadAbsoluteFile } from "./useReadAbsoluteFile";
 
@@ -107,7 +107,7 @@ export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
       onExpandedChange={setIsExpanded}
     >
       {diffText !== undefined ? (
-        <InlineDiffView
+        <LazyInlineDiffView
           diffText={diffText}
           filePath={payload.path}
           {...(contentEdit ? { oldText: contentEdit.oldText, newText: contentEdit.newText } : {})}

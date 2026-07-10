@@ -1,4 +1,6 @@
 import type { AgentKind, AgentStatus } from "@/shared/contracts";
+import { capabilitiesForPresentation, modelSelectionFor } from "@/shared/agentSelection";
+import { formatReasoningLabel } from "@/shared/modelLabels";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import type { OrchestratorThreadManager } from "./OrchestratorThreadManager";
 import {
@@ -14,6 +16,7 @@ import type {
   McpToolResult,
   ModelTier,
   SpawnableAgent,
+  SpawnableAgentSummary,
   SpawnAgentRequest,
   ToolSpec,
 } from "./types";
@@ -46,7 +49,7 @@ export function classifyModelTier(modelId: string, modelLabel: string): ModelTie
 /** Base routing guidance always included in the MCP `initialize` instructions. */
 export const SUBAGENT_MCP_INSTRUCTIONS_BASE = [
   "Use the subagents MCP server to delegate work to the other AI agents connected to this Lightcode session.",
-  "Call list_agents first to see which agents and models are available.",
+  "Call list_agents first for the compact provider roster, then call get_agent with the chosen provider id for its models, reasoning options, Fast availability, and permissions preset.",
   "There are two delegation lanes.",
   "Lightweight subagent runs (spawn_agent, run_agent, wait_for_agent, get_status, cancel): quick, ephemeral helpers whose output streams into your own thread and disappears afterwards — best for search, summarization, bulk edits, and one-off checks.",
   "Full threads (create_thread, list_threads, get_thread, read_thread, send_to_thread, wait_for_thread, interrupt_thread): long-lived first-class app threads the user sees in the sidebar, each optionally in its own git worktree — best for parallel work items (e.g. one ticket or feature per thread) that need isolation, review, or follow-up conversation.",
@@ -62,12 +65,48 @@ export function buildSubagentInstructions(routingGuide?: string): string {
   return guide ? `${SUBAGENT_MCP_INSTRUCTIONS_BASE}\n\n${guide}` : SUBAGENT_MCP_INSTRUCTIONS_BASE;
 }
 
+const SUBAGENT_SELECTION_PROPERTIES = {
+  provider: {
+    type: "string",
+    description: "Provider id from list_agents (for example `codex`).",
+  },
+  model: {
+    type: "string",
+    description: "Model value from get_agent. Omit for its defaultModel.",
+  },
+  reasoning: {
+    type: "string",
+    description: "Reasoning value listed on the selected get_agent model. Omit for its default.",
+  },
+  fast: {
+    type: "boolean",
+    description: "Enable Fast when the selected model reports fast.available=true. Default false.",
+  },
+  permissions: {
+    type: "string",
+    enum: ["full-access"],
+    description: "Permission preset from get_agent. Defaults to full-access for subagents.",
+  },
+} as const;
+
 const BASE_TOOLS: ToolSpec[] = [
   {
     name: "list_agents",
     description:
-      "List the AI agents you can spawn as subagents, each with its available models and effort levels. Pick fast/cheap models for light tasks (search, summarization, bulk edits) and stronger models for implementation or review. Each model carries a tier hint: fast-cheap | balanced | max-capability. Each agent carries an execution lane: structured (full session) or one-shot (single prompt in, streamed text out; runs non-interactively with permissions bypassed — it cannot receive follow-up input, so put ALL context and instructions in the initial prompt).",
+      "List spawnable providers as compact summaries: id, label, execution lane, default model, and model count. Call get_agent with an id before spawning to get that provider's full composer options.",
     inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_agent",
+    description:
+      "Get one provider's full composer-style options by id: models, model-specific reasoning values, Fast availability, permissions, and execution lane. Use these values in spawn_agent, run_agent, or create_thread.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: {
+        id: { type: "string", description: "Provider id from list_agents." },
+      },
+    },
   },
   {
     name: "spawn_agent",
@@ -75,14 +114,9 @@ const BASE_TOOLS: ToolSpec[] = [
       "Start a subagent in the background and return its run_id immediately. Use with wait_for_agent for long tasks or to run several agents in parallel. Choose the smallest/fastest model that can do the job.",
     inputSchema: {
       type: "object",
-      required: ["agent", "prompt"],
+      required: ["provider", "prompt"],
       properties: {
-        agent: { type: "string", description: "Agent kind from list_agents." },
-        model: {
-          type: "string",
-          description: "Model value from list_agents. Omit for the agent default.",
-        },
-        effort: { type: "string", description: "Optional effort/reasoning level." },
+        ...SUBAGENT_SELECTION_PROPERTIES,
         prompt: { type: "string", description: "Self-contained task for the subagent." },
         name: { type: "string", description: "Optional short label for the run." },
       },
@@ -110,14 +144,9 @@ const BASE_TOOLS: ToolSpec[] = [
       'Spawn a subagent and block until it finishes, returning its status and output in one call. Prefer a fast/cheap model unless the task needs a stronger one. If it returns with status "running" (timeout), keep waiting via wait_for_agent or stop it via cancel using the returned run_id.',
     inputSchema: {
       type: "object",
-      required: ["agent", "prompt"],
+      required: ["provider", "prompt"],
       properties: {
-        agent: { type: "string", description: "Agent kind from list_agents." },
-        model: {
-          type: "string",
-          description: "Model value from list_agents. Omit for the agent default.",
-        },
-        effort: { type: "string", description: "Optional effort/reasoning level." },
+        ...SUBAGENT_SELECTION_PROPERTIES,
         prompt: { type: "string", description: "Self-contained task for the subagent." },
         name: { type: "string", description: "Optional short label for the run." },
         timeout_s: {
@@ -179,24 +208,60 @@ export function buildSpawnableAgents(
     if (!adapter) continue;
     const execution = resolveSubagentExecution(adapter);
     if (!execution) continue;
-    const models = status.capabilities.models.map((m) => ({
-      value: m.id,
-      label: m.label,
-      tier: classifyModelTier(m.id, m.label),
-    }));
+    const capabilities =
+      execution === "structured"
+        ? capabilitiesForPresentation(status.capabilities, "gui")
+        : status.capabilities;
+    const reasoningOptions = new Map<string, string>();
+    const models = capabilities.models.map((m) => {
+      const selection = modelSelectionFor(capabilities, m.id);
+      for (const value of selection.reasoning.values) {
+        reasoningOptions.set(value, formatReasoningLabel(value));
+      }
+      return {
+        value: m.id,
+        label: m.label,
+        tier: classifyModelTier(m.id, m.label),
+        reasoning: {
+          values: selection.reasoning.values,
+          ...(selection.reasoning.default ? { default: selection.reasoning.default } : {}),
+        },
+        ...(selection.fast.supported
+          ? {
+              fast: {
+                available: selection.fast.available,
+                ...(selection.fast.disabledReason
+                  ? { disabledReason: selection.fast.disabledReason }
+                  : {}),
+              },
+            }
+          : {}),
+      };
+    });
     if (models.length === 0) continue;
-    const efforts = status.capabilities.efforts;
-    const defaultModel = models[0]?.value;
     out.push({
-      kind: status.kind,
-      label: status.label,
+      provider: { value: status.kind, label: status.label },
       models,
+      reasoningOptions: [...reasoningOptions].map(([value, label]) => ({ value, label })),
+      defaultModel: models[0]!.value,
       execution,
-      ...(efforts.length > 0 ? { efforts } : {}),
-      ...(defaultModel ? { defaultModel } : {}),
+      permissions: {
+        options: [{ value: "full-access", label: "Full access" }],
+        default: "full-access",
+      },
     });
   }
   return out;
+}
+
+function summarizeAgent(agent: SpawnableAgent): SpawnableAgentSummary {
+  return {
+    id: agent.provider.value,
+    label: agent.provider.label,
+    execution: agent.execution,
+    defaultModel: agent.defaultModel,
+    modelCount: agent.models.length,
+  };
 }
 
 export interface SubagentToolContext {
@@ -207,15 +272,19 @@ export interface SubagentToolContext {
 }
 
 function parseSpawnRequest(args: Record<string, unknown>): SpawnAgentRequest {
-  const agent = typeof args.agent === "string" ? args.agent : "";
+  const agent = typeof args.provider === "string" ? args.provider : "";
   const prompt = typeof args.prompt === "string" ? args.prompt : "";
-  if (!agent) throw new SubagentSpawnError("agent is required");
+  if (!agent) throw new SubagentSpawnError("provider is required");
   if (!prompt.trim()) throw new SubagentSpawnError("prompt is required");
+  if (args.permissions !== undefined && args.permissions !== "full-access") {
+    throw new SubagentSpawnError("permissions must be full-access for subagents");
+  }
   return {
     agent,
     prompt,
     ...(typeof args.model === "string" ? { model: args.model } : {}),
-    ...(typeof args.effort === "string" ? { effort: args.effort } : {}),
+    ...(typeof args.reasoning === "string" ? { effort: args.reasoning } : {}),
+    ...(args.fast === true ? { fast: true } : {}),
     ...(typeof args.name === "string" ? { name: args.name } : {}),
   };
 }
@@ -229,7 +298,15 @@ export async function dispatchTool(
   try {
     switch (name) {
       case "list_agents":
-        return jsonResult(await ctx.listSpawnableAgents());
+        return jsonResult((await ctx.listSpawnableAgents()).map(summarizeAgent));
+      case "get_agent": {
+        const id = typeof args.id === "string" ? args.id : "";
+        if (!id) return errorResult("id is required");
+        const agent = (await ctx.listSpawnableAgents()).find(
+          (candidate) => candidate.provider.value === id,
+        );
+        return agent ? jsonResult(agent) : errorResult(`Unknown provider id: ${id}`);
+      }
       case "spawn_agent": {
         const request = parseSpawnRequest(args);
         const { runId } = ctx.runManager.spawn(ctx.parentThreadId, request);

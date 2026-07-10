@@ -5,7 +5,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { Bot, ChevronDown, ChevronRight, CircleAlert, type LucideIcon } from "lucide-react";
 import { isWorkflowRunLive, type ToolCallPayload, type WorkflowRun } from "@/shared/contracts";
-import { PixelLoader } from "@/renderer/components/common";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
@@ -224,6 +224,7 @@ function resolveStatus(
           liveLabel={liveLabel}
           stepCount={stepCount}
           includeStepCount
+          leadingSeparator
           showLoader
           className="text-[color:var(--muted)]"
           liveMaxClassName="max-w-[28ch]"

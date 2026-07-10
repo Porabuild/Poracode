@@ -1,5 +1,5 @@
 import { Link } from "@heroui/react";
-import { Suspense, lazy, useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
@@ -7,8 +7,7 @@ import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { parseProjectPathRef } from "./parseProjectPathRef";
-
-const ItemMarkdownInner = lazy(() => import("./ItemMarkdownInner"));
+import { DeferredItemMarkdownInner } from "@/renderer/deferredFeatures";
 
 interface ItemMarkdownProps {
   text: string;
@@ -30,7 +29,7 @@ export function ItemMarkdown({ text }: ItemMarkdownProps) {
         <PlainText text={text} rootNames={rootNames} projectLocation={actions?.projectLocation} />
       }
     >
-      <ItemMarkdownInner text={text} />
+      <DeferredItemMarkdownInner text={text} />
     </Suspense>
   );
 }

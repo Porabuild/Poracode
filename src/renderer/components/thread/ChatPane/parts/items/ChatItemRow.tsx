@@ -6,11 +6,7 @@ import type { ToolCallPayload } from "@/shared/contracts";
 import { memo } from "react";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { CheckpointRevertRequest } from "../CheckpointRevertControls";
-import {
-  getChildItemIdsStoreSelector,
-  getRuntimeItemStoreSelector,
-  type ChatTimelineEntry,
-} from "../../chatPaneSelectors";
+import { getRuntimeItemStoreSelector, type ChatTimelineEntry } from "../../chatPaneSelectors";
 import { AssistantMessage } from "./AssistantMessage";
 import { CommandExecution } from "./CommandExecution";
 import { FileChange } from "./FileChange";
@@ -65,7 +61,6 @@ const SingleChatItemRow = memo(function SingleChatItemRow({
   checkpointRevert: CheckpointRevertRequest | null;
 }) {
   const item = useAppStore(getRuntimeItemStoreSelector(threadId, itemId));
-  const childIds = useAppStore(getChildItemIdsStoreSelector(threadId, itemId));
   if (import.meta.env.DEV && window.localStorage.getItem("lc-chat-debug-renders") === "1") {
     console.log("[lc-chat-debug] ChatItemRow render", {
       threadId,
@@ -77,7 +72,7 @@ const SingleChatItemRow = memo(function SingleChatItemRow({
   if (!item) return null;
   if (item.type === "tool_call") {
     const payload = getRuntimeItemPayload<ToolCallPayload>(item, "tool_call");
-    if (childIds.length > 0 || isSubAgentTool(payload)) {
+    if (isSubAgentTool(payload)) {
       return <SubAgentToolCall threadId={threadId} item={item} />;
     }
   }

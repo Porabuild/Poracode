@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Eye, GitBranch, ImageIcon, Pencil, SearchCode, Sparkles, Terminal } from "lucide-react";
 import type { ToolCallPayload } from "@/shared/contracts";
-import { deriveToolDisplay, isSubAgentSpawnToolRow, isSubAgentTool } from "./toolDisplay";
+import { deriveToolDisplay, isSubAgentTool } from "./toolDisplay";
 
 function makePayload(payload: Partial<ToolCallPayload>): ToolCallPayload {
   return {
@@ -220,6 +220,32 @@ describe("deriveToolDisplay", () => {
     expect(display.Icon).toBe(GitBranch);
   });
 
+  it("does not treat any subagents MCP call as the agent itself", () => {
+    for (const tool of [
+      "list_agents",
+      "get_agent",
+      "spawn_agent",
+      "run_agent",
+      "wait_for_agent",
+      "get_status",
+      "cancel",
+      "create_thread",
+      "wait_for_thread",
+    ]) {
+      expect(
+        isSubAgentTool(
+          makePayload({
+            name: `mcp__subagents__${tool}`,
+            isSubAgent: true,
+          }),
+        ),
+      ).toBe(false);
+    }
+    expect(
+      isSubAgentTool(makePayload({ name: "spawn_agent", serverId: "subagents", isSubAgent: true })),
+    ).toBe(false);
+  });
+
   it("labels Droid ApplyPatch as edit even when kind is other", () => {
     const display = deriveToolDisplay(
       makePayload({
@@ -261,39 +287,5 @@ describe("deriveToolDisplay", () => {
     });
 
     expect(deriveToolDisplay(payload).title).toBe("Agent (worker): Reading README.md");
-  });
-});
-
-describe("isSubAgentSpawnToolRow", () => {
-  it("matches the raw subagents spawn tools across provider naming forms", () => {
-    for (const name of ["mcp__subagents__run_agent", "mcp__subagents__spawn_agent"]) {
-      expect(isSubAgentSpawnToolRow(makePayload({ name }))).toBe(true);
-    }
-    // Providers that carry the server separately as `serverId` with a bare tool name.
-    expect(isSubAgentSpawnToolRow(makePayload({ name: "run_agent", serverId: "subagents" }))).toBe(
-      true,
-    );
-    // Host-injected connector namespace prefix is stripped before matching.
-    expect(
-      isSubAgentSpawnToolRow(makePayload({ name: "mcp__claude_ai_subagents__run_agent" })),
-    ).toBe(true);
-  });
-
-  it("does not match the other subagents tools (they have no tile)", () => {
-    for (const tool of ["list_agents", "wait_for_agent", "get_status", "cancel"]) {
-      expect(isSubAgentSpawnToolRow(makePayload({ name: `mcp__subagents__${tool}` }))).toBe(false);
-    }
-  });
-
-  it("never matches the synthetic sub-agent tile or non-subagents tools", () => {
-    // The tile carries isSubAgent — must never be suppressed by this predicate.
-    expect(
-      isSubAgentSpawnToolRow(makePayload({ name: "mcp__subagents__run_agent", isSubAgent: true })),
-    ).toBe(false);
-    // A different MCP server with a same-named tool is not the subagents server.
-    expect(isSubAgentSpawnToolRow(makePayload({ name: "mcp__other__run_agent" }))).toBe(false);
-    // Non-MCP tool rows never match.
-    expect(isSubAgentSpawnToolRow(makePayload({ name: "Read" }))).toBe(false);
-    expect(isSubAgentSpawnToolRow(undefined)).toBe(false);
   });
 });

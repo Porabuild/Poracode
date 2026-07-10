@@ -775,6 +775,52 @@ describe("sdkCanonicalMapping — tool use", () => {
       },
     });
 
+    for (const [index, tool] of [
+      "list_agents",
+      "get_agent",
+      "spawn_agent",
+      "run_agent",
+      "wait_for_agent",
+      "get_status",
+      "cancel",
+      "create_thread",
+      "list_threads",
+      "get_thread",
+      "read_thread",
+      "send_to_thread",
+      "wait_for_thread",
+      "interrupt_thread",
+      "close_thread",
+    ].entries()) {
+      const subagentsCall = mapClaudeSdkMessage(
+        streamEvent({
+          type: "content_block_start",
+          index: index + 10,
+          content_block: {
+            type: "tool_use",
+            id: `toolu_subagents_${tool}`,
+            name: `mcp__subagents__${tool}`,
+            input: {},
+          },
+        }),
+        state,
+      );
+      expect(subagentsCall).toEqual([
+        {
+          type: "item.started",
+          threadId: "thread-1",
+          itemId: `toolu_subagents_${tool}`,
+          itemType: "mcp_tool_call",
+          payload: {
+            name: `mcp__subagents__${tool}`,
+            args: {},
+            result: undefined,
+            status: "running",
+          },
+        },
+      ]);
+    }
+
     const resource = mapClaudeSdkMessage(
       streamEvent({
         type: "content_block_start",

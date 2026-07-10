@@ -7392,6 +7392,7 @@ msgstr "Тема и размер шрифта чата"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "Міркування"
@@ -7474,6 +7475,7 @@ msgid "This worktree has local changes. Poracode can temporarily stash them, pul
 msgstr "У цьому worktree є локальні зміни. Poracode може тимчасово сховати їх, отримати зміни з {0}, а потім повторно застосувати ваші зміни."
 
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 msgid "Thought"
 msgstr "Думка"
 
@@ -8523,3 +8525,11 @@ msgstr "Базова папка WSL"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "Ваше ім'я"
+
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Zoom in"
+msgstr "Збільшити"
+
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Zoom out"
+msgstr "Зменшити"

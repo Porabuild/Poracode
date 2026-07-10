@@ -64,10 +64,19 @@ describe("opencode hosts subagents MCP (live)", () => {
     const spawnable: SpawnableAgent[] = opencode
       ? [
           {
-            kind: opencode.kind,
-            label: opencode.label,
-            models: opencode.capabilities.models.map((m) => ({ value: m.id, label: m.label })),
+            provider: { value: opencode.kind, label: opencode.label },
+            models: opencode.capabilities.models.map((m) => ({
+              value: m.id,
+              label: m.label,
+              reasoning: { values: [] },
+            })),
+            reasoningOptions: [],
             defaultModel: opencode.capabilities.models[0]?.id ?? "opencode/big-pickle",
+            permissions: {
+              options: [{ value: "full-access", label: "Full access" }],
+              default: "full-access",
+            },
+            execution: "structured",
           },
         ]
       : [];

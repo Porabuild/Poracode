@@ -817,6 +817,27 @@ describe("ChatPane", () => {
     expect(document.body).not.toHaveTextContent("gpt-parent-main");
   });
 
+  it("separates the collapsed Agent label from its step count", async () => {
+    const thread = makeThread();
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "subagent-steps",
+      itemType: "tool_call",
+      payload: {
+        name: "mario-game-builder — Codex · 5.6 Terra",
+        status: "running",
+        isSubAgent: true,
+        progress: { stepCount: 5 },
+      },
+    });
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect((await screen.findByText("5 steps")).parentElement).toHaveTextContent("·5 steps");
+  });
+
   it("collapses long user messages behind a show more button", async () => {
     const thread = makeThread();
     seedUserMessage(

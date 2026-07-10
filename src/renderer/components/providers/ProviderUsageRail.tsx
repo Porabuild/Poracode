@@ -7,14 +7,11 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { Check } from "lucide-react";
-import {
-  formatResetCountdown,
-  type UsageSnapshot,
-  usageWindowDisplayLabel,
-} from "@lightcode/agents-usage";
+import { formatResetCountdown, usageWindowDisplayLabel } from "@lightcode/agents-usage/formatters";
+import type { UsageSnapshot } from "@lightcode/agents-usage/types";
 import { openUsagePanel } from "@/renderer/actions/panelActions";
 import { readBridge } from "@/renderer/bridge";
-import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common";
+import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common/ContextMenu";
 import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderUsageCircle } from "./ProviderUsageCircle";

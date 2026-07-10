@@ -8,6 +8,7 @@ export function SidebarButton(props: {
   icon: React.ReactNode;
   label: React.ReactNode;
   onPress?: () => void;
+  onPreload?: () => void;
   isDisabled?: boolean;
   isActive?: boolean;
   iconOnly?: boolean;
@@ -32,6 +33,7 @@ export function SidebarButton(props: {
     icon,
     label,
     onPress,
+    onPreload,
     isDisabled = false,
     isActive = false,
     iconOnly = false,
@@ -81,6 +83,8 @@ export function SidebarButton(props: {
             disabled={isDisabled}
             onClick={onPress}
             onContextMenu={onContextMenu}
+            onFocus={onPreload}
+            onPointerEnter={onPreload}
             type="button"
           >
             {icon}
@@ -102,6 +106,8 @@ export function SidebarButton(props: {
       onClick={isDisabled ? undefined : onPress}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
+      onFocus={onPreload}
+      onPointerEnter={onPreload}
       onKeyDown={(e) => {
         if (isDisabled) return;
         // Ignore key events bubbling from a focusable suffix control (e.g. a

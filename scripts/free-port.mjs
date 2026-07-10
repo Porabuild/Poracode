@@ -1,13 +1,37 @@
 import { spawnSync } from "node:child_process";
 
 function parsePort(value) {
-  const port = Number.parseInt(value ?? "", 10);
+  const port = Number.parseInt(value, 10);
 
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new Error(`Expected a TCP port between 1 and 65535, received: ${value ?? "<missing>"}`);
+    throw new Error(`Expected a TCP port between 1 and 65535, received: ${value}`);
   }
 
   return port;
+}
+
+function parsePorts(values) {
+  if (values.length === 0) {
+    throw new Error("Expected a TCP port or port range");
+  }
+
+  return values.flatMap((value) => {
+    const range = value.split("-");
+    if (range.length === 1) {
+      return [parsePort(value)];
+    }
+    if (range.length !== 2) {
+      throw new Error(`Expected a TCP port or port range, received: ${value}`);
+    }
+
+    const start = parsePort(range[0]);
+    const end = parsePort(range[1]);
+    if (start > end) {
+      throw new Error(`Expected an ascending TCP port range, received: ${value}`);
+    }
+
+    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+  });
 }
 
 function run(command, args, errorMessage) {
@@ -28,11 +52,11 @@ function run(command, args, errorMessage) {
   return result.stdout.trim();
 }
 
-function findListeningPidsWindows(port) {
+function findListeningPidsWindows(ports) {
   const script = [
-    "$connections = Get-NetTCPConnection -State Listen -LocalPort " +
-      port +
-      " -ErrorAction SilentlyContinue",
+    `$ports = @(${ports.join(",")})`,
+    "$connections = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | " +
+      "Where-Object { $_.LocalPort -in $ports }",
     "if (-not $connections) { exit 0 }",
     "$connections | Select-Object -ExpandProperty OwningProcess -Unique",
   ].join("; ");
@@ -40,7 +64,7 @@ function findListeningPidsWindows(port) {
   const output = run(
     "powershell.exe",
     ["-NoProfile", "-NonInteractive", "-Command", script],
-    `Failed to inspect port ${port}`,
+    "Failed to inspect ports",
   );
 
   return output
@@ -49,11 +73,12 @@ function findListeningPidsWindows(port) {
     .filter((value) => Number.isInteger(value) && value > 0);
 }
 
-function findListeningPidsUnix(port) {
+function findListeningPidsUnix(ports) {
+  const portArguments = ports.map((port) => `-iTCP:${port}`).join(" ");
   const output = run(
     "bash",
-    ["-lc", `lsof -nP -iTCP:${port} -sTCP:LISTEN -t 2>/dev/null || true`],
-    `Failed to inspect port ${port}`,
+    ["-lc", `lsof -nP ${portArguments} -sTCP:LISTEN -t 2>/dev/null || true`],
+    "Failed to inspect ports",
   );
 
   return output
@@ -62,12 +87,12 @@ function findListeningPidsUnix(port) {
     .filter((value) => Number.isInteger(value) && value > 0);
 }
 
-function findListeningPids(port) {
+function findListeningPids(ports) {
   if (process.platform === "win32") {
-    return findListeningPidsWindows(port);
+    return findListeningPidsWindows(ports);
   }
 
-  return findListeningPidsUnix(port);
+  return findListeningPidsUnix(ports);
 }
 
 function killPidWindows(pid) {
@@ -105,39 +130,42 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForPortFree(port, timeoutMs = 5000) {
+async function waitForPortsFree(ports, timeoutMs = 5000) {
   const start = Date.now();
 
   while (Date.now() - start < timeoutMs) {
-    if (findListeningPids(port).length === 0) {
+    if (findListeningPids(ports).length === 0) {
       return;
     }
 
     await sleep(200);
   }
 
-  throw new Error(`Port ${port} still in use after ${timeoutMs}ms`);
+  throw new Error(`Port range still in use after ${timeoutMs}ms`);
 }
 
 try {
-  const port = parsePort(process.argv[2]);
-  const pids = findListeningPids(port);
+  const ports = parsePorts(process.argv.slice(2));
+  const pids = findListeningPids(ports);
+  const portLabel =
+    ports.length === 1 ? `Port ${ports[0]}` : `Ports ${process.argv.slice(2).join(", ")}`;
+  const verb = ports.length === 1 ? "is" : "are";
 
   if (pids.length === 0) {
-    console.log(`[lightcode] Port ${port} is already free`);
+    console.log(`[lightcode] ${portLabel} ${verb} already free`);
     process.exit(0);
   }
 
   console.log(
-    `[lightcode] Reclaiming port ${port} from PID${pids.length === 1 ? "" : "s"} ${pids.join(", ")}`,
+    `[lightcode] Reclaiming ${portLabel.toLowerCase()} from PID${pids.length === 1 ? "" : "s"} ${pids.join(", ")}`,
   );
 
   for (const pid of pids) {
     killPid(pid);
   }
 
-  await waitForPortFree(port);
-  console.log(`[lightcode] Port ${port} is now free`);
+  await waitForPortsFree(ports);
+  console.log(`[lightcode] ${portLabel} ${verb} now free`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);

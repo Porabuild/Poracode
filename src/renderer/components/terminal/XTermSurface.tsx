@@ -23,7 +23,7 @@ import {
 import type { TerminalSize } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isMac, readBridge } from "@/renderer/bridge";
-import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common";
+import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
 import { FindBar } from "@/renderer/components/find/FindBar";
 import {

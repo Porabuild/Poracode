@@ -214,8 +214,8 @@ describe("MessageList", () => {
     );
 
     const virtualizerOptions = useVirtualizerMock.mock.calls[0]![0];
-    expect(virtualizerOptions.estimateSize(0)).toBe(384);
-    expect(virtualizerOptions.estimateSize(1)).toBe(448);
+    expect(virtualizerOptions.estimateSize(0)).toBe(320);
+    expect(virtualizerOptions.estimateSize(1)).toBe(384);
   });
 
   it("never lets TanStack adjust scroll itself and compensates rows fully above the viewport on the next commit", () => {

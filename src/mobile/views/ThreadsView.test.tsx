@@ -22,8 +22,7 @@ vi.mock("../GitSummaryParts", () => ({
   ),
 }));
 
-// The common barrel pulls in fileIcons' `~file-icons/*.svg` glob, which the
-// test transform can't resolve; only OptionMenu is needed here.
+// Keep the common barrel out of these grouping tests; only OptionMenu is needed.
 vi.mock("@/renderer/components/common", () => ({
   OptionMenu: () => null,
 }));

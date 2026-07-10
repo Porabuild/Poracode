@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
 import { defaultSharedSettings, normalizeSharedSettings } from "@/shared/settings";
+import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import {
   type ClearPendingSteerPayload,
   type AgentEventEnvelope,
@@ -34,6 +35,9 @@ import {
   primeProjectShellEnv,
   resolveLaunchSpec,
 } from "../agents/base";
+import type { BrowserMcpHttpConfig } from "../agents/browserMcp";
+import type { ChromeMcpHttpConfig } from "../agents/chromeMcp";
+import type { ComputerUseMcpHttpConfig } from "../agents/computerUseMcp";
 import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
 import { BufferedLogWriter } from "./bufferedLogWriter";
 import type { QueuedStructuredTurn, SessionRuntime, ShellSessionRuntime } from "./sessionTypes";
@@ -224,7 +228,44 @@ export class ThreadSessionManager {
   ): { projectLocation: ProjectLocation; config: ThreadConfig } | undefined {
     const session = this.sessions.get(threadId);
     if (!session) return undefined;
-    return { projectLocation: session.projectLocation, config: session.config };
+    const config = this.isBrowserMcpEnabledForLaunch(session.adapter, session.config)
+      ? { ...session.config, browserMcp: true }
+      : session.config;
+    return { projectLocation: session.projectLocation, config };
+  }
+
+  /** Resolve the parent's enabled MCP access for an ephemeral structured child. */
+  async resolveSubagentParentMcpAccess(
+    threadId: string,
+    identity: McpThreadIdentity,
+  ): Promise<{
+    browserMcp?: BrowserMcpHttpConfig;
+    computerUseMcp?: ComputerUseMcpHttpConfig;
+    chromeMcp?: ChromeMcpHttpConfig;
+  }> {
+    const session = this.sessions.get(threadId);
+    if (!session) return {};
+    const browserMcp = await this.spawnPipeline.resolveBrowserMcpForLaunch(
+      session.adapter,
+      session.projectLocation,
+      session.config,
+      identity,
+    );
+    const computerUseMcp = this.spawnPipeline.resolveComputerUseMcpForLaunch(
+      session.projectLocation,
+      session.config,
+      identity,
+    );
+    const chromeMcp = this.spawnPipeline.resolveChromeMcpForLaunch(
+      session.projectLocation,
+      session.config,
+      identity,
+    );
+    return {
+      ...(browserMcp ? { browserMcp } : {}),
+      ...(computerUseMcp ? { computerUseMcp } : {}),
+      ...(chromeMcp ? { chromeMcp } : {}),
+    };
   }
 
   /**
