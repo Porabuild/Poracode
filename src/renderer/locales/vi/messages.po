@@ -543,7 +543,6 @@ msgid "Activity metric"
 msgstr "Chỉ số hoạt động"
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -556,6 +555,7 @@ msgstr "Thêm một dự án cục bộ"
 
 #: src/mobile/setupEmptyState.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project"
 msgstr "Thêm dự án"
 
@@ -567,7 +567,9 @@ msgstr "Thêm một dự án trước khi cài đặt một tác nhân."
 msgid "Add a project before signing in."
 msgstr "Thêm một dự án trước khi đăng nhập."
 
+#: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "Thêm một dự án để bắt đầu"
 
@@ -907,7 +909,9 @@ msgid "Are you sure you want to revert all unstaged changes? This cannot be undo
 msgstr "Bạn có chắc chắn muốn hoàn nguyên tất cả các thay đổi chưa được đưa vào stage không? Điều này không thể hoàn tác được."
 
 #. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
+#. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Ask {0} anything about this workspace"
 msgstr "Hỏi {0} bất cứ điều gì về không gian làm việc này"
 
@@ -1558,6 +1562,7 @@ msgstr "Nhân bản…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "Đóng"
@@ -2484,6 +2489,7 @@ msgid "Detected <0>{0}</0>"
 msgstr "Đã phát hiện <0>{0}</0>"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Detecting agents…"
 msgstr "Đang phát hiện tác nhân…"
 
@@ -3634,6 +3640,11 @@ msgstr "Giữ nhánh"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep Poracode in the system tray when it launches at startup."
+msgstr "Giữ Poracode trong khay hệ thống khi ứng dụng khởi chạy cùng Windows."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Giữ cho hệ thống luôn hoạt động trong khi bất kỳ luồng nào đang hoạt động tích cực."
 
@@ -3660,6 +3671,16 @@ msgstr "Ngôn ngữ mà mô hình giọng nói cần dùng khi phiên âm lời 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Last tool: <0>{0}</0>"
 msgstr "Công cụ cuối cùng: <0>{0}</0>"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch at startup"
+msgstr "Khởi chạy khi khởi động"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch Poracode automatically when you sign in to Windows."
+msgstr "Tự động khởi chạy Poracode khi bạn đăng nhập vào Windows."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Launch thread"
@@ -4323,6 +4344,7 @@ msgstr "Tab mới trong nhóm"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "Luồng mới"
 
@@ -4639,6 +4661,7 @@ msgid "No staged changes"
 msgstr "Không có thay đổi nào được đưa vào staging"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "Không phát hiện thấy tác nhân được hỗ trợ nào"
 
@@ -5024,6 +5047,10 @@ msgstr "Ghi đè giá trị mặc định của Claude — ví dụ ANTHROPIC_BA
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Override where this project's worktrees are created. Applies to worktrees created from now on."
 msgstr "Ghi đè nơi tạo các cây làm việc của dự án này. Áp dụng cho các cây làm việc được tạo từ giờ trở đi."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Overrides {conflict}"
+msgstr "Ghi đè {conflict}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
@@ -6720,6 +6747,11 @@ msgstr "Bắt đầu đọc chính tả trong trình soạn thảo hiện tại"
 msgid "Start from scratch"
 msgstr "Bắt đầu lại từ đầu"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Start minimized"
+msgstr "Khởi động thu nhỏ"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Start Tailscale"
 msgstr "Khởi động Tailscale"
@@ -7239,6 +7271,10 @@ msgstr "Thao tác này sẽ xóa cây làm việc trên \"{0}\" và đóng {1, p
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Thao tác này sẽ xóa cây làm việc trên \"{0}\", sau đó xóa nhánh."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "This system-wide shortcut is unavailable. Choose another key combination."
+msgstr "Phím tắt toàn hệ thống này không khả dụng. Hãy chọn tổ hợp phím khác."
+
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
@@ -7355,6 +7391,10 @@ msgstr "Bật/tắt cây tập tin"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Tắt các mô hình để ẩn chúng khỏi bộ chọn."
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Toggle Quick Composer"
+msgstr "Bật/tắt Quick Composer"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle sidebar"

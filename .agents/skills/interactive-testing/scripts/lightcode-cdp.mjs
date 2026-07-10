@@ -12,6 +12,9 @@
  *   node lightcode-cdp.mjs wait [--timeout 90]        # block until the app CDP target is up
  *   node lightcode-cdp.mjs eval '<js>' [--await]      # Runtime.evaluate, prints JSON result
  *   node lightcode-cdp.mjs shot <selector|-> <out>    # element (CSS selector) or full-viewport (-) PNG
+ *   node lightcode-cdp.mjs click <selector>            # click an element through CDP input
+ *   node lightcode-cdp.mjs type <selector> <text>      # focus and insert text
+ *   --windowKind <main|quickComposer|browserExtract>  # select a renderer surface
  *   node lightcode-cdp.mjs nav <section>              # open Settings deep-linked (e.g. about, usage) [needs bridge]
  *   node lightcode-cdp.mjs back                       # close Settings overlay [needs bridge]
  *   node lightcode-cdp.mjs update '<json>'            # patch the app-update store [needs bridge]
@@ -32,6 +35,7 @@ const { flags, pos } = parse(process.argv.slice(2));
 const cmd = pos[0];
 const port = Number(flags.port ?? process.env.LIGHTCODE_CDP_PORT ?? 9222);
 const appUrl = String(flags.appUrl ?? "http://127.0.0.1:3100/");
+const windowKind = flags.windowKind ? String(flags.windowKind) : null;
 const commandTimeoutMs = Number(flags.commandTimeoutMs ?? 8000);
 
 try {
@@ -73,6 +77,35 @@ async function main() {
       }
       return;
     }
+    case "click": {
+      const selector = required(pos[1], "click needs a <selector>");
+      const client = await connect();
+      try {
+        await click(client, selector);
+        console.log(`click:${selector}`);
+      } finally {
+        client.close();
+      }
+      return;
+    }
+    case "type": {
+      const selector = required(pos[1], "type needs a <selector> and <text>");
+      const value = required(pos[2], "type needs a <text>");
+      const client = await connect();
+      try {
+        const focused = await evaluate(
+          client,
+          `(() => { const el = document.querySelector(${JSON.stringify(selector)});` +
+            ` if (!el) return false; el.focus(); return true; })()`,
+        );
+        if (!focused) throw new Error(`selector not found: ${selector}`);
+        await client.send("Input.insertText", { text: value });
+        console.log(`type:${value.length}`);
+      } finally {
+        client.close();
+      }
+      return;
+    }
     case "nav": {
       const section = required(pos[1], "nav needs a <section> id (e.g. about)");
       await bridgeCall(`window.__lightcodeDev.openSettings(${JSON.stringify(section)})`);
@@ -98,7 +131,7 @@ async function main() {
     }
     default:
       console.error(
-        "Usage: node lightcode-cdp.mjs <wait|eval|shot|nav|back|update|reset> ...\n" +
+        "Usage: node lightcode-cdp.mjs <wait|eval|shot|click|type|nav|back|update|reset> ...\n" +
           "See the header of this file for examples.",
       );
       process.exit(2);
@@ -124,6 +157,10 @@ async function bridgeCall(expr) {
 async function connect() {
   const target = await waitForTarget(10000);
   if (!target) throw new Error(`no app CDP target at ${appUrl} on port ${port}`);
+  return connectTarget(target);
+}
+
+async function connectTarget(target) {
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   const pending = new Map();
   let id = 0;
@@ -201,15 +238,62 @@ async function screenshot(client, selector, out) {
   await writeFile(out, Buffer.from(res.data, "base64"));
 }
 
+async function click(client, selector) {
+  const point = await evaluate(
+    client,
+    `(() => { const el = document.querySelector(${JSON.stringify(selector)});` +
+      ` if (!el) return null; const r = el.getBoundingClientRect();` +
+      ` return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`,
+  );
+  if (!point) throw new Error(`selector not found: ${selector}`);
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: point.x,
+    y: point.y,
+  });
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: point.x,
+    y: point.y,
+    button: "left",
+    buttons: 1,
+    clickCount: 1,
+  });
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: point.x,
+    y: point.y,
+    button: "left",
+    buttons: 0,
+    clickCount: 1,
+  });
+}
+
 async function waitForTarget(timeoutMs) {
   const start = Date.now();
+  // A window's kind never changes, so remember each probed target across poll
+  // iterations instead of re-opening a WebSocket to it every second.
+  const probedKindsByTargetId = new Map();
   while (Date.now() - start < timeoutMs) {
     try {
       const res = await fetch(`http://127.0.0.1:${port}/json/list`);
       if (res.ok) {
         const targets = await res.json();
-        const hit = targets.find((t) => t.type === "page" && t.url === appUrl);
-        if (hit) return hit;
+        const candidates = targets.filter((t) => t.type === "page" && t.url === appUrl);
+        if (!windowKind && candidates[0]) return candidates[0];
+        for (const target of candidates) {
+          let kind = probedKindsByTargetId.get(target.id);
+          if (kind === undefined) {
+            const client = await connectTarget(target);
+            try {
+              kind = await evaluate(client, "document.documentElement.dataset.windowKind");
+              probedKindsByTargetId.set(target.id, kind ?? null);
+            } finally {
+              client.close();
+            }
+          }
+          if (kind === windowKind) return target;
+        }
       }
     } catch {
       // CDP endpoint not up yet — keep polling.

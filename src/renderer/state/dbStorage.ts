@@ -1,5 +1,5 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
-import { readBridge } from "../bridge";
+import { isQuickComposerWindow, readBridge } from "../bridge";
 import { captureRendererException } from "../diagnostics/sentry";
 import type { Project, Thread, AppView } from "@/shared/contracts";
 
@@ -46,6 +46,7 @@ const dbStorageBackend = {
       return;
     }
     if (name === APP_STORE_NAME) {
+      if (isQuickComposerWindow()) return;
       return saveAppStore(value);
     }
     readBridge()

@@ -32,6 +32,7 @@ import {
 } from "../attachments/localFiles";
 import { createProjectDirectory } from "../projectDirectory";
 import { showOsNotification } from "../osNotifications";
+import { showAndFocusWindow } from "../window/showAndFocusWindow";
 import {
   getProfileCoreStats,
   getProfileDevicesResponse,
@@ -46,6 +47,7 @@ import {
 } from "../sharedSettingsFile";
 import type { RemoteAccessPairingInfo, RemoteGitSummaries } from "@/shared/remote";
 import { readKeybindingsFile, writeKeybindingsFile } from "../keybindingsFile";
+import type { KeybindingsFile } from "@/shared/keybindings";
 import type { RemoteAccessServer } from "../remote";
 import { getRemoteAccessPairingInfo } from "../remote/pairingInfo";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
@@ -59,6 +61,7 @@ import {
 } from "@/shared/ipc";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
 import type { AgentInstanceConfig } from "@/shared/contracts";
+import type { SharedSettings } from "@/shared/settings";
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
@@ -77,7 +80,10 @@ interface CreateLocalIpcHandlersOptions {
   requireLightcodePaths(): LightcodePaths;
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
-  onSharedSettingsChanged?(): void;
+  /** Called with the settings just written, so consumers don't re-read the file. */
+  onSharedSettingsChanged?(settings: SharedSettings): void;
+  onKeybindingsChanged?(file: KeybindingsFile): void;
+  setGlobalShortcutsSuspended?(suspended: boolean): void;
   /** Per-thread git/PR summaries mirrored from the renderer for remote clients. */
   onRemoteGitSummaries?(summaries: RemoteGitSummaries): void;
   extractBrowserToWindow(): void;
@@ -130,6 +136,19 @@ function assertSafeExternalUrl(rawUrl: string): string {
   return parsed.toString();
 }
 
+/** The composer "attach files" picker, shared by the main window and the quick composer. */
+export async function showAddFilesDialog(
+  parent: BrowserWindow,
+  payload?: { title?: string; filters?: Electron.FileFilter[] },
+): Promise<string[] | null> {
+  const result = await dialog.showOpenDialog(parent, {
+    properties: ["openFile", "multiSelections"],
+    title: payload?.title ?? "Add files or photos",
+    filters: payload?.filters ?? [{ name: "All Files", extensions: ["*"] }],
+  });
+  return result.canceled ? null : result.filePaths;
+}
+
 export function createLocalIpcHandlers(
   options: CreateLocalIpcHandlersOptions,
 ): MainLocalIpcHandlerMap {
@@ -142,14 +161,11 @@ export function createLocalIpcHandlers(
       });
       return result.canceled ? null : (result.filePaths[0] ?? null);
     },
-    pickFiles: async (payload) => {
-      const result = await dialog.showOpenDialog(options.getMainWindow()!, {
-        properties: ["openFile", "multiSelections"],
-        title: payload?.title ?? "Add files or photos",
-        filters: payload?.filters ?? [{ name: "All Files", extensions: ["*"] }],
-      });
-      return result.canceled ? null : result.filePaths;
-    },
+    pickFiles: (payload) =>
+      showAddFilesDialog(options.getMainWindow()!, {
+        ...(payload?.title ? { title: payload.title } : {}),
+        ...(payload?.filters ? { filters: payload.filters } : {}),
+      }),
     saveClipboardImage: (payload) =>
       saveClipboardImageFile(options.requireLightcodePaths(), payload),
     saveHandoffContext: (payload) =>
@@ -228,11 +244,8 @@ export function createLocalIpcHandlers(
     openMicrophoneSettings: () => openMicrophoneSettings(),
     focusWindow: () => {
       const win = options.getMainWindow();
-      if (!win) return;
-      if (win.isMinimized()) {
-        win.restore();
-      }
-      win.focus();
+      if (!win || win.isDestroyed()) return;
+      showAndFocusWindow(win);
     },
     showNotification: (payload) => showOsNotification(payload, options.getMainWindow),
     relaunchApp: () => {
@@ -243,8 +256,25 @@ export function createLocalIpcHandlers(
         ? { kind: "windows", path: homedir() }
         : { kind: "posix", path: homedir() },
     getKeybindings: () => readKeybindingsFile(options.requireLightcodePaths().keybindingsPath),
-    setKeybindings: (file) =>
-      writeKeybindingsFile(options.requireLightcodePaths().keybindingsPath, file),
+    setKeybindings: (file) => {
+      const path = options.requireLightcodePaths().keybindingsPath;
+      options.setGlobalShortcutsSuspended?.(false);
+      options.onKeybindingsChanged?.(file);
+      try {
+        return writeKeybindingsFile(path, file);
+      } catch (error) {
+        try {
+          // The write is atomic, so on failure the file still holds the
+          // previous bindings — re-apply them to roll the shortcuts back.
+          options.onKeybindingsChanged?.(readKeybindingsFile(path).file);
+        } catch (restoreError) {
+          console.error("[lightcode] failed to restore global shortcuts:", restoreError);
+        }
+        throw error;
+      }
+    },
+    setGlobalShortcutsSuspended: (payload) =>
+      options.setGlobalShortcutsSuspended?.(payload.suspended),
     getRemoteAccessPairing: () => getRemoteAccessPairingInfo(options.getRemoteAccessServer()),
     setRemoteAccessEnabled: (payload) => options.setRemoteAccessEnabled(payload.enabled),
     getRemoteAccessTailscaleStatus: () => options.getRemoteAccessTailscaleStatus(),
@@ -293,7 +323,7 @@ export function createLocalIpcHandlers(
           ([, instance]) => instance.driver === "acp-generic",
         ),
       );
-      writeSharedSettingsFile(settingsPath, {
+      const merged: SharedSettings = {
         ...settings,
         acpRegistryInstalledAgents: onDisk.acpRegistryInstalledAgents,
         agentInstances: {
@@ -301,9 +331,10 @@ export function createLocalIpcHandlers(
           ...supervisorManagedInstances,
         },
         agentHookSupport: onDisk.agentHookSupport,
-      });
+      };
+      writeSharedSettingsFile(settingsPath, merged);
       options.updatePowerSaveBlocker();
-      options.onSharedSettingsChanged?.();
+      options.onSharedSettingsChanged?.(merged);
     },
     setClaudeProfileEnvironment: (payload) => {
       const settingsPath = options.requireLightcodePaths().settingsPath;
@@ -313,7 +344,7 @@ export function createLocalIpcHandlers(
         dirname(settingsPath),
       );
       writeSharedSettingsFile(settingsPath, settings);
-      options.onSharedSettingsChanged?.();
+      options.onSharedSettingsChanged?.(settings);
       return instance;
     },
     setWindowChrome: async (payload: WindowChromePayload): Promise<WindowChromeResult> => {

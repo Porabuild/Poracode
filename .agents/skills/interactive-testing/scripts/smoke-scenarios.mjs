@@ -116,6 +116,13 @@ export const functionalAreas = [
     manual: ["visual-a11y"],
   },
   {
+    id: "quick-composer",
+    title: "Global quick composer window, motion, dragging, and thread handoff",
+    patterns: [/QuickComposer/i, /quickComposer/i],
+    automated: ["baseline"],
+    manual: ["quick-composer"],
+  },
+  {
     id: "shared-runtime",
     title: "Shared contracts, persistence, runtime utilities, and server infrastructure",
     patterns: [/^src\/shared\//, /^src\/supervisor\//, /^src\/server\//],
@@ -142,6 +149,8 @@ export const manualGates = {
   "native-auth-update": "Verify changed native login/update/notification flows on the target OS.",
   "project-mutations":
     "Create or select an isolated project/worktree and verify persistence after reload.",
+  "quick-composer":
+    "Invoke the global composer, drag and reopen it, exercise controls and dismissal motion, then submit and verify the new thread opens in the main window.",
   "provider-live":
     "Launch a fresh isolated thread with each changed provider and observe first output.",
   "remote-mobile": "Pair an isolated mobile client and verify reconnect plus one read-only action.",

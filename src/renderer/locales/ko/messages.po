@@ -543,7 +543,6 @@ msgid "Activity metric"
 msgstr "활동 지표"
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -556,6 +555,7 @@ msgstr "로컬 프로젝트 추가"
 
 #: src/mobile/setupEmptyState.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project"
 msgstr "프로젝트 추가"
 
@@ -567,7 +567,9 @@ msgstr "에이전트를 설치하기 전에 프로젝트를 추가하세요."
 msgid "Add a project before signing in."
 msgstr "로그인하기 전에 프로젝트를 추가하세요."
 
+#: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "시작하려면 프로젝트를 추가하세요."
 
@@ -907,7 +909,9 @@ msgid "Are you sure you want to revert all unstaged changes? This cannot be undo
 msgstr "스테이징되지 않은 모든 변경 사항을 되돌리시겠습니까? 이 작업은 취소할 수 없습니다."
 
 #. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
+#. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Ask {0} anything about this workspace"
 msgstr "이 작업 공간에 대해 {0}에게 무엇이든 물어보세요"
 
@@ -1558,6 +1562,7 @@ msgstr "복제 중…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "닫기"
@@ -2484,6 +2489,7 @@ msgid "Detected <0>{0}</0>"
 msgstr "<0>{0}</0> 감지됨"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Detecting agents…"
 msgstr "에이전트 감지 중…"
 
@@ -3634,6 +3640,11 @@ msgstr "브랜치 유지"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep Poracode in the system tray when it launches at startup."
+msgstr "시작 시 Poracode를 시스템 트레이에 둡니다."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "스레드가 활발하게 작동하는 동안 시스템을 활성 상태로 유지합니다."
 
@@ -3660,6 +3671,16 @@ msgstr "작성기 받아쓰기를 기록할 때 음성 모델이 예상해야 �
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Last tool: <0>{0}</0>"
 msgstr "마지막 도구: <0>{0}</0>"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch at startup"
+msgstr "시작 시 실행"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch Poracode automatically when you sign in to Windows."
+msgstr "Windows에 로그인할 때 Poracode를 자동으로 실행합니다."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Launch thread"
@@ -4323,6 +4344,7 @@ msgstr "그룹에 새 탭"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "새 스레드"
 
@@ -4639,6 +4661,7 @@ msgid "No staged changes"
 msgstr "단계적 변경 없음"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "지원되는 에이전트가 감지되지 않았습니다."
 
@@ -5024,6 +5047,10 @@ msgstr "Claude 기본값을 재정의합니다 — 예: ANTHROPIC_BASE_URL 및 A
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Override where this project's worktrees are created. Applies to worktrees created from now on."
 msgstr "이 프로젝트의 작업 트리가 생성되는 위치를 재정의합니다. 지금부터 생성되는 작업 트리에 적용됩니다."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Overrides {conflict}"
+msgstr "{conflict} 재정의"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
@@ -6720,6 +6747,11 @@ msgstr "현재 작성기에서 받아쓰기 시작"
 msgid "Start from scratch"
 msgstr "처음부터 시작하세요"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Start minimized"
+msgstr "최소화하여 시작"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Start Tailscale"
 msgstr "Tailscale 시작"
@@ -7239,6 +7271,10 @@ msgstr "이렇게 하면 \"{0}\"의 작업 트리가 제거되고 연결된 스�
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "이렇게 하면 \"{0}\"의 작업 트리가 제거된 다음 분기가 삭제됩니다."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "This system-wide shortcut is unavailable. Choose another key combination."
+msgstr "이 시스템 전역 단축키를 사용할 수 없습니다. 다른 키 조합을 선택하세요."
+
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
@@ -7355,6 +7391,10 @@ msgstr "파일 트리 표시 전환"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "선택기에서 모델을 숨기려면 모델을 끄세요."
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Toggle Quick Composer"
+msgstr "Quick Composer 전환"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle sidebar"

@@ -33,8 +33,10 @@ export function ProjectSwitchMenu(props: {
   variant: "hero" | "compact";
   /** When provided, switching replaces this pane id instead of changing the top-level draft view. */
   paneId?: string;
+  /** Keeps project selection local to an embedding surface such as Quick Composer. */
+  onSelectProject?: (projectId: string) => void;
 }) {
-  const { currentProjectId, variant, paneId } = props;
+  const { currentProjectId, variant, paneId, onSelectProject } = props;
   const { t } = useLingui();
   // Show every selectable project. Home is intentionally stored with
   // `disabled: true` as an internal marker (it's not a user-disabled
@@ -61,6 +63,10 @@ export function ProjectSwitchMenu(props: {
 
   function handleSelect(nextProjectId: string) {
     if (nextProjectId === currentProjectId) return;
+    if (onSelectProject) {
+      onSelectProject(nextProjectId);
+      return;
+    }
     discardDraftContent(currentProjectId);
     startTransition(() => {
       if (paneId) {

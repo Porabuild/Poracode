@@ -60,17 +60,20 @@ import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
 import { WorktreeModeSelect, type WorktreeMode } from "./WorktreeModeSelect";
 
+// Optional fields admit explicit `undefined` so wire shapes with
+// `prop?: T | undefined` (e.g. the zod-parsed quick-composer submission)
+// pass through without field-by-field copying.
 export type DraftStartInput = {
   agentKind: AgentStatus["kind"];
   config: ThreadConfig;
   prompt: string;
-  segments?: PromptSegment[];
-  existingWorktreePath?: string;
-  worktreeBranch?: string;
-  worktreeBaseBranch?: string;
-  worktreeIsNewBranch?: boolean;
-  worktreeTransferUncommitted?: boolean;
-  presentationMode?: ThreadPresentationMode;
+  segments?: PromptSegment[] | undefined;
+  existingWorktreePath?: string | undefined;
+  worktreeBranch?: string | undefined;
+  worktreeBaseBranch?: string | undefined;
+  worktreeIsNewBranch?: boolean | undefined;
+  worktreeTransferUncommitted?: boolean | undefined;
+  presentationMode?: ThreadPresentationMode | undefined;
 };
 
 function HookInstallProposal(props: {
@@ -233,6 +236,8 @@ export function ThreadDraftComposerArea(props: {
   worktreeMode: boolean;
   supportsModePicker: boolean;
   presentationMode: ThreadPresentationMode;
+  placeholder?: string;
+  pickFiles?: () => Promise<string[] | null>;
   onConfigChange: (patch: Partial<ThreadConfig>) => void;
   onWorktreeModeChange: (worktreeMode: boolean) => void;
   onSwitchBranch: (branch: string, createNew: boolean) => void;
@@ -714,7 +719,9 @@ export function ThreadDraftComposerArea(props: {
             compact={props.compact ?? false}
             // The PWA surfaces this draft as the home screen's compact composer
             // pill, where an invitation reads better than the generic prompt.
-            placeholder={isRemote ? t`Plan, ask, build…` : t`Send a message...`}
+            placeholder={
+              props.placeholder ?? (isRemote ? t`Plan, ask, build…` : t`Send a message...`)
+            }
             projectLocation={isHomeScope ? undefined : props.project.location}
             {...(!isHomeScope ? { projectId: props.project.id } : {})}
             onTextChange={(hasText) => {
@@ -766,7 +773,7 @@ export function ThreadDraftComposerArea(props: {
             onSlashCommandChange={setSlashQuery}
           />
         }
-        placeholder={t`Send a message...`}
+        placeholder={props.placeholder ?? t`Send a message...`}
         prompt={prompt}
         submitDisabled={
           authRequired ||
@@ -787,11 +794,11 @@ export function ThreadDraftComposerArea(props: {
             mcpServers={mcpServers}
             isRemote={isRemote}
             onPickFiles={() => {
-              void readBridge()
-                .pickFiles()
-                .then((paths) => {
+              void (props.pickFiles ? props.pickFiles() : readBridge().pickFiles()).then(
+                (paths) => {
                   if (paths) attachments.addFiles(paths);
-                });
+                },
+              );
             }}
             showVoiceInputButton={showVoiceInputButton}
             isDisabled={authRequired || agentUpdating || isSubmitting}

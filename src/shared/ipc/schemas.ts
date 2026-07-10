@@ -1,10 +1,14 @@
 import { z } from "zod";
 import type { RuntimeEvent, WorkflowRun } from "../contracts";
 import {
+  agentKindSchema,
+  promptSegmentSchema,
   projectLocationSchema,
   projectNotesSchema,
   projectSchema,
+  threadConfigSchema,
   threadContextUsageSchema,
+  threadPresentationModeSchema,
   threadSchema,
 } from "../contracts";
 
@@ -21,6 +25,23 @@ export const pickFilesOptionsSchema = z
       .optional(),
   })
   .optional();
+
+export const quickComposerSubmissionSchema = z.object({
+  projectId: z.string().min(1),
+  input: z.object({
+    agentKind: agentKindSchema,
+    config: threadConfigSchema,
+    prompt: z.string().min(1),
+    segments: z.array(promptSegmentSchema).optional(),
+    existingWorktreePath: z.string().min(1).optional(),
+    worktreeBranch: z.string().min(1).optional(),
+    worktreeBaseBranch: z.string().min(1).optional(),
+    worktreeIsNewBranch: z.boolean().optional(),
+    worktreeTransferUncommitted: z.boolean().optional(),
+    presentationMode: threadPresentationModeSchema.optional(),
+  }),
+});
+export type QuickComposerSubmission = z.infer<typeof quickComposerSubmissionSchema>;
 
 export const saveClipboardImagePayloadSchema = z.object({
   threadId: z.string().min(1),

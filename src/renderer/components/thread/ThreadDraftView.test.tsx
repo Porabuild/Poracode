@@ -5,6 +5,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
 const { composerSpy } = vi.hoisted(() => ({
@@ -392,6 +393,46 @@ describe("ThreadDraftView", () => {
       lastPresentationModeByAgent: {},
       sharedSettingsHydrated: true,
     });
+  });
+
+  it("renders the quick-composer surface with new-thread project and worktree controls", () => {
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+    });
+    const { container } = render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[codexStatus]}
+        quickComposer
+        composerPlaceholder="Ask Repo anything about this workspace"
+        paneCount={1}
+        onStart={() => {}}
+      />,
+    );
+
+    const props = composerSpy.mock.lastCall?.[0] as {
+      compact?: boolean;
+      placeholder?: string;
+    };
+    expect(props.compact).toBe(true);
+    expect(props.placeholder).toBe("Ask Repo anything about this workspace");
+    expect(container.querySelector(".quick-composer-control-surface")).toBeInTheDocument();
+    expect(container.querySelector("[data-draft-controls]")).toBeInTheDocument();
+    expect(container.querySelector("[data-draft-worktree-row]")).toBeInTheDocument();
   });
 
   afterEach(() => {

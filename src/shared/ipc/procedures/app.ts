@@ -40,6 +40,10 @@ export const setRemoteAccessAdvertisedUrlPayloadSchema = z.object({
   url: z.string(),
 });
 
+export const setGlobalShortcutsSuspendedPayloadSchema = z.object({
+  suspended: z.boolean(),
+});
+
 /**
  * Live view of the local Tailscale daemon + our `tailscale serve` HTTPS mapping,
  * surfaced in desktop Settings → Remote Access.
@@ -169,6 +173,11 @@ export const appProcedures = {
     "main-local",
     keybindingsFileSchema,
   ),
+  setGlobalShortcutsSuspended: definePayloadProcedure<
+    z.infer<typeof setGlobalShortcutsSuspendedPayloadSchema>,
+    void,
+    "main-local"
+  >("setGlobalShortcutsSuspended", "main-local", setGlobalShortcutsSuspendedPayloadSchema),
   getRemoteAccessPairing: defineNoArgProcedure<RemoteAccessPairingInfo, "main-local">(
     "getRemoteAccessPairing",
     "main-local",

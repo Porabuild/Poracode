@@ -543,7 +543,6 @@ msgid "Activity metric"
 msgstr "Metryka aktywności"
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -556,6 +555,7 @@ msgstr "Dodaj projekt lokalny"
 
 #: src/mobile/setupEmptyState.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project"
 msgstr "Dodaj projekt"
 
@@ -567,7 +567,9 @@ msgstr "Dodaj projekt przed zainstalowaniem agenta."
 msgid "Add a project before signing in."
 msgstr "Dodaj projekt przed zalogowaniem."
 
+#: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "Dodaj projekt, aby rozpocząć"
 
@@ -907,7 +909,9 @@ msgid "Are you sure you want to revert all unstaged changes? This cannot be undo
 msgstr "Czy na pewno chcesz cofnąć wszystkie niezindeksowane zmiany? Tego nie można cofnąć."
 
 #. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
+#. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Ask {0} anything about this workspace"
 msgstr "Zapytaj {0} o cokolwiek na temat tego obszaru roboczego"
 
@@ -1558,6 +1562,7 @@ msgstr "Klonowanie…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "Zamknij"
@@ -2484,6 +2489,7 @@ msgid "Detected <0>{0}</0>"
 msgstr "Wykryto <0>{0}</0>"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Detecting agents…"
 msgstr "Wykrywanie agentów…"
 
@@ -3634,6 +3640,11 @@ msgstr "Zachowaj gałąź"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep Poracode in the system tray when it launches at startup."
+msgstr "Po uruchomieniu przy starcie pozostaw Poracode w zasobniku systemowym."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Utrzymuj system w stanie czuwania, gdy dowolny wątek aktywnie działa."
 
@@ -3660,6 +3671,16 @@ msgstr "Język, jakiego powinien spodziewać się model mowy podczas transkrypcj
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Last tool: <0>{0}</0>"
 msgstr "Ostatnie narzędzie: <0>{0}</0>"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch at startup"
+msgstr "Uruchamiaj przy starcie"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch Poracode automatically when you sign in to Windows."
+msgstr "Uruchamiaj Poracode automatycznie po zalogowaniu się do systemu Windows."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Launch thread"
@@ -4323,6 +4344,7 @@ msgstr "Nowa karta w grupie"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "Nowy wątek"
 
@@ -4639,6 +4661,7 @@ msgid "No staged changes"
 msgstr "Żadnych zmian etapowych"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "Nie wykryto obsługiwanych agentów"
 
@@ -5024,6 +5047,10 @@ msgstr "Zastąp domyślne ustawienia Claude — np. ANTHROPIC_BASE_URL i ANTHROP
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Override where this project's worktrees are created. Applies to worktrees created from now on."
 msgstr "Zastąp miejsce tworzenia drzew roboczych tego projektu. Dotyczy drzew roboczych tworzonych od teraz."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Overrides {conflict}"
+msgstr "Zastępuje {conflict}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
@@ -6720,6 +6747,11 @@ msgstr "Rozpocznij dyktowanie w bieżącym kompozytorze"
 msgid "Start from scratch"
 msgstr "Zacznij od zera"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Start minimized"
+msgstr "Uruchamiaj zminimalizowany"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Start Tailscale"
 msgstr "Uruchom Tailscale"
@@ -7239,6 +7271,10 @@ msgstr "Spowoduje to usunięcie drzewa roboczego na „{0}” i zamknięcie {1, 
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Spowoduje to usunięcie drzewa roboczego na „{0}”, a następnie usunięcie gałęzi."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "This system-wide shortcut is unavailable. Choose another key combination."
+msgstr "Ten skrót globalny jest niedostępny. Wybierz inną kombinację klawiszy."
+
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
@@ -7355,6 +7391,10 @@ msgstr "Przełącz drzewo plików"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Wyłącz modele, aby ukryć je w selektorze."
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Toggle Quick Composer"
+msgstr "Przełącz Quick Composer"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle sidebar"

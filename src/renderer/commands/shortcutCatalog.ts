@@ -1,7 +1,7 @@
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import type { KeybindingEntry } from "@/shared/keybindings";
-import { DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
+import { DEFAULT_KEYBINDINGS, QUICK_COMPOSER_COMMAND_ID } from "@/shared/keybindings";
 import { COMPOSER_CONTROL_COMMANDS } from "./composerCommands";
 import { bindingForPlatform, formatKeybinding, type PlatformName } from "./keybindingMatcher";
 import type { AppCommand } from "./registry";
@@ -170,6 +170,14 @@ export const LOCAL_SHORTCUTS: readonly LocalShortcut[] = [
   },
 ];
 
+const SYSTEM_SHORTCUTS = [
+  {
+    id: QUICK_COMPOSER_COMMAND_ID,
+    title: msg`Toggle Quick Composer`,
+    description: msg`Global`,
+  },
+] as const;
+
 const DEFAULT_BINDINGS_BY_COMMAND = new Map<string, KeybindingEntry[]>();
 for (const binding of DEFAULT_KEYBINDINGS.keybindings) {
   const existing = DEFAULT_BINDINGS_BY_COMMAND.get(binding.command);
@@ -195,6 +203,7 @@ export function buildShortcutRows(
   const knownCommandIds = new Set([
     ...commands.map((command) => command.id),
     ...COMPOSER_CONTROL_COMMANDS.map((command) => command.id),
+    ...SYSTEM_SHORTCUTS.map((command) => command.id),
   ]);
   const commandRows = commands
     .filter((command) => command.showInShortcuts !== false)
@@ -254,10 +263,20 @@ export function buildShortcutRows(
       ),
     );
 
-  // Composer controls are rebindable (store-backed) but dispatched locally by
-  // the focused composer rather than the global hook, so they aren't in the
-  // command registry — build their editable rows here.
-  const composerRows = COMPOSER_CONTROL_COMMANDS.map((command) => {
+  // Composer controls and system (global) shortcuts are rebindable (store-backed)
+  // but dispatched outside the command registry — the focused composer handles
+  // the former, the main process the latter — so build their editable rows here.
+  const buildRebindableRow = (
+    command: {
+      id: string;
+      title: string | MessageDescriptor;
+      description: string | MessageDescriptor;
+    },
+    extra: (context: {
+      bindings: KeybindingEntry[];
+      defaultBindings: KeybindingEntry[];
+    }) => Pick<ShortcutRow, "group" | "section" | "contexts" | "whenTemplate">,
+  ): ShortcutRow => {
     const bindings = bindingsByCommand.get(command.id) ?? [];
     const defaultBindings = DEFAULT_BINDINGS_BY_COMMAND.get(command.id) ?? [];
     const bound = formatBindings(bindings, platform);
@@ -267,19 +286,34 @@ export function buildShortcutRows(
         id: command.id,
         title: resolve(command.title),
         description: resolve(command.description),
-        group: resolve(msg`Composer`),
-        section: "composer",
-        contexts: contextsForWhen("composerFocus", "Composer", command.id),
         keys,
         commandId: command.id,
         editable: true,
         bindings,
         defaultBindings,
-        whenTemplate: bindings[0]?.when ?? defaultBindings[0]?.when ?? "composerFocus",
+        ...extra({ bindings, defaultBindings }),
       },
       resolve,
     );
-  });
+  };
+
+  const composerRows = COMPOSER_CONTROL_COMMANDS.map((command) =>
+    buildRebindableRow(command, ({ bindings, defaultBindings }) => ({
+      group: resolve(msg`Composer`),
+      section: "composer",
+      contexts: contextsForWhen("composerFocus", "Composer", command.id),
+      whenTemplate: bindings[0]?.when ?? defaultBindings[0]?.when ?? "composerFocus",
+    })),
+  );
+
+  const systemRows = SYSTEM_SHORTCUTS.map((command) =>
+    buildRebindableRow(command, () => ({
+      group: "Poracode",
+      section: "general",
+      contexts: ["global"],
+      whenTemplate: null,
+    })),
+  );
 
   const localRows = LOCAL_SHORTCUTS.map((shortcut) =>
     rowWithSearchText(
@@ -301,10 +335,12 @@ export function buildShortcutRows(
     ),
   );
 
-  return [...commandRows, ...customRows, ...composerRows, ...localRows].sort((a, b) => {
-    const groupCompare = a.group.localeCompare(b.group);
-    return groupCompare === 0 ? a.title.localeCompare(b.title) : groupCompare;
-  });
+  return [...commandRows, ...customRows, ...composerRows, ...systemRows, ...localRows].sort(
+    (a, b) => {
+      const groupCompare = a.group.localeCompare(b.group);
+      return groupCompare === 0 ? a.title.localeCompare(b.title) : groupCompare;
+    },
+  );
 }
 
 export function labelForContext(context: ShortcutContext): string | MessageDescriptor {

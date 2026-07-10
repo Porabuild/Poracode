@@ -543,7 +543,6 @@ msgid "Activity metric"
 msgstr "Etkinlik metriği"
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -556,6 +555,7 @@ msgstr "Yerel bir proje ekle"
 
 #: src/mobile/setupEmptyState.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project"
 msgstr "Proje ekle"
 
@@ -567,7 +567,9 @@ msgstr "Bir aracıyı yüklemeden önce bir proje ekleyin."
 msgid "Add a project before signing in."
 msgstr "Oturum açmadan önce bir proje ekleyin."
 
+#: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "Başlamak için bir proje ekleyin"
 
@@ -907,7 +909,9 @@ msgid "Are you sure you want to revert all unstaged changes? This cannot be undo
 msgstr "Aşamalandırılmamış tüm değişiklikleri geri almak istediğinizden emin misiniz? Bu geri alınamaz."
 
 #. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
+#. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Ask {0} anything about this workspace"
 msgstr "{0} öğesine bu çalışma alanıyla ilgili her şeyi sorun"
 
@@ -1558,6 +1562,7 @@ msgstr "Klonlanıyor…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "Kapat"
@@ -2484,6 +2489,7 @@ msgid "Detected <0>{0}</0>"
 msgstr "Algılandı <0>{0}</0>"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Detecting agents…"
 msgstr "Aracılar algılanıyor…"
 
@@ -3634,6 +3640,11 @@ msgstr "Şubeyi Koru"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep Poracode in the system tray when it launches at startup."
+msgstr "Başlangıçta açıldığında Poracode'u sistem tepsisinde tutun."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Herhangi bir konu aktif olarak çalışırken sistemi uyanık tutun."
 
@@ -3660,6 +3671,16 @@ msgstr "Yazma alanı diktesini yazıya dökerken konuşma modelinin beklemesi ge
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Last tool: <0>{0}</0>"
 msgstr "Son araç: <0>{0}</0>"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch at startup"
+msgstr "Başlangıçta çalıştır"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch Poracode automatically when you sign in to Windows."
+msgstr "Windows'ta oturum açtığınızda Poracode'u otomatik olarak başlatın."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Launch thread"
@@ -4323,6 +4344,7 @@ msgstr "Grupta yeni sekme"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "Yeni konu"
 
@@ -4639,6 +4661,7 @@ msgid "No staged changes"
 msgstr "Aşamalı değişiklik yok"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "Desteklenen aracı algılanmadı"
 
@@ -5024,6 +5047,10 @@ msgstr "Claude varsayılanlarını geçersiz kılın — ör. ANTHROPIC_BASE_URL
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Override where this project's worktrees are created. Applies to worktrees created from now on."
 msgstr "Bu projenin çalışma ağaçlarının nerede oluşturulacağını geçersiz kılın. Bundan sonra oluşturulan çalışma ağaçları için geçerlidir."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Overrides {conflict}"
+msgstr "{conflict} kısayolunu geçersiz kılar"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
@@ -6720,6 +6747,11 @@ msgstr "Geçerli composer'da dikteyi başlat"
 msgid "Start from scratch"
 msgstr "Sıfırdan başla"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Start minimized"
+msgstr "Simge durumunda başlat"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Start Tailscale"
 msgstr "Tailscale'i başlat"
@@ -7239,6 +7271,10 @@ msgstr "Bu, \"{0}\" üzerindeki çalışma ağacını kaldırır ve {1, plural, 
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Bu, \"{0}\" üzerindeki çalışma ağacını kaldırır, ardından dalı siler."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "This system-wide shortcut is unavailable. Choose another key combination."
+msgstr "Bu sistem genelindeki kısayol kullanılamıyor. Başka bir tuş birleşimi seçin."
+
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
@@ -7355,6 +7391,10 @@ msgstr "Dosya Ağacını Aç/Kapat"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Seçiciden gizlemek için modelleri kapatın."
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Toggle Quick Composer"
+msgstr "Quick Composer'ı aç/kapat"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle sidebar"

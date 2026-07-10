@@ -2,7 +2,11 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { COMPOSER_CONTROL_COMMAND_IDS, DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
+import {
+  COMPOSER_CONTROL_COMMAND_IDS,
+  DEFAULT_KEYBINDINGS,
+  QUICK_COMPOSER_COMMAND_ID,
+} from "@/shared/keybindings";
 import { readKeybindingsFile, writeKeybindingsFile } from "./keybindingsFile";
 
 let tempDir: string | null = null;
@@ -61,6 +65,28 @@ describe("readKeybindingsFile", () => {
     const threadNew = result.keybindings.filter((b) => b.command === "thread.new");
     expect(threadNew.map((b) => b.key)).toEqual(expect.arrayContaining(["Ctrl+N", "Ctrl+Shift+O"]));
     expect(result.keybindings.some((b) => b.command === "thread.new.panel")).toBe(true);
+  });
+
+  it("backfills the global quick-composer shortcut into pre-existing files", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    const path = join(tempDir, "keybindings.json");
+    writeFileSync(
+      path,
+      `${JSON.stringify({ version: 1, keybindings: [{ command: "settings.open", key: "Ctrl+," }] })}\n`,
+      "utf8",
+    );
+
+    const result = readKeybindingsFile(path).file;
+    const shortcut = result.keybindings.find(
+      (binding) => binding.command === QUICK_COMPOSER_COMMAND_ID,
+    );
+
+    expect(shortcut).toMatchObject({
+      key: "Ctrl+Shift+Space",
+      mac: "Meta+Shift+Space",
+      windows: "Ctrl+Alt+Space",
+      linux: "Ctrl+Shift+Space",
+    });
   });
 
   it("backfills the toggle-file-tree shortcut into pre-existing files", () => {

@@ -2,7 +2,11 @@
 
 import type { MessageDescriptor } from "@lingui/core";
 import { describe, expect, it } from "vitest";
-import { COMPOSER_CONTROL_COMMAND_IDS, DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
+import {
+  COMPOSER_CONTROL_COMMAND_IDS,
+  DEFAULT_KEYBINDINGS,
+  QUICK_COMPOSER_COMMAND_ID,
+} from "@/shared/keybindings";
 import { buildCommandRegistry } from "./registry";
 import { buildShortcutRows, SHORTCUT_CONTEXTS, type ShortcutContext } from "./shortcutCatalog";
 import { formatKeybinding, type PlatformName } from "./keybindingMatcher";
@@ -10,7 +14,7 @@ import { formatKeybinding, type PlatformName } from "./keybindingMatcher";
 const resolveLabel = (value: string | MessageDescriptor): string =>
   typeof value === "string" ? value : (value.message ?? String(value.id));
 
-const PLATFORMS: PlatformName[] = ["darwin", "win32", "linux"];
+const PLATFORMS = ["darwin", "win32", "linux"] as const satisfies readonly PlatformName[];
 const CONTEXTS = SHORTCUT_CONTEXTS.map((context) => context.id).filter(
   (context): context is Exclude<ShortcutContext, "all"> => context !== "all",
 );
@@ -49,6 +53,32 @@ describe("shortcut catalog", () => {
     // The default key surfaces even though these aren't registry commands.
     const effort = rows.find((item) => item.id === "composer.cycle-effort");
     expect(effort?.keys).toContain(formatKeybinding("Ctrl+T", "win32"));
+  });
+
+  it("exposes the global quick composer binding with platform-specific keys", () => {
+    const expected = {
+      darwin: "Meta+Shift+Space",
+      win32: "Ctrl+Alt+Space",
+      linux: "Ctrl+Shift+Space",
+    } as const;
+    for (const platform of PLATFORMS) {
+      const rows = buildShortcutRows(
+        buildCommandRegistry(),
+        DEFAULT_KEYBINDINGS.keybindings,
+        platform,
+        resolveLabel,
+      );
+      const row = rows.find((item) => item.id === QUICK_COMPOSER_COMMAND_ID);
+
+      expect(row).toMatchObject({
+        title: "Toggle Quick Composer",
+        editable: true,
+        commandId: QUICK_COMPOSER_COMMAND_ID,
+        section: "general",
+        contexts: ["global"],
+      });
+      expect(row?.keys).toEqual([formatKeybinding(expected[platform], platform)]);
+    }
   });
 
   it("does not expose chat slash commands as shortcut rows", () => {

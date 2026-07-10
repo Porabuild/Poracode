@@ -2,7 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { toast } from "@heroui/react";
 import { Check, Lock, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
-import type { KeybindingEntry } from "@/shared/keybindings";
+import {
+  QUICK_COMPOSER_COMMAND_ID,
+  QUICK_COMPOSER_SHORTCUT_UNAVAILABLE_CODE,
+  type KeybindingEntry,
+} from "@/shared/keybindings";
 import { readBridge } from "@/renderer/bridge";
 import { Input } from "@/renderer/components/common";
 import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
@@ -95,7 +99,11 @@ export function ShortcutsSettings() {
     (next: KeybindingEntry[]) => {
       void saveKeybindings(next).catch((error) => {
         console.error("[renderer] failed to save keybindings:", error);
-        toast.danger(t`Couldn't save the shortcut.`);
+        toast.danger(
+          error instanceof Error && error.message.includes(QUICK_COMPOSER_SHORTCUT_UNAVAILABLE_CODE)
+            ? t`This system-wide shortcut is unavailable. Choose another key combination.`
+            : t`Couldn't save the shortcut.`,
+        );
       });
     },
     [saveKeybindings, t],
@@ -310,6 +318,7 @@ function RowKeybindingEditor(props: { editor: EditorApi; row: ShortcutRow }) {
   if (isRecording) {
     return (
       <ChordRecorder
+        allowOverride={row.commandId === QUICK_COMPOSER_COMMAND_ID}
         excludeCommand={editor.recording!.commandId}
         platform={editor.platform}
         resolveConflict={editor.conflictName}
@@ -385,18 +394,41 @@ function RowKeybindingEditor(props: { editor: EditorApi; row: ShortcutRow }) {
 }
 
 function ChordRecorder(props: {
+  allowOverride: boolean;
   excludeCommand: string;
   platform: PlatformName;
   resolveConflict: (canonicalKey: string, excludeCommand: string) => string | null;
   onCommit: (canonicalKey: string) => void;
   onCancel: () => void;
 }) {
-  const { excludeCommand, platform, resolveConflict, onCommit, onCancel } = props;
+  const { allowOverride, excludeCommand, platform, resolveConflict, onCommit, onCancel } = props;
   const { t } = useLingui();
   const [captured, setCaptured] = useState<string | null>(null);
+  const [captureReady, setCaptureReady] = useState(false);
 
   useEffect(() => {
-    if (captured !== null) return;
+    let mounted = true;
+    const bridge = readBridge();
+    const setSuspended = (suspended: boolean): Promise<void> =>
+      typeof bridge.setGlobalShortcutsSuspended === "function"
+        ? bridge.setGlobalShortcutsSuspended({ suspended }).catch((error) => {
+            console.error(
+              `[renderer] failed to ${suspended ? "suspend" : "resume"} global shortcuts:`,
+              error,
+            );
+          })
+        : Promise.resolve();
+    void setSuspended(true).finally(() => {
+      if (mounted) setCaptureReady(true);
+    });
+    return () => {
+      mounted = false;
+      void setSuspended(false);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (captured !== null || !captureReady) return;
     setCapturingKeybinding(true);
     const handler = (event: KeyboardEvent) => {
       event.preventDefault();
@@ -417,7 +449,7 @@ function ChordRecorder(props: {
       window.removeEventListener("keydown", handler, { capture: true });
       setCapturingKeybinding(false);
     };
-  }, [captured, platform, onCancel]);
+  }, [captureReady, captured, platform, onCancel]);
 
   if (captured === null) {
     return (
@@ -440,8 +472,11 @@ function ChordRecorder(props: {
   return (
     <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
       {conflict ? (
-        <span className="text-[10px] text-warning" title={t`Already used by ${conflict}`}>
-          <Trans>Used by {conflict}</Trans>
+        <span
+          className="text-[10px] text-warning"
+          title={allowOverride ? t`Overrides ${conflict}` : t`Already used by ${conflict}`}
+        >
+          {allowOverride ? <Trans>Overrides {conflict}</Trans> : <Trans>Used by {conflict}</Trans>}
         </span>
       ) : null}
       <span className="rounded bg-foreground/[0.08] px-1.5 py-0.5 font-mono text-[11px] text-foreground/90">

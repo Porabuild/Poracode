@@ -3,6 +3,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RemoteThreadCommand } from "@/shared/contracts";
+import type { QuickComposerSubmission } from "@/shared/ipc";
 import { useAppStore } from "./state/appStore";
 import { useGitStore } from "./state/gitStore";
 import { usePanelStore } from "./state/panelStore";
@@ -10,11 +11,14 @@ import { useSidebarUiStore } from "./state/sidebarUiStore";
 import { gitMergeAndRemove } from "@/renderer/actions/gitActions";
 import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 
-const { bridge, remoteThreadCommandListeners } = vi.hoisted(() => {
+const { bridge, quickComposerSubmitListeners, remoteThreadCommandListeners } = vi.hoisted(() => {
   const listeners: Array<(command: RemoteThreadCommand) => void> = [];
+  const quickListeners: Array<(submission: QuickComposerSubmission) => void> = [];
   return {
     remoteThreadCommandListeners: listeners,
+    quickComposerSubmitListeners: quickListeners,
     bridge: {
+      windowKind: "main",
       pickFolder: vi.fn<() => Promise<null>>().mockResolvedValue(null),
       listWslDistros: vi.fn<() => Promise<string[]>>().mockResolvedValue([]),
       getAgentStatuses: vi
@@ -144,6 +148,13 @@ const { bridge, remoteThreadCommandListeners } = vi.hoisted(() => {
       }),
       onSharedSettingsChanged: vi.fn<() => () => void>(() => () => undefined),
       onNotificationClick: vi.fn<() => () => void>(() => () => undefined),
+      notifyQuickComposerMainReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      onQuickComposerSubmit: vi.fn<
+        (listener: (submission: QuickComposerSubmission) => void) => () => void
+      >((listener) => {
+        quickListeners.push(listener);
+        return () => undefined;
+      }),
       publishRemoteGitSummaries: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       appendUsageEvents: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       browserGetState: vi
@@ -432,6 +443,54 @@ describe("App", () => {
       { kind: "text", content: "start from phone" },
     ]);
     expect(bridge.startThread).not.toHaveBeenCalled();
+  });
+
+  it("creates and queues the thread submitted by the quick composer", async () => {
+    useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
+    useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
+    useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [
+        {
+          id: "project-1",
+          name: "Repo",
+          location: { kind: "windows", path: "C:\\repo" },
+          createdAt: "2026-03-22T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "home" },
+    }));
+
+    render(<App />);
+    const listener = quickComposerSubmitListeners.at(-1);
+    expect(listener).toBeDefined();
+
+    act(() => {
+      listener?.({
+        projectId: "project-1",
+        input: {
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          prompt: "sent from overlay",
+          segments: [{ kind: "text", content: "sent from overlay" }],
+          presentationMode: "gui",
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("sent from overlay")).toHaveAttribute(
+        "data-pending-launch",
+        "sent from overlay",
+      );
+    });
+    expect(useAppStore.getState().view.kind).toBe("thread");
+    expect(useAppStore.getState().threads[0]).toMatchObject({
+      projectId: "project-1",
+      agentKind: "codex",
+      presentationMode: "gui",
+    });
   });
 
   it("mirrors a remotely started thread without queueing a duplicate launch", async () => {

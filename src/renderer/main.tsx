@@ -43,6 +43,7 @@ installDevBridge();
 
 document.documentElement.dataset.platform =
   typeof window !== "undefined" && "lightcode" in window ? readBridge().platform : "unknown";
+document.documentElement.dataset.windowKind = readBridge().windowKind;
 
 // The translucent ("liquid glass") sidebar is applied by provider.tsx only once
 // the main content is ready — the window stays opaque (the index.html boot

@@ -1,20 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+interface TrayMockInstance {
+  destroy(): void;
+  on(event: string, listener: () => void): void;
+  setContextMenu(menu: unknown): void;
+  setToolTip(tooltip: string): void;
+}
+
 const existsSyncMock = vi.hoisted(() => vi.fn<(path: string) => boolean>());
 const trayConstructorMock = vi.hoisted(() =>
-  vi.fn<
-    (image: unknown) => {
-      destroy(): void;
-      on(event: string, listener: () => void): void;
-      setContextMenu(menu: unknown): void;
-      setToolTip(tooltip: string): void;
-    }
-  >(() => ({
-    destroy: vi.fn<() => void>(),
-    on: vi.fn<(event: string, listener: () => void) => void>(),
-    setContextMenu: vi.fn<(menu: unknown) => void>(),
-    setToolTip: vi.fn<(tooltip: string) => void>(),
-  })),
+  vi.fn<(image: unknown) => TrayMockInstance>(function TrayMock(_image: unknown) {
+    return {
+      destroy: vi.fn<() => void>(),
+      on: vi.fn<(event: string, listener: () => void) => void>(),
+      setContextMenu: vi.fn<(menu: unknown) => void>(),
+      setToolTip: vi.fn<(tooltip: string) => void>(),
+    };
+  }),
 );
 const imageMock = vi.hoisted(() => {
   const image = {
@@ -25,6 +27,7 @@ const imageMock = vi.hoisted(() => {
   return image;
 });
 const appMock = vi.hoisted(() => ({ isPackaged: false }));
+const buildFromTemplateMock = vi.hoisted(() => vi.fn<(template: unknown[]) => unknown>(() => ({})));
 
 vi.mock("node:fs", () => ({
   existsSync: existsSyncMock,
@@ -32,7 +35,7 @@ vi.mock("node:fs", () => ({
 
 vi.mock("electron", () => ({
   app: appMock,
-  Menu: { buildFromTemplate: vi.fn<(template: unknown[]) => unknown>(() => ({})) },
+  Menu: { buildFromTemplate: buildFromTemplateMock },
   nativeImage: {
     createFromPath: vi.fn<(path: string) => unknown>(() => imageMock),
   },
@@ -60,18 +63,43 @@ describe("resolveTrayIconPath", () => {
     const handle = createTray({
       appName: "Poracode",
       channel: "stable",
+      onShow: vi.fn<() => void>(),
       onQuit: vi.fn<() => void>(),
-      window: {
-        focus: vi.fn<() => void>(),
-        isDestroyed: vi.fn<() => boolean>(() => false),
-        isMinimized: vi.fn<() => boolean>(() => false),
-        isVisible: vi.fn<() => boolean>(() => true),
-        restore: vi.fn<() => void>(),
-        show: vi.fn<() => void>(),
-      } as never,
     });
 
     expect(trayConstructorMock).not.toHaveBeenCalled();
+    expect(handle.available).toBe(false);
     expect(() => handle.destroy()).not.toThrow();
+    expect(() => handle.setQuickComposerShortcut("Ctrl+Shift+K")).not.toThrow();
+  });
+
+  it("adds a quick composer entry with the registered shortcut", () => {
+    existsSyncMock.mockReturnValue(true);
+    const onQuickComposer = vi.fn<() => void>();
+    const onShow = vi.fn<() => void>();
+
+    const handle = createTray({
+      appName: "Poracode",
+      channel: "stable",
+      onShow,
+      onQuickComposer,
+      onQuit: vi.fn<() => void>(),
+    });
+    handle.setQuickComposerShortcut("CommandOrControl+Alt+Space");
+
+    const template = buildFromTemplateMock.mock.calls.at(-1)?.[0] as Array<{
+      label?: string;
+      click?: () => void;
+    }>;
+    expect(handle.available).toBe(true);
+    expect(template[0]?.label).toBe("Quick Composer (CommandOrControl+Alt+Space)");
+    template[0]?.click?.();
+    expect(onQuickComposer).toHaveBeenCalledOnce();
+    template.find((item) => item.label === "Show Poracode")?.click?.();
+    expect(onShow).toHaveBeenCalledOnce();
+
+    handle.setQuickComposerShortcut("Ctrl+Shift+K");
+    const updated = buildFromTemplateMock.mock.calls.at(-1)?.[0] as Array<{ label?: string }>;
+    expect(updated[0]?.label).toBe("Quick Composer (Ctrl+Shift+K)");
   });
 });

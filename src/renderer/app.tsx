@@ -6,7 +6,11 @@ import { useEffect } from "react";
 import { PixelLoader } from "./components/common";
 import { msg } from "@/shared/messages";
 import type { RuntimeEvent } from "@/shared/contracts";
-import type { SupervisorEvent, UpdateStatus } from "@/shared/ipc";
+import {
+  isAgentStatusSupervisorEvent,
+  type SupervisorEvent,
+  type UpdateStatus,
+} from "@/shared/ipc";
 import { readBridge } from "./bridge";
 import {
   handleNotificationClick,
@@ -29,7 +33,7 @@ import { normalizeSharedSettings } from "@/shared/settings";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { recordRuntimeUsage } from "./state/usageRecorder";
 import { useDevTerminalStore } from "./state/devTerminalStore";
-import { useAgentStatusesStore } from "./state/agentStatusesStore";
+import { applyAgentStatusSupervisorEvent, useAgentStatusesStore } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
 import { installRuntimeItemsPersister } from "./state/chatRuntimePersister";
@@ -42,9 +46,11 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer";
 import { MainView } from "@/renderer/views/MainView/MainView";
+import { QuickComposerOverlay } from "@/renderer/views/QuickComposerOverlay/QuickComposerOverlay";
 import {
   primeWorktreeGitState,
   runWorktreeSetupScript,
+  startThreadFromDraft,
 } from "@/renderer/views/MainView/parts/AppContent/AppContent";
 import { CommandPalette } from "@/renderer/commands/CommandPalette";
 import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel";
@@ -65,7 +71,10 @@ import {
 // so that Vite HMR can tear them down before re-executing the module.
 
 let threadStateNotificationsArmed = false;
-const isBrowserExtractWindow = readBridge().windowKind === "browserExtract";
+const windowKind = readBridge().windowKind;
+const isBrowserExtractWindow = windowKind === "browserExtract";
+const isQuickComposerWindow = windowKind === "quickComposer";
+const isMainWindow = windowKind === "main";
 
 // ── Runtime event rAF batcher ───────────────────────────────────
 // With 6-8 concurrent streaming chats, the supervisor produces ~500
@@ -181,41 +190,14 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
     useAppStore.getState().markThreadExited(event.threadId);
     useAppStore.getState().clearAllPendingSteer(event.threadId);
   }
-  if (event.type === "agent-detected") {
-    useAgentStatusesStore.getState().pushDiscoveredAgent(event.status);
-  }
-  if (event.type === "agent-status-updated") {
-    useAgentStatusesStore.getState().mergeAgentStatus(event.status);
+  if (isAgentStatusSupervisorEvent(event)) {
+    applyAgentStatusSupervisorEvent(event, { deferFirstLaunchBulk: true });
   }
   if (event.type === "provider-usage") {
     useProviderUsageStore.getState().mergeSnapshot(event.snapshot);
   }
   if (event.type === "provider-usage-all") {
     useProviderUsageStore.getState().setSnapshots(event.snapshots);
-  }
-  if (event.type === "windows-agent-statuses") {
-    console.log(`[renderer] event: windows-agent-statuses (${event.statuses.length} agents)`);
-    const store = useAgentStatusesStore.getState();
-    if (store.inFirstLaunchDiscovery && store.discoveryScope?.kind !== "wsl") {
-      const statuses = event.statuses;
-      setTimeout(() => {
-        useAgentStatusesStore.getState().setAgentStatuses(statuses);
-      }, 1000);
-    } else {
-      store.setAgentStatuses(event.statuses);
-    }
-  }
-  if (event.type === "wsl-agent-statuses") {
-    console.log(`[renderer] event: wsl-agent-statuses (${event.statuses.length} agents)`);
-    const store = useAgentStatusesStore.getState();
-    if (store.inFirstLaunchDiscovery && store.discoveryScope?.kind === "wsl") {
-      const statuses = event.statuses;
-      setTimeout(() => {
-        useAgentStatusesStore.getState().setWslAgentStatuses(statuses);
-      }, 1000);
-    } else {
-      store.setWslAgentStatuses(event.statuses);
-    }
   }
 }
 
@@ -251,9 +233,8 @@ function handleUpdateStatus(status: UpdateStatus): void {
 // The browser-extract window renders a standalone BrowserPanel; it has no use
 // for supervisor/update streams, remote-client bridges, or runtime persistence,
 // so only the main window wires these up (and tears them down on HMR dispose).
-const mainWindowCleanups: Array<() => void> = isBrowserExtractWindow
-  ? []
-  : [
+const mainWindowCleanups: Array<() => void> = isMainWindow
+  ? [
       readBridge().onSupervisorEvent(handleSupervisorEvent),
       readBridge().onUpdateStatus(handleUpdateStatus),
       // Thread-metadata commands issued from paired remote clients (mobile PWA).
@@ -360,9 +341,23 @@ const mainWindowCleanups: Array<() => void> = isBrowserExtractWindow
         applyExternalSharedSettings(normalizeSharedSettings(settings));
       }),
       readBridge().onNotificationClick(handleNotificationClick),
+      readBridge().onQuickComposerSubmit((submission) => {
+        void (async () => {
+          if (!useAppStore.persist.hasHydrated()) await useAppStore.persist.rehydrate();
+          const project = useAppStore
+            .getState()
+            .projects.find((candidate) => candidate.id === submission.projectId);
+          if (!project) {
+            toast.warning(i18n._(linguiMsg`Add a project to start`));
+            return;
+          }
+          await startThreadFromDraft(project, submission.input, { preserveActiveGroup: false });
+        })().catch(() => undefined);
+      }),
       installRuntimeItemsPersister(),
       installRemoteGitSummaryPublisher(),
-    ];
+    ]
+  : [];
 let uninstallProductAnalytics: (() => void) | null = null;
 let productAnalyticsStarted = false;
 
@@ -384,6 +379,9 @@ export function App() {
   if (isBrowserExtractWindow) {
     return <BrowserExtractApp />;
   }
+  if (isQuickComposerWindow) {
+    return <QuickComposerApp />;
+  }
   return <MainApp />;
 }
 
@@ -399,6 +397,25 @@ function BrowserExtractApp() {
   );
 }
 
+function QuickComposerApp() {
+  const { initialLoading } = useAppHydration({ runtimeOwner: false });
+
+  return (
+    <AppProvider contentReady={!initialLoading} syncWindowChrome={false}>
+      {initialLoading ? (
+        <div className="quick-composer-root">
+          <div className="quick-composer-status">
+            <PixelLoader size="sm" />
+          </div>
+        </div>
+      ) : (
+        <QuickComposerOverlay />
+      )}
+      <ImageLightboxHost />
+    </AppProvider>
+  );
+}
+
 function MainApp() {
   const { initialLoading, storeHydrated, loadT0 } = useAppHydration();
 
@@ -409,6 +426,7 @@ function MainApp() {
     }
 
     threadStateNotificationsArmed = true;
+    void readBridge().notifyQuickComposerMainReady();
     if (!uninstallProductAnalytics) {
       uninstallProductAnalytics = installProductAnalytics();
     }

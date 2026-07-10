@@ -2,7 +2,7 @@ import { startTransition } from "react";
 import { Switch } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { NewThreadMode } from "@/shared/contracts";
-import { isRemoteSession } from "@/renderer/bridge";
+import { isRemoteSession, isWindows } from "@/renderer/bridge";
 import type { AiContentLanguage, LocaleSetting } from "@/shared/locale";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { aiLanguageOptions, localeOptions } from "@/renderer/i18n/locales";
@@ -22,6 +22,10 @@ export function GeneralSettings() {
   );
   const closeToTray = useSharedSettings((state) => state.closeToTray);
   const setCloseToTray = useSharedSettings((state) => state.setCloseToTray);
+  const launchAtStartup = useSharedSettings((state) => state.launchAtStartup);
+  const setLaunchAtStartup = useSharedSettings((state) => state.setLaunchAtStartup);
+  const startMinimized = useSharedSettings((state) => state.startMinimized);
+  const setStartMinimized = useSharedSettings((state) => state.setStartMinimized);
   const newThreadMode = useSharedSettings((state) => state.newThreadMode);
   const setNewThreadMode = useSharedSettings((state) => state.setNewThreadMode);
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
@@ -31,6 +35,7 @@ export function GeneralSettings() {
   // System sleep and tray behavior belong to the desktop OS; a remote session
   // can't affect them, so hide the rows there.
   const remote = isRemoteSession();
+  const windows = !remote && isWindows();
 
   const newThreadOptions = useLocalizedOptions(newThreadModeOptions);
   const resolvedLocaleOptions = localeOptions.map((option) => ({
@@ -98,6 +103,54 @@ export function GeneralSettings() {
               });
             }}
           />
+        </SettingRow>
+      )}
+
+      {windows && (
+        <SettingRow
+          anchorId="general.launchAtStartup"
+          title={t`Launch at startup`}
+          description={<Trans>Launch Poracode automatically when you sign in to Windows.</Trans>}
+        >
+          <Switch
+            aria-label={t`Launch at startup`}
+            isSelected={launchAtStartup}
+            onChange={(selected) => {
+              startTransition(() => {
+                setLaunchAtStartup(selected);
+              });
+            }}
+          >
+            <Switch.Content>
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch.Content>
+          </Switch>
+        </SettingRow>
+      )}
+
+      {windows && (
+        <SettingRow
+          anchorId="general.startMinimized"
+          title={t`Start minimized`}
+          description={<Trans>Keep Poracode in the system tray when it launches at startup.</Trans>}
+        >
+          <Switch
+            aria-label={t`Start minimized`}
+            isSelected={startMinimized}
+            onChange={(selected) => {
+              startTransition(() => {
+                setStartMinimized(selected);
+              });
+            }}
+          >
+            <Switch.Content>
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch.Content>
+          </Switch>
         </SettingRow>
       )}
 

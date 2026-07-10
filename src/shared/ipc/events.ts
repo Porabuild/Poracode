@@ -113,6 +113,25 @@ export type SupervisorEvent =
       error?: string;
     };
 
+const AGENT_STATUS_SUPERVISOR_EVENT_TYPES = [
+  "agent-detected",
+  "agent-status-updated",
+  "windows-agent-statuses",
+  "wsl-agent-statuses",
+] as const;
+
+export type AgentStatusSupervisorEvent = Extract<
+  SupervisorEvent,
+  { type: (typeof AGENT_STATUS_SUPERVISOR_EVENT_TYPES)[number] }
+>;
+
+/** Agent install/detection updates — the subset the quick composer overlay consumes. */
+export function isAgentStatusSupervisorEvent(
+  event: SupervisorEvent,
+): event is AgentStatusSupervisorEvent {
+  return (AGENT_STATUS_SUPERVISOR_EVENT_TYPES as readonly string[]).includes(event.type);
+}
+
 export type BrowserEvent =
   | { type: "state"; state: BrowserState }
   | { type: "tab-updated"; tab: BrowserTabInfo }

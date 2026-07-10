@@ -22,6 +22,32 @@ export interface KeybindingsConfig {
   file: KeybindingsFile;
 }
 
+/**
+ * Resolve the raw chord string a binding uses on a given platform, falling back
+ * to the cross-platform `key`. Shared so the main process (global-shortcut
+ * registration) and the renderer (keybinding matcher/catalog) resolve bindings
+ * identically.
+ */
+export function bindingForPlatform(
+  binding: KeybindingEntry,
+  platform: NodeJS.Platform,
+): string | undefined {
+  if (platform === "darwin") return binding.mac ?? binding.key;
+  if (platform === "win32") return binding.windows ?? binding.key;
+  return binding.linux ?? binding.key;
+}
+
+export const QUICK_COMPOSER_COMMAND_ID = "quick-composer.toggle";
+export const QUICK_COMPOSER_SHORTCUT_UNAVAILABLE_CODE = "quick-composer-shortcut-unavailable";
+
+export const QUICK_COMPOSER_DEFAULT_BINDING: KeybindingEntry = {
+  command: QUICK_COMPOSER_COMMAND_ID,
+  key: "Ctrl+Shift+Space",
+  mac: "Meta+Shift+Space",
+  windows: "Ctrl+Alt+Space",
+  linux: "Ctrl+Shift+Space",
+};
+
 const NOT_TYPING =
   "!inputFocus && !editorFocus && !terminalFocus && !composerFocus && !panelFocus && !browserFocus";
 
@@ -53,10 +79,12 @@ export const COMPOSER_CONTROL_COMMAND_IDS = [
  * `thread.rename`, `thread.next`/`thread.previous`, `project.add`, `find.open`,
  * `browser.toggle`, `browser.tab.new`, `tab.next`/`tab.previous`, and
  * `thread.recent.next`/`thread.recent.previous`, which gained their first
- * defaults here.
+ * defaults here. The system-wide `quick-composer.toggle` binding is also
+ * backfilled so existing users can rebind the overlay from Shortcuts settings.
  */
 export const BACKFILL_COMMAND_IDS = [
   ...COMPOSER_CONTROL_COMMAND_IDS,
+  QUICK_COMPOSER_COMMAND_ID,
   "thread.new",
   "thread.new.panel",
   "sidebar.toggle",
@@ -88,6 +116,7 @@ export const TOGGLE_FAST_DEFAULT = { key: "Ctrl+Shift+F", mac: "Meta+Shift+F" } 
 export const DEFAULT_KEYBINDINGS: KeybindingsFile = {
   version: 1,
   keybindings: [
+    QUICK_COMPOSER_DEFAULT_BINDING,
     {
       command: "palette.open",
       key: "Ctrl+Shift+P",

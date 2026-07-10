@@ -543,7 +543,6 @@ msgid "Activity metric"
 msgstr "Métrique d'activité"
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -556,6 +555,7 @@ msgstr "Ajouter un projet local"
 
 #: src/mobile/setupEmptyState.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project"
 msgstr "Ajouter un projet"
 
@@ -567,7 +567,9 @@ msgstr "Ajoutez un projet avant d'installer un agent."
 msgid "Add a project before signing in."
 msgstr "Ajoutez un projet avant de vous connecter."
 
+#: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "Ajouter un projet pour démarrer"
 
@@ -907,7 +909,9 @@ msgid "Are you sure you want to revert all unstaged changes? This cannot be undo
 msgstr "Êtes-vous sûr de vouloir annuler toutes les modifications non indexées ? Cela ne peut pas être annulé."
 
 #. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
+#. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Ask {0} anything about this workspace"
 msgstr "Posez n'importe quelle question à {0} à propos de cet espace de travail"
 
@@ -1558,6 +1562,7 @@ msgstr "Clonage…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "Fermer"
@@ -2484,6 +2489,7 @@ msgid "Detected <0>{0}</0>"
 msgstr "Détecté <0>{0}</0>"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Detecting agents…"
 msgstr "Détection des agents…"
 
@@ -3634,6 +3640,11 @@ msgstr "Garder la branche"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep Poracode in the system tray when it launches at startup."
+msgstr "Garder Poracode dans la zone de notification lors de son lancement au démarrage."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Gardez le système éveillé pendant qu'un thread fonctionne activement."
 
@@ -3660,6 +3671,16 @@ msgstr "Langue que le modèle vocal doit attendre lors de la transcription de la
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Last tool: <0>{0}</0>"
 msgstr "Dernier outil : <0>{0}</0>"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch at startup"
+msgstr "Lancer au démarrage"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch Poracode automatically when you sign in to Windows."
+msgstr "Lancer automatiquement Poracode lors de la connexion à Windows."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Launch thread"
@@ -4322,6 +4343,7 @@ msgstr "Nouvel onglet dans le groupe"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "Nouveau fil de discussion"
 
@@ -4638,6 +4660,7 @@ msgid "No staged changes"
 msgstr "Aucune modification indexée"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "Aucun agent pris en charge détecté"
 
@@ -5023,6 +5046,10 @@ msgstr "Remplacez les valeurs par défaut de Claude — par ex. ANTHROPIC_BASE_U
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Override where this project's worktrees are created. Applies to worktrees created from now on."
 msgstr "Remplacez l'emplacement de création des arbres de travail de ce projet. S'applique aux arbres de travail créés à partir de maintenant."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Overrides {conflict}"
+msgstr "Remplace {conflict}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
@@ -6719,6 +6746,11 @@ msgstr "Démarrer la dictée dans le composeur actuel"
 msgid "Start from scratch"
 msgstr "Repartir de zéro"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Start minimized"
+msgstr "Démarrer en mode réduit"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Start Tailscale"
 msgstr "Démarrer Tailscale"
@@ -7238,6 +7270,10 @@ msgstr "Cela supprime l'arbre de travail sur \"{0}\" et ferme {1, plural, one {#
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Cela supprime l'arbre de travail sur \"{0}\", puis supprime la branche."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "This system-wide shortcut is unavailable. Choose another key combination."
+msgstr "Ce raccourci système n’est pas disponible. Choisissez une autre combinaison de touches."
+
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
@@ -7354,6 +7390,10 @@ msgstr "Basculer l'arborescence de fichiers"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Désactivez les modèles pour les masquer du sélecteur."
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Toggle Quick Composer"
+msgstr "Afficher ou masquer Quick Composer"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle sidebar"

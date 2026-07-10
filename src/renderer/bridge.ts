@@ -16,6 +16,10 @@ export function isDevApp(): boolean {
   return readBridge().isDev === true;
 }
 
+export function isQuickComposerWindow(): boolean {
+  return readBridge().windowKind === "quickComposer";
+}
+
 /**
  * True when the renderer runs against the remote-session bridge shim (the
  * mobile PWA paired to a desktop) instead of the local Electron bridge.

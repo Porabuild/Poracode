@@ -1,6 +1,7 @@
 import { useShallow } from "zustand/shallow";
 import { X } from "lucide-react";
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type {
   ExtractContextResult,
@@ -17,6 +18,7 @@ import { buildWorktreeLocation } from "@/shared/worktree";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { buildPaneLayoutFromLegacy, findPaneAlign } from "@/shared/paneLayout";
 import { readBridge } from "@/renderer/bridge";
+import { i18n } from "@/renderer/i18n/i18n";
 import {
   isDetectingAgentsForLocation,
   useAgentStatusesStore,
@@ -48,6 +50,117 @@ import { buildProjectDraftConfig } from "./draftConfig";
 import { ThreadPane } from "./parts/ThreadPane";
 import { DraftPane } from "./parts/DraftPane";
 
+export async function startThreadFromDraft(
+  project: Project,
+  input: DraftStartInput,
+  options: { replacePaneId?: string; preserveActiveGroup?: boolean } = {},
+): Promise<void> {
+  const {
+    agentKind,
+    config,
+    prompt,
+    segments,
+    existingWorktreePath,
+    worktreeBranch,
+    worktreeBaseBranch,
+    worktreeIsNewBranch,
+    worktreeTransferUncommitted,
+    presentationMode,
+  } = input;
+  const isHomeScope = isHomeProject(project);
+  const store = useAppStore.getState();
+
+  store.updateProjectDraftConfig(
+    project.id,
+    buildProjectDraftConfig({
+      agentKind,
+      config,
+      worktreeMode: !isHomeScope && worktreeIsNewBranch === true,
+    }),
+  );
+
+  let worktreePath: string | undefined;
+  let newWorktreeSetupPath: string | undefined;
+  if (isHomeScope) {
+    worktreePath = undefined;
+  } else if (existingWorktreePath) {
+    worktreePath = existingWorktreePath;
+  } else if (worktreeBranch) {
+    try {
+      const result = await readBridge().gitAddWorktree({
+        projectLocation: project.location,
+        branch: worktreeBranch,
+        createBranch: worktreeIsNewBranch ?? false,
+        startPoint: worktreeBaseBranch,
+        ...worktreePlacementPayload(project),
+        copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
+        transferUncommitted: worktreeTransferUncommitted ?? false,
+        keepChangesInSource: worktreeTransferUncommitted ?? false,
+      });
+      worktreePath = result.path;
+      newWorktreeSetupPath = result.path;
+      if (worktreeTransferUncommitted && result.changesTransferred === false) {
+        toast.danger(
+          i18n._(
+            msg`Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch.`,
+          ),
+        );
+      }
+    } catch (error) {
+      console.error("[renderer] failed to create worktree:", error);
+      toast.danger(friendlyError(error));
+      throw error;
+    }
+  }
+
+  const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
+  const projectAgentStatuses = getProjectAgentStatuses(
+    project.location,
+    agentStatuses,
+    wslAgentStatuses,
+  );
+  const titlePrompt = segments
+    ? segments
+        .filter((segment) => segment.kind !== "attachment")
+        .map((segment) => (segment.kind === "file" ? `@${segment.path}` : segment.content))
+        .join("")
+        .trim() || prompt
+    : prompt;
+  const currentView = store.view;
+  const activeGroup =
+    options.preserveActiveGroup !== false &&
+    currentView.kind === "thread" &&
+    currentView.activeGroupId
+      ? {
+          groupId: currentView.activeGroupId,
+          groupName: store.threads.find((thread) => thread.groupId === currentView.activeGroupId)
+            ?.groupName,
+        }
+      : undefined;
+
+  const thread = store.createThread({
+    projectId: project.id,
+    agentKind,
+    config,
+    prompt: titlePrompt,
+    ...(presentationMode ? { presentationMode } : {}),
+    ...(worktreePath ? { worktreePath, ...(worktreeBranch ? { worktreeBranch } : {}) } : {}),
+    ...(options.replacePaneId ? { replacePaneId: options.replacePaneId } : {}),
+    ...(activeGroup?.groupId ? { groupId: activeGroup.groupId } : {}),
+    ...(activeGroup?.groupName ? { groupName: activeGroup.groupName } : {}),
+  });
+  store.queueThreadLaunch(thread.id, prompt, segments);
+  generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
+  if (worktreePath) {
+    void primeWorktreeGitState(project, worktreePath);
+    void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
+  }
+  if (newWorktreeSetupPath) {
+    const setupScript = project.scripts?.setupScript;
+    if (setupScript) runWorktreeSetupScript(project, newWorktreeSetupPath, setupScript);
+  }
+}
+
 export function AppContent() {
   const { t } = useLingui();
   const view = useAppStore((state) => state.view);
@@ -57,129 +170,12 @@ export function AppContent() {
   const draftLastDraftConfig = useInitialProjectDraftConfig(draftProjectId);
   const createThread = useAppStore((state) => state.createThread);
   const queueThreadLaunch = useAppStore((state) => state.queueThreadLaunch);
-  const updateProjectDraftConfig = useAppStore((state) => state.updateProjectDraftConfig);
   const activeGroupName = useAppStore((s) => {
     const v = s.view;
     if (v.kind !== "thread" || !v.activeGroupId) return undefined;
     const match = s.threads.find((thread) => thread.groupId === v.activeGroupId);
     return match?.groupName ?? match?.title ?? t`Group`;
   });
-  async function handleDraftStart(
-    project: Project,
-    input: DraftStartInput,
-    replacePaneIdParam?: string,
-  ) {
-    const {
-      agentKind,
-      config,
-      prompt,
-      segments,
-      existingWorktreePath,
-      worktreeBranch,
-      worktreeBaseBranch,
-      worktreeIsNewBranch,
-      worktreeTransferUncommitted,
-      presentationMode,
-    } = input;
-    const isHomeScope = isHomeProject(project);
-
-    updateProjectDraftConfig(
-      project.id,
-      buildProjectDraftConfig({
-        agentKind,
-        config,
-        worktreeMode: !isHomeScope && worktreeIsNewBranch === true,
-      }),
-    );
-
-    let worktreePath: string | undefined;
-    let newWorktreeSetupPath: string | undefined;
-    if (isHomeScope) {
-      worktreePath = undefined;
-    } else if (existingWorktreePath) {
-      worktreePath = existingWorktreePath;
-    } else if (worktreeBranch) {
-      try {
-        const result = await readBridge().gitAddWorktree({
-          projectLocation: project.location,
-          branch: worktreeBranch,
-          createBranch: worktreeIsNewBranch ?? false,
-          startPoint: worktreeBaseBranch,
-          ...worktreePlacementPayload(project),
-          copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
-          transferUncommitted: worktreeTransferUncommitted ?? false,
-          // The composer's "Worktree + changes" option copies the changes and
-          // keeps them on the current branch (vs. the "Move changes" action).
-          keepChangesInSource: worktreeTransferUncommitted ?? false,
-        });
-        worktreePath = result.path;
-        newWorktreeSetupPath = result.path;
-        if (worktreeTransferUncommitted && result.changesTransferred === false) {
-          toast.danger(
-            t`Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch.`,
-          );
-        }
-      } catch (err) {
-        console.error("[renderer] failed to create worktree:", err);
-        // Surface the failure and propagate so the composer can re-enable
-        // itself — otherwise it stays stuck on the launch spinner forever.
-        toast.danger(friendlyError(err));
-        throw err;
-      }
-    }
-
-    const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-    const projectAgentStatuses = getProjectAgentStatuses(
-      project.location,
-      agentStatuses,
-      wslAgentStatuses,
-    );
-    const titlePrompt = segments
-      ? segments
-          .filter((s) => s.kind !== "attachment")
-          .map((s) => (s.kind === "file" ? `@${s.path}` : s.content))
-          .join("")
-          .trim() || prompt
-      : prompt;
-    const currentView = useAppStore.getState().view;
-    const activeGroup =
-      currentView.kind === "thread" && currentView.activeGroupId
-        ? {
-            groupId: currentView.activeGroupId,
-            groupName: useAppStore
-              .getState()
-              .threads.find((thread) => thread.groupId === currentView.activeGroupId)?.groupName,
-          }
-        : undefined;
-
-    const thread = createThread({
-      projectId: project.id,
-      agentKind,
-      config,
-      prompt: titlePrompt,
-      ...(presentationMode ? { presentationMode } : {}),
-      ...(worktreePath ? { worktreePath, worktreeBranch } : {}),
-      ...(replacePaneIdParam ? { replacePaneId: replacePaneIdParam } : {}),
-      ...(activeGroup?.groupId ? { groupId: activeGroup.groupId } : {}),
-      ...(activeGroup?.groupName ? { groupName: activeGroup.groupName } : {}),
-    });
-    queueThreadLaunch(thread.id, prompt, segments);
-    generateTitleAsync(thread.id, project.location, projectAgentStatuses, titlePrompt);
-    if (worktreePath) {
-      void primeWorktreeGitState(project, worktreePath);
-      // Full refresh so the new worktree enters the cache and any new branch
-      // from createBranch shows up in BranchSelectors and worktreeSourceInfo
-      // without waiting for the next background refresh.
-      void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
-    }
-    if (newWorktreeSetupPath) {
-      const setupScript = project.scripts?.setupScript;
-      if (setupScript) {
-        runWorktreeSetupScript(project, newWorktreeSetupPath, setupScript);
-      }
-    }
-  }
-
   async function handleContinueInProvider(
     sourceThread: Thread,
     targetAgentKind: string,
@@ -288,7 +284,7 @@ export function AppContent() {
           key={draftProject.id}
           project={draftProject}
           lastDraftConfig={draftLastDraftConfig}
-          onStart={(input) => handleDraftStart(draftProject, input)}
+          onStart={(input) => startThreadFromDraft(draftProject, input)}
         />
       </div>
     );
@@ -333,7 +329,9 @@ export function AppContent() {
           paneAlign={paneAlign}
           headerNeedsTrafficLightPad={headerNeedsTrafficLightPad}
           onClose={() => closePane(paneId)}
-          onStart={(project, input) => handleDraftStart(project, input, paneId)}
+          onStart={(project, input) =>
+            startThreadFromDraft(project, input, { replacePaneId: paneId })
+          }
         />
       ) : (
         <ThreadPane

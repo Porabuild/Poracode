@@ -154,6 +154,9 @@ export function ThreadDraftView(props: {
   isDetectingAgents?: boolean;
   lastDraftConfig?: ProjectDraftConfig;
   compact?: boolean;
+  quickComposer?: boolean;
+  composerPlaceholder?: string;
+  pickFiles?: () => Promise<string[] | null>;
   paneAlign?: "left" | "center" | "right";
   showCloseButton?: boolean;
   isDragging?: boolean;
@@ -171,6 +174,7 @@ export function ThreadDraftView(props: {
   droppableRef?: React.RefObject<HTMLDivElement | null>;
   onClose?: (() => void) | undefined;
   dragHandleRef?: React.RefCallback<Element>;
+  onProjectChange?: (projectId: string) => void;
   onStart: (input: DraftStartInput) => void | Promise<void>;
 }) {
   const {
@@ -834,7 +838,7 @@ export function ThreadDraftView(props: {
   useStableComposerAnchor({
     // Agent detection can render the draft view before the composer DOM exists.
     // Only arm the anchor once the selected-agent branch can actually mount it.
-    enabled: !props.compact && !!selectedAgent,
+    enabled: !props.compact && !props.quickComposer && !!selectedAgent,
     containerRef: anchorContainerRef,
     blockRef: anchorBlockRef,
     spacerRef: anchorSpacerRef,
@@ -875,6 +879,15 @@ export function ThreadDraftView(props: {
   const alignClass =
     props.paneAlign === "right" ? "ml-auto" : props.paneAlign === "left" ? "mr-auto" : "mx-auto";
   const paddingClass = "px-2";
+  const compactComposer = props.compact || props.quickComposer;
+  // The quick-composer surface renders width-hugging chrome-free, so it opts out
+  // of the full-height sizing, max-widths, and padding the standard/compact views use.
+  const rootSizeClass = props.quickComposer ? "w-full" : "h-full min-h-0";
+  const bodySizeClass = props.quickComposer ? "w-full" : "h-full min-h-0 w-full max-w-[1040px]";
+  const bodyPaddingClass = props.quickComposer
+    ? ""
+    : `${paddingClass} px-3 pb-2 ${props.compact ? "" : "pt-2"}`;
+  const blockMaxWidthClass = props.quickComposer ? "" : "max-w-[720px]";
 
   const handlePresentationChange = (next: ThreadPresentationMode) => {
     // If the active provider can't serve this surface, swap to another
@@ -945,9 +958,9 @@ export function ThreadDraftView(props: {
   return (
     <div
       ref={props.droppableRef}
-      className={`relative flex h-full min-h-0 flex-col ${props.isDragging ? "opacity-50" : ""}`}
+      className={`relative flex ${rootSizeClass} flex-col ${props.isDragging ? "opacity-50" : ""}`}
     >
-      {props.compact && (
+      {props.compact && !props.quickComposer && (
         <ThreadDraftCompactHeader
           alignClass={alignClass}
           dragHandleRef={props.dragHandleRef}
@@ -960,12 +973,12 @@ export function ThreadDraftView(props: {
         />
       )}
       <div
-        ref={props.compact ? undefined : anchorContainerRef}
+        ref={compactComposer ? undefined : anchorContainerRef}
         data-draft-body=""
-        className={`${props.compact ? alignClass : "mx-auto"} relative flex h-full min-h-0 w-full max-w-[1040px] flex-col ${paddingClass} px-3 pb-2 ${props.compact ? "" : "pt-2"}`}
+        className={`${compactComposer ? alignClass : "mx-auto"} relative flex ${bodySizeClass} flex-col ${bodyPaddingClass}`}
       >
         <ThreadDraftDropIndicators dropIndicator={props.dropIndicator} />
-        {props.compact ? (
+        {props.quickComposer ? null : props.compact ? (
           <ThreadDraftHero compact={props.compact} />
         ) : (
           // Spacer whose height is driven by useStableComposerAnchor to keep the
@@ -980,14 +993,15 @@ export function ThreadDraftView(props: {
 
         {/* Composer block: centered initially, then anchored by the input's top edge. */}
         <div
-          ref={props.compact ? undefined : anchorBlockRef}
-          className={`${props.compact ? alignClass : "mx-auto shrink-0"} w-full max-w-[720px]`}
+          ref={compactComposer ? undefined : anchorBlockRef}
+          className={`${compactComposer ? alignClass : "mx-auto shrink-0"} w-full ${blockMaxWidthClass} ${props.quickComposer ? "quick-composer-control-surface" : ""}`}
         >
           <div data-draft-controls="" className="mb-1 flex items-center justify-between gap-2">
             <ProjectSwitchMenu
               currentProjectId={project.id}
               variant="compact"
               {...(props.paneId ? { paneId: props.paneId } : {})}
+              {...(props.onProjectChange ? { onSelectProject: props.onProjectChange } : {})}
             />
             <PresentationModeTabs
               presentationMode={presentationMode}
@@ -1016,12 +1030,14 @@ export function ThreadDraftView(props: {
               ...(effectiveChromeMcp ? { chromeMcp: true } : {}),
               ...(effectiveComputerUse ? { computerUse: true } : {}),
             }}
-            compact={props.compact}
+            compact={compactComposer}
             paneCount={props.paneCount}
             gitBranch={gitBranch}
             worktreeMode={effectiveWorktreeMode}
             supportsModePicker={supportsModePicker}
             presentationMode={presentationMode}
+            {...(props.composerPlaceholder ? { placeholder: props.composerPlaceholder } : {})}
+            {...(props.pickFiles ? { pickFiles: props.pickFiles } : {})}
             onConfigChange={onConfigPatch}
             onWorktreeModeChange={setWorktreeMode}
             onSwitchBranch={handleSwitchBranch}
@@ -1032,7 +1048,7 @@ export function ThreadDraftView(props: {
           />
         </div>
         {/* Absorbs the slack below the anchored composer in the full draft view. */}
-        {props.compact ? null : (
+        {compactComposer ? null : (
           <div aria-hidden data-draft-slack="" className="min-h-0 w-full flex-1" />
         )}
       </div>

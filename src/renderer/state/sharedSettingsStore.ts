@@ -65,6 +65,8 @@ interface SharedSettingsState extends SharedSettings {
   setGuiChatFontSize: (value: number) => void;
   setTerminalPanelFontSize: (value: number) => void;
   setPreventSleepWhileWorking: (value: boolean) => void;
+  setLaunchAtStartup: (value: boolean) => void;
+  setStartMinimized: (value: boolean) => void;
   setCloseToTray: (value: boolean) => void;
   setThreadRemoveAction: (value: ThreadRemoveAction) => void;
   setNewThreadMode: (value: NewThreadMode) => void;
@@ -366,6 +368,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setPreventSleepWhileWorking: (preventSleepWhileWorking) => {
     set({ preventSleepWhileWorking });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setLaunchAtStartup: (launchAtStartup) => {
+    if (get().launchAtStartup === launchAtStartup) return;
+    set({ launchAtStartup });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setStartMinimized: (startMinimized) => {
+    if (get().startMinimized === startMinimized) return;
+    set({ startMinimized });
     persistSettings(selectSharedSettings(get()));
   },
   setCloseToTray: (closeToTray) => {
@@ -704,6 +716,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     guiChatFontSize: state.guiChatFontSize,
     terminalPanelFontSize: state.terminalPanelFontSize,
     preventSleepWhileWorking: state.preventSleepWhileWorking,
+    launchAtStartup: state.launchAtStartup,
+    startMinimized: state.startMinimized,
     closeToTray: state.closeToTray,
     remoteAccessEnabled: state.remoteAccessEnabled,
     remoteAccessTailscaleHttps: state.remoteAccessTailscaleHttps,
