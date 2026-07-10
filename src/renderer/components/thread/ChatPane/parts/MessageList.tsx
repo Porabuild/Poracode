@@ -20,6 +20,7 @@ import {
 import { formatElapsed } from "../formatElapsed";
 import { useChatPaneActions } from "../chatPaneActionsContext";
 import {
+  growingStreamLength,
   selectCompletedTurnForEntry,
   selectRuntimeItemById,
   type ChatTimelineEntry,
@@ -529,8 +530,10 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
         if (entry.kind === "item") return liveStreamMeasureToken(items?.[entry.id]);
         // A live tool-call group can hold a streaming row (e.g. reasoning
         // expanded while the model thinks) that grows the virtualized row.
-        for (const itemId of entry.itemIds) {
-          const token = liveStreamMeasureToken(items?.[itemId]);
+        // Scan from the tail — the streaming row is the newest, so the loop
+        // short-circuits without walking the completed rows above it.
+        for (let i = entry.itemIds.length - 1; i >= 0; i -= 1) {
+          const token = liveStreamMeasureToken(items?.[entry.itemIds[i]!]);
           if (token !== null) return token;
         }
         return null;
@@ -646,18 +649,7 @@ function isLastTimelineEntryAssistantMessage(
  */
 function liveStreamMeasureToken(item: RuntimeChatItem | undefined): string | null {
   if (!item || item.state === "completed") return null;
-  switch (item.type) {
-    case "assistant_message":
-      return `${item.id}:${item.state}:${item.streams.assistant_text?.length ?? 0}`;
-    case "reasoning":
-      return `${item.id}:${item.state}:${item.streams.reasoning_text?.length ?? 0}`;
-    case "command_execution":
-      return `${item.id}:${item.state}:${item.streams.command_output?.length ?? 0}`;
-    case "file_change":
-      return `${item.id}:${item.state}:${item.streams.file_change_output?.length ?? 0}`;
-    default:
-      return `${item.id}:${item.state}`;
-  }
+  return `${item.id}:${item.state}:${growingStreamLength(item)}`;
 }
 
 function estimateTimelineEntrySize(entry: ChatTimelineEntry | undefined, threadId: string): number {

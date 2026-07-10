@@ -6,8 +6,10 @@ import type { AppStoreState } from "@/renderer/state/slices/shared";
 import type { ToolCallPayload } from "@/shared/contracts";
 import { canShareRuntimeToolGroup } from "@/renderer/state/runtimeToolGrouping";
 import { imageViewRendersInline } from "./parts/items/imageViewSource";
-import { isContextCompactionToolCall } from "./parts/items/ContextCompaction";
-import { isPlanProposalToolCall } from "./parts/items/PlanProposal";
+import {
+  isToolGroupItem as isGroupableItemType,
+  isToolLikeItem,
+} from "./parts/items/toolCallCategorization";
 import { isSubAgentTool, isWorkflowTool } from "./parts/items/toolDisplay";
 
 export const EMPTY_THREAD_ITEM_IDS = Object.freeze([]) as readonly string[];
@@ -167,8 +169,6 @@ export function selectVisibleThreadTimelineEntries(
 }
 
 function isToolGroupItem(item: RuntimeChatItem): boolean {
-  if (isContextCompactionToolCall(item)) return false;
-  if (isPlanProposalToolCall(item)) return false;
   // Sub-agent parents render as their own pill (with overlay) — never fold
   // them into a tool-call group.
   if (item.type === "tool_call" && isSubAgentTool(item.payload as ToolCallPayload | undefined)) {
@@ -179,27 +179,12 @@ function isToolGroupItem(item: RuntimeChatItem): boolean {
   // to the generic accordion (still running, errored, or non-image) keep the
   // default grouping — `imageViewRendersInline` mirrors ImageView's render
   // decision so the two never disagree.
-  if (
-    (item.type === "tool_call" ||
-      item.type === "mcp_tool_call" ||
-      item.type === "image_view" ||
-      item.type === "dynamic_tool_call") &&
-    imageViewRendersInline(item.payload)
-  ) {
+  if (isToolLikeItem(item) && imageViewRendersInline(item.payload)) {
     return false;
   }
-  return (
-    item.type === "tool_call" ||
-    item.type === "mcp_tool_call" ||
-    item.type === "image_view" ||
-    item.type === "dynamic_tool_call" ||
-    // Reasoning folds into the group like any other tool row: expanded and
-    // streaming while the model thinks, collapsed to a "Thought" row after.
-    item.type === "reasoning" ||
-    item.type === "command_execution" ||
-    item.type === "file_change" ||
-    item.type === "web_search"
-  );
+  // The groupable type set (tools, reasoning, commands, edits, searches) lives
+  // in toolCallCategorization so it is maintained in one place.
+  return isGroupableItemType(item);
 }
 
 /**
@@ -226,13 +211,22 @@ export function selectChatScrollAnchorForTimeline(
   if (!lastId) return "";
   const last = items?.[lastId];
   if (!last) return "";
-  const streamLen =
-    (last.streams.assistant_text?.length ?? 0) +
-    (last.streams.reasoning_text?.length ?? 0) +
-    (last.streams.plan_text?.length ?? 0) +
-    (last.streams.command_output?.length ?? 0) +
-    (last.streams.file_change_output?.length ?? 0);
-  return `${last.id}:${streamLen}:${last.state}`;
+  return `${last.id}:${growingStreamLength(last)}:${last.state}`;
+}
+
+/**
+ * Total length of an item's growing stream fields — the single encoding of
+ * "which streams make a row taller as they arrive", shared by the scroll
+ * anchor above and the virtualizer's live-measure token in MessageList.
+ */
+export function growingStreamLength(item: RuntimeChatItem): number {
+  return (
+    (item.streams.assistant_text?.length ?? 0) +
+    (item.streams.reasoning_text?.length ?? 0) +
+    (item.streams.plan_text?.length ?? 0) +
+    (item.streams.command_output?.length ?? 0) +
+    (item.streams.file_change_output?.length ?? 0)
+  );
 }
 
 function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {

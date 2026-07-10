@@ -25,6 +25,7 @@ import {
   chatRowClass,
   chatRowHoverClass,
   chatRowShellClass,
+  inlineRowTriggerClass,
 } from "./chatRow";
 import { CommandOutputViewport } from "./CommandOutputViewport";
 import { iconForCommandIntent } from "./CommandExecution";
@@ -172,11 +173,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
               ) : (
                 visibleItems.map((item) => (
                   <div key={item.id} className="animate-tool-call-enter">
-                    {item.type === "reasoning" ? (
-                      <ReasoningInline item={item} />
-                    ) : (
-                      <ToolCallInline item={item} />
-                    )}
+                    <GroupRowInline item={item} />
                   </div>
                 ))
               )}
@@ -225,7 +222,7 @@ function SameFileEditGroupBody({ items }: { items: readonly RuntimeChatItem[] })
         if (!row?.bodyText) {
           return (
             <div key={item.id} className="animate-tool-call-enter">
-              <ToolCallInline item={item} />
+              <GroupRowInline item={item} />
             </div>
           );
         }
@@ -250,6 +247,16 @@ function SameFileEditGroupBody({ items }: { items: readonly RuntimeChatItem[] })
       })}
     </>
   );
+}
+
+/**
+ * Type dispatch for a row inside a tool-call group. Every call site that
+ * renders group children goes through this so non-tool row types (reasoning
+ * today) get their dedicated renderer everywhere.
+ */
+function GroupRowInline({ item }: { item: RuntimeChatItem }) {
+  if (item.type === "reasoning") return <ReasoningInline item={item} />;
+  return <ToolCallInline item={item} />;
 }
 
 function ToolCallInline({ item }: { item: RuntimeChatItem }) {
@@ -290,9 +297,7 @@ function ToolCallInline({ item }: { item: RuntimeChatItem }) {
       }}
     >
       <Disclosure.Heading>
-        <Disclosure.Trigger
-          className={`flex w-fit max-w-full min-w-0 items-center gap-1.5 rounded-md py-0.5 text-left ${chatRowHoverClass}`}
-        >
+        <Disclosure.Trigger className={inlineRowTriggerClass}>
           <Icon className="size-3 shrink-0 text-[color:var(--muted)]" />
           <InlineRowTitle
             isRunning={isRunning}

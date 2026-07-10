@@ -244,14 +244,17 @@ export function categorizeToolName(name: string): GroupCategory {
   }
 }
 
-export const SUMMARY_CATEGORY_LABELS: Record<GroupCategory, readonly string[]> = {
-  thought: ["thought", "thoughts"],
-  viewed: ["view", "views"],
-  searched: ["search", "searches"],
-  edited: ["edit", "edits"],
-  executed: ["command", "commands"],
-  other: ["tool", "tools"],
-};
+// Derived from CATEGORY_META so a category's noun forms live in one place and
+// `categoryFromSummaryLabel` always round-trips the labels the UI renders.
+export const SUMMARY_CATEGORY_LABELS: Record<GroupCategory, readonly string[]> = (() => {
+  const labels = {} as Record<GroupCategory, readonly string[]>;
+  for (const [category, meta] of Object.entries(CATEGORY_META) as Array<
+    [GroupCategory, CategoryMeta]
+  >) {
+    labels[category] = [meta.singular, meta.plural];
+  }
+  return labels;
+})();
 
 export function categorizePersistedToolSummary(name: string): GroupCategory | null {
   const parts = name

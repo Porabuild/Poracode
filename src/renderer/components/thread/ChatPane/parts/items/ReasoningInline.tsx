@@ -1,14 +1,13 @@
 import { Disclosure } from "@heroui/react";
-import { memo, useState } from "react";
+import { memo, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { Brain } from "lucide-react";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { useBrainThinking, useShimmer } from "@/renderer/thinkingAnimator";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
-import { ChatRowMetaSeparator, chatRowHoverClass } from "./chatRow";
-import { ItemMarkdown } from "./ItemMarkdown";
+import { ChatRowMetaSeparator, inlineRowTriggerClass } from "./chatRow";
 import { getReasoningPreview } from "./reasoningPreview";
-import { ReasoningStreamViewport } from "./ReasoningStreamViewport";
+import { ReasoningExpandedBody, ReasoningStreamViewport } from "./ReasoningStreamViewport";
 
 interface ReasoningInlineProps {
   item: RuntimeChatItem;
@@ -35,6 +34,17 @@ export const ReasoningInline = memo(function ReasoningInline({ item }: Reasoning
   const title = isStreaming ? t`Thinking` : t`Thought`;
   const shimmerData = isStreaming ? { "data-lightcode-shimmer-text": title } : {};
 
+  // Render the body only while expanded so collapsed rows don't keep hidden
+  // markdown mounted (mirrors getInlineRow's isExpanded gating).
+  let body: ReactNode = null;
+  if (isExpanded && hasText) {
+    body = isStreaming ? (
+      <ReasoningStreamViewport text={rawText} className="italic" />
+    ) : (
+      <ReasoningExpandedBody text={rawText} />
+    );
+  }
+
   return (
     <Disclosure
       className="text-[length:var(--lc-chat-font-size-command)] leading-tight"
@@ -45,9 +55,7 @@ export const ReasoningInline = memo(function ReasoningInline({ item }: Reasoning
       }}
     >
       <Disclosure.Heading>
-        <Disclosure.Trigger
-          className={`flex w-fit max-w-full min-w-0 items-center gap-1.5 rounded-md py-0.5 text-left ${chatRowHoverClass}`}
-        >
+        <Disclosure.Trigger className={inlineRowTriggerClass}>
           <Brain
             ref={brainRef}
             className={`size-3 shrink-0 text-[color:var(--muted)] ${
@@ -75,19 +83,7 @@ export const ReasoningInline = memo(function ReasoningInline({ item }: Reasoning
         </Disclosure.Trigger>
       </Disclosure.Heading>
       <Disclosure.Content>
-        <Disclosure.Body className="pb-1 pl-4 pt-1">
-          {/* Render the body only while expanded so collapsed rows don't keep
-              hidden markdown mounted (mirrors getInlineRow's isExpanded gating). */}
-          {!isExpanded ? null : isStreaming ? (
-            hasText ? (
-              <ReasoningStreamViewport text={rawText} className="italic" />
-            ) : null
-          ) : (
-            <div className="max-h-64 overflow-y-auto border-l border-dashed border-[color:var(--border)] pl-3 italic [scrollbar-gutter:stable]">
-              <ItemMarkdown text={rawText} />
-            </div>
-          )}
-        </Disclosure.Body>
+        <Disclosure.Body className="pb-1 pl-4 pt-1">{body}</Disclosure.Body>
       </Disclosure.Content>
     </Disclosure>
   );

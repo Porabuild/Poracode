@@ -29,3 +29,19 @@ export function ReasoningStreamViewport({ text, className }: ReasoningStreamView
     </div>
   );
 }
+
+/**
+ * Completed reasoning expanded under a "Thought" toggle: capped-height
+ * viewport with the dotted left rule and italic body. Shared by the
+ * standalone `Reasoning` block and the grouped `ReasoningInline` row so the
+ * two treatments cannot drift.
+ */
+export function ReasoningExpandedBody({ text, className }: ReasoningStreamViewportProps) {
+  return (
+    <div
+      className={`max-h-64 overflow-y-auto border-l border-dashed border-[color:var(--border)] pl-3 italic [scrollbar-gutter:stable] ${className ?? ""}`}
+    >
+      <ItemMarkdown text={text} />
+    </div>
+  );
+}

@@ -6,9 +6,8 @@ import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice"
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { useBrainThinking, useShimmer } from "@/renderer/thinkingAnimator";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
-import { ItemMarkdown } from "./ItemMarkdown";
 import { getReasoningPreview } from "./reasoningPreview";
-import { ReasoningStreamViewport } from "./ReasoningStreamViewport";
+import { ReasoningExpandedBody, ReasoningStreamViewport } from "./ReasoningStreamViewport";
 
 interface ReasoningProps {
   item: RuntimeChatItem;
@@ -50,11 +49,7 @@ export const Reasoning = memo(function Reasoning({ item }: ReasoningProps) {
             className={`size-3 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
           />
         </button>
-        {isOpen ? (
-          <div className="mt-2 max-h-64 overflow-y-auto border-l border-dashed border-[color:var(--border)] pl-3 italic [scrollbar-gutter:stable]">
-            <ItemMarkdown text={rawText} />
-          </div>
-        ) : null}
+        {isOpen ? <ReasoningExpandedBody text={rawText} className="mt-2" /> : null}
       </div>
     );
   }
