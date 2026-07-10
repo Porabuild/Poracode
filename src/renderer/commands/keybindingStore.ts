@@ -24,7 +24,7 @@ type KeybindingBridge = {
   }) => Promise<KeybindingsConfig>;
 };
 
-export const useKeybindingStore = create<KeybindingState>((set) => ({
+export const useKeybindingStore = create<KeybindingState>((set, get) => ({
   path: null,
   keybindings: DEFAULT_KEYBINDINGS.keybindings,
   loaded: false,
@@ -49,10 +49,16 @@ export const useKeybindingStore = create<KeybindingState>((set) => ({
   save: async (next) => {
     // Optimistically apply so the UI and the keydown hook react immediately;
     // the persisted config (with its canonical path) reconciles on resolve.
+    const previous = get().keybindings;
     set({ keybindings: next });
     const bridge = readBridge() as KeybindingBridge;
     if (typeof bridge.setKeybindings !== "function") return;
-    const config = await bridge.setKeybindings({ version: 1, keybindings: next });
-    set({ path: config.path, keybindings: config.file.keybindings });
+    try {
+      const config = await bridge.setKeybindings({ version: 1, keybindings: next });
+      set({ path: config.path, keybindings: config.file.keybindings });
+    } catch (error) {
+      set({ keybindings: previous });
+      throw error;
+    }
   },
 }));

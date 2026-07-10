@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDbStorage } from "./dbStorage";
 
 const bridge = vi.hoisted(() => ({
+  windowKind: "main" as "main" | "quickComposer",
   dbGetProjects: vi.fn<() => Promise<[]>>(),
   dbGetThreads: vi.fn<() => Promise<[]>>(),
   dbGetState: vi.fn<(key: string) => Promise<string | null>>(),
@@ -11,6 +12,7 @@ const bridge = vi.hoisted(() => ({
 
 vi.mock("../bridge", () => ({
   readBridge: () => bridge,
+  isQuickComposerWindow: () => bridge.windowKind === "quickComposer",
 }));
 
 const captureRendererException = vi.hoisted(() =>
@@ -22,6 +24,7 @@ const flushMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("createDbStorage", () => {
   beforeEach(() => {
+    bridge.windowKind = "main";
     bridge.dbGetProjects.mockReset().mockResolvedValue([]);
     bridge.dbGetThreads.mockReset().mockResolvedValue([]);
     bridge.dbGetState.mockReset().mockResolvedValue(null);
@@ -75,10 +78,28 @@ describe("createDbStorage", () => {
 
     expect(bridge.dbSetState).toHaveBeenCalledTimes(1);
   });
+
+  it("never writes the shared app snapshot from the quick composer window", async () => {
+    bridge.windowKind = "quickComposer";
+    const storage = createDbStorage();
+
+    await storage.setItem("lightcode-app-v2", {
+      state: {
+        projects: [{ id: "quick-composer-only" }],
+        threads: [],
+        view: { kind: "home" },
+        groupLayouts: {},
+      },
+      version: 4,
+    } as never);
+
+    expect(bridge.dbSyncAll).not.toHaveBeenCalled();
+  });
 });
 
 describe("dbStorage persistence error reporting", () => {
   beforeEach(() => {
+    bridge.windowKind = "main";
     bridge.dbSetState.mockReset().mockResolvedValue(undefined);
     bridge.dbSyncAll.mockReset().mockResolvedValue(undefined);
     captureRendererException.mockClear();

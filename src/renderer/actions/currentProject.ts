@@ -1,3 +1,4 @@
+import type { AppView } from "@/shared/contracts";
 import { parseDraftProjectId } from "@/shared/paneId";
 import { useAppStore } from "@/renderer/state/appStore";
 
@@ -9,15 +10,23 @@ export function resolveActivePaneId(
   return focusedPaneId && panes.includes(focusedPaneId) ? focusedPaneId : panes[0];
 }
 
-export function getCurrentProjectId(): string | undefined {
-  const s = useAppStore.getState();
-  const v = s.view;
-  if (v.kind === "draft") return v.projectId;
-  if (v.kind === "thread") {
-    const paneId = resolveActivePaneId(v.panes, s.focusedPaneId);
+/** The project the given view is looking at (draft target or focused pane's thread). */
+export function resolveProjectIdForView(
+  view: AppView,
+  threads: ReadonlyArray<{ id: string; projectId: string }>,
+  focusedPaneId: string | null,
+): string | undefined {
+  if (view.kind === "draft") return view.projectId;
+  if (view.kind === "thread") {
+    const paneId = resolveActivePaneId(view.panes, focusedPaneId);
     const draftProjectId = parseDraftProjectId(paneId);
     if (draftProjectId) return draftProjectId;
-    return s.threads.find((t) => t.id === paneId)?.projectId;
+    return threads.find((t) => t.id === paneId)?.projectId;
   }
   return undefined;
+}
+
+export function getCurrentProjectId(): string | undefined {
+  const s = useAppStore.getState();
+  return resolveProjectIdForView(s.view, s.threads, s.focusedPaneId);
 }

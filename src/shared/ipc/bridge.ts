@@ -11,8 +11,10 @@ import {
   type SupervisorProcedureName,
 } from "./procedureMap";
 import type { BrowserEvent, NotificationClickEvent, SupervisorEvent, UpdateStatus } from "./events";
+import type { QuickComposerSubmission } from "./schemas";
 
-export type LightcodeWindowKind = "main" | "browserExtract";
+export const LIGHTCODE_WINDOW_KINDS = ["main", "browserExtract", "quickComposer"] as const;
+export type LightcodeWindowKind = (typeof LIGHTCODE_WINDOW_KINDS)[number];
 
 type ProcedureArgs<Name extends IpcProcedureName> =
   (typeof ipcProcedureMap)[Name]["__types"]["args"];
@@ -45,6 +47,12 @@ export type LightcodeBridge = LightcodeInvokeBridge & {
   /** Shared settings rewritten outside this renderer (e.g. by a remote client). */
   onSharedSettingsChanged(listener: (settings: SharedSettings) => void): () => void;
   onNotificationClick(listener: (event: NotificationClickEvent) => void): () => void;
+  submitQuickComposer(submission: QuickComposerSubmission): Promise<void>;
+  dismissQuickComposer(): Promise<void>;
+  pickQuickComposerFiles(): Promise<string[] | null>;
+  notifyQuickComposerMainReady(): Promise<void>;
+  onQuickComposerSubmit(listener: (submission: QuickComposerSubmission) => void): () => void;
+  onQuickComposerDismissRequested(listener: () => void): () => void;
 };
 
 export function createInvokeBridge(
@@ -99,4 +107,13 @@ export const IPC_EVENT_CHANNELS = {
   remoteThreadCommand: createChannel("remoteThreadCommand"),
   sharedSettingsChanged: createChannel("sharedSettingsChanged"),
   notificationClick: createChannel("notificationClick"),
+  quickComposerSubmit: createChannel("quickComposerSubmit"),
+  quickComposerDismissRequested: createChannel("quickComposerDismissRequested"),
+} as const;
+
+export const IPC_WINDOW_CHANNELS = {
+  quickComposerSubmit: createChannel("quickComposerWindowSubmit"),
+  quickComposerDismiss: createChannel("quickComposerWindowDismiss"),
+  quickComposerPickFiles: createChannel("quickComposerWindowPickFiles"),
+  quickComposerMainReady: createChannel("quickComposerMainReady"),
 } as const;

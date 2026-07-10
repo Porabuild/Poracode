@@ -15,6 +15,8 @@ export {
   defineMainLocalIpcHandlers,
   defineSupervisorIpcHandlers,
   IPC_EVENT_CHANNELS,
+  IPC_WINDOW_CHANNELS,
+  LIGHTCODE_WINDOW_KINDS,
   parseIpcProcedureArgs,
   type LightcodeWindowKind,
   type LightcodeBridge,
@@ -29,13 +31,15 @@ export type {
   SshDisconnectPayload,
   SshDiscoveredHost,
 } from "../ssh";
-export type {
-  BrowserEvent,
-  NotificationClickEvent,
-  SupervisorEvent,
-  SupervisorReply,
-  SupervisorRequest,
-  UpdateStatus,
+export {
+  isAgentStatusSupervisorEvent,
+  type AgentStatusSupervisorEvent,
+  type BrowserEvent,
+  type NotificationClickEvent,
+  type SupervisorEvent,
+  type SupervisorReply,
+  type SupervisorRequest,
+  type UpdateStatus,
 } from "./events";
 export {
   browserPickResultSchema,
@@ -63,4 +67,6 @@ export {
   type WindowChromeResult,
   type WorkflowGetRunPayload,
   type WorkflowGetRunResult,
+  quickComposerSubmissionSchema,
+  type QuickComposerSubmission,
 } from "./schemas";

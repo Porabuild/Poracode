@@ -20,7 +20,8 @@ function scheduleIdle(work: () => void): IdleCallbackHandle {
   return { cancel: () => clearTimeout(timeoutId) };
 }
 
-export function useAppHydration() {
+export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
+  const runtimeOwner = options.runtimeOwner ?? true;
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
   const purgeStaleArchivedThreads = useAppStore((state) => state.purgeStaleArchivedThreads);
   const archiveOldDoneThreads = useAppStore((state) => state.archiveOldDoneThreads);
@@ -59,6 +60,11 @@ export function useAppHydration() {
     console.log(
       `[renderer] +${Date.now() - loadT0}ms: store hydrated, view=${JSON.stringify(restoredView)}, ${useAppStore.getState().projects.length} projects, ${useAppStore.getState().threads.length} threads`,
     );
+
+    if (!runtimeOwner) {
+      setInitialLoading(false);
+      return;
+    }
 
     void (async () => {
       startTransition(() => {
@@ -131,11 +137,12 @@ export function useAppHydration() {
     purgeStaleArchivedThreads,
     archiveOldDoneThreads,
     reconcileRuntimeSnapshots,
+    runtimeOwner,
     storeHydrated,
   ]);
 
   useEffect(() => {
-    if (!storeHydrated || initialLoading) {
+    if (!runtimeOwner || !storeHydrated || initialLoading) {
       return;
     }
 
@@ -157,7 +164,7 @@ export function useAppHydration() {
     return () => {
       cancelled = true;
     };
-  }, [storeHydrated, initialLoading, updateThreadRuntime, view]);
+  }, [runtimeOwner, storeHydrated, initialLoading, updateThreadRuntime, view]);
 
   useEffect(() => {
     if (!storeHydrated || initialLoading) return;

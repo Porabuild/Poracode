@@ -4,6 +4,12 @@ import type { LightcodeChannel } from "@/shared/channel";
 import type { LightcodeWindowKind } from "@/shared/ipc";
 import { installSessionPermissions } from "../browser/permissions";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "./windowMaterial";
+import {
+  buildRendererAdditionalArguments,
+  installAppNavigationGuards,
+  installRendererReloadGuard,
+} from "./windowHardening";
+import { rectOverlapsWorkArea } from "./windowGeometry";
 
 interface WindowBounds {
   x?: number;
@@ -26,10 +32,7 @@ function getSavedWindowBounds(stateKey: string): WindowBounds | null {
     if (typeof bounds.x === "number" && typeof bounds.y === "number") {
       const rect = { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
       const display = screen.getDisplayMatching(rect);
-      const { x: dx, y: dy, width: dw, height: dh } = display.workArea;
-      const overlapX = Math.max(0, Math.min(rect.x + rect.width, dx + dw) - Math.max(rect.x, dx));
-      const overlapY = Math.max(0, Math.min(rect.y + rect.height, dy + dh) - Math.max(rect.y, dy));
-      if (overlapX < 50 || overlapY < 50) {
+      if (!rectOverlapsWorkArea(rect, display.workArea)) {
         return {
           width: bounds.width,
           height: bounds.height,
@@ -78,6 +81,7 @@ export interface CreateMainWindowOptions {
   onRendererProcessGone?: (details: RenderProcessGoneDetails) => void;
   devServerUrl?: string;
   openDevTools?: boolean;
+  showOnReady?: boolean;
 }
 
 export function createMainWindow(options: CreateMainWindowOptions): BrowserWindow {
@@ -136,49 +140,26 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
       nodeIntegration: false,
       sandbox: true,
       webviewTag: true,
-      additionalArguments: [
-        `--lc-app-version=${encodeURIComponent(options.appVersion)}`,
-        `--lc-is-dev=${options.isDev ? "1" : "0"}`,
-        `--lc-window-kind=${options.windowKind ?? "main"}`,
-        `--lc-channel=${options.channel}`,
-        `--lc-posthog-enable-dev=${options.posthogEnableDev ? "1" : "0"}`,
-        `--lc-posthog-enabled=${options.posthogEnabled ? "1" : "0"}`,
-        // PostHog project keys are browser/client keys, not secrets; the renderer must send them.
-        `--lc-posthog-host=${encodeURIComponent(options.posthogHost)}`,
-        `--lc-posthog-key=${encodeURIComponent(options.posthogKey)}`,
-        `--lc-sentry-enabled=${options.sentryEnabled ? "1" : "0"}`,
-      ],
+      additionalArguments: buildRendererAdditionalArguments({
+        appVersion: options.appVersion,
+        isDev: options.isDev,
+        windowKind: options.windowKind ?? "main",
+        channel: options.channel,
+        posthogEnableDev: options.posthogEnableDev,
+        posthogEnabled: options.posthogEnabled,
+        posthogHost: options.posthogHost,
+        posthogKey: options.posthogKey,
+        sentryEnabled: options.sentryEnabled,
+      }),
     },
   });
   installSessionPermissions(window.webContents.session);
   window.webContents.setUserAgent(options.browserUserAgent);
 
-  // Lock the privileged top frame to the app's own origin. The main renderer
-  // holds the full `lightcode` preload bridge (DB, file pickers, openExternal,
-  // supervisor RPC); if it could be navigated to a remote origin, that page
-  // would inherit the bridge. External links are opened via IPC/openExternal,
-  // so the renderer never legitimately performs a top-level navigation away
-  // from itself or opens new windows.
-  const isAllowedAppUrl = (target: string): boolean => {
-    try {
-      const url = new URL(target);
-      if (options.isDev && options.devServerUrl) {
-        return url.origin === new URL(options.devServerUrl).origin || url.protocol === "file:";
-      }
-      return url.protocol === "file:";
-    } catch {
-      return false;
-    }
-  };
-  const blockOffAppNavigation = (event: Electron.Event, target: string): void => {
-    if (!isAllowedAppUrl(target)) {
-      console.warn(`[lightcode] blocked navigation to off-app URL: ${target}`);
-      event.preventDefault();
-    }
-  };
-  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  window.webContents.on("will-navigate", blockOffAppNavigation);
-  window.webContents.on("will-redirect", blockOffAppNavigation);
+  installAppNavigationGuards(window, {
+    isDev: options.isDev,
+    ...(options.devServerUrl ? { devServerUrl: options.devServerUrl } : {}),
+  });
   // `webviewTag` is enabled for the in-app browser; the embedding renderer
   // controls each <webview>'s attributes, so enforce that no webview can
   // request a preload or Node access regardless of what markup is injected.
@@ -192,7 +173,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
     if (saved?.isMaximized) {
       window.maximize();
     }
-    window.show();
+    if (options.showOnReady !== false) window.show();
   });
 
   const loadRenderer = () => {
@@ -208,28 +189,11 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
     window.webContents.openDevTools({ mode: "detach" });
   }
 
-  let lastReloadAt = 0;
-  let reloadCount = 0;
-  window.webContents.on("render-process-gone", (_event, details) => {
-    if (details.reason === "clean-exit" || window.isDestroyed()) {
-      return;
-    }
-    console.error(
-      `[lightcode] renderer gone: reason=${details.reason} exitCode=${details.exitCode}`,
-    );
-    options.onRendererProcessGone?.(details);
-    const now = Date.now();
-    if (now - lastReloadAt < 5_000) {
-      reloadCount += 1;
-    } else {
-      reloadCount = 1;
-    }
-    lastReloadAt = now;
-    if (reloadCount > 3) {
-      console.error("[lightcode] renderer gone too many times in a row, not reloading");
-      return;
-    }
-    loadRenderer();
+  installRendererReloadGuard(window, {
+    loadRenderer,
+    ...(options.onRendererProcessGone
+      ? { onRendererProcessGone: options.onRendererProcessGone }
+      : {}),
   });
 
   let boundsTimer: ReturnType<typeof setTimeout> | null = null;

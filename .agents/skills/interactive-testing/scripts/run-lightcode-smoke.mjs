@@ -35,7 +35,8 @@ try {
   await assertPortFree(port, "Electron CDP");
   await createFixture();
 
-  appProcess = spawn(pnpmCommand(), ["run", "dev"], {
+  const pnpm = pnpmSpawnCommand();
+  appProcess = spawn(pnpm.command, pnpm.args, {
     cwd: repoRoot,
     env: {
       ...process.env,
@@ -66,6 +67,8 @@ try {
       mode,
       "--port",
       String(port),
+      "--timeoutMs",
+      "30000",
       "--outDir",
       outDir,
     ],
@@ -98,8 +101,14 @@ function parseArgs(argv) {
   return parsed;
 }
 
-function pnpmCommand() {
-  return process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+function pnpmSpawnCommand() {
+  if (process.platform === "win32") {
+    return {
+      command: process.env.ComSpec ?? "cmd.exe",
+      args: ["/d", "/s", "/c", "pnpm run dev"],
+    };
+  }
+  return { command: "pnpm", args: ["run", "dev"] };
 }
 
 async function createFixture() {
@@ -167,7 +176,12 @@ async function waitForAppTarget(portNumber, timeoutMs) {
 }
 
 async function stopProcess(child) {
-  if (!child || child.exitCode !== null) return;
+  if (!child?.pid) return;
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+    return;
+  }
+  if (child.exitCode !== null) return;
   sendSignal(child, "SIGINT");
   await new Promise((done) => {
     const timer = setTimeout(() => {
@@ -183,12 +197,9 @@ async function stopProcess(child) {
 
 function sendSignal(child, signal) {
   if (!child.pid) return;
-  if (process.platform === "win32") child.kill(signal);
-  else {
-    try {
-      process.kill(-child.pid, signal);
-    } catch {
-      child.kill(signal);
-    }
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    child.kill(signal);
   }
 }

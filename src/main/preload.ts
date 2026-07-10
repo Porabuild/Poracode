@@ -5,10 +5,13 @@ import type { SharedSettings } from "@/shared/settings";
 import {
   createInvokeBridge,
   IPC_EVENT_CHANNELS,
+  IPC_WINDOW_CHANNELS,
+  LIGHTCODE_WINDOW_KINDS,
   type BrowserEvent,
   type LightcodeBridge,
   type LightcodeWindowKind,
   type NotificationClickEvent,
+  type QuickComposerSubmission,
   type SupervisorEvent,
   type UpdateStatus,
 } from "@/shared/ipc";
@@ -49,7 +52,10 @@ function resolveChannel(): LightcodeChannel {
 }
 
 function resolveWindowKind(): LightcodeWindowKind {
-  return resolveArgValue("--lc-window-kind=") === "browserExtract" ? "browserExtract" : "main";
+  const kind = resolveArgValue("--lc-window-kind=");
+  return (LIGHTCODE_WINDOW_KINDS as readonly string[]).includes(kind)
+    ? (kind as LightcodeWindowKind)
+    : "main";
 }
 
 function resolveSentryEnabled(): boolean {
@@ -151,6 +157,34 @@ const bridge: LightcodeBridge = {
     ipcRenderer.on(IPC_EVENT_CHANNELS.notificationClick, handler);
     return () => {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.notificationClick, handler);
+    };
+  },
+  submitQuickComposer(submission) {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.quickComposerSubmit, submission);
+  },
+  dismissQuickComposer() {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.quickComposerDismiss);
+  },
+  pickQuickComposerFiles() {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.quickComposerPickFiles);
+  },
+  notifyQuickComposerMainReady() {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.quickComposerMainReady);
+  },
+  onQuickComposerSubmit(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, payload: QuickComposerSubmission) => {
+      listener(payload);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.quickComposerSubmit, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.quickComposerSubmit, handler);
+    };
+  },
+  onQuickComposerDismissRequested(listener) {
+    const handler = () => listener();
+    ipcRenderer.on(IPC_EVENT_CHANNELS.quickComposerDismissRequested, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.quickComposerDismissRequested, handler);
     };
   },
 };

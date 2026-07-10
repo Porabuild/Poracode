@@ -559,6 +559,7 @@ msgstr "Lokales Projekt hinzufügen"
 
 #: src/mobile/setupEmptyState.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project"
 msgstr "Projekt hinzufügen"
 
@@ -570,7 +571,9 @@ msgstr "Fügen Sie ein Projekt hinzu, bevor Sie einen Agenten installieren."
 msgid "Add a project before signing in."
 msgstr "Fügen Sie ein Projekt hinzu, bevor Sie sich anmelden."
 
+#: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "Fügen Sie zum Starten ein Projekt hinzu"
 
@@ -911,7 +914,9 @@ msgid "Are you sure you want to revert all unstaged changes? This cannot be undo
 msgstr "Sind Sie sicher, dass Sie alle nicht bereitgestellten Änderungen rückgängig machen möchten? Dies kann nicht rückgängig gemacht werden."
 
 #. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
+#. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Ask {0} anything about this workspace"
 msgstr "Fragen Sie {0} etwas zu diesem Arbeitsbereich"
 
@@ -1578,6 +1583,7 @@ msgstr "Klonen…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "Schließen"
@@ -2522,6 +2528,7 @@ msgid "Detected <0>{0}</0>"
 msgstr "<0>{0}</0> erkannt"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Detecting agents…"
 msgstr "Agenten werden erkannt…"
 
@@ -3708,6 +3715,11 @@ msgstr "Zweig behalten"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep Poracode in the system tray when it launches at startup."
+msgstr "Poracode beim Start im Infobereich der Taskleiste belassen."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "Halten Sie das System wach, während ein Thread aktiv arbeitet."
 
@@ -3734,6 +3746,16 @@ msgstr "Sprache, die das Sprachmodell beim Transkribieren des Diktats im Eingabe
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Last tool: <0>{0}</0>"
 msgstr "Letztes Werkzeug: <0>{0}</0>"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch at startup"
+msgstr "Beim Systemstart starten"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch Poracode automatically when you sign in to Windows."
+msgstr "Poracode beim Anmelden bei Windows automatisch starten."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Launch thread"
@@ -4409,6 +4431,7 @@ msgstr "Neuer Tab in Gruppe"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "Neuer Thread"
 
@@ -4733,6 +4756,7 @@ msgid "No supported agents are installed on this remote machine. Install and sig
 msgstr "Auf diesem Remotecomputer sind keine unterstützten Agenten installiert. Installieren Sie einen Agenten remote und melden Sie sich dort an, bevor Sie einen Thread starten."
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "Keine unterstützten Agenten erkannt"
 
@@ -5126,6 +5150,10 @@ msgstr "Claude-Standardwerte überschreiben — z. B. ANTHROPIC_BASE_URL und ANT
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Override where this project's worktrees are created. Applies to worktrees created from now on."
 msgstr "Legt abweichend fest, wo die Worktrees dieses Projekts erstellt werden. Gilt für ab jetzt erstellte Worktrees."
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Overrides {conflict}"
+msgstr "Überschreibt {conflict}"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
@@ -6919,6 +6947,11 @@ msgstr "Diktat im aktuellen Composer starten"
 msgid "Start from scratch"
 msgstr "Fangen Sie bei Null an"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Start minimized"
+msgstr "Minimiert starten"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Start remote thread"
 msgstr "Remote-Thread starten"
@@ -7464,6 +7497,10 @@ msgstr "Dadurch wird der Worktree auf „{0}“ entfernt und {1, plural, one {# 
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Dadurch wird der Worktree auf „{0}“ entfernt und anschließend der Branch gelöscht."
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "This system-wide shortcut is unavailable. Choose another key combination."
+msgstr "Diese systemweite Tastenkombination ist nicht verfügbar. Wähle eine andere Tastenkombination."
+
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
@@ -7581,6 +7618,10 @@ msgstr "Dateibaum umschalten"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "Schalten Sie Modelle aus, um sie aus der Auswahl auszublenden."
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Toggle Quick Composer"
+msgstr "Quick Composer ein-/ausblenden"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle sidebar"

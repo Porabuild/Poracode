@@ -558,6 +558,7 @@ msgstr "ローカルプロジェクトを追加"
 
 #: src/mobile/setupEmptyState.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project"
 msgstr "プロジェクトを追加"
 
@@ -569,7 +570,9 @@ msgstr "エージェントをインストールする前にプロジェクトを
 msgid "Add a project before signing in."
 msgstr "サインインする前にプロジェクトを追加してください。"
 
+#: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "開始するプロジェクトを追加してください"
 
@@ -910,7 +913,9 @@ msgid "Are you sure you want to revert all unstaged changes? This cannot be undo
 msgstr "ステージングされていない変更をすべて元に戻してもよろしいですか?これを元に戻すことはできません。"
 
 #. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
+#. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Ask {0} anything about this workspace"
 msgstr "このワークスペースについて{0}に何でも質問してください"
 
@@ -1577,6 +1582,7 @@ msgstr "クローン作成中…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Close"
 msgstr "閉じる"
@@ -2521,6 +2527,7 @@ msgid "Detected <0>{0}</0>"
 msgstr "<0>{0}</0> を検出しました"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Detecting agents…"
 msgstr "エージェントを検出中…"
 
@@ -3707,6 +3714,11 @@ msgstr "ブランチを維持する"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep Poracode in the system tray when it launches at startup."
+msgstr "スタートアップ時は Poracode をシステムトレイに格納した状態で起動します。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep the system awake while any thread is actively working."
 msgstr "スレッドがアクティブに動作している間は、システムを起動したままにします。"
 
@@ -3733,6 +3745,16 @@ msgstr "コンポーザーでの音声入力を文字起こしする際に音声
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Last tool: <0>{0}</0>"
 msgstr "最後のツール: <0>{0}</0>"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch at startup"
+msgstr "スタートアップ時に起動"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Launch Poracode automatically when you sign in to Windows."
+msgstr "Windows へのサインイン時に Poracode を自動的に起動します。"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Launch thread"
@@ -4407,6 +4429,7 @@ msgstr "グループ内に新しいタブ"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "New thread"
 msgstr "新しいスレッド"
 
@@ -4731,6 +4754,7 @@ msgid "No supported agents are installed on this remote machine. Install and sig
 msgstr "このリモートマシンには対応エージェントがインストールされていません。スレッドを開始する前に、リモートでエージェントをインストールしてサインインしてください。"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "No supported agents detected"
 msgstr "サポートされているエージェントが検出されませんでした"
 
@@ -5124,6 +5148,10 @@ msgstr "Claudeのデフォルト設定を上書きします（例：ANTHROPIC_BA
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Override where this project's worktrees are created. Applies to worktrees created from now on."
 msgstr "このプロジェクトのワークツリーが作成される場所をオーバーライドします。これ以降に作成されるワークツリーに適用されます。"
+
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "Overrides {conflict}"
+msgstr "{conflict} を上書き"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
@@ -6917,6 +6945,11 @@ msgstr "現在のコンポーザーで音声入力を開始する"
 msgid "Start from scratch"
 msgstr "ゼロから始める"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Start minimized"
+msgstr "最小化して起動"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Start remote thread"
 msgstr "リモートスレッドを開始"
@@ -7462,6 +7495,10 @@ msgstr "これにより、「{0}」のワークツリーが削除され、{1, pl
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "これにより、「{0}」のワークツリーが削除され、その後ブランチが削除されます。"
 
+#: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+msgid "This system-wide shortcut is unavailable. Choose another key combination."
+msgstr "このシステム全体のショートカットは使用できません。別のキーの組み合わせを選択してください。"
+
 #. placeholder {0}: props.worktreeBranch
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 msgid "This thread uses worktree <0>{0}</0>. Also remove the worktree directory?"
@@ -7579,6 +7616,10 @@ msgstr "ファイルツリーの切り替え"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Toggle models off to hide them from the selector."
 msgstr "モデルをオフに切り替えて、セレクターから非表示にします。"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Toggle Quick Composer"
+msgstr "Quick Composer を切り替え"
 
 #: src/renderer/commands/registry.ts
 msgid "Toggle sidebar"

@@ -1020,6 +1020,164 @@ body {
   overflow: hidden;
 }
 
+html[data-window-kind="quickComposer"],
+html[data-window-kind="quickComposer"] body,
+html[data-window-kind="quickComposer"] #root {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+@keyframes quick-composer-enter {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(18px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes quick-composer-exit {
+  from {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translateY(12px) scale(0.96);
+  }
+}
+
+@keyframes quick-composer-send {
+  0% {
+    opacity: 1;
+    filter: blur(0) brightness(1);
+    transform: translateY(0) scale(1);
+  }
+  38% {
+    opacity: 1;
+    filter: blur(0) brightness(1.16);
+    transform: translateY(-5px) scale(1.018);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(7px) brightness(1.08);
+    transform: translateY(-18px) scale(0.91);
+  }
+}
+
+.quick-composer-root {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 32px;
+  background: transparent;
+}
+
+.quick-composer-dismiss-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+.quick-composer-frame {
+  position: relative;
+  width: 100%;
+  cursor: grab;
+  transform-origin: 50% 100%;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.quick-composer-frame:active {
+  cursor: grabbing;
+}
+
+.quick-composer-frame button,
+.quick-composer-frame input,
+.quick-composer-frame textarea,
+.quick-composer-frame a,
+.quick-composer-frame [contenteditable="true"],
+.quick-composer-frame [role="button"],
+.quick-composer-frame [role="dialog"],
+.quick-composer-frame [role="listbox"],
+.quick-composer-frame [role="menu"],
+.quick-composer-frame [role="menuitem"],
+.quick-composer-frame [role="option"] {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.quick-composer-root--opening .quick-composer-frame {
+  animation: quick-composer-enter 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.quick-composer-root--closing .quick-composer-frame {
+  pointer-events: none;
+  animation: quick-composer-exit 180ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.quick-composer-root--sending .quick-composer-frame {
+  pointer-events: none;
+  animation: quick-composer-send 220ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.quick-composer-control-surface {
+  border: 1px solid color-mix(in oklab, var(--hairline-strong) 72%, transparent);
+  border-radius: 1.9rem;
+  background: color-mix(in oklab, var(--composer-surface) 98%, transparent);
+  box-shadow:
+    0 18px 36px -20px rgb(0 0 0 / 0.9),
+    0 4px 12px -7px rgb(0 0 0 / 0.68);
+  padding: 8px;
+}
+
+.quick-composer-root .quick-composer-frame .lightcode-composer-shell {
+  border-radius: 1.4rem;
+  background: var(--composer-surface);
+  box-shadow: 0 3px 12px -8px rgb(0 0 0 / 0.72) !important;
+}
+
+.quick-composer-root--sending .quick-composer-frame .lightcode-composer-shell {
+  border-color: color-mix(in oklab, var(--accent) 52%, transparent);
+  box-shadow:
+    0 8px 22px -12px rgb(0 0 0 / 0.72),
+    0 0 20px color-mix(in oklab, var(--accent) 22%, transparent) !important;
+}
+
+.quick-composer-status {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 1.55rem;
+  background: color-mix(in oklab, var(--composer-surface) 97%, transparent);
+  box-shadow: 0 8px 22px -12px rgb(0 0 0 / 0.72);
+  padding: 18px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-composer-root--opening .quick-composer-frame,
+  .quick-composer-root--closing .quick-composer-frame,
+  .quick-composer-root--sending .quick-composer-frame {
+    animation-duration: 1ms;
+  }
+}
+
 #root {
   width: 100%;
 }

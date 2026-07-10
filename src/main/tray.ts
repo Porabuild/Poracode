@@ -1,17 +1,20 @@
 import { join } from "node:path";
 import { existsSync } from "node:fs";
-import { Menu, Tray, app, nativeImage, type BrowserWindow } from "electron";
+import { Menu, Tray, app, nativeImage, type MenuItemConstructorOptions } from "electron";
 import type { LightcodeChannel } from "@/shared/channel";
 
 interface CreateTrayOptions {
-  window: BrowserWindow;
   channel: LightcodeChannel;
   appName: string;
+  onShow(): void;
+  onQuickComposer?(): void;
   onQuit(): void;
 }
 
 export interface TrayHandle {
+  readonly available: boolean;
   destroy(): void;
+  setQuickComposerShortcut(shortcut: string | null): void;
 }
 
 export function resolveTrayIconPath(channel: LightcodeChannel): string | null {
@@ -32,56 +35,63 @@ export function resolveTrayIconPath(channel: LightcodeChannel): string | null {
 }
 
 export function createTray(options: CreateTrayOptions): TrayHandle {
-  const { window, appName, onQuit, channel } = options;
+  const { appName, onShow, onQuickComposer, onQuit, channel } = options;
+  let quickComposerShortcut: string | null = null;
   const iconPath = resolveTrayIconPath(channel);
   if (!iconPath) {
     console.warn("[lightcode] Tray icon not found; skipping tray creation.");
-    return { destroy: () => {} };
+    return { available: false, destroy: () => {}, setQuickComposerShortcut: () => {} };
   }
   const image = nativeImage.createFromPath(iconPath);
   if (image.isEmpty()) {
     console.warn(`[lightcode] Tray icon is empty: ${iconPath}`);
-    return { destroy: () => {} };
+    return { available: false, destroy: () => {}, setQuickComposerShortcut: () => {} };
   }
   const trayImage = process.platform === "darwin" ? image.resize({ width: 18, height: 18 }) : image;
   const tray = new Tray(trayImage);
   tray.setToolTip(appName);
 
-  const showWindow = () => {
-    if (window.isDestroyed()) return;
-    if (window.isMinimized()) {
-      window.restore();
-    }
-    if (!window.isVisible()) {
-      window.show();
-    }
-    window.focus();
-  };
-
   const rebuildMenu = () => {
-    const menu = Menu.buildFromTemplate([
+    const template: MenuItemConstructorOptions[] = [
+      ...(onQuickComposer
+        ? [
+            {
+              label: quickComposerShortcut
+                ? `Quick Composer (${quickComposerShortcut})`
+                : "Quick Composer",
+              click: onQuickComposer,
+            },
+            { type: "separator" as const },
+          ]
+        : []),
       {
         label: `Show ${appName}`,
-        click: showWindow,
+        click: onShow,
       },
       { type: "separator" },
       {
         label: `Quit ${appName}`,
         click: onQuit,
       },
-    ]);
+    ];
+    const menu = Menu.buildFromTemplate(template);
     tray.setContextMenu(menu);
   };
 
   rebuildMenu();
 
-  tray.on("click", showWindow);
+  tray.on("click", onShow);
   // Windows convention: double-click opens the window.
-  tray.on("double-click", showWindow);
+  tray.on("double-click", onShow);
 
   return {
+    available: true,
     destroy: () => {
       tray.destroy();
+    },
+    setQuickComposerShortcut: (shortcut) => {
+      quickComposerShortcut = shortcut;
+      rebuildMenu();
     },
   };
 }

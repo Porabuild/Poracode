@@ -28,6 +28,21 @@ describe("keybindingMatcher", () => {
     expect(eventToKeybinding(event, "darwin")).toBe("meta+shift+p");
   });
 
+  it.each(["Control", "Meta", "Alt", "Shift"])("ignores a modifier-only %s keydown", (key) => {
+    expect(
+      eventToKeybinding(
+        {
+          key,
+          ctrlKey: key === "Control",
+          metaKey: key === "Meta",
+          altKey: key === "Alt",
+          shiftKey: key === "Shift",
+        },
+        "win32",
+      ),
+    ).toBe("");
+  });
+
   it("matches shifted-punctuation chords written with the base key", () => {
     // Holding Shift, the browser reports the shifted glyph ("}" for the "]" key),
     // while the binding is written with the base key. Both must canonicalize the

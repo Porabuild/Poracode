@@ -6,6 +6,7 @@ import {
   type AgentStatus,
   type ProjectLocation,
 } from "@/shared/contracts";
+import type { AgentStatusSupervisorEvent } from "@/shared/ipc";
 
 export type AgentDiscoveryScope =
   | { kind: "native" }
@@ -272,6 +273,62 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     },
   ),
 );
+
+/**
+ * Fan a supervisor agent-status event into the store. Shared by every surface
+ * that consumes the supervisor stream (main window, quick composer overlay) so
+ * the event→action mapping lives in one place.
+ *
+ * `deferFirstLaunchBulk` delays the terminal bulk events by a second while the
+ * first-launch discovery screen is animating, so the last streamed tiles get a
+ * beat before the screen fades — only the main window's discovery UI wants it.
+ */
+export function applyAgentStatusSupervisorEvent(
+  event: AgentStatusSupervisorEvent,
+  options: { deferFirstLaunchBulk?: boolean } = {},
+): void {
+  const store = useAgentStatusesStore.getState();
+  switch (event.type) {
+    case "agent-detected":
+      store.pushDiscoveredAgent(event.status);
+      break;
+    case "agent-status-updated":
+      store.mergeAgentStatus(event.status);
+      break;
+    case "windows-agent-statuses": {
+      console.log(`[renderer] event: windows-agent-statuses (${event.statuses.length} agents)`);
+      if (
+        options.deferFirstLaunchBulk &&
+        store.inFirstLaunchDiscovery &&
+        store.discoveryScope?.kind !== "wsl"
+      ) {
+        const statuses = event.statuses;
+        setTimeout(() => {
+          useAgentStatusesStore.getState().setAgentStatuses(statuses);
+        }, 1000);
+      } else {
+        store.setAgentStatuses(event.statuses);
+      }
+      break;
+    }
+    case "wsl-agent-statuses": {
+      console.log(`[renderer] event: wsl-agent-statuses (${event.statuses.length} agents)`);
+      if (
+        options.deferFirstLaunchBulk &&
+        store.inFirstLaunchDiscovery &&
+        store.discoveryScope?.kind === "wsl"
+      ) {
+        const statuses = event.statuses;
+        setTimeout(() => {
+          useAgentStatusesStore.getState().setWslAgentStatuses(statuses);
+        }, 1000);
+      } else {
+        store.setWslAgentStatuses(event.statuses);
+      }
+      break;
+    }
+  }
+}
 
 /**
  * Returns true when we haven't received agent statuses yet for the given

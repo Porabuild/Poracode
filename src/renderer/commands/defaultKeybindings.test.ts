@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { COMPOSER_CONTROL_COMMAND_IDS, DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
+import {
+  COMPOSER_CONTROL_COMMAND_IDS,
+  DEFAULT_KEYBINDINGS,
+  QUICK_COMPOSER_COMMAND_ID,
+} from "@/shared/keybindings";
 import { getCurrentProjectId } from "@/renderer/actions/currentProject";
 import { useAppStore } from "@/renderer/state/appStore";
 import { bindingForPlatform, canonicalizeKeybinding, type PlatformName } from "./keybindingMatcher";
@@ -44,9 +48,11 @@ describe("default keybindings", () => {
     const commandIds = new Set(buildCommandRegistry().map((command) => command.id));
 
     for (const binding of DEFAULT_KEYBINDINGS.keybindings) {
-      // Composer controls are dispatched locally by the focused composer, not
-      // the global hook, so they're intentionally absent from the registry.
-      if (isComposerScoped(binding.command)) continue;
+      // Composer controls are dispatched locally by the focused composer, and
+      // Quick Composer is registered globally by the main process.
+      if (isComposerScoped(binding.command) || binding.command === QUICK_COMPOSER_COMMAND_ID) {
+        continue;
+      }
       expect(commandIds.has(binding.command)).toBe(true);
     }
   });

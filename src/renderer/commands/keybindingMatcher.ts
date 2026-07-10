@@ -1,4 +1,4 @@
-import type { KeybindingEntry } from "@/shared/keybindings";
+export { bindingForPlatform } from "@/shared/keybindings";
 
 const MODIFIER_ORDER = ["ctrl", "meta", "alt", "shift"] as const;
 export type PlatformName = "darwin" | "win32" | "linux" | NodeJS.Platform;
@@ -7,15 +7,6 @@ export type PlatformName = "darwin" | "win32" | "linux" | NodeJS.Platform;
  * real `KeyboardEvent` or a lightweight stand-in (e.g. the composer's intercept
  * event) without depending on the full DOM type. */
 export type ChordEvent = Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">;
-
-export function bindingForPlatform(
-  binding: KeybindingEntry,
-  platform: PlatformName,
-): string | undefined {
-  if (platform === "darwin") return binding.mac ?? binding.key;
-  if (platform === "win32") return binding.windows ?? binding.key;
-  return binding.linux ?? binding.key;
-}
 
 export function formatKeybinding(raw: string | undefined, platform: PlatformName): string {
   if (!raw) return "";
@@ -47,7 +38,7 @@ export function eventToKeybinding(event: ChordEvent, platform: PlatformName): st
   if (event.altKey) parts.push("alt");
   if (event.shiftKey) parts.push("shift");
 
-  const key = normalizeMainKey(event.key);
+  const key = normalizeKeyPart(event.key, platform);
   if (!key || MODIFIER_ORDER.includes(key as (typeof MODIFIER_ORDER)[number])) return "";
   parts.push(key);
   return canonicalizeParts(parts, platform);

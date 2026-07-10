@@ -1,12 +1,20 @@
 import { watch } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { app, BrowserWindow, Menu, nativeTheme, session as electronSession } from "electron";
+import {
+  app,
+  BrowserWindow,
+  globalShortcut,
+  ipcMain,
+  Menu,
+  nativeTheme,
+  session as electronSession,
+} from "electron";
 import { resolveThemeMode } from "@/shared/themeMode";
 import { closeDatabase, dbGetThreads, initDatabase } from "./db";
 import { cleanupOrphanedAttachments, prepareLightcodeDataRoot } from "./lightcodeData";
 import { handleOrchestratorThreadCreated } from "./orchestratorThreadBridge";
-import { createLocalIpcHandlers } from "./ipc/localHandlers";
+import { createLocalIpcHandlers, showAddFilesDialog } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
 import { createSleepInhibitor } from "./sleepInhibitor";
 import {
@@ -30,13 +38,27 @@ import {
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { createMainWindow } from "./window/createMainWindow";
+import {
+  createQuickComposerWindow,
+  showQuickComposerWindow,
+} from "./window/createQuickComposerWindow";
 import { showAndFocusWindow } from "./window/showAndFocusWindow";
 import { createTray, type TrayHandle } from "./tray";
-import type { SupervisorEvent } from "@/shared/ipc";
+import { readKeybindingsFile } from "./keybindingsFile";
+import { QuickComposerShortcutManager } from "./quickComposerShortcut";
+import { shouldStartMinimized, syncWindowsStartupRegistration } from "./startupSettings";
 import { type LightcodePaths, resolveLightcodeBaseDir } from "@/shared/lightcodePaths";
 import { getAppName } from "@/shared/appName";
 import { resolveLightcodeChannel } from "@/shared/channel";
-import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
+import {
+  IPC_EVENT_CHANNELS,
+  IPC_WINDOW_CHANNELS,
+  isAgentStatusSupervisorEvent,
+  quickComposerSubmissionSchema,
+  type QuickComposerSubmission,
+  type SupervisorEvent,
+} from "@/shared/ipc";
+import type { SharedSettings } from "@/shared/settings";
 import { readSharedSettingsFile } from "./sharedSettingsFile";
 import { WindowsJobObjectManager } from "./windowsJobObject";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
@@ -58,6 +80,9 @@ if (process.env.LIGHTCODE_CDP_PORT) {
 // acrylic stays translucent without breathing as image planes appear/disappear.
 if (process.platform === "win32") {
   app.commandLine.appendSwitch("force-color-profile", "srgb");
+}
+if (process.platform === "linux") {
+  app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
 }
 
 const browserUserAgent = buildBrowserUserAgent(app.userAgentFallback);
@@ -93,6 +118,12 @@ const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
 const WINDOW_CHROME_HEIGHT = 32;
 
 let mainWindow: BrowserWindow | null = null;
+let quickComposerWindow: BrowserWindow | null = null;
+let quickComposerDialogOpen = false;
+let quickComposerDismissTimer: ReturnType<typeof setTimeout> | null = null;
+let revealMainAfterQuickComposerDismiss = false;
+let mainRendererReady = false;
+const pendingQuickComposerSubmissions: QuickComposerSubmission[] = [];
 let lightcodePaths: LightcodePaths | null = null;
 let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
@@ -104,6 +135,7 @@ let chromeMcpIngress: ChromeMcpIngress | null = null;
 let browserExtractWindow: BrowserWindow | null = null;
 // Retained module-scope so the native Tray icon stays reachable from GC.
 let tray: TrayHandle | null = null;
+let quickComposerShortcutManager: QuickComposerShortcutManager | null = null;
 let isQuitting = false;
 
 function isCloseToTrayEnabled(): boolean {
@@ -141,12 +173,12 @@ function resolveWindowChromeOptions(): {
   };
 }
 
-function primeBrowserAllowFlags(): void {
+function primeBrowserAllowFlags(settings?: SharedSettings): void {
   if (!lightcodePaths) return;
   let allowEval = false;
   let allowDataAccess = false;
   try {
-    const s = readSharedSettingsFile(lightcodePaths.settingsPath);
+    const s = settings ?? readSharedSettingsFile(lightcodePaths.settingsPath);
     allowEval = s.browser?.allowEval === true;
     allowDataAccess = s.browser?.allowDataAccess === true;
   } catch {
@@ -161,12 +193,181 @@ function primeBrowserAllowFlags(): void {
   chromeMcpIngress?.setAllowDataAccess(allowDataAccess);
 }
 
+// setLoginItemSettings writes the HKCU Run registry key on Windows; skip it
+// when launchAtStartup hasn't changed so routine settings saves stay cheap.
+let lastAppliedLaunchAtStartup: boolean | null = null;
+
+function syncStartupSettings(settings?: SharedSettings): void {
+  if (!lightcodePaths) return;
+  try {
+    const s = settings ?? readSharedSettingsFile(lightcodePaths.settingsPath);
+    if (s.launchAtStartup === lastAppliedLaunchAtStartup) return;
+    syncWindowsStartupRegistration(app, s, process.platform, isDev);
+    lastAppliedLaunchAtStartup = s.launchAtStartup;
+  } catch (error) {
+    console.warn("[lightcode] failed to update Windows startup registration", error);
+  }
+}
+
+function handleSharedSettingsChanged(settings: SharedSettings): void {
+  primeBrowserAllowFlags(settings);
+  syncStartupSettings(settings);
+}
+
 function handleMainWindowClose(event: Electron.Event): void {
   if (isQuitting) return;
   if (!mainWindow || mainWindow.isDestroyed()) return;
   if (!isCloseToTrayEnabled()) return;
   event.preventDefault();
   mainWindow.hide();
+}
+
+function quickComposerWindowFor(event: Electron.IpcMainInvokeEvent): BrowserWindow | null {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  return window && window === quickComposerWindow && !window.isDestroyed() ? window : null;
+}
+
+function flushQuickComposerSubmissions(): void {
+  if (!mainRendererReady || !mainWindow || mainWindow.isDestroyed()) return;
+  for (const submission of pendingQuickComposerSubmissions.splice(0)) {
+    mainWindow.webContents.send(IPC_EVENT_CHANNELS.quickComposerSubmit, submission);
+  }
+}
+
+function ensureMainWindow(showOnReady = true): BrowserWindow {
+  if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
+  mainRendererReady = false;
+  mainWindow = createMainAppWindow(showOnReady);
+  browserPanelManager?.bindHost(mainWindow);
+  return mainWindow;
+}
+
+function finishQuickComposerDismiss(window: BrowserWindow): void {
+  if (quickComposerDismissTimer) {
+    clearTimeout(quickComposerDismissTimer);
+    quickComposerDismissTimer = null;
+  }
+  if (!window.isDestroyed()) window.hide();
+  if (!revealMainAfterQuickComposerDismiss) return;
+  revealMainAfterQuickComposerDismiss = false;
+  const target = ensureMainWindow();
+  if (target.webContents.isLoading()) {
+    target.once("ready-to-show", () => showAndFocusWindow(target));
+  } else {
+    showAndFocusWindow(target);
+  }
+}
+
+function requestQuickComposerDismiss(window: BrowserWindow): void {
+  if (window.isDestroyed()) return;
+  window.webContents.send(IPC_EVENT_CHANNELS.quickComposerDismissRequested);
+  if (quickComposerDismissTimer) clearTimeout(quickComposerDismissTimer);
+  quickComposerDismissTimer = setTimeout(() => finishQuickComposerDismiss(window), 240);
+}
+
+// Window options shared by every app-renderer window (main + quick composer);
+// each factory adds only the fields distinct to its surface.
+function commonAppWindowOptions() {
+  return {
+    title: getAppName(channel, isDev),
+    isDev,
+    channel,
+    preloadPath: join(__dirname, "preload.cjs"),
+    rendererHtmlPath: join(__dirname, "../renderer/index.html"),
+    appVersion: app.getVersion(),
+    posthogEnableDev,
+    posthogEnabled,
+    posthogHost,
+    posthogKey,
+    sentryEnabled,
+    browserUserAgent,
+    ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
+  };
+}
+
+function createQuickComposerAppWindow(): BrowserWindow {
+  const window = createQuickComposerWindow({
+    ...commonAppWindowOptions(),
+    onClosed: () => {
+      if (quickComposerWindow === window) quickComposerWindow = null;
+    },
+    onRendererProcessGone: (details) => {
+      captureMainException(new Error(`Quick composer renderer gone: ${details.reason}`), {
+        "lightcode.feature_area": "quick-composer",
+        "lightcode.process": "renderer",
+      });
+    },
+  });
+  window.on("blur", () => {
+    setTimeout(() => {
+      if (
+        !quickComposerDialogOpen &&
+        !window.isDestroyed() &&
+        window.isVisible() &&
+        !window.isFocused()
+      ) {
+        requestQuickComposerDismiss(window);
+      }
+    }, 0);
+  });
+  window.webContents.on("before-input-event", (event, input) => {
+    if (input.key !== "Escape" || input.type !== "keyDown") return;
+    event.preventDefault();
+    requestQuickComposerDismiss(window);
+  });
+  return window;
+}
+
+function toggleQuickComposerWindow(): void {
+  if (quickComposerWindow && !quickComposerWindow.isDestroyed()) {
+    if (quickComposerWindow.isVisible()) {
+      requestQuickComposerDismiss(quickComposerWindow);
+    } else {
+      showQuickComposerWindow(quickComposerWindow);
+    }
+    return;
+  }
+  quickComposerWindow = createQuickComposerAppWindow();
+}
+
+function forwardAgentStatusEventToQuickComposer(event: SupervisorEvent): void {
+  if (!isAgentStatusSupervisorEvent(event)) return;
+  // The overlay refetches agent statuses on focus, so a hidden window has no use
+  // for the live stream — skip the cross-process send until it's actually shown.
+  if (
+    quickComposerWindow &&
+    !quickComposerWindow.isDestroyed() &&
+    quickComposerWindow.isVisible()
+  ) {
+    quickComposerWindow.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
+  }
+}
+
+function createMainAppWindow(showOnReady = true): BrowserWindow {
+  const windowChrome = resolveWindowChromeOptions();
+  const window = createMainWindow({
+    ...commonAppWindowOptions(),
+    windowChromeHeight: WINDOW_CHROME_HEIGHT,
+    appearance: windowChrome.appearance,
+    sidebarTranslucency: windowChrome.sidebarTranslucency,
+    showOnReady,
+    onClosed: () => {
+      if (mainWindow === window) mainWindow = null;
+      mainRendererReady = false;
+    },
+    onClose: handleMainWindowClose,
+    onRendererProcessGone: (details) => {
+      mainRendererReady = false;
+      captureMainException(new Error(`Renderer process gone: ${details.reason}`), {
+        "lightcode.feature_area": "renderer",
+        "lightcode.process": "renderer",
+      });
+    },
+  });
+  window.webContents.on("did-start-loading", () => {
+    if (mainWindow === window) mainRendererReady = false;
+  });
+  return window;
 }
 
 function focusBrowserExtractWindow(): void {
@@ -292,11 +493,19 @@ registerPickerProtocolScheme();
 if (!hasSingleInstanceLock) {
   app.quit();
 } else {
-  app.on("second-instance", () => {
-    if (!mainWindow) {
+  app.on("second-instance", (_event, commandLine) => {
+    if (!app.isReady()) return;
+    if (
+      lightcodePaths &&
+      shouldStartMinimized(
+        readSharedSettingsFile(lightcodePaths.settingsPath),
+        commandLine,
+        process.platform,
+      )
+    ) {
       return;
     }
-    showAndFocusWindow(mainWindow);
+    showAndFocusWindow(ensureMainWindow());
   });
 
   void app
@@ -311,6 +520,13 @@ if (!hasSingleInstanceLock) {
       lightcodePaths = prepareLightcodeDataRoot(
         baseDirOverride ??
           (isDev ? join(homedir(), ".lightcode-dev") : resolveLightcodeBaseDir(channel)),
+      );
+      const initialSettings = readSharedSettingsFile(lightcodePaths.settingsPath);
+      syncStartupSettings(initialSettings);
+      const showMainWindowOnReady = !shouldStartMinimized(
+        initialSettings,
+        process.argv,
+        process.platform,
       );
       let jobObjectReady: Promise<void> = Promise.resolve();
       if (process.platform === "win32") {
@@ -398,6 +614,7 @@ if (!hasSingleInstanceLock) {
           handleSupervisorEventForSleep(event);
           remoteAccessController?.handleSupervisorEvent(event);
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
+          forwardAgentStatusEventToQuickComposer(event);
         },
         onReset: () => {
           workingThreads.clear();
@@ -431,7 +648,7 @@ if (!hasSingleInstanceLock) {
       });
       chromeMcpIngress = new ChromeMcpIngress();
       chromeMcpIngress.setConnectionAccessor(() => chromeBridgeServer?.getConnection() ?? null);
-      primeBrowserAllowFlags();
+      primeBrowserAllowFlags(initialSettings);
       const mcpInfoReady = browserMcpIngress.start().catch((err) => {
         console.error("[lightcode] browser MCP ingress failed to start:", err);
         return null;
@@ -493,6 +710,25 @@ if (!hasSingleInstanceLock) {
       });
       remoteAccessController = controller;
 
+      quickComposerShortcutManager = new QuickComposerShortcutManager(
+        globalShortcut,
+        process.platform,
+        toggleQuickComposerWindow,
+        (accelerator) => {
+          tray?.setQuickComposerShortcut(accelerator);
+          if (accelerator) {
+            console.log(`[lightcode] registered ${accelerator} for quick composer`);
+          }
+        },
+      );
+      try {
+        quickComposerShortcutManager.apply(
+          readKeybindingsFile(requireLightcodePaths().keybindingsPath).file,
+        );
+      } catch (error) {
+        console.warn("[lightcode] failed to register the quick composer shortcut", error);
+      }
+
       registerIpcHandlers({
         localHandlers: createLocalIpcHandlers({
           getMainWindow: () => mainWindow,
@@ -507,7 +743,9 @@ if (!hasSingleInstanceLock) {
           requireLightcodePaths,
           updatePowerSaveBlocker,
           autoUpdater: autoUpdaterController,
-          onSharedSettingsChanged: primeBrowserAllowFlags,
+          onSharedSettingsChanged: handleSharedSettingsChanged,
+          onKeybindingsChanged: (file) => quickComposerShortcutManager?.apply(file),
+          setGlobalShortcutsSuspended: (suspended) => globalShortcut.setSuspended(suspended),
           onRemoteGitSummaries: controller.updateGitSummaries,
           extractBrowserToWindow,
           injectBrowserToMain,
@@ -520,49 +758,53 @@ if (!hasSingleInstanceLock) {
         callSupervisor: (name, payload) => supervisorClient.call(name, payload),
       });
 
-      const windowChrome = resolveWindowChromeOptions();
-      mainWindow = createMainWindow({
-        title: getAppName(channel, isDev),
-        isDev,
-        channel,
-        preloadPath: join(__dirname, "preload.cjs"),
-        rendererHtmlPath: join(__dirname, "../renderer/index.html"),
-        appVersion: app.getVersion(),
-        posthogEnableDev,
-        posthogEnabled,
-        posthogHost,
-        posthogKey,
-        sentryEnabled,
-        windowChromeHeight: WINDOW_CHROME_HEIGHT,
-        browserUserAgent,
-        appearance: windowChrome.appearance,
-        sidebarTranslucency: windowChrome.sidebarTranslucency,
-        ...(process.env.VITE_DEV_SERVER_URL
-          ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }
-          : {}),
-        onClosed: () => {
-          mainWindow = null;
-        },
-        onClose: handleMainWindowClose,
-        onRendererProcessGone: (details) => {
-          captureMainException(new Error(`Renderer process gone: ${details.reason}`), {
-            "lightcode.feature_area": "renderer",
-            "lightcode.process": "renderer",
-          });
-        },
+      ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerSubmit, (event, payload: unknown) => {
+        const overlay = quickComposerWindowFor(event);
+        if (!overlay) return;
+        const submission = quickComposerSubmissionSchema.parse(payload);
+        pendingQuickComposerSubmissions.push(submission);
+        revealMainAfterQuickComposerDismiss = true;
+        ensureMainWindow(false);
+        flushQuickComposerSubmissions();
+        if (quickComposerDismissTimer) clearTimeout(quickComposerDismissTimer);
+        quickComposerDismissTimer = setTimeout(() => finishQuickComposerDismiss(overlay), 800);
+      });
+      ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerDismiss, (event) => {
+        const overlay = quickComposerWindowFor(event);
+        if (overlay) finishQuickComposerDismiss(overlay);
+      });
+      ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerPickFiles, async (event) => {
+        const overlay = quickComposerWindowFor(event);
+        if (!overlay) return null;
+        quickComposerDialogOpen = true;
+        const wasVisible = overlay.isVisible();
+        try {
+          return await showAddFilesDialog(overlay);
+        } finally {
+          quickComposerDialogOpen = false;
+          if (wasVisible && !overlay.isDestroyed()) showQuickComposerWindow(overlay);
+        }
+      });
+      ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerMainReady, (event) => {
+        const window = BrowserWindow.fromWebContents(event.sender);
+        if (!window || window !== mainWindow || window.isDestroyed()) return;
+        mainRendererReady = true;
+        flushQuickComposerSubmissions();
       });
 
-      browserPanelManager.bindHost(mainWindow);
+      const initialMainWindow = ensureMainWindow(showMainWindowOnReady);
 
       tray = createTray({
-        window: mainWindow,
         channel,
         appName: getAppName(channel, isDev),
+        onShow: () => showAndFocusWindow(ensureMainWindow()),
+        onQuickComposer: toggleQuickComposerWindow,
         onQuit: () => {
           isQuitting = true;
           app.quit();
         },
       });
+      tray.setQuickComposerShortcut(quickComposerShortcutManager.active[0] ?? null);
 
       await jobObjectReady;
 
@@ -579,7 +821,7 @@ if (!hasSingleInstanceLock) {
 
       void controller.startIfEnabled();
 
-      mainWindow.once("ready-to-show", () => {
+      initialMainWindow.once("ready-to-show", () => {
         setTimeout(() => {
           const paths = requireLightcodePaths();
           cleanupOrphanedAttachments(
@@ -608,49 +850,19 @@ if (!hasSingleInstanceLock) {
 
       app.on("activate", () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          if (!mainWindow.isVisible()) {
-            mainWindow.show();
-          }
-          mainWindow.focus();
+          showAndFocusWindow(mainWindow);
           return;
         }
-        if (BrowserWindow.getAllWindows().length === 0) {
-          const reopenChrome = resolveWindowChromeOptions();
-          mainWindow = createMainWindow({
-            title: getAppName(channel, isDev),
-            isDev,
-            channel,
-            preloadPath: join(__dirname, "preload.cjs"),
-            rendererHtmlPath: join(__dirname, "../renderer/index.html"),
-            appVersion: app.getVersion(),
-            posthogEnableDev,
-            posthogEnabled,
-            posthogHost,
-            posthogKey,
-            sentryEnabled,
-            windowChromeHeight: WINDOW_CHROME_HEIGHT,
-            browserUserAgent,
-            appearance: reopenChrome.appearance,
-            sidebarTranslucency: reopenChrome.sidebarTranslucency,
-            ...(process.env.VITE_DEV_SERVER_URL
-              ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }
-              : {}),
-            onClosed: () => {
-              mainWindow = null;
-            },
-            onClose: handleMainWindowClose,
-            onRendererProcessGone: (details) => {
-              captureMainException(new Error(`Renderer process gone: ${details.reason}`), {
-                "lightcode.feature_area": "renderer",
-                "lightcode.process": "renderer",
-              });
-            },
-          });
-        }
+        ensureMainWindow();
       });
 
       app.on("before-quit", () => {
         isQuitting = true;
+        quickComposerShortcutManager?.dispose();
+        quickComposerShortcutManager = null;
+        if (quickComposerDismissTimer) clearTimeout(quickComposerDismissTimer);
+        quickComposerDismissTimer = null;
+        pendingQuickComposerSubmissions.length = 0;
         supervisorClient.dispose();
         windowsJobObjectManager?.dispose();
         windowsJobObjectManager = null;
@@ -668,6 +880,8 @@ if (!hasSingleInstanceLock) {
         void sshConnectionManager.dispose();
         browserExtractWindow?.close();
         browserExtractWindow = null;
+        quickComposerWindow?.close();
+        quickComposerWindow = null;
         browserPanelManager?.dispose();
         browserPanelManager = null;
         sleepInhibitor.dispose();
@@ -687,10 +901,6 @@ app.on("will-quit", () => {
 });
 
 app.on("window-all-closed", () => {
-  // macOS keeps the app running; on Windows/Linux, exit only when close-to-tray
-  // is disabled. When close-to-tray is enabled, the window is hidden (not
-  // destroyed) on close, so this handler typically won't fire — but if all
-  // windows are destroyed for another reason, fall through to quit.
-  if (process.platform === "darwin") return;
+  if (process.platform === "darwin" || tray?.available) return;
   app.quit();
 });

@@ -239,6 +239,10 @@ export const sharedSettingsSchema = z.object({
   terminalPanelFontSize: z.number().int().min(8).max(20),
   /** Prevent OS sleep while any thread is actively working. */
   preventSleepWhileWorking: z.boolean(),
+  /** Register Poracode to launch automatically when the user signs in to Windows. */
+  launchAtStartup: z.boolean(),
+  /** Keep the main window hidden when Poracode is launched automatically at sign-in. */
+  startMinimized: z.boolean(),
   /**
    * When true, closing the main window hides Poracode to the system tray
    * instead of quitting. The tray icon's Quit action (or Quit from the app
@@ -475,6 +479,8 @@ export const defaultSharedSettings: SharedSettings = {
   guiChatFontSize: 13,
   terminalPanelFontSize: 12,
   preventSleepWhileWorking: true,
+  launchAtStartup: true,
+  startMinimized: true,
   closeToTray: true,
   remoteAccessEnabled: false,
   remoteAccessTailscaleHttps: false,

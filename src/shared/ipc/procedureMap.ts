@@ -73,6 +73,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "getHomeScopeLocation",
   "getKeybindings",
   "setKeybindings",
+  "setGlobalShortcutsSuspended",
   "getRemoteAccessPairing",
   "setRemoteAccessEnabled",
   "revokeRemoteAccessSession",
