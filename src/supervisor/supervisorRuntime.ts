@@ -267,6 +267,8 @@ export class SupervisorRuntime {
       host: {
         getParentContext: (threadId) =>
           this.threadSessionManager.getSubagentParentContext(threadId),
+        resolveParentMcpAccess: (threadId, identity) =>
+          this.threadSessionManager.resolveSubagentParentMcpAccess(threadId, identity),
         appendRuntimeEvent: (parentThreadId, event) =>
           this.threadSessionManager.appendSubagentRuntimeEvent(parentThreadId, event),
       },

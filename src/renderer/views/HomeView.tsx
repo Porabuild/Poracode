@@ -5,7 +5,7 @@ import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { openThread } from "@/renderer/actions/threadActions";
-import { ThreadProviderIcon } from "@/renderer/components/providers";
+import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 
 export function HomeView() {

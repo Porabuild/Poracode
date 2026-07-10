@@ -6,7 +6,7 @@ import type { AgentStatus, Project } from "@/shared/contracts";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { openSettings } from "@/renderer/actions/panelActions";
-import { Button } from "@/renderer/components/common";
+import { Button } from "@/renderer/components/common/Button";
 import {
   agentAuthTarget,
   currentWslDistros,

@@ -7204,6 +7204,7 @@ msgstr "테마 및 채팅 글꼴 크기"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "생각 중"
@@ -7286,6 +7287,7 @@ msgid "This worktree has local changes. Poracode can temporarily stash them, pul
 msgstr "이 작업 트리에는 로컬 변경 사항이 있습니다. Poracode는 일시적으로 이를 숨기고 {0}에서 가져온 다음 변경 사항을 다시 적용할 수 있습니다."
 
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 msgid "Thought"
 msgstr "생각"
 
@@ -8303,3 +8305,11 @@ msgstr "WSL 기본 폴더"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "이름"
+
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Zoom in"
+msgstr "확대"
+
+#: src/renderer/components/composer/ImageLightbox.tsx
+msgid "Zoom out"
+msgstr "축소"

@@ -1,11 +1,63 @@
-import { resolve } from "node:path";
-import { defineConfig, loadEnv, type Plugin } from "vite";
+import { createReadStream, existsSync, readdirSync, readFileSync } from "node:fs";
+import { basename, extname, join, resolve } from "node:path";
+import { defineConfig, loadEnv, normalizePath, type Plugin } from "vite";
 import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
-import { lingui } from "@lingui/vite-plugin";
+import { lingui, linguiTransformerBabelPreset } from "@lingui/vite-plugin";
 
 const compilerPreset = reactCompilerPreset();
+const linguiPreset = linguiTransformerBabelPreset();
+const CLIENT_SOURCE_RE = /[\\/]src[\\/](?:renderer|mobile)[\\/].*\.[tj]sx?(?:$|\?)/;
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
+const MATERIAL_ICON_DIR = resolve(__dirname, "node_modules/material-icon-theme/icons");
+const MATERIAL_ICON_ASSET_PREFIX = "/assets/material-icons/";
+const MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(__dirname, ".lightcode/worktrees"))}/**`;
+const DESKTOP_OPTIMIZED_DEPS = [
+  "@chenglou/pretext",
+  "@dnd-kit/dom",
+  "@dnd-kit/react",
+  "@dnd-kit/react/sortable",
+  "@git-diff-view/react",
+  "@heroui/react",
+  "@lingui/core",
+  "@lingui/core/macro",
+  "@lingui/react",
+  "@lingui/react/macro",
+  "@monaco-editor/react",
+  "@sentry/electron/renderer",
+  "@tanstack/react-virtual",
+  "@tiptap/extensions",
+  "@tiptap/react",
+  "@tiptap/react/menus",
+  "@tiptap/starter-kit",
+  "@xterm/addon-clipboard",
+  "@xterm/addon-fit",
+  "@xterm/addon-image",
+  "@xterm/addon-search",
+  "@xterm/addon-unicode11",
+  "@xterm/addon-webgl",
+  "@xterm/xterm",
+  "lucide-react",
+  "qrcode",
+  "react",
+  "react-dom",
+  "react-dom/client",
+  "react-markdown",
+  "react/compiler-runtime",
+  "react/jsx-dev-runtime",
+  "react/jsx-runtime",
+  "rehype-raw",
+  "remark-gfm",
+  "shiki",
+  "streamdown",
+  "style-to-js",
+  "use-sync-external-store",
+  "zod",
+  "zustand",
+  "zustand/middleware",
+  "zustand/react/shallow",
+  "zustand/shallow",
+] as const;
 
 function readEnvValue(env: Record<string, string>, key: string): string {
   return (env[key] ?? process.env[key] ?? "").trim();
@@ -101,6 +153,43 @@ function resizeObserverLoopErrorFilter(): Plugin {
   };
 }
 
+function rendererBootstrapTiming(): Plugin {
+  const watchedPaths = new Set([
+    "/",
+    "/src/renderer/main.tsx",
+    "/src/renderer/tailwind.css",
+    "/src/renderer/styles.css",
+    "/src/renderer/app.tsx",
+    "/src/renderer/components/providers/bootstrap.ts",
+  ]);
+
+  return {
+    name: "lightcode:renderer-bootstrap-timing",
+    apply: "serve",
+    configureServer(server) {
+      const serverStartedAt = performance.now();
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url ?? "").split("?", 1)[0] ?? "";
+        if (!watchedPaths.has(path)) {
+          next();
+          return;
+        }
+
+        const requestStartedAt = performance.now();
+        const serverElapsed = Math.round(requestStartedAt - serverStartedAt);
+        console.log(`[renderer-bootstrap] server +${serverElapsed}ms request started ${path}`);
+        res.once("finish", () => {
+          const duration = Math.round(performance.now() - requestStartedAt);
+          console.log(
+            `[renderer-bootstrap] server +${Math.round(performance.now() - serverStartedAt)}ms request finished ${path} status=${res.statusCode} duration=${duration}ms`,
+          );
+        });
+        next();
+      });
+    },
+  };
+}
+
 function mobileDevIndex(): Plugin {
   return {
     name: "lightcode:mobile-dev-index",
@@ -119,21 +208,83 @@ function mobileDevIndex(): Plugin {
   };
 }
 
+function materialIconAssets(): Plugin[] {
+  return [
+    {
+      name: "lightcode:material-icon-assets-dev",
+      apply: "serve",
+      configureServer(server) {
+        server.middlewares.use(MATERIAL_ICON_ASSET_PREFIX, (req, res, next) => {
+          let requested: string;
+          try {
+            requested = decodeURIComponent((req.url ?? "").split("?", 1)[0] ?? "").replace(
+              /^\/+/,
+              "",
+            );
+          } catch {
+            res.statusCode = 400;
+            res.end();
+            return;
+          }
+          if (
+            !requested ||
+            basename(requested) !== requested ||
+            extname(requested).toLowerCase() !== ".svg"
+          ) {
+            res.statusCode = 404;
+            res.end();
+            return;
+          }
+
+          const iconPath = join(MATERIAL_ICON_DIR, requested);
+          if (!existsSync(iconPath)) {
+            res.statusCode = 404;
+            res.end();
+            return;
+          }
+
+          res.setHeader("content-type", "image/svg+xml; charset=utf-8");
+          createReadStream(iconPath).on("error", next).pipe(res);
+        });
+      },
+    },
+    {
+      name: "lightcode:material-icon-assets-build",
+      apply: "build",
+      buildStart() {
+        for (const entry of readdirSync(MATERIAL_ICON_DIR, { withFileTypes: true })) {
+          if (!entry.isFile() || extname(entry.name).toLowerCase() !== ".svg") continue;
+          this.emitFile({
+            type: "asset",
+            fileName: `${MATERIAL_ICON_ASSET_PREFIX.slice(1)}${entry.name}`,
+            source: readFileSync(join(MATERIAL_ICON_DIR, entry.name)),
+          });
+        }
+      },
+    },
+  ];
+}
+
 export default defineConfig(({ mode }) => ({
   plugins: [
     resizeObserverLoopErrorFilter(),
+    rendererBootstrapTiming(),
     mobileDevIndex(),
     reactDevtoolsStandalone(),
     react(),
-    // The Lingui macro must expand BEFORE the React Compiler. Babel applies
-    // `plugins` ahead of `presets`, so listing the macro as a plugin (with the
-    // compiler as a preset) guarantees that order within this single Babel pass.
+    // Babel applies presets right-to-left, so Lingui expands before the React
+    // Compiler. Keeping both as filtered Rolldown presets also lets non-React,
+    // non-Lingui modules bypass Babel entirely during dev startup.
     // We use the Babel macro (not the SWC plugin) because this project transforms
     // with Babel, sidestepping the SWC-plugin/runtime version-matching pitfalls.
-    babel({ plugins: ["@lingui/babel-plugin-lingui-macro"], presets: [compilerPreset] }),
+    babel({
+      include: CLIENT_SOURCE_RE,
+      presets: [compilerPreset, linguiPreset],
+    }),
     // Compiles `.po` catalog imports into runtime message modules on the fly,
     // so we never need a separate `lingui compile` step for the app build.
     lingui(),
+    ...materialIconAssets(),
   ],
   base: "./",
   define: {
@@ -146,9 +297,18 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     tsconfigPaths: true,
     alias: {
-      "~file-icons": resolve(__dirname, "node_modules/material-icon-theme/icons"),
+      "~file-icons": MATERIAL_ICON_DIR,
     },
   },
+  optimizeDeps: mobileOnly
+    ? { entries: ["mobile.html"] }
+    : {
+        // The full desktop graph includes intentionally deferred feature
+        // chunks. Re-crawling it on every Vite restart blocks the request queue
+        // even when the optimized dependency cache is already valid.
+        noDiscovery: true,
+        include: [...DESKTOP_OPTIMIZED_DEPS],
+      },
   build: {
     outDir: mobileOnly ? "dist/mobile" : "dist/renderer",
     emptyOutDir: true,
@@ -232,6 +392,7 @@ export default defineConfig(({ mode }) => ({
     forwardConsole: true,
     watch: {
       ignored: [
+        MANAGED_WORKTREES_GLOB,
         "**/ios/App/App/public/**",
         "**/ios/DerivedData/**",
         "**/ios/capacitor-cordova-ios-plugins/**",

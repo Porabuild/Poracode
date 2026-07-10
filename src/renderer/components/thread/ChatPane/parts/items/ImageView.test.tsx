@@ -81,7 +81,8 @@ describe("ImageView", () => {
     expect(img.getAttribute("width")).toBe("1");
     expect(img.getAttribute("height")).toBe("1");
     expect(img.getAttribute("loading")).toBeNull();
-    expect(img).toHaveClass("max-h-[min(22rem,45vh)]", "max-w-full", "object-contain");
+    expect(img).toHaveClass("max-h-[min(18rem,40vh)]", "max-w-full", "object-contain");
+    expect(img.closest(".surface")).toHaveClass("px-3", "py-2");
     // The prompt lives only on the <img> alt for a11y — it is not written as a
     // visible caption (the picture may be shared, not "generated").
     expect(screen.queryByText("A red square")).toBeNull();
@@ -103,6 +104,44 @@ describe("ImageView", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Open image preview" }));
     expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Zoom out" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    expect(document.querySelector(".lightcode-image-lightbox__image")).toHaveStyle({
+      transform: "translate3d(0px, 0px, 0) scale(1.5)",
+    });
+  });
+
+  it("pans an enlarged lightbox image within the visible stage", () => {
+    render(
+      <AppProvider>
+        <ImageView item={imageItem({ name: "imageGeneration", result: PNG_BASE64 })} />
+        <ImageLightboxHost />
+      </AppProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open image preview" }));
+    const stage = document.querySelector(".lightcode-image-lightbox__stage") as HTMLDivElement;
+    const image = document.querySelector(".lightcode-image-lightbox__image") as HTMLImageElement;
+    Object.defineProperties(stage, {
+      clientWidth: { value: 200 },
+      clientHeight: { value: 100 },
+    });
+    Object.defineProperties(image, {
+      clientWidth: { value: 200 },
+      clientHeight: { value: 100 },
+      setPointerCapture: { value: vi.fn<(pointerId: number) => void>() },
+      hasPointerCapture: { value: vi.fn<(pointerId: number) => boolean>(() => true) },
+      releasePointerCapture: { value: vi.fn<(pointerId: number) => void>() },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
+    fireEvent.pointerDown(image, { pointerId: 1, button: 0, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(image, { pointerId: 1, clientX: 100, clientY: 100 });
+    fireEvent.pointerUp(image, { pointerId: 1 });
+
+    expect(image).toHaveStyle({
+      transform: "translate3d(50px, 25px, 0) scale(1.5)",
+    });
   });
 
   it("falls back to the tool-call row when the result is not an image", () => {

@@ -9,6 +9,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
   type CompletedTurnRecord,
+  type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import {
@@ -19,6 +20,7 @@ import {
 import { formatElapsed } from "../formatElapsed";
 import { useChatPaneActions } from "../chatPaneActionsContext";
 import {
+  growingStreamLength,
   selectCompletedTurnForEntry,
   selectRuntimeItemById,
   type ChatTimelineEntry,
@@ -69,8 +71,8 @@ interface MessageListProps {
 // not expose the spacer before rows render.
 const CHAT_TRANSCRIPT_OVERSCAN = 16;
 const DEFAULT_ROW_ESTIMATE_PX = 96;
-const INLINE_IMAGE_ROW_ESTIMATE_PX = 384;
-const ASSISTANT_IMAGE_ROW_ESTIMATE_PX = 448;
+const INLINE_IMAGE_ROW_ESTIMATE_PX = 320;
+const ASSISTANT_IMAGE_ROW_ESTIMATE_PX = 384;
 const SKIP_REVERT_CONFIRM_PREF_KEY = "lightcode-chat-checkpoint-revert-skip-confirm";
 // How long the iOS scroll-compensation flush waits for momentum to idle before
 // applying the buffered delta. Matches @tanstack/virtual-core's
@@ -521,29 +523,26 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
     });
   }, [index, measureElement]);
   useLayoutEffect(() => {
-    if (!isLastEntry || entry.kind !== "item") return;
+    if (!isLastEntry) return;
     return useAppStore.subscribe(
       (state) => {
-        const item = state.runtimeItemsByIdByThread[threadId]?.[entry.id];
-        if (!item || item.state === "completed") return null;
-        switch (item.type) {
-          case "assistant_message":
-            return `${item.type}:${item.state}:${item.streams.assistant_text?.length ?? 0}`;
-          case "reasoning":
-            return `${item.type}:${item.state}:${item.streams.reasoning_text?.length ?? 0}`;
-          case "command_execution":
-            return `${item.type}:${item.state}:${item.streams.command_output?.length ?? 0}`;
-          case "file_change":
-            return `${item.type}:${item.state}:${item.streams.file_change_output?.length ?? 0}`;
-          default:
-            return `${item.type}:${item.state}`;
+        const items = state.runtimeItemsByIdByThread[threadId];
+        if (entry.kind === "item") return liveStreamMeasureToken(items?.[entry.id]);
+        // A live tool-call group can hold a streaming row (e.g. reasoning
+        // expanded while the model thinks) that grows the virtualized row.
+        // Scan from the tail — the streaming row is the newest, so the loop
+        // short-circuits without walking the completed rows above it.
+        for (let i = entry.itemIds.length - 1; i >= 0; i -= 1) {
+          const token = liveStreamMeasureToken(items?.[entry.itemIds[i]!]);
+          if (token !== null) return token;
         }
+        return null;
       },
       (token) => {
         if (token !== null) scheduleLiveMeasure();
       },
     );
-  }, [entry.id, entry.kind, isLastEntry, scheduleLiveMeasure, threadId]);
+  }, [entry, isLastEntry, scheduleLiveMeasure, threadId]);
   useLayoutEffect(
     () => () => {
       if (liveMeasureRafRef.current !== null) {
@@ -641,6 +640,16 @@ function isLastTimelineEntryAssistantMessage(
   const lastEntry = entries[entries.length - 1];
   if (!lastEntry || lastEntry.kind !== "item") return false;
   return state.runtimeItemsByIdByThread[threadId]?.[lastEntry.id]?.type === "assistant_message";
+}
+
+/**
+ * Change token for an in-flight item whose streamed content grows its row.
+ * Includes the item id so back-to-back streaming items inside one group still
+ * produce distinct tokens.
+ */
+function liveStreamMeasureToken(item: RuntimeChatItem | undefined): string | null {
+  if (!item || item.state === "completed") return null;
+  return `${item.id}:${item.state}:${growingStreamLength(item)}`;
 }
 
 function estimateTimelineEntrySize(entry: ChatTimelineEntry | undefined, threadId: string): number {

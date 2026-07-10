@@ -133,7 +133,7 @@ describe("ItemMarkdownInner", () => {
     );
 
     const img = screen.getByAltText("Tall screenshot");
-    expect(img).toHaveClass("max-h-[min(22rem,45vh)]", "max-w-full", "object-contain");
+    expect(img).toHaveClass("max-h-[min(18rem,40vh)]", "max-w-full", "object-contain");
     expect(img).toHaveAttribute("decoding", "async");
     expect(img).toHaveAttribute("draggable", "false");
   });

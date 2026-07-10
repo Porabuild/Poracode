@@ -7,7 +7,7 @@ import type {
   ThreadContextUsage,
 } from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
-import { capabilitiesForPresentation } from "./threadComposerOptions";
+import { capabilitiesForPresentation } from "@/shared/agentSelection";
 import { formatTokenCount } from "./formatTokenCount";
 
 export interface ThreadContextUsageSummary {

@@ -13,7 +13,8 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import { Button, PixelLoader } from "@/renderer/components/common";
+import { Button } from "@/renderer/components/common/Button";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { readBridge } from "@/renderer/bridge";
 import type { ComposerControl } from "./ThreadComposer";
@@ -23,11 +24,18 @@ import {
   buildModelPickerControls,
   buildProviderModelMenuProviders,
 } from "./buildModelPickerControls";
-import { AttachmentBar, MentionInput, openAttachmentLightbox, useAttachments } from "../composer";
-import type { MentionInputHandle } from "../composer";
+import { AttachmentBar } from "../composer/AttachmentBar";
+import { openAttachmentLightbox } from "../composer/ImageLightbox";
+import { MentionInput, type MentionInputHandle } from "../composer/MentionInput";
+import { useAttachments } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
-import { capabilitiesForPresentation, filterHiddenModels } from "./threadComposerOptions";
+import {
+  capabilitiesForPresentation,
+  filterHiddenModels,
+  resolveModelSelection,
+  resolveReasoningSelection,
+} from "@/shared/agentSelection";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -59,24 +67,6 @@ function resolveInitialPresentationMode(
   if (supported.includes(sourceMode)) return sourceMode;
   if (supported.includes("gui")) return "gui";
   return supported[0] ?? agent.capabilities.presentationMode ?? "terminal";
-}
-
-function resolveModelValue(capabilities: AgentCapability, preferred?: string): string {
-  const models = capabilities.models;
-  return preferred && models.some((m) => m.id === preferred) ? preferred : (models[0]?.id ?? "");
-}
-
-function resolveEffortValue(
-  capabilities: AgentCapability,
-  model: string,
-  preferred?: string,
-): string {
-  const efforts = capabilities.modelEfforts?.[model] ?? capabilities.efforts ?? [];
-  if (preferred && efforts.includes(preferred)) return preferred;
-  if (capabilities.defaultEffort && efforts.includes(capabilities.defaultEffort)) {
-    return capabilities.defaultEffort;
-  }
-  return efforts[0] ?? "";
 }
 
 function resolveContextSizeValue(
@@ -119,8 +109,8 @@ function resolveDefaultConfig(
   preferred?: Partial<ThreadConfig>,
 ): ThreadConfig {
   const capabilities = capabilitiesForPresentation(agent.capabilities, presentationMode);
-  const model = resolveModelValue(capabilities, preferred?.model);
-  const effort = resolveEffortValue(capabilities, model, preferred?.effort);
+  const model = resolveModelSelection(capabilities, preferred?.model);
+  const effort = resolveReasoningSelection(capabilities, model, preferred?.effort);
   const contextSize = resolveContextSizeValue(capabilities, model, preferred?.contextSize);
   const fast = supportsUsableFastMode(capabilities, model) ? preferred?.fast === true : false;
   const thinking = capabilities.thinkingModels?.includes(model)

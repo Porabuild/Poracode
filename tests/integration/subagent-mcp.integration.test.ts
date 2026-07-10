@@ -60,10 +60,19 @@ describe("subagents MCP (live)", () => {
     const spawnable: SpawnableAgent[] = claude
       ? [
           {
-            kind: claude.kind,
-            label: claude.label,
-            models: claude.capabilities.models.map((m) => ({ value: m.id, label: m.label })),
+            provider: { value: claude.kind, label: claude.label },
+            models: claude.capabilities.models.map((m) => ({
+              value: m.id,
+              label: m.label,
+              reasoning: { values: [] },
+            })),
+            reasoningOptions: [],
             defaultModel: claude.capabilities.models[0]?.id ?? "haiku",
+            permissions: {
+              options: [{ value: "full-access", label: "Full access" }],
+              default: "full-access",
+            },
+            execution: "structured",
           },
         ]
       : [];
@@ -139,12 +148,16 @@ describe("subagents MCP (live)", () => {
 
   it("lists agents with models for routing", async () => {
     const result = await callTool("list_agents", {});
-    const agents = JSON.parse(result.content[0]!.text) as SpawnableAgent[];
+    const agents = JSON.parse(result.content[0]!.text) as Array<{ id: string; modelCount: number }>;
     if (!claude) return; // nothing spawnable on this host
-    const entry = agents.find((a) => a.kind === "claude");
+    const entry = agents.find((a) => a.id === "claude");
     expect(entry).toBeDefined();
-    expect(entry!.models.length).toBeGreaterThan(0);
-    expect(entry!.defaultModel).toBeDefined();
+    expect(entry!.modelCount).toBeGreaterThan(0);
+
+    const detail = await callTool("get_agent", { id: "claude" });
+    const provider = JSON.parse(detail.content[0]!.text) as SpawnableAgent;
+    expect(provider.models.length).toBeGreaterThan(0);
+    expect(provider.defaultModel).toBeDefined();
   });
 
   it("run_agent completes a real child turn and bridges events to the parent", async () => {
@@ -160,7 +173,7 @@ describe("subagents MCP (live)", () => {
 
     parentEvents.length = 0;
     const result = await callTool("run_agent", {
-      agent: "claude",
+      provider: "claude",
       model: "haiku",
       name: "dogfood",
       prompt:
@@ -215,7 +228,7 @@ describe("subagents MCP (live)", () => {
     if (!status?.installed || status.authState !== "authenticated") return;
 
     const spawned = await callTool("spawn_agent", {
-      agent: "claude",
+      provider: "claude",
       model: "haiku",
       prompt: "Count slowly from 1 to 50, one number per line.",
     });

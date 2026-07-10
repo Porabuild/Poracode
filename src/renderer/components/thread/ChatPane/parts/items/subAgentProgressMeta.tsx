@@ -40,6 +40,7 @@ export function SubAgentProgressMeta({
   liveLabel,
   stepCount,
   includeStepCount = false,
+  leadingSeparator = false,
   showLoader = false,
   className = "",
   liveMaxClassName = "max-w-[24ch]",
@@ -49,6 +50,7 @@ export function SubAgentProgressMeta({
   liveLabel?: string | undefined;
   stepCount?: number | undefined;
   includeStepCount?: boolean;
+  leadingSeparator?: boolean;
   showLoader?: boolean;
   className?: string;
   liveMaxClassName?: string;
@@ -58,6 +60,7 @@ export function SubAgentProgressMeta({
   if (parts.length === 0 && !showLoader) return null;
   return (
     <span className={`inline-flex min-w-0 items-center gap-1.5 tabular-nums ${className}`}>
+      {leadingSeparator && parts.length > 0 ? <span className="shrink-0 opacity-60">·</span> : null}
       {parts.map((part, index) => (
         <Fragment key={`${part.kind}-${index}`}>
           {index > 0 ? <span className="shrink-0 opacity-60">·</span> : null}

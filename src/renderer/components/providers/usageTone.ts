@@ -1,4 +1,4 @@
-import { usageTone } from "@lightcode/agents-usage";
+import { usageTone } from "@lightcode/agents-usage/formatters";
 
 /**
  * Map a utilization percentage to a theme color. The scale runs white → yellow

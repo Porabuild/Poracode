@@ -2,7 +2,7 @@ import { Component, useState, type ErrorInfo, type ReactNode } from "react";
 import { Copy, RefreshCw } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { Button } from "./components/common";
+import { Button } from "./components/common/Button";
 import { captureRendererException } from "./diagnostics/sentry";
 import { i18n } from "./i18n/i18n";
 

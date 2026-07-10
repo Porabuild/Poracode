@@ -1,4 +1,13 @@
-import type { ProjectLocation, RuntimeEvent, ThreadConfig } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  ProjectLocation,
+  RuntimeEvent,
+  ThreadConfig,
+} from "@/shared/contracts";
+import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
+import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
+import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 
 /** Terminal states a subagent run can settle into. */
 export type SubagentRunStatus = "running" | "completed" | "failed" | "cancelled";
@@ -15,13 +24,16 @@ export interface SpawnableAgentModel {
   value: string;
   label: string;
   tier?: ModelTier;
+  reasoning: {
+    values: string[];
+    default?: string;
+  };
+  fast?: {
+    available: boolean;
+    disabledReason?: string;
+  };
 }
 
-/**
- * A connected agent the caller can spawn as a subagent. Sourced from the agent
- * status service + adapter registry, filtered to installed + authenticated
- * providers whose adapter implements `createStructuredSession`.
- */
 /**
  * How a spawnable agent executes as a child:
  * - `structured`: a full provider structured (GUI) runtime session — supports
@@ -48,30 +60,82 @@ export function resolveSubagentExecution(adapter: {
 }
 
 /**
- * Build a child thread config that inherits the parent's approval/sandbox
- * posture but NEVER carries `subagentMcp`/`browserMcp` — the recursion guard so
- * children can't spawn grandchildren. Shared by both subagent lanes (ephemeral
- * runs and orchestrator threads) so the inherited posture can't drift between them.
+ * Build an unrestricted child config using the target provider's strongest
+ * advertised policy, falling back to its declared bypass posture when the
+ * probe exposes no choices. Subagents must not inherit a potentially
+ * incompatible or supervised parent policy. Browser, Computer Use, and Chrome
+ * MCP choices are inherited; Subagents MCP is deliberately excluded so a child
+ * cannot spawn grandchildren. One-shot-only providers already enforce the
+ * permission rule in `buildSubagentOneShotCommand`.
  */
-export function buildInheritedChildConfig(
-  parentConfig: ThreadConfig,
-  child: { model: string; effort?: string },
+export function buildUnrestrictedChildConfig(
+  child: { model: string; effort?: string; fast?: boolean },
+  targetCapabilities: Pick<
+    AgentCapability,
+    "approvalPolicies" | "sandboxModes" | "bypassPermissions"
+  >,
+  parentConfig?: ThreadConfig,
 ): ThreadConfig {
+  const approvalPolicy = resolveUnrestrictedOption(
+    targetCapabilities.approvalPolicies,
+    targetCapabilities.bypassPermissions?.approvalPolicy,
+    ["bypassPermissions", "yolo", "never", "dontAsk"],
+  );
+  const sandboxMode = resolveUnrestrictedOption(
+    targetCapabilities.sandboxModes,
+    targetCapabilities.bypassPermissions?.sandboxMode,
+    ["danger-full-access", "yolo"],
+  );
   return {
     model: child.model,
     ...(child.effort ? { effort: child.effort } : {}),
-    ...(parentConfig.approvalPolicy ? { approvalPolicy: parentConfig.approvalPolicy } : {}),
-    ...(parentConfig.sandboxMode ? { sandboxMode: parentConfig.sandboxMode } : {}),
+    ...(child.fast === true ? { fast: true } : {}),
+    ...(approvalPolicy ? { approvalPolicy } : {}),
+    ...(sandboxMode ? { sandboxMode } : {}),
+    ...(parentConfig?.browserMcp === true ? { browserMcp: true } : {}),
+    ...(parentConfig?.computerUse === true ? { computerUse: true } : {}),
+    ...(parentConfig?.chromeMcp === true ? { chromeMcp: true } : {}),
   };
 }
 
+function resolveUnrestrictedOption(
+  options: readonly { id: string }[],
+  declaredBypass: string | undefined,
+  preferredIds: readonly string[],
+): string | undefined {
+  for (const id of preferredIds) {
+    const match = options.find((option) => option.id === id);
+    if (match) return match.id;
+  }
+  if (
+    declaredBypass &&
+    (options.length === 0 || options.some((option) => option.id === declaredBypass))
+  ) {
+    return declaredBypass;
+  }
+  return undefined;
+}
+
+/** Composer-shaped choices for a connected provider the caller can spawn. */
 export interface SpawnableAgent {
-  kind: string;
-  label: string;
+  provider: { value: string; label: string };
   models: SpawnableAgentModel[];
-  efforts?: string[];
-  defaultModel?: string;
-  execution?: SpawnableAgentExecution;
+  reasoningOptions: Array<{ value: string; label: string }>;
+  defaultModel: string;
+  permissions: {
+    options: Array<{ value: "full-access"; label: string }>;
+    default: "full-access";
+  };
+  execution: SpawnableAgentExecution;
+}
+
+/** Compact first-stage provider discovery returned by `list_agents`. */
+export interface SpawnableAgentSummary {
+  id: string;
+  label: string;
+  execution: SpawnableAgentExecution;
+  defaultModel: string;
+  modelCount: number;
 }
 
 /** Arguments accepted by `spawn_agent` / `run_agent`. */
@@ -79,6 +143,7 @@ export interface SpawnAgentRequest {
   agent: string;
   model?: string;
   effort?: string;
+  fast?: boolean;
   prompt: string;
   name?: string;
 }
@@ -94,10 +159,19 @@ export interface SubagentWaitResult {
  * manager. Kept minimal so the TSM only exposes thin hooks (no-god-files).
  */
 export interface SubagentRunHost {
-  /** Resolve a live parent thread's project location + config for child inheritance. */
+  /** Resolve a live parent thread's project and non-recursive MCP context. */
   getParentContext(
     threadId: string,
   ): { projectLocation: ProjectLocation; config: ThreadConfig } | undefined;
+  /** Resolve the parent's non-recursive MCP access for a structured child. */
+  resolveParentMcpAccess?(
+    threadId: string,
+    identity: McpThreadIdentity,
+  ): Promise<{
+    browserMcp?: BrowserMcpHttpConfig;
+    computerUseMcp?: ComputerUseMcpHttpConfig;
+    chromeMcp?: ChromeMcpHttpConfig;
+  }>;
   /** Append a (re-tagged) runtime event into the parent thread's event stream. */
   appendRuntimeEvent(parentThreadId: string, event: RuntimeEvent): void;
 }

@@ -13,7 +13,8 @@ import {
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
-import { ContextMenu, SidebarButton } from "@/renderer/components/common";
+import { ContextMenu } from "@/renderer/components/common/ContextMenu";
+import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { setProjectDisabled, deleteProject } from "@/renderer/actions/projectActions";
 import {
   openFilesPanel,

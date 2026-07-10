@@ -1,0 +1,8 @@
+@import "tailwindcss" source(none);
+@import "@heroui/styles";
+@import "@xterm/xterm/css/xterm.css";
+@import "./styles.css";
+
+@source "./**/*.{ts,tsx}";
+@source not "./**/*.{test,spec}.{ts,tsx}";
+@source "../../index.html";

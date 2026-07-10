@@ -7,8 +7,13 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
+import {
+  capabilitiesForPresentation,
+  modelSelectionFor,
+  resolveModelSelection,
+  resolveReasoningSelection,
+} from "@/shared/agentSelection";
 import { i18n } from "@/renderer/i18n/i18n";
-import { capabilitiesForPresentation } from "./threadComposerOptions";
 
 export function resolvePreferredAgentKind(
   installedAgents: AgentStatus[],
@@ -37,22 +42,11 @@ export function resolveSavedProviderDraftConfig(
 }
 
 export function resolveModelValue(agent: AgentStatus, preferred?: string): string {
-  const models = agent.capabilities.models;
-  return preferred && models.some((m) => m.id === preferred) ? preferred : (models[0]?.id ?? "");
+  return resolveModelSelection(agent.capabilities, preferred);
 }
 
 export function resolveEffortValue(agent: AgentStatus, model: string, preferred?: string): string {
-  const efforts = agent.capabilities.modelEfforts?.[model] ?? agent.capabilities.efforts ?? [];
-  if (preferred && efforts.includes(preferred)) {
-    return preferred;
-  }
-
-  const fallback = agent.capabilities.defaultEffort;
-  if (fallback && efforts.includes(fallback)) {
-    return fallback;
-  }
-
-  return efforts[0] ?? "";
+  return resolveReasoningSelection(agent.capabilities, model, preferred);
 }
 
 export function resolveContextSizeValue(
@@ -79,7 +73,7 @@ export function resolveFastValue(agent: AgentStatus, model: string, preferred?: 
  * `fastDisabledReason` directly so it can show the explanatory tooltip.
  */
 export function supportsUsableFastMode(capabilities: AgentCapability, model: string): boolean {
-  return (capabilities.fastModels?.includes(model) ?? false) && !capabilities.fastDisabledReason;
+  return modelSelectionFor(capabilities, model).fast.available;
 }
 
 export function resolveThinkingValue(

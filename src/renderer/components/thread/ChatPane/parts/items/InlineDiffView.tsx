@@ -17,7 +17,7 @@ const UNIFIED_MODE = 4;
 /** Fall back to raw text for patches larger than ~100 KB. */
 const MAX_DIFF_LENGTH = 100_000;
 
-interface InlineDiffViewProps {
+export interface InlineDiffViewProps {
   diffText: string;
   filePath: string;
   /** When set (Cursor ACP content diffs), passed to git-diff-view for reliable rich rendering. */

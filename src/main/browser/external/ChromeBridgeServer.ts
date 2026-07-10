@@ -17,8 +17,10 @@ import { ExternalChromeConnection } from "./ExternalChromeConnection";
  * any previous connection is dropped.
  */
 
-const PREFERRED_PORT = 47820;
-const PORT_SCAN_ATTEMPTS = 12;
+const PORT_RANGES = [
+  { start: 47820, count: 13 },
+  { start: 32120, count: 13 },
+] as const;
 
 /** Browser extensions connect with a `chrome-extension://` / `moz-extension://`
  *  Origin. Web pages always send an http(s) Origin, which we reject. */
@@ -95,7 +97,10 @@ export class ChromeBridgeServer {
 
   private listenOnAvailablePort(): Promise<number> {
     return new Promise<number>((resolve, reject) => {
-      let attempt = 0;
+      const ports = PORT_RANGES.flatMap(({ start, count }) =>
+        Array.from({ length: count }, (_, index) => start + index),
+      );
+      let portIndex = 0;
       const tryPort = (port: number): void => {
         const wss = new WebSocketServer({
           host: "127.0.0.1",
@@ -105,9 +110,9 @@ export class ChromeBridgeServer {
         });
         wss.once("error", (err: NodeJS.ErrnoException) => {
           wss.close();
-          if (err.code === "EADDRINUSE" && attempt < PORT_SCAN_ATTEMPTS) {
-            attempt += 1;
-            tryPort(port + 1);
+          if (err.code === "EADDRINUSE" && portIndex < ports.length - 1) {
+            portIndex += 1;
+            tryPort(ports[portIndex]!);
             return;
           }
           reject(err);
@@ -118,7 +123,7 @@ export class ChromeBridgeServer {
           resolve(port);
         });
       };
-      tryPort(PREFERRED_PORT);
+      tryPort(ports[portIndex]!);
     });
   }
 

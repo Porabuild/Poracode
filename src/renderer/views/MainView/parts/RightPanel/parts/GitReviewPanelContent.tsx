@@ -1,18 +1,13 @@
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { PixelLoader } from "@/renderer/components/common";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
 import { archiveThread } from "@/renderer/actions/threadActions";
 import { deleteWorktreeGroup, performWorktreeRemoval } from "@/renderer/actions/worktreeActions";
-
-const GitReviewPanel = lazy(() =>
-  import("@/renderer/views/GitReviewOverlay/parts/GitReviewPanel").then((m) => ({
-    default: m.GitReviewPanel,
-  })),
-);
+import { DeferredGitReviewPanel } from "@/renderer/deferredFeatures";
 
 export function GitReviewPanelContent(props: {
   gitPanelContext: { projectId: string; worktreePath?: string | undefined } | null;
@@ -38,7 +33,7 @@ export function GitReviewPanelContent(props: {
         </div>
       }
     >
-      <GitReviewPanel
+      <DeferredGitReviewPanel
         key={gitReviewKey}
         project={project}
         {...(gitPanelContext.worktreePath

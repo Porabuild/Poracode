@@ -24,7 +24,7 @@ const deps = {
   // source (its exports point at src/*.ts). It must be bundled into the
   // supervisor — left external, Node's ESM loader would try to load its raw
   // extensionless .ts imports at runtime and crash.
-  alwaysBundle: ["electron-updater", "simple-git", "zod", "@lightcode/agents-usage"],
+  alwaysBundle: ["electron-updater", "simple-git", "zod", /^@lightcode\/agents-usage(?:\/|$)/],
   onlyBundle: false as const,
   neverBundle: [
     "electron",

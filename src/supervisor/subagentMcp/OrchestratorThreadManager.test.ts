@@ -59,13 +59,34 @@ function makeHarness(options?: {
   const structured = {
     kind: "codex",
     label: "Codex",
-    capabilities: { models: [{ id: "gpt-5.5", label: "GPT-5.5" }], efforts: ["low", "high"] },
+    capabilities: {
+      models: [{ id: "gpt-5.5", label: "GPT-5.5" }],
+      efforts: ["low", "high"],
+      fastModels: ["gpt-5.5"],
+      approvalPolicies: [
+        { id: "on-request", label: "On Request" },
+        { id: "never", label: "Full Access" },
+      ],
+      sandboxModes: [
+        { id: "workspace-write", label: "Workspace Write" },
+        { id: "danger-full-access", label: "Full Access" },
+      ],
+      defaultApprovalPolicy: "on-request",
+      defaultSandboxMode: "workspace-write",
+      bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
+    },
     createStructuredSession: async () => ({}),
   } as unknown as AgentAdapter;
   const oneShot = {
     kind: "commandcode",
     label: "Command Code",
-    capabilities: { models: [{ id: "cc-1", label: "CC One" }], efforts: [] },
+    capabilities: {
+      models: [{ id: "cc-1", label: "CC One" }],
+      efforts: [],
+      approvalPolicies: [],
+      sandboxModes: [],
+      bypassPermissions: { approvalPolicy: "yolo" },
+    },
     buildSubagentOneShotCommand: () => ({ command: "x", args: [] }),
   } as unknown as AgentAdapter;
 
@@ -75,6 +96,8 @@ function makeHarness(options?: {
     sandboxMode: "workspace-write",
     subagentMcp: true,
     browserMcp: true,
+    computerUse: true,
+    chromeMcp: true,
   };
 
   const manager = new OrchestratorThreadManager({
@@ -176,17 +199,22 @@ describe("OrchestratorThreadManager.createThread", () => {
     expect(result.worktreePath).toBeUndefined();
   });
 
-  it("strips subagentMcp/browserMcp from the child config and inherits posture", async () => {
+  it("uses the target unrestricted posture with only non-recursive MCPs", async () => {
     const h = makeHarness();
-    await createChild(h, { effort: "high" });
+    await createChild(h, { effort: "high", fast: true });
     const { start, thread } = h.lastCreated();
     for (const config of [start.config, thread.config]) {
       expect(config).not.toHaveProperty("subagentMcp");
-      expect(config).not.toHaveProperty("browserMcp");
+      expect(config).toMatchObject({
+        browserMcp: true,
+        computerUse: true,
+        chromeMcp: true,
+      });
       expect(config.model).toBe("gpt-5.5");
       expect(config.effort).toBe("high");
+      expect(config.fast).toBe(true);
       expect(config.approvalPolicy).toBe("never");
-      expect(config.sandboxMode).toBe("workspace-write");
+      expect(config.sandboxMode).toBe("danger-full-access");
     }
   });
 

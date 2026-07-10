@@ -2,7 +2,8 @@ import { type FormEvent } from "react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { ChevronDown, ChevronRight, GripVertical, LogOut, RefreshCw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { type UsageSnapshot, usageWindowDisplayLabel } from "@lightcode/agents-usage";
+import { usageWindowDisplayLabel } from "@lightcode/agents-usage/formatters";
+import type { UsageSnapshot } from "@lightcode/agents-usage/types";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { UsageWindowBars } from "@/renderer/components/providers/UsageWindowBars";
 import {

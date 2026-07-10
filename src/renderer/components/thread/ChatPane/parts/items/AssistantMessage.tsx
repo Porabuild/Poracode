@@ -1,7 +1,7 @@
 import { memo, useDeferredValue, useMemo } from "react";
 import { Surface } from "@heroui/react";
 import type { MessageItemPayload } from "@/shared/contracts";
-import { PixelLoader } from "@/renderer/components/common";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,

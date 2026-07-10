@@ -18,8 +18,8 @@ import { getAppName } from "@/shared/appName";
 import type { Thread } from "@/shared/contracts";
 import { formatBytes } from "@/shared/formatBytes";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
-import { SidebarButton } from "@/renderer/components/common";
-import { ThreadProviderIcon } from "@/renderer/components/providers";
+import { SidebarButton } from "@/renderer/components/common/SidebarButton";
+import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import {
   sidebarBodyScrollClass,
   sidebarColumnLayoutClass,
@@ -52,6 +52,11 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useUpdateStore } from "@/renderer/state/updateStore";
 import { SidebarProjectThreadList } from "./parts/SidebarProjectThreadList";
 import { WhatsNewButton } from "./parts/WhatsNewButton";
+import { DeferredSettingsOverlay } from "@/renderer/deferredFeatures";
+
+function prewarmSettings(): void {
+  void DeferredSettingsOverlay.preload();
+}
 
 function UpdateButtons(props: { iconOnly?: boolean }) {
   const { iconOnly = false } = props;
@@ -340,6 +345,7 @@ export function Sidebar() {
               icon={<Settings2 className="size-4" />}
               label={t`Settings`}
               isActive={otherSettingsActive}
+              onPreload={prewarmSettings}
               onPress={openSettings}
             />
             <SidebarButton
@@ -348,6 +354,7 @@ export function Sidebar() {
               label={t`Remote Access`}
               tooltip={remoteAccessTooltip}
               isActive={remoteAccessSettingsActive}
+              onPreload={prewarmSettings}
               onPress={openRemoteAccessSettings}
             />
             <SidebarButton
@@ -428,6 +435,7 @@ export function Sidebar() {
                 icon={<Settings2 className="size-4" />}
                 label={t`Settings`}
                 isActive={otherSettingsActive}
+                onPreload={prewarmSettings}
                 onPress={openSettings}
               />
             </div>
@@ -437,6 +445,7 @@ export function Sidebar() {
               label={t`Remote Access`}
               tooltip={remoteAccessTooltip}
               isActive={remoteAccessSettingsActive}
+              onPreload={prewarmSettings}
               onPress={openRemoteAccessSettings}
             />
           </div>

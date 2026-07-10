@@ -115,6 +115,13 @@ export class BrowserTab {
     this.currentUrl = webContents.getURL() || this.currentUrl;
     this.currentTitle = webContents.getTitle() || this.currentTitle;
     this.loading = webContents.isLoadingMainFrame();
+    if (
+      !this.loading &&
+      this.clearInitialHistoryOnLoad &&
+      this.initialHistoryUrl === this.currentUrl
+    ) {
+      this.finishInitialHistoryCleanup(webContents);
+    }
     void this.ensureDialogController();
     this.resolveAttached?.();
     this.emit();
@@ -140,21 +147,7 @@ export class BrowserTab {
       this.currentUrl = wc.getURL();
       this.currentTitle = wc.getTitle();
       if (this.clearInitialHistoryOnLoad && this.initialHistoryUrl === this.currentUrl) {
-        this.clearInitialHistoryOnLoad = false;
-        this.clearNavigationHistory();
-        if (this.clearInitialHistoryTimer) {
-          clearTimeout(this.clearInitialHistoryTimer);
-        }
-        const urlAtHistoryClear = this.currentUrl;
-        this.clearInitialHistoryTimer = setTimeout(() => {
-          this.clearInitialHistoryTimer = null;
-          // Do not clear a history entry that the user added after the initial
-          // page finished loading. This timer exists only to catch Chromium's
-          // delayed about:blank entry during first attach.
-          if (!this.loading && this.currentUrl === urlAtHistoryClear) {
-            this.clearNavigationHistory();
-          }
-        }, 500);
+        this.finishInitialHistoryCleanup(wc);
       }
       this.emit();
     };
@@ -320,6 +313,29 @@ export class BrowserTab {
     if (this.destroyed || !this.isAttached()) return;
     this.webContents.navigationHistory.clear();
     this.emit();
+  }
+
+  private finishInitialHistoryCleanup(wc: WebContents): void {
+    this.clearInitialHistoryOnLoad = false;
+    this.clearNavigationHistory();
+    if (this.clearInitialHistoryTimer) {
+      clearTimeout(this.clearInitialHistoryTimer);
+    }
+    const urlAtHistoryClear = this.currentUrl;
+    this.clearInitialHistoryTimer = setTimeout(() => {
+      this.clearInitialHistoryTimer = null;
+      // Do not clear a history entry that the user added after the initial
+      // page finished loading. This timer exists only to catch Chromium's
+      // delayed about:blank entry during first attach.
+      if (
+        !this.loading &&
+        this.currentUrl === urlAtHistoryClear &&
+        !wc.navigationHistory.canGoBack() &&
+        !wc.navigationHistory.canGoForward()
+      ) {
+        this.clearNavigationHistory();
+      }
+    }, 500);
   }
 
   rememberInitScript(id: string): void {

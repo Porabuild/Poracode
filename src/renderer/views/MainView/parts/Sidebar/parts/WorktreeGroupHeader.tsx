@@ -1,6 +1,6 @@
 import { Check, FolderOpen, GitFork, Trash2 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
-import { SidebarButton } from "@/renderer/components/common";
+import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { GitBadge } from "./GitBadge";

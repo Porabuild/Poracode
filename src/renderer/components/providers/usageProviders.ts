@@ -1,8 +1,6 @@
-import {
-  allUsageProviderDescriptors,
-  antigravityWindowId,
-  type UsageWindow,
-} from "@lightcode/agents-usage";
+import { antigravityWindowId } from "@lightcode/agents-usage/antigravity";
+import { allUsageProviderDescriptors } from "@lightcode/agents-usage/providers";
+import type { UsageWindow } from "@lightcode/agents-usage/types";
 import {
   baseAgentKind,
   claudeProfileKind,

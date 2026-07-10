@@ -151,4 +151,55 @@ describe("ThreadSessionManager sub-agent buffer", () => {
       },
     ]);
   });
+
+  it("forwards parent progress while child events remain buffered", () => {
+    const { manager, emit } = makeManager();
+    const threadId = "t1";
+    const parentId = "task-1";
+
+    enqueue(manager, threadId, {
+      type: "item.started",
+      threadId,
+      itemId: parentId,
+      itemType: "tool_call",
+      payload: { name: "Task", status: "running", isSubAgent: true },
+    });
+    vi.runAllTimers();
+    emit.mockClear();
+
+    enqueue(manager, threadId, {
+      type: "item.started",
+      threadId,
+      itemId: "child-buffered",
+      itemType: "tool_call",
+      parentItemId: parentId,
+      payload: { name: "Read", status: "running" },
+    });
+    enqueue(manager, threadId, {
+      type: "item.updated",
+      threadId,
+      itemId: parentId,
+      payload: { progress: { stepCount: 1 } },
+    });
+    vi.runAllTimers();
+
+    expect(collectEmittedRuntimeEvents(emit)).toEqual([
+      {
+        type: "item.updated",
+        threadId,
+        itemId: parentId,
+        payload: { progress: { stepCount: 1 } },
+      },
+    ]);
+    expect(manager.subagentSubscribe({ threadId, parentItemId: parentId }).history).toEqual([
+      {
+        type: "item.started",
+        threadId,
+        itemId: "child-buffered",
+        itemType: "tool_call",
+        parentItemId: parentId,
+        payload: { name: "Read", status: "running" },
+      },
+    ]);
+  });
 });

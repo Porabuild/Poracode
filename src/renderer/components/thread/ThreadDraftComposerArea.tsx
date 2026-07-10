@@ -15,31 +15,37 @@ import { isHomeProjectId } from "@/shared/homeScope";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
   AttachmentBar,
-  ComposerAddMenu,
-  composerMcpServers,
-  COMPUTER_USE_MCP_ID,
   ComputerUseChip,
   McpChip,
-  mcpTogglePatch,
-  ComposerVoiceInput,
-  MentionInput,
-  openAttachmentLightbox,
+} from "@/renderer/components/composer/AttachmentBar";
+import {
+  ComposerAddMenu,
   type ComposerMcpMenuItem,
+} from "@/renderer/components/composer/ComposerAddMenu";
+import { ComposerVoiceInput } from "@/renderer/components/composer/ComposerVoiceInput";
+import {
+  composerMcpServers,
+  COMPUTER_USE_MCP_ID,
+  mcpTogglePatch,
+} from "@/renderer/components/composer/composerMcpServers";
+import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
+import {
+  MentionInput,
   type McpMentionItem,
   type MentionInputHandle,
-  type VoiceInputHandle,
-  useAttachments,
-} from "@/renderer/components/composer";
+} from "@/renderer/components/composer/MentionInput";
+import { useAttachments } from "@/renderer/components/composer/useAttachments";
+import type { VoiceInputHandle } from "@/renderer/components/composer/VoiceInputButton";
 import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 import {
   BranchSelector,
-  Button,
-  PixelLoader,
   generateWorktreeBranch,
   type BranchSelection,
-} from "@/renderer/components/common";
+} from "@/renderer/components/common/BranchSelector/BranchSelector";
+import { Button } from "@/renderer/components/common/Button";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";

@@ -1,6 +1,6 @@
 import { Megaphone, X } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
-import { SidebarButton } from "@/renderer/components/common";
+import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { useChangelogStore, useHasUnseenChangelog } from "@/renderer/state/changelogStore";
 
 /**

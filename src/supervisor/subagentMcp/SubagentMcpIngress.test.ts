@@ -3,7 +3,7 @@ import { OrchestratorThreadManager } from "./OrchestratorThreadManager";
 import { SubagentMcpIngress } from "./SubagentMcpIngress";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { SUBAGENT_MCP_INSTRUCTIONS_BASE } from "./toolRegistry";
-import type { SpawnableAgent } from "./types";
+import type { SpawnableAgent, SpawnAgentRequest } from "./types";
 
 /** Inert orchestrator lane — these tests only exercise the ephemeral-run tools. */
 function makeInertOrchestrator(): OrchestratorThreadManager {
@@ -25,22 +25,39 @@ function makeInertOrchestrator(): OrchestratorThreadManager {
 
 const AGENTS: SpawnableAgent[] = [
   {
-    kind: "codex",
-    label: "Codex",
-    models: [{ value: "gpt-5.5", label: "GPT-5.5" }],
-    efforts: ["low", "high"],
+    provider: { value: "codex", label: "Codex" },
+    models: [
+      {
+        value: "gpt-5.5",
+        label: "GPT-5.5",
+        reasoning: {
+          values: ["low", "high"],
+          default: "high",
+        },
+        fast: { available: true },
+      },
+    ],
+    reasoningOptions: [
+      { value: "low", label: "Low" },
+      { value: "high", label: "High" },
+    ],
     defaultModel: "gpt-5.5",
+    permissions: {
+      options: [{ value: "full-access", label: "Full access" }],
+      default: "full-access",
+    },
+    execution: "structured",
   },
 ];
 
 function makeRunManager(): {
   runManager: SubagentRunManager;
-  spawned: Array<{ parentThreadId: string; agent: string }>;
+  spawned: Array<{ parentThreadId: string } & SpawnAgentRequest>;
 } {
-  const spawned: Array<{ parentThreadId: string; agent: string }> = [];
+  const spawned: Array<{ parentThreadId: string } & SpawnAgentRequest> = [];
   const runManager = {
-    spawn: (parentThreadId: string, request: { agent: string }) => {
-      spawned.push({ parentThreadId, agent: request.agent });
+    spawn: (parentThreadId: string, request: SpawnAgentRequest) => {
+      spawned.push({ parentThreadId, ...request });
       return { runId: "run-xyz" };
     },
     waitFor: async () => ({ status: "completed" as const, output: "done" }),
@@ -55,7 +72,7 @@ describe("SubagentMcpIngress", () => {
   let ingress: SubagentMcpIngress;
   let token: string;
   let mcpUrl: string;
-  let spawned: Array<{ parentThreadId: string; agent: string }>;
+  let spawned: Array<{ parentThreadId: string } & SpawnAgentRequest>;
 
   beforeEach(async () => {
     const rm = makeRunManager();
@@ -113,6 +130,7 @@ describe("SubagentMcpIngress", () => {
       "cancel",
       "close_thread",
       "create_thread",
+      "get_agent",
       "get_status",
       "get_thread",
       "interrupt_thread",
@@ -131,17 +149,50 @@ describe("SubagentMcpIngress", () => {
     const res = await rpc("tools/call", { name: "list_agents", arguments: {} });
     const body = await res.json();
     const text = body.result.content[0].text;
-    expect(JSON.parse(text)).toEqual(AGENTS);
+    expect(JSON.parse(text)).toEqual([
+      {
+        id: "codex",
+        label: "Codex",
+        execution: "structured",
+        defaultModel: "gpt-5.5",
+        modelCount: 1,
+      },
+    ]);
+  });
+
+  it("dispatches get_agent by provider id", async () => {
+    const res = await rpc("tools/call", {
+      name: "get_agent",
+      arguments: { id: "codex" },
+    });
+    const body = await res.json();
+    expect(JSON.parse(body.result.content[0].text)).toEqual(AGENTS[0]);
   });
 
   it("dispatches spawn_agent to the run manager with the caller's parent thread", async () => {
     const res = await rpc("tools/call", {
       name: "spawn_agent",
-      arguments: { agent: "codex", prompt: "search the code" },
+      arguments: {
+        provider: "codex",
+        model: "gpt-5.5",
+        reasoning: "high",
+        fast: true,
+        permissions: "full-access",
+        prompt: "search the code",
+      },
     });
     const body = await res.json();
     expect(JSON.parse(body.result.content[0].text)).toEqual({ run_id: "run-xyz" });
-    expect(spawned).toEqual([{ parentThreadId: "thread-1", agent: "codex" }]);
+    expect(spawned).toEqual([
+      {
+        parentThreadId: "thread-1",
+        agent: "codex",
+        model: "gpt-5.5",
+        effort: "high",
+        fast: true,
+        prompt: "search the code",
+      },
+    ]);
   });
 
   it("returns an isError result for unknown tools", async () => {
@@ -151,7 +202,10 @@ describe("SubagentMcpIngress", () => {
   });
 
   it("returns an isError result for spawn_agent without a prompt", async () => {
-    const res = await rpc("tools/call", { name: "spawn_agent", arguments: { agent: "codex" } });
+    const res = await rpc("tools/call", {
+      name: "spawn_agent",
+      arguments: { provider: "codex" },
+    });
     const body = await res.json();
     expect(body.result.isError).toBe(true);
   });

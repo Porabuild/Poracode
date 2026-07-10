@@ -490,6 +490,27 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     });
   });
 
+  it("does not force-complete stale subagents MCP calls tagged by older mappers", () => {
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "raw-subagents-mcp",
+      itemType: "tool_call",
+      payload: {
+        name: "mcp__subagents__spawn_agent",
+        status: "running",
+        isSubAgent: true,
+      },
+    });
+
+    store.getState().reconcileStaleSubAgents("t1");
+
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["raw-subagents-mcp"]).toMatchObject({
+      state: "started",
+      payload: { status: "running" },
+    });
+  });
+
   it("opens and resolves runtime requests", () => {
     apply("t1", {
       type: "request.opened",

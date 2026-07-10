@@ -8,12 +8,13 @@ import { collectGemini } from "./collectors/gemini";
 import { collectGrok } from "./collectors/grok";
 import { collectZai } from "./collectors/zai";
 import type { CollectOptions, HostPort } from "./host";
+import { BUILT_IN_USAGE_PROVIDER_DESCRIPTORS } from "./providers";
 import type { UsageProviderDescriptor, UsageSnapshot } from "./types";
 
 /**
  * A self-contained usage collector for one provider. Adding a provider is a new
- * file under `collectors/` plus one entry in `BUILT_IN` — no shared-file edits,
- * mirroring the supervisor's `agents/registry.ts`.
+ * file under `collectors/`, a descriptor in `providers.ts`, and one entry in
+ * `BUILT_IN`, mirroring the supervisor's `agents/registry.ts`.
  */
 export interface UsageCollector {
   readonly descriptor: UsageProviderDescriptor;
@@ -21,106 +22,47 @@ export interface UsageCollector {
 }
 
 const CLAUDE_COLLECTOR: UsageCollector = {
-  descriptor: {
-    id: "claude",
-    label: "Claude",
-    mechanism: "oauth-endpoint",
-    needsLogin: false,
-    windowIds: ["session-5h", "weekly", "weekly-opus", "weekly-sonnet", "weekly-fable", "monthly"],
-  },
+  descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.claude,
   collect: collectClaude,
 };
 
 const CODEX_COLLECTOR: UsageCollector = {
-  descriptor: {
-    id: "codex",
-    label: "Codex",
-    mechanism: "oauth-endpoint",
-    needsLogin: false,
-    windowIds: ["session-5h", "weekly"],
-  },
+  descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.codex,
   collect: collectCodex,
 };
 
 const COPILOT_COLLECTOR: UsageCollector = {
-  descriptor: {
-    id: "copilot",
-    label: "GitHub Copilot",
-    mechanism: "oauth-endpoint",
-    needsLogin: false,
-    windowIds: ["monthly"],
-  },
+  descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.copilot,
   collect: collectCopilot,
 };
 
 const CURSOR_COLLECTOR: UsageCollector = {
-  descriptor: {
-    id: "cursor",
-    label: "Cursor",
-    mechanism: "oauth-endpoint",
-    needsLogin: false,
-    windowIds: ["monthly", "cursor-auto", "cursor-api"],
-  },
+  descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.cursor,
   collect: collectCursor,
 };
 
 const GROK_COLLECTOR: UsageCollector = {
-  descriptor: {
-    id: "grok",
-    label: "Grok",
-    mechanism: "oauth-endpoint",
-    needsLogin: false,
-    windowIds: ["monthly"],
-  },
+  descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.grok,
   collect: collectGrok,
 };
 
 const GEMINI_COLLECTOR: UsageCollector = {
-  descriptor: {
-    id: "gemini",
-    label: "Gemini",
-    mechanism: "oauth-endpoint",
-    needsLogin: false,
-    // Dynamic: one `gemini:<modelId>` window per model the quota API returns.
-    windowIds: [],
-  },
+  descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.gemini,
   collect: collectGemini,
 };
 
 const COMMANDCODE_COLLECTOR: UsageCollector = {
-  descriptor: {
-    id: "commandcode",
-    label: "Command Code",
-    mechanism: "cookie",
-    needsLogin: true,
-    windowIds: ["monthly"],
-  },
+  descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.commandcode,
   collect: collectCommandCode,
 };
 
 const FACTORY_COLLECTOR: UsageCollector = {
-  descriptor: {
-    id: "factory",
-    label: "Droid",
-    mechanism: "cookie",
-    needsLogin: true,
-    // Standard token-rate-limit pool; the optional "core" pool and legacy
-    // "premium" pool flow through dynamically as `factory:<pool>` ids.
-    windowIds: ["session-5h", "weekly", "monthly"],
-  },
+  descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.factory,
   collect: collectFactory,
 };
 
 const ZAI_COLLECTOR: UsageCollector = {
-  descriptor: {
-    id: "zai",
-    label: "z.ai",
-    // HTTP collector reading a Bearer API key — native (`Z_AI_API_KEY`) or a key
-    // pasted into the in-app sign-in. `needsLogin` drives that sign-in affordance.
-    mechanism: "api-key",
-    needsLogin: true,
-    windowIds: ["session-5h", "weekly", "monthly"],
-  },
+  descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.zai,
   collect: collectZai,
 };
 
@@ -138,11 +80,6 @@ const BUILT_IN: UsageCollector[] = [
   FACTORY_COLLECTOR,
   ZAI_COLLECTOR,
 ];
-
-/** Descriptors for the built-in HTTP collectors, in registration order. */
-export function builtInUsageProviderDescriptors(): UsageProviderDescriptor[] {
-  return BUILT_IN.map((collector) => collector.descriptor);
-}
 
 export interface UsageCollectorRegistry {
   has(id: string): boolean;

@@ -4,7 +4,7 @@ import { useLingui } from "@lingui/react/macro";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { CircleAlert } from "lucide-react";
 import type { ToolCallPayload } from "@/shared/contracts";
-import { PixelLoader } from "@/renderer/components/common";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatItemAccordion } from "./ChatItemAccordion";
@@ -23,7 +23,7 @@ import {
 } from "./acpToolPayload";
 import { getToolCallCollapsedHeader } from "./collapsedHeaderCache";
 import { formatDiffSummaryLabel } from "./FileChange";
-import { InlineDiffView } from "./InlineDiffView";
+import { LazyInlineDiffView } from "./LazyInlineDiffView";
 import { isSkillTool } from "./toolDisplay";
 import { FileContentPlaceholder, useReadAbsoluteFile } from "./useReadAbsoluteFile";
 
@@ -103,7 +103,7 @@ export const ToolCall = memo(function ToolCall({ item }: ToolCallProps) {
       ) : readResultPart && header.hasReadResult ? (
         <CommandOutputViewport text={readResultPart.text} language={readResultPart.language} />
       ) : diffText !== undefined ? (
-        <InlineDiffView
+        <LazyInlineDiffView
           diffText={diffText}
           filePath={display.parts?.filePath ? display.parts.path : ""}
           {...(contentEdit ? { oldText: contentEdit.oldText, newText: contentEdit.newText } : {})}

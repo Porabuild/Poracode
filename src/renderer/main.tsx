@@ -1,5 +1,5 @@
 import { createRoot, type Root } from "react-dom/client";
-import "./styles.css";
+import "./tailwind.css";
 import "./uiAnimationActivity";
 import { readBridge } from "./bridge";
 import { captureRendererException, initializeRendererSentry } from "./diagnostics/sentry";
@@ -14,7 +14,13 @@ import {
 import { isIgnorableRejection, isIgnorableWindowError } from "./rendererGlobalErrors";
 import { bootstrapAppThemeFromCache } from "./theme/applyAppTheme";
 import { bootstrapAppLocaleFromCache } from "./i18n/i18n";
-import { installDevBridge } from "./devBridge";
+
+function logRendererBootstrap(message: string): void {
+  if (import.meta.env.DEV) performance.mark(`lightcode:${message}`);
+  console.log(`[renderer-bootstrap] page +${Math.round(performance.now())}ms ${message}`);
+}
+
+logRendererBootstrap("main module evaluated");
 
 if (import.meta.env.DEV) {
   const warn = console.warn.bind(console);
@@ -37,10 +43,6 @@ if (import.meta.env.DEV) {
 document.title = getAppName(readBridge().channel, import.meta.env.DEV);
 initializeRendererSentry();
 
-// DEV-only: expose stores + nav/state helpers on window for CDP smoke tests.
-// No-op (dead-code eliminated) in production builds.
-installDevBridge();
-
 document.documentElement.dataset.platform =
   typeof window !== "undefined" && "lightcode" in window ? readBridge().platform : "unknown";
 document.documentElement.dataset.windowKind = readBridge().windowKind;
@@ -60,6 +62,18 @@ if (!root) {
 }
 
 let reactRoot: Root | null = null;
+
+function installDevBridgeAfterPaint(): void {
+  if (!import.meta.env.DEV) return;
+  const install = () => {
+    void import("./devBridge").then(({ installDevBridge }) => installDevBridge());
+  };
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(install, { timeout: 5_000 });
+  } else {
+    window.setTimeout(install, 0);
+  }
+}
 let renderingCrashScreen = false;
 
 function reportRootError(
@@ -165,18 +179,34 @@ reactRoot = createRoot(root, {
   },
 });
 
-// Load the app chunk and the cached locale's catalog in parallel, then mount
-// once the catalog is active so non-English users don't flash the source locale
-// on first paint. bootstrapAppLocaleFromCache never rejects and is time-bounded
-// (a hung catalog can't wedge mount), so the app-chunk import stays the only
-// bootstrap rejection (handled below).
-void Promise.all([import("./app"), bootstrapAppLocaleFromCache()])
+// Load the app, provider registrations, and cached locale in parallel. Provider
+// registration used to sit behind the app chunk as an eager dependency, adding
+// another transform waterfall before React could mount.
+logRendererBootstrap("starting app, provider, and locale imports");
+const appModulePromise = import("./app").then((module) => {
+  logRendererBootstrap("app module resolved");
+  return module;
+});
+const providerBootstrapPromise = import("./components/providers/bootstrap").then((module) => {
+  logRendererBootstrap("provider bootstrap resolved");
+  return module;
+});
+const localeBootstrapPromise = bootstrapAppLocaleFromCache().then(() => {
+  logRendererBootstrap("locale bootstrap resolved");
+});
+
+void Promise.all([appModulePromise, providerBootstrapPromise, localeBootstrapPromise])
   .then(([{ App }]) => {
+    logRendererBootstrap("rendering React app");
     reactRoot?.render(
       <RendererErrorBoundary>
         <App />
       </RendererErrorBoundary>,
     );
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => logRendererBootstrap("first React frame painted"));
+    });
+    installDevBridgeAfterPaint();
   })
   .catch((error: unknown) => {
     showCrash("bootstrap", error);

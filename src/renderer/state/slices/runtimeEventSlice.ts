@@ -10,6 +10,7 @@ import type {
   ThreadContextUsage,
   ToolCallPayload,
 } from "@/shared/contracts";
+import { isSubAgentTool } from "@/shared/toolCallClassification";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { SliceCreator } from "./shared";
 import {
@@ -454,7 +455,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
 function isStaleSubAgentItem(item: RuntimeChatItem): boolean {
   if (item.type !== "tool_call") return false;
   const payload = item.payload as ToolCallPayload | undefined;
-  if (payload?.isSubAgent !== true && payload?.name !== "Workflow") return false;
+  if (!isSubAgentTool(payload)) return false;
   return item.state !== "completed" || payload?.status === "running";
 }
 

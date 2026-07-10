@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "@/renderer/state/appStore";
 import { GitReviewPanelContent } from "./GitReviewPanelContent";
 
-vi.mock("@/renderer/components/common", () => ({
+vi.mock("@/renderer/components/common/PixelLoader", () => ({
   PixelLoader: () => <span>loading</span>,
 }));
 

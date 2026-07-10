@@ -4,7 +4,8 @@ import "@git-diff-view/react/styles/diff-view.css";
 import { Trans } from "@lingui/react/macro";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
-import { PathDisplay, PixelLoader } from "@/renderer/components/common";
+import { PathDisplay } from "@/renderer/components/common/PathDisplay";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import {
   buildInWorker,
   diffFileFromBundle,

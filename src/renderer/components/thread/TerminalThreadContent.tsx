@@ -1,4 +1,4 @@
-import { PixelLoader } from "../common";
+import { PixelLoader } from "../common/PixelLoader";
 import { useThread } from "@/renderer/state/useThread";
 import { TerminalPane } from "./TerminalPane";
 import { ThreadComposerSection } from "./ThreadComposerSection";

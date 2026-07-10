@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Surface } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { AnimatingPlanIcon } from "@/renderer/components/common";
+import { AnimatingPlanIcon } from "@/renderer/components/common/AnimatingPlanIcon";
 import type { ToolCallPayload } from "@/shared/contracts";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ItemMarkdown } from "./ItemMarkdown";

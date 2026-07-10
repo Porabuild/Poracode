@@ -204,17 +204,17 @@ function classifyItem(itemType: string, payload: unknown): ItemHit | undefined {
   const args = asRecord(p?.["args"]);
   const lowerName = name.toLowerCase();
 
-  if (itemType === "mcp_tool_call" || /^mcp__/.test(name)) {
+  const mcpServer =
+    /^mcp__(.+?)__/.exec(name)?.[1] ??
+    str(p, "serverId") ??
+    str(p, "server") ??
+    str(args, "serverId") ??
+    str(args, "server");
+  if (itemType === "mcp_tool_call" || mcpServer) {
     const match = /^mcp__(.+?)__/.exec(name);
     return {
       kind: "mcp",
-      name:
-        match?.[1] ??
-        str(p, "serverId") ??
-        str(p, "server") ??
-        str(args, "serverId") ??
-        str(args, "server") ??
-        "mcp",
+      name: match?.[1] ?? mcpServer ?? "mcp",
     };
   }
   if (

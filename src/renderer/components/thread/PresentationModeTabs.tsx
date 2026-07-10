@@ -1,7 +1,7 @@
 import { MessageSquare, TerminalSquare } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ThreadPresentationMode } from "@/shared/contracts";
-import { LightballTabs, type LightballTab } from "@/renderer/components/common";
+import { LightballTabs, type LightballTab } from "@/renderer/components/common/LightballTabs";
 
 export interface PresentationModeTabsProps {
   presentationMode: ThreadPresentationMode;

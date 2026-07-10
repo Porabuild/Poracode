@@ -4,11 +4,9 @@ import { useLingui } from "@lingui/react/macro";
 import { ChevronDown, ChevronUp, Copy } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
-import {
-  AttachmentBar,
-  openAttachmentLightbox,
-  type Attachment,
-} from "@/renderer/components/composer";
+import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
+import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
+import type { Attachment } from "@/renderer/components/composer/useAttachments";
 import { fileNameFromPath } from "@/shared/promptContent";
 import { isRemoteSession } from "@/renderer/bridge";
 import {

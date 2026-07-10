@@ -2,7 +2,8 @@ import { useRef } from "react";
 import { Columns2, Plus } from "lucide-react";
 import { useDraggable } from "@dnd-kit/react";
 import { useLingui } from "@lingui/react/macro";
-import { ContextMenu, SidebarButton } from "@/renderer/components/common";
+import { ContextMenu } from "@/renderer/components/common/ContextMenu";
+import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import type { DragSourceData } from "@/renderer/dnd";
 import { DraftIndicator } from "./DraftIndicator";
 

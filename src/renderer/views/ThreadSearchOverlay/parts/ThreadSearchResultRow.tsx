@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import type { Project, Thread } from "@/shared/contracts";
-import { ThreadProviderIcon } from "@/renderer/components/providers";
+import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import { useDraggable } from "@dnd-kit/react";
 import type { DragSourceData } from "@/renderer/dnd";
 import { handleKeyActivate } from "@/renderer/utils/a11y";

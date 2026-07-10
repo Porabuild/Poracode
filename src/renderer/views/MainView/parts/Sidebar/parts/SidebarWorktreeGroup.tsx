@@ -2,7 +2,7 @@ import { CircleCheck, GitFork, Play, Plus, Trash2 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { useSortable } from "@dnd-kit/react/sortable";
 import type { Project } from "@/shared/contracts";
-import { ContextMenu } from "@/renderer/components/common";
+import { ContextMenu } from "@/renderer/components/common/ContextMenu";
 import { useDragSource, useIsDraggingWorktreeGroup, type DragSourceData } from "@/renderer/dnd";
 import {
   useIsWorktreeFilesPanelActive,

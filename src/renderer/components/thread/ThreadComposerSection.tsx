@@ -12,20 +12,24 @@ import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { changeThreadConfig } from "@/renderer/actions/threadRuntimeActions";
-import { BranchSelector, type BranchSelection } from "../common";
+import { BranchSelector, type BranchSelection } from "../common/BranchSelector/BranchSelector";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
+import { AttachmentBar } from "../composer/AttachmentBar";
+import { ComposerAddMenu } from "../composer/ComposerAddMenu";
+import { ComposerVoiceInput } from "../composer/ComposerVoiceInput";
 import {
-  AttachmentBar,
-  ComposerAddMenu,
   composerMcpServers,
-  mcpTogglePatch,
-  ComposerVoiceInput,
   COMPUTER_USE_MCP_ID,
+  mcpTogglePatch,
+} from "../composer/composerMcpServers";
+import { openAttachmentLightbox } from "../composer/ImageLightbox";
+import {
   MentionInput,
-  openAttachmentLightbox,
-  useAttachments,
-} from "../composer";
-import type { McpMentionItem, MentionInputHandle, VoiceInputHandle } from "../composer";
+  type McpMentionItem,
+  type MentionInputHandle,
+} from "../composer/MentionInput";
+import { useAttachments } from "../composer/useAttachments";
+import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { captureProductEvent, threadProductProperties } from "@/renderer/analytics/posthog";
 import { useAppStore } from "@/renderer/state/appStore";

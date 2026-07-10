@@ -5,6 +5,7 @@ import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { startDeferredFeaturePrewarm } from "@/renderer/deferredFeatures";
 
 interface IdleCallbackHandle {
   cancel: () => void;
@@ -93,10 +94,6 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
           archiveOldDoneThreads(days);
         });
       }
-      // Warm the markdown renderer chunk so the first assistant reply renders
-      // markdown without a Suspense flicker. Heavy deps (Streamdown + remark)
-      // stay out of the synchronous startup path.
-      void import("@/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner");
     });
 
     void readBridge()
@@ -168,6 +165,19 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
       cancelled = true;
     };
   }, [runtimeOwner, storeHydrated, initialLoading, updateThreadRuntime, view]);
+
+  useEffect(() => {
+    if (!storeHydrated || initialLoading) return;
+
+    let stopPrewarm = () => {};
+    const frame = window.requestAnimationFrame(() => {
+      stopPrewarm = startDeferredFeaturePrewarm();
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      stopPrewarm();
+    };
+  }, [initialLoading, storeHydrated]);
 
   return { initialLoading, storeHydrated, loadT0 };
 }

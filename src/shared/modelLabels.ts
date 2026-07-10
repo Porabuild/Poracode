@@ -12,6 +12,10 @@ export function capitalizeSegment(segment: string): string {
   return segment.length <= 1 ? segment : segment[0]!.toUpperCase() + segment.slice(1);
 }
 
+export function formatReasoningLabel(value: string): string {
+  return value === "xhigh" || value === "xHigh" ? "Extra High" : capitalizeSegment(value);
+}
+
 /** Drop Cursor ACP bracket parameter groups: "a[b=c]" → "a". */
 export function stripBracketParams(modelId: string): string {
   return modelId.replace(/\[[^\]]*\]/g, "");
@@ -40,7 +44,7 @@ export function formatBracketParamHints(modelId: string): string | undefined {
   if (params.context) hints.push(params.context.toUpperCase());
   const effort = params.reasoning ?? params.effort;
   if (effort) {
-    hints.push(effort === "xhigh" ? "Extra High" : capitalizeSegment(effort));
+    hints.push(formatReasoningLabel(effort));
   }
   if (params.fast === "true") hints.push("Fast");
   return hints.length > 0 ? hints.join(" · ") : undefined;

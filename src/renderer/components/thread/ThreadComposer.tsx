@@ -3,15 +3,15 @@ import { ArrowUp, Square } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { Button } from "@/renderer/components/common/Button";
+import { EffortContextMenu } from "@/renderer/components/common/EffortContextMenu/EffortContextMenu";
+import { OptionMenu } from "@/renderer/components/common/OptionMenu";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import {
-  Button,
-  EffortContextMenu,
-  OptionMenu,
-  PixelLoader,
   ProviderModelMenu,
-  TextArea,
   type ProviderModelMenuProvider,
-} from "@/renderer/components/common";
+} from "@/renderer/components/common/ProviderModelMenu/ProviderModelMenu";
+import { TextArea } from "@/renderer/components/common/TextArea";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import { PermissionIcon } from "@/renderer/components/providers/PermissionIcon";
 import { isRemoteSession } from "@/renderer/bridge";

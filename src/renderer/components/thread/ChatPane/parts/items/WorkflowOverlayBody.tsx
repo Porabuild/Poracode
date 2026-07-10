@@ -9,7 +9,8 @@ import type {
   WorkflowRun,
   WorkflowRunStatus,
 } from "@/shared/contracts";
-import { LightballTabs, PixelLoader, type LightballTab } from "@/renderer/components/common";
+import { LightballTabs, type LightballTab } from "@/renderer/components/common/LightballTabs";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { ThreadDockRow } from "@/renderer/components/thread/ThreadDockUI";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";

@@ -1,5 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ConfirmDialog } from "@/renderer/components/common";
+import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 
 export function ForceDeleteBranchDialog(props: {
   isOpen: boolean;
