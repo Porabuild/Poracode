@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-02
 **Status:** Draft
-**Depends on:** Capacitor native shells (`capacitor.config.ts`, `docs/RELEASE_MOBILE.md`), remote access protocol (`docs/REMOTE_ARCHITECTURE.md`)
+**Depends on:** Capacitor native shells (`capacitor.config.json`, `docs/RELEASE_MOBILE.md`), remote access protocol (`docs/REMOTE_ARCHITECTURE.md`)
 
 ## Goal
 

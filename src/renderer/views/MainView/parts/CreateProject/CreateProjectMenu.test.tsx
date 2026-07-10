@@ -17,10 +17,20 @@ import { CreateProjectMenu } from "./CreateProjectMenu";
 describe("CreateProjectMenu", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    usePanelStore.setState({ createProjectModalOpen: false, cloneProjectModalOpen: false });
+    usePanelStore.setState({
+      createProjectModalOpen: false,
+      cloneProjectModalOpen: false,
+      settingsOpen: false,
+      settingsSection: null,
+    });
   });
   afterEach(() =>
-    usePanelStore.setState({ createProjectModalOpen: false, cloneProjectModalOpen: false }),
+    usePanelStore.setState({
+      createProjectModalOpen: false,
+      cloneProjectModalOpen: false,
+      settingsOpen: false,
+      settingsSection: null,
+    }),
   );
 
   it("opens the scratch modal when 'Start from scratch' is chosen", async () => {
@@ -64,5 +74,21 @@ describe("CreateProjectMenu", () => {
 
     await waitFor(() => expect(mocks.addExistingProject).toHaveBeenCalledTimes(1));
     expect(usePanelStore.getState().createProjectModalOpen).toBe(false);
+  });
+
+  it("opens Remote Environments when 'Open over SSH' is chosen", async () => {
+    render(
+      <CreateProjectMenu>
+        <Button aria-label="Add project">+</Button>
+      </CreateProjectMenu>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add project" }));
+    fireEvent.click(await screen.findByText("Open over SSH"));
+
+    await waitFor(() => {
+      expect(usePanelStore.getState().settingsOpen).toBe(true);
+      expect(usePanelStore.getState().settingsSection).toBe("remoteServers");
+    });
   });
 });

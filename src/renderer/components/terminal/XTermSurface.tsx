@@ -120,6 +120,9 @@ export const XTermSurface = forwardRef<
       onReset: () => void;
       onExited: (exitCode: number | null) => void;
     }) => () => void;
+    /** Override PTY input/resize for a terminal hosted on a remote Lightcode server. */
+    writeInput?: (data: string) => Promise<void>;
+    resizeBackingTerminal?: (size: TerminalSize) => Promise<void>;
     /**
      * Initial scrollback to hydrate with, instead of reading it over the bridge
      * (the PWA already has it from the thread snapshot, or none for a fresh
@@ -148,6 +151,8 @@ export const XTermSurface = forwardRef<
     themeBackgroundVar = "--content-background",
     outputSource,
     initialScrollback,
+    writeInput,
+    resizeBackingTerminal,
   } = props;
   const { t } = useLingui();
   const appearance = useResolvedAppearance();
@@ -169,6 +174,11 @@ export const XTermSurface = forwardRef<
   onTitleChangeRef.current = onTitleChange;
   const onTerminalResizeRef: RefObject<typeof onTerminalResize> = useRef(onTerminalResize);
   onTerminalResizeRef.current = onTerminalResize;
+  const writeInputRef: RefObject<typeof writeInput> = useRef(writeInput);
+  writeInputRef.current = writeInput;
+  const resizeBackingTerminalRef: RefObject<typeof resizeBackingTerminal> =
+    useRef(resizeBackingTerminal);
+  resizeBackingTerminalRef.current = resizeBackingTerminal;
   const baseFontSizeRef = useRef(baseFontSize);
   baseFontSizeRef.current = baseFontSize;
   const requestRefitRef = useRef<(() => void) | null>(null);
@@ -253,6 +263,18 @@ export const XTermSurface = forwardRef<
     const PTY_RESIZE_DEBOUNCE_MS = 100;
     const RESIZE_DEBOUNCE_BUFFER_THRESHOLD = 200;
 
+    // Resolve the PTY backend: a caller-provided override (a terminal hosted on
+    // a remote Lightcode server) or the local supervisor bridge. Each reads its
+    // ref lazily so a later prop update is still honored.
+    const writeInputToPty = (data: string): Promise<void> =>
+      writeInputRef.current
+        ? writeInputRef.current(data)
+        : readBridge().writeTerminal({ threadId: terminalId, data });
+    const resizeBackingPty = (size: TerminalSize): Promise<void> =>
+      resizeBackingTerminalRef.current
+        ? resizeBackingTerminalRef.current(size)
+        : readBridge().resizeTerminal({ threadId: terminalId, cols: size.cols, rows: size.rows });
+
     // Force the live agent to repaint a clean full frame. On reopen the PTY kept
     // running at the same winsize, so a fresh same-size fit issues a no-op
     // TIOCSWINSZ that the kernel never turns into SIGWINCH — a no-alt-screen
@@ -272,14 +294,10 @@ export const XTermSurface = forwardRef<
       lastCols = cols;
       lastRows = rows;
       const intermediateRows = rows > 5 ? rows - 1 : rows + 1;
-      void readBridge()
-        .resizeTerminal({ threadId: terminalId, cols, rows: intermediateRows })
-        .catch(() => {});
+      void resizeBackingPty({ cols, rows: intermediateRows }).catch(() => {});
       requestAnimationFrame(() => {
         if (!isActive) return;
-        void readBridge()
-          .resizeTerminal({ threadId: terminalId, cols, rows })
-          .catch(() => {});
+        void resizeBackingPty({ cols, rows }).catch(() => {});
       });
     };
 
@@ -395,11 +413,9 @@ export const XTermSurface = forwardRef<
 
       onTerminalResizeRef.current?.({ cols, rows });
 
-      void readBridge()
-        .resizeTerminal({ threadId: terminalId, cols, rows })
-        .catch(() => {
-          // Ignore errors.
-        });
+      void resizeBackingPty({ cols, rows }).catch(() => {
+        // Ignore errors.
+      });
     };
 
     const doFit = () => {
@@ -727,11 +743,9 @@ export const XTermSurface = forwardRef<
 
     if (!readOnly) {
       terminal.onData((data) => {
-        void readBridge()
-          .writeTerminal({ threadId: terminalId, data })
-          .catch(() => {
-            // PTY may disappear during teardown; ignore stale writes.
-          });
+        void writeInputToPty(data).catch(() => {
+          // PTY may disappear during teardown; ignore stale writes.
+        });
       });
     }
 

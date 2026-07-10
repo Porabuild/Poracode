@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { DesktopsView, type DesktopsViewProps } from "./DesktopsView";
 import type { StoredDesktop } from "../storage";
+
+const platform = vi.hoisted(() => ({ native: false }));
 
 // The QR scanner touches the camera / a decode lib, and the install button reads
 // PWA install state — neither is exercised here, so stub them out of the tree.
@@ -11,7 +13,7 @@ vi.mock("../QrScanner", () => ({ QrScanner: () => null }));
 vi.mock("../pwaInstall", () => ({
   useCanInstall: () => false,
   isStandaloneDisplay: () => false,
-  isNativeApp: () => false,
+  isNativeApp: () => platform.native,
   promptInstall: vi.fn<() => Promise<void>>(),
 }));
 
@@ -43,6 +45,11 @@ function renderView(overrides?: Partial<DesktopsViewProps>) {
     onSwitch: vi.fn<(desktop: StoredDesktop) => void>(),
     onRename: vi.fn<(desktop: StoredDesktop, label: string) => void>(),
     onForget: vi.fn<(desktop: StoredDesktop) => void>(),
+    onProbeSsh: vi.fn<DesktopsViewProps["onProbeSsh"]>(async () => ({
+      fingerprint: "SHA256:test",
+      algorithm: "ssh-ed25519",
+    })),
+    onPairSsh: vi.fn<DesktopsViewProps["onPairSsh"]>(async () => {}),
     ...overrides,
   };
   render(<DesktopsView {...props} />);
@@ -50,7 +57,12 @@ function renderView(overrides?: Partial<DesktopsViewProps>) {
 }
 
 describe("DesktopsView", () => {
+  beforeEach(() => {
+    Element.prototype.getAnimations = () => [];
+  });
+
   afterEach(() => {
+    platform.native = false;
     // Unmount before wiping the body: the drawer portals into <body> and this
     // hook runs before RTL auto-cleanup (afterEach is LIFO).
     cleanup();
@@ -81,5 +93,35 @@ describe("DesktopsView", () => {
     renderView({ showPairingHint: true });
     expect(screen.getByRole("dialog", { name: "Pair a connection" })).toBeTruthy();
     expect(screen.getByText("Pairing link detected.")).toBeTruthy();
+  });
+
+  it("offers host-key verified SSH pairing in the native app", async () => {
+    platform.native = true;
+    const onProbeSsh = vi.fn<DesktopsViewProps["onProbeSsh"]>(async () => ({
+      fingerprint: "SHA256:abc123",
+      algorithm: "ssh-ed25519",
+    }));
+    const onPairSsh = vi.fn<DesktopsViewProps["onPairSsh"]>(async () => {});
+    renderView({ onProbeSsh, onPairSsh });
+    fireEvent.click(screen.getByRole("button", { name: "Pair a connection" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("tab", { name: "SSH" }));
+    });
+    fireEvent.change(screen.getByLabelText("SSH target"), {
+      target: { value: "dev@example.com" },
+    });
+    const passwordInput = document.querySelector<HTMLInputElement>('input[type="password"]');
+    expect(passwordInput).toBeTruthy();
+    fireEvent.change(passwordInput!, { target: { value: "secret" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verify host key" }));
+    expect(await screen.findByText("SHA256:abc123")).toBeTruthy();
+    expect(onProbeSsh).toHaveBeenCalledWith("dev@example.com", 22);
+    fireEvent.click(screen.getByRole("button", { name: "Trust and connect" }));
+    expect(onPairSsh).toHaveBeenCalledWith({
+      target: "dev@example.com",
+      port: 22,
+      fingerprint: "SHA256:abc123",
+      authentication: { kind: "password", password: "secret" },
+    });
   });
 });

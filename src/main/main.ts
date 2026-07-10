@@ -43,6 +43,7 @@ import { captureMainException, initializeMainSentry } from "./diagnostics/sentry
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
 import { createDesktopRemoteAccessController, type DesktopRemoteAccessController } from "./remote";
+import { SshConnectionManager } from "./ssh/SshConnectionManager";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 const channel = resolveLightcodeChannel();
@@ -337,6 +338,14 @@ if (!hasSingleInstanceLock) {
       const wslHelpersDir = app.isPackaged
         ? join(process.resourcesPath, "wsl-helpers")
         : join(__dirname, "..", "..", "resources", "wsl-helpers");
+      const sshConnectionManager = new SshConnectionManager({
+        mainBundleDir: __dirname,
+        agentPluginsDir: app.isPackaged
+          ? join(process.resourcesPath, "agent-plugins")
+          : join(__dirname, "..", "..", "resources", "agent-plugins"),
+        wslHelpersDir,
+        cacheDir: join(lightcodePaths.baseDir, "ssh-runtime-bundles"),
+      });
 
       // Assigned after the browser services are composed and before the
       // supervisor starts emitting events.
@@ -494,6 +503,7 @@ if (!hasSingleInstanceLock) {
           setRemoteAccessTailscaleHttps: controller.setTailscaleHttps,
           startTailscale: controller.startTailscale,
           setRemoteAccessAdvertisedUrl: controller.setAdvertisedUrl,
+          sshConnectionManager,
           requireLightcodePaths,
           updatePowerSaveBlocker,
           autoUpdater: autoUpdaterController,
@@ -655,6 +665,7 @@ if (!hasSingleInstanceLock) {
         chromeBridgeServer?.dispose();
         chromeBridgeServer = null;
         void controller.dispose();
+        void sshConnectionManager.dispose();
         browserExtractWindow?.close();
         browserExtractWindow = null;
         browserPanelManager?.dispose();

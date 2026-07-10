@@ -47,6 +47,27 @@ vi.mock("@/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeReq
   ),
 }));
 
+vi.mock("@/renderer/components/terminal/XTermSurface", () => ({
+  XTermSurface: (props: {
+    initialScrollback?: string;
+    writeInput?: (data: string) => Promise<void>;
+    resizeBackingTerminal?: (size: { cols: number; rows: number }) => Promise<void>;
+  }) => (
+    <div data-testid="remote-terminal">
+      {props.initialScrollback}
+      <button type="button" onClick={() => void props.writeInput?.("x")}>
+        terminal input
+      </button>
+      <button
+        type="button"
+        onClick={() => void props.resizeBackingTerminal?.({ cols: 100, rows: 30 })}
+      >
+        terminal resize
+      </button>
+    </div>
+  ),
+}));
+
 const thread = {
   id: "rt-1",
   projectId: "p1",
@@ -54,6 +75,7 @@ const thread = {
   agentKind: "claude",
   config: {},
   status: "idle",
+  presentationMode: "gui",
 } as unknown as Thread;
 
 const project: Project = {
@@ -125,6 +147,30 @@ describe("RemoteThreadView", () => {
     render(<RemoteThreadView />);
     expect(screen.getByTestId("chatpane").textContent).toContain("Remote thread");
     expect(screen.getByText("Server One")).toBeTruthy();
+  });
+
+  it("renders remote terminal scrollback and routes terminal input and resize", async () => {
+    seedOpenThread({ presentationMode: "terminal" });
+    const writeRemoteTerminal = vi.fn<(data: string) => Promise<void>>(async () => {});
+    const resizeRemoteTerminal = vi.fn<(size: { cols: number; rows: number }) => Promise<void>>(
+      async () => {},
+    );
+    useRemoteServersStore.setState((state) => ({
+      openThread: state.openThread
+        ? { ...state.openThread, terminalScrollback: "remote terminal frame" }
+        : null,
+      writeRemoteTerminal,
+      resizeRemoteTerminal,
+    }));
+
+    render(<RemoteThreadView />);
+    expect(screen.getByTestId("remote-terminal").textContent).toContain("remote terminal frame");
+    expect(screen.queryByTestId("chatpane")).toBeNull();
+    expect(screen.queryByPlaceholderText("Message the remote agent…")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "terminal input" }));
+    fireEvent.click(screen.getByRole("button", { name: "terminal resize" }));
+    await waitFor(() => expect(writeRemoteTerminal).toHaveBeenCalledWith("x"));
+    expect(resizeRemoteTerminal).toHaveBeenCalledWith({ cols: 100, rows: 30 });
   });
 
   it("sends a prompt through the remote store and clears the input", async () => {

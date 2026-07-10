@@ -6,12 +6,16 @@ import type {
   RemoteShellSnapshot,
   RemoteThreadSnapshot,
 } from "@/shared/remote";
+import type { SshConnectionConfig } from "@/shared/ssh";
 import { deleteDesktopToken, getDesktopToken, setDesktopToken } from "./tokenVault";
 
 export interface StoredDesktop {
   readonly desktopId: string;
   readonly label: string;
   readonly endpoint: string;
+  readonly transport?:
+    | { readonly kind: "direct" }
+    | { readonly kind: "ssh"; readonly connection: SshConnectionConfig };
   readonly appVersion: string;
   /** Host OS of the paired desktop when the server advertises it. */
   readonly platform?: "win32" | "darwin" | "linux";
@@ -298,6 +302,7 @@ export async function saveDesktop(input: {
   readonly accessToken: string;
   readonly tokenExpiresAt: string;
   readonly scopes: RemoteAccessScope[];
+  readonly transport?: StoredDesktop["transport"];
 }): Promise<StoredDesktop> {
   const now = new Date().toISOString();
   // Keep the bearer token in the secure vault (OS keystore on native,
@@ -318,6 +323,9 @@ export async function saveDesktop(input: {
       desktopId: input.descriptor.desktopId,
       label: input.descriptor.label,
       endpoint: input.endpoint,
+      ...(input.transport
+        ? { transport: input.transport }
+        : { transport: { kind: "direct" } as const }),
       appVersion: input.descriptor.appVersion,
       ...(input.descriptor.platform ? { platform: input.descriptor.platform } : {}),
       accessToken: input.accessToken,
@@ -332,6 +340,14 @@ export async function saveDesktop(input: {
   });
   await setActiveDesktopId(desktop.desktopId);
   return desktop;
+}
+
+export async function updateDesktopEndpoint(desktopId: string, endpoint: string): Promise<void> {
+  await mobileDb.transaction("rw", mobileDb.desktops, async () => {
+    const existing = await mobileDb.desktops.get(desktopId);
+    if (!existing || existing.endpoint === endpoint) return;
+    await mobileDb.desktops.put({ ...existing, endpoint });
+  });
 }
 
 /**

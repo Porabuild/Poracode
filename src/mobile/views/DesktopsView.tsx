@@ -1,7 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@heroui/react";
+import { Button, Input, Label, Tabs, TextArea, TextField, toast } from "@heroui/react";
+import type { SshBridgeAuthentication } from "@lightcode/ssh-bridge";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import { Check, Download, Laptop, Loader2, Pencil, QrCode, Smartphone, Trash2 } from "lucide-react";
+import {
+  Check,
+  Download,
+  KeyRound,
+  Laptop,
+  Loader2,
+  Pencil,
+  QrCode,
+  Server,
+  ShieldCheck,
+  Smartphone,
+  Trash2,
+} from "lucide-react";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { formatShortDateTime } from "@/renderer/utils/formatTime";
 import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput";
@@ -46,6 +59,18 @@ export interface DesktopsViewProps {
   /** Save a local nickname for the desktop. */
   readonly onRename: (desktop: StoredDesktop, label: string) => void;
   readonly onForget: (desktop: StoredDesktop) => void;
+  readonly onProbeSsh: (
+    target: string,
+    port: number,
+  ) => Promise<{ readonly fingerprint: string; readonly algorithm: string }>;
+  readonly onPairSsh: (input: MobileSshPairRequest) => Promise<void>;
+}
+
+export interface MobileSshPairRequest {
+  readonly target: string;
+  readonly port: number;
+  readonly fingerprint: string;
+  readonly authentication: SshBridgeAuthentication;
 }
 
 /** "Poracode on host" → "host"; the brand prefix is noise inside the app.
@@ -77,13 +102,20 @@ function DesktopRowButton(props: {
   const { desktop, title } = props;
   const { t } = useLingui();
   const longPressHandlers = useLongPress(props.onMenu);
+  const ssh = desktop.transport?.kind === "ssh";
   return (
     <button type="button" className="m-thread-row" onClick={props.onSwitch} {...longPressHandlers}>
-      <Laptop className="size-4 shrink-0 text-muted" />
+      {ssh ? (
+        <Server className="size-4 shrink-0 text-muted" />
+      ) : (
+        <Laptop className="size-4 shrink-0 text-muted" />
+      )}
       <span className="m-thread-row__body">
         <span className="m-thread-row__title">{title}</span>
         <span className="m-thread-row__meta">
-          <span className="m-thread-row__meta-item">{endpointHost(desktop.endpoint)}</span>
+          <span className="m-thread-row__meta-item">
+            {ssh ? desktop.transport.connection.target : endpointHost(desktop.endpoint)}
+          </span>
           <span className="m-thread-row__meta-item">
             {desktop.lastConnectedAt
               ? t`Live ${formatShortDateTime(desktop.lastConnectedAt)}`
@@ -97,6 +129,195 @@ function DesktopRowButton(props: {
         </span>
       ) : null}
     </button>
+  );
+}
+
+function SshPairingForm(props: {
+  readonly onProbe: DesktopsViewProps["onProbeSsh"];
+  readonly onPair: DesktopsViewProps["onPairSsh"];
+}) {
+  const { t } = useLingui();
+  const [target, setTarget] = useState("");
+  const [port, setPort] = useState("22");
+  const [authKind, setAuthKind] = useState<"password" | "private-key">("password");
+  const [password, setPassword] = useState("");
+  const [privateKey, setPrivateKey] = useState("");
+  const [passphrase, setPassphrase] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [pending, setPending] = useState<MobileSshPairRequest & { readonly algorithm: string }>();
+
+  function authentication(): SshBridgeAuthentication | null {
+    if (authKind === "password") {
+      return password ? { kind: "password", password } : null;
+    }
+    return privateKey
+      ? {
+          kind: "private-key",
+          privateKey,
+          ...(passphrase ? { passphrase } : {}),
+        }
+      : null;
+  }
+
+  async function probe() {
+    const parsedPort = Number(port);
+    const credential = authentication();
+    if (!target.trim() || !Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65_535) {
+      toast.danger(t`Enter a valid SSH target and port.`);
+      return;
+    }
+    if (!credential) {
+      toast.danger(
+        authKind === "password" ? t`Enter the SSH password.` : t`Paste the SSH private key.`,
+      );
+      return;
+    }
+    setChecking(true);
+    try {
+      const hostKey = await props.onProbe(target.trim(), parsedPort);
+      setPending({
+        target: target.trim(),
+        port: parsedPort,
+        authentication: credential,
+        fingerprint: hostKey.fingerprint,
+        algorithm: hostKey.algorithm,
+      });
+    } catch (error) {
+      toast.danger(error instanceof Error ? error.message : t`Unable to probe the SSH host.`);
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function trustAndConnect() {
+    if (!pending) return;
+    setConnecting(true);
+    try {
+      const { algorithm: _algorithm, ...request } = pending;
+      await props.onPair(request);
+    } catch (error) {
+      toast.danger(error instanceof Error ? error.message : t`Unable to connect over SSH.`);
+      setConnecting(false);
+    }
+  }
+
+  if (pending) {
+    return (
+      <div className="m-form">
+        <div className="m-card">
+          <ShieldCheck className="size-5 text-accent" />
+          <div>
+            <strong>
+              <Trans>Verify SSH host key</Trans>
+            </strong>
+            <p className="m-card__hint">
+              <Trans>Compare this fingerprint with the one shown by your server.</Trans>
+            </p>
+            <code className="break-all text-xs">{pending.fingerprint}</code>
+            <p className="m-card__hint">{pending.algorithm}</p>
+          </div>
+        </div>
+        <Button
+          className="m-form__submit text-foreground"
+          size="sm"
+          variant="tertiary"
+          isDisabled={connecting}
+          onPress={() => setPending(undefined)}
+        >
+          <Trans>Cancel</Trans>
+        </Button>
+        <Button
+          className="m-form__submit text-foreground"
+          size="sm"
+          isPending={connecting}
+          onPress={() => void trustAndConnect()}
+        >
+          {connecting ? <Loader2 className="size-4 m-spin" /> : <ShieldCheck className="size-4" />}
+          {connecting ? t`Connecting…` : t`Trust and connect`}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="m-form">
+      <p className="m-card__hint">
+        <Trans>
+          Poracode will install or reuse its server on the SSH host and keep credentials in this
+          device's secure storage.
+        </Trans>
+      </p>
+      <TextField fullWidth value={target} onChange={setTarget}>
+        <Label>
+          <Trans>SSH target</Trans>
+        </Label>
+        <Input
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder={t`user@example.com`}
+        />
+      </TextField>
+      <TextField fullWidth value={port} onChange={setPort}>
+        <Label>
+          <Trans>Port</Trans>
+        </Label>
+        <Input inputMode="numeric" placeholder={t`22`} />
+      </TextField>
+      <Tabs
+        variant="secondary"
+        selectedKey={authKind}
+        onSelectionChange={(key) => setAuthKind(key === "private-key" ? "private-key" : "password")}
+      >
+        <Tabs.ListContainer>
+          <Tabs.List aria-label={t`SSH authentication`}>
+            <Tabs.Tab id="password">
+              <Trans>Password</Trans>
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab id="private-key">
+              <Trans>Private key</Trans>
+              <Tabs.Indicator />
+            </Tabs.Tab>
+          </Tabs.List>
+        </Tabs.ListContainer>
+        <Tabs.Panel id="password">
+          <TextField fullWidth value={password} onChange={setPassword}>
+            <Label>
+              <Trans>Password</Trans>
+            </Label>
+            <Input type="password" autoComplete="off" />
+          </TextField>
+        </Tabs.Panel>
+        <Tabs.Panel id="private-key">
+          <div className="m-form">
+            <TextField fullWidth value={privateKey} onChange={setPrivateKey}>
+              <Label>
+                <Trans>OpenSSH private key</Trans>
+              </Label>
+              <TextArea rows={7} autoCapitalize="off" autoCorrect="off" spellCheck={false} />
+            </TextField>
+            <TextField fullWidth value={passphrase} onChange={setPassphrase}>
+              <Label>
+                <Trans>Passphrase (optional)</Trans>
+              </Label>
+              <Input type="password" autoComplete="off" />
+            </TextField>
+          </div>
+        </Tabs.Panel>
+      </Tabs>
+      <Button
+        className="m-form__submit text-foreground"
+        size="sm"
+        variant="tertiary"
+        isPending={checking}
+        onPress={() => void probe()}
+      >
+        {checking ? <Loader2 className="size-4 m-spin" /> : <KeyRound className="size-4" />}
+        {checking ? t`Checking host…` : t`Verify host key`}
+      </Button>
+    </div>
   );
 }
 
@@ -251,7 +472,7 @@ export function DesktopsView(props: DesktopsViewProps) {
         <EmptyState
           icon={<Laptop className="size-5" />}
           title={<Trans>No connections yet</Trans>}
-          hint={<Trans>Tap + to pair with Poracode on your desktop.</Trans>}
+          hint={<Trans>Tap + to pair directly or connect to a remote machine over SSH.</Trans>}
         />
       )}
 
@@ -265,69 +486,96 @@ export function DesktopsView(props: DesktopsViewProps) {
           closing={pairDrawer.closing}
           onClose={pairDrawer.close}
         >
-          <p className="m-card__hint">
-            <Trans>
-              Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from
-              here — or enter the endpoint and pairing token manually.
-            </Trans>
-          </p>
-          {showPairingHint ? (
-            <p className="m-card__hint m-card__hint--accent">
-              <Trans>Pairing link detected.</Trans>
-            </p>
-          ) : null}
-          <Button
-            className="m-form__submit text-foreground"
-            size="sm"
-            variant="tertiary"
-            isDisabled={pairing ?? false}
-            onPress={() => setScanning(true)}
-          >
-            <QrCode className="size-4" />
-            <Trans>Scan QR code</Trans>
-          </Button>
-          <InstallAppButton />
-          <div className="m-form">
-            <label className="m-field">
-              <span className="m-field__label">
-                <Trans>Endpoint</Trans>
-              </span>
-              <input
-                value={props.manualEndpoint}
-                aria-label={t`Endpoint`}
-                inputMode="url"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                placeholder="http://192.168.1.20:38987/"
-                onChange={(event) => props.onEndpointChange(event.currentTarget.value)}
-              />
-            </label>
-            <label className="m-field">
-              <span className="m-field__label">
-                <Trans>Pairing token</Trans>
-              </span>
-              <input
-                value={props.manualToken}
-                aria-label={t`Pairing token`}
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                placeholder="lc_pair_…"
-                onChange={(event) => props.onTokenChange(event.currentTarget.value)}
-              />
-            </label>
-            <Button
-              className="m-form__submit text-foreground"
-              size="sm"
-              variant="tertiary"
-              isDisabled={pairing || !props.canPair}
-              onPress={props.onPair}
-            >
-              {pairing ? <Loader2 className="size-4 m-spin" /> : <Smartphone className="size-4" />}
-              {pairing ? t`Pairing…` : t`Pair`}
-            </Button>
-          </div>
+          <Tabs defaultSelectedKey="pairing-link" variant="secondary">
+            <Tabs.ListContainer>
+              <Tabs.List aria-label={t`Connection method`}>
+                <Tabs.Tab id="pairing-link">
+                  <Trans>Pairing link</Trans>
+                  <Tabs.Indicator />
+                </Tabs.Tab>
+                {isNativeApp() ? (
+                  <Tabs.Tab id="ssh">
+                    <Trans>SSH</Trans>
+                    <Tabs.Indicator />
+                  </Tabs.Tab>
+                ) : null}
+              </Tabs.List>
+            </Tabs.ListContainer>
+            <Tabs.Panel id="pairing-link">
+              <div className="m-form">
+                <p className="m-card__hint">
+                  <Trans>
+                    Open Settings → Remote Access in Poracode on your desktop, then scan the QR code
+                    from here — or enter the endpoint and pairing token manually.
+                  </Trans>
+                </p>
+                {showPairingHint ? (
+                  <p className="m-card__hint m-card__hint--accent">
+                    <Trans>Pairing link detected.</Trans>
+                  </p>
+                ) : null}
+                <Button
+                  className="m-form__submit text-foreground"
+                  size="sm"
+                  variant="tertiary"
+                  isDisabled={pairing ?? false}
+                  onPress={() => setScanning(true)}
+                >
+                  <QrCode className="size-4" />
+                  <Trans>Scan QR code</Trans>
+                </Button>
+                <InstallAppButton />
+                <label className="m-field">
+                  <span className="m-field__label">
+                    <Trans>Endpoint</Trans>
+                  </span>
+                  <input
+                    value={props.manualEndpoint}
+                    aria-label={t`Endpoint`}
+                    inputMode="url"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="http://192.168.1.20:38987/"
+                    onChange={(event) => props.onEndpointChange(event.currentTarget.value)}
+                  />
+                </label>
+                <label className="m-field">
+                  <span className="m-field__label">
+                    <Trans>Pairing token</Trans>
+                  </span>
+                  <input
+                    value={props.manualToken}
+                    aria-label={t`Pairing token`}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="lc_pair_…"
+                    onChange={(event) => props.onTokenChange(event.currentTarget.value)}
+                  />
+                </label>
+                <Button
+                  className="m-form__submit text-foreground"
+                  size="sm"
+                  variant="tertiary"
+                  isDisabled={pairing || !props.canPair}
+                  onPress={props.onPair}
+                >
+                  {pairing ? (
+                    <Loader2 className="size-4 m-spin" />
+                  ) : (
+                    <Smartphone className="size-4" />
+                  )}
+                  {pairing ? t`Pairing…` : t`Pair`}
+                </Button>
+              </div>
+            </Tabs.Panel>
+            {isNativeApp() ? (
+              <Tabs.Panel id="ssh">
+                <SshPairingForm onProbe={props.onProbeSsh} onPair={props.onPairSsh} />
+              </Tabs.Panel>
+            ) : null}
+          </Tabs>
         </FullScreenDrawer>
       ) : null}
     </section>

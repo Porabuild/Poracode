@@ -43,6 +43,7 @@ import { BrowserHost } from "@/renderer/views/MainView/parts/RightPanel/parts/Br
 import { LoginTerminalOverlay } from "@/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay";
 import { CreateProjectModal } from "@/renderer/views/MainView/parts/CreateProject/CreateProjectModal";
 import { CloneProjectModal } from "@/renderer/views/MainView/parts/CreateProject/CloneProjectModal";
+import { RemoteProjectModal } from "@/renderer/views/RemoteProjectModal/RemoteProjectModal";
 
 export function AppOverlays() {
   const projects = useAppStore((s) => s.projects);
@@ -195,6 +196,7 @@ export function AppOverlays() {
       <LoginTerminalOverlay />
       <CreateProjectModal />
       <CloneProjectModal />
+      <RemoteProjectModal />
     </>
   );
 }

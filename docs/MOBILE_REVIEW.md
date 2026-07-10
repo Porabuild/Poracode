@@ -78,7 +78,7 @@ Productionization:
   maskable/apple-touch), and in-app service-worker registration.
 - **Vercel deploy** — `vercel.json` + a mobile-only build target
   (`pnpm run build:mobile` → `dist/mobile`).
-- **Native apps** — `capacitor.config.ts` for iOS/Android store builds.
+- **Native apps** — `capacitor.config.json` for iOS/Android store builds.
 - **Release pipeline** — `.github/workflows/release-mobile.yml` with per-platform
   toggles (web/Android/iOS) for partial releases. See `docs/RELEASE_MOBILE.md`.
 

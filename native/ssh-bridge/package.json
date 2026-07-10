@@ -1,0 +1,35 @@
+{
+  "name": "@lightcode/ssh-bridge",
+  "version": "1.0.0",
+  "description": "Capacitor bridge exposing authenticated SSH commands, uploads, and loopback forwarding to Poracode mobile.",
+  "license": "Apache-2.0",
+  "author": "SDSLeon",
+  "files": [
+    "src",
+    "android",
+    "ios/Sources",
+    "Package.swift",
+    "LightcodeSshBridge.podspec"
+  ],
+  "type": "module",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^8.0.0"
+  },
+  "capacitor": {
+    "android": {
+      "src": "android"
+    },
+    "ios": {
+      "src": "ios"
+    }
+  }
+}

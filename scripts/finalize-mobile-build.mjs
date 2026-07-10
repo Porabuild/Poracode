@@ -10,6 +10,8 @@ const outDir = resolve(process.cwd(), "dist/mobile");
 const source = join(outDir, "mobile.html");
 const target = join(outDir, "index.html");
 const wellKnownDir = join(outDir, ".well-known");
+const sshRuntimeSourceDir = resolve(process.cwd(), "resources/mobile-ssh-runtime");
+const sshRuntimeTargetDir = join(outDir, "lightcode-ssh-runtime");
 const appId = readEnv("LIGHTCODE_MOBILE_APP_ID") || "com.lightcodeapp.mobile";
 const androidFingerprints = readFingerprintList();
 const appleTeamId = readEnv("LIGHTCODE_MOBILE_APPLE_TEAM_ID");
@@ -37,10 +39,17 @@ if (requireIosLinks && !appleTeamId) {
 }
 
 copyFileSync(source, target);
+mkdirSync(sshRuntimeTargetDir, { recursive: true });
+copyFileSync(
+  join(sshRuntimeSourceDir, "manifest.json"),
+  join(sshRuntimeTargetDir, "manifest.json"),
+);
+copyFileSync(join(sshRuntimeSourceDir, "runtime.bin"), join(sshRuntimeTargetDir, "runtime.bin"));
 mkdirSync(wellKnownDir, { recursive: true });
 writeJson(join(wellKnownDir, "assetlinks.json"), buildAssetLinks());
 writeJson(join(wellKnownDir, "apple-app-site-association"), buildAppleAppSiteAssociation());
 console.log(`[finalize-mobile-build] wrote ${target}`);
+console.log("[finalize-mobile-build] embedded the SSH runtime");
 console.log("[finalize-mobile-build] wrote .well-known association files");
 
 function readEnv(key) {

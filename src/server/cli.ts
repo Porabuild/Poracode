@@ -5,6 +5,11 @@ import { prepareLightcodeDataRoot } from "@/main/lightcodeData";
 import { installShutdown, reportFatalStartupError } from "./cliRuntime";
 import { createHeadlessRemoteHost } from "./createHeadlessRemoteHost";
 import { readOrCreateHeadlessSecretKey, readOrCreateRelaySecret } from "./headlessSecretKey";
+import {
+  fulfillPairingControlRequest,
+  pidIsAlive,
+  requestPairingFromRunningServer,
+} from "./pairingControl";
 
 /**
  * Standalone headless Lightcode remote server.
@@ -39,18 +44,6 @@ const LOCK_FILE = "server.lock";
 export interface DataDirLock {
   readonly path: string;
   release(): void;
-}
-
-/** Reports whether a pid is a live process this user can signal. */
-function pidIsAlive(pid: number): boolean {
-  try {
-    // Signal 0 performs error-checking without delivering a signal.
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    // ESRCH: no such process (stale). EPERM: alive but owned by another user.
-    return (error as NodeJS.ErrnoException).code === "EPERM";
-  }
 }
 
 /**
@@ -140,7 +133,7 @@ function readLockPid(path: string): number | null {
   }
 }
 
-async function main(): Promise<void> {
+async function serve(): Promise<void> {
   process.env.LIGHTCODE_HEADLESS_SERVER = "1";
   const baseDir = process.env.LIGHTCODE_BASE_DIR?.trim() || resolveLightcodeBaseDir();
   // Ensure the data dir exists before the secret key is written into it.
@@ -199,15 +192,41 @@ async function main(): Promise<void> {
   // POSIX-only: print a new pairing link without restarting the server.
   process.on("SIGUSR2", () => {
     try {
-      console.log("[lightcode-server] pair a device:   %s", host.server.issuePairingUrl());
+      const handled = fulfillPairingControlRequest(baseDir, () =>
+        host.server.issuePairingUrl("SSH bootstrap"),
+      );
+      if (!handled) {
+        console.log("[lightcode-server] pair a device:   %s", host.server.issuePairingUrl());
+      }
     } catch (error) {
       console.error("[lightcode-server] could not mint pairing link:", error);
     }
   });
 }
 
+export type ServerCliCommand = "serve" | "pair-json";
+
+export function parseServerCliCommand(args: readonly string[]): ServerCliCommand {
+  if (args.length === 0) return "serve";
+  if (args.length === 2 && args[0] === "pair" && args[1] === "--json") return "pair-json";
+  throw new Error("Usage: lightcode-server [pair --json]");
+}
+
+async function printPairingJson(): Promise<void> {
+  const baseDir = process.env.LIGHTCODE_BASE_DIR?.trim() || resolveLightcodeBaseDir();
+  const response = await requestPairingFromRunningServer(baseDir);
+  process.stdout.write(`${JSON.stringify(response)}\n`);
+}
+
 function runCli(): void {
-  main().catch((error) => reportFatalStartupError("[lightcode-server]", error));
+  let command: ServerCliCommand;
+  try {
+    command = parseServerCliCommand(process.argv.slice(2));
+  } catch (error) {
+    reportFatalStartupError("[lightcode-server]", error);
+  }
+  const operation = command === "pair-json" ? printPairingJson() : serve();
+  operation.catch((error) => reportFatalStartupError("[lightcode-server]", error));
 }
 
 // Only boot when run as the CLI entrypoint (node dist/main/server.cjs). Guarded

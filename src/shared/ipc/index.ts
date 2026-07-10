@@ -24,6 +24,12 @@ export {
 } from "./bridge";
 export type { RemoteAccessTailscaleStatus, StartTailscaleResult } from "./procedures/app";
 export type {
+  SshConnectPayload,
+  SshConnectResult,
+  SshDisconnectPayload,
+  SshDiscoveredHost,
+} from "../ssh";
+export type {
   BrowserEvent,
   NotificationClickEvent,
   SupervisorEvent,

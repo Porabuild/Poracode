@@ -26,6 +26,7 @@ mcps/
 resources/wsl-helpers/watcher.node
 resources/wsl-helpers/bridge.mjs
 resources/agent-plugins/
+resources/mobile-ssh-runtime/
 .envrc
 .envrc.local
 

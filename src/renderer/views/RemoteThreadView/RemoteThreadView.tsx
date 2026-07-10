@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Loader2, Send, Square, X } from "lucide-react";
 import { isThreadTurnActive } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { ChatPane } from "@/renderer/components/thread/ChatPane/ChatPane";
+import { XTermSurface } from "@/renderer/components/terminal/XTermSurface";
 import { normalizeChatProjectPath } from "@/renderer/components/thread/ChatPane/chatPathUtils";
 import { ThreadRuntimeRequestPanel } from "@/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel";
 import { getApprovalDenyOption } from "@/renderer/components/thread/ThreadRuntimeRequestPanel/helpers";
@@ -12,6 +13,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 
 function isAbsoluteFilePath(path: string): boolean {
   return path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path);
@@ -20,6 +22,35 @@ function isAbsoluteFilePath(path: string): boolean {
 function remoteRootLabel(projectName: string, worktreePath: string | undefined): string {
   if (!worktreePath) return projectName;
   return worktreePath.split(/[\\/]/).filter(Boolean).at(-1) ?? projectName;
+}
+
+function RemoteTerminalPane(props: {
+  readonly threadId: string;
+  readonly initialScrollback: string;
+}) {
+  const writeRemoteTerminal = useRemoteServersStore((state) => state.writeRemoteTerminal);
+  const resizeRemoteTerminal = useRemoteServersStore((state) => state.resizeRemoteTerminal);
+  const outputSource = useCallback(
+    (listener: {
+      onOutput: (data: string) => void;
+      onReset: () => void;
+      onExited: (exitCode: number | null) => void;
+    }) => watchRemoteTerminal(props.threadId, listener),
+    [props.threadId],
+  );
+
+  return (
+    <XTermSurface
+      key={props.threadId}
+      terminalId={props.threadId}
+      className="h-full w-full"
+      initialScrollback={props.initialScrollback}
+      outputSource={outputSource}
+      writeInput={writeRemoteTerminal}
+      resizeBackingTerminal={resizeRemoteTerminal}
+      openLinksInNativeBrowser
+    />
+  );
 }
 
 /**
@@ -100,6 +131,7 @@ export function RemoteThreadView() {
   const approvalDenyOption = activeRuntimeRequest
     ? getApprovalDenyOption(activeRuntimeRequest)
     : undefined;
+  const terminalPresentation = (thread.presentationMode ?? "terminal") === "terminal";
 
   const submit = () => {
     const prompt = draft.trim();
@@ -162,67 +194,76 @@ export function RemoteThreadView() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        <ChatPane
-          thread={thread}
-          paneActionsOverride={remotePaneActions}
-          checkpointProjectLocation={checkpointProjectLocation}
-          checkpointActions={{
-            rollbackThreadConversation: (input) =>
-              rollbackThreadConversation({
-                desktopId: open.desktopId,
-                ...input,
-              }),
-            restoreFileCheckpoint: (input) =>
-              restoreFileCheckpoint({
-                desktopId: open.desktopId,
-                ...input,
-              }),
-          }}
-        />
-      </div>
-
-      <div className="border-t border-[var(--hairline)] p-3">
-        {activeRuntimeRequest ? (
-          <div className="mb-3">
-            <ThreadRuntimeRequestPanel
-              key={activeRuntimeRequest.requestId}
-              threadId={open.threadId}
-              request={activeRuntimeRequest}
-              onResolve={(input) =>
-                resolveThreadRequest({
+        {terminalPresentation ? (
+          <RemoteTerminalPane
+            threadId={open.threadId}
+            initialScrollback={open.terminalScrollback ?? ""}
+          />
+        ) : (
+          <ChatPane
+            thread={thread}
+            paneActionsOverride={remotePaneActions}
+            checkpointProjectLocation={checkpointProjectLocation}
+            checkpointActions={{
+              rollbackThreadConversation: (input) =>
+                rollbackThreadConversation({
                   desktopId: open.desktopId,
-                  threadId: open.threadId,
                   ...input,
-                })
-              }
-            />
-          </div>
-        ) : null}
-        <div className="flex items-end gap-2">
-          <textarea
-            className="max-h-40 min-h-[2.5rem] flex-1 resize-none rounded-md border border-default-200 bg-default-50 px-3 py-2 text-sm text-foreground outline-none focus:border-default-400"
-            value={draft}
-            placeholder={t`Message the remote agent…`}
-            rows={1}
-            onChange={(event) => setDraft(event.currentTarget.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                submit();
-              }
+                }),
+              restoreFileCheckpoint: (input) =>
+                restoreFileCheckpoint({
+                  desktopId: open.desktopId,
+                  ...input,
+                }),
             }}
           />
-          <Button
-            variant="primary"
-            size="sm"
-            isDisabled={busy || !draft.trim()}
-            aria-label={t`Send`}
-            onPress={submit}
-          >
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-          </Button>
-        </div>
+        )}
       </div>
+
+      {!terminalPresentation ? (
+        <div className="border-t border-[var(--hairline)] p-3">
+          {activeRuntimeRequest ? (
+            <div className="mb-3">
+              <ThreadRuntimeRequestPanel
+                key={activeRuntimeRequest.requestId}
+                threadId={open.threadId}
+                request={activeRuntimeRequest}
+                onResolve={(input) =>
+                  resolveThreadRequest({
+                    desktopId: open.desktopId,
+                    threadId: open.threadId,
+                    ...input,
+                  })
+                }
+              />
+            </div>
+          ) : null}
+          <div className="flex items-end gap-2">
+            <textarea
+              className="max-h-40 min-h-[2.5rem] flex-1 resize-none rounded-md border border-default-200 bg-default-50 px-3 py-2 text-sm text-foreground outline-none focus:border-default-400"
+              value={draft}
+              placeholder={t`Message the remote agent…`}
+              rows={1}
+              onChange={(event) => setDraft(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  submit();
+                }
+              }}
+            />
+            <Button
+              variant="primary"
+              size="sm"
+              isDisabled={busy || !draft.trim()}
+              aria-label={t`Send`}
+              onPress={submit}
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

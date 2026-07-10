@@ -31,6 +31,7 @@ import {
   subscribePairingLaunch,
 } from "./pairing";
 import { MobileSetupEmptyState, type MobileSetupKind } from "./setupEmptyState";
+import type { MobileSshPairRequest } from "./views/DesktopsView";
 import { useGitSummaryHydration } from "./useGitSummaryHydration";
 import { useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
 import { DesktopsView } from "./views/DesktopsView";
@@ -426,6 +427,21 @@ export function DesktopsRoute() {
     void pair(parsed.endpoint, parsed.credential);
   }
 
+  async function pairSsh(input: MobileSshPairRequest) {
+    await remote.pairSsh(
+      {
+        id: crypto.randomUUID(),
+        label: input.target,
+        target: input.target,
+        port: input.port,
+        authentication: input.authentication.kind,
+        hostKeyFingerprint: input.fingerprint,
+      },
+      input.authentication,
+    );
+    void navigate({ to: "/threads" });
+  }
+
   return (
     <DesktopsView
       desktops={remote.desktops}
@@ -448,6 +464,8 @@ export function DesktopsRoute() {
       onForget={(desktop) => {
         void remote.forget(desktop);
       }}
+      onProbeSsh={remote.probeSshHost}
+      onPairSsh={pairSsh}
     />
   );
 }

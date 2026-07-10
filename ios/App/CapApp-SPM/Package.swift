@@ -11,11 +11,12 @@ let package = Package(
             targets: ["CapApp-SPM"])
     ],
     dependencies: [
-        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.4.0"),
+        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.4.1"),
         .package(name: "AparajitaCapacitorSecureStorage", path: "../../../node_modules/@aparajita/capacitor-secure-storage"),
         .package(name: "CapacitorApp", path: "../../../node_modules/@capacitor/app"),
         .package(name: "CapacitorPushNotifications", path: "../../../node_modules/@capacitor/push-notifications"),
-        .package(name: "LightcodeActivityBridge", path: "../../../node_modules/@lightcode/activity-bridge")
+        .package(name: "LightcodeActivityBridge", path: "../../../node_modules/@lightcode/activity-bridge"),
+        .package(name: "LightcodeSshBridge", path: "../../../node_modules/@lightcode/ssh-bridge")
     ],
     targets: [
         .target(
@@ -26,7 +27,8 @@ let package = Package(
                 .product(name: "AparajitaCapacitorSecureStorage", package: "AparajitaCapacitorSecureStorage"),
                 .product(name: "CapacitorApp", package: "CapacitorApp"),
                 .product(name: "CapacitorPushNotifications", package: "CapacitorPushNotifications"),
-                .product(name: "LightcodeActivityBridge", package: "LightcodeActivityBridge")
+                .product(name: "LightcodeActivityBridge", package: "LightcodeActivityBridge"),
+                .product(name: "LightcodeSshBridge", package: "LightcodeSshBridge")
             ]
         )
     ]

@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import { useEffect } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { StoredDesktop } from "./storage";
@@ -59,6 +58,17 @@ const h = vi.hoisted(() => {
     isNativeApp: true,
     deviceId: "device-1",
     unregisterPush: vi.fn<(client: unknown, deviceId: string) => Promise<void>>(async () => {}),
+    connectMobileSsh: vi.fn<(...a: unknown[]) => Promise<unknown>>(),
+    disconnectMobileSsh: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
+    getSshCredential: vi.fn<(...a: unknown[]) => Promise<unknown>>(),
+    deleteSshCredential: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
+    updateDesktopEndpoint: vi.fn<(id: string, endpoint: string) => Promise<void>>(
+      async (id, endpoint) => {
+        h.storedDesktops = h.storedDesktops.map((desktop) =>
+          desktop.desktopId === id ? { ...desktop, endpoint } : desktop,
+        );
+      },
+    ),
   };
 });
 
@@ -191,6 +201,7 @@ vi.mock("./storage", () => ({
   }),
   renameDesktop: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
   updateDesktopPlatform: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
+  updateDesktopEndpoint: (...a: [string, string]) => h.updateDesktopEndpoint(...a),
   forgetDesktop: (...a: [string]) => h.forgetDesktop(...a),
   getStoredShellSnapshotKey: vi.fn<(...a: unknown[]) => unknown>(),
   getOrCreateDeviceId: vi.fn<() => Promise<string>>(async () => h.deviceId),
@@ -237,6 +248,16 @@ vi.mock("./presentation", () => ({
 vi.mock("./pwaInstall", () => ({
   isNativeApp: () => h.isNativeApp,
 }));
+vi.mock("./mobileSsh", () => ({
+  connectMobileSsh: (...a: unknown[]) => h.connectMobileSsh(...a),
+  disconnectMobileSsh: (...a: unknown[]) => h.disconnectMobileSsh(...a),
+  probeMobileSshHost: vi.fn<() => Promise<unknown>>(),
+}));
+vi.mock("./sshVault", () => ({
+  getSshCredential: (...a: unknown[]) => h.getSshCredential(...a),
+  setSshCredential: vi.fn<() => Promise<void>>(),
+  deleteSshCredential: (...a: unknown[]) => h.deleteSshCredential(...a),
+}));
 vi.mock("./push/pushRegistration", () => ({
   unregisterPush: (...a: [unknown, string]) => h.unregisterPush(...a),
 }));
@@ -271,28 +292,11 @@ class FakeWebSocket {
 
 import { useRemoteDesktop } from "./useRemoteDesktop";
 
-function createCompletion(): { promise: Promise<void>; resolve: () => void } {
-  let resolve!: () => void;
-  const promise = new Promise<void>((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
-}
-
-function useRemoteDesktopWithBootCompletion(onBooted: () => void) {
-  const remote = useRemoteDesktop();
-  useEffect(() => {
-    if (remote.booted) onBooted();
-  }, [onBooted, remote.booted]);
-  return remote;
-}
-
 async function mountWith(desktops: StoredDesktop[], active: string | null) {
   h.storedDesktops = desktops;
   h.activeDesktopId = active;
-  const booted = createCompletion();
-  const view = renderHook(() => useRemoteDesktopWithBootCompletion(booted.resolve));
-  await booted.promise;
+  const view = renderHook(() => useRemoteDesktop());
+  await waitFor(() => expect(view.result.current.booted).toBe(true));
   expect(view.result.current.booted).toBe(true);
   return view;
 }
@@ -317,9 +321,15 @@ describe("useRemoteDesktop", () => {
       h.setActiveDesktopId,
       h.forgetDesktop,
       h.unregisterPush,
+      h.connectMobileSsh,
+      h.disconnectMobileSsh,
+      h.getSshCredential,
+      h.deleteSshCredential,
+      h.updateDesktopEndpoint,
     ]) {
       fn.mockClear();
     }
+    h.getSshCredential.mockResolvedValue(null);
     vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
     FakeWebSocket.instances = [];
   });
@@ -395,6 +405,58 @@ describe("useRemoteDesktop", () => {
 
     expect(view.result.current.activeDesktopId).toBe("d1");
     expect(h.applyShellSnapshot).toHaveBeenCalledWith(expect.objectContaining({ __from: "d1" }));
+  });
+
+  it("restores an SSH tunnel before refreshing the active desktop", async () => {
+    const connection = {
+      id: "a5fe6f57-e779-4efe-aad8-6cd9ec0c38fb",
+      label: "Build host",
+      target: "dev@example.com",
+      port: 22,
+      authentication: "password" as const,
+      hostKeyFingerprint: "SHA256:abc123",
+    };
+    const desktop = {
+      ...makeDesktop("old"),
+      desktopId: "d1",
+      transport: { kind: "ssh" as const, connection },
+    };
+    const credential = { kind: "password" as const, password: "secret" };
+    h.getSshCredential.mockResolvedValue(credential);
+    h.connectMobileSsh.mockResolvedValue({
+      endpoint: "http://d1.local",
+      remotePort: 38987,
+    });
+
+    const view = await mountWith([desktop], "d1");
+
+    expect(h.connectMobileSsh).toHaveBeenCalledWith(connection, credential, false);
+    expect(h.updateDesktopEndpoint).toHaveBeenCalledWith("d1", "http://d1.local");
+    await waitFor(() =>
+      expect(view.result.current.activeDesktop?.endpoint).toBe("http://d1.local"),
+    );
+  });
+
+  it("reports a missing SSH credential without trying the stale endpoint", async () => {
+    const desktop = {
+      ...makeDesktop("d1"),
+      transport: {
+        kind: "ssh" as const,
+        connection: {
+          id: "a5fe6f57-e779-4efe-aad8-6cd9ec0c38fb",
+          label: "Build host",
+          target: "dev@example.com",
+          authentication: "password" as const,
+          hostKeyFingerprint: "SHA256:abc123",
+        },
+      },
+    };
+
+    const view = await mountWith([desktop], "d1");
+
+    expect(view.result.current.connection).toBe("error");
+    expect(view.result.current.message).toContain("SSH credentials are missing");
+    expect(clientFor("d1").snapshot).not.toHaveBeenCalled();
   });
 
   it("[#3] does not auto-start a terminal thread when only a cached snapshot loads", async () => {
@@ -509,6 +571,30 @@ describe("useRemoteDesktop", () => {
     // The active desktop's session is untouched.
     expect(h.resetRemoteStores).not.toHaveBeenCalled();
     expect(view.result.current.activeDesktopId).toBe("A");
+  });
+
+  it("disconnects SSH and deletes its secure credential when forgetting a desktop", async () => {
+    const connection = {
+      id: "a5fe6f57-e779-4efe-aad8-6cd9ec0c38fb",
+      label: "Build host",
+      target: "dev@example.com",
+      authentication: "password" as const,
+      hostKeyFingerprint: "SHA256:abc123",
+    };
+    const desktop = {
+      ...makeDesktop("d1"),
+      transport: { kind: "ssh" as const, connection },
+    };
+    h.getSshCredential.mockResolvedValue({ kind: "password", password: "secret" });
+    h.connectMobileSsh.mockResolvedValue({ endpoint: desktop.endpoint, remotePort: 38987 });
+    const view = await mountWith([desktop], "d1");
+
+    await act(async () => {
+      await view.result.current.forget(desktop);
+    });
+
+    expect(h.disconnectMobileSsh).toHaveBeenCalledWith(connection.id);
+    expect(h.deleteSshCredential).toHaveBeenCalledWith(connection.id);
   });
 
   it("[#4] forgetting the ACTIVE desktop resets and switches to the next", async () => {

@@ -23,6 +23,7 @@ import {
   type RemoteServerStatus,
 } from "@/renderer/state/remoteServersStore";
 import { SettingsPage } from "./SettingsForm";
+import { SshConnectionForm } from "./SshConnectionForm";
 
 const INPUT_CLASS =
   "w-full rounded-lg border border-default-200 bg-default-50 px-2.5 py-1.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-default-400";
@@ -190,6 +191,7 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
   const { t } = useLingui();
   const runtime = useRemoteServersStore((s) => s.runtime[server.desktopId]);
   const refreshServer = useRemoteServersStore((s) => s.refreshServer);
+  const connectAll = useRemoteServersStore((s) => s.connectAll);
   const removeServer = useRemoteServersStore((s) => s.removeServer);
   const runProjectCommand = useRemoteServersStore((s) => s.runProjectCommand);
   const { busy, run } = useAsyncOperation();
@@ -219,7 +221,11 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
           {status !== "online" ? (
             <span className="shrink-0 text-xs text-muted">{statusLabel}</span>
           ) : null}
-          <span className="truncate text-xs text-muted/70">{endpointHost(server.endpoint)}</span>
+          <span className="truncate text-xs text-muted/70">
+            {server.transport?.kind === "ssh"
+              ? server.transport.connection.target
+              : endpointHost(server.endpoint)}
+          </span>
         </button>
         <Button
           variant="ghost"
@@ -227,7 +233,11 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
           isIconOnly
           aria-label={t`Refresh`}
           isDisabled={busy}
-          onPress={() => run(() => refreshServer(server.desktopId))}
+          onPress={() =>
+            run(() =>
+              server.transport?.kind === "ssh" ? connectAll() : refreshServer(server.desktopId),
+            )
+          }
         >
           <RefreshCw className={`size-3.5 ${status === "connecting" ? "animate-spin" : ""}`} />
         </Button>
@@ -306,7 +316,7 @@ export function RemoteServersSettings() {
     void connectAll();
   }, [connectAll]);
 
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<"direct" | "ssh" | null>(null);
   const [endpoint, setEndpoint] = useState("");
   const [token, setToken] = useState("");
   const { busy: pairing, error, run } = useAsyncOperation();
@@ -319,14 +329,14 @@ export function RemoteServersSettings() {
       await connectAll();
       setEndpoint("");
       setToken("");
-      setAdding(false);
+      setAdding(null);
     });
   };
 
   return (
     <SettingsPage
-      title={t`Remote Servers`}
-      description={t`Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine.`}
+      title={t`Remote Environments`}
+      description={t`Connect directly, through a relay, or over SSH. Every transport uses the same Lightcode remote protocol, projects, threads, and agent runtimes.`}
       bodyClassName="space-y-3"
     >
       {servers.length > 0 ? (
@@ -337,7 +347,7 @@ export function RemoteServersSettings() {
         </div>
       ) : null}
 
-      {adding ? (
+      {adding === "direct" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-[var(--hairline)] p-3">
           <CompactInput
             value={endpoint}
@@ -359,22 +369,30 @@ export function RemoteServersSettings() {
               {pairing ? <Loader2 className="size-4 animate-spin" /> : <Link2 className="size-4" />}
               {pairing ? <Trans>Connecting…</Trans> : <Trans>Connect</Trans>}
             </Button>
-            <Button variant="ghost" size="sm" isDisabled={pairing} onPress={() => setAdding(false)}>
+            <Button variant="ghost" size="sm" isDisabled={pairing} onPress={() => setAdding(null)}>
               <Trans>Cancel</Trans>
             </Button>
             {error ? <span className="min-w-0 truncate text-xs text-danger">{error}</span> : null}
           </div>
         </div>
+      ) : adding === "ssh" ? (
+        <SshConnectionForm onConnected={() => setAdding(null)} onCancel={() => setAdding(null)} />
       ) : (
-        <Button variant="tertiary" size="sm" onPress={() => setAdding(true)}>
-          <Plus className="size-4" />
-          <Trans>Connect a server</Trans>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="tertiary" size="sm" onPress={() => setAdding("direct")}>
+            <Link2 className="size-4" />
+            <Trans>Pair with Lightcode</Trans>
+          </Button>
+          <Button variant="tertiary" size="sm" onPress={() => setAdding("ssh")}>
+            <Plus className="size-4" />
+            <Trans>Connect over SSH</Trans>
+          </Button>
+        </div>
       )}
 
-      {servers.length === 0 && !adding ? (
+      {servers.length === 0 && adding === null ? (
         <p className="text-xs text-muted">
-          <Trans>No servers connected yet.</Trans>
+          <Trans>No remote environments connected yet.</Trans>
         </p>
       ) : null}
     </SettingsPage>

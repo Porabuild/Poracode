@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { acquireDataDirLock } from "./cli";
+import { acquireDataDirLock, parseServerCliCommand } from "./cli";
 
 describe("acquireDataDirLock", () => {
   let baseDir: string;
@@ -61,5 +61,19 @@ describe("acquireDataDirLock", () => {
     const lock = acquireDataDirLock(baseDir);
     lock.release();
     expect(() => lock.release()).not.toThrow();
+  });
+});
+
+describe("parseServerCliCommand", () => {
+  it("serves by default", () => {
+    expect(parseServerCliCommand([])).toBe("serve");
+  });
+
+  it("recognizes the machine-readable pairing command", () => {
+    expect(parseServerCliCommand(["pair", "--json"])).toBe("pair-json");
+  });
+
+  it("rejects unsupported arguments", () => {
+    expect(() => parseServerCliCommand(["pair"])).toThrow(/Usage/);
   });
 });

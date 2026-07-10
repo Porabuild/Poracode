@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { SshBridgeAuthentication } from "@lightcode/ssh-bridge";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useShallow } from "zustand/react/shallow";
@@ -11,6 +12,7 @@ import {
   type ThreadStatus,
 } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import type { SshConnectionConfig } from "@/shared/ssh";
 import {
   filterKnownRemoteAccessScopes,
   type RemoteAccessTokenResult,
@@ -28,6 +30,7 @@ import { setRemoteBridgeClient } from "./bridge";
 import { resetBrowserMirror } from "./browserMirror";
 import { buildGitAddWorktreePayload } from "./navHelpers";
 import { isNativeApp } from "./pwaInstall";
+import { connectMobileSsh, disconnectMobileSsh, probeMobileSshHost } from "./mobileSsh";
 import { unregisterPush } from "./push/pushRegistration";
 import { resetTerminalFeed } from "./terminalFeed";
 import { RemoteDesktopClient } from "./remoteClient";
@@ -59,8 +62,10 @@ import {
   setActiveDesktopId,
   shouldPersistThreadSnapshot,
   updateDesktopPlatform,
+  updateDesktopEndpoint,
   type StoredDesktop,
 } from "./storage";
+import { deleteSshCredential, getSshCredential, setSshCredential } from "./sshVault";
 
 export type ConnectionState =
   | "booting"
@@ -109,6 +114,20 @@ function describeError(error: unknown, fallback: string): string {
 
 function firstThreadIdByRecency(threads: readonly Thread[]): string | undefined {
   return sortThreadsByRecency(threads)[0]?.id;
+}
+
+async function restoreSshTransport(desktop: StoredDesktop): Promise<StoredDesktop> {
+  if (desktop.transport?.kind !== "ssh") return desktop;
+  const connection = desktop.transport.connection;
+  const credential = await getSshCredential(connection.id);
+  if (!credential) {
+    throw new Error(
+      i18n._(msg`SSH credentials are missing. Remove this connection and add it again.`),
+    );
+  }
+  const result = await connectMobileSsh(connection, credential, false);
+  await updateDesktopEndpoint(desktop.desktopId, result.endpoint);
+  return { ...desktop, endpoint: result.endpoint };
 }
 
 const MOBILE_TERMINAL_START_STATUSES = new Set<ThreadStatus>([
@@ -197,9 +216,8 @@ export function useRemoteDesktop() {
   useEffect(() => {
     let cancelled = false;
     async function boot() {
-      const [stored, active] = await Promise.all([listStoredDesktops(), getActiveDesktopId()]);
+      let [stored, active] = await Promise.all([listStoredDesktops(), getActiveDesktopId()]);
       if (cancelled) return;
-      setDesktops(stored);
       // A pairing launch (`?host=…#token=…`) is NOT auto-paired here — that would
       // silently bind the device to whatever endpoint a tapped link carries.
       // `useDeepLinkPairing` routes it to the /desktops screen for the user to
@@ -207,6 +225,7 @@ export function useRemoteDesktop() {
       const desktopId = active ?? stored[0]?.desktopId;
       setActiveDesktopSelection(desktopId ?? null);
       if (!desktopId) {
+        setDesktops(stored);
         // A mirror seed without any paired desktop is stale (e.g. the Dexie DB
         // was cleared but localStorage survived) — drop it instead of showing
         // ghost threads on an unpaired install.
@@ -214,8 +233,22 @@ export function useRemoteDesktop() {
         setConnection("offline");
         return;
       }
+      let desktop = stored.find((entry) => entry.desktopId === desktopId);
+      if (desktop?.transport?.kind === "ssh") {
+        try {
+          desktop = await restoreSshTransport(desktop);
+          stored = stored.map((entry) => (entry.desktopId === desktopId ? desktop! : entry));
+        } catch (error) {
+          if (cancelled) return;
+          setDesktops(stored);
+          await loadCached(desktopId);
+          setConnection("error");
+          setMessage(describeError(error, i18n._(msg`Unable to restore the SSH connection.`)));
+          return;
+        }
+      }
+      setDesktops(stored);
       await loadCached(desktopId);
-      const desktop = stored.find((entry) => entry.desktopId === desktopId);
       if (desktop) {
         await refresh(desktop);
       }
@@ -342,7 +375,11 @@ export function useRemoteDesktop() {
     threadSnapshotSavedAtRef.current.clear();
   }
 
-  async function pairDesktop(endpoint: string, credential: string) {
+  async function pairDesktop(
+    endpoint: string,
+    credential: string,
+    transport: StoredDesktop["transport"] = { kind: "direct" },
+  ) {
     // Restore this on failure so the "pairing" state can't get stuck — while it
     // is set, DesktopsView disables Pair + Scan-QR, so a wedged "pairing" would
     // leave the user unable to retry.
@@ -371,9 +408,34 @@ export function useRemoteDesktop() {
       // Server-echoed scopes are lenient on the wire; narrow to the set this
       // build understands before persisting them on the device.
       scopes: filterKnownRemoteAccessScopes(token.scopes),
+      transport,
     });
     await reloadDesktops(desktop.desktopId);
     await refresh(desktop);
+  }
+
+  async function pairSsh(
+    sshConnection: SshConnectionConfig,
+    authentication: SshBridgeAuthentication,
+  ) {
+    const result = await connectMobileSsh(sshConnection, authentication, true);
+    if (!result.pairingCredential) {
+      await disconnectMobileSsh(sshConnection.id);
+      throw new Error(i18n._(msg`The remote Poracode server returned no pairing credential.`));
+    }
+    try {
+      await setSshCredential(sshConnection.id, authentication);
+      await pairDesktop(result.endpoint, result.pairingCredential, {
+        kind: "ssh",
+        connection: sshConnection,
+      });
+    } catch (error) {
+      await Promise.allSettled([
+        deleteSshCredential(sshConnection.id),
+        disconnectMobileSsh(sshConnection.id),
+      ]);
+      throw error;
+    }
   }
 
   async function refresh(
@@ -773,11 +835,24 @@ export function useRemoteDesktop() {
   }
 
   async function switchDesktop(desktop: StoredDesktop) {
-    await setActiveDesktopId(desktop.desktopId);
-    setActiveDesktopSelection(desktop.desktopId);
+    const previous = activeDesktop;
+    let restored: StoredDesktop;
+    try {
+      restored = await restoreSshTransport(desktop);
+    } catch (error) {
+      setConnection("error");
+      setMessage(describeError(error, i18n._(msg`Unable to restore the SSH connection.`)));
+      throw error;
+    }
+    await setActiveDesktopId(restored.desktopId);
+    setActiveDesktopSelection(restored.desktopId);
     resetSessionState();
-    await loadCached(desktop.desktopId);
-    await refresh(desktop);
+    await reloadDesktops(restored.desktopId);
+    await loadCached(restored.desktopId);
+    await refresh(restored);
+    if (previous?.transport?.kind === "ssh" && previous.desktopId !== restored.desktopId) {
+      void disconnectMobileSsh(previous.transport.connection.id);
+    }
   }
 
   async function forget(desktop: StoredDesktop) {
@@ -794,6 +869,12 @@ export function useRemoteDesktop() {
         .catch((error: unknown) => {
           console.warn("[push] unregisterPush on unpair failed", error);
         });
+    }
+    if (desktop.transport?.kind === "ssh") {
+      await Promise.allSettled([
+        disconnectMobileSsh(desktop.transport.connection.id),
+        deleteSshCredential(desktop.transport.connection.id),
+      ]);
     }
     await forgetDesktop(desktop.desktopId);
     if (!wasActive) {
@@ -835,8 +916,19 @@ export function useRemoteDesktop() {
   function reconnect() {
     setConnection((current) => (current === "online" ? current : "reconnecting"));
     setMessage("");
-    setReconnectNonce((nonce) => nonce + 1);
-    void refresh(activeDesktop, { refreshSelectedThread: true });
+    void (async () => {
+      try {
+        const restored = activeDesktop ? await restoreSshTransport(activeDesktop) : null;
+        if (restored && restored.endpoint !== activeDesktop?.endpoint) {
+          await reloadDesktops(restored.desktopId);
+        }
+        setReconnectNonce((nonce) => nonce + 1);
+        await refresh(restored, { refreshSelectedThread: true });
+      } catch (error) {
+        setConnection("error");
+        setMessage(describeError(error, i18n._(msg`Unable to restore the SSH connection.`)));
+      }
+    })();
   }
 
   /**
@@ -867,6 +959,8 @@ export function useRemoteDesktop() {
     refresh,
     openThread,
     pairDesktop,
+    pairSsh,
+    probeSshHost: probeMobileSshHost,
     sendPrompt,
     interrupt,
     startThread,

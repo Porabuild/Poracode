@@ -10,6 +10,14 @@ import {
   type RemoteSocketLike,
 } from "./remoteServersStore";
 import { useAgentStatusesStore } from "./agentStatusesStore";
+import { watchRemoteTerminal } from "./remoteTerminalFeed";
+
+const bridge = vi.hoisted(() => ({
+  sshConnect: vi.fn<() => Promise<unknown>>(),
+  sshDisconnect: vi.fn<() => Promise<void>>(async () => {}),
+  remoteHttpRequest: vi.fn<() => Promise<unknown>>(),
+}));
+vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
 
 // Hydration into the shared runtime store is covered by storeSync's own tests;
 // here we only assert the remote store calls it.
@@ -96,6 +104,9 @@ function makeClient(opts?: {
   websocketTicket?: RemoteDesktopClient["websocketTicket"];
   websocketUrl?: RemoteDesktopClient["websocketUrl"];
   sendThreadInput?: RemoteDesktopClient["sendThreadInput"];
+  startNewThread?: RemoteDesktopClient["startNewThread"];
+  writeTerminal?: RemoteDesktopClient["writeTerminal"];
+  resizeTerminal?: RemoteDesktopClient["resizeTerminal"];
   gitCall?: RemoteDesktopClient["gitCall"];
 }): RemoteDesktopClient {
   return {
@@ -115,6 +126,7 @@ function makeClient(opts?: {
         wsBaseUrl: "ws://192.168.1.9:38987/",
       },
     }),
+    agentStatuses: async () => ({ windows: [], wsl: [], updatedAt: "now" }),
     snapshot:
       opts?.snapshot ??
       (async () => {
@@ -136,6 +148,9 @@ function makeClient(opts?: {
     websocketUrl: opts?.websocketUrl ?? (() => "ws://192.168.1.9:38987/ws?ticket=ticket-1"),
     parseSocketMessage: (value: string) => JSON.parse(value),
     sendThreadInput: opts?.sendThreadInput ?? (async () => {}),
+    startNewThread: opts?.startNewThread ?? (async () => ({ threadId: crypto.randomUUID() })),
+    writeTerminal: opts?.writeTerminal ?? (async () => {}),
+    resizeTerminal: opts?.resizeTerminal ?? (async () => {}),
     gitCall: opts?.gitCall ?? (async () => ({})),
   } as unknown as RemoteDesktopClient;
 }
@@ -167,6 +182,8 @@ describe("useRemoteServersStore", () => {
     sync.applyThreadSnapshot.mockClear();
     sync.dispatchRemoteSupervisorEvent.mockClear();
     toastDanger.mockClear();
+    bridge.sshConnect.mockReset();
+    bridge.sshDisconnect.mockClear();
   });
 
   afterEach(() => {
@@ -187,6 +204,58 @@ describe("useRemoteServersStore", () => {
     expect(state.servers).toHaveLength(1);
     expect(state.runtime.d1?.status).toBe("online");
     expect(state.runtime.d1?.projects[0]?.name).toBe("Remote App");
+  });
+
+  it("bootstraps and persists an SSH-backed server through the shared protocol", async () => {
+    const id = "1a2f655a-e274-4213-9a2b-029f29062fd7";
+    const connection = { id, label: "Build host", target: "dev@build" };
+    bridge.sshConnect.mockResolvedValue({
+      connectionId: id,
+      endpoint: "http://127.0.0.1:39001/",
+      remotePort: 38987,
+      pairingCredential: "lc_pair_ssh",
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
+
+    const record = await useRemoteServersStore.getState().pairSshServer(connection);
+
+    expect(bridge.sshConnect).toHaveBeenCalledWith({
+      connection,
+      issuePairingCredential: true,
+    });
+    expect(record).toMatchObject({
+      endpoint: "http://127.0.0.1:39001/",
+      transport: { kind: "ssh", connection },
+    });
+  });
+
+  it("re-establishes and disconnects an SSH tunnel for a persisted server", async () => {
+    const id = "1a2f655a-e274-4213-9a2b-029f29062fd7";
+    const connection = { id, label: "Build host", target: "dev@build" };
+    bridge.sshConnect.mockResolvedValue({
+      connectionId: id,
+      endpoint: "http://127.0.0.1:39002/",
+      remotePort: 38987,
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Build host",
+          endpoint: "http://127.0.0.1:39999/",
+          accessToken: "token",
+          scopes: [],
+          transport: { kind: "ssh", connection },
+        },
+      ],
+      runtime: {},
+    });
+
+    await useRemoteServersStore.getState().connectAll();
+    expect(useRemoteServersStore.getState().servers[0]?.endpoint).toBe("http://127.0.0.1:39002/");
+    useRemoteServersStore.getState().removeServer("d1");
+    expect(bridge.sshDisconnect).toHaveBeenCalledWith({ connectionId: id });
   });
 
   it("de-duplicates when the same desktop is paired twice", async () => {
@@ -501,6 +570,72 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().openThread).toBeNull();
   });
 
+  it("streams and operates a remote terminal through the open-thread connection", async () => {
+    const send = vi.fn<(data: string) => void>();
+    const socket: RemoteSocketLike = {
+      close: vi.fn<() => void>(),
+      send,
+      onmessage: null,
+      onclose: null,
+    };
+    const writeTerminal = vi.fn<RemoteDesktopClient["writeTerminal"]>(async () => {});
+    const resizeTerminal = vi.fn<RemoteDesktopClient["resizeTerminal"]>(async () => {});
+    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async () => ({
+      ...remoteThreadSnapshot("rt-1"),
+      thread: {
+        ...remoteThread,
+        id: "rt-1",
+        presentationMode: "terminal",
+      } as Thread,
+      terminalScrollback: "remote frame",
+      terminalSize: { cols: 120, rows: 30 },
+    }));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ threadHistory, writeTerminal, resizeTerminal })));
+    await pairIsolated(() => socket);
+    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+
+    expect(useRemoteServersStore.getState().openThread).toMatchObject({
+      terminalScrollback: "remote frame",
+      terminalSize: { cols: 120, rows: 30 },
+    });
+    const onOutput = vi.fn<(data: string) => void>();
+    const onReset = vi.fn<() => void>();
+    const onExited = vi.fn<(exitCode: number | null) => void>();
+    const unsubscribe = watchRemoteTerminal("rt-1", { onOutput, onReset, onExited });
+    expect(send).toHaveBeenCalledWith(JSON.stringify({ type: "terminal-watch", id: "rt-1" }));
+
+    socket.onmessage?.({
+      data: JSON.stringify({ type: "terminal-output", id: "rt-1", data: "next frame" }),
+    });
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "event",
+        seq: 2,
+        event: { type: "thread-reset", threadId: "rt-1" },
+      }),
+    });
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "event",
+        seq: 3,
+        event: { type: "thread-exited", threadId: "rt-1", exitCode: 7 },
+      }),
+    });
+    expect(onOutput).toHaveBeenCalledWith("next frame");
+    expect(onReset).toHaveBeenCalledTimes(1);
+    expect(onExited).toHaveBeenCalledWith(7);
+
+    await useRemoteServersStore.getState().writeRemoteTerminal("x");
+    await useRemoteServersStore.getState().resizeRemoteTerminal({ cols: 100, rows: 25 });
+    expect(writeTerminal).toHaveBeenCalledWith({ threadId: "rt-1", data: "x" });
+    expect(resizeTerminal).toHaveBeenCalledWith({ threadId: "rt-1", cols: 100, rows: 25 });
+
+    unsubscribe();
+    expect(send).toHaveBeenCalledWith(JSON.stringify({ type: "terminal-unwatch", id: "rt-1" }));
+  });
+
   it("refreshes shell snapshot when remote thread metadata changes over the socket", async () => {
     const socket: RemoteSocketLike = { close: vi.fn<() => void>(), onmessage: null, onclose: null };
     const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => ({
@@ -692,6 +827,54 @@ describe("useRemoteServersStore", () => {
       prompt: "hello remote",
       config: { foo: "bar" },
     });
+  });
+
+  it("starts a thread for a selected remote project and opens it", async () => {
+    const startedThread = {
+      ...remoteThread,
+      id: "rt-new",
+      title: "New remote thread",
+      presentationMode: "gui",
+    } as Thread;
+    const startNewThread = vi.fn<RemoteDesktopClient["startNewThread"]>(async () => ({
+      threadId: "rt-new",
+    }));
+    const client = makeClient({
+      startNewThread,
+      snapshot: async () => ({
+        snapshotSeq: 2,
+        projects: [proj],
+        threads: [startedThread],
+        runtimeSummariesByThread: {},
+        updatedAt: "now",
+      }),
+      threadHistory: async () => ({
+        ...remoteThreadSnapshot("rt-new"),
+        thread: startedThread,
+      }),
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(client));
+    await pairIsolated(() => makeSocket());
+    useRemoteServersStore.getState().openRemoteProject("d1", "p1");
+
+    await useRemoteServersStore.getState().startRemoteThread({
+      desktopId: "d1",
+      projectId: "p1",
+      agentKind: "claude",
+      config: { model: "claude-sonnet" },
+      prompt: "work remotely",
+      presentationMode: "gui",
+    });
+
+    expect(startNewThread).toHaveBeenCalledWith({
+      projectId: "p1",
+      agentKind: "claude",
+      config: { model: "claude-sonnet" },
+      prompt: "work remotely",
+      presentationMode: "gui",
+    });
+    expect(useRemoteServersStore.getState().remoteProjectDraft).toBeNull();
+    expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-new");
   });
 
   it("keeps the latest open remote thread when an earlier history request resolves last", async () => {

@@ -19,6 +19,11 @@ function makeHandlers() {
     setRemoteAccessAdvertisedUrl: vi.fn<(url: string) => Promise<{ status: "disabled" }>>(
       async () => ({ status: "disabled" }),
     ),
+    sshConnectionManager: {
+      discoverHosts: vi.fn<() => never[]>(() => []),
+      connect: vi.fn<() => Promise<never>>(),
+      disconnect: vi.fn<() => Promise<void>>(),
+    } as never,
     requireLightcodePaths: () =>
       ({
         baseDir: "/tmp/lightcode",

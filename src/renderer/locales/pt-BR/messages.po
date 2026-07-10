@@ -438,6 +438,10 @@ msgstr "≈{0}% até a redefinição"
 msgid "1 thread"
 msgstr "1 thread"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "22"
+msgstr "22"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
 msgstr "30d"
@@ -543,7 +547,6 @@ msgid "Activity metric"
 msgstr "Métrica de atividade"
 
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -653,6 +656,7 @@ msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty 
 msgstr "Anuncie uma URL base personalizada, por exemplo, um proxy reverso ou túnel. Deixe em branco para automático."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "Agente"
@@ -1161,6 +1165,10 @@ msgstr "Trazer de volta ao painel"
 msgid "Bring it back into this panel, or jump to the window it’s running in."
 msgstr "Traga-o de volta para este painel ou vá para a janela em que ele está sendo executado."
 
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Browse"
+msgstr "Procurar"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Browse for parent folder"
@@ -1265,6 +1273,7 @@ msgid "Can't load ports"
 msgstr "Não foi possível carregar as portas"
 
 #. Dialog button: dismiss without deleting
+#: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
@@ -1284,8 +1293,10 @@ msgstr "Não foi possível carregar as portas"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreeDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -1365,6 +1376,7 @@ msgstr "Canal"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Chat"
 msgstr "Chat"
@@ -1393,6 +1405,10 @@ msgstr "Verifique se há atualizações"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
 msgstr "Verifique o nível de entrada ao vivo do dispositivo selecionado."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Checking host…"
+msgstr "Verificando host…"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Checking Tailscale…"
@@ -1429,6 +1445,10 @@ msgstr "Escolha como fazer login em {env}."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in."
 msgstr "Escolha como fazer login."
+
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Choose SSH identity file"
+msgstr "Escolher arquivo de identidade SSH"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1859,6 +1879,10 @@ msgstr "Commits"
 msgid "Compacting context"
 msgstr "Compactando contexto"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Compare this fingerprint with the one shown by your server."
+msgstr "Compare esta impressão digital com a exibida no seu servidor."
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Complete"
 msgstr "Completo"
@@ -1948,16 +1972,25 @@ msgstr "Conflitos"
 
 #: src/mobile/setupEmptyState.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Connect"
 msgstr "Conectar"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Connect a server"
-msgstr "Conectar um servidor"
+#~ msgid "Connect a server"
+#~ msgstr "Conectar um servidor"
 
 #: src/mobile/setupEmptyState.tsx
 msgid "Connect desktop"
 msgstr "Conectar desktop"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect directly, through a relay, or over SSH. Every transport uses the same Lightcode remote protocol, projects, threads, and agent runtimes."
+msgstr "Conecte-se diretamente, por um retransmissor ou por SSH. Todos os transportes usam o mesmo protocolo remoto do Lightcode, projetos, conversas e ambientes de execução de agentes."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Connect over SSH"
+msgstr "Conectar por SSH"
 
 #: src/mobile/setupEmptyState.tsx
 msgid "Connect Poracode on your desktop before starting a thread."
@@ -1968,13 +2001,14 @@ msgid "Connect the AI providers OpenCode can use and sign out of them here."
 msgstr "Conecte os provedores de IA que o OpenCode pode usar e saia deles aqui."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
-msgstr "Conecte-se a outro desktop do Lightcode ou a um servidor headless para navegar e gerenciar seus projetos aqui. Obtenha o endpoint e o token de pareamento em Configurações → Acesso remoto naquela máquina."
+#~ msgid "Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
+#~ msgstr "Conecte-se a outro desktop do Lightcode ou a um servidor headless para navegar e gerenciar seus projetos aqui. Obtenha o endpoint e o token de pareamento em Configurações → Acesso remoto naquela máquina."
 
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "Conectando ao navegador do desktop…"
 
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Conectando…"
@@ -1990,6 +2024,10 @@ msgstr "Erro de conexão."
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "Falha na conexão."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Connection method"
+msgstr "Método de conexão"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
@@ -2603,6 +2641,14 @@ msgstr "Ignorar erro"
 msgid "dismissed review"
 msgstr "revisão rejeitada"
 
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Display name"
+msgstr "Nome de exibição"
+
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Display name (optional)"
+msgstr "Nome de exibição (opcional)"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Display name in the sidebar."
 msgstr "Nome de exibição na barra lateral."
@@ -2724,6 +2770,10 @@ msgstr "Guias do editor"
 msgid "Edits the paired desktop and syncs back to it."
 msgstr "Edita o desktop pareado e sincroniza de volta com ele."
 
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+msgid "Effort"
+msgstr "Esforço"
+
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 msgid "Effort and context"
 msgstr "Esforço e contexto"
@@ -2796,6 +2846,10 @@ msgstr "Aprimorado (ganchos)"
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "Digite uma URL de origem completa, como https://code.example.com, sem caminho."
 
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Enter a port from 1 to 65535."
+msgstr "Digite uma porta de 1 a 65535."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Enter a repository URL."
 msgstr "Insira um URL do repositório."
@@ -2804,6 +2858,10 @@ msgstr "Insira um URL do repositório."
 msgid "Enter a valid desktop endpoint."
 msgstr "Insira um endpoint de desktop válido."
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Enter a valid SSH target and port."
+msgstr "Insira um destino SSH e uma porta válidos."
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
 msgstr "Entrar no modo de plano"
@@ -2811,6 +2869,10 @@ msgstr "Entrar no modo de plano"
 #: src/mobile/views/PortsView.tsx
 msgid "Enter the port a dev server on your desktop is listening on."
 msgstr "Informe a porta em que um servidor de desenvolvimento do seu desktop está escutando."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Enter the SSH password."
+msgstr "Insira a senha SSH."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
@@ -3449,6 +3511,10 @@ msgstr "Pasta inicial"
 msgid "Home scope"
 msgstr "Escopo inicial"
 
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "host.com, alias, or user@host.com"
+msgstr "host.com, alias ou usuário@host.com"
+
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ID: {0}"
@@ -3457,6 +3523,14 @@ msgstr "ID: {0}"
 #: src/mobile/settingsSections.ts
 msgid "Identity and usage stats"
 msgstr "Identidade e estatísticas de uso"
+
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Identity file"
+msgstr "Arquivo de identidade"
+
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Identity file path"
+msgstr "Caminho do arquivo de identidade"
 
 #. Microphone input level when not testing
 #: src/mobile/presentation.ts
@@ -3703,6 +3777,10 @@ msgstr "Tokens acumulados"
 msgid "Light"
 msgstr "Claro"
 
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Lightcode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
+msgstr "O Lightcode e seus agentes são executados na máquina remota. O SSH é usado apenas para iniciar o ambiente remoto e proteger o túnel local."
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -3867,8 +3945,12 @@ msgid "Make the sidebar translucent — the system blur material on Windows 11, 
 msgstr "Torna a barra lateral translúcida — o material de desfoque do sistema no Windows 11, um tom translúcido nas demais plataformas."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Manage remote servers"
-msgstr "Gerenciar servidores remotos"
+msgid "Manage remote environments"
+msgstr "Gerenciar ambientes remotos"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+#~ msgid "Manage remote servers"
+#~ msgstr "Gerenciar servidores remotos"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
@@ -4076,6 +4158,10 @@ msgstr "Notificações push móveis"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Mode"
 msgstr "Modo"
+
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+msgid "Model"
+msgstr "Modelo"
 
 #: src/renderer/commands/registry.ts
 msgid "Model added to favorites"
@@ -4605,6 +4691,10 @@ msgstr "Nenhum provedor pronto ainda"
 msgid "No remote configured. Add a remote to enable push and pull."
 msgstr "Nenhum controle remoto configurado. Adicione um controle remoto para ativar push e pull."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "No remote environments connected yet."
+msgstr "Ainda não há ambientes remotos conectados."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No repositories found."
 msgstr "Nenhum repositório encontrado."
@@ -4619,8 +4709,8 @@ msgid "No runtime items yet for this thread."
 msgstr "Ainda não há itens de tempo de execução para este tópico."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "No servers connected yet."
-msgstr "Nenhum servidor conectado ainda."
+#~ msgid "No servers connected yet."
+#~ msgstr "Nenhum servidor conectado ainda."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
@@ -4637,6 +4727,10 @@ msgstr "Nenhuma fala detectada."
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 msgid "No staged changes"
 msgstr "Nenhuma alteração no stage"
+
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+msgid "No supported agents are installed on this remote machine. Install and sign in to an agent remotely before starting a thread."
+msgstr "Nenhum agente compatível está instalado nesta máquina remota. Instale um agente e faça login remotamente antes de iniciar uma conversa."
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "No supported agents detected"
@@ -4910,6 +5004,10 @@ msgstr "Abra novos tópicos como uma página inteira ou um painel lado a lado."
 msgid "Open on GitHub"
 msgstr "Abrir no GitHub"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Open over SSH"
+msgstr "Abrir por SSH"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Open plan"
 msgstr "Abrir plano"
@@ -4990,6 +5088,10 @@ msgstr "OpenCode"
 msgid "Opened {0} (#{1})"
 msgstr "Aberto {0} (#{1})"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "OpenSSH private key"
+msgstr "Chave privada OpenSSH"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "Ganchos de status opcionais. Os ganchos instalados são atualizados automaticamente; ganchos ausentes nunca são instalados automaticamente."
@@ -5062,6 +5164,10 @@ msgstr "Pareie um celular, tablet ou navegador com este desktop."
 msgid "Pair again"
 msgstr "Parear novamente"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Pair with Lightcode"
+msgstr "Emparelhar com o Lightcode"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
 msgstr "Dispositivos pareados"
@@ -5075,6 +5181,7 @@ msgstr "Pareando"
 msgid "Pairing expired — pair again to reconnect."
 msgstr "O pareamento expirou — pareie novamente para reconectar."
 
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pairing link"
 msgstr "Link de pareamento"
@@ -5114,6 +5221,14 @@ msgstr "Pasta pai no servidor"
 msgid "Parent folder, e.g. /home/me/projects"
 msgstr "Pasta pai, ex.: /home/me/projects"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Passphrase (optional)"
+msgstr "Frase secreta (opcional)"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Password"
+msgstr "Senha"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/terminal/XTermSurface.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -5133,6 +5248,10 @@ msgstr "Cole <0>{0}</0> aqui. Clique para copiar."
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
 msgstr "Colar na entrada"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Paste the SSH private key."
+msgstr "Cole a chave privada SSH."
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Paused"
@@ -5226,6 +5345,11 @@ msgstr "Aponte este perfil para um provedor não Anthropic (z.ai, …) com vari�
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "Temas de editores populares adaptados ao Poracode. Cada um segue o modo claro ou escuro acima."
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
+msgstr "Poracode instalará ou reutilizará o servidor no host SSH e manterá as credenciais no armazenamento seguro deste dispositivo."
+
+#: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
 msgid "Port"
 msgstr "Porta"
@@ -5278,6 +5402,14 @@ msgstr "Título PR (deixe em branco para gerar automaticamente)"
 msgid "Pre-commit hook failed"
 msgstr "Falha no gancho de pré-confirmação"
 
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Preparing remote environment…"
+msgstr "Preparando o ambiente remoto…"
+
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+msgid "Presentation"
+msgstr "Apresentação"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Presets"
 msgstr "Predefinições"
@@ -5315,6 +5447,10 @@ msgstr "Chat visualizado recentemente anterior"
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "Guia anterior"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Private key"
+msgstr "Chave privada"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -5372,6 +5508,7 @@ msgid "Projects live on the connected desktop. Add one before starting a thread.
 msgstr "Os projetos ficam no desktop conectado. Adicione um antes de iniciar uma conversa."
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Prompt"
 msgstr "Prompt"
 
@@ -5667,9 +5804,26 @@ msgstr "Acesso remoto"
 msgid "Remote access pairing QR code"
 msgstr "Código QR de pareamento do acesso remoto"
 
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+msgid "Remote environment unavailable."
+msgstr "Ambiente remoto indisponível."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
+msgid "Remote environments"
+msgstr "Ambientes remotos"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Remote Environments"
+msgstr "Ambientes remotos"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Remote name"
 msgstr "Nome remoto"
+
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+msgid "Remote project"
+msgstr "Projeto remoto"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Remote server"
@@ -5680,13 +5834,13 @@ msgid "Remote server not found."
 msgstr "Servidor remoto não encontrado."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
-msgid "Remote servers"
-msgstr "Servidores remotos"
+#~ msgid "Remote servers"
+#~ msgstr "Servidores remotos"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
-msgid "Remote Servers"
-msgstr "Servidores remotos"
+#~ msgid "Remote Servers"
+#~ msgstr "Servidores remotos"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Remote session"
@@ -6082,6 +6236,11 @@ msgstr "Execute {0} antes que este thread possa ser executado."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Run {loginCommand} to sign in."
 msgstr "Execute {loginCommand} para fazer login."
+
+#. placeholder {0}: server.label
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+msgid "Run a new thread on {0}."
+msgstr "Executar uma nova conversa em {0}."
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "Run command"
@@ -6579,6 +6738,10 @@ msgstr "Sair de {label}"
 msgid "Sign out of {0}"
 msgstr "Sair de {0}"
 
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+msgid "sign-in required"
+msgstr "login necessário"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "Signed in"
 msgstr "Conectado"
@@ -6646,6 +6809,42 @@ msgstr "Terminal dividido"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Split view"
 msgstr "Visualização dividida"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "SSH"
+msgstr "SSH"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "SSH authentication"
+msgstr "Autenticação SSH"
+
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "SSH config / agent"
+msgstr "Configuração SSH / agente"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "SSH connection failed."
+msgstr "Falha na conexão SSH."
+
+#: src/mobile/useRemoteDesktop.ts
+msgid "SSH credentials are missing. Remove this connection and add it again."
+msgstr "As credenciais SSH estão ausentes. Remova esta conexão e adicione-a novamente."
+
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "SSH hostname"
+msgstr "Nome do host SSH"
+
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "SSH port"
+msgstr "Porta SSH"
+
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "SSH port (optional)"
+msgstr "Porta SSH (opcional)"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "SSH target"
+msgstr "Destino SSH"
 
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
@@ -6720,6 +6919,10 @@ msgstr "Iniciar ditado no compositor atual"
 msgid "Start from scratch"
 msgstr "Comece do zero"
 
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+msgid "Start remote thread"
+msgstr "Iniciar conversa remota"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Start Tailscale"
 msgstr "Iniciar o Tailscale"
@@ -6761,6 +6964,10 @@ msgstr "Iniciando câmera…"
 #: src/mobile/views/BrowserView.tsx
 msgid "Starting mirror…"
 msgstr "Iniciando espelhamento…"
+
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+msgid "Starting remotely…"
+msgstr "Iniciando remotamente…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -7038,8 +7245,12 @@ msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "Toque em + para adicionar uma pasta ou clonar um repositório no seu desktop."
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Tap + to pair with Poracode on your desktop."
-msgstr "Toque em + para parear com o Poracode no seu desktop."
+msgid "Tap + to pair directly or connect to a remote machine over SSH."
+msgstr "Toque em + para emparelhar diretamente ou se conectar a uma máquina remota via SSH."
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Tap + to pair with Poracode on your desktop."
+#~ msgstr "Toque em + para parear com o Poracode no seu desktop."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Target branch"
@@ -7067,6 +7278,7 @@ msgstr "Diga ao provedor alvo o que fazer a seguir..."
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Terminal"
@@ -7153,6 +7365,14 @@ msgstr "O servidor do desktop ainda está iniciando."
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "O shell normal do aplicativo não pôde ser renderizado. Os diagnósticos abaixo são mostrados antes da recarga para que a falha possa ser investigada."
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "The remote Poracode server returned no pairing credential."
+msgstr "O servidor Poracode remoto não retornou uma credencial de emparelhamento."
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "The remote server returned no pairing credential."
+msgstr "O servidor remoto não retornou uma credencial de emparelhamento."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "A localização do repositório no disco. Atualize-a se você moveu a pasta."
@@ -7223,6 +7443,10 @@ msgstr "Isso exclui permanentemente o branch \"{0}\" do remoto dele."
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\"."
 msgstr "Isso exclui permanentemente o branch \"{0}\"."
+
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+msgid "This remote project is unavailable. Reconnect the environment and try again."
+msgstr "Este projeto remoto não está disponível. Reconecte o ambiente e tente novamente."
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
@@ -7431,6 +7655,10 @@ msgstr "Transcrevendo voz"
 msgid "Translucent sidebar"
 msgstr "Barra lateral translúcida"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Trust and connect"
+msgstr "Confiar e conectar"
+
 #: src/mobile/views/ThreadsView.tsx
 msgid "Try a different search or project filter."
 msgstr "Tente outra pesquisa ou filtro de projeto."
@@ -7461,6 +7689,10 @@ msgstr "Digite na página (toque primeiro em um campo)"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to authenticate {0}."
 msgstr "Não foi possível autenticar {0}."
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Unable to connect over SSH."
+msgstr "Não foi possível conectar via SSH."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy desktop endpoint."
@@ -7528,6 +7760,10 @@ msgstr "Não foi possível abrir o arquivo"
 msgid "Unable to pair with that desktop."
 msgstr "Não foi possível parear com esse desktop."
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "Unable to probe the SSH host."
+msgstr "Não foi possível verificar o host SSH."
+
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -7557,6 +7793,10 @@ msgstr "Não foi possível remover a árvore de trabalho."
 msgid "Unable to resolve home directory for WSL distro \"{distro}\""
 msgstr "Não foi possível resolver o diretório inicial da distribuição WSL \"{distro}\""
 
+#: src/mobile/useRemoteDesktop.ts
+msgid "Unable to restore the SSH connection."
+msgstr "Não foi possível restaurar a conexão SSH."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to revoke remote session."
 msgstr "Não foi possível revogar a sessão remota."
@@ -7585,6 +7825,10 @@ msgstr "Não foi possível iniciar o Tailscale."
 #: src/mobile/views/TerminalView.tsx
 msgid "Unable to start terminal"
 msgstr "Não foi possível iniciar o terminal"
+
+#: src/renderer/state/remoteServersStore.ts
+msgid "Unable to start the remote thread."
+msgstr "Não foi possível iniciar a conversa remota."
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
@@ -7899,6 +8143,10 @@ msgstr "Usado"
 msgid "Used by {conflict}"
 msgstr "Usado por {conflict}"
 
+#: src/mobile/views/DesktopsView.tsx
+msgid "user@example.com"
+msgstr "user@example.com"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
 msgstr "Usando a lista de modelos integrada do Claude."
@@ -7911,6 +8159,14 @@ msgstr "v{0} disponível"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "value"
 msgstr "valor"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Verify host key"
+msgstr "Verificar chave do host"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Verify SSH host key"
+msgstr "Verificar chave do host SSH"
 
 #. About page label: app version row
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
@@ -8043,6 +8299,10 @@ msgstr "Servidor web"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Website"
 msgstr "Site"
+
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+msgid "What should the remote agent work on?"
+msgstr "Em que o agente remoto deve trabalhar?"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

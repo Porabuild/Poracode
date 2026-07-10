@@ -7,6 +7,7 @@ import { lspProcedures } from "./procedures/lsp";
 import { profileProcedures } from "./procedures/profile";
 import { projectTreeProcedures } from "./procedures/projectTree";
 import { settingsProcedures } from "./procedures/settings";
+import { sshProcedures } from "./procedures/ssh";
 import { threadProcedures } from "./procedures/thread";
 import { updatesProcedures } from "./procedures/updates";
 import { usageProcedures } from "./procedures/usage";
@@ -18,6 +19,7 @@ export const groupedIpcProcedures = {
   github: githubProcedures,
   projectTree: projectTreeProcedures,
   settings: settingsProcedures,
+  ssh: sshProcedures,
   db: dbProcedures,
   updates: updatesProcedures,
   lsp: lspProcedures,
@@ -33,6 +35,7 @@ export const ipcProcedureMap = {
   ...githubProcedures,
   ...projectTreeProcedures,
   ...settingsProcedures,
+  ...sshProcedures,
   ...dbProcedures,
   ...updatesProcedures,
   ...lspProcedures,
@@ -77,6 +80,9 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "setRemoteAccessTailscaleHttps",
   "startTailscale",
   "setRemoteAccessAdvertisedUrl",
+  "sshDiscoverHosts",
+  "sshConnect",
+  "sshDisconnect",
   "publishRemoteGitSummaries",
   "revealProjectEntry",
   "getSharedSettings",

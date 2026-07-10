@@ -11,10 +11,9 @@ import { usePanelStore } from "@/renderer/state/panelStore";
  * Read-only sidebar section listing the projects (and their threads) of every
  * connected remote server (desktop-as-client; see docs/REMOTE_ARCHITECTURE.md,
  * Phase 4). The server list + snapshots come from `useRemoteServersStore`;
- * connections are (re)established on app start. Project rows open the Remote
- * Servers settings panel; thread rows expose interrupt/close so a running agent
- * on the remote can be operated from here. Live chat for remote threads is the
- * remaining integration (it reuses the local thread views via a routed bridge).
+ * connections are (re)established on app start. Project rows open the remote
+ * thread draft; thread rows open their chat or terminal surface and expose
+ * interrupt/close controls for the remote agent.
  */
 function statusDotTone(status: Thread["status"]): string {
   if (status === "error") return "bg-danger";
@@ -30,6 +29,7 @@ export function SidebarRemoteServers() {
   const interruptThread = useRemoteServersStore((s) => s.interruptThread);
   const closeThread = useRemoteServersStore((s) => s.closeThread);
   const openRemoteThread = useRemoteServersStore((s) => s.openRemoteThread);
+  const openRemoteProject = useRemoteServersStore((s) => s.openRemoteProject);
 
   if (servers.length === 0) return null;
 
@@ -39,10 +39,10 @@ export function SidebarRemoteServers() {
         type="button"
         className="flex items-center gap-1.5 px-1 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted hover:text-foreground"
         onClick={() => openSettingsSection("remoteServers")}
-        title={t`Manage remote servers`}
+        title={t`Manage remote environments`}
       >
         <Server className="size-3" />
-        <Trans>Remote servers</Trans>
+        <Trans>Remote environments</Trans>
       </button>
 
       {servers.map((server) => {
@@ -79,7 +79,7 @@ export function SidebarRemoteServers() {
                     <button
                       type="button"
                       className="flex items-center rounded-md px-2 py-1 pl-6 text-left text-sm text-foreground hover:bg-default-100"
-                      onClick={() => openSettingsSection("remoteServers")}
+                      onClick={() => openRemoteProject(server.desktopId, project.id)}
                       title={project.name}
                     >
                       <span className="truncate">{project.name}</span>

@@ -34,6 +34,11 @@ describe("ipcProcedureMap", () => {
       setRemoteAccessTailscaleHttps: vi.fn<(enabled: boolean) => Promise<never>>(),
       startTailscale: vi.fn<() => Promise<{ ok: boolean }>>(async () => ({ ok: true })),
       setRemoteAccessAdvertisedUrl: vi.fn<(url: string) => Promise<never>>(),
+      sshConnectionManager: {
+        discoverHosts: vi.fn<() => never[]>(() => []),
+        connect: vi.fn<() => Promise<never>>(),
+        disconnect: vi.fn<() => Promise<void>>(),
+      } as never,
       requireLightcodePaths: () =>
         ({
           baseDir: "C:\\tmp",

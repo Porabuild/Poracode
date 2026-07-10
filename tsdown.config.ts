@@ -87,6 +87,13 @@ export default defineConfig([
     ...cliShared,
   },
   {
+    // Build-time helper used to embed the exact desktop SSH runtime in native
+    // mobile packages. It is never loaded by either application at runtime.
+    entry: { sshRuntimeBundle: "src/main/ssh/runtimeBundle.ts" },
+    clean: false,
+    ...shared,
+  },
+  {
     entry: { claudeSdkProbeWorker: "src/supervisor/agents/claude/sdkProbeWorker.ts" },
     clean: false,
     outDir: "dist/main",

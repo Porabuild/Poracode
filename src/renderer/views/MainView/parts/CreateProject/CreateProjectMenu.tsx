@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { FilePlus, FolderOpen, GitBranch } from "lucide-react";
+import { FilePlus, FolderOpen, GitBranch, Server } from "lucide-react";
 import { Dropdown, Label } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -9,7 +9,7 @@ import {
 } from "@/renderer/actions/createProjectActions";
 
 /** A menu choice: the two create modes plus "clone". */
-export type AddProjectAction = CreateProjectMode | "clone";
+export type AddProjectAction = CreateProjectMode | "clone" | "remote";
 
 /**
  * The "+" dropdown for creating a project. Wraps a caller-provided trigger
@@ -37,8 +37,10 @@ export function CreateProjectMenu(props: {
               usePanelStore.getState().openCreateProjectModal();
             } else if (action === "clone") {
               usePanelStore.getState().openCloneProjectModal();
-            } else {
+            } else if (action === "existing") {
               void addExistingProject();
+            } else {
+              usePanelStore.getState().openSettingsSection("remoteServers");
             }
           }}
         >
@@ -58,6 +60,12 @@ export function CreateProjectMenu(props: {
             <FolderOpen className="size-4 shrink-0 text-muted" />
             <Label>
               <Trans>Use an existing folder</Trans>
+            </Label>
+          </Dropdown.Item>
+          <Dropdown.Item id="remote" textValue={t`Open over SSH`}>
+            <Server className="size-4 shrink-0 text-muted" />
+            <Label>
+              <Trans>Open over SSH</Trans>
             </Label>
           </Dropdown.Item>
         </Dropdown.Menu>

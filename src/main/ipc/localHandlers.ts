@@ -62,6 +62,7 @@ import type { AgentInstanceConfig } from "@/shared/contracts";
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
+import type { SshConnectionManager } from "../ssh/SshConnectionManager";
 
 export { getRemoteAccessPairingInfo } from "../remote/pairingInfo";
 
@@ -74,6 +75,7 @@ interface CreateLocalIpcHandlersOptions {
   setRemoteAccessTailscaleHttps(enabled: boolean): Promise<RemoteAccessPairingInfo>;
   startTailscale(): Promise<StartTailscaleResult>;
   setRemoteAccessAdvertisedUrl(url: string): Promise<RemoteAccessPairingInfo>;
+  sshConnectionManager: SshConnectionManager;
   requireLightcodePaths(): LightcodePaths;
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
@@ -247,6 +249,9 @@ export function createLocalIpcHandlers(
       writeKeybindingsFile(options.requireLightcodePaths().keybindingsPath, file),
     getRemoteAccessPairing: () => getRemoteAccessPairingInfo(options.getRemoteAccessServer()),
     setRemoteAccessEnabled: (payload) => options.setRemoteAccessEnabled(payload.enabled),
+    sshDiscoverHosts: () => options.sshConnectionManager.discoverHosts(),
+    sshConnect: (payload) => options.sshConnectionManager.connect(payload),
+    sshDisconnect: ({ connectionId }) => options.sshConnectionManager.disconnect(connectionId),
     getRemoteAccessTailscaleStatus: () => options.getRemoteAccessTailscaleStatus(),
     setRemoteAccessTailscaleHttps: (payload) =>
       options.setRemoteAccessTailscaleHttps(payload.enabled),

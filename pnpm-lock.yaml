@@ -90,6 +90,9 @@ importers:
       '@lightcode/agents-usage':
         specifier: workspace:*
         version: link:packages/agents-usage
+      '@lightcode/ssh-bridge':
+        specifier: file:native/ssh-bridge
+        version: file:native/ssh-bridge(@capacitor/core@8.4.1)
       '@lingui/core':
         specifier: 6.4.0
         version: 6.4.0
@@ -1272,6 +1275,11 @@ packages:
 
   '@lightcode/activity-bridge@file:native/activity-bridge':
     resolution: {directory: native/activity-bridge, type: directory}
+    peerDependencies:
+      '@capacitor/core': ^8.0.0
+
+  '@lightcode/ssh-bridge@file:native/ssh-bridge':
+    resolution: {directory: native/ssh-bridge, type: directory}
     peerDependencies:
       '@capacitor/core': ^8.0.0
 
@@ -7981,6 +7989,10 @@ snapshots:
       jsbi: 4.3.2
 
   '@lightcode/activity-bridge@file:native/activity-bridge(@capacitor/core@8.4.1)':
+    dependencies:
+      '@capacitor/core': 8.4.1
+
+  '@lightcode/ssh-bridge@file:native/ssh-bridge(@capacitor/core@8.4.1)':
     dependencies:
       '@capacitor/core': 8.4.1
 
