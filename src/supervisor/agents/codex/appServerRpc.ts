@@ -2,16 +2,14 @@ import type { RuntimeEvent, ThreadServerRequestId } from "@/shared/contracts";
 import { mapCodexServerRequest, translateCodexCanonicalResponse } from "./canonicalMapping";
 import { parseCodexSocketMessage } from "./acpProtocol";
 import { buildCodexQuestionAnswerEvents } from "./acpQuestionAnswer";
-import type { CodexStdioTransportListener } from "./stdioTransport";
+import type { CodexStdioTransport } from "./stdioTransport";
 
 export type CodexRpcDebugDirection = "codex->lightcode" | "lightcode->codex" | "transport";
 
-export interface CodexAppServerRpcTransport {
-  setListener(listener: CodexStdioTransportListener): void;
-  write(message: Record<string, unknown>): void;
-  dispose(): void;
-  formatOutput(): string;
-}
+export type CodexAppServerRpcTransport = Pick<
+  CodexStdioTransport,
+  "setListener" | "write" | "dispose" | "formatOutput"
+>;
 
 export interface CodexAppServerRpcListener {
   onNotification(method: string, params: Record<string, unknown> | undefined): void;
@@ -80,11 +78,10 @@ export class CodexAppServerRpc {
     return pending;
   }
 
-  notify(method: string, params?: Record<string, unknown>): void {
+  notify(method: string): void {
     this.write({
       jsonrpc: "2.0",
       method,
-      ...(params ? { params } : {}),
     });
   }
 
@@ -110,7 +107,7 @@ export class CodexAppServerRpc {
     }
   }
 
-  dispose(error = new Error("Codex app-server RPC disposed.")): void {
+  dispose(error: Error): void {
     this.transport.dispose();
     this.rejectPendingRequests(error);
   }

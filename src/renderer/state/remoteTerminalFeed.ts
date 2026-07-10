@@ -1,60 +1,32 @@
-import type { RemoteWebSocketClientMessage, RemoteWebSocketServerMessage } from "@/shared/remote";
+import {
+  createTerminalFeed,
+  type TerminalFeedListener,
+  type TerminalSocketSender,
+} from "@/shared/remote/terminalFeed";
 
-export interface RemoteTerminalListener {
-  readonly onOutput: (data: string) => void;
-  readonly onReset: () => void;
-  readonly onExited: (exitCode: number | null) => void;
-}
+/**
+ * Renderer instance of the shared terminal feed, used by remote thread views.
+ * See `src/shared/remote/terminalFeed.ts` for the protocol.
+ */
 
-type RemoteTerminalSocketSender = (message: RemoteWebSocketClientMessage) => boolean;
+export type RemoteTerminalListener = TerminalFeedListener;
 
-const listeners = new Map<string, Set<RemoteTerminalListener>>();
-let sender: RemoteTerminalSocketSender | null = null;
+const feed = createTerminalFeed();
 
-export function setRemoteTerminalSocketSender(next: RemoteTerminalSocketSender | null): void {
-  sender = next;
-  if (next) {
-    for (const id of listeners.keys()) next({ type: "terminal-watch", id });
-  }
+export function setRemoteTerminalSocketSender(next: TerminalSocketSender | null): void {
+  feed.setSender(next);
 }
 
 export function watchRemoteTerminal(id: string, listener: RemoteTerminalListener): () => void {
-  let set = listeners.get(id);
-  if (!set) {
-    set = new Set();
-    listeners.set(id, set);
-    sender?.({ type: "terminal-watch", id });
-  }
-  set.add(listener);
-  return () => {
-    const current = listeners.get(id);
-    if (!current) return;
-    current.delete(listener);
-    if (current.size === 0) {
-      listeners.delete(id);
-      sender?.({ type: "terminal-unwatch", id });
-    }
-  };
+  return feed.watch(id, listener);
 }
 
-export function handleRemoteTerminalServerMessage(message: RemoteWebSocketServerMessage): boolean {
-  if (message.type !== "terminal-output") return false;
-  const set = listeners.get(message.id);
-  if (set) for (const listener of set) listener.onOutput(message.data);
-  return true;
-}
+export const handleRemoteTerminalServerMessage = feed.handleServerMessage;
+export const emitRemoteTerminalReset = feed.emitReset;
+export const emitRemoteTerminalExited = feed.emitExited;
 
-export function emitRemoteTerminalReset(id: string): void {
-  const set = listeners.get(id);
-  if (set) for (const listener of set) listener.onReset();
-}
-
-export function emitRemoteTerminalExited(id: string, exitCode: number | null): void {
-  const set = listeners.get(id);
-  if (set) for (const listener of set) listener.onExited(exitCode);
-}
-
+/** Drops the sender and all subscriptions (e.g. when the store disconnects). */
 export function resetRemoteTerminalFeed(): void {
-  sender = null;
-  listeners.clear();
+  feed.setSender(null);
+  feed.reset();
 }

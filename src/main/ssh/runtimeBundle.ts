@@ -82,11 +82,66 @@ function hashDirectory(root: string): string {
   return hash.digest("hex");
 }
 
+/**
+ * Cheap content fingerprint used to decide whether the staged bundle could
+ * have changed: relative paths + sizes + mtimes, no file reads. A stat walk is
+ * orders of magnitude cheaper than the multi-MB copy + full-content hashing
+ * the real bundle build performs on the blocking main-process event loop.
+ */
+function statSignature(roots: readonly string[], extra: string): string {
+  const hash = createHash("sha256");
+  const visit = (directory: string, relativeRoot: string): void => {
+    for (const entry of readdirSync(directory).sort()) {
+      const absolute = join(directory, entry);
+      const relative = join(relativeRoot, entry).replaceAll("\\", "/");
+      const stat = statSync(absolute);
+      if (stat.isDirectory()) {
+        visit(absolute, relative);
+      } else if (stat.isFile()) {
+        hash.update(`${relative}\0${stat.size}\0${stat.mtimeMs}\0`);
+      }
+    }
+  };
+  for (const root of roots) {
+    hash.update(`${root}\0`);
+    if (!existsSync(root)) continue;
+    const stat = statSync(root);
+    if (stat.isDirectory()) visit(root, "");
+    else hash.update(`${stat.size}\0${stat.mtimeMs}\0`);
+  }
+  hash.update(extra);
+  return hash.digest("hex");
+}
+
+interface BundleManifest {
+  readonly key: string;
+  readonly signature: string;
+  readonly hash: string;
+}
+
+function manifestPath(cacheDir: string): string {
+  return join(cacheDir, "bundle-manifest.json");
+}
+
+function readBundleManifest(cacheDir: string): BundleManifest | null {
+  try {
+    const value = JSON.parse(
+      readFileSync(manifestPath(cacheDir), "utf8"),
+    ) as Partial<BundleManifest> | null;
+    return value && typeof value.key === "string" && value.signature && value.hash
+      ? (value as BundleManifest)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 // The staged runtime is fixed for a given app build, so the archive+hash is
 // identical on every connect. Cache it per option set (keyed by the source
-// dirs) to skip the multi-MB copy + full-file hashing on repeat connects —
-// notably when connectAll() fans out across several persisted SSH servers at
-// startup. Self-heals if the cached archive is later cleaned up on disk.
+// dirs) in memory AND in a manifest file next to the archive, so repeat
+// connects — including the first one after an app restart, when connectAll()
+// fans out across persisted SSH servers — skip the multi-MB copy + full-file
+// hashing. Self-heals if the cached archive is later cleaned up on disk.
 let cachedBundle: { readonly key: string; readonly hash: string } | null = null;
 
 export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRuntimeBundle {
@@ -100,6 +155,19 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
   if (cachedBundle?.key === cacheKey) {
     const archivePath = join(options.cacheDir, `${cachedBundle.hash}.tar.gz`);
     if (existsSync(archivePath)) return { archivePath, hash: cachedBundle.hash };
+  }
+
+  const signature = statSignature(
+    [options.mainBundleDir, options.agentPluginsDir, options.wslHelpersDir],
+    runtimePackageJson(),
+  );
+  const manifest = readBundleManifest(options.cacheDir);
+  if (manifest && manifest.key === cacheKey && manifest.signature === signature) {
+    const archivePath = join(options.cacheDir, `${manifest.hash}.tar.gz`);
+    if (existsSync(archivePath)) {
+      cachedBundle = { key: cacheKey, hash: manifest.hash };
+      return { archivePath, hash: manifest.hash };
+    }
   }
 
   const requiredFiles = ["server.cjs", "supervisor.cjs", "claudeSdkProbeWorker.mjs"];
@@ -147,6 +215,15 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
       );
     }
     cachedBundle = { key: cacheKey, hash };
+    try {
+      writeFileSync(
+        manifestPath(options.cacheDir),
+        `${JSON.stringify({ key: cacheKey, signature, hash } satisfies BundleManifest)}\n`,
+        "utf8",
+      );
+    } catch {
+      // Best-effort: without the manifest the next app start just rebuilds.
+    }
     return { archivePath, hash };
   } finally {
     rmSync(stage, { recursive: true, force: true });

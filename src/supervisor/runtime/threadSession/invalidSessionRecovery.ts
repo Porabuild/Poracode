@@ -43,11 +43,10 @@ export class InvalidSessionRecoveryCoordinator {
   recover(session: SessionRuntime): Promise<void> {
     const existing = this.recoveries.get(session);
     if (existing) return existing;
-    if (session.invalidSessionRecoveryStarted || !session.sessionRef) {
+    if (!session.sessionRef) {
       return Promise.resolve();
     }
 
-    session.invalidSessionRecoveryStarted = true;
     const recovery = this.recoverOnce(session);
     this.recoveries.set(session, recovery);
     void recovery.catch((error: unknown) => {

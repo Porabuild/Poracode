@@ -15,6 +15,7 @@ import type {
 } from "@/shared/contracts";
 import { RemoteDesktopClient, type RemoteFetch } from "@/shared/remote/client";
 import { reconnectBackoffDelay } from "@/shared/remote/backoff";
+import { waitForRemoteThreadAppearance } from "@/shared/remote/threadAppearance";
 import {
   filterKnownRemoteAccessScopes,
   REMOTE_STANDARD_SCOPES,
@@ -174,6 +175,27 @@ function closeActiveThreadSocket(): void {
     // already closed
   }
   activeThreadSocket = null;
+}
+
+/** Maps a thread-history snapshot to the openThread slice (terminal fields only when present). */
+function buildOpenThread(
+  desktopId: string,
+  threadId: string,
+  snapshot: {
+    readonly thread: Thread;
+    readonly terminalScrollback?: string | undefined;
+    readonly terminalSize?: TerminalSize | undefined;
+  },
+): OpenRemoteThread {
+  return {
+    desktopId,
+    threadId,
+    thread: snapshot.thread,
+    ...(snapshot.terminalScrollback !== undefined
+      ? { terminalScrollback: snapshot.terminalScrollback }
+      : {}),
+    ...(snapshot.terminalSize ? { terminalSize: snapshot.terminalSize } : {}),
+  };
 }
 
 function remoteThreadSocketReconnectDelay(attempt: number): number {
@@ -391,6 +413,8 @@ interface RemoteServersState {
   scheduleServerRefresh(desktopId: string): void;
   /** Connect every persisted server (called once on app start). */
   connectAll(): Promise<void>;
+  /** Reconnect one server: restore its transport (SSH), refresh, re-stream. */
+  reconnectServer(desktopId: string): Promise<void>;
   /** Add/clone/remove a project on a remote server, then refresh it. */
   runProjectCommand(desktopId: string, command: RemoteProjectCommand): Promise<void>;
   /** Interrupt a running thread/agent on a remote server. */
@@ -519,6 +543,32 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         void connect();
       };
 
+      /** Restore a server's transport (SSH tunnel) when needed, then snapshot
+       * it and (re)attach its event stream. Shared by connectAll and
+       * reconnectServer so transport handling lives in one place. */
+      const connectServer = async (persistedServer: RemoteServerRecord): Promise<void> => {
+        let server = persistedServer;
+        if (server.transport?.kind === "ssh") {
+          try {
+            const launched = await readBridge().sshConnect({
+              connection: server.transport.connection,
+            });
+            server = { ...server, endpoint: normalizeEndpoint(launched.endpoint) };
+            const updated = server;
+            set((state) => ({
+              servers: state.servers.map((candidate) =>
+                candidate.desktopId === updated.desktopId ? updated : candidate,
+              ),
+            }));
+          } catch (error) {
+            reportRemoteServerError(server.desktopId, error, i18n._(msg`SSH connection failed.`));
+            return;
+          }
+        }
+        await get().refreshServer(server.desktopId);
+        startRemoteServerEventStream(server);
+      };
+
       const pairAtEndpoint = async (input: {
         endpoint: string;
         token: string;
@@ -595,19 +645,13 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             prompt: input.prompt,
             presentationMode: input.presentationMode,
           });
-          let appeared = false;
-          for (let attempt = 0; attempt < 20; attempt += 1) {
-            await get().refreshServer(input.desktopId);
-            if (
+          const appeared = await waitForRemoteThreadAppearance({
+            refresh: () => get().refreshServer(input.desktopId),
+            hasThread: () =>
               get().runtime[input.desktopId]?.threads.some(
                 (thread) => thread.id === result.threadId,
-              )
-            ) {
-              appeared = true;
-              break;
-            }
-            await new Promise((resolve) => setTimeout(resolve, 250));
-          }
+              ) ?? false,
+          });
           if (!appeared) throw new Error(i18n._(msg`Unable to start the remote thread.`));
           set({ remoteProjectDraft: null });
           await get().openRemoteThread(input.desktopId, result.threadId);
@@ -644,17 +688,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           applyThreadSnapshot(snapshot);
           closeActiveThreadSocket();
           resetRemoteTerminalFeed();
-          set({
-            openThread: {
-              desktopId,
-              threadId,
-              thread: snapshot.thread,
-              ...(snapshot.terminalScrollback !== undefined
-                ? { terminalScrollback: snapshot.terminalScrollback }
-                : {}),
-              ...(snapshot.terminalSize ? { terminalSize: snapshot.terminalSize } : {}),
-            },
-          });
+          set({ openThread: buildOpenThread(desktopId, threadId, snapshot) });
           let lastSeenSeq = snapshot.snapshotSeq;
           let reconnectAttempt = 0;
           let resyncInFlight = false;
@@ -714,19 +748,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   set((state) =>
                     state.openThread?.desktopId === desktopId &&
                     state.openThread.threadId === threadId
-                      ? {
-                          openThread: {
-                            desktopId,
-                            threadId,
-                            thread: nextSnapshot.thread,
-                            ...(nextSnapshot.terminalScrollback !== undefined
-                              ? { terminalScrollback: nextSnapshot.terminalScrollback }
-                              : {}),
-                            ...(nextSnapshot.terminalSize
-                              ? { terminalSize: nextSnapshot.terminalSize }
-                              : {}),
-                          },
-                        }
+                      ? { openThread: buildOpenThread(desktopId, threadId, nextSnapshot) }
                       : {},
                   );
                   void get()
@@ -1008,39 +1030,18 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // Coalesce concurrent callers (the sidebar and the settings panel both
           // connect on mount) so servers aren't snapshotted twice on startup.
           if (connectAllInFlight) return connectAllInFlight;
-          connectAllInFlight = Promise.all(
-            get().servers.map(async (persistedServer) => {
-              let server = persistedServer;
-              if (server.transport?.kind === "ssh") {
-                try {
-                  const launched = await readBridge().sshConnect({
-                    connection: server.transport.connection,
-                  });
-                  server = { ...server, endpoint: normalizeEndpoint(launched.endpoint) };
-                  const updated = server;
-                  set((state) => ({
-                    servers: state.servers.map((candidate) =>
-                      candidate.desktopId === updated.desktopId ? updated : candidate,
-                    ),
-                  }));
-                } catch (error) {
-                  reportRemoteServerError(
-                    server.desktopId,
-                    error,
-                    i18n._(msg`SSH connection failed.`),
-                  );
-                  return;
-                }
-              }
-              await get().refreshServer(server.desktopId);
-              startRemoteServerEventStream(server);
-            }),
-          )
+          connectAllInFlight = Promise.all(get().servers.map(connectServer))
             .then(() => undefined)
             .finally(() => {
               connectAllInFlight = null;
             });
           return connectAllInFlight;
+        },
+
+        reconnectServer: async (desktopId) => {
+          const server = get().servers.find((entry) => entry.desktopId === desktopId);
+          if (!server) return;
+          await connectServer(server);
         },
 
         runProjectCommand: async (desktopId, command) => {

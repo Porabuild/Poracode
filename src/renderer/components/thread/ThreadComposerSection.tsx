@@ -27,7 +27,8 @@ import {
 } from "../composer";
 import type { McpMentionItem, MentionInputHandle, VoiceInputHandle } from "../composer";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
-import { captureProductEvent, threadProductProperties } from "@/renderer/analytics/posthog";
+import { threadProductProperties } from "@/renderer/analytics/posthog";
+import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import { useComposerUiStore } from "@/renderer/state/composerUiStore";

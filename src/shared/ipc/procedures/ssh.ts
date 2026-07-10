@@ -1,8 +1,6 @@
 import {
   sshConnectPayloadSchema,
-  sshConnectResultSchema,
   sshDisconnectPayloadSchema,
-  sshDiscoveredHostSchema,
   type SshConnectPayload,
   type SshConnectResult,
   type SshDisconnectPayload,
@@ -26,10 +24,3 @@ export const sshProcedures = {
     sshDisconnectPayloadSchema,
   ),
 } as const;
-
-export {
-  sshConnectPayloadSchema,
-  sshConnectResultSchema,
-  sshDisconnectPayloadSchema,
-  sshDiscoveredHostSchema,
-};

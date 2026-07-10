@@ -5,7 +5,6 @@ import {
   type GitDiffResult,
   type GitFileChange,
   type GitFileContentResult,
-  type GitRemoteInfo,
   type GitStatusResult,
   type ProjectLocation,
 } from "@/shared/contracts";
@@ -16,17 +15,19 @@ import {
   GIT_DIFF_TIMEOUT,
   GIT_STATUS_TIMEOUT,
   getLocationIdentity,
-  parseRemoteUrl,
   toForwardSlash,
 } from "./exec";
 import {
+  applyNumstatCounts,
   buildGitStatusResultFromOutputs,
   buildGitStatusSummaryFromOutput,
   expandUntrackedEntries,
   LS_FILES_UNTRACKED_ARGS,
   nonRepoSummaryStatus,
   parseDiffNumstat,
+  parseRemoteInfo,
   parseStatusPorcelainV2,
+  sumChangeTotals,
   type ParsedPorcelainStatus,
 } from "./statusParsing";
 
@@ -113,44 +114,12 @@ export class GitStatusService {
     ]);
 
     const parsed = parseStatusPorcelainV2(statusOutput);
-    const remoteLines = remoteOutput.trim().split("\n").filter(Boolean);
-    const hasRemote = remoteLines.length > 0;
-    let remoteInfo: GitRemoteInfo | null = null;
-    if (hasRemote) {
-      const originLine =
-        remoteLines.find((line) => line.startsWith("origin\t") && line.includes("(fetch)")) ??
-        remoteLines.find((line) => line.includes("(fetch)"));
-      if (originLine) {
-        const urlMatch = originLine.match(/^\S+\t(\S+)/);
-        if (urlMatch) {
-          remoteInfo = parseRemoteUrl(urlMatch[1]!);
-        }
-      }
-    }
-
-    for (const entry of parseDiffNumstat(stagedNumstat)) {
-      const match = parsed.staged.find((file) => file.path === entry.path);
-      if (match) {
-        match.insertions = entry.insertions;
-        match.deletions = entry.deletions;
-      }
-    }
-    for (const entry of parseDiffNumstat(unstagedNumstat)) {
-      const match = parsed.unstaged.find((file) => file.path === entry.path);
-      if (match) {
-        match.insertions = entry.insertions;
-        match.deletions = entry.deletions;
-      }
-    }
+    const { hasRemote, remoteInfo } = parseRemoteInfo(remoteOutput);
+    applyNumstatCounts(parsed, stagedNumstat, unstagedNumstat);
 
     await this.replaceUntrackedEntries(location, parsed);
 
-    const totalInsertions =
-      parsed.staged.reduce((sum, file) => sum + file.insertions, 0) +
-      parsed.unstaged.reduce((sum, file) => sum + file.insertions, 0);
-    const totalDeletions =
-      parsed.staged.reduce((sum, file) => sum + file.deletions, 0) +
-      parsed.unstaged.reduce((sum, file) => sum + file.deletions, 0);
+    const { totalInsertions, totalDeletions } = sumChangeTotals(parsed);
 
     const conflictFileChanges: GitFileChange[] =
       parsed.mergeInProgress && parsed.conflictFiles.length > 0
@@ -377,12 +346,7 @@ export class GitStatusService {
       mergeInProgress: false,
     };
     await this.replaceUntrackedEntries(location, parsed);
-    const totalInsertions =
-      parsed.staged.reduce((sum, file) => sum + file.insertions, 0) +
-      parsed.unstaged.reduce((sum, file) => sum + file.insertions, 0);
-    const totalDeletions =
-      parsed.staged.reduce((sum, file) => sum + file.deletions, 0) +
-      parsed.unstaged.reduce((sum, file) => sum + file.deletions, 0);
+    const { totalInsertions, totalDeletions } = sumChangeTotals(parsed);
     return {
       ...base,
       staged: parsed.staged,

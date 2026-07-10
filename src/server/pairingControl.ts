@@ -71,7 +71,8 @@ export function pidIsAlive(pid: number): boolean {
   }
 }
 
-function readPidFile(path: string): number | null {
+/** Read a pid from a lock file; unreadable/invalid contents count as stale. */
+export function readPidFile(path: string): number | null {
   try {
     const pid = Number.parseInt(readFileSync(path, "utf8").trim(), 10);
     return Number.isInteger(pid) && pid > 0 ? pid : null;
@@ -172,7 +173,9 @@ export async function requestPairingFromRunningServer(
   const responsePath = join(baseDir, PAIRING_RESPONSE_FILE);
   const requestId = (options.requestId ?? randomUUID)();
   const timeoutMs = options.timeoutMs ?? 5_000;
-  const pollIntervalMs = options.pollIntervalMs ?? 25;
+  // Human-scale bootstrap: 100 ms keeps ~50 sync reads off the 5 s worst case
+  // without adding perceptible latency.
+  const pollIntervalMs = options.pollIntervalMs ?? 100;
 
   try {
     removeFile(requestPath);

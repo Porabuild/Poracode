@@ -24,6 +24,11 @@ function availableEfforts(agent: AgentStatus | undefined, model: string): string
   return agent.capabilities.modelEfforts[model] ?? agent.capabilities.efforts;
 }
 
+function presentationModesFor(agent: AgentStatus | undefined): ThreadPresentationMode[] {
+  if (!agent) return [];
+  return agent.capabilities.presentationModes ?? [agent.capabilities.presentationMode];
+}
+
 export function RemoteProjectModal() {
   const { t } = useLingui();
   const draft = useRemoteServersStore((state) => state.remoteProjectDraft);
@@ -59,9 +64,7 @@ export function RemoteProjectModal() {
     if (!selectedAgent.capabilities.models.some((option) => option.id === model)) {
       setModel(nextModel);
     }
-    const modes = selectedAgent.capabilities.presentationModes ?? [
-      selectedAgent.capabilities.presentationMode,
-    ];
+    const modes = presentationModesFor(selectedAgent);
     if (!modes.includes(presentationMode)) setPresentationMode(modes[0] ?? "terminal");
   }, [agentKind, model, presentationMode, selectedAgent]);
 
@@ -177,11 +180,7 @@ export function RemoteProjectModal() {
                     </select>
                   </label>
                 ) : null}
-                {(
-                  selectedAgent?.capabilities.presentationModes ?? [
-                    selectedAgent?.capabilities.presentationMode,
-                  ]
-                ).filter(Boolean).length > 1 ? (
+                {presentationModesFor(selectedAgent).length > 1 ? (
                   <label className="flex flex-col gap-1 text-xs text-muted">
                     <Trans>Presentation</Trans>
                     <select

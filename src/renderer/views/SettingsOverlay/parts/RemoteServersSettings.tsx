@@ -190,8 +190,7 @@ function ManageProjects({ desktopId }: { readonly desktopId: string }) {
 function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
   const { t } = useLingui();
   const runtime = useRemoteServersStore((s) => s.runtime[server.desktopId]);
-  const refreshServer = useRemoteServersStore((s) => s.refreshServer);
-  const connectAll = useRemoteServersStore((s) => s.connectAll);
+  const reconnectServer = useRemoteServersStore((s) => s.reconnectServer);
   const removeServer = useRemoteServersStore((s) => s.removeServer);
   const runProjectCommand = useRemoteServersStore((s) => s.runProjectCommand);
   const { busy, run } = useAsyncOperation();
@@ -233,11 +232,7 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
           isIconOnly
           aria-label={t`Refresh`}
           isDisabled={busy}
-          onPress={() =>
-            run(() =>
-              server.transport?.kind === "ssh" ? connectAll() : refreshServer(server.desktopId),
-            )
-          }
+          onPress={() => run(() => reconnectServer(server.desktopId))}
         >
           <RefreshCw className={`size-3.5 ${status === "connecting" ? "animate-spin" : ""}`} />
         </Button>

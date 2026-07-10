@@ -49,11 +49,8 @@ import {
 import { CommandPalette } from "@/renderer/commands/CommandPalette";
 import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel";
 import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";
-import {
-  captureAppStarted,
-  flushProductAnalytics,
-  installProductAnalytics,
-} from "@/renderer/analytics/posthog";
+import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics/posthog";
+import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
 
 // ── Module-level IPC listeners ──────────────────────────────────
 // Subscribes to supervisor events as soon as the module loads,

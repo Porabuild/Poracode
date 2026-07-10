@@ -85,7 +85,6 @@ describe("mobile SSH bootstrap", () => {
       connectMobileSsh(connection, { kind: "password", password: "secret" }, true),
     ).resolves.toEqual({
       endpoint: "http://127.0.0.1:40123/",
-      remotePort: 38987,
       pairingCredential: "lc_pair_mobile",
     });
     expect(bridge.connect).toHaveBeenCalledWith(

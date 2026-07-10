@@ -57,7 +57,6 @@ export interface SessionRuntime {
   /** Mode the thread was launched in. Preserved for restart / recovery flows. */
   presentationMode?: ThreadPresentationMode;
   ignoreExit?: boolean;
-  invalidSessionRecoveryStarted?: boolean;
   ptyExited?: boolean;
   autoResponseEmitted?: boolean;
   sessionRefDiscoveryStarted?: boolean;

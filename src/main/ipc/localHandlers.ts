@@ -64,8 +64,6 @@ import type { LightcodePaths } from "@/shared/lightcodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 import type { SshConnectionManager } from "../ssh/SshConnectionManager";
 
-export { getRemoteAccessPairingInfo } from "../remote/pairingInfo";
-
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
   getBrowserPanelManager(): BrowserPanelManager | null;

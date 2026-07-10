@@ -19,8 +19,6 @@ import {
 
 const FLUSH_INTERVAL_MS = 10_000;
 
-export { captureProductEvent, flushProductAnalytics } from "./productAnalytics";
-
 type ThreadProductInput = Pick<
   Thread,
   "agentKind" | "config" | "presentationMode" | "sessionRef" | "worktreePath"

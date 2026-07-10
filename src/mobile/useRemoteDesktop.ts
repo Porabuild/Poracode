@@ -12,6 +12,7 @@ import {
   type ThreadStatus,
 } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import { waitForRemoteThreadAppearance } from "@/shared/remote/threadAppearance";
 import type { SshConnectionConfig } from "@/shared/ssh";
 import {
   filterKnownRemoteAccessScopes,
@@ -100,13 +101,6 @@ export const CONNECTION_LABELS: Record<ConnectionState, MessageDescriptor> = {
   unauthorized: msg`Pair again`,
   error: msg`Error`,
 };
-
-const REMOTE_THREAD_APPEAR_ATTEMPTS = 10;
-const REMOTE_THREAD_APPEAR_DELAY_MS = 250;
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
 
 function describeError(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -197,6 +191,13 @@ export function useRemoteDesktop() {
   // full-blob writes while a thread is actively streaming.
   const threadSnapshotSavedAtRef = useRef<Map<string, number>>(new Map());
 
+  // Shared error surface for every flow that re-establishes the SSH transport
+  // (boot, desktop switch, reconnect).
+  function reportSshRestoreFailure(error: unknown) {
+    setConnection("error");
+    setMessage(describeError(error, i18n._(msg`Unable to restore the SSH connection.`)));
+  }
+
   const activeDesktop = desktops.find((desktop) => desktop.desktopId === activeDesktopId) ?? null;
   const storeThreads = useAppStore(useShallow((state) => state.threads));
   const projects = useAppStore(useShallow((state) => state.projects));
@@ -242,8 +243,7 @@ export function useRemoteDesktop() {
           if (cancelled) return;
           setDesktops(stored);
           await loadCached(desktopId);
-          setConnection("error");
-          setMessage(describeError(error, i18n._(msg`Unable to restore the SSH connection.`)));
+          reportSshRestoreFailure(error);
           return;
         }
       }
@@ -535,17 +535,13 @@ export function useRemoteDesktop() {
     }
   }
 
-  async function waitForRemoteThread(desktop: StoredDesktop, threadId: string): Promise<boolean> {
-    for (let attempt = 0; attempt < REMOTE_THREAD_APPEAR_ATTEMPTS; attempt += 1) {
-      await refresh(desktop);
-      if (useAppStore.getState().threads.some((thread) => thread.id === threadId)) {
-        return true;
-      }
-      if (attempt < REMOTE_THREAD_APPEAR_ATTEMPTS - 1) {
-        await delay(REMOTE_THREAD_APPEAR_DELAY_MS);
-      }
-    }
-    return false;
+  function waitForRemoteThread(desktop: StoredDesktop, threadId: string): Promise<boolean> {
+    return waitForRemoteThreadAppearance({
+      refresh: async () => {
+        await refresh(desktop);
+      },
+      hasThread: () => useAppStore.getState().threads.some((thread) => thread.id === threadId),
+    });
   }
 
   async function openThread(thread: Thread) {
@@ -840,8 +836,7 @@ export function useRemoteDesktop() {
     try {
       restored = await restoreSshTransport(desktop);
     } catch (error) {
-      setConnection("error");
-      setMessage(describeError(error, i18n._(msg`Unable to restore the SSH connection.`)));
+      reportSshRestoreFailure(error);
       throw error;
     }
     await setActiveDesktopId(restored.desktopId);
@@ -925,8 +920,7 @@ export function useRemoteDesktop() {
         setReconnectNonce((nonce) => nonce + 1);
         await refresh(restored, { refreshSelectedThread: true });
       } catch (error) {
-        setConnection("error");
-        setMessage(describeError(error, i18n._(msg`Unable to restore the SSH connection.`)));
+        reportSshRestoreFailure(error);
       }
     })();
   }

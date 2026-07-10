@@ -207,7 +207,6 @@ describe("InvalidSessionRecoveryCoordinator", () => {
       "resolve",
       "spawn",
     ]);
-    expect(harness.session.invalidSessionRecoveryStarted).toBe(true);
     expect(harness.spawnThread).toHaveBeenCalledTimes(1);
     const spawnInput = harness.spawnThread.mock.calls[0]![0];
     expect(spawnInput).not.toHaveProperty("sessionRef");
@@ -245,7 +244,6 @@ describe("InvalidSessionRecoveryCoordinator", () => {
 
     await harness.coordinator.recover(harness.session);
 
-    expect(harness.session.invalidSessionRecoveryStarted).toBe(true);
     expect(harness.dispose).not.toHaveBeenCalled();
     expect(harness.spawnThread).not.toHaveBeenCalled();
   });

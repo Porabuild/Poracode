@@ -4,8 +4,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
-  parsePairingCredential,
-  parseRemoteLaunchPort,
   sshConnectPayloadSchema,
   type SshConnectPayload,
   type SshConnectResult,
@@ -14,17 +12,15 @@ import {
 } from "@/shared/ssh";
 import { ensureSshRuntimeBundle, type SshRuntimeBundleOptions } from "./runtimeBundle";
 import {
-  INSTALL_REMOTE_RUNTIME_SCRIPT,
-  LAUNCH_REMOTE_SERVER_SCRIPT,
-  PAIR_REMOTE_SERVER_SCRIPT,
-  PREPARE_REMOTE_UPLOAD_SCRIPT,
-  PROBE_REMOTE_RUNTIME_SCRIPT,
-} from "@/shared/sshRemoteScripts";
+  bootstrapRemoteRuntime,
+  issueRemotePairingCredential,
+  SSH_COMMAND_TIMEOUT_MS,
+  SSH_INSTALL_TIMEOUT_MS,
+  waitForRemoteEndpoint,
+  type RemoteScriptRunner,
+} from "@/shared/sshBootstrap";
 
 const MAX_CAPTURED_OUTPUT_BYTES = 256 * 1024;
-const SSH_COMMAND_TIMEOUT_MS = 60_000;
-const SSH_INSTALL_TIMEOUT_MS = 10 * 60_000;
-const SSH_TUNNEL_READY_TIMEOUT_MS = 20_000;
 
 interface ProcessResult {
   readonly stdout: string;
@@ -252,38 +248,38 @@ export class SshConnectionManager {
     if (current) await this.disconnect(connection.id);
 
     const bundle = ensureSshRuntimeBundle(this.options);
-    const probe = await this.runSshScript(connection, PROBE_REMOTE_RUNTIME_SCRIPT, [bundle.hash]);
-    if (probe.stdout.trim().split(/\r?\n/g).at(-1) !== "ready") {
-      await this.runSshScript(connection, PREPARE_REMOTE_UPLOAD_SCRIPT);
-      await runProcess(
-        this.options.scpCommand ?? (process.platform === "win32" ? "scp.exe" : "scp"),
-        buildScpArgs(
-          connection,
-          bundle.archivePath,
-          `.lightcode/ssh/uploads/${bundle.hash}.tar.gz`,
-          this.options.sshConfigFile,
-        ),
-        { timeoutMs: SSH_INSTALL_TIMEOUT_MS },
-      );
-      await this.runSshScript(connection, INSTALL_REMOTE_RUNTIME_SCRIPT, [bundle.hash], {
-        timeoutMs: SSH_INSTALL_TIMEOUT_MS,
-      });
-    }
-
-    const launched = await this.runSshScript(
-      connection,
-      LAUNCH_REMOTE_SERVER_SCRIPT,
-      [connection.id, bundle.hash],
-      { timeoutMs: SSH_COMMAND_TIMEOUT_MS },
+    const remotePort = await bootstrapRemoteRuntime(
+      {
+        runScript: this.scriptRunner(connection),
+        deliverArchive: async (remotePath) => {
+          await runProcess(
+            this.options.scpCommand ?? (process.platform === "win32" ? "scp.exe" : "scp"),
+            buildScpArgs(connection, bundle.archivePath, remotePath, this.options.sshConfigFile),
+            { timeoutMs: SSH_INSTALL_TIMEOUT_MS },
+          );
+        },
+      },
+      connection.id,
+      bundle.hash,
     );
-    const remotePort = parseRemoteLaunchPort(launched.stdout);
 
-    const pairingCredential = input.issuePairingCredential
-      ? await this.issuePairingCredential(connection, bundle.hash)
-      : undefined;
     const localPort = await reserveLoopbackPort();
     const endpoint = `http://127.0.0.1:${localPort}/`;
-    const child = await this.openTunnel(connection, localPort, remotePort, endpoint);
+    // Pairing is an independent ssh exec (1-3s of remote node bootstrap); run
+    // it alongside the tunnel instead of serializing the two.
+    const [pairingSettled, tunnelSettled] = await Promise.allSettled([
+      input.issuePairingCredential
+        ? this.issuePairingCredential(connection, bundle.hash)
+        : Promise.resolve(undefined),
+      this.openTunnel(connection, localPort, remotePort, endpoint),
+    ]);
+    if (pairingSettled.status === "rejected") {
+      if (tunnelSettled.status === "fulfilled") tunnelSettled.value.kill();
+      throw pairingSettled.reason;
+    }
+    if (tunnelSettled.status === "rejected") throw tunnelSettled.reason;
+    const pairingCredential = pairingSettled.value;
+    const child = tunnelSettled.value;
     const entry: TunnelEntry = {
       configKey: configKey(connection),
       connection,
@@ -326,15 +322,18 @@ export class SshConnectionManager {
     );
   }
 
-  private async issuePairingCredential(
+  private scriptRunner(connection: SshConnectionConfig): RemoteScriptRunner {
+    return async (script, args, timeoutMs) => {
+      const result = await this.runSshScript(connection, script, args, { timeoutMs });
+      return result.stdout;
+    };
+  }
+
+  private issuePairingCredential(
     connection: SshConnectionConfig,
     runtimeHash: string,
   ): Promise<string> {
-    const result = await this.runSshScript(connection, PAIR_REMOTE_SERVER_SCRIPT, [
-      connection.id,
-      runtimeHash,
-    ]);
-    return parsePairingCredential(result.stdout);
+    return issueRemotePairingCredential(this.scriptRunner(connection), connection.id, runtimeHash);
   }
 
   private async openTunnel(
@@ -375,33 +374,12 @@ export class SshConnectionManager {
       });
     });
     try {
-      await Promise.race([this.waitForEndpoint(endpoint), exited]);
+      await Promise.race([waitForRemoteEndpoint(this.fetchImpl, endpoint), exited]);
       return child;
     } catch (error) {
       child.kill();
       throw error;
     }
-  }
-
-  private async waitForEndpoint(endpoint: string): Promise<void> {
-    const deadline = Date.now() + SSH_TUNNEL_READY_TIMEOUT_MS;
-    let lastError: unknown;
-    while (Date.now() < deadline) {
-      try {
-        const response = await this.fetchImpl(
-          new URL(".well-known/lightcode/environment", endpoint),
-          { signal: AbortSignal.timeout(1_000) },
-        );
-        if (response.ok) return;
-        lastError = new Error(`Remote Poracode probe returned HTTP ${response.status}.`);
-      } catch (error) {
-        lastError = error;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
-    throw new Error("Timed out waiting for the SSH tunnel to reach remote Poracode.", {
-      cause: lastError,
-    });
   }
 
   private async stopTunnel(child: ChildProcessWithoutNullStreams): Promise<void> {

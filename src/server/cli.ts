@@ -1,4 +1,4 @@
-import { closeSync, openSync, readFileSync, unlinkSync, writeSync } from "node:fs";
+import { closeSync, openSync, unlinkSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { resolveLightcodeBaseDir } from "@/shared/lightcodePaths";
 import { prepareLightcodeDataRoot } from "@/main/lightcodeData";
@@ -8,6 +8,7 @@ import { readOrCreateHeadlessSecretKey, readOrCreateRelaySecret } from "./headle
 import {
   fulfillPairingControlRequest,
   pidIsAlive,
+  readPidFile,
   requestPairingFromRunningServer,
 } from "./pairingControl";
 
@@ -75,7 +76,7 @@ export function acquireDataDirLock(
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
 
-      const holderPid = readLockPid(path);
+      const holderPid = readPidFile(path);
       if (holderPid !== null && isAlive(holderPid)) {
         throw new Error(
           `Lightcode data dir ${baseDir} is in use by another Lightcode process (pid ${holderPid}); ` +
@@ -120,16 +121,6 @@ export function acquireDataDirLock(
         }
       },
     };
-  }
-}
-
-function readLockPid(path: string): number | null {
-  try {
-    const pid = Number.parseInt(readFileSync(path, "utf8").trim(), 10);
-    return Number.isInteger(pid) && pid > 0 ? pid : null;
-  } catch {
-    // Unreadable/empty lockfile → treat as stale (reclaimable).
-    return null;
   }
 }
 

@@ -1,4 +1,3 @@
-import { baseAgentKind } from "@/shared/contracts";
 import { getProviderUtilityRank } from "./providerManifest";
 import { lookupProviderRegistration } from "./providerRegistry";
 
@@ -59,13 +58,11 @@ interface ResolveUtilityTaskOptions {
 
 export function sortByAutoPreference<T extends { kind: string }>(items: readonly T[]): T[] {
   return [...items].sort(
-    (left, right) =>
-      getProviderUtilityRank(baseAgentKind(left.kind)) -
-      getProviderUtilityRank(baseAgentKind(right.kind)),
+    (left, right) => getProviderUtilityRank(left.kind) - getProviderUtilityRank(right.kind),
   );
 }
 
-export function getUtilityTaskDefaultsHint(
+function getUtilityTaskDefaultsHint(
   defaultsList: Iterable<UtilityTaskDefaults>,
 ): string | undefined {
   const entries = [...defaultsList]

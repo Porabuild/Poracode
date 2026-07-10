@@ -323,9 +323,7 @@ export async function saveDesktop(input: {
       desktopId: input.descriptor.desktopId,
       label: input.descriptor.label,
       endpoint: input.endpoint,
-      ...(input.transport
-        ? { transport: input.transport }
-        : { transport: { kind: "direct" } as const }),
+      transport: input.transport ?? { kind: "direct" },
       appVersion: input.descriptor.appVersion,
       ...(input.descriptor.platform ? { platform: input.descriptor.platform } : {}),
       accessToken: input.accessToken,

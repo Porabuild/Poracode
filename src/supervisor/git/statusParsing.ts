@@ -18,6 +18,65 @@ export interface DiffStatEntry {
   deletions: number;
 }
 
+/** Derive remote presence + parsed origin info from `git remote -v` output. */
+export function parseRemoteInfo(remoteOutput: string): {
+  hasRemote: boolean;
+  remoteInfo: GitRemoteInfo | null;
+} {
+  const remoteLines = remoteOutput.trim().split("\n").filter(Boolean);
+  const hasRemote = remoteLines.length > 0;
+  let remoteInfo: GitRemoteInfo | null = null;
+  if (hasRemote) {
+    const originLine =
+      remoteLines.find((line) => line.startsWith("origin\t") && line.includes("(fetch)")) ??
+      remoteLines.find((line) => line.includes("(fetch)"));
+    if (originLine) {
+      const urlMatch = originLine.match(/^\S+\t(\S+)/);
+      if (urlMatch) {
+        remoteInfo = parseRemoteUrl(urlMatch[1]!);
+      }
+    }
+  }
+  return { hasRemote, remoteInfo };
+}
+
+/** Merge staged/unstaged `--numstat` counts into the parsed porcelain entries. */
+export function applyNumstatCounts(
+  parsed: ParsedPorcelainStatus,
+  stagedNumstat: string,
+  unstagedNumstat: string,
+): void {
+  for (const entry of parseDiffNumstat(stagedNumstat)) {
+    const match = parsed.staged.find((file) => file.path === entry.path);
+    if (match) {
+      match.insertions = entry.insertions;
+      match.deletions = entry.deletions;
+    }
+  }
+  for (const entry of parseDiffNumstat(unstagedNumstat)) {
+    const match = parsed.unstaged.find((file) => file.path === entry.path);
+    if (match) {
+      match.insertions = entry.insertions;
+      match.deletions = entry.deletions;
+    }
+  }
+}
+
+/** Sum insertions/deletions across staged + unstaged entries. */
+export function sumChangeTotals(parsed: ParsedPorcelainStatus): {
+  totalInsertions: number;
+  totalDeletions: number;
+} {
+  return {
+    totalInsertions:
+      parsed.staged.reduce((sum, file) => sum + file.insertions, 0) +
+      parsed.unstaged.reduce((sum, file) => sum + file.insertions, 0),
+    totalDeletions:
+      parsed.staged.reduce((sum, file) => sum + file.deletions, 0) +
+      parsed.unstaged.reduce((sum, file) => sum + file.deletions, 0),
+  };
+}
+
 /**
  * Decode git's C-quoted path form. We force `core.quotepath=false` on every git
  * invocation (see {@link withQuotePathDisabled}), so non-ASCII bytes come
@@ -287,42 +346,9 @@ export function buildGitStatusResultFromOutputs(args: {
   }
 
   const parsed = parseStatusPorcelainV2(args.statusOutput);
-  const remoteLines = args.remoteOutput.trim().split("\n").filter(Boolean);
-  const hasRemote = remoteLines.length > 0;
-  let remoteInfo: GitRemoteInfo | null = null;
-  if (hasRemote) {
-    const originLine =
-      remoteLines.find((line) => line.startsWith("origin\t") && line.includes("(fetch)")) ??
-      remoteLines.find((line) => line.includes("(fetch)"));
-    if (originLine) {
-      const urlMatch = originLine.match(/^\S+\t(\S+)/);
-      if (urlMatch) {
-        remoteInfo = parseRemoteUrl(urlMatch[1]!);
-      }
-    }
-  }
-
-  for (const entry of parseDiffNumstat(args.stagedNumstat)) {
-    const match = parsed.staged.find((file) => file.path === entry.path);
-    if (match) {
-      match.insertions = entry.insertions;
-      match.deletions = entry.deletions;
-    }
-  }
-  for (const entry of parseDiffNumstat(args.unstagedNumstat)) {
-    const match = parsed.unstaged.find((file) => file.path === entry.path);
-    if (match) {
-      match.insertions = entry.insertions;
-      match.deletions = entry.deletions;
-    }
-  }
-
-  const totalInsertions =
-    parsed.staged.reduce((sum, file) => sum + file.insertions, 0) +
-    parsed.unstaged.reduce((sum, file) => sum + file.insertions, 0);
-  const totalDeletions =
-    parsed.staged.reduce((sum, file) => sum + file.deletions, 0) +
-    parsed.unstaged.reduce((sum, file) => sum + file.deletions, 0);
+  const { hasRemote, remoteInfo } = parseRemoteInfo(args.remoteOutput);
+  applyNumstatCounts(parsed, args.stagedNumstat, args.unstagedNumstat);
+  const { totalInsertions, totalDeletions } = sumChangeTotals(parsed);
 
   return {
     isRepo: true,

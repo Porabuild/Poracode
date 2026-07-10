@@ -108,7 +108,6 @@ export function createDesktopRemoteAccessController(
   let remoteTailscaleLastError: string | null = null;
   let remoteGitSummaries: RemoteGitSummaries = {};
   let disposePromise: Promise<void> | null = null;
-  const disposedForwardings = new WeakSet<PortForwarding>();
 
   const writeSharedSettingsPatch = (patch: {
     [K in keyof SharedSettings]?: SharedSettings[K];
@@ -179,12 +178,6 @@ export function createDesktopRemoteAccessController(
     !attempt.cancelled &&
     attempt.generation === remoteAccessGeneration &&
     remoteAccessStartAttempt === attempt;
-
-  const disposeForwardingOnce = (forwarding: PortForwarding | null): void => {
-    if (!forwarding || disposedForwardings.has(forwarding)) return;
-    disposedForwardings.add(forwarding);
-    forwarding.dispose();
-  };
 
   const teardownAttemptTailscaleServe = (attempt: RemoteAccessStartAttempt): Promise<void> => {
     if (!attempt.tailscaleServeUrl) return Promise.resolve();
@@ -335,7 +328,7 @@ export function createDesktopRemoteAccessController(
       }
       if (portForwarding === attempt.forwarding) {
         portForwarding = null;
-        disposeForwardingOnce(attempt.forwarding);
+        attempt.forwarding?.dispose();
       }
 
       const superseded = !isCurrentStartAttempt(attempt);
@@ -410,7 +403,7 @@ export function createDesktopRemoteAccessController(
       teardownTailscaleServe();
     }
     if (!server) {
-      disposeForwardingOnce(forwarding);
+      forwarding?.dispose();
       return;
     }
     // Full disable keeps forwarding alive until in-flight HTTP requests finish.
@@ -422,7 +415,7 @@ export function createDesktopRemoteAccessController(
         console.warn("[lightcode] remote access failed to stop cleanly:", toErrorMessage(error)),
       )
       .finally(() => {
-        disposeForwardingOnce(forwarding);
+        forwarding?.dispose();
       });
   };
 
@@ -612,7 +605,7 @@ export function createDesktopRemoteAccessController(
           })
         : Promise.resolve();
       disposePromise = Promise.all([serverDisposal, startSettlement]).then(() => {});
-      disposeForwardingOnce(forwarding);
+      forwarding?.dispose();
       return disposePromise;
     },
   };
