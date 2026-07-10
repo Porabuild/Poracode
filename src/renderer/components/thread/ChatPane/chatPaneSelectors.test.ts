@@ -209,6 +209,60 @@ describe("chatPaneSelectors", () => {
     ]);
   });
 
+  it("folds reasoning items into adjacent tool-call groups", () => {
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: ["reasoning-1", "tool-1", "command-1", "assistant-1", "reasoning-2"],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "reasoning-1": {
+            id: "reasoning-1",
+            type: "reasoning",
+            state: "completed",
+            streams: { reasoning_text: "planning the change" },
+          },
+          "tool-1": {
+            id: "tool-1",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "Viewing src/a.ts", status: "success" },
+            streams: {},
+          },
+          "command-1": {
+            id: "command-1",
+            type: "command_execution",
+            state: "completed",
+            payload: { command: "pnpm run lint" },
+            streams: {},
+          },
+          "assistant-1": {
+            id: "assistant-1",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "done" },
+          },
+          "reasoning-2": {
+            id: "reasoning-2",
+            type: "reasoning",
+            state: "updated",
+            streams: { reasoning_text: "wrapping up" },
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
+      {
+        kind: "tool_call_group",
+        id: "tool-call-group:reasoning-1",
+        itemIds: ["reasoning-1", "tool-1", "command-1"],
+      },
+      { kind: "item", id: "assistant-1" },
+      { kind: "item", id: "reasoning-2" },
+    ]);
+  });
+
   it("keeps active Workflow tool calls as standalone background items", () => {
     const state = {
       runtimeItemIdsByThread: {

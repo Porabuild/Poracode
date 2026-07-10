@@ -1,4 +1,4 @@
-import { Eye, Pencil, SearchCode, Terminal, Wrench, type LucideIcon } from "lucide-react";
+import { Brain, Eye, Pencil, SearchCode, Terminal, Wrench, type LucideIcon } from "lucide-react";
 import type {
   CommandExecutionPayload,
   FileChangePayload,
@@ -14,7 +14,7 @@ import { isContextCompactionToolCall } from "./ContextCompaction";
 import { isPlanProposalToolCall } from "./PlanProposal";
 import { deriveToolDisplay, isSubAgentTool } from "./toolDisplay";
 
-export type GroupCategory = "viewed" | "searched" | "edited" | "executed" | "other";
+export type GroupCategory = "thought" | "viewed" | "searched" | "edited" | "executed" | "other";
 
 export interface CategoryMeta {
   Icon: LucideIcon;
@@ -25,6 +25,7 @@ export interface CategoryMeta {
 }
 
 export const CATEGORY_META: Record<GroupCategory, CategoryMeta> = {
+  thought: { Icon: Brain, singular: "thought", plural: "thoughts", priority: 5 },
   viewed: { Icon: Eye, singular: "view", plural: "views", priority: 0 },
   searched: { Icon: SearchCode, singular: "search", plural: "searches", priority: 1 },
   edited: { Icon: Pencil, singular: "edit", plural: "edits", priority: 2 },
@@ -140,6 +141,7 @@ export function isToolGroupItem(item: RuntimeChatItem): boolean {
   if (isPlanProposalToolCall(item)) return false;
   return (
     isToolLikeItem(item) ||
+    item.type === "reasoning" ||
     item.type === "command_execution" ||
     item.type === "file_change" ||
     item.type === "web_search"
@@ -147,6 +149,7 @@ export function isToolGroupItem(item: RuntimeChatItem): boolean {
 }
 
 export function categorizeItem(item: RuntimeChatItem): GroupCategory {
+  if (item.type === "reasoning") return "thought";
   if (item.type === "command_execution") return categorizeCommandExecution(item);
   if (item.type === "file_change") return "edited";
   if (item.type === "web_search") return "searched";
@@ -242,6 +245,7 @@ export function categorizeToolName(name: string): GroupCategory {
 }
 
 export const SUMMARY_CATEGORY_LABELS: Record<GroupCategory, readonly string[]> = {
+  thought: ["thought", "thoughts"],
   viewed: ["view", "views"],
   searched: ["search", "searches"],
   edited: ["edit", "edits"],

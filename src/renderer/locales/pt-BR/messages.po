@@ -7171,6 +7171,7 @@ msgstr "Tema e tamanho da fonte do chat"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "Pensando"
@@ -7249,6 +7250,7 @@ msgid "This worktree has local changes. Poracode can temporarily stash them, pul
 msgstr "Esta árvore de trabalho possui alterações locais. O Poracode pode armazená-las temporariamente, fazer pull de {0} e depois reaplicar suas alterações."
 
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 msgid "Thought"
 msgstr "Pensamento"
 

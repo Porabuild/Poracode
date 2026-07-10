@@ -7171,6 +7171,7 @@ msgstr "Tema ve sohbet yazı tipi boyutu"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "Düşünme"
@@ -7249,6 +7250,7 @@ msgid "This worktree has local changes. Poracode can temporarily stash them, pul
 msgstr "Bu çalışma ağacında yerel değişiklikler var. Poracode bunları geçici olarak saklayabilir, {0} öğesinden çekebilir ve ardından değişikliklerinizi yeniden uygulayabilir."
 
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 msgid "Thought"
 msgstr "Düşünce"
 

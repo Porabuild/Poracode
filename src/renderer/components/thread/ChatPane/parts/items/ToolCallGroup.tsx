@@ -42,6 +42,7 @@ import {
 } from "./acpToolPayload";
 import { commandIntentDisplay } from "./commandSummary";
 import { LazyInlineDiffView } from "./LazyInlineDiffView";
+import { ReasoningInline } from "./ReasoningInline";
 import { detectLanguageFromPath, type ViewportLanguage } from "./languageDetect";
 import {
   getToolLikePayload,
@@ -171,7 +172,11 @@ export const ToolCallGroup = memo(function ToolCallGroup({
               ) : (
                 visibleItems.map((item) => (
                   <div key={item.id} className="animate-tool-call-enter">
-                    <ToolCallInline item={item} />
+                    {item.type === "reasoning" ? (
+                      <ReasoningInline item={item} />
+                    ) : (
+                      <ToolCallInline item={item} />
+                    )}
                   </div>
                 ))
               )}

@@ -79,6 +79,23 @@ describe("Reasoning", () => {
     await waitFor(() => expect(metrics.getScrollTop()).toBe(320));
   });
 
+  it("shows a one-line preview on the collapsed Thought row and hides it when expanded", () => {
+    const { container } = renderReasoning({
+      ...makeReasoningItem("Weighing the tradeoffs.\nThen deciding."),
+      state: "completed",
+    });
+
+    const toggle = container.querySelector("button");
+    if (!toggle) throw new Error("missing Thought toggle");
+    expect(toggle.textContent).toContain("Thought");
+    expect(toggle.textContent).toContain("Weighing the tradeoffs. Then deciding.");
+
+    fireEvent.click(toggle);
+
+    expect(toggle.textContent).not.toContain("Weighing the tradeoffs. Then deciding.");
+    expect(container.textContent).toContain("Weighing the tradeoffs.");
+  });
+
   it("stops auto-scrolling once the user scrolls up inside the live reasoning block", async () => {
     const { container, rerender } = renderReasoning(makeReasoningItem("Inspecting logs"));
     const viewport = getReasoningViewport(container);

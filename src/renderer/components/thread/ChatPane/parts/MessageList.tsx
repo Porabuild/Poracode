@@ -9,6 +9,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
   type CompletedTurnRecord,
+  type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import {
@@ -521,29 +522,24 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
     });
   }, [index, measureElement]);
   useLayoutEffect(() => {
-    if (!isLastEntry || entry.kind !== "item") return;
+    if (!isLastEntry) return;
     return useAppStore.subscribe(
       (state) => {
-        const item = state.runtimeItemsByIdByThread[threadId]?.[entry.id];
-        if (!item || item.state === "completed") return null;
-        switch (item.type) {
-          case "assistant_message":
-            return `${item.type}:${item.state}:${item.streams.assistant_text?.length ?? 0}`;
-          case "reasoning":
-            return `${item.type}:${item.state}:${item.streams.reasoning_text?.length ?? 0}`;
-          case "command_execution":
-            return `${item.type}:${item.state}:${item.streams.command_output?.length ?? 0}`;
-          case "file_change":
-            return `${item.type}:${item.state}:${item.streams.file_change_output?.length ?? 0}`;
-          default:
-            return `${item.type}:${item.state}`;
+        const items = state.runtimeItemsByIdByThread[threadId];
+        if (entry.kind === "item") return liveStreamMeasureToken(items?.[entry.id]);
+        // A live tool-call group can hold a streaming row (e.g. reasoning
+        // expanded while the model thinks) that grows the virtualized row.
+        for (const itemId of entry.itemIds) {
+          const token = liveStreamMeasureToken(items?.[itemId]);
+          if (token !== null) return token;
         }
+        return null;
       },
       (token) => {
         if (token !== null) scheduleLiveMeasure();
       },
     );
-  }, [entry.id, entry.kind, isLastEntry, scheduleLiveMeasure, threadId]);
+  }, [entry, isLastEntry, scheduleLiveMeasure, threadId]);
   useLayoutEffect(
     () => () => {
       if (liveMeasureRafRef.current !== null) {
@@ -641,6 +637,27 @@ function isLastTimelineEntryAssistantMessage(
   const lastEntry = entries[entries.length - 1];
   if (!lastEntry || lastEntry.kind !== "item") return false;
   return state.runtimeItemsByIdByThread[threadId]?.[lastEntry.id]?.type === "assistant_message";
+}
+
+/**
+ * Change token for an in-flight item whose streamed content grows its row.
+ * Includes the item id so back-to-back streaming items inside one group still
+ * produce distinct tokens.
+ */
+function liveStreamMeasureToken(item: RuntimeChatItem | undefined): string | null {
+  if (!item || item.state === "completed") return null;
+  switch (item.type) {
+    case "assistant_message":
+      return `${item.id}:${item.state}:${item.streams.assistant_text?.length ?? 0}`;
+    case "reasoning":
+      return `${item.id}:${item.state}:${item.streams.reasoning_text?.length ?? 0}`;
+    case "command_execution":
+      return `${item.id}:${item.state}:${item.streams.command_output?.length ?? 0}`;
+    case "file_change":
+      return `${item.id}:${item.state}:${item.streams.file_change_output?.length ?? 0}`;
+    default:
+      return `${item.id}:${item.state}`;
+  }
 }
 
 function estimateTimelineEntrySize(entry: ChatTimelineEntry | undefined, threadId: string): number {

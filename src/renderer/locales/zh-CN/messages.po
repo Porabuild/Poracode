@@ -7170,6 +7170,7 @@ msgstr "主题和聊天字号"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "思考"
@@ -7248,6 +7249,7 @@ msgid "This worktree has local changes. Poracode can temporarily stash them, pul
 msgstr "该工作树有本地更改。Poracode 可以暂时贮藏（stash）它们，从 {0} 拉取，然后重新应用您的更改。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/Reasoning.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ReasoningInline.tsx
 msgid "Thought"
 msgstr "思考"
 

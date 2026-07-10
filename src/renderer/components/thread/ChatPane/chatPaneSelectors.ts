@@ -193,6 +193,9 @@ function isToolGroupItem(item: RuntimeChatItem): boolean {
     item.type === "mcp_tool_call" ||
     item.type === "image_view" ||
     item.type === "dynamic_tool_call" ||
+    // Reasoning folds into the group like any other tool row: expanded and
+    // streaming while the model thinks, collapsed to a "Thought" row after.
+    item.type === "reasoning" ||
     item.type === "command_execution" ||
     item.type === "file_change" ||
     item.type === "web_search"

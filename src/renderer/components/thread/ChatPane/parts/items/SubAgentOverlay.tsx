@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useId, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, X } from "lucide-react";
 import type { ProjectLocation, ToolCallPayload } from "@/shared/contracts";
@@ -8,9 +8,9 @@ import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
 import { useAppStore } from "@/renderer/state/appStore";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import { getChildItemIdsStoreSelector, getRuntimeItemStoreSelector } from "../../chatPaneSelectors";
-import { isElementAtBottom } from "../../chatScrollGeometry";
 import { ChatItemRow } from "./ChatItemRow";
 import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
+import { useStickToBottom } from "./useStickToBottom";
 import { WorkflowOverlayBody } from "./WorkflowOverlayBody";
 import { parseWorkflowInfo, type WorkflowInfo } from "./workflowDisplay";
 
@@ -222,59 +222,9 @@ function ChildList({
   workflow: WorkflowInfo | null;
   workflowProgress: WorkflowOverlayProgress | null;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const stickRef = useRef(true);
-  const lastScrollTopRef = useRef(0);
-
-  const scrollToBottom = useEffectEvent(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-    lastScrollTopRef.current = el.scrollTop;
-  });
-
   // Pin to bottom on first paint so opening the overlay lands on the latest
   // child step rather than the start of the trail.
-  useLayoutEffect(() => {
-    stickRef.current = true;
-    scrollToBottom();
-  }, []);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const handleScroll = () => {
-      const prev = lastScrollTopRef.current;
-      const next = el.scrollTop;
-      lastScrollTopRef.current = next;
-      const atBottom = isElementAtBottom(el);
-      if (next < prev && !atBottom) {
-        stickRef.current = false;
-      } else if (atBottom) {
-        stickRef.current = true;
-      }
-    };
-    lastScrollTopRef.current = el.scrollTop;
-    el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const syncStickyScroll = useEffectEvent(() => {
-    if (!stickRef.current) return;
-    scrollToBottom();
-  });
-
-  useEffect(() => {
-    if (!stickToBottom) return;
-    const content = contentRef.current;
-    if (!content) return;
-    const observer = new ResizeObserver(() => {
-      syncStickyScroll();
-    });
-    observer.observe(content);
-    return () => observer.disconnect();
-  }, [stickToBottom]);
+  const { scrollRef, contentRef } = useStickToBottom({ enabled: stickToBottom });
 
   return (
     <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
