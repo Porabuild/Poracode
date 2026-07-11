@@ -173,6 +173,9 @@ async function runSmoke(plan) {
       await runScenario(report, "settings", () => settingsScenario(client));
       await runScenario(report, "control-geometry", () => controlGeometryScenario(client));
     }
+    if (plan.automated.includes("schedules")) {
+      await runScenario(report, "schedules", () => schedulesScenario(client));
+    }
     if (plan.automated.includes("thread-search")) {
       await runScenario(report, "thread-search", () => threadSearchScenario(client));
     }
@@ -387,6 +390,79 @@ async function settingsScenario(client) {
   await screenshot(client, screenshotPath);
   await evaluate(client, "window.__lightcodeDev.closeSettings()");
   return { sections, screenshotPath };
+}
+
+async function schedulesScenario(client) {
+  const name = `Smoke schedule ${Date.now()}`;
+  const input = {
+    name,
+    prompt: "Deterministic future smoke task. Do not run yet.",
+    agentKind: "codex",
+    config: { model: "smoke-model", effort: "medium" },
+    recurrence: {
+      kind: "once",
+      runAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    },
+    enabled: true,
+  };
+  let created;
+  try {
+    created = await bridgeInvoke(client, "createSchedule", input);
+    assert(created?.id, "schedule create IPC returned no id");
+    assert(created.name === name, "created schedule did not preserve its name");
+    assert(!("projectId" in created), "device schedule unexpectedly carries a project id");
+
+    const opened = await evaluate(
+      client,
+      `(() => {
+        const button = [...document.querySelectorAll('button, [role="button"]')].find(
+          (candidate) => candidate.getAttribute("aria-label") === "Schedules" || candidate.textContent?.trim() === "Schedules",
+        );
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      })()`,
+    );
+    assert(opened, "Schedules was not available in the main sidebar");
+    const rendered = await waitForValue(
+      () =>
+        evaluate(
+          client,
+          `(() => ({
+            text: document.body.innerText,
+            viewKind: window.__lightcodeDev.stores.app.getState().view.kind,
+            settingsOpen: window.__lightcodeDev.stores.panel.getState().settingsOpen,
+            runNow: Boolean(document.querySelector('[aria-label="Run now"]')),
+            pause: Boolean(document.querySelector('[aria-label="Pause"]')),
+          }))()`,
+        ),
+      (state) =>
+        state.viewKind === "schedules" &&
+        !state.settingsOpen &&
+        state.text.includes(name) &&
+        state.runNow &&
+        state.pause,
+      "scheduled task row",
+    );
+    assert(rendered.text.includes(name), "created schedule did not render in the main view");
+
+    const paused = await bridgeInvoke(client, "updateSchedule", {
+      id: created.id,
+      task: { ...input, enabled: false },
+    });
+    assert(paused.enabled === false, "schedule pause did not persist");
+    const listed = await bridgeInvoke(client, "getSchedules");
+    assert(
+      listed.some((task) => task.id === created.id && task.enabled === false),
+      "paused schedule was not returned by the database IPC",
+    );
+
+    const screenshotPath = join(outDir, "smoke-02b-schedules.png");
+    await screenshot(client, screenshotPath);
+    return { scheduleId: created.id, screenshotPath };
+  } finally {
+    if (created?.id) await bridgeInvoke(client, "deleteSchedule", { id: created.id });
+  }
 }
 
 async function controlGeometryScenario(client) {

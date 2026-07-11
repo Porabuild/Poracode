@@ -14,6 +14,7 @@ import type {
   StartShellPayload,
   StartThreadPayload,
   WriteTerminalPayload,
+  ScheduledTaskInput,
 } from "@/shared/contracts";
 import type { BrowserState, BrowserTabInfo, LightcodeBridge } from "@/shared/ipc";
 import {
@@ -156,6 +157,13 @@ const remoteBridge = {
   getProfileCoreStats: (req: ProfileStatsRequest) => requireClient().profileCoreStats(req),
   getProfileTokenStats: (req: ProfileStatsRequest) => requireClient().profileTokenStats(req),
   setProfileIdentity: (identity: ProfileIdentity) => requireClient().setProfileIdentity(identity),
+
+  getSchedules: () => requireClient().schedules(),
+  createSchedule: (task: ScheduledTaskInput) => requireClient().createSchedule(task),
+  updateSchedule: ({ id, task }: { id: string; task: ScheduledTaskInput }) =>
+    requireClient().updateSchedule(id, task),
+  deleteSchedule: ({ id }: { id: string }) => requireClient().deleteSchedule(id),
+  runScheduleNow: ({ id }: { id: string }) => requireClient().runScheduleNow(id),
 
   // Shared settings persist per device via the store's localStorage fallback.
   // Remote-editable keys (the desktop's AI helpers) are additionally diffed

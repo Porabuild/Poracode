@@ -86,6 +86,11 @@ msgstr "{0}({envName}) は v{newVersion}に更新されました。"
 msgid "{0} ({envName}) updated."
 msgstr "{0}({envName}) が更新されました。"
 
+#. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{0} at {time}"
+msgstr "{0}の{time}"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -345,6 +350,10 @@ msgstr "{maxLabel}コンテキスト"
 msgid "{meta} · expires {expiresAt}"
 msgstr "{meta} · 有効期限: {expiresAt}"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "{minute} minutes past the hour"
+msgstr "毎時{minute}分"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{minutes}m ago"
 msgstr "{minutes}分前"
@@ -526,6 +535,8 @@ msgstr "{title} のアクション"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Active"
 msgstr "アクティブ"
 
@@ -659,6 +670,7 @@ msgstr "カスタムのベースURLを通知します（例: リバースプロ�
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "エージェント"
@@ -742,14 +754,15 @@ msgid "AI providers"
 msgstr "AI プロバイダー"
 
 #: src/mobile/views/MoreView.tsx
-msgid "AI, agents, and archived threads on the paired desktop"
-msgstr "ペアリング済みデスクトップ上の AI、エージェント、アーカイブ済みスレッド"
+#~ msgid "AI, agents, and archived threads on the paired desktop"
+#~ msgstr "ペアリング済みデスクトップ上の AI、エージェント、アーカイブ済みスレッド"
 
 #: src/mobile/settingsSections.ts
 msgid "Alerts when threads need you"
 msgstr "スレッドが対応を必要としたら通知"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "全期間"
@@ -930,6 +943,10 @@ msgstr "承認を求める"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "質問する"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "At"
+msgstr "時刻"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Attach"
@@ -1298,6 +1315,7 @@ msgstr "ポートを読み込めません"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -1404,6 +1422,10 @@ msgstr "チェックする"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
 msgstr "アップデートをチェックする"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Check my recent progress and give me one focused recommendation for what to do next."
+msgstr "最近の進捗を確認し、次に何をすべきか具体的な提案を1つしてください。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1985,6 +2007,10 @@ msgstr "接続"
 #~ msgid "Connect a server"
 #~ msgstr "サーバーに接続"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Connect an agent to create schedules."
+msgstr "スケジュールを作成するにはエージェントを接続してください。"
+
 #: src/mobile/setupEmptyState.tsx
 msgid "Connect desktop"
 msgstr "デスクトップに接続"
@@ -2260,6 +2286,10 @@ msgstr "ショートカットを保存できませんでした。"
 msgid "Couldn't start the camera"
 msgstr "カメラを開始できませんでした"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Create a useful routine with one click, then adjust it anytime."
+msgstr "ワンクリックで便利なルーティンを作成し、いつでも調整できます。"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
 msgstr "PR 草案の作成"
@@ -2301,9 +2331,26 @@ msgstr "プロジェクトの作成"
 msgid "Create Pull Request"
 msgstr "プルリクエストの作成"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Create schedule"
+msgstr "スケジュールを作成"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Create scheduled task"
+msgstr "スケジュールタスクを作成"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Create task"
 msgstr "タスクの作成"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Create with Agent"
+msgstr "エージェントで作成"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Create your first scheduled task."
+#~ msgstr "最初のスケジュールタスクを作成しましょう。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Create:"
@@ -2340,6 +2387,7 @@ msgid "Cursor"
 msgstr "Cursor"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -2366,9 +2414,22 @@ msgstr "最近表示したチャットを新しい順に切り替え"
 msgid "Cycle to the previous recently viewed chat"
 msgstr "最近表示したチャットを古い順に切り替え"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Daily"
+msgstr "毎日"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Daily brief"
+msgstr "デイリーブリーフ"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
 msgstr "ダーク"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Days"
+#~ msgstr "曜日"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Decline"
@@ -2409,6 +2470,7 @@ msgstr "デフォルトのスレッドの削除"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Delete"
@@ -2440,6 +2502,22 @@ msgstr "ファイルの削除"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Delete permanently"
 msgstr "完全に削除"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Delete schedule"
+msgstr "スケジュールを削除"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Delete schedule?"
+msgstr "スケジュールを削除しますか？"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Delete scheduled task?"
+#~ msgstr "スケジュールタスクを削除しますか？"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Delete task"
+#~ msgstr "タスクを削除"
 
 #: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -2487,6 +2565,10 @@ msgstr "拒否する"
 msgid "Deny and tell the agent what to do differently…"
 msgstr "拒否し、エージェントに別の対処法を伝えます..."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Describe what the agent should do"
+msgstr "エージェントに実行してほしい内容を説明してください"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 msgid "Description"
 msgstr "説明"
@@ -2507,6 +2589,10 @@ msgstr "デスクトップに到達できません。"
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
 msgstr "デスクトップ設定"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#~ msgid "Details"
+#~ msgstr "詳細"
 
 #: src/mobile/views/PortsView.tsx
 msgid "Detected"
@@ -2753,6 +2839,19 @@ msgstr "ファイルを編集する"
 msgid "Edit profile"
 msgstr "プロフィールを編集"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Edit schedule"
+msgstr "スケジュールを編集"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Edit scheduled task"
+#~ msgstr "スケジュールタスクを編集"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Edit task"
+#~ msgstr "タスクを編集"
+
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit:"
 msgstr "編集:"
@@ -2921,6 +3020,23 @@ msgstr "エラー"
 msgid "Error · Agent encountered an error"
 msgstr "エラー · エージェントでエラーが発生しました"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every day at {time}"
+msgstr "毎日{time}"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every day at 1:00 PM"
+msgstr "毎日午後1:00"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every hour"
+msgstr "毎時"
+
+#. placeholder {0}: task.recurrence.minute
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every hour at {0} minutes past"
+msgstr "毎時{0}分"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
@@ -2997,6 +3113,10 @@ msgstr "{0}からコンテキストを抽出しています ..."
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "failed"
 msgstr "失敗しました"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Failed"
+msgstr "失敗"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
@@ -3258,6 +3378,14 @@ msgstr "ポートを転送"
 msgid "Found a signed-in {0} session."
 msgstr "サインインした{0}セッションが見つかりました。"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Frequency"
+msgstr "頻度"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Friday at 4:00 PM"
+msgstr "金曜日午後4:00"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Frost the sidebar with the system blur material (vibrancy), echoing recent macOS. Falls back to a translucent tint where unsupported."
 msgstr "システムのぼかし素材（vibrancy）でサイドバーをすりガラス調にし、最近のmacOSの質感を再現します。非対応の環境では半透明の色付けに切り替わります。"
@@ -3313,6 +3441,10 @@ msgstr "ステージされた変更からコミットメッセージを生成し
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "新しいスレッドの短いタイトルを生成します。"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Get a quick check-in during the workday."
+msgstr "勤務中に短いチェックインを受け取ります。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -3438,6 +3570,10 @@ msgstr "ハードリロード"
 msgid "Has unsent draft"
 msgstr "未送信の下書きがあります"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
+msgstr "スケジュール作成を手伝ってください。不足している詳細を確認し、Poracodeのスケジュール操作を使って作成してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after this idle age."
@@ -3504,6 +3640,7 @@ msgstr "履歴"
 
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "ホーム"
@@ -3520,6 +3657,10 @@ msgstr "ホームスコープ"
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
 msgstr "host.com、エイリアス、または user@host.com"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Hourly"
+msgstr "毎時"
 
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -3682,6 +3823,10 @@ msgstr "インストール中"
 msgid "Installing in this terminal. Closes when finished."
 msgstr "この端末にインストールします。終了したら閉じます。"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Instructions"
+msgstr "指示"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
@@ -3690,6 +3835,10 @@ msgstr "どのエージェントやモデルに委任するかを選ぶ際に、
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Interrupt"
+msgstr "中断"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Interrupted"
 msgstr "中断"
 
 #: src/renderer/state/slices/runtimeEventSlice.ts
@@ -3711,6 +3860,10 @@ msgstr "たった今"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Keep Branch"
 msgstr "ブランチを維持する"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Keep me on track"
+msgstr "順調に進める"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3852,6 +4005,10 @@ msgstr "メモを読み込んでいます…"
 msgid "Loading PR…"
 msgstr "PRを読み込み中…"
 
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Loading previous runs"
+msgstr "過去の実行を読み込み中"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Loading registry..."
 msgstr "レジストリを読み込んでいます..."
@@ -3859,6 +4016,10 @@ msgstr "レジストリを読み込んでいます..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Loading remote access…"
 msgstr "リモートアクセスを読み込み中…"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Loading scheduled tasks"
+msgstr "スケジュールタスクを読み込み中"
 
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
@@ -4162,6 +4323,10 @@ msgstr "ブラウザを右側のパネルに最小化する"
 msgid "Minimize to panel"
 msgstr "パネルに最小化する"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Minute"
+msgstr "分"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirrored desktop browser tab"
 msgstr "ミラーされたデスクトップブラウザタブ"
@@ -4243,6 +4408,10 @@ msgstr "その他の PR オプション"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "More pull request options"
 msgstr "その他のプルリクエストオプション"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "More schedule options"
+msgstr "その他のスケジュールオプション"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -4411,6 +4580,14 @@ msgstr "新しいプロジェクト"
 msgid "New quick thread"
 msgstr "新しいクイックスレッド"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "New schedule"
+msgstr "新しいスケジュール"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "New scheduled task"
+#~ msgstr "新しいスケジュールタスク"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -4420,6 +4597,10 @@ msgstr "新しいタブ"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "New tab in group"
 msgstr "グループ内に新しいタブ"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "New task"
+#~ msgstr "新しいタスク"
 
 #: src/mobile/chrome.ts
 #: src/mobile/views/QuickCompose.tsx
@@ -4478,6 +4659,11 @@ msgstr "次の一致"
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "次の最近表示したチャット"
+
+#. placeholder {0}: dateTimeFormatter.format(new Date(task.nextRunAt))
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Next run {0}"
+msgstr "次回の実行: {0}"
 
 #: src/renderer/commands/registry.ts
 msgid "Next tab"
@@ -4640,6 +4826,14 @@ msgstr "一致はありません。"
 msgid "No matching agents."
 msgstr "一致するエージェントはありません。"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "No matching schedules."
+msgstr "一致するスケジュールはありません。"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "No matching tasks."
+#~ msgstr "一致するタスクはありません。"
+
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
@@ -4724,6 +4918,10 @@ msgstr "リポジトリが見つかりません。"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "結果なし"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "No runs yet."
+msgstr "まだ実行はありません。"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
@@ -4875,6 +5073,23 @@ msgstr "古い"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "on"
 msgstr "オン"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "On"
+msgstr "曜日"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "On the hour"
+msgstr "毎正時"
+
+#. placeholder {0}: dateTimeFormatter.format(new Date(task.recurrence.runAt))
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Once on {0}"
+msgstr "{0}に1回"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "One time"
+msgstr "1回のみ"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -5279,7 +5494,12 @@ msgstr "入力に貼り付けます"
 msgid "Paste the SSH private key."
 msgstr "SSH 秘密鍵を貼り付けてください。"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Pause"
+msgstr "一時停止"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
 msgstr "一時停止中"
 
@@ -5470,6 +5690,15 @@ msgstr "前の一致"
 msgid "Previous recently viewed chat"
 msgstr "前の最近表示したチャット"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+#~ msgid "Previous run did not finish."
+#~ msgstr "前回の実行は完了しませんでした。"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Previous runs"
+msgstr "過去の実行"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "前のタブ"
@@ -5495,6 +5724,7 @@ msgstr "プロファイル"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
 msgstr "プロジェクト"
 
@@ -6021,6 +6251,10 @@ msgstr "{0}を並べ替える"
 msgid "Reorder {label}"
 msgstr "{label}を並べ替える"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Repeat"
+msgstr "繰り返し"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Report an Issue"
 msgstr "問題を報告する"
@@ -6136,6 +6370,10 @@ msgstr "復元または削除"
 msgid "Restore thread"
 msgstr "スレッドを復元する"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Resume"
+msgstr "再開"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -6208,6 +6446,10 @@ msgstr "レビューコメント"
 msgid "Review decision"
 msgstr "レビューの判定"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Review my recent work and summarize today's priorities and next steps."
+msgstr "最近の作業を確認し、今日の優先事項と次のステップをまとめてください。"
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Review on request"
 msgstr "リクエスト時にレビュー"
@@ -6268,6 +6510,10 @@ msgstr "{loginCommand}を実行してサインインします。"
 msgid "Run a new thread on {0}."
 msgstr "{0} で新しいスレッドを実行します。"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Run at"
+msgstr "実行日時"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "Run command"
 msgstr "コマンドの実行"
@@ -6281,13 +6527,41 @@ msgstr "別のワークツリーで実行する"
 msgid "Run local transcription on the GPU when available."
 msgstr "利用可能な場合は、GPU 上でローカル トランスクリプションを実行します。"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Run now"
+msgstr "今すぐ実行"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Run standalone tasks on this device without a project."
+#~ msgstr "プロジェクトなしで、このデバイス上の独立したタスクを実行します。"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Run standalone tasks on this device. Schedules run while the device is awake and Poracode is open."
+msgstr "このデバイスで単独タスクを実行します。スケジュールはデバイスが起動し、Poracodeが開いている間に実行されます。"
+
 #: src/renderer/commands/registry.ts
 msgid "Run Terminal Command"
 msgstr "ターミナルコマンドを実行する"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#~ msgid "Run this schedule automatically at the times above."
+#~ msgstr "上記の時刻にこのスケジュールを自動的に実行します。"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Run this schedule automatically on the schedule below."
+msgstr "下記のスケジュールでこのスケジュールを自動的に実行します。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "running"
+msgstr "実行中"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Running"
+msgstr "実行中"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Running now"
 msgstr "実行中"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
@@ -6333,6 +6607,10 @@ msgstr "保存"
 msgid "Save {0} credentials."
 msgstr "{0}資格情報を保存します。"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Save changes"
+msgstr "変更を保存"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Claude プロフィールを保存"
@@ -6372,6 +6650,35 @@ msgstr "Windows と WSL をスキャンして、インストールされてい�
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 msgstr "システムをスキャンして、インストールされている CLI を探します。通常、これには数秒かかります。"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Schedule name"
+msgstr "スケジュール名"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Schedule status"
+msgstr "スケジュールの状態"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Scheduled tasks"
+msgstr "スケジュールタスク"
+
+#: src/mobile/settingsSections.ts
+msgid "Scheduled tasks on this desktop"
+msgstr "このデスクトップのスケジュールタスク"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Scheduled tasks run only while this device is awake and Lightcode is open."
+#~ msgstr "スケジュールタスクは、このデバイスが起動中でLightcodeが開いている間のみ実行されます。"
+
+#: src/mobile/settingsSections.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "Schedules"
+msgstr "スケジュール"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Schedules, AI, agents, and archived threads on the paired desktop"
+msgstr "ペアリングしたデスクトップのスケジュール、AI、エージェント、アーカイブ済みスレッド"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -6443,6 +6750,10 @@ msgstr "リポジトリを検索…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "ランタイム項目を検索…"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Search scheduled tasks"
+msgstr "スケジュールタスクを検索"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search settings"
@@ -6529,6 +6840,10 @@ msgstr "プロジェクトの選択"
 #: src/renderer/components/common/Select.tsx
 msgid "Select…"
 msgstr "選択…"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Selected days"
+#~ msgstr "選択した曜日"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6940,6 +7255,10 @@ msgstr "音声入力を開始する"
 msgid "Start dictation in the current composer"
 msgstr "現在のコンポーザーで音声入力を開始する"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Start each day with priorities and next steps."
+msgstr "優先事項と次のステップで一日を始めます。"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Start from scratch"
@@ -6970,6 +7289,10 @@ msgstr "ターミナルネイティブのスレッドで折りたたまれたコ
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Start voice input"
 msgstr "音声入力を開始する"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Start with a schedule"
+msgstr "スケジュールから始める"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -7130,6 +7453,18 @@ msgstr "Git フォームを送信"
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit review"
 msgstr "レビューを送信する"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Succeeded"
+msgstr "成功"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Suggestions"
+msgstr "提案"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
+msgstr "今週の進捗、未完了の作業、来週の重要なリスクをまとめてください。"
 
 #: src/renderer/components/providers/acpGeneric/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -7359,6 +7694,10 @@ msgstr "ターミナルタブ"
 msgid "Test microphone"
 msgstr "マイクをテスト"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "That conversation is no longer available."
+msgstr "その会話は利用できなくなりました。"
+
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Poracode pairing link."
 msgstr "その QR コードは Poracode のペアリングリンクではありません。"
@@ -7484,6 +7823,10 @@ msgstr "このリモートプロジェクトは利用できません。環境に
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "これにより、後続のメッセージが削除され、チェックポイント スナップショットが利用可能な場合はファイルが復元されます。"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "This removes the schedule and its latest result from this device."
+msgstr "このデバイスからスケジュールと最新の結果を削除します。"
+
 #. placeholder {0}: pendingDelete.branch.name
 #. placeholder {1}: pendingDelete.threadCount
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
@@ -7586,6 +7929,10 @@ msgstr "スレッド"
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are archived automatically on app launch. Set to 0 to disable."
 msgstr "完了とマークされ、この日数タッチされていないスレッドは、アプリの起動時に自動的にアーカイブされます。無効にするには 0 に設定します。"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Time"
+msgstr "時刻"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -7929,6 +8276,10 @@ msgstr "スレッドを更新できません。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "未割り当て"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Unavailable project"
+msgstr "利用できないプロジェクト"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -8341,6 +8692,30 @@ msgstr "Webサーバー"
 msgid "Website"
 msgstr "ウェブサイト"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Weekdays"
+msgstr "平日"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Weekdays at {time}"
+msgstr "平日の{time}"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Weekdays at 8:00 AM"
+msgstr "平日午前8:00"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Weekly"
+msgstr "毎週"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Weekly review"
+msgstr "週次レビュー"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "What should the agent do?"
+#~ msgstr "エージェントに何をさせますか？"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "What should the remote agent work on?"
 msgstr "リモートエージェントに何を作業させますか？"
@@ -8395,6 +8770,10 @@ msgstr "どこから始めたいですか?"
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Where Poracode creates git worktrees for new branches. Changes apply to worktrees created from now on; existing worktrees stay where they are."
 msgstr "Poracode が新しいブランチ用の git ワークツリーを作成する場所。変更はこれ以降に作成されるワークツリーに適用され、既存のワークツリーはそのままの場所に残ります。"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Where the run's conversation is created."
+msgstr "実行の会話が作成される場所。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -8533,6 +8912,10 @@ msgstr "ワークツリー"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Wrap lines"
 msgstr "行を折り返す"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Wrap up progress, open items, and risks."
+msgstr "進捗、未解決項目、リスクをまとめます。"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "Write a comment"

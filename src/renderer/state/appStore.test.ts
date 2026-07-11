@@ -268,6 +268,14 @@ describe("appStore runtime config sync", () => {
     expect(view).toEqual({ kind: "thread", panes: [thread.id] });
   });
 
+  it("opens schedules as a main view", () => {
+    useAppStore.getState().openSchedules();
+    expect(useAppStore.getState().view).toEqual({ kind: "schedules" });
+
+    useAppStore.getState().openHome();
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+  });
+
   it("openThread replaces panes[0] and keeps secondary panes", () => {
     const project = useAppStore.getState().addProject({
       kind: "windows",

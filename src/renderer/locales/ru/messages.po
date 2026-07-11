@@ -86,6 +86,11 @@ msgstr "{0} ({envName}) обновлён до v{newVersion}."
 msgid "{0} ({envName}) updated."
 msgstr "{0} ({envName}) обновлён."
 
+#. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{0} at {time}"
+msgstr "{0} в {time}"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -345,6 +350,10 @@ msgstr "Контекст {maxLabel}"
 msgid "{meta} · expires {expiresAt}"
 msgstr "{meta} · истекает {expiresAt}"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "{minute} minutes past the hour"
+msgstr "{minute} мин. после начала часа"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{minutes}m ago"
 msgstr "{minutes}м назад"
@@ -527,6 +536,8 @@ msgstr "Действия для {title}"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Active"
 msgstr "Активно"
 
@@ -660,6 +671,7 @@ msgstr "Укажите собственный базовый URL, наприме
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "Агент"
@@ -743,14 +755,15 @@ msgid "AI providers"
 msgstr "Провайдеры ИИ"
 
 #: src/mobile/views/MoreView.tsx
-msgid "AI, agents, and archived threads on the paired desktop"
-msgstr "ИИ, агенты и архивные треды на сопряжённом десктопе"
+#~ msgid "AI, agents, and archived threads on the paired desktop"
+#~ msgstr "ИИ, агенты и архивные треды на сопряжённом десктопе"
 
 #: src/mobile/settingsSections.ts
 msgid "Alerts when threads need you"
 msgstr "Оповещения, когда потокам нужно ваше внимание"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "Всё"
@@ -931,6 +944,10 @@ msgstr "Запрашивать подтверждение"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Задать вопрос"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "At"
+msgstr "В"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Attach"
@@ -1299,6 +1316,7 @@ msgstr "Не удалось загрузить порты"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -1405,6 +1423,10 @@ msgstr "Проверить"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
 msgstr "Проверить обновления"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Check my recent progress and give me one focused recommendation for what to do next."
+msgstr "Проверь мой недавний прогресс и дай одну конкретную рекомендацию о следующем шаге."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1986,6 +2008,10 @@ msgstr "Подключить"
 #~ msgid "Connect a server"
 #~ msgstr "Подключить сервер"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Connect an agent to create schedules."
+msgstr "Подключите агента, чтобы создавать расписания."
+
 #: src/mobile/setupEmptyState.tsx
 msgid "Connect desktop"
 msgstr "Подключить компьютер"
@@ -2261,6 +2287,10 @@ msgstr "Не удалось сохранить сочетание клавиш."
 msgid "Couldn't start the camera"
 msgstr "Не удалось запустить камеру"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Create a useful routine with one click, then adjust it anytime."
+msgstr "Создайте полезный распорядок одним щелчком и изменяйте его в любое время."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
 msgstr "Создать черновик PR"
@@ -2302,9 +2332,26 @@ msgstr "Создать проект"
 msgid "Create Pull Request"
 msgstr "Создать pull request"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Create schedule"
+msgstr "Создать расписание"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Create scheduled task"
+msgstr "Создать запланированную задачу"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Create task"
 msgstr "Создать задачу"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Create with Agent"
+msgstr "Создать с агентом"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Create your first scheduled task."
+#~ msgstr "Создайте первую запланированную задачу."
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Create:"
@@ -2341,6 +2388,7 @@ msgid "Cursor"
 msgstr "Cursor"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -2367,9 +2415,22 @@ msgstr "Перейти к следующему недавно просмотре
 msgid "Cycle to the previous recently viewed chat"
 msgstr "Перейти к предыдущему недавно просмотренному чату"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Daily"
+msgstr "Ежедневно"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Daily brief"
+msgstr "Ежедневная сводка"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
 msgstr "Тёмная"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Days"
+#~ msgstr "Дни"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Decline"
@@ -2410,6 +2471,7 @@ msgstr "Удаление тредов по умолчанию"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Delete"
@@ -2441,6 +2503,22 @@ msgstr "Удалить файл"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Delete permanently"
 msgstr "Удалить безвозвратно"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Delete schedule"
+msgstr "Удалить расписание"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Delete schedule?"
+msgstr "Удалить расписание?"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Delete scheduled task?"
+#~ msgstr "Удалить запланированную задачу?"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Delete task"
+#~ msgstr "Удалить задачу"
 
 #: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -2488,6 +2566,10 @@ msgstr "Запретить"
 msgid "Deny and tell the agent what to do differently…"
 msgstr "Запретить и сказать агенту, что сделать иначе…"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Describe what the agent should do"
+msgstr "Опишите, что должен сделать агент"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 msgid "Description"
 msgstr "Описание"
@@ -2508,6 +2590,10 @@ msgstr "Десктоп недоступен."
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
 msgstr "Настройки десктопа"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#~ msgid "Details"
+#~ msgstr "Сведения"
 
 #: src/mobile/views/PortsView.tsx
 msgid "Detected"
@@ -2754,6 +2840,19 @@ msgstr "Изменить файл"
 msgid "Edit profile"
 msgstr "Редактировать профиль"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Edit schedule"
+msgstr "Изменить расписание"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Edit scheduled task"
+#~ msgstr "Изменить запланированную задачу"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Edit task"
+#~ msgstr "Изменить задачу"
+
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit:"
 msgstr "Изменить:"
@@ -2922,6 +3021,23 @@ msgstr "Ошибка"
 msgid "Error · Agent encountered an error"
 msgstr "Ошибка · Агент столкнулся с ошибкой"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every day at {time}"
+msgstr "Каждый день в {time}"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every day at 1:00 PM"
+msgstr "Каждый день в 13:00"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every hour"
+msgstr "Каждый час"
+
+#. placeholder {0}: task.recurrence.minute
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every hour at {0} minutes past"
+msgstr "Каждый час в {0} мин."
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
@@ -2998,6 +3114,10 @@ msgstr "Извлечение контекста из {0}..."
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "failed"
 msgstr "не удалось"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Failed"
+msgstr "Ошибка"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
@@ -3259,6 +3379,14 @@ msgstr "Перенаправить порт"
 msgid "Found a signed-in {0} session."
 msgstr "Найдена сессия {0} с выполненным входом."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Frequency"
+msgstr "Частота"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Friday at 4:00 PM"
+msgstr "В пятницу в 16:00"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Frost the sidebar with the system blur material (vibrancy), echoing recent macOS. Falls back to a translucent tint where unsupported."
 msgstr "Сделать боковую панель матовой за счёт системного размытия (vibrancy) в духе свежих версий macOS. При отсутствии поддержки используется полупрозрачный оттенок."
@@ -3314,6 +3442,10 @@ msgstr "Генерирует сообщения коммитов из подго
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Генерирует короткие заголовки для новых тредов."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Get a quick check-in during the workday."
+msgstr "Получайте короткую проверку в течение рабочего дня."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -3439,6 +3571,10 @@ msgstr "Жёсткая перезагрузка"
 msgid "Has unsent draft"
 msgstr "Есть неотправленный черновик"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
+msgstr "Помоги мне создать расписание. Спроси недостающие детали, а затем создай его с помощью элементов управления расписаниями Poracode."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after this idle age."
@@ -3505,6 +3641,7 @@ msgstr "История"
 
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "Главная"
@@ -3521,6 +3658,10 @@ msgstr "Домашняя область"
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
 msgstr "host.com, псевдоним или пользователь@host.com"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Hourly"
+msgstr "Ежечасно"
 
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -3683,6 +3824,10 @@ msgstr "Установка"
 msgid "Installing in this terminal. Closes when finished."
 msgstr "Установка выполняется в этом терминале. Он закроется после завершения."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Instructions"
+msgstr "Инструкции"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
@@ -3692,6 +3837,10 @@ msgstr "Инструкции, которым следуют агенты при 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Interrupt"
 msgstr "Прервать"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Interrupted"
+msgstr "Прервано"
 
 #: src/renderer/state/slices/runtimeEventSlice.ts
 msgid "Interrupted: agent session ended before completion."
@@ -3712,6 +3861,10 @@ msgstr "только что"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Keep Branch"
 msgstr "Сохранить ветку"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Keep me on track"
+msgstr "Помогай мне не сбиваться с курса"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3853,6 +4006,10 @@ msgstr "Загрузка заметок…"
 msgid "Loading PR…"
 msgstr "Загрузка PR…"
 
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Loading previous runs"
+msgstr "Загрузка предыдущих запусков"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Loading registry..."
 msgstr "Загрузка реестра..."
@@ -3860,6 +4017,10 @@ msgstr "Загрузка реестра..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Loading remote access…"
 msgstr "Загрузка удаленного доступа…"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Loading scheduled tasks"
+msgstr "Загрузка запланированных задач"
 
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
@@ -4164,6 +4325,10 @@ msgstr "Свернуть браузер в правую панель"
 msgid "Minimize to panel"
 msgstr "Свернуть в панель"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Minute"
+msgstr "Минута"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirrored desktop browser tab"
 msgstr "Зеркальная вкладка браузера десктопа"
@@ -4245,6 +4410,10 @@ msgstr "Больше параметров PR"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "More pull request options"
 msgstr "Больше параметров pull request"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "More schedule options"
+msgstr "Дополнительные параметры расписания"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -4413,6 +4582,14 @@ msgstr "Новый проект"
 msgid "New quick thread"
 msgstr "Новый быстрый тред"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "New schedule"
+msgstr "Новое расписание"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "New scheduled task"
+#~ msgstr "Новая запланированная задача"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -4422,6 +4599,10 @@ msgstr "Новая вкладка"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "New tab in group"
 msgstr "Новая вкладка в группе"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "New task"
+#~ msgstr "Новая задача"
 
 #: src/mobile/chrome.ts
 #: src/mobile/views/QuickCompose.tsx
@@ -4480,6 +4661,11 @@ msgstr "Следующее совпадение"
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "Следующий недавно просмотренный чат"
+
+#. placeholder {0}: dateTimeFormatter.format(new Date(task.nextRunAt))
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Next run {0}"
+msgstr "Следующий запуск: {0}"
 
 #: src/renderer/commands/registry.ts
 msgid "Next tab"
@@ -4642,6 +4828,14 @@ msgstr "Совпадений нет."
 msgid "No matching agents."
 msgstr "Подходящих агентов нет."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "No matching schedules."
+msgstr "Подходящих расписаний нет."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "No matching tasks."
+#~ msgstr "Нет подходящих задач."
+
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
@@ -4726,6 +4920,10 @@ msgstr "Репозитории не найдены."
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "Нет результатов"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "No runs yet."
+msgstr "Запусков ещё нет."
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
@@ -4877,6 +5075,23 @@ msgstr "Старее"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "on"
 msgstr "вкл"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "On"
+msgstr "В день"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "On the hour"
+msgstr "В начале часа"
+
+#. placeholder {0}: dateTimeFormatter.format(new Date(task.recurrence.runAt))
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Once on {0}"
+msgstr "Один раз: {0}"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "One time"
+msgstr "Один раз"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -5281,7 +5496,12 @@ msgstr "Вставить в поле ввода"
 msgid "Paste the SSH private key."
 msgstr "Вставьте закрытый ключ SSH."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Pause"
+msgstr "Приостановить"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
 msgstr "Приостановлено"
 
@@ -5472,6 +5692,15 @@ msgstr "Предыдущее совпадение"
 msgid "Previous recently viewed chat"
 msgstr "Предыдущий недавно просмотренный чат"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+#~ msgid "Previous run did not finish."
+#~ msgstr "Предыдущий запуск не завершился."
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Previous runs"
+msgstr "Предыдущие запуски"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "Предыдущая вкладка"
@@ -5497,6 +5726,7 @@ msgstr "Профили"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
 msgstr "Проект"
 
@@ -6023,6 +6253,10 @@ msgstr "Изменить порядок {0}"
 msgid "Reorder {label}"
 msgstr "Изменить порядок {label}"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Repeat"
+msgstr "Повторять"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Report an Issue"
 msgstr "Сообщить о проблеме"
@@ -6138,6 +6372,10 @@ msgstr "Восстановить или удалить"
 msgid "Restore thread"
 msgstr "Восстановить тред"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Resume"
+msgstr "Возобновить"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -6210,6 +6448,10 @@ msgstr "Комментарий к ревью"
 msgid "Review decision"
 msgstr "Решение по ревью"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Review my recent work and summarize today's priorities and next steps."
+msgstr "Просмотри мою недавнюю работу и обобщи сегодняшние приоритеты и следующие шаги."
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Review on request"
 msgstr "Ревью по запросу"
@@ -6270,6 +6512,10 @@ msgstr "Запустите {loginCommand}, чтобы войти."
 msgid "Run a new thread on {0}."
 msgstr "Запустить новый поток на {0}."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Run at"
+msgstr "Запустить в"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "Run command"
 msgstr "Выполнить команду"
@@ -6283,14 +6529,42 @@ msgstr "Запустить в отдельном worktree"
 msgid "Run local transcription on the GPU when available."
 msgstr "Выполнять локальную транскрипцию на GPU, когда доступно."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Run now"
+msgstr "Запустить сейчас"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Run standalone tasks on this device without a project."
+#~ msgstr "Запускайте автономные задачи на этом устройстве без проекта."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Run standalone tasks on this device. Schedules run while the device is awake and Poracode is open."
+msgstr "Запускайте автономные задачи на этом устройстве. Расписания выполняются, пока устройство активно и Poracode открыт."
+
 #: src/renderer/commands/registry.ts
 msgid "Run Terminal Command"
 msgstr "Выполнить команду терминала"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#~ msgid "Run this schedule automatically at the times above."
+#~ msgstr "Автоматически запускать это расписание в указанное выше время."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Run this schedule automatically on the schedule below."
+msgstr "Автоматически запускать это расписание по расписанию ниже."
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "running"
 msgstr "выполняется"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Running"
+msgstr "Выполняется"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Running now"
+msgstr "Выполняется сейчас"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Runs before a worktree is removed (e.g., <0>rm -rf node_modules</0>)."
@@ -6335,6 +6609,10 @@ msgstr "Сохранить"
 msgid "Save {0} credentials."
 msgstr "Сохранить учётные данные {0}."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Save changes"
+msgstr "Сохранить изменения"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Сохранить профиль Claude"
@@ -6374,6 +6652,35 @@ msgstr "Сканирование Windows и WSL на наличие устано
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 msgstr "Сканирование вашей системы на наличие установленных CLI. Обычно это занимает пару секунд."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Schedule name"
+msgstr "Название расписания"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Schedule status"
+msgstr "Состояние расписания"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Scheduled tasks"
+msgstr "Запланированные задачи"
+
+#: src/mobile/settingsSections.ts
+msgid "Scheduled tasks on this desktop"
+msgstr "Запланированные задачи на этом компьютере"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Scheduled tasks run only while this device is awake and Lightcode is open."
+#~ msgstr "Запланированные задачи выполняются только когда устройство активно и Lightcode открыт."
+
+#: src/mobile/settingsSections.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "Schedules"
+msgstr "Расписания"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Schedules, AI, agents, and archived threads on the paired desktop"
+msgstr "Расписания, ИИ, агенты и архивные потоки на сопряжённом компьютере"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -6445,6 +6752,10 @@ msgstr "Поиск репозиториев…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Поиск runtime-элементов…"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Search scheduled tasks"
+msgstr "Поиск запланированных задач"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search settings"
@@ -6531,6 +6842,10 @@ msgstr "Выбрать проект"
 #: src/renderer/components/common/Select.tsx
 msgid "Select…"
 msgstr "Выбрать…"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Selected days"
+#~ msgstr "Выбранные дни"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6942,6 +7257,10 @@ msgstr "Начать диктовку"
 msgid "Start dictation in the current composer"
 msgstr "Начать диктовку в текущем поле ввода"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Start each day with priorities and next steps."
+msgstr "Начинайте каждый день с приоритетов и следующих шагов."
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Start from scratch"
@@ -6972,6 +7291,10 @@ msgstr "Начинать с свёрнутым полем ввода в терм
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Start voice input"
 msgstr "Начать голосовой ввод"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Start with a schedule"
+msgstr "Начать с расписания"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -7132,6 +7455,18 @@ msgstr "Отправить форму Git"
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit review"
 msgstr "Отправить проверку"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Succeeded"
+msgstr "Успешно"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Suggestions"
+msgstr "Предложения"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
+msgstr "Обобщи прогресс этой недели, незавершённую работу и самые важные риски на следующую неделю."
 
 #: src/renderer/components/providers/acpGeneric/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -7361,6 +7696,10 @@ msgstr "Вкладки терминала"
 msgid "Test microphone"
 msgstr "Проверить микрофон"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "That conversation is no longer available."
+msgstr "Эта беседа больше недоступна."
+
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Poracode pairing link."
 msgstr "Этот QR-код не является ссылкой для сопряжения Poracode."
@@ -7486,6 +7825,10 @@ msgstr "Этот удалённый проект недоступен. Пере�
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "Это удаляет последующие сообщения и восстанавливает файлы, если доступен снимок контрольной точки."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "This removes the schedule and its latest result from this device."
+msgstr "Удаляет расписание и его последний результат с этого устройства."
+
 #. placeholder {0}: pendingDelete.branch.name
 #. placeholder {1}: pendingDelete.threadCount
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
@@ -7588,6 +7931,10 @@ msgstr "Треды"
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are archived automatically on app launch. Set to 0 to disable."
 msgstr "Треды, помеченные как завершённые и не затронутые указанное число дней, автоматически архивируются при запуске приложения. Установите 0, чтобы отключить."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Time"
+msgstr "Время"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -7931,6 +8278,10 @@ msgstr "Не удалось обновить поток."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Не назначено"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Unavailable project"
+msgstr "Недоступный проект"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -8343,6 +8694,30 @@ msgstr "Веб-сервер"
 msgid "Website"
 msgstr "Веб-сайт"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Weekdays"
+msgstr "По будням"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Weekdays at {time}"
+msgstr "По будням в {time}"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Weekdays at 8:00 AM"
+msgstr "По будням в 8:00"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Weekly"
+msgstr "Еженедельно"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Weekly review"
+msgstr "Еженедельный обзор"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "What should the agent do?"
+#~ msgstr "Что должен сделать агент?"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "What should the remote agent work on?"
 msgstr "Над чем должен работать удалённый агент?"
@@ -8397,6 +8772,10 @@ msgstr "С чего вы хотите начать?"
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Where Poracode creates git worktrees for new branches. Changes apply to worktrees created from now on; existing worktrees stay where they are."
 msgstr "Где Poracode создаёт git worktree для новых веток. Изменения применяются к worktree, создаваемым с этого момента; существующие worktree остаются на месте."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Where the run's conversation is created."
+msgstr "Где создаётся беседа запуска."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -8535,6 +8914,10 @@ msgstr "Worktrees"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Wrap lines"
 msgstr "Переносить строки"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Wrap up progress, open items, and risks."
+msgstr "Обобщайте прогресс, открытые вопросы и риски."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "Write a comment"

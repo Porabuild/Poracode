@@ -20,6 +20,7 @@ import {
   readBundledOpenCodePluginVersion,
   syncOpenCodeBrowserMcpConfigFile,
   syncOpenCodeSubagentMcpConfigFile,
+  syncOpenCodeAppControlsMcpConfigFile,
   uninstallOpenCodePlugin,
 } from "./plugin/install";
 import { runOpenCodeOneShot } from "./sdkOneShot";
@@ -119,6 +120,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
         launchOptions?.chromeMcp,
       );
       syncOpenCodeSubagentMcpConfigFile(_location, launchOptions?.subagentMcp);
+      syncOpenCodeAppControlsMcpConfigFile(_location, launchOptions?.appControlsMcp);
       const sessionId = launchOptions?.resumeThreadId;
       const args = buildOpenCodeArgs(config, prompt, sessionId);
       return {
@@ -139,6 +141,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
         launchOptions?.chromeMcp,
       );
       syncOpenCodeSubagentMcpConfigFile(_location, launchOptions?.subagentMcp);
+      syncOpenCodeAppControlsMcpConfigFile(_location, launchOptions?.appControlsMcp);
       return {
         binary: "opencode",
         args: buildOpenCodeArgs(config, prompt, sessionRef.providerSessionId),

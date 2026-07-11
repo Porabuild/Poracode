@@ -218,6 +218,7 @@ function createController() {
     notifySharedSettingsChanged:
       vi.fn<DesktopRemoteAccessControllerOptions["notifySharedSettingsChanged"]>(),
     reportError: vi.fn<DesktopRemoteAccessControllerOptions["reportError"]>(),
+    scheduleService: {} as never,
   });
 }
 

@@ -74,6 +74,13 @@ export const functionalAreas = [
     manual: [],
   },
   {
+    id: "schedules",
+    title: "Device scheduled tasks, persistence, and remote management",
+    patterns: [/schedule/i],
+    automated: ["baseline", "schedules"],
+    manual: ["ipc-roundtrip", "remote-mobile"],
+  },
+  {
     id: "settings",
     title: "Settings pages, persistence, profiles, and shortcuts",
     patterns: [/Settings/i, /settings/i, /shortcut/i, /ProfileOverlay/i],

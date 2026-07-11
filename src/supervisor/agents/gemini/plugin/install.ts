@@ -12,10 +12,15 @@ import {
   type ComputerUseMcpHttpConfig,
 } from "@/supervisor/agents/computerUseMcp";
 import { CHROME_MCP_SERVER_NAME, type ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
+import {
+  APP_CONTROLS_MCP_SERVER_NAME,
+  type AppControlsMcpHttpConfig,
+} from "@/supervisor/agents/appControlsMcp";
 import { buildGeminiBrowserMcpServers, type GeminiMcpServerEntry } from "../mcpBrowser";
 import { buildGeminiSubagentMcpServers } from "../mcpSubagent";
 import { buildGeminiComputerUseMcpServers } from "../mcpComputerUse";
 import { buildGeminiChromeMcpServers } from "../mcpChrome";
+import { buildGeminiAppControlsMcpServers } from "../mcpAppControls";
 import type { AgentEnvContext } from "../../base";
 import {
   FORWARD_RUNTIME_FILE,
@@ -246,6 +251,24 @@ export function syncGeminiSubagentMcpSettings(
   const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
   const entry = buildGeminiSubagentMcpServers(subagentMcp)?.[SUBAGENT_MCP_SERVER_NAME];
   writeGeminiMcpServer(settingsPath, SUBAGENT_MCP_SERVER_NAME, entry);
+}
+
+export function syncGeminiAppControlsMcpSettings(
+  ctx: AgentEnvContext | undefined,
+  appControlsMcp?: AppControlsMcpHttpConfig,
+): void {
+  const paths = getGeminiPluginPaths(ctx);
+  if (!paths.settingsPath) return;
+  const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
+  const location = isWslPluginContext(ctx)
+    ? ({ kind: "wsl", distro: ctx.wslDistro } as const)
+    : process.platform === "win32"
+      ? ({ kind: "windows" } as const)
+      : ({ kind: "posix" } as const);
+  const entry = buildGeminiAppControlsMcpServers(location, appControlsMcp)?.[
+    APP_CONTROLS_MCP_SERVER_NAME
+  ];
+  writeGeminiMcpServer(settingsPath, APP_CONTROLS_MCP_SERVER_NAME, entry);
 }
 
 export interface InstallGeminiPluginOptions {

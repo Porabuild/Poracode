@@ -5,6 +5,7 @@ import { githubProcedures } from "./procedures/github";
 import { gitProcedures } from "./procedures/git";
 import { lspProcedures } from "./procedures/lsp";
 import { profileProcedures } from "./procedures/profile";
+import { scheduleProcedures } from "./procedures/schedules";
 import { projectTreeProcedures } from "./procedures/projectTree";
 import { settingsProcedures } from "./procedures/settings";
 import { sshProcedures } from "./procedures/ssh";
@@ -26,6 +27,7 @@ export const groupedIpcProcedures = {
   browser: browserProcedures,
   usage: usageProcedures,
   profile: profileProcedures,
+  schedules: scheduleProcedures,
 } as const;
 
 export const ipcProcedureMap = {
@@ -42,6 +44,7 @@ export const ipcProcedureMap = {
   ...browserProcedures,
   ...usageProcedures,
   ...profileProcedures,
+  ...scheduleProcedures,
 } as const;
 
 export type IpcProcedureMap = typeof ipcProcedureMap;
@@ -155,6 +158,12 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "setProfileIdentity",
   "copyShareImage",
   "appendUsageEvents",
+  "getSchedules",
+  "createSchedule",
+  "updateSchedule",
+  "deleteSchedule",
+  "runScheduleNow",
+  "getScheduleRuns",
 ] as const satisfies readonly IpcProcedureName[];
 
 export type MainLocalProcedureName = (typeof MAIN_LOCAL_PROCEDURE_NAMES)[number];

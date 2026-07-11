@@ -46,6 +46,7 @@ import {
 } from "@/renderer/utils/shellUtils";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { HomeView } from "@/renderer/views/HomeView";
+import { SchedulesView } from "@/renderer/views/SchedulesView/SchedulesView";
 import { buildProjectDraftConfig } from "./draftConfig";
 import { ThreadPane } from "./parts/ThreadPane";
 import { DraftPane } from "./parts/DraftPane";
@@ -271,6 +272,14 @@ export function AppContent() {
       extractedContext
         ? t`Context transferred to ${targetLabel}`
         : t`Started ${targetLabel} thread`,
+    );
+  }
+
+  if (view.kind === "schedules") {
+    return (
+      <div className="h-full overflow-y-auto px-6 pb-8 pt-4 [scrollbar-gutter:stable]">
+        <SchedulesView />
+      </div>
     );
   }
 

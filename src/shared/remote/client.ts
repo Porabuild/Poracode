@@ -14,6 +14,7 @@ import {
   remotePortsStateSchema,
   remotePushRegistrationResultSchema,
   remoteSettingsSchema,
+  remoteSchedulesResponseSchema,
   remoteProjectCommandResultSchema,
   remoteShellSnapshotSchema,
   remoteThreadSnapshotSchema,
@@ -35,6 +36,7 @@ import {
   type RemotePushRegistration,
   type RemoteSettings,
   type RemoteSettingsPatch,
+  type RemoteScheduleCommand,
   type RemoteShellSnapshot,
   type RemoteThreadSnapshot,
   type RemoteWebSocketServerMessage,
@@ -63,6 +65,8 @@ import {
   type ThreadConfig,
   type ThreadPresentationMode,
   type ThreadServerRequestId,
+  type ScheduledTask,
+  type ScheduledTaskInput,
 } from "@/shared/contracts";
 import { readBoundedResponseBody } from "@/shared/http";
 
@@ -329,6 +333,48 @@ export class RemoteDesktopClient {
       "settings",
     );
     return result.settings;
+  }
+
+  async schedules(): Promise<ScheduledTask[]> {
+    const result = parseResponse(
+      remoteSchedulesResponseSchema,
+      await this.requestJson("/api/schedules"),
+      "schedules",
+    );
+    return result.schedules;
+  }
+
+  private async scheduleCommand(
+    command: RemoteScheduleCommand,
+  ): Promise<ScheduledTask | undefined> {
+    const result = parseResponse(
+      remoteSchedulesResponseSchema,
+      await this.requestJson("/api/schedules/command", { method: "POST", body: command }),
+      "schedule command",
+    );
+    return result.schedule;
+  }
+
+  async createSchedule(task: ScheduledTaskInput): Promise<ScheduledTask> {
+    const schedule = await this.scheduleCommand({ kind: "create", task });
+    if (!schedule) throw new Error("The desktop did not return the created schedule.");
+    return schedule;
+  }
+
+  async updateSchedule(id: string, task: ScheduledTaskInput): Promise<ScheduledTask> {
+    const schedule = await this.scheduleCommand({ kind: "update", id, task });
+    if (!schedule) throw new Error("The desktop did not return the updated schedule.");
+    return schedule;
+  }
+
+  async deleteSchedule(id: string): Promise<void> {
+    await this.scheduleCommand({ kind: "delete", id });
+  }
+
+  async runScheduleNow(id: string): Promise<ScheduledTask> {
+    const schedule = await this.scheduleCommand({ kind: "run", id });
+    if (!schedule) throw new Error("The desktop did not return the running schedule.");
+    return schedule;
   }
 
   /**

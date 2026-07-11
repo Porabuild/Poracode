@@ -11,6 +11,7 @@ import { GitSettings } from "@/renderer/views/SettingsOverlay/parts/GitSettings"
 import { NotificationSettings } from "@/renderer/views/SettingsOverlay/parts/NotificationSettings";
 import { ProfileSettings } from "@/renderer/views/SettingsOverlay/parts/ProfileSettings";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
+import { SchedulesView } from "@/renderer/views/SchedulesView/SchedulesView";
 import { TerminalSettings } from "@/renderer/views/SettingsOverlay/parts/TerminalSettings";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import { UsageSettings } from "@/renderer/views/SettingsOverlay/parts/UsageSettings";
@@ -94,6 +95,7 @@ const SECTION_RENDERERS: Record<
   (handlers: SettingsThreadHandlers) => ReactNode
 > = {
   profile: () => <ProfileSettings />,
+  schedules: () => <SchedulesView />,
   general: () => <GeneralSettings />,
   appearance: () => <AppearanceSettings />,
   notifications: () => <NotificationSettings />,

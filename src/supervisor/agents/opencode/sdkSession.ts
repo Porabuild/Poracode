@@ -720,6 +720,9 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       ...(this.input.subagentMcp !== undefined
         ? { subagentMcp: this.input.subagentMcp, dedicatedKey: this.threadId }
         : {}),
+      ...(this.input.appControlsMcp !== undefined
+        ? { appControlsMcp: this.input.appControlsMcp, dedicatedKey: this.threadId }
+        : {}),
     };
   }
 

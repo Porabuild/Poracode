@@ -38,6 +38,7 @@ import {
 import type { BrowserMcpHttpConfig } from "../agents/browserMcp";
 import type { ChromeMcpHttpConfig } from "../agents/chromeMcp";
 import type { ComputerUseMcpHttpConfig } from "../agents/computerUseMcp";
+import type { AppControlsMcpHttpConfig } from "../agents/appControlsMcp";
 import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
 import { BufferedLogWriter } from "./bufferedLogWriter";
 import type { QueuedStructuredTurn, SessionRuntime, ShellSessionRuntime } from "./sessionTypes";
@@ -242,6 +243,7 @@ export class ThreadSessionManager {
     browserMcp?: BrowserMcpHttpConfig;
     computerUseMcp?: ComputerUseMcpHttpConfig;
     chromeMcp?: ChromeMcpHttpConfig;
+    appControlsMcp?: AppControlsMcpHttpConfig;
   }> {
     const session = this.sessions.get(threadId);
     if (!session) return {};
@@ -261,10 +263,15 @@ export class ThreadSessionManager {
       session.config,
       identity,
     );
+    const appControlsMcp = await this.spawnPipeline.resolveAppControlsMcpForLaunch(
+      session.projectLocation,
+      identity,
+    );
     return {
       ...(browserMcp ? { browserMcp } : {}),
       ...(computerUseMcp ? { computerUseMcp } : {}),
       ...(chromeMcp ? { chromeMcp } : {}),
+      ...(appControlsMcp ? { appControlsMcp } : {}),
     };
   }
 

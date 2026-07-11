@@ -11,6 +11,7 @@ import {
   remotePushRegistrationSchema,
   remotePushUnregisterSchema,
   remoteSettingsPatchSchema,
+  remoteScheduleCommandSchema,
   remoteTokenExchangePayloadSchema,
   type RemoteAccessScope,
 } from "@/shared/remote";
@@ -326,6 +327,29 @@ export async function handleHttp(
       ctx.security.requireBearer(req, ["session:operate"]);
       const patch = remoteSettingsPatchSchema.parse(await readJsonBody(req));
       writeJson(res, 200, { settings: ctx.requireSettingsGateway().update(patch) });
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/api/schedules") {
+      ctx.security.requireBearer(req, ["session:read"]);
+      writeJson(res, 200, { schedules: ctx.requireSchedulesGateway().list() });
+      return;
+    }
+    if (req.method === "POST" && url.pathname === "/api/schedules/command") {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      const command = remoteScheduleCommandSchema.parse(await readJsonBody(req));
+      const schedules = ctx.requireSchedulesGateway();
+      if (command.kind === "delete") {
+        schedules.delete(command.id);
+        writeJson(res, 200, { schedules: schedules.list() });
+        return;
+      }
+      const schedule =
+        command.kind === "create"
+          ? schedules.create(command.task)
+          : command.kind === "update"
+            ? schedules.update(command.id, command.task)
+            : schedules.runNow(command.id);
+      writeJson(res, 200, { schedule, schedules: schedules.list() });
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/browser/state") {

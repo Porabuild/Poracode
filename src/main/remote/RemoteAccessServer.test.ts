@@ -8,7 +8,7 @@ import {
 import { connect, createServer as createNetServer, type AddressInfo, type Socket } from "node:net";
 import { WebSocket, WebSocketServer } from "ws";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Project, Thread } from "@/shared/contracts";
+import type { Project, ScheduledTask, ScheduledTaskInput, Thread } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { pickRemoteSettings, type RemoteSettings } from "@/shared/remote";
 import { defaultSharedSettings } from "@/shared/settings";
@@ -2775,6 +2775,102 @@ describe("RemoteAccessServer", () => {
       titleGenModel: "claude-haiku-4-5-20251001",
     });
     expect(stored.titleGenProvider).toBe("claude");
+  });
+
+  it("lists and modifies device schedules with read and operate scopes", async () => {
+    let stored: ScheduledTask[] = [];
+    const input: ScheduledTaskInput = {
+      name: "Daily brief",
+      prompt: "Summarize my priorities.",
+      agentKind: "claude:home",
+      config: { model: "claude-fable-5", effort: "high" },
+      recurrence: { kind: "weekly", days: [1, 2, 3, 4, 5], time: "08:00" },
+      enabled: true,
+    };
+    const create = vi.fn<(task: ScheduledTaskInput) => ScheduledTask>((task) => {
+      const created: ScheduledTask = {
+        id: "d2ac39e9-14ac-4776-9279-37a1e455a5db",
+        ...task,
+        nextRunAt: "2026-07-13T15:00:00.000Z",
+        lastRunAt: null,
+        lastCompletedAt: null,
+        lastStatus: "never",
+        lastResult: null,
+        lastError: null,
+        createdAt: "2026-07-10T12:00:00.000Z",
+        updatedAt: "2026-07-10T12:00:00.000Z",
+      };
+      stored = [created];
+      return created;
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      schedules: {
+        list: () => stored,
+        create,
+        update: (id, task) => {
+          const next = { ...stored[0]!, ...task, id };
+          stored = [next];
+          return next;
+        },
+        delete: (id) => {
+          stored = stored.filter((task) => task.id !== id);
+        },
+        runNow: (id) => {
+          const next = { ...stored[0]!, id, lastStatus: "running" as const };
+          stored = [next];
+          return next;
+        },
+      },
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const readToken = await issueAccessToken(info, ["session:read"]);
+    const readHeaders = { authorization: `Bearer ${readToken}` };
+    const emptyResponse = await fetch(new URL("/api/schedules", info.httpBaseUrl), {
+      headers: readHeaders,
+    });
+    expect(emptyResponse.status).toBe(200);
+    await expect(emptyResponse.json()).resolves.toEqual({ schedules: [] });
+
+    const denied = await fetch(new URL("/api/schedules/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: { ...readHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ kind: "create", task: input }),
+    });
+    expect(denied.status).toBe(403);
+
+    const pairing = new URL(server.issuePairingUrl());
+    const credential = new URLSearchParams(pairing.hash.slice(1)).get("token");
+    const tokenResponse = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        grantType: "pairing-token",
+        credential,
+        scopes: ["session:operate"],
+      }),
+    });
+    const operateToken = ((await tokenResponse.json()) as { accessToken: string }).accessToken;
+    const createResponse = await fetch(new URL("/api/schedules/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${operateToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ kind: "create", task: input }),
+    });
+    expect(createResponse.status).toBe(200);
+    await expect(createResponse.json()).resolves.toMatchObject({
+      schedule: { name: "Daily brief", agentKind: "claude:home" },
+      schedules: [{ name: "Daily brief" }],
+    });
+    expect(create).toHaveBeenCalledWith(input);
   });
 
   it("serves profile devices/stats reads and the identity write, gated by scope", async () => {

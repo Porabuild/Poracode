@@ -11,7 +11,18 @@ import {
   session as electronSession,
 } from "electron";
 import { resolveThemeMode } from "@/shared/themeMode";
-import { closeDatabase, dbGetThreads, initDatabase } from "./db";
+import {
+  closeDatabase,
+  dbDeleteThread,
+  dbGetProject,
+  dbGetThread,
+  dbGetThreads,
+  dbInsertScheduleRun,
+  dbInterruptScheduleRuns,
+  dbUpdateScheduleRun,
+  dbUpsertThread,
+  initDatabase,
+} from "./db";
 import { cleanupOrphanedAttachments, prepareLightcodeDataRoot } from "./lightcodeData";
 import { handleOrchestratorThreadCreated } from "./orchestratorThreadBridge";
 import { createLocalIpcHandlers, showAddFilesDialog } from "./ipc/localHandlers";
@@ -66,6 +77,12 @@ import { configureSecretStorageKey } from "@/shared/secretStorage";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
 import { createDesktopRemoteAccessController, type DesktopRemoteAccessController } from "./remote";
 import { SshConnectionManager } from "./ssh/SshConnectionManager";
+import {
+  createDeviceScheduleService,
+  ensureHomeProjectRow,
+  ScheduleRunCoordinator,
+} from "./schedules";
+import { AppControlsMcpIngress } from "./app-controls";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 const channel = resolveLightcodeChannel();
@@ -129,6 +146,7 @@ let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
 let browserMcpIngress: BrowserMcpIngress | null = null;
 let computerUseMcpIngress: ComputerUseMcpIngress | null = null;
+let appControlsMcpIngress: AppControlsMcpIngress | null = null;
 let computerUseDesktopOverlay: ComputerUseDesktopOverlay | null = null;
 let chromeBridgeServer: ChromeBridgeServer | null = null;
 let chromeMcpIngress: ChromeMcpIngress | null = null;
@@ -566,6 +584,9 @@ if (!hasSingleInstanceLock) {
       // Assigned after the browser services are composed and before the
       // supervisor starts emitting events.
       let remoteAccessController: DesktopRemoteAccessController | null = null;
+      // Assigned right after the supervisor client below; the `onEvent` tap only
+      // fires once the supervisor is started, by which point it is set.
+      let scheduleRunCoordinator: ScheduleRunCoordinator | null = null;
       const supervisorClient = new SupervisorClient({
         appVersion: app.getVersion(),
         isDev,
@@ -588,6 +609,11 @@ if (!hasSingleInstanceLock) {
           if (computerUseInfo) {
             env.LIGHTCODE_COMPUTER_USE_MCP_URL = computerUseInfo.url;
             env.LIGHTCODE_COMPUTER_USE_MCP_TOKEN = computerUseInfo.token;
+          }
+          const appControlsInfo = appControlsMcpIngress?.getInfo();
+          if (appControlsInfo) {
+            env.LIGHTCODE_APP_CONTROLS_MCP_URL = appControlsInfo.url;
+            env.LIGHTCODE_APP_CONTROLS_MCP_TOKEN = appControlsInfo.token;
           }
           return env;
         },
@@ -612,6 +638,7 @@ if (!hasSingleInstanceLock) {
             return;
           }
           handleSupervisorEventForSleep(event);
+          scheduleRunCoordinator?.observeSupervisorEvent(event);
           remoteAccessController?.handleSupervisorEvent(event);
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
           forwardAgentStatusEventToQuickComposer(event);
@@ -621,6 +648,29 @@ if (!hasSingleInstanceLock) {
           updatePowerSaveBlocker();
         },
       });
+      const scheduleCoordinator = new ScheduleRunCoordinator({
+        startThread: (payload) => supervisorClient.call("startThread", payload),
+        getAgentStatuses: (wslDistros) => supervisorClient.call("getAgentStatuses", { wslDistros }),
+        sendThreadCommand: (command) => {
+          if (!mainWindow) return false;
+          mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
+          return true;
+        },
+        ensureHomeProject: ensureHomeProjectRow,
+        getProject: dbGetProject,
+        upsertThread: dbUpsertThread,
+        deleteThread: dbDeleteThread,
+        threadExists: (threadId) => dbGetThread(threadId) != null,
+        insertRun: dbInsertScheduleRun,
+        updateRun: dbUpdateScheduleRun,
+      });
+      scheduleRunCoordinator = scheduleCoordinator;
+      const scheduleService = createDeviceScheduleService({
+        runTask: (task) => scheduleCoordinator.runScheduleAsThread(task),
+        onStartupInterrupted: (scheduleId) =>
+          dbInterruptScheduleRuns(scheduleId, new Date().toISOString()),
+      });
+      appControlsMcpIngress = new AppControlsMcpIngress(scheduleService, dbGetThread);
 
       const autoUpdaterController = createAutoUpdaterController(
         (status) => {
@@ -655,6 +705,10 @@ if (!hasSingleInstanceLock) {
       });
       const chromeMcpReady = chromeMcpIngress.start().catch((err) => {
         console.error("[lightcode] chrome MCP ingress failed to start:", err);
+        return null;
+      });
+      const appControlsMcpReady = appControlsMcpIngress.start().catch((err) => {
+        console.error("[lightcode] app controls MCP ingress failed to start:", err);
         return null;
       });
       chromeBridgeServer.start().catch((err) => {
@@ -707,6 +761,7 @@ if (!hasSingleInstanceLock) {
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, settings);
         },
         reportError: captureMainException,
+        scheduleService,
       });
       remoteAccessController = controller;
 
@@ -754,6 +809,7 @@ if (!hasSingleInstanceLock) {
             app.relaunch();
             app.quit();
           },
+          scheduleService,
         }),
         callSupervisor: (name, payload) => supervisorClient.call(name, payload),
       });
@@ -816,8 +872,14 @@ if (!hasSingleInstanceLock) {
         );
       }
 
-      await Promise.all([mcpInfoReady, chromeMcpReady, computerUseMcpInfoReady]);
+      await Promise.all([
+        mcpInfoReady,
+        chromeMcpReady,
+        computerUseMcpInfoReady,
+        appControlsMcpReady,
+      ]);
       supervisorClient.start(lightcodePaths.baseDir);
+      scheduleService.start();
 
       void controller.startIfEnabled();
 
@@ -863,6 +925,7 @@ if (!hasSingleInstanceLock) {
         if (quickComposerDismissTimer) clearTimeout(quickComposerDismissTimer);
         quickComposerDismissTimer = null;
         pendingQuickComposerSubmissions.length = 0;
+        scheduleService.dispose();
         supervisorClient.dispose();
         windowsJobObjectManager?.dispose();
         windowsJobObjectManager = null;
@@ -870,6 +933,8 @@ if (!hasSingleInstanceLock) {
         browserMcpIngress = null;
         computerUseMcpIngress?.dispose();
         computerUseMcpIngress = null;
+        appControlsMcpIngress?.dispose();
+        appControlsMcpIngress = null;
         computerUseDesktopOverlay?.dispose();
         computerUseDesktopOverlay = null;
         chromeMcpIngress?.dispose();

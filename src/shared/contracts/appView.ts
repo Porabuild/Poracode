@@ -2,6 +2,7 @@ import type { PaneLayout } from "../paneLayout";
 
 export type AppView =
   | { kind: "home" }
+  | { kind: "schedules" }
   | { kind: "draft"; projectId: string }
   | {
       kind: "thread";

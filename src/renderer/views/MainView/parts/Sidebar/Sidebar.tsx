@@ -1,5 +1,6 @@
 import { Tooltip } from "@heroui/react";
 import {
+  CalendarClock,
   ChevronRight,
   Download,
   House,
@@ -239,6 +240,7 @@ export function Sidebar() {
   const setWorktreeCollapsed = useSidebarUiStore((s) => s.setWorktreeCollapsed);
   const { isCollapsed, collapse, expand } = useSidebar();
   const openHome = useAppStore((s) => s.openHome);
+  const openSchedules = useAppStore((s) => s.openSchedules);
   const appView = useAppStore((s) => s.view);
   const appNameForHome = getAppName(readBridge().channel, import.meta.env.DEV);
   const [remoteAccessStatus, setRemoteAccessStatus] = useState<RemoteAccessSidebarStatus>("off");
@@ -342,6 +344,13 @@ export function Sidebar() {
             <WhatsNewButton iconOnly />
             <SidebarButton
               iconOnly
+              icon={<CalendarClock className="size-4" />}
+              label={t`Schedules`}
+              isActive={appView.kind === "schedules"}
+              onPress={() => startTransition(() => openSchedules())}
+            />
+            <SidebarButton
+              iconOnly
               icon={<Settings2 className="size-4" />}
               label={t`Settings`}
               isActive={otherSettingsActive}
@@ -429,6 +438,12 @@ export function Sidebar() {
         <div className={sidebarFooterNavClass}>
           <UpdateButtons />
           <WhatsNewButton />
+          <SidebarButton
+            icon={<CalendarClock className="size-4" />}
+            label={t`Schedules`}
+            isActive={appView.kind === "schedules"}
+            onPress={() => startTransition(() => openSchedules())}
+          />
           <div className="flex items-center gap-1">
             <div className="min-w-0 flex-1">
               <SidebarButton

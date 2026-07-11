@@ -177,11 +177,43 @@ export function initDatabase(dbPath: string) {
       value INTEGER NOT NULL DEFAULT 1
     );
     CREATE INDEX IF NOT EXISTS idx_usage_events_kind ON usage_events (kind);
+    CREATE TABLE IF NOT EXISTS scheduled_tasks (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      agent_kind TEXT NOT NULL,
+      config TEXT NOT NULL,
+      recurrence TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      project_id TEXT,
+      next_run_at TEXT,
+      last_run_at TEXT,
+      last_completed_at TEXT,
+      last_status TEXT NOT NULL DEFAULT 'never',
+      last_result TEXT,
+      last_error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_next_run
+      ON scheduled_tasks (enabled, next_run_at);
+    CREATE TABLE IF NOT EXISTS scheduled_task_runs (
+      id TEXT PRIMARY KEY,
+      schedule_id TEXT NOT NULL REFERENCES scheduled_tasks(id) ON DELETE CASCADE,
+      thread_id TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      completed_at TEXT,
+      status TEXT NOT NULL,
+      summary TEXT,
+      error TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_schedule
+      ON scheduled_task_runs (schedule_id, started_at DESC);
   `);
 
   // Baseline schema version for future DB migrations.
   // New upgrade steps should live behind this gate when we need them.
-  const SCHEMA_VERSION = 20;
+  const SCHEMA_VERSION = 23;
 
   const storedVersion = Number(
     (
@@ -363,6 +395,60 @@ export function initDatabase(dbPath: string) {
       const cols = sqlite.prepare("PRAGMA table_info(threads)").all() as { name: string }[];
       if (!cols.some((c) => c.name === "thread_status_source")) {
         sqlite.exec("ALTER TABLE threads ADD COLUMN thread_status_source TEXT");
+      }
+    }
+
+    if (storedVersion < 21) {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS scheduled_tasks (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          prompt TEXT NOT NULL,
+          agent_kind TEXT NOT NULL,
+          config TEXT NOT NULL,
+          recurrence TEXT NOT NULL,
+          enabled INTEGER NOT NULL DEFAULT 1,
+          next_run_at TEXT,
+          last_run_at TEXT,
+          last_completed_at TEXT,
+          last_status TEXT NOT NULL DEFAULT 'never',
+          last_result TEXT,
+          last_error TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_next_run
+          ON scheduled_tasks (enabled, next_run_at);
+      `);
+    }
+
+    if (storedVersion < 22) {
+      // Per-schedule run history, each linked to the real GUI thread the run
+      // created. ON DELETE CASCADE ties runs to their parent schedule (matches
+      // the threads → projects cascade); relies on `foreign_keys = ON`.
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS scheduled_task_runs (
+          id TEXT PRIMARY KEY,
+          schedule_id TEXT NOT NULL REFERENCES scheduled_tasks(id) ON DELETE CASCADE,
+          thread_id TEXT NOT NULL,
+          started_at TEXT NOT NULL,
+          completed_at TEXT,
+          status TEXT NOT NULL,
+          summary TEXT,
+          error TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_schedule
+          ON scheduled_task_runs (schedule_id, started_at DESC);
+      `);
+    }
+
+    if (storedVersion < 23) {
+      // Per-schedule target project: the run's GUI thread is created in this
+      // project (NULL = the built-in "Home" scope). Nullable so existing rows
+      // keep running under Home.
+      const cols = sqlite.prepare("PRAGMA table_info(scheduled_tasks)").all() as { name: string }[];
+      if (!cols.some((c) => c.name === "project_id")) {
+        sqlite.exec("ALTER TABLE scheduled_tasks ADD COLUMN project_id TEXT");
       }
     }
 

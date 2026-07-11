@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Archive,
   Bell,
+  CalendarClock,
   Bot,
   CircleUserRound,
   Gauge,
@@ -23,6 +24,7 @@ export const MOBILE_SETTINGS_SECTION_LABELS: Record<MobileSettingsSectionId, Mes
   general: msg`General`,
   appearance: msg`Appearance`,
   notifications: msg`Notifications`,
+  schedules: msg`Schedules`,
   terminal: msg`Terminal`,
   git: msg`Git`,
   usage: msg`Usage`,
@@ -94,6 +96,12 @@ export const DESKTOP_SETTINGS_SECTIONS: readonly MobileSettingsSection[] = [
     label: MOBILE_SETTINGS_SECTION_LABELS.profile,
     hint: msg`Identity and usage stats`,
     icon: CircleUserRound,
+  },
+  {
+    id: "schedules",
+    label: MOBILE_SETTINGS_SECTION_LABELS.schedules,
+    hint: msg`Scheduled tasks on this desktop`,
+    icon: CalendarClock,
   },
   {
     id: "ai",

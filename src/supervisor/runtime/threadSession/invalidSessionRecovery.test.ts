@@ -104,6 +104,12 @@ function createHarness() {
     events.push("chrome");
     return undefined;
   });
+  const resolveAppControlsMcpForLaunch = vi.fn<
+    InvalidSessionRecoveryContext["spawnPipeline"]["resolveAppControlsMcpForLaunch"]
+  >(async () => {
+    events.push("app-controls");
+    return undefined;
+  });
   const composeLaunchOptions = vi.fn<
     InvalidSessionRecoveryContext["spawnPipeline"]["composeLaunchOptions"]
   >(() => {
@@ -151,6 +157,7 @@ function createHarness() {
       resolveSubagentMcpForLaunch,
       resolveComputerUseMcpForLaunch,
       resolveChromeMcpForLaunch,
+      resolveAppControlsMcpForLaunch,
       composeLaunchOptions,
       spawnThread,
     } as unknown as InvalidSessionRecoveryContext["spawnPipeline"],
@@ -200,6 +207,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
       "subagent",
       "computer-use",
       "chrome",
+      "app-controls",
       "hooks",
       "compose",
       "build",

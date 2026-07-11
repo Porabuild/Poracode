@@ -86,6 +86,11 @@ msgstr "{0} ({envName}) v{newVersion} sürümüne güncellendi."
 msgid "{0} ({envName}) updated."
 msgstr "{0} ({envName}) güncellendi."
 
+#. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "{0} at {time}"
+msgstr "{0} saat {time}"
+
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
@@ -345,6 +350,10 @@ msgstr "{maxLabel} bağlam"
 msgid "{meta} · expires {expiresAt}"
 msgstr "{meta} · {expiresAt} tarihinde sona erer"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "{minute} minutes past the hour"
+msgstr "Saatin {minute} dakikası"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{minutes}m ago"
 msgstr "{minutes} dk önce"
@@ -527,6 +536,8 @@ msgstr "{title} için işlemler"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Active"
 msgstr "Aktif"
 
@@ -660,6 +671,7 @@ msgstr "Özel bir temel URL duyurun, örn. bir ters proxy veya tünel. Otomatik 
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "Temsilci"
@@ -743,14 +755,15 @@ msgid "AI providers"
 msgstr "Yapay zeka sağlayıcıları"
 
 #: src/mobile/views/MoreView.tsx
-msgid "AI, agents, and archived threads on the paired desktop"
-msgstr "Eşleştirilen masaüstündeki AI, ajanlar ve arşivlenmiş konular"
+#~ msgid "AI, agents, and archived threads on the paired desktop"
+#~ msgstr "Eşleştirilen masaüstündeki AI, ajanlar ve arşivlenmiş konular"
 
 #: src/mobile/settingsSections.ts
 msgid "Alerts when threads need you"
 msgstr "İş parçacıkları size ihtiyaç duyduğunda uyarılar"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "Tümü"
@@ -931,6 +944,10 @@ msgstr "Onay iste"
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Soru Sor"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "At"
+msgstr "Saat"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Attach"
@@ -1299,6 +1316,7 @@ msgstr "Portlar yüklenemedi"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -1405,6 +1423,10 @@ msgstr "Kontrol et"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
 msgstr "Güncellemeleri kontrol edin"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Check my recent progress and give me one focused recommendation for what to do next."
+msgstr "Son ilerlememi kontrol et ve sırada ne yapmam gerektiğine dair tek bir net öneri ver."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -1986,6 +2008,10 @@ msgstr "Bağlan"
 #~ msgid "Connect a server"
 #~ msgstr "Bir sunucuya bağlan"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Connect an agent to create schedules."
+msgstr "Zamanlamalar oluşturmak için bir ajan bağlayın."
+
 #: src/mobile/setupEmptyState.tsx
 msgid "Connect desktop"
 msgstr "Masaüstünü bağla"
@@ -2261,6 +2287,10 @@ msgstr "Kısayol kaydedilemedi."
 msgid "Couldn't start the camera"
 msgstr "Kamera başlatılamadı"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Create a useful routine with one click, then adjust it anytime."
+msgstr "Tek tıklamayla yararlı bir rutin oluşturun ve istediğiniz zaman ayarlayın."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
 msgstr "Taslak PR Oluştur"
@@ -2302,9 +2332,26 @@ msgstr "Proje oluştur"
 msgid "Create Pull Request"
 msgstr "Çekme İsteği Oluştur"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Create schedule"
+msgstr "Zamanlama oluştur"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Create scheduled task"
+msgstr "Zamanlanmış görev oluştur"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Create task"
 msgstr "Görev oluştur"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Create with Agent"
+msgstr "Ajanla oluştur"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Create your first scheduled task."
+#~ msgstr "İlk zamanlanmış görevinizi oluşturun."
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Create:"
@@ -2341,6 +2388,7 @@ msgid "Cursor"
 msgstr "Cursor"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -2367,9 +2415,22 @@ msgstr "Son görüntülenen sonraki sohbete geç"
 msgid "Cycle to the previous recently viewed chat"
 msgstr "Son görüntülenen önceki sohbete geç"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Daily"
+msgstr "Günlük"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Daily brief"
+msgstr "Günlük özet"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
 msgstr "Karanlık"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Days"
+#~ msgstr "Günler"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "Decline"
@@ -2410,6 +2471,7 @@ msgstr "Varsayılan konu kaldırma"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Delete"
@@ -2441,6 +2503,22 @@ msgstr "Dosyayı sil"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Delete permanently"
 msgstr "Kalıcı olarak sil"
+
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Delete schedule"
+msgstr "Zamanlamayı sil"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Delete schedule?"
+msgstr "Zamanlama silinsin mi?"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Delete scheduled task?"
+#~ msgstr "Zamanlanmış görev silinsin mi?"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Delete task"
+#~ msgstr "Görevi sil"
 
 #: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -2488,6 +2566,10 @@ msgstr "Reddet"
 msgid "Deny and tell the agent what to do differently…"
 msgstr "Reddet ve aracıya neyi farklı yapması gerektiğini söyle…"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Describe what the agent should do"
+msgstr "Ajanın ne yapması gerektiğini açıklayın"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 msgid "Description"
 msgstr "Açıklama"
@@ -2508,6 +2590,10 @@ msgstr "Masaüstüne ulaşılamıyor."
 #: src/mobile/views/MoreView.tsx
 msgid "Desktop Settings"
 msgstr "Masaüstü Ayarları"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#~ msgid "Details"
+#~ msgstr "Ayrıntılar"
 
 #: src/mobile/views/PortsView.tsx
 msgid "Detected"
@@ -2754,6 +2840,19 @@ msgstr "Dosyayı düzenle"
 msgid "Edit profile"
 msgstr "Profili düzenle"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Edit schedule"
+msgstr "Zamanlamayı düzenle"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Edit scheduled task"
+#~ msgstr "Zamanlanmış görevi düzenle"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Edit task"
+#~ msgstr "Görevi düzenle"
+
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit:"
 msgstr "Düzenle:"
@@ -2922,6 +3021,23 @@ msgstr "Hata"
 msgid "Error · Agent encountered an error"
 msgstr "Hata · Temsilci bir hatayla karşılaştı"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every day at {time}"
+msgstr "Her gün saat {time}"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every day at 1:00 PM"
+msgstr "Her gün 13:00"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every hour"
+msgstr "Her saat"
+
+#. placeholder {0}: task.recurrence.minute
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Every hour at {0} minutes past"
+msgstr "Her saat {0} geçe"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
@@ -2998,6 +3114,10 @@ msgstr "{0} öğesinden bağlam çıkarılıyor..."
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "failed"
 msgstr "başarısız oldu"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Failed"
+msgstr "Başarısız"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to close pull request: {detail}"
@@ -3259,6 +3379,14 @@ msgstr "Bir portu yönlendir"
 msgid "Found a signed-in {0} session."
 msgstr "Oturum açılmış bir {0} oturumu bulundu."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Frequency"
+msgstr "Sıklık"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Friday at 4:00 PM"
+msgstr "Cuma 16:00"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Frost the sidebar with the system blur material (vibrancy), echoing recent macOS. Falls back to a translucent tint where unsupported."
 msgstr "Kenar çubuğunu, son macOS sürümlerini andıran sistem bulanıklık materyaliyle (vibrancy) buzlu cama dönüştürün. Desteklenmediğinde yarı saydam bir tona geri döner."
@@ -3314,6 +3442,10 @@ msgstr "Hazırlanmış (staged) değişikliklerden commit mesajları oluşturur.
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Yeni konular için kısa başlıklar oluşturur."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Get a quick check-in during the workday."
+msgstr "İş günü içinde hızlı bir kontrol alın."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -3439,6 +3571,10 @@ msgstr "Sert Yeniden Yükleme"
 msgid "Has unsent draft"
 msgstr "Gönderilmemiş taslak var"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
+msgstr "Bir zamanlama oluşturmama yardım et. Eksik ayrıntıları sor, ardından Poracode zamanlama kontrollerini kullanarak benim için oluştur."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Hidden resumable threads are swept every 5 minutes and unloaded after this idle age."
@@ -3505,6 +3641,7 @@ msgstr "Geçmiş"
 
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Home"
 msgstr "Ana sayfa"
@@ -3521,6 +3658,10 @@ msgstr "Ana kapsam"
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
 msgstr "host.com, takma ad veya kullanıcı@host.com"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Hourly"
+msgstr "Saatlik"
 
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -3683,6 +3824,10 @@ msgstr "Kuruluyor"
 msgid "Installing in this terminal. Closes when finished."
 msgstr "Bu terminale kuruluyor. Bittiğinde kapanır."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Instructions"
+msgstr "Talimatlar"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
@@ -3692,6 +3837,10 @@ msgstr "Aracıların hangi aracıya veya modele devredeceğini seçerken izledi�
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Interrupt"
 msgstr "Kes"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Interrupted"
+msgstr "Kesintiye uğradı"
 
 #: src/renderer/state/slices/runtimeEventSlice.ts
 msgid "Interrupted: agent session ended before completion."
@@ -3712,6 +3861,10 @@ msgstr "şimdi"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Keep Branch"
 msgstr "Şubeyi Koru"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Keep me on track"
+msgstr "Beni yolunda tut"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3853,6 +4006,10 @@ msgstr "Notlar yükleniyor…"
 msgid "Loading PR…"
 msgstr "PR yükleniyor…"
 
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Loading previous runs"
+msgstr "Önceki çalıştırmalar yükleniyor"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Loading registry..."
 msgstr "Kayıt defteri yükleniyor..."
@@ -3860,6 +4017,10 @@ msgstr "Kayıt defteri yükleniyor..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Loading remote access…"
 msgstr "Uzaktan erişim yükleniyor…"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Loading scheduled tasks"
+msgstr "Zamanlanmış görevler yükleniyor"
 
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
@@ -4164,6 +4325,10 @@ msgstr "Tarayıcıyı sağ panele küçült"
 msgid "Minimize to panel"
 msgstr "Panele küçült"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Minute"
+msgstr "Dakika"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Mirrored desktop browser tab"
 msgstr "Yansıtılan masaüstü tarayıcı sekmesi"
@@ -4245,6 +4410,10 @@ msgstr "Daha fazla PR seçeneği"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "More pull request options"
 msgstr "Daha fazla çekme isteği seçeneği"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "More schedule options"
+msgstr "Diğer zamanlama seçenekleri"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -4413,6 +4582,14 @@ msgstr "Yeni proje"
 msgid "New quick thread"
 msgstr "Yeni hızlı konu"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "New schedule"
+msgstr "Yeni zamanlama"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "New scheduled task"
+#~ msgstr "Yeni zamanlanmış görev"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -4422,6 +4599,10 @@ msgstr "Yeni sekme"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "New tab in group"
 msgstr "Grupta yeni sekme"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "New task"
+#~ msgstr "Yeni görev"
 
 #: src/mobile/chrome.ts
 #: src/mobile/views/QuickCompose.tsx
@@ -4480,6 +4661,11 @@ msgstr "Sonraki eşleşme"
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "Sonraki son görüntülenen sohbet"
+
+#. placeholder {0}: dateTimeFormatter.format(new Date(task.nextRunAt))
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Next run {0}"
+msgstr "Sonraki çalıştırma: {0}"
 
 #: src/renderer/commands/registry.ts
 msgid "Next tab"
@@ -4642,6 +4828,14 @@ msgstr "Eşleşme yok."
 msgid "No matching agents."
 msgstr "Eşleşen temsilci yok."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "No matching schedules."
+msgstr "Eşleşen zamanlama yok."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "No matching tasks."
+#~ msgstr "Eşleşen görev yok."
+
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
@@ -4726,6 +4920,10 @@ msgstr "Hiçbir depo bulunamadı."
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "Sonuç yok"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "No runs yet."
+msgstr "Henüz çalıştırma yok."
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No runtime items yet for this thread."
@@ -4877,6 +5075,23 @@ msgstr "Daha eski"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "on"
 msgstr "açık"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "On"
+msgstr "Gün"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "On the hour"
+msgstr "Saat başında"
+
+#. placeholder {0}: dateTimeFormatter.format(new Date(task.recurrence.runAt))
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Once on {0}"
+msgstr "{0} tarihinde bir kez"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "One time"
+msgstr "Bir kez"
 
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -5281,7 +5496,12 @@ msgstr "Girişe yapıştır"
 msgid "Paste the SSH private key."
 msgstr "SSH özel anahtarını yapıştırın."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Pause"
+msgstr "Duraklat"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
 msgstr "Duraklatıldı"
 
@@ -5472,6 +5692,15 @@ msgstr "Önceki eşleşme"
 msgid "Previous recently viewed chat"
 msgstr "Önceki son görüntülenen sohbet"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+#~ msgid "Previous run did not finish."
+#~ msgstr "Önceki çalıştırma tamamlanmadı."
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Previous runs"
+msgstr "Önceki çalıştırmalar"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "Önceki sekme"
@@ -5497,6 +5726,7 @@ msgstr "Profiller"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
 msgstr "Proje"
 
@@ -6023,6 +6253,10 @@ msgstr "{0} öğesini yeniden sırala"
 msgid "Reorder {label}"
 msgstr "{label} öğesini yeniden sırala"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Repeat"
+msgstr "Tekrarla"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Report an Issue"
 msgstr "Sorun Bildir"
@@ -6138,6 +6372,10 @@ msgstr "Geri yükle veya sil"
 msgid "Restore thread"
 msgstr "Konuyu geri yükle"
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Resume"
+msgstr "Sürdür"
+
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -6210,6 +6448,10 @@ msgstr "Yorumu incele"
 msgid "Review decision"
 msgstr "Kararı inceleyin"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Review my recent work and summarize today's priorities and next steps."
+msgstr "Son çalışmalarımı incele ve bugünün öncelikleriyle sonraki adımları özetle."
+
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Review on request"
 msgstr "Talep üzerine inceleme"
@@ -6270,6 +6512,10 @@ msgstr "Oturum açmak için {loginCommand} komutunu çalıştırın."
 msgid "Run a new thread on {0}."
 msgstr "{0} üzerinde yeni bir iş parçacığı çalıştır."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Run at"
+msgstr "Çalıştırma zamanı"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "Run command"
 msgstr "Komutu çalıştır"
@@ -6283,14 +6529,42 @@ msgstr "Ayrı bir çalışma ağacında çalıştır"
 msgid "Run local transcription on the GPU when available."
 msgstr "Mümkün olduğunda GPU'da yerel transkripsiyonu çalıştırın."
 
+#: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
+msgid "Run now"
+msgstr "Şimdi çalıştır"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Run standalone tasks on this device without a project."
+#~ msgstr "Bu cihazda proje olmadan bağımsız görevler çalıştırın."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Run standalone tasks on this device. Schedules run while the device is awake and Poracode is open."
+msgstr "Bu cihazda bağımsız görevler çalıştırın. Zamanlamalar cihaz açıkken ve Poracode açıkken çalışır."
+
 #: src/renderer/commands/registry.ts
 msgid "Run Terminal Command"
 msgstr "Terminal Komutunu Çalıştır"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#~ msgid "Run this schedule automatically at the times above."
+#~ msgstr "Bu zamanlamayı yukarıdaki saatlerde otomatik olarak çalıştır."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Run this schedule automatically on the schedule below."
+msgstr "Bu zamanlamayı aşağıdaki zamanlamaya göre otomatik olarak çalıştır."
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "running"
 msgstr "çalışıyor"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Running"
+msgstr "Çalışıyor"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Running now"
+msgstr "Şimdi çalışıyor"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Runs before a worktree is removed (e.g., <0>rm -rf node_modules</0>)."
@@ -6335,6 +6609,10 @@ msgstr "Kaydet"
 msgid "Save {0} credentials."
 msgstr "{0} kimlik bilgilerini kaydedin."
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Save changes"
+msgstr "Değişiklikleri kaydet"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Claude profilini kaydet"
@@ -6374,6 +6652,35 @@ msgstr "Yüklü CLI'ler için Windows ve WSL taranıyor. Bu genellikle birkaç s
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 msgstr "Kurulu CLI'ler için sisteminiz taranıyor. Bu genellikle birkaç saniye sürer."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Schedule name"
+msgstr "Zamanlama adı"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Schedule status"
+msgstr "Zamanlama durumu"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Scheduled tasks"
+msgstr "Zamanlanmış görevler"
+
+#: src/mobile/settingsSections.ts
+msgid "Scheduled tasks on this desktop"
+msgstr "Bu masaüstündeki zamanlanmış görevler"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Scheduled tasks run only while this device is awake and Lightcode is open."
+#~ msgstr "Zamanlanmış görevler yalnızca bu cihaz açıkken ve Lightcode çalışırken yürütülür."
+
+#: src/mobile/settingsSections.ts
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "Schedules"
+msgstr "Zamanlamalar"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Schedules, AI, agents, and archived threads on the paired desktop"
+msgstr "Eşleştirilmiş masaüstündeki zamanlamalar, yapay zekâ, aracılar ve arşivlenmiş ileti dizileri"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -6445,6 +6752,10 @@ msgstr "Depolarda ara…"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Search runtime items…"
 msgstr "Çalışma zamanı öğelerini ara…"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Search scheduled tasks"
+msgstr "Zamanlanmış görevlerde ara"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search settings"
@@ -6531,6 +6842,10 @@ msgstr "Proje seçin"
 #: src/renderer/components/common/Select.tsx
 msgid "Select…"
 msgstr "Seç…"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "Selected days"
+#~ msgstr "Seçili günler"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6942,6 +7257,10 @@ msgstr "Dikteyi başlat"
 msgid "Start dictation in the current composer"
 msgstr "Geçerli composer'da dikteyi başlat"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Start each day with priorities and next steps."
+msgstr "Her güne öncelikler ve sonraki adımlarla başlayın."
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Start from scratch"
@@ -6972,6 +7291,10 @@ msgstr "Composer'ı terminal-yerel iş parçacıklarında daraltılmış olarak 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Start voice input"
 msgstr "Ses girişini başlat"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Start with a schedule"
+msgstr "Bir zamanlamayla başlayın"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
@@ -7132,6 +7455,18 @@ msgstr "Git formunu gönder"
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 msgid "Submit review"
 msgstr "İncelemeyi gönder"
+
+#: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
+msgid "Succeeded"
+msgstr "Başarılı"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Suggestions"
+msgstr "Öneriler"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
+msgstr "Bu haftanın ilerlemesini, tamamlanmamış işleri ve gelecek haftanın en önemli risklerini özetle."
 
 #: src/renderer/components/providers/acpGeneric/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -7361,6 +7696,10 @@ msgstr "Terminal sekmeleri"
 msgid "Test microphone"
 msgstr "Mikrofonu test edin"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "That conversation is no longer available."
+msgstr "Bu konuşma artık kullanılamıyor."
+
 #: src/mobile/routeComponents.tsx
 msgid "That QR code isn't a Poracode pairing link."
 msgstr "Bu QR kodu bir Poracode eşleştirme bağlantısı değil."
@@ -7486,6 +7825,10 @@ msgstr "Bu uzak proje kullanılamıyor. Ortamı yeniden bağlayıp tekrar deneyi
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "Bu, daha sonraki mesajları kaldırır ve bir denetim noktası anlık görüntüsü mevcut olduğunda dosyaları geri yükler."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "This removes the schedule and its latest result from this device."
+msgstr "Zamanlamayı ve en son sonucunu bu cihazdan kaldırır."
+
 #. placeholder {0}: pendingDelete.branch.name
 #. placeholder {1}: pendingDelete.threadCount
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
@@ -7588,6 +7931,10 @@ msgstr "Konular"
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are archived automatically on app launch. Set to 0 to disable."
 msgstr "Bu kadar gün boyunca dokunulmayan ve tamamlandı olarak işaretlenen konular, uygulama başlatıldığında otomatik olarak arşivlenir. Devre dışı bırakmak için 0'a ayarlayın."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Time"
+msgstr "Saat"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -7931,6 +8278,10 @@ msgstr "İş parçacığı güncellenemiyor."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
 msgstr "Atanmamış"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Unavailable project"
+msgstr "Kullanılamayan proje"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
@@ -8343,6 +8694,30 @@ msgstr "Web sunucusu"
 msgid "Website"
 msgstr "Web sitesi"
 
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Weekdays"
+msgstr "Hafta içi"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Weekdays at {time}"
+msgstr "Hafta içi saat {time}"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Weekdays at 8:00 AM"
+msgstr "Hafta içi 08:00"
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Weekly"
+msgstr "Haftalık"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Weekly review"
+msgstr "Haftalık değerlendirme"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+#~ msgid "What should the agent do?"
+#~ msgstr "Aracı ne yapmalı?"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "What should the remote agent work on?"
 msgstr "Uzak aracı ne üzerinde çalışmalı?"
@@ -8397,6 +8772,10 @@ msgstr "Nereden başlamak istiyorsunuz?"
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Where Poracode creates git worktrees for new branches. Changes apply to worktrees created from now on; existing worktrees stay where they are."
 msgstr "Poracode'un yeni dallar için git çalışma ağaçlarını nerede oluşturduğu. Değişiklikler bundan sonra oluşturulan çalışma ağaçları için geçerlidir; mevcut çalışma ağaçları olduğu yerde kalır."
+
+#: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+msgid "Where the run's conversation is created."
+msgstr "Çalıştırmanın konuşmasının oluşturulduğu yer."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -8535,6 +8914,10 @@ msgstr "Çalışma ağaçları"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "Wrap lines"
 msgstr "Satırları kaydır"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Wrap up progress, open items, and risks."
+msgstr "İlerlemeyi, açık konuları ve riskleri özetleyin."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "Write a comment"

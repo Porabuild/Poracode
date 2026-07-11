@@ -3,6 +3,9 @@ import {
   agentStatusSchema,
   cloneRepoSourceSchema,
   projectSchema,
+  scheduledTaskIdPayloadSchema,
+  scheduledTaskInputSchema,
+  scheduledTaskSchema,
   terminalSizeSchema,
   threadContextUsageSchema,
   threadSchema,
@@ -219,6 +222,20 @@ export const remoteProjectCommandResultSchema = z.object({
   project: projectSchema.optional(),
 });
 export type RemoteProjectCommandResult = z.infer<typeof remoteProjectCommandResultSchema>;
+
+export const remoteScheduleCommandSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("create"), task: scheduledTaskInputSchema }),
+  z.object({ kind: z.literal("update"), id: z.string().uuid(), task: scheduledTaskInputSchema }),
+  scheduledTaskIdPayloadSchema.extend({ kind: z.literal("delete") }),
+  scheduledTaskIdPayloadSchema.extend({ kind: z.literal("run") }),
+]);
+export type RemoteScheduleCommand = z.infer<typeof remoteScheduleCommandSchema>;
+
+export const remoteSchedulesResponseSchema = z.object({
+  schedules: z.array(scheduledTaskSchema),
+  schedule: scheduledTaskSchema.optional(),
+});
+export type RemoteSchedulesResponse = z.infer<typeof remoteSchedulesResponseSchema>;
 
 /** Broadcast on the WS event stream after a project change so clients refresh
  * the shell snapshot. Rides the same stream as supervisor/git events. */

@@ -316,6 +316,8 @@ describe("SettingsOverlay", () => {
   it("routes split general sections from the sidebar", () => {
     render(<SettingsOverlay onClose={() => undefined} />);
 
+    expect(screen.queryByRole("button", { name: "Schedules" })).not.toBeInTheDocument();
+
     for (const section of ["Appearance", "Terminal", "Threads", "Git", "Shortcuts"]) {
       fireEvent.click(screen.getByRole("button", { name: section }));
       expect(within(screen.getByRole("main")).getByText(section)).toBeInTheDocument();

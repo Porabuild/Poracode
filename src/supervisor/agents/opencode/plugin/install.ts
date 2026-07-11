@@ -19,11 +19,16 @@ import {
 } from "@/supervisor/agents/subagentMcp";
 import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 import { CHROME_MCP_SERVER_NAME, type ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
+import {
+  APP_CONTROLS_MCP_SERVER_NAME,
+  type AppControlsMcpHttpConfig,
+} from "@/supervisor/agents/appControlsMcp";
 import { getCachedWslHomeDirectory, type AgentEnvContext } from "../../base";
 import { BROWSER_MCP_SERVER_NAME } from "../../browserMcp";
 import { COMPUTER_USE_MCP_SERVER_NAME } from "../../computerUseMcp";
 import { buildOpenCodeComputerUseMcp } from "../mcpComputerUse";
 import { buildOpenCodeChromeMcp } from "../mcpChrome";
+import { buildOpenCodeAppControlsMcp } from "../mcpAppControls";
 import {
   copyPluginAssetsIfStale,
   createPluginSourceResolver,
@@ -530,6 +535,18 @@ export function syncOpenCodeSubagentMcpConfigFile(
   const add = buildOpenCodeSubagentMcp(subagentMcp);
   const update: OpenCodeMcpConfigUpdate = {
     remove: [SUBAGENT_MCP_SERVER_NAME],
+    ...(add ? { add } : {}),
+  };
+  writeOpenCodeConfigUpdate(location, update);
+}
+
+export function syncOpenCodeAppControlsMcpConfigFile(
+  location: ProjectLocation,
+  appControlsMcp?: AppControlsMcpHttpConfig,
+): void {
+  const add = buildOpenCodeAppControlsMcp(location, appControlsMcp);
+  const update: OpenCodeMcpConfigUpdate = {
+    remove: [APP_CONTROLS_MCP_SERVER_NAME],
     ...(add ? { add } : {}),
   };
   writeOpenCodeConfigUpdate(location, update);

@@ -47,6 +47,7 @@ function makeHandlers() {
     extractBrowserToWindow: vi.fn<() => void>(),
     injectBrowserToMain: vi.fn<() => void>(),
     requestRelaunch: vi.fn<() => void>(),
+    scheduleService: {} as never,
   });
 }
 

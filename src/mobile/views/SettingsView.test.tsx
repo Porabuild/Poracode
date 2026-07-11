@@ -37,6 +37,7 @@ describe("mobile SettingsView", () => {
     );
 
     expect(screen.getByText("AI")).toBeInTheDocument();
+    expect(screen.getByText("Schedules")).toBeInTheDocument();
     expect(screen.getByText("Agents")).toBeInTheDocument();
     expect(screen.getByText("Archived Threads")).toBeInTheDocument();
     expect(screen.queryByText("Appearance")).not.toBeInTheDocument();

@@ -191,6 +191,7 @@ describe("screenDepth", () => {
     expect(screenDepth("/more/settings")).toBe(2);
     expect(screenDepth("/more/settings/appearance")).toBe(2);
     expect(screenDepth("/more/settings/models")).toBe(3);
+    expect(screenDepth("/more/settings/schedules")).toBe(3);
     expect(screenDepth("/workspace/t1")).toBe(2);
     expect(screenDepth("/terminal/p1")).toBe(2);
     expect(screenDepth("/pr/42")).toBe(2);

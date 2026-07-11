@@ -15,6 +15,7 @@ import {
   type RemoteGitSummaries,
 } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
+import type { ScheduleService } from "../schedules/ScheduleService";
 import { createPersistentRemoteAuthStore } from "./auth";
 import {
   remoteAccessAdvertisedHost,
@@ -50,6 +51,7 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly getBrowserPanelManager: () => BrowserPanelManager | null;
   readonly notifySharedSettingsChanged: (settings: SharedSettings) => void;
   readonly reportError: (error: unknown, tags?: LightcodeDiagnosticTags) => void;
+  readonly scheduleService: ScheduleService;
 }
 
 export interface DesktopRemoteAccessController {
@@ -298,6 +300,9 @@ export function createDesktopRemoteAccessController(
             return pickRemoteSettings(next);
           },
         },
+        // `ScheduleService`'s public methods already match the gateway
+        // interface, so pass it directly instead of re-wrapping each method.
+        schedules: options.scheduleService,
         pushRegistrations: {
           upsert: (registration) => pushStore.upsert(registration),
           remove: (deviceId) => pushStore.remove(deviceId),

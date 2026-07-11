@@ -16,6 +16,12 @@ export function dbGetProjects(): Project[] {
     .map(rowToProject);
 }
 
+export function dbGetProject(projectId: string): Project | null {
+  const db = getDb();
+  const row = db.select().from(schema.projects).where(eq(schema.projects.id, projectId)).get();
+  return row ? rowToProject(row) : null;
+}
+
 export function dbGetThreads(): Thread[] {
   const db = getDb();
   return db

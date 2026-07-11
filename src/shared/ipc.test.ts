@@ -62,6 +62,7 @@ describe("ipcProcedureMap", () => {
       extractBrowserToWindow: vi.fn<() => void>(),
       injectBrowserToMain: vi.fn<() => void>(),
       requestRelaunch: vi.fn<() => void>(),
+      scheduleService: {} as never,
     });
 
     expect(Object.keys(handlers).sort()).toEqual([...MAIN_LOCAL_PROCEDURE_NAMES].sort());

@@ -4,10 +4,12 @@ import type {
   RuntimeEvent,
   ThreadConfig,
 } from "@/shared/contracts";
+import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
 import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
+import type { AppControlsMcpHttpConfig } from "@/supervisor/agents/appControlsMcp";
 
 /** Terminal states a subagent run can settle into. */
 export type SubagentRunStatus = "running" | "completed" | "failed" | "cancelled";
@@ -76,44 +78,15 @@ export function buildUnrestrictedChildConfig(
   >,
   parentConfig?: ThreadConfig,
 ): ThreadConfig {
-  const approvalPolicy = resolveUnrestrictedOption(
-    targetCapabilities.approvalPolicies,
-    targetCapabilities.bypassPermissions?.approvalPolicy,
-    ["bypassPermissions", "yolo", "never", "dontAsk"],
-  );
-  const sandboxMode = resolveUnrestrictedOption(
-    targetCapabilities.sandboxModes,
-    targetCapabilities.bypassPermissions?.sandboxMode,
-    ["danger-full-access", "yolo"],
-  );
   return {
     model: child.model,
     ...(child.effort ? { effort: child.effort } : {}),
     ...(child.fast === true ? { fast: true } : {}),
-    ...(approvalPolicy ? { approvalPolicy } : {}),
-    ...(sandboxMode ? { sandboxMode } : {}),
+    ...resolveUnrestrictedPermissionConfig(targetCapabilities),
     ...(parentConfig?.browserMcp === true ? { browserMcp: true } : {}),
     ...(parentConfig?.computerUse === true ? { computerUse: true } : {}),
     ...(parentConfig?.chromeMcp === true ? { chromeMcp: true } : {}),
   };
-}
-
-function resolveUnrestrictedOption(
-  options: readonly { id: string }[],
-  declaredBypass: string | undefined,
-  preferredIds: readonly string[],
-): string | undefined {
-  for (const id of preferredIds) {
-    const match = options.find((option) => option.id === id);
-    if (match) return match.id;
-  }
-  if (
-    declaredBypass &&
-    (options.length === 0 || options.some((option) => option.id === declaredBypass))
-  ) {
-    return declaredBypass;
-  }
-  return undefined;
 }
 
 /** Composer-shaped choices for a connected provider the caller can spawn. */
@@ -171,6 +144,7 @@ export interface SubagentRunHost {
     browserMcp?: BrowserMcpHttpConfig;
     computerUseMcp?: ComputerUseMcpHttpConfig;
     chromeMcp?: ChromeMcpHttpConfig;
+    appControlsMcp?: AppControlsMcpHttpConfig;
   }>;
   /** Append a (re-tagged) runtime event into the parent thread's event stream. */
   appendRuntimeEvent(parentThreadId: string, event: RuntimeEvent): void;

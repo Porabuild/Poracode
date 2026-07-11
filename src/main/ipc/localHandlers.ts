@@ -1,4 +1,3 @@
-import { homedir } from "node:os";
 import { dirname } from "node:path";
 import { clipboard, dialog, nativeImage, shell, type BrowserWindow } from "electron";
 import type { BrowserPanelManager } from "../browser";
@@ -14,6 +13,7 @@ import {
   dbGetThreadContextUsage,
   dbGetThreadRuntimeItems,
   dbGetThreads,
+  dbListScheduleRuns,
   dbReplaceThreadCompletedTurns,
   dbReplaceThreadRuntimeSnapshot,
   dbReplaceThreadRuntimeItems,
@@ -66,6 +66,8 @@ import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import type { LightcodePaths } from "@/shared/lightcodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 import type { SshConnectionManager } from "../ssh/SshConnectionManager";
+import type { ScheduleService } from "../schedules/ScheduleService";
+import { homeScopeLocation } from "../schedules";
 
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
@@ -90,6 +92,7 @@ interface CreateLocalIpcHandlersOptions {
   injectBrowserToMain(): void;
   /** Relaunch the app (exposed via the relaunchApp IPC). */
   requestRelaunch(): void;
+  scheduleService: ScheduleService;
 }
 
 function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserPanelManager {
@@ -251,10 +254,7 @@ export function createLocalIpcHandlers(
     relaunchApp: () => {
       options.requestRelaunch();
     },
-    getHomeScopeLocation: () =>
-      process.platform === "win32"
-        ? { kind: "windows", path: homedir() }
-        : { kind: "posix", path: homedir() },
+    getHomeScopeLocation: () => homeScopeLocation(),
     getKeybindings: () => readKeybindingsFile(options.requireLightcodePaths().keybindingsPath),
     setKeybindings: (file) => {
       const path = options.requireLightcodePaths().keybindingsPath;
@@ -401,6 +401,12 @@ export function createLocalIpcHandlers(
     dbGetThreadContextUsage: ({ threadId }) => dbGetThreadContextUsage(threadId),
     dbGetProjectNotes: ({ projectId }) => dbGetProjectNotes(projectId),
     dbSetProjectNotes: (notes) => dbSetProjectNotes(notes),
+    getSchedules: () => options.scheduleService.list(),
+    createSchedule: (task) => options.scheduleService.create(task),
+    updateSchedule: ({ id, task }) => options.scheduleService.update(id, task),
+    deleteSchedule: ({ id }) => options.scheduleService.delete(id),
+    runScheduleNow: ({ id }) => options.scheduleService.runNow(id),
+    getScheduleRuns: ({ id }) => dbListScheduleRuns(id),
     checkForUpdate: () => options.autoUpdater.checkForUpdate(),
     startUpdateDownload: () => options.autoUpdater.startUpdateDownload(),
     installUpdate: () => options.autoUpdater.installUpdate(),

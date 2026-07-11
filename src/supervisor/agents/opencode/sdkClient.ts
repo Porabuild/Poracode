@@ -7,15 +7,18 @@ import {
 } from "@/supervisor/agents/subagentMcp";
 import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
+import type { AppControlsMcpHttpConfig } from "@/supervisor/agents/appControlsMcp";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { BROWSER_MCP_SERVER_NAME } from "../browserMcp";
 import { COMPUTER_USE_MCP_SERVER_NAME } from "../computerUseMcp";
 import { CHROME_MCP_SERVER_NAME } from "../chromeMcp";
+import { APP_CONTROLS_MCP_SERVER_NAME } from "../appControlsMcp";
 import { buildOpenCodeServerCommand } from "./argv";
 import { buildOpenCodeBrowserMcp } from "./mcpBrowser";
 import { buildOpenCodeSubagentMcp } from "./mcpSubagent";
 import { buildOpenCodeComputerUseMcp } from "./mcpComputerUse";
 import { buildOpenCodeChromeMcp } from "./mcpChrome";
+import { buildOpenCodeAppControlsMcp } from "./mcpAppControls";
 import { classifyOpenCodeError, isOpenCodeConnectionLoss } from "./opencodeErrors";
 import {
   disposeSpawnedOpenCodeServerHandles,
@@ -189,6 +192,7 @@ export interface AcquireOpenCodeServerInput {
    * would clobber) or a shared server (pooled, would misattribute spawns).
    */
   subagentMcp?: SubagentMcpHttpConfig;
+  appControlsMcp?: AppControlsMcpHttpConfig;
   /**
    * When set, this acquisition gets its own single-tenant pool entry keyed by
    * this value (the thread id) instead of joining the shared per-project pool.
@@ -295,6 +299,23 @@ async function syncSubagentMcp(
   await client.mcp.connect({ directory, name: SUBAGENT_MCP_SERVER_NAME });
 }
 
+async function syncAppControlsMcp(
+  input: Pick<AcquireOpenCodeServerInput, "projectLocation" | "appControlsMcp">,
+  client: OpencodeClient,
+): Promise<void> {
+  if (!input.appControlsMcp) return;
+  const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
+  const servers = buildOpenCodeAppControlsMcp(input.projectLocation, input.appControlsMcp);
+  const appControls = servers?.[APP_CONTROLS_MCP_SERVER_NAME];
+  if (!appControls) return;
+  await client.mcp
+    .add({ directory, name: APP_CONTROLS_MCP_SERVER_NAME, config: appControls })
+    .catch((err) => {
+      if (isOpenCodeConnectionLoss(err)) throw err;
+    });
+  await client.mcp.connect({ directory, name: APP_CONTROLS_MCP_SERVER_NAME });
+}
+
 export async function acquireOpenCodeServer(
   input: AcquireOpenCodeServerInput,
 ): Promise<AcquiredOpenCodeServer> {
@@ -352,6 +373,7 @@ async function acquireOpenCodeServerInner(
   try {
     await syncBrowserMcp(input, snapshot.client);
     await syncSubagentMcp(input, snapshot.client);
+    await syncAppControlsMcp(input, snapshot.client);
   } catch (error) {
     if (!retryMcpConnectionLoss || !isOpenCodeConnectionLoss(error)) {
       console.warn("[opencode] failed to sync managed MCP servers:", error);

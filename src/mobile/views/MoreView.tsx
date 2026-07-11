@@ -32,7 +32,7 @@ export function MoreView(props: {
           <MoreRow
             icon={<MonitorCog className="size-4" />}
             label={<Trans>Desktop Settings</Trans>}
-            hint={<Trans>AI, agents, and archived threads on the paired desktop</Trans>}
+            hint={<Trans>Schedules, AI, agents, and archived threads on the paired desktop</Trans>}
             onPress={props.onOpen}
           />
         </div>

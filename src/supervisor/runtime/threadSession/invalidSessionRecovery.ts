@@ -14,6 +14,7 @@ type RecoverySpawnPipeline = Pick<
   | "resolveSubagentMcpForLaunch"
   | "resolveComputerUseMcpForLaunch"
   | "resolveChromeMcpForLaunch"
+  | "resolveAppControlsMcpForLaunch"
   | "composeLaunchOptions"
   | "spawnThread"
 >;
@@ -97,6 +98,10 @@ export class InvalidSessionRecoveryCoordinator {
       session.config,
       { threadId: session.threadId },
     );
+    const appControlsMcp = await context.spawnPipeline.resolveAppControlsMcpForLaunch(
+      session.projectLocation,
+      { threadId: session.threadId },
+    );
     const cliHookExtras = await context.cliHookPlugin.resolveCliHookPluginExtras(
       session.threadId,
       session.agentKind,
@@ -122,6 +127,7 @@ export class InvalidSessionRecoveryCoordinator {
         subagentMcp,
         computerUse,
         chromeMcp,
+        appControlsMcp,
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {

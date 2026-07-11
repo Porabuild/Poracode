@@ -10,7 +10,7 @@ import {
   type RemoteSettingsPatch,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
-import type { RemoteThreadCommand } from "@/shared/contracts";
+import type { RemoteThreadCommand, ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
 import type {
   IpcProcedurePayload,
   IpcProcedureResult,
@@ -126,6 +126,13 @@ export interface RemoteAccessServerOptions {
     read(): RemoteSettings;
     update(patch: RemoteSettingsPatch): RemoteSettings;
   };
+  readonly schedules?: {
+    list(): ScheduledTask[];
+    create(task: ScheduledTaskInput): ScheduledTask;
+    update(id: string, task: ScheduledTaskInput): ScheduledTask;
+    delete(id: string): void;
+    runNow(id: string): ScheduledTask;
+  };
   /** Latest per-thread git/PR summaries published by the desktop renderer. */
   gitSummaries?(): RemoteGitSummaries;
   /**
@@ -236,6 +243,7 @@ export class RemoteAccessServer {
       },
       requireInfo: () => this.requireInfo(),
       requireSettingsGateway: () => this.requireSettingsGateway(),
+      requireSchedulesGateway: () => this.requireSchedulesGateway(),
       requireBrowserGateway: () => this.requireBrowserGateway(),
       requirePortForwardGateway: () => this.requirePortForwardGateway(),
       requirePortProxy: () => this.requirePortProxy(),
@@ -402,7 +410,13 @@ export class RemoteAccessServer {
   }
 
   private requireOption<
-    K extends "browser" | "portForward" | "portProxy" | "pushRegistrations" | "settings",
+    K extends
+      | "browser"
+      | "portForward"
+      | "portProxy"
+      | "pushRegistrations"
+      | "settings"
+      | "schedules",
   >(key: K, code: string, message: string): NonNullable<RemoteAccessServerOptions[K]> {
     const value = this.options[key];
     if (!value) {
@@ -448,6 +462,14 @@ export class RemoteAccessServer {
       "settings",
       "settings_unavailable",
       "Desktop settings are not available.",
+    );
+  }
+
+  private requireSchedulesGateway(): NonNullable<RemoteAccessServerOptions["schedules"]> {
+    return this.requireOption(
+      "schedules",
+      "schedules_unavailable",
+      "Scheduled tasks are not available on this desktop.",
     );
   }
 

@@ -1,8 +1,15 @@
 import {
   closeDatabase,
+  dbDeleteThread,
+  dbGetProject,
   dbGetProjects,
+  dbGetThread,
   dbGetThreads,
+  dbInsertScheduleRun,
+  dbInterruptScheduleRuns,
   dbMarkLiveThreadsInactive,
+  dbUpdateScheduleRun,
+  dbUpsertThread,
   initDatabase,
 } from "@/main/db";
 import { prepareLightcodeDataRoot } from "@/main/lightcodeData";
@@ -27,6 +34,12 @@ import {
 import type { SupervisorEvent } from "@/shared/ipc";
 import { pickRemoteSettings } from "@/shared/remote";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
+import {
+  createDeviceScheduleService,
+  ensureHomeProjectRow,
+  ScheduleRunCoordinator,
+} from "@/main/schedules";
+import { AppControlsMcpIngress } from "@/main/app-controls";
 import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
 
 /**
@@ -142,15 +155,29 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
   // The supervisor's onEvent fires only after start() forks it, by which point
   // `serverRef` is assigned; the null-guard covers construction order only.
   let serverRef: RemoteAccessServer | null = null;
+  let appControlsMcpIngress: AppControlsMcpIngress | null = null;
+  // Assigned right after the supervisor client below; the `onEvent` tap only
+  // fires once the supervisor is started, by which point it is set.
+  let scheduleRunCoordinator: ScheduleRunCoordinator | null = null;
   const supervisorClient = new SupervisorClient({
     appVersion: options.appVersion,
     isDev,
     supervisorPath: options.supervisorPath,
     wslHelpersDir: options.wslHelpersDir,
     secretStorageKey: options.secretStorageKey,
+    resolveExtraEnv: () => {
+      const info = appControlsMcpIngress?.getInfo();
+      return info
+        ? {
+            LIGHTCODE_APP_CONTROLS_MCP_URL: info.url,
+            LIGHTCODE_APP_CONTROLS_MCP_TOKEN: info.token,
+          }
+        : {};
+    },
     ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
     onEvent: (event) => {
       options.onSupervisorEvent?.(event);
+      scheduleRunCoordinator?.observeSupervisorEvent(event);
       serverRef?.publishSupervisorEvent(event);
       pushCoordinator.handleSupervisorEvent(event);
     },
@@ -160,6 +187,27 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
       // WebSocket reconnect (the replay window covers transient drops).
     },
   });
+  const scheduleCoordinator = new ScheduleRunCoordinator({
+    startThread: (payload) => supervisorClient.call("startThread", payload),
+    getAgentStatuses: (wslDistros) => supervisorClient.call("getAgentStatuses", { wslDistros }),
+    // Headless has no desktop renderer to mirror to; the DB thread row (written
+    // below) is the source of truth and connected remote clients pick it up.
+    sendThreadCommand: () => false,
+    ensureHomeProject: ensureHomeProjectRow,
+    getProject: dbGetProject,
+    upsertThread: dbUpsertThread,
+    deleteThread: dbDeleteThread,
+    threadExists: (threadId) => dbGetThread(threadId) != null,
+    insertRun: dbInsertScheduleRun,
+    updateRun: dbUpdateScheduleRun,
+  });
+  scheduleRunCoordinator = scheduleCoordinator;
+  const scheduleService = createDeviceScheduleService({
+    runTask: (task) => scheduleCoordinator.runScheduleAsThread(task),
+    onStartupInterrupted: (scheduleId) =>
+      dbInterruptScheduleRuns(scheduleId, new Date().toISOString()),
+  });
+  appControlsMcpIngress = new AppControlsMcpIngress(scheduleService, dbGetThread);
 
   const host = options.host ?? remoteAccessHost();
   // In dev, advertise loopback by default so the iOS simulator's WebView can
@@ -192,6 +240,9 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
       read: () => pickRemoteSettings(readSharedSettingsFile(paths.settingsPath)),
       update: (patch) => pickRemoteSettings(patchSharedSettingsFile(paths.settingsPath, patch)),
     },
+    // `ScheduleService`'s public methods already match the gateway interface,
+    // so pass it directly instead of re-wrapping each method.
+    schedules: scheduleService,
     pushRegistrations: {
       upsert: (registration) => pushStore.upsert(registration),
       remove: (deviceId) => pushStore.remove(deviceId),
@@ -207,7 +258,9 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
     server,
     async start() {
       if (!started) {
+        await appControlsMcpIngress?.start();
         supervisorClient.start(paths.baseDir);
+        scheduleService.start();
         started = true;
       }
       const info = await server.start();
@@ -238,6 +291,9 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
       // under it (the gateway's own `disposed` guard makes this airtight
       // regardless of ordering, but disposing after keeps the two aligned).
       await server.dispose();
+      scheduleService.dispose();
+      appControlsMcpIngress?.dispose();
+      appControlsMcpIngress = null;
       portForwarding.dispose();
       supervisorClient.dispose();
       closeDatabase();

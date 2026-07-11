@@ -12,7 +12,13 @@ export const DEVICE_SETTINGS_SECTION_IDS = [
   "usage",
 ] as const;
 
-export const DESKTOP_SETTINGS_SECTION_IDS = ["profile", "ai", "models", "archived"] as const;
+export const DESKTOP_SETTINGS_SECTION_IDS = [
+  "profile",
+  "schedules",
+  "ai",
+  "models",
+  "archived",
+] as const;
 
 export type MobileSettingsSectionId =
   | (typeof DEVICE_SETTINGS_SECTION_IDS)[number]

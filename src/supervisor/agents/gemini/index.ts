@@ -25,6 +25,7 @@ import {
   readBundledGeminiPluginVersion,
   syncGeminiBrowserMcpSettings,
   syncGeminiSubagentMcpSettings,
+  syncGeminiAppControlsMcpSettings,
   uninstallGeminiPlugin,
 } from "./plugin/install";
 import { detectGeminiInvalidSessionRef } from "./session";
@@ -119,6 +120,10 @@ export function createGeminiAdapter(): AgentAdapter {
         geminiEnvContextForLocation(location),
         launchOptions?.subagentMcp,
       );
+      syncGeminiAppControlsMcpSettings(
+        geminiEnvContextForLocation(location),
+        launchOptions?.appControlsMcp,
+      );
       // Pre-assign the session UUID via --session-id so we know it before
       // spawn. Avoids racing post-spawn discovery against one-shot `gemini -p`
       // calls (title gen, commit-msg, PR summary) that also create entries in
@@ -136,6 +141,10 @@ export function createGeminiAdapter(): AgentAdapter {
       syncGeminiSubagentMcpSettings(
         geminiEnvContextForLocation(location),
         launchOptions?.subagentMcp,
+      );
+      syncGeminiAppControlsMcpSettings(
+        geminiEnvContextForLocation(location),
+        launchOptions?.appControlsMcp,
       );
       const args = buildGeminiArgs(config, prompt, sessionRef.providerSessionId);
       return { binary: "gemini", args };
