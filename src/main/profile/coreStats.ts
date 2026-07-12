@@ -197,6 +197,10 @@ function computeSkills(rows: UsageEventRow[]): {
       const name = row.name?.trim();
       if (!name || isGenericMcpName(name) || isGenericMcpName(mcpServerLabel(name))) continue;
       mcpToolCalls++;
+      // New Codex events are unwrapped to the inner app at the provider boundary.
+      // Historical rows only retained this aggregate wrapper, so do not present
+      // it as if it were an MCP server alongside the real app names.
+      if (name.toLowerCase() === "codex_apps") continue;
       mcpCounts.set(name, (mcpCounts.get(name) ?? 0) + 1);
     }
   }

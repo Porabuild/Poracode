@@ -681,6 +681,33 @@ describe("mapCodexNotification — item lifecycle (item/started, item/completed)
     });
   });
 
+  it("unwraps Codex Apps MCP calls to the inner app", () => {
+    const state = createCodexMapperState("t-codex");
+    const started = mapCodexNotification(
+      "item/started",
+      {
+        threadId: "x",
+        itemId: "codex-app-github-1",
+        item: {
+          id: "codex-app-github-1",
+          type: "mcpToolCall",
+          server: "codex_apps",
+          tool: "github.fetch_pr",
+          arguments: { repo_full_name: "SDSLeon/lightcode", pr_number: 264 },
+        },
+      },
+      state,
+    );
+
+    expect((started[0] as { itemType: string }).itemType).toBe("mcp_tool_call");
+    expect((started[0] as { payload: Record<string, unknown> }).payload).toMatchObject({
+      name: "mcp__github__fetch_pr",
+      serverId: "github",
+      args: { repo_full_name: "SDSLeon/lightcode", pr_number: 264 },
+      status: "running",
+    });
+  });
+
   it("maps Codex spawnAgent items as subagent tool calls", () => {
     const state = createCodexMapperState("t-codex");
     const started = mapCodexNotification(

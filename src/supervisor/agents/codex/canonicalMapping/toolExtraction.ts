@@ -142,12 +142,30 @@ export function toolName(source: CodexItemPayload): string | undefined {
 }
 
 function mcpToolName(source: CodexItemPayload): string | undefined {
-  const server = toolServerId(source);
-  const tool = readNonEmptyString(source.tool);
-  return server && tool ? `mcp__${server}__${tool}` : undefined;
+  const identity = mcpToolIdentity(source);
+  return identity ? `mcp__${identity.server}__${identity.tool}` : undefined;
 }
 
 export function toolServerId(source: CodexItemPayload): string | undefined {
+  return mcpToolIdentity(source)?.server ?? rawMcpServerId(source);
+}
+
+function mcpToolIdentity(source: CodexItemPayload): { server: string; tool: string } | undefined {
+  const server = rawMcpServerId(source);
+  const tool = readNonEmptyString(source.tool);
+  if (!server || !tool) return undefined;
+
+  if (server === "codex_apps") {
+    const separator = tool.indexOf(".");
+    if (separator > 0 && separator < tool.length - 1) {
+      return { server: tool.slice(0, separator), tool: tool.slice(separator + 1) };
+    }
+  }
+
+  return { server, tool };
+}
+
+function rawMcpServerId(source: CodexItemPayload): string | undefined {
   if (canonicalTypeFor(source.type ?? source.kind) !== "mcp_tool_call") return undefined;
   return readNonEmptyString(source.server) ?? readNonEmptyString(source.serverId);
 }
