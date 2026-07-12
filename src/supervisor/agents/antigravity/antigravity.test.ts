@@ -1,5 +1,8 @@
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
+import type { McpServer, ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { createAntigravityAdapter } from ".";
 import { buildAntigravityArgs } from "./argv";
 import { ANTIGRAVITY_DEFAULT_MODEL_ID, antigravityDetectionSpec } from "./detection";
@@ -175,6 +178,39 @@ describe("createAntigravityAdapter", () => {
       isolateCwd: true,
       pty: true,
     });
+  });
+
+  it("does not project custom MCP servers into workspace config", () => {
+    const projectDir = mkdtempSync(join(tmpdir(), "antigravity-mcp-"));
+    try {
+      const location = { kind: "windows", path: projectDir } as ProjectLocation;
+      const config: ThreadConfig = { model: ANTIGRAVITY_DEFAULT_MODEL_ID };
+      const server = {
+        id: "vercel",
+        name: "Vercel",
+        description: "",
+        enabled: true,
+        timeoutMs: 30_000,
+        transport: { type: "http", url: "https://mcp.vercel.com", headers: {} },
+      } satisfies McpServer;
+      const adapter = createAntigravityAdapter();
+
+      adapter.buildLaunchArgv(location, config, "", undefined, { mcpServers: [server] });
+      adapter.buildResumeArgv(
+        location,
+        config,
+        "",
+        {
+          providerSessionId: "conversation-id",
+          discoveredAt: "2026-05-20T00:00:00.000Z",
+        },
+        { mcpServers: [server] },
+      );
+
+      expect(existsSync(join(projectDir, ".agents", "mcp_config.json"))).toBe(false);
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
   });
 
   it("builds a subagent one-shot command that runs in the project cwd (no isolateCwd)", () => {

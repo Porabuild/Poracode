@@ -13,6 +13,10 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "-y @modelcontextprotocol/server-memory"
+msgstr "-y @modelcontextprotocol/server-memory"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "(Draft)"
 msgstr "(Entwurf)"
@@ -30,6 +34,11 @@ msgstr "(keine Nachricht)"
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# Datei} other {# Dateien}}"
+
+#. placeholder {0}: groupRows.length
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
+msgstr "{0, plural, one {# MCP-Server} other {# MCP-Server}}"
 
 #. placeholder {0}: props.desktops.length
 #: src/mobile/views/DesktopsView.tsx
@@ -50,6 +59,12 @@ msgstr "{0, plural, one {# Projekt} other {# Projekte}}"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# Anbieter bereit} other {# Anbieter bereit}}"
+
+#. placeholder {0}: props.server.toolCount
+#. placeholder {0}: state.toolCount
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "{0, plural, one {# tool} other {# tools}}"
+msgstr "{0, plural, one {# Tool} other {# Tools}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -230,6 +245,12 @@ msgstr "{0} aktualisiert."
 msgid "{0} used"
 msgstr "{0} verwendet"
 
+#. placeholder {0}: selectedRows.length
+#. placeholder {1}: importableRows.length
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "{0}/{1} selected"
+msgstr "{0}/{1} ausgewählt"
+
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "{0}% Full"
@@ -398,6 +419,10 @@ msgstr "{resultCount, plural, one {# Ergebnis} other {# Ergebnisse}}"
 msgid "{seconds}s ago"
 msgstr "vor {seconds}s"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "{serverName} from {providerLabel}: {disabledLabel}"
+msgstr "{serverName} von {providerLabel}: {disabledLabel}"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
 msgstr "{used} Token"
@@ -558,6 +583,7 @@ msgid "Activity metric"
 msgstr "Aktivitätsmetrik"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -616,9 +642,21 @@ msgstr "Fügen Sie Anmeldeinformationen hinzu, bevor dieser Thread ausgeführt w
 msgid "Add folder"
 msgstr "Ordner hinzufügen"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Add MCP server"
+msgstr "MCP-Server hinzufügen"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add model"
 msgstr "Modell hinzufügen"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Add one manually or import a JSON configuration."
+#~ msgstr "Fügen Sie einen manuell hinzu oder importieren Sie eine JSON-Konfiguration."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Add one manually or import from another agent."
+msgstr "Fügen Sie einen manuell hinzu oder importieren Sie ihn aus einem anderen Agenten."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add pattern"
@@ -812,6 +850,10 @@ msgstr "Auswertung zulassen"
 msgid "Allow the browser to show notifications while the app is in the background."
 msgstr "Erlaube dem Browser, Benachrichtigungen anzuzeigen, während die App im Hintergrund ist."
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Already configured"
+msgstr "Bereits konfiguriert"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Already used by {conflict}"
 msgstr "Bereits von {conflict} verwendet"
@@ -825,6 +867,14 @@ msgstr "Immer"
 msgid "Always excluded"
 msgstr "Immer ausgeschlossen"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "An MCP server with the name {serverName} already exists."
+#~ msgstr "Ein MCP-Server mit dem Namen {serverName} ist bereits vorhanden."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "An MCP server with this name already exists."
+msgstr "Ein MCP-Server mit diesem Namen ist bereits vorhanden."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "Ein anderer Chat verwendet denselben Baum. Die Dateiwiederherstellung könnte die Änderungen dieses Chats überschreiben."
@@ -833,9 +883,17 @@ msgstr "Ein anderer Chat verwendet denselben Baum. Die Dateiwiederherstellung k�
 msgid "Antigravity"
 msgstr "Antigravity"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "API_KEY=value"
+msgstr "API_KEY=value"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
 msgstr "App-Browser"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "App Controls"
+msgstr "App-Steuerung"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -926,6 +984,10 @@ msgstr "Sind Sie sicher, dass Sie <0>{path}</0> wiederherstellen möchten? Dies 
 msgid "Are you sure you want to revert all unstaged changes? This cannot be undone."
 msgstr "Sind Sie sicher, dass Sie alle nicht bereitgestellten Änderungen rückgängig machen möchten? Dies kann nicht rückgängig gemacht werden."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Arguments"
+msgstr "Argumente"
+
 #. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
 #. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -974,13 +1036,26 @@ msgstr "Browserauswahl angehängt."
 msgid "Audio"
 msgstr "Audio"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Authenticate"
+msgstr "Authentifizieren"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "Authentifizierung"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Authentication required"
 msgstr "Authentifizierung erforderlich"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Authentication setup cannot be imported"
+msgstr "Die Authentifizierungskonfiguration kann nicht importiert werden"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Authorization: Bearer token"
+msgstr "Authorization: Bearer token"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
@@ -1059,6 +1134,10 @@ msgstr "Zurück zu Änderungen"
 #: src/mobile/views/FilesView.tsx
 msgid "Back to files"
 msgstr "Zurück zu Dateien"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+#~ msgid "Back to MCP servers"
+#~ msgstr "Zurück zu MCP-Servern"
 
 #: src/mobile/views/pr/PrSubPage.tsx
 msgid "Back to overview"
@@ -1206,6 +1285,7 @@ msgstr "Durchsuchen Sie Ihre GitHub-Repositorys oder fügen Sie eine Klon-URL ei
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
@@ -1256,6 +1336,22 @@ msgstr "Budgetgrenze erreicht"
 msgid "Building diff…"
 msgstr "Diff wird erstellt…"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Built-in"
+msgstr "Integriert"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Built-in MCP servers"
+msgstr "Integrierte MCP-Server"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Built-in servers are managed by Lightcode. They can be disabled globally but cannot be edited or removed."
+#~ msgstr "Integrierte Server werden von Lightcode verwaltet. Sie können global deaktiviert, aber nicht bearbeitet oder entfernt werden."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
+msgstr "Integrierte Server werden von Poracode verwaltet. Sie können global deaktiviert, aber nicht bearbeitet oder entfernt werden."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Built-in shortcut — can't be changed"
 msgstr "Integriertes Tastenkürzel — kann nicht geändert werden"
@@ -1299,6 +1395,7 @@ msgstr "Ports konnten nicht geladen werden"
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
@@ -1420,6 +1517,14 @@ msgstr "Sternmarkierung entfernt"
 msgid "Check"
 msgstr "Überprüfen"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Check {serverName} again"
+msgstr "{serverName} erneut prüfen"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Check again"
+msgstr "Erneut prüfen"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
 msgstr "Suchen Sie nach Updates"
@@ -1433,6 +1538,14 @@ msgstr "Prüfe meinen letzten Fortschritt und gib mir eine konkrete Empfehlung f
 msgid "Check the live input level from the selected device."
 msgstr "Überprüfen Sie den Live-Eingangspegel des ausgewählten Geräts."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Checking"
+msgstr "Wird geprüft"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Checking {serverName}"
+msgstr "{serverName} wird geprüft"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Checking host…"
 msgstr "Host wird geprüft…"
@@ -1441,6 +1554,7 @@ msgstr "Host wird geprüft…"
 msgid "Checking Tailscale…"
 msgstr "Tailscale wird überprüft…"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Checking…"
 msgstr "Wird überprüft…"
@@ -1465,6 +1579,10 @@ msgstr "Wählen Sie einen Ordner…"
 msgid "Choose a parent folder"
 msgstr "Übergeordneten Ordner auswählen"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Choose an MCP server configuration file"
+#~ msgstr "Eine MCP-Server-Konfigurationsdatei auswählen"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
 msgstr "Wählen Sie aus, wie Sie sich für {env} anmelden möchten."
@@ -1472,6 +1590,10 @@ msgstr "Wählen Sie aus, wie Sie sich für {env} anmelden möchten."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in."
 msgstr "Wählen Sie aus, wie Sie sich anmelden möchten."
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Choose import destination"
+msgstr "Importziel auswählen"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Choose SSH identity file"
@@ -1496,6 +1618,7 @@ msgid "Choose worktree base folder"
 msgstr "Worktree-Basisordner auswählen"
 
 #: src/renderer/components/composer/composerMcpServers.ts
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
@@ -1826,6 +1949,7 @@ msgstr "Aufgaben-Dock einklappen"
 
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "Befehl"
 
@@ -1836,6 +1960,14 @@ msgstr "Befehl (z. B. npm run dev)"
 #: src/renderer/components/providers/commandcode/manifest.ts
 msgid "Command Code"
 msgstr "Command Code"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Command is required."
+msgstr "Befehl ist erforderlich."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Command not found."
+msgstr "Befehl nicht gefunden."
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -1960,6 +2092,7 @@ msgstr "Composer-Steuerung"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Computer Use"
@@ -1988,6 +2121,18 @@ msgstr "Computer Use aktiviert — interaktive Aktionen übernehmen den Desktop;
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "Konfigurationsverzeichnis"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+#~ msgid "Configure the server Lightcode will add when supported agents start."
+#~ msgstr "Konfigurieren Sie den Server, den Lightcode beim Start unterstützter Agenten hinzufügt."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Configure the server Poracode will add when supported agents start."
+msgstr "Konfigurieren Sie den Server, den Poracode beim Start unterstützter Agenten hinzufügt."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Configured MCP servers"
+msgstr "Konfigurierte MCP-Server"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2036,6 +2181,10 @@ msgstr "Verbinde hier die KI-Anbieter, die OpenCode nutzen kann, und melde dich 
 #~ msgid "Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
 #~ msgstr "Mit einem anderen Lightcode-Desktop oder einem Headless-Server verbinden, um dessen Projekte hier zu durchsuchen und zu verwalten. Endpunkt und Kopplungstoken findest du unter Einstellungen → Remotezugriff auf diesem Gerät."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Connected"
+msgstr "Verbunden"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "Verbindung zum Desktop-Browser wird hergestellt…"
@@ -2053,6 +2202,7 @@ msgstr "Verbindungsfehler"
 msgid "Connection error."
 msgstr "Verbindungsfehler."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "Verbindung fehlgeschlagen."
@@ -2060,6 +2210,10 @@ msgstr "Verbindung fehlgeschlagen."
 #: src/mobile/views/DesktopsView.tsx
 msgid "Connection method"
 msgstr "Verbindungsmethode"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Connection timed out."
+msgstr "Zeitüberschreitung bei der Verbindung."
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
@@ -2070,6 +2224,10 @@ msgstr "Verbindungen"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
 msgstr "Konsole"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Contains sensitive values; add manually"
+msgstr "Enthält vertrauliche Werte; manuell hinzufügen"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
@@ -2247,6 +2405,18 @@ msgstr "Commit-Nachricht konnte nicht generiert werden: {detail}"
 msgid "Could not read file."
 msgstr "Datei konnte nicht gelesen werden."
 
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Could not sign in to {serverName}: {message}"
+msgstr "Anmeldung bei {serverName} fehlgeschlagen: {message}"
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Could not sign in to {serverName}."
+msgstr "Anmeldung bei {serverName} fehlgeschlagen."
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Could not sign out of {serverName}."
+msgstr "Abmeldung von {serverName} fehlgeschlagen."
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
 msgstr "Offline-Daten konnten nicht zwischengespeichert werden."
@@ -2282,6 +2452,10 @@ msgstr "Ihre Profilstatistiken konnten nicht geladen werden."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "Tastenkürzel konnte nicht gespeichert werden."
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Couldn't scan MCP server configurations."
+msgstr "MCP-Server-Konfigurationen konnten nicht durchsucht werden."
 
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -2486,6 +2660,10 @@ msgstr "Löschen"
 msgid "Delete {0}"
 msgstr "{0} löschen"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Delete {serverName}"
+msgstr "{serverName} löschen"
+
 #. placeholder {0}: props.entry.name
 #: src/mobile/views/FilesView.tsx
 msgid "Delete <0>{0}</0>? This cannot be undone."
@@ -2570,6 +2748,7 @@ msgstr "Lehnen Sie ab und sagen Sie dem Agenten, was er anders machen soll ..."
 msgid "Describe what the agent should do"
 msgstr "Beschreibe, was der Agent tun soll"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 msgid "Description"
 msgstr "Beschreibung"
@@ -2648,6 +2827,14 @@ msgstr "Geräte können gekoppelt werden, solange dieser Desktop erreichbar ist.
 #~ msgid "Direct connection required"
 #~ msgstr "Direkte Verbindung erforderlich"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disable {serverLabel}"
+msgstr "{serverLabel} deaktivieren"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disable {serverName}"
+msgstr "{serverName} deaktivieren"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
 msgstr "Stufe {tierLabel} deaktivieren"
@@ -2681,9 +2868,14 @@ msgstr "Subagenten deaktivieren"
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "Stufen deaktivieren, die ein externer Anbieter zusammenfasst (z. B. nur High und Max behalten)."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "Deaktiviert"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disabled globally"
+msgstr "Global deaktiviert"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
@@ -2819,6 +3011,10 @@ msgstr "Zum Anhängen hier ablegen"
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed."
 msgstr "Lässt eingehende Hook-Umschläge auf dem Supervisor fallen, sodass Agenten auf L2 (OSC 9;4-Fortschritt) zurückgreifen, ohne Installations- oder iTerm2-Benachrichtigungen zu berühren. Wird beim nächsten Hook-Ereignis wirksam – kein Neustart erforderlich."
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Duplicate server name in scan"
+msgstr "Doppelter Servername im Scan"
+
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactors, Claude Opus for anything subtle."
 msgstr "z. B. Codex GPT-5.5 fast für schnelle Recherchen, OpenCode GLM für umfangreiche Refactorings, Claude Opus für alles Kniffelige."
@@ -2832,9 +3028,17 @@ msgstr "z.B. Arbeit"
 msgid "Edit"
 msgstr "Bearbeiten"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Edit {serverName}"
+msgstr "{serverName} bearbeiten"
+
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
 msgstr "Datei bearbeiten"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Edit MCP server"
+msgstr "MCP-Server bearbeiten"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
@@ -2892,6 +3096,14 @@ msgstr "Stufen"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Electron"
 msgstr "Electron"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Enable {serverLabel}"
+msgstr "{serverLabel} aktivieren"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Enable {serverName}"
+msgstr "{serverName} aktivieren"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
@@ -2964,9 +3176,17 @@ msgstr "Geben Sie eine Repository-URL ein."
 msgid "Enter a valid desktop endpoint."
 msgstr "Gib einen gültigen Desktop-Endpunkt ein."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Enter a valid HTTP or HTTPS URL."
+msgstr "Geben Sie eine gültige HTTP- oder HTTPS-URL ein."
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Enter a valid SSH target and port."
 msgstr "Geben Sie ein gültiges SSH-Ziel und einen gültigen Port ein."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Enter one MCP server configuration."
+msgstr "Geben Sie eine MCP-Server-Konfiguration ein."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
@@ -2980,6 +3200,10 @@ msgstr "Geben Sie den Port ein, auf dem ein Dev-Server auf Ihrem Desktop lauscht
 msgid "Enter the SSH password."
 msgstr "Geben Sie das SSH-Passwort ein."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Enter valid JSON."
+msgstr "Geben Sie gültiges JSON ein."
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
 msgstr "Umgebung"
@@ -2992,9 +3216,14 @@ msgstr "Name der Umgebungsvariable"
 msgid "Environment variable value"
 msgstr "Wert der Umgebungsvariable"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Environment variables"
 msgstr "Umgebungsvariablen"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Environment variables (optional)"
+msgstr "Umgebungsvariablen (optional)"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -3091,6 +3320,10 @@ msgstr "Zum Prüfen oder Entziehen des Zugriffs erweitern."
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "Erweitern Sie das Aufgaben-Dock"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Export MCP servers"
+msgstr "MCP-Server exportieren"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "External"
@@ -3359,6 +3592,10 @@ msgstr "Browserseite neu laden erzwingen"
 msgid "Fork"
 msgstr "Fork"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Form"
+msgstr "Formular"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Format files"
 msgstr "Dateien formatieren"
@@ -3373,6 +3610,11 @@ msgstr "Vorwärts"
 #: src/mobile/views/PortsView.tsx
 msgid "Forward a port"
 msgstr "Port weiterleiten"
+
+#. placeholder {0}: importableRows.length
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Found {0, plural, one {# importable MCP server} other {# importable MCP servers}}"
+msgstr "Gefunden: {0, plural, one {# importierbarer MCP-Server} other {# importierbare MCP-Server}}"
 
 #. placeholder {0}: activeRequest.providerLabel
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
@@ -3399,6 +3641,10 @@ msgstr "Mattierung der Seitenleiste im {appearance}-Modus über der System-Unsch
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Full access"
 msgstr "Voller Zugriff"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Full configuration"
+msgstr "Vollständige Konfiguration"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
@@ -3507,8 +3753,16 @@ msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (optionale Beschriftung)"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Global"
 msgstr "Global"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Global (Windows)"
+msgstr "Global (Windows)"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
@@ -3571,6 +3825,10 @@ msgstr "Hart neu laden"
 msgid "Has unsent draft"
 msgstr "Hat einen ungesendeten Entwurf"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Headers"
+msgstr "Header"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Hilf mir, einen Zeitplan zu erstellen. Frage nach fehlenden Details und erstelle ihn dann mit den Poracode-Zeitplansteuerungen für mich."
@@ -3609,6 +3867,10 @@ msgstr "Details zur Kontextverwendung ausblenden"
 #: src/mobile/views/BrowserView.tsx
 msgid "Hide keyboard"
 msgstr "Tastatur ausblenden"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Hide MCP servers from {providerLabel}"
+msgstr "MCP-Server von {providerLabel} ausblenden"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Hide models you don't use from the model picker across every provider."
@@ -3663,6 +3925,14 @@ msgstr "host.com, Alias oder benutzer@host.com"
 msgid "Hourly"
 msgstr "Stündlich"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "HTTP (streamable)"
+msgstr "HTTP (streamfähig)"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "https://example.com/mcp"
+msgstr "https://example.com/mcp"
+
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ID: {0}"
@@ -3695,6 +3965,30 @@ msgstr "Bild"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Bildvorschau"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import destination"
+msgstr "Importziel"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import external agent MCP servers"
+msgstr "MCP-Server externer Agenten importieren"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Import MCP servers"
+msgstr "MCP-Server importieren"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import to {destinationProjectName}"
+msgstr "In {destinationProjectName} importieren"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import to Global"
+msgstr "Global importieren"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Import to Project"
+#~ msgstr "In Projekt importieren"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -3849,6 +4143,10 @@ msgstr "Unterbrochen: Agentensitzung wurde vorzeitig beendet."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "Kursiv"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "JSON"
+msgstr "JSON"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Jump to section"
@@ -4135,6 +4433,19 @@ msgstr "Remote-Umgebungen verwalten"
 #~ msgid "Manage remote servers"
 #~ msgstr "Remote-Server verwalten"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
+#~ msgstr "Verwalten Sie die MCP-Server-Konfigurationen, die Lightcode beim Start unterstützter Agenten hinzufügt. Server des Arbeitsbereichs können in den Einstellungen des jeweiligen Projekts konfiguriert werden."
+
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings."
+msgstr "Verwalten Sie die MCP-Server-Konfigurationen, die Poracode beim Start unterstützter Agenten hinzufügt. Server des Arbeitsbereichs können in den Einstellungen des jeweiligen Projekts konfiguriert werden."
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Managed by Poracode"
+msgstr "Von Poracode verwaltet"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "Manuelle Reihenfolge"
@@ -4193,14 +4504,74 @@ msgstr "Browser maximieren"
 msgid "MCP server"
 msgstr "MCP-Server"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server arguments"
+msgstr "MCP-Server-Argumente"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "MCP server checking is unavailable."
+msgstr "Die MCP-Serverprüfung ist nicht verfügbar."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server command"
+msgstr "MCP-Server-Befehl"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server description"
+msgstr "MCP-Server-Beschreibung"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server editor mode"
+msgstr "MCP-Server-Editormodus"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server environment variables"
+msgstr "MCP-Server-Umgebungsvariablen"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server headers"
+msgstr "MCP-Server-Header"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server JSON configuration"
+msgstr "JSON-Konfiguration des MCP-Servers"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server name"
+msgstr "MCP-Server-Name"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "MCP server source scope"
+msgstr "Quellbereich der MCP-Server"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server timeout in milliseconds"
+msgstr "MCP-Server-Zeitüberschreitung in Millisekunden"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server URL"
+msgstr "MCP-Server-URL"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "MCP-Server"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "MCP Servers"
+msgstr "MCP-Server"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "MCP tool calls"
 msgstr "MCP-Toolaufrufe"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP transport type"
+msgstr "MCP-Transporttyp"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -4466,10 +4837,19 @@ msgstr "Ihre Änderungen wurden in einen neuen Arbeitsbaum unter „{newBranch}�
 msgid "Moving changes…"
 msgstr "Änderungen werden verschoben…"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "my-mcp-server"
+msgstr "my-mcp-server"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Name"
 msgstr "Name"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Name is required."
+msgstr "Name ist erforderlich."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Name your project and choose where to create it."
@@ -4569,6 +4949,10 @@ msgstr "Name des neuen Ordners"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "New line"
 msgstr "Neue Zeile"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "New MCP server"
+msgstr "Neuer MCP-Server"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New phones, tablets, and browsers appear here after pairing."
@@ -4751,6 +5135,10 @@ msgstr "Keine Befehle gefunden"
 msgid "No commits found."
 msgstr "Keine Commits gefunden."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "No configured MCP servers yet"
+msgstr "Noch keine MCP-Server konfiguriert"
+
 #: src/mobile/WideShell.tsx
 msgid "No connection paired"
 msgstr "Keine Verbindung gekoppelt"
@@ -4840,6 +5228,14 @@ msgstr "Keine passenden Zeitpläne."
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "Keine passenden Threads"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "No MCP servers found in this scope."
+msgstr "Keine MCP-Server in diesem Bereich gefunden."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "No MCP servers match your search."
+msgstr "Keine MCP-Server entsprechen Ihrer Suche."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No MCP tools used yet."
@@ -5049,6 +5445,10 @@ msgstr "Bei L2-CLI-Threads benachrichtigen"
 msgid "Notify me about"
 msgstr "Benachrichtigen über"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "npx"
+msgstr "npx"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "off"
 msgstr "aus"
@@ -5088,6 +5488,14 @@ msgstr "Zur vollen Stunde"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Once on {0}"
 msgstr "Einmal am {0}"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "One Header: value pair per line"
+msgstr "Ein Paar „Header: Wert“ pro Zeile"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "One KEY=VALUE pair per line"
+msgstr "Ein KEY=VALUE-Paar pro Zeile"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "One time"
@@ -5331,6 +5739,10 @@ msgstr "{0} geöffnet (#{1})"
 msgid "OpenSSH private key"
 msgstr "Privater OpenSSH-Schlüssel"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Optional"
+msgstr "Optional"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "Optionale Status-Hooks. Installierte Hooks werden automatisch aktualisiert; fehlende Hooks werden nie automatisch installiert."
@@ -5487,6 +5899,10 @@ msgstr "{label} API-Schlüssel einfügen"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste <0>{0}</0> here. Click to copy."
 msgstr "Fügen Sie hier <0>{0}</0> ein. Zum Kopieren klicken."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Paste either a named server object or an object wrapped in an mcpServers key."
+msgstr "Fügen Sie entweder ein benanntes Serverobjekt oder ein in einen mcpServers-Schlüssel eingebettetes Objekt ein."
 
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
@@ -5725,6 +6141,7 @@ msgstr "Profile"
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -5758,6 +6175,8 @@ msgstr "Projektspezifische Überschreibungen zusätzlich zu den globalen Suchein
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 msgid "Projects"
 msgstr "Projekte"
 
@@ -5778,6 +6197,14 @@ msgstr "Prompts"
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "Vorgeschlagener Plan"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Provided and managed by Lightcode for supported agents."
+#~ msgstr "Von Lightcode für unterstützte Agenten bereitgestellt und verwaltet."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Provided and managed by Poracode for supported agents."
+msgstr "Von Poracode für unterstützte Agenten bereitgestellt und verwaltet."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "provider"
@@ -6022,6 +6449,10 @@ msgstr "{label} aktualisieren"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
 msgstr "Erkannte Agenten aktualisieren"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Refresh MCP server sources"
+msgstr "MCP-Server-Quellen aktualisieren"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
@@ -6379,8 +6810,17 @@ msgstr "Fortsetzen"
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Retry"
 msgstr "Erneut versuchen"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Retry {serverName}"
+msgstr "Prüfung von {serverName} wiederholen"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Retry check"
+msgstr "Prüfung wiederholen"
 
 #: src/mobile/components.tsx
 msgid "Retry now"
@@ -6597,6 +7037,7 @@ msgid "Runtime options"
 msgstr "Laufzeitoptionen"
 
 #: src/mobile/views/FilesView.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -6645,6 +7086,10 @@ msgstr "Durchsuchen von {wslDistro} nach installierten CLIs. Dies dauert normale
 msgid "Scanning needs a secure connection"
 msgstr "Scannen erfordert eine sichere Verbindung"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Scanning provider configurations…"
+msgstr "Anbieterkonfigurationen werden durchsucht…"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds."
 msgstr "Durchsuchen von Windows und WSL nach installierten CLIs. Dies dauert normalerweise ein paar Sekunden."
@@ -6681,6 +7126,10 @@ msgstr "Zeitpläne"
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "Zeitpläne, KI, Agenten und archivierte Threads auf dem gekoppelten Desktop"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Scope"
+msgstr "Geltungsbereich"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -6724,6 +7173,14 @@ msgstr "Branches durchsuchen..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "Dateien durchsuchen"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Search MCP servers"
+msgstr "MCP-Server durchsuchen"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Search MCP servers..."
+msgstr "MCP-Server durchsuchen..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
@@ -6799,6 +7256,10 @@ msgstr "Mehr anzeigen"
 msgid "Select"
 msgstr "Auswählen"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select {serverName} from {providerLabel}"
+msgstr "{serverName} von {providerLabel} auswählen"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Select a file from the tree"
 msgstr "Datei aus der Baumstruktur auswählen"
@@ -6807,6 +7268,14 @@ msgstr "Datei aus der Baumstruktur auswählen"
 msgid "Select a file to start editing."
 msgstr "Wählen Sie eine Datei aus, um mit der Bearbeitung zu beginnen."
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Select a project before importing to Project."
+#~ msgstr "Wählen Sie vor dem Import in ein Projekt ein Projekt aus."
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Select a project to scan project MCP servers."
+#~ msgstr "Wählen Sie ein Projekt aus, um dessen MCP-Server zu durchsuchen."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select a repository."
 msgstr "Wählen Sie ein Repository aus."
@@ -6814,6 +7283,18 @@ msgstr "Wählen Sie ein Repository aus."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select account"
 msgstr "Konto auswählen"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select all"
+msgstr "Alle auswählen"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select all MCP servers"
+msgstr "Alle MCP-Server auswählen"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select all MCP servers from {providerLabel}"
+msgstr "Alle MCP-Server von {providerLabel} auswählen"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Select an agent to see its prompt and outcome."
@@ -6846,6 +7327,10 @@ msgstr "Auswählen…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Selected days"
 #~ msgstr "Ausgewählte Tage"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Selected project"
+#~ msgstr "Ausgewähltes Projekt"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6971,6 +7456,10 @@ msgstr "Im Datei-Explorer anzeigen"
 msgid "Show less"
 msgstr "Weniger anzeigen"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Show MCP servers from {providerLabel}"
+msgstr "MCP-Server von {providerLabel} anzeigen"
+
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Show more"
 msgstr "Mehr anzeigen"
@@ -7068,6 +7557,7 @@ msgstr "Anmeldung erforderlich"
 msgid "Sign in with the agent CLI."
 msgstr "Mit der Agent-CLI anmelden."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Sign out"
 msgstr "Abmelden"
@@ -7081,6 +7571,10 @@ msgstr "{label} abmelden"
 msgid "Sign out of {0}"
 msgstr "Bei {0} abmelden"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Sign out of {serverName}"
+msgstr "Von {serverName} abmelden"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "sign-in required"
 msgstr "Anmeldung erforderlich"
@@ -7088,6 +7582,14 @@ msgstr "Anmeldung erforderlich"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "Signed in"
 msgstr "Angemeldet"
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Signed in to {serverName}."
+msgstr "Bei {serverName} angemeldet."
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Signed out of {serverName}."
+msgstr "Von {serverName} abgemeldet."
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Signing in"
@@ -7143,6 +7645,10 @@ msgstr "Nach letzter Aktualisierung sortieren"
 msgid "Sort threads"
 msgstr "Threads sortieren"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Space separated; use quotes around spaces"
+msgstr "Durch Leerzeichen getrennt; bei Leerzeichen Anführungszeichen verwenden"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"
 msgstr "Geteiltes Terminal"
@@ -7152,6 +7658,10 @@ msgstr "Geteiltes Terminal"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Split view"
 msgstr "Geteilte Ansicht"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "SSE (legacy)"
+msgstr "SSE (veraltet)"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "SSH"
@@ -7358,6 +7868,10 @@ msgstr "Statusaktualisierungen erfolgen über das CLI-Hook-Plugin."
 msgid "Status:"
 msgstr "Status:"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "stdio (local command)"
+msgstr "stdio (lokaler Befehl)"
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -7422,6 +7936,7 @@ msgid "Subagent runs"
 msgstr "Subagent-Ausführungen"
 
 #: src/renderer/components/composer/composerMcpServers.ts
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Subagents"
 msgstr "Subagenten"
@@ -7733,6 +8248,14 @@ msgstr "Der Standard-Aktualisierungstakt im Hintergrund, der für jeden Anbieter
 msgid "The desktop server is still coming online."
 msgstr "Der Desktop-Server wird noch gestartet."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "The MCP server configuration is invalid or uses a reserved name."
+msgstr "Die MCP-Server-Konfiguration ist ungültig oder verwendet einen reservierten Namen."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "The MCP server is invalid."
+msgstr "Der MCP-Server ist ungültig."
+
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "Die normale App-Shell konnte nicht gerendert werden. Die folgenden Diagnosen werden vor dem Neuladen angezeigt, damit der Fehler untersucht werden kann."
@@ -7748,6 +8271,18 @@ msgstr "Der Remote-Server hat keine Kopplungszugangsdaten zurückgegeben."
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Der Speicherort des Repositorys auf der Festplatte. Aktualisieren Sie ihn, wenn Sie den Ordner verschoben haben."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "The selected file does not contain valid MCP server configurations."
+#~ msgstr "Die ausgewählte Datei enthält keine gültigen MCP-Server-Konfigurationen."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "The server configuration is invalid."
+msgstr "Die Serverkonfiguration ist ungültig."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "The server returned an invalid MCP response."
+msgstr "Der Server hat eine ungültige MCP-Antwort zurückgegeben."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -7807,6 +8342,10 @@ msgstr "Diese Datei verwendet eine nicht unterstützte Kodierung."
 msgid "This folder is empty."
 msgstr "Dieser Ordner ist leer."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "This name is reserved by a built-in MCP server."
+msgstr "Dieser Name ist für einen integrierten MCP-Server reserviert."
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -7839,6 +8378,10 @@ msgstr "Dadurch wird der Worktree auf „{0}“ entfernt und {1, plural, one {# 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Dadurch wird der Worktree auf „{0}“ entfernt und anschließend der Branch gelöscht."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "This server requires authentication before Poracode can check it."
+msgstr "Dieser Server erfordert eine Authentifizierung, bevor Poracode ihn prüfen kann."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -7936,6 +8479,14 @@ msgstr "Als erledigt markierte Threads, die so viele Tage lang nicht bearbeitet 
 msgid "Time"
 msgstr "Uhrzeit"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Timeout (ms)"
+msgstr "Zeitüberschreitung (ms)"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Timeout must be a positive whole number."
+msgstr "Die Zeitüberschreitung muss eine positive ganze Zahl sein."
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
@@ -7999,6 +8550,10 @@ msgstr "Tokens"
 msgid "Tokens from {0}"
 msgstr "Tokens von {0}"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Tool restrictions cannot be imported"
+msgstr "Tool-Einschränkungen können nicht importiert werden"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Tool search"
 msgstr "Werkzeugsuche"
@@ -8060,6 +8615,10 @@ msgstr "Remotezugriff aktivieren, um einen Kopplungscode anzuzeigen."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
 msgstr "Schalten Sie die Nachverfolgung pro Anbieter ein oder aus. Deaktivierte Anbieter werden von der automatischen Aktualisierung übersprungen."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Type"
+msgstr "Typ"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type a command"
@@ -8279,6 +8838,10 @@ msgstr "Thread konnte nicht aktualisiert werden."
 msgid "Unassigned"
 msgstr "Nicht zugewiesen"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Unavailable"
+msgstr "Nicht verfügbar"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "Nicht verfügbares Projekt"
@@ -8464,6 +9027,14 @@ msgstr "{0} wird aktualisiert"
 msgid "Updating {0} ({env})"
 msgstr "Aktualisieren von {0} ({env})"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "URL"
+msgstr "URL"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "URL is required."
+msgstr "URL ist erforderlich."
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/settingsSections.ts
@@ -8507,6 +9078,10 @@ msgstr "Erkannte Sitzung verwenden?"
 msgid "Use ignore files"
 msgstr "Ignore-Dateien verwenden"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
+msgstr "Verwenden Sie Buchstaben, Zahlen, Punkte, Bindestriche oder Unterstriche ohne Leerzeichen."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
@@ -8536,6 +9111,10 @@ msgstr "Verbraucht"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Used by {conflict}"
 msgstr "Von {conflict} verwendet"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "User"
+#~ msgstr "Benutzer"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "user@example.com"
@@ -8727,6 +9306,10 @@ msgstr "Woran soll der Remote-Agent arbeiten?"
 msgid "What the Create PR button does by default: open a dialog to edit the title and description first, or auto-generate them and create the PR in one click. You can also switch this from the button's menu."
 msgstr "Was die Schaltfläche „PR erstellen“ standardmäßig bewirkt: Öffnen Sie ein Dialogfeld, um zuerst den Titel und die Beschreibung zu bearbeiten, oder generieren Sie sie automatisch und erstellen Sie die PR mit einem Klick. Sie können dies auch über das Menü der Schaltfläche ändern."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "What this server provides"
+msgstr "Was dieser Server bereitstellt"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 #: src/renderer/views/WhatsNewOverlay.tsx
@@ -8787,6 +9370,7 @@ msgstr "Wo das Terminal-Panel erscheint."
 msgid "Will run in {0}:"
 msgstr "Wird in {0} ausgeführt:"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -8858,6 +9442,14 @@ msgstr "Arbeitsverzeichnis sauber"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Working…"
 msgstr "Arbeiten…"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Workspace"
+msgstr "Arbeitsbereich"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
+msgid "Workspace MCP servers override user servers with the same name and are added only when agents start in this project."
+msgstr "MCP-Server des Arbeitsbereichs überschreiben gleichnamige Benutzerserver und werden nur hinzugefügt, wenn Agenten in diesem Projekt starten."
 
 #: src/mobile/views/WorkspaceView.tsx
 msgid "Workspace view"
@@ -8931,6 +9523,7 @@ msgstr "Schreiben Sie einen Kommentar …"
 msgid "Write notes for this project…"
 msgstr "Schreiben Sie Notizen für dieses Projekt ..."
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "WSL"
@@ -8940,6 +9533,10 @@ msgstr "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL ({0})"
 msgstr "WSL ({0})"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "WSL ({distro})"
+msgstr "WSL ({distro})"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx

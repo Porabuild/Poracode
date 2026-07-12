@@ -106,4 +106,21 @@ export default defineConfig([
     define: buildDefines,
     deps,
   },
+  {
+    // Self-contained so it can be staged and executed inside a WSL distro.
+    entry: { mcpProbeWorker: "src/supervisor/mcp/probeMcpWorker.ts" },
+    clean: false,
+    outDir: "dist/main",
+    platform: "node" as const,
+    format: "esm" as const,
+    target: "node24" as const,
+    sourcemap,
+    dts: false,
+    minify: false,
+    define: buildDefines,
+    deps: {
+      ...deps,
+      alwaysBundle: [...deps.alwaysBundle, /^@modelcontextprotocol\/sdk(?:\/|$)/, /^zod(?:\/|$)/],
+    },
+  },
 ]);

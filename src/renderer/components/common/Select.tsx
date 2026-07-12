@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import {
   Label,
   ListBox,
@@ -28,10 +28,11 @@ export interface SelectProps extends Omit<
   options: readonly SelectOption[];
   value?: string | null;
   onChange: (value: string) => void;
+  popoverProps?: Omit<ComponentProps<typeof HeroSelect.Popover>, "children">;
 }
 
 export function Select(props: SelectProps) {
-  const { label, onChange, options, value, ...rest } = props;
+  const { label, onChange, options, popoverProps, value, ...rest } = props;
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
@@ -116,7 +117,7 @@ export function Select(props: SelectProps) {
         <HeroSelect.Value />
         <HeroSelect.Indicator />
       </HeroSelect.Trigger>
-      <HeroSelect.Popover>
+      <HeroSelect.Popover {...popoverProps}>
         {isVirtualized ? (
           <Virtualizer
             layout={ListLayout}

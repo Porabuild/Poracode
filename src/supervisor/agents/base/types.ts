@@ -16,6 +16,7 @@ import type {
   ThreadPresentationMode,
   ThreadServerRequestId,
   ThreadStatus,
+  McpServer,
 } from "@/shared/contracts";
 import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
@@ -30,6 +31,8 @@ export interface CommandSpec {
   args: string[];
   cwd?: string;
   sessionRef?: SessionRef;
+  /** Best-effort cleanup for per-launch resources such as temporary MCP configs. */
+  cleanup?: () => void;
   /**
    * Environment variables that should be set for the agent process.
    * For WSL commands these are baked into the shell script as `export` statements
@@ -55,6 +58,7 @@ export interface AgentEnvContext {
   chromeMcpEnabled?: boolean;
   chromeMcp?: ChromeMcpHttpConfig;
   appControlsMcp?: AppControlsMcpHttpConfig;
+  mcpServers?: McpServer[];
 }
 
 export interface AgentLaunchOptions {
@@ -66,6 +70,7 @@ export interface AgentLaunchOptions {
   computerUseMcp?: ComputerUseMcpHttpConfig;
   chromeMcp?: ChromeMcpHttpConfig;
   appControlsMcp?: AppControlsMcpHttpConfig;
+  mcpServers?: McpServer[];
 }
 
 export interface StructuredSessionUpdate {
@@ -148,6 +153,7 @@ export interface CreateStructuredSessionInput {
   computerUseMcp?: ComputerUseMcpHttpConfig;
   chromeMcp?: ChromeMcpHttpConfig;
   appControlsMcp?: AppControlsMcpHttpConfig;
+  mcpServers?: McpServer[];
   sessionRef?: SessionRef;
   presentationMode?: ThreadPresentationMode;
   loadSessionErrorRewriter?: (error: unknown, sessionId: string) => Error;
@@ -184,6 +190,7 @@ export interface AgentArgvSpec {
   env?: Record<string, string>;
   sessionRef?: SessionRef;
   preferShell?: boolean;
+  cleanup?: () => void;
 }
 
 export interface DetectProbeCtx {

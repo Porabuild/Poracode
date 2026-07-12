@@ -3,14 +3,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
+import type { AppControlsMcpHttpConfig } from "@/supervisor/agents/appControlsMcp";
 import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
 import type { SubagentMcpHttpConfig } from "@/supervisor/agents/subagentMcp";
 import {
+  ensureGeminiLaunchSettingsFile,
   getGeminiPluginPaths,
   installGeminiPlugin,
   isGeminiPluginInstalled,
   renderGeminiSettings,
   syncGeminiBrowserMcpSettings,
+  syncGeminiLaunchMcpSettings,
+  syncGeminiAppControlsMcpSettings,
   syncGeminiSubagentMcpSettings,
 } from "./install";
 
@@ -57,6 +61,32 @@ describe("getGeminiPluginPaths", () => {
 
     expect(paths.pluginDir).toBe(join(baseDir, "agent-plugins", "gemini"));
     expect(paths.settingsPath).toBe(join(baseDir, "agent-plugins", "gemini", "settings.json"));
+  });
+
+  it("creates an MCP settings carrier without installing the status plugin", () => {
+    const baseDir = makeBaseDir();
+    const ctx = {
+      envKind: "posix" as const,
+      baseDir,
+      mcpServers: [
+        {
+          id: "memory-id",
+          name: "memory",
+          description: "",
+          enabled: true,
+          timeoutMs: 30_000,
+          transport: { type: "stdio" as const, command: "memory-server", args: [], env: {} },
+        },
+      ],
+    };
+
+    const settingsPath = ensureGeminiLaunchSettingsFile(ctx, true);
+    expect(settingsPath).toBeDefined();
+    syncGeminiLaunchMcpSettings(ctx, {});
+
+    expect(readSettings(settingsPath!).mcpServers).toMatchObject({
+      memory: { command: "memory-server", timeout: 30_000 },
+    });
   });
 });
 
@@ -141,6 +171,12 @@ const chromeCfg: ChromeMcpHttpConfig = {
   headers: { Authorization: "Bearer chrome-secret" },
 };
 
+const appControlsCfg: AppControlsMcpHttpConfig = {
+  url: "http://127.0.0.1:45680/mcp",
+  token: "app-controls-secret",
+  headers: { Authorization: "Bearer app-controls-secret" },
+};
+
 type McpSettings = {
   mcpServers?: Record<string, { httpUrl?: string; headers?: Record<string, string> }>;
 };
@@ -150,6 +186,23 @@ function readSettings(path: string): McpSettings {
 }
 
 describe("syncGeminiSubagentMcpSettings", () => {
+  it("preserves launch MCP entries when installing or updating the hook plugin", () => {
+    const baseDir = makeBaseDir();
+    const ctx = { envKind: "posix" as const, baseDir };
+    expect(ensureGeminiLaunchSettingsFile(ctx, true)).toBeDefined();
+    syncGeminiSubagentMcpSettings(ctx, subagentCfg);
+    syncGeminiAppControlsMcpSettings(ctx, true, appControlsCfg);
+
+    const install = installGeminiPlugin(ctx);
+    expect(install.ok).toBe(true);
+    if (!install.ok) return;
+
+    expect(readSettings(install.paths.settingsPath).mcpServers).toMatchObject({
+      subagents: { httpUrl: subagentCfg.url },
+      poracode: { httpUrl: appControlsCfg.url },
+    });
+  });
+
   it("registers and clears the subagents MCP entry without touching other keys", () => {
     const baseDir = makeBaseDir();
     const ctx = { envKind: "posix" as const, baseDir };

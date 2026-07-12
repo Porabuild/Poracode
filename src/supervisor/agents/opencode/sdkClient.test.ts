@@ -113,6 +113,7 @@ describe("acquireOpenCodeServer", () => {
       mcp: {
         add: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         connect: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        disconnect: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
     };
   }
@@ -225,6 +226,49 @@ describe("acquireOpenCodeServer", () => {
     expect(sharedHandle.dispose).not.toHaveBeenCalled();
     await shared.dispose();
     expect(sharedHandle.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("recycles a dedicated server when its managed custom MCP set changes", async () => {
+    const firstHandle = makeHandle("http://127.0.0.1:4350");
+    const secondHandle = makeHandle("http://127.0.0.1:4351");
+    const firstClient = makeSubagentClient();
+    const secondClient = makeSubagentClient();
+    mocks.spawnOpenCodeServer.mockReturnValueOnce(firstHandle).mockReturnValueOnce(secondHandle);
+    mocks.createOpencodeClient.mockReturnValueOnce(firstClient).mockReturnValueOnce(secondClient);
+    const location = { kind: "posix", path: "/repo-custom" } as const;
+    const customMcp = {
+      id: "memory-id",
+      name: "memory",
+      description: "",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: { type: "stdio" as const, command: "memory-server", args: [], env: {} },
+    };
+
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    const first = await acquireOpenCodeServer({
+      projectLocation: location,
+      dedicatedKey: "thread-custom",
+      mcpServers: [customMcp],
+    });
+    const second = await acquireOpenCodeServer({
+      projectLocation: location,
+      dedicatedKey: "thread-custom",
+      mcpServers: [],
+    });
+
+    expect(firstClient.mcp.disconnect).toHaveBeenCalledWith({
+      directory: "/repo-custom",
+      name: "memory",
+    });
+    expect(mocks.spawnOpenCodeServer).toHaveBeenCalledTimes(2);
+    expect(second.baseUrl).toBe("http://127.0.0.1:4351");
+    expect(firstHandle.dispose).not.toHaveBeenCalled();
+
+    await first.dispose();
+    expect(firstHandle.dispose).toHaveBeenCalledTimes(1);
+    await second.dispose();
+    expect(secondHandle.dispose).toHaveBeenCalledTimes(1);
   });
 
   it("shares one server for two child acquires that do not host the subagents MCP", async () => {

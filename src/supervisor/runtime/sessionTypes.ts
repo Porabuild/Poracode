@@ -10,6 +10,7 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
   ThreadStatus,
+  McpLaunchSnapshot,
 } from "@/shared/contracts";
 import type { AgentAdapter, StructuredSessionHandle, TerminalStatusHint } from "../agents/base";
 import type { TranscriptBuffer } from "./transcriptBuffer";
@@ -45,6 +46,8 @@ export interface SessionRuntime {
   pty?: IPty;
   projectLocation: ProjectLocation;
   config: ThreadConfig;
+  /** MCP launch snapshot reused by restart and recovery paths. */
+  mcpLaunchSnapshot: McpLaunchSnapshot;
   sessionRef?: SessionRef;
   slashCommands?: AgentSlashCommand[];
   status: ThreadStatus;
@@ -54,6 +57,8 @@ export interface SessionRuntime {
   launchPrompt: string;
   outputLength: number;
   structuredSession?: StructuredSessionHandle | undefined;
+  /** Releases temporary resources created specifically for this PTY launch. */
+  launchCleanup?: (() => void) | undefined;
   /** Mode the thread was launched in. Preserved for restart / recovery flows. */
   presentationMode?: ThreadPresentationMode;
   ignoreExit?: boolean;

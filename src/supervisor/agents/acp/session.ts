@@ -11,11 +11,7 @@
 
 import { spawn as spawnChild, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import {
-  buildAcpBrowserMcpServers,
-  gateAcpHttpMcpServers,
-  type AcpHttpMcpServer,
-} from "./mcpBrowser";
+import { buildAcpBrowserMcpServers, gateAcpMcpServers } from "./mcpBrowser";
 import { buildAcpSubagentMcpServers } from "./mcpSubagent";
 import { buildAcpComputerUseMcpServers } from "./mcpComputerUse";
 import { buildAcpChromeMcpServers } from "./mcpChrome";
@@ -37,6 +33,7 @@ import {
   type CreateTerminalRequest,
   type KillTerminalRequest,
   type McpCapabilities,
+  type McpServer as ProtocolMcpServer,
   type PromptCapabilities,
   type ReadTextFileRequest,
   type ReadTextFileResponse,
@@ -61,6 +58,7 @@ import type {
   ThreadConfig,
   ThreadServerRequestId,
   ThreadStatus,
+  McpServer,
 } from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { SubagentMcpHttpConfig } from "@/supervisor/agents/subagentMcp";
@@ -116,6 +114,7 @@ import {
   shouldEmitAcpPromptRpcErrorItem,
 } from "./sessionErrors";
 import { AcpSessionRequests } from "./sessionRequests";
+import { buildAcpUserMcpServers } from "../userMcp";
 
 export { normalizeAcpStopReason, rewriteLoadSessionError };
 
@@ -145,6 +144,7 @@ export interface AcpStructuredSessionOptions {
   computerUseMcp?: ComputerUseMcpHttpConfig;
   chromeMcp?: ChromeMcpHttpConfig;
   appControlsMcp?: AppControlsMcpHttpConfig;
+  mcpServers?: McpServer[];
 }
 
 export class AcpStructuredSession implements StructuredSessionHandle {
@@ -167,6 +167,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly computerUseMcp: ComputerUseMcpHttpConfig | undefined;
   private readonly chromeMcp: ChromeMcpHttpConfig | undefined;
   private readonly appControlsMcp: AppControlsMcpHttpConfig | undefined;
+  private readonly mcpServers: McpServer[];
   /** Poracode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
   private readonly stderrChunks: string[] = [];
@@ -291,6 +292,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.computerUseMcp = options?.computerUseMcp;
     this.chromeMcp = options?.chromeMcp;
     this.appControlsMcp = options?.appControlsMcp;
+    this.mcpServers = options?.mcpServers ?? [];
   }
 
   /** Initialize the canonical mapper once we have a stable thread id. */
@@ -565,22 +567,14 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    * We store them to map Poracode's `ThreadConfig` to the correct
    * ACP mode/model IDs (which vary per agent).
    */
-  /**
-   * Drop HTTP MCP servers when the agent's `initialize` response does not
-   * advertise `mcpCapabilities.http === true`. Some ACP agents (e.g. Factory
-   * Droid via `droid exec --output-format acp-daemon`) reject `newSession`
-   * outright with an internal error when handed an HTTP MCP server they can't
-   * support, instead of ignoring it — which would kill the thread launch. This
-   * is provider-agnostic: it keys purely off the advertised capability, so
-   * agents that DO support HTTP MCP (Cursor, Grok, Gemini) keep their servers.
-   */
-  private gateHttpMcpServers(servers: AcpHttpMcpServer[]): AcpHttpMcpServer[] {
-    const kept = gateAcpHttpMcpServers(servers, this.agentMcpCapabilities);
+  /** See {@link gateAcpMcpServers}; adds launch-time logging of what was dropped. */
+  private gateMcpServers(servers: ProtocolMcpServer[]): ProtocolMcpServer[] {
+    const kept = gateAcpMcpServers(servers, this.agentMcpCapabilities);
     if (kept.length < servers.length) {
       console.log(
-        "[acp] dropping %d HTTP MCP server(s) — agent does not advertise mcpCapabilities.http; launching without them: %s",
+        "[acp] dropping %d remote MCP server(s) — agent does not advertise the transport capability; launching without them: %s",
         servers.length - kept.length,
-        servers.map((s) => s.name).join(", "),
+        servers.map((server) => server.name).join(", "),
       );
     }
     return kept;
@@ -591,7 +585,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     let configOptions: unknown[] = [];
     this.currentConfig = undefined;
     this.currentSlashCommands = undefined;
-    const mcpServers = this.gateHttpMcpServers([
+    const mcpServers = this.gateMcpServers([
+      ...buildAcpUserMcpServers(this.mcpServers),
       ...buildAcpBrowserMcpServers(
         this.projectLocation,
         config.browserMcp === true,
@@ -604,7 +599,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.computerUseMcp,
       ),
       ...buildAcpChromeMcpServers(this.projectLocation, config.chromeMcp === true, this.chromeMcp),
-      ...buildAcpAppControlsMcpServers(this.projectLocation, this.appControlsMcp),
+      // App controls has no per-thread config flag; the spawn pipeline
+      // withholds the http config when the server is hard-disabled.
+      ...(this.appControlsMcp
+        ? buildAcpAppControlsMcpServers(this.projectLocation, this.appControlsMcp)
+        : []),
     ]);
 
     if (sessionRef) {

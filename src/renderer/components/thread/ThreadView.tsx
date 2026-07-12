@@ -11,7 +11,10 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import { DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE } from "@/shared/contracts";
+import {
+  DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE,
+  resolveMcpLaunchSnapshot,
+} from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { isOpenCodeBrowserMcpEnabled } from "@/shared/opencodeSettings";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -286,6 +289,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
           projectLocation,
         });
       }
+      const sharedSettings = useSharedSettings.getState();
+      const projectMcpServers =
+        useAppStore.getState().projects.find((project) => project.id === thread.projectId)
+          ?.mcpServers ?? [];
+      const mcpLaunchSnapshot = resolveMcpLaunchSnapshot(sharedSettings, projectMcpServers);
       await readBridge().startThread({
         threadId: thread.id,
         projectLocation,
@@ -297,6 +305,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         initialSize: launchTerminalSize,
         ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
         ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
+        ...mcpLaunchSnapshot,
         ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
       });
       captureThreadStarted(

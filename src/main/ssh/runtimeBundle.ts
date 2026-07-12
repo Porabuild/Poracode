@@ -17,12 +17,15 @@ import packageJson from "../../../package.json" with { type: "json" };
 const REMOTE_RUNTIME_DEPENDENCIES = [
   "@agentclientprotocol/sdk",
   "@anthropic-ai/claude-agent-sdk",
+  "@modelcontextprotocol/sdk",
   "@opencode-ai/sdk",
   "@sentry/node",
   "better-sqlite3",
   "drizzle-orm",
+  "json5",
   "micromatch",
   "node-pty",
+  "smol-toml",
   "vscode-jsonrpc",
   "ws",
 ] as const;

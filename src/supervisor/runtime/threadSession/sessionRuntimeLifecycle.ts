@@ -199,6 +199,12 @@ export class SessionRuntimeLifecycle {
     pty.onExit((event) => {
       const context = this.context;
       context.ptyLifecycle.resolveExit(session);
+      try {
+        session.launchCleanup?.();
+      } catch {
+        // Temporary launch-resource cleanup is best effort.
+      }
+      session.launchCleanup = undefined;
       if (session.ignoreExit) return;
       if (!this.context.isCurrentSession(session)) return;
 

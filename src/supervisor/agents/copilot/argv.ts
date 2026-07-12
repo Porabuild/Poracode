@@ -6,6 +6,7 @@ export function buildCopilotArgs(
   prompt: string,
   sessionId: string,
   _launchOptions?: { suppressResumeConfigOverrides?: boolean },
+  additionalMcpConfig?: string,
 ): string[] {
   // `--session-id` both pins the UUID for a new session (matching the one the
   // ACP probe minted via newSession) and resumes an existing session/task.
@@ -14,6 +15,9 @@ export function buildCopilotArgs(
   // been recorded against it, producing "Error: No session, task, or name
   // matched '<uuid>'" and exiting non-zero. `--session-id` covers both cases.
   const args = [`--session-id=${sessionId}`, "--allow-all-paths"];
+  if (additionalMcpConfig) {
+    args.push("--additional-mcp-config", additionalMcpConfig);
+  }
 
   // Copilot's TUI only reflects the selected model/effort when the resume
   // command also carries those flags, even if ACP already applied them.

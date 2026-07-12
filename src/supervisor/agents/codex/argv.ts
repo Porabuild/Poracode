@@ -4,7 +4,7 @@ import type { SubagentMcpHttpConfig } from "@/supervisor/agents/subagentMcp";
 import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
 import type { AppControlsMcpHttpConfig } from "@/supervisor/agents/appControlsMcp";
-import type { ProjectLocation, SessionRef, ThreadConfig } from "@/shared/contracts";
+import type { McpServer, ProjectLocation, SessionRef, ThreadConfig } from "@/shared/contracts";
 import {
   buildAgentCommand,
   DEFAULT_WSL_EXEC_PATH,
@@ -24,6 +24,7 @@ import { resolveCodexWindowsLaunchBinary } from "./windowsExecutable";
 import { buildCodexComputerUseMcpArgs, buildCodexComputerUseMcpEnv } from "./mcpComputerUse";
 import { buildCodexChromeMcpArgs, buildCodexChromeMcpEnv } from "./mcpChrome";
 import { buildCodexAppControlsMcpArgs, buildCodexAppControlsMcpEnv } from "./mcpAppControls";
+import { buildCodexUserMcp } from "../userMcp";
 
 const CODEX_GOALS_FEATURE_FLAG = "goals";
 const codexGoalsSupportCache = new Map<string, boolean>();
@@ -34,10 +35,11 @@ interface BuildCodexArgsOptions {
   enableGoals: boolean;
   launchOptions?: AgentLaunchOptions;
   location?: ProjectLocation;
+  userMcpArgs?: string[];
 }
 
 function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
-  const { config, prompt, enableGoals, launchOptions, location } = opts;
+  const { config, prompt, enableGoals, launchOptions, location, userMcpArgs } = opts;
   const args: string[] = [];
 
   if (enableGoals) {
@@ -56,6 +58,7 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
   );
 
   if (location) {
+    args.push(...(userMcpArgs ?? []));
     args.push(
       ...buildCodexBrowserMcpArgs(location, config.browserMcp === true, launchOptions?.browserMcp),
       ...buildCodexComputerUseMcpArgs(
@@ -64,7 +67,11 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
         launchOptions?.computerUseMcp,
       ),
       ...buildCodexChromeMcpArgs(location, config.chromeMcp === true, launchOptions?.chromeMcp),
-      ...buildCodexAppControlsMcpArgs(location, launchOptions?.appControlsMcp),
+      // App controls has no per-thread config flag; the spawn pipeline
+      // withholds the http config when the server is hard-disabled.
+      ...(launchOptions?.appControlsMcp
+        ? buildCodexAppControlsMcpArgs(location, launchOptions.appControlsMcp)
+        : []),
     );
     args.push(
       ...buildCodexSubagentMcpArgs(config.subagentMcp === true, launchOptions?.subagentMcp),
@@ -127,7 +134,9 @@ export function buildCodexArgvFor(
   launchOptions?: AgentLaunchOptions,
 ): AgentArgvSpec {
   const binary = resolveCodexWindowsLaunchBinary(location) ?? "codex";
+  const userMcp = buildCodexUserMcp(launchOptions?.mcpServers ?? []);
   const mcpEnv = {
+    ...userMcp.env,
     ...buildCodexBrowserMcpEnv(launchOptions?.browserMcp),
     ...buildCodexSubagentMcpEnv(launchOptions?.subagentMcp),
     ...buildCodexComputerUseMcpEnv(launchOptions?.computerUseMcp),
@@ -142,6 +151,7 @@ export function buildCodexArgvFor(
     enableGoals,
     ...(launchOptions ? { launchOptions } : {}),
     location,
+    userMcpArgs: userMcp.args,
   };
   // When the structured session owns thread lifecycle, the TUI resumes the
   // server-created thread. Config is controlled by the server, not the CLI.
@@ -193,10 +203,12 @@ export function buildCodexAppServerCommand(
     chromeMcpEnabled?: boolean;
     chromeMcp?: ChromeMcpHttpConfig;
     appControlsMcp?: AppControlsMcpHttpConfig;
+    mcpServers?: McpServer[];
   },
 ): CommandSpec {
   const wslExecPath = options?.wslExecPath;
   const wslNodePath = options?.wslNodePath;
+  const userMcp = buildCodexUserMcp(options?.mcpServers ?? []);
   const browserMcpArgs = buildCodexBrowserMcpArgs(
     location,
     options?.browserMcpEnabled === true,
@@ -216,8 +228,11 @@ export function buildCodexAppServerCommand(
     options?.chromeMcpEnabled === true,
     options?.chromeMcp,
   );
-  const appControlsMcpArgs = buildCodexAppControlsMcpArgs(location, options?.appControlsMcp);
+  const appControlsMcpArgs = options?.appControlsMcp
+    ? buildCodexAppControlsMcpArgs(location, options.appControlsMcp)
+    : [];
   const mcpEnv = {
+    ...userMcp.env,
     ...buildCodexBrowserMcpEnv(options?.browserMcp),
     ...buildCodexSubagentMcpEnv(options?.subagentMcp),
     ...buildCodexComputerUseMcpEnv(options?.computerUseMcp),
@@ -227,6 +242,7 @@ export function buildCodexAppServerCommand(
   const hasMcpEnv = Object.keys(mcpEnv).length > 0;
   const args = [
     ...(isCodexGoalsSupported(location, wslExecPath) ? ["--enable", CODEX_GOALS_FEATURE_FLAG] : []),
+    ...userMcp.args,
     ...browserMcpArgs,
     ...subagentMcpArgs,
     ...computerUseMcpArgs,

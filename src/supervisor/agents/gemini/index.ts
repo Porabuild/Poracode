@@ -11,6 +11,7 @@ import {
   iterm2ProgressOscHint,
   type AgentAdapter,
   type AgentEnvContext,
+  type AgentLaunchOptions,
   type CreateStructuredSessionInput,
   type TerminalStatusHint,
 } from "../base";
@@ -19,13 +20,12 @@ import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/i
 import { buildGeminiArgs } from "./argv";
 import { defaultGeminiCapabilities, geminiDetectionSpec } from "./detection";
 import {
-  getGeminiPluginPaths,
+  createGeminiThreadSettingsFile,
+  ensureGeminiLaunchSettingsFile,
   installGeminiPlugin,
   isGeminiPluginInstalled,
   readBundledGeminiPluginVersion,
-  syncGeminiBrowserMcpSettings,
-  syncGeminiSubagentMcpSettings,
-  syncGeminiAppControlsMcpSettings,
+  syncGeminiLaunchMcpSettings,
   uninstallGeminiPlugin,
 } from "./plugin/install";
 import { detectGeminiInvalidSessionRef } from "./session";
@@ -48,13 +48,49 @@ function geminiOscTitleHint(title: { text: string }): TerminalStatusHint | null 
 /**
  * Minimal env context for resolving the staged Gemini `settings.json` path from
  * a terminal launch's `ProjectLocation`. The plugin base dir falls back to the
- * active channel (same as the CLI hook coordinator), so the path matches the
- * one `pluginLaunchExtras` writes the browser MCP entry into.
+ * active channel (same as the CLI hook coordinator), so the thread settings
+ * snapshot starts from the installed hook configuration.
  */
 function geminiEnvContextForLocation(location: ProjectLocation): AgentEnvContext {
+  const baseDir = process.env.LIGHTCODE_DATA_DIR?.trim();
   return location.kind === "wsl"
-    ? { envKind: "wsl", wslDistro: location.distro }
-    : { envKind: location.kind };
+    ? { envKind: "wsl", wslDistro: location.distro, ...(baseDir ? { baseDir } : {}) }
+    : { envKind: location.kind, ...(baseDir ? { baseDir } : {}) };
+}
+
+function prepareGeminiLaunchMcpSettings(
+  location: ProjectLocation,
+  launchOptions: AgentLaunchOptions | undefined,
+): { env: Record<string, string>; cleanup: () => void } | undefined {
+  const ctx: AgentEnvContext = {
+    ...geminiEnvContextForLocation(location),
+    browserMcpEnabled: launchOptions?.browserMcp !== undefined,
+    computerUseMcpEnabled: launchOptions?.computerUseMcp !== undefined,
+    chromeMcpEnabled: launchOptions?.chromeMcp !== undefined,
+    mcpServers: launchOptions?.mcpServers ?? [],
+  };
+  const createIfMissing =
+    (launchOptions?.mcpServers?.length ?? 0) > 0 ||
+    launchOptions?.browserMcp !== undefined ||
+    launchOptions?.subagentMcp !== undefined ||
+    launchOptions?.computerUseMcp !== undefined ||
+    launchOptions?.chromeMcp !== undefined ||
+    launchOptions?.appControlsMcp !== undefined;
+  if (!ensureGeminiLaunchSettingsFile(ctx, createIfMissing)) return undefined;
+
+  syncGeminiLaunchMcpSettings(ctx, {
+    ...(launchOptions?.browserMcp ? { browserMcp: launchOptions.browserMcp } : {}),
+    ...(launchOptions?.computerUseMcp ? { computerUseMcp: launchOptions.computerUseMcp } : {}),
+    ...(launchOptions?.chromeMcp ? { chromeMcp: launchOptions.chromeMcp } : {}),
+    ...(launchOptions?.subagentMcp ? { subagentMcp: launchOptions.subagentMcp } : {}),
+    ...(launchOptions?.appControlsMcp ? { appControlsMcp: launchOptions.appControlsMcp } : {}),
+  });
+  const threadSettings = createGeminiThreadSettingsFile(ctx);
+  if (!threadSettings) return undefined;
+  return {
+    env: { GEMINI_CLI_SYSTEM_SETTINGS_PATH: threadSettings.settingsPath },
+    cleanup: threadSettings.cleanup,
+  };
 }
 
 export function createGeminiAdapter(): AgentAdapter {
@@ -100,12 +136,6 @@ export function createGeminiAdapter(): AgentAdapter {
     async uninstallPlugin(ctx) {
       uninstallGeminiPlugin(ctx);
     },
-    async pluginLaunchExtras(ctx) {
-      syncGeminiBrowserMcpSettings(ctx, ctx.browserMcp, ctx.computerUseMcp, ctx.chromeMcp);
-      const paths = getGeminiPluginPaths(ctx);
-      return { env: { GEMINI_CLI_SYSTEM_SETTINGS_PATH: paths.settingsPath } };
-    },
-
     async detectInstall(ctx) {
       const status = await detectAgentInstall(ctx, geminiDetectionSpec);
       capabilities = status.capabilities;
@@ -113,17 +143,7 @@ export function createGeminiAdapter(): AgentAdapter {
     },
 
     buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
-      // Register (or clear) the subagents MCP server in the staged settings.json
-      // before spawn. The browser MCP entry is merged separately in
-      // `pluginLaunchExtras`; both syncs preserve the other's key.
-      syncGeminiSubagentMcpSettings(
-        geminiEnvContextForLocation(location),
-        launchOptions?.subagentMcp,
-      );
-      syncGeminiAppControlsMcpSettings(
-        geminiEnvContextForLocation(location),
-        launchOptions?.appControlsMcp,
-      );
+      const launchSettings = prepareGeminiLaunchMcpSettings(location, launchOptions);
       // Pre-assign the session UUID via --session-id so we know it before
       // spawn. Avoids racing post-spawn discovery against one-shot `gemini -p`
       // calls (title gen, commit-msg, PR summary) that also create entries in
@@ -133,21 +153,19 @@ export function createGeminiAdapter(): AgentAdapter {
       return {
         binary: "gemini",
         args,
+        ...(launchSettings ? { env: launchSettings.env, cleanup: launchSettings.cleanup } : {}),
         sessionRef: createKnownSessionRef(assignedId),
       };
     },
 
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
-      syncGeminiSubagentMcpSettings(
-        geminiEnvContextForLocation(location),
-        launchOptions?.subagentMcp,
-      );
-      syncGeminiAppControlsMcpSettings(
-        geminiEnvContextForLocation(location),
-        launchOptions?.appControlsMcp,
-      );
+      const launchSettings = prepareGeminiLaunchMcpSettings(location, launchOptions);
       const args = buildGeminiArgs(config, prompt, sessionRef.providerSessionId);
-      return { binary: "gemini", args };
+      return {
+        binary: "gemini",
+        args,
+        ...(launchSettings ? { env: launchSettings.env, cleanup: launchSettings.cleanup } : {}),
+      };
     },
 
     async createStructuredSession(input: CreateStructuredSessionInput) {

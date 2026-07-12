@@ -13,6 +13,10 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "-y @modelcontextprotocol/server-memory"
+msgstr "-y @modelcontextprotocol/server-memory"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "(Draft)"
 msgstr "（草案）"
@@ -30,6 +34,11 @@ msgstr "（没有消息）"
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# 个文件} other {# 个文件}}"
+
+#. placeholder {0}: groupRows.length
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
+msgstr "{0, plural, one {# 个 MCP 服务器} other {# 个 MCP 服务器}}"
 
 #. placeholder {0}: props.desktops.length
 #: src/mobile/views/DesktopsView.tsx
@@ -50,6 +59,12 @@ msgstr "{0, plural, one {# 个项目} other {# 个项目}}"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {#提供商准备就绪} other {#提供商准备就绪}}"
+
+#. placeholder {0}: props.server.toolCount
+#. placeholder {0}: state.toolCount
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "{0, plural, one {# tool} other {# tools}}"
+msgstr "{0, plural, one {# 个工具} other {# 个工具}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -230,6 +245,12 @@ msgstr "{0}已更新。"
 msgid "{0} used"
 msgstr "已使用 {0}"
 
+#. placeholder {0}: selectedRows.length
+#. placeholder {1}: importableRows.length
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "{0}/{1} selected"
+msgstr "已选择 {0}/{1} 个"
+
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "{0}% Full"
@@ -398,6 +419,10 @@ msgstr "{resultCount, plural, one {#结果} other {#结果}}"
 msgid "{seconds}s ago"
 msgstr "{seconds} 秒前"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "{serverName} from {providerLabel}: {disabledLabel}"
+msgstr "{providerLabel} 的 {serverName}：{disabledLabel}"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
 msgstr "{used} 令牌"
@@ -558,6 +583,7 @@ msgid "Activity metric"
 msgstr "活动指标"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -616,9 +642,21 @@ msgstr "在此线程运行之前添加凭据。"
 msgid "Add folder"
 msgstr "添加文件夹"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Add MCP server"
+msgstr "添加 MCP 服务器"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add model"
 msgstr "添加模型"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Add one manually or import a JSON configuration."
+#~ msgstr "手动添加一个或导入 JSON 配置。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Add one manually or import from another agent."
+msgstr "手动添加一个，或从其他代理导入。"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add pattern"
@@ -812,6 +850,10 @@ msgstr "允许评估"
 msgid "Allow the browser to show notifications while the app is in the background."
 msgstr "允许浏览器在应用处于后台时显示通知。"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Already configured"
+msgstr "已配置"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Already used by {conflict}"
 msgstr "已被{conflict}使用"
@@ -825,6 +867,14 @@ msgstr "总是"
 msgid "Always excluded"
 msgstr "总是被排除在外"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "An MCP server with the name {serverName} already exists."
+#~ msgstr "名为 {serverName} 的 MCP 服务器已存在。"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "An MCP server with this name already exists."
+msgstr "已存在同名的 MCP 服务器。"
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "另一个聊天使用同一棵树。文件恢复可能会覆盖该聊天的更改。"
@@ -833,9 +883,17 @@ msgstr "另一个聊天使用同一棵树。文件恢复可能会覆盖该聊天
 msgid "Antigravity"
 msgstr "Antigravity"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "API_KEY=value"
+msgstr "API_KEY=value"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
 msgstr "应用程序浏览器"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "App Controls"
+msgstr "应用控制"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -926,6 +984,10 @@ msgstr "您确定要恢复 <0>{path}</0> 吗？此操作无法撤消。"
 msgid "Are you sure you want to revert all unstaged changes? This cannot be undone."
 msgstr "您确定要恢复所有未暂存的更改吗？此操作无法撤消。"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Arguments"
+msgstr "参数"
+
 #. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
 #. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -974,13 +1036,26 @@ msgstr "已附加浏览器选区。"
 msgid "Audio"
 msgstr "音频"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Authenticate"
+msgstr "身份验证"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "认证"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Authentication required"
 msgstr "需要身份验证"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Authentication setup cannot be imported"
+msgstr "无法导入身份验证设置"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Authorization: Bearer token"
+msgstr "Authorization: Bearer token"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
@@ -1059,6 +1134,10 @@ msgstr "返回更改"
 #: src/mobile/views/FilesView.tsx
 msgid "Back to files"
 msgstr "返回文件"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+#~ msgid "Back to MCP servers"
+#~ msgstr "返回 MCP 服务器列表"
 
 #: src/mobile/views/pr/PrSubPage.tsx
 msgid "Back to overview"
@@ -1206,6 +1285,7 @@ msgstr "浏览您的 GitHub 存储库或粘贴克隆 URL。"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
@@ -1256,6 +1336,22 @@ msgstr "已达到预算限额"
 msgid "Building diff…"
 msgstr "正在生成差异…"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Built-in"
+msgstr "内置"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Built-in MCP servers"
+msgstr "内置 MCP 服务器"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Built-in servers are managed by Lightcode. They can be disabled globally but cannot be edited or removed."
+#~ msgstr "内置服务器由 Lightcode 管理。可以全局禁用，但不能编辑或删除。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
+msgstr "内置服务器由 Poracode 管理。可以全局禁用，但不能编辑或删除。"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Built-in shortcut — can't be changed"
 msgstr "内置快捷键 — 无法更改"
@@ -1299,6 +1395,7 @@ msgstr "无法加载端口"
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
@@ -1420,6 +1517,14 @@ msgstr "已取消聊天星标"
 msgid "Check"
 msgstr "检查"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Check {serverName} again"
+msgstr "再次检查 {serverName}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Check again"
+msgstr "再次检查"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
 msgstr "检查更新"
@@ -1433,6 +1538,14 @@ msgstr "检查我最近的进展，并针对下一步给出一条明确建议。
 msgid "Check the live input level from the selected device."
 msgstr "检查所选设备的实时输入电平。"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Checking"
+msgstr "正在检查"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Checking {serverName}"
+msgstr "正在检查 {serverName}"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Checking host…"
 msgstr "正在检查主机…"
@@ -1441,6 +1554,7 @@ msgstr "正在检查主机…"
 msgid "Checking Tailscale…"
 msgstr "正在检查 Tailscale..."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Checking…"
 msgstr "正在检查..."
@@ -1465,6 +1579,10 @@ msgstr "选择一个文件夹..."
 msgid "Choose a parent folder"
 msgstr "选择父文件夹"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Choose an MCP server configuration file"
+#~ msgstr "选择 MCP 服务器配置文件"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
 msgstr "选择登录 {env} 的方式。"
@@ -1472,6 +1590,10 @@ msgstr "选择登录 {env} 的方式。"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in."
 msgstr "选择登录方式。"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Choose import destination"
+msgstr "选择导入目标"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Choose SSH identity file"
@@ -1496,6 +1618,7 @@ msgid "Choose worktree base folder"
 msgstr "选择工作树基础文件夹"
 
 #: src/renderer/components/composer/composerMcpServers.ts
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
@@ -1826,6 +1949,7 @@ msgstr "折叠待办事项面板"
 
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "命令"
 
@@ -1836,6 +1960,14 @@ msgstr "命令（例如 npm run dev）"
 #: src/renderer/components/providers/commandcode/manifest.ts
 msgid "Command Code"
 msgstr "Command Code"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Command is required."
+msgstr "命令为必填项。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Command not found."
+msgstr "未找到命令。"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -1960,6 +2092,7 @@ msgstr "Composer 控件"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Computer Use"
@@ -1988,6 +2121,18 @@ msgstr "已启用 Computer Use — 交互操作会接管桌面；代理控制期
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "配置目录"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+#~ msgid "Configure the server Lightcode will add when supported agents start."
+#~ msgstr "配置 Lightcode 在受支持的代理启动时添加的服务器。"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Configure the server Poracode will add when supported agents start."
+msgstr "配置 Poracode 在受支持的代理启动时添加的服务器。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Configured MCP servers"
+msgstr "已配置的 MCP 服务器"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2036,6 +2181,10 @@ msgstr "在此连接 OpenCode 可使用的 AI 提供商，并退出登录。"
 #~ msgid "Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
 #~ msgstr "连接到另一台 Lightcode 桌面端或无界面服务器，即可在此浏览和管理其项目。请在对方设备的“设置 → 远程访问”中获取其端点和配对令牌。"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Connected"
+msgstr "已连接"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "正在连接桌面浏览器…"
@@ -2053,6 +2202,7 @@ msgstr "连接错误"
 msgid "Connection error."
 msgstr "连接错误。"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "连接失败。"
@@ -2060,6 +2210,10 @@ msgstr "连接失败。"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Connection method"
 msgstr "连接方式"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Connection timed out."
+msgstr "连接超时。"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
@@ -2070,6 +2224,10 @@ msgstr "连接"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
 msgstr "控制台"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Contains sensitive values; add manually"
+msgstr "包含敏感值；请手动添加"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
@@ -2247,6 +2405,18 @@ msgstr "无法生成提交消息：{detail}"
 msgid "Could not read file."
 msgstr "无法读取文件。"
 
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Could not sign in to {serverName}: {message}"
+msgstr "无法登录 {serverName}：{message}"
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Could not sign in to {serverName}."
+msgstr "无法登录 {serverName}。"
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Could not sign out of {serverName}."
+msgstr "无法退出 {serverName}。"
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
 msgstr "无法缓存离线数据。"
@@ -2282,6 +2452,10 @@ msgstr "无法加载你的资料统计。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "无法保存快捷键。"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Couldn't scan MCP server configurations."
+msgstr "无法扫描 MCP 服务器配置。"
 
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -2486,6 +2660,10 @@ msgstr "删除"
 msgid "Delete {0}"
 msgstr "删除{0}"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Delete {serverName}"
+msgstr "删除 {serverName}"
+
 #. placeholder {0}: props.entry.name
 #: src/mobile/views/FilesView.tsx
 msgid "Delete <0>{0}</0>? This cannot be undone."
@@ -2570,6 +2748,7 @@ msgstr "拒绝并告诉代理换一种做法……"
 msgid "Describe what the agent should do"
 msgstr "描述代理应执行的操作"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 msgid "Description"
 msgstr "描述"
@@ -2648,6 +2827,14 @@ msgstr "当此桌面可访问时，设备可以配对。"
 #~ msgid "Direct connection required"
 #~ msgstr "需要直接连接"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disable {serverLabel}"
+msgstr "禁用 {serverLabel}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disable {serverName}"
+msgstr "禁用 {serverName}"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
 msgstr "禁用{tierLabel}级别"
@@ -2681,9 +2868,14 @@ msgstr "禁用子代理"
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "禁用外部服务商合并的级别（例如仅保留High和Max）。"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "已禁用"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disabled globally"
+msgstr "已全局禁用"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
@@ -2819,6 +3011,10 @@ msgstr "拖放到此处以附加"
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed."
 msgstr "在监管进程上丢弃传入的挂钩信封，以便代理回退到 L2（OSC 9;4 进度），而无需触及安装或 iTerm2 通知。在下一个挂钩事件时生效——无需重启。"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Duplicate server name in scan"
+msgstr "扫描结果中存在重复的服务器名称"
+
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactors, Claude Opus for anything subtle."
 msgstr "例如：Codex GPT-5.5 fast 用于快速查询，OpenCode GLM 用于批量重构，Claude Opus 用于任何微妙的任务。"
@@ -2832,9 +3028,17 @@ msgstr "例如工作"
 msgid "Edit"
 msgstr "编辑"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Edit {serverName}"
+msgstr "编辑 {serverName}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
 msgstr "编辑文件"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Edit MCP server"
+msgstr "编辑 MCP 服务器"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
@@ -2892,6 +3096,14 @@ msgstr "思考级别"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Electron"
 msgstr "Electron"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Enable {serverLabel}"
+msgstr "启用 {serverLabel}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Enable {serverName}"
+msgstr "启用 {serverName}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
@@ -2964,9 +3176,17 @@ msgstr "输入存储库 URL。"
 msgid "Enter a valid desktop endpoint."
 msgstr "请输入有效的桌面端点。"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Enter a valid HTTP or HTTPS URL."
+msgstr "请输入有效的 HTTP 或 HTTPS URL。"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Enter a valid SSH target and port."
 msgstr "请输入有效的 SSH 目标和端口。"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Enter one MCP server configuration."
+msgstr "请输入一个 MCP 服务器配置。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
@@ -2980,6 +3200,10 @@ msgstr "输入桌面端某个开发服务器正在监听的端口。"
 msgid "Enter the SSH password."
 msgstr "请输入 SSH 密码。"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Enter valid JSON."
+msgstr "请输入有效的 JSON。"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
 msgstr "环境"
@@ -2992,9 +3216,14 @@ msgstr "环境变量名称"
 msgid "Environment variable value"
 msgstr "环境变量值"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Environment variables"
 msgstr "环境变量"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Environment variables (optional)"
+msgstr "环境变量（可选）"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -3091,6 +3320,10 @@ msgstr "展开以查看或撤销访问权限。"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "展开待办事项停靠栏"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Export MCP servers"
+msgstr "导出 MCP 服务器"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "External"
@@ -3359,6 +3592,10 @@ msgstr "强制重新加载浏览器页面"
 msgid "Fork"
 msgstr "派生"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Form"
+msgstr "表单"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Format files"
 msgstr "格式化文件"
@@ -3373,6 +3610,11 @@ msgstr "前进"
 #: src/mobile/views/PortsView.tsx
 msgid "Forward a port"
 msgstr "转发端口"
+
+#. placeholder {0}: importableRows.length
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Found {0, plural, one {# importable MCP server} other {# importable MCP servers}}"
+msgstr "找到 {0, plural, one {# 个可导入的 MCP 服务器} other {# 个可导入的 MCP 服务器}}"
 
 #. placeholder {0}: activeRequest.providerLabel
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
@@ -3399,6 +3641,10 @@ msgstr "在系统模糊之上为{appearance}模式侧边栏添加磨砂效果。
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Full access"
 msgstr "完全访问权限"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Full configuration"
+msgstr "完整配置"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
@@ -3507,8 +3753,16 @@ msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2（可选标签）"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Global"
 msgstr "全局"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Global (Windows)"
+msgstr "全局 (Windows)"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
@@ -3571,6 +3825,10 @@ msgstr "硬重载"
 msgid "Has unsent draft"
 msgstr "有未发送的草稿"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Headers"
+msgstr "请求头"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "帮助我创建计划。询问缺失的详细信息，然后使用 Poracode 计划控件为我创建。"
@@ -3609,6 +3867,10 @@ msgstr "隐藏上下文使用详细信息"
 #: src/mobile/views/BrowserView.tsx
 msgid "Hide keyboard"
 msgstr "隐藏键盘"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Hide MCP servers from {providerLabel}"
+msgstr "隐藏 {providerLabel} 的 MCP 服务器"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Hide models you don't use from the model picker across every provider."
@@ -3663,6 +3925,14 @@ msgstr "host.com、别名或 user@host.com"
 msgid "Hourly"
 msgstr "每小时"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "HTTP (streamable)"
+msgstr "HTTP（流式）"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "https://example.com/mcp"
+msgstr "https://example.com/mcp"
+
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ID: {0}"
@@ -3695,6 +3965,30 @@ msgstr "图片"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "图片预览"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import destination"
+msgstr "导入目标"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import external agent MCP servers"
+msgstr "导入外部代理的 MCP 服务器"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Import MCP servers"
+msgstr "导入 MCP 服务器"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import to {destinationProjectName}"
+msgstr "导入到 {destinationProjectName}"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import to Global"
+msgstr "导入到全局"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Import to Project"
+#~ msgstr "导入到项目"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -3849,6 +4143,10 @@ msgstr "已中断：代理会话在完成之前结束。"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "斜体"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "JSON"
+msgstr "JSON"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Jump to section"
@@ -4135,6 +4433,19 @@ msgstr "管理远程环境"
 #~ msgid "Manage remote servers"
 #~ msgstr "管理远程服务器"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
+#~ msgstr "管理 Lightcode 在启动受支持的代理时添加的 MCP 服务器配置。工作区服务器可在各项目的设置中配置。"
+
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings."
+msgstr "管理 Poracode 在启动受支持的代理时添加的 MCP 服务器配置。工作区服务器可在各项目的设置中配置。"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Managed by Poracode"
+msgstr "由 Poracode 管理"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "手动排序"
@@ -4193,14 +4504,74 @@ msgstr "最大化浏览器"
 msgid "MCP server"
 msgstr "MCP服务器"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server arguments"
+msgstr "MCP 服务器参数"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "MCP server checking is unavailable."
+msgstr "MCP 服务器检查不可用。"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server command"
+msgstr "MCP 服务器命令"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server description"
+msgstr "MCP 服务器描述"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server editor mode"
+msgstr "MCP 服务器编辑器模式"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server environment variables"
+msgstr "MCP 服务器环境变量"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server headers"
+msgstr "MCP 服务器请求头"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server JSON configuration"
+msgstr "MCP 服务器 JSON 配置"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server name"
+msgstr "MCP 服务器名称"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "MCP server source scope"
+msgstr "MCP 服务器来源范围"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server timeout in milliseconds"
+msgstr "MCP 服务器超时时间（毫秒）"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server URL"
+msgstr "MCP 服务器 URL"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "MCP服务器"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "MCP Servers"
+msgstr "MCP 服务器"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "MCP tool calls"
 msgstr "MCP 工具调用"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP transport type"
+msgstr "MCP 传输类型"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -4465,10 +4836,19 @@ msgstr "已将您的更改移至“{newBranch}”上的新工作树中。“{cur
 msgid "Moving changes…"
 msgstr "正在移动更改…"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "my-mcp-server"
+msgstr "my-mcp-server"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Name"
 msgstr "名称"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Name is required."
+msgstr "名称为必填项。"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Name your project and choose where to create it."
@@ -4568,6 +4948,10 @@ msgstr "新文件夹名称"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "New line"
 msgstr "换行"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "New MCP server"
+msgstr "新建 MCP 服务器"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New phones, tablets, and browsers appear here after pairing."
@@ -4750,6 +5134,10 @@ msgstr "没有找到命令"
 msgid "No commits found."
 msgstr "没有找到提交。"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "No configured MCP servers yet"
+msgstr "尚未配置 MCP 服务器"
+
 #: src/mobile/WideShell.tsx
 msgid "No connection paired"
 msgstr "尚未配对连接"
@@ -4839,6 +5227,14 @@ msgstr "没有匹配的计划。"
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "没有匹配的线程"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "No MCP servers found in this scope."
+msgstr "在此范围内未找到 MCP 服务器。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "No MCP servers match your search."
+msgstr "没有符合搜索条件的 MCP 服务器。"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No MCP tools used yet."
@@ -5048,6 +5444,10 @@ msgstr "通知 L2 CLI 线程"
 msgid "Notify me about"
 msgstr "通知我有关"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "npx"
+msgstr "npx"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "off"
 msgstr "关闭"
@@ -5087,6 +5487,14 @@ msgstr "整点"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Once on {0}"
 msgstr "于 {0} 运行一次"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "One Header: value pair per line"
+msgstr "每行一组“请求头: 值”"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "One KEY=VALUE pair per line"
+msgstr "每行一组 KEY=VALUE"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "One time"
@@ -5330,6 +5738,10 @@ msgstr "已打开 {0} (#{1})"
 msgid "OpenSSH private key"
 msgstr "OpenSSH 私钥"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Optional"
+msgstr "可选"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "可选的状态挂钩。已安装的挂钩会自动更新；缺失的挂钩永远不会自动安装。"
@@ -5486,6 +5898,10 @@ msgstr "粘贴 {label} API 密钥"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste <0>{0}</0> here. Click to copy."
 msgstr "将 <0>{0}</0> 粘贴到此处。点击复制。"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Paste either a named server object or an object wrapped in an mcpServers key."
+msgstr "粘贴具名服务器对象，或以 mcpServers 键封装的对象。"
 
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
@@ -5724,6 +6140,7 @@ msgstr "配置文件"
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -5757,6 +6174,8 @@ msgstr "在全局搜索设置基础上的项目特定覆盖。"
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 msgid "Projects"
 msgstr "项目"
 
@@ -5777,6 +6196,14 @@ msgstr "提示"
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "拟议计划"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Provided and managed by Lightcode for supported agents."
+#~ msgstr "由 Lightcode 为受支持的代理提供和管理。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Provided and managed by Poracode for supported agents."
+msgstr "由 Poracode 为受支持的代理提供和管理。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "provider"
@@ -6021,6 +6448,10 @@ msgstr "刷新 {label}"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
 msgstr "刷新检测到的代理"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Refresh MCP server sources"
+msgstr "刷新 MCP 服务器来源"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
@@ -6378,8 +6809,17 @@ msgstr "继续"
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Retry"
 msgstr "重试"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Retry {serverName}"
+msgstr "重试 {serverName}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Retry check"
+msgstr "重试检查"
 
 #: src/mobile/components.tsx
 msgid "Retry now"
@@ -6596,6 +7036,7 @@ msgid "Runtime options"
 msgstr "运行时选项"
 
 #: src/mobile/views/FilesView.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -6644,6 +7085,10 @@ msgstr "扫描{wslDistro}来查找已安装的 CLI。这通常需要几秒钟。
 msgid "Scanning needs a secure connection"
 msgstr "扫描需要安全连接"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Scanning provider configurations…"
+msgstr "正在扫描提供商配置…"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds."
 msgstr "扫描 Windows 和 WSL 以查找已安装的 CLI。这通常需要几秒钟。"
@@ -6680,6 +7125,10 @@ msgstr "计划"
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "已配对桌面上的计划、AI、代理和已归档线程"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Scope"
+msgstr "作用域"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -6723,6 +7172,14 @@ msgstr "搜索分支..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "搜索文件"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Search MCP servers"
+msgstr "搜索 MCP 服务器"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Search MCP servers..."
+msgstr "搜索 MCP 服务器..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
@@ -6798,6 +7255,10 @@ msgstr "查看更多"
 msgid "Select"
 msgstr "选择"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select {serverName} from {providerLabel}"
+msgstr "从 {providerLabel} 中选择 {serverName}"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Select a file from the tree"
 msgstr "从树中选择一个文件"
@@ -6806,6 +7267,14 @@ msgstr "从树中选择一个文件"
 msgid "Select a file to start editing."
 msgstr "选择一个文件开始编辑。"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Select a project before importing to Project."
+#~ msgstr "导入到项目之前，请先选择一个项目。"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Select a project to scan project MCP servers."
+#~ msgstr "请选择一个项目以扫描项目 MCP 服务器。"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select a repository."
 msgstr "选择一个存储库。"
@@ -6813,6 +7282,18 @@ msgstr "选择一个存储库。"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select account"
 msgstr "选择账户"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select all"
+msgstr "全选"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select all MCP servers"
+msgstr "选择所有 MCP 服务器"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select all MCP servers from {providerLabel}"
+msgstr "选择 {providerLabel} 的所有 MCP 服务器"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Select an agent to see its prompt and outcome."
@@ -6845,6 +7326,10 @@ msgstr "选择…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Selected days"
 #~ msgstr "选定的星期"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Selected project"
+#~ msgstr "所选项目"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6970,6 +7455,10 @@ msgstr "在文件资源管理器中显示"
 msgid "Show less"
 msgstr "显示较少"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Show MCP servers from {providerLabel}"
+msgstr "显示 {providerLabel} 的 MCP 服务器"
+
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Show more"
 msgstr "显示更多"
@@ -7067,6 +7556,7 @@ msgstr "需要登录"
 msgid "Sign in with the agent CLI."
 msgstr "使用代理 CLI 登录。"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Sign out"
 msgstr "退出登录"
@@ -7080,6 +7570,10 @@ msgstr "退出{label}"
 msgid "Sign out of {0}"
 msgstr "退出 {0}"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Sign out of {serverName}"
+msgstr "退出 {serverName}"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "sign-in required"
 msgstr "需要登录"
@@ -7087,6 +7581,14 @@ msgstr "需要登录"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "Signed in"
 msgstr "已登录"
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Signed in to {serverName}."
+msgstr "已登录 {serverName}。"
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Signed out of {serverName}."
+msgstr "已退出 {serverName}。"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Signing in"
@@ -7142,6 +7644,10 @@ msgstr "按上次更新排序"
 msgid "Sort threads"
 msgstr "对线程进行排序"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Space separated; use quotes around spaces"
+msgstr "以空格分隔；含空格的值请用引号括起"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"
 msgstr "拆分终端"
@@ -7151,6 +7657,10 @@ msgstr "拆分终端"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Split view"
 msgstr "分割视图"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "SSE (legacy)"
+msgstr "SSE（旧版）"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "SSH"
@@ -7357,6 +7867,10 @@ msgstr "状态更新来自 CLI 挂钩插件。"
 msgid "Status:"
 msgstr "状态："
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "stdio (local command)"
+msgstr "stdio（本地命令）"
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -7421,6 +7935,7 @@ msgid "Subagent runs"
 msgstr "子代理运行次数"
 
 #: src/renderer/components/composer/composerMcpServers.ts
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Subagents"
 msgstr "子代理"
@@ -7732,6 +8247,14 @@ msgstr "默认的后台刷新频率，适用于下方未单独设置间隔的任
 msgid "The desktop server is still coming online."
 msgstr "桌面服务器仍在启动。"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "The MCP server configuration is invalid or uses a reserved name."
+msgstr "MCP 服务器配置无效或使用了保留名称。"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "The MCP server is invalid."
+msgstr "MCP 服务器无效。"
+
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "正常的应用程序外壳无法呈现。以下诊断信息在重新加载之前显示，以便可以调查故障。"
@@ -7747,6 +8270,18 @@ msgstr "远程服务器未返回配对凭据。"
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "存储库在磁盘上的位置。如果您移动了该文件夹，请更新此位置。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "The selected file does not contain valid MCP server configurations."
+#~ msgstr "所选文件不包含有效的 MCP 服务器配置。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "The server configuration is invalid."
+msgstr "服务器配置无效。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "The server returned an invalid MCP response."
+msgstr "服务器返回了无效的 MCP 响应。"
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -7806,6 +8341,10 @@ msgstr "此文件使用不受支持的编码。"
 msgid "This folder is empty."
 msgstr "此文件夹为空。"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "This name is reserved by a built-in MCP server."
+msgstr "此名称由内置 MCP 服务器保留。"
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -7838,6 +8377,10 @@ msgstr "这将删除“{0}”上的工作树并关闭 {1, plural, other {# 个�
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "这将删除“{0}”上的工作树，然后删除分支。"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "This server requires authentication before Poracode can check it."
+msgstr "此服务器需要先进行身份验证，Poracode 才能检查它。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -7935,6 +8478,14 @@ msgstr "标记为“已完成”且已多日未触及的线程将在应用程序
 msgid "Time"
 msgstr "时间"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Timeout (ms)"
+msgstr "超时（毫秒）"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Timeout must be a positive whole number."
+msgstr "超时时间必须为正整数。"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
@@ -7998,6 +8549,10 @@ msgstr "Token"
 msgid "Tokens from {0}"
 msgstr "来自{0}的token"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Tool restrictions cannot be imported"
+msgstr "无法导入工具限制"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Tool search"
 msgstr "工具搜索"
@@ -8059,6 +8614,10 @@ msgstr "开启远程访问以显示配对码。"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
 msgstr "打开或关闭每个提供商的跟踪。自动刷新会跳过已禁用的提供商。"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Type"
+msgstr "类型"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type a command"
@@ -8278,6 +8837,10 @@ msgstr "无法更新线程。"
 msgid "Unassigned"
 msgstr "未分配"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Unavailable"
+msgstr "不可用"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "不可用的项目"
@@ -8463,6 +9026,14 @@ msgstr "正在更新{0}"
 msgid "Updating {0} ({env})"
 msgstr "更新{0}({env})"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "URL"
+msgstr "URL"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "URL is required."
+msgstr "URL 为必填项。"
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/settingsSections.ts
@@ -8506,6 +9077,10 @@ msgstr "使用检测到的会话？"
 msgid "Use ignore files"
 msgstr "使用忽略文件"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
+msgstr "请使用字母、数字、点、连字符或下划线，且不要包含空格。"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
@@ -8535,6 +9110,10 @@ msgstr "已使用"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Used by {conflict}"
 msgstr "已被{conflict}使用"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "User"
+#~ msgstr "用户"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "user@example.com"
@@ -8726,6 +9305,10 @@ msgstr "要让远程代理处理什么任务？"
 msgid "What the Create PR button does by default: open a dialog to edit the title and description first, or auto-generate them and create the PR in one click. You can also switch this from the button's menu."
 msgstr "默认情况下，“创建 PR”按钮的作用是：打开一个对话框，首先编辑标题和描述，或者自动生成它们并一键创建 PR。您也可以从按钮的菜单中进行切换。"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "What this server provides"
+msgstr "此服务器提供的功能"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 #: src/renderer/views/WhatsNewOverlay.tsx
@@ -8786,6 +9369,7 @@ msgstr "终端面板出现的位置。"
 msgid "Will run in {0}:"
 msgstr "将在{0}运行："
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -8857,6 +9441,14 @@ msgstr "工作树干净"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Working…"
 msgstr "工作…"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Workspace"
+msgstr "工作区"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
+msgid "Workspace MCP servers override user servers with the same name and are added only when agents start in this project."
+msgstr "工作区 MCP 服务器会覆盖同名的用户服务器，并且仅在代理于此项目中启动时添加。"
 
 #: src/mobile/views/WorkspaceView.tsx
 msgid "Workspace view"
@@ -8930,6 +9522,7 @@ msgstr "写评论..."
 msgid "Write notes for this project…"
 msgstr "为这个项目写笔记..."
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "WSL"
@@ -8939,6 +9532,10 @@ msgstr "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL ({0})"
 msgstr "WSL（{0}）"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "WSL ({distro})"
+msgstr "WSL ({distro})"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx

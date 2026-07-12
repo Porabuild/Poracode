@@ -1,4 +1,4 @@
-import { Children, isValidElement, type ReactNode } from "react";
+import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -391,6 +391,8 @@ describe("ThreadDraftView", () => {
       hiddenModels: {},
       disabledAgents: [],
       lastPresentationModeByAgent: {},
+      enabledMcpServers: {},
+      disabledBuiltInMcpServers: {},
       sharedSettingsHydrated: true,
     });
   });
@@ -618,6 +620,36 @@ describe("ThreadDraftView", () => {
       presentationMode: "gui",
       prompt: "hello world",
     });
+  });
+
+  it("keeps a globally disabled built-in out of the composer and launch config", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useSharedSettings.setState({
+      enabledMcpServers: { browser: true },
+      disabledBuiltInMcpServers: { browser: true },
+    });
+
+    render(
+      <ThreadDraftView project={project} agentStatuses={[dualModeCodexStatus]} onStart={onStart} />,
+    );
+
+    await waitFor(() => expect(composerSpy).toHaveBeenCalled());
+    const props = composerSpy.mock.lastCall?.[0] as { afterControls?: ReactNode };
+    expect(isValidElement(props.afterControls)).toBe(true);
+    const mcpServers = (
+      props.afterControls as ReactElement<{
+        mcpServers: Array<{ descriptor: { id: string } }>;
+      }>
+    ).props.mcpServers;
+    expect(mcpServers.some((server) => server.descriptor.id === "browser")).toBe(false);
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect((onStart.mock.lastCall![0] as { config: object }).config).not.toHaveProperty(
+      "browserMcp",
+    );
   });
 
   it("submits the Codex Auto-review reviewer override", async () => {

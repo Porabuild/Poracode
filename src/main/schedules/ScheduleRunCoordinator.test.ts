@@ -10,6 +10,7 @@ import type {
 } from "@/shared/contracts";
 import { agentStatusesResponseSchema } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { defaultSharedSettings } from "@/shared/settings";
 import { ScheduleRunCoordinator, type ScheduleRunCoordinatorDeps } from "./ScheduleRunCoordinator";
 
 const HOME_PROJECT: Project = {
@@ -120,6 +121,7 @@ function makeHarness(overrides: Partial<ScheduleRunCoordinatorDeps> = {}): Harne
       });
     },
     newId: () => ids[idx++] ?? `id-${idx}`,
+    getSharedSettings: () => defaultSharedSettings,
     ...overrides,
   };
 
@@ -257,6 +259,47 @@ describe("ScheduleRunCoordinator", () => {
     expect(threads.get("thread-1")?.projectId).toBe(WORK_PROJECT.id);
     expect(startThread).toHaveBeenCalledWith(
       expect.objectContaining({ projectLocation: WORK_PROJECT.location }),
+    );
+
+    coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
+    coordinator.observeSupervisorEvent(threadState("thread-1", "idle"));
+    await expect(settled).resolves.toBe("");
+  });
+
+  it("resolves global and project MCP settings for scheduled launches", async () => {
+    const globalServer = {
+      id: "global-memory",
+      name: "memory",
+      description: "global",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: { type: "stdio" as const, command: "global-memory", args: [], env: {} },
+    };
+    const projectServer = {
+      ...globalServer,
+      id: "project-memory",
+      name: "MEMORY",
+      description: "project override",
+      transport: { ...globalServer.transport, command: "project-memory" },
+    };
+    const project = { ...WORK_PROJECT, mcpServers: [projectServer] };
+    const { coordinator, startThread } = makeHarness({
+      getProject: (projectId) => (projectId === project.id ? project : null),
+      getSharedSettings: () => ({
+        ...defaultSharedSettings,
+        mcpServers: [globalServer],
+        disabledBuiltInMcpServers: { browser: true },
+      }),
+    });
+
+    const settled = coordinator.runScheduleAsThread({ ...task, projectId: project.id });
+    await flush();
+
+    expect(startThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mcpServers: [projectServer],
+        disabledBuiltInMcpServerIds: ["browser"],
+      }),
     );
 
     coordinator.observeSupervisorEvent(threadState("thread-1", "working"));

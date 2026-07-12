@@ -9,6 +9,7 @@ import type {
   ThreadAttention,
   ThreadConfig,
   ThreadStatus,
+  McpLaunchSnapshot,
 } from "@/shared/contracts";
 import { capabilitiesForPresentation, validateAgentModelSelection } from "@/shared/agentSelection";
 import { DEFAULT_TERMINAL_SIZE } from "@/shared/contracts";
@@ -73,9 +74,13 @@ export interface OrchestratorThreadState {
  */
 export interface OrchestratorThreadHost {
   /** Resolve a live parent thread's project and non-recursive MCP context. */
-  getParentContext(
-    threadId: string,
-  ): { projectLocation: ProjectLocation; config: ThreadConfig } | undefined;
+  getParentContext(threadId: string):
+    | {
+        projectLocation: ProjectLocation;
+        config: ThreadConfig;
+        mcpLaunchSnapshot: McpLaunchSnapshot;
+      }
+    | undefined;
   /** Live runtime state of a thread; `undefined` once its session is gone. */
   getThreadState(threadId: string): OrchestratorThreadState | undefined;
   /** Provider transcript when the session's adapter supports `readThread`. */
@@ -330,6 +335,7 @@ export class OrchestratorThreadManager {
       prompt,
       initialSize: DEFAULT_TERMINAL_SIZE,
       presentationMode: "gui",
+      ...parent.mcpLaunchSnapshot,
     };
 
     const record: ChildThreadRecord = {

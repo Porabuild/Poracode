@@ -320,6 +320,7 @@ export function buildControls(
 ): ComposerControl[] {
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
+  if (presentationMode === "terminal") return [];
   if (!agentStatus) return [];
 
   const presentationCapabilities = capabilitiesForPresentation(

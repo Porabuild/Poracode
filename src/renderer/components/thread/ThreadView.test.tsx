@@ -266,6 +266,8 @@ describe("ThreadView", () => {
           model: "gpt-5.4",
         },
         prompt: "hi",
+        mcpServers: [],
+        disabledBuiltInMcpServerIds: [],
         initialSize: {
           cols: 120,
           rows: 40,

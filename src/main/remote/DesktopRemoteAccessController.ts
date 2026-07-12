@@ -1,5 +1,5 @@
 import type { BrowserPanelManager } from "../browser";
-import { dbGetProjects, dbGetThreads } from "../db";
+import { dbGetProject, dbGetProjects, dbGetThreads } from "../db";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "../sharedSettingsFile";
 import type { LightcodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import type {
@@ -15,6 +15,7 @@ import {
   type RemoteGitSummaries,
 } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
+import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import type { ScheduleService } from "../schedules/ScheduleService";
 import { createPersistentRemoteAuthStore } from "./auth";
 import {
@@ -288,6 +289,10 @@ export function createDesktopRemoteAccessController(
         ...(devMobileAppUrl ? { devMobileAppUrl } : {}),
         callSupervisor: options.callSupervisor,
         dispatchThreadCommand: options.dispatchThreadCommand,
+        resolveMcpLaunchSnapshot: (projectId) => {
+          const settings = readSharedSettingsFile(options.paths.settingsPath);
+          return resolveMcpLaunchSnapshot(settings, dbGetProject(projectId)?.mcpServers ?? []);
+        },
         browser: new RemoteBrowserGateway(options.getBrowserPanelManager),
         portForward: portForwarding.gateway,
         portProxy: portForwarding.proxy,

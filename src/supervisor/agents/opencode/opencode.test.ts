@@ -491,6 +491,50 @@ describe("createOpenCodeAdapter", () => {
     expect(argv.preferShell).toBe(true);
   });
 
+  it("injects custom MCPs through a per-launch OpenCode config overlay", () => {
+    const adapter = createOpenCodeAdapter();
+    const argv = adapter.buildLaunchArgv(
+      { kind: "windows", path: "C:\\repo" },
+      { model: "" },
+      "",
+      undefined,
+      {
+        mcpServers: [
+          {
+            id: "vercel-id",
+            name: "vercel",
+            description: "",
+            enabled: true,
+            timeoutMs: 30_000,
+            transport: {
+              type: "http",
+              url: "https://mcp.vercel.test",
+              headers: { Authorization: "Bearer secret" },
+            },
+          },
+        ],
+      },
+    );
+
+    expect(argv.env?.OPENCODE_CONFIG_CONTENT).toBeDefined();
+    expect(argv.env?.OPENCODE_CONFIG_CONTENT).not.toContain("Bearer secret");
+    expect(argv.env?.OPENCODE_CONFIG_CONTENT).toContain("{env:LIGHTCODE_MCP_OPENCODE_");
+    expect(Object.values(argv.env ?? {})).toContain("Bearer secret");
+  });
+
+  it("does not override OpenCode config when no custom MCP is selected", () => {
+    const adapter = createOpenCodeAdapter();
+    const argv = adapter.buildResumeArgv(
+      { kind: "windows", path: "C:\\repo" },
+      { model: "" },
+      "",
+      { providerSessionId: "ses_existing", discoveredAt: new Date().toISOString() },
+      { mcpServers: [] },
+    );
+
+    expect(argv.env).toBeUndefined();
+  });
+
   it("buildResumeArgv opts into shell resolution for the terminal TUI", () => {
     const adapter = createOpenCodeAdapter();
     const argv = adapter.buildResumeArgv(

@@ -411,6 +411,16 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     keywords: "glob hide ignore file mention exclude pattern filter",
   },
 
+  // MCP Servers
+  {
+    section: "mcpServers",
+    anchor: "mcpServers.manage",
+    title: msg`MCP Servers`,
+    description: msg`Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings.`,
+    keywords: "model context protocol tools server stdio http sse workspace user built-in",
+    desktopOnly: true,
+  },
+
   // Browser
   {
     section: "browser",

@@ -116,6 +116,18 @@ async function createFixture() {
   await mkdir(outDir, { recursive: true });
   await writeFile(join(projectDir, "README.md"), "# Lightcode smoke fixture\n");
   await writeFile(join(projectDir, "hello.txt"), "fixture data\n");
+  await writeFile(
+    join(projectDir, ".mcp.json"),
+    `${JSON.stringify(
+      {
+        mcpServers: {
+          smoke_external: { command: "node", args: ["smoke-mcp-server.mjs"] },
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
   execFileSync("git", ["init", "-q"], { cwd: projectDir });
   execFileSync("git", ["add", "-A"], { cwd: projectDir });
   execFileSync(

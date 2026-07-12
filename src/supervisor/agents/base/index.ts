@@ -336,6 +336,9 @@ export function resolveLaunchSpec(location: ProjectLocation, argv: AgentArgvSpec
   if (argv.sessionRef) {
     spec.sessionRef = argv.sessionRef;
   }
+  if (argv.cleanup) {
+    spec.cleanup = argv.cleanup;
+  }
   return spec;
 }
 

@@ -3,6 +3,7 @@ import { toast } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import type {
   AgentStatus,
+  BuiltInMcpServerId,
   Project,
   ProjectDraftConfig,
   ProviderDraftConfig,
@@ -239,6 +240,7 @@ export function ThreadDraftView(props: {
   const setLastPresentationMode = useSharedSettings((s) => s.setLastPresentationMode);
   // Persistent composer MCP enablement (standing default across new threads).
   const enabledMcpServers = useSharedSettings((s) => s.enabledMcpServers);
+  const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
   const supportedPresentationModes = selectedAgent
     ? (selectedAgent.capabilities.presentationModes ?? [
         selectedAgent.capabilities.presentationMode,
@@ -932,28 +934,34 @@ export function ThreadDraftView(props: {
   // config flag — otherwise the composer would show a phantom "on" state and the
   // scope-reset effect there would fight it.
   const hostPlatform = readBridge()?.platform;
-  const effectiveBrowserMcp =
-    browserMcpMention ||
-    (enabledMcpServers.browser === true &&
-      resolveMcpScope(selectedAgent.capabilities.browserMcpScope, presentationMode) !== "none");
-  const effectiveSubagentMcp =
-    subagentMcpMention ||
-    (enabledMcpServers.subagents === true &&
-      resolveMcpScope(selectedAgent.capabilities.subagentMcpScope, presentationMode) !== "none");
-  const effectiveChromeMcp =
-    chromeMcpMention ||
-    (enabledMcpServers.chrome === true &&
-      chromeMcpServer.getScope(selectedAgent.capabilities, presentationMode, project.location) !==
-        "none");
-  const effectiveComputerUse =
-    computerUseMention ||
-    (enabledMcpServers[COMPUTER_USE_MCP_ID] === true &&
-      getComputerUseScope(
-        selectedAgent.capabilities,
-        presentationMode,
-        project.location,
-        hostPlatform,
-      ) !== "none");
+  const effectiveMcp = (id: BuiltInMcpServerId, mention: boolean, scope: string) =>
+    disabledBuiltInMcpServers[id] !== true &&
+    (mention || (enabledMcpServers[id] === true && scope !== "none"));
+  const effectiveBrowserMcp = effectiveMcp(
+    "browser",
+    browserMcpMention,
+    resolveMcpScope(selectedAgent.capabilities.browserMcpScope, presentationMode),
+  );
+  const effectiveSubagentMcp = effectiveMcp(
+    "subagents",
+    subagentMcpMention,
+    resolveMcpScope(selectedAgent.capabilities.subagentMcpScope, presentationMode),
+  );
+  const effectiveChromeMcp = effectiveMcp(
+    "chrome",
+    chromeMcpMention,
+    chromeMcpServer.getScope(selectedAgent.capabilities, presentationMode, project.location),
+  );
+  const effectiveComputerUse = effectiveMcp(
+    COMPUTER_USE_MCP_ID,
+    computerUseMention,
+    getComputerUseScope(
+      selectedAgent.capabilities,
+      presentationMode,
+      project.location,
+      hostPlatform,
+    ),
+  );
 
   return (
     <div

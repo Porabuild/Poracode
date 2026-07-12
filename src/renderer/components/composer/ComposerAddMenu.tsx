@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Monitor, Paperclip, Plus, Server } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Monitor,
+  Paperclip,
+  Plus,
+  Server,
+  Settings2,
+} from "lucide-react";
 import type { Selection } from "@heroui/react";
 import { Dropdown, Label, Separator } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -20,6 +28,21 @@ export type ComposerMcpMenuItem = {
   visible: boolean;
   onToggle: (next: boolean) => void;
 };
+
+/**
+ * A user-configured MCP server (global or workspace scope) surfaced in the
+ * submenu. Toggling flips the server's persistent `enabled` flag in settings —
+ * the same switch as on the MCP Servers settings page.
+ */
+export type ComposerCustomMcpItem = {
+  id: string;
+  name: string;
+  enabled: boolean;
+  onToggle: (next: boolean) => void;
+};
+
+/** Menu-selection key prefix so custom ids can never collide with registry ids. */
+const CUSTOM_KEY_PREFIX = "custom:";
 
 /**
  * Presentational switch used inside the MCP rows. The desktop rows are a
@@ -46,6 +69,8 @@ function MenuSwitch(props: { checked: boolean }) {
 
 export function ComposerAddMenu(props: {
   mcpServers: readonly ComposerMcpMenuItem[];
+  /** User-configured servers (global + workspace) listed after the built-ins. */
+  customMcpServers?: readonly ComposerCustomMcpItem[];
   showFileOption?: boolean;
   onPickFiles: () => void;
   /**
@@ -60,6 +85,7 @@ export function ComposerAddMenu(props: {
   };
 }) {
   const { mcpServers, showFileOption = true, onPickFiles, computerUse } = props;
+  const customMcpServers = props.customMcpServers ?? [];
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
@@ -67,12 +93,14 @@ export function ComposerAddMenu(props: {
   const [mobileView, setMobileView] = useState<"root" | "mcp">("root");
   const visibleMcpServers = mcpServers.filter((server) => server.visible);
   const showComputerUse = computerUse?.visible === true;
-  const hasMcpMenu = visibleMcpServers.length > 0 || showComputerUse;
+  const hasMcpMenu = visibleMcpServers.length > 0 || showComputerUse || customMcpServers.length > 0;
   const computerUseSubtitle = isRemoteSession()
     ? t`Controls the paired desktop while the agent clicks or types`
     : t`Takes over the desktop while the agent clicks or types`;
 
-  const enabledMcpCount = visibleMcpServers.filter((server) => server.enabled).length;
+  const enabledMcpCount =
+    visibleMcpServers.filter((server) => server.enabled).length +
+    customMcpServers.filter((server) => server.enabled).length;
 
   if (!showFileOption && !hasMcpMenu) return null;
 
@@ -93,12 +121,19 @@ export function ComposerAddMenu(props: {
   // single toggle that changed, and never close the parent menu on toggle.
   const submenuSelectedKeys = new Set<string>([
     ...visibleMcpServers.filter((server) => server.enabled).map((server) => server.descriptor.id),
+    ...customMcpServers
+      .filter((server) => server.enabled)
+      .map((server) => `${CUSTOM_KEY_PREFIX}${server.id}`),
     ...(showComputerUse && computerUse.enabled ? [COMPUTER_USE_KEY] : []),
   ]);
 
   const handleSubmenuSelection = (keys: Selection) => {
     for (const server of visibleMcpServers) {
       const next = keys !== "all" && keys.has(server.descriptor.id);
+      if (next !== server.enabled) server.onToggle(next);
+    }
+    for (const server of customMcpServers) {
+      const next = keys !== "all" && keys.has(`${CUSTOM_KEY_PREFIX}${server.id}`);
       if (next !== server.enabled) server.onToggle(next);
     }
     if (showComputerUse) {
@@ -181,6 +216,19 @@ export function ComposerAddMenu(props: {
           </button>
         );
       })}
+      {customMcpServers.map((server) => (
+        <button
+          key={`${CUSTOM_KEY_PREFIX}${server.id}`}
+          type="button"
+          className="m-sheet-action"
+          aria-pressed={server.enabled}
+          onClick={() => server.onToggle(!server.enabled)}
+        >
+          <Settings2 className="size-4 text-muted" />
+          <span className="flex-1 truncate">{server.name}</span>
+          <MenuSwitch checked={server.enabled} />
+        </button>
+      ))}
       {showComputerUse ? (
         <button
           type="button"
@@ -280,6 +328,18 @@ export function ComposerAddMenu(props: {
                         </Dropdown.Item>
                       );
                     })}
+                    {customMcpServers.map((server) => (
+                      <Dropdown.Item
+                        key={`${CUSTOM_KEY_PREFIX}${server.id}`}
+                        id={`${CUSTOM_KEY_PREFIX}${server.id}`}
+                        textValue={server.name}
+                        className="data-[selected=true]:bg-transparent"
+                      >
+                        <Settings2 className="size-4 text-muted" />
+                        <Label className="flex-1 truncate">{server.name}</Label>
+                        <MenuSwitch checked={server.enabled} />
+                      </Dropdown.Item>
+                    ))}
                     {showComputerUse ? (
                       <Dropdown.Item
                         id={COMPUTER_USE_KEY}

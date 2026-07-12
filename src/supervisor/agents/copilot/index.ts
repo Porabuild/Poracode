@@ -17,6 +17,7 @@ import { resolveAgentBinaryPath } from "../binaryResolver";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildCopilotArgs } from "./argv";
 import { buildCopilotCommand, copilotDefaultCapabilities, copilotDetectionSpec } from "./detection";
+import { writeCopilotMcpConfig } from "./mcp";
 import {
   installCopilotPlugin,
   isCopilotPluginInstalled,
@@ -88,23 +89,25 @@ export function createCopilotAdapter(): AgentAdapter {
     // No `pluginLaunchExtras` needed — Copilot CLI auto-loads
     // `${COPILOT_HOME ?? ~/.copilot}/hooks/lightcode-status.json` written at
     // install time, and `LIGHTCODE_HOOK_*` env is injected by the coordinator.
-    buildLaunchArgv(_location, config, prompt, _sessionRef, launchOptions) {
+    buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       const sessionId = launchOptions?.resumeThreadId ?? randomUUID();
+      const mcp = writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);
       return {
         binary: "copilot",
-        args: buildCopilotArgs(config, prompt, sessionId, launchOptions),
+        args: buildCopilotArgs(config, prompt, sessionId, launchOptions, mcp?.argument),
+        ...(mcp && Object.keys(mcp.env).length > 0 ? { env: mcp.env } : {}),
+        ...(mcp ? { cleanup: mcp.cleanup } : {}),
         sessionRef: createKnownSessionRef(sessionId),
       };
     },
-    buildResumeArgv(_location, config, prompt, sessionRef, launchOptions) {
+    buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
+      const sessionId = launchOptions?.resumeThreadId ?? sessionRef.providerSessionId;
+      const mcp = writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);
       return {
         binary: "copilot",
-        args: buildCopilotArgs(
-          config,
-          prompt,
-          launchOptions?.resumeThreadId ?? sessionRef.providerSessionId,
-          launchOptions,
-        ),
+        args: buildCopilotArgs(config, prompt, sessionId, launchOptions, mcp?.argument),
+        ...(mcp && Object.keys(mcp.env).length > 0 ? { env: mcp.env } : {}),
+        ...(mcp ? { cleanup: mcp.cleanup } : {}),
       };
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {

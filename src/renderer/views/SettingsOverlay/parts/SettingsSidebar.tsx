@@ -5,6 +5,7 @@ import {
   Bell,
   Bot,
   Boxes,
+  Cable,
   FlaskConical,
   FolderGit2,
   Gauge,
@@ -56,6 +57,7 @@ const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
   "remoteAccess",
   "remoteServers",
   "agents",
+  "mcpServers",
   "browser",
   "archived",
   "about",
@@ -221,6 +223,7 @@ export function SettingsSidebar(props: {
     { id: "remoteServers", icon: <Server className="size-4" />, label: t`Remote Environments` },
   ];
   const sectionsAfterAgents: { id: SettingsSection; icon: ReactNode; label: string }[] = [
+    { id: "mcpServers", icon: <Cable className="size-4" />, label: t`MCP Servers` },
     { id: "browser", icon: <Globe className="size-4" />, label: t`Browser` },
     { id: "usage", icon: <Gauge className="size-4" />, label: t`Usage` },
     { id: "archived", icon: <Archive className="size-4" />, label: t`Archived Threads` },
@@ -480,6 +483,15 @@ export function SettingsSidebar(props: {
                   </div>
                 );
               })}
+            {!remoteSession && (
+              <SidebarButton
+                iconOnly
+                icon={<Cable className="size-4" />}
+                label={t`MCP Servers`}
+                isActive={activeSection === "mcpServers"}
+                onPress={() => onSectionChange("mcpServers")}
+              />
+            )}
             <SidebarButton
               iconOnly
               icon={<Globe className="size-4" />}

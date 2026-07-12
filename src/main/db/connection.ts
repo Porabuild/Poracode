@@ -102,6 +102,7 @@ export function initDatabase(dbPath: string) {
       location_unc_path TEXT,
       last_draft_config TEXT,
       scripts TEXT,
+      mcp_servers TEXT,
       disabled INTEGER NOT NULL DEFAULT 0,
       sort_order INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
@@ -213,7 +214,7 @@ export function initDatabase(dbPath: string) {
 
   // Baseline schema version for future DB migrations.
   // New upgrade steps should live behind this gate when we need them.
-  const SCHEMA_VERSION = 23;
+  const SCHEMA_VERSION = 24;
 
   const storedVersion = Number(
     (
@@ -449,6 +450,13 @@ export function initDatabase(dbPath: string) {
       const cols = sqlite.prepare("PRAGMA table_info(scheduled_tasks)").all() as { name: string }[];
       if (!cols.some((c) => c.name === "project_id")) {
         sqlite.exec("ALTER TABLE scheduled_tasks ADD COLUMN project_id TEXT");
+      }
+    }
+
+    if (storedVersion < 24) {
+      const cols = sqlite.prepare("PRAGMA table_info(projects)").all() as { name: string }[];
+      if (!cols.some((c) => c.name === "mcp_servers")) {
+        sqlite.exec("ALTER TABLE projects ADD COLUMN mcp_servers TEXT");
       }
     }
 

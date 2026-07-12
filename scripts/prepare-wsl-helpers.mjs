@@ -8,6 +8,8 @@
  *      subscriptions.
  *   2. `bridge.mjs` — the in-distro server (hook ingress + /v1/fs/*
  *      + /v1/watch/*). Copied from `src/supervisor/wsl/bridge/bridge.mjs`.
+ *   3. `mcp-probe.mjs` — self-contained MCP client used to verify workspace
+ *      servers in the same distro where providers run.
  *
  * Idempotency: presence + non-zero size on `watcher.node` skips the
  * `npm pack` download. `bridge.mjs` is always copied — the copy is <1ms
@@ -16,7 +18,16 @@
  */
 
 import { execSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+} from "node:fs";
+import { builtinModules } from "node:module";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -31,6 +42,7 @@ mkdirSync(destDir, { recursive: true });
 
 stageWatcherBinary();
 stageHookBridge();
+stageMcpProbe();
 
 function stageWatcherBinary() {
   const dest = join(destDir, "watcher.node");
@@ -79,4 +91,25 @@ function stageHookBridge() {
   // File copy is <1ms and idempotent — the simpler rule is correct.
   copyFileSync(src, dest);
   console.log(`[prepare-wsl-helpers] bridge.mjs -> ${dest}`);
+}
+
+function stageMcpProbe() {
+  const src = join(repoRoot, "dist", "main", "mcpProbeWorker.mjs");
+  if (!existsSync(src)) {
+    throw new Error(`MCP probe worker missing; run build:electron first: ${src}`);
+  }
+  assertSelfContainedWorker(src);
+  const dest = join(destDir, "mcp-probe.mjs");
+  copyFileSync(src, dest);
+  console.log(`[prepare-wsl-helpers] mcpProbeWorker.mjs -> ${dest}`);
+}
+
+function assertSelfContainedWorker(path) {
+  const source = readFileSync(path, "utf8");
+  const imports = source.matchAll(/^import(?:[\s\S]*?\sfrom\s*)?["']([^"']+)["'];?$/gm);
+  const builtins = new Set([...builtinModules, ...builtinModules.map((name) => `node:${name}`)]);
+  const external = [...imports].map((match) => match[1]).filter((name) => !builtins.has(name));
+  if (external.length > 0) {
+    throw new Error(`MCP probe worker is not self-contained: ${[...new Set(external)].join(", ")}`);
+  }
 }

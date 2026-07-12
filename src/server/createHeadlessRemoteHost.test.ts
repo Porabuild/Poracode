@@ -13,6 +13,11 @@ const h = vi.hoisted(() => ({
   supervisorCall: vi.fn<() => Promise<unknown>>(async () => ({})),
   initDatabase: vi.fn<(dbPath: string) => void>(),
   closeDatabase: vi.fn<() => void>(),
+  projects: [] as unknown[],
+  sharedSettings: {
+    mcpServers: [] as unknown[],
+    disabledBuiltInMcpServers: {} as Record<string, boolean>,
+  },
 }));
 
 // `../db` (used by RemoteAccessServer) and `@/main/db` resolve to the same
@@ -20,8 +25,17 @@ const h = vi.hoisted(() => ({
 vi.mock("@/main/db", () => ({
   initDatabase: (dbPath: string) => h.initDatabase(dbPath),
   closeDatabase: () => h.closeDatabase(),
-  dbGetProjects: vi.fn<() => unknown[]>(() => []),
-  dbGetProject: vi.fn<() => unknown>(() => null),
+  dbGetProjects: vi.fn<() => unknown[]>(() => h.projects),
+  dbGetProject: vi.fn<(projectId: string) => unknown>(
+    (projectId) =>
+      h.projects.find(
+        (project) =>
+          typeof project === "object" &&
+          project !== null &&
+          "id" in project &&
+          project.id === projectId,
+      ) ?? null,
+  ),
   dbGetThreads: vi.fn<() => unknown[]>(() => []),
   dbGetThread: vi.fn<() => unknown>(() => null),
   dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
@@ -64,7 +78,7 @@ vi.mock("@/main/lightcodeData", () => ({
 }));
 
 vi.mock("@/main/sharedSettingsFile", () => ({
-  readSharedSettingsFile: () => ({}),
+  readSharedSettingsFile: () => h.sharedSettings,
   patchSharedSettingsFile: () => ({}),
 }));
 
@@ -90,6 +104,10 @@ describe("createHeadlessRemoteHost", () => {
     h.supervisorDispose.mockReset();
     h.initDatabase.mockReset();
     h.closeDatabase.mockReset();
+    h.supervisorCall.mockReset();
+    h.supervisorCall.mockResolvedValue({});
+    h.projects = [];
+    h.sharedSettings = { mcpServers: [], disabledBuiltInMcpServers: {} };
   });
 
   afterEach(() => {
@@ -127,6 +145,52 @@ describe("createHeadlessRemoteHost", () => {
     h.capturedOnEvent?.({ type: "thread-status" });
 
     expect(publish).toHaveBeenCalledWith({ type: "thread-status" });
+    await host.dispose();
+  });
+
+  it("resolves MCP launch settings from the headless settings file and project row", async () => {
+    const globalServer = {
+      id: "global-memory",
+      name: "memory",
+      description: "global",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: { type: "stdio", command: "global-memory", args: [], env: {} },
+    };
+    const projectServer = {
+      ...globalServer,
+      id: "project-memory",
+      name: "MEMORY",
+      description: "project override",
+      transport: { ...globalServer.transport, command: "project-memory" },
+    };
+    h.projects = [
+      {
+        id: "project-1",
+        name: "Project",
+        location: { kind: "posix", path: "/repo" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        mcpServers: [projectServer],
+      },
+    ];
+    h.sharedSettings = {
+      mcpServers: [globalServer],
+      disabledBuiltInMcpServers: { chrome: true },
+    };
+
+    const host = makeHost();
+    const resolver = (
+      host.server as unknown as {
+        options: {
+          resolveMcpLaunchSnapshot?: (projectId: string) => unknown;
+        };
+      }
+    ).options.resolveMcpLaunchSnapshot;
+
+    expect(resolver?.("project-1")).toEqual({
+      mcpServers: [projectServer],
+      disabledBuiltInMcpServerIds: ["chrome"],
+    });
     await host.dispose();
   });
 

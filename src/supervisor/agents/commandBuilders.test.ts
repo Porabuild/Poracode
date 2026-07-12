@@ -342,6 +342,32 @@ describe("agent command builders", () => {
     },
   );
 
+  it.skipIf(process.platform !== "win32")(
+    "separates Claude MCP config values from the prompt positional",
+    () => {
+      const spec = launch(createClaudeAdapter(), windowsProject, config, "hello", undefined, {
+        mcpServers: [
+          {
+            id: "vercel",
+            name: "Vercel",
+            description: "",
+            enabled: true,
+            timeoutMs: 30_000,
+            transport: { type: "http", url: "https://mcp.vercel.com", headers: {} },
+          },
+        ],
+      });
+      const { cmdArgs } = parseWindowsSpec(spec);
+
+      expect(cmdArgs.slice(cmdArgs.indexOf("--mcp-config"), -1)).toEqual([
+        "--mcp-config",
+        expect.stringContaining('"Vercel"'),
+        "--",
+      ]);
+      expect(cmdArgs.at(-1)).toBe("hello");
+    },
+  );
+
   it.skipIf(process.platform !== "win32")("builds a Claude resume command", () => {
     const sessionRef: SessionRef = {
       providerSessionId: "abc-123",

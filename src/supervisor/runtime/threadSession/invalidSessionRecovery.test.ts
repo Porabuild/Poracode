@@ -51,6 +51,7 @@ function createHarness() {
     adapter,
     projectLocation: PROJECT_LOCATION,
     config: CONFIG,
+    mcpLaunchSnapshot: { mcpServers: [], disabledBuiltInMcpServerIds: [] },
     terminalSize: { cols: 100, rows: 30 },
     launchPrompt: "",
     sessionRef: {
@@ -218,6 +219,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
     expect(harness.spawnThread).toHaveBeenCalledTimes(1);
     const spawnInput = harness.spawnThread.mock.calls[0]![0];
     expect(spawnInput).not.toHaveProperty("sessionRef");
+    expect(spawnInput.mcpLaunchSnapshot).toBe(harness.session.mcpLaunchSnapshot);
     expect(spawnInput).toMatchObject({
       threadId: THREAD_ID,
       launchPrompt: "",

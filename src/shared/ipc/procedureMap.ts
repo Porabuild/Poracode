@@ -4,6 +4,7 @@ import { dbProcedures } from "./procedures/db";
 import { githubProcedures } from "./procedures/github";
 import { gitProcedures } from "./procedures/git";
 import { lspProcedures } from "./procedures/lsp";
+import { mcpProcedures } from "./procedures/mcp";
 import { profileProcedures } from "./procedures/profile";
 import { scheduleProcedures } from "./procedures/schedules";
 import { projectTreeProcedures } from "./procedures/projectTree";
@@ -24,6 +25,7 @@ export const groupedIpcProcedures = {
   db: dbProcedures,
   updates: updatesProcedures,
   lsp: lspProcedures,
+  mcp: mcpProcedures,
   browser: browserProcedures,
   usage: usageProcedures,
   profile: profileProcedures,
@@ -41,6 +43,7 @@ export const ipcProcedureMap = {
   ...dbProcedures,
   ...updatesProcedures,
   ...lspProcedures,
+  ...mcpProcedures,
   ...browserProcedures,
   ...usageProcedures,
   ...profileProcedures,

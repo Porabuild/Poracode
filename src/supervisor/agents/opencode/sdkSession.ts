@@ -202,7 +202,12 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     this.activated = true;
 
     try {
-      this.browserMcpEnabled = isOpenCodeBrowserMcpEnabled(this.input.agentSettings);
+      // Browser enablement also comes from the OpenCode agent-settings toggle,
+      // so the http config's presence carries the pipeline's disable decision.
+      // The other flags live on the (already effective) thread config.
+      this.browserMcpEnabled =
+        isOpenCodeBrowserMcpEnabled(this.input.agentSettings) &&
+        this.input.browserMcp !== undefined;
       this.computerUseMcpEnabled = this.input.config.computerUse === true;
       this.chromeMcpEnabled = this.input.config.chromeMcp === true;
       syncOpenCodeBrowserMcpConfigFile(
@@ -707,6 +712,9 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
    * dedicated-server cost is strictly opt-in.
    */
   private buildAcquireInput(): AcquireOpenCodeServerInput {
+    const { subagentMcp, appControlsMcp, mcpServers } = this.input;
+    const needsDedicatedServer =
+      subagentMcp !== undefined || appControlsMcp !== undefined || (mcpServers?.length ?? 0) > 0;
     return {
       projectLocation: this.input.projectLocation,
       browserMcpEnabled: this.browserMcpEnabled,
@@ -717,12 +725,10 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         : {}),
       chromeMcpEnabled: this.chromeMcpEnabled,
       ...(this.input.chromeMcp !== undefined ? { chromeMcp: this.input.chromeMcp } : {}),
-      ...(this.input.subagentMcp !== undefined
-        ? { subagentMcp: this.input.subagentMcp, dedicatedKey: this.threadId }
-        : {}),
-      ...(this.input.appControlsMcp !== undefined
-        ? { appControlsMcp: this.input.appControlsMcp, dedicatedKey: this.threadId }
-        : {}),
+      ...(subagentMcp !== undefined ? { subagentMcp } : {}),
+      ...(appControlsMcp !== undefined ? { appControlsMcp } : {}),
+      ...(mcpServers !== undefined ? { mcpServers } : {}),
+      ...(needsDedicatedServer ? { dedicatedKey: this.threadId } : {}),
     };
   }
 

@@ -122,6 +122,8 @@ describe("sharedSettingsFile", () => {
       recentModels: [],
       agentHookSupport: {},
       enabledMcpServers: {},
+      mcpServers: [],
+      disabledBuiltInMcpServers: {},
       browser: {
         allowEval: false,
         allowDataAccess: false,
@@ -234,6 +236,8 @@ describe("sharedSettingsFile", () => {
       recentModels: [],
       agentHookSupport: {},
       enabledMcpServers: {},
+      mcpServers: [],
+      disabledBuiltInMcpServers: {},
       browser: {
         allowEval: false,
         allowDataAccess: false,

@@ -36,24 +36,30 @@ export interface AcpMcpCapabilities {
 }
 
 /**
- * Gate HTTP MCP servers on the agent's advertised `mcpCapabilities.http`.
+ * Gate remote (http/sse) MCP servers on the agent's advertised
+ * `mcpCapabilities`; stdio servers (which carry no `type` field in the ACP
+ * protocol shape) always pass.
  *
  * Some ACP agents (e.g. Factory Droid via `droid exec --output-format
- * acp-daemon`) fail `newSession` with an internal error when passed an HTTP MCP
- * server they don't support, instead of ignoring it — which kills the thread
- * launch. Agents that advertise `http === true` (Cursor, Grok, Gemini) keep
- * their servers. This is provider-agnostic: it keys purely off the capability.
+ * acp-daemon`) fail `newSession` with an internal error when passed a remote
+ * MCP server they don't support, instead of ignoring it — which kills the
+ * thread launch. Agents that advertise the transport (Cursor, Grok, Gemini)
+ * keep their servers. This is provider-agnostic: it keys purely off the
+ * capability.
  *
  * Returns the (possibly empty) surviving list, so callers can inspect the
  * length delta to log/report what was dropped.
  */
-export function gateAcpHttpMcpServers(
-  servers: AcpHttpMcpServer[],
+export function gateAcpMcpServers<T extends object>(
+  servers: T[],
   mcpCapabilities: AcpMcpCapabilities | undefined,
-): AcpHttpMcpServer[] {
-  if (servers.length === 0) return servers;
-  if (mcpCapabilities?.http === true) return servers;
-  return [];
+): T[] {
+  return servers.filter((server) => {
+    if (!("type" in server)) return true;
+    if (server.type === "http") return mcpCapabilities?.http === true;
+    if (server.type === "sse") return mcpCapabilities?.sse === true;
+    return true;
+  });
 }
 
 export function buildAcpBrowserMcpServers(

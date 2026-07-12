@@ -6,6 +6,7 @@ import type {
   ProjectSearchSettings,
   ProjectWorktreeLocation,
   AppView,
+  McpServer,
 } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
@@ -49,6 +50,8 @@ export interface ProjectSlice {
     projectId: string,
     worktreeLocation: ProjectWorktreeLocation | undefined,
   ) => void;
+  /** An empty list clears the project override entirely. */
+  updateProjectMcpServers: (projectId: string, mcpServers: McpServer[]) => void;
   updateProjectLocation: (projectId: string, location: ProjectLocation) => void;
   renameProject: (projectId: string, name: string) => void;
   setProjectDisabled: (projectId: string, disabled: boolean) => void;
@@ -200,6 +203,17 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
           return rest;
         }
         return { ...project, worktreeLocation };
+      }),
+    })),
+  updateProjectMcpServers: (projectId, mcpServers) =>
+    set((state) => ({
+      projects: state.projects.map((project) => {
+        if (project.id !== projectId) return project;
+        if (mcpServers.length === 0) {
+          const { mcpServers: _, ...rest } = project;
+          return rest;
+        }
+        return { ...project, mcpServers };
       }),
     })),
   updateProjectLocation: (projectId, location) =>

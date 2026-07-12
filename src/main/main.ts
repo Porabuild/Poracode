@@ -658,6 +658,7 @@ if (!hasSingleInstanceLock) {
         },
         ensureHomeProject: ensureHomeProjectRow,
         getProject: dbGetProject,
+        getSharedSettings: () => readSharedSettingsFile(requireLightcodePaths().settingsPath),
         upsertThread: dbUpsertThread,
         deleteThread: dbDeleteThread,
         threadExists: (threadId) => dbGetThread(threadId) != null,

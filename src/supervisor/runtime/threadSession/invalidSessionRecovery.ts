@@ -5,7 +5,7 @@ import { applyLaunchArgsConfigRewrite, mergeCliHookExtraArgs } from "./cliHookAr
 import type { CliHookSessionCoordinator } from "./cliHookPlugin";
 import { shouldPrimeNativeProjectShellEnv } from "./helpers";
 import type { PtyLifecycle } from "./ptyLifecycle";
-import type { SpawnPipeline } from "./spawnPipeline";
+import { effectiveLaunchConfig, type SpawnPipeline } from "./spawnPipeline";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 
 type RecoverySpawnPipeline = Pick<
@@ -63,6 +63,7 @@ export class InvalidSessionRecoveryCoordinator {
     if (!context.isCurrentSession(session)) {
       return;
     }
+    const mcpLaunchSnapshot = session.mcpLaunchSnapshot;
 
     session.ignoreExit = true;
     context.outputPipeline.clearSessionTimers(session);
@@ -78,38 +79,46 @@ export class InvalidSessionRecoveryCoordinator {
       return;
     }
 
+    const launchConfig = effectiveLaunchConfig(
+      session.config,
+      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+    );
     const browserMcp = await context.spawnPipeline.resolveBrowserMcpForLaunch(
       session.adapter,
       session.projectLocation,
-      session.config,
+      launchConfig,
+      mcpLaunchSnapshot,
+      { threadId: session.threadId },
     );
     const subagentMcp = await context.spawnPipeline.resolveSubagentMcpForLaunch(
       session.threadId,
       session.projectLocation,
-      session.config,
+      launchConfig,
     );
     const computerUse = context.spawnPipeline.resolveComputerUseMcpForLaunch(
       session.projectLocation,
-      session.config,
+      launchConfig,
       { threadId: session.threadId },
     );
     const chromeMcp = context.spawnPipeline.resolveChromeMcpForLaunch(
       session.projectLocation,
-      session.config,
+      launchConfig,
       { threadId: session.threadId },
     );
     const appControlsMcp = await context.spawnPipeline.resolveAppControlsMcpForLaunch(
       session.projectLocation,
+      mcpLaunchSnapshot,
       { threadId: session.threadId },
     );
     const cliHookExtras = await context.cliHookPlugin.resolveCliHookPluginExtras(
       session.threadId,
       session.agentKind,
       session.projectLocation,
-      session.config,
+      launchConfig,
       browserMcp,
       computerUse,
       chromeMcp,
+      mcpLaunchSnapshot,
     );
     if (!context.isCurrentSession(session)) {
       return;
@@ -117,7 +126,7 @@ export class InvalidSessionRecoveryCoordinator {
 
     const argv = session.adapter.buildLaunchArgv(
       session.projectLocation,
-      session.config,
+      launchConfig,
       session.launchPrompt,
       undefined,
       context.spawnPipeline.composeLaunchOptions(
@@ -128,6 +137,7 @@ export class InvalidSessionRecoveryCoordinator {
         computerUse,
         chromeMcp,
         appControlsMcp,
+        mcpLaunchSnapshot,
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
@@ -161,6 +171,7 @@ export class InvalidSessionRecoveryCoordinator {
       initialSize: session.terminalSize,
       launchPrompt: session.launchPrompt,
       command,
+      mcpLaunchSnapshot,
       ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
     });
   }

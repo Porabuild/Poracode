@@ -477,6 +477,37 @@ describe("CodexStructuredSession", () => {
     );
   });
 
+  it("waits for configured MCP servers before starting the first turn", async () => {
+    const requests: CodexRequestRecord[] = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["hasUserMcpServers"] = true;
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      request: async (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
+        requests.push({
+          method,
+          params,
+          ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+        });
+        if (method === "thread/start") {
+          return { thread: { id: "provider-thread" } };
+        }
+        return {};
+      },
+      notify: () => {},
+    };
+
+    await structuredSession.openThread({ model: "gpt-5.5" });
+
+    expect(requests).toEqual([
+      expect.objectContaining({ method: "thread/start" }),
+      {
+        method: "mcpServerStatus/list",
+        params: { detail: "toolsAndAuthOnly", threadId: "provider-thread" },
+        timeoutMs: 30_000,
+      },
+    ]);
+  });
+
   it("wires RPC notifications and transport lifecycle callbacks into the session", () => {
     const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
     let rpcListener: CodexAppServerRpcListener | undefined;

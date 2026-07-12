@@ -32,6 +32,7 @@ import {
   remoteAccessPort,
 } from "@/main/remote/config";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import { pickRemoteSettings } from "@/shared/remote";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import {
@@ -131,6 +132,7 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
   // every client snapshot until the next supervisor event for that thread.
   dbMarkLiveThreadsInactive();
   configureSecretStorageKey(options.secretStorageKey);
+  const getSharedSettings = () => readSharedSettingsFile(paths.settingsPath);
 
   const identity = readOrCreateRemoteAccessIdentity(paths.baseDir);
   const authStore = createPersistentRemoteAuthStore(paths.baseDir);
@@ -195,6 +197,7 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
     sendThreadCommand: () => false,
     ensureHomeProject: ensureHomeProjectRow,
     getProject: dbGetProject,
+    getSharedSettings,
     upsertThread: dbUpsertThread,
     deleteThread: dbDeleteThread,
     threadExists: (threadId) => dbGetThread(threadId) != null,
@@ -236,6 +239,8 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
     advertisedHost,
     ...(pairingAppUrl ? { pairingAppUrl } : {}),
     callSupervisor: (name, payload) => supervisorClient.call(name, payload),
+    resolveMcpLaunchSnapshot: (projectId) =>
+      resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)?.mcpServers ?? []),
     settings: {
       read: () => pickRemoteSettings(readSharedSettingsFile(paths.settingsPath)),
       update: (patch) => pickRemoteSettings(patchSharedSettingsFile(paths.settingsPath, patch)),

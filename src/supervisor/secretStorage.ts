@@ -15,6 +15,7 @@ export function transformSensitiveAgentSecrets(
   settings: SharedSettings,
   baseDir: string,
   transform: (baseDir: string, value: string) => string,
+  onTransformError?: (input: { instanceId: string; variableName: string; error: unknown }) => void,
 ): SharedSettings {
   let changed = false;
   const agentInstances = { ...settings.agentInstances };
@@ -25,7 +26,13 @@ export function transformSensitiveAgentSecrets(
     const environment = { ...instance.environment };
     for (const [name, variable] of Object.entries(instance.environment)) {
       if (variable.sensitive !== true) continue;
-      environment[name] = { ...variable, value: transform(baseDir, variable.value) };
+      try {
+        environment[name] = { ...variable, value: transform(baseDir, variable.value) };
+      } catch (error) {
+        if (!onTransformError) throw error;
+        delete environment[name];
+        onTransformError({ instanceId, variableName: name, error });
+      }
       environmentChanged = true;
     }
     if (!environmentChanged) continue;

@@ -158,7 +158,8 @@ function createWorkingSession(
     ptyOscCarry: "",
     presentationMode: "gui",
     structuredSession,
-  } as SessionRuntime;
+    mcpLaunchSnapshot: { mcpServers: [], disabledBuiltInMcpServerIds: [] },
+  } as unknown as SessionRuntime;
 }
 
 describe("ThreadSessionManager structured stale-interrupt watchdog", () => {

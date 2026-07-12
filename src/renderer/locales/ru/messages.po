@@ -13,6 +13,10 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "-y @modelcontextprotocol/server-memory"
+msgstr "-y @modelcontextprotocol/server-memory"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "(Draft)"
 msgstr "(Черновик)"
@@ -30,6 +34,11 @@ msgstr "(нет сообщения)"
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# файл} few {# файла} many {# файлов} other {# файла}}"
+
+#. placeholder {0}: groupRows.length
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
+msgstr "{0, plural, one {# MCP-сервер} few {# MCP-сервера} many {# MCP-серверов} other {# MCP-сервера}}"
 
 #. placeholder {0}: props.desktops.length
 #: src/mobile/views/DesktopsView.tsx
@@ -50,6 +59,12 @@ msgstr "{0, plural, one {# проект} few {# проекта} many {# прое
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# провайдер готов} few {# провайдера готовы} many {# провайдеров готовы} other {# провайдера готовы}}"
+
+#. placeholder {0}: props.server.toolCount
+#. placeholder {0}: state.toolCount
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "{0, plural, one {# tool} other {# tools}}"
+msgstr "{0, plural, one {# инструмент} few {# инструмента} many {# инструментов} other {# инструмента}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -230,6 +245,12 @@ msgstr "{0} обновлён."
 msgid "{0} used"
 msgstr "{0} использовано"
 
+#. placeholder {0}: selectedRows.length
+#. placeholder {1}: importableRows.length
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "{0}/{1} selected"
+msgstr "Выбрано: {0}/{1}"
+
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "{0}% Full"
@@ -398,6 +419,10 @@ msgstr "{resultCount, plural, one {# результат} few {# результа
 msgid "{seconds}s ago"
 msgstr "{seconds}с назад"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "{serverName} from {providerLabel}: {disabledLabel}"
+msgstr "{serverName} из {providerLabel}: {disabledLabel}"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
 msgstr "{used} токенов"
@@ -558,6 +583,7 @@ msgid "Activity metric"
 msgstr "Метрика активности"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -616,9 +642,21 @@ msgstr "Добавьте учётные данные, прежде чем это
 msgid "Add folder"
 msgstr "Добавить папку"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Add MCP server"
+msgstr "Добавить сервер MCP"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add model"
 msgstr "Добавить модель"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Add one manually or import a JSON configuration."
+#~ msgstr "Добавьте сервер вручную или импортируйте конфигурацию JSON."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Add one manually or import from another agent."
+msgstr "Добавьте сервер вручную или импортируйте его из другого агента."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add pattern"
@@ -812,6 +850,10 @@ msgstr "Разрешить eval"
 msgid "Allow the browser to show notifications while the app is in the background."
 msgstr "Разрешите браузеру показывать уведомления, пока приложение работает в фоне."
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Already configured"
+msgstr "Уже настроен"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Already used by {conflict}"
 msgstr "Уже используется командой {conflict}"
@@ -825,6 +867,14 @@ msgstr "Всегда"
 msgid "Always excluded"
 msgstr "Всегда исключено"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "An MCP server with the name {serverName} already exists."
+#~ msgstr "Сервер MCP с именем {serverName} уже существует."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "An MCP server with this name already exists."
+msgstr "Сервер MCP с таким именем уже существует."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "Другой чат использует это же дерево. Восстановление файлов может перезаписать изменения этого чата."
@@ -833,9 +883,17 @@ msgstr "Другой чат использует это же дерево. Во�
 msgid "Antigravity"
 msgstr "Antigravity"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "API_KEY=value"
+msgstr "API_KEY=value"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
 msgstr "Встроенный браузер"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "App Controls"
+msgstr "Управление приложением"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -926,6 +984,10 @@ msgstr "Вы уверены, что хотите откатить <0>{path}</0>?
 msgid "Are you sure you want to revert all unstaged changes? This cannot be undone."
 msgstr "Вы уверены, что хотите откатить все непроиндексированные изменения? Это нельзя отменить."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Arguments"
+msgstr "Аргументы"
+
 #. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
 #. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -974,13 +1036,26 @@ msgstr "Выбор в браузере прикреплён."
 msgid "Audio"
 msgstr "Звук"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Authenticate"
+msgstr "Войти"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "Аутентификация"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Authentication required"
 msgstr "Требуется аутентификация"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Authentication setup cannot be imported"
+msgstr "Настройку аутентификации нельзя импортировать"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Authorization: Bearer token"
+msgstr "Authorization: Bearer token"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
@@ -1059,6 +1134,10 @@ msgstr "Назад к изменениям"
 #: src/mobile/views/FilesView.tsx
 msgid "Back to files"
 msgstr "Назад к файлам"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+#~ msgid "Back to MCP servers"
+#~ msgstr "Назад к серверам MCP"
 
 #: src/mobile/views/pr/PrSubPage.tsx
 msgid "Back to overview"
@@ -1206,6 +1285,7 @@ msgstr "Просмотрите свои репозитории GitHub или в�
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
@@ -1256,6 +1336,22 @@ msgstr "Достигнут лимит бюджета"
 msgid "Building diff…"
 msgstr "Построение diff…"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Built-in"
+msgstr "Встроенный"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Built-in MCP servers"
+msgstr "Встроенные серверы MCP"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Built-in servers are managed by Lightcode. They can be disabled globally but cannot be edited or removed."
+#~ msgstr "Встроенные серверы управляются Lightcode. Их можно отключить глобально, но нельзя редактировать или удалять."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
+msgstr "Встроенные серверы управляются Poracode. Их можно отключить глобально, но нельзя редактировать или удалять."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Built-in shortcut — can't be changed"
 msgstr "Встроенное сочетание клавиш — изменить нельзя"
@@ -1299,6 +1395,7 @@ msgstr "Не удалось загрузить порты"
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
@@ -1420,6 +1517,14 @@ msgstr "Звезда с чата снята"
 msgid "Check"
 msgstr "Проверить"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Check {serverName} again"
+msgstr "Проверить {serverName} ещё раз"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Check again"
+msgstr "Проверить ещё раз"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
 msgstr "Проверить обновления"
@@ -1433,6 +1538,14 @@ msgstr "Проверь мой недавний прогресс и дай одн
 msgid "Check the live input level from the selected device."
 msgstr "Проверить уровень входного сигнала с выбранного устройства в реальном времени."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Checking"
+msgstr "Проверка"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Checking {serverName}"
+msgstr "Проверка {serverName}"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Checking host…"
 msgstr "Проверка хоста…"
@@ -1441,6 +1554,7 @@ msgstr "Проверка хоста…"
 msgid "Checking Tailscale…"
 msgstr "Проверка Tailscale…"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Checking…"
 msgstr "Проверка…"
@@ -1465,6 +1579,10 @@ msgstr "Выберите папку…"
 msgid "Choose a parent folder"
 msgstr "Выберите родительскую папку"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Choose an MCP server configuration file"
+#~ msgstr "Выбрать файл конфигурации сервера MCP"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
 msgstr "Выберите способ входа для {env}."
@@ -1472,6 +1590,10 @@ msgstr "Выберите способ входа для {env}."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in."
 msgstr "Выберите способ входа."
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Choose import destination"
+msgstr "Выберите область импорта"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Choose SSH identity file"
@@ -1496,6 +1618,7 @@ msgid "Choose worktree base folder"
 msgstr "Выбрать базовую папку worktree"
 
 #: src/renderer/components/composer/composerMcpServers.ts
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
@@ -1826,6 +1949,7 @@ msgstr "Свернуть панель задач"
 
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "Команда"
 
@@ -1836,6 +1960,14 @@ msgstr "Команда (напр., npm run dev)"
 #: src/renderer/components/providers/commandcode/manifest.ts
 msgid "Command Code"
 msgstr "Command Code"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Command is required."
+msgstr "Команда обязательна."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Command not found."
+msgstr "Команда не найдена."
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -1960,6 +2092,7 @@ msgstr "Управление полем ввода"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Computer Use"
@@ -1988,6 +2121,18 @@ msgstr "Computer Use включён — интерактивные действ�
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "Каталог конфигурации"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+#~ msgid "Configure the server Lightcode will add when supported agents start."
+#~ msgstr "Настройте сервер, который Lightcode будет добавлять при запуске поддерживаемых агентов."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Configure the server Poracode will add when supported agents start."
+msgstr "Настройте сервер, который Poracode будет добавлять при запуске поддерживаемых агентов."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Configured MCP servers"
+msgstr "Настроенные серверы MCP"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2036,6 +2181,10 @@ msgstr "Подключайте провайдеров ИИ, которые мо�
 #~ msgid "Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
 #~ msgstr "Подключитесь к другому компьютеру с Lightcode или к серверу без интерфейса, чтобы просматривать проекты и управлять ими отсюда. Адрес и код сопряжения можно получить в разделе «Настройки → Удалённый доступ» на той машине."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Connected"
+msgstr "Подключено"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "Подключение к браузеру на десктопе…"
@@ -2053,6 +2202,7 @@ msgstr "Ошибка подключения"
 msgid "Connection error."
 msgstr "Ошибка подключения."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "Не удалось подключиться."
@@ -2060,6 +2210,10 @@ msgstr "Не удалось подключиться."
 #: src/mobile/views/DesktopsView.tsx
 msgid "Connection method"
 msgstr "Способ подключения"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Connection timed out."
+msgstr "Время ожидания подключения истекло."
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
@@ -2070,6 +2224,10 @@ msgstr "Подключения"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
 msgstr "Консоль"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Contains sensitive values; add manually"
+msgstr "Содержит конфиденциальные значения; добавьте вручную"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
@@ -2247,6 +2405,18 @@ msgstr "Не удалось сгенерировать сообщение ком
 msgid "Could not read file."
 msgstr "Не удалось прочитать файл."
 
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Could not sign in to {serverName}: {message}"
+msgstr "Не удалось войти в {serverName}: {message}"
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Could not sign in to {serverName}."
+msgstr "Не удалось войти в {serverName}."
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Could not sign out of {serverName}."
+msgstr "Не удалось выйти из {serverName}."
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
 msgstr "Не удалось кэшировать данные для офлайн-режима."
@@ -2282,6 +2452,10 @@ msgstr "Не удалось загрузить статистику профил
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "Не удалось сохранить сочетание клавиш."
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Couldn't scan MCP server configurations."
+msgstr "Не удалось просканировать конфигурации MCP-серверов."
 
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -2486,6 +2660,10 @@ msgstr "Удалить"
 msgid "Delete {0}"
 msgstr "Удалить {0}"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Delete {serverName}"
+msgstr "Удалить {serverName}"
+
 #. placeholder {0}: props.entry.name
 #: src/mobile/views/FilesView.tsx
 msgid "Delete <0>{0}</0>? This cannot be undone."
@@ -2570,6 +2748,7 @@ msgstr "Запретить и сказать агенту, что сделать
 msgid "Describe what the agent should do"
 msgstr "Опишите, что должен сделать агент"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 msgid "Description"
 msgstr "Описание"
@@ -2648,6 +2827,14 @@ msgstr "Устройства могут подключаться, пока эт�
 #~ msgid "Direct connection required"
 #~ msgstr "Требуется прямое подключение"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disable {serverLabel}"
+msgstr "Отключить {serverLabel}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disable {serverName}"
+msgstr "Отключить {serverName}"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
 msgstr "Отключить уровень рассуждений {tierLabel}"
@@ -2681,9 +2868,14 @@ msgstr "Отключить субагентов"
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "Отключите уровни, которые внешний провайдер объединяет (например, оставьте только High и Max)."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "Отключено"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disabled globally"
+msgstr "Отключён глобально"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
@@ -2819,6 +3011,10 @@ msgstr "Перетащите сюда, чтобы прикрепить"
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed."
 msgstr "Отбрасывает входящие конверты хуков на супервизоре, чтобы агенты переходили на L2 (прогресс OSC 9;4) без влияния на установку или уведомления iTerm2. Вступает в силу при следующем событии хука — перезапуск не требуется."
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Duplicate server name in scan"
+msgstr "Повторяющееся имя сервера в результатах сканирования"
+
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactors, Claude Opus for anything subtle."
 msgstr "напр., Codex GPT-5.5 fast для быстрых запросов, OpenCode GLM для массовых рефакторингов, Claude Opus для всего тонкого."
@@ -2832,9 +3028,17 @@ msgstr "напр. Работа"
 msgid "Edit"
 msgstr "Редактировать"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Edit {serverName}"
+msgstr "Изменить {serverName}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
 msgstr "Изменить файл"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Edit MCP server"
+msgstr "Изменить сервер MCP"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
@@ -2892,6 +3096,14 @@ msgstr "Уровни рассуждений"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Electron"
 msgstr "Electron"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Enable {serverLabel}"
+msgstr "Включить {serverLabel}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Enable {serverName}"
+msgstr "Включить {serverName}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
@@ -2964,9 +3176,17 @@ msgstr "Введите URL репозитория."
 msgid "Enter a valid desktop endpoint."
 msgstr "Введите действительный эндпоинт рабочего стола."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Enter a valid HTTP or HTTPS URL."
+msgstr "Введите допустимый URL-адрес с протоколом HTTP или HTTPS."
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Enter a valid SSH target and port."
 msgstr "Введите допустимый SSH-адрес и порт."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Enter one MCP server configuration."
+msgstr "Введите конфигурацию одного сервера MCP."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
@@ -2980,6 +3200,10 @@ msgstr "Введите порт, который слушает сервер ра
 msgid "Enter the SSH password."
 msgstr "Введите пароль SSH."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Enter valid JSON."
+msgstr "Введите допустимый JSON."
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
 msgstr "Окружение"
@@ -2992,9 +3216,14 @@ msgstr "Имя переменной окружения"
 msgid "Environment variable value"
 msgstr "Значение переменной окружения"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Environment variables"
 msgstr "Переменные окружения"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Environment variables (optional)"
+msgstr "Переменные окружения (необязательно)"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -3091,6 +3320,10 @@ msgstr "Разверните, чтобы проверить или отозва�
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "Развернуть панель задач"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Export MCP servers"
+msgstr "Экспортировать серверы MCP"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "External"
@@ -3359,6 +3592,10 @@ msgstr "Принудительно перезагрузить страницу �
 msgid "Fork"
 msgstr "Развилка"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Form"
+msgstr "Форма"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Format files"
 msgstr "Форматировать файлы"
@@ -3373,6 +3610,11 @@ msgstr "Вперёд"
 #: src/mobile/views/PortsView.tsx
 msgid "Forward a port"
 msgstr "Перенаправить порт"
+
+#. placeholder {0}: importableRows.length
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Found {0, plural, one {# importable MCP server} other {# importable MCP servers}}"
+msgstr "Найдено {0, plural, one {# доступный для импорта MCP-сервер} few {# доступных для импорта MCP-сервера} many {# доступных для импорта MCP-серверов} other {# доступного для импорта MCP-сервера}}"
 
 #. placeholder {0}: activeRequest.providerLabel
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
@@ -3399,6 +3641,10 @@ msgstr "Матовость боковой панели в режиме {appearan
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Full access"
 msgstr "Полный доступ"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Full configuration"
+msgstr "Полная конфигурация"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
@@ -3507,8 +3753,16 @@ msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (необязательная метка)"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Global"
 msgstr "Глобальные"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Global (Windows)"
+msgstr "Глобальные (Windows)"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
@@ -3571,6 +3825,10 @@ msgstr "Жёсткая перезагрузка"
 msgid "Has unsent draft"
 msgstr "Есть неотправленный черновик"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Headers"
+msgstr "Заголовки"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Помоги мне создать расписание. Спроси недостающие детали, а затем создай его с помощью элементов управления расписаниями Poracode."
@@ -3609,6 +3867,10 @@ msgstr "Скрыть детали использования контекста"
 #: src/mobile/views/BrowserView.tsx
 msgid "Hide keyboard"
 msgstr "Скрыть клавиатуру"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Hide MCP servers from {providerLabel}"
+msgstr "Скрыть MCP-серверы из {providerLabel}"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Hide models you don't use from the model picker across every provider."
@@ -3663,6 +3925,14 @@ msgstr "host.com, псевдоним или пользователь@host.com"
 msgid "Hourly"
 msgstr "Ежечасно"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "HTTP (streamable)"
+msgstr "HTTP (потоковый)"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "https://example.com/mcp"
+msgstr "https://example.com/mcp"
+
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ID: {0}"
@@ -3695,6 +3965,30 @@ msgstr "Изображение"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Предпросмотр изображения"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import destination"
+msgstr "Область импорта"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import external agent MCP servers"
+msgstr "Импорт MCP-серверов внешних агентов"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Import MCP servers"
+msgstr "Импортировать серверы MCP"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import to {destinationProjectName}"
+msgstr "Импортировать в {destinationProjectName}"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import to Global"
+msgstr "Импортировать глобально"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Import to Project"
+#~ msgstr "Импортировать в проект"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -3849,6 +4143,10 @@ msgstr "Прервано: сессия агента завершилась до 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "Курсив"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "JSON"
+msgstr "JSON"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Jump to section"
@@ -4135,6 +4433,19 @@ msgstr "Управление удалёнными средами"
 #~ msgid "Manage remote servers"
 #~ msgstr "Управление удалёнными серверами"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
+#~ msgstr "Управляйте конфигурациями серверов MCP, которые Lightcode добавляет при запуске поддерживаемых агентов. Серверы рабочей области можно настроить в параметрах каждого проекта."
+
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings."
+msgstr "Управляйте конфигурациями серверов MCP, которые Poracode добавляет при запуске поддерживаемых агентов. Серверы рабочей области можно настроить в параметрах каждого проекта."
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Managed by Poracode"
+msgstr "Управляется Poracode"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "Ручной порядок"
@@ -4193,14 +4504,74 @@ msgstr "Развернуть браузер"
 msgid "MCP server"
 msgstr "Сервер MCP"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server arguments"
+msgstr "Аргументы сервера MCP"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "MCP server checking is unavailable."
+msgstr "Проверка MCP-сервера недоступна."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server command"
+msgstr "Команда сервера MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server description"
+msgstr "Описание сервера MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server editor mode"
+msgstr "Режим редактора сервера MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server environment variables"
+msgstr "Переменные окружения сервера MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server headers"
+msgstr "Заголовки сервера MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server JSON configuration"
+msgstr "JSON-конфигурация сервера MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server name"
+msgstr "Имя сервера MCP"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "MCP server source scope"
+msgstr "Область источника MCP-серверов"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server timeout in milliseconds"
+msgstr "Тайм-аут сервера MCP в миллисекундах"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server URL"
+msgstr "URL сервера MCP"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "Серверы MCP"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "MCP Servers"
+msgstr "Серверы MCP"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "MCP tool calls"
 msgstr "Вызовы инструментов MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP transport type"
+msgstr "Тип транспорта MCP"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -4466,10 +4837,19 @@ msgstr "Ваши изменения перемещены в новый worktree 
 msgid "Moving changes…"
 msgstr "Перемещение изменений…"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "my-mcp-server"
+msgstr "my-mcp-server"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Name"
 msgstr "Имя"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Name is required."
+msgstr "Имя обязательно."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Name your project and choose where to create it."
@@ -4569,6 +4949,10 @@ msgstr "Имя новой папки"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "New line"
 msgstr "Новая строка"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "New MCP server"
+msgstr "Новый сервер MCP"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New phones, tablets, and browsers appear here after pairing."
@@ -4751,6 +5135,10 @@ msgstr "Команды не найдены"
 msgid "No commits found."
 msgstr "Коммиты не найдены."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "No configured MCP servers yet"
+msgstr "Серверы MCP ещё не настроены"
+
 #: src/mobile/WideShell.tsx
 msgid "No connection paired"
 msgstr "Нет подключений"
@@ -4840,6 +5228,14 @@ msgstr "Подходящих расписаний нет."
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "Подходящих тредов нет"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "No MCP servers found in this scope."
+msgstr "В этой области MCP-серверы не найдены."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "No MCP servers match your search."
+msgstr "Нет серверов MCP, соответствующих запросу."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No MCP tools used yet."
@@ -5049,6 +5445,10 @@ msgstr "Уведомлять о CLI-тредах L2"
 msgid "Notify me about"
 msgstr "Уведомлять меня о"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "npx"
+msgstr "npx"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "off"
 msgstr "выкл"
@@ -5088,6 +5488,14 @@ msgstr "В начале часа"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Once on {0}"
 msgstr "Один раз: {0}"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "One Header: value pair per line"
+msgstr "Одна пара «Заголовок: значение» в строке"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "One KEY=VALUE pair per line"
+msgstr "Одна пара KEY=VALUE в строке"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "One time"
@@ -5331,6 +5739,10 @@ msgstr "Открыто {0} (№{1})"
 msgid "OpenSSH private key"
 msgstr "Закрытый ключ OpenSSH"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Optional"
+msgstr "Необязательно"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "Дополнительные хуки статуса. Установленные хуки обновляются автоматически; отсутствующие хуки никогда не устанавливаются автоматически."
@@ -5487,6 +5899,10 @@ msgstr "Вставьте API-ключ {label}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste <0>{0}</0> here. Click to copy."
 msgstr "Вставьте <0>{0}</0> сюда. Нажмите, чтобы скопировать."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Paste either a named server object or an object wrapped in an mcpServers key."
+msgstr "Вставьте именованный объект сервера или объект, вложенный в ключ mcpServers."
 
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
@@ -5725,6 +6141,7 @@ msgstr "Профили"
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -5758,6 +6175,8 @@ msgstr "Переопределения для конкретного проек�
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 msgid "Projects"
 msgstr "Проекты"
 
@@ -5778,6 +6197,14 @@ msgstr "Запросы"
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "Предложенный план"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Provided and managed by Lightcode for supported agents."
+#~ msgstr "Предоставляется и управляется Lightcode для поддерживаемых агентов."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Provided and managed by Poracode for supported agents."
+msgstr "Предоставляется и управляется Poracode для поддерживаемых агентов."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "provider"
@@ -6022,6 +6449,10 @@ msgstr "Обновить {label}"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
 msgstr "Обновить список обнаруженных агентов"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Refresh MCP server sources"
+msgstr "Обновить источники MCP-серверов"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
@@ -6379,8 +6810,17 @@ msgstr "Возобновить"
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Retry"
 msgstr "Повторить"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Retry {serverName}"
+msgstr "Повторить проверку {serverName}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Retry check"
+msgstr "Повторить проверку"
 
 #: src/mobile/components.tsx
 msgid "Retry now"
@@ -6597,6 +7037,7 @@ msgid "Runtime options"
 msgstr "Параметры среды выполнения"
 
 #: src/mobile/views/FilesView.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -6645,6 +7086,10 @@ msgstr "Сканирование {wslDistro} на наличие установ�
 msgid "Scanning needs a secure connection"
 msgstr "Для сканирования нужно защищённое подключение"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Scanning provider configurations…"
+msgstr "Сканирование конфигураций провайдеров…"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds."
 msgstr "Сканирование Windows и WSL на наличие установленных CLI. Обычно это занимает пару секунд."
@@ -6681,6 +7126,10 @@ msgstr "Расписания"
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "Расписания, ИИ, агенты и архивные потоки на сопряжённом компьютере"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Scope"
+msgstr "Область действия"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -6724,6 +7173,14 @@ msgstr "Поиск веток..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "Поиск файлов"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Search MCP servers"
+msgstr "Поиск серверов MCP"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Search MCP servers..."
+msgstr "Поиск серверов MCP..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
@@ -6799,6 +7256,10 @@ msgstr "Показать больше"
 msgid "Select"
 msgstr "Выбрать"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select {serverName} from {providerLabel}"
+msgstr "Выбрать {serverName} из {providerLabel}"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Select a file from the tree"
 msgstr "Выберите файл из дерева"
@@ -6807,6 +7268,14 @@ msgstr "Выберите файл из дерева"
 msgid "Select a file to start editing."
 msgstr "Выберите файл, чтобы начать редактирование."
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Select a project before importing to Project."
+#~ msgstr "Выберите проект перед импортом в проект."
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Select a project to scan project MCP servers."
+#~ msgstr "Выберите проект для сканирования его MCP-серверов."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select a repository."
 msgstr "Выберите репозиторий."
@@ -6814,6 +7283,18 @@ msgstr "Выберите репозиторий."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select account"
 msgstr "Выбрать аккаунт"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select all"
+msgstr "Выбрать все"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select all MCP servers"
+msgstr "Выбрать все MCP-серверы"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select all MCP servers from {providerLabel}"
+msgstr "Выбрать все MCP-серверы из {providerLabel}"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Select an agent to see its prompt and outcome."
@@ -6846,6 +7327,10 @@ msgstr "Выбрать…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Selected days"
 #~ msgstr "Выбранные дни"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Selected project"
+#~ msgstr "Выбранный проект"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6971,6 +7456,10 @@ msgstr "Показать в проводнике"
 msgid "Show less"
 msgstr "Показать меньше"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Show MCP servers from {providerLabel}"
+msgstr "Показать MCP-серверы из {providerLabel}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Show more"
 msgstr "Показать больше"
@@ -7068,6 +7557,7 @@ msgstr "Требуется вход"
 msgid "Sign in with the agent CLI."
 msgstr "Войдите через CLI агента."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Sign out"
 msgstr "Выйти"
@@ -7081,6 +7571,10 @@ msgstr "Выйти {label}"
 msgid "Sign out of {0}"
 msgstr "Выйти из {0}"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Sign out of {serverName}"
+msgstr "Выйти из {serverName}"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "sign-in required"
 msgstr "требуется вход"
@@ -7088,6 +7582,14 @@ msgstr "требуется вход"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "Signed in"
 msgstr "Вход выполнен"
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Signed in to {serverName}."
+msgstr "Выполнен вход в {serverName}."
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Signed out of {serverName}."
+msgstr "Выполнен выход из {serverName}."
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Signing in"
@@ -7143,6 +7645,10 @@ msgstr "Сортировать по последнему обновлению"
 msgid "Sort threads"
 msgstr "Сортировать треды"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Space separated; use quotes around spaces"
+msgstr "Разделяйте пробелами; значения с пробелами заключайте в кавычки"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"
 msgstr "Разделить терминал"
@@ -7152,6 +7658,10 @@ msgstr "Разделить терминал"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Split view"
 msgstr "Разделённый вид"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "SSE (legacy)"
+msgstr "SSE (устаревший)"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "SSH"
@@ -7358,6 +7868,10 @@ msgstr "Обновления статуса поступают от плагин
 msgid "Status:"
 msgstr "Статус:"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "stdio (local command)"
+msgstr "stdio (локальная команда)"
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -7422,6 +7936,7 @@ msgid "Subagent runs"
 msgstr "Запуски субагентов"
 
 #: src/renderer/components/composer/composerMcpServers.ts
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Subagents"
 msgstr "Субагенты"
@@ -7733,6 +8248,14 @@ msgstr "Частота фонового обновления по умолчан
 msgid "The desktop server is still coming online."
 msgstr "Сервер рабочего стола все еще запускается."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "The MCP server configuration is invalid or uses a reserved name."
+msgstr "Конфигурация сервера MCP недопустима или использует зарезервированное имя."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "The MCP server is invalid."
+msgstr "Сервер MCP недопустим."
+
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "Обычная оболочка приложения не смогла отрендериться. Диагностика ниже показана перед перезагрузкой, чтобы проблему можно было исследовать."
@@ -7748,6 +8271,18 @@ msgstr "Удалённый сервер не вернул учётные дан�
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Расположение репозитория на диске. Обновите его, если вы переместили папку."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "The selected file does not contain valid MCP server configurations."
+#~ msgstr "Выбранный файл не содержит допустимых конфигураций серверов MCP."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "The server configuration is invalid."
+msgstr "Конфигурация сервера некорректна."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "The server returned an invalid MCP response."
+msgstr "Сервер вернул некорректный ответ MCP."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -7807,6 +8342,10 @@ msgstr "Этот файл использует неподдерживаемую 
 msgid "This folder is empty."
 msgstr "Эта папка пуста."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "This name is reserved by a built-in MCP server."
+msgstr "Это имя зарезервировано встроенным сервером MCP."
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -7839,6 +8378,10 @@ msgstr "Это удаляет worktree в \"{0}\" и закрывает {1, plur
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Это удаляет worktree в \"{0}\", а затем удаляет ветку."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "This server requires authentication before Poracode can check it."
+msgstr "Для проверки этого сервера в Poracode сначала нужно пройти аутентификацию."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -7936,6 +8479,14 @@ msgstr "Треды, помеченные как завершённые и не �
 msgid "Time"
 msgstr "Время"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Timeout (ms)"
+msgstr "Тайм-аут (мс)"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Timeout must be a positive whole number."
+msgstr "Тайм-аут должен быть положительным целым числом."
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
@@ -7999,6 +8550,10 @@ msgstr "Токены"
 msgid "Tokens from {0}"
 msgstr "Токены от {0}"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Tool restrictions cannot be imported"
+msgstr "Ограничения инструментов нельзя импортировать"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Tool search"
 msgstr "Поиск инструментов"
@@ -8060,6 +8615,10 @@ msgstr "Включите удаленный доступ, чтобы показ�
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
 msgstr "Включайте или выключайте отслеживание для каждого провайдера. Отключённые провайдеры пропускаются при автообновлении."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Type"
+msgstr "Тип"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type a command"
@@ -8279,6 +8838,10 @@ msgstr "Не удалось обновить поток."
 msgid "Unassigned"
 msgstr "Не назначено"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Unavailable"
+msgstr "Недоступно"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "Недоступный проект"
@@ -8464,6 +9027,14 @@ msgstr "Обновление {0}"
 msgid "Updating {0} ({env})"
 msgstr "Обновление {0} ({env})"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "URL"
+msgstr "URL"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "URL is required."
+msgstr "URL обязателен."
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/settingsSections.ts
@@ -8507,6 +9078,10 @@ msgstr "Использовать обнаруженную сессию?"
 msgid "Use ignore files"
 msgstr "Использовать файлы ignore"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
+msgstr "Используйте буквы, цифры, точки, дефисы и подчёркивания без пробелов."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
@@ -8536,6 +9111,10 @@ msgstr "Использовано"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Used by {conflict}"
 msgstr "Используется командой {conflict}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "User"
+#~ msgstr "Пользователь"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "user@example.com"
@@ -8727,6 +9306,10 @@ msgstr "Над чем должен работать удалённый аген�
 msgid "What the Create PR button does by default: open a dialog to edit the title and description first, or auto-generate them and create the PR in one click. You can also switch this from the button's menu."
 msgstr "Что по умолчанию делает кнопка создания PR: сначала открыть диалог для редактирования заголовка и описания или сгенерировать их автоматически и создать PR в один клик. Это также можно переключить из меню кнопки."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "What this server provides"
+msgstr "Что предоставляет этот сервер"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 #: src/renderer/views/WhatsNewOverlay.tsx
@@ -8787,6 +9370,7 @@ msgstr "Где появляется панель терминала."
 msgid "Will run in {0}:"
 msgstr "Будет выполнено в {0}:"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -8858,6 +9442,14 @@ msgstr "Рабочее дерево чистое"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Working…"
 msgstr "Выполняется…"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Workspace"
+msgstr "Рабочая область"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
+msgid "Workspace MCP servers override user servers with the same name and are added only when agents start in this project."
+msgstr "Серверы MCP рабочей области переопределяют пользовательские серверы с тем же именем и добавляются только при запуске агентов в этом проекте."
 
 #: src/mobile/views/WorkspaceView.tsx
 msgid "Workspace view"
@@ -8931,6 +9523,7 @@ msgstr "Написать комментарий…"
 msgid "Write notes for this project…"
 msgstr "Напишите заметки для этого проекта…"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "WSL"
@@ -8940,6 +9533,10 @@ msgstr "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL ({0})"
 msgstr "WSL ({0})"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "WSL ({distro})"
+msgstr "WSL ({distro})"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx

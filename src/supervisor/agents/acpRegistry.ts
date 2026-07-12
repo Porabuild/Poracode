@@ -24,6 +24,7 @@ import { decryptSecret, encryptSecret, transformSensitiveAgentSecrets } from "..
 import { probeAcpGenericInstance, REGISTRY_INSTALL_PROBE_TIMEOUT_MS } from "./acp-generic";
 import { cacheAcpRegistryIcon, isRemoteIconUrl } from "./acpRegistryIcons";
 import {
+  applyAcpRegistryNpxArgsOverride,
   buildNpxPrefetchArgs,
   clearNpxExecutionCache,
   isNpxCacheCorruptionError,
@@ -174,8 +175,16 @@ export function readAcpRegistrySettings(settingsPath: string): SharedSettings {
       normalizeSharedSettings(JSON.parse(readFileSync(settingsPath, "utf8"))),
       dirname(settingsPath),
       decryptSecret,
+      ({ instanceId, variableName }) => {
+        console.warn(
+          `[agents] could not decrypt ${variableName} for ${instanceId}; omitting the unusable secret`,
+        );
+      },
     );
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.warn("[agents] failed to read registry settings, using defaults:", error);
+    }
     return { ...defaultSharedSettings };
   }
 }
@@ -211,6 +220,10 @@ function packageInstance(agent: AcpRegistryAgent, command: "npx" | "uvx"): Agent
         Object.entries(dist.env).map(([key, value]) => [key, { value, sensitive: false }]),
       )
     : undefined;
+  const distArgs =
+    command === "npx"
+      ? applyAcpRegistryNpxArgsOverride(agent.id, dist.args ?? [])
+      : (dist.args ?? []);
   return {
     id: agent.id,
     driver: "acp-generic",
@@ -221,10 +234,7 @@ function packageInstance(agent: AcpRegistryAgent, command: "npx" | "uvx"): Agent
     ...(env ? { environment: env } : {}),
     config: {
       binary: command,
-      args:
-        command === "npx"
-          ? ["-y", dist.package, ...(dist.args ?? [])]
-          : [dist.package, ...(dist.args ?? [])],
+      args: command === "npx" ? ["-y", dist.package, ...distArgs] : [dist.package, ...distArgs],
       cwd: "project",
       authMode: "none",
     },
@@ -518,7 +528,17 @@ export async function autoUpdateAcpRegistryAgents(input: {
   for (const [id, record] of Object.entries(settings.acpRegistryInstalledAgents)) {
     const agent = agentsById.get(id);
     if (!agent) continue;
-    if (record.version === agent.version) continue;
+    const instance = settings.agentInstances[id];
+    const configuredArgs =
+      instance?.driver === "acp-generic" &&
+      typeof instance.config === "object" &&
+      instance.config !== null &&
+      "args" in instance.config &&
+      Array.isArray(instance.config.args)
+        ? instance.config.args
+        : [];
+    const correctedArgs = applyAcpRegistryNpxArgsOverride(id, configuredArgs);
+    if (record.version === agent.version && correctedArgs === configuredArgs) continue;
     try {
       await installAcpRegistryAgent({
         agentId: id,

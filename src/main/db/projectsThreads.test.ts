@@ -7,6 +7,7 @@ import type { Thread } from "@/shared/contracts";
 import { closeDatabase, initDatabase } from "./connection";
 import {
   dbGetThread,
+  dbGetProject,
   dbGetThreads,
   dbMarkLiveThreadsInactive,
   dbUpsertProject,
@@ -84,6 +85,33 @@ describe.skipIf(!sqliteAvailable)("projectsThreads (real sqlite round-trip)", ()
 
     dbUpsertThread(testThread(), 0);
     expect(dbGetThread("thread-1")?.threadStatusSource).toBeUndefined();
+  });
+
+  it("round-trips project MCP servers through the projects table", () => {
+    dbUpsertProject(
+      {
+        id: "project-1",
+        name: "Test project",
+        location: { kind: "posix", path: "/tmp/project" },
+        mcpServers: [
+          {
+            id: "memory-id",
+            name: "memory",
+            description: "Memory tools",
+            enabled: true,
+            timeoutMs: 30_000,
+            transport: { type: "stdio", command: "node", args: ["server.js"], env: {} },
+          },
+        ],
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      0,
+    );
+
+    expect(dbGetProject("project-1")?.mcpServers?.[0]).toMatchObject({
+      id: "memory-id",
+      name: "memory",
+    });
   });
 
   it("marks live threads inactive on launch but leaves settled ones alone", () => {

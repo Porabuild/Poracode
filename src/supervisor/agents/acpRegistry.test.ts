@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AcpRegistryListResult } from "@/shared/contracts";
 import { REGISTRY_INSTALL_PROBE_TIMEOUT_MS } from "./acp-generic";
 
@@ -54,6 +54,45 @@ import {
 import { isEncryptedSecret } from "../secretStorage";
 
 describe("ACP registry installs", () => {
+  beforeEach(() => {
+    execFileMock.mockClear();
+    probeAcpGenericInstanceMock.mockClear();
+  });
+
+  it("installs Factory Droid with direct ACP mode", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "lightcode-acp-registry-"));
+    const settingsPath = join(dir, "settings.json");
+    const registry: AcpRegistryListResult = {
+      version: "1.0.0",
+      agents: [
+        {
+          id: "factory-droid",
+          name: "Factory Droid",
+          version: "0.170.0",
+          description: "Factory Droid",
+          distribution: {
+            npx: {
+              package: "droid@0.170.0",
+              args: ["exec", "--output-format", "acp-daemon"],
+            },
+          },
+        },
+      ],
+    };
+
+    await installAcpRegistryAgent({
+      agentId: "factory-droid",
+      baseDir: dir,
+      settingsPath,
+      iconsDir: join(dir, "acp-icons"),
+      registry,
+    });
+
+    expect(
+      readAcpRegistrySettings(settingsPath).agentInstances["factory-droid"]?.config,
+    ).toMatchObject({ args: ["-y", "droid@0.170.0", "exec", "--output-format", "acp"] });
+  });
+
   it("installs known ACP wrappers as generic ACP instances", async () => {
     const dir = mkdtempSync(join(tmpdir(), "lightcode-acp-registry-"));
     const settingsPath = join(dir, "settings.json");
@@ -326,6 +365,51 @@ describe("ACP registry installs", () => {
     });
   });
 
+  it("keeps registered adapters when one stored secret can no longer be decrypted", () => {
+    const dir = mkdtempSync(join(tmpdir(), "lightcode-acp-registry-"));
+    const settingsPath = join(dir, "settings.json");
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        agentInstances: {
+          "factory-droid": {
+            id: "factory-droid",
+            driver: "acp-generic",
+            enabled: true,
+            config: { binary: "npx", args: ["-y", "droid-acp"] },
+          },
+          "z-ai": {
+            id: "z-ai",
+            driver: "claude",
+            displayName: "z.ai",
+            environment: {
+              ANTHROPIC_BASE_URL: { value: "https://api.z.ai/api/anthropic" },
+              ANTHROPIC_AUTH_TOKEN: {
+                value: "lc-safe:v1:invalid:invalid:invalid",
+                sensitive: true,
+              },
+            },
+            config: { configDir: "~/.lightcode/claude-profiles/z-ai" },
+          },
+        },
+      }),
+      "utf8",
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const settings = readAcpRegistrySettings(settingsPath);
+
+    expect(Object.keys(settings.agentInstances)).toEqual(["factory-droid", "z-ai"]);
+    expect(settings.agentInstances["factory-droid"]?.driver).toBe("acp-generic");
+    expect(settings.agentInstances["z-ai"]?.environment).toEqual({
+      ANTHROPIC_BASE_URL: { value: "https://api.z.ai/api/anthropic" },
+    });
+    expect(warn).toHaveBeenCalledWith(
+      "[agents] could not decrypt ANTHROPIC_AUTH_TOKEN for z-ai; omitting the unusable secret",
+    );
+    warn.mockRestore();
+  });
+
   it("updates an installed ACP agent to a new registry version while preserving credentials", async () => {
     const dir = mkdtempSync(join(tmpdir(), "lightcode-acp-registry-"));
     const settingsPath = join(dir, "settings.json");
@@ -526,5 +610,69 @@ describe("ACP registry installs", () => {
     });
     expect(result.updated).toEqual([]);
     expect(result.failed).toEqual([]);
+  });
+
+  it("repairs an already-current Factory Droid daemon command", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "lightcode-acp-registry-"));
+    const settingsPath = join(dir, "settings.json");
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        acpRegistryInstalledAgents: {
+          "factory-droid": {
+            id: "factory-droid",
+            name: "Factory Droid",
+            version: "0.170.0",
+            installedAt: new Date(0).toISOString(),
+            adapterKind: "acp-generic:factory-droid",
+            installKind: "generic",
+          },
+        },
+        agentInstances: {
+          "factory-droid": {
+            id: "factory-droid",
+            driver: "acp-generic",
+            displayName: "Factory Droid",
+            version: "0.170.0",
+            enabled: true,
+            config: {
+              binary: "npx",
+              args: ["-y", "droid@0.170.0", "exec", "--output-format", "acp-daemon"],
+              authMode: "none",
+            },
+          },
+        },
+      }),
+      "utf8",
+    );
+    const registry: AcpRegistryListResult = {
+      version: "1.0.0",
+      agents: [
+        {
+          id: "factory-droid",
+          name: "Factory Droid",
+          version: "0.170.0",
+          description: "Factory Droid",
+          distribution: {
+            npx: {
+              package: "droid@0.170.0",
+              args: ["exec", "--output-format", "acp-daemon"],
+            },
+          },
+        },
+      ],
+    };
+
+    const result = await autoUpdateAcpRegistryAgents({
+      registry,
+      baseDir: dir,
+      settingsPath,
+      iconsDir: join(dir, "acp-icons"),
+    });
+
+    expect(result.updated).toEqual(["factory-droid"]);
+    expect(
+      readAcpRegistrySettings(settingsPath).agentInstances["factory-droid"]?.config,
+    ).toMatchObject({ args: ["-y", "droid@0.170.0", "exec", "--output-format", "acp"] });
   });
 });

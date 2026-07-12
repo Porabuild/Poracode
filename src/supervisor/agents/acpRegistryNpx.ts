@@ -4,6 +4,16 @@ import { join } from "node:path";
 
 type NpxDistribution = { package: string; args?: string[] | undefined };
 
+/** Temporary override until the ACP registry stops publishing Droid's broken daemon mode. */
+export function applyAcpRegistryNpxArgsOverride(agentId: string, args: string[]): string[] {
+  if (agentId !== "factory-droid") return args;
+  const outputFormatIndex = args.indexOf("--output-format");
+  if (args[outputFormatIndex + 1] !== "acp-daemon") return args;
+  const next = [...args];
+  next[outputFormatIndex + 1] = "acp";
+  return next;
+}
+
 /**
  * argv for a lightweight `npx` prefetch that warms the package cache.
  *

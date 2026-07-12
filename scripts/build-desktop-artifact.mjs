@@ -37,13 +37,16 @@ const channelTable = requireFromHere("./electron-builder.shared.cjs");
 const RUNTIME_DEPS = [
   "@agentclientprotocol/sdk",
   "@anthropic-ai/claude-agent-sdk",
+  "@modelcontextprotocol/sdk",
   "@opencode-ai/sdk",
   "@sentry/electron",
   "@sentry/node",
   "better-sqlite3",
   "drizzle-orm",
+  "json5",
   "micromatch",
   "node-pty",
+  "smol-toml",
   "vscode-jsonrpc",
 ];
 

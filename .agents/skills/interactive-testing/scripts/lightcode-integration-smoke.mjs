@@ -2,6 +2,7 @@
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -342,6 +343,29 @@ async function welcomeDismissalScenario(client) {
 }
 
 async function settingsScenario(client) {
+  const mcpFixture = await startMcpProbeFixture();
+  const configuredMcpServers = [
+    {
+      id: "smoke-mcp-connected",
+      name: "smoke-connected",
+      description: "Deterministic MCP probe fixture",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: { type: "http", url: `${mcpFixture.origin}/mcp`, headers: {} },
+    },
+    {
+      id: "smoke-mcp-auth",
+      name: "smoke-auth",
+      description: "Deterministic OAuth challenge fixture",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: { type: "http", url: `${mcpFixture.origin}/auth`, headers: {} },
+    },
+  ];
+  await evaluate(
+    client,
+    `window.__lightcodeDev.stores.sharedSettings.getState().setMcpServers(${JSON.stringify(configuredMcpServers)})`,
+  );
   const sections = [
     "profile",
     "general",
@@ -358,12 +382,16 @@ async function settingsScenario(client) {
     "remoteAccess",
     "remoteServers",
     "agentsGeneral",
+    "mcpServers",
     "browser",
     "usage",
     "archived",
     "changelog",
     "about",
   ];
+  let mcpListScreenshotPath;
+  let mcpScreenshotPath;
+  let mcpImportScreenshotPath;
   for (const section of sections) {
     await evaluate(
       client,
@@ -385,11 +413,328 @@ async function settingsScenario(client) {
     );
     assert(state.hasContent && state.textLength > 0, `settings section ${section} did not render`);
     assert(!state.crash, `settings section ${section} rendered a crash screen`);
+    if (section === "mcpServers") {
+      ({ mcpListScreenshotPath, mcpScreenshotPath, mcpImportScreenshotPath } =
+        await mcpServersSectionDeepDive(client, mcpFixture));
+    }
   }
   const screenshotPath = join(outDir, "smoke-02-settings.png");
   await screenshot(client, screenshotPath);
   await evaluate(client, "window.__lightcodeDev.closeSettings()");
-  return { sections, screenshotPath };
+  await evaluate(
+    client,
+    "window.__lightcodeDev.stores.sharedSettings.getState().setMcpServers([])",
+  );
+  await mcpFixture.close();
+  return {
+    sections,
+    screenshotPath,
+    ...(mcpListScreenshotPath ? { mcpListScreenshotPath } : {}),
+    ...(mcpScreenshotPath ? { mcpScreenshotPath } : {}),
+    ...(mcpImportScreenshotPath ? { mcpImportScreenshotPath } : {}),
+  };
+}
+
+// Runs while the settings overlay is showing the mcpServers section: asserts
+// probe results against the fixture, round-trips the built-in disable switch,
+// and walks the add-server editor. Returns the captured screenshot paths.
+async function mcpServersSectionDeepDive(client, mcpFixture) {
+  const mcpState = await evaluate(
+    client,
+    `(() => ({
+      builtInsVisible: document.body.innerText.includes("Built-in MCP servers"),
+      builtInToolCount: document.body.innerText.includes("44 tools"),
+      addButton: Boolean([...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Add MCP server")),
+      browserSwitch: Boolean(document.querySelector('[role="switch"][aria-label="Disable Browser"]')),
+    }))()`,
+  );
+  assert(mcpState.builtInsVisible, "MCP settings did not render built-in servers");
+  assert(mcpState.builtInToolCount, "MCP settings did not render built-in tool counts");
+  assert(mcpState.addButton, "MCP settings add control is missing");
+  assert(mcpState.browserSwitch, "MCP settings built-in disable control is missing");
+  try {
+    await waitForValue(
+      () =>
+        evaluate(
+          client,
+          `(() => ({
+            connected: document.body.innerText.includes("Connected"),
+            toolCount: document.body.innerText.includes("1 tool"),
+            authRequired: document.body.innerText.includes("Authentication required"),
+            statuses: [...document.querySelectorAll('[role="status"]')].map((status) => status.textContent?.trim()),
+          }))()`,
+        ),
+      (candidate) => candidate.connected && candidate.toolCount && candidate.authRequired,
+      "MCP connection probes",
+    );
+  } catch (error) {
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}; fixture requests: ${JSON.stringify(mcpFixture.requests)}`,
+      { cause: error },
+    );
+  }
+  const mcpListScreenshotPath = join(outDir, "smoke-02-mcp-servers-list.png");
+  await screenshot(client, mcpListScreenshotPath);
+
+  await evaluate(
+    client,
+    `document.querySelector('[role="switch"][aria-label="Disable Browser"]').click()`,
+  );
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `window.__lightcodeDev.stores.sharedSettings.getState().disabledBuiltInMcpServers.browser === true`,
+      ),
+    Boolean,
+    "MCP built-in disable persistence",
+  );
+  await evaluate(
+    client,
+    `document.querySelector('[role="switch"][aria-label="Enable Browser"]').click()`,
+  );
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `window.__lightcodeDev.stores.sharedSettings.getState().disabledBuiltInMcpServers.browser !== true`,
+      ),
+    Boolean,
+    "MCP built-in re-enable persistence",
+  );
+
+  await evaluate(
+    client,
+    `[...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Add MCP server").click()`,
+  );
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `({
+          editor: document.body.innerText.includes("New MCP server"),
+          formTab: Boolean([...document.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent?.trim() === "Form")),
+        })`,
+      ),
+    (candidate) => candidate.editor && candidate.formTab,
+    "MCP form editor",
+  );
+  await evaluate(
+    client,
+    `[...document.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent?.trim() === "JSON").click()`,
+  );
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `Boolean(document.querySelector('textarea[aria-label="MCP server JSON configuration"]'))`,
+      ),
+    Boolean,
+    "MCP JSON editor",
+  );
+  const mcpScreenshotPath = join(outDir, "smoke-02-mcp-servers.png");
+  await screenshot(client, mcpScreenshotPath);
+  await evaluate(
+    client,
+    `[...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Cancel").click()`,
+  );
+
+  await evaluate(
+    client,
+    `document.querySelector('button[aria-label="Import MCP servers"]').click()`,
+  );
+  await waitForValue(
+    () => evaluate(client, `document.body.innerText.includes("Import external agent MCP servers")`),
+    Boolean,
+    "MCP external import modal",
+  );
+  await evaluate(
+    client,
+    `document.querySelector('button[aria-label="MCP server source scope"]').click()`,
+  );
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `Boolean([...document.querySelectorAll('[role="menuitemradio"]')].find((item) => item.textContent?.trim().startsWith("project")))`,
+      ),
+    Boolean,
+    "MCP project source option",
+  );
+  await evaluate(
+    client,
+    `[...document.querySelectorAll('[role="menuitemradio"]')].find((item) => item.textContent?.trim().startsWith("project")).click()`,
+  );
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `document.body.innerText.includes("smoke_external") || Boolean(document.querySelector('button[aria-label="Show MCP servers from .mcp.json"]'))`,
+      ),
+    Boolean,
+    "MCP project source discovery",
+  );
+  await evaluate(
+    client,
+    `document.querySelector('button[aria-label="Show MCP servers from .mcp.json"]')?.click()`,
+  );
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `Boolean(document.querySelector('[aria-label="Select smoke_external from .mcp.json"]'))`,
+      ),
+    Boolean,
+    "MCP project candidate",
+  );
+  const mcpImportScreenshotPath = join(outDir, "smoke-02-mcp-import.png");
+  await screenshot(client, mcpImportScreenshotPath);
+  const candidateCheckbox = await evaluate(
+    client,
+    `(() => {
+      const checkbox = document.querySelector('[aria-label="Select smoke_external from .mcp.json"]');
+      const control = checkbox
+        ?.closest('[data-slot="checkbox"]')
+        ?.querySelector('[data-slot="checkbox-control"]');
+      if (!control) return null;
+      const rect = control.getBoundingClientRect();
+      const style = getComputedStyle(control);
+      return { width: rect.width, height: rect.height, borderWidth: parseFloat(style.borderLeftWidth) };
+    })()`,
+  );
+  assert(
+    candidateCheckbox?.width >= 14 &&
+      candidateCheckbox.height >= 14 &&
+      candidateCheckbox.borderWidth >= 1,
+    `MCP import checkbox is not visibly styled: ${JSON.stringify(candidateCheckbox)}`,
+  );
+  await evaluate(
+    client,
+    `document.querySelector('[aria-label="Select smoke_external from .mcp.json"]').click()`,
+  );
+  await evaluate(
+    client,
+    `document.querySelector('button[aria-label="Choose import destination"]').click()`,
+  );
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `Boolean([...document.querySelectorAll('[role="menuitemradio"]')].find((item) => item.textContent?.trim().startsWith("project")))`,
+      ),
+    Boolean,
+    "MCP project import destination",
+  );
+  await evaluate(
+    client,
+    `[...document.querySelectorAll('[role="menuitemradio"]')].find((item) => item.textContent?.trim().startsWith("project")).click()`,
+  );
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => { const button = [...document.querySelectorAll("button")].find((item) => item.textContent?.trim() === "Import to project"); return Boolean(button && !button.disabled); })()`,
+      ),
+    Boolean,
+    "MCP project import selection",
+  );
+  await evaluate(
+    client,
+    `[...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Import to project").click()`,
+  );
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `document.body.innerText.includes("smoke_external") && document.body.innerText.includes("Workspace")`,
+      ),
+    Boolean,
+    "MCP project import persistence",
+  );
+  await evaluate(
+    client,
+    `document.querySelector('button[aria-label="Delete smoke_external"]')?.click()`,
+  );
+  return { mcpListScreenshotPath, mcpScreenshotPath, mcpImportScreenshotPath };
+}
+
+async function startMcpProbeFixture() {
+  let origin = "";
+  const requests = [];
+  const server = createServer((request, response) => {
+    void (async () => {
+      const receivedAt = Date.now();
+      if (request.url === "/auth") {
+        requests.push({ receivedAt, method: request.method, path: request.url });
+        response.writeHead(401, {
+          "www-authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+        });
+        response.end();
+        return;
+      }
+
+      let body = "";
+      request.setEncoding("utf8");
+      for await (const chunk of request) body += chunk;
+      requests.push({ receivedAt, method: request.method, path: request.url, body });
+
+      let message;
+      try {
+        message = JSON.parse(body);
+      } catch {
+        response.writeHead(400).end();
+        return;
+      }
+
+      if (message.method === "notifications/initialized") {
+        response.writeHead(202).end();
+        return;
+      }
+
+      let result;
+      if (message.method === "initialize") {
+        result = {
+          protocolVersion: "2025-11-25",
+          capabilities: { tools: {} },
+          serverInfo: { name: "poracode-smoke-mcp", version: "1.0.0" },
+        };
+      } else if (message.method === "tools/list") {
+        result = {
+          tools: [
+            {
+              name: "smoke_read",
+              description: "Read-only smoke fixture tool",
+              inputSchema: { type: "object", properties: {} },
+            },
+          ],
+        };
+      } else {
+        response.writeHead(404).end();
+        return;
+      }
+
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
+    })().catch(() => {
+      if (!response.headersSent) response.writeHead(500);
+      response.end();
+    });
+  });
+
+  await new Promise((resolveListen, rejectListen) => {
+    server.once("error", rejectListen);
+    server.listen(0, "127.0.0.1", resolveListen);
+  });
+  server.unref();
+  const address = server.address();
+  assert(address && typeof address !== "string", "MCP probe fixture did not bind a TCP port");
+  origin = `http://127.0.0.1:${address.port}`;
+
+  return {
+    origin,
+    requests,
+    close: () => new Promise((resolveClose) => server.close(resolveClose)),
+  };
 }
 
 async function schedulesScenario(client) {
@@ -673,12 +1018,20 @@ async function runMockGate(client, gate, fixture) {
     }
     case "mcp-extension": {
       const statuses = await bridgeInvoke(client, "getAgentStatuses", []);
+      const discovery = await bridgeInvoke(client, "discoverExternalMcpServers", {
+        sourceScope: "workspace",
+        projectLocation: fixture.project.location,
+      });
       assert(
         statuses && typeof statuses === "object",
         "agent/MCP discovery bridge returned no result",
       );
+      assert(
+        discovery && Array.isArray(discovery.groups),
+        "external MCP workspace discovery bridge returned no groups",
+      );
       assert(fixture.bridgeKeys.includes("browserGetState"), "browser MCP bridge is missing");
-      return "mock provider/MCP discovery and browser bridge contracts responded";
+      return "mock provider status, external MCP discovery, and browser bridge contracts responded";
     }
     case "native-auth-update": {
       await evaluate(

@@ -161,6 +161,23 @@ describe("createAcpGenericAdapter", () => {
     ]);
   });
 
+  it("repairs an existing Factory Droid daemon command before launch", async () => {
+    const adapter = createAcpGenericAdapter({
+      ...baseInstance,
+      id: "factory-droid",
+      config: {
+        binary: "npx",
+        args: ["-y", "droid@0.170.0", "exec", "--output-format", "acp-daemon"],
+      },
+    });
+
+    await adapter.detectInstall();
+
+    const launchArgs = vi.mocked(probeAcpCapabilities).mock.calls[0]?.[1] ?? [];
+    expect(launchArgs.slice(-5)).toEqual(["-y", "droid@0.170.0", "exec", "--output-format", "acp"]);
+    expect(launchArgs).not.toContain("acp-daemon");
+  });
+
   it("does not parse token-rate prose for other ACP-generic instances", async () => {
     vi.mocked(probeAcpCapabilities).mockResolvedValue({
       models: [

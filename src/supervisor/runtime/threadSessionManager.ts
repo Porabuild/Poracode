@@ -25,6 +25,7 @@ import {
   type ThreadRuntimeSnapshot,
   type WriteTerminalPayload,
   type RuntimeEvent,
+  type McpLaunchSnapshot,
 } from "@/shared/contracts";
 import {
   type AgentAdapter,
@@ -63,7 +64,11 @@ import { InvalidSessionRecoveryCoordinator } from "./threadSession/invalidSessio
 import { StructuredInterruptWatchdog } from "./threadSession/structuredInterruptWatchdog";
 import { SteerCoordinator, clearPendingSteerSlot } from "./threadSession/steerCoordinator";
 import { buildShellCommand } from "./threadSession/shellCommand";
-import { SpawnPipeline, type SpawnThreadInput } from "./threadSession/spawnPipeline";
+import {
+  SpawnPipeline,
+  effectiveLaunchConfig,
+  type SpawnThreadInput,
+} from "./threadSession/spawnPipeline";
 import { StructuredTurnQueue } from "./threadSession/structuredTurnQueue";
 
 export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmittedPrompt };
@@ -224,15 +229,30 @@ export class ThreadSessionManager {
    * so a spawned child can inherit them. Returns undefined once the thread is
    * gone. Consumed by {@link SubagentRunManager}.
    */
-  getSubagentParentContext(
-    threadId: string,
-  ): { projectLocation: ProjectLocation; config: ThreadConfig } | undefined {
+  getSubagentParentContext(threadId: string):
+    | {
+        projectLocation: ProjectLocation;
+        config: ThreadConfig;
+        mcpLaunchSnapshot: McpLaunchSnapshot;
+      }
+    | undefined {
     const session = this.sessions.get(threadId);
     if (!session) return undefined;
-    const config = this.isBrowserMcpEnabledForLaunch(session.adapter, session.config)
-      ? { ...session.config, browserMcp: true }
-      : session.config;
-    return { projectLocation: session.projectLocation, config };
+    // Children inherit the effective launch config: built-in disables applied,
+    // and browser forced on when the agent-settings toggle (not just the
+    // per-thread flag) enables it for the parent.
+    const disabledIds = session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds;
+    const effectiveConfig = effectiveLaunchConfig(session.config, disabledIds);
+    const config =
+      !disabledIds.includes("browser") &&
+      this.isBrowserMcpEnabledForLaunch(session.adapter, session.config)
+        ? { ...effectiveConfig, browserMcp: true }
+        : effectiveConfig;
+    return {
+      projectLocation: session.projectLocation,
+      config,
+      mcpLaunchSnapshot: session.mcpLaunchSnapshot,
+    };
   }
 
   /** Resolve the parent's enabled MCP access for an ephemeral structured child. */
@@ -244,27 +264,36 @@ export class ThreadSessionManager {
     computerUseMcp?: ComputerUseMcpHttpConfig;
     chromeMcp?: ChromeMcpHttpConfig;
     appControlsMcp?: AppControlsMcpHttpConfig;
+    mcpServers?: McpLaunchSnapshot["mcpServers"];
   }> {
     const session = this.sessions.get(threadId);
     if (!session) return {};
+    const mcpLaunchSnapshot = session.mcpLaunchSnapshot;
+    const { mcpServers } = mcpLaunchSnapshot;
+    const launchConfig = effectiveLaunchConfig(
+      session.config,
+      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+    );
     const browserMcp = await this.spawnPipeline.resolveBrowserMcpForLaunch(
       session.adapter,
       session.projectLocation,
-      session.config,
+      launchConfig,
+      mcpLaunchSnapshot,
       identity,
     );
     const computerUseMcp = this.spawnPipeline.resolveComputerUseMcpForLaunch(
       session.projectLocation,
-      session.config,
+      launchConfig,
       identity,
     );
     const chromeMcp = this.spawnPipeline.resolveChromeMcpForLaunch(
       session.projectLocation,
-      session.config,
+      launchConfig,
       identity,
     );
     const appControlsMcp = await this.spawnPipeline.resolveAppControlsMcpForLaunch(
       session.projectLocation,
+      mcpLaunchSnapshot,
       identity,
     );
     return {
@@ -272,6 +301,7 @@ export class ThreadSessionManager {
       ...(computerUseMcp ? { computerUseMcp } : {}),
       ...(chromeMcp ? { chromeMcp } : {}),
       ...(appControlsMcp ? { appControlsMcp } : {}),
+      ...(mcpServers.length > 0 ? { mcpServers } : {}),
     };
   }
 

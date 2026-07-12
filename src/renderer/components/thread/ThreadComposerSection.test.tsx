@@ -227,7 +227,7 @@ describe("ThreadComposerSection", () => {
     return { ...result, onSubmitInput };
   }
 
-  it("exposes model controls for active terminal threads", () => {
+  it("hides provider controls for active terminal threads", () => {
     renderComposer({
       thread: { ...terminalThread, config: { model: "claude", effort: "low" } },
       agentStatus: {
@@ -247,8 +247,7 @@ describe("ThreadComposerSection", () => {
       },
     });
 
-    expect(screen.getByTestId("control-kinds")).toHaveTextContent("provider-model");
-    expect(screen.getByTestId("control-kinds")).toHaveTextContent("effort-context");
+    expect(screen.getByTestId("control-kinds")).toBeEmptyDOMElement();
   });
 
   it("hides the terminal composer collapse button in remote sessions", () => {

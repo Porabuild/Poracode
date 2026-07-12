@@ -154,7 +154,8 @@ function createInactiveRuntime(
     ptyOscCarry: "",
     presentationMode: "gui",
     structuredSession,
-  } as SessionRuntime;
+    mcpLaunchSnapshot: { mcpServers: [], disabledBuiltInMcpServerIds: [] },
+  } as unknown as SessionRuntime;
 }
 
 const guardedStructuredProviders = ["codex", "opencode"] as const;

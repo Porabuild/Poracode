@@ -12,7 +12,8 @@ import type {
   ThreadConfig,
   ThreadStatus,
 } from "@/shared/contracts";
-import { DEFAULT_TERMINAL_SIZE } from "@/shared/contracts";
+import type { SharedSettings } from "@/shared/settings";
+import { DEFAULT_TERMINAL_SIZE, resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import {
   resolveUnrestrictedPermissionConfig,
@@ -46,6 +47,8 @@ export interface ScheduleRunCoordinatorDeps {
   ensureHomeProject(): Project;
   /** Resolve a persisted project row by id, or null when it no longer exists. */
   getProject(projectId: string): Project | null;
+  /** Current global MCP settings; optional for isolated tests/embedders. */
+  getSharedSettings(): SharedSettings;
   upsertThread(thread: Thread, sortOrder: number): void;
   deleteThread(threadId: string): void;
   threadExists(threadId: string): boolean;
@@ -181,6 +184,7 @@ export class ScheduleRunCoordinator {
       prompt: task.prompt,
       initialSize: DEFAULT_TERMINAL_SIZE,
       presentationMode: "gui",
+      ...resolveMcpLaunchSnapshot(this.deps.getSharedSettings(), project.mcpServers ?? []),
     };
 
     try {

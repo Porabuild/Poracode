@@ -3,6 +3,7 @@ import type {
   ProjectLocation,
   RuntimeEvent,
   ThreadConfig,
+  McpServer,
 } from "@/shared/contracts";
 import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
@@ -145,6 +146,7 @@ export interface SubagentRunHost {
     computerUseMcp?: ComputerUseMcpHttpConfig;
     chromeMcp?: ChromeMcpHttpConfig;
     appControlsMcp?: AppControlsMcpHttpConfig;
+    mcpServers?: McpServer[];
   }>;
   /** Append a (re-tagged) runtime event into the parent thread's event stream. */
   appendRuntimeEvent(parentThreadId: string, event: RuntimeEvent): void;

@@ -10,6 +10,7 @@ import {
   threadStatusSchema,
 } from "./common";
 import { threadConfigSchema } from "./config";
+import { BUILT_IN_MCP_SERVER_IDS, mcpServerListSchema } from "./mcpServer";
 
 /** How thread status/attention is derived for terminal agents (supervisor → renderer). */
 export const threadStatusSourceSchema = z.enum(["cli_hook", "terminal_parse", "server"]);
@@ -99,6 +100,10 @@ export const startThreadPayloadSchema = z.object({
   initialSize: terminalSizeSchema,
   sessionRef: sessionRefSchema.optional(),
   presentationMode: threadPresentationModeSchema.optional(),
+  /** Enabled custom MCP servers resolved by the renderer at launch time. */
+  mcpServers: mcpServerListSchema.optional(),
+  /** Built-in MCP ids hard-disabled when this launch snapshot was created. */
+  disabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
   /**
    * Renderer-allocated id for the user_message item the chat pane has already
    * painted optimistically. The supervisor reuses this id when emitting its

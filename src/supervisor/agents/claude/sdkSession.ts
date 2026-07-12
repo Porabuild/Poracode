@@ -29,6 +29,7 @@ import { buildClaudeChromeMcpServers } from "./mcpChrome";
 import { buildClaudeSubagentMcpServers } from "./mcpSubagent";
 import { buildClaudeComputerUseMcpServers } from "./mcpComputerUse";
 import { buildClaudeAppControlsMcpServers } from "./mcpAppControls";
+import { buildClaudeUserMcpServers } from "../userMcp";
 import {
   createKnownSessionRef,
   getPrimedPosixEnv,
@@ -691,11 +692,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         this.currentConfig.computerUse === true,
         this.input.computerUseMcp,
       );
-      const appControlsMcpServers = buildClaudeAppControlsMcpServers(
-        this.input.projectLocation,
-        this.input.appControlsMcp,
-      );
+      // The spawn pipeline withholds `appControlsMcp` when the server is
+      // hard-disabled; presence is the opt-in signal (there is no per-thread
+      // config flag for it).
+      const appControlsMcpServers = this.input.appControlsMcp
+        ? buildClaudeAppControlsMcpServers(this.input.projectLocation, this.input.appControlsMcp)
+        : undefined;
       const mcpServers = {
+        ...buildClaudeUserMcpServers(this.input.mcpServers ?? []),
         ...browserMcpServers,
         ...subagentMcpServers,
         ...chromeMcpServers,

@@ -644,6 +644,24 @@ describe("RemoteAccessServer", () => {
   });
 
   it("builds shell snapshots from aggregated runtime summaries", async () => {
+    vi.mocked(dbGetProjects).mockReturnValue([
+      createTestProject({
+        mcpServers: [
+          {
+            id: "secret-server",
+            name: "private",
+            description: "",
+            enabled: true,
+            timeoutMs: 30_000,
+            transport: {
+              type: "http",
+              url: "https://example.com/mcp",
+              headers: { Authorization: "Bearer top-secret" },
+            },
+          },
+        ],
+      }),
+    ]);
     const visibleThread = createTestThread({ id: "thread-visible", title: "Visible" });
     const archivedThread = createTestThread({
       id: "thread-archived",
@@ -676,7 +694,8 @@ describe("RemoteAccessServer", () => {
     });
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
+    const snapshot = await response.json();
+    expect(snapshot).toMatchObject({
       runtimeSummariesByThread: {
         "thread-visible": {
           itemCount: 3,
@@ -687,6 +706,8 @@ describe("RemoteAccessServer", () => {
         },
       },
     });
+    expect(JSON.stringify(snapshot)).not.toContain("top-secret");
+    expect((snapshot as { projects: Project[] }).projects[0]).not.toHaveProperty("mcpServers");
     expect(dbGetThreadRuntimeSummaries).toHaveBeenCalledWith(["thread-visible"]);
     expect(dbGetThreadRuntimeItems).not.toHaveBeenCalled();
     expect(dbGetThreadContextUsage).not.toHaveBeenCalled();
@@ -1682,6 +1703,21 @@ describe("RemoteAccessServer", () => {
 
   it("starts remote threads durably before notifying the renderer", async () => {
     const project = createTestProject();
+    const mcpSnapshot: ReturnType<
+      NonNullable<RemoteAccessServerOptions["resolveMcpLaunchSnapshot"]>
+    > = {
+      mcpServers: [
+        {
+          id: "workspace-memory",
+          name: "workspace-memory",
+          description: "",
+          enabled: true,
+          timeoutMs: 30_000,
+          transport: { type: "stdio", command: "memory-server", args: [], env: {} },
+        },
+      ],
+      disabledBuiltInMcpServerIds: ["browser"],
+    };
     vi.mocked(dbGetProjects).mockReturnValue([project]);
     const db = mockThreadDb();
     const dispatched: unknown[] = [];
@@ -1694,6 +1730,7 @@ describe("RemoteAccessServer", () => {
       host: "127.0.0.1",
       port: 0,
       callSupervisor,
+      resolveMcpLaunchSnapshot: () => mcpSnapshot,
       dispatchThreadCommand: (command) => {
         dispatched.push(command);
         return true;
@@ -1738,6 +1775,7 @@ describe("RemoteAccessServer", () => {
         prompt: "",
         initialSize: { cols: 120, rows: 30 },
         presentationMode: "terminal",
+        ...mcpSnapshot,
       }),
     );
     expect(dispatched).toEqual([
@@ -1801,7 +1839,18 @@ describe("RemoteAccessServer", () => {
     const response = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
       method: "POST",
       headers,
-      body: JSON.stringify({ ...payload, threadId: "thread-1" }),
+      body: JSON.stringify({
+        ...payload,
+        threadId: "thread-1",
+        mcpServers: [
+          {
+            id: "client-injected",
+            name: "client-injected",
+            transport: { type: "stdio", command: "untrusted-command" },
+          },
+        ],
+        disabledBuiltInMcpServerIds: ["chrome"],
+      }),
     });
 
     expect(response.status).toBe(200);
@@ -1809,6 +1858,8 @@ describe("RemoteAccessServer", () => {
     expect(callSupervisor).toHaveBeenCalledTimes(1);
     expect(callSupervisor).toHaveBeenCalledWith("startThread", {
       ...payload,
+      disabledBuiltInMcpServerIds: [],
+      mcpServers: [],
       threadId: "thread-1",
     });
   });

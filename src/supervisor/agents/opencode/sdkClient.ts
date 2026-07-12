@@ -1,5 +1,5 @@
 import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
-import type { ProjectLocation } from "@/shared/contracts";
+import type { McpServer, ProjectLocation } from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import {
   SUBAGENT_MCP_SERVER_NAME,
@@ -19,6 +19,7 @@ import { buildOpenCodeSubagentMcp } from "./mcpSubagent";
 import { buildOpenCodeComputerUseMcp } from "./mcpComputerUse";
 import { buildOpenCodeChromeMcp } from "./mcpChrome";
 import { buildOpenCodeAppControlsMcp } from "./mcpAppControls";
+import { buildOpenCodeUserMcp } from "../userMcp";
 import { classifyOpenCodeError, isOpenCodeConnectionLoss } from "./opencodeErrors";
 import {
   disposeSpawnedOpenCodeServerHandles,
@@ -84,6 +85,10 @@ interface PoolEntry {
   idleCloseTimer?: NodeJS.Timeout | undefined;
   /** Caller-requested idle TTL on the current grace timer (informational). */
   pendingIdleTtlMs?: number | undefined;
+  managedCustomMcpNames: Set<string>;
+  managedCustomMcpFingerprint?: string;
+  /** Replaced by a fresh generation after its dynamic MCP config changed. */
+  retired?: boolean;
 }
 
 // Per-project pool. The OpenCode HTTP server can host any number of sessions
@@ -193,6 +198,7 @@ export interface AcquireOpenCodeServerInput {
    */
   subagentMcp?: SubagentMcpHttpConfig;
   appControlsMcp?: AppControlsMcpHttpConfig;
+  mcpServers?: McpServer[];
   /**
    * When set, this acquisition gets its own single-tenant pool entry keyed by
    * this value (the thread id) instead of joining the shared per-project pool.
@@ -316,6 +322,25 @@ async function syncAppControlsMcp(
   await client.mcp.connect({ directory, name: APP_CONTROLS_MCP_SERVER_NAME });
 }
 
+// No disconnect diffing is needed here: any change to the custom MCP set
+// changes the fingerprint, which retires the server before this runs.
+async function syncUserMcp(
+  input: Pick<AcquireOpenCodeServerInput, "projectLocation">,
+  servers: ReturnType<typeof buildOpenCodeUserMcp>,
+  client: OpencodeClient,
+): Promise<Set<string>> {
+  const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
+  await Promise.all(
+    Object.entries(servers).map(async ([name, config]) => {
+      await client.mcp.add({ directory, name, config }).catch((error) => {
+        if (isOpenCodeConnectionLoss(error)) throw error;
+      });
+      await client.mcp.connect({ directory, name });
+    }),
+  );
+  return new Set(Object.keys(servers));
+}
+
 export async function acquireOpenCodeServer(
   input: AcquireOpenCodeServerInput,
 ): Promise<AcquiredOpenCodeServer> {
@@ -331,7 +356,7 @@ async function acquireOpenCodeServerInner(
 
   if (!entry) {
     const ready = spawnAndWire(input.projectLocation);
-    entry = { key, ready, refCount: 0 };
+    entry = { key, ready, refCount: 0, managedCustomMcpNames: new Set() };
     pool.set(key, entry);
 
     // If spawn fails, evict so the next acquire respawns instead of resolving
@@ -371,9 +396,35 @@ async function acquireOpenCodeServerInner(
   let released = false;
   const idleCloseDelayMs = input.idleCloseDelayMs;
   try {
+    const nextCustomMcp = buildOpenCodeUserMcp(input.mcpServers ?? []);
+    const nextCustomMcpFingerprint = JSON.stringify(nextCustomMcp);
+    if (
+      acquiringEntry.managedCustomMcpFingerprint !== undefined &&
+      acquiringEntry.managedCustomMcpFingerprint !== nextCustomMcpFingerprint
+    ) {
+      const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
+      await Promise.all(
+        [...acquiringEntry.managedCustomMcpNames].map((name) =>
+          snapshot.client.mcp.disconnect({ directory, name }).catch(() => undefined),
+        ),
+      );
+      released = true;
+      acquiringEntry.refCount -= 1;
+      acquiringEntry.retired = true;
+      if (pool.get(key) === acquiringEntry) pool.delete(key);
+      if (acquiringEntry.refCount === 0) {
+        await snapshot.handle.dispose().catch((error) => {
+          console.warn("[opencode] failed to dispose retired MCP server:", error);
+        });
+      }
+      return acquireOpenCodeServerInner(input, retryMcpConnectionLoss);
+    }
+
     await syncBrowserMcp(input, snapshot.client);
     await syncSubagentMcp(input, snapshot.client);
     await syncAppControlsMcp(input, snapshot.client);
+    acquiringEntry.managedCustomMcpNames = await syncUserMcp(input, nextCustomMcp, snapshot.client);
+    acquiringEntry.managedCustomMcpFingerprint = nextCustomMcpFingerprint;
   } catch (error) {
     if (!retryMcpConnectionLoss || !isOpenCodeConnectionLoss(error)) {
       console.warn("[opencode] failed to sync managed MCP servers:", error);
@@ -400,7 +451,7 @@ async function acquireOpenCodeServerInner(
 
       // No idle window requested → tear down immediately, matching prior
       // behaviour for the TUI/GUI flows.
-      if (idleCloseDelayMs === undefined || idleCloseDelayMs <= 0) {
+      if (acquiringEntry.retired || idleCloseDelayMs === undefined || idleCloseDelayMs <= 0) {
         if (pool.get(key) === acquiringEntry) pool.delete(key);
         await snapshot.handle.dispose();
         return;

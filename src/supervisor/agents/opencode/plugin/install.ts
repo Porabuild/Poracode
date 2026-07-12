@@ -41,7 +41,7 @@ import {
   stagePluginAssetsToWsl,
   type PluginManifest,
 } from "../../plugin/installerBase";
-import { buildOpenCodeBrowserMcp, type OpenCodeMcpServers } from "../mcpBrowser";
+import { buildOpenCodeBrowserMcp } from "../mcpBrowser";
 import { buildOpenCodeSubagentMcp } from "../mcpSubagent";
 
 /**
@@ -434,7 +434,7 @@ interface OpenCodeMcpConfigUpdate {
    */
   remove: readonly string[];
   /** MCP server entries to (re)add. Omit to only remove. */
-  add?: OpenCodeMcpServers;
+  add?: Record<string, unknown>;
 }
 
 /**
@@ -542,9 +542,10 @@ export function syncOpenCodeSubagentMcpConfigFile(
 
 export function syncOpenCodeAppControlsMcpConfigFile(
   location: ProjectLocation,
+  enabled: boolean,
   appControlsMcp?: AppControlsMcpHttpConfig,
 ): void {
-  const add = buildOpenCodeAppControlsMcp(location, appControlsMcp);
+  const add = enabled ? buildOpenCodeAppControlsMcp(location, appControlsMcp) : undefined;
   const update: OpenCodeMcpConfigUpdate = {
     remove: [APP_CONTROLS_MCP_SERVER_NAME],
     ...(add ? { add } : {}),

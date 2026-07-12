@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { projectLocationSchema } from "./common";
 import { projectDraftConfigSchema } from "./config";
+import { mcpServerListSchema } from "./mcpServer";
 
 export const projectActionSchema = z.object({
   id: z.string().min(1),
@@ -63,6 +64,8 @@ export const projectSchema = z.object({
   scripts: projectScriptsSchema.optional(),
   searchSettings: projectSearchSettingsSchema.optional(),
   worktreeLocation: projectWorktreeLocationSchema.optional(),
+  /** Project MCP entries override global entries by name (case-insensitive). */
+  mcpServers: mcpServerListSchema.optional(),
   disabled: z.boolean().optional(),
   createdAt: z.string().min(1),
 });

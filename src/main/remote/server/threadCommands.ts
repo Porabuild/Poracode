@@ -4,10 +4,16 @@ import {
   GIT_REMOTE_PROCEDURE_SCOPES,
   isGitRemoteProcedure,
   remoteGitCallPayloadSchema,
+  remoteProjectCommandResultSchema,
   type RemoteProjectCommand,
   type RemoteProjectCommandResult,
 } from "@/shared/remote";
-import { DEFAULT_TERMINAL_SIZE, type RemoteThreadCommand, type Thread } from "@/shared/contracts";
+import {
+  DEFAULT_TERMINAL_SIZE,
+  emptyMcpLaunchSnapshot,
+  type RemoteThreadCommand,
+  type Thread,
+} from "@/shared/contracts";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
 import { ipcProcedureMap } from "@/shared/ipc";
 import {
@@ -83,7 +89,7 @@ export function runProjectCommand(
     },
     platform: process.platform,
     now: () => new Date().toISOString(),
-  });
+  }).then((result) => remoteProjectCommandResultSchema.parse(result));
 }
 
 /**
@@ -202,6 +208,8 @@ async function startRemoteThread(
   const projectLocation = command.worktreePath
     ? buildWorktreeLocation(project.location, command.worktreePath)
     : project.location;
+  const mcpSnapshot =
+    ctx.options.resolveMcpLaunchSnapshot?.(command.projectId) ?? emptyMcpLaunchSnapshot();
   try {
     await ctx.options.callSupervisor("startThread", {
       threadId: command.threadId,
@@ -213,6 +221,7 @@ async function startRemoteThread(
       ...(command.segments ? { segments: command.segments } : {}),
       initialSize: DEFAULT_TERMINAL_SIZE,
       ...(command.presentationMode ? { presentationMode: command.presentationMode } : {}),
+      ...mcpSnapshot,
     });
   } catch (error) {
     if (!existing) dbDeleteThread(command.threadId);

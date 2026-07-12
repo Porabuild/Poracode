@@ -21,6 +21,7 @@ import {
   interruptThreadPayloadSchema,
   profileIdentitySchema,
   profileStatsRequestSchema,
+  emptyMcpLaunchSnapshot,
   remoteThreadCommandSchema,
   resizeTerminalPayloadSchema,
   resolveThreadServerRequestPayloadSchema,
@@ -458,10 +459,17 @@ export async function handleHttp(
           400,
         );
       }
-      if (!dbGetThread(payload.threadId)) {
+      const thread = dbGetThread(payload.threadId);
+      if (!thread) {
         throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
       }
-      writeJson(res, 200, await ctx.options.callSupervisor("startThread", payload));
+      const mcpSnapshot =
+        ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
+      writeJson(
+        res,
+        200,
+        await ctx.options.callSupervisor("startThread", { ...payload, ...mcpSnapshot }),
+      );
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/terminal/start") {

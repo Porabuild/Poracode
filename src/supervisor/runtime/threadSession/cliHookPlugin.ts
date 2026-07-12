@@ -5,6 +5,7 @@ import type {
   ThreadAttention,
   ThreadConfig,
   ThreadStatus,
+  McpLaunchSnapshot,
 } from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
@@ -102,7 +103,9 @@ export class CliHookSessionCoordinator {
     browserMcp: BrowserMcpHttpConfig | undefined,
     computerUseMcp: ComputerUseMcpHttpConfig | undefined,
     chromeMcp: ChromeMcpHttpConfig | undefined,
+    mcpLaunchSnapshot: McpLaunchSnapshot,
   ): Promise<{ env: Record<string, string>; extraArgs: string[] }> {
+    const { mcpServers, disabledBuiltInMcpServerIds } = mcpLaunchSnapshot;
     const adapter = this.ctx.options.adapters.get(agentKind);
     const liveInputMode = adapter?.capabilities.liveInputMode ?? "terminal";
 
@@ -122,12 +125,17 @@ export class CliHookSessionCoordinator {
         threadId,
         agentKind,
         projectLocation,
-        browserMcpEnabled: this.ctx.isBrowserMcpEnabledForLaunch(adapter, config),
+        // Browser enablement can come from agent settings, not just the
+        // (already effective) thread config — gate the disable here too.
+        browserMcpEnabled:
+          !disabledBuiltInMcpServerIds.includes("browser") &&
+          this.ctx.isBrowserMcpEnabledForLaunch(adapter, config),
         ...(browserMcp !== undefined ? { browserMcp } : {}),
         computerUseMcpEnabled: config.computerUse === true,
         ...(computerUseMcp !== undefined ? { computerUseMcp } : {}),
         chromeMcpEnabled: config.chromeMcp === true,
         ...(chromeMcp !== undefined ? { chromeMcp } : {}),
+        ...(mcpServers.length > 0 ? { mcpServers } : {}),
       });
       const merged = resolved ?? { env: {}, extraArgs: [] };
       const hookUrl = merged.env.LIGHTCODE_HOOK_URL;

@@ -3,6 +3,7 @@ import { allUsageProviderDescriptors } from "@lightcode/agents-usage/providers";
 import {
   agentInstanceConfigMapSchema,
   installedAcpRegistryAgentSchema,
+  builtInMcpServerDisabledSchema,
   gitReviewModeSchema,
   prCreateModeSchema,
   commitDefaultActionSchema,
@@ -14,6 +15,7 @@ import {
   threadPresentationModeSchema,
   threadRemoveActionSchema,
   worktreeStorageModeSchema,
+  mcpServerListSchema,
 } from "./contracts";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
@@ -398,6 +400,10 @@ export const sharedSettingsSchema = z.object({
    * removable chip for that one thread. Toggled by the composer "+" menu.
    */
   enabledMcpServers: z.record(z.string(), z.boolean()).default({}),
+  /** Custom MCP servers applied to every new thread unless overridden by its project. */
+  mcpServers: mcpServerListSchema,
+  /** Built-in MCP servers hard-disabled for all new launches. */
+  disabledBuiltInMcpServers: builtInMcpServerDisabledSchema,
   /**
    * In-app browser panel + agent MCP bridge settings. Whether the Browser MCP
    * attaches to a thread is decided per thread: a persistent default in
@@ -516,6 +522,8 @@ export const defaultSharedSettings: SharedSettings = {
   dismissedHookInstallProposals: {},
   agentHookSupport: {},
   enabledMcpServers: {},
+  mcpServers: [],
+  disabledBuiltInMcpServers: {},
   browser: {
     allowEval: false,
     allowDataAccess: false,

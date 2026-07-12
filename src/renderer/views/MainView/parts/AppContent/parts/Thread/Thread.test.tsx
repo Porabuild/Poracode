@@ -113,6 +113,8 @@ describe("ThreadView", () => {
           cols: 120,
           rows: 40,
         },
+        mcpServers: [],
+        disabledBuiltInMcpServerIds: [],
       });
     });
   });

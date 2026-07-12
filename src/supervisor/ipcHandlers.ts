@@ -19,6 +19,9 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
   const fileIndex = runtime.fileIndexService;
   const projectTree = runtime.projectTreeService;
   const lsp = runtime.lspManager;
+  const mcpProbe = runtime.mcpProbeService;
+  const mcpOAuth = runtime.mcpOAuthService;
+  const externalMcpDiscovery = runtime.externalMcpDiscoveryService;
   return defineSupervisorIpcHandlers({
     listWslDistros: () => registry.listWslDistros(),
     getAgentStatuses: (payload) => registry.getAgentStatuses(payload),
@@ -236,5 +239,11 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       await lsp.stop(payload);
     },
     lspSendMessage: (payload) => lsp.sendMessage(payload),
+    discoverExternalMcpServers: (payload) => externalMcpDiscovery.discover(payload),
+    probeMcpServer: (payload) => mcpProbe.probe(payload),
+    beginMcpServerOauth: (payload) => mcpOAuth.begin(payload),
+    waitMcpServerOauth: (payload) => mcpOAuth.wait(payload),
+    clearMcpServerOauth: (payload) => mcpOAuth.clear(payload),
+    getMcpOauthStatus: () => mcpOAuth.status(),
   });
 }

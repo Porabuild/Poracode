@@ -118,7 +118,13 @@ function makeHarness(options?: {
     },
     host: {
       getParentContext: (threadId) =>
-        threadId === PARENT ? { projectLocation: PROJECT, config: parentConfig } : undefined,
+        threadId === PARENT
+          ? {
+              projectLocation: PROJECT,
+              config: parentConfig,
+              mcpLaunchSnapshot: { mcpServers: [], disabledBuiltInMcpServerIds: [] },
+            }
+          : undefined,
       getThreadState: (threadId) => states.get(threadId),
       readThreadHistory: async () => history,
       sendThreadInput: async (payload) => {

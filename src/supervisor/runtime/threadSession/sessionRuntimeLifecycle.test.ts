@@ -376,6 +376,7 @@ describe("SessionRuntimeLifecycle", () => {
   });
 
   it("resolves every PTY exit but tears down state only for the active session", () => {
+    const launchCleanup = vi.fn<() => void>();
     const harness = createHarness({
       session: {
         sessionRef: {
@@ -384,6 +385,7 @@ describe("SessionRuntimeLifecycle", () => {
         },
         hasCliHookPluginActivity: true,
         cliHookEnvInjected: true,
+        launchCleanup,
       },
     });
     harness.lifecycle.attach(harness.session);
@@ -391,6 +393,8 @@ describe("SessionRuntimeLifecycle", () => {
     harness.emitPtyExit(17);
 
     expect(harness.mocks.resolveExit).toHaveBeenCalledExactlyOnceWith(harness.session);
+    expect(launchCleanup).toHaveBeenCalledTimes(1);
+    expect(harness.session.launchCleanup).toBeUndefined();
     expect(harness.mocks.dispose).toHaveBeenCalledTimes(1);
     expect(harness.mocks.clearSessionTimers).toHaveBeenCalledWith(harness.session);
     expect(harness.mocks.updateState).toHaveBeenCalledWith(harness.session, "inactive", "none");

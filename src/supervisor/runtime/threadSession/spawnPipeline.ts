@@ -14,6 +14,9 @@ import {
   type ThreadConfig,
   type ThreadPresentationMode,
   type ThreadStatus,
+  type BuiltInMcpServerId,
+  type McpLaunchSnapshot,
+  resolveEnabledMcpServers,
 } from "@/shared/contracts";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import {
@@ -87,6 +90,30 @@ export interface SpawnThreadInput {
   initialStatus?: ThreadStatus;
   initialAttention?: ThreadAttention;
   suppressInitialStructuredIdle?: boolean;
+  mcpLaunchSnapshot: McpLaunchSnapshot;
+}
+
+/**
+ * Per-launch config with the built-in MCP opt-in flags cleared for globally
+ * hard-disabled servers. Together with the `resolve*ForLaunch` gates (which
+ * withhold the http configs), this makes the spawn pipeline the single place
+ * that enforces built-in MCP disables — providers receive this config and
+ * never consult the disabled list themselves. The original config, with the
+ * user's per-thread flags intact, stays on the `SessionRuntime` and in
+ * thread-state events so re-enabling a server globally restores the thread's
+ * choices.
+ */
+export function effectiveLaunchConfig(
+  config: ThreadConfig,
+  disabledBuiltInMcpServerIds: readonly BuiltInMcpServerId[],
+): ThreadConfig {
+  if (disabledBuiltInMcpServerIds.length === 0) return config;
+  const next = { ...config };
+  if (disabledBuiltInMcpServerIds.includes("browser")) next.browserMcp = false;
+  if (disabledBuiltInMcpServerIds.includes("subagents")) next.subagentMcp = false;
+  if (disabledBuiltInMcpServerIds.includes("computer-use")) next.computerUse = false;
+  if (disabledBuiltInMcpServerIds.includes("chrome")) next.chromeMcp = false;
+  return next;
 }
 
 /**
@@ -186,29 +213,43 @@ export class SpawnPipeline {
       threadId: payload.threadId,
       title: initialPrompt.split("\n", 1)[0]?.trim() ?? "",
     };
+    let mcpServers = resolveEnabledMcpServers(payload.mcpServers ?? []);
+    if (this.ctx.options.applyMcpServerAuthorization) {
+      mcpServers = await this.ctx.options.applyMcpServerAuthorization(mcpServers);
+    }
+    const mcpLaunchSnapshot: McpLaunchSnapshot = {
+      mcpServers,
+      disabledBuiltInMcpServerIds: payload.disabledBuiltInMcpServerIds ?? [],
+    };
+    const launchConfig = effectiveLaunchConfig(
+      payload.config,
+      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+    );
     const browserMcp = await this.resolveBrowserMcpForLaunch(
       adapter,
       payload.projectLocation,
-      payload.config,
+      launchConfig,
+      mcpLaunchSnapshot,
       mcpIdentity,
     );
     const subagentMcp = await this.resolveSubagentMcpForLaunch(
       payload.threadId,
       payload.projectLocation,
-      payload.config,
+      launchConfig,
     );
     const computerUse = this.resolveComputerUseMcpForLaunch(
       payload.projectLocation,
-      payload.config,
+      launchConfig,
       mcpIdentity,
     );
     const chromeMcp = this.resolveChromeMcpForLaunch(
       payload.projectLocation,
-      payload.config,
+      launchConfig,
       mcpIdentity,
     );
     const appControlsMcp = await this.resolveAppControlsMcpForLaunch(
       payload.projectLocation,
+      mcpLaunchSnapshot,
       mcpIdentity,
     );
     const structuredSession = await this.createStructuredSession(
@@ -216,12 +257,13 @@ export class SpawnPipeline {
       payload.threadId,
       payload.agentKind,
       payload.projectLocation,
-      payload.config,
+      launchConfig,
       browserMcp,
       subagentMcp,
       computerUse,
       chromeMcp,
       appControlsMcp,
+      mcpLaunchSnapshot,
       mcpIdentity,
       payload.sessionRef,
       requestedPresentation,
@@ -249,7 +291,7 @@ export class SpawnPipeline {
     if (structuredSession?.openThread) {
       try {
         openedStructuredThreadId = await structuredSession.openThread(
-          payload.config,
+          launchConfig,
           payload.sessionRef,
         );
       } catch (error) {
@@ -289,6 +331,7 @@ export class SpawnPipeline {
         initialAttention: optimisticUserMessageItemId && !startInterrupted ? "working" : "none",
         suppressInitialStructuredIdle:
           optimisticUserMessageItemId !== undefined && !startInterrupted,
+        mcpLaunchSnapshot,
       });
       if (
         !startInterrupted &&
@@ -299,7 +342,7 @@ export class SpawnPipeline {
         void structuredSession
           .startTurn(
             initialPrompt,
-            payload.config,
+            launchConfig,
             effectiveSegments,
             optimisticUserMessageItemId
               ? { userMessageItemId: optimisticUserMessageItemId }
@@ -323,7 +366,7 @@ export class SpawnPipeline {
       structuredSession?.startTurn
     ) {
       void structuredSession
-        .startTurn(initialPrompt, payload.config, effectiveSegments)
+        .startTurn(initialPrompt, launchConfig, effectiveSegments)
         .catch((error) => {
           console.error("[supervisor] initial turn failed:", error);
           captureSupervisorException(error, {
@@ -355,18 +398,19 @@ export class SpawnPipeline {
       computerUse,
       chromeMcp,
       appControlsMcp,
+      mcpLaunchSnapshot,
     );
     const argv = payload.sessionRef
       ? adapter.buildResumeArgv(
           payload.projectLocation,
-          payload.config,
+          launchConfig,
           launchPrompt,
           payload.sessionRef,
           launchOptionsWithMcp,
         )
       : adapter.buildLaunchArgv(
           payload.projectLocation,
-          payload.config,
+          launchConfig,
           launchPrompt,
           payload.sessionRef,
           launchOptionsWithMcp,
@@ -383,10 +427,11 @@ export class SpawnPipeline {
       payload.threadId,
       payload.agentKind,
       payload.projectLocation,
-      payload.config,
+      launchConfig,
       browserMcp,
       computerUse,
       chromeMcp,
+      mcpLaunchSnapshot,
     );
     if (cliHookExtras.extraArgs.length > 0) {
       argv.args = mergeCliHookExtraArgs(
@@ -417,6 +462,7 @@ export class SpawnPipeline {
       if (structuredSession && keepStructuredSession) {
         await structuredSession.dispose();
       }
+      command.cleanup?.();
       return { threadId: payload.threadId };
     }
 
@@ -433,6 +479,7 @@ export class SpawnPipeline {
       ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
       ...(keepStructuredSession ? { structuredSession } : {}),
       ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
+      mcpLaunchSnapshot,
       ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
       presentationMode: requestedPresentation,
       ...(deferToTerminal && !useStructuredFlow
@@ -459,6 +506,7 @@ export class SpawnPipeline {
     if (!session.sessionRef) {
       throw new Error("Session cannot be restarted without a known session reference.");
     }
+    const mcpLaunchSnapshot = session.mcpLaunchSnapshot;
 
     const isServerControlled = session.adapter.capabilities.liveInputMode === "server";
     const usesTerminalPresentation =
@@ -491,25 +539,35 @@ export class SpawnPipeline {
     }
 
     const mcpIdentity = { threadId: session.threadId };
+    const launchConfig = effectiveLaunchConfig(
+      config,
+      mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+    );
     const browserMcp = await this.resolveBrowserMcpForLaunch(
       session.adapter,
       session.projectLocation,
-      config,
+      launchConfig,
+      mcpLaunchSnapshot,
       mcpIdentity,
     );
     const subagentMcp = await this.resolveSubagentMcpForLaunch(
       session.threadId,
       session.projectLocation,
-      config,
+      launchConfig,
     );
     const computerUse = this.resolveComputerUseMcpForLaunch(
       session.projectLocation,
-      config,
+      launchConfig,
       mcpIdentity,
     );
-    const chromeMcp = this.resolveChromeMcpForLaunch(session.projectLocation, config, mcpIdentity);
+    const chromeMcp = this.resolveChromeMcpForLaunch(
+      session.projectLocation,
+      launchConfig,
+      mcpIdentity,
+    );
     const appControlsMcp = await this.resolveAppControlsMcpForLaunch(
       session.projectLocation,
+      mcpLaunchSnapshot,
       mcpIdentity,
     );
     const structuredSession = await this.createStructuredSession(
@@ -517,12 +575,13 @@ export class SpawnPipeline {
       session.threadId,
       session.agentKind,
       session.projectLocation,
-      config,
+      launchConfig,
       browserMcp,
       subagentMcp,
       computerUse,
       chromeMcp,
       appControlsMcp,
+      mcpLaunchSnapshot,
       mcpIdentity,
       session.sessionRef,
       session.presentationMode,
@@ -547,7 +606,7 @@ export class SpawnPipeline {
 
     if (structuredSession?.openThread) {
       try {
-        await structuredSession.openThread(config, session.sessionRef);
+        await structuredSession.openThread(launchConfig, session.sessionRef);
       } catch (error) {
         await structuredSession.dispose();
         throw error;
@@ -572,12 +631,13 @@ export class SpawnPipeline {
         launchPrompt: "",
         structuredSession,
         sessionRef: session.sessionRef,
+        mcpLaunchSnapshot,
         ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
       });
       if (prompt.trim().length > 0 && structuredSession.startTurn) {
         const optimisticItemId = ctx.emitOptimisticUserMessage(session.threadId, prompt);
         void structuredSession
-          .startTurn(prompt, config, undefined, { userMessageItemId: optimisticItemId })
+          .startTurn(prompt, launchConfig, undefined, { userMessageItemId: optimisticItemId })
           .catch((error) => {
             if (ctx.sessions.get(restarted.threadId)?.instanceId !== restarted.instanceId) {
               return;
@@ -593,10 +653,11 @@ export class SpawnPipeline {
       session.threadId,
       session.agentKind,
       session.projectLocation,
-      config,
+      launchConfig,
       browserMcp,
       computerUse,
       chromeMcp,
+      mcpLaunchSnapshot,
     );
     if (!ctx.isCurrentSession(session)) {
       await structuredSession?.dispose();
@@ -604,7 +665,7 @@ export class SpawnPipeline {
     }
     const argv = session.adapter.buildResumeArgv(
       session.projectLocation,
-      config,
+      launchConfig,
       launchPrompt,
       session.sessionRef,
       this.composeLaunchOptions(
@@ -615,6 +676,7 @@ export class SpawnPipeline {
         computerUse,
         chromeMcp,
         appControlsMcp,
+        mcpLaunchSnapshot,
       ),
     );
     if (cliHookExtras.extraArgs.length > 0) {
@@ -637,6 +699,7 @@ export class SpawnPipeline {
     }
     if (!ctx.isCurrentSession(session)) {
       await structuredSession?.dispose();
+      argv.cleanup?.();
       return;
     }
     const command = resolveLaunchSpec(session.projectLocation, argv);
@@ -649,6 +712,7 @@ export class SpawnPipeline {
       if (structuredSession && keepStructuredSession) {
         await structuredSession.dispose();
       }
+      command.cleanup?.();
       return;
     }
 
@@ -664,6 +728,7 @@ export class SpawnPipeline {
       ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
       ...(keepStructuredSession ? { structuredSession } : {}),
       sessionRef: session.sessionRef,
+      mcpLaunchSnapshot,
       ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
     });
   }
@@ -725,6 +790,11 @@ export class SpawnPipeline {
           env: ptyEnv,
         });
       } catch (error) {
+        try {
+          command.cleanup?.();
+        } catch {
+          // Best-effort cleanup must not hide the spawn failure.
+        }
         throw new Error(
           describeSpawnFailure(
             "agent",
@@ -746,8 +816,10 @@ export class SpawnPipeline {
       agentKind: input.agentKind,
       adapter: input.adapter,
       ...(pty ? { pty } : {}),
+      ...(pty && command?.cleanup ? { launchCleanup: command.cleanup } : {}),
       projectLocation: input.projectLocation,
       config: input.config,
+      mcpLaunchSnapshot: input.mcpLaunchSnapshot,
       terminalSize: input.initialSize,
       launchPrompt: input.launchPrompt,
       ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
@@ -786,7 +858,9 @@ export class SpawnPipeline {
     computerUse: ComputerUseMcpHttpConfig | undefined,
     chromeMcp: ChromeMcpHttpConfig | undefined,
     appControlsMcp: AppControlsMcpHttpConfig | undefined,
+    mcpLaunchSnapshot: McpLaunchSnapshot,
   ): AgentLaunchOptions {
+    const { mcpServers } = mcpLaunchSnapshot;
     return {
       ...(launchOptions ?? {}),
       agentSettings: this.ctx.resolveAgentSettings(adapter),
@@ -795,6 +869,7 @@ export class SpawnPipeline {
       ...(computerUse !== undefined ? { computerUseMcp: computerUse } : {}),
       ...(chromeMcp !== undefined ? { chromeMcp } : {}),
       ...(appControlsMcp !== undefined ? { appControlsMcp } : {}),
+      ...(mcpServers.length > 0 ? { mcpServers } : {}),
     };
   }
 
@@ -802,8 +877,10 @@ export class SpawnPipeline {
     adapter: AgentAdapter,
     location: ProjectLocation,
     config: ThreadConfig,
+    mcpLaunchSnapshot: McpLaunchSnapshot,
     identity?: McpThreadIdentity,
   ): Promise<BrowserMcpHttpConfig | undefined> {
+    if (mcpLaunchSnapshot.disabledBuiltInMcpServerIds.includes("browser")) return undefined;
     const enabled = this.ctx.isBrowserMcpEnabledForLaunch(adapter, config);
     if (!enabled) return undefined;
     const cfg = await resolveBrowserMcpHttpConfigForLaunch(
@@ -850,8 +927,12 @@ export class SpawnPipeline {
 
   resolveAppControlsMcpForLaunch(
     location: ProjectLocation,
+    mcpLaunchSnapshot: McpLaunchSnapshot,
     identity?: McpThreadIdentity,
   ): Promise<AppControlsMcpHttpConfig | undefined> {
+    if (mcpLaunchSnapshot.disabledBuiltInMcpServerIds.includes("app-controls")) {
+      return Promise.resolve(undefined);
+    }
     return resolveAppControlsMcpHttpConfigForLaunch(
       location,
       this.ctx.options.subagentMcpHostAccess,
@@ -924,10 +1005,12 @@ export class SpawnPipeline {
     computerUse: ComputerUseMcpHttpConfig | undefined,
     chromeMcp: ChromeMcpHttpConfig | undefined,
     appControlsMcp: AppControlsMcpHttpConfig | undefined,
+    mcpLaunchSnapshot: McpLaunchSnapshot,
     mcpIdentity: McpThreadIdentity | undefined,
     sessionRef?: SessionRef,
     presentationMode?: ThreadPresentationMode,
   ): Promise<StructuredSessionHandle | undefined> {
+    const { mcpServers } = mcpLaunchSnapshot;
     if (!adapter.createStructuredSession) {
       return undefined;
     }
@@ -943,6 +1026,7 @@ export class SpawnPipeline {
         ...(computerUse ? { computerUseMcp: computerUse } : {}),
         ...(chromeMcp ? { chromeMcp } : {}),
         ...(appControlsMcp ? { appControlsMcp } : {}),
+        ...(mcpServers.length > 0 ? { mcpServers } : {}),
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),
       });

@@ -104,6 +104,9 @@ export function createCursorAdapter(): AgentAdapter {
       capabilities = status.capabilities;
       return status;
     },
+    // Cursor CLI has no documented per-launch MCP config or isolated config
+    // home. Do not project launchOptions.mcpServers into the user's persistent
+    // ~/.cursor/mcp.json; ACP sessions receive MCP servers through ACP itself.
     buildLaunchArgv(location, config, prompt) {
       const chatId = createCursorChatSync(location);
       const args = buildCursorArgs(config, prompt, chatId);

@@ -1,3 +1,6 @@
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import type { OscTitle } from "@/shared/osc";
@@ -150,6 +153,40 @@ describe("createGeminiAdapter buildLaunchArgv", () => {
     expect(argv.args).toContain("11111111-1111-4111-8111-111111111111");
     expect(argv.args).not.toContain("--session-id");
   });
+
+  it("carries custom MCP settings without depending on hook-plugin launch extras", () => {
+    const baseDir = mkdtempSync(join(tmpdir(), "lightcode-gemini-mcp-"));
+    const previousDataDir = process.env.LIGHTCODE_DATA_DIR;
+    process.env.LIGHTCODE_DATA_DIR = baseDir;
+    try {
+      const adapter = createGeminiAdapter();
+      const argv = adapter.buildLaunchArgv(project, config, "hi", undefined, {
+        mcpServers: [
+          {
+            id: "memory-id",
+            name: "memory",
+            description: "",
+            enabled: true,
+            timeoutMs: 30_000,
+            transport: { type: "stdio", command: "memory-server", args: [], env: {} },
+          },
+        ],
+      });
+      const settingsPath = argv.env?.GEMINI_CLI_SYSTEM_SETTINGS_PATH;
+
+      expect(settingsPath).toMatch(/\.lightcode-thread-[0-9a-f-]+\.json$/u);
+      expect(settingsPath).toContain(join(baseDir, "agent-plugins", "gemini"));
+      expect(JSON.parse(readFileSync(settingsPath!, "utf8"))).toMatchObject({
+        mcpServers: { memory: { command: "memory-server", timeout: 30_000 } },
+      });
+      argv.cleanup?.();
+      expect(existsSync(settingsPath!)).toBe(false);
+    } finally {
+      if (previousDataDir === undefined) delete process.env.LIGHTCODE_DATA_DIR;
+      else process.env.LIGHTCODE_DATA_DIR = previousDataDir;
+      rmSync(baseDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("detectGeminiInvalidSessionRef", () => {
@@ -191,7 +228,7 @@ describe("geminiIntentFor", () => {
 });
 
 describe("createGeminiAdapter hook plugin support", () => {
-  it("declares Gemini hook plugin metadata and launch env", async () => {
+  it("declares Gemini hook plugin metadata", () => {
     const adapter = createGeminiAdapter();
 
     expect(adapter.capabilities.presentationModes).toEqual(["terminal", "gui"]);
@@ -199,16 +236,6 @@ describe("createGeminiAdapter hook plugin support", () => {
     expect(adapter.pluginId).toBe("lightcode-status@gemini");
     expect(adapter.pluginVersion).toBe("1.2.3");
     expect(adapter.minProtocolVersion).toBe(1);
-
-    const extras = await adapter.pluginLaunchExtras?.({
-      envKind: "posix",
-      baseDir: "C:\\lightcode-test",
-    });
-
-    expect(extras?.args).toBeUndefined();
-    expect(extras?.env?.GEMINI_CLI_SYSTEM_SETTINGS_PATH).toContain("agent-plugins");
-    expect(extras?.env?.GEMINI_CLI_SYSTEM_SETTINGS_PATH).toContain("gemini");
-    expect(extras?.env?.GEMINI_CLI_SYSTEM_SETTINGS_PATH).toContain("settings.json");
   });
 
   it("allows hook-active terminal fallback only for Gemini attention prompts", () => {

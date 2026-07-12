@@ -15,3 +15,4 @@ export * from "./contracts/usage";
 export * from "./contracts/notes";
 export * from "./contracts/profile";
 export * from "./contracts/schedule";
+export * from "./contracts/mcpServer";

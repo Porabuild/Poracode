@@ -216,10 +216,14 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
 ]);
 export type RemoteProjectCommand = z.infer<typeof remoteProjectCommandSchema>;
 
+/** Project metadata safe to expose remotely; MCP definitions may contain secrets. */
+export const remoteProjectSchema = projectSchema.omit({ mcpServers: true });
+export type RemoteProject = z.infer<typeof remoteProjectSchema>;
+
 /** Result of a project command: the full updated list plus the affected row. */
 export const remoteProjectCommandResultSchema = z.object({
-  projects: z.array(projectSchema),
-  project: projectSchema.optional(),
+  projects: z.array(remoteProjectSchema),
+  project: remoteProjectSchema.optional(),
 });
 export type RemoteProjectCommandResult = z.infer<typeof remoteProjectCommandResultSchema>;
 
@@ -241,7 +245,7 @@ export type RemoteSchedulesResponse = z.infer<typeof remoteSchedulesResponseSche
  * the shell snapshot. Rides the same stream as supervisor/git events. */
 export const remoteProjectsChangedEventSchema = z.object({
   type: z.literal("remote-projects-changed"),
-  projects: z.array(projectSchema),
+  projects: z.array(remoteProjectSchema),
 });
 export type RemoteProjectsChangedEvent = z.infer<typeof remoteProjectsChangedEventSchema>;
 
@@ -417,7 +421,7 @@ export type RemoteLiveActivityContentState = z.infer<typeof remoteLiveActivityCo
 
 export const remoteShellSnapshotSchema = z.object({
   snapshotSeq: z.number().int().nonnegative(),
-  projects: z.array(projectSchema),
+  projects: z.array(remoteProjectSchema),
   threads: z.array(threadSchema),
   runtimeSummariesByThread: z.record(z.string(), remoteRuntimeSummarySchema),
   /** Absent on desktops that predate git summaries. */

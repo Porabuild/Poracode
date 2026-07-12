@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
+import type { McpServer, ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import { createKnownSessionRef } from "../base";
 import { grokDetectionSpec } from "./detection";
@@ -193,6 +193,27 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
       createKnownSessionRef(SESSION_ID),
     );
     expect(materialized.args.slice(0, 2)).toEqual(["-r", SESSION_ID]);
+  });
+
+  it("does not project custom MCP servers into Grok's global config", () => {
+    const server = {
+      id: "vercel",
+      name: "Vercel",
+      description: "",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: { type: "http", url: "https://mcp.vercel.com", headers: {} },
+    } satisfies McpServer;
+    const adapter = createGrokAdapter();
+    adapter.buildLaunchArgv(location, config, "", undefined, {
+      mcpServers: [server],
+    });
+    adapter.buildResumeArgv(location, config, "", createKnownSessionRef(SESSION_ID), {
+      mcpServers: [server],
+    });
+
+    expect(existsSync(join(grokHome, "config.toml"))).toBe(false);
+    expect(existsSync(join(grokHome, ".poracode-managed-mcp.json"))).toBe(false);
   });
 });
 

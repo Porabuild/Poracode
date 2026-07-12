@@ -189,6 +189,7 @@ function seedInactiveSession(
     lastStrippedPtyChunk: "",
     ptyOscCarry: "",
     presentationMode: "terminal",
+    mcpLaunchSnapshot: { mcpServers: [], disabledBuiltInMcpServerIds: [] },
     ...overrides,
   } as SessionRuntime;
   manager.sessions.set(THREAD_ID, session);

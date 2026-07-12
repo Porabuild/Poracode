@@ -22,6 +22,8 @@ import type {
   ThreadPresentationMode,
   ThreadRemoveAction,
   WorktreeStorageMode,
+  BuiltInMcpServerId,
+  McpServer,
 } from "@/shared/contracts";
 
 const STORAGE_KEY = "lightcode-shared-settings";
@@ -91,6 +93,8 @@ interface SharedSettingsState extends SharedSettings {
    * setters; consumed as the standing default for every new thread.
    */
   setMcpServerEnabled: (id: string, enabled: boolean) => void;
+  setMcpServers: (servers: McpServer[]) => void;
+  setBuiltInMcpServerDisabled: (id: BuiltInMcpServerId, disabled: boolean) => void;
   setBrowserSetting: <K extends keyof SharedSettings["browser"]>(
     key: K,
     value: SharedSettings["browser"][K],
@@ -470,6 +474,18 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ enabledMcpServers: { ...current, [id]: enabled } });
     persistSettings(selectSharedSettings(get()));
   },
+  setMcpServers: (mcpServers) => {
+    set({ mcpServers });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setBuiltInMcpServerDisabled: (id, disabled) => {
+    const current = get().disabledBuiltInMcpServers;
+    if ((current[id] ?? false) === disabled) return;
+    const next = { ...current, [id]: disabled };
+    if (!disabled) delete next[id];
+    set({ disabledBuiltInMcpServers: next });
+    persistSettings(selectSharedSettings(get()));
+  },
   setBrowserSetting: (key, value) => {
     const current = get().browser;
     if (current[key] === value) return;
@@ -743,6 +759,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     disableCliHookPlugin: state.disableCliHookPlugin,
     dismissedHookInstallProposals: state.dismissedHookInstallProposals,
     enabledMcpServers: state.enabledMcpServers,
+    mcpServers: state.mcpServers,
+    disabledBuiltInMcpServers: state.disabledBuiltInMcpServers,
     notificationsEnabled: state.notificationsEnabled,
     notificationSound: state.notificationSound,
     notificationFilter: state.notificationFilter,

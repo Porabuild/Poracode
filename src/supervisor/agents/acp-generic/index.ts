@@ -42,6 +42,7 @@ import {
   type CreateStructuredSessionInput,
 } from "../base";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
+import { applyAcpRegistryNpxArgsOverride } from "../acpRegistryNpx";
 
 /** First-time `npx` installs can exceed the default probe budget. */
 export const REGISTRY_INSTALL_PROBE_TIMEOUT_MS = 90_000;
@@ -307,7 +308,10 @@ function buildGenericCommand(
   instance: AgentInstanceConfig,
   extraEnv?: Record<string, string>,
 ): CommandSpec {
-  const args = cfg.args ?? [];
+  const args =
+    cfg.binary === "npx"
+      ? applyAcpRegistryNpxArgsOverride(instance.id, cfg.args ?? [])
+      : (cfg.args ?? []);
   const env: Record<string, string> = { ...(extraEnv ?? {}) };
   if (instance.environment) {
     for (const [name, value] of Object.entries(instance.environment)) {

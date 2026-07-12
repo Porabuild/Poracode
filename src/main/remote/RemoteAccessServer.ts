@@ -10,7 +10,12 @@ import {
   type RemoteSettingsPatch,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
-import type { RemoteThreadCommand, ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
+import type {
+  McpLaunchSnapshot,
+  RemoteThreadCommand,
+  ScheduledTask,
+  ScheduledTaskInput,
+} from "@/shared/contracts";
 import type {
   IpcProcedurePayload,
   IpcProcedureResult,
@@ -105,6 +110,8 @@ export interface RemoteAccessServerOptions {
    * available to receive the command.
    */
   dispatchThreadCommand?(command: RemoteThreadCommand): boolean;
+  /** Resolve authoritative MCP settings for a remotely launched persisted thread. */
+  resolveMcpLaunchSnapshot?(projectId: string): McpLaunchSnapshot;
   /** Built-in browser bridge: tab commands plus screencast mirroring. */
   readonly browser?: RemoteBrowserGateway;
   /** Local dev-server discovery + raw TCP port forwarding. Absent on hosts

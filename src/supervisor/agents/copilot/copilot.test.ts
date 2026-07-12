@@ -1,7 +1,10 @@
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import type { McpServer } from "@/shared/contracts";
 import type { OscNotification, OscShellEvent } from "@/shared/osc";
 import { buildCopilotArgs } from "./argv";
 import { copilotDetectionSpec } from "./detection";
+import { buildCopilotMcpLaunchConfig } from "./mcp";
 import {
   createCopilotAdapter,
   detectCopilotInvalidSessionRef,
@@ -424,6 +427,100 @@ describe("buildCopilotArgs", () => {
     const idx = args.indexOf("--model");
     expect(idx).toBeGreaterThanOrEqual(0);
     expect(args[idx + 1]).toBe("claude-opus-4.6");
+  });
+});
+
+describe("Copilot CLI MCP configuration", () => {
+  const servers: McpServer[] = [
+    {
+      id: "stdio-id",
+      name: "local-tools",
+      description: "",
+      enabled: true,
+      timeoutMs: 15_000,
+      transport: {
+        type: "stdio",
+        command: "node",
+        args: ["server.js"],
+        env: { API_TOKEN: "stdio-secret" },
+        cwd: "C:\\tools",
+      },
+    },
+    {
+      id: "remote-id",
+      name: "Vercel",
+      description: "",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: {
+        type: "http",
+        url: "https://mcp.vercel.com",
+        headers: { Authorization: "Bearer remote-secret" },
+      },
+    },
+  ];
+
+  it("uses Copilot's native schema and keeps environment and header values out of JSON", () => {
+    const launch = buildCopilotMcpLaunchConfig(servers);
+    const serialized = JSON.stringify(launch.config);
+
+    expect(launch.config.mcpServers).toMatchObject({
+      "local-tools": {
+        type: "stdio",
+        command: "node",
+        args: ["server.js"],
+        tools: ["*"],
+        cwd: "C:\\tools",
+        timeout: 15_000,
+      },
+      Vercel: {
+        type: "http",
+        url: "https://mcp.vercel.com",
+        tools: ["*"],
+        timeout: 30_000,
+      },
+    });
+    expect(serialized).not.toContain("stdio-secret");
+    expect(serialized).not.toContain("remote-secret");
+    expect(Object.values(launch.env)).toEqual(
+      expect.arrayContaining(["stdio-secret", "Bearer remote-secret"]),
+    );
+    const local = launch.config.mcpServers["local-tools"];
+    const remote = launch.config.mcpServers.Vercel;
+    expect(local?.type === "stdio" ? local.env?.API_TOKEN : undefined).toMatch(
+      /^\$\{LIGHTCODE_COPILOT_MCP_[A-F0-9]{16}\}$/u,
+    );
+    expect(remote?.type === "http" ? remote.headers?.Authorization : undefined).toMatch(
+      /^\$\{LIGHTCODE_COPILOT_MCP_[A-F0-9]{16}\}$/u,
+    );
+  });
+
+  it("adds a protected @file to both launch and resume without putting secrets in argv", () => {
+    const adapter = createCopilotAdapter();
+    const location = { kind: "windows" as const, path: "C:\\repo" };
+    const launch = adapter.buildLaunchArgv(location, { model: "gpt-5" }, "hello", undefined, {
+      resumeThreadId: "launch-session",
+      mcpServers: servers,
+    });
+    const resume = adapter.buildResumeArgv(
+      location,
+      { model: "gpt-5" },
+      "again",
+      { providerSessionId: "resume-session", discoveredAt: new Date().toISOString() },
+      { mcpServers: servers },
+    );
+
+    for (const spec of [launch, resume]) {
+      const flagIndex = spec.args.indexOf("--additional-mcp-config");
+      const argument = spec.args[flagIndex + 1];
+      expect(flagIndex).toBeGreaterThanOrEqual(0);
+      expect(argument).toMatch(/^@/u);
+      expect(spec.args.join(" ")).not.toContain("remote-secret");
+      expect(readFileSync(argument!.slice(1), "utf8")).toContain('"Vercel"');
+      expect(Object.values(spec.env ?? {})).toContain("Bearer remote-secret");
+      spec.cleanup?.();
+      expect(existsSync(argument!.slice(1))).toBe(false);
+    }
   });
 });
 

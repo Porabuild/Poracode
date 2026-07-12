@@ -158,6 +158,7 @@ function makeConfigSyncSession(
   session["cwd"] = "C:\\repo";
   session["stableSessionRef"] = undefined;
   session["launchOptions"] = {};
+  session["mcpServers"] = [];
   session["loadSessionErrorRewriter"] = rewriteLoadSessionError;
   return { connection, listener, session: session as unknown as TestableAcpSession };
 }

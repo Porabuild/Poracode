@@ -13,6 +13,10 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "-y @modelcontextprotocol/server-memory"
+msgstr "-y @modelcontextprotocol/server-memory"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "(Draft)"
 msgstr "(Bản nháp)"
@@ -30,6 +34,11 @@ msgstr "(không có tin nhắn)"
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# tập tin} other {# tập tin}}"
+
+#. placeholder {0}: groupRows.length
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
+msgstr "{0, plural, one {# máy chủ MCP} other {# máy chủ MCP}}"
 
 #. placeholder {0}: props.desktops.length
 #: src/mobile/views/DesktopsView.tsx
@@ -50,6 +59,12 @@ msgstr "{0, plural, one {# dự án} other {# dự án}}"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# nhà cung cấp đã sẵn sàng} other {# nhà cung cấp đã sẵn sàng}}"
+
+#. placeholder {0}: props.server.toolCount
+#. placeholder {0}: state.toolCount
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "{0, plural, one {# tool} other {# tools}}"
+msgstr "{0, plural, one {# công cụ} other {# công cụ}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -230,6 +245,12 @@ msgstr "{0} đã cập nhật."
 msgid "{0} used"
 msgstr "Đã dùng {0}"
 
+#. placeholder {0}: selectedRows.length
+#. placeholder {1}: importableRows.length
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "{0}/{1} selected"
+msgstr "Đã chọn {0}/{1}"
+
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "{0}% Full"
@@ -398,6 +419,10 @@ msgstr "{resultCount, plural, one {# kết quả} other {# kết quả}}"
 msgid "{seconds}s ago"
 msgstr "{seconds} giây trước"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "{serverName} from {providerLabel}: {disabledLabel}"
+msgstr "{serverName} từ {providerLabel}: {disabledLabel}"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
 msgstr "{used} mã thông báo"
@@ -558,6 +583,7 @@ msgid "Activity metric"
 msgstr "Chỉ số hoạt động"
 
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -616,9 +642,21 @@ msgstr "Thêm thông tin xác thực trước khi chuỗi này có thể chạy.
 msgid "Add folder"
 msgstr "Thêm thư mục"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Add MCP server"
+msgstr "Thêm máy chủ MCP"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add model"
 msgstr "Thêm mô hình"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Add one manually or import a JSON configuration."
+#~ msgstr "Thêm thủ công hoặc nhập cấu hình JSON."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Add one manually or import from another agent."
+msgstr "Thêm thủ công hoặc nhập từ một tác nhân khác."
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Add pattern"
@@ -812,6 +850,10 @@ msgstr "Cho phép eval"
 msgid "Allow the browser to show notifications while the app is in the background."
 msgstr "Cho phép trình duyệt hiển thị thông báo khi ứng dụng ở nền."
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Already configured"
+msgstr "Đã cấu hình"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Already used by {conflict}"
 msgstr "Đã được dùng bởi {conflict}"
@@ -825,6 +867,14 @@ msgstr "Luôn luôn"
 msgid "Always excluded"
 msgstr "Luôn bị loại trừ"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "An MCP server with the name {serverName} already exists."
+#~ msgstr "Máy chủ MCP có tên {serverName} đã tồn tại."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "An MCP server with this name already exists."
+msgstr "Máy chủ MCP có tên này đã tồn tại."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "Một cuộc trò chuyện khác cũng sử dụng cây này. Khôi phục tệp có thể ghi đè lên các thay đổi của cuộc trò chuyện đó."
@@ -833,9 +883,17 @@ msgstr "Một cuộc trò chuyện khác cũng sử dụng cây này. Khôi ph�
 msgid "Antigravity"
 msgstr "Antigravity"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "API_KEY=value"
+msgstr "API_KEY=value"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "App Browser"
 msgstr "Trình duyệt ứng dụng"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "App Controls"
+msgstr "Điều khiển ứng dụng"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
@@ -926,6 +984,10 @@ msgstr "Bạn có chắc chắn muốn hoàn nguyên <0>{path}</0> không? Đi�
 msgid "Are you sure you want to revert all unstaged changes? This cannot be undone."
 msgstr "Bạn có chắc chắn muốn hoàn nguyên tất cả các thay đổi chưa được đưa vào stage không? Điều này không thể hoàn tác được."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Arguments"
+msgstr "Đối số"
+
 #. placeholder {0}: agentStatus?.label ?? agentFallbackLabel
 #. placeholder {0}: project.name
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -974,13 +1036,26 @@ msgstr "Lựa chọn trình duyệt đính kèm."
 msgid "Audio"
 msgstr "Âm thanh"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Authenticate"
+msgstr "Xác thực"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "Xác thực"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 msgid "Authentication required"
 msgstr "Yêu cầu xác thực"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Authentication setup cannot be imported"
+msgstr "Không thể nhập thiết lập xác thực"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Authorization: Bearer token"
+msgstr "Authorization: Bearer token"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Auto"
@@ -1059,6 +1134,10 @@ msgstr "Quay lại thay đổi"
 #: src/mobile/views/FilesView.tsx
 msgid "Back to files"
 msgstr "Quay lại tệp"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+#~ msgid "Back to MCP servers"
+#~ msgstr "Quay lại danh sách máy chủ MCP"
 
 #: src/mobile/views/pr/PrSubPage.tsx
 msgid "Back to overview"
@@ -1206,6 +1285,7 @@ msgstr "Duyệt qua kho GitHub của bạn hoặc dán URL nhân bản."
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
@@ -1256,6 +1336,22 @@ msgstr "Đã đạt đến giới hạn ngân sách"
 msgid "Building diff…"
 msgstr "Đang dựng diff…"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Built-in"
+msgstr "Tích hợp sẵn"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Built-in MCP servers"
+msgstr "Máy chủ MCP tích hợp sẵn"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Built-in servers are managed by Lightcode. They can be disabled globally but cannot be edited or removed."
+#~ msgstr "Các máy chủ tích hợp sẵn do Lightcode quản lý. Bạn có thể tắt chúng trên toàn hệ thống nhưng không thể chỉnh sửa hoặc xóa."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
+msgstr "Các máy chủ tích hợp sẵn do Poracode quản lý. Bạn có thể tắt chúng trên toàn hệ thống nhưng không thể chỉnh sửa hoặc xóa."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Built-in shortcut — can't be changed"
 msgstr "Phím tắt tích hợp sẵn — không thể thay đổi"
@@ -1299,6 +1395,7 @@ msgstr "Không thể tải danh sách cổng"
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
@@ -1420,6 +1517,14 @@ msgstr "Đã bỏ gắn sao cuộc trò chuyện"
 msgid "Check"
 msgstr "Kiểm tra"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Check {serverName} again"
+msgstr "Kiểm tra lại {serverName}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Check again"
+msgstr "Kiểm tra lại"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
 msgstr "Kiểm tra các bản cập nhật"
@@ -1433,6 +1538,14 @@ msgstr "Kiểm tra tiến độ gần đây của tôi và đưa ra một đề 
 msgid "Check the live input level from the selected device."
 msgstr "Kiểm tra mức đầu vào trực tiếp từ thiết bị đã chọn."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Checking"
+msgstr "Đang kiểm tra"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Checking {serverName}"
+msgstr "Đang kiểm tra {serverName}"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Checking host…"
 msgstr "Đang kiểm tra máy chủ…"
@@ -1441,6 +1554,7 @@ msgstr "Đang kiểm tra máy chủ…"
 msgid "Checking Tailscale…"
 msgstr "Đang kiểm tra Tailscale…"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Checking…"
 msgstr "Đang kiểm tra…"
@@ -1465,6 +1579,10 @@ msgstr "Chọn một thư mục…"
 msgid "Choose a parent folder"
 msgstr "Chọn một thư mục cha"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Choose an MCP server configuration file"
+#~ msgstr "Chọn tệp cấu hình máy chủ MCP"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
 msgstr "Chọn cách đăng nhập cho {env}."
@@ -1472,6 +1590,10 @@ msgstr "Chọn cách đăng nhập cho {env}."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in."
 msgstr "Chọn cách đăng nhập."
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Choose import destination"
+msgstr "Chọn đích nhập"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Choose SSH identity file"
@@ -1496,6 +1618,7 @@ msgid "Choose worktree base folder"
 msgstr "Chọn thư mục gốc của cây làm việc"
 
 #: src/renderer/components/composer/composerMcpServers.ts
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
@@ -1826,6 +1949,7 @@ msgstr "Thu gọn thanh việc cần làm"
 
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Command"
 msgstr "Lệnh"
 
@@ -1836,6 +1960,14 @@ msgstr "Lệnh (ví dụ: npm run dev)"
 #: src/renderer/components/providers/commandcode/manifest.ts
 msgid "Command Code"
 msgstr "Command Code"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Command is required."
+msgstr "Bắt buộc phải có lệnh."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Command not found."
+msgstr "Không tìm thấy lệnh."
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -1960,6 +2092,7 @@ msgstr "Điều khiển trình soạn thảo"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Computer Use"
@@ -1988,6 +2121,18 @@ msgstr "Computer Use đã bật — thao tác tương tác chiếm quyền đi�
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "Thư mục cấu hình"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+#~ msgid "Configure the server Lightcode will add when supported agents start."
+#~ msgstr "Cấu hình máy chủ mà Lightcode sẽ thêm khi khởi động các tác nhân được hỗ trợ."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Configure the server Poracode will add when supported agents start."
+msgstr "Cấu hình máy chủ mà Poracode sẽ thêm khi khởi động các tác nhân được hỗ trợ."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Configured MCP servers"
+msgstr "Máy chủ MCP đã cấu hình"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2036,6 +2181,10 @@ msgstr "Kết nối các nhà cung cấp AI mà OpenCode có thể dùng và đ�
 #~ msgid "Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
 #~ msgstr "Kết nối tới một máy Lightcode khác hoặc máy chủ không giao diện để duyệt và quản lý các dự án của nó tại đây. Lấy endpoint và mã ghép nối trong Cài đặt → Truy cập từ xa trên máy đó."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Connected"
+msgstr "Đã kết nối"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "Đang kết nối tới trình duyệt trên desktop…"
@@ -2053,6 +2202,7 @@ msgstr "Lỗi kết nối"
 msgid "Connection error."
 msgstr "Lỗi kết nối."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/state/remoteServersStore.ts
 msgid "Connection failed."
 msgstr "Kết nối thất bại."
@@ -2060,6 +2210,10 @@ msgstr "Kết nối thất bại."
 #: src/mobile/views/DesktopsView.tsx
 msgid "Connection method"
 msgstr "Phương thức kết nối"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Connection timed out."
+msgstr "Kết nối đã hết thời gian chờ."
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
@@ -2070,6 +2224,10 @@ msgstr "Kết nối"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Console"
 msgstr "Console"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Contains sensitive values; add manually"
+msgstr "Có chứa giá trị nhạy cảm; hãy thêm thủ công"
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
@@ -2247,6 +2405,18 @@ msgstr "Không thể tạo thông báo commit: {detail}"
 msgid "Could not read file."
 msgstr "Không thể đọc tập tin."
 
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Could not sign in to {serverName}: {message}"
+msgstr "Không thể đăng nhập vào {serverName}: {message}"
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Could not sign in to {serverName}."
+msgstr "Không thể đăng nhập vào {serverName}."
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Could not sign out of {serverName}."
+msgstr "Không thể đăng xuất khỏi {serverName}."
+
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't cache offline data."
 msgstr "Không thể lưu dữ liệu ngoại tuyến vào bộ nhớ đệm."
@@ -2282,6 +2452,10 @@ msgstr "Không thể tải thống kê hồ sơ của bạn."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "Không thể lưu phím tắt."
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Couldn't scan MCP server configurations."
+msgstr "Không thể quét cấu hình máy chủ MCP."
 
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -2486,6 +2660,10 @@ msgstr "Xóa"
 msgid "Delete {0}"
 msgstr "Xóa {0}"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Delete {serverName}"
+msgstr "Xóa {serverName}"
+
 #. placeholder {0}: props.entry.name
 #: src/mobile/views/FilesView.tsx
 msgid "Delete <0>{0}</0>? This cannot be undone."
@@ -2570,6 +2748,7 @@ msgstr "Từ chối và cho tác nhân biết cần làm gì khác đi…"
 msgid "Describe what the agent should do"
 msgstr "Mô tả việc tác nhân cần làm"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrHeaderCard.tsx
 msgid "Description"
 msgstr "Mô tả"
@@ -2648,6 +2827,14 @@ msgstr "Thiết bị có thể ghép nối khi máy tính này có thể truy c�
 #~ msgid "Direct connection required"
 #~ msgstr "Cần kết nối trực tiếp"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disable {serverLabel}"
+msgstr "Tắt {serverLabel}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disable {serverName}"
+msgstr "Tắt {serverName}"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
 msgstr "Tắt mức nỗ lực {tierLabel}"
@@ -2681,9 +2868,14 @@ msgstr "Tắt tác nhân phụ"
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "Tắt các mức mà nhà cung cấp bên ngoài gộp lại (ví dụ chỉ giữ High và Max)."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "Đã tắt"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disabled globally"
+msgstr "Đã tắt trên toàn hệ thống"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
@@ -2819,6 +3011,10 @@ msgstr "Thả vào đây để đính kèm"
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed."
 msgstr "Loại bỏ các gói hook đến tại trình giám sát để các tác nhân quay về L2 (tiến trình OSC 9;4) mà không động đến cài đặt hay thông báo iTerm2. Có hiệu lực ở sự kiện hook tiếp theo — không cần khởi động lại."
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Duplicate server name in scan"
+msgstr "Tên máy chủ bị trùng trong kết quả quét"
+
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refactors, Claude Opus for anything subtle."
 msgstr "ví dụ: Codex GPT-5.5 fast cho các tra cứu nhanh, OpenCode GLM cho tái cấu trúc hàng loạt, Claude Opus cho những việc tinh tế."
@@ -2832,9 +3028,17 @@ msgstr "ví dụ: Work"
 msgid "Edit"
 msgstr "Chỉnh sửa"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Edit {serverName}"
+msgstr "Chỉnh sửa {serverName}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
 msgstr "Chỉnh sửa tập tin"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Edit MCP server"
+msgstr "Chỉnh sửa máy chủ MCP"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
@@ -2892,6 +3096,14 @@ msgstr "Mức nỗ lực"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Electron"
 msgstr "Electron"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Enable {serverLabel}"
+msgstr "Bật {serverLabel}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Enable {serverName}"
+msgstr "Bật {serverName}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
@@ -2964,9 +3176,17 @@ msgstr "Nhập URL kho lưu trữ."
 msgid "Enter a valid desktop endpoint."
 msgstr "Nhập endpoint desktop hợp lệ."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Enter a valid HTTP or HTTPS URL."
+msgstr "Nhập URL HTTP hoặc HTTPS hợp lệ."
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Enter a valid SSH target and port."
 msgstr "Nhập đích SSH và cổng hợp lệ."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Enter one MCP server configuration."
+msgstr "Nhập một cấu hình máy chủ MCP."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
@@ -2980,6 +3200,10 @@ msgstr "Nhập cổng mà một máy chủ phát triển trên máy tính của 
 msgid "Enter the SSH password."
 msgstr "Nhập mật khẩu SSH."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Enter valid JSON."
+msgstr "Nhập JSON hợp lệ."
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
 msgstr "Môi trường"
@@ -2992,9 +3216,14 @@ msgstr "Tên biến môi trường"
 msgid "Environment variable value"
 msgstr "Giá trị biến môi trường"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Environment variables"
 msgstr "Biến môi trường"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Environment variables (optional)"
+msgstr "Biến môi trường (không bắt buộc)"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
@@ -3091,6 +3320,10 @@ msgstr "Mở rộng để xem xét hoặc thu hồi quyền truy cập."
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "Mở rộng dock việc cần làm"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Export MCP servers"
+msgstr "Xuất máy chủ MCP"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "External"
@@ -3359,6 +3592,10 @@ msgstr "Buộc tải lại trang trình duyệt"
 msgid "Fork"
 msgstr "Fork"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Form"
+msgstr "Biểu mẫu"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Format files"
 msgstr "Định dạng tập tin"
@@ -3373,6 +3610,11 @@ msgstr "Chuyển tiếp"
 #: src/mobile/views/PortsView.tsx
 msgid "Forward a port"
 msgstr "Chuyển tiếp một cổng"
+
+#. placeholder {0}: importableRows.length
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Found {0, plural, one {# importable MCP server} other {# importable MCP servers}}"
+msgstr "Đã tìm thấy {0, plural, one {# máy chủ MCP có thể nhập} other {# máy chủ MCP có thể nhập}}"
 
 #. placeholder {0}: activeRequest.providerLabel
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
@@ -3399,6 +3641,10 @@ msgstr "Độ mờ của thanh bên ở chế độ {appearance} trên nền là
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Full access"
 msgstr "Toàn quyền truy cập"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Full configuration"
+msgstr "Cấu hình đầy đủ"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Fullscreen overlay"
@@ -3507,8 +3753,16 @@ msgid "GLM 5.2 (optional label)"
 msgstr "GLM 5.2 (nhãn tùy chọn)"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Global"
 msgstr "Toàn cục"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Global (Windows)"
+msgstr "Toàn cục (Windows)"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Global folder"
@@ -3571,6 +3825,10 @@ msgstr "Tải lại cứng"
 msgid "Has unsent draft"
 msgstr "Có bản nháp chưa gửi"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Headers"
+msgstr "Header"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Hãy giúp tôi tạo lịch. Hỏi những chi tiết còn thiếu, sau đó dùng các điều khiển lịch của Poracode để tạo giúp tôi."
@@ -3609,6 +3867,10 @@ msgstr "Ẩn chi tiết sử dụng ngữ cảnh"
 #: src/mobile/views/BrowserView.tsx
 msgid "Hide keyboard"
 msgstr "Ẩn bàn phím"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Hide MCP servers from {providerLabel}"
+msgstr "Ẩn máy chủ MCP từ {providerLabel}"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Hide models you don't use from the model picker across every provider."
@@ -3663,6 +3925,14 @@ msgstr "host.com, bí danh hoặc người_dùng@host.com"
 msgid "Hourly"
 msgstr "Hằng giờ"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "HTTP (streamable)"
+msgstr "HTTP (hỗ trợ truyền phát)"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "https://example.com/mcp"
+msgstr "https://example.com/mcp"
+
 #. placeholder {0}: agent.id
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ID: {0}"
@@ -3695,6 +3965,30 @@ msgstr "Hình ảnh"
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Image preview"
 msgstr "Xem trước hình ảnh"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import destination"
+msgstr "Đích nhập"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import external agent MCP servers"
+msgstr "Nhập máy chủ MCP của tác nhân bên ngoài"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Import MCP servers"
+msgstr "Nhập máy chủ MCP"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import to {destinationProjectName}"
+msgstr "Nhập vào {destinationProjectName}"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Import to Global"
+msgstr "Nhập vào phạm vi toàn cục"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Import to Project"
+#~ msgstr "Nhập vào dự án"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -3849,6 +4143,10 @@ msgstr "Bị gián đoạn: phiên tác nhân đã kết thúc trước khi hoà
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "Nghiêng"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "JSON"
+msgstr "JSON"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Jump to section"
@@ -4135,6 +4433,19 @@ msgstr "Quản lý môi trường từ xa"
 #~ msgid "Manage remote servers"
 #~ msgstr "Quản lý máy chủ từ xa"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
+#~ msgstr "Quản lý cấu hình máy chủ MCP mà Lightcode thêm khi khởi động các tác nhân được hỗ trợ. Máy chủ trong không gian làm việc có thể được cấu hình trong phần cài đặt của từng dự án."
+
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings."
+msgstr "Quản lý cấu hình máy chủ MCP mà Poracode thêm khi khởi động các tác nhân được hỗ trợ. Máy chủ trong không gian làm việc có thể được cấu hình trong phần cài đặt của từng dự án."
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Managed by Poracode"
+msgstr "Do Poracode quản lý"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
 msgstr "Sắp xếp thủ công"
@@ -4193,14 +4504,74 @@ msgstr "Tối đa hóa trình duyệt"
 msgid "MCP server"
 msgstr "Máy chủ MCP"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server arguments"
+msgstr "Đối số máy chủ MCP"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "MCP server checking is unavailable."
+msgstr "Không thể kiểm tra máy chủ MCP."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server command"
+msgstr "Lệnh máy chủ MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server description"
+msgstr "Mô tả máy chủ MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server editor mode"
+msgstr "Chế độ trình chỉnh sửa máy chủ MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server environment variables"
+msgstr "Biến môi trường của máy chủ MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server headers"
+msgstr "Header của máy chủ MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server JSON configuration"
+msgstr "Cấu hình JSON của máy chủ MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server name"
+msgstr "Tên máy chủ MCP"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "MCP server source scope"
+msgstr "Phạm vi nguồn máy chủ MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server timeout in milliseconds"
+msgstr "Thời gian chờ của máy chủ MCP tính bằng mili giây"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP server URL"
+msgstr "URL của máy chủ MCP"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "Máy chủ MCP"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "MCP Servers"
+msgstr "Máy chủ MCP"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "MCP tool calls"
 msgstr "Lượt gọi công cụ MCP"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "MCP transport type"
+msgstr "Loại phương thức truyền MCP"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
@@ -4466,10 +4837,19 @@ msgstr "Đã chuyển các thay đổi của bạn sang một cây làm việc m
 msgid "Moving changes…"
 msgstr "Đang di chuyển các thay đổi…"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "my-mcp-server"
+msgstr "my-mcp-server"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Name"
 msgstr "Tên"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Name is required."
+msgstr "Bắt buộc phải có tên."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Name your project and choose where to create it."
@@ -4569,6 +4949,10 @@ msgstr "Tên thư mục mới"
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "New line"
 msgstr "Dòng mới"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "New MCP server"
+msgstr "Máy chủ MCP mới"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New phones, tablets, and browsers appear here after pairing."
@@ -4751,6 +5135,10 @@ msgstr "Không tìm thấy lệnh nào"
 msgid "No commits found."
 msgstr "Không tìm thấy cam kết nào."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "No configured MCP servers yet"
+msgstr "Chưa có máy chủ MCP nào được cấu hình"
+
 #: src/mobile/WideShell.tsx
 msgid "No connection paired"
 msgstr "Chưa ghép đôi kết nối nào"
@@ -4840,6 +5228,14 @@ msgstr "Không có lịch phù hợp."
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "No matching threads"
 msgstr "Không có luồng nào phù hợp"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "No MCP servers found in this scope."
+msgstr "Không tìm thấy máy chủ MCP nào trong phạm vi này."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "No MCP servers match your search."
+msgstr "Không có máy chủ MCP nào khớp với tìm kiếm."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No MCP tools used yet."
@@ -5049,6 +5445,10 @@ msgstr "Thông báo về các luồng L2 CLI"
 msgid "Notify me about"
 msgstr "Thông báo cho tôi về"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "npx"
+msgstr "npx"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "off"
 msgstr "tắt"
@@ -5088,6 +5488,14 @@ msgstr "Đúng đầu giờ"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Once on {0}"
 msgstr "Một lần vào {0}"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "One Header: value pair per line"
+msgstr "Mỗi dòng một cặp Header: giá trị"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "One KEY=VALUE pair per line"
+msgstr "Mỗi dòng một cặp KEY=VALUE"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "One time"
@@ -5331,6 +5739,10 @@ msgstr "Đã mở {0} (#{1})"
 msgid "OpenSSH private key"
 msgstr "Khóa riêng OpenSSH"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Optional"
+msgstr "Không bắt buộc"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "Hook trạng thái tùy chọn. Các hook đã cài đặt sẽ tự động cập nhật; hook bị thiếu không bao giờ được cài đặt tự động."
@@ -5487,6 +5899,10 @@ msgstr "Dán khóa API {label}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Paste <0>{0}</0> here. Click to copy."
 msgstr "Dán <0>{0}</0> vào đây. Nhấn vào đây để sao chép."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Paste either a named server object or an object wrapped in an mcpServers key."
+msgstr "Dán đối tượng máy chủ có tên hoặc đối tượng được bao bọc trong khóa mcpServers."
 
 #: src/renderer/components/terminal/XTermSurface.tsx
 msgid "Paste in input"
@@ -5725,6 +6141,7 @@ msgstr "Hồ sơ"
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -5758,6 +6175,8 @@ msgstr "Ghi đè dành riêng cho dự án ở đầu cài đặt tìm kiếm ch
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 msgid "Projects"
 msgstr "Dự án"
 
@@ -5778,6 +6197,14 @@ msgstr "Prompt"
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "Kế hoạch đề xuất"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "Provided and managed by Lightcode for supported agents."
+#~ msgstr "Do Lightcode cung cấp và quản lý cho các tác nhân được hỗ trợ."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Provided and managed by Poracode for supported agents."
+msgstr "Do Poracode cung cấp và quản lý cho các tác nhân được hỗ trợ."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "provider"
@@ -6022,6 +6449,10 @@ msgstr "Làm mới {label}"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
 msgstr "Làm mới các tác nhân được phát hiện"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Refresh MCP server sources"
+msgstr "Làm mới nguồn máy chủ MCP"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
@@ -6379,8 +6810,17 @@ msgstr "Tiếp tục"
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Retry"
 msgstr "Thử lại"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Retry {serverName}"
+msgstr "Thử lại {serverName}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Retry check"
+msgstr "Thử kiểm tra lại"
 
 #: src/mobile/components.tsx
 msgid "Retry now"
@@ -6597,6 +7037,7 @@ msgid "Runtime options"
 msgstr "Tùy chọn thời gian chạy"
 
 #: src/mobile/views/FilesView.tsx
+#: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -6645,6 +7086,10 @@ msgstr "Đang quét {wslDistro} để tìm CLI đã cài đặt. Việc này th�
 msgid "Scanning needs a secure connection"
 msgstr "Quét cần kết nối an toàn"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Scanning provider configurations…"
+msgstr "Đang quét cấu hình nhà cung cấp…"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Scanning Windows and WSL for installed CLIs. This usually takes a couple of seconds."
 msgstr "Quét Windows và WSL để tìm CLI đã cài đặt. Việc này thường mất vài giây."
@@ -6681,6 +7126,10 @@ msgstr "Lịch biểu"
 #: src/mobile/views/MoreView.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "Lịch biểu, AI, tác nhân và luồng đã lưu trữ trên máy tính được ghép nối"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Scope"
+msgstr "Phạm vi"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -6724,6 +7173,14 @@ msgstr "Tìm kiếm nhánh..."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "Tìm kiếm tập tin"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Search MCP servers"
+msgstr "Tìm kiếm máy chủ MCP"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Search MCP servers..."
+msgstr "Tìm kiếm máy chủ MCP..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
@@ -6799,6 +7256,10 @@ msgstr "Xem thêm"
 msgid "Select"
 msgstr "Chọn"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select {serverName} from {providerLabel}"
+msgstr "Chọn {serverName} từ {providerLabel}"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 msgid "Select a file from the tree"
 msgstr "Chọn một tập tin từ cây"
@@ -6807,6 +7268,14 @@ msgstr "Chọn một tập tin từ cây"
 msgid "Select a file to start editing."
 msgstr "Chọn một tập tin để bắt đầu chỉnh sửa."
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Select a project before importing to Project."
+#~ msgstr "Chọn một dự án trước khi nhập vào dự án."
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Select a project to scan project MCP servers."
+#~ msgstr "Chọn một dự án để quét các máy chủ MCP của dự án."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select a repository."
 msgstr "Chọn một kho lưu trữ."
@@ -6814,6 +7283,18 @@ msgstr "Chọn một kho lưu trữ."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Select account"
 msgstr "Chọn tài khoản"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select all"
+msgstr "Chọn tất cả"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select all MCP servers"
+msgstr "Chọn tất cả máy chủ MCP"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Select all MCP servers from {providerLabel}"
+msgstr "Chọn tất cả máy chủ MCP từ {providerLabel}"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Select an agent to see its prompt and outcome."
@@ -6846,6 +7327,10 @@ msgstr "Chọn…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Selected days"
 #~ msgstr "Các ngày đã chọn"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#~ msgid "Selected project"
+#~ msgstr "Dự án đã chọn"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 msgid "Send"
@@ -6971,6 +7456,10 @@ msgstr "Hiển thị trong trình duyệt tệp"
 msgid "Show less"
 msgstr "Hiển thị ít hơn"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Show MCP servers from {providerLabel}"
+msgstr "Hiện máy chủ MCP từ {providerLabel}"
+
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Show more"
 msgstr "Hiển thị thêm"
@@ -7068,6 +7557,7 @@ msgstr "Yêu cầu đăng nhập"
 msgid "Sign in with the agent CLI."
 msgstr "Đăng nhập bằng CLI tác nhân."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Sign out"
 msgstr "Đăng xuất"
@@ -7081,6 +7571,10 @@ msgstr "Đăng xuất {label}"
 msgid "Sign out of {0}"
 msgstr "Đăng xuất khỏi {0}"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Sign out of {serverName}"
+msgstr "Đăng xuất khỏi {serverName}"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "sign-in required"
 msgstr "cần đăng nhập"
@@ -7088,6 +7582,14 @@ msgstr "cần đăng nhập"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "Signed in"
 msgstr "Đã đăng nhập"
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Signed in to {serverName}."
+msgstr "Đã đăng nhập vào {serverName}."
+
+#: src/renderer/components/mcp/useMcpServerOauth.ts
+msgid "Signed out of {serverName}."
+msgstr "Đã đăng xuất khỏi {serverName}."
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Signing in"
@@ -7143,6 +7645,10 @@ msgstr "Sắp xếp theo cập nhật gần đây nhất"
 msgid "Sort threads"
 msgstr "Sắp xếp luồng"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Space separated; use quotes around spaces"
+msgstr "Tách bằng dấu cách; đặt giá trị chứa dấu cách trong dấu ngoặc kép"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"
 msgstr "Chia đôi Terminal"
@@ -7152,6 +7658,10 @@ msgstr "Chia đôi Terminal"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Split view"
 msgstr "Chế độ xem chia đôi"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "SSE (legacy)"
+msgstr "SSE (cũ)"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "SSH"
@@ -7358,6 +7868,10 @@ msgstr "Cập nhật trạng thái đến từ plugin hook CLI."
 msgid "Status:"
 msgstr "Tình trạng:"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "stdio (local command)"
+msgstr "stdio (lệnh cục bộ)"
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -7422,6 +7936,7 @@ msgid "Subagent runs"
 msgstr "Lượt chạy subagent"
 
 #: src/renderer/components/composer/composerMcpServers.ts
+#: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Subagents"
 msgstr "Tác nhân phụ"
@@ -7733,6 +8248,14 @@ msgstr "Nhịp làm mới nền mặc định, được dùng cho mọi nhà cun
 msgid "The desktop server is still coming online."
 msgstr "Máy chủ trên máy tính vẫn đang khởi động."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "The MCP server configuration is invalid or uses a reserved name."
+msgstr "Cấu hình máy chủ MCP không hợp lệ hoặc sử dụng tên dành riêng."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "The MCP server is invalid."
+msgstr "Máy chủ MCP không hợp lệ."
+
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "Shell ứng dụng bình thường không thể hiển thị. Chẩn đoán bên dưới được hiển thị trước khi tải lại để có thể điều tra lỗi."
@@ -7748,6 +8271,18 @@ msgstr "Máy chủ từ xa không trả về thông tin xác thực ghép nối.
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Vị trí của kho lưu trữ trên đĩa. Hãy cập nhật nếu bạn đã di chuyển thư mục."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "The selected file does not contain valid MCP server configurations."
+#~ msgstr "Tệp đã chọn không chứa cấu hình máy chủ MCP hợp lệ."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "The server configuration is invalid."
+msgstr "Cấu hình máy chủ không hợp lệ."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "The server returned an invalid MCP response."
+msgstr "Máy chủ trả về phản hồi MCP không hợp lệ."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -7807,6 +8342,10 @@ msgstr "Tệp này sử dụng mã hóa không được hỗ trợ."
 msgid "This folder is empty."
 msgstr "Thư mục này trống."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "This name is reserved by a built-in MCP server."
+msgstr "Tên này được dành riêng cho máy chủ MCP tích hợp sẵn."
+
 #. placeholder {0}: pendingDelete.branch.name
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\" from its remote."
@@ -7839,6 +8378,10 @@ msgstr "Thao tác này sẽ xóa cây làm việc trên \"{0}\" và đóng {1, p
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Thao tác này sẽ xóa cây làm việc trên \"{0}\", sau đó xóa nhánh."
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "This server requires authentication before Poracode can check it."
+msgstr "Máy chủ này yêu cầu xác thực trước khi Poracode có thể kiểm tra máy chủ."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -7936,6 +8479,14 @@ msgstr "Các luồng được đánh dấu hoàn thành mà không được đ�
 msgid "Time"
 msgstr "Thời gian"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Timeout (ms)"
+msgstr "Thời gian chờ (ms)"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Timeout must be a positive whole number."
+msgstr "Thời gian chờ phải là số nguyên dương."
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
@@ -7999,6 +8550,10 @@ msgstr "Tokens"
 msgid "Tokens from {0}"
 msgstr "Tokens từ {0}"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "Tool restrictions cannot be imported"
+msgstr "Không thể nhập giới hạn công cụ"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Tool search"
 msgstr "Tìm kiếm công cụ"
@@ -8060,6 +8615,10 @@ msgstr "Bật quyền truy cập từ xa để hiển thị mã ghép nối."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Turn tracking on or off per provider. Disabled providers are skipped by the auto-refresh."
 msgstr "Bật hoặc tắt theo dõi cho mỗi nhà cung cấp. Tính năng tự động làm mới sẽ bỏ qua các nhà cung cấp bị vô hiệu hóa."
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Type"
+msgstr "Loại"
 
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Type a command"
@@ -8279,6 +8838,10 @@ msgstr "Không thể cập nhật luồng."
 msgid "Unassigned"
 msgstr "Chưa gán"
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Unavailable"
+msgstr "Không khả dụng"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Unavailable project"
 msgstr "Dự án không khả dụng"
@@ -8464,6 +9027,14 @@ msgstr "Đang cập nhật {0}"
 msgid "Updating {0} ({env})"
 msgstr "Đang cập nhật {0} ({env})"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "URL"
+msgstr "URL"
+
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "URL is required."
+msgstr "Bắt buộc phải có URL."
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/settingsSections.ts
@@ -8507,6 +9078,10 @@ msgstr "Sử dụng phiên được phát hiện?"
 msgid "Use ignore files"
 msgstr "Sử dụng tập tin bỏ qua"
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
+msgstr "Sử dụng chữ cái, chữ số, dấu chấm, dấu gạch ngang hoặc dấu gạch dưới và không có dấu cách."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
@@ -8536,6 +9111,10 @@ msgstr "Đã dùng"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Used by {conflict}"
 msgstr "Đã được dùng bởi {conflict}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+#~ msgid "User"
+#~ msgstr "Người dùng"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "user@example.com"
@@ -8727,6 +9306,10 @@ msgstr "Tác tử từ xa nên làm gì?"
 msgid "What the Create PR button does by default: open a dialog to edit the title and description first, or auto-generate them and create the PR in one click. You can also switch this from the button's menu."
 msgstr "Chức năng của nút Tạo PR theo mặc định: mở hộp thoại để chỉnh sửa tiêu đề và mô tả trước hoặc tự động tạo chúng và tạo PR chỉ bằng một cú nhấp chuột. Bạn cũng có thể chuyển đổi điều này từ menu của nút."
 
+#: src/renderer/components/mcp/McpServerEditor.tsx
+msgid "What this server provides"
+msgstr "Nội dung mà máy chủ này cung cấp"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 #: src/renderer/views/WhatsNewOverlay.tsx
@@ -8787,6 +9370,7 @@ msgstr "Nơi bảng điều khiển đầu cuối xuất hiện."
 msgid "Will run in {0}:"
 msgstr "Sẽ chạy trong {0}:"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -8858,6 +9442,14 @@ msgstr "Cây làm việc sạch sẽ"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Working…"
 msgstr "Đang làm việc…"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Workspace"
+msgstr "Không gian làm việc"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/McpSection.tsx
+msgid "Workspace MCP servers override user servers with the same name and are added only when agents start in this project."
+msgstr "Máy chủ MCP trong không gian làm việc sẽ ghi đè máy chủ người dùng có cùng tên và chỉ được thêm khi tác nhân khởi động trong dự án này."
 
 #: src/mobile/views/WorkspaceView.tsx
 msgid "Workspace view"
@@ -8931,6 +9523,7 @@ msgstr "Viết bình luận…"
 msgid "Write notes for this project…"
 msgstr "Viết ghi chú cho dự án này…"
 
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "WSL"
@@ -8940,6 +9533,10 @@ msgstr "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "WSL ({0})"
 msgstr "WSL ({0})"
+
+#: src/renderer/components/mcp/McpExternalImportModal.tsx
+msgid "WSL ({distro})"
+msgstr "WSL ({distro})"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx

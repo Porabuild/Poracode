@@ -55,6 +55,9 @@ import { WslBridgeServer } from "./wsl/bridge";
 import { WslBridgeClient } from "./wsl/bridge/client";
 import { resolveWslHelpersDir } from "./wsl/wslDeploy";
 import { resolveWslHostAccess } from "./wsl/hostAccess";
+import { McpOAuthService } from "./mcp/McpOAuthService";
+import { McpProbeService } from "./mcp/McpProbeService";
+import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
 
 export { detectWslAgentStatuses, writeSubmittedPrompt };
 
@@ -83,6 +86,9 @@ export class SupervisorRuntime {
   readonly threadSessionManager: ThreadSessionManager;
   readonly lspManager: LanguageServerManager;
   readonly cliHookPluginCoordinator: CliHookPluginCoordinator;
+  readonly externalMcpDiscoveryService = new ExternalMcpDiscoveryService();
+  readonly mcpOAuthService: McpOAuthService;
+  readonly mcpProbeService: McpProbeService;
   private readonly subagentMcpIngress: SubagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
   private readonly orchestratorThreadManager: OrchestratorThreadManager;
@@ -121,6 +127,10 @@ export class SupervisorRuntime {
       rawBaseDir && rawBaseDir !== "undefined" && isAbsolute(rawBaseDir) ? rawBaseDir : undefined;
     const baseDir = envBaseDir ?? join(homedir(), ".poracode");
     this.baseDir = baseDir;
+    this.mcpOAuthService = new McpOAuthService({ baseDir });
+    this.mcpProbeService = new McpProbeService({
+      applyAuthorization: (server) => this.mcpOAuthService.applyAuthorizationToServer(server),
+    });
     const paths = resolveLightcodePaths(baseDir);
     this.logsDir = paths.terminalLogsDir;
     this.settingsPath = paths.settingsPath;
@@ -373,6 +383,7 @@ export class SupervisorRuntime {
       subagentMcpHostAccess: {
         resolveHostAccess: (distro) => resolveWslHostAccess(distro),
       },
+      applyMcpServerAuthorization: (servers) => this.mcpOAuthService.applyAuthorization(servers),
     });
     this.sessions = this.threadSessionManager.sessions;
     this.shellSessions = this.threadSessionManager.shellSessions;
@@ -606,6 +617,8 @@ export class SupervisorRuntime {
 
   async disposeAsync(): Promise<void> {
     this.usageService.stop();
+    this.mcpProbeService.dispose();
+    this.mcpOAuthService.dispose();
     this.lspManager.dispose();
     await this._projectWatcher?.dispose();
     await this.threadSessionManager.dispose();

@@ -192,6 +192,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   // arrives first, on the next user turn, or on dispose.
   private pendingSystemErrorFallback: ReturnType<typeof setTimeout> | undefined;
   private mapperState: CodexMapperState | undefined;
+  private readonly hasUserMcpServers: boolean;
   /**
    * Codex can report a plain `active` status while `thread/resume` is only
    * attaching to an existing saved thread. Treat that as history-load noise
@@ -208,11 +209,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     rpc: CodexAppServerRpc,
     threadId: string,
     wslDistro?: string,
+    hasUserMcpServers = false,
   ) {
     this.appServer = appServer;
     this.rpc = rpc;
     this.threadId = threadId;
     this.wslDistro = wslDistro;
+    this.hasUserMcpServers = hasUserMcpServers;
     this.launchOptions = {
       suppressResumeConfigOverrides: true,
     };
@@ -381,6 +384,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         chromeMcpEnabled: input.config.chromeMcp === true,
         ...(input.chromeMcp !== undefined ? { chromeMcp: input.chromeMcp } : {}),
         ...(input.appControlsMcp !== undefined ? { appControlsMcp: input.appControlsMcp } : {}),
+        ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
       }),
     );
     const transport = new CodexStdioTransport(appServer);
@@ -399,7 +403,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     const wslDistro =
       input.projectLocation.kind === "wsl" ? input.projectLocation.distro : undefined;
     const rpc = new CodexAppServerRpc(transport, input.threadId);
-    const session = new CodexStructuredSession(appServer, rpc, input.threadId, wslDistro);
+    const session = new CodexStructuredSession(
+      appServer,
+      rpc,
+      input.threadId,
+      wslDistro,
+      (input.mcpServers?.length ?? 0) > 0,
+    );
     session.attachRpcHandlers();
 
     return session;
@@ -509,6 +519,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
     this.remoteThreadId = threadId;
     this.launchOptions = { ...this.launchOptions, resumeThreadId: threadId };
+    if (this.hasUserMcpServers) {
+      await this.rpc.request(
+        "mcpServerStatus/list",
+        { detail: "toolsAndAuthOnly", threadId },
+        30_000,
+      );
+    }
     if (sessionRef) {
       void this.syncRemoteThreadState(threadId, toSessionRef(threadId));
     }

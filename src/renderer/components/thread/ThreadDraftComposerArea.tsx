@@ -11,6 +11,7 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
+import { mergeMcpServers } from "@/shared/contracts/mcpServer";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
@@ -20,6 +21,7 @@ import {
 } from "@/renderer/components/composer/AttachmentBar";
 import {
   ComposerAddMenu,
+  type ComposerCustomMcpItem,
   type ComposerMcpMenuItem,
 } from "@/renderer/components/composer/ComposerAddMenu";
 import { ComposerVoiceInput } from "@/renderer/components/composer/ComposerVoiceInput";
@@ -200,6 +202,7 @@ function HookInstallProposal(props: {
 
 function DraftComposerAfterControls(props: {
   mcpServers: readonly ComposerMcpMenuItem[];
+  customMcpServers: readonly ComposerCustomMcpItem[];
   isRemote: boolean;
   onPickFiles: () => void;
   showVoiceInputButton: boolean;
@@ -216,6 +219,7 @@ function DraftComposerAfterControls(props: {
     <>
       <ComposerAddMenu
         mcpServers={props.mcpServers}
+        customMcpServers={props.customMcpServers}
         showFileOption={!props.isRemote}
         onPickFiles={props.onPickFiles}
         computerUse={props.computerUse}
@@ -263,7 +267,11 @@ export function ThreadDraftComposerArea(props: {
   const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemote;
   // Persistent (standing-default) composer MCP enablement, keyed by MCP id.
   const persistentMcpServers = useSharedSettings((s) => s.enabledMcpServers);
+  const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
   const setMcpServerEnabled = useSharedSettings((s) => s.setMcpServerEnabled);
+  const userCustomMcpServers = useSharedSettings((s) => s.mcpServers);
+  const setUserCustomMcpServers = useSharedSettings((s) => s.setMcpServers);
+  const updateProjectMcpServers = useAppStore((s) => s.updateProjectMcpServers);
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const attachments = useAttachments();
@@ -330,7 +338,10 @@ export function ThreadDraftComposerArea(props: {
   // enablement (a standing default applied to every new thread), keyed by MCP
   // id — not the per-thread config flag. A new MCP server means adding one
   // descriptor to the registry.
-  const mcpServers = composerMcpServers.map((descriptor) => ({
+  const availableComposerMcpServers = composerMcpServers.filter(
+    (descriptor) => disabledBuiltInMcpServers[descriptor.id] !== true,
+  );
+  const mcpServers = availableComposerMcpServers.map((descriptor) => ({
     descriptor,
     enabled: persistentMcpServers[descriptor.id] === true,
     visible:
@@ -341,10 +352,37 @@ export function ThreadDraftComposerArea(props: {
       ) !== "none",
     onToggle: (next: boolean) => setMcpServerEnabled(descriptor.id, next),
   }));
+  // User-configured MCP servers (global + this project's workspace scope).
+  // Toggling flips the server's persistent `enabled` flag — the same switch as
+  // the MCP Servers settings page — because custom servers bind at launch from
+  // settings, not from per-thread config. The launch-time merge helper decides
+  // which workspace entries override global ones, so the menu can't drift from
+  // what actually launches.
+  const projectCustomMcpServers = props.project.mcpServers ?? [];
+  const projectCustomMcpIds = new Set(projectCustomMcpServers.map((server) => server.id));
+  const customMcpServers: ComposerCustomMcpItem[] = mergeMcpServers(
+    userCustomMcpServers,
+    projectCustomMcpServers,
+  ).map((server) => {
+    const isProject = projectCustomMcpIds.has(server.id);
+    const scopedServers = isProject ? projectCustomMcpServers : userCustomMcpServers;
+    return {
+      id: `${isProject ? "project" : "user"}:${server.id}`,
+      name: server.name,
+      enabled: server.enabled,
+      onToggle: (next: boolean) => {
+        const nextServers = scopedServers.map((item) =>
+          item.id === server.id ? { ...item, enabled: next } : item,
+        );
+        if (isProject) updateProjectMcpServers(props.project.id, nextServers);
+        else setUserCustomMcpServers(nextServers);
+      },
+    };
+  });
   // Composer chips represent per-thread *mentions* only: a server whose config
   // flag is on for this draft but that isn't persistently enabled. Persistently
   // enabled servers are on for every thread and show no chip.
-  const mentionedMcpServers = composerMcpServers.filter(
+  const mentionedMcpServers = availableComposerMcpServers.filter(
     (descriptor) =>
       props.config[descriptor.configKey] === true && persistentMcpServers[descriptor.id] !== true,
   );
@@ -390,12 +428,15 @@ export function ThreadDraftComposerArea(props: {
     selectNewWorktree({ transferUncommitted: mode === "new-with-changes" });
   }
 
-  const computerUseScope = getComputerUseScope(
-    props.selectedAgent.capabilities,
-    props.presentationMode,
-    props.project.location,
-    readBridge()?.platform,
-  );
+  const computerUseScope =
+    disabledBuiltInMcpServers[COMPUTER_USE_MCP_ID] === true
+      ? "none"
+      : getComputerUseScope(
+          props.selectedAgent.capabilities,
+          props.presentationMode,
+          props.project.location,
+          readBridge()?.platform,
+        );
   const computerUseEnabled = props.config.computerUse === true;
   const computerUsePersistent = persistentMcpServers[COMPUTER_USE_MCP_ID] === true;
   // Same chip rule as the registry servers: a chip only for a per-thread mention,
@@ -407,7 +448,7 @@ export function ThreadDraftComposerArea(props: {
   // draft; already-effective servers remain available and insert a textual
   // mention that directs the agent to use them for this turn.
   const mcpMentions: McpMentionItem[] = [
-    ...composerMcpServers
+    ...availableComposerMcpServers
       .filter(
         (descriptor) =>
           descriptor.getScope(
@@ -440,7 +481,7 @@ export function ThreadDraftComposerArea(props: {
       onConfigChange({ computerUse: true });
       return;
     }
-    const descriptor = composerMcpServers.find((server) => server.id === id);
+    const descriptor = availableComposerMcpServers.find((server) => server.id === id);
     if (descriptor) onConfigChange(mcpTogglePatch(descriptor.configKey, true));
   };
   const controls: ComposerControl[] = controlOpenRequest
@@ -806,6 +847,7 @@ export function ThreadDraftComposerArea(props: {
                 },
               );
             }}
+            customMcpServers={customMcpServers}
             showVoiceInputButton={showVoiceInputButton}
             isDisabled={authRequired || agentUpdating || isSubmitting}
             mentionRef={mentionRef}

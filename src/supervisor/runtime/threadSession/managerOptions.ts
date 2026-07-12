@@ -1,5 +1,10 @@
 import type { SupervisorEvent } from "@/shared/ipc";
-import type { AgentKind, ProjectLocation, ThreadServerRequestId } from "@/shared/contracts";
+import type {
+  AgentKind,
+  McpServer,
+  ProjectLocation,
+  ThreadServerRequestId,
+} from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
 import type { ComputerUseMcpHttpConfig } from "@/supervisor/agents/computerUseMcp";
 import type { ChromeMcpHttpConfig } from "@/supervisor/agents/chromeMcp";
@@ -34,6 +39,7 @@ export interface ThreadSessionManagerOptions {
     computerUseMcp?: ComputerUseMcpHttpConfig;
     chromeMcpEnabled?: boolean;
     chromeMcp?: ChromeMcpHttpConfig;
+    mcpServers?: McpServer[];
   }): Promise<{ env: Record<string, string>; extraArgs: string[] } | undefined>;
   wslBridge?: {
     ensureBridge(distro: string): Promise<{ baseUrl: string; secret: string } | undefined>;
@@ -65,4 +71,10 @@ export interface ThreadSessionManagerOptions {
    * absent/undefined on macOS/Linux, which makes the WSL rewrite path inert.
    */
   subagentMcpHostAccess?: SubagentMcpHostAccessResolver;
+  /**
+   * Optional: attaches stored OAuth `Authorization` headers to user-configured
+   * HTTP/SSE MCP servers just before a launch fans them out to the provider
+   * config builders. Tokens are refreshed by the supervisor's OAuth service.
+   */
+  applyMcpServerAuthorization?(servers: McpServer[]): Promise<McpServer[]>;
 }
