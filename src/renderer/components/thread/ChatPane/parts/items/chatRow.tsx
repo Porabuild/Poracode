@@ -33,6 +33,12 @@ export const chatRowHoverClass = "transition-colors hover:[--muted:var(--foregro
 // (`pt-1` dense, `pt-2.5` roomier).
 export const chatRowBodyClass = "mt-1 border-t border-[var(--hairline)] px-2";
 
+// Dashed left rail marking a group's nested children as belonging to it (the
+// chat tool-call group body, and the sidebar's worktree/thread groups). Only
+// the rail treatment lives here — callers add their own indent (`ml-*`/`pl-*`)
+// so a dense list can hug tighter than the roomier chat body.
+export const chatRowRailClass = "border-l border-dashed border-[color:var(--border)]";
+
 // Disclosure trigger for a dense inline row inside a tool-call group
 // (ToolCallInline, ReasoningInline): icon + title + trailing meta hugging
 // their content, with the shared hover treatment.
