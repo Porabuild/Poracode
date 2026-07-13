@@ -254,9 +254,17 @@ function UsageProviderRow(props: { id: string; label: string }) {
             });
           }}
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
+          <Switch.Content>
+            <Switch.Control
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                event.currentTarget.closest("label")?.querySelector("input")?.click();
+              }}
+            >
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Content>
         </Switch>
       </div>
       {enabled ? <UsageProviderControls id={id} label={label} /> : null}
@@ -379,9 +387,17 @@ export function UsageSettings() {
             });
           }}
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
+          <Switch.Content>
+            <Switch.Control
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                event.currentTarget.closest("label")?.querySelector("input")?.click();
+              }}
+            >
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Content>
         </Switch>
       </SettingRow>
 
@@ -403,9 +419,17 @@ export function UsageSettings() {
             });
           }}
         >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
+          <Switch.Content>
+            <Switch.Control
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                event.currentTarget.closest("label")?.querySelector("input")?.click();
+              }}
+            >
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Content>
         </Switch>
       </SettingRow>
 
