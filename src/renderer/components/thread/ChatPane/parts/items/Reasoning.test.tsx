@@ -55,8 +55,22 @@ describe("Reasoning", () => {
     MockResizeObserver.reset();
   });
 
+  it("shows the last streamed line as the collapsed Thinking preview", () => {
+    const { container } = renderReasoning(
+      makeReasoningItem("Inspecting logs\nChecking the tail output now"),
+    );
+
+    const toggle = container.querySelector("button");
+    if (!toggle) throw new Error("missing Thinking toggle");
+    expect(toggle.textContent).toContain("Thinking");
+    expect(toggle.textContent).toContain("Checking the tail output now");
+    // Collapsed: no live viewport mounted until the row is expanded.
+    expect(container.querySelector(".overflow-y-auto")).toBeNull();
+  });
+
   it("keeps live reasoning pinned to the bottom while new content streams in", async () => {
     const { container, rerender } = renderReasoning(makeReasoningItem("Inspecting logs"));
+    expandReasoning(container);
     const viewport = getReasoningViewport(container);
     const content = getReasoningContent(viewport);
     const metrics = installScrollMetrics(viewport, {
@@ -102,6 +116,7 @@ describe("Reasoning", () => {
 
   it("stops auto-scrolling once the user scrolls up inside the live reasoning block", async () => {
     const { container, rerender } = renderReasoning(makeReasoningItem("Inspecting logs"));
+    expandReasoning(container);
     const viewport = getReasoningViewport(container);
     const content = getReasoningContent(viewport);
     const metrics = installScrollMetrics(viewport, {
@@ -156,6 +171,12 @@ function makeReasoningItem(text: string): RuntimeChatItem {
     state: "updated",
     streams: { reasoning_text: text },
   };
+}
+
+function expandReasoning(container: HTMLElement) {
+  const toggle = container.querySelector("button");
+  if (!toggle) throw new Error("missing reasoning toggle");
+  fireEvent.click(toggle);
 }
 
 function getReasoningViewport(container: HTMLElement): HTMLDivElement {

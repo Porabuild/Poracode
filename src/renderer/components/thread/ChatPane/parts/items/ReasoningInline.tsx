@@ -6,7 +6,7 @@ import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice"
 import { useBrainThinking, useShimmer } from "@/renderer/thinkingAnimator";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatRowMetaSeparator, chatRowIndicatorClass, inlineRowTriggerClass } from "./chatRow";
-import { getReasoningPreview } from "./reasoningPreview";
+import { getReasoningLastLine, getReasoningPreview } from "./reasoningPreview";
 import { ReasoningExpandedBody, ReasoningStreamViewport } from "./ReasoningStreamViewport";
 
 interface ReasoningInlineProps {
@@ -14,21 +14,24 @@ interface ReasoningInlineProps {
 }
 
 /**
- * Reasoning rendered as a row inside a tool-call group. While the model is
- * thinking the row auto-expands and streams the live reasoning text; on
- * completion it auto-collapses into a "Thought" row with a one-line preview of
- * the reasoning as trailing meta. Manual toggles override the automatic state.
+ * Reasoning rendered as a row inside a tool-call group. The row stays collapsed
+ * by default: while the model is thinking the trailing meta tracks its current
+ * line (streamed in line by line); on completion it settles into a "Thought"
+ * row with a one-line preview of the whole block. Expanding reveals the live
+ * pinned viewport while streaming, or the static body after.
  */
 export const ReasoningInline = memo(function ReasoningInline({ item }: ReasoningInlineProps) {
   const { t } = useLingui();
   const actions = useChatPaneActions();
   const isStreaming = item.state !== "completed";
-  // null = follow the automatic state (open while streaming, closed after).
-  const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
-  const isExpanded = manualExpanded ?? isStreaming;
+  const [isExpanded, setIsExpanded] = useState(false);
   const rawText = item.streams.reasoning_text ?? "";
   const hasText = rawText.trim().length > 0;
-  const preview = !isStreaming && !isExpanded ? getReasoningPreview(rawText) : "";
+  const preview = isExpanded
+    ? ""
+    : isStreaming
+      ? getReasoningLastLine(rawText)
+      : getReasoningPreview(rawText);
   const brainRef = useBrainThinking(isStreaming);
   const shimmerRef = useShimmer<HTMLElement>(isStreaming);
   const title = isStreaming ? t`Thinking` : t`Thought`;
@@ -50,7 +53,7 @@ export const ReasoningInline = memo(function ReasoningInline({ item }: Reasoning
       className="text-[length:var(--lc-chat-font-size-command)] leading-tight"
       isExpanded={isExpanded}
       onExpandedChange={(next) => {
-        setManualExpanded(next);
+        setIsExpanded(next);
         actions?.onContentHeightChange();
       }}
     >
