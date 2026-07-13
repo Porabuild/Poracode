@@ -2492,6 +2492,10 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   cursor: default;
 }
 
+.poracode-slash-chip[data-skill-name] {
+  gap: 0.25em;
+}
+
 .poracode-slash-chip__slash {
   display: inline-flex;
   align-items: center;

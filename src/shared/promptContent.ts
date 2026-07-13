@@ -114,7 +114,7 @@ export function buildPromptContentBlocks(
     }
 
     if (segment.kind === "skill") {
-      content.push({ kind: "text", text: segment.invocation });
+      content.push({ kind: "skill", name: segment.name, invocation: segment.invocation });
       continue;
     }
 
