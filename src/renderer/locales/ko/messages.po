@@ -60,8 +60,15 @@ msgstr "{0, plural, one {#개 프로젝트} other {#개 프로젝트}}"
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# 공급자 준비됨} other {# 공급자 준비됨}}"
 
-#. placeholder {0}: props.server.toolCount
-#. placeholder {0}: state.toolCount
+#. placeholder {0}: props.skills.length
+#. placeholder {0}: skills.length
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "{0, plural, one {# skill} other {# skills}}"
+msgstr "{0, plural, one {스킬 #개} other {스킬 #개}}"
+
+#. placeholder {0}: props.count
+#. placeholder {0}: toolList.tools.length
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "{0, plural, one {# tool} other {# tools}}"
 msgstr "{0, plural, one {도구 #개} other {도구 #개}}"
@@ -245,9 +252,17 @@ msgstr "{0} 업데이트되었습니다."
 msgid "{0} used"
 msgstr "{0} 사용됨"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "{0}: {stateLabel}"
+msgstr "{0}: {stateLabel}"
+
 #. placeholder {0}: selectedRows.length
+#. placeholder {0}: selectedSkills.length
 #. placeholder {1}: importableRows.length
+#. placeholder {1}: selectable.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}/{1} selected"
 msgstr "{0}/{1}개 선택됨"
 
@@ -448,6 +463,14 @@ msgstr "{totalCount}개 중 {visibleCount}개 표시"
 msgid "/absolute/path/to/project"
 msgstr "/absolute/path/to/project"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "/skill-creator Create a new managed skill for {destination}."
+#~ msgstr "/skill-creator {destination}에 사용할 새로운 관리형 스킬을 만드세요."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "/skill-creator Create a new managed skill for {destinationLabel}."
+msgstr "/skill-creator {destinationLabel}에 사용할 새 관리 스킬을 만드세요."
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "© {currentYear} Serhii Vecherenko. 모든 권리 보유."
@@ -600,6 +623,10 @@ msgstr "로컬 프로젝트 추가"
 msgid "Add a project"
 msgstr "프로젝트 추가"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add a project before creating a skill."
+msgstr "스킬을 만들기 전에 프로젝트를 추가하세요."
+
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
 msgstr "에이전트를 설치하기 전에 프로젝트를 추가하세요."
@@ -613,6 +640,14 @@ msgstr "로그인하기 전에 프로젝트를 추가하세요."
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "시작하려면 프로젝트를 추가하세요."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
+msgstr ".agents/skills 또는 .poracode/skills에 스킬을 추가하거나 다른 제공자에서 가져오세요."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Add a skill to .agents/skills or import one from another provider."
+#~ msgstr ".agents/skills에 스킬을 추가하거나 다른 제공자에서 가져오세요."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add a to-do…"
@@ -690,6 +725,14 @@ msgstr "리모트 추가"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Add shortcut"
 msgstr "단축키 추가"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add skill"
+msgstr "스킬 추가"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add skill destination"
+msgstr "새 스킬 대상"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
@@ -801,6 +844,7 @@ msgid "Alerts when threads need you"
 msgstr "스레드에 응답이 필요할 때 알림"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
@@ -809,6 +853,11 @@ msgstr "전체"
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
 msgstr "모든 계정"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "All agent apps"
+msgstr "모든 에이전트 앱"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "All devices"
@@ -826,6 +875,10 @@ msgstr "모든 파일"
 #: src/mobile/views/ThreadsView.tsx
 msgid "All projects"
 msgstr "모든 프로젝트"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "All sources"
+msgstr "모든 소스"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/helpers.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -846,6 +899,10 @@ msgstr "브라우저 설정에서 이 사이트의 카메라 접근을 허용하
 msgid "Allow eval"
 msgstr "평가 허용"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Allow replacing conflicting managed skills"
+msgstr "충돌하는 관리 스킬 교체 허용"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Allow the browser to show notifications while the app is in the background."
 msgstr "앱이 백그라운드에 있을 때 브라우저가 알림을 표시하도록 허용하세요."
@@ -853,6 +910,11 @@ msgstr "앱이 백그라운드에 있을 때 브라우저가 알림을 표시하
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Already configured"
 msgstr "이미 구성됨"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Already imported"
+msgstr "이미 가져옴"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Already used by {conflict}"
@@ -1101,6 +1163,10 @@ msgstr "터미널 패널 자동 표시"
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "명령을 실행하거나 작업 트리를 생성할 때 터미널 패널을 자동으로 표시합니다."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Availability"
+msgstr "사용 범위"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "available"
 msgstr "사용 가능"
@@ -1337,8 +1403,13 @@ msgid "Building diff…"
 msgstr "diff 생성 중…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "기본 제공"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Built-in and plugin skills"
+#~ msgstr "기본 제공 및 플러그인 스킬"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in MCP servers"
@@ -1480,6 +1551,10 @@ msgstr "변경 사항"
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Changes ({0})"
 msgstr "변경사항({0})"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Changes apply to new chats. Providers that support live skill reload may update sooner."
+msgstr "변경 사항은 새 채팅에 적용됩니다. 실시간 스킬 다시 불러오기를 지원하는 제공자는 더 빨리 업데이트될 수 있습니다."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Changes in PR"
@@ -1727,6 +1802,8 @@ msgstr "복제 중…"
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
@@ -2143,6 +2220,10 @@ msgstr "충돌 해결사"
 msgid "Conflicts"
 msgstr "충돌"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Conflicts with a managed skill"
+msgstr "관리 스킬과 충돌함"
+
 #: src/mobile/setupEmptyState.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -2312,6 +2393,10 @@ msgstr "클립보드에 복사됨"
 msgid "Copy"
 msgstr "복사"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Copy (recommended)"
+msgstr "복사(권장)"
+
 #. placeholder {0}: activeDeviceCode.providerLabel
 #. placeholder {1}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2437,6 +2522,15 @@ msgstr "프로젝트를 생성할 수 없습니다."
 msgid "Couldn't create the worktree."
 msgstr "worktree를 만들 수 없습니다."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Couldn't import the selected skills."
+msgstr "선택한 스킬을 가져오지 못했습니다."
+
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Couldn't install {0}."
+msgstr "{0}을(를) 설치할 수 없습니다."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "저장소를 나열할 수 없습니다."
@@ -2444,6 +2538,10 @@ msgstr "저장소를 나열할 수 없습니다."
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "Couldn't load the changelog. Check your connection, or view it on GitHub."
 msgstr "변경 내역을 불러오지 못했습니다. 연결을 확인하거나 GitHub에서 확인하세요."
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "Couldn't load the skill."
+msgstr "스킬을 불러올 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2453,6 +2551,10 @@ msgstr "프로필 통계를 불러오지 못했습니다."
 msgid "Couldn't save the shortcut."
 msgstr "단축키를 저장하지 못했습니다."
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Couldn't scan agent skills."
+msgstr "에이전트 스킬을 검사하지 못했습니다."
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "MCP 서버 구성을 스캔할 수 없습니다."
@@ -2460,6 +2562,10 @@ msgstr "MCP 서버 구성을 스캔할 수 없습니다."
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "카메라를 시작할 수 없습니다"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Couldn't update the skill."
+msgstr "스킬을 업데이트하지 못했습니다."
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Create"
@@ -2549,9 +2655,17 @@ msgstr "자격 증명이 구성되었습니다."
 msgid "Credits"
 msgstr "크레딧"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Curated free and premium skills managed by MCP Market."
+#~ msgstr "MCP Market에서 관리하는 엄선된 무료 및 프리미엄 스킬입니다."
+
 #: src/mobile/views/ThreadsView.tsx
 msgid "Current"
 msgstr "최근"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#~ msgid "Current project"
+#~ msgstr "현재 프로젝트"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "current streak"
@@ -2645,6 +2759,7 @@ msgstr "기본 스레드 제거"
 #. Thread remove action: delete permanently
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -2656,10 +2771,23 @@ msgstr "기본 스레드 제거"
 msgid "Delete"
 msgstr "삭제"
 
+#. placeholder {0}: pendingDelete?.name
+#. placeholder {1}: pendingDelete?.absolutePath
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Delete “{0}” from {1}? This cannot be undone."
+msgstr "{1}에서 “{0}”을(를) 삭제할까요? 이 작업은 실행 취소할 수 없습니다."
+
+#. placeholder {0}: pendingDelete.name
+#. placeholder {1}: pendingDelete.providerLabel
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Delete “{0}” from {1}? This removes its source folder and cannot be undone."
+msgstr "{1}에서 “{0}”을(를) 삭제할까요? 원본 폴더도 삭제되며 되돌릴 수 없습니다."
+
 #. placeholder {0}: branch.name
 #. placeholder {0}: entry.group.groupName
-#. placeholder {0}: thread.title
+#. placeholder {0}: skill.name
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Delete {0}"
@@ -2698,6 +2826,10 @@ msgstr "일정을 삭제할까요?"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete scheduled task?"
 #~ msgstr "예약 작업을 삭제할까요?"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Delete skill"
+msgstr "스킬 삭제"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete task"
@@ -2775,6 +2907,10 @@ msgstr "데스크톱에 연결할 수 없습니다."
 msgid "Desktop Settings"
 msgstr "데스크톱 설정"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Destination"
+msgstr "대상"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Details"
 #~ msgstr "세부 정보"
@@ -2832,6 +2968,11 @@ msgstr "이 데스크톱에 연결할 수 있는 동안 기기를 페어링할 �
 #~ msgid "Direct connection required"
 #~ msgstr "직접 연결이 필요합니다"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Disable {0}"
+msgstr "{0} 비활성화"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Disable {serverLabel}"
 msgstr "{serverLabel} 비활성화"
@@ -2843,6 +2984,10 @@ msgstr "{serverName} 비활성화"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
 msgstr "{tierLabel} 추론 강도 비활성화"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disable {tool}"
+msgstr "{tool} 비활성화"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Disable Browser MCP"
@@ -2874,6 +3019,7 @@ msgid "Disable tiers an external provider collapses (e.g. keep only High and Max
 msgstr "외부 제공자가 통합하는 등급을 비활성화합니다 (예: High와 Max만 유지)."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "비활성화됨"
@@ -2881,6 +3027,10 @@ msgstr "비활성화됨"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Disabled globally"
 msgstr "전역에서 비활성화됨"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
+msgstr "스킬을 비활성화하면 활성 스킬 폴더 밖으로 이동하고 Poracode가 관리하는 공급자 복사본을 제거합니다. 파일은 보존되므로 다시 활성화할 수 있습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
@@ -3103,6 +3253,11 @@ msgstr "추론 강도 단계"
 msgid "Electron"
 msgstr "Electron"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Enable {0}"
+msgstr "{0} 활성화"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Enable {serverLabel}"
 msgstr "{serverLabel} 활성화"
@@ -3114,6 +3269,10 @@ msgstr "{serverName} 활성화"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
 msgstr "{tierLabel} 추론 강도 활성화"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Enable {tool}"
+msgstr "{tool} 활성화"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3137,6 +3296,7 @@ msgstr "프로젝트 활성화"
 msgid "Enable providers in settings"
 msgstr "설정에서 공급자 활성화"
 
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Enabled"
 msgstr "활성화됨"
@@ -3339,6 +3499,10 @@ msgstr "외부"
 msgid "External provider"
 msgstr "외부 제공자"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "External provider skills"
+#~ msgstr "외부 제공자 스킬"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "Extra High"
 msgstr "매우 높음"
@@ -3466,6 +3630,14 @@ msgstr "이러한 glob과 일치하는 파일은 @file 멘션 검색에서 숨�
 #: src/mobile/views/ThreadsView.tsx
 msgid "Filter by project"
 msgstr "프로젝트별 필터"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Filter marketplace by source"
+msgstr "소스별로 마켓플레이스 필터링"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Filter skills by status"
+msgstr "상태별로 스킬 필터링"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -3622,6 +3794,11 @@ msgstr "포트 전달"
 msgid "Found {0, plural, one {# importable MCP server} other {# importable MCP servers}}"
 msgstr "{0, plural, one {가져올 수 있는 MCP 서버 #개를 찾았습니다} other {가져올 수 있는 MCP 서버 #개를 찾았습니다}}"
 
+#. placeholder {0}: selectable.length
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Found {0, plural, one {# importable skill} other {# importable skills}}"
+msgstr "{0, plural, one {가져올 수 있는 스킬 #개를 찾았습니다} other {가져올 수 있는 스킬 #개를 찾았습니다}}"
+
 #. placeholder {0}: activeRequest.providerLabel
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Found a signed-in {0} session."
@@ -3750,6 +3927,10 @@ msgstr "GitHub Copilot"
 msgid "GitHub Repository"
 msgstr "GitHub 저장소"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "GitHub stars"
+msgstr "GitHub 스타"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Gitignored files to copy from the main project into each new worktree. Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
 msgstr "기본 프로젝트에서 각각의 새 작업 트리로 복사할 Gitignored 파일입니다. Gitignore 스타일 패턴, 한 줄에 하나씩(예: <0>.env.*</0>)"
@@ -3763,10 +3944,22 @@ msgstr "GLM 5.2 (선택 레이블)"
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Global"
 msgstr "전역"
 
+#: src/renderer/components/skills/skillTargets.ts
+msgid "Global (Linux)"
+msgstr "전역(Linux)"
+
+#: src/renderer/components/skills/skillTargets.ts
+msgid "Global (macOS)"
+msgstr "전역(macOS)"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/skills/skillTargets.ts
 msgid "Global (Windows)"
 msgstr "전역 (Windows)"
 
@@ -3793,6 +3986,11 @@ msgstr "설정한 목표"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "확인"
+
+#. placeholder {0}: skill.securityGrade
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Grade {0}"
+msgstr "등급 {0}"
 
 #: src/renderer/components/providers/grok/manifest.ts
 msgid "Grok Build"
@@ -3898,6 +4096,11 @@ msgstr "런타임 디버그 패널 숨기기"
 msgid "Hide sidebar"
 msgstr "사이드바 숨기기"
 
+#. placeholder {0}: first.providerLabel
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Hide skills from {0}"
+msgstr "{0}의 스킬 숨기기"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
@@ -3972,7 +4175,12 @@ msgstr "이미지"
 msgid "Image preview"
 msgstr "이미지 미리보기"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Import conflict"
+msgstr "가져오기 충돌"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Import destination"
 msgstr "가져오기 대상"
 
@@ -3980,9 +4188,25 @@ msgstr "가져오기 대상"
 msgid "Import external agent MCP servers"
 msgstr "외부 에이전트 MCP 서버 가져오기"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Import external agent skills"
+msgstr "외부 에이전트 스킬 가져오기"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Import external skills"
+msgstr "외부 스킬 가져오기"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
 msgstr "MCP 서버 가져오기"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Import method"
+msgstr "가져오기 방법"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Import selected"
+msgstr "선택 항목 가져오기"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
@@ -3995,6 +4219,21 @@ msgstr "전역으로 가져오기"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Import to Project"
 #~ msgstr "프로젝트로 가져오기"
+
+#. placeholder {0}: selectedSkills.length
+#. placeholder {1}: selectedSkills.length === 1 ? "skill" : "skills"
+#: src/renderer/components/skills/SkillImportModal.tsx
+#~ msgid "Imported {0} {1}."
+#~ msgstr "{0}개의 {1}을(를) 가져왔습니다."
+
+#. placeholder {0}: selectedSkills.length
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Imported {0} skills."
+msgstr "스킬 {0}개를 가져왔습니다."
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Imported 1 skill."
+msgstr "스킬 1개를 가져왔습니다."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -4043,6 +4282,7 @@ msgstr "표준 런타임 항목 검사"
 msgid "install"
 msgstr "설치"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -4077,6 +4317,11 @@ msgstr "CLI 후크 설치"
 msgid "Install in WSL: {distro}"
 msgstr "WSL에 설치: {distro}"
 
+#. placeholder {0}: props.targetLabel
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Install managed skills into {0}."
+msgstr "관리형 스킬을 {0}에 설치합니다."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "기본 공급자를 먼저 설치하십시오. 추가 프로토콜 에이전트에는 ACP를 사용하십시오."
@@ -4110,10 +4355,16 @@ msgstr "v{updateVersion} 설치"
 msgid "Install v{version}"
 msgstr "v{version} 설치"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Installed"
 msgstr "설치됨"
+
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Installed {0}."
+msgstr "{0}을(를) 설치했습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -4128,7 +4379,6 @@ msgstr "이 터미널에 설치 중입니다. 완료되면 닫힙니다."
 msgid "Instructions"
 msgstr "지침"
 
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
 msgstr "에이전트가 어떤 에이전트나 모델에 위임할지 선택할 때 따르는 지침입니다."
@@ -4260,6 +4510,14 @@ msgstr "라이트"
 msgid "Lightcode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Lightcode와 에이전트는 원격 머신에서 실행됩니다. SSH는 원격 환경을 시작하고 로컬 터널을 보호하는 데만 사용됩니다."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Link to source"
+msgstr "소스에 연결"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Linked"
+msgstr "연결됨"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -4302,6 +4560,10 @@ msgstr "편집기 로드 중…"
 msgid "Loading file…"
 msgstr "파일 로드 중…"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Loading marketplace…"
+msgstr "마켓플레이스 로드 중…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "메모 로드 중…"
@@ -4325,6 +4587,14 @@ msgstr "원격 액세스 로드 중…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Loading scheduled tasks"
 msgstr "예약 작업 불러오는 중"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "Loading skill…"
+msgstr "스킬 불러오는 중…"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Loading skills…"
+msgstr "스킬 불러오는 중…"
 
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
@@ -4431,6 +4701,10 @@ msgstr "개발 서버를 찾는 중…"
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "사이드바를 반투명하게 만듭니다 — Windows 11에서는 시스템 블러 효과, 그 외 환경에서는 반투명 색조를 사용합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Manage global and project agent skills, including skills imported from other providers."
+#~ msgstr "다른 제공자에서 가져온 스킬을 포함하여 전역 및 프로젝트 에이전트 스킬을 관리합니다."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "Manage remote environments"
 msgstr "원격 환경 관리"
@@ -4438,6 +4712,23 @@ msgstr "원격 환경 관리"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote servers"
 #~ msgstr "원격 서버 관리"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+msgid "Manage shared skills across global and project scopes."
+msgstr "전역 및 프로젝트 범위의 공유 스킬을 관리합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage shared skills across Linux and projects."
+#~ msgstr "Linux 및 프로젝트에서 공유 스킬을 관리합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage shared skills across macOS and projects."
+#~ msgstr "macOS 및 프로젝트에서 공유 스킬을 관리합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage shared skills across Windows, WSL, and projects."
+#~ msgstr "Windows, WSL 및 프로젝트에서 공유 스킬을 관리합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
@@ -4448,9 +4739,29 @@ msgstr "원격 환경 관리"
 msgid "Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings."
 msgstr "지원되는 에이전트를 시작할 때 Poracode에서 추가하는 MCP 서버 구성을 관리하세요. 작업 영역 서버는 각 프로젝트 설정에서 구성할 수 있습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage the skills Poracode makes available to supported agents. Project skills can be managed in each project's settings."
+#~ msgstr "Poracode가 지원되는 에이전트에 제공하는 스킬을 관리합니다. 프로젝트 스킬은 각 프로젝트의 설정에서 관리할 수 있습니다."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Managed"
+#~ msgstr "관리됨"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Managed by Poracode"
 msgstr "Poracode에서 관리"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Managed by provider"
+msgstr "제공자가 관리함"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Managed by the provider or plugin."
+#~ msgstr "제공자 또는 플러그인이 관리합니다."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Managed skills"
+#~ msgstr "관리 스킬"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
@@ -4483,6 +4794,14 @@ msgstr "완료로 표시"
 msgid "Mark Done"
 msgstr "완료로 표시"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Marketplace"
+msgstr "마켓플레이스"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Marketplace rank"
+msgstr "마켓플레이스 순위"
+
 #: src/renderer/i18n/locales.ts
 msgid "Match app language"
 msgstr "앱 언어와 동일하게"
@@ -4504,6 +4823,10 @@ msgstr "최대화"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "브라우저 최대화"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "MCP Market"
+#~ msgstr "MCP Market"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -4800,6 +5123,14 @@ msgstr "더 많은 동기화 옵션"
 msgid "Most active hour"
 msgstr "가장 활발한 시간"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Most installed"
+#~ msgstr "가장 많이 설치됨"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Most popular"
+msgstr "인기순"
+
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Most used plugins"
 msgstr "가장 많이 사용한 플러그인"
@@ -4848,6 +5179,7 @@ msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Name"
@@ -5170,6 +5502,7 @@ msgstr "아직 데이터가 없습니다"
 msgid "No data yet."
 msgstr "아직 데이터가 없습니다."
 
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No description"
 msgstr "설명 없음"
@@ -5191,6 +5524,10 @@ msgstr "{0}에 대한 차이점이 없습니다."
 msgid "No diff for {visiblePath}"
 msgstr "{visiblePath}에는 차이가 없습니다."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "No external skills were found in this scope."
+msgstr "이 범위에서 외부 스킬을 찾지 못했습니다."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "No file checkpoint is stored for this message."
 msgstr "이 메시지에 대해 저장된 파일 체크포인트가 없습니다."
@@ -5209,6 +5546,10 @@ msgstr "GitHub CLI 계정을 찾을 수 없습니다. <0>gh auth login</0>으로
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "아직 기록이 없습니다"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "No marketplace skills match these filters."
+msgstr "이 필터와 일치하는 마켓플레이스 스킬이 없습니다."
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -5339,6 +5680,14 @@ msgstr "이 스레드에는 아직 런타임 항목이 없습니다."
 msgid "No shortcuts found"
 msgstr "단축키를 찾을 수 없습니다."
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "No skills found"
+msgstr "스킬을 찾지 못했습니다"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "No skills match your search and filter."
+msgstr "검색 및 필터와 일치하는 스킬이 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No skills used yet."
 msgstr "아직 사용한 스킬이 없습니다."
@@ -5463,6 +5812,14 @@ msgstr "꺼짐"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "꺼짐"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Official"
+msgstr "공식"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Official sources only"
+msgstr "공식 소스만"
 
 #: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5635,10 +5992,22 @@ msgstr "이미지 미리보기 열기"
 msgid "Open in editor"
 msgstr "편집기에서 열기"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Open leaderboard with install and trend metrics."
+msgstr "설치 및 추세 지표를 제공하는 공개 순위표입니다."
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open links in"
 msgstr "링크 열기"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Open marketplace"
+#~ msgstr "마켓플레이스 열기"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Open MCP Market to browse purchases and downloads without bypassing its account or licensing flow."
+#~ msgstr "계정 또는 라이선스 절차를 우회하지 않고 MCP Market에서 구매 및 다운로드를 살펴보세요."
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Open model picker"
@@ -5776,6 +6145,10 @@ msgstr "결과"
 msgid "Over pace — runs out early"
 msgstr "사용 속도 초과 — 조기 소진"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Overridden by project"
+#~ msgstr "프로젝트에서 재정의됨"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN."
 msgstr "Claude 기본값을 재정의합니다 — 예: ANTHROPIC_BASE_URL 및 ANTHROPIC_AUTH_TOKEN."
@@ -5787,6 +6160,10 @@ msgstr "이 프로젝트의 작업 트리가 생성되는 위치를 재정의합
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Overrides {conflict}"
 msgstr "{conflict} 재정의"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Overrides global"
+#~ msgstr "전역 스킬 재정의"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
@@ -6002,6 +6379,10 @@ msgstr "알림이 표시되면 소리를 재생합니다."
 msgid "Play notification sound"
 msgstr "알림 소리 재생"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Plugin"
+msgstr "플러그인"
+
 #: src/mobile/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "설정 → 원격 접근의 QR 코드를 향하세요"
@@ -6014,6 +6395,16 @@ msgstr "사용자 지정 환경 변수, 모델 이름, 추론 강도 단계로 �
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "Poracode에 맞게 조정된 인기 있는 편집기 테마입니다. 각각은 위의 밝은 모드 또는 어두운 모드를 따릅니다."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
+#~ msgstr "Poracode는 마켓플레이스 자격 증명을 설정에 일반 텍스트로 저장하지 않습니다. 카탈로그를 열어 보안 검사를 마친 스킬을 살펴보세요."
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Poracode only"
+msgstr "Poracode 전용"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
@@ -6148,6 +6539,7 @@ msgstr "프로필"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -6174,6 +6566,14 @@ msgstr "프로젝트 노트"
 msgid "Project Settings"
 msgstr "프로젝트 설정"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
+msgid "Project skills are available only when agents run in this project. Each provider applies its own precedence rules when names overlap."
+msgstr "프로젝트 스킬은 에이전트가 이 프로젝트에서 실행될 때만 사용할 수 있습니다. 이름이 겹치면 각 제공자의 고유한 우선순위 규칙이 적용됩니다."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
+#~ msgid "Project skills override global skills with the same name and are available only when agents run in this project."
+#~ msgstr "프로젝트 스킬은 이름이 같은 전역 스킬을 재정의하며 에이전트가 이 프로젝트에서 실행될 때만 사용할 수 있습니다."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Project-specific overrides on top of the global search settings."
 msgstr "전역 검색 설정 위에 프로젝트별 재정의가 적용됩니다."
@@ -6181,7 +6581,6 @@ msgstr "전역 검색 설정 위에 프로젝트별 재정의가 적용됩니다
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 msgid "Projects"
 msgstr "프로젝트"
@@ -6238,6 +6637,10 @@ msgstr "공급자"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "공급자"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Public registry with verified sources and GitHub metrics."
+msgstr "검증된 소스와 GitHub 지표를 제공하는 공개 레지스트리입니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Public URL"
@@ -6400,6 +6803,10 @@ msgstr "추론"
 msgid "Recent"
 msgstr "최근"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Recent installs"
+msgstr "최근 설치"
+
 #: src/renderer/views/HomeView.tsx
 msgid "Recent threads"
 msgstr "최근 스레드"
@@ -6463,6 +6870,10 @@ msgstr "MCP 서버 소스 새로 고침"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
 msgstr "레지스트리 새로 고침"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Refresh skills"
+msgstr "스킬 새로 고침"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -6623,6 +7034,11 @@ msgstr "프로젝트 제거"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "단축키 제거"
+
+#. placeholder {0}: pendingDelete.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Remove the linked skill “{0}”? Its source folder will not be deleted."
+msgstr "연결된 스킬 “{0}”을(를) 제거할까요? 원본 폴더는 삭제되지 않습니다."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -6817,6 +7233,7 @@ msgstr "재개"
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 msgid "Retry"
 msgstr "다시 시도"
 
@@ -7180,6 +7597,10 @@ msgstr "브랜치 검색..."
 msgid "Search files"
 msgstr "파일 검색"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Search marketplace skills"
+msgstr "마켓플레이스 스킬 검색"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Search MCP servers"
 msgstr "MCP 서버 검색"
@@ -7228,6 +7649,18 @@ msgstr "설정 검색"
 msgid "Search shortcuts"
 msgstr "단축키 검색"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Search skills"
+msgstr "스킬 검색"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Search skills or sources..."
+msgstr "스킬 또는 소스 검색..."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Search skills..."
+msgstr "스킬 검색..."
+
 #: src/renderer/commands/registry.ts
 msgid "Search the current view"
 msgstr "현재 보기에서 검색"
@@ -7254,6 +7687,10 @@ msgstr "검색 중..."
 msgid "Searching…"
 msgstr "검색 중…"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Security-focused directory with verified skill metadata."
+#~ msgstr "검증된 스킬 메타데이터를 제공하는 보안 중심 디렉터리입니다."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
 msgid "See more"
 msgstr "자세히 보기"
@@ -7261,6 +7698,12 @@ msgstr "자세히 보기"
 #: src/renderer/components/common/OptionMenu.tsx
 msgid "Select"
 msgstr "선택"
+
+#. placeholder {0}: skill.name
+#. placeholder {1}: skill.providerLabel
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Select {0} from {1}"
+msgstr "{1}에서 {0} 선택"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select {serverName} from {providerLabel}"
@@ -7291,6 +7734,7 @@ msgid "Select account"
 msgstr "계정 선택"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all"
 msgstr "모두 선택"
 
@@ -7301,6 +7745,10 @@ msgstr "모든 MCP 서버 선택"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select all MCP servers from {providerLabel}"
 msgstr "{providerLabel}의 모든 MCP 서버 선택"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Select all skills"
+msgstr "모든 스킬 선택"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Select an agent to see its prompt and outcome."
@@ -7396,6 +7844,10 @@ msgstr "공유"
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "활동 공유하기"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Shared"
+msgstr "공유"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -7509,6 +7961,11 @@ msgstr "런타임 디버그 패널 표시"
 msgid "Show sidebar"
 msgstr "사이드바 표시"
 
+#. placeholder {0}: first.providerLabel
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Show skills from {0}"
+msgstr "{0}의 스킬 표시"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show source"
 msgstr "소스 표시"
@@ -7522,6 +7979,11 @@ msgstr "작성기에 마이크 버튼을 표시합니다."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "음성 입력 버튼 표시"
+
+#. placeholder {0}: displayedSkills.length
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Showing {0, plural, one {# skill} other {# skills}}"
+msgstr "{0, plural, other {#개 스킬 표시 중}}"
 
 #: src/mobile/views/HostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
@@ -7614,6 +8076,15 @@ msgstr "{env} 로그아웃 중입니다. 감지된 에이전트는 완료되면 
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "로그아웃합니다. 감지된 에이전트는 완료되면 새로 고쳐집니다."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skill availability"
+msgstr "스킬 사용 범위"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skill marketplace source"
+msgstr "스킬 마켓플레이스 소스"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skill runs"
 msgstr "스킬 실행"
@@ -7622,18 +8093,65 @@ msgstr "스킬 실행"
 msgid "Skill: {skill}"
 msgstr "스킬: {skill}"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md couldn't be read."
+msgstr "SKILL.md를 읽을 수 없습니다."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md is missing YAML frontmatter."
+msgstr "SKILL.md에 YAML 프론트매터가 없습니다."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md is missing."
+msgstr "SKILL.md가 없습니다."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md is too large."
+msgstr "SKILL.md가 너무 큽니다."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 msgid "Skills"
 msgstr "스킬"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skills Directory"
+msgstr "Skills Directory"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skills explored"
 msgstr "탐색한 스킬"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Skills location"
+msgstr "스킬 위치"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skills marketplace"
+msgstr "스킬 마켓플레이스"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skills.sh"
+msgstr "Skills.sh"
+
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
+msgid "Slash commands"
+msgstr "슬래시 명령"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "일부 검사가 실패했거나 보류 중입니다."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
+msgstr "일부 제공자 폴더를 검사하지 못했습니다. 성공적으로 불러온 스킬은 계속 표시됩니다."
 
 #: src/mobile/QrScanner.tsx
 msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
@@ -7647,9 +8165,17 @@ msgstr "생성순으로 정렬"
 msgid "Sort by last updated"
 msgstr "마지막 업데이트순으로 정렬"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Sort marketplace skills"
+msgstr "마켓플레이스 스킬 정렬"
+
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Sort threads"
 msgstr "스레드 정렬"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Sources"
+msgstr "소스"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Space separated; use quotes around spaces"
@@ -7932,7 +8458,7 @@ msgstr "하위 에이전트를 찾을 수 없습니다."
 msgid "Subagent Result"
 msgstr "하위 에이전트 결과"
 
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "Subagent routing guide"
 msgstr "하위 에이전트 라우팅 가이드"
@@ -7944,6 +8470,7 @@ msgstr "서브에이전트 실행"
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 msgid "Subagents"
 msgstr "하위 에이전트"
 
@@ -8229,6 +8756,11 @@ msgstr "이 QR 코드는 Poracode 페어링 링크가 아닙니다."
 msgid "That remote session was already gone."
 msgstr "해당 원격 세션은 이미 없어졌습니다."
 
+#. placeholder {0}: target.wslDistro
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "the {0} WSL user"
+#~ msgstr "{0} WSL 사용자"
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "에이전트"
@@ -8253,6 +8785,19 @@ msgstr "아래에서 자체 간격이 설정되지 않은 모든 공급자에 �
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."
 msgstr "데스크톱 서버가 아직 시작 중입니다."
+
+#. placeholder {0}: createTarget.wslDistro
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the global {0} WSL scope"
+msgstr "{0} 전역 WSL 범위"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the Linux user"
+msgstr "Linux 사용자"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the macOS user"
+msgstr "macOS 사용자"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
@@ -8290,9 +8835,45 @@ msgstr "서버 구성이 잘못되었습니다."
 msgid "The server returned an invalid MCP response."
 msgstr "서버가 잘못된 MCP 응답을 반환했습니다."
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill description is missing."
+msgstr "스킬 설명이 없습니다."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill description is too long."
+msgstr "스킬 설명이 너무 깁니다."
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "The skill is copied into the destination and can be changed independently."
+msgstr "스킬은 대상에 복사되며 독립적으로 변경할 수 있습니다."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill name is missing."
+msgstr "스킬 이름이 없습니다."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill name must match its folder name."
+msgstr "스킬 이름은 폴더 이름과 일치해야 합니다."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill name must use lowercase letters, numbers, and hyphens."
+msgstr "스킬 이름에는 소문자, 숫자, 하이픈만 사용할 수 있습니다."
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "The skill stays synchronized with its source and stops working if the source moves."
+msgstr "스킬은 소스와 동기화된 상태를 유지하며 소스가 이동되면 작동이 중지됩니다."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "The skills marketplace couldn't be loaded."
+msgstr "스킬 마켓플레이스를 로드할 수 없습니다."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "대상 공급자"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the Windows user"
+msgstr "Windows 사용자"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8321,6 +8902,14 @@ msgstr "이 앱은 HTTPS로 제공되지만 데스크톱은 브라우저가 차�
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "이 브라우저는 여기에서 시스템 알림을 지원하지 않습니다. 앱 내 토스트는 계속 표시됩니다."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "This catalog manages downloads through its website."
+#~ msgstr "이 카탈로그는 웹사이트를 통해 다운로드를 관리합니다."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "This catalog requires its own API key."
+#~ msgstr "이 카탈로그에는 자체 API 키가 필요합니다."
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
@@ -8361,6 +8950,10 @@ msgstr "이렇게 하면 원격에서 \"{0}\" 분기가 영구적으로 삭제�
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\"."
 msgstr "이렇게 하면 \"{0}\" 분기가 영구적으로 삭제됩니다."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "this project"
+msgstr "이 프로젝트"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "This remote project is unavailable. Reconnect the environment and try again."
@@ -8564,6 +9157,10 @@ msgstr "도구 제한은 가져올 수 없습니다"
 msgid "Tool search"
 msgstr "도구 검색"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Total installs"
+msgstr "총 설치 수"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total prompts"
 msgstr "전체 프롬프트"
@@ -8605,6 +9202,10 @@ msgstr "음성 받아쓰는 중"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
 msgstr "반투명 사이드바"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Trending now"
+msgstr "현재 인기"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
@@ -9097,6 +9698,10 @@ msgstr "하나의 전역 폴더를 사용하거나, 각 프로젝트의 .poracod
 msgid "Use Session"
 msgstr "세션 사용"
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Use the {name} skill."
+msgstr "{name} 스킬을 사용합니다."
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "사용 추적을 위해 이 계정을 사용하거나 계속하기 전에 브라우저에서 사용자를 변경하세요."
@@ -9162,6 +9767,11 @@ msgstr "{0}을(를) 통해"
 msgid "View"
 msgstr "보기"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "View {0}"
+msgstr "{0} 보기"
+
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "View all releases on GitHub"
 msgstr "GitHub에서 모든 릴리스 보기"
@@ -9173,6 +9783,18 @@ msgstr "diff 보기"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "전체 변경 내역 보기"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "View raw"
+msgstr "원문 보기"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "View rendered"
+msgstr "렌더링 보기"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "View skill"
+#~ msgstr "스킬 보기"
 
 #: src/renderer/commands/registry.ts
 msgid "View the changelog"
@@ -9376,7 +9998,7 @@ msgstr "터미널 패널이 나타나는 위치."
 msgid "Will run in {0}:"
 msgstr "{0}에서 실행됩니다:"
 
-#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -9529,7 +10151,6 @@ msgstr "댓글을 쓰세요…"
 msgid "Write notes for this project…"
 msgstr "이 프로젝트에 대한 메모를 작성하세요…"
 
-#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "WSL"
@@ -9541,6 +10162,7 @@ msgid "WSL ({0})"
 msgstr "WSL({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 msgid "WSL ({distro})"
 msgstr "WSL ({distro})"
 
@@ -9548,6 +10170,11 @@ msgstr "WSL ({distro})"
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "WSL 기본 폴더"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "WSL user"
+#~ msgstr "WSL 사용자"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"

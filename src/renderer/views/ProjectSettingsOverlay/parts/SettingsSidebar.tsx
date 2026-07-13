@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   Cable,
+  Box,
   GitFork,
   PanelLeft,
   PanelLeftClose,
@@ -33,6 +34,7 @@ export function SettingsSidebar(props: {
     { id: "general", icon: <Settings2 className="size-4" />, label: t`General` },
     { id: "worktrees", icon: <GitFork className="size-4" />, label: t`Worktrees` },
     { id: "actions", icon: <Play className="size-4" />, label: t`Actions` },
+    { id: "skills", icon: <Box className="size-4" />, label: t`Skills` },
     { id: "mcp", icon: <Cable className="size-4" />, label: t`MCP Servers` },
     { id: "search", icon: <Search className="size-4" />, label: t`Search` },
   ];

@@ -109,6 +109,13 @@ export const functionalAreas = [
     manual: ["mcp-extension"],
   },
   {
+    id: "agent-skills",
+    title: "Agent skill discovery, management, import, and provider delivery",
+    patterns: [/skills?/i, /SlashCommandChip/i, /serializeMentions/i, /promptContent/i],
+    automated: ["baseline", "settings"],
+    manual: ["skills-manager", "provider-skill-delivery"],
+  },
+  {
     id: "localization-theme-a11y",
     title: "Localization, appearance, accessibility, and common UI",
     patterns: [
@@ -160,9 +167,13 @@ export const manualGates = {
     "Invoke the global composer, drag and reopen it, exercise controls and dismissal motion, then submit and verify the new thread opens in the main window.",
   "provider-live":
     "Launch a fresh isolated thread with each changed provider and observe first output.",
+  "provider-skill-delivery":
+    "Launch each supported provider with an isolated managed skill and verify the provider discovers and invokes it.",
   "remote-mobile": "Pair an isolated mobile client and verify reconnect plus one read-only action.",
   "runtime-requests": "Trigger approval and structured-input requests; deny or submit safely.",
   "terminal-pty": "Launch a terminal thread, send input, resize, interrupt, and stop the real PTY.",
+  "skills-manager":
+    "Discover, import, disable, re-enable, and delete fixture skills through the Skills manager and its IPC bridge.",
   "visual-a11y":
     "Inspect keyboard focus, accessible names, light/dark themes, and a non-English locale.",
 };

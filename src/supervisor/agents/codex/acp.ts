@@ -49,7 +49,11 @@ import {
 } from "./acpTurn";
 import { CodexAppServerRpc } from "./appServerRpc";
 import { CodexStdioTransport } from "./stdioTransport";
-import { mapCodexSlashCommands, readCodexInitCommands } from "./probe";
+import {
+  mapCodexSkillsToSlashCommands,
+  mapCodexSlashCommands,
+  readCodexInitCommands,
+} from "./probe";
 import { CodexSubAgentRouter } from "./subAgentRouting";
 
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
@@ -176,6 +180,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private currentThreadStatus: CodexThreadStatus = { type: "idle" };
   private activeTurnId: string | undefined;
   private currentSlashCommands: AgentSlashCommand[] | undefined;
+  private currentBaseSlashCommands: AgentSlashCommand[] = [];
+  private currentSkillSlashCommands: AgentSlashCommand[] = [];
   private pendingTurnInterrupt = false;
   // Sticky-error gate: once a turn fails, derived status updates from
   // `thread/status/changed` (which Codex emits as `idle` after an aborted
@@ -368,6 +374,19 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       ...(this.remoteThreadId ? { sessionRef: toSessionRef(this.remoteThreadId) } : {}),
       slashCommands: commands,
     });
+  }
+
+  private rebuildSlashCommands(): void {
+    this.updateSlashCommands([
+      ...(this.currentBaseSlashCommands ?? []),
+      ...(this.currentSkillSlashCommands ?? []),
+    ]);
+  }
+
+  private async refreshSkillSlashCommands(forceReload: boolean): Promise<void> {
+    const result = await this.rpc.request("skills/list", { forceReload });
+    this.currentSkillSlashCommands = mapCodexSkillsToSlashCommands(result);
+    this.rebuildSlashCommands();
   }
 
   static async create(
@@ -666,7 +685,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.currentThreadStatus = { type: "active", activeFlags: [] };
     this.emitUpdate({ status: "working", attention: "working" });
 
-    const input = buildCodexTurnInput(prompt, segments);
+    const input = buildCodexTurnInput(prompt, segments, options?.inlineInstructions);
     const sandboxPolicy = toCodexSandboxPolicy(config.sandboxMode);
     const collaborationMode = buildCodexCollaborationMode(config);
     try {
@@ -774,6 +793,12 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   private handleNotification(method: string, params: Record<string, unknown> | undefined): void {
+    if (method === "skills/changed") {
+      void this.refreshSkillSlashCommands(true).catch((error) => {
+        if (!this.isDisposed) console.warn("[codex] failed to refresh skills after change:", error);
+      });
+      return;
+    }
     const notificationThreadId = readNotificationThreadId(params, this.remoteThreadId);
     const suppressResumeReplay = this.isResumeReplaySuppressed(notificationThreadId);
     const childEvents = this.ensureSubAgentRouter().routeChildNotification(
@@ -932,12 +957,15 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       30_000,
     );
 
-    const commands = mapCodexSlashCommands(readCodexInitCommands(initResult));
-    if (commands.length > 0) {
-      this.updateSlashCommands(commands);
-    }
+    this.currentBaseSlashCommands = mapCodexSlashCommands(readCodexInitCommands(initResult));
+    this.rebuildSlashCommands();
 
     this.rpc.notify("initialized");
+    try {
+      await this.refreshSkillSlashCommands(false);
+    } catch (error) {
+      console.warn("[codex] skills/list failed:", error);
+    }
   }
 
   private isCurrentThreadNotification(threadId: string): boolean {

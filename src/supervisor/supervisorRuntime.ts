@@ -57,7 +57,9 @@ import { resolveWslHelpersDir } from "./wsl/wslDeploy";
 import { resolveWslHostAccess } from "./wsl/hostAccess";
 import { McpOAuthService } from "./mcp/McpOAuthService";
 import { McpProbeService } from "./mcp/McpProbeService";
+import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
 import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
+import { SkillsService } from "./skills/SkillsService";
 
 export { detectWslAgentStatuses, writeSubmittedPrompt };
 
@@ -89,6 +91,7 @@ export class SupervisorRuntime {
   readonly externalMcpDiscoveryService = new ExternalMcpDiscoveryService();
   readonly mcpOAuthService: McpOAuthService;
   readonly mcpProbeService: McpProbeService;
+  readonly skillsService: SkillsService;
   private readonly subagentMcpIngress: SubagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
   private readonly orchestratorThreadManager: OrchestratorThreadManager;
@@ -149,6 +152,7 @@ export class SupervisorRuntime {
       getAgentStatusService: () => this.agentStatusService,
     });
     this.agentRegistryService.refreshAgentRegistryAdapters();
+    this.skillsService = new SkillsService({ adapters: this.adapters });
     mkdirSync(paths.cacheDir, { recursive: true });
     mkdirSync(this.logsDir, { recursive: true });
 
@@ -374,7 +378,8 @@ export class SupervisorRuntime {
       resolvePluginEnvForSpawn: (input) =>
         this.cliHookPluginCoordinator.resolvePluginEnvForSpawn(input),
       subagentMcp: {
-        register: (threadId) => this.subagentMcpIngress.registerThread(threadId),
+        register: (threadId, disabledTools) =>
+          this.subagentMcpIngress.registerThread(threadId, disabledTools),
         unregister: (threadId) => this.subagentMcpIngress.unregisterThread(threadId),
         cancelAll: (threadId) => this.subagentRunManager.cancelAllForThread(threadId),
         resolveChildRequest: (requestId, response) =>
@@ -384,6 +389,32 @@ export class SupervisorRuntime {
         resolveHostAccess: (distro) => resolveWslHostAccess(distro),
       },
       applyMcpServerAuthorization: (servers) => this.mcpOAuthService.applyAuthorization(servers),
+      prepareMcpToolFilters,
+      prepareSkillsForLaunch: async (projectLocation, agentKind) => {
+        try {
+          await this.skillsService.prepareForLaunch(projectLocation, agentKind);
+        } catch (error) {
+          console.warn("[skills] failed to prepare provider skill projections:", error);
+        }
+      },
+      buildSkillTurnInjection: async (input) => {
+        try {
+          return await this.skillsService.buildTurnSkillInjection(input);
+        } catch (error) {
+          // Skill delivery is best-effort; a failed inline must never block a turn.
+          console.warn("[skills] failed to build inline skill instructions:", error);
+          return undefined;
+        }
+      },
+      rewriteTerminalSkillSegments: async (input) => {
+        try {
+          return await this.skillsService.rewriteTerminalSkillSegments(input);
+        } catch (error) {
+          // Best-effort: fall back to the original segments (plain invocation).
+          console.warn("[skills] failed to rewrite terminal skill segments:", error);
+          return [...input.segments];
+        }
+      },
     });
     this.sessions = this.threadSessionManager.sessions;
     this.shellSessions = this.threadSessionManager.shellSessions;

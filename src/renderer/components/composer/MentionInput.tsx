@@ -1,7 +1,12 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import type { FileEntry, ProjectLocation, PromptSegment } from "@/shared/contracts";
-import { fileNameFromPath } from "@/shared/promptContent";
+import type {
+  AgentSlashCommand,
+  FileEntry,
+  ProjectLocation,
+  PromptSegment,
+} from "@/shared/contracts";
+import { fileNameFromPath, skillSegmentFromSlashCommand } from "@/shared/promptContent";
 import { createChipElement, type FileMentionData } from "./FileMentionChip";
 import { createSlashCommandChipElement } from "./SlashCommandChip";
 import { MentionPopover, type MentionEntry } from "./MentionPopover";
@@ -57,10 +62,11 @@ export interface MentionInputHandle {
   focus(): void;
   clear(): void;
   insertText(text: string): void;
+  insertSegments(segments: PromptSegment[]): void;
   previewVoiceTranscript(text: string): void;
   commitVoiceTranscript(text: string): void;
   clearVoiceTranscriptPreview(): void;
-  insertSlashCommand(id: string): void;
+  insertSlashCommand(command: string | AgentSlashCommand): void;
 }
 
 interface MentionState {
@@ -174,6 +180,42 @@ function placeCaretAtEnd(editor: HTMLDivElement): Range | null {
   return range;
 }
 
+/** Chip dataset fields for a skill segment (the caller supplies its own `id`). */
+function skillChipDataset(segment: Extract<PromptSegment, { kind: "skill" }>) {
+  return {
+    skillName: segment.name,
+    skillPath: segment.path,
+    skillInvocation: segment.invocation,
+    skillProvider: segment.provider,
+    skillScope: segment.scope,
+  };
+}
+
+function appendPromptSegments(parent: Node, segments: PromptSegment[]): void {
+  for (const segment of segments) {
+    if (segment.kind === "text") {
+      const lines = segment.content.split("\n");
+      for (let index = 0; index < lines.length; index++) {
+        if (index > 0) parent.appendChild(document.createElement("br"));
+        const line = lines[index]!;
+        if (line) parent.appendChild(document.createTextNode(line));
+      }
+    } else if (segment.kind === "file") {
+      parent.appendChild(
+        createChipElement({
+          path: segment.path,
+          name: fileNameFromPath(segment.path),
+          isDirectory: false,
+        }),
+      );
+    } else if (segment.kind === "skill") {
+      parent.appendChild(
+        createSlashCommandChipElement({ id: segment.name, ...skillChipDataset(segment) }),
+      );
+    }
+  }
+}
+
 export const MentionInput = forwardRef<
   MentionInputHandle,
   {
@@ -194,6 +236,8 @@ export const MentionInput = forwardRef<
     mcpMentions?: readonly McpMentionItem[];
     onMcpMentionSelect?: (id: string) => void;
     onSlashCommandChange?: (query: string | null) => void;
+    commandListId?: string;
+    commandActiveDescendant?: string;
     /**
      * Called before MentionInput's own key handling (after the mention popover
      * absorbs navigation keys). Return `true` to indicate the key was handled
@@ -214,6 +258,8 @@ export const MentionInput = forwardRef<
     onPasteImage,
     onMcpMentionSelect,
     onSlashCommandChange,
+    commandListId,
+    commandActiveDescendant,
     onInterceptKey,
   } = props;
   const mcpMentions = props.mcpMentions ?? EMPTY_MCP_MENTIONS;
@@ -289,23 +335,7 @@ export const MentionInput = forwardRef<
       if (!editor) return;
       voicePreviewRef.current = null;
       editor.innerHTML = "";
-      for (const seg of segments) {
-        if (seg.kind === "text") {
-          const lines = seg.content.split("\n");
-          for (let i = 0; i < lines.length; i++) {
-            if (i > 0) editor.appendChild(document.createElement("br"));
-            const line = lines[i]!;
-            if (line) editor.appendChild(document.createTextNode(line));
-          }
-        } else if (seg.kind === "file") {
-          const chip = createChipElement({
-            path: seg.path,
-            name: fileNameFromPath(seg.path),
-            isDirectory: false,
-          });
-          editor.appendChild(chip);
-        }
-      }
+      appendPromptSegments(editor, segments);
       onTextChange(hasEditorContent(editor));
     },
     focus() {
@@ -324,6 +354,39 @@ export const MentionInput = forwardRef<
     },
     insertText(text: string) {
       insertPlainText(text);
+    },
+    insertSegments(segments: PromptSegment[]) {
+      const editor = editorRef.current;
+      if (!editor || segments.length === 0) return;
+
+      editor.focus();
+      const selection = window.getSelection();
+      const selectionInsideEditor =
+        selection?.rangeCount && selection.anchorNode
+          ? editor.contains(selection.anchorNode)
+          : false;
+      const range = selectionInsideEditor ? selection!.getRangeAt(0) : placeCaretAtEnd(editor);
+      if (!range) return;
+
+      const precedingRange = document.createRange();
+      precedingRange.selectNodeContents(editor);
+      precedingRange.setEnd(range.startContainer, range.startOffset);
+      const fragment = document.createDocumentFragment();
+      if (precedingRange.toString().length > 0 && !/\s$/.test(precedingRange.toString())) {
+        fragment.appendChild(document.createTextNode(" "));
+      }
+      appendPromptSegments(fragment, segments);
+      const lastNode = fragment.lastChild;
+      if (!lastNode) return;
+
+      range.deleteContents();
+      range.insertNode(fragment);
+      range.setStartAfter(lastNode);
+      range.collapse(true);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      checkMentionState();
+      notifyTextChange();
     },
     previewVoiceTranscript(text: string) {
       const editor = editorRef.current;
@@ -395,7 +458,7 @@ export const MentionInput = forwardRef<
     clearVoiceTranscriptPreview() {
       clearVoicePreviewNode();
     },
-    insertSlashCommand(id: string) {
+    insertSlashCommand(command: string | AgentSlashCommand) {
       const editor = editorRef.current;
       if (!editor) return;
 
@@ -409,7 +472,12 @@ export const MentionInput = forwardRef<
       sel.addRange(range);
       range.deleteContents();
 
-      const chip = createSlashCommandChipElement(id);
+      const skill = typeof command === "string" ? undefined : skillSegmentFromSlashCommand(command);
+      const chip = createSlashCommandChipElement(
+        typeof command === "string"
+          ? command
+          : { id: command.id, ...(skill ? skillChipDataset(skill) : {}) },
+      );
       range.insertNode(chip);
 
       // Trailing space keeps the cursor visually separate from the chip and
@@ -662,6 +730,8 @@ export const MentionInput = forwardRef<
         tabIndex={0}
         aria-disabled={disabled || undefined}
         aria-multiline="true"
+        aria-controls={commandListId}
+        aria-activedescendant={commandActiveDescendant}
         aria-placeholder={placeholder}
         data-placeholder={placeholder}
         className={editorClassName}

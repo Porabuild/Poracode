@@ -99,6 +99,15 @@ describe("searchSettings", () => {
     expect(lower).toContain("browser.allowDataAccess");
   });
 
+  it("finds the Skills and MCP settings", () => {
+    expect(searchSettings("skills", t).map((result) => result.anchor)).toContain("skills.manage");
+    expect(searchSettings("shared", t).map((result) => result.anchor)).toContain("skills.manage");
+    expect(searchSettings("mcp", t).map((result) => result.anchor)).toContain("mcpServers.manage");
+    expect(searchSettings("subagent routing", t).map((result) => result.anchor)).toContain(
+      "mcpServers.manage",
+    );
+  });
+
   it("hides dev-only settings unless dev mode is on", () => {
     const anchor = "dev.disableCliHookPlugin";
     expect(searchSettings("hook plugin", t).map((r) => r.anchor)).not.toContain(anchor);

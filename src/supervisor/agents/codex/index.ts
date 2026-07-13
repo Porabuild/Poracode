@@ -110,6 +110,22 @@ export function createCodexAdapter(): AgentAdapter {
     kind: codexDetectionSpec.kind,
     label: codexDetectionSpec.label,
     binary: codexDetectionSpec.binary,
+    skillSupport: {
+      roots: [
+        {
+          id: "codex",
+          label: codexDetectionSpec.label,
+          globalPath: ".codex/skills",
+          builtInPath: ".system",
+          globalOverride: { env: "CODEX_HOME", path: "skills" },
+        },
+      ],
+      invocation: "dollar",
+      precedence: {
+        global: ["agents", "codex", "codex-built-in"],
+        project: ["agents"],
+      },
+    },
     ...(codexDetectionSpec.update ? { update: codexDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;

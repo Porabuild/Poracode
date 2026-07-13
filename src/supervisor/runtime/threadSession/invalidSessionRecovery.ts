@@ -94,15 +94,18 @@ export class InvalidSessionRecoveryCoordinator {
       session.threadId,
       session.projectLocation,
       launchConfig,
+      mcpLaunchSnapshot,
     );
     const computerUse = context.spawnPipeline.resolveComputerUseMcpForLaunch(
       session.projectLocation,
       launchConfig,
+      mcpLaunchSnapshot,
       { threadId: session.threadId },
     );
     const chromeMcp = context.spawnPipeline.resolveChromeMcpForLaunch(
       session.projectLocation,
       launchConfig,
+      mcpLaunchSnapshot,
       { threadId: session.threadId },
     );
     const appControlsMcp = await context.spawnPipeline.resolveAppControlsMcpForLaunch(

@@ -116,6 +116,7 @@ describe("probeMcpServer", () => {
     expect(result).toMatchObject({
       status: "available",
       toolCount: 2,
+      tools: ["one", "two"],
       environment,
       serverInfo: { name: "fixture  server", version: "1.2.3" },
     });
@@ -187,7 +188,7 @@ describe("probeMcpServer", () => {
 
     const result = await probeMcpServer(server, environment);
 
-    expect(result).toMatchObject({ status: "available", toolCount: 2 });
+    expect(result).toMatchObject({ status: "available", toolCount: 2, tools: ["first", "second"] });
     expect(requests).toEqual([
       "initialize",
       "notifications/initialized",
@@ -244,6 +245,7 @@ describe("probeMcpServer", () => {
     await expect(probeMcpServer(server, environment)).resolves.toMatchObject({
       status: "available",
       toolCount: 1,
+      tools: ["legacy"],
     });
     stream?.end();
   });

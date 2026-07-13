@@ -52,6 +52,7 @@ export interface CodexProbeResult {
   approvalPolicies?: Array<{ id: string; label: string }>;
   sandboxModes?: Array<{ id: string; label: string }>;
   slashCommands?: AgentSlashCommand[];
+  disabledSkillNames?: string[];
 }
 
 /** Account info from Codex `account/read`. */
@@ -224,6 +225,15 @@ export interface CodexRawSlashCommand {
   argumentHint?: string;
 }
 
+interface CodexRawSkillMetadata {
+  name?: unknown;
+  description?: unknown;
+  shortDescription?: unknown;
+  path?: unknown;
+  enabled?: unknown;
+  scope?: unknown;
+}
+
 export function readCodexInitCommands(initResult: unknown): CodexRawSlashCommand[] {
   if (!initResult || typeof initResult !== "object") return [];
   const commands = (initResult as { commands?: unknown }).commands;
@@ -246,6 +256,55 @@ export function mapCodexSlashCommands(
         ...(c.argumentHint?.trim() ? { argumentHint: c.argumentHint.trim() } : {}),
       },
     ];
+  });
+}
+
+export function mapCodexSkillsToSlashCommands(skillsResult: unknown): AgentSlashCommand[] {
+  return readCodexSkillMetadata(skillsResult).flatMap((skill) => {
+    if (skill.enabled === false) return [];
+    const name = typeof skill.name === "string" ? skill.name.trim() : "";
+    const path = typeof skill.path === "string" ? skill.path.trim() : "";
+    if (!name || !path || /\s/u.test(name)) return [];
+    const description =
+      typeof skill.shortDescription === "string" && skill.shortDescription.trim()
+        ? skill.shortDescription.trim()
+        : typeof skill.description === "string"
+          ? skill.description.trim()
+          : "";
+    return [
+      {
+        id: name,
+        label: description ? `${name} — ${description}` : name,
+        ...(description ? { description } : {}),
+        section: "skills" as const,
+        skillName: name,
+        skillPath: path,
+        skillInvocation: `$${name}`,
+        skillProvider: "Codex",
+        skillScope: skill.scope === "repo" ? ("project" as const) : ("global" as const),
+      },
+    ];
+  });
+}
+
+function readCodexSkillMetadata(skillsResult: unknown): CodexRawSkillMetadata[] {
+  if (!skillsResult || typeof skillsResult !== "object") return [];
+  const data = (skillsResult as { data?: unknown }).data;
+  if (!Array.isArray(data)) return [];
+  return data.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const skills = (entry as { skills?: unknown }).skills;
+    if (!Array.isArray(skills)) return [];
+    return skills.filter((raw): raw is CodexRawSkillMetadata =>
+      Boolean(raw && typeof raw === "object"),
+    );
+  });
+}
+
+export function mapCodexDisabledSkillNames(skillsResult: unknown): string[] {
+  return readCodexSkillMetadata(skillsResult).flatMap((skill) => {
+    const name = typeof skill.name === "string" ? skill.name.trim() : "";
+    return skill.enabled === false && name ? [name] : [];
   });
 }
 
@@ -483,14 +542,18 @@ export async function probeCodexCapabilities(
   options?: { wslExecPath?: string; timeoutMs?: number; label?: string },
 ): Promise<CodexProbeResult | undefined> {
   const result = await runWithCodexAppServer(location, options, async ({ client, initResult }) => {
-    const [modelResult, requirementsResult] = await Promise.all([
+    const [modelResult, requirementsResult, skillsResult] = await Promise.all([
       client.request("model/list", { includeHidden: false }),
       client.request("configRequirements/read", {}).catch((error) => {
         console.warn("[codex] configRequirements/read failed:", error);
         return undefined;
       }),
+      client.request("skills/list", { forceReload: true }).catch((error) => {
+        console.warn("[codex] skills/list failed:", error);
+        return undefined;
+      }),
     ]);
-    return { initResult, modelResult, requirementsResult };
+    return { initResult, modelResult, requirementsResult, skillsResult };
   });
 
   if (!result) return undefined;
@@ -500,6 +563,13 @@ export async function probeCodexCapabilities(
   const initCommands = readCodexInitCommands(result.initResult);
   if (initCommands.length > 0) {
     probeResult.slashCommands = mapCodexSlashCommands(initCommands);
+  }
+  const skillCommands = mapCodexSkillsToSlashCommands(result.skillsResult);
+  if (result.skillsResult !== undefined) {
+    probeResult.disabledSkillNames = mapCodexDisabledSkillNames(result.skillsResult);
+  }
+  if (skillCommands.length > 0) {
+    probeResult.slashCommands = [...(probeResult.slashCommands ?? []), ...skillCommands];
   }
 
   const modelData =

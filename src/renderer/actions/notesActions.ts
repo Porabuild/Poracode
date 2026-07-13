@@ -6,9 +6,13 @@ import { openNewThread } from "./threadActions";
  * Opens a draft composer pre-filled with the text so the user can review/edit
  * the prompt and pick a model/mode before launching — it does not auto-send.
  */
-export function newThreadFromText(projectId: string, text: string): void {
+export function newThreadFromText(
+  projectId: string,
+  text: string,
+  options?: { bindLeadingSkill?: boolean },
+): void {
   const trimmed = text.trim();
   if (!trimmed) return;
-  useAppStore.getState().setComposerSeed(projectId, trimmed);
+  useAppStore.getState().setComposerSeed(projectId, trimmed, options?.bindLeadingSkill);
   openNewThread(projectId);
 }

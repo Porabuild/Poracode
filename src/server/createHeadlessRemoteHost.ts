@@ -63,6 +63,8 @@ export interface HeadlessRemoteHostOptions {
   readonly supervisorPath: string;
   /** Directory of in-WSL helper assets; forwarded to the supervisor for parity. */
   readonly wslHelpersDir: string;
+  /** Directory of app-bundled read-only skills; forwarded to the supervisor. */
+  readonly bundledSkillsDir?: string;
   /** base64 32-byte AES key shared with the supervisor for secret sealing. */
   readonly secretStorageKey: string;
   /** Data dir; defaults to the standard Lightcode base dir for the channel. */
@@ -166,6 +168,7 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
     isDev,
     supervisorPath: options.supervisorPath,
     wslHelpersDir: options.wslHelpersDir,
+    ...(options.bundledSkillsDir ? { bundledSkillsDir: options.bundledSkillsDir } : {}),
     secretStorageKey: options.secretStorageKey,
     resolveExtraEnv: () => {
       const info = appControlsMcpIngress?.getInfo();

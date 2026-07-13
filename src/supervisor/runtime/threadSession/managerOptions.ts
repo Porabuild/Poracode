@@ -3,6 +3,7 @@ import type {
   AgentKind,
   McpServer,
   ProjectLocation,
+  PromptSegment,
   ThreadServerRequestId,
 } from "@/shared/contracts";
 import type { BrowserMcpHttpConfig } from "@/supervisor/agents/browserMcp";
@@ -53,7 +54,10 @@ export interface ThreadSessionManagerOptions {
    * module — these are thin hooks only.
    */
   subagentMcp?: {
-    register(threadId: string): SubagentMcpHttpConfig | undefined;
+    register(
+      threadId: string,
+      disabledTools?: readonly string[],
+    ): SubagentMcpHttpConfig | undefined;
     unregister(threadId: string): void;
     cancelAll(threadId: string): void;
     /**
@@ -77,4 +81,31 @@ export interface ThreadSessionManagerOptions {
    * config builders. Tokens are refreshed by the supervisor's OAuth service.
    */
   applyMcpServerAuthorization?(servers: McpServer[]): Promise<McpServer[]>;
+  /** Wrap servers with disabled tools in Poracode's same-environment filtering proxy. */
+  prepareMcpToolFilters?(
+    servers: McpServer[],
+    projectLocation: ProjectLocation,
+  ): Promise<McpServer[]>;
+  /** Synchronize Lightcode-owned provider skill projections before a new agent process starts. */
+  prepareSkillsForLaunch?(projectLocation: ProjectLocation, agentKind: AgentKind): Promise<void>;
+  /**
+   * Portable-skills fallback for structured turns: returns inline SKILL.md
+   * instructions for skill segments the provider can't load natively, or
+   * `undefined` when nothing needs inlining. Must never throw.
+   */
+  buildSkillTurnInjection?(input: {
+    agentKind: AgentKind;
+    projectLocation: ProjectLocation;
+    segments: readonly PromptSegment[];
+  }): Promise<string | undefined>;
+  /**
+   * Portable-skills fallback for terminal (PTY) turns: replaces skill segments
+   * the agent's CLI can't resolve natively with a short path-hint sentence.
+   * Must never throw; returns the segments to type.
+   */
+  rewriteTerminalSkillSegments?(input: {
+    agentKind: AgentKind;
+    projectLocation: ProjectLocation;
+    segments: PromptSegment[];
+  }): Promise<PromptSegment[]>;
 }

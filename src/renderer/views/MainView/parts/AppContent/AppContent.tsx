@@ -17,6 +17,7 @@ import { isHomeProject } from "@/shared/homeScope";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { buildPaneLayoutFromLegacy, findPaneAlign } from "@/shared/paneLayout";
+import { titlePromptFromSegments } from "@/shared/threadTitle";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import {
@@ -120,13 +121,7 @@ export async function startThreadFromDraft(
     agentStatuses,
     wslAgentStatuses,
   );
-  const titlePrompt = segments
-    ? segments
-        .filter((segment) => segment.kind !== "attachment")
-        .map((segment) => (segment.kind === "file" ? `@${segment.path}` : segment.content))
-        .join("")
-        .trim() || prompt
-    : prompt;
+  const titlePrompt = titlePromptFromSegments(prompt, segments);
   const currentView = store.view;
   const activeGroup =
     options.preserveActiveGroup !== false &&

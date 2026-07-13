@@ -1,13 +1,25 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
-import type { AgentStatus, Project, Thread, ThreadPresentationMode } from "@/shared/contracts";
+import type {
+  AgentStatus,
+  Project,
+  PromptSegment,
+  SkillScanResult,
+  Thread,
+  ThreadPresentationMode,
+} from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ThreadDraftComposerArea } from "./ThreadDraftComposerArea";
 import type { ComposerControl } from "./ThreadComposer";
 import { ThreadView } from "./ThreadView";
+import {
+  bindLeadingSkillInvocation,
+  rebindSkillSegments,
+  resolveAvailableSlashCommands,
+} from "./threadSlashCommands";
 
 const { bridge } = vi.hoisted(() => ({
   bridge: {
@@ -17,6 +29,13 @@ const { bridge } = vi.hoisted(() => ({
     dbGetThreadRuntimeItems: vi.fn<() => Promise<[]>>().mockResolvedValue([]),
     pickFiles: vi.fn<() => Promise<string[] | undefined>>().mockResolvedValue(undefined),
     writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    scanSkills: vi.fn<() => Promise<SkillScanResult>>().mockResolvedValue({
+      skills: [],
+      effectiveSkillIds: [],
+      invocation: null,
+      issues: [],
+      canLinkToGlobal: true,
+    }),
   },
 }));
 
@@ -161,6 +180,13 @@ describe("ThreadSlashCommands", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    bridge.scanSkills.mockResolvedValue({
+      skills: [],
+      effectiveSkillIds: [],
+      invocation: null,
+      issues: [],
+      canLinkToGlobal: true,
+    });
     vi.unstubAllGlobals();
     useAppStore.getState().clearDraftContent(draftProject.id);
     useAppStore.setState({ draftContentDiscardRequests: {} });
@@ -357,6 +383,229 @@ describe("ThreadSlashCommands", () => {
     expect(screen.getByText("/agent")).toBeInTheDocument();
     expect(screen.getByText("/goal")).toBeInTheDocument();
     expect(screen.queryByText("/status")).not.toBeInTheDocument();
+  });
+
+  it("shows effective skills in a separate group and submits structured metadata", async () => {
+    bridge.scanSkills.mockResolvedValue({
+      skills: [
+        {
+          id: "global:review-code",
+          name: "review-code",
+          description: "Review a patch",
+          folderName: "review-code",
+          absolutePath: "C:\\Users\\me\\.agents\\skills\\review-code",
+          skillFilePath: "C:\\Users\\me\\.agents\\skills\\review-code\\SKILL.md",
+          rootPath: "C:\\Users\\me\\.agents\\skills",
+          providerId: "agents",
+          providerLabel: "Shared",
+          scope: "global",
+          scopeLabel: "Global",
+          origin: "managed",
+          enabled: true,
+          mutable: true,
+          valid: true,
+          linked: false,
+        },
+      ],
+      effectiveSkillIds: ["global:review-code"],
+      invocation: "dollar",
+      issues: [],
+      canLinkToGlobal: true,
+    });
+    const onStart = vi.fn<(input: unknown) => void>();
+    const status = makeAgentStatus({ kind: "codex", label: "Codex" });
+    renderDraftComposer(status, onStart, "gui");
+
+    const editor = screen.getByRole("textbox");
+    typeSlashQuery(editor, "/");
+
+    expect(await screen.findByText("Skills")).toBeInTheDocument();
+    expect(screen.getByText("/review-code")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("/review-code"));
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "$review-code",
+        segments: [
+          {
+            kind: "skill",
+            name: "review-code",
+            path: "C:\\Users\\me\\.agents\\skills\\review-code\\SKILL.md",
+            invocation: "$review-code",
+            provider: "Shared",
+            scope: "global",
+          },
+          { kind: "text", content: " " },
+        ],
+      }),
+    );
+  });
+
+  it("rebinds a saved skill chip to the currently selected provider", () => {
+    expect(
+      rebindSkillSegments(
+        [
+          {
+            kind: "skill",
+            name: "review-code",
+            path: "/old/SKILL.md",
+            invocation: "$review-code",
+            provider: "Codex",
+            scope: "global",
+          },
+        ],
+        [
+          {
+            id: "review-code",
+            label: "review-code",
+            section: "skills",
+            skillName: "review-code",
+            skillPath: "/project/.gemini/skills/review-code/SKILL.md",
+            skillInvocation: "/review-code",
+            skillProvider: "Gemini",
+            skillScope: "project",
+          },
+        ],
+        (name) => `Use the ${name} skill.`,
+      ),
+    ).toEqual([
+      {
+        kind: "skill",
+        name: "review-code",
+        path: "/project/.gemini/skills/review-code/SKILL.md",
+        invocation: "/review-code",
+        provider: "Gemini",
+        scope: "project",
+      },
+    ]);
+  });
+
+  it("binds typed leading skill text to a skill segment with the provider invocation", () => {
+    expect(
+      bindLeadingSkillInvocation(
+        [{ kind: "text", content: "/skill-creator Create a new managed skill." }],
+        [
+          {
+            id: "skill-creator",
+            label: "skill-creator",
+            section: "skills",
+            skillName: "skill-creator",
+            skillPath: "/bundled/skill-creator/SKILL.md",
+            skillInvocation: "Use the skill-creator skill.",
+            skillProvider: "Poracode built-ins",
+            skillScope: "global",
+          },
+        ],
+      ),
+    ).toEqual([
+      {
+        kind: "skill",
+        name: "skill-creator",
+        path: "/bundled/skill-creator/SKILL.md",
+        invocation: "Use the skill-creator skill.",
+        provider: "Poracode built-ins",
+        scope: "global",
+      },
+      { kind: "text", content: " Create a new managed skill." },
+    ]);
+  });
+
+  it("leaves segments alone when no skill matches or a skill chip is already present", () => {
+    const noMatch: PromptSegment[] = [{ kind: "text", content: "/unknown do something" }];
+    expect(bindLeadingSkillInvocation(noMatch, [])).toEqual(noMatch);
+
+    const withChip: PromptSegment[] = [
+      {
+        kind: "skill",
+        name: "review-code",
+        path: "/skills/review-code/SKILL.md",
+        invocation: "/review-code",
+        provider: "Shared",
+        scope: "global",
+      },
+      { kind: "text", content: "/skill-creator too" },
+    ];
+    expect(
+      bindLeadingSkillInvocation(withChip, [
+        {
+          id: "skill-creator",
+          label: "skill-creator",
+          section: "skills",
+          skillName: "skill-creator",
+          skillPath: "/bundled/skill-creator/SKILL.md",
+          skillInvocation: "/skill-creator",
+          skillProvider: "Poracode built-ins",
+          skillScope: "global",
+        },
+      ]),
+    ).toEqual(withChip);
+  });
+
+  it("filters provider-native disabled skills from local discovery", () => {
+    expect(
+      resolveAvailableSlashCommands(undefined, undefined, {
+        skillCommands: [
+          {
+            id: "review-code",
+            label: "review-code",
+            section: "skills",
+            skillName: "review-code",
+            skillPath: "/skills/review-code/SKILL.md",
+            skillInvocation: "$review-code",
+            skillProvider: "Codex",
+            skillScope: "global",
+          },
+        ],
+        disabledSkillNames: ["review-code"],
+      }),
+    ).toEqual([]);
+  });
+
+  it("does not reintroduce locally discovered skills when the provider catalog is authoritative", async () => {
+    bridge.scanSkills.mockResolvedValue({
+      skills: [
+        {
+          id: "global:disabled-native",
+          name: "disabled-native",
+          description: "Disabled by Codex",
+          folderName: "disabled-native",
+          absolutePath: "C:\\skills\\disabled-native",
+          skillFilePath: "C:\\skills\\disabled-native\\SKILL.md",
+          rootPath: "C:\\skills",
+          providerId: "codex",
+          providerLabel: "Codex",
+          scope: "global",
+          scopeLabel: "Global",
+          origin: "external",
+          enabled: true,
+          mutable: true,
+          valid: true,
+          linked: false,
+        },
+      ],
+      effectiveSkillIds: ["global:disabled-native"],
+      invocation: "dollar",
+      issues: [],
+      canLinkToGlobal: true,
+    });
+    renderThread(
+      makeThread({
+        agentKind: "codex",
+        presentationMode: "gui",
+        slashCommands: [{ id: "help", label: "help" }],
+      }),
+      makeAgentStatus({
+        kind: "codex",
+        label: "Codex",
+        capabilities: { ...makeAgentStatus().capabilities, reportsSkillCatalog: true },
+      }),
+    );
+
+    const editor = screen.getByRole("textbox");
+    typeSlashQuery(editor, "/");
+    await waitFor(() => expect(bridge.scanSkills).toHaveBeenCalled());
+    expect(screen.queryByText("/disabled-native")).not.toBeInTheDocument();
   });
 
   it("runs Codex GUI draft commands locally without launching a thread", () => {

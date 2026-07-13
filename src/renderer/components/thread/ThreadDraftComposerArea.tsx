@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Tooltip, toast } from "@heroui/react";
 import { Download, Monitor, Webhook, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -13,6 +13,7 @@ import type {
 import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
 import { isHomeProjectId } from "@/shared/homeScope";
+import { skillSegmentFromSlashCommand } from "@/shared/promptContent";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
   AttachmentBar,
@@ -53,16 +54,19 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
+import { useSkillSlashCommandState } from "@/renderer/components/skills/useSkills";
 import { ThreadAgentUpdateDock } from "./ThreadAgentUpdateDock";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import {
+  bindLeadingSkillUnlessLocalAction,
   filterSlashCommands,
   handleSlashCommandPanelKeyDown,
+  rebindSkillSegments,
   resolveAvailableSlashCommands,
-  resolveLocalSlashCommandAction,
+  resolveLocalActionUnlessSkill,
 } from "./threadSlashCommands";
 import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
@@ -303,6 +307,7 @@ export function ThreadDraftComposerArea(props: {
   );
   const pendingComposerSeed = useAppStore((s) => s.pendingComposerSeeds[props.project.id]);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
+  const commandListId = useId();
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
   const [controlOpenRequest, setControlOpenRequest] = useState<{
     target: "model" | "effort";
@@ -315,6 +320,10 @@ export function ThreadDraftComposerArea(props: {
   attachmentsRef.current = attachments.attachments;
   const submittedRef = useRef(false);
   const initialDraftRef = useRef(useAppStore.getState().draftContents[props.project.id]);
+  const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
+    props.project.location,
+    props.selectedAgent.kind,
+  );
   const availableCommands = resolveAvailableSlashCommands(
     undefined,
     props.selectedAgent.capabilities.slashCommands,
@@ -328,6 +337,8 @@ export function ThreadDraftComposerArea(props: {
           []
         ).length ?? 0) > 0,
       supportsFast: supportsUsableFastMode(props.selectedAgent.capabilities, props.config.model),
+      skillCommands,
+      disabledSkillNames: props.selectedAgent.capabilities.disabledSkillNames,
     },
   );
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
@@ -527,11 +538,20 @@ export function ThreadDraftComposerArea(props: {
   }
 
   function submitSegments(allSegments: PromptSegment[], fallbackPrompt = "") {
-    const flatPrompt = flattenSegments(allSegments) || fallbackPrompt.trim();
+    const boundSegments = bindLeadingSkillUnlessLocalAction(allSegments, availableCommands, {
+      agentKind: props.selectedAgent.kind,
+      presentationMode: props.presentationMode,
+    });
+    const currentSegments = rebindSkillSegments(
+      boundSegments,
+      availableCommands,
+      (name) => t`Use the ${name} skill.`,
+    );
+    const flatPrompt = flattenSegments(currentSegments) || fallbackPrompt.trim();
     if (flatPrompt.length === 0) {
       return;
     }
-    const localAction = resolveLocalSlashCommandAction(flatPrompt, {
+    const localAction = resolveLocalActionUnlessSkill(currentSegments, flatPrompt, {
       agentKind: props.selectedAgent.kind,
       presentationMode: props.presentationMode,
     });
@@ -579,7 +599,7 @@ export function ThreadDraftComposerArea(props: {
       agentKind: props.selectedAgent.kind,
       config: props.config,
       prompt: flatPrompt,
-      ...(allSegments.length > 0 ? { segments: allSegments } : {}),
+      ...(currentSegments.length > 0 ? { segments: currentSegments } : {}),
       presentationMode: props.presentationMode,
       ...(useWorktree
         ? branchSelection?.worktreePath
@@ -651,9 +671,27 @@ export function ThreadDraftComposerArea(props: {
   // already-open draft (where openDraft does not remount this component).
   useEffect(() => {
     if (!pendingComposerSeed) return;
+    if (pendingComposerSeed.bindLeadingSkill) {
+      const match = /^\/([^\s]+)(?:\s+([\s\S]*))?$/.exec(pendingComposerSeed.text);
+      const command = match
+        ? skillCommands.find((candidate) => candidate.id === match[1])
+        : undefined;
+      if (!skillCommandsResolved) return;
+      if (command) {
+        const skill = skillSegmentFromSlashCommand(command);
+        if (skill) {
+          mentionRef.current?.insertSegments([
+            skill,
+            ...(match?.[2] ? [{ kind: "text" as const, content: ` ${match[2]}` }] : []),
+          ]);
+        }
+        useAppStore.getState().clearComposerSeed(projectId);
+        return;
+      }
+    }
     mentionRef.current?.insertText(pendingComposerSeed.text);
     useAppStore.getState().clearComposerSeed(projectId);
-  }, [pendingComposerSeed, projectId]);
+  }, [pendingComposerSeed, projectId, skillCommands, skillCommandsResolved]);
 
   useEffect(() => {
     const pid = props.project.id;
@@ -719,9 +757,10 @@ export function ThreadDraftComposerArea(props: {
               <ThreadCommandPanel
                 commands={filteredCommands}
                 activeIndex={slashActiveIndex}
+                listId={commandListId}
                 onActiveIndexChange={setSlashActiveIndex}
                 onSelect={(cmd) => {
-                  mentionRef.current?.insertSlashCommand(cmd.id);
+                  mentionRef.current?.insertSlashCommand(cmd);
                   setSlashQuery(null);
                 }}
               />
@@ -770,6 +809,12 @@ export function ThreadDraftComposerArea(props: {
               props.placeholder ?? (isRemote ? t`Plan, ask, build…` : t`Send a message...`)
             }
             projectLocation={isHomeScope ? undefined : props.project.location}
+            {...(showCommandPanel
+              ? {
+                  commandListId,
+                  commandActiveDescendant: `${commandListId}-option-${slashActiveIndex}`,
+                }
+              : {})}
             {...(!isHomeScope ? { projectId: props.project.id } : {})}
             onTextChange={(hasText) => {
               setHasContent(hasText);

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { AgentCapability, ProjectLocation, PromptSegment } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import { createAcpStructuredSession } from "../acp";
 import {
@@ -100,6 +101,22 @@ export function createGeminiAdapter(): AgentAdapter {
     kind: geminiDetectionSpec.kind,
     label: geminiDetectionSpec.label,
     binary: geminiDetectionSpec.binary,
+    skillSupport: {
+      roots: [
+        {
+          id: "gemini",
+          label: geminiDetectionSpec.label,
+          globalPath: ".gemini/skills",
+          projectPath: ".gemini/skills",
+          globalOverride: { env: "GEMINI_CLI_HOME", path: ".gemini/skills" },
+        },
+      ],
+      invocation: "prompt",
+      precedence: {
+        global: ["agents", "gemini"],
+        project: ["agents", "gemini"],
+      },
+    },
     ...(geminiDetectionSpec.update ? { update: geminiDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
@@ -206,7 +223,7 @@ export function createGeminiAdapter(): AgentAdapter {
       const attachments = segments.filter((s) => s.kind === "attachment");
       const rest = segments.filter((s) => s.kind !== "attachment");
       const attachmentLines = attachments.map((s) => `@${s.path}`).join(" ");
-      const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+      const restStr = rest.map(inlinePromptSegmentText).join("");
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
     handleOscNotification: iterm2ProgressOscHint,

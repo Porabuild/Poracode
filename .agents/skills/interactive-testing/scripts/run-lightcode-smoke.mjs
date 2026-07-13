@@ -18,6 +18,9 @@ const root = resolve(
 );
 const outDir = resolve(String(args.outDir ?? join(root, "artifacts")));
 const dataDir = join(root, "data");
+const homeDir = join(root, "home");
+const localAppDataDir = join(root, "local-app-data");
+const roamingAppDataDir = join(root, "roaming-app-data");
 const projectDir = join(root, "project");
 const integrationScript = join(
   repoRoot,
@@ -43,6 +46,11 @@ try {
       LIGHTCODE_CDP_PORT: String(port),
       LIGHTCODE_BASE_DIR: dataDir,
       LIGHTCODE_SMOKE_OUT_DIR: outDir,
+      HOME: homeDir,
+      USERPROFILE: homeDir,
+      LOCALAPPDATA: localAppDataDir,
+      APPDATA: roamingAppDataDir,
+      PSModuleAnalysisCachePath: join(root, "powershell", "ModuleAnalysisCache"),
     },
     detached: process.platform !== "win32",
     stdio: "inherit",
@@ -113,9 +121,36 @@ function pnpmSpawnCommand() {
 
 async function createFixture() {
   await mkdir(projectDir, { recursive: true });
+  await mkdir(homeDir, { recursive: true });
+  await mkdir(localAppDataDir, { recursive: true });
+  await mkdir(roamingAppDataDir, { recursive: true });
   await mkdir(outDir, { recursive: true });
+  const managedSkillDir = join(projectDir, ".agents", "skills", "smoke-review");
+  const externalSkillDir = join(projectDir, ".claude", "skills", "smoke-external");
+  const globalManagedSkillDir = join(homeDir, ".agents", "skills", "smoke-global");
+  const globalExternalSkillDir = join(homeDir, ".claude", "skills", "smoke-global-external");
+  await mkdir(managedSkillDir, { recursive: true });
+  await mkdir(externalSkillDir, { recursive: true });
+  await mkdir(globalManagedSkillDir, { recursive: true });
+  await mkdir(globalExternalSkillDir, { recursive: true });
   await writeFile(join(projectDir, "README.md"), "# Lightcode smoke fixture\n");
   await writeFile(join(projectDir, "hello.txt"), "fixture data\n");
+  await writeFile(
+    join(managedSkillDir, "SKILL.md"),
+    "---\nname: smoke-review\ndescription: Deterministic managed smoke skill\n---\n\n# Smoke review\n",
+  );
+  await writeFile(
+    join(externalSkillDir, "SKILL.md"),
+    "---\nname: smoke-external\ndescription: Deterministic external smoke skill\n---\n\n# Smoke external\n",
+  );
+  await writeFile(
+    join(globalManagedSkillDir, "SKILL.md"),
+    "---\nname: smoke-global\ndescription: Deterministic global smoke skill\n---\n\n# Smoke global\n",
+  );
+  await writeFile(
+    join(globalExternalSkillDir, "SKILL.md"),
+    "---\nname: smoke-global-external\ndescription: Deterministic global external smoke skill\n---\n\n# Smoke global external\n",
+  );
   await writeFile(
     join(projectDir, ".mcp.json"),
     `${JSON.stringify(

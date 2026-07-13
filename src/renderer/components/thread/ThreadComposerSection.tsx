@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -60,6 +61,7 @@ import type { ThreadGoalDockState } from "./threadGoalState";
 import type { ThreadTodoDockState } from "./threadTodoState";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerDocks } from "./ThreadComposerDocks";
+import { useSkillSlashCommands } from "@/renderer/components/skills/useSkills";
 
 type ThreadComposerSectionProps = {
   threadId: string;
@@ -169,6 +171,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     }
   }, [pendingPickedAttachments, thread.id]);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
+  const commandListId = useId();
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
   const [controlOpenRequest, setControlOpenRequest] = useState<{
     target: "model" | "effort";
@@ -213,6 +216,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ]
       : []),
   ];
+  const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind);
   const availableCommands = resolveAvailableSlashCommands(
     thread.slashCommands,
     agentStatus?.capabilities.slashCommands,
@@ -228,6 +232,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       supportsFast: agentStatus
         ? supportsUsableFastMode(agentStatus.capabilities, thread.config.model)
         : false,
+      skillCommands,
+      disabledSkillNames: agentStatus?.capabilities.disabledSkillNames,
+      skillCatalogAuthoritative:
+        agentStatus?.capabilities.reportsSkillCatalog === true &&
+        presentationMode === "gui" &&
+        thread.slashCommands !== undefined,
     },
   );
   const filteredCommands = filterSlashCommands(availableCommands, slashQuery);
@@ -394,6 +404,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       needsFocusBeforeInput,
       activeRuntimeRequest,
       approvalDenyOption,
+      availableCommands,
       attachments,
       mentionRef,
       terminalPaneRef: props.terminalPaneRef,
@@ -589,6 +600,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         activeRuntimeRequest={activeRuntimeRequest}
                         filteredCommands={filteredCommands}
                         slashActiveIndex={slashActiveIndex}
+                        commandListId={commandListId}
                         onCloseContextDock={() => setContextDockOpen(false)}
                         onDismissError={props.onDismissError}
                         onGoalDockDismiss={props.onGoalDockDismiss}
@@ -603,7 +615,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           : {})}
                         onSlashActiveIndexChange={setSlashActiveIndex}
                         onSelectCommand={(cmd) => {
-                          mentionRef.current?.insertSlashCommand(cmd.id);
+                          mentionRef.current?.insertSlashCommand(cmd);
                           setSlashQuery(null);
                         }}
                       />
@@ -634,6 +646,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             : t`Send a message...`
                       }
                       projectLocation={projectLocation}
+                      {...(showCommandPanel
+                        ? {
+                            commandListId,
+                            commandActiveDescendant: `${commandListId}-option-${slashActiveIndex}`,
+                          }
+                        : {})}
                       projectId={thread.projectId}
                       mcpMentions={mcpMentions}
                       onTextChange={(hasText) => {

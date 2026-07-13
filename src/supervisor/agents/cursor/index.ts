@@ -1,4 +1,5 @@
 import type { AgentCapability, PromptSegment } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
   buildAgentCommand,
@@ -73,6 +74,48 @@ export function createCursorAdapter(): AgentAdapter {
     kind: cursorDetectionSpec.kind,
     label: cursorDetectionSpec.label,
     binary: cursorDetectionSpec.binary,
+    skillSupport: {
+      roots: [
+        {
+          id: "cursor",
+          label: cursorDetectionSpec.label,
+          globalPath: ".cursor/skills",
+          projectPath: ".cursor/skills",
+        },
+        {
+          id: "cursor-legacy",
+          label: cursorDetectionSpec.label,
+          globalPath: ".cursor/skills-cursor",
+        },
+        {
+          // cursor-agent natively scans `.agents/skills/` (verified against the
+          // shipped binary's scan-root list) — no projection or prompt
+          // injection needed for canonical skills.
+          id: "agents",
+          label: "Shared agent skills",
+          globalPath: ".agents/skills",
+          projectPath: ".agents/skills",
+        },
+        {
+          id: "claude",
+          label: "Claude-compatible skills",
+          globalPath: ".claude/skills",
+          projectPath: ".claude/skills",
+        },
+        {
+          id: "codex",
+          label: "Codex-compatible skills",
+          globalPath: ".codex/skills",
+          projectPath: ".codex/skills",
+          globalOverride: { env: "CODEX_HOME", path: "skills" },
+        },
+      ],
+      invocation: "slash",
+      precedence: {
+        global: ["cursor", "agents", "claude", "codex", "cursor-legacy"],
+        project: ["cursor", "agents", "claude", "codex"],
+      },
+    },
     ...(cursorDetectionSpec.update ? { update: cursorDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
@@ -164,7 +207,7 @@ export function createCursorAdapter(): AgentAdapter {
       const attachments = segments.filter((s) => s.kind === "attachment");
       const rest = segments.filter((s) => s.kind !== "attachment");
       const attachmentLines = attachments.map((s) => `@${s.path}`).join(" ");
-      const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+      const restStr = rest.map(inlinePromptSegmentText).join("");
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
     isReadyForInitialPrompt(text) {

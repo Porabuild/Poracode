@@ -28,13 +28,17 @@ function inferImageMime(path: string): string {
 export async function buildSdkUserMessage(
   prompt: string,
   segments?: PromptSegment[],
+  inlineInstructions?: string,
 ): Promise<SDKUserMessage> {
   if (!segments || segments.length === 0) {
     return {
       type: "user",
       session_id: "",
       parent_tool_use_id: null,
-      message: { role: "user", content: prompt },
+      message: {
+        role: "user",
+        content: inlineInstructions ? `${prompt}\n\n${inlineInstructions}` : prompt,
+      },
     } as SDKUserMessage;
   }
 
@@ -82,6 +86,9 @@ export async function buildSdkUserMessage(
   }
   flushText();
   if (content.length === 0 && prompt.length > 0) content.push({ type: "text", text: prompt });
+  // Portable-skills fallback: appended to the provider payload only, never to
+  // the painted user_message (see StartTurnOptions.inlineInstructions).
+  if (inlineInstructions) content.push({ type: "text", text: inlineInstructions });
 
   return {
     type: "user",

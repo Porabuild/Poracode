@@ -192,15 +192,15 @@ export function unavailableMcpProbeResult(
   };
 }
 
-async function listToolCount(
+async function listTools(
   client: Client,
   signal: AbortSignal,
   timeoutMs: number,
-): Promise<number> {
-  if (!client.getServerCapabilities()?.tools) return 0;
+): Promise<string[]> {
+  if (!client.getServerCapabilities()?.tools) return [];
 
   let cursor: string | undefined;
-  let count = 0;
+  const tools: string[] = [];
   const seenCursors = new Set<string>();
   for (let page = 0; page < MAX_TOOL_PAGES; page += 1) {
     const result = await raceWithAbort(
@@ -211,12 +211,16 @@ async function listToolCount(
       }),
       signal,
     );
-    count += result.tools.length;
-    if (count > MAX_TOOL_COUNT) {
+    for (const tool of result.tools) {
+      const name = safeMetadata(tool.name);
+      if (!name) throw new Error("Invalid tools/list result: missing tool name");
+      tools.push(name);
+    }
+    if (tools.length > MAX_TOOL_COUNT) {
       throw new Error("Invalid tools/list result: too many tools");
     }
     const nextCursor = result.nextCursor;
-    if (!nextCursor) return count;
+    if (!nextCursor) return tools;
     if (seenCursors.has(nextCursor)) {
       throw new Error("Invalid tools/list result: repeated cursor");
     }
@@ -264,13 +268,14 @@ export async function probeMcpServer(
     await raceWithAbort(connect, controller.signal);
     if (transport instanceof StdioClientTransport) stdioPid = transport.pid;
 
-    const toolCount = await listToolCount(client, controller.signal, server.timeoutMs);
+    const tools = await listTools(client, controller.signal, server.timeoutMs);
     const implementation = client.getServerVersion();
     const name = safeMetadata(implementation?.name);
     const version = safeMetadata(implementation?.version);
     return {
       status: "available",
-      toolCount,
+      toolCount: tools.length,
+      tools,
       latencyMs: Math.max(0, Date.now() - startedAt),
       environment,
       ...(name || version

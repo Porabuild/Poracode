@@ -6,6 +6,7 @@ import type {
   ThreadConfig,
 } from "@/shared/contracts";
 import { isOpenCodeBrowserMcpEnabled } from "@/shared/opencodeSettings";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
   createKnownSessionRef,
@@ -101,6 +102,43 @@ export function createOpenCodeAdapter(): AgentAdapter {
     kind: opencodeDetectionSpec.kind,
     label: opencodeDetectionSpec.label,
     binary: opencodeDetectionSpec.binary,
+    skillSupport: {
+      roots: [
+        {
+          id: "opencode",
+          label: opencodeDetectionSpec.label,
+          globalPath: ".config/opencode/skills",
+          projectPath: ".opencode/skills",
+          globalOverride: { env: "OPENCODE_CONFIG_DIR", path: "skills" },
+        },
+        {
+          id: "opencode-singular",
+          label: opencodeDetectionSpec.label,
+          globalPath: ".config/opencode/skill",
+          projectPath: ".opencode/skill",
+          globalOverride: { env: "OPENCODE_CONFIG_DIR", path: "skill" },
+        },
+        {
+          id: "claude",
+          label: "Claude-compatible skills",
+          globalPath: ".claude/skills",
+          projectPath: ".claude/skills",
+        },
+        {
+          // OpenCode auto-loads `~/.agents/skills` and project `.agents/skills`
+          // (verified against the shipped binary's scan globs).
+          id: "agents",
+          label: "Shared agent skills",
+          globalPath: ".agents/skills",
+          projectPath: ".agents/skills",
+        },
+      ],
+      invocation: "prompt",
+      precedence: {
+        global: ["opencode", "opencode-singular", "agents", "claude"],
+        project: ["opencode", "opencode-singular", "agents", "claude"],
+      },
+    },
     ...(opencodeDetectionSpec.update ? { update: opencodeDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
@@ -214,9 +252,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
       const attachmentLines = attachments
         .map((segment) => `@${shortenHomePath(segment.path)}`)
         .join(" ");
-      const restStr = rest
-        .map((segment) => (segment.kind === "file" ? `@${segment.path}` : segment.content))
-        .join("");
+      const restStr = rest.map(inlinePromptSegmentText).join("");
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
 

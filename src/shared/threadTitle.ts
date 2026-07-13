@@ -1,4 +1,5 @@
 import type { PromptSegment } from "./contracts";
+import { inlinePromptSegmentText } from "./promptContent";
 
 /**
  * Flatten a prompt's segments into the plain text used to derive a thread
@@ -14,7 +15,7 @@ export function titlePromptFromSegments(
   return segments
     ? segments
         .filter((segment) => segment.kind !== "attachment")
-        .map((segment) => (segment.kind === "file" ? `@${segment.path}` : segment.content))
+        .map(inlinePromptSegmentText)
         .join("")
         .trim() || prompt
     : prompt;

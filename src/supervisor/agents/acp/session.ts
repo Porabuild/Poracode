@@ -722,8 +722,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // Signal working state immediately
     this.emitListenerUpdate({ status: "working", attention: "working" });
 
+    // Portable-skills fallback: append to the outbound prompt only — the
+    // user_message paint above must stay clean of inlined skill bodies.
+    const outboundPrompt = options?.inlineInstructions
+      ? `${prompt}\n\n${options.inlineInstructions}`
+      : prompt;
     const contentBlocks = await segmentsToContentBlocks(
-      prompt,
+      outboundPrompt,
       this.projectLocation,
       segments,
       this.agentPromptCapabilities,

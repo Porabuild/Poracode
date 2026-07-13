@@ -60,8 +60,15 @@ msgstr "{0, plural, one {# dự án} other {# dự án}}"
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# nhà cung cấp đã sẵn sàng} other {# nhà cung cấp đã sẵn sàng}}"
 
-#. placeholder {0}: props.server.toolCount
-#. placeholder {0}: state.toolCount
+#. placeholder {0}: props.skills.length
+#. placeholder {0}: skills.length
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "{0, plural, one {# skill} other {# skills}}"
+msgstr "{0, plural, one {# skill} other {# skill}}"
+
+#. placeholder {0}: props.count
+#. placeholder {0}: toolList.tools.length
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "{0, plural, one {# tool} other {# tools}}"
 msgstr "{0, plural, one {# công cụ} other {# công cụ}}"
@@ -245,9 +252,17 @@ msgstr "{0} đã cập nhật."
 msgid "{0} used"
 msgstr "Đã dùng {0}"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "{0}: {stateLabel}"
+msgstr "{0}: {stateLabel}"
+
 #. placeholder {0}: selectedRows.length
+#. placeholder {0}: selectedSkills.length
 #. placeholder {1}: importableRows.length
+#. placeholder {1}: selectable.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}/{1} selected"
 msgstr "Đã chọn {0}/{1}"
 
@@ -448,6 +463,14 @@ msgstr "{visibleCount} trong số {totalCount} hiển thị"
 msgid "/absolute/path/to/project"
 msgstr "/absolute/path/to/project"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "/skill-creator Create a new managed skill for {destination}."
+#~ msgstr "/skill-creator Tạo một skill được quản lý mới cho {destination}."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "/skill-creator Create a new managed skill for {destinationLabel}."
+msgstr "/skill-creator Tạo một skill được quản lý mới cho {destinationLabel}."
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "© {currentYear} Serhii Vecherenko. Mọi quyền được bảo lưu."
@@ -600,6 +623,10 @@ msgstr "Thêm một dự án cục bộ"
 msgid "Add a project"
 msgstr "Thêm dự án"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add a project before creating a skill."
+msgstr "Thêm dự án trước khi tạo skill."
+
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
 msgstr "Thêm một dự án trước khi cài đặt một tác nhân."
@@ -613,6 +640,14 @@ msgstr "Thêm một dự án trước khi đăng nhập."
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "Thêm một dự án để bắt đầu"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
+msgstr "Thêm skill vào .agents/skills hoặc .poracode/skills, hoặc nhập từ nhà cung cấp khác."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Add a skill to .agents/skills or import one from another provider."
+#~ msgstr "Thêm một skill vào .agents/skills hoặc nhập skill từ nhà cung cấp khác."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add a to-do…"
@@ -690,6 +725,14 @@ msgstr "Thêm remote"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Add shortcut"
 msgstr "Thêm phím tắt"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add skill"
+msgstr "Thêm skill"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add skill destination"
+msgstr "Đích của skill mới"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
@@ -801,6 +844,7 @@ msgid "Alerts when threads need you"
 msgstr "Cảnh báo khi luồng cần bạn"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
@@ -809,6 +853,11 @@ msgstr "Tất cả"
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
 msgstr "Tất cả tài khoản"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "All agent apps"
+msgstr "Tất cả ứng dụng agent"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "All devices"
@@ -826,6 +875,10 @@ msgstr "Tất cả các tập tin"
 #: src/mobile/views/ThreadsView.tsx
 msgid "All projects"
 msgstr "Tất cả dự án"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "All sources"
+msgstr "Tất cả nguồn"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/helpers.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -846,6 +899,10 @@ msgstr "Cho phép trang này truy cập camera trong cài đặt trình duyệt 
 msgid "Allow eval"
 msgstr "Cho phép eval"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Allow replacing conflicting managed skills"
+msgstr "Cho phép thay thế các skill được quản lý đang xung đột"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Allow the browser to show notifications while the app is in the background."
 msgstr "Cho phép trình duyệt hiển thị thông báo khi ứng dụng ở nền."
@@ -853,6 +910,11 @@ msgstr "Cho phép trình duyệt hiển thị thông báo khi ứng dụng ở n
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Already configured"
 msgstr "Đã cấu hình"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Already imported"
+msgstr "Đã nhập"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Already used by {conflict}"
@@ -1101,6 +1163,10 @@ msgstr "Tự động hiển thị bảng điều khiển thiết bị đầu cu�
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "Tự động hiển thị bảng terminal khi chạy lệnh hoặc tạo cây làm việc."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Availability"
+msgstr "Phạm vi khả dụng"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "available"
 msgstr "có sẵn"
@@ -1337,8 +1403,13 @@ msgid "Building diff…"
 msgstr "Đang dựng diff…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "Tích hợp sẵn"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Built-in and plugin skills"
+#~ msgstr "Skill tích hợp sẵn và skill của plugin"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in MCP servers"
@@ -1480,6 +1551,10 @@ msgstr "Thay đổi"
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Changes ({0})"
 msgstr "Thay đổi ({0})"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Changes apply to new chats. Providers that support live skill reload may update sooner."
+msgstr "Thay đổi áp dụng cho cuộc trò chuyện mới. Nhà cung cấp hỗ trợ tải lại skill trực tiếp có thể cập nhật sớm hơn."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Changes in PR"
@@ -1727,6 +1802,8 @@ msgstr "Nhân bản…"
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
@@ -2143,6 +2220,10 @@ msgstr "Giải quyết xung đột"
 msgid "Conflicts"
 msgstr "Xung đột"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Conflicts with a managed skill"
+msgstr "Xung đột với một skill được quản lý"
+
 #: src/mobile/setupEmptyState.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -2312,6 +2393,10 @@ msgstr "Đã sao chép vào bộ nhớ tạm"
 msgid "Copy"
 msgstr "Sao chép"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Copy (recommended)"
+msgstr "Sao chép (khuyên dùng)"
+
 #. placeholder {0}: activeDeviceCode.providerLabel
 #. placeholder {1}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2437,6 +2522,15 @@ msgstr "Không thể tạo dự án."
 msgid "Couldn't create the worktree."
 msgstr "Không thể tạo worktree."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Couldn't import the selected skills."
+msgstr "Không thể nhập các skill đã chọn."
+
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Couldn't install {0}."
+msgstr "Không thể cài đặt {0}."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Không thể liệt kê các kho lưu trữ."
@@ -2444,6 +2538,10 @@ msgstr "Không thể liệt kê các kho lưu trữ."
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "Couldn't load the changelog. Check your connection, or view it on GitHub."
 msgstr "Không thể tải nhật ký thay đổi. Hãy kiểm tra kết nối hoặc xem trên GitHub."
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "Couldn't load the skill."
+msgstr "Không thể tải skill."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2453,6 +2551,10 @@ msgstr "Không thể tải thống kê hồ sơ của bạn."
 msgid "Couldn't save the shortcut."
 msgstr "Không thể lưu phím tắt."
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Couldn't scan agent skills."
+msgstr "Không thể quét skill của tác tử."
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "Không thể quét cấu hình máy chủ MCP."
@@ -2460,6 +2562,10 @@ msgstr "Không thể quét cấu hình máy chủ MCP."
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "Không thể khởi động camera"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Couldn't update the skill."
+msgstr "Không thể cập nhật skill."
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Create"
@@ -2549,9 +2655,17 @@ msgstr "Thông tin xác thực được cấu hình."
 msgid "Credits"
 msgstr "Số dư tín dụng"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Curated free and premium skills managed by MCP Market."
+#~ msgstr "Các skill miễn phí và cao cấp được tuyển chọn, do MCP Market quản lý."
+
 #: src/mobile/views/ThreadsView.tsx
 msgid "Current"
 msgstr "Gần đây"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#~ msgid "Current project"
+#~ msgstr "Dự án hiện tại"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "current streak"
@@ -2645,6 +2759,7 @@ msgstr "Hành vi xóa chủ đề mặc định"
 #. Thread remove action: delete permanently
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -2656,10 +2771,23 @@ msgstr "Hành vi xóa chủ đề mặc định"
 msgid "Delete"
 msgstr "Xóa"
 
+#. placeholder {0}: pendingDelete?.name
+#. placeholder {1}: pendingDelete?.absolutePath
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Delete “{0}” from {1}? This cannot be undone."
+msgstr "Xóa “{0}” khỏi {1}? Thao tác này không thể hoàn tác."
+
+#. placeholder {0}: pendingDelete.name
+#. placeholder {1}: pendingDelete.providerLabel
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Delete “{0}” from {1}? This removes its source folder and cannot be undone."
+msgstr "Xóa “{0}” khỏi {1}? Thao tác này sẽ xóa thư mục nguồn và không thể hoàn tác."
+
 #. placeholder {0}: branch.name
 #. placeholder {0}: entry.group.groupName
-#. placeholder {0}: thread.title
+#. placeholder {0}: skill.name
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Delete {0}"
@@ -2698,6 +2826,10 @@ msgstr "Xóa lịch?"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete scheduled task?"
 #~ msgstr "Xóa tác vụ đã lên lịch?"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Delete skill"
+msgstr "Xóa skill"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete task"
@@ -2775,6 +2907,10 @@ msgstr "Không thể kết nối tới desktop."
 msgid "Desktop Settings"
 msgstr "Cài đặt máy tính"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Destination"
+msgstr "Đích"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Details"
 #~ msgstr "Chi tiết"
@@ -2832,6 +2968,11 @@ msgstr "Thiết bị có thể ghép nối khi máy tính này có thể truy c�
 #~ msgid "Direct connection required"
 #~ msgstr "Cần kết nối trực tiếp"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Disable {0}"
+msgstr "Tắt {0}"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Disable {serverLabel}"
 msgstr "Tắt {serverLabel}"
@@ -2843,6 +2984,10 @@ msgstr "Tắt {serverName}"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
 msgstr "Tắt mức nỗ lực {tierLabel}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disable {tool}"
+msgstr "Tắt {tool}"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Disable Browser MCP"
@@ -2874,6 +3019,7 @@ msgid "Disable tiers an external provider collapses (e.g. keep only High and Max
 msgstr "Tắt các mức mà nhà cung cấp bên ngoài gộp lại (ví dụ chỉ giữ High và Max)."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "Đã tắt"
@@ -2881,6 +3027,10 @@ msgstr "Đã tắt"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Disabled globally"
 msgstr "Đã tắt trên toàn hệ thống"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
+msgstr "Khi tắt một skill, skill đó được chuyển khỏi các thư mục skill đang hoạt động và các bản sao của nhà cung cấp do Poracode quản lý sẽ bị xóa. Các tệp vẫn được giữ lại để bạn có thể bật lại."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
@@ -3103,6 +3253,11 @@ msgstr "Mức nỗ lực"
 msgid "Electron"
 msgstr "Electron"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Enable {0}"
+msgstr "Bật {0}"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Enable {serverLabel}"
 msgstr "Bật {serverLabel}"
@@ -3114,6 +3269,10 @@ msgstr "Bật {serverName}"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
 msgstr "Bật mức nỗ lực {tierLabel}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Enable {tool}"
+msgstr "Bật {tool}"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3137,6 +3296,7 @@ msgstr "Kích hoạt dự án"
 msgid "Enable providers in settings"
 msgstr "Bật nhà cung cấp trong cài đặt"
 
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Enabled"
 msgstr "Đã bật"
@@ -3339,6 +3499,10 @@ msgstr "Bên ngoài"
 msgid "External provider"
 msgstr "Nhà cung cấp bên ngoài"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "External provider skills"
+#~ msgstr "Skill của nhà cung cấp bên ngoài"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "Extra High"
 msgstr "Cực cao"
@@ -3466,6 +3630,14 @@ msgstr "Các tệp khớp với các mẫu glob này sẽ bị ẩn khỏi tìm 
 #: src/mobile/views/ThreadsView.tsx
 msgid "Filter by project"
 msgstr "Lọc theo dự án"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Filter marketplace by source"
+msgstr "Lọc marketplace theo nguồn"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Filter skills by status"
+msgstr "Lọc skill theo trạng thái"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -3622,6 +3794,11 @@ msgstr "Chuyển tiếp một cổng"
 msgid "Found {0, plural, one {# importable MCP server} other {# importable MCP servers}}"
 msgstr "Đã tìm thấy {0, plural, one {# máy chủ MCP có thể nhập} other {# máy chủ MCP có thể nhập}}"
 
+#. placeholder {0}: selectable.length
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Found {0, plural, one {# importable skill} other {# importable skills}}"
+msgstr "Đã tìm thấy {0, plural, one {# skill có thể nhập} other {# skill có thể nhập}}"
+
 #. placeholder {0}: activeRequest.providerLabel
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Found a signed-in {0} session."
@@ -3750,6 +3927,10 @@ msgstr "GitHub Copilot"
 msgid "GitHub Repository"
 msgstr "Kho lưu trữ GitHub"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "GitHub stars"
+msgstr "Sao GitHub"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Gitignored files to copy from the main project into each new worktree. Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
 msgstr "Các tệp được Gitignored để sao chép từ dự án chính vào từng cây làm việc mới. Các mẫu kiểu Gitignore, mỗi mẫu một dòng (ví dụ: <0>.env.*</0>)."
@@ -3763,10 +3944,22 @@ msgstr "GLM 5.2 (nhãn tùy chọn)"
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Global"
 msgstr "Toàn cục"
 
+#: src/renderer/components/skills/skillTargets.ts
+msgid "Global (Linux)"
+msgstr "Toàn cục (Linux)"
+
+#: src/renderer/components/skills/skillTargets.ts
+msgid "Global (macOS)"
+msgstr "Toàn cục (macOS)"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/skills/skillTargets.ts
 msgid "Global (Windows)"
 msgstr "Toàn cục (Windows)"
 
@@ -3793,6 +3986,11 @@ msgstr "Mục tiêu đã đặt"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "Đã hiểu"
+
+#. placeholder {0}: skill.securityGrade
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Grade {0}"
+msgstr "Xếp hạng {0}"
 
 #: src/renderer/components/providers/grok/manifest.ts
 msgid "Grok Build"
@@ -3898,6 +4096,11 @@ msgstr "Ẩn bảng gỡ lỗi thời gian chạy"
 msgid "Hide sidebar"
 msgstr "Ẩn thanh bên"
 
+#. placeholder {0}: first.providerLabel
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Hide skills from {0}"
+msgstr "Ẩn skill từ {0}"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
@@ -3972,7 +4175,12 @@ msgstr "Hình ảnh"
 msgid "Image preview"
 msgstr "Xem trước hình ảnh"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Import conflict"
+msgstr "Xung đột khi nhập"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Import destination"
 msgstr "Đích nhập"
 
@@ -3980,9 +4188,25 @@ msgstr "Đích nhập"
 msgid "Import external agent MCP servers"
 msgstr "Nhập máy chủ MCP của tác nhân bên ngoài"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Import external agent skills"
+msgstr "Nhập skill của tác tử bên ngoài"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Import external skills"
+msgstr "Nhập skill bên ngoài"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
 msgstr "Nhập máy chủ MCP"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Import method"
+msgstr "Phương thức nhập"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Import selected"
+msgstr "Nhập mục đã chọn"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
@@ -3995,6 +4219,21 @@ msgstr "Nhập vào phạm vi toàn cục"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Import to Project"
 #~ msgstr "Nhập vào dự án"
+
+#. placeholder {0}: selectedSkills.length
+#. placeholder {1}: selectedSkills.length === 1 ? "skill" : "skills"
+#: src/renderer/components/skills/SkillImportModal.tsx
+#~ msgid "Imported {0} {1}."
+#~ msgstr "Đã nhập {0} {1}."
+
+#. placeholder {0}: selectedSkills.length
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Imported {0} skills."
+msgstr "Đã nhập {0} skill."
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Imported 1 skill."
+msgstr "Đã nhập 1 skill."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -4043,6 +4282,7 @@ msgstr "Kiểm tra các mục thời gian chạy chuẩn"
 msgid "install"
 msgstr "cài đặt"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -4077,6 +4317,11 @@ msgstr "Cài đặt móc CLI"
 msgid "Install in WSL: {distro}"
 msgstr "Cài đặt trong WSL: {distro}"
 
+#. placeholder {0}: props.targetLabel
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Install managed skills into {0}."
+msgstr "Cài đặt các skill được quản lý vào {0}."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Cài đặt nhà cung cấp gốc trước; sử dụng ACP cho các tác nhân giao thức bổ sung."
@@ -4110,10 +4355,16 @@ msgstr "Cài đặt v{updateVersion}"
 msgid "Install v{version}"
 msgstr "Cài đặt v{version}"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Installed"
 msgstr "Đã cài đặt"
+
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Installed {0}."
+msgstr "Đã cài đặt {0}."
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -4128,7 +4379,6 @@ msgstr "Cài đặt trong thiết bị đầu cuối này. Đóng lại khi hoà
 msgid "Instructions"
 msgstr "Hướng dẫn"
 
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
 msgstr "Hướng dẫn mà các tác nhân tuân theo khi chọn tác nhân hoặc mô hình để ủy thác."
@@ -4260,6 +4510,14 @@ msgstr "Sáng"
 msgid "Lightcode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Lightcode và các tác tử chạy trên máy từ xa. SSH chỉ được dùng để khởi động môi trường từ xa và bảo vệ đường hầm cục bộ của môi trường đó."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Link to source"
+msgstr "Liên kết đến nguồn"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Linked"
+msgstr "Đã liên kết"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -4302,6 +4560,10 @@ msgstr "Đang tải trình chỉnh sửa…"
 msgid "Loading file…"
 msgstr "Đang tải tập tin…"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Loading marketplace…"
+msgstr "Đang tải marketplace…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "Đang tải ghi chú…"
@@ -4325,6 +4587,14 @@ msgstr "Đang tải quyền truy cập từ xa…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Loading scheduled tasks"
 msgstr "Đang tải các tác vụ đã lên lịch"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "Loading skill…"
+msgstr "Đang tải skill…"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Loading skills…"
+msgstr "Đang tải skill…"
 
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
@@ -4431,6 +4701,10 @@ msgstr "Đang tìm máy chủ phát triển…"
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "Làm thanh bên trong suốt — hiệu ứng làm mờ của hệ thống trên Windows 11, lớp màu mờ trong suốt ở nơi khác."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Manage global and project agent skills, including skills imported from other providers."
+#~ msgstr "Quản lý skill tác tử toàn cục và theo dự án, bao gồm cả skill được nhập từ nhà cung cấp khác."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "Manage remote environments"
 msgstr "Quản lý môi trường từ xa"
@@ -4438,6 +4712,23 @@ msgstr "Quản lý môi trường từ xa"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote servers"
 #~ msgstr "Quản lý máy chủ từ xa"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+msgid "Manage shared skills across global and project scopes."
+msgstr "Quản lý các skill dùng chung trong phạm vi toàn cục và dự án."
+
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage shared skills across Linux and projects."
+#~ msgstr "Quản lý các skill dùng chung trên Linux và các dự án."
+
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage shared skills across macOS and projects."
+#~ msgstr "Quản lý các skill dùng chung trên macOS và các dự án."
+
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage shared skills across Windows, WSL, and projects."
+#~ msgstr "Quản lý các skill dùng chung trên Windows, WSL và các dự án."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
@@ -4448,9 +4739,29 @@ msgstr "Quản lý môi trường từ xa"
 msgid "Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings."
 msgstr "Quản lý cấu hình máy chủ MCP mà Poracode thêm khi khởi động các tác nhân được hỗ trợ. Máy chủ trong không gian làm việc có thể được cấu hình trong phần cài đặt của từng dự án."
 
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage the skills Poracode makes available to supported agents. Project skills can be managed in each project's settings."
+#~ msgstr "Quản lý các skill mà Poracode cung cấp cho những tác tử được hỗ trợ. Có thể quản lý skill dự án trong phần cài đặt của từng dự án."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Managed"
+#~ msgstr "Được quản lý"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Managed by Poracode"
 msgstr "Do Poracode quản lý"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Managed by provider"
+msgstr "Do nhà cung cấp quản lý"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Managed by the provider or plugin."
+#~ msgstr "Do nhà cung cấp hoặc plugin quản lý."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Managed skills"
+#~ msgstr "Skill được quản lý"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
@@ -4483,6 +4794,14 @@ msgstr "Đánh dấu là xong"
 msgid "Mark Done"
 msgstr "Đánh dấu xong"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Marketplace"
+msgstr "Marketplace"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Marketplace rank"
+msgstr "Xếp hạng marketplace"
+
 #: src/renderer/i18n/locales.ts
 msgid "Match app language"
 msgstr "Theo ngôn ngữ ứng dụng"
@@ -4504,6 +4823,10 @@ msgstr "Tối đa hóa"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "Tối đa hóa trình duyệt"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "MCP Market"
+#~ msgstr "MCP Market"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -4800,6 +5123,14 @@ msgstr "Nhiều tùy chọn đồng bộ hơn"
 msgid "Most active hour"
 msgstr "Giờ hoạt động nhiều nhất"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Most installed"
+#~ msgstr "Được cài đặt nhiều nhất"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Most popular"
+msgstr "Phổ biến nhất"
+
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Most used plugins"
 msgstr "Plugin dùng nhiều nhất"
@@ -4848,6 +5179,7 @@ msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Name"
@@ -5170,6 +5502,7 @@ msgstr "Chưa có dữ liệu"
 msgid "No data yet."
 msgstr "Chưa có dữ liệu."
 
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No description"
 msgstr "Không có mô tả"
@@ -5191,6 +5524,10 @@ msgstr "Không có sự khác biệt nào cho {0}"
 msgid "No diff for {visiblePath}"
 msgstr "Không có sự khác biệt đối với {visiblePath}"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "No external skills were found in this scope."
+msgstr "Không tìm thấy skill bên ngoài trong phạm vi này."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "No file checkpoint is stored for this message."
 msgstr "Không có điểm kiểm tra tập tin nào được lưu trữ cho tin nhắn này."
@@ -5209,6 +5546,10 @@ msgstr "Không tìm thấy tài khoản GitHub CLI nào. Đăng nhập bằng <0
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "Chưa có lịch sử"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "No marketplace skills match these filters."
+msgstr "Không có skill nào trên marketplace khớp với các bộ lọc này."
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -5339,6 +5680,14 @@ msgstr "Chưa có mục thời gian chạy nào cho luồng này."
 msgid "No shortcuts found"
 msgstr "Không tìm thấy phím tắt nào"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "No skills found"
+msgstr "Không tìm thấy skill"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "No skills match your search and filter."
+msgstr "Không có skill nào khớp với tìm kiếm và bộ lọc."
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No skills used yet."
 msgstr "Chưa dùng skill nào."
@@ -5463,6 +5812,14 @@ msgstr "tắt"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "Tắt"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Official"
+msgstr "Chính thức"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Official sources only"
+msgstr "Chỉ nguồn chính thức"
 
 #: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5635,10 +5992,22 @@ msgstr "Mở xem trước hình ảnh"
 msgid "Open in editor"
 msgstr "Mở trong trình chỉnh sửa"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Open leaderboard with install and trend metrics."
+msgstr "Bảng xếp hạng mở với số liệu cài đặt và xu hướng."
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open links in"
 msgstr "Mở liên kết trong"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Open marketplace"
+#~ msgstr "Mở marketplace"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Open MCP Market to browse purchases and downloads without bypassing its account or licensing flow."
+#~ msgstr "Mở MCP Market để duyệt các giao dịch mua và bản tải xuống mà không bỏ qua quy trình tài khoản hoặc cấp phép."
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Open model picker"
@@ -5776,6 +6145,10 @@ msgstr "Kết quả"
 msgid "Over pace — runs out early"
 msgstr "Vượt nhịp độ — hết sớm"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Overridden by project"
+#~ msgstr "Bị dự án ghi đè"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN."
 msgstr "Ghi đè giá trị mặc định của Claude — ví dụ ANTHROPIC_BASE_URL và ANTHROPIC_AUTH_TOKEN."
@@ -5787,6 +6160,10 @@ msgstr "Ghi đè nơi tạo các cây làm việc của dự án này. Áp dụn
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Overrides {conflict}"
 msgstr "Ghi đè {conflict}"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Overrides global"
+#~ msgstr "Ghi đè skill toàn cục"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
@@ -6002,6 +6379,10 @@ msgstr "Phát âm thanh khi thông báo được hiển thị."
 msgid "Play notification sound"
 msgstr "Phát âm thanh thông báo"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Plugin"
+msgstr "Plugin"
+
 #: src/mobile/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Hướng vào mã QR trong Cài đặt → Truy cập từ xa"
@@ -6014,6 +6395,16 @@ msgstr "Trỏ hồ sơ này tới nhà cung cấp ngoài Anthropic (z.ai, …) v
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "Các chủ đề biên tập phổ biến được điều chỉnh cho phù hợp với Poracode. Mỗi cái đều theo chế độ sáng hoặc tối ở trên."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
+#~ msgstr "Poracode không lưu thông tin xác thực marketplace dưới dạng văn bản thuần trong phần cài đặt. Mở danh mục để duyệt các skill đã được quét bảo mật."
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Poracode only"
+msgstr "Chỉ Poracode"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
@@ -6148,6 +6539,7 @@ msgstr "Hồ sơ"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -6174,6 +6566,14 @@ msgstr "ghi chú dự án"
 msgid "Project Settings"
 msgstr "Cài đặt dự án"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
+msgid "Project skills are available only when agents run in this project. Each provider applies its own precedence rules when names overlap."
+msgstr "Skill của dự án chỉ khả dụng khi agent chạy trong dự án này. Mỗi nhà cung cấp áp dụng quy tắc ưu tiên riêng khi các tên trùng nhau."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
+#~ msgid "Project skills override global skills with the same name and are available only when agents run in this project."
+#~ msgstr "Skill dự án ghi đè skill toàn cục có cùng tên và chỉ khả dụng khi tác tử chạy trong dự án này."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Project-specific overrides on top of the global search settings."
 msgstr "Ghi đè dành riêng cho dự án ở đầu cài đặt tìm kiếm chung."
@@ -6181,7 +6581,6 @@ msgstr "Ghi đè dành riêng cho dự án ở đầu cài đặt tìm kiếm ch
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 msgid "Projects"
 msgstr "Dự án"
@@ -6238,6 +6637,10 @@ msgstr "nhà cung cấp"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Nhà cung cấp"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Public registry with verified sources and GitHub metrics."
+msgstr "Kho đăng ký công khai với nguồn đã xác minh và số liệu GitHub."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Public URL"
@@ -6400,6 +6803,10 @@ msgstr "Suy luận"
 msgid "Recent"
 msgstr "Gần đây"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Recent installs"
+msgstr "Lượt cài đặt gần đây"
+
 #: src/renderer/views/HomeView.tsx
 msgid "Recent threads"
 msgstr "Luồng gần đây"
@@ -6463,6 +6870,10 @@ msgstr "Làm mới nguồn máy chủ MCP"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
 msgstr "Làm mới registry"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Refresh skills"
+msgstr "Làm mới skill"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -6623,6 +7034,11 @@ msgstr "Xóa dự án"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Xóa phím tắt"
+
+#. placeholder {0}: pendingDelete.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Remove the linked skill “{0}”? Its source folder will not be deleted."
+msgstr "Gỡ skill đã liên kết “{0}”? Thư mục nguồn sẽ không bị xóa."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -6817,6 +7233,7 @@ msgstr "Tiếp tục"
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 msgid "Retry"
 msgstr "Thử lại"
 
@@ -7180,6 +7597,10 @@ msgstr "Tìm kiếm nhánh..."
 msgid "Search files"
 msgstr "Tìm kiếm tập tin"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Search marketplace skills"
+msgstr "Tìm kiếm skill trên marketplace"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Search MCP servers"
 msgstr "Tìm kiếm máy chủ MCP"
@@ -7228,6 +7649,18 @@ msgstr "Tìm kiếm cài đặt"
 msgid "Search shortcuts"
 msgstr "Tìm kiếm phím tắt"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Search skills"
+msgstr "Tìm kiếm skill"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Search skills or sources..."
+msgstr "Tìm skill hoặc nguồn..."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Search skills..."
+msgstr "Tìm kiếm skill..."
+
 #: src/renderer/commands/registry.ts
 msgid "Search the current view"
 msgstr "Tìm kiếm trong chế độ xem hiện tại"
@@ -7254,6 +7687,10 @@ msgstr "Đang tìm kiếm..."
 msgid "Searching…"
 msgstr "Đang tìm kiếm…"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Security-focused directory with verified skill metadata."
+#~ msgstr "Danh mục tập trung vào bảo mật với siêu dữ liệu skill đã được xác minh."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
 msgid "See more"
 msgstr "Xem thêm"
@@ -7261,6 +7698,12 @@ msgstr "Xem thêm"
 #: src/renderer/components/common/OptionMenu.tsx
 msgid "Select"
 msgstr "Chọn"
+
+#. placeholder {0}: skill.name
+#. placeholder {1}: skill.providerLabel
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Select {0} from {1}"
+msgstr "Chọn {0} từ {1}"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select {serverName} from {providerLabel}"
@@ -7291,6 +7734,7 @@ msgid "Select account"
 msgstr "Chọn tài khoản"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all"
 msgstr "Chọn tất cả"
 
@@ -7301,6 +7745,10 @@ msgstr "Chọn tất cả máy chủ MCP"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select all MCP servers from {providerLabel}"
 msgstr "Chọn tất cả máy chủ MCP từ {providerLabel}"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Select all skills"
+msgstr "Chọn tất cả skill"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Select an agent to see its prompt and outcome."
@@ -7396,6 +7844,10 @@ msgstr "Chia sẻ"
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "Chia sẻ hoạt động của bạn"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Shared"
+msgstr "Dùng chung"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -7509,6 +7961,11 @@ msgstr "Hiển thị bảng gỡ lỗi thời gian chạy"
 msgid "Show sidebar"
 msgstr "Hiển thị thanh bên"
 
+#. placeholder {0}: first.providerLabel
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Show skills from {0}"
+msgstr "Hiện skill từ {0}"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show source"
 msgstr "Hiển thị nguồn"
@@ -7522,6 +7979,11 @@ msgstr "Hiển thị nút micrô trong trình soạn thảo."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "Hiển thị nút nhập bằng giọng nói"
+
+#. placeholder {0}: displayedSkills.length
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Showing {0, plural, one {# skill} other {# skills}}"
+msgstr "Đang hiển thị {0, plural, other {# skill}}"
 
 #: src/mobile/views/HostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
@@ -7614,6 +8076,15 @@ msgstr "Đang đăng xuất {env}. Các tác nhân được phát hiện sẽ l�
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Đang đăng xuất. Các tác nhân được phát hiện sẽ làm mới khi nó kết thúc."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skill availability"
+msgstr "Phạm vi khả dụng của skill"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skill marketplace source"
+msgstr "Nguồn marketplace skill"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skill runs"
 msgstr "Lượt chạy skill"
@@ -7622,18 +8093,65 @@ msgstr "Lượt chạy skill"
 msgid "Skill: {skill}"
 msgstr "Kỹ năng: {skill}"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md couldn't be read."
+msgstr "Không thể đọc SKILL.md."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md is missing YAML frontmatter."
+msgstr "SKILL.md thiếu phần siêu dữ liệu YAML ở đầu tệp."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md is missing."
+msgstr "Thiếu SKILL.md."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md is too large."
+msgstr "SKILL.md quá lớn."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 msgid "Skills"
 msgstr "Skill"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skills Directory"
+msgstr "Skills Directory"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skills explored"
 msgstr "Skill đã dùng"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Skills location"
+msgstr "Vị trí skill"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skills marketplace"
+msgstr "Marketplace skill"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skills.sh"
+msgstr "Skills.sh"
+
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
+msgid "Slash commands"
+msgstr "Lệnh gạch chéo"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "Một số kiểm tra không thành công hoặc đang chờ xử lý."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
+msgstr "Không thể quét một số thư mục của nhà cung cấp. Các skill đã tải thành công vẫn được hiển thị."
 
 #: src/mobile/QrScanner.tsx
 msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
@@ -7647,9 +8165,17 @@ msgstr "Sắp xếp theo đã tạo"
 msgid "Sort by last updated"
 msgstr "Sắp xếp theo cập nhật gần đây nhất"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Sort marketplace skills"
+msgstr "Sắp xếp skill trên marketplace"
+
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Sort threads"
 msgstr "Sắp xếp luồng"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Sources"
+msgstr "Nguồn"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Space separated; use quotes around spaces"
@@ -7932,7 +8458,7 @@ msgstr "Không tìm thấy tác nhân phụ."
 msgid "Subagent Result"
 msgstr "Kết quả tác nhân phụ"
 
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "Subagent routing guide"
 msgstr "Hướng dẫn định tuyến tác nhân phụ"
@@ -7944,6 +8470,7 @@ msgstr "Lượt chạy subagent"
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 msgid "Subagents"
 msgstr "Tác nhân phụ"
 
@@ -8229,6 +8756,11 @@ msgstr "Mã QR đó không phải là liên kết ghép nối Poracode."
 msgid "That remote session was already gone."
 msgstr "Phiên từ xa đó đã không còn."
 
+#. placeholder {0}: target.wslDistro
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "the {0} WSL user"
+#~ msgstr "người dùng WSL {0}"
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "tác nhân"
@@ -8253,6 +8785,19 @@ msgstr "Nhịp làm mới nền mặc định, được dùng cho mọi nhà cun
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."
 msgstr "Máy chủ trên máy tính vẫn đang khởi động."
+
+#. placeholder {0}: createTarget.wslDistro
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the global {0} WSL scope"
+msgstr "phạm vi WSL toàn cục {0}"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the Linux user"
+msgstr "người dùng Linux"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the macOS user"
+msgstr "người dùng macOS"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
@@ -8290,9 +8835,45 @@ msgstr "Cấu hình máy chủ không hợp lệ."
 msgid "The server returned an invalid MCP response."
 msgstr "Máy chủ trả về phản hồi MCP không hợp lệ."
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill description is missing."
+msgstr "Thiếu phần mô tả skill."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill description is too long."
+msgstr "Phần mô tả skill quá dài."
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "The skill is copied into the destination and can be changed independently."
+msgstr "Skill được sao chép vào đích và có thể được thay đổi độc lập."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill name is missing."
+msgstr "Thiếu tên skill."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill name must match its folder name."
+msgstr "Tên skill phải khớp với tên thư mục."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill name must use lowercase letters, numbers, and hyphens."
+msgstr "Tên skill chỉ được dùng chữ thường, số và dấu gạch nối."
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "The skill stays synchronized with its source and stops working if the source moves."
+msgstr "Skill luôn được đồng bộ hóa với nguồn và sẽ ngừng hoạt động nếu nguồn bị di chuyển."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "The skills marketplace couldn't be loaded."
+msgstr "Không thể tải marketplace skill."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "nhà cung cấp mục tiêu"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the Windows user"
+msgstr "người dùng Windows"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8321,6 +8902,14 @@ msgstr "Ứng dụng này được phục vụ qua HTTPS nhưng desktop dùng HT
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "Trình duyệt này không hỗ trợ thông báo hệ thống ở đây; bạn vẫn sẽ thấy thông báo trong ứng dụng."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "This catalog manages downloads through its website."
+#~ msgstr "Danh mục này quản lý bản tải xuống thông qua trang web."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "This catalog requires its own API key."
+#~ msgstr "Danh mục này yêu cầu khóa API riêng."
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
@@ -8361,6 +8950,10 @@ msgstr "Việc này sẽ xóa vĩnh viễn nhánh \"{0}\" khỏi điều khiển
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\"."
 msgstr "Việc này sẽ xóa vĩnh viễn nhánh \"{0}\"."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "this project"
+msgstr "dự án này"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "This remote project is unavailable. Reconnect the environment and try again."
@@ -8564,6 +9157,10 @@ msgstr "Không thể nhập giới hạn công cụ"
 msgid "Tool search"
 msgstr "Tìm kiếm công cụ"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Total installs"
+msgstr "Tổng lượt cài đặt"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total prompts"
 msgstr "Tổng số prompt"
@@ -8605,6 +9202,10 @@ msgstr "Phiên âm giọng nói"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
 msgstr "Thanh bên trong suốt"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Trending now"
+msgstr "Đang thịnh hành"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
@@ -9097,6 +9698,10 @@ msgstr "Dùng một thư mục toàn cục, hoặc lồng các cây làm việc 
 msgid "Use Session"
 msgstr "Sử dụng phiên"
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Use the {name} skill."
+msgstr "Sử dụng skill {name}."
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "Sử dụng tài khoản này để theo dõi việc sử dụng hoặc thay đổi người dùng trong trình duyệt trước khi tiếp tục."
@@ -9162,6 +9767,11 @@ msgstr "qua {0}"
 msgid "View"
 msgstr "Xem"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "View {0}"
+msgstr "Xem {0}"
+
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "View all releases on GitHub"
 msgstr "Xem tất cả bản phát hành trên GitHub"
@@ -9173,6 +9783,18 @@ msgstr "Xem diff"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "Xem toàn bộ nhật ký thay đổi"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "View raw"
+msgstr "Xem văn bản thô"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "View rendered"
+msgstr "Xem bản kết xuất"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "View skill"
+#~ msgstr "Xem skill"
 
 #: src/renderer/commands/registry.ts
 msgid "View the changelog"
@@ -9376,7 +9998,7 @@ msgstr "Nơi bảng điều khiển đầu cuối xuất hiện."
 msgid "Will run in {0}:"
 msgstr "Sẽ chạy trong {0}:"
 
-#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -9529,7 +10151,6 @@ msgstr "Viết bình luận…"
 msgid "Write notes for this project…"
 msgstr "Viết ghi chú cho dự án này…"
 
-#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "WSL"
@@ -9541,6 +10162,7 @@ msgid "WSL ({0})"
 msgstr "WSL ({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 msgid "WSL ({distro})"
 msgstr "WSL ({distro})"
 
@@ -9548,6 +10170,11 @@ msgstr "WSL ({distro})"
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "Thư mục gốc WSL"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "WSL user"
+#~ msgstr "Người dùng WSL"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"

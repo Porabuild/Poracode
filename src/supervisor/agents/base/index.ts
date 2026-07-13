@@ -54,6 +54,8 @@ export type {
   AgentOneShotRunner,
   AgentPromptFormatter,
   AgentSessionTracker,
+  AgentSkillRootSpec,
+  AgentSkillSupport,
   AgentTerminalObserver,
   AgentUpdater,
   AgentUpdaterCommand,

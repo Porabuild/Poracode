@@ -20,6 +20,8 @@ export interface QueuedStructuredTurn {
   config: ThreadConfig;
   segments?: PromptSegment[];
   userMessageItemId?: string;
+  /** Inlined SKILL.md instructions for skills the provider can't load natively. */
+  inlineInstructions?: string;
 }
 
 /**

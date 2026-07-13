@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
+  BuiltInMcpServerId,
   DiscoverExternalMcpServersPayload,
   DiscoverExternalMcpServersResult,
   McpProbePayload,
@@ -43,7 +44,10 @@ function managerElement(options: {
   onWorkspaceChange?: (servers: McpServer[]) => void;
   additionalProjects?: McpImportProjectTarget[];
   disabledBuiltIns?: Record<string, boolean>;
+  disabledBuiltInTools?: Record<string, string[]>;
   onBuiltInDisabledChange?: (id: string, disabled: boolean) => void;
+  onBuiltInToolEnabledChange?: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
+  includeSubagentsSettings?: boolean;
 }) {
   const {
     userServers = [],
@@ -54,7 +58,10 @@ function managerElement(options: {
     onWorkspaceChange = () => undefined,
     additionalProjects = [],
     disabledBuiltIns,
+    disabledBuiltInTools,
     onBuiltInDisabledChange,
+    onBuiltInToolEnabledChange,
+    includeSubagentsSettings,
   } = options;
   const workspaceLocation = projectLocation ?? { kind: "windows" as const, path: "C:\\repo" };
   return (
@@ -89,7 +96,20 @@ function managerElement(options: {
       }
       defaultScope={defaultScope}
       {...(disabledBuiltIns ? { disabledBuiltIns } : {})}
+      {...(disabledBuiltInTools ? { disabledBuiltInTools } : {})}
       {...(onBuiltInDisabledChange ? { onBuiltInDisabledChange } : {})}
+      {...(onBuiltInToolEnabledChange ? { onBuiltInToolEnabledChange } : {})}
+      {...(includeSubagentsSettings
+        ? {
+            builtInSettings: {
+              subagents: {
+                title: "Subagents",
+                actionLabel: "Subagent routing guide",
+                content: <div>Routing settings</div>,
+              },
+            },
+          }
+        : {})}
     />
   );
 }
@@ -118,7 +138,33 @@ describe("McpServersManager", () => {
     expect(screen.getByRole("button", { name: "Edit memory" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete memory" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete Browser" })).not.toBeInTheDocument();
-    expect(screen.getByText("44 tools")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "44 tools" })).toBeInTheDocument();
+  });
+
+  it("shows the built-in tool list from its tool count", () => {
+    const onBuiltInToolEnabledChange =
+      vi.fn<(id: BuiltInMcpServerId, tool: string, enabled: boolean) => void>();
+    render(
+      managerElement({
+        disabledBuiltIns: {},
+        disabledBuiltInTools: { "app-controls": ["delete_schedule"] },
+        onBuiltInToolEnabledChange,
+      }),
+    );
+
+    const row = document.querySelector('[data-built-in-mcp-server="app-controls"]');
+    expect(row).not.toBeNull();
+    fireEvent.click(within(row as HTMLElement).getByRole("button", { name: "5 tools" }));
+
+    const dialog = screen.getByRole("dialog", { name: "App Controls" });
+    expect(within(dialog).getByText("list_schedules")).toBeInTheDocument();
+    expect(within(dialog).getByText("delete_schedule")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("switch", { name: "Enable delete_schedule" }));
+    expect(onBuiltInToolEnabledChange).toHaveBeenCalledWith(
+      "app-controls",
+      "delete_schedule",
+      true,
+    );
   });
 
   it("hard-disables a built-in through the dedicated callback", () => {
@@ -134,26 +180,60 @@ describe("McpServersManager", () => {
     expect(onBuiltInDisabledChange).toHaveBeenCalledWith("browser", true);
   });
 
+  it("opens subagents settings in a modal", () => {
+    render(
+      managerElement({
+        disabledBuiltIns: {},
+        includeSubagentsSettings: true,
+      }),
+    );
+
+    const row = document.querySelector('[data-built-in-mcp-server="subagents"]');
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).queryByText("Routing settings")).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(row as HTMLElement).getByRole("button", { name: "Subagent routing guide" }),
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Subagents" });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByText("Routing settings")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByText("Close"));
+    expect(screen.queryByRole("dialog", { name: "Subagents" })).not.toBeInTheDocument();
+  });
+
   it("probes an enabled server once and forwards the workspace location", async () => {
+    const filteredServer = { ...server, disabledTools: ["write"] };
+    const onWorkspaceChange = vi.fn<(servers: McpServer[]) => void>();
     bridge.probeMcpServer.mockResolvedValue({
       status: "available",
       toolCount: 3,
+      tools: ["read", "write", "search"],
       latencyMs: 12,
       environment: { runtime: "host", projectScoped: true },
     });
     render(
       managerElement({
-        workspaceServers: [server],
+        workspaceServers: [filteredServer],
+        onWorkspaceChange,
         defaultScope: "workspace",
         projectLocation: { kind: "windows", path: "C:\\repo" },
       }),
     );
 
     expect(await screen.findByText("Connected")).toBeInTheDocument();
-    expect(screen.getByText("3 tools")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "3 tools" }));
+    expect(screen.getByRole("dialog", { name: "memory" })).toBeInTheDocument();
+    expect(screen.getByText("write")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("switch", { name: "Enable write" }));
+    expect(onWorkspaceChange).toHaveBeenCalledWith([
+      expect.objectContaining({ id: server.id, disabledTools: [] }),
+    ]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Close" }).at(-1)!);
     expect(bridge.probeMcpServer).toHaveBeenCalledOnce();
     expect(bridge.probeMcpServer).toHaveBeenCalledWith({
-      server,
+      server: filteredServer,
       projectLocation: { kind: "windows", path: "C:\\repo" },
     });
 

@@ -313,12 +313,27 @@ export class StreamableHttpMcpIngress<TContext> {
         return { jsonrpc: "2.0", id, result: {} };
       }
       if (method === "tools/list") {
-        return { jsonrpc: "2.0", id, result: { tools: this.options.tools } };
+        const disabled = new Set(identity.disabledTools ?? []);
+        return {
+          jsonrpc: "2.0",
+          id,
+          result: { tools: this.options.tools.filter((tool) => !disabled.has(tool.name)) },
+        };
       }
       if (method === "tools/call") {
         const p = (params ?? {}) as { name?: string; arguments?: Record<string, unknown> };
         const name = String(p.name ?? "");
         const args = (p.arguments ?? {}) as Record<string, unknown>;
+        if (identity.disabledTools?.includes(name)) {
+          return {
+            jsonrpc: "2.0",
+            id,
+            result: {
+              isError: true,
+              content: [{ type: "text", text: `Tool disabled by Poracode: ${name}` }],
+            },
+          };
+        }
         if (!this.options.isKnownToolName(name)) {
           return {
             jsonrpc: "2.0",

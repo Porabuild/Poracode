@@ -31,6 +31,7 @@ import { ChangelogSettings } from "./parts/ChangelogSettings";
 import { AboutSettings } from "./parts/AboutSettings";
 import { DevSettings } from "./parts/DevSettings";
 import { McpServersSettings } from "./parts/McpServersSettings";
+import { SkillsSettings } from "./parts/SkillsSettings";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
 import { AgentSettingsEmpty, SingleAgentSettings } from "./parts/SingleAgentSettings";
 import type { SettingsSection } from "./parts/types";
@@ -52,6 +53,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   shortcuts: () => <ShortcutsSettings />,
   agents: () => <AgentSettingsEmpty />,
   agentsGeneral: () => <AgentsGeneralSettings />,
+  skills: () => <SkillsSettings />,
   mcpServers: () => <McpServersSettings />,
   browser: () => <BrowserSettings />,
   usage: () => <UsageSettings />,

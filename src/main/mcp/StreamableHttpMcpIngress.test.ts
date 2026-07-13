@@ -42,6 +42,33 @@ afterEach(() => {
 });
 
 describe("StreamableHttpMcpIngress auth + host guards", () => {
+  it("filters disabled tools from discovery and calls", async () => {
+    ingress = makeIngress();
+    const info = await ingress.start();
+    const headers = {
+      authorization: `Bearer ${info.token}`,
+      "content-type": "application/json",
+    };
+    const list = await fetch(`${info.url}/mcp?thread=test&disable=noop`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+    });
+    expect((await list.json()).result.tools).toEqual([]);
+
+    const call = await fetch(`${info.url}/mcp?thread=test&disable=noop`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "noop", arguments: {} },
+      }),
+    });
+    expect((await call.json()).result).toMatchObject({ isError: true });
+  });
+
   it("accepts a valid bearer token and rejects a wrong one", async () => {
     ingress = makeIngress();
     const info = await ingress.start();

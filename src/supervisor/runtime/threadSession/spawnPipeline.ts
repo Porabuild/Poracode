@@ -167,16 +167,37 @@ export class SpawnPipeline {
     const requestedPresentation = payload.presentationMode ?? adapter.capabilities.presentationMode;
     const usesTerminalPresentation = requestedPresentation === "terminal";
     const useStructuredFlow = isServerControlled || !usesTerminalPresentation;
-    const effectiveSegments = payload.segments
+    const wslSegments = payload.segments
       ? await rewriteSegmentsForWsl(payload.segments, payload.projectLocation, {
           preserveImageAttachments: useStructuredFlow,
         })
       : undefined;
+    // Terminal skills fallback: skill segments the CLI can't resolve natively
+    // become short path-hint text before the prompt is typed into the PTY.
+    // Structured turns keep the raw segments (they use inline injection).
+    const effectiveSegments =
+      !useStructuredFlow && wslSegments?.some((segment) => segment.kind === "skill")
+        ? ((await ctx.options.rewriteTerminalSkillSegments?.({
+            agentKind: payload.agentKind,
+            projectLocation: payload.projectLocation,
+            segments: wslSegments,
+          })) ?? wslSegments)
+        : wslSegments;
     const initialPrompt =
       effectiveSegments && effectiveSegments.length > 0
         ? (adapter.formatPromptSegments?.(effectiveSegments) ??
           defaultFormatPromptSegments(effectiveSegments))
         : payload.prompt.trim();
+    // Portable-skills fallback for the initial structured turn: inline SKILL.md
+    // instructions for invoked skills this provider can't load natively.
+    const inlineSkillInstructions =
+      useStructuredFlow && effectiveSegments?.some((segment) => segment.kind === "skill")
+        ? await ctx.options.buildSkillTurnInjection?.({
+            agentKind: payload.agentKind,
+            projectLocation: payload.projectLocation,
+            segments: effectiveSegments,
+          })
+        : undefined;
     const shouldQueueInitialPrompt =
       !payload.sessionRef &&
       isServerControlled &&
@@ -208,6 +229,7 @@ export class SpawnPipeline {
     if (shouldPrimeNativeProjectShellEnv(payload.projectLocation)) {
       await primeProjectShellEnv(payload.projectLocation.path);
     }
+    await this.ctx.options.prepareSkillsForLaunch?.(payload.projectLocation, payload.agentKind);
 
     const mcpIdentity = {
       threadId: payload.threadId,
@@ -217,9 +239,16 @@ export class SpawnPipeline {
     if (this.ctx.options.applyMcpServerAuthorization) {
       mcpServers = await this.ctx.options.applyMcpServerAuthorization(mcpServers);
     }
+    if (this.ctx.options.prepareMcpToolFilters) {
+      mcpServers = await this.ctx.options.prepareMcpToolFilters(
+        mcpServers,
+        payload.projectLocation,
+      );
+    }
     const mcpLaunchSnapshot: McpLaunchSnapshot = {
       mcpServers,
       disabledBuiltInMcpServerIds: payload.disabledBuiltInMcpServerIds ?? [],
+      disabledBuiltInMcpTools: payload.disabledBuiltInMcpTools ?? {},
     };
     const launchConfig = effectiveLaunchConfig(
       payload.config,
@@ -236,15 +265,18 @@ export class SpawnPipeline {
       payload.threadId,
       payload.projectLocation,
       launchConfig,
+      mcpLaunchSnapshot,
     );
     const computerUse = this.resolveComputerUseMcpForLaunch(
       payload.projectLocation,
       launchConfig,
+      mcpLaunchSnapshot,
       mcpIdentity,
     );
     const chromeMcp = this.resolveChromeMcpForLaunch(
       payload.projectLocation,
       launchConfig,
+      mcpLaunchSnapshot,
       mcpIdentity,
     );
     const appControlsMcp = await this.resolveAppControlsMcpForLaunch(
@@ -339,14 +371,18 @@ export class SpawnPipeline {
         initialPrompt.length > 0 &&
         structuredSession.startTurn
       ) {
+        const startOptions = {
+          ...(optimisticUserMessageItemId
+            ? { userMessageItemId: optimisticUserMessageItemId }
+            : {}),
+          ...(inlineSkillInstructions ? { inlineInstructions: inlineSkillInstructions } : {}),
+        };
         void structuredSession
           .startTurn(
             initialPrompt,
             launchConfig,
             effectiveSegments,
-            optimisticUserMessageItemId
-              ? { userMessageItemId: optimisticUserMessageItemId }
-              : undefined,
+            Object.keys(startOptions).length > 0 ? startOptions : undefined,
           )
           .catch((error) => {
             if (ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
@@ -366,7 +402,12 @@ export class SpawnPipeline {
       structuredSession?.startTurn
     ) {
       void structuredSession
-        .startTurn(initialPrompt, launchConfig, effectiveSegments)
+        .startTurn(
+          initialPrompt,
+          launchConfig,
+          effectiveSegments,
+          inlineSkillInstructions ? { inlineInstructions: inlineSkillInstructions } : undefined,
+        )
         .catch((error) => {
           console.error("[supervisor] initial turn failed:", error);
           captureSupervisorException(error, {
@@ -534,6 +575,7 @@ export class SpawnPipeline {
     if (shouldPrimeNativeProjectShellEnv(session.projectLocation)) {
       await primeProjectShellEnv(session.projectLocation.path);
     }
+    await this.ctx.options.prepareSkillsForLaunch?.(session.projectLocation, session.agentKind);
     if (!ctx.isCurrentSession(session)) {
       return;
     }
@@ -554,15 +596,18 @@ export class SpawnPipeline {
       session.threadId,
       session.projectLocation,
       launchConfig,
+      mcpLaunchSnapshot,
     );
     const computerUse = this.resolveComputerUseMcpForLaunch(
       session.projectLocation,
       launchConfig,
+      mcpLaunchSnapshot,
       mcpIdentity,
     );
     const chromeMcp = this.resolveChromeMcpForLaunch(
       session.projectLocation,
       launchConfig,
+      mcpLaunchSnapshot,
       mcpIdentity,
     );
     const appControlsMcp = await this.resolveAppControlsMcpForLaunch(
@@ -887,7 +932,10 @@ export class SpawnPipeline {
       location,
       enabled,
       this.ctx.options.wslBridge,
-      identity,
+      {
+        ...identity,
+        disabledTools: mcpLaunchSnapshot.disabledBuiltInMcpTools?.browser ?? [],
+      },
     );
     return cfg;
   }
@@ -903,10 +951,14 @@ export class SpawnPipeline {
   resolveComputerUseMcpForLaunch(
     location: ProjectLocation,
     config: ThreadConfig,
+    mcpLaunchSnapshot: McpLaunchSnapshot,
     identity?: McpThreadIdentity,
   ): ComputerUseMcpHttpConfig | undefined {
     const enabled = config.computerUse === true;
-    return resolveComputerUseMcpHttpConfigForLaunch(location, enabled, identity);
+    return resolveComputerUseMcpHttpConfigForLaunch(location, enabled, {
+      ...identity,
+      disabledTools: mcpLaunchSnapshot.disabledBuiltInMcpTools?.["computer-use"] ?? [],
+    });
   }
 
   /**
@@ -919,10 +971,14 @@ export class SpawnPipeline {
   resolveChromeMcpForLaunch(
     location: ProjectLocation,
     config: ThreadConfig,
+    mcpLaunchSnapshot: McpLaunchSnapshot,
     identity?: McpThreadIdentity,
   ): ChromeMcpHttpConfig | undefined {
     const enabled = config.chromeMcp === true;
-    return resolveChromeMcpHttpConfigForLaunch(location, enabled, identity);
+    return resolveChromeMcpHttpConfigForLaunch(location, enabled, {
+      ...identity,
+      disabledTools: mcpLaunchSnapshot.disabledBuiltInMcpTools?.chrome ?? [],
+    });
   }
 
   resolveAppControlsMcpForLaunch(
@@ -936,7 +992,10 @@ export class SpawnPipeline {
     return resolveAppControlsMcpHttpConfigForLaunch(
       location,
       this.ctx.options.subagentMcpHostAccess,
-      identity,
+      {
+        ...identity,
+        disabledTools: mcpLaunchSnapshot.disabledBuiltInMcpTools?.["app-controls"] ?? [],
+      },
     );
   }
 
@@ -952,9 +1011,13 @@ export class SpawnPipeline {
     threadId: string,
     location: ProjectLocation,
     config: ThreadConfig,
+    mcpLaunchSnapshot: McpLaunchSnapshot,
   ): Promise<SubagentMcpHttpConfig | undefined> {
     if (config.subagentMcp !== true) return undefined;
-    const native = this.ctx.options.subagentMcp?.register(threadId);
+    const native = this.ctx.options.subagentMcp?.register(
+      threadId,
+      mcpLaunchSnapshot.disabledBuiltInMcpTools?.subagents ?? [],
+    );
     return resolveSubagentMcpHttpConfigForLaunch(
       native,
       location,

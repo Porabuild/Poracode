@@ -17,13 +17,13 @@ import { readBridge } from "@/renderer/bridge";
 export type McpServerProbeState =
   | { status: "disabled" }
   | { status: "checking" }
-  | { status: "connected"; toolCount: number }
+  | { status: "connected"; toolCount: number; tools: string[] }
   | { status: "auth-required" }
   | { status: "unavailable"; errorCode: Exclude<McpProbeErrorCode, "auth-required"> };
 
 function stateFromResult(result: McpProbeResult): McpServerProbeState {
   if (result.status === "available") {
-    return { status: "connected", toolCount: result.toolCount };
+    return { status: "connected", toolCount: result.toolCount, tools: result.tools ?? [] };
   }
   if (result.status === "auth-required") return { status: "auth-required" };
   return {

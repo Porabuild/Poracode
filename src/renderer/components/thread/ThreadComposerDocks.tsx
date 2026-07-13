@@ -53,6 +53,7 @@ type ThreadComposerDocksProps = {
   activeRuntimeRequest: OpenRuntimeRequest | undefined;
   filteredCommands: AgentSlashCommand[];
   slashActiveIndex: number;
+  commandListId: string;
   // Callbacks.
   onCloseContextDock: () => void;
   onDismissError: (sourceItemId: string) => void;
@@ -98,6 +99,7 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
     activeRuntimeRequest,
     filteredCommands,
     slashActiveIndex,
+    commandListId,
     onCloseContextDock,
     onDismissError,
     onGoalDockDismiss,
@@ -181,6 +183,7 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
         <ThreadCommandPanel
           commands={filteredCommands}
           activeIndex={slashActiveIndex}
+          listId={commandListId}
           onActiveIndexChange={onSlashActiveIndexChange}
           onSelect={onSelectCommand}
         />

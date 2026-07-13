@@ -605,6 +605,17 @@
   cursor: default;
 }
 
+/* Primary actions use the neutral filled treatment across every app theme.
+   Keep the semantic `primary` variant for submit/save/create actions while the
+   foreground remains theme-derived instead of forcing white, so light themes
+   retain accessible dark text. */
+.button--primary {
+  --button-bg: var(--default);
+  --button-bg-hover: var(--default-hover);
+  --button-bg-pressed: var(--default-hover);
+  --button-fg: var(--foreground);
+}
+
 /* Tertiary: a quiet neutral that still reads as interactive. Borderless, like
    HeroUI's stock tertiary — the separation comes from a fill a touch darker than
    the panel. Derived by darkening --content-background (the surface these controls
@@ -615,7 +626,9 @@
    lands at a uniform ~1.28:1 across every light preset. Dark keeps HeroUI's stock
    fill, so this is light-only. */
 .light .button--tertiary,
-[data-theme="light"] .button--tertiary {
+[data-theme="light"] .button--tertiary,
+.light .button--primary,
+[data-theme="light"] .button--primary {
   --button-bg: color-mix(in oklab, var(--content-background) 89%, #000);
   --button-bg-hover: color-mix(in oklab, var(--content-background) 84%, #000);
   --button-bg-pressed: var(--button-bg-hover);
@@ -2489,6 +2502,11 @@ html[data-app-unfocused] .lightcode-provider-icon--finished {
   flex-shrink: 0;
 }
 
+.lightcode-slash-chip__slash svg {
+  width: 0.85em;
+  height: 0.85em;
+}
+
 .lightcode-slash-chip__name {
   display: inline-flex;
   align-items: center;
@@ -3226,6 +3244,44 @@ html[data-platform="darwin"] .lightcode-sidebar-project-nudge {
 .lightcode-markdown-preview input[type="checkbox"] {
   margin-right: 0.4em;
   vertical-align: middle;
+}
+
+.lightcode-markdown-preview--compact {
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.lightcode-markdown-preview--compact h1,
+.lightcode-markdown-preview--compact h2,
+.lightcode-markdown-preview--compact h3,
+.lightcode-markdown-preview--compact h4,
+.lightcode-markdown-preview--compact h5,
+.lightcode-markdown-preview--compact h6 {
+  margin-top: 1em;
+  margin-bottom: 0.35em;
+}
+
+.lightcode-markdown-preview--compact h1 {
+  font-size: 1.125rem;
+}
+.lightcode-markdown-preview--compact h2 {
+  font-size: 1rem;
+}
+.lightcode-markdown-preview--compact h3 {
+  font-size: 0.925rem;
+}
+.lightcode-markdown-preview--compact h4,
+.lightcode-markdown-preview--compact h5,
+.lightcode-markdown-preview--compact h6 {
+  font-size: 0.875rem;
+}
+
+.lightcode-markdown-preview--compact p {
+  margin: 0.5em 0;
+}
+
+.lightcode-markdown-preview--compact hr {
+  margin: 0.75em 0;
 }
 
 .lc-chat-markdown h1,

@@ -34,6 +34,7 @@ export interface SshRuntimeBundleOptions {
   readonly mainBundleDir: string;
   readonly agentPluginsDir: string;
   readonly wslHelpersDir: string;
+  readonly bundledSkillsDir?: string;
   readonly cacheDir: string;
   readonly tarCommand?: string;
 }
@@ -152,6 +153,7 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
     options.mainBundleDir,
     options.agentPluginsDir,
     options.wslHelpersDir,
+    options.bundledSkillsDir ?? null,
     options.cacheDir,
     options.tarCommand ?? null,
   ]);
@@ -161,7 +163,12 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
   }
 
   const signature = statSignature(
-    [options.mainBundleDir, options.agentPluginsDir, options.wslHelpersDir],
+    [
+      options.mainBundleDir,
+      options.agentPluginsDir,
+      options.wslHelpersDir,
+      ...(options.bundledSkillsDir ? [options.bundledSkillsDir] : []),
+    ],
     runtimePackageJson(),
   );
   const manifest = readBundleManifest(options.cacheDir);
@@ -201,6 +208,11 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
       cpSync(options.wslHelpersDir, join(stage, "wsl-helpers"), { recursive: true });
     } else {
       mkdirSync(join(stage, "wsl-helpers"));
+    }
+    if (options.bundledSkillsDir && existsSync(options.bundledSkillsDir)) {
+      cpSync(options.bundledSkillsDir, join(stage, "skills"), { recursive: true });
+    } else {
+      mkdirSync(join(stage, "skills"));
     }
     writeFileSync(join(stage, "package.json"), runtimePackageJson(), "utf8");
 

@@ -23,12 +23,121 @@ export const BUILT_IN_MCP_SERVER_NAMES: Record<BuiltInMcpServerId, string> = {
 };
 
 /** Tool catalogs advertised by each Poracode-owned MCP server. */
+export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
+  browser: [
+    "api",
+    "list_tabs",
+    "new_tab",
+    "open",
+    "activate_tab",
+    "close_tab",
+    "navigate",
+    "back",
+    "forward",
+    "reload",
+    "get_url",
+    "get_title",
+    "screenshot",
+    "query",
+    "wait_for",
+    "click",
+    "dblclick",
+    "focus",
+    "type",
+    "fill",
+    "check",
+    "uncheck",
+    "select",
+    "eval",
+    "snapshot",
+    "inspect",
+    "get",
+    "is",
+    "find",
+    "hover",
+    "press",
+    "wait",
+    "scroll",
+    "wait_for_url",
+    "wait_for_text",
+    "wait_for_js",
+    "console",
+    "requests",
+    "cookies",
+    "storage",
+    "dialog",
+    "frames",
+    "addscript",
+    "addstyle",
+  ],
+  subagents: [
+    "list_agents",
+    "get_agent",
+    "spawn_agent",
+    "wait_for_agent",
+    "run_agent",
+    "get_status",
+    "cancel",
+    "create_thread",
+    "list_threads",
+    "get_thread",
+    "read_thread",
+    "send_to_thread",
+    "wait_for_thread",
+    "interrupt_thread",
+    "close_thread",
+  ],
+  chrome: [
+    "chrome_status",
+    "chrome_list_tabs",
+    "chrome_open",
+    "chrome_attach",
+    "chrome_navigate",
+    "chrome_reload",
+    "chrome_get_url",
+    "chrome_get_title",
+    "chrome_snapshot",
+    "chrome_find",
+    "chrome_get",
+    "chrome_is",
+    "chrome_click",
+    "chrome_fill",
+    "chrome_type",
+    "chrome_press",
+    "chrome_wait",
+    "chrome_screenshot",
+    "chrome_eval",
+    "chrome_cookies",
+  ],
+  "computer-use": [
+    "api",
+    "list_apps",
+    "list_windows",
+    "launch_app",
+    "get_window",
+    "get_window_state",
+    "activate_window",
+    "click",
+    "press_key",
+    "type_text",
+    "scroll",
+    "drag",
+  ],
+  "app-controls": [
+    "list_schedules",
+    "create_schedule",
+    "update_schedule",
+    "run_schedule",
+    "delete_schedule",
+  ],
+} as const satisfies Record<BuiltInMcpServerId, readonly string[]>;
+
 export const BUILT_IN_MCP_SERVER_TOOL_COUNTS: Record<BuiltInMcpServerId, number> = {
-  browser: 44,
-  subagents: 15,
-  chrome: 20,
-  "computer-use": 12,
-  "app-controls": 5,
+  browser: BUILT_IN_MCP_SERVER_TOOL_NAMES.browser.length,
+  subagents: BUILT_IN_MCP_SERVER_TOOL_NAMES.subagents.length,
+  chrome: BUILT_IN_MCP_SERVER_TOOL_NAMES.chrome.length,
+  "computer-use": BUILT_IN_MCP_SERVER_TOOL_NAMES["computer-use"].length,
+  "app-controls": BUILT_IN_MCP_SERVER_TOOL_NAMES["app-controls"].length,
 };
 
 const RESERVED_MCP_SERVER_NAMES = new Set(
@@ -148,6 +257,7 @@ export const mcpServerSchema = z
     description: z.string().default(""),
     enabled: z.boolean().default(true),
     timeoutMs: z.number().int().positive().default(DEFAULT_MCP_SERVER_TIMEOUT_MS),
+    disabledTools: z.array(z.string().min(1)).optional(),
     transport: mcpTransportSchema,
   })
   .refine((server) => !isReservedMcpServerName(server.name), {
@@ -238,6 +348,7 @@ export const mcpProbeResultSchema = z.discriminatedUnion("status", [
   mcpProbeResultBaseSchema.extend({
     status: z.literal("available"),
     toolCount: z.number().int().nonnegative(),
+    tools: z.array(z.string().min(1)).optional(),
     serverInfo: z
       .object({
         name: z.string().min(1).optional(),
@@ -282,6 +393,11 @@ export const builtInMcpServerDisabledSchema = z
   .default({});
 export type BuiltInMcpServerDisabled = z.infer<typeof builtInMcpServerDisabledSchema>;
 
+export const builtInMcpDisabledToolsSchema = z
+  .partialRecord(z.enum(BUILT_IN_MCP_SERVER_IDS), z.array(z.string().min(1)))
+  .default({});
+export type BuiltInMcpDisabledTools = z.infer<typeof builtInMcpDisabledToolsSchema>;
+
 export function disabledBuiltInMcpServerIds(
   disabled: BuiltInMcpServerDisabled,
 ): BuiltInMcpServerId[] {
@@ -292,10 +408,11 @@ export function disabledBuiltInMcpServerIds(
 export interface McpLaunchSnapshot {
   mcpServers: McpServer[];
   disabledBuiltInMcpServerIds: BuiltInMcpServerId[];
+  disabledBuiltInMcpTools?: BuiltInMcpDisabledTools;
 }
 
 export function emptyMcpLaunchSnapshot(): McpLaunchSnapshot {
-  return { mcpServers: [], disabledBuiltInMcpServerIds: [] };
+  return { mcpServers: [], disabledBuiltInMcpServerIds: [], disabledBuiltInMcpTools: {} };
 }
 
 /**
@@ -306,11 +423,13 @@ export function resolveMcpLaunchSnapshot(
   settings: {
     mcpServers: readonly McpServer[];
     disabledBuiltInMcpServers: BuiltInMcpServerDisabled;
+    disabledBuiltInMcpTools: BuiltInMcpDisabledTools;
   },
   projectMcpServers: readonly McpServer[] = [],
 ): McpLaunchSnapshot {
   return {
     mcpServers: resolveEnabledMcpServers(mergeMcpServers(settings.mcpServers, projectMcpServers)),
     disabledBuiltInMcpServerIds: disabledBuiltInMcpServerIds(settings.disabledBuiltInMcpServers),
+    disabledBuiltInMcpTools: settings.disabledBuiltInMcpTools,
   };
 }

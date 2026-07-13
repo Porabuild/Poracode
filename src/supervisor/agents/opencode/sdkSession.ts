@@ -319,6 +319,11 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
 
     const parts = buildOpenCodePromptParts(prompt, segments, this.input.projectLocation);
+    // Portable-skills fallback: appended to the provider payload only, never
+    // to the painted user_message (see StartTurnOptions.inlineInstructions).
+    if (options?.inlineInstructions) {
+      parts.push({ type: "text", text: options.inlineInstructions });
+    }
     const model = parseModelSlug(config.model);
     // ThreadConfig.mode is `agent | plan | autopilot`; OpenCode's SDK uses
     // `agent` (e.g. "build", "plan") to switch between the two built-in

@@ -11,6 +11,7 @@ import type {
   PromptSegment,
 } from "@/shared/contracts";
 import { claudeProfileKind, parseClaudeProfileInstanceConfig } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 import {
   brailleSpinnerOscTitleHint,
   buildAgentCommand,
@@ -187,6 +188,34 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     kind,
     label,
     binary: claudeDetectionSpec.binary,
+    skillSupport: {
+      roots: [
+        {
+          id: "claude",
+          label,
+          globalPath: ".claude/skills",
+          projectPath: ".claude/skills",
+          ...(options.configDir ? { globalBasePath: options.configDir } : {}),
+          globalOverride: { env: "CLAUDE_CONFIG_DIR", path: "skills" },
+        },
+      ],
+      projectionRoots: [
+        {
+          id: "claude",
+          label,
+          globalPath: ".claude/skills",
+          projectPath: ".claude/skills",
+          ...(options.configDir ? { globalBasePath: options.configDir } : {}),
+          globalOverride: { env: "CLAUDE_CONFIG_DIR", path: "skills" },
+        },
+      ],
+      invocation: "slash",
+      precedence: {
+        scopeOrder: ["global", "project"],
+        global: ["claude", "agents"],
+        project: ["claude", "agents"],
+      },
+    },
     capabilities,
     ...(claudeDetectionSpec.update ? { update: claudeDetectionSpec.update } : {}),
     // WSL OAuth flows try to open a browser; no-op it so the PTY doesn't hang.
@@ -303,7 +332,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       const attachments = segments.filter((s) => s.kind === "attachment");
       const rest = segments.filter((s) => s.kind !== "attachment");
       const attachmentLines = attachments.map((s) => `@${shortenHomePath(s.path)}`).join(" ");
-      const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+      const restStr = rest.map(inlinePromptSegmentText).join("");
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
     handleOscNotification: iterm2ProgressOscHint,

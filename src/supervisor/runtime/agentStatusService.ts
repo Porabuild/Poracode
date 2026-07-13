@@ -37,8 +37,9 @@ const execFileAsync = promisify(execFile);
  * `AgentStatus.preferTerminalLogin` (probe-reported; replaces the renderer's
  * hardcoded Grok check) and `AgentCapability.browserMcpScope` /
  * `subagentMcpScope` (adapter-declared; replace the renderer shadow tables).
+ * v6 adds structured skill command metadata.
  */
-export const STATUS_CACHE_VERSION = 5;
+export const STATUS_CACHE_VERSION = 6;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

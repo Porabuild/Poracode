@@ -33,8 +33,10 @@ export function parseCodexGoalCommand(prompt: string): CodexGoalCommand | undefi
 export function buildCodexTurnInput(
   prompt: string,
   segments: PromptSegment[] | undefined,
+  inlineInstructions?: string,
 ): Record<string, unknown>[] {
   const input: Record<string, unknown>[] = [];
+  const hasSkillSegment = segments?.some((segment) => segment.kind === "skill") === true;
 
   for (const seg of segments ?? []) {
     if (seg.kind === "attachment") {
@@ -53,10 +55,21 @@ export function buildCodexTurnInput(
         path: seg.path,
         name: fileName(seg.path),
       });
+    } else if (seg.kind === "skill") {
+      input.push({ type: "skill", name: seg.name, path: seg.path });
     }
   }
 
-  input.push({ type: "text", text: prompt, text_elements: [] });
+  const text = hasSkillSegment
+    ? (segments ?? [])
+        .flatMap((segment) => (segment.kind === "text" ? [segment.content] : []))
+        .join("")
+        .trim()
+    : prompt;
+  if (text.length > 0) input.push({ type: "text", text, text_elements: [] });
+  // Portable-skills fallback: appended to the provider payload only, never to
+  // the painted user_message (see StartTurnOptions.inlineInstructions).
+  if (inlineInstructions) input.push({ type: "text", text: inlineInstructions, text_elements: [] });
   return input;
 }
 

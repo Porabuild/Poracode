@@ -5,6 +5,7 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { TuxIcon } from "@/renderer/components/common";
 
 export const GLOBAL_MCP_DESTINATION_ID = "user";
+export const MCP_WSL_DESTINATION_PREFIX = "wsl:";
 export const MCP_PROJECT_DESTINATION_PREFIX = "project:";
 
 export interface McpProjectDestination {
@@ -15,6 +16,10 @@ export interface McpProjectDestination {
 
 export function mcpProjectDestinationId(projectId: string): string {
   return `${MCP_PROJECT_DESTINATION_PREFIX}${projectId}`;
+}
+
+export function mcpWslDestinationId(distro: string): string {
+  return `${MCP_WSL_DESTINATION_PREFIX}${distro}`;
 }
 
 export function mcpProjectLocationLabel(location: ProjectLocation): string {
@@ -43,11 +48,14 @@ export function McpProjectDestinationDropdown(props: {
   trigger: ReactNode;
   value: string;
   projects: readonly McpProjectDestination[];
+  wslDistros?: readonly string[];
+  globalLabel?: ReactNode;
   placement: "bottom end" | "top end";
   ariaLabel: string;
   onChange: (destinationId: string) => void;
 }) {
   const { t } = useLingui();
+  const hasWslDestinations = Boolean(props.wslDistros?.length);
   const projectSection =
     props.projects.length > 0
       ? [
@@ -80,16 +88,29 @@ export function McpProjectDestinationDropdown(props: {
           onAction={(key) => props.onChange(String(key))}
         >
           {[
-            <Dropdown.Item
-              key={GLOBAL_MCP_DESTINATION_ID}
-              id={GLOBAL_MCP_DESTINATION_ID}
-              textValue={t`Global`}
-            >
-              <Dropdown.ItemIndicator />
-              <Label>
+            <Dropdown.Section key="global">
+              <Header>
                 <Trans>Global</Trans>
-              </Label>
-            </Dropdown.Item>,
+              </Header>
+              <Dropdown.Item
+                id={GLOBAL_MCP_DESTINATION_ID}
+                textValue={hasWslDestinations ? t`Global (Windows)` : t`Global`}
+              >
+                <Label>
+                  {hasWslDestinations ? <Trans>Windows</Trans> : (props.globalLabel ?? t`Global`)}
+                </Label>
+              </Dropdown.Item>
+              {props.wslDistros?.map((distro) => (
+                <Dropdown.Item
+                  key={mcpWslDestinationId(distro)}
+                  id={mcpWslDestinationId(distro)}
+                  textValue={t`WSL (${distro})`}
+                >
+                  <Label>WSL</Label>
+                  <Description>{distro}</Description>
+                </Dropdown.Item>
+              ))}
+            </Dropdown.Section>,
             ...projectSection,
           ]}
         </Dropdown.Menu>

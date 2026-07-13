@@ -7,6 +7,7 @@ import { lspProcedures } from "./procedures/lsp";
 import { mcpProcedures } from "./procedures/mcp";
 import { profileProcedures } from "./procedures/profile";
 import { scheduleProcedures } from "./procedures/schedules";
+import { skillProcedures } from "./procedures/skills";
 import { projectTreeProcedures } from "./procedures/projectTree";
 import { settingsProcedures } from "./procedures/settings";
 import { sshProcedures } from "./procedures/ssh";
@@ -30,6 +31,7 @@ export const groupedIpcProcedures = {
   usage: usageProcedures,
   profile: profileProcedures,
   schedules: scheduleProcedures,
+  skills: skillProcedures,
 } as const;
 
 export const ipcProcedureMap = {
@@ -48,6 +50,7 @@ export const ipcProcedureMap = {
   ...usageProcedures,
   ...profileProcedures,
   ...scheduleProcedures,
+  ...skillProcedures,
 } as const;
 
 export type IpcProcedureMap = typeof ipcProcedureMap;

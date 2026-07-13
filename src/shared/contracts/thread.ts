@@ -10,7 +10,11 @@ import {
   threadStatusSchema,
 } from "./common";
 import { threadConfigSchema } from "./config";
-import { BUILT_IN_MCP_SERVER_IDS, mcpServerListSchema } from "./mcpServer";
+import {
+  BUILT_IN_MCP_SERVER_IDS,
+  builtInMcpDisabledToolsSchema,
+  mcpServerListSchema,
+} from "./mcpServer";
 
 /** How thread status/attention is derived for terminal agents (supervisor → renderer). */
 export const threadStatusSourceSchema = z.enum(["cli_hook", "terminal_parse", "server"]);
@@ -86,6 +90,14 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), content: z.string() }),
   z.object({ kind: z.literal("file"), path: z.string() }),
   z.object({ kind: z.literal("attachment"), path: z.string(), mimeType: z.string().optional() }),
+  z.object({
+    kind: z.literal("skill"),
+    name: z.string().min(1),
+    path: z.string().min(1),
+    invocation: z.string().min(1),
+    provider: z.string().min(1),
+    scope: z.enum(["global", "project"]),
+  }),
 ]);
 export type PromptSegment = z.infer<typeof promptSegmentSchema>;
 
@@ -104,6 +116,7 @@ export const startThreadPayloadSchema = z.object({
   mcpServers: mcpServerListSchema.optional(),
   /** Built-in MCP ids hard-disabled when this launch snapshot was created. */
   disabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
+  disabledBuiltInMcpTools: builtInMcpDisabledToolsSchema.optional(),
   /**
    * Renderer-allocated id for the user_message item the chat pane has already
    * painted optimistically. The supervisor reuses this id when emitting its

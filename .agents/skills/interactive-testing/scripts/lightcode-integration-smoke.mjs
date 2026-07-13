@@ -382,6 +382,7 @@ async function settingsScenario(client) {
     "remoteAccess",
     "remoteServers",
     "agentsGeneral",
+    "skills",
     "mcpServers",
     "browser",
     "usage",
@@ -392,6 +393,11 @@ async function settingsScenario(client) {
   let mcpListScreenshotPath;
   let mcpScreenshotPath;
   let mcpImportScreenshotPath;
+  let skillsScreenshotPath;
+  let skillsImportScreenshotPath;
+  let skillsImportDestinationsScreenshotPath;
+  let skillsMarketplaceScreenshotPath;
+  let skillsTargetsScreenshotPath;
   for (const section of sections) {
     await evaluate(
       client,
@@ -413,6 +419,28 @@ async function settingsScenario(client) {
     );
     assert(state.hasContent && state.textLength > 0, `settings section ${section} did not render`);
     assert(!state.crash, `settings section ${section} rendered a crash screen`);
+    if (section === "skills") {
+      await waitForValue(
+        () =>
+          evaluate(
+            client,
+            `(() => ({
+              hasSearch: Boolean(document.querySelector('[aria-label="Search skills"]')),
+              text: document.body.innerText,
+            }))()`,
+          ),
+        (result) => result.hasSearch && result.text.includes("smoke-global"),
+        "skills settings fixture",
+      );
+      ({
+        skillsImportScreenshotPath,
+        skillsImportDestinationsScreenshotPath,
+        skillsMarketplaceScreenshotPath,
+        skillsTargetsScreenshotPath,
+      } = await skillsSectionDeepDive(client));
+      skillsScreenshotPath = join(outDir, "smoke-02-skills.png");
+      await screenshot(client, skillsScreenshotPath);
+    }
     if (section === "mcpServers") {
       ({ mcpListScreenshotPath, mcpScreenshotPath, mcpImportScreenshotPath } =
         await mcpServersSectionDeepDive(client, mcpFixture));
@@ -432,6 +460,196 @@ async function settingsScenario(client) {
     ...(mcpListScreenshotPath ? { mcpListScreenshotPath } : {}),
     ...(mcpScreenshotPath ? { mcpScreenshotPath } : {}),
     ...(mcpImportScreenshotPath ? { mcpImportScreenshotPath } : {}),
+    ...(skillsScreenshotPath ? { skillsScreenshotPath } : {}),
+    ...(skillsImportScreenshotPath ? { skillsImportScreenshotPath } : {}),
+    ...(skillsImportDestinationsScreenshotPath ? { skillsImportDestinationsScreenshotPath } : {}),
+    ...(skillsMarketplaceScreenshotPath ? { skillsMarketplaceScreenshotPath } : {}),
+    ...(skillsTargetsScreenshotPath ? { skillsTargetsScreenshotPath } : {}),
+  };
+}
+
+async function skillsSectionDeepDive(client) {
+  const toolbarState = await evaluate(
+    client,
+    `(() => {
+      const marketplace = [...document.querySelectorAll("button")].find(
+        (candidate) => candidate.textContent?.trim() === "Marketplace",
+      );
+      const add = [...document.querySelectorAll("button")].find(
+        (candidate) => candidate.textContent?.trim() === "Add skill",
+      );
+      return {
+        marketplaceTertiary: marketplace?.classList.contains("button--tertiary") ?? false,
+        addTertiary: add?.classList.contains("button--tertiary") ?? false,
+      };
+    })()`,
+  );
+  assert(toolbarState.marketplaceTertiary, "skills marketplace action is not tertiary");
+  assert(toolbarState.addTertiary, "skills add action is not tertiary");
+  await evaluate(client, `document.querySelector('[aria-label="Skills location"]')?.click()`);
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => { const text = document.body.innerText; return text.includes("Global") && text.includes("Projects") && text.includes("project"); })()`,
+      ),
+    Boolean,
+    "skills target menu",
+  );
+  const skillsTargetsScreenshotPath = join(outDir, "smoke-02-skills-targets.png");
+  await screenshot(client, skillsTargetsScreenshotPath);
+  await evaluate(
+    client,
+    `[...document.querySelectorAll('[role="menuitemradio"]')].find((item) => item.textContent?.trim().startsWith("Global"))?.click()`,
+  );
+  const opened = await evaluate(
+    client,
+    `(() => {
+      const button = document.querySelector('button[aria-label="Import external skills"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`,
+  );
+  assert(opened, "skills import modal trigger was unavailable");
+  await waitForValue(
+    () => evaluate(client, `document.body.innerText.includes("Import external agent skills")`),
+    Boolean,
+    "skills import modal",
+  );
+  const importDestinationIsGhost = await evaluate(
+    client,
+    `(() => { const trigger = document.querySelector('button[aria-label="Import destination"]'); return Boolean(trigger?.classList.contains("button--ghost") && trigger.classList.contains("select__trigger")); })()`,
+  );
+  assert(importDestinationIsGhost, "skills import destination does not match select styling");
+  await evaluate(
+    client,
+    `document.querySelector('button[aria-label="Import destination"]')?.click()`,
+  );
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => { const text = document.body.innerText; return text.includes("Global") && text.includes("Projects") && text.includes("project"); })()`,
+      ),
+    Boolean,
+    "skills import destination menu",
+  );
+  const skillsImportDestinationsScreenshotPath = join(
+    outDir,
+    "smoke-02-skills-import-destinations.png",
+  );
+  await screenshot(client, skillsImportDestinationsScreenshotPath);
+  await evaluate(
+    client,
+    `[...document.querySelectorAll('[role="menuitemradio"]')].find((item) => item.textContent?.trim().startsWith("Global"))?.click()`,
+  );
+  const expanded = await evaluate(
+    client,
+    `(() => {
+      const button = [...document.querySelectorAll("button")].find((candidate) =>
+        candidate.getAttribute("aria-label")?.startsWith("Show skills from "),
+      );
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`,
+  );
+  assert(expanded, "skills import provider group was unavailable");
+  const selected = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => {
+          const checkbox = document.querySelector('[aria-label^="Select smoke-global-external from "]');
+          if (!(checkbox instanceof HTMLElement)) return false;
+          checkbox.click();
+          return true;
+        })()`,
+      ),
+    Boolean,
+    "skills import candidate",
+  );
+  assert(selected, "skills import candidate could not be selected");
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => { const button = [...document.querySelectorAll("button")].find((candidate) => candidate.textContent?.trim() === "Import selected"); return Boolean(button && !button.disabled); })()`,
+      ),
+    Boolean,
+    "skills import selection",
+  );
+  const skillsImportScreenshotPath = join(outDir, "smoke-02-skills-import.png");
+  await screenshot(client, skillsImportScreenshotPath);
+  const closed = await evaluate(
+    client,
+    `(() => {
+      const button = document.querySelector('[role="dialog"] button[aria-label="Close"]');
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`,
+  );
+  assert(closed, "skills import modal close button was unavailable");
+  await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `({ modalClosed: !document.body.innerText.includes("Import external agent skills"), settingsOpen: Boolean(document.querySelector('[aria-label="Search skills"]')) })`,
+      ),
+    (state) => state.modalClosed && state.settingsOpen,
+    "skills import modal close",
+  );
+  const marketplaceOpened = await evaluate(
+    client,
+    `(() => {
+      const button = [...document.querySelectorAll("button")].find(
+        (candidate) => candidate.textContent?.trim() === "Marketplace",
+      );
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`,
+  );
+  assert(marketplaceOpened, "skills marketplace trigger was unavailable");
+  await waitForValue(
+    () => evaluate(client, `document.body.innerText.includes("Skills marketplace")`),
+    Boolean,
+    "skills marketplace modal",
+  );
+  const sourceOpened = await evaluate(
+    client,
+    `(() => {
+      const control = document.querySelector('[aria-label="Skill marketplace source"]');
+      if (!(control instanceof HTMLElement)) return false;
+      control.click();
+      return true;
+    })()`,
+  );
+  assert(sourceOpened, "skills marketplace source selector was unavailable");
+  const marketplaceSources = await waitForValue(
+    () =>
+      evaluate(
+        client,
+        `(() => {
+          const options = [...document.querySelectorAll('[role="option"]')].map(
+            (candidate) => candidate.textContent?.trim(),
+          );
+          return { options, hasSkillsSh: options.includes("Skills.sh"), hasSkillsDirectory: options.includes("Skills Directory") };
+        })()`,
+      ),
+    (result) => result.hasSkillsSh && result.hasSkillsDirectory,
+    "skill marketplace source options",
+  );
+  assert(!marketplaceSources.options.includes("MCP Market"), "MCP Market source is still visible");
+  const skillsMarketplaceScreenshotPath = join(outDir, "smoke-02-skills-marketplace.png");
+  await screenshot(client, skillsMarketplaceScreenshotPath);
+  return {
+    skillsImportScreenshotPath,
+    skillsImportDestinationsScreenshotPath,
+    skillsMarketplaceScreenshotPath,
+    skillsTargetsScreenshotPath,
   };
 }
 
@@ -1032,6 +1250,122 @@ async function runMockGate(client, gate, fixture) {
       );
       assert(fixture.bridgeKeys.includes("browserGetState"), "browser MCP bridge is missing");
       return "mock provider status, external MCP discovery, and browser bridge contracts responded";
+    }
+    case "skills-manager": {
+      const initial = await bridgeInvoke(client, "scanSkills", {
+        projectLocation: fixture.project.location,
+      });
+      const managed = initial.skills.find(
+        (skill) =>
+          skill.name === "smoke-review" && skill.scope === "project" && skill.origin === "managed",
+      );
+      const external = initial.skills.find(
+        (skill) =>
+          skill.name === "smoke-external" &&
+          skill.scope === "project" &&
+          skill.origin === "external",
+      );
+      assert(managed?.enabled, "managed fixture skill was not discovered as enabled");
+      assert(external?.importState === "available", "external fixture skill is not importable");
+
+      await bridgeInvoke(client, "setSkillEnabled", {
+        absolutePath: managed.absolutePath,
+        enabled: false,
+        projectLocation: fixture.project.location,
+      });
+      const disabledScan = await bridgeInvoke(client, "scanSkills", {
+        projectLocation: fixture.project.location,
+      });
+      const disabled = disabledScan.skills.find(
+        (skill) => skill.name === "smoke-review" && skill.origin === "managed",
+      );
+      assert(disabled && !disabled.enabled, "managed fixture skill did not disable");
+      await bridgeInvoke(client, "setSkillEnabled", {
+        absolutePath: disabled.absolutePath,
+        enabled: true,
+        projectLocation: fixture.project.location,
+      });
+
+      const imported = await bridgeInvoke(client, "importSkills", {
+        skills: [
+          {
+            sourcePath: external.absolutePath,
+            destinationScope: "project",
+            mode: "copy",
+            replace: false,
+            projectLocation: fixture.project.location,
+          },
+        ],
+      });
+      assert(imported.imported.length === 1, "external fixture skill did not import");
+      const importedScan = await bridgeInvoke(client, "scanSkills", {
+        projectLocation: fixture.project.location,
+      });
+      const importedExternal = importedScan.skills.find(
+        (skill) => skill.name === "smoke-external" && skill.origin === "external",
+      );
+      assert(importedExternal?.enabled, "imported provider fixture was not enabled");
+      await bridgeInvoke(client, "setSkillEnabled", {
+        absolutePath: importedExternal.absolutePath,
+        enabled: false,
+        projectLocation: fixture.project.location,
+      });
+      const disabledExternalScan = await bridgeInvoke(client, "scanSkills", {
+        projectLocation: fixture.project.location,
+      });
+      const disabledExternal = disabledExternalScan.skills.find(
+        (skill) => skill.name === "smoke-external" && skill.origin === "external",
+      );
+      assert(disabledExternal && !disabledExternal.enabled, "provider fixture did not disable");
+      await bridgeInvoke(client, "setSkillEnabled", {
+        absolutePath: disabledExternal.absolutePath,
+        enabled: true,
+        projectLocation: fixture.project.location,
+      });
+      await bridgeInvoke(client, "deleteSkill", {
+        absolutePath: imported.imported[0],
+        projectLocation: fixture.project.location,
+      });
+      const finalScan = await bridgeInvoke(client, "scanSkills", {
+        projectLocation: fixture.project.location,
+      });
+      assert(
+        !finalScan.skills.some(
+          (skill) => skill.name === "smoke-external" && skill.origin === "managed",
+        ),
+        "imported fixture skill was not deleted",
+      );
+      return "managed and provider skill disable/enable, copy import, and delete round-tripped";
+    }
+    case "provider-skill-delivery": {
+      const expected = {
+        claude: "slash",
+        codex: "dollar",
+        gemini: "prompt",
+        opencode: "prompt",
+        copilot: "slash",
+        commandcode: "slash",
+        cursor: "slash",
+        grok: "slash",
+        antigravity: "prompt",
+      };
+      for (const [agentKind, invocation] of Object.entries(expected)) {
+        const result = await bridgeInvoke(client, "scanSkills", {
+          projectLocation: fixture.project.location,
+          agentKind,
+        });
+        assert(
+          result.invocation === invocation,
+          `${agentKind} returned the wrong skill invocation`,
+        );
+        assert(
+          result.skills.some(
+            (skill) => skill.name === "smoke-review" && result.effectiveSkillIds.includes(skill.id),
+          ),
+          `${agentKind} did not receive the managed fixture skill`,
+        );
+      }
+      return "all supported adapters exposed the managed fixture skill with their invocation mode";
     }
     case "native-auth-update": {
       await evaluate(

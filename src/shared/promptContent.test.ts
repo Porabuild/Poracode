@@ -41,6 +41,21 @@ describe("buildPromptContentBlocks", () => {
       },
     ]);
   });
+
+  it("formats skill segments with the provider invocation", () => {
+    expect(
+      buildPromptContentBlocks("Use the review-code skill.", [
+        {
+          kind: "skill",
+          name: "review-code",
+          path: "/home/me/.agents/skills/review-code/SKILL.md",
+          invocation: "Use the review-code skill.",
+          provider: "Gemini",
+          scope: "global",
+        },
+      ]),
+    ).toEqual([{ kind: "text", text: "Use the review-code skill." }]);
+  });
 });
 
 describe("toLocalFileUrl", () => {

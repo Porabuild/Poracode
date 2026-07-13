@@ -130,6 +130,8 @@ export class ThreadSessionManager {
         this.structuredInterruptWatchdog.interruptStructuredTurn(session),
       startStructuredTurn: (session, turn) => this.structuredTurnQueue.start(session, turn),
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
+      resolveSkillTurnInjection: (session, segments) =>
+        this.resolveSkillTurnInjection(session, segments),
     });
     this.cliHookPlugin = new CliHookSessionCoordinator({
       sessions: this.sessions,
@@ -284,11 +286,13 @@ export class ThreadSessionManager {
     const computerUseMcp = this.spawnPipeline.resolveComputerUseMcpForLaunch(
       session.projectLocation,
       launchConfig,
+      mcpLaunchSnapshot,
       identity,
     );
     const chromeMcp = this.spawnPipeline.resolveChromeMcpForLaunch(
       session.projectLocation,
       launchConfig,
+      mcpLaunchSnapshot,
       identity,
     );
     const appControlsMcp = await this.spawnPipeline.resolveAppControlsMcpForLaunch(
@@ -483,11 +487,13 @@ export class ThreadSessionManager {
     // server-controlled OR this thread was launched in chat mode (the
     // structured session owns input/output instead of the PTY).
     if (usesStructuredFlow && session.structuredSession?.startTurn) {
+      const inlineInstructions = await this.resolveSkillTurnInjection(session, effectiveSegments);
       const turn: QueuedStructuredTurn = {
         prompt,
         config: effectiveConfig,
         ...(effectiveSegments ? { segments: effectiveSegments } : {}),
         ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
+        ...(inlineInstructions ? { inlineInstructions } : {}),
       };
       // GUI threads route submit-while-working through the pending-steer
       // path. Renderers should call `setPendingSteer` directly for that case;
@@ -517,11 +523,14 @@ export class ThreadSessionManager {
     }
 
     const pty = requireSessionPty(session);
+    // Terminal skills fallback: skill segments the CLI can't resolve natively
+    // become short path-hint text before the prompt is typed into the PTY.
+    const terminalSegments = await this.resolveTerminalSkillSegments(session, effectiveSegments);
     // Workspace-sandboxed agents (e.g. Command Code) can't read attachments that
     // live outside the project, so copy them in and re-format with the new paths.
     // localizeWorkspaceAttachments returns the same array when it's a no-op, so
     // reuse the already-formatted prompt unless paths actually changed.
-    const ptySegments = await this.localizeWorkspaceAttachments(session, effectiveSegments);
+    const ptySegments = await this.localizeWorkspaceAttachments(session, terminalSegments);
     const ptyPrompt =
       ptySegments === effectiveSegments
         ? prompt
@@ -651,6 +660,36 @@ export class ThreadSessionManager {
     return segments && segments.length > 0
       ? (session.adapter.formatPromptSegments?.(segments) ?? defaultFormatPromptSegments(segments))
       : fallbackPrompt;
+  }
+
+  /** Portable-skills fallback for a structured turn (see managerOptions). */
+  private async resolveSkillTurnInjection(
+    session: SessionRuntime,
+    segments: readonly PromptSegment[] | undefined,
+  ): Promise<string | undefined> {
+    if (!segments?.some((segment) => segment.kind === "skill")) return undefined;
+    return this.options.buildSkillTurnInjection?.({
+      agentKind: session.agentKind,
+      projectLocation: session.projectLocation,
+      segments,
+    });
+  }
+
+  /** Portable-skills fallback for a terminal (PTY) prompt (see managerOptions).
+   * Returns the input array unchanged when no rewrite applies, so callers can
+   * cheaply detect "nothing changed" by identity. */
+  private async resolveTerminalSkillSegments(
+    session: SessionRuntime,
+    segments: PromptSegment[] | undefined,
+  ): Promise<PromptSegment[] | undefined> {
+    if (!segments?.some((segment) => segment.kind === "skill")) return segments;
+    return (
+      (await this.options.rewriteTerminalSkillSegments?.({
+        agentKind: session.agentKind,
+        projectLocation: session.projectLocation,
+        segments,
+      })) ?? segments
+    );
   }
 
   /**

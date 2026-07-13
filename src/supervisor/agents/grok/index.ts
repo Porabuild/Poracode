@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { PromptSegment } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
   brailleSpinnerOscTitleHint,
@@ -45,6 +46,43 @@ export function createGrokAdapter(): AgentAdapter {
     kind: grokDetectionSpec.kind,
     label: grokDetectionSpec.label,
     binary: grokDetectionSpec.binary,
+    skillSupport: {
+      roots: [
+        {
+          id: "grok",
+          label: grokDetectionSpec.label,
+          globalPath: ".grok/skills",
+          projectPath: ".grok/skills",
+          globalOverride: { env: "GROK_HOME", path: "skills" },
+        },
+        {
+          id: "claude",
+          label: "Claude-compatible skills",
+          globalPath: ".claude/skills",
+          projectPath: ".claude/skills",
+        },
+        {
+          // Grok "scans `.agents/skills/` at each tier (alongside `.grok/`)"
+          // per the shipped binary's own help text.
+          id: "agents",
+          label: "Shared agent skills",
+          globalPath: ".agents/skills",
+          projectPath: ".agents/skills",
+        },
+      ],
+      projectionRoots: [
+        {
+          id: "grok",
+          label: grokDetectionSpec.label,
+          projectPath: ".grok/skills",
+        },
+      ],
+      invocation: "slash",
+      precedence: {
+        global: ["grok", "agents", "claude"],
+        project: ["grok", "agents", "claude"],
+      },
+    },
     ...(grokDetectionSpec.update ? { update: grokDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
@@ -191,7 +229,7 @@ export function createGrokAdapter(): AgentAdapter {
       const attachments = segments.filter((s) => s.kind === "attachment");
       const rest = segments.filter((s) => s.kind !== "attachment");
       const attachmentLines = attachments.map((s) => `@${s.path}`).join(" ");
-      const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+      const restStr = rest.map(inlinePromptSegmentText).join("");
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
 

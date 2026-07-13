@@ -54,6 +54,12 @@ export interface SupervisorClientOptions {
    * into running distros.
    */
   wslHelpersDir: string;
+  /**
+   * Directory containing the read-only skills shipped with the app
+   * (`skill-creator`, …). Forwarded to the supervisor via
+   * `LIGHTCODE_BUNDLED_SKILLS_DIR` so the skills service can surface them.
+   */
+  bundledSkillsDir?: string;
   secretStorageKey: string;
   /**
    * Optional resolver invoked at every supervisor spawn, returning extra env
@@ -118,6 +124,9 @@ export class SupervisorClient {
         // the legacy var. Safe to drop once min supported supervisor knows
         // about LIGHTCODE_WSL_HELPERS_DIR.
         LIGHTCODE_WSL_WATCHER_DIR: this.options.wslHelpersDir,
+        ...(this.options.bundledSkillsDir
+          ? { LIGHTCODE_BUNDLED_SKILLS_DIR: this.options.bundledSkillsDir }
+          : {}),
         ...extraEnv,
       },
     });

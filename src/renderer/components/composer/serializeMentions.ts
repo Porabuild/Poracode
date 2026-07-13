@@ -1,4 +1,5 @@
 import type { PromptSegment } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 
 const INLINE_FILE_TOKEN_REGEX = /(^|\s)@([^\s@]+)(?=\s|$)/g;
 const PATH_PREFIX_REGEX = /^(\.{1,2}\/|\.|\/|~\/|[A-Za-z]:[\\/])/;
@@ -92,6 +93,24 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
     }
 
     if (el.dataset.slashCommand) {
+      if (
+        el.dataset.skillName &&
+        el.dataset.skillPath &&
+        el.dataset.skillInvocation &&
+        el.dataset.skillProvider &&
+        (el.dataset.skillScope === "global" || el.dataset.skillScope === "project")
+      ) {
+        flushText();
+        segments.push({
+          kind: "skill",
+          name: el.dataset.skillName,
+          path: el.dataset.skillPath,
+          invocation: el.dataset.skillInvocation,
+          provider: el.dataset.skillProvider,
+          scope: el.dataset.skillScope,
+        });
+        return;
+      }
       textBuffer += `/${el.dataset.slashCommand}`;
       return;
     }
@@ -118,10 +137,7 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
 /** Flatten segments into a display string (for submitDisabled checks, etc.). */
 export function flattenSegments(segments: PromptSegment[]): string {
   const rest = segments.filter((s) => s.kind !== "attachment");
-  return rest
-    .map((s) => (s.kind === "file" ? `@${s.path}` : s.content))
-    .join("")
-    .trim();
+  return rest.map(inlinePromptSegmentText).join("").trim();
 }
 
 /**

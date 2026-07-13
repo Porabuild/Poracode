@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { PromptSegment } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
   applyTerminalHintToConfig,
@@ -54,6 +55,35 @@ export function createCopilotAdapter(): AgentAdapter {
     kind: copilotDetectionSpec.kind,
     label: copilotDetectionSpec.label,
     binary: copilotDetectionSpec.binary,
+    skillSupport: {
+      roots: [
+        {
+          id: "copilot",
+          label: copilotDetectionSpec.label,
+          globalPath: ".copilot/skills",
+          projectPath: ".github/skills",
+          globalOverride: { env: "COPILOT_HOME", path: "skills" },
+        },
+        {
+          id: "claude",
+          label: "Claude-compatible skills",
+          projectPath: ".claude/skills",
+        },
+        {
+          // Copilot loads "Personal: ~/.agents/skills" and "Project:
+          // .agents/skills" per the shipped binary's own help text.
+          id: "agents",
+          label: "Shared agent skills",
+          globalPath: ".agents/skills",
+          projectPath: ".agents/skills",
+        },
+      ],
+      invocation: "slash",
+      precedence: {
+        global: ["copilot", "agents"],
+        project: ["copilot", "agents", "claude"],
+      },
+    },
     ...(copilotDetectionSpec.update ? { update: copilotDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
@@ -145,9 +175,7 @@ export function createCopilotAdapter(): AgentAdapter {
       const attachments = segments.filter((segment) => segment.kind === "attachment");
       const rest = segments.filter((segment) => segment.kind !== "attachment");
       const attachmentLines = attachments.map((segment) => `@${segment.path}`).join(" ");
-      const restStr = rest
-        .map((segment) => (segment.kind === "file" ? `@${segment.path}` : segment.content))
-        .join("");
+      const restStr = rest.map(inlinePromptSegmentText).join("");
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
     isReadyForInitialPrompt(text) {

@@ -145,6 +145,18 @@ describe("SubagentMcpIngress", () => {
     ]);
   });
 
+  it("filters disabled subagent tools from discovery and calls", async () => {
+    ingress.registerThread("thread-1", ["spawn_agent"]);
+    const list = await rpc("tools/list");
+    const listBody = await list.json();
+    expect(listBody.result.tools.map((tool: { name: string }) => tool.name)).not.toContain(
+      "spawn_agent",
+    );
+
+    const call = await rpc("tools/call", { name: "spawn_agent", arguments: {} });
+    expect((await call.json()).result).toMatchObject({ isError: true });
+  });
+
   it("dispatches list_agents", async () => {
     const res = await rpc("tools/call", { name: "list_agents", arguments: {} });
     const body = await res.json();

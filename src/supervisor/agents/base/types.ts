@@ -91,6 +91,12 @@ export interface StructuredSessionListener {
 
 export interface StartTurnOptions {
   userMessageItemId?: string;
+  /**
+   * Portable-skills fallback: inline SKILL.md instructions for invoked skills
+   * the provider cannot load natively. Appended to the outgoing provider
+   * payload only — never painted into the chat's user_message item.
+   */
+  inlineInstructions?: string;
 }
 
 export interface ThreadHistoryEntry {
@@ -509,6 +515,35 @@ export interface AgentCliHookPluginSupport {
   ): Promise<{ args?: string[]; env?: Record<string, string> } | undefined>;
 }
 
+export interface AgentSkillRootSpec {
+  readonly id: string;
+  readonly label: string;
+  readonly globalPath?: string;
+  readonly projectPath?: string;
+  /** Read-only provider-owned skills below this root, such as Codex `.system`. */
+  readonly builtInPath?: string;
+  /** Adapter-specific config root, such as a named Claude profile directory. */
+  readonly globalBasePath?: string;
+  readonly globalOverride?: {
+    readonly env: string;
+    readonly path: string;
+  };
+}
+
+export interface AgentSkillSupport {
+  /** Provider-owned roots discovered by the Skills manager. `.agents/skills` is canonical. */
+  readonly roots: readonly AgentSkillRootSpec[];
+  /** Provider roots that need a Lightcode-owned copy of canonical skills. */
+  readonly projectionRoots?: readonly AgentSkillRootSpec[];
+  readonly invocation: "slash" | "dollar" | "prompt";
+  /** Provider-native duplicate resolution, using root ids plus canonical `agents`. */
+  readonly precedence?: {
+    readonly scopeOrder?: readonly ("global" | "project")[];
+    readonly global?: readonly string[];
+    readonly project?: readonly string[];
+  };
+}
+
 export interface AgentAdapter
   extends
     AgentMetadata,
@@ -520,7 +555,9 @@ export interface AgentAdapter
     AgentOneShotRunner,
     AgentUpdater,
     Partial<AgentAcpAuth>,
-    Partial<AgentCliHookPluginSupport> {}
+    Partial<AgentCliHookPluginSupport> {
+  readonly skillSupport?: AgentSkillSupport;
+}
 
 export interface TerminalStatusHint {
   status: ThreadStatus;

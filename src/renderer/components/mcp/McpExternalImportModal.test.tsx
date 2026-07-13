@@ -258,6 +258,8 @@ describe("McpExternalImportModal", () => {
     const sourceButton = screen.getByRole("button", { name: "MCP server source scope" });
     await waitFor(() => expect(sourceButton).toHaveTextContent("Global (Windows)"));
     fireEvent.click(sourceButton);
+    expect(await screen.findByText("Windows")).toBeInTheDocument();
+    expect(screen.getByText("WSL")).toBeInTheDocument();
     fireEvent.click(await screen.findByRole("menuitemradio", { name: /Ubuntu/u }));
 
     await waitFor(() =>

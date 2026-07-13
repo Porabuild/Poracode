@@ -1,4 +1,4 @@
-import type { CanonicalContentBlock, PromptSegment } from "./contracts";
+import type { AgentSlashCommand, CanonicalContentBlock, PromptSegment } from "./contracts";
 
 const IMAGE_EXTENSIONS = new Set([
   "png",
@@ -55,6 +55,47 @@ export function toLocalFileUrl(absolutePath: string): string {
   return `lightcode-local://local${path}`;
 }
 
+/**
+ * Inline text form of a non-attachment prompt segment for a single-line prompt
+ * or thread title: `@path` for file mentions, the invocation for skills, and
+ * the raw text otherwise. Callers handle attachments separately (dropping them
+ * or shortening their paths) and filter them out before mapping, so the
+ * `attachment` case here is only a total-function fallback.
+ */
+export function inlinePromptSegmentText(segment: PromptSegment): string {
+  switch (segment.kind) {
+    case "file":
+    case "attachment":
+      return `@${segment.path}`;
+    case "skill":
+      return segment.invocation;
+    case "text":
+      return segment.content;
+  }
+}
+
+export function skillSegmentFromSlashCommand(
+  command: AgentSlashCommand | undefined,
+): Extract<PromptSegment, { kind: "skill" }> | undefined {
+  if (
+    !command?.skillName ||
+    !command.skillPath ||
+    !command.skillInvocation ||
+    !command.skillProvider ||
+    !command.skillScope
+  ) {
+    return undefined;
+  }
+  return {
+    kind: "skill",
+    name: command.skillName,
+    path: command.skillPath,
+    invocation: command.skillInvocation,
+    provider: command.skillProvider,
+    scope: command.skillScope,
+  };
+}
+
 export function buildPromptContentBlocks(
   prompt: string,
   segments?: PromptSegment[],
@@ -69,6 +110,11 @@ export function buildPromptContentBlocks(
       if (segment.content.length > 0) {
         content.push({ kind: "text", text: segment.content });
       }
+      continue;
+    }
+
+    if (segment.kind === "skill") {
+      content.push({ kind: "text", text: segment.invocation });
       continue;
     }
 

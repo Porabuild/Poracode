@@ -18,7 +18,14 @@ import type { CodexAppServerRpcListener } from "./appServerRpc";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { RuntimeEvent, ToolCallPayload } from "@/shared/contracts";
 import { codexIntentFor } from "./plugin/intentMap";
-import { mapCodexModels, mapCodexRequirements, mapCodexSlashCommands } from "./probe";
+import {
+  mapCodexModels,
+  mapCodexDisabledSkillNames,
+  mapCodexRequirements,
+  mapCodexSkillsToSlashCommands,
+  mapCodexSlashCommands,
+} from "./probe";
+import { buildCodexTurnInput } from "./acpTurn";
 import { CodexStdioTransport } from "./stdioTransport";
 import { CodexSubAgentRouter } from "./subAgentRouting";
 import type { StructuredSessionUpdate } from "../base";
@@ -1660,6 +1667,68 @@ describe("mapCodexSlashCommands", () => {
         description: "Review changes",
         argumentHint: "<scope>",
       },
+    ]);
+  });
+});
+
+describe("Codex skills", () => {
+  it("normalizes enabled app-server skills into composer commands", () => {
+    const result = {
+      data: [
+        {
+          skills: [
+            {
+              name: "review-code",
+              path: "/home/me/.agents/skills/review-code/SKILL.md",
+              shortDescription: "Review a patch",
+              enabled: true,
+              scope: "repo",
+            },
+            {
+              name: "disabled-skill",
+              path: "/tmp/disabled/SKILL.md",
+              enabled: false,
+            },
+          ],
+        },
+      ],
+    };
+    expect(mapCodexSkillsToSlashCommands(result)).toEqual([
+      {
+        id: "review-code",
+        label: "review-code — Review a patch",
+        description: "Review a patch",
+        section: "skills",
+        skillName: "review-code",
+        skillPath: "/home/me/.agents/skills/review-code/SKILL.md",
+        skillInvocation: "$review-code",
+        skillProvider: "Codex",
+        skillScope: "project",
+      },
+    ]);
+    expect(mapCodexDisabledSkillNames(result)).toEqual(["disabled-skill"]);
+  });
+
+  it("sends structured skill input without duplicating its display invocation", () => {
+    expect(
+      buildCodexTurnInput("$review-code focus on security", [
+        {
+          kind: "skill",
+          name: "review-code",
+          path: "/home/me/.agents/skills/review-code/SKILL.md",
+          invocation: "$review-code",
+          provider: "Codex",
+          scope: "global",
+        },
+        { kind: "text", content: " focus on security" },
+      ]),
+    ).toEqual([
+      {
+        type: "skill",
+        name: "review-code",
+        path: "/home/me/.agents/skills/review-code/SKILL.md",
+      },
+      { type: "text", text: "focus on security", text_elements: [] },
     ]);
   });
 });

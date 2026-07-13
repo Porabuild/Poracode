@@ -11,6 +11,7 @@ import type { SliceCreator } from "./shared";
 export interface PendingComposerSeed {
   text: string;
   nonce: number;
+  bindLeadingSkill?: boolean;
 }
 
 export interface DraftSlice {
@@ -38,7 +39,7 @@ export interface DraftSlice {
     selection: PendingDraftWorktreeSelection,
   ) => void;
   clearPendingDraftWorktreeSelection: (projectId: string) => void;
-  setComposerSeed: (projectId: string, text: string) => void;
+  setComposerSeed: (projectId: string, text: string, bindLeadingSkill?: boolean) => void;
   clearComposerSeed: (projectId: string) => void;
 }
 
@@ -102,7 +103,7 @@ export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
       const { [projectId]: _, ...rest } = state.pendingDraftWorktreeSelections;
       return { pendingDraftWorktreeSelections: rest };
     }),
-  setComposerSeed: (projectId, text) =>
+  setComposerSeed: (projectId, text, bindLeadingSkill) =>
     set((state) => {
       const trimmed = text.trim();
       if (!trimmed) return {};
@@ -110,7 +111,11 @@ export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
       return {
         pendingComposerSeeds: {
           ...state.pendingComposerSeeds,
-          [projectId]: { text: trimmed, nonce: prevNonce + 1 },
+          [projectId]: {
+            text: trimmed,
+            nonce: prevNonce + 1,
+            ...(bindLeadingSkill ? { bindLeadingSkill: true } : {}),
+          },
         },
       };
     }),

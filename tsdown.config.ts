@@ -123,4 +123,21 @@ export default defineConfig([
       alwaysBundle: [...deps.alwaysBundle, /^@modelcontextprotocol\/sdk(?:\/|$)/, /^zod(?:\/|$)/],
     },
   },
+  {
+    // Separate build prevents shared chunks; this worker is deployed alone into WSL.
+    entry: { mcpToolFilterWorker: "src/supervisor/mcp/mcpToolFilterWorker.ts" },
+    clean: false,
+    outDir: "dist/main",
+    platform: "node" as const,
+    format: "esm" as const,
+    target: "node24" as const,
+    sourcemap,
+    dts: false,
+    minify: false,
+    define: buildDefines,
+    deps: {
+      ...deps,
+      alwaysBundle: [...deps.alwaysBundle, /^@modelcontextprotocol\/sdk(?:\/|$)/, /^zod(?:\/|$)/],
+    },
+  },
 ]);

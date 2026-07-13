@@ -469,6 +469,10 @@ extraResources:
     to: agent-plugins
     filter:
       - "**/*"
+  - from: resources/skills
+    to: skills
+    filter:
+      - "**/*"
   - from: build/icon${iconSuffix}.png
     to: app-icon.png
 

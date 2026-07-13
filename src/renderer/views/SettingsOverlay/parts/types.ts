@@ -16,6 +16,7 @@ export type SettingsSection =
   | "search"
   | "shortcuts"
   | "agents"
+  | "skills"
   | "mcpServers"
   | "browser"
   | "usage"

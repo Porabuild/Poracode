@@ -60,8 +60,15 @@ msgstr "{0, plural, one {# proje} other {# proje}}"
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {# sağlayıcı hazır} other {# sağlayıcı hazır}}"
 
-#. placeholder {0}: props.server.toolCount
-#. placeholder {0}: state.toolCount
+#. placeholder {0}: props.skills.length
+#. placeholder {0}: skills.length
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "{0, plural, one {# skill} other {# skills}}"
+msgstr "{0, plural, one {# beceri} other {# beceri}}"
+
+#. placeholder {0}: props.count
+#. placeholder {0}: toolList.tools.length
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "{0, plural, one {# tool} other {# tools}}"
 msgstr "{0, plural, one {# araç} other {# araç}}"
@@ -245,9 +252,17 @@ msgstr "{0} güncellendi."
 msgid "{0} used"
 msgstr "{0} kullanıldı"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "{0}: {stateLabel}"
+msgstr "{0}: {stateLabel}"
+
 #. placeholder {0}: selectedRows.length
+#. placeholder {0}: selectedSkills.length
 #. placeholder {1}: importableRows.length
+#. placeholder {1}: selectable.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}/{1} selected"
 msgstr "{0}/{1} seçildi"
 
@@ -448,6 +463,14 @@ msgstr "{totalCount} öğeden {visibleCount} tanesi görünür"
 msgid "/absolute/path/to/project"
 msgstr "/absolute/path/to/project"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "/skill-creator Create a new managed skill for {destination}."
+#~ msgstr "/skill-creator {destination} için yeni bir yönetilen beceri oluştur."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "/skill-creator Create a new managed skill for {destinationLabel}."
+msgstr "/skill-creator {destinationLabel} için yeni bir yönetilen beceri oluştur."
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "© {currentYear} Serhii Vecherenko. Tüm hakları saklıdır."
@@ -600,6 +623,10 @@ msgstr "Yerel bir proje ekle"
 msgid "Add a project"
 msgstr "Proje ekle"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add a project before creating a skill."
+msgstr "Beceri oluşturmadan önce bir proje ekleyin."
+
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
 msgstr "Bir aracıyı yüklemeden önce bir proje ekleyin."
@@ -613,6 +640,14 @@ msgstr "Oturum açmadan önce bir proje ekleyin."
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "Başlamak için bir proje ekleyin"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
+msgstr ".agents/skills veya .poracode/skills konumuna bir beceri ekleyin ya da başka bir sağlayıcıdan içe aktarın."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Add a skill to .agents/skills or import one from another provider."
+#~ msgstr ".agents/skills konumuna bir beceri ekleyin veya başka bir sağlayıcıdan içe aktarın."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add a to-do…"
@@ -690,6 +725,14 @@ msgstr "Uzak Depo Ekle"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Add shortcut"
 msgstr "Kısayol ekle"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add skill"
+msgstr "Beceri ekle"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add skill destination"
+msgstr "Yeni beceri hedefi"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
@@ -801,6 +844,7 @@ msgid "Alerts when threads need you"
 msgstr "İş parçacıkları size ihtiyaç duyduğunda uyarılar"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
@@ -809,6 +853,11 @@ msgstr "Tümü"
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
 msgstr "Tüm hesaplar"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "All agent apps"
+msgstr "Tüm ajan uygulamaları"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "All devices"
@@ -826,6 +875,10 @@ msgstr "Tüm dosyalar"
 #: src/mobile/views/ThreadsView.tsx
 msgid "All projects"
 msgstr "Tüm projeler"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "All sources"
+msgstr "Tüm kaynaklar"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/helpers.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -846,6 +899,10 @@ msgstr "Tarayıcı ayarlarında bu site için kamera erişimine izin verip tekra
 msgid "Allow eval"
 msgstr "Değerlendirmeye izin ver"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Allow replacing conflicting managed skills"
+msgstr "Çakışan yönetilen becerilerin değiştirilmesine izin ver"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Allow the browser to show notifications while the app is in the background."
 msgstr "Uygulama arka plandayken tarayıcının bildirim göstermesine izin verin."
@@ -853,6 +910,11 @@ msgstr "Uygulama arka plandayken tarayıcının bildirim göstermesine izin veri
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Already configured"
 msgstr "Zaten yapılandırılmış"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Already imported"
+msgstr "Zaten içe aktarıldı"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Already used by {conflict}"
@@ -1101,6 +1163,10 @@ msgstr "Terminal panelini otomatik göster"
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "Komutları çalıştırırken veya çalışma ağaçları oluştururken terminal panelini otomatik olarak gösterin."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Availability"
+msgstr "Kullanılabilirlik"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "available"
 msgstr "mevcut"
@@ -1337,8 +1403,13 @@ msgid "Building diff…"
 msgstr "Fark oluşturuluyor…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "Yerleşik"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Built-in and plugin skills"
+#~ msgstr "Yerleşik ve eklenti becerileri"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in MCP servers"
@@ -1480,6 +1551,10 @@ msgstr "Değişiklikler"
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Changes ({0})"
 msgstr "Değişiklikler ({0})"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Changes apply to new chats. Providers that support live skill reload may update sooner."
+msgstr "Değişiklikler yeni sohbetlere uygulanır. Canlı beceri yenilemeyi destekleyen sağlayıcılar daha erken güncellenebilir."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Changes in PR"
@@ -1727,6 +1802,8 @@ msgstr "Klonlanıyor…"
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
@@ -2143,6 +2220,10 @@ msgstr "Çatışma Çözücü"
 msgid "Conflicts"
 msgstr "Çatışmalar"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Conflicts with a managed skill"
+msgstr "Yönetilen bir beceriyle çakışıyor"
+
 #: src/mobile/setupEmptyState.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -2312,6 +2393,10 @@ msgstr "Panoya kopyalandı"
 msgid "Copy"
 msgstr "Kopyala"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Copy (recommended)"
+msgstr "Kopyala (önerilen)"
+
 #. placeholder {0}: activeDeviceCode.providerLabel
 #. placeholder {1}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2437,6 +2522,15 @@ msgstr "Proje oluşturulamadı."
 msgid "Couldn't create the worktree."
 msgstr "Worktree oluşturulamadı."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Couldn't import the selected skills."
+msgstr "Seçilen beceriler içe aktarılamadı."
+
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Couldn't install {0}."
+msgstr "{0} yüklenemedi."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "Depolar listelenemedi."
@@ -2444,6 +2538,10 @@ msgstr "Depolar listelenemedi."
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "Couldn't load the changelog. Check your connection, or view it on GitHub."
 msgstr "Değişiklik günlüğü yüklenemedi. Bağlantını kontrol et ya da GitHub'da görüntüle."
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "Couldn't load the skill."
+msgstr "Beceri yüklenemedi."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2453,6 +2551,10 @@ msgstr "Profil istatistikleriniz yüklenemedi."
 msgid "Couldn't save the shortcut."
 msgstr "Kısayol kaydedilemedi."
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Couldn't scan agent skills."
+msgstr "Aracı becerileri taranamadı."
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "MCP sunucusu yapılandırmaları taranamadı."
@@ -2460,6 +2562,10 @@ msgstr "MCP sunucusu yapılandırmaları taranamadı."
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "Kamera başlatılamadı"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Couldn't update the skill."
+msgstr "Beceri güncellenemedi."
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Create"
@@ -2549,9 +2655,17 @@ msgstr "Kimlik bilgileri yapılandırıldı."
 msgid "Credits"
 msgstr "Krediler"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Curated free and premium skills managed by MCP Market."
+#~ msgstr "MCP Market tarafından yönetilen seçilmiş ücretsiz ve premium beceriler."
+
 #: src/mobile/views/ThreadsView.tsx
 msgid "Current"
 msgstr "Güncel"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#~ msgid "Current project"
+#~ msgstr "Geçerli proje"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "current streak"
@@ -2645,6 +2759,7 @@ msgstr "Varsayılan konu kaldırma"
 #. Thread remove action: delete permanently
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -2656,10 +2771,23 @@ msgstr "Varsayılan konu kaldırma"
 msgid "Delete"
 msgstr "Sil"
 
+#. placeholder {0}: pendingDelete?.name
+#. placeholder {1}: pendingDelete?.absolutePath
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Delete “{0}” from {1}? This cannot be undone."
+msgstr "“{0}”, {1} konumundan silinsin mi? Bu işlem geri alınamaz."
+
+#. placeholder {0}: pendingDelete.name
+#. placeholder {1}: pendingDelete.providerLabel
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Delete “{0}” from {1}? This removes its source folder and cannot be undone."
+msgstr "“{0}”, {1} konumundan silinsin mi? Kaynak klasörü de silinir ve bu işlem geri alınamaz."
+
 #. placeholder {0}: branch.name
 #. placeholder {0}: entry.group.groupName
-#. placeholder {0}: thread.title
+#. placeholder {0}: skill.name
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Delete {0}"
@@ -2698,6 +2826,10 @@ msgstr "Zamanlama silinsin mi?"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete scheduled task?"
 #~ msgstr "Zamanlanmış görev silinsin mi?"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Delete skill"
+msgstr "Beceriyi sil"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete task"
@@ -2775,6 +2907,10 @@ msgstr "Masaüstüne ulaşılamıyor."
 msgid "Desktop Settings"
 msgstr "Masaüstü Ayarları"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Destination"
+msgstr "Hedef"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Details"
 #~ msgstr "Ayrıntılar"
@@ -2832,6 +2968,11 @@ msgstr "Cihazlar bu masaüstüne erişilebildiği sürece eşleşebilir."
 #~ msgid "Direct connection required"
 #~ msgstr "Doğrudan bağlantı gerekiyor"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Disable {0}"
+msgstr "{0} öğesini devre dışı bırak"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Disable {serverLabel}"
 msgstr "{serverLabel} öğesini devre dışı bırak"
@@ -2843,6 +2984,10 @@ msgstr "{serverName} sunucusunu devre dışı bırak"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
 msgstr "{tierLabel} efor düzeyini devre dışı bırak"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disable {tool}"
+msgstr "{tool} aracını devre dışı bırak"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Disable Browser MCP"
@@ -2874,6 +3019,7 @@ msgid "Disable tiers an external provider collapses (e.g. keep only High and Max
 msgstr "Harici bir sağlayıcının birleştirdiği düzeyleri devre dışı bırakın (ör. yalnızca High ve Max'i tutun)."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "Devre dışı"
@@ -2881,6 +3027,10 @@ msgstr "Devre dışı"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Disabled globally"
 msgstr "Genel olarak devre dışı"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
+msgstr "Bir beceriyi devre dışı bırakmak onu etkin beceri klasörlerinden çıkarır ve Poracode tarafından yönetilen sağlayıcı kopyalarını kaldırır. Yeniden etkinleştirebilmeniz için dosyaları korunur."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
@@ -3103,6 +3253,11 @@ msgstr "Efor düzeyleri"
 msgid "Electron"
 msgstr "Electron"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Enable {0}"
+msgstr "{0} öğesini etkinleştir"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Enable {serverLabel}"
 msgstr "{serverLabel} öğesini etkinleştir"
@@ -3114,6 +3269,10 @@ msgstr "{serverName} sunucusunu etkinleştir"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
 msgstr "{tierLabel} efor düzeyini etkinleştir"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Enable {tool}"
+msgstr "{tool} aracını etkinleştir"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3137,6 +3296,7 @@ msgstr "Projeyi Etkinleştir"
 msgid "Enable providers in settings"
 msgstr "Ayarlarda sağlayıcıları etkinleştirin"
 
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Enabled"
 msgstr "Etkin"
@@ -3339,6 +3499,10 @@ msgstr "Harici"
 msgid "External provider"
 msgstr "Harici sağlayıcı"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "External provider skills"
+#~ msgstr "Harici sağlayıcı becerileri"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "Extra High"
 msgstr "Ekstra Yüksek"
@@ -3466,6 +3630,14 @@ msgstr "Bu glob'larla eşleşen dosyalar, @file bahsetme aramasında gizlenir."
 #: src/mobile/views/ThreadsView.tsx
 msgid "Filter by project"
 msgstr "Projeye göre filtrele"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Filter marketplace by source"
+msgstr "Marketplace'i kaynağa göre filtrele"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Filter skills by status"
+msgstr "Becerileri duruma göre filtrele"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -3622,6 +3794,11 @@ msgstr "Bir portu yönlendir"
 msgid "Found {0, plural, one {# importable MCP server} other {# importable MCP servers}}"
 msgstr "{0, plural, one {# içe aktarılabilir MCP sunucusu bulundu} other {# içe aktarılabilir MCP sunucusu bulundu}}"
 
+#. placeholder {0}: selectable.length
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Found {0, plural, one {# importable skill} other {# importable skills}}"
+msgstr "{0, plural, one {İçe aktarılabilir # beceri bulundu} other {İçe aktarılabilir # beceri bulundu}}"
+
 #. placeholder {0}: activeRequest.providerLabel
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Found a signed-in {0} session."
@@ -3750,6 +3927,10 @@ msgstr "GitHub Copilot"
 msgid "GitHub Repository"
 msgstr "GitHub Deposu"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "GitHub stars"
+msgstr "GitHub yıldızları"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Gitignored files to copy from the main project into each new worktree. Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
 msgstr "Ana projeden her yeni çalışma ağacına kopyalanacak Git yok sayılan dosyalar. Gitignore tarzı desenler, her satıra bir tane (ör. <0>.env.*</0>)."
@@ -3763,10 +3944,22 @@ msgstr "GLM 5.2 (isteğe bağlı etiket)"
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Global"
 msgstr "Genel"
 
+#: src/renderer/components/skills/skillTargets.ts
+msgid "Global (Linux)"
+msgstr "Genel (Linux)"
+
+#: src/renderer/components/skills/skillTargets.ts
+msgid "Global (macOS)"
+msgstr "Genel (macOS)"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/skills/skillTargets.ts
 msgid "Global (Windows)"
 msgstr "Genel (Windows)"
 
@@ -3793,6 +3986,11 @@ msgstr "Belirlenen hedefler"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "Anladım"
+
+#. placeholder {0}: skill.securityGrade
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Grade {0}"
+msgstr "Derece {0}"
 
 #: src/renderer/components/providers/grok/manifest.ts
 msgid "Grok Build"
@@ -3898,6 +4096,11 @@ msgstr "Çalışma zamanı hata ayıklama panelini gizle"
 msgid "Hide sidebar"
 msgstr "Kenar çubuğunu gizle"
 
+#. placeholder {0}: first.providerLabel
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Hide skills from {0}"
+msgstr "{0} becerilerini gizle"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
@@ -3972,7 +4175,12 @@ msgstr "Resim"
 msgid "Image preview"
 msgstr "Resim önizlemesi"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Import conflict"
+msgstr "İçe aktarma çakışması"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Import destination"
 msgstr "İçe aktarma hedefi"
 
@@ -3980,9 +4188,25 @@ msgstr "İçe aktarma hedefi"
 msgid "Import external agent MCP servers"
 msgstr "Harici ajan MCP sunucularını içe aktar"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Import external agent skills"
+msgstr "Harici aracı becerilerini içe aktar"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Import external skills"
+msgstr "Harici becerileri içe aktar"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
 msgstr "MCP sunucularını içe aktar"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Import method"
+msgstr "İçe aktarma yöntemi"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Import selected"
+msgstr "Seçilenleri içe aktar"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
@@ -3995,6 +4219,21 @@ msgstr "Genel kapsama içe aktar"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Import to Project"
 #~ msgstr "Projeye içe aktar"
+
+#. placeholder {0}: selectedSkills.length
+#. placeholder {1}: selectedSkills.length === 1 ? "skill" : "skills"
+#: src/renderer/components/skills/SkillImportModal.tsx
+#~ msgid "Imported {0} {1}."
+#~ msgstr "{0} {1} içe aktarıldı."
+
+#. placeholder {0}: selectedSkills.length
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Imported {0} skills."
+msgstr "{0} beceri içe aktarıldı."
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Imported 1 skill."
+msgstr "1 beceri içe aktarıldı."
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -4043,6 +4282,7 @@ msgstr "Kanonik çalışma zamanı öğelerini incele"
 msgid "install"
 msgstr "yükle"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -4077,6 +4317,11 @@ msgstr "CLI kancalarını yükle"
 msgid "Install in WSL: {distro}"
 msgstr "WSL'ye yükleyin: {distro}"
 
+#. placeholder {0}: props.targetLabel
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Install managed skills into {0}."
+msgstr "Yönetilen becerileri {0} konumuna yükle."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Önce yerel sağlayıcıları yükleyin; ek protokol aracıları için ACP'yi kullanın."
@@ -4110,10 +4355,16 @@ msgstr "v{updateVersion} sürümünü yükle"
 msgid "Install v{version}"
 msgstr "v{version} sürümünü yükle"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Installed"
 msgstr "Yüklendi"
+
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Installed {0}."
+msgstr "{0} yüklendi."
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -4128,7 +4379,6 @@ msgstr "Bu terminale kuruluyor. Bittiğinde kapanır."
 msgid "Instructions"
 msgstr "Talimatlar"
 
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
 msgstr "Aracıların hangi aracıya veya modele devredeceğini seçerken izlediği talimatlar."
@@ -4260,6 +4510,14 @@ msgstr "Açık"
 msgid "Lightcode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Lightcode ve aracılarınız uzak makinede çalışır. SSH yalnızca uzak ortamı başlatmak ve yerel tünelini güvenceye almak için kullanılır."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Link to source"
+msgstr "Kaynağa bağla"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Linked"
+msgstr "Bağlı"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -4302,6 +4560,10 @@ msgstr "Düzenleyici yükleniyor…"
 msgid "Loading file…"
 msgstr "Dosya yükleniyor…"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Loading marketplace…"
+msgstr "Marketplace yükleniyor…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "Notlar yükleniyor…"
@@ -4325,6 +4587,14 @@ msgstr "Uzaktan erişim yükleniyor…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Loading scheduled tasks"
 msgstr "Zamanlanmış görevler yükleniyor"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "Loading skill…"
+msgstr "Beceri yükleniyor…"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Loading skills…"
+msgstr "Beceriler yükleniyor…"
 
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
@@ -4431,6 +4701,10 @@ msgstr "Geliştirme sunucuları aranıyor…"
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "Kenar çubuğunu yarı saydam yapın — Windows 11'de sistem bulanıklık materyali, diğerlerinde yarı saydam bir ton."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Manage global and project agent skills, including skills imported from other providers."
+#~ msgstr "Diğer sağlayıcılardan içe aktarılanlar dahil olmak üzere genel ve proje aracı becerilerini yönetin."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "Manage remote environments"
 msgstr "Uzak ortamları yönet"
@@ -4438,6 +4712,23 @@ msgstr "Uzak ortamları yönet"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote servers"
 #~ msgstr "Uzak sunucuları yönet"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+msgid "Manage shared skills across global and project scopes."
+msgstr "Global ve proje kapsamlarındaki paylaşılan becerileri yönetin."
+
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage shared skills across Linux and projects."
+#~ msgstr "Linux ve projeler genelindeki paylaşılan becerileri yönetin."
+
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage shared skills across macOS and projects."
+#~ msgstr "macOS ve projeler genelindeki paylaşılan becerileri yönetin."
+
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage shared skills across Windows, WSL, and projects."
+#~ msgstr "Windows, WSL ve projeler genelindeki paylaşılan becerileri yönetin."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
@@ -4448,9 +4739,29 @@ msgstr "Uzak ortamları yönet"
 msgid "Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings."
 msgstr "Poracode'un desteklenen aracıları başlatırken eklediği MCP sunucusu yapılandırmalarını yönetin. Çalışma alanı sunucuları her projenin ayarlarında yapılandırılabilir."
 
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage the skills Poracode makes available to supported agents. Project skills can be managed in each project's settings."
+#~ msgstr "Poracode'un desteklenen aracılara sunduğu becerileri yönetin. Proje becerileri her projenin ayarlarından yönetilebilir."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Managed"
+#~ msgstr "Yönetiliyor"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Managed by Poracode"
 msgstr "Poracode tarafından yönetiliyor"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Managed by provider"
+msgstr "Sağlayıcı tarafından yönetiliyor"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Managed by the provider or plugin."
+#~ msgstr "Sağlayıcı veya eklenti tarafından yönetiliyor."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Managed skills"
+#~ msgstr "Yönetilen beceriler"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
@@ -4483,6 +4794,14 @@ msgstr "Tamamlandı olarak işaretle"
 msgid "Mark Done"
 msgstr "Tamamlandı Olarak İşaretle"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Marketplace"
+msgstr "Marketplace"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Marketplace rank"
+msgstr "Marketplace sıralaması"
+
 #: src/renderer/i18n/locales.ts
 msgid "Match app language"
 msgstr "Uygulama diliyle eşleştir"
@@ -4504,6 +4823,10 @@ msgstr "Büyüt"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "Tarayıcıyı büyüt"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "MCP Market"
+#~ msgstr "MCP Market"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -4800,6 +5123,14 @@ msgstr "Daha fazla senkronizasyon seçeneği"
 msgid "Most active hour"
 msgstr "En etkin saat"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Most installed"
+#~ msgstr "En çok yüklenen"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Most popular"
+msgstr "En popüler"
+
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Most used plugins"
 msgstr "En çok kullanılan eklentiler"
@@ -4848,6 +5179,7 @@ msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Name"
@@ -5170,6 +5502,7 @@ msgstr "Henüz veri yok"
 msgid "No data yet."
 msgstr "Henüz veri yok."
 
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No description"
 msgstr "Açıklama yok"
@@ -5191,6 +5524,10 @@ msgstr "{0} için fark mevcut değil"
 msgid "No diff for {visiblePath}"
 msgstr "{visiblePath} için fark yok"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "No external skills were found in this scope."
+msgstr "Bu kapsamda harici beceri bulunamadı."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "No file checkpoint is stored for this message."
 msgstr "Bu mesaj için hiçbir dosya kontrol noktası saklanmadı."
@@ -5209,6 +5546,10 @@ msgstr "GitHub CLI hesabı bulunamadı. <0>gh auth login</0> ile oturum açın v
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "Henüz geçmiş yok"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "No marketplace skills match these filters."
+msgstr "Bu filtrelerle eşleşen marketplace becerisi yok."
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -5339,6 +5680,14 @@ msgstr "Bu konu için henüz çalışma zamanı öğesi yok."
 msgid "No shortcuts found"
 msgstr "Hiçbir kısayol bulunamadı"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "No skills found"
+msgstr "Beceri bulunamadı"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "No skills match your search and filter."
+msgstr "Aramanızla ve filtrenizle eşleşen beceri yok."
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No skills used yet."
 msgstr "Henüz beceri kullanılmadı."
@@ -5463,6 +5812,14 @@ msgstr "kapalı"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "Kapalı"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Official"
+msgstr "Resmî"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Official sources only"
+msgstr "Yalnızca resmî kaynaklar"
 
 #: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5635,10 +5992,22 @@ msgstr "Görsel önizlemesini aç"
 msgid "Open in editor"
 msgstr "Düzenleyicide aç"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Open leaderboard with install and trend metrics."
+msgstr "Yükleme ve eğilim ölçümlerini içeren açık liderlik tablosu."
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open links in"
 msgstr "Bağlantıları şurada aç:"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Open marketplace"
+#~ msgstr "Pazar yerini aç"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Open MCP Market to browse purchases and downloads without bypassing its account or licensing flow."
+#~ msgstr "Hesap veya lisanslama akışını atlamadan satın alımlara ve indirmelere göz atmak için MCP Market'i açın."
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Open model picker"
@@ -5776,6 +6145,10 @@ msgstr "Sonuç"
 msgid "Over pace — runs out early"
 msgstr "Aşırı tempo — erken biter"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Overridden by project"
+#~ msgstr "Proje tarafından geçersiz kılındı"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN."
 msgstr "Claude varsayılanlarını geçersiz kılın — ör. ANTHROPIC_BASE_URL ve ANTHROPIC_AUTH_TOKEN."
@@ -5787,6 +6160,10 @@ msgstr "Bu projenin çalışma ağaçlarının nerede oluşturulacağını geçe
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Overrides {conflict}"
 msgstr "{conflict} kısayolunu geçersiz kılar"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Overrides global"
+#~ msgstr "Genel olanı geçersiz kılar"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
@@ -6002,6 +6379,10 @@ msgstr "Bir bildirim gösterildiğinde ses çalın."
 msgid "Play notification sound"
 msgstr "Bildirim sesini çal"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Plugin"
+msgstr "Eklenti"
+
 #: src/mobile/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Ayarlar → Uzaktan Erişim'deki QR koduna doğrultun"
@@ -6014,6 +6395,16 @@ msgstr "Bu profili özel ortam değişkenleri, model adları ve efor düzeyleriy
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "Poracode'a uyarlanmış popüler editör temaları. Her biri yukarıdaki açık veya karanlık modunu takip eder."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
+#~ msgstr "Poracode, pazar yeri kimlik bilgilerini ayarlarda düz metin olarak saklamaz. Güvenlik taramasından geçmiş becerilere göz atmak için kataloğu açın."
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Poracode only"
+msgstr "Yalnızca Poracode"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
@@ -6148,6 +6539,7 @@ msgstr "Profiller"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -6174,6 +6566,14 @@ msgstr "Proje notları"
 msgid "Project Settings"
 msgstr "Proje Ayarları"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
+msgid "Project skills are available only when agents run in this project. Each provider applies its own precedence rules when names overlap."
+msgstr "Proje becerileri yalnızca aracılar bu projede çalıştığında kullanılabilir. Adlar çakıştığında her sağlayıcı kendi öncelik kurallarını uygular."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
+#~ msgid "Project skills override global skills with the same name and are available only when agents run in this project."
+#~ msgstr "Proje becerileri aynı adlı genel becerileri geçersiz kılar ve yalnızca aracılar bu projede çalışırken kullanılabilir."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Project-specific overrides on top of the global search settings."
 msgstr "Genel arama ayarlarının yanı sıra projeye özel geçersiz kılmalar."
@@ -6181,7 +6581,6 @@ msgstr "Genel arama ayarlarının yanı sıra projeye özel geçersiz kılmalar.
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 msgid "Projects"
 msgstr "Projeler"
@@ -6238,6 +6637,10 @@ msgstr "sağlayıcılar"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Sağlayıcılar"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Public registry with verified sources and GitHub metrics."
+msgstr "Doğrulanmış kaynaklar ve GitHub ölçümleri sunan herkese açık kayıt."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Public URL"
@@ -6400,6 +6803,10 @@ msgstr "Akıl yürütme"
 msgid "Recent"
 msgstr "Son"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Recent installs"
+msgstr "Son yüklemeler"
+
 #: src/renderer/views/HomeView.tsx
 msgid "Recent threads"
 msgstr "Son konular"
@@ -6463,6 +6870,10 @@ msgstr "MCP sunucusu kaynaklarını yenile"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
 msgstr "Kayıt defterini yenile"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Refresh skills"
+msgstr "Becerileri yenile"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -6623,6 +7034,11 @@ msgstr "Projeyi Kaldır"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Kısayolu kaldır"
+
+#. placeholder {0}: pendingDelete.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Remove the linked skill “{0}”? Its source folder will not be deleted."
+msgstr "Bağlı “{0}” becerisi kaldırılsın mı? Kaynak klasörü silinmez."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -6817,6 +7233,7 @@ msgstr "Sürdür"
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 msgid "Retry"
 msgstr "Tekrar dene"
 
@@ -7180,6 +7597,10 @@ msgstr "Şube ara..."
 msgid "Search files"
 msgstr "Dosyaları arayın"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Search marketplace skills"
+msgstr "Marketplace becerilerinde ara"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Search MCP servers"
 msgstr "MCP sunucularında ara"
@@ -7228,6 +7649,18 @@ msgstr "Ayarları ara"
 msgid "Search shortcuts"
 msgstr "Kısayolları ara"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Search skills"
+msgstr "Beceri ara"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Search skills or sources..."
+msgstr "Beceri veya kaynak ara..."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Search skills..."
+msgstr "Beceri ara..."
+
 #: src/renderer/commands/registry.ts
 msgid "Search the current view"
 msgstr "Geçerli görünümde ara"
@@ -7254,6 +7687,10 @@ msgstr "Aranıyor..."
 msgid "Searching…"
 msgstr "Aranıyor…"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Security-focused directory with verified skill metadata."
+#~ msgstr "Doğrulanmış beceri meta verileri sunan güvenlik odaklı dizin."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
 msgid "See more"
 msgstr "Daha fazlasını gör"
@@ -7261,6 +7698,12 @@ msgstr "Daha fazlasını gör"
 #: src/renderer/components/common/OptionMenu.tsx
 msgid "Select"
 msgstr "Seç"
+
+#. placeholder {0}: skill.name
+#. placeholder {1}: skill.providerLabel
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Select {0} from {1}"
+msgstr "{1} içinden {0} seç"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select {serverName} from {providerLabel}"
@@ -7291,6 +7734,7 @@ msgid "Select account"
 msgstr "Hesap seçin"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all"
 msgstr "Tümünü seç"
 
@@ -7301,6 +7745,10 @@ msgstr "Tüm MCP sunucularını seç"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select all MCP servers from {providerLabel}"
 msgstr "{providerLabel} kaynağındaki tüm MCP sunucularını seç"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Select all skills"
+msgstr "Tüm becerileri seç"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Select an agent to see its prompt and outcome."
@@ -7396,6 +7844,10 @@ msgstr "Paylaş"
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "Etkinliğinizi paylaşın"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Shared"
+msgstr "Paylaşılan"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -7509,6 +7961,11 @@ msgstr "Çalışma zamanı hata ayıklama panelini göster"
 msgid "Show sidebar"
 msgstr "Kenar çubuğunu göster"
 
+#. placeholder {0}: first.providerLabel
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Show skills from {0}"
+msgstr "{0} becerilerini göster"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show source"
 msgstr "Kaynağı göster"
@@ -7522,6 +7979,11 @@ msgstr "Composer'da mikrofon düğmesini gösterin."
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "Ses girişi düğmesini göster"
+
+#. placeholder {0}: displayedSkills.length
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Showing {0, plural, one {# skill} other {# skills}}"
+msgstr "{0, plural, one {# beceri} other {# beceri}} gösteriliyor"
 
 #: src/mobile/views/HostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
@@ -7614,6 +8076,15 @@ msgstr "{env} oturumu kapatılıyor. Algılanan aracılar tamamlandığında yen
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Çıkış yapılıyor. Algılanan aracılar tamamlandığında yenilenecektir."
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skill availability"
+msgstr "Beceri kullanılabilirliği"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skill marketplace source"
+msgstr "Beceri pazar yeri kaynağı"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skill runs"
 msgstr "Skill çalıştırmaları"
@@ -7622,18 +8093,65 @@ msgstr "Skill çalıştırmaları"
 msgid "Skill: {skill}"
 msgstr "Beceri: {skill}"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md couldn't be read."
+msgstr "SKILL.md okunamadı."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md is missing YAML frontmatter."
+msgstr "SKILL.md dosyasında YAML ön bilgisi eksik."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md is missing."
+msgstr "SKILL.md eksik."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md is too large."
+msgstr "SKILL.md çok büyük."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 msgid "Skills"
 msgstr "Beceriler"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skills Directory"
+msgstr "Skills Directory"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skills explored"
 msgstr "Kullanılan skill’ler"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Skills location"
+msgstr "Beceri konumu"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skills marketplace"
+msgstr "Beceri marketplace'i"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skills.sh"
+msgstr "Skills.sh"
+
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
+msgid "Slash commands"
+msgstr "Eğik çizgi komutları"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "Bazı kontroller başarısız oluyor veya beklemede."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
+msgstr "Bazı sağlayıcı klasörleri taranamadı. Başarıyla yüklenen beceriler gösterilmeye devam ediyor."
 
 #: src/mobile/QrScanner.tsx
 msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
@@ -7647,9 +8165,17 @@ msgstr "Oluşturulana göre sırala"
 msgid "Sort by last updated"
 msgstr "Son güncellemeye göre sırala"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Sort marketplace skills"
+msgstr "Marketplace becerilerini sırala"
+
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Sort threads"
 msgstr "Konuları sırala"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Sources"
+msgstr "Kaynaklar"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Space separated; use quotes around spaces"
@@ -7932,7 +8458,7 @@ msgstr "Alt aracı bulunamadı."
 msgid "Subagent Result"
 msgstr "Alt Aracı Sonucu"
 
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "Subagent routing guide"
 msgstr "Alt aracı yönlendirme kılavuzu"
@@ -7944,6 +8470,7 @@ msgstr "Alt ajan çalıştırmaları"
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 msgid "Subagents"
 msgstr "Alt aracılar"
 
@@ -8229,6 +8756,11 @@ msgstr "Bu QR kodu bir Poracode eşleştirme bağlantısı değil."
 msgid "That remote session was already gone."
 msgstr "Bu uzak oturum zaten yoktu."
 
+#. placeholder {0}: target.wslDistro
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "the {0} WSL user"
+#~ msgstr "{0} WSL kullanıcısı"
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "aracı"
@@ -8253,6 +8785,19 @@ msgstr "Aşağıda kendi aralığı ayarlanmamış sağlayıcılar için kullan�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."
 msgstr "Masaüstü sunucusu hâlâ başlatılıyor."
+
+#. placeholder {0}: createTarget.wslDistro
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the global {0} WSL scope"
+msgstr "genel {0} WSL kapsamı"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the Linux user"
+msgstr "Linux kullanıcısı"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the macOS user"
+msgstr "macOS kullanıcısı"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
@@ -8290,9 +8835,45 @@ msgstr "Sunucu yapılandırması geçersiz."
 msgid "The server returned an invalid MCP response."
 msgstr "Sunucu geçersiz bir MCP yanıtı döndürdü."
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill description is missing."
+msgstr "Beceri açıklaması eksik."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill description is too long."
+msgstr "Beceri açıklaması çok uzun."
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "The skill is copied into the destination and can be changed independently."
+msgstr "Beceri hedefe kopyalanır ve bağımsız olarak değiştirilebilir."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill name is missing."
+msgstr "Beceri adı eksik."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill name must match its folder name."
+msgstr "Beceri adı klasör adıyla eşleşmelidir."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill name must use lowercase letters, numbers, and hyphens."
+msgstr "Beceri adı yalnızca küçük harfler, sayılar ve kısa çizgiler içermelidir."
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "The skill stays synchronized with its source and stops working if the source moves."
+msgstr "Beceri kaynağıyla eşitlenmiş olarak kalır ve kaynak taşınırsa çalışmayı durdurur."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "The skills marketplace couldn't be loaded."
+msgstr "Beceri marketplace'i yüklenemedi."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "hedef sağlayıcı"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the Windows user"
+msgstr "Windows kullanıcısı"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8321,6 +8902,14 @@ msgstr "Bu uygulama HTTPS üzerinden sunuluyor, ancak masaüstü tarayıcıları
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "Bu tarayıcı burada sistem bildirimlerini desteklemiyor; uygulama içi bildirimleri yine de göreceksiniz."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "This catalog manages downloads through its website."
+#~ msgstr "Bu katalog indirmeleri web sitesi üzerinden yönetir."
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "This catalog requires its own API key."
+#~ msgstr "Bu katalog kendi API anahtarını gerektirir."
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
@@ -8361,6 +8950,10 @@ msgstr "Bu, \"{0}\" dalını uzak deposundan kalıcı olarak siler."
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\"."
 msgstr "Bu, \"{0}\" dalını kalıcı olarak siler."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "this project"
+msgstr "bu proje"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "This remote project is unavailable. Reconnect the environment and try again."
@@ -8564,6 +9157,10 @@ msgstr "Araç kısıtlamaları içe aktarılamaz"
 msgid "Tool search"
 msgstr "Araç arama"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Total installs"
+msgstr "Toplam yükleme"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total prompts"
 msgstr "Toplam istem"
@@ -8605,6 +9202,10 @@ msgstr "Sesi yazıya dökme"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
 msgstr "Yarı saydam kenar çubuğu"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Trending now"
+msgstr "Şu anda trend"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
@@ -9097,6 +9698,10 @@ msgstr "Tek bir genel klasör kullanın veya çalışma ağaçlarını her proje
 msgid "Use Session"
 msgstr "Oturumu Kullan"
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Use the {name} skill."
+msgstr "{name} becerisini kullan."
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "Kullanım takibi için bu hesabı kullanın veya devam etmeden önce tarayıcıdaki kullanıcıları değiştirin."
@@ -9162,6 +9767,11 @@ msgstr "{0} aracılığıyla"
 msgid "View"
 msgstr "Görüntüle"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "View {0}"
+msgstr "{0} görüntüle"
+
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "View all releases on GitHub"
 msgstr "Tüm sürümleri GitHub'da görüntüle"
@@ -9173,6 +9783,18 @@ msgstr "Diff'i görüntüle"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "Tüm değişiklik günlüğünü görüntüle"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "View raw"
+msgstr "Ham metni görüntüle"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "View rendered"
+msgstr "İşlenmiş görünümü görüntüle"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "View skill"
+#~ msgstr "Beceriyi görüntüle"
 
 #: src/renderer/commands/registry.ts
 msgid "View the changelog"
@@ -9376,7 +9998,7 @@ msgstr "Terminal panelinin göründüğü yer."
 msgid "Will run in {0}:"
 msgstr "{0} içinde çalışacak:"
 
-#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -9529,7 +10151,6 @@ msgstr "Bir yorum yazın…"
 msgid "Write notes for this project…"
 msgstr "Bu proje için notlar yazın…"
 
-#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "WSL"
@@ -9541,6 +10162,7 @@ msgid "WSL ({0})"
 msgstr "WSL ({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 msgid "WSL ({distro})"
 msgstr "WSL ({distro})"
 
@@ -9548,6 +10170,11 @@ msgstr "WSL ({distro})"
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "WSL temel klasörü"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "WSL user"
+#~ msgstr "WSL kullanıcısı"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"

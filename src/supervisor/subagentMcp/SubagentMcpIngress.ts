@@ -4,6 +4,7 @@ import type { SubagentMcpHttpConfig } from "@/supervisor/agents/subagentMcp";
 import type { OrchestratorThreadManager } from "./OrchestratorThreadManager";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { buildSubagentInstructions, dispatchTool, isKnownToolName, TOOLS } from "./toolRegistry";
+import { errorResult } from "./toolResult";
 import type { SpawnableAgent } from "./types";
 
 export interface SubagentMcpIngressInfo {
@@ -66,6 +67,7 @@ export class SubagentMcpIngress {
   private info: SubagentMcpIngressInfo | null = null;
   private readonly tokenToThread = new Map<string, string>();
   private readonly threadToToken = new Map<string, string>();
+  private readonly disabledToolsByThread = new Map<string, Set<string>>();
 
   constructor(private readonly deps: SubagentMcpIngressDeps) {}
 
@@ -98,7 +100,10 @@ export class SubagentMcpIngress {
    * reuses it thereafter. Returns the ready-to-use MCP http config; returns
    * `undefined` before the server has bound a port.
    */
-  registerThread(threadId: string): SubagentMcpHttpConfig | undefined {
+  registerThread(
+    threadId: string,
+    disabledTools: readonly string[] = [],
+  ): SubagentMcpHttpConfig | undefined {
     if (!this.info) return undefined;
     let token = this.threadToToken.get(threadId);
     if (!token) {
@@ -106,6 +111,7 @@ export class SubagentMcpIngress {
       this.threadToToken.set(threadId, token);
       this.tokenToThread.set(token, threadId);
     }
+    this.disabledToolsByThread.set(threadId, new Set(disabledTools));
     return {
       url: `${this.info.url.replace(/\/$/, "")}/mcp`,
       token,
@@ -117,11 +123,13 @@ export class SubagentMcpIngress {
     const token = this.threadToToken.get(threadId);
     if (token) this.tokenToThread.delete(token);
     this.threadToToken.delete(threadId);
+    this.disabledToolsByThread.delete(threadId);
   }
 
   dispose(): void {
     this.tokenToThread.clear();
     this.threadToToken.clear();
+    this.disabledToolsByThread.clear();
     try {
       this.server?.closeAllConnections?.();
     } catch {}
@@ -270,21 +278,22 @@ export class SubagentMcpIngress {
         return { jsonrpc: "2.0", id, result: {} };
       }
       if (method === "tools/list") {
-        return { jsonrpc: "2.0", id, result: { tools: TOOLS } };
+        const disabled = this.disabledToolsByThread.get(threadId) ?? new Set<string>();
+        return {
+          jsonrpc: "2.0",
+          id,
+          result: { tools: TOOLS.filter((tool) => !disabled.has(tool.name)) },
+        };
       }
       if (method === "tools/call") {
         const p = (params ?? {}) as { name?: string; arguments?: Record<string, unknown> };
         const name = String(p.name ?? "");
         const args = (p.arguments ?? {}) as Record<string, unknown>;
+        if (this.disabledToolsByThread.get(threadId)?.has(name)) {
+          return { jsonrpc: "2.0", id, result: errorResult(`Tool disabled by Poracode: ${name}`) };
+        }
         if (!isKnownToolName(name)) {
-          return {
-            jsonrpc: "2.0",
-            id,
-            result: {
-              isError: true,
-              content: [{ type: "text", text: `Unknown tool: ${name}` }],
-            },
-          };
+          return { jsonrpc: "2.0", id, result: errorResult(`Unknown tool: ${name}`) };
         }
         const result = await dispatchTool(name, args, {
           parentThreadId: threadId,

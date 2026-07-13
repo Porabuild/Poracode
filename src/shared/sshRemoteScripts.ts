@@ -207,6 +207,7 @@ else
     LIGHTCODE_REMOTE_ACCESS_PORT="$PORT" \
     LIGHTCODE_APP_VERSION="$RUNTIME_HASH" \
     LIGHTCODE_WSL_HELPERS_DIR="$RUNTIME/wsl-helpers" \
+    LIGHTCODE_BUNDLED_SKILLS_DIR="$RUNTIME/skills" \
     "$NODE" "$RUNTIME/server.cjs" >>"$LOG_FILE" 2>&1 </dev/null &
   PID="$!"
   printf '%s\n' "$PID" >"$PID_FILE"

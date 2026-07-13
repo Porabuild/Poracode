@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { PendingSteerState, SetPendingSteerPayload, ThreadStatus } from "@/shared/contracts";
+import type {
+  PendingSteerState,
+  PromptSegment,
+  SetPendingSteerPayload,
+  ThreadStatus,
+} from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { defaultFormatPromptSegments } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
@@ -53,6 +58,11 @@ export interface SteerCoordinatorContext {
   interruptStructuredTurn(session: SessionRuntime): Promise<void>;
   startStructuredTurn(session: SessionRuntime, turn: QueuedStructuredTurn): void;
   failStructuredSession(session: SessionRuntime, error: unknown): void;
+  /** Portable-skills fallback for a steer turn (see managerOptions). */
+  resolveSkillTurnInjection(
+    session: SessionRuntime,
+    segments: readonly PromptSegment[] | undefined,
+  ): Promise<string | undefined>;
 }
 
 /**
@@ -114,6 +124,7 @@ export class SteerCoordinator {
       config: slot.config,
       ...(slot.segments ? { segments: slot.segments } : {}),
       ...(slot.userMessageItemId ? { userMessageItemId: slot.userMessageItemId } : {}),
+      ...(slot.inlineInstructions ? { inlineInstructions: slot.inlineInstructions } : {}),
     };
     this.ctx.startStructuredTurn(session, turn);
   }
@@ -142,10 +153,12 @@ export class SteerCoordinator {
         ? (session.adapter.formatPromptSegments?.(effectiveSegments) ??
           defaultFormatPromptSegments(effectiveSegments))
         : payload.prompt;
+    const inlineInstructions = await this.ctx.resolveSkillTurnInjection(session, effectiveSegments);
     const turn: QueuedStructuredTurn = {
       prompt,
       config: payload.config,
       ...(effectiveSegments ? { segments: effectiveSegments } : {}),
+      ...(inlineInstructions ? { inlineInstructions } : {}),
     };
     // Capability-based: non-interrupting steer enqueues onto the running turn
     // (subagents survive, no watchdog); others use the interrupt-drain path.
@@ -178,12 +191,16 @@ export class SteerCoordinator {
       session.presentationMode === "gui" && turn.prompt.length > 0
         ? turn.userMessageItemId
         : undefined;
+    const steerOptions = {
+      ...(optimisticItemId ? { userMessageItemId: optimisticItemId } : {}),
+      ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
+    };
     const steer = steerTurn.call(
       session.structuredSession,
       turn.prompt,
       turn.config,
       turn.segments,
-      optimisticItemId ? { userMessageItemId: optimisticItemId } : undefined,
+      Object.keys(steerOptions).length > 0 ? steerOptions : undefined,
     );
     void steer.catch((error) => {
       if (this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {

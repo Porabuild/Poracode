@@ -254,7 +254,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     await this.syncUltracodeFlag(query);
     await this.syncFastMode(query);
 
-    const message = await buildSdkUserMessage(prompt, segments);
+    const message = await buildSdkUserMessage(prompt, segments, options?.inlineInstructions);
     this.promptQueue.push(message);
   }
 
@@ -296,7 +296,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     // starting the NEXT turn (current turn settles before consuming it), the
     // model change must already be applied — no startTurn runs for that message.
     await this.syncModel(query, config);
-    const message = await buildSdkUserMessage(prompt, segments);
+    const message = await buildSdkUserMessage(prompt, segments, options?.inlineInstructions);
     this.promptQueue.push(message);
   }
 

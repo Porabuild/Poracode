@@ -60,8 +60,15 @@ msgstr "{0, plural, one {#件のプロジェクト} other {#件のプロジェ�
 msgid "{0, plural, one {# provider ready} other {# providers ready}}"
 msgstr "{0, plural, one {#プロバイダーの準備ができています} other {#プロバイダーの準備ができています}}"
 
-#. placeholder {0}: props.server.toolCount
-#. placeholder {0}: state.toolCount
+#. placeholder {0}: props.skills.length
+#. placeholder {0}: skills.length
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "{0, plural, one {# skill} other {# skills}}"
+msgstr "{0, plural, one {# 個のスキル} other {# 個のスキル}}"
+
+#. placeholder {0}: props.count
+#. placeholder {0}: toolList.tools.length
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "{0, plural, one {# tool} other {# tools}}"
 msgstr "{0, plural, one {# 個のツール} other {# 個のツール}}"
@@ -245,9 +252,17 @@ msgstr "{0}が更新されました。"
 msgid "{0} used"
 msgstr "{0}が使用されました"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "{0}: {stateLabel}"
+msgstr "{0}: {stateLabel}"
+
 #. placeholder {0}: selectedRows.length
+#. placeholder {0}: selectedSkills.length
 #. placeholder {1}: importableRows.length
+#. placeholder {1}: selectable.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}/{1} selected"
 msgstr "{0}/{1} 件を選択済み"
 
@@ -447,6 +462,14 @@ msgstr "{visibleCount}/{totalCount}が表示されます"
 msgid "/absolute/path/to/project"
 msgstr "/absolute/path/to/project"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "/skill-creator Create a new managed skill for {destination}."
+#~ msgstr "/skill-creator {destination} 用の新しい管理対象スキルを作成してください。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "/skill-creator Create a new managed skill for {destinationLabel}."
+msgstr "/skill-creator {destinationLabel} 用の新しい管理対象スキルを作成してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "© {currentYear} Serhii Vecherenko. All rights reserved."
 msgstr "©{currentYear}セルヒイ・ヴェチェレンコ。無断転載を禁じます。"
@@ -599,6 +622,10 @@ msgstr "ローカルプロジェクトを追加"
 msgid "Add a project"
 msgstr "プロジェクトを追加"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add a project before creating a skill."
+msgstr "スキルを作成する前にプロジェクトを追加してください。"
+
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before installing an agent."
 msgstr "エージェントをインストールする前にプロジェクトを追加します。"
@@ -612,6 +639,14 @@ msgstr "サインインする前にプロジェクトを追加してください
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "Add a project to start"
 msgstr "開始するプロジェクトを追加してください"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
+msgstr ".agents/skills または .poracode/skills にスキルを追加するか、別のプロバイダーからインポートしてください。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Add a skill to .agents/skills or import one from another provider."
+#~ msgstr ".agents/skills にスキルを追加するか、別のプロバイダーからインポートします。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add a to-do…"
@@ -689,6 +724,14 @@ msgstr "リモートの追加"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Add shortcut"
 msgstr "ショートカットを追加"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add skill"
+msgstr "スキルを追加"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Add skill destination"
+msgstr "新しいスキルの保存先"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add to composer"
@@ -800,6 +843,7 @@ msgid "Alerts when threads need you"
 msgstr "スレッドが対応を必要としたら通知"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
@@ -808,6 +852,11 @@ msgstr "全期間"
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
 msgstr "すべてのアカウント"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "All agent apps"
+msgstr "すべてのエージェントアプリ"
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "All devices"
@@ -825,6 +874,10 @@ msgstr "すべてのファイル"
 #: src/mobile/views/ThreadsView.tsx
 msgid "All projects"
 msgstr "すべてのプロジェクト"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "All sources"
+msgstr "すべてのソース"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/helpers.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
@@ -845,6 +898,10 @@ msgstr "ブラウザ設定でこのサイトのカメラアクセスを許可し
 msgid "Allow eval"
 msgstr "評価を許可する"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Allow replacing conflicting managed skills"
+msgstr "競合する管理対象スキルの置き換えを許可"
+
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Allow the browser to show notifications while the app is in the background."
 msgstr "アプリがバックグラウンドにある間、ブラウザに通知の表示を許可します。"
@@ -852,6 +909,11 @@ msgstr "アプリがバックグラウンドにある間、ブラウザに通知
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Already configured"
 msgstr "設定済み"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Already imported"
+msgstr "インポート済み"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Already used by {conflict}"
@@ -1100,6 +1162,10 @@ msgstr "端末パネルの自動表示"
 msgid "Automatically show the terminal panel when running commands or creating worktrees."
 msgstr "コマンドの実行時またはワークツリーの作成時に、端末パネルを自動的に表示します。"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Availability"
+msgstr "利用範囲"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "available"
 msgstr "利用可能"
@@ -1336,8 +1402,13 @@ msgid "Building diff…"
 msgstr "差分を作成中…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 msgid "Built-in"
 msgstr "組み込み"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Built-in and plugin skills"
+#~ msgstr "組み込みスキルとプラグインスキル"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in MCP servers"
@@ -1479,6 +1550,10 @@ msgstr "変更点"
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Changes ({0})"
 msgstr "変更点 ({0})"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Changes apply to new chats. Providers that support live skill reload may update sooner."
+msgstr "変更は新しいチャットに適用されます。スキルのライブ再読み込みに対応するプロバイダーでは、より早く更新される場合があります。"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Changes in PR"
@@ -1726,6 +1801,8 @@ msgstr "クローン作成中…"
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
@@ -2142,6 +2219,10 @@ msgstr "競合解決ツール"
 msgid "Conflicts"
 msgstr "競合"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Conflicts with a managed skill"
+msgstr "管理対象スキルと競合しています"
+
 #: src/mobile/setupEmptyState.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -2311,6 +2392,10 @@ msgstr "クリップボードにコピーしました"
 msgid "Copy"
 msgstr "コピー"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Copy (recommended)"
+msgstr "コピー（推奨）"
+
 #. placeholder {0}: activeDeviceCode.providerLabel
 #. placeholder {1}: activeDeviceCode.code
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2436,6 +2521,15 @@ msgstr "プロジェクトを作成できませんでした。"
 msgid "Couldn't create the worktree."
 msgstr "worktree を作成できませんでした。"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Couldn't import the selected skills."
+msgstr "選択したスキルをインポートできませんでした。"
+
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Couldn't install {0}."
+msgstr "{0} をインストールできませんでした。"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Couldn't list repositories."
 msgstr "リポジトリを一覧表示できませんでした。"
@@ -2443,6 +2537,10 @@ msgstr "リポジトリを一覧表示できませんでした。"
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "Couldn't load the changelog. Check your connection, or view it on GitHub."
 msgstr "変更履歴を読み込めませんでした。接続を確認するか、GitHub でご覧ください。"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "Couldn't load the skill."
+msgstr "スキルを読み込めませんでした。"
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -2452,6 +2550,10 @@ msgstr "プロフィール統計を読み込めませんでした。"
 msgid "Couldn't save the shortcut."
 msgstr "ショートカットを保存できませんでした。"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Couldn't scan agent skills."
+msgstr "エージェントスキルをスキャンできませんでした。"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "MCP サーバー設定をスキャンできませんでした。"
@@ -2459,6 +2561,10 @@ msgstr "MCP サーバー設定をスキャンできませんでした。"
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "カメラを開始できませんでした"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Couldn't update the skill."
+msgstr "スキルを更新できませんでした。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Create"
@@ -2548,9 +2654,17 @@ msgstr "資格情報が設定されています。"
 msgid "Credits"
 msgstr "クレジット"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Curated free and premium skills managed by MCP Market."
+#~ msgstr "MCP Market が管理する厳選された無料およびプレミアムスキル。"
+
 #: src/mobile/views/ThreadsView.tsx
 msgid "Current"
 msgstr "最近"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#~ msgid "Current project"
+#~ msgstr "現在のプロジェクト"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "current streak"
@@ -2644,6 +2758,7 @@ msgstr "デフォルトのスレッドの削除"
 #. Thread remove action: delete permanently
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -2655,10 +2770,23 @@ msgstr "デフォルトのスレッドの削除"
 msgid "Delete"
 msgstr "削除"
 
+#. placeholder {0}: pendingDelete?.name
+#. placeholder {1}: pendingDelete?.absolutePath
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Delete “{0}” from {1}? This cannot be undone."
+msgstr "{1} から「{0}」を削除しますか？この操作は元に戻せません。"
+
+#. placeholder {0}: pendingDelete.name
+#. placeholder {1}: pendingDelete.providerLabel
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Delete “{0}” from {1}? This removes its source folder and cannot be undone."
+msgstr "{1} から「{0}」を削除しますか？ソースフォルダーも削除され、元に戻せません。"
+
 #. placeholder {0}: branch.name
 #. placeholder {0}: entry.group.groupName
-#. placeholder {0}: thread.title
+#. placeholder {0}: skill.name
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Delete {0}"
@@ -2697,6 +2825,10 @@ msgstr "スケジュールを削除しますか？"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete scheduled task?"
 #~ msgstr "スケジュールタスクを削除しますか？"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Delete skill"
+msgstr "スキルを削除"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete task"
@@ -2774,6 +2906,10 @@ msgstr "デスクトップに到達できません。"
 msgid "Desktop Settings"
 msgstr "デスクトップ設定"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Destination"
+msgstr "インポート先"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Details"
 #~ msgstr "詳細"
@@ -2831,6 +2967,11 @@ msgstr "このデスクトップに到達できる間、デバイスをペアリ
 #~ msgid "Direct connection required"
 #~ msgstr "直接接続が必要です"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Disable {0}"
+msgstr "{0} を無効化"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Disable {serverLabel}"
 msgstr "{serverLabel}を無効化"
@@ -2842,6 +2983,10 @@ msgstr "{serverName}を無効化"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
 msgstr "{tierLabel}の推論レベルを無効化"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Disable {tool}"
+msgstr "{tool} を無効にする"
 
 #: src/renderer/components/composer/composerMcpServers.ts
 msgid "Disable Browser MCP"
@@ -2873,6 +3018,7 @@ msgid "Disable tiers an external provider collapses (e.g. keep only High and Max
 msgstr "外部プロバイダーがまとめてしまうレベルを無効化します（例：HighとMaxのみを残す）。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Disabled"
 msgstr "無効"
@@ -2880,6 +3026,10 @@ msgstr "無効"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Disabled globally"
 msgstr "グローバルで無効"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
+msgstr "スキルを無効にすると、アクティブなスキルフォルダーから移動され、Poracode が管理するプロバイダーのコピーが削除されます。ファイルは保持されるため、再度有効にできます。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
@@ -3102,6 +3252,11 @@ msgstr "推論レベル"
 msgid "Electron"
 msgstr "Electron"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Enable {0}"
+msgstr "{0} を有効化"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Enable {serverLabel}"
 msgstr "{serverLabel}を有効化"
@@ -3113,6 +3268,10 @@ msgstr "{serverName}を有効化"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
 msgstr "{tierLabel}の推論レベルを有効化"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Enable {tool}"
+msgstr "{tool} を有効にする"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -3136,6 +3295,7 @@ msgstr "プロジェクトを有効にする"
 msgid "Enable providers in settings"
 msgstr "設定でプロバイダーを有効にする"
 
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Enabled"
 msgstr "有効"
@@ -3338,6 +3498,10 @@ msgstr "外部"
 msgid "External provider"
 msgstr "外部プロバイダー"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "External provider skills"
+#~ msgstr "外部プロバイダーのスキル"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "Extra High"
 msgstr "エクストラハイ"
@@ -3465,6 +3629,14 @@ msgstr "これらのグロブに一致するファイルは、@file メンショ
 #: src/mobile/views/ThreadsView.tsx
 msgid "Filter by project"
 msgstr "プロジェクトで絞り込み"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Filter marketplace by source"
+msgstr "ソースでマーケットプレイスを絞り込む"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Filter skills by status"
+msgstr "状態でスキルを絞り込む"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -3621,6 +3793,11 @@ msgstr "ポートを転送"
 msgid "Found {0, plural, one {# importable MCP server} other {# importable MCP servers}}"
 msgstr "{0, plural, one {インポート可能な MCP サーバーが # 件見つかりました} other {インポート可能な MCP サーバーが # 件見つかりました}}"
 
+#. placeholder {0}: selectable.length
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Found {0, plural, one {# importable skill} other {# importable skills}}"
+msgstr "{0, plural, one {インポート可能なスキルが # 個見つかりました} other {インポート可能なスキルが # 個見つかりました}}"
+
 #. placeholder {0}: activeRequest.providerLabel
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Found a signed-in {0} session."
@@ -3749,6 +3926,10 @@ msgstr "GitHub Copilot"
 msgid "GitHub Repository"
 msgstr "GitHub リポジトリ"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "GitHub stars"
+msgstr "GitHub スター"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Gitignored files to copy from the main project into each new worktree. Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
 msgstr "メイン プロジェクトから各新しいワークツリーにコピーする、Gitignored ファイル。 Gitignore スタイルのパターン、1 行に 1 つ (例: <0>.env.*</0>)。"
@@ -3762,10 +3943,22 @@ msgstr "GLM 5.2（任意のラベル）"
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Global"
 msgstr "グローバル"
 
+#: src/renderer/components/skills/skillTargets.ts
+msgid "Global (Linux)"
+msgstr "グローバル（Linux）"
+
+#: src/renderer/components/skills/skillTargets.ts
+msgid "Global (macOS)"
+msgstr "グローバル（macOS）"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/skills/skillTargets.ts
 msgid "Global (Windows)"
 msgstr "グローバル (Windows)"
 
@@ -3792,6 +3985,11 @@ msgstr "設定した目標数"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "了解"
+
+#. placeholder {0}: skill.securityGrade
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Grade {0}"
+msgstr "グレード {0}"
 
 #: src/renderer/components/providers/grok/manifest.ts
 msgid "Grok Build"
@@ -3897,6 +4095,11 @@ msgstr "ランタイムデバッグパネルを非表示にする"
 msgid "Hide sidebar"
 msgstr "サイドバーを隠す"
 
+#. placeholder {0}: first.providerLabel
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Hide skills from {0}"
+msgstr "{0} のスキルを非表示"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
@@ -3971,7 +4174,12 @@ msgstr "画像"
 msgid "Image preview"
 msgstr "画像プレビュー"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Import conflict"
+msgstr "インポートの競合"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Import destination"
 msgstr "インポート先"
 
@@ -3979,9 +4187,25 @@ msgstr "インポート先"
 msgid "Import external agent MCP servers"
 msgstr "外部エージェントの MCP サーバーをインポート"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Import external agent skills"
+msgstr "外部エージェントのスキルをインポート"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Import external skills"
+msgstr "外部スキルをインポート"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
 msgstr "MCPサーバーをインポート"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Import method"
+msgstr "インポート方法"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Import selected"
+msgstr "選択項目をインポート"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
@@ -3994,6 +4218,21 @@ msgstr "グローバルにインポート"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Import to Project"
 #~ msgstr "プロジェクトにインポート"
+
+#. placeholder {0}: selectedSkills.length
+#. placeholder {1}: selectedSkills.length === 1 ? "skill" : "skills"
+#: src/renderer/components/skills/SkillImportModal.tsx
+#~ msgid "Imported {0} {1}."
+#~ msgstr "{0} 件の{1}をインポートしました。"
+
+#. placeholder {0}: selectedSkills.length
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Imported {0} skills."
+msgstr "{0} 個のスキルをインポートしました。"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Imported 1 skill."
+msgstr "1 個のスキルをインポートしました。"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -4042,6 +4281,7 @@ msgstr "正規のランタイム項目を検査する"
 msgid "install"
 msgstr "インストールする"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -4076,6 +4316,11 @@ msgstr "CLIフックをインストールする"
 msgid "Install in WSL: {distro}"
 msgstr "WSL にインストール:{distro}"
 
+#. placeholder {0}: props.targetLabel
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Install managed skills into {0}."
+msgstr "管理対象スキルを {0} にインストールします。"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "最初にネイティブプロバイダーをインストールします。追加のプロトコル エージェントには ACP を使用します。"
@@ -4109,10 +4354,16 @@ msgstr "v{updateVersion} をインストール"
 msgid "Install v{version}"
 msgstr "v{version} をインストール"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Installed"
 msgstr "インストール済み"
+
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Installed {0}."
+msgstr "{0} をインストールしました。"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -4127,7 +4378,6 @@ msgstr "この端末にインストールします。終了したら閉じます
 msgid "Instructions"
 msgstr "指示"
 
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "Instructions agents follow when choosing which agent or model to delegate to."
 msgstr "どのエージェントやモデルに委任するかを選ぶ際に、エージェントが従う指示。"
@@ -4259,6 +4509,14 @@ msgstr "ライト"
 msgid "Lightcode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Lightcode とエージェントはリモートマシン上で実行されます。SSH はリモート環境の起動とローカルトンネルの保護にのみ使用されます。"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Link to source"
+msgstr "ソースにリンク"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Linked"
+msgstr "リンク済み"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -4301,6 +4559,10 @@ msgstr "エディターを読み込み中…"
 msgid "Loading file…"
 msgstr "ファイルをロード中…"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Loading marketplace…"
+msgstr "マーケットプレイスを読み込み中…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "メモを読み込んでいます…"
@@ -4324,6 +4586,14 @@ msgstr "リモートアクセスを読み込み中…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Loading scheduled tasks"
 msgstr "スケジュールタスクを読み込み中"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "Loading skill…"
+msgstr "スキルを読み込み中…"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Loading skills…"
+msgstr "スキルを読み込んでいます…"
 
 #: src/mobile/views/ThreadView.tsx
 msgid "Loading thread"
@@ -4430,6 +4700,10 @@ msgstr "開発サーバーを検索しています…"
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "サイドバーを半透明にします。Windows 11ではシステムのぼかし素材を、それ以外では半透明の色付けを使用します。"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Manage global and project agent skills, including skills imported from other providers."
+#~ msgstr "他のプロバイダーからインポートしたスキルを含む、グローバルおよびプロジェクトのエージェントスキルを管理します。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 msgid "Manage remote environments"
 msgstr "リモート環境を管理"
@@ -4437,6 +4711,23 @@ msgstr "リモート環境を管理"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote servers"
 #~ msgstr "リモートサーバーを管理"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+msgid "Manage shared skills across global and project scopes."
+msgstr "グローバルおよびプロジェクトスコープの共有スキルを管理します。"
+
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage shared skills across Linux and projects."
+#~ msgstr "Linux とプロジェクト間の共有スキルを管理します。"
+
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage shared skills across macOS and projects."
+#~ msgstr "macOS とプロジェクト間の共有スキルを管理します。"
+
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage shared skills across Windows, WSL, and projects."
+#~ msgstr "Windows、WSL、プロジェクト間の共有スキルを管理します。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
@@ -4447,9 +4738,29 @@ msgstr "リモート環境を管理"
 msgid "Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings."
 msgstr "対応エージェントの起動時にPoracodeが追加するMCPサーバー設定を管理します。ワークスペースのサーバーは、各プロジェクトの設定で構成できます。"
 
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
+#~ msgid "Manage the skills Poracode makes available to supported agents. Project skills can be managed in each project's settings."
+#~ msgstr "Poracode が対応エージェントに提供するスキルを管理します。プロジェクトスキルは各プロジェクトの設定で管理できます。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Managed"
+#~ msgstr "管理対象"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Managed by Poracode"
 msgstr "Poracode による管理"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Managed by provider"
+msgstr "プロバイダーが管理"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Managed by the provider or plugin."
+#~ msgstr "プロバイダーまたはプラグインが管理しています。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Managed skills"
+#~ msgstr "管理対象スキル"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
@@ -4482,6 +4793,14 @@ msgstr "完了マークを付ける"
 msgid "Mark Done"
 msgstr "完了マークを付ける"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Marketplace"
+msgstr "マーケットプレイス"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Marketplace rank"
+msgstr "マーケットプレイス順位"
+
 #: src/renderer/i18n/locales.ts
 msgid "Match app language"
 msgstr "アプリの言語に合わせる"
@@ -4503,6 +4822,10 @@ msgstr "最大化する"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Maximize browser"
 msgstr "ブラウザを最大化する"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "MCP Market"
+#~ msgstr "MCP Market"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -4798,6 +5121,14 @@ msgstr "その他の同期オプション"
 msgid "Most active hour"
 msgstr "最も活発な時間帯"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Most installed"
+#~ msgstr "インストール数順"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Most popular"
+msgstr "人気順"
+
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Most used plugins"
 msgstr "よく使うプラグイン"
@@ -4846,6 +5177,7 @@ msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Name"
@@ -5168,6 +5500,7 @@ msgstr "まだデータがありません"
 msgid "No data yet."
 msgstr "まだデータがありません。"
 
+#: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No description"
 msgstr "説明なし"
@@ -5189,6 +5522,10 @@ msgstr "{0}に利用できる差分はありません"
 msgid "No diff for {visiblePath}"
 msgstr "{visiblePath}の差分はありません"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "No external skills were found in this scope."
+msgstr "このスコープには外部スキルが見つかりませんでした。"
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "No file checkpoint is stored for this message."
 msgstr "このメッセージにはファイル チェックポイントは保存されません。"
@@ -5207,6 +5544,10 @@ msgstr "GitHub CLI アカウントが見つかりません。 <0>gh auth login</
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "履歴はまだありません"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "No marketplace skills match these filters."
+msgstr "これらのフィルターに一致するマーケットプレイススキルはありません。"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -5337,6 +5678,14 @@ msgstr "このスレッドにはランタイム アイテムがまだありま�
 msgid "No shortcuts found"
 msgstr "ショートカットが見つかりません"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "No skills found"
+msgstr "スキルが見つかりません"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "No skills match your search and filter."
+msgstr "検索条件とフィルターに一致するスキルはありません。"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "No skills used yet."
 msgstr "スキルはまだ使用されていません。"
@@ -5461,6 +5810,14 @@ msgstr "オフ"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "オフ"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Official"
+msgstr "公式"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Official sources only"
+msgstr "公式ソースのみ"
 
 #: src/mobile/useRemoteDesktop.ts
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5633,10 +5990,22 @@ msgstr "画像のプレビューを開く"
 msgid "Open in editor"
 msgstr "エディタで開く"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Open leaderboard with install and trend metrics."
+msgstr "インストール数とトレンド指標を掲載した公開ランキング。"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Open links in"
 msgstr "リンクを開く"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Open marketplace"
+#~ msgstr "マーケットプレイスを開く"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Open MCP Market to browse purchases and downloads without bypassing its account or licensing flow."
+#~ msgstr "アカウントやライセンスの手続きを迂回せずに、MCP Market で購入とダウンロードを確認します。"
 
 #: src/renderer/commands/composerCommands.ts
 msgid "Open model picker"
@@ -5774,6 +6143,10 @@ msgstr "結果"
 msgid "Over pace — runs out early"
 msgstr "オーバーペース — 早めに力尽きてしまう"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Overridden by project"
+#~ msgstr "プロジェクトによって上書き"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN."
 msgstr "Claudeのデフォルト設定を上書きします（例：ANTHROPIC_BASE_URLやANTHROPIC_AUTH_TOKEN）。"
@@ -5785,6 +6158,10 @@ msgstr "このプロジェクトのワークツリーが作成される場所を
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Overrides {conflict}"
 msgstr "{conflict} を上書き"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "Overrides global"
+#~ msgstr "グローバル設定を上書き"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Overriding the global setting for this project."
@@ -6000,6 +6377,10 @@ msgstr "通知が表示されたときに音を鳴らします。"
 msgid "Play notification sound"
 msgstr "通知音を鳴らす"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Plugin"
+msgstr "プラグイン"
+
 #: src/mobile/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "設定 → リモートアクセスの QR コードに向けてください"
@@ -6012,6 +6393,16 @@ msgstr "このプロファイルを、カスタムの環境変数・モデル名
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "人気のエディター テーマを Poracode に適合させました。それぞれは上記のライト モードまたはダーク モードに従います。"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
+#~ msgstr "Poracode はマーケットプレイスの認証情報を設定に平文で保存しません。カタログを開いて、セキュリティスキャン済みのスキルを確認してください。"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Poracode only"
+msgstr "Poracode のみ"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
@@ -6146,6 +6537,7 @@ msgstr "プロファイル"
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -6172,6 +6564,14 @@ msgstr "プロジェクトノート"
 msgid "Project Settings"
 msgstr "プロジェクト設定"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
+msgid "Project skills are available only when agents run in this project. Each provider applies its own precedence rules when names overlap."
+msgstr "プロジェクトスキルは、エージェントがこのプロジェクトで実行されている場合にのみ利用できます。名前が重複する場合、各プロバイダー独自の優先順位ルールが適用されます。"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
+#~ msgid "Project skills override global skills with the same name and are available only when agents run in this project."
+#~ msgstr "プロジェクトスキルは同名のグローバルスキルを上書きし、エージェントがこのプロジェクトで実行される場合にのみ利用できます。"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "Project-specific overrides on top of the global search settings."
 msgstr "グローバル検索設定に加えてプロジェクト固有のオーバーライド。"
@@ -6179,7 +6579,6 @@ msgstr "グローバル検索設定に加えてプロジェクト固有のオー
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
-#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 msgid "Projects"
 msgstr "プロジェクト"
@@ -6236,6 +6635,10 @@ msgstr "プロバイダー"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "プロバイダー"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Public registry with verified sources and GitHub metrics."
+msgstr "検証済みソースと GitHub 指標を備えた公開レジストリ。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Public URL"
@@ -6398,6 +6801,10 @@ msgstr "推論"
 msgid "Recent"
 msgstr "最近の"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Recent installs"
+msgstr "最近のインストール"
+
 #: src/renderer/views/HomeView.tsx
 msgid "Recent threads"
 msgstr "最近のスレッド"
@@ -6461,6 +6868,10 @@ msgstr "MCP サーバーのソースを更新"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
 msgstr "レジストリを更新する"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Refresh skills"
+msgstr "スキルを更新"
 
 #. placeholder {0}: status.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -6621,6 +7032,11 @@ msgstr "プロジェクトの削除"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "ショートカットを削除"
+
+#. placeholder {0}: pendingDelete.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Remove the linked skill “{0}”? Its source folder will not be deleted."
+msgstr "リンクされたスキル「{0}」を削除しますか？ソースフォルダーは削除されません。"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -6815,6 +7231,7 @@ msgstr "再開"
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
 msgid "Retry"
 msgstr "再試行"
 
@@ -7178,6 +7595,10 @@ msgstr "ブランチを検索..."
 msgid "Search files"
 msgstr "ファイルの検索"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Search marketplace skills"
+msgstr "マーケットプレイスのスキルを検索"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Search MCP servers"
 msgstr "MCPサーバーを検索"
@@ -7226,6 +7647,18 @@ msgstr "設定を検索"
 msgid "Search shortcuts"
 msgstr "ショートカットを検索"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Search skills"
+msgstr "スキルを検索"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Search skills or sources..."
+msgstr "スキルまたはソースを検索..."
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Search skills..."
+msgstr "スキルを検索..."
+
 #: src/renderer/commands/registry.ts
 msgid "Search the current view"
 msgstr "現在のビューを検索"
@@ -7252,6 +7685,10 @@ msgstr "検索中..."
 msgid "Searching…"
 msgstr "検索中…"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "Security-focused directory with verified skill metadata."
+#~ msgstr "検証済みのスキルメタデータを備えたセキュリティ重視のディレクトリ。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
 msgid "See more"
 msgstr "もっと見る"
@@ -7259,6 +7696,12 @@ msgstr "もっと見る"
 #: src/renderer/components/common/OptionMenu.tsx
 msgid "Select"
 msgstr "選択"
+
+#. placeholder {0}: skill.name
+#. placeholder {1}: skill.providerLabel
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Select {0} from {1}"
+msgstr "{1} から {0} を選択"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select {serverName} from {providerLabel}"
@@ -7289,6 +7732,7 @@ msgid "Select account"
 msgstr "アカウントの選択"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all"
 msgstr "すべて選択"
 
@@ -7299,6 +7743,10 @@ msgstr "すべての MCP サーバーを選択"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select all MCP servers from {providerLabel}"
 msgstr "{providerLabel} のすべての MCP サーバーを選択"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Select all skills"
+msgstr "すべてのスキルを選択"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Select an agent to see its prompt and outcome."
@@ -7394,6 +7842,10 @@ msgstr "共有"
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "アクティビティを共有"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Shared"
+msgstr "共有"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -7507,6 +7959,11 @@ msgstr "ランタイムデバッグパネルを表示"
 msgid "Show sidebar"
 msgstr "サイドバーを表示"
 
+#. placeholder {0}: first.providerLabel
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "Show skills from {0}"
+msgstr "{0} のスキルを表示"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show source"
 msgstr "ソースを表示"
@@ -7520,6 +7977,11 @@ msgstr "コンポーザーにマイクボタンを表示します。"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Show voice input button"
 msgstr "音声入力ボタンを表示"
+
+#. placeholder {0}: displayedSkills.length
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Showing {0, plural, one {# skill} other {# skills}}"
+msgstr "{0, plural, other {# 件のスキル}}を表示中"
 
 #: src/mobile/views/HostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
@@ -7612,6 +8074,15 @@ msgstr "{env}からサインアウトします。検出されたエージェン�
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "サインアウトしています。検出されたエージェントは終了時に更新されます。"
 
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skill availability"
+msgstr "スキルの利用範囲"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skill marketplace source"
+msgstr "スキルマーケットプレイスのソース"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skill runs"
 msgstr "スキル実行"
@@ -7620,18 +8091,65 @@ msgstr "スキル実行"
 msgid "Skill: {skill}"
 msgstr "スキル:{skill}"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md couldn't be read."
+msgstr "SKILL.md を読み取れませんでした。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md is missing YAML frontmatter."
+msgstr "SKILL.md に YAML フロントマターがありません。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md is missing."
+msgstr "SKILL.md がありません。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "SKILL.md is too large."
+msgstr "SKILL.md が大きすぎます。"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SkillsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 msgid "Skills"
 msgstr "スキル"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skills Directory"
+msgstr "Skills Directory"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Skills explored"
 msgstr "探索したスキル"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Skills location"
+msgstr "スキルの場所"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skills marketplace"
+msgstr "スキルマーケットプレイス"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Skills.sh"
+msgstr "Skills.sh"
+
+#: src/renderer/components/thread/ThreadCommandPanel.tsx
+msgid "Slash commands"
+msgstr "スラッシュコマンド"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "一部のチェックが失敗または保留中です。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
+msgstr "一部のプロバイダーフォルダーをスキャンできませんでした。正常に読み込まれたスキルは引き続き表示されます。"
 
 #: src/mobile/QrScanner.tsx
 msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
@@ -7645,9 +8163,17 @@ msgstr "作成順に並べ替える"
 msgid "Sort by last updated"
 msgstr "最終更新順に並べ替える"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Sort marketplace skills"
+msgstr "マーケットプレイススキルを並べ替え"
+
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Sort threads"
 msgstr "スレッドを並べ替える"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Sources"
+msgstr "ソース"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Space separated; use quotes around spaces"
@@ -7930,7 +8456,7 @@ msgstr "サブエージェントが見つかりません。"
 msgid "Subagent Result"
 msgstr "サブエージェントの結果"
 
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SubagentRoutingSection.tsx
 msgid "Subagent routing guide"
 msgstr "サブエージェントのルーティングガイド"
@@ -7942,6 +8468,7 @@ msgstr "サブエージェント実行"
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 msgid "Subagents"
 msgstr "サブエージェント"
 
@@ -8227,6 +8754,11 @@ msgstr "その QR コードは Poracode のペアリングリンクではあり�
 msgid "That remote session was already gone."
 msgstr "そのリモートセッションはすでに存在しません。"
 
+#. placeholder {0}: target.wslDistro
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "the {0} WSL user"
+#~ msgstr "{0} WSL ユーザー"
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "エージェント"
@@ -8251,6 +8783,19 @@ msgstr "既定のバックグラウンド更新間隔です。下で独自の間
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."
 msgstr "デスクトップサーバーはまだ起動中です。"
+
+#. placeholder {0}: createTarget.wslDistro
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the global {0} WSL scope"
+msgstr "{0} のグローバル WSL スコープ"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the Linux user"
+msgstr "Linux ユーザー"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the macOS user"
+msgstr "macOS ユーザー"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
@@ -8288,9 +8833,45 @@ msgstr "サーバー構成が無効です。"
 msgid "The server returned an invalid MCP response."
 msgstr "サーバーから無効なMCPレスポンスが返されました。"
 
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill description is missing."
+msgstr "スキルの説明がありません。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill description is too long."
+msgstr "スキルの説明が長すぎます。"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "The skill is copied into the destination and can be changed independently."
+msgstr "スキルはインポート先にコピーされ、個別に変更できます。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill name is missing."
+msgstr "スキル名がありません。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill name must match its folder name."
+msgstr "スキル名はフォルダー名と一致する必要があります。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "The skill name must use lowercase letters, numbers, and hyphens."
+msgstr "スキル名には小文字、数字、ハイフンを使用してください。"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+msgid "The skill stays synchronized with its source and stops working if the source moves."
+msgstr "スキルはソースと同期されたままになり、ソースが移動されると動作しなくなります。"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "The skills marketplace couldn't be loaded."
+msgstr "スキルマーケットプレイスを読み込めませんでした。"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "対象プロバイダー"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "the Windows user"
+msgstr "Windows ユーザー"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -8319,6 +8900,14 @@ msgstr "このアプリは HTTPS で配信されていますが、デスクト�
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "このブラウザはここでシステム通知をサポートしていません。アプリ内トーストは引き続き表示されます。"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "This catalog manages downloads through its website."
+#~ msgstr "このカタログはウェブサイト経由でダウンロードを管理します。"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+#~ msgid "This catalog requires its own API key."
+#~ msgstr "このカタログには専用の API キーが必要です。"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
@@ -8359,6 +8948,10 @@ msgstr "これにより、ブランチ「{0}」がリモートから完全に削
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This permanently deletes the branch \"{0}\"."
 msgstr "これにより、ブランチ「{0}」が完全に削除されます。"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "this project"
+msgstr "このプロジェクト"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "This remote project is unavailable. Reconnect the environment and try again."
@@ -8562,6 +9155,10 @@ msgstr "ツール制限はインポートできません"
 msgid "Tool search"
 msgstr "ツール検索"
 
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Total installs"
+msgstr "合計インストール数"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Total prompts"
 msgstr "プロンプト総数"
@@ -8603,6 +9200,10 @@ msgstr "音声の文字起こし"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
 msgstr "半透明のサイドバー"
+
+#: src/renderer/components/skills/SkillMarketplaceModal.tsx
+msgid "Trending now"
+msgstr "現在のトレンド"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Trust and connect"
@@ -9095,6 +9696,10 @@ msgstr "1 つのグローバルフォルダーを使用するか、各プロジ�
 msgid "Use Session"
 msgstr "セッションを使用する"
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Use the {name} skill."
+msgstr "{name} スキルを使用します。"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "このアカウントを使用状況の追跡に使用するか、続行する前にブラウザでユーザーを変更してください。"
@@ -9160,6 +9765,11 @@ msgstr "{0}経由"
 msgid "View"
 msgstr "表示"
 
+#. placeholder {0}: skill.name
+#: src/renderer/components/skills/SkillsManager.tsx
+msgid "View {0}"
+msgstr "{0} を表示"
+
 #: src/renderer/views/SettingsOverlay/parts/ChangelogSettings.tsx
 msgid "View all releases on GitHub"
 msgstr "GitHubですべてのリリースを表示"
@@ -9171,6 +9781,18 @@ msgstr "diff を表示"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "変更履歴をすべて表示"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "View raw"
+msgstr "ソースを表示"
+
+#: src/renderer/components/skills/SkillViewModal.tsx
+msgid "View rendered"
+msgstr "レンダリング表示"
+
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "View skill"
+#~ msgstr "スキルを表示"
 
 #: src/renderer/commands/registry.ts
 msgid "View the changelog"
@@ -9374,7 +9996,7 @@ msgstr "ターミナルパネルが表示される場所。"
 msgid "Will run in {0}:"
 msgstr "{0}で実行されます:"
 
-#: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -9527,7 +10149,6 @@ msgstr "コメントを書いて…"
 msgid "Write notes for this project…"
 msgstr "このプロジェクトのメモを書いてください…"
 
-#: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "WSL"
@@ -9539,6 +10160,7 @@ msgid "WSL ({0})"
 msgstr "WSL ({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 msgid "WSL ({distro})"
 msgstr "WSL ({distro})"
 
@@ -9546,6 +10168,11 @@ msgstr "WSL ({distro})"
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "WSL base folder"
 msgstr "WSL ベースフォルダー"
+
+#: src/renderer/components/skills/SkillImportModal.tsx
+#: src/renderer/components/skills/SkillsManager.tsx
+#~ msgid "WSL user"
+#~ msgstr "WSL ユーザー"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"

@@ -210,6 +210,9 @@ export const codexDefaultCapabilities: AgentCapability = {
   chromeMcpScope: { terminal: "launch", gui: "launch" },
   settingDefs: [],
   slashCommands: CODEX_BUILT_IN_SLASH_COMMANDS,
+  // Codex delivers its enabled skills through the ACP session (`skills/list`),
+  // so its GUI catalog is authoritative even when it reports zero skills.
+  reportsSkillCatalog: true,
 };
 
 export function probeResultToCapabilityPartial(probe: CodexProbeResult): Partial<AgentCapability> {
@@ -221,6 +224,7 @@ export function probeResultToCapabilityPartial(probe: CodexProbeResult): Partial
     ...(probe.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
     ...(probe.sandboxModes?.length ? { sandboxModes: probe.sandboxModes } : {}),
     ...(probe.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),
+    ...(probe.disabledSkillNames ? { disabledSkillNames: probe.disabledSkillNames } : {}),
     // Only models whose `model/list` entry advertises the Fast/priority service
     // tier can opt into Fast — the probe filters these from per-model tier data
     // (with a legacy fallback to all models when the CLI omits the fields).

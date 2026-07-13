@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { createSlashCommandChipElement } from "./SlashCommandChip";
 import { serializeComposerContent, serializeToSegments } from "./serializeMentions";
 
 describe("serializeComposerContent", () => {
@@ -102,6 +103,32 @@ describe("serializeComposerContent", () => {
     container.appendChild(chip);
 
     expect(serializeComposerContent(container)).toBe("@README.md");
+  });
+
+  it("preserves skill metadata and uses the provider invocation when flattened", () => {
+    const chip = createSlashCommandChipElement({
+      id: "review-code",
+      skillName: "review-code",
+      skillPath: "C:\\Users\\me\\.agents\\skills\\review-code\\SKILL.md",
+      skillInvocation: "$review-code",
+      skillProvider: "Codex",
+      skillScope: "global",
+    });
+    container.appendChild(chip);
+
+    expect(chip.querySelector("svg")).not.toBeNull();
+
+    expect(serializeToSegments(container)).toEqual([
+      {
+        kind: "skill",
+        name: "review-code",
+        path: "C:\\Users\\me\\.agents\\skills\\review-code\\SKILL.md",
+        invocation: "$review-code",
+        provider: "Codex",
+        scope: "global",
+      },
+    ]);
+    expect(serializeComposerContent(container)).toBe("$review-code");
   });
 
   it("excludes attachment segments from serialization", () => {

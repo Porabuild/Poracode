@@ -1,4 +1,5 @@
 import type { AgentCapability, PromptSegment, ProjectLocation } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 import {
   createKnownSessionRef,
   detectAgentInstall,
@@ -37,6 +38,35 @@ export function createAntigravityAdapter(): AgentAdapter {
     kind: antigravityDetectionSpec.kind,
     label: antigravityDetectionSpec.label,
     binary: antigravityDetectionSpec.binary,
+    skillSupport: {
+      roots: [
+        {
+          id: "antigravity",
+          label: antigravityDetectionSpec.label,
+          globalPath: ".gemini/config/skills",
+          projectPath: ".agent/skills",
+        },
+        {
+          // Antigravity loads `{workspace}/.agents/skills/{name}/SKILL.md`
+          // (verified against the shipped binary); no global `.agents` scan.
+          id: "agents",
+          label: "Shared agent skills",
+          projectPath: ".agents/skills",
+        },
+      ],
+      projectionRoots: [
+        {
+          id: "antigravity",
+          label: antigravityDetectionSpec.label,
+          globalPath: ".gemini/config/skills",
+        },
+      ],
+      invocation: "prompt",
+      precedence: {
+        global: ["antigravity", "agents"],
+        project: ["agents", "antigravity"],
+      },
+    },
     ...(antigravityDetectionSpec.update ? { update: antigravityDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
@@ -164,7 +194,7 @@ export function createAntigravityAdapter(): AgentAdapter {
       const attachments = segments.filter((s) => s.kind === "attachment");
       const rest = segments.filter((s) => s.kind !== "attachment");
       const attachmentLines = attachments.map((s) => `@${s.path}`).join(" ");
-      const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+      const restStr = rest.map(inlinePromptSegmentText).join("");
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
     detectTerminalStatus: detectAntigravityTerminalStatus,

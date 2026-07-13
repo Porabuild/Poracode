@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { randomUUID } from "node:crypto";
 import type { AuthState, PromptSegment, SessionRef } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 
 /**
  * Default segment formatter: file segments become `@path`, text segments pass through.
@@ -21,7 +22,7 @@ export function defaultFormatPromptSegments(segments: PromptSegment[]): string {
   const attachments = segments.filter((s) => s.kind === "attachment");
   const rest = segments.filter((s) => s.kind !== "attachment");
   const attachmentLines = attachments.map((s) => `@${shortenHomePath(s.path)}`).join(" ");
-  const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+  const restStr = rest.map(inlinePromptSegmentText).join("");
   return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
 }
 

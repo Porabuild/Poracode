@@ -1,4 +1,5 @@
 import type { AgentCapability, PromptSegment } from "@/shared/contracts";
+import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { detectAgentInstall, type AgentAdapter, type TerminalStatusHint } from "../base";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildCommandCodeArgs } from "./argv";
@@ -53,6 +54,29 @@ export function createCommandCodeAdapter(): AgentAdapter {
     kind: commandCodeDetectionSpec.kind,
     label: commandCodeDetectionSpec.label,
     binary: commandCodeDetectionSpec.binary,
+    skillSupport: {
+      roots: [
+        {
+          id: "commandcode",
+          label: commandCodeDetectionSpec.label,
+          globalPath: ".commandcode/skills",
+          projectPath: ".commandcode/skills",
+        },
+        {
+          // Command Code scans `.agents/skills` alongside its own folder
+          // (verified against the shipped binary's scan literals).
+          id: "agents",
+          label: "Shared agent skills",
+          globalPath: ".agents/skills",
+          projectPath: ".agents/skills",
+        },
+      ],
+      invocation: "slash",
+      precedence: {
+        global: ["commandcode", "agents"],
+        project: ["commandcode", "agents"],
+      },
+    },
     // Surface the update spec on the adapter (not just on the detection status)
     // so the shared updater and the npm "latest version" probe behind the
     // Settings registry card can read `adapter.update`. Mirrors every other
@@ -150,7 +174,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
       const attachments = segments.filter((s) => s.kind === "attachment");
       const rest = segments.filter((s) => s.kind !== "attachment");
       const attachmentLines = attachments.map((s) => `@${s.path}`).join(" ");
-      const restStr = rest.map((s) => (s.kind === "file" ? `@${s.path}` : s.content)).join("");
+      const restStr = rest.map(inlinePromptSegmentText).join("");
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
 

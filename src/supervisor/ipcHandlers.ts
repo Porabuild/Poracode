@@ -22,6 +22,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
   const mcpProbe = runtime.mcpProbeService;
   const mcpOAuth = runtime.mcpOAuthService;
   const externalMcpDiscovery = runtime.externalMcpDiscoveryService;
+  const skills = runtime.skillsService;
   return defineSupervisorIpcHandlers({
     listWslDistros: () => registry.listWslDistros(),
     getAgentStatuses: (payload) => registry.getAgentStatuses(payload),
@@ -245,5 +246,11 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     waitMcpServerOauth: (payload) => mcpOAuth.wait(payload),
     clearMcpServerOauth: (payload) => mcpOAuth.clear(payload),
     getMcpOauthStatus: () => mcpOAuth.status(),
+    scanSkills: (payload) => skills.scan(payload),
+    setSkillEnabled: (payload) => skills.setEnabled(payload),
+    deleteSkill: (payload) => skills.delete(payload),
+    importSkills: (payload) => skills.import(payload),
+    listSkillMarketplace: (payload) => skills.listMarketplace(payload),
+    installMarketplaceSkill: (payload) => skills.installMarketplace(payload),
   });
 }

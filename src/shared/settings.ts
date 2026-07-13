@@ -3,6 +3,7 @@ import { allUsageProviderDescriptors } from "@lightcode/agents-usage/providers";
 import {
   agentInstanceConfigMapSchema,
   installedAcpRegistryAgentSchema,
+  builtInMcpDisabledToolsSchema,
   builtInMcpServerDisabledSchema,
   gitReviewModeSchema,
   prCreateModeSchema,
@@ -404,6 +405,8 @@ export const sharedSettingsSchema = z.object({
   mcpServers: mcpServerListSchema,
   /** Built-in MCP servers hard-disabled for all new launches. */
   disabledBuiltInMcpServers: builtInMcpServerDisabledSchema,
+  /** Disabled tools for Poracode-owned built-in MCP servers. */
+  disabledBuiltInMcpTools: builtInMcpDisabledToolsSchema,
   /**
    * In-app browser panel + agent MCP bridge settings. Whether the Browser MCP
    * attaches to a thread is decided per thread: a persistent default in
@@ -524,6 +527,7 @@ export const defaultSharedSettings: SharedSettings = {
   enabledMcpServers: {},
   mcpServers: [],
   disabledBuiltInMcpServers: {},
+  disabledBuiltInMcpTools: {},
   browser: {
     allowEval: false,
     allowDataAccess: false,

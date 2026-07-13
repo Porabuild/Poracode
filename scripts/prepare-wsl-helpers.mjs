@@ -10,6 +10,7 @@
  *      + /v1/watch/*). Copied from `src/supervisor/wsl/bridge/bridge.mjs`.
  *   3. `mcp-probe.mjs` — self-contained MCP client used to verify workspace
  *      servers in the same distro where providers run.
+ *   4. `mcp-filter.mjs` — same-environment MCP proxy that removes disabled tools.
  *
  * Idempotency: presence + non-zero size on `watcher.node` skips the
  * `npm pack` download. `bridge.mjs` is always copied — the copy is <1ms
@@ -43,6 +44,7 @@ mkdirSync(destDir, { recursive: true });
 stageWatcherBinary();
 stageHookBridge();
 stageMcpProbe();
+stageMcpFilter();
 
 function stageWatcherBinary() {
   const dest = join(destDir, "watcher.node");
@@ -102,6 +104,17 @@ function stageMcpProbe() {
   const dest = join(destDir, "mcp-probe.mjs");
   copyFileSync(src, dest);
   console.log(`[prepare-wsl-helpers] mcpProbeWorker.mjs -> ${dest}`);
+}
+
+function stageMcpFilter() {
+  const src = join(repoRoot, "dist", "main", "mcpToolFilterWorker.mjs");
+  if (!existsSync(src)) {
+    throw new Error(`MCP filter worker missing; run build:electron first: ${src}`);
+  }
+  assertSelfContainedWorker(src);
+  const dest = join(destDir, "mcp-filter.mjs");
+  copyFileSync(src, dest);
+  console.log(`[prepare-wsl-helpers] mcpToolFilterWorker.mjs -> ${dest}`);
 }
 
 function assertSelfContainedWorker(path) {

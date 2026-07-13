@@ -124,6 +124,7 @@ describe("sharedSettingsFile", () => {
       enabledMcpServers: {},
       mcpServers: [],
       disabledBuiltInMcpServers: {},
+      disabledBuiltInMcpTools: {},
       browser: {
         allowEval: false,
         allowDataAccess: false,

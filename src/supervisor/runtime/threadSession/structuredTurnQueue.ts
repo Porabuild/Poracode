@@ -35,11 +35,15 @@ export class StructuredTurnQueue {
         ? (turn.userMessageItemId ??
           this.emitOptimisticUserMessage(session.threadId, turn.prompt, turn.segments))
         : undefined;
+    const startOptions = {
+      ...(optimisticItemId ? { userMessageItemId: optimisticItemId } : {}),
+      ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
+    };
     const startTurn = session.structuredSession.startTurn(
       turn.prompt,
       turn.config,
       turn.segments,
-      optimisticItemId ? { userMessageItemId: optimisticItemId } : undefined,
+      Object.keys(startOptions).length > 0 ? startOptions : undefined,
     );
     void startTurn.catch((error) => {
       if (this.ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {

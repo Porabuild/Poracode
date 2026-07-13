@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Input, Switch, Tooltip } from "@heroui/react";
+import { Input, Modal, Switch, Tooltip } from "@heroui/react";
 import {
   AppWindow,
   Download,
@@ -18,8 +18,9 @@ import {
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
   BUILT_IN_MCP_SERVER_NAMES,
-  BUILT_IN_MCP_SERVER_TOOL_COUNTS,
+  BUILT_IN_MCP_SERVER_TOOL_NAMES,
   type BuiltInMcpServerDisabled,
+  type BuiltInMcpDisabledTools,
   type BuiltInMcpServerId,
   type McpServer,
   type ProjectLocation,
@@ -69,6 +70,19 @@ export interface McpImportProjectTarget {
   onChange: (servers: McpServer[]) => void;
 }
 
+interface BuiltInSettings {
+  title: string;
+  actionLabel: string;
+  content: ReactNode;
+}
+
+interface McpToolList {
+  label: string;
+  tools: readonly string[];
+  disabledTools: readonly string[];
+  onToolEnabledChange: (tool: string, enabled: boolean) => void;
+}
+
 export function McpServersManager(props: {
   sources: {
     user: McpServerSource;
@@ -77,12 +91,17 @@ export function McpServersManager(props: {
   importProjects?: McpImportProjectTarget[];
   defaultScope: McpServerScope;
   disabledBuiltIns?: BuiltInMcpServerDisabled;
+  disabledBuiltInTools?: BuiltInMcpDisabledTools;
   onBuiltInDisabledChange?: (id: BuiltInMcpServerId, disabled: boolean) => void;
+  onBuiltInToolEnabledChange?: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
+  builtInSettings?: Partial<Record<BuiltInMcpServerId, BuiltInSettings>>;
 }) {
   const { t } = useLingui();
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState<EditorState | undefined>();
   const [importOpen, setImportOpen] = useState(false);
+  const [builtInSettingsId, setBuiltInSettingsId] = useState<BuiltInMcpServerId>();
+  const [toolList, setToolList] = useState<McpToolList>();
   const oauth = useMcpServerOauth();
   const userProbes = useMcpServerProbes(props.sources.user.servers);
   const workspaceProbes = useMcpServerProbes(
@@ -160,7 +179,7 @@ export function McpServersManager(props: {
     {
       id: "browser",
       name: BUILT_IN_MCP_SERVER_NAMES.browser,
-      toolCount: BUILT_IN_MCP_SERVER_TOOL_COUNTS.browser,
+      tools: BUILT_IN_MCP_SERVER_TOOL_NAMES.browser,
       label: t`Browser`,
       description: builtInDescription,
       icon: <Globe className="size-4" />,
@@ -168,15 +187,18 @@ export function McpServersManager(props: {
     {
       id: "subagents",
       name: BUILT_IN_MCP_SERVER_NAMES.subagents,
-      toolCount: BUILT_IN_MCP_SERVER_TOOL_COUNTS.subagents,
+      tools: BUILT_IN_MCP_SERVER_TOOL_NAMES.subagents,
       label: t`Subagents`,
       description: builtInDescription,
       icon: <Users className="size-4" />,
+      ...(props.builtInSettings?.subagents !== undefined
+        ? { settingsLabel: props.builtInSettings.subagents.actionLabel }
+        : {}),
     },
     {
       id: "chrome",
       name: BUILT_IN_MCP_SERVER_NAMES.chrome,
-      toolCount: BUILT_IN_MCP_SERVER_TOOL_COUNTS.chrome,
+      tools: BUILT_IN_MCP_SERVER_TOOL_NAMES.chrome,
       label: t`Chrome`,
       description: builtInDescription,
       icon: <AppWindow className="size-4" />,
@@ -184,7 +206,7 @@ export function McpServersManager(props: {
     {
       id: "computer-use",
       name: BUILT_IN_MCP_SERVER_NAMES["computer-use"],
-      toolCount: BUILT_IN_MCP_SERVER_TOOL_COUNTS["computer-use"],
+      tools: BUILT_IN_MCP_SERVER_TOOL_NAMES["computer-use"],
       label: t`Computer Use`,
       description: builtInDescription,
       icon: <Monitor className="size-4" />,
@@ -192,14 +214,14 @@ export function McpServersManager(props: {
     {
       id: "app-controls",
       name: BUILT_IN_MCP_SERVER_NAMES["app-controls"],
-      toolCount: BUILT_IN_MCP_SERVER_TOOL_COUNTS["app-controls"],
+      tools: BUILT_IN_MCP_SERVER_TOOL_NAMES["app-controls"],
       label: t`App Controls`,
       description: builtInDescription,
       icon: <Settings2 className="size-4" />,
     },
   ];
   const visibleBuiltIns = builtIns.filter((server) =>
-    [server.name, server.label, server.description]
+    [server.name, server.label, server.description, server.settingsLabel, server.tools.join(" ")]
       .join(" ")
       .toLowerCase()
       .includes(normalizedQuery),
@@ -262,6 +284,9 @@ export function McpServersManager(props: {
   const hasVisibleRows =
     visibleServers.length > 0 ||
     (props.disabledBuiltIns !== undefined && visibleBuiltIns.length > 0);
+  const activeBuiltInSettings = builtInSettingsId
+    ? props.builtInSettings?.[builtInSettingsId]
+    : undefined;
 
   return (
     <div className="space-y-5">
@@ -289,6 +314,70 @@ export function McpServersManager(props: {
           onSave={upsert}
           onCancel={() => setEditor(undefined)}
         />
+      ) : null}
+      {activeBuiltInSettings ? (
+        <Modal.Backdrop isOpen onOpenChange={(open) => !open && setBuiltInSettingsId(undefined)}>
+          <Modal.Container placement="center" size="md">
+            <Modal.Dialog className="sm:max-w-lg">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Heading>{activeBuiltInSettings.title}</Modal.Heading>
+              </Modal.Header>
+              <Modal.Body className="p-4">{activeBuiltInSettings.content}</Modal.Body>
+              <Modal.Footer>
+                <Button slot="close" variant="ghost" aria-label={t`Close`}>
+                  <Trans>Close</Trans>
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      ) : null}
+      {toolList ? (
+        <Modal.Backdrop isOpen onOpenChange={(open) => !open && setToolList(undefined)}>
+          <Modal.Container placement="center" scroll="inside" size="md">
+            <Modal.Dialog className="sm:max-w-lg">
+              <Modal.CloseTrigger />
+              <Modal.Header>
+                <Modal.Heading>{toolList.label}</Modal.Heading>
+                <p className="text-xs text-muted">
+                  <Plural value={toolList.tools.length} one="# tool" other="# tools" />
+                </p>
+              </Modal.Header>
+              <Modal.Body className="max-h-[min(32rem,65vh)] p-0">
+                <ul className="divide-y divide-[var(--hairline)]">
+                  {toolList.tools.map((tool, index) => {
+                    const enabled = !toolList.disabledTools.includes(tool);
+                    return (
+                      <li key={`${tool}:${index}`} className="flex items-center gap-3 px-4 py-2">
+                        <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">
+                          {tool}
+                        </span>
+                        <Switch
+                          size="sm"
+                          aria-label={enabled ? t`Disable ${tool}` : t`Enable ${tool}`}
+                          isSelected={enabled}
+                          onChange={(selected) => toolList.onToolEnabledChange(tool, selected)}
+                        >
+                          <Switch.Content>
+                            <Switch.Control>
+                              <Switch.Thumb />
+                            </Switch.Control>
+                          </Switch.Content>
+                        </Switch>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Modal.Body>
+              <Modal.Footer>
+                <Button slot="close" variant="ghost" aria-label={t`Close`}>
+                  <Trans>Close</Trans>
+                </Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
       ) : null}
       <McpExternalImportModal
         isOpen={importOpen}
@@ -398,6 +487,27 @@ export function McpServersManager(props: {
                     }
                   }
                   onProbe={() => probes.probe(server)}
+                  onViewTools={(tools) =>
+                    setToolList({
+                      label: server.name,
+                      tools,
+                      disabledTools: server.disabledTools ?? [],
+                      onToolEnabledChange: (tool, enabled) => {
+                        const disabled = new Set(server.disabledTools ?? []);
+                        if (enabled) disabled.delete(tool);
+                        else disabled.add(tool);
+                        const disabledTools = [...disabled];
+                        source.onChange(
+                          source.servers.map((item) =>
+                            item.id === server.id ? { ...item, disabledTools } : item,
+                          ),
+                        );
+                        setToolList((current) =>
+                          current ? { ...current, disabledTools } : current,
+                        );
+                      },
+                    })
+                  }
                   onToggle={(enabled) =>
                     source.onChange(
                       source.servers.map((item) =>
@@ -451,6 +561,26 @@ export function McpServersManager(props: {
                   server={server}
                   disabled={props.disabledBuiltIns?.[server.id] === true}
                   onToggle={(enabled) => props.onBuiltInDisabledChange?.(server.id, !enabled)}
+                  onViewTools={() =>
+                    setToolList({
+                      label: server.label,
+                      tools: server.tools,
+                      disabledTools: props.disabledBuiltInTools?.[server.id] ?? [],
+                      onToolEnabledChange: (tool, enabled) => {
+                        props.onBuiltInToolEnabledChange?.(server.id, tool, enabled);
+                        setToolList((current) => {
+                          if (!current) return current;
+                          const disabled = new Set(current.disabledTools);
+                          if (enabled) disabled.delete(tool);
+                          else disabled.add(tool);
+                          return { ...current, disabledTools: [...disabled] };
+                        });
+                      },
+                    })
+                  }
+                  {...(server.settingsLabel
+                    ? { onSettings: () => setBuiltInSettingsId(server.id) }
+                    : {})}
                 />
               ))}
             </div>
@@ -490,6 +620,7 @@ function ConfiguredServerRow(props: {
   probeState: McpServerProbeState;
   oauth: ConfiguredServerRowOauth;
   onProbe: () => void;
+  onViewTools: (tools: readonly string[]) => void;
   onToggle: (enabled: boolean) => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -518,7 +649,7 @@ function ConfiguredServerRow(props: {
         {server.description ? (
           <p className="truncate text-xs text-muted/80">{server.description}</p>
         ) : null}
-        <McpServerProbeStatus state={props.probeState} />
+        <McpServerProbeStatus state={props.probeState} onViewTools={props.onViewTools} />
       </div>
       {showAuthenticate ? (
         <Button
@@ -615,7 +746,10 @@ function ConfiguredServerRow(props: {
   );
 }
 
-function McpServerProbeStatus(props: { state: McpServerProbeState }) {
+function McpServerProbeStatus(props: {
+  state: McpServerProbeState;
+  onViewTools: (tools: readonly string[]) => void;
+}) {
   const { t } = useLingui();
   const state = props.state;
 
@@ -643,7 +777,10 @@ function McpServerProbeStatus(props: { state: McpServerProbeState }) {
           <Trans>Connected</Trans>
         </span>
         <span aria-hidden="true">·</span>
-        <Plural value={state.toolCount} one="# tool" other="# tools" />
+        <ToolCountButton
+          count={state.toolCount}
+          {...(state.tools.length > 0 ? { onPress: () => props.onViewTools(state.tools) } : {})}
+        />
       </div>
     );
   }
@@ -695,53 +832,95 @@ function McpServerProbeStatus(props: { state: McpServerProbeState }) {
 interface BuiltInRow {
   id: BuiltInMcpServerId;
   name: string;
-  toolCount: number;
+  tools: readonly string[];
   label: string;
   description: string;
   icon: ReactNode;
+  settingsLabel?: string;
 }
 
 function BuiltInServerRow(props: {
   server: BuiltInRow;
   disabled: boolean;
   onToggle: (enabled: boolean) => void;
+  onViewTools: () => void;
+  onSettings?: () => void;
 }) {
   const { t } = useLingui();
   const enabled = !props.disabled;
   const serverLabel = props.server.label;
   return (
-    <div className="flex min-h-16 items-center gap-3 border-b border-[var(--hairline)] px-3 py-2.5 last:border-b-0">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-muted">
-        {props.server.icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium text-foreground">{props.server.label}</span>
-          <Badge>{props.server.name}</Badge>
-          <Badge>{t`Built-in`}</Badge>
+    <div
+      data-built-in-mcp-server={props.server.id}
+      className="border-b border-[var(--hairline)] last:border-b-0"
+    >
+      <div className="flex min-h-16 items-center gap-3 px-3 py-2.5">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-muted">
+          {props.server.icon}
         </div>
-        <p className="truncate text-xs text-muted">{props.server.description}</p>
-        <p className="mt-1 text-xs text-muted">
-          <Plural value={props.server.toolCount} one="# tool" other="# tools" />
-        </p>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-sm font-medium text-foreground">
+              {props.server.label}
+            </span>
+            <Badge>{props.server.name}</Badge>
+            <Badge>{t`Built-in`}</Badge>
+          </div>
+          <p className="truncate text-xs text-muted">{props.server.description}</p>
+          <div className="mt-1 text-xs text-muted">
+            <ToolCountButton count={props.server.tools.length} onPress={props.onViewTools} />
+          </div>
+        </div>
+        {props.disabled ? (
+          <span className="text-xs text-muted">
+            <Trans>Disabled globally</Trans>
+          </span>
+        ) : null}
+        {props.server.settingsLabel && props.onSettings ? (
+          <Tooltip>
+            <Tooltip.Trigger>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                aria-label={props.server.settingsLabel}
+                onPress={props.onSettings}
+              >
+                <Settings2 className="size-3.5" />
+              </Button>
+            </Tooltip.Trigger>
+            <Tooltip.Content>{props.server.settingsLabel}</Tooltip.Content>
+          </Tooltip>
+        ) : null}
+        <Switch
+          aria-label={enabled ? t`Disable ${serverLabel}` : t`Enable ${serverLabel}`}
+          isSelected={enabled}
+          onChange={props.onToggle}
+        >
+          <Switch.Content>
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Content>
+        </Switch>
       </div>
-      {props.disabled ? (
-        <span className="text-xs text-muted">
-          <Trans>Disabled globally</Trans>
-        </span>
-      ) : null}
-      <Switch
-        aria-label={enabled ? t`Disable ${serverLabel}` : t`Enable ${serverLabel}`}
-        isSelected={enabled}
-        onChange={props.onToggle}
-      >
-        <Switch.Content>
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch.Content>
-      </Switch>
     </div>
+  );
+}
+
+function ToolCountButton(props: { count: number; onPress?: () => void }) {
+  if (!props.onPress) {
+    return <Plural value={props.count} one="# tool" other="# tools" />;
+  }
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="!h-auto min-w-0 !p-0 text-xs text-muted hover:underline"
+      onPress={props.onPress}
+    >
+      <Plural value={props.count} one="# tool" other="# tools" />
+    </Button>
   );
 }
 

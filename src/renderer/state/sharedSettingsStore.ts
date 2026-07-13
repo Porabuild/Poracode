@@ -95,6 +95,7 @@ interface SharedSettingsState extends SharedSettings {
   setMcpServerEnabled: (id: string, enabled: boolean) => void;
   setMcpServers: (servers: McpServer[]) => void;
   setBuiltInMcpServerDisabled: (id: BuiltInMcpServerId, disabled: boolean) => void;
+  setBuiltInMcpToolEnabled: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
   setBrowserSetting: <K extends keyof SharedSettings["browser"]>(
     key: K,
     value: SharedSettings["browser"][K],
@@ -486,6 +487,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ disabledBuiltInMcpServers: next });
     persistSettings(selectSharedSettings(get()));
   },
+  setBuiltInMcpToolEnabled: (id, tool, enabled) => {
+    const current = get().disabledBuiltInMcpTools;
+    const disabled = new Set(current[id] ?? []);
+    if (enabled) disabled.delete(tool);
+    else disabled.add(tool);
+    const next = { ...current, [id]: [...disabled] };
+    if (disabled.size === 0) delete next[id];
+    set({ disabledBuiltInMcpTools: next });
+    persistSettings(selectSharedSettings(get()));
+  },
   setBrowserSetting: (key, value) => {
     const current = get().browser;
     if (current[key] === value) return;
@@ -761,6 +772,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     enabledMcpServers: state.enabledMcpServers,
     mcpServers: state.mcpServers,
     disabledBuiltInMcpServers: state.disabledBuiltInMcpServers,
+    disabledBuiltInMcpTools: state.disabledBuiltInMcpTools,
     notificationsEnabled: state.notificationsEnabled,
     notificationSound: state.notificationSound,
     notificationFilter: state.notificationFilter,

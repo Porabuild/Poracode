@@ -411,13 +411,24 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     keywords: "glob hide ignore file mention exclude pattern filter",
   },
 
+  // Skills
+  {
+    section: "skills",
+    anchor: "skills.manage",
+    title: msg`Skills`,
+    description: msg`Manage shared skills across global and project scopes.`,
+    keywords: "skills shared agents instructions import enable disable global project provider",
+    desktopOnly: true,
+  },
+
   // MCP Servers
   {
     section: "mcpServers",
     anchor: "mcpServers.manage",
     title: msg`MCP Servers`,
     description: msg`Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings.`,
-    keywords: "model context protocol tools server stdio http sse workspace user built-in",
+    keywords:
+      "mcp model context protocol tools server stdio http sse workspace user built-in subagent routing subagents delegate delegation guide instructions spawn agent model",
     desktopOnly: true,
   },
 
@@ -494,14 +505,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     keywords: "reorder rearrange sort providers drag model picker sequence position",
     conditional: true,
   },
-  {
-    section: "agentsGeneral",
-    anchor: "agentsGeneral.subagentRoutingGuide",
-    title: msg`Subagent routing guide`,
-    description: msg`Instructions agents follow when choosing which agent or model to delegate to.`,
-    keywords: "subagent subagents routing delegate delegation guide instructions spawn agent model",
-  },
-
   // Dev (only in dev builds)
   {
     section: "dev",

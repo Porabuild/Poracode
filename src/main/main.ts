@@ -572,12 +572,16 @@ if (!hasSingleInstanceLock) {
       const wslHelpersDir = app.isPackaged
         ? join(process.resourcesPath, "wsl-helpers")
         : join(__dirname, "..", "..", "resources", "wsl-helpers");
+      const bundledSkillsDir = app.isPackaged
+        ? join(process.resourcesPath, "skills")
+        : join(__dirname, "..", "..", "resources", "skills");
       const sshConnectionManager = new SshConnectionManager({
         mainBundleDir: __dirname,
         agentPluginsDir: app.isPackaged
           ? join(process.resourcesPath, "agent-plugins")
           : join(__dirname, "..", "..", "resources", "agent-plugins"),
         wslHelpersDir,
+        bundledSkillsDir,
         cacheDir: join(lightcodePaths.baseDir, "ssh-runtime-bundles"),
       });
 
@@ -592,6 +596,7 @@ if (!hasSingleInstanceLock) {
         isDev,
         supervisorPath,
         wslHelpersDir,
+        bundledSkillsDir,
         secretStorageKey,
         resolveExtraEnv: () => {
           const env: Record<string, string> = {};

@@ -35,6 +35,12 @@ export const agentSlashCommandSchema = z.object({
   label: z.string().min(1),
   description: z.string().optional(),
   argumentHint: z.string().optional(),
+  section: z.enum(["skills"]).optional(),
+  skillName: z.string().min(1).optional(),
+  skillPath: z.string().min(1).optional(),
+  skillInvocation: z.string().min(1).optional(),
+  skillProvider: z.string().min(1).optional(),
+  skillScope: z.enum(["global", "project"]).optional(),
 });
 export type AgentSlashCommand = z.infer<typeof agentSlashCommandSchema>;
 
@@ -159,6 +165,7 @@ const agentPresentationCapabilityOverrideSchema = z
     bypassPermissions: bypassPermissionsSchema.optional(),
     settingDefs: z.array(agentSettingDefSchema),
     slashCommands: z.array(agentSlashCommandSchema).optional(),
+    disabledSkillNames: z.array(z.string().min(1)).optional(),
   })
   .partial();
 
@@ -261,6 +268,14 @@ export const agentCapabilitySchema = z.object({
   settingDefs: z.array(agentSettingDefSchema).default([]),
   /** Populated when the Claude Agent SDK init probe succeeds (install detection). */
   slashCommands: z.array(agentSlashCommandSchema).optional(),
+  /** Provider-native per-skill disables discovered by its capability probe. */
+  disabledSkillNames: z.array(z.string().min(1)).optional(),
+  /**
+   * Provider owns its GUI skill catalog: it reports enabled skills through the
+   * runtime session (`slashCommands`) rather than the shared local scan, so the
+   * renderer treats that catalog as authoritative even when it is empty.
+   */
+  reportsSkillCatalog: z.boolean().optional(),
   /**
    * Optional capability overrides for providers whose terminal and GUI runtimes
    * expose different model surfaces. Consumers merge the active presentation's
@@ -527,7 +542,13 @@ export function areAgentSlashCommandsEqual(
       leftCommand.id !== rightCommand.id ||
       leftCommand.label !== rightCommand.label ||
       leftCommand.description !== rightCommand.description ||
-      leftCommand.argumentHint !== rightCommand.argumentHint
+      leftCommand.argumentHint !== rightCommand.argumentHint ||
+      leftCommand.section !== rightCommand.section ||
+      leftCommand.skillName !== rightCommand.skillName ||
+      leftCommand.skillPath !== rightCommand.skillPath ||
+      leftCommand.skillInvocation !== rightCommand.skillInvocation ||
+      leftCommand.skillProvider !== rightCommand.skillProvider ||
+      leftCommand.skillScope !== rightCommand.skillScope
     ) {
       return false;
     }

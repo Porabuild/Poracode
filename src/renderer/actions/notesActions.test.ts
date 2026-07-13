@@ -27,6 +27,11 @@ describe("newThreadFromText", () => {
     expect(seed.nonce).toBeGreaterThan(firstNonce);
   });
 
+  it("marks seeds whose leading skill should render as a chip", () => {
+    newThreadFromText("p1", "/skill-creator Create a skill.", { bindLeadingSkill: true });
+    expect(useAppStore.getState().pendingComposerSeeds["p1"]?.bindLeadingSkill).toBe(true);
+  });
+
   it("ignores blank text", () => {
     newThreadFromText("p1", "   ");
     expect(useAppStore.getState().pendingComposerSeeds["p1"]).toBeUndefined();

@@ -39,6 +39,13 @@ function resolveWslHelpersDir(): string {
   return join(__dirname, "..", "..", "resources", "wsl-helpers");
 }
 
+function resolveBundledSkillsDir(): string {
+  const explicit = process.env.LIGHTCODE_BUNDLED_SKILLS_DIR?.trim();
+  if (explicit) return explicit;
+  // Mirror the dev layout in main.ts: <dist/main>/../../resources/skills.
+  return join(__dirname, "..", "..", "resources", "skills");
+}
+
 const LOCK_FILE = "server.lock";
 
 /** Release handle returned by {@link acquireDataDirLock}; unlinks the lockfile. */
@@ -145,6 +152,7 @@ async function serve(): Promise<void> {
     baseDir,
     supervisorPath: join(__dirname, "supervisor.cjs"),
     wslHelpersDir: resolveWslHelpersDir(),
+    bundledSkillsDir: resolveBundledSkillsDir(),
     secretStorageKey,
     ...(relayUrl ? { relayUrl } : {}),
     ...(relaySecret ? { relaySecret } : {}),

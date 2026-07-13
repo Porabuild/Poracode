@@ -1,9 +1,14 @@
-import { createElement } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { createElement, createRef } from "react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Globe, Monitor, Users } from "lucide-react";
 import type { PromptSegment } from "@/shared/contracts";
-import { buildMentionResults, MentionInput, type McpMentionItem } from "./MentionInput";
+import {
+  buildMentionResults,
+  MentionInput,
+  type McpMentionItem,
+  type MentionInputHandle,
+} from "./MentionInput";
 
 vi.mock("./MentionPopover", () => ({ MentionPopover: () => null }));
 
@@ -209,5 +214,49 @@ describe("MCP mention selection", () => {
 
     expect(editor).toBeEmptyDOMElement();
     expect(onMcpMentionSelect).toHaveBeenCalledWith("browser");
+  });
+});
+
+describe("structured segment insertion", () => {
+  it("inserts a seeded skill directly without requiring a caret trigger", () => {
+    const ref = createRef<MentionInputHandle>();
+    render(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+      }),
+    );
+
+    act(() => {
+      ref.current?.insertSegments([
+        {
+          kind: "skill",
+          name: "skill-creator",
+          path: "/bundled/skill-creator/SKILL.md",
+          invocation: "Use the skill-creator skill.",
+          provider: "Codex",
+          scope: "global",
+        },
+        { kind: "text", content: " Create a managed skill." },
+      ]);
+    });
+
+    expect(
+      screen.getByRole("textbox").querySelector('[data-slash-command="skill-creator"]'),
+    ).not.toBeNull();
+    expect(ref.current?.serializeSegments()).toEqual([
+      {
+        kind: "skill",
+        name: "skill-creator",
+        path: "/bundled/skill-creator/SKILL.md",
+        invocation: "Use the skill-creator skill.",
+        provider: "Codex",
+        scope: "global",
+      },
+      { kind: "text", content: " Create a managed skill." },
+    ]);
   });
 });

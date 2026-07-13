@@ -1,6 +1,7 @@
 import type { RefObject } from "react";
 import { toast } from "@heroui/react";
 import type {
+  AgentSlashCommand,
   AgentStatus,
   PromptSegment,
   Thread,
@@ -23,7 +24,10 @@ import type { useAttachments } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
-import { resolveLocalSlashCommandAction } from "./threadSlashCommands";
+import {
+  bindLeadingSkillUnlessLocalAction,
+  resolveLocalActionUnlessSkill,
+} from "./threadSlashCommands";
 
 /**
  * Everything the composer submit path reads from the section component,
@@ -41,6 +45,8 @@ export interface ComposerSubmitContext {
   needsFocusBeforeInput: boolean;
   activeRuntimeRequest: OpenRuntimeRequest | undefined;
   approvalDenyOption: UserInputOption | undefined;
+  /** Slash commands available to this thread; binds typed `/skill` text to skill segments. */
+  availableCommands: readonly AgentSlashCommand[];
   attachments: ReturnType<typeof useAttachments>;
   mentionRef: RefObject<MentionInputHandle | null>;
   terminalPaneRef: RefObject<TerminalPaneHandle | null>;
@@ -79,7 +85,11 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
             attachmentName: a.name,
           }),
     }));
-  const allSegments = [...attachmentSegments, ...selectorSegments, ...segments];
+  const boundSegments = bindLeadingSkillUnlessLocalAction(segments, ctx.availableCommands, {
+    agentKind: thread.agentKind,
+    presentationMode: ctx.presentationMode,
+  });
+  const allSegments = [...attachmentSegments, ...selectorSegments, ...boundSegments];
   const flat = flattenSegments(allSegments);
   if (flat.length === 0 || !ctx.canSubmit) return;
   const clearComposerText = () => {
@@ -87,7 +97,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     ctx.setHasContent(false);
     ctx.latestSegmentsRef.current = [];
   };
-  const localAction = resolveLocalSlashCommandAction(flat, {
+  const localAction = resolveLocalActionUnlessSkill(allSegments, flat, {
     agentKind: thread.agentKind,
     presentationMode: ctx.presentationMode,
   });

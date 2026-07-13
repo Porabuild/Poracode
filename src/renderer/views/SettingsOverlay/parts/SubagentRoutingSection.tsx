@@ -17,11 +17,7 @@ export function SubagentRoutingSection() {
   const [draft, setDraft] = useState(subagentRoutingGuide);
 
   return (
-    <div
-      id="agentsGeneral.subagentRoutingGuide"
-      data-settings-anchor="agentsGeneral.subagentRoutingGuide"
-      className="scroll-mt-4 space-y-2"
-    >
+    <div className="space-y-2">
       <p className="text-sm font-medium text-foreground">
         <Trans>Subagent routing guide</Trans>
       </p>

@@ -238,13 +238,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "lightcode-agent-statuses-v1",
-      version: 2,
-      // v1 -> v2: statuses persisted before `AgentCapability.supportsOneShot`
-      // existed lack the flag. Drop them (and the loaded flags) so the one-shot
-      // AI selectors don't hide one-shot-capable providers until fresh detection
-      // repopulates the store. Mirrors the supervisor STATUS_CACHE_VERSION bump,
-      // which only invalidates the supervisor's on-disk cache, not this
-      // renderer-side localStorage copy.
+      version: 3,
+      // v3 adds structured skill command metadata. Drop older cached statuses
+      // so enabled skills are not hidden until the next manual provider refresh.
+      // Mirrors the supervisor STATUS_CACHE_VERSION bump, which only invalidates
+      // the supervisor's on-disk cache, not this renderer localStorage copy.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

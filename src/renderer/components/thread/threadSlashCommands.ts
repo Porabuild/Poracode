@@ -1,5 +1,12 @@
 import type { KeyboardEvent, RefObject } from "react";
-import type { AgentSlashCommand, AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
+import type {
+  AgentSlashCommand,
+  AgentStatus,
+  PromptSegment,
+  ThreadPresentationMode,
+} from "@/shared/contracts";
+import { skillSegmentFromSlashCommand } from "@/shared/promptContent";
+import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 import type { MentionInputHandle } from "@/renderer/components/composer/MentionInput";
 import {
   getGuiSlashCommands,
@@ -9,6 +16,111 @@ import {
 export type { LocalSlashCommandAction };
 
 const EMPTY_SLASH_COMMANDS: AgentSlashCommand[] = [];
+
+function isSkillCommand(command: AgentSlashCommand): boolean {
+  return command.section === "skills";
+}
+
+function withoutSkillCommands(
+  commands: readonly AgentSlashCommand[] | undefined,
+): AgentSlashCommand[] {
+  return commands?.filter((command) => !isSkillCommand(command)) ?? EMPTY_SLASH_COMMANDS;
+}
+
+function mergeSkillCommands(
+  ...sources: (readonly AgentSlashCommand[] | undefined)[]
+): AgentSlashCommand[] {
+  const seen = new Set<string>();
+  return sources.flatMap((commands) =>
+    (commands ?? []).flatMap((command) => {
+      if (!isSkillCommand(command)) return [];
+      const name = (command.skillName ?? command.id).toLowerCase();
+      if (seen.has(name)) return [];
+      seen.add(name);
+      return [command];
+    }),
+  );
+}
+
+function resolveSkillCommands(
+  threadCommands: readonly AgentSlashCommand[] | undefined,
+  capabilityCommands: readonly AgentSlashCommand[] | undefined,
+  localSkills: readonly AgentSlashCommand[],
+  providerAuthoritative: boolean,
+  disabledSkillNames: readonly string[],
+): AgentSlashCommand[] {
+  const disabled = new Set(disabledSkillNames.map((name) => name.toLowerCase()));
+  const filterDisabled = (commands: readonly AgentSlashCommand[] | undefined) =>
+    commands?.filter(
+      (command) =>
+        !isSkillCommand(command) || !disabled.has((command.skillName ?? command.id).toLowerCase()),
+    );
+  const providerCommands = filterDisabled(threadCommands ?? capabilityCommands);
+  const enabledLocalSkills = filterDisabled(localSkills);
+  return providerAuthoritative
+    ? mergeSkillCommands(providerCommands)
+    : mergeSkillCommands(providerCommands, enabledLocalSkills);
+}
+
+/**
+ * Bind a typed (or seeded) leading skill reference — `/name` or `$name` at the
+ * start of the prompt — to a real skill segment, so text-typed invocations get
+ * the same provider-agnostic delivery (structured skill items, prompt
+ * injection) as chip insertions. No-op when a skill segment is already
+ * present, the leading token isn't a known skill, or its command lacks the
+ * full skill metadata. Callers must keep local GUI commands (`/model`, …)
+ * winning by skipping the bind when the text resolves to a local action.
+ */
+export function bindLeadingSkillInvocation(
+  segments: readonly PromptSegment[],
+  commands: readonly AgentSlashCommand[],
+): PromptSegment[] {
+  if (segments.some((segment) => segment.kind === "skill")) return [...segments];
+  const index = segments.findIndex(
+    (segment) => segment.kind !== "text" || segment.content.trim().length > 0,
+  );
+  const leading = index >= 0 ? segments[index] : undefined;
+  if (!leading || leading.kind !== "text") return [...segments];
+  const match = /^\s*[/$]([a-z0-9][a-z0-9-]*)(\s|$)/iu.exec(leading.content);
+  if (!match) return [...segments];
+  const name = match[1]!.toLowerCase();
+  const command = commands.find(
+    (candidate) =>
+      isSkillCommand(candidate) && (candidate.skillName ?? candidate.id).toLowerCase() === name,
+  );
+  const skillSegment = skillSegmentFromSlashCommand(command);
+  if (!skillSegment) return [...segments];
+  // Keep the whitespace separator with the trailing text so the flattened
+  // prompt reads `<invocation> <rest>`.
+  const rest = leading.content.slice(match[0].length - (match[2]?.length ?? 0));
+  const replacement: PromptSegment[] = [skillSegment];
+  if (rest.length > 0) replacement.push({ kind: "text", content: rest });
+  const next = [...segments];
+  next.splice(index, 1, ...replacement);
+  return next;
+}
+
+export function rebindSkillSegments(
+  segments: readonly PromptSegment[],
+  commands: readonly AgentSlashCommand[],
+  fallback: (name: string) => string,
+): PromptSegment[] {
+  const skills = new Map(
+    commands
+      .filter((command) => isSkillCommand(command))
+      .map((command) => [(command.skillName ?? command.id).toLowerCase(), command]),
+  );
+  return segments.map((segment) => {
+    if (segment.kind !== "skill") return segment;
+    const command = skills.get(segment.name.toLowerCase());
+    return (
+      skillSegmentFromSlashCommand(command) ?? {
+        kind: "text",
+        content: fallback(segment.name),
+      }
+    );
+  });
+}
 
 /**
  * Session-scoped commands win over the provider capability fallback so a live
@@ -23,19 +135,38 @@ export function resolveAvailableSlashCommands(
     presentationMode?: ThreadPresentationMode | undefined;
     hasEffort?: boolean | undefined;
     supportsFast?: boolean | undefined;
+    skillCommands?: readonly AgentSlashCommand[] | undefined;
+    skillCatalogAuthoritative?: boolean | undefined;
+    disabledSkillNames?: readonly string[] | undefined;
   },
 ): readonly AgentSlashCommand[] {
-  if (threadCommands) return threadCommands;
-  if (context && context.agentKind && context.presentationMode !== "terminal") {
+  const localSkills = context?.skillCommands ?? EMPTY_SLASH_COMMANDS;
+  const providerSkillsAuthoritative = context?.skillCatalogAuthoritative === true;
+  const skills = resolveSkillCommands(
+    threadCommands,
+    capabilityCommands,
+    localSkills,
+    providerSkillsAuthoritative,
+    context?.disabledSkillNames ?? [],
+  );
+  if (context?.presentationMode === "terminal") {
+    const base = threadCommands ?? capabilityCommands ?? EMPTY_SLASH_COMMANDS;
+    return [...withoutSkillCommands(base), ...skills];
+  }
+  if (context?.agentKind) {
     const registration = getGuiSlashCommands(context.agentKind);
     if (registration) {
-      return registration.buildCommands({
-        hasEffort: context.hasEffort ?? false,
-        supportsFast: context.supportsFast ?? false,
-      });
+      return [
+        ...registration.buildCommands({
+          hasEffort: context.hasEffort ?? false,
+          supportsFast: context.supportsFast ?? false,
+        }),
+        ...skills,
+      ];
     }
   }
-  return capabilityCommands ?? EMPTY_SLASH_COMMANDS;
+  const base = threadCommands ?? capabilityCommands ?? EMPTY_SLASH_COMMANDS;
+  return [...withoutSkillCommands(base), ...skills];
 }
 
 export function resolveLocalSlashCommandAction(
@@ -48,6 +179,41 @@ export function resolveLocalSlashCommandAction(
   if (!context.agentKind || context.presentationMode === "terminal") return null;
   const registration = getGuiSlashCommands(context.agentKind);
   return registration ? registration.resolveLocalAction(input) : null;
+}
+
+/**
+ * Typed `/skill` text becomes a real skill segment (same delivery path as a
+ * chip insertion) unless the text resolves to a local GUI command, which keeps
+ * `/model`-style commands winning any name collision.
+ */
+export function bindLeadingSkillUnlessLocalAction(
+  segments: PromptSegment[],
+  commands: readonly AgentSlashCommand[],
+  context: {
+    agentKind?: AgentStatus["kind"] | undefined;
+    presentationMode?: ThreadPresentationMode | undefined;
+  },
+): PromptSegment[] {
+  return resolveLocalSlashCommandAction(flattenSegments(segments), context)
+    ? segments
+    : bindLeadingSkillInvocation(segments, commands);
+}
+
+/**
+ * A bound skill segment wins any residual local-command collision, so only fall
+ * back to a local GUI action when the prompt carries no skill segment.
+ */
+export function resolveLocalActionUnlessSkill(
+  segments: readonly PromptSegment[],
+  input: string,
+  context: {
+    agentKind?: AgentStatus["kind"] | undefined;
+    presentationMode?: ThreadPresentationMode | undefined;
+  },
+): LocalSlashCommandAction | null {
+  return segments.some((segment) => segment.kind === "skill")
+    ? null
+    : resolveLocalSlashCommandAction(input, context);
 }
 
 export function filterSlashCommands(
@@ -90,7 +256,7 @@ export function handleSlashCommandPanelKeyDown(
     const selected = filteredCommands[ctx.slashActiveIndex];
     if (selected) {
       e.preventDefault();
-      mentionRef.current?.insertSlashCommand(selected.id);
+      mentionRef.current?.insertSlashCommand(selected);
       setSlashQuery(null);
       return true;
     }
@@ -100,7 +266,7 @@ export function handleSlashCommandPanelKeyDown(
     const exact = filteredCommands.find((cmd) => cmd.id.toLowerCase() === typed);
     if (exact) {
       e.preventDefault();
-      mentionRef.current?.insertSlashCommand(exact.id);
+      mentionRef.current?.insertSlashCommand(exact);
       setSlashQuery(null);
       return true;
     }
