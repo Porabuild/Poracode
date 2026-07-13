@@ -77,12 +77,17 @@ jobs:
       - name: Format check
         run: pnpm run fmt:check
 
-  test:
-    name: Test
+  test_shard:
+    name: Test shard (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     # Unit tests run via vitest in node/jsdom and never launch the Electron
-    # runtime, so skip the flaky Chromium binary download. Native node modules
-    # (better-sqlite3, node-pty) are still built by the install scripts below.
+    # runtime, so skip the flaky Chromium binary download and the root
+    # postinstall, which rebuilds better-sqlite3 for Electron. The database
+    # tests need Node-ABI better-sqlite3 and node-pty bindings rebuilt below.
     # ELECTRON_OVERRIDE_DIST_PATH lets `require("electron")` resolve to a path
     # string without the binary present, so suites that import the module (but
     # never spawn it) load instead of throwing from electron/index.js.
@@ -103,19 +108,19 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: |
-          for attempt in 1 2 3; do
-            if pnpm install --frozen-lockfile; then
-              exit 0
-            fi
-            echo "::warning::pnpm install failed on attempt $attempt; retrying in 15s"
-            sleep 15
-          done
-          echo "::error::pnpm install failed after 3 attempts"
-          exit 1
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Ensure native dependencies
-        run: node scripts/ensure-native-deps.mjs
+      - name: Build test native dependencies
+        run: pnpm rebuild better-sqlite3 node-pty
 
-      - name: Test
-        run: pnpm run test
+      - name: Test shard
+        run: pnpm run test --shard=${{ matrix.shard }}/4
+
+  test:
+    name: Test
+    if: ${{ always() }}
+    needs: test_shard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify test shards
+        run: test "${{ needs.test_shard.result }}" = "success"
