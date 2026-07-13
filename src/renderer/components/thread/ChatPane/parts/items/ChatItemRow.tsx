@@ -76,17 +76,21 @@ const SingleChatItemRow = memo(function SingleChatItemRow({
       return <SubAgentToolCall threadId={threadId} item={item} />;
     }
   }
-  return renderItem(item, checkpointRevert);
+  return renderItem(threadId, item, checkpointRevert);
 });
 
-function renderItem(item: RuntimeChatItem, checkpointRevert: CheckpointRevertRequest | null) {
+function renderItem(
+  threadId: string,
+  item: RuntimeChatItem,
+  checkpointRevert: CheckpointRevertRequest | null,
+) {
   switch (item.type) {
     case "user_message":
       return <UserMessage item={item} checkpointRevert={checkpointRevert} />;
     case "question_answer":
       return <QuestionAnswer item={item} checkpointRevert={checkpointRevert} />;
     case "assistant_message":
-      return <AssistantMessage item={item} />;
+      return <AssistantMessage threadId={threadId} item={item} />;
     case "reasoning":
       return <Reasoning item={item} />;
     case "plan":

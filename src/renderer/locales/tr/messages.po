@@ -2370,8 +2370,8 @@ msgstr "Konuşma"
 
 #: src/mobile/UserMessageActionsSheet.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
-#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "Kopyalandı"
@@ -2398,6 +2398,10 @@ msgstr "{0} cihaz kodunu kopyala {1}"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
 msgstr "Tüm Lightcode verilerini Poracode'a kopyalayın. Poracode yeniden başlatılır ve mevcut verilerinin tam bir yedeğini saklar."
+
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
+msgid "Copy code"
+msgstr "Kodu kopyala"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
@@ -2429,6 +2433,7 @@ msgid "Copy image"
 msgstr "Görseli kopyala"
 
 #: src/mobile/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/AssistantMessage.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "Mesajı kopyala"

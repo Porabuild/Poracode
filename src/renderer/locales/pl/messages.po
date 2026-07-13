@@ -2370,8 +2370,8 @@ msgstr "Rozmowa"
 
 #: src/mobile/UserMessageActionsSheet.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
-#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "Skopiowano"
@@ -2398,6 +2398,10 @@ msgstr "Skopiuj {0} kod urządzenia {1}"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
 msgstr "Skopiuj wszystkie dane Lightcode do Poracode. Poracode uruchomi się ponownie i zachowa pełną kopię zapasową bieżących danych."
+
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
+msgid "Copy code"
+msgstr "Skopiuj kod"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
@@ -2429,6 +2433,7 @@ msgid "Copy image"
 msgstr "Kopiuj obraz"
 
 #: src/mobile/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/AssistantMessage.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "Skopiuj wiadomość"

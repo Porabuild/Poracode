@@ -2370,8 +2370,8 @@ msgstr "对话"
 
 #: src/mobile/UserMessageActionsSheet.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
-#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "已复制"
@@ -2398,6 +2398,10 @@ msgstr "复制{0}设备代码{1}"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
 msgstr "将所有 Lightcode 数据复制到 Poracode。Poracode 将重新启动，并保留当前数据的完整备份。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
+msgid "Copy code"
+msgstr "复制代码"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
@@ -2429,6 +2433,7 @@ msgid "Copy image"
 msgstr "复制图片"
 
 #: src/mobile/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/AssistantMessage.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "复制消息"

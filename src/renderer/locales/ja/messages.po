@@ -2369,8 +2369,8 @@ msgstr "会話"
 
 #: src/mobile/UserMessageActionsSheet.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
-#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "コピーされました"
@@ -2397,6 +2397,10 @@ msgstr "{0}デバイス コード{1}をコピーします"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
 msgstr "すべての Lightcode データを Poracode にコピーします。Poracode は再起動し、現在のデータの完全なバックアップを保持します。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
+msgid "Copy code"
+msgstr "コードをコピーする"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
@@ -2428,6 +2432,7 @@ msgid "Copy image"
 msgstr "画像をコピー"
 
 #: src/mobile/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/AssistantMessage.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "メッセージをコピーする"

@@ -1,4 +1,5 @@
 import { Link } from "@heroui/react";
+import { useLingui } from "@lingui/react/macro";
 import { ExternalLink } from "lucide-react";
 import {
   Children,
@@ -19,6 +20,7 @@ import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { CodeBlock } from "./CodeBlock";
+import { CopyTextButton } from "./CopyTextButton";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { LC_SELECTOR_LANG, tryParseSelectorPayload } from "./SelectorBadge";
@@ -114,10 +116,18 @@ const MD_COMPONENTS: StreamdownComponents = {
       const language = normalizeHighlightLanguage(codeProps?.className);
       if (language) {
         const text = flattenMdChildren(codeProps?.children).replace(/\r?\n$/, "");
-        return <CodeBlock text={text} lang={language} className={markdownCodeBlockClass} />;
+        return (
+          <MdCodeBlockFrame text={text}>
+            <CodeBlock text={text} lang={language} className={markdownCodeBlockClass} />
+          </MdCodeBlockFrame>
+        );
       }
     }
-    return <pre>{markCodeChildAsBlock(children)}</pre>;
+    return (
+      <MdCodeBlockFrame text={flattenMdChildren(children).replace(/\r?\n$/, "")}>
+        <pre>{markCodeChildAsBlock(children)}</pre>
+      </MdCodeBlockFrame>
+    );
   },
   code({ className, children, ...rest }) {
     const isBlock =
@@ -182,6 +192,24 @@ const inlineCodeChipClass =
 const markdownCodeBlockClass =
   "not-prose my-2 min-w-0 overflow-x-hidden rounded bg-foreground/10 px-[0.5em] py-[0.25em] font-mono text-[0.875em] leading-snug text-foreground";
 const markdownImageClass = `not-prose my-2 rounded-lg border border-[color:var(--border)] bg-[var(--composer-surface)] ${chatInlineImageClass}`;
+
+/**
+ * Wraps a fenced code block with a copy button that reveals on hover of the
+ * code block itself (`group/codeblock`). Kept outside `CodeBlock` so
+ * command-output viewports (which reuse `CodeBlock`) are not affected.
+ */
+function MdCodeBlockFrame({ text, children }: { text: string; children?: ReactNode }) {
+  const { t } = useLingui();
+  if (text.length === 0) return <>{children}</>;
+  return (
+    <div className="group/codeblock relative">
+      {children}
+      <div className="absolute right-1 top-1 z-10 opacity-0 transition-opacity focus-within:opacity-100 group-hover/codeblock:opacity-100">
+        <CopyTextButton text={text} label={t`Copy code`} />
+      </div>
+    </div>
+  );
+}
 
 function MdCode(props: { className: string; isBlock?: boolean; children?: ReactNode }) {
   const actions = useChatPaneActions();

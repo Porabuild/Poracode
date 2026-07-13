@@ -2370,8 +2370,8 @@ msgstr "대화"
 
 #: src/mobile/UserMessageActionsSheet.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/CopyTextButton.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
-#: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/RendererCrashScreen.tsx
 msgid "Copied"
 msgstr "복사됨"
@@ -2398,6 +2398,10 @@ msgstr "{0} 장치 코드 {1} 복사"
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
 msgstr "모든 Lightcode 데이터를 Poracode로 복사합니다. Poracode가 다시 시작되며 현재 데이터의 전체 백업을 보관합니다."
+
+#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
+msgid "Copy code"
+msgstr "코드 복사"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
@@ -2429,6 +2433,7 @@ msgid "Copy image"
 msgstr "이미지 복사"
 
 #: src/mobile/UserMessageActionsSheet.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/AssistantMessage.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Copy message"
 msgstr "메시지 복사"
