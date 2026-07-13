@@ -985,6 +985,21 @@ describe("ChatPane", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("renders selected skills in user messages as skill badges", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [
+      { kind: "skill", name: "simplify", invocation: "$simplify" },
+    ]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = container.querySelector('[data-skill-name="simplify"]');
+    expect(badge).toHaveTextContent("simplify");
+    expect(badge?.querySelector("svg")).toBeInTheDocument();
+    expect(screen.queryByText("$simplify")).not.toBeInTheDocument();
+  });
+
   it("copies user message text from the inline action", async () => {
     const thread = makeThread();
     seedUserMessage(thread.id, "Copy this prompt");

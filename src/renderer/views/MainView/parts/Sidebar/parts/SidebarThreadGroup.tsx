@@ -104,7 +104,7 @@ export function SidebarThreadGroup(props: {
           }
         }}
       >
-        <div className="group flex w-full items-center gap-1 rounded px-1.5 py-1">
+        <div className="group flex w-full items-center gap-1 rounded px-2 py-1">
           <button
             type="button"
             className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-xs font-medium text-muted transition-colors hover:text-foreground"

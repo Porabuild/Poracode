@@ -1343,10 +1343,41 @@ describe("mapCodexNotification — streaming deltas", () => {
     expect(text[0]).toMatchObject({ type: "content.delta", stream: "reasoning_text" });
     const summary = mapCodexNotification(
       "item/reasoning/summaryTextDelta",
-      { threadId: "x", itemId: "rs-1", delta: "summary" },
+      { threadId: "x", itemId: "rs-1", delta: "summary", summaryIndex: 0 },
       state,
     );
     expect(summary[0]).toMatchObject({ type: "content.delta", stream: "reasoning_text" });
+  });
+
+  it("preserves boundaries between indexed reasoning summary parts", () => {
+    const state = createCodexMapperState("t-codex");
+    mapCodexNotification(
+      "item/started",
+      { threadId: "x", itemId: "rs-1", item: { id: "rs-1", type: "reasoning" } },
+      state,
+    );
+
+    const events = [
+      ...mapCodexNotification(
+        "item/reasoning/summaryTextDelta",
+        { threadId: "x", itemId: "rs-1", delta: "**Planning sidebar**", summaryIndex: 0 },
+        state,
+      ),
+      ...mapCodexNotification(
+        "item/reasoning/summaryTextDelta",
+        { threadId: "x", itemId: "rs-1", delta: "**Refining", summaryIndex: 1 },
+        state,
+      ),
+      ...mapCodexNotification(
+        "item/reasoning/summaryTextDelta",
+        { threadId: "x", itemId: "rs-1", delta: " removal**", summaryIndex: 1 },
+        state,
+      ),
+    ];
+
+    expect(
+      events.flatMap((event) => (event.type === "content.delta" ? [event.delta] : [])).join(""),
+    ).toBe("**Planning sidebar**\n\n**Refining removal**");
   });
 
   it("maps MCP tool progress into the existing tool payload", () => {

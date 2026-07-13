@@ -91,6 +91,7 @@ export function mapCodexNotification(
     state.commandOutputSeenSet.clear();
     state.fileChangeOutputMap.clear();
     state.fileChangePathMap.clear();
+    state.reasoningSummaryIndexMap.clear();
     return events;
   }
 
@@ -260,6 +261,7 @@ export function mapCodexNotification(
       state.commandOutputSeenSet.delete(codexItemId);
       state.fileChangeOutputMap.delete(codexItemId);
       state.fileChangePathMap.delete(codexItemId);
+      state.reasoningSummaryIndexMap.delete(codexItemId);
       return events;
     }
     const itemType = state.itemTypeMap.get(codexItemId) ?? canonicalTypeFor(item.type ?? item.kind);
@@ -300,6 +302,7 @@ export function mapCodexNotification(
     state.commandOutputSeenSet.delete(codexItemId);
     state.fileChangeOutputMap.delete(codexItemId);
     state.fileChangePathMap.delete(codexItemId);
+    state.reasoningSummaryIndexMap.delete(codexItemId);
     return events;
   }
 
@@ -310,6 +313,15 @@ export function mapCodexNotification(
     if (!delta) return [];
     const codexItemId = readItemId(params);
     if (!codexItemId) return [];
+    let contentDelta = delta;
+    const summaryIndex = params?.summaryIndex;
+    if (method === "item/reasoning/summaryTextDelta" && typeof summaryIndex === "number") {
+      const previousIndex = state.reasoningSummaryIndexMap.get(codexItemId);
+      if (previousIndex !== summaryIndex) {
+        if (previousIndex !== undefined) contentDelta = `\n\n${delta}`;
+        state.reasoningSummaryIndexMap.set(codexItemId, summaryIndex);
+      }
+    }
     let internalId = state.itemIdMap.get(codexItemId);
     const opened: RuntimeEvent[] = [];
     if (!internalId) {
@@ -349,7 +361,7 @@ export function mapCodexNotification(
         threadId,
         itemId: internalId,
         stream,
-        delta,
+        delta: contentDelta,
       },
     ];
   }

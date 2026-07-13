@@ -658,6 +658,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     ];
 
     if (goalCommand) {
+      const canStartModelTurn = goalCommand.kind === "set" || goalCommand.kind === "resume";
+      const expectsModelTurn = canStartModelTurn && config.mode !== "plan";
       this.emitRuntimeEvents([
         { type: "turn.started", threadId: this.threadId, turnId },
         ...userEvents,
@@ -671,6 +673,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
           { type: "turn.completed", threadId: this.threadId, turnId, state: "completed" },
         ]);
         this.emitUpdate({ status: "idle", attention: "none" });
+        return;
+      }
+      if (expectsModelTurn || (canStartModelTurn && this.activeTurnId)) {
         return;
       }
       this.emitRuntimeEvents([

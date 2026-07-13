@@ -21,6 +21,8 @@ export type SidebarRow =
       showWorktreeBadge: boolean;
       showWorktreeFilesButton?: boolean;
       sortDisabled?: boolean;
+      /** Child of a worktree/thread group — rendered against a left rail. */
+      inGroup?: boolean;
     }
   | {
       kind: "worktree-group";
@@ -35,7 +37,6 @@ export type SidebarRow =
       key: string;
       entry: Extract<ThreadListEntry, { kind: "thread-group" }>;
     }
-  | { kind: "divider"; key: string }
   | { kind: "section-label"; key: string; label: MessageDescriptor }
   | { kind: "see-more"; key: string; hiddenCount: number };
 
@@ -139,6 +140,7 @@ function pushEntryRows(
           group: `wt:${entry.group.worktreePath}`,
           showWorktreeBadge: false,
           showWorktreeFilesButton: false,
+          inGroup: true,
         });
       });
     }
@@ -161,6 +163,7 @@ function pushEntryRows(
         group: `group:${groupKey}`,
         showWorktreeBadge: !!thread.worktreePath,
         sortDisabled: input.dndDisabled,
+        inGroup: true,
       });
     });
   }
@@ -237,13 +240,6 @@ export function buildSidebarProjectRows(input: {
         isCollapsed,
         nextUngroupedIndex,
       });
-      const isLast = i === list.length - 1;
-      if (isLast) return;
-      if (entry.kind === "worktree-group" && !isCollapsed(entry.group.worktreePath)) {
-        rows.push({ kind: "divider", key: `wt-divider:${entry.group.worktreePath}` });
-      } else if (entry.kind === "thread-group" && !isCollapsed(`group:${entry.group.groupId}`)) {
-        rows.push({ kind: "divider", key: `group-divider:${entry.group.groupId}` });
-      }
     });
   };
 

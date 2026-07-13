@@ -42,7 +42,7 @@ describe("buildPromptContentBlocks", () => {
     ]);
   });
 
-  it("formats skill segments with the provider invocation", () => {
+  it("preserves skill segments for user-message rendering", () => {
     expect(
       buildPromptContentBlocks("Use the review-code skill.", [
         {
@@ -54,7 +54,13 @@ describe("buildPromptContentBlocks", () => {
           scope: "global",
         },
       ]),
-    ).toEqual([{ kind: "text", text: "Use the review-code skill." }]);
+    ).toEqual([
+      {
+        kind: "skill",
+        name: "review-code",
+        invocation: "Use the review-code skill.",
+      },
+    ]);
   });
 });
 

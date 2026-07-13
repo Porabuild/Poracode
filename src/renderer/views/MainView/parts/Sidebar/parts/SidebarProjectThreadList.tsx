@@ -12,6 +12,7 @@ import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threa
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
 import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
+import { chatRowRailClass } from "@/renderer/components/thread/ChatPane/parts/items/chatRow";
 import { NewThreadButton } from "./NewThreadButton";
 import { buildSidebarProjectRows, type SidebarRow } from "./sidebarProjectRows";
 import type { ThreadSortMode } from "./sortMode";
@@ -95,7 +96,7 @@ function SidebarThreadRow(props: {
   const { t } = useLingui();
 
   if (row.kind === "thread") {
-    return (
+    const item = (
       <SortableThreadItem
         thread={row.thread}
         threadIndex={row.threadIndex}
@@ -110,6 +111,14 @@ function SidebarThreadRow(props: {
         {...(row.sortDisabled !== undefined ? { sortDisabled: row.sortDisabled } : {})}
       />
     );
+    // Group children hang off the same dashed rail as the chat tool-call group
+    // (shared recipe). `ml-3.5` drops the rail down the centerline of the group
+    // header's icon; no left padding keeps the child hugging the rail so the
+    // nesting reads without a wide indent.
+    if (row.inGroup) {
+      return <div className={`ml-3.5 ${chatRowRailClass}`}>{item}</div>;
+    }
+    return item;
   }
 
   return (
@@ -129,12 +138,10 @@ function SidebarThreadRow(props: {
           editingThreadId={editingThreadId}
           setEditingThreadId={setEditingThreadId}
         />
-      ) : row.kind === "section-label" ? (
+      ) : (
         <div className="px-1.5 pb-0.5 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted">
           {t(row.label)}
         </div>
-      ) : (
-        <div aria-hidden className="mx-1.5 my-1 h-px bg-[var(--hairline)]" />
       )}
     </div>
   );

@@ -39,6 +39,7 @@ describe("ToolCallGroup", () => {
     expect(viewport.className).not.toContain("overflow-y-auto");
     expect(viewport).toHaveClass("gap-0.5");
     expect(body).toHaveClass("border-l", "border-dashed");
+    expect(body).toHaveClass("ml-1.5", "pl-2.5");
     expect(body).not.toHaveClass("border-t");
     expect(showAll.parentElement).toHaveClass("justify-start");
     expect(showAll).toHaveClass("-ml-1");
@@ -473,7 +474,7 @@ describe("ToolCallGroup", () => {
     );
   });
 
-  it("auto-expands streaming reasoning inside the group and collapses it on completion", async () => {
+  it("keeps streaming reasoning collapsed with a live last-line preview, then settles on completion", async () => {
     const threadId = "thread-1";
     const items: RuntimeChatItem[] = [
       { ...makeReasoningItem("reasoning-1", "Considering the edge cases"), state: "updated" },
@@ -486,8 +487,11 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    // Streaming: shimmering "Thinking" title with the live text expanded below.
+    // Streaming: shimmering "Thinking" title, collapsed, with the current line
+    // as trailing meta — not an expanded viewport.
     expect(screen.getByText("Thinking")).toBeInTheDocument();
+    const thinkingTrigger = screen.getByText("Thinking").closest("button");
+    expect(thinkingTrigger).toHaveAttribute("aria-expanded", "false");
     expect(await screen.findByText("Considering the edge cases")).toBeInTheDocument();
 
     act(() => {
@@ -497,7 +501,7 @@ describe("ToolCallGroup", () => {
       ]);
     });
 
-    // Completion: auto-collapses into a "Thought" row with the preview as meta.
+    // Completion: stays collapsed as a "Thought" row with the preview as meta.
     await waitFor(() => expect(screen.getByText("Thought")).toBeInTheDocument());
     const trigger = screen.getByText("Thought").closest("button");
     expect(trigger).not.toBeNull();

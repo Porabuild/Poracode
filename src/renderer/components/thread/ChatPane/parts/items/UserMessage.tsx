@@ -1,7 +1,7 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Link, Surface, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
@@ -66,8 +66,8 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
   const { slashCommand, body } = extractLeadingSlashCommand(rawText);
   const text = body;
   const commandPrefixLength = slashCommand ? rawText.length - body.length : 0;
-  const hasInlineFileMentions = content.some(
-    (block) => block.kind === "file" && block.source !== "attachment",
+  const hasInlineContent = content.some(
+    (block) => block.kind === "skill" || (block.kind === "file" && block.source !== "attachment"),
   );
   const attachments = enrichWithSelectorPayloads(
     buildUserPromptAttachments(content),
@@ -205,14 +205,11 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
     bodyClass = inlineBodyClass;
     bodyContent = (
       <>
-        <span className="poracode-slash-chip poracode-slash-chip--user-message mr-1.5">
-          <span className="poracode-slash-chip__slash">/</span>
-          <span className="poracode-slash-chip__name">{slashCommand}</span>
-        </span>
+        <UserMessageSlashChip icon="/" label={slashCommand} />
         {renderUserMessageInlineContent(content, commandPrefixLength, actions)}
       </>
     );
-  } else if (hasInlineFileMentions) {
+  } else if (hasInlineContent) {
     bodyClass = inlineBodyClass;
     bodyContent = renderUserMessageInlineContent(content, 0, actions);
   } else if (text.length > 0) {
@@ -292,6 +289,7 @@ function buildUserPromptText(content: CanonicalContentBlock[]): string {
   return content
     .map((block) => {
       if (block.kind === "text") return block.text;
+      if (block.kind === "skill") return block.invocation;
       if (block.kind === "file" && block.source !== "attachment") return block.path;
       return "";
     })
@@ -318,6 +316,23 @@ function renderUserMessageInlineContent(
       return;
     }
 
+    if (block.kind === "skill") {
+      if (remainingSkip >= block.invocation.length) {
+        remainingSkip -= block.invocation.length;
+        return;
+      }
+      remainingSkip = 0;
+      nodes.push(
+        <UserMessageSlashChip
+          key={`skill-${index}-${block.name}`}
+          icon={<Sparkles aria-hidden="true" />}
+          label={block.name}
+          skillName={block.name}
+        />,
+      );
+      return;
+    }
+
     if (block.kind === "file") {
       if (block.source === "attachment") return;
       if (remainingSkip >= block.path.length) {
@@ -339,6 +354,26 @@ function renderUserMessageInlineContent(
   });
 
   return nodes;
+}
+
+function UserMessageSlashChip({
+  icon,
+  label,
+  skillName,
+}: {
+  icon: ReactNode;
+  label: string;
+  skillName?: string;
+}) {
+  return (
+    <span
+      className="poracode-slash-chip poracode-slash-chip--user-message mr-1.5"
+      {...(skillName ? { "data-skill-name": skillName } : {})}
+    >
+      <span className="poracode-slash-chip__slash">{icon}</span>
+      <span className="poracode-slash-chip__name">{label}</span>
+    </span>
+  );
 }
 
 const USER_MESSAGE_URL_RE = /https?:\/\/[^\s<>"']+/g;

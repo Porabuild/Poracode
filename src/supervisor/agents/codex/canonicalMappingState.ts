@@ -16,6 +16,8 @@ export interface CodexMapperState {
   fileChangeOutputMap: Map<string, string>;
   /** Last path emitted for a file-change item, to avoid duplicate updates. */
   fileChangePathMap: Map<string, string>;
+  /** Last streamed reasoning summary index, used to preserve summary-part boundaries. */
+  reasoningSummaryIndexMap: Map<string, number>;
   /** Current chat item that mirrors the provider's active goal state. */
   goalItemId?: string;
   /** Provider-created timestamp for the current goal, when reported. */
@@ -34,6 +36,7 @@ export function createCodexMapperState(threadId: string): CodexMapperState {
     commandOutputSeenSet: new Set(),
     fileChangeOutputMap: new Map(),
     fileChangePathMap: new Map(),
+    reasoningSummaryIndexMap: new Map(),
   };
 }
 

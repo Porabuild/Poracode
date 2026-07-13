@@ -24,6 +24,7 @@ import {
   chatRowClass,
   chatRowHoverClass,
   chatRowIndicatorClass,
+  chatRowRailClass,
   chatRowShellClass,
   inlineRowTriggerClass,
   normalizeCallTitleSeparator,
@@ -147,7 +148,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
           </Disclosure.Trigger>
         </Disclosure.Heading>
         <Disclosure.Content>
-          <Disclosure.Body className="ml-3 border-l border-dashed border-[color:var(--border)] pb-0 pl-3 pt-0">
+          <Disclosure.Body className={`ml-1.5 ${chatRowRailClass} pb-0 pl-2.5 pt-0`}>
             {hasOverflowRows && !sameFileEditSummary ? (
               <div className="mb-0.5 flex justify-start">
                 <button
