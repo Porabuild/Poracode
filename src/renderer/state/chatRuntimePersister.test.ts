@@ -97,7 +97,7 @@ describe("prepareRuntimeSnapshotForPersistence", () => {
     ]);
   });
 
-  it("does not compact edits together with other tool calls", () => {
+  it("compacts edits together with the rest of the tool-call run", () => {
     const snapshot = prepareRuntimeSnapshotForPersistence(
       [
         makeItem({ id: "assistant-1", type: "assistant_message" }),
@@ -130,19 +130,13 @@ describe("prepareRuntimeSnapshotForPersistence", () => {
       [makeTurn("edit-1"), makeTurn("edit-2"), makeTurn("command-1"), makeTurn("edit-3")],
     );
 
-    const editSummaryId = "tool-call-summary:edit-1:edit-2:2";
-    const commandSummaryId = "tool-call-summary:command-1:command-2:2";
-    expect(snapshot.items.map((item) => item.id)).toEqual([
-      "assistant-1",
-      editSummaryId,
-      commandSummaryId,
-      "edit-3",
-    ]);
+    const summaryId = "tool-call-summary:edit-1:edit-3:5";
+    expect(snapshot.items.map((item) => item.id)).toEqual(["assistant-1", summaryId]);
     expect(snapshot.turns.map((turn) => turn.anchorItemId)).toEqual([
-      editSummaryId,
-      editSummaryId,
-      commandSummaryId,
-      "edit-3",
+      summaryId,
+      summaryId,
+      summaryId,
+      summaryId,
     ]);
   });
 
