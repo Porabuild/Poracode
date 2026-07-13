@@ -252,15 +252,19 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
     startTransition(() => setUsageSetting("providerOrder", next));
   }
 
-  const items = providers.map((p, index) => (
-    <ProviderUsageRailItem key={p.id} id={p.id} label={p.label} index={index} group={group} />
-  ));
+  const items = providers
+    .slice(0, 4)
+    .map((p, index) => (
+      <ProviderUsageRailItem key={p.id} id={p.id} label={p.label} index={index} group={group} />
+    ));
 
   // Collapsed icon rail: a centered column of circles.
   if (orientation === "column") {
     return (
       <DragDropProvider sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="flex w-full flex-col items-center gap-1.5">{items}</div>
+        <div className="mb-1 flex w-full flex-col items-center gap-1.5 border-b border-[var(--hairline)] pb-2">
+          {items}
+        </div>
       </DragDropProvider>
     );
   }
