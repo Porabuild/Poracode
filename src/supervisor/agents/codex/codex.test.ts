@@ -930,7 +930,7 @@ describe("CodexStructuredSession", () => {
     expect(requests[2]?.params.serviceTier).toBeNull();
   });
 
-  it("dispatches /goal <objective> to thread/goal/set without starting a model turn", async () => {
+  it("keeps /goal <objective> working until the model turn completes", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
     const runtimeEvents: RuntimeEvent[] = [];
@@ -938,6 +938,20 @@ describe("CodexStructuredSession", () => {
     (structuredSession as unknown as Record<string, unknown>)["listener"] = {
       onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
       onUpdate: (update: unknown) => updates.push(update),
+    };
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        dispatchNotification(structuredSession, {
+          jsonrpc: "2.0",
+          method: "turn/started",
+          params: {
+            threadId: "provider-thread",
+            turn: { id: "goal-turn", threadId: "provider-thread" },
+          },
+        });
+        return {};
+      },
     };
 
     await structuredSession.startTurn("/goal ship unified GUI goal support", { model: "gpt-5.4" });
@@ -953,14 +967,52 @@ describe("CodexStructuredSession", () => {
       },
     ]);
     // The goal item itself is produced by the canonical mapper from the
-    // `thread/goal/updated` notification — startTurn should only emit the
-    // user-facing turn/user-message envelope around the RPC.
+    // `thread/goal/updated` notification. `thread/goal/set` starts a real
+    // model turn, so its native completion notification must settle the turn.
     expect(runtimeEvents.map((event) => event.type)).toEqual([
       "turn.started",
       "item.started",
       "item.completed",
-      "turn.completed",
+      "turn.started",
     ]);
+    expect(updates.at(-1)).toEqual({ status: "working", attention: "working" });
+  });
+
+  it("does not settle /goal <objective> before a delayed model turn starts", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const updates: unknown[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+      onUpdate: (update: unknown) => updates.push(update),
+    };
+
+    await structuredSession.startTurn("/goal continue when idle", { model: "gpt-5.4" });
+
+    expect(runtimeEvents).not.toContainEqual(expect.objectContaining({ type: "turn.completed" }));
+    expect(updates).not.toContainEqual({ status: "idle", attention: "none" });
+  });
+
+  it("settles /goal <objective> when Codex does not start a model turn", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const updates: unknown[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+      onUpdate: (update: unknown) => updates.push(update),
+    };
+
+    await structuredSession.startTurn("/goal plan without continuing", {
+      model: "gpt-5.4",
+      mode: "plan",
+    });
+
+    expect(runtimeEvents.at(-1)).toMatchObject({
+      type: "turn.completed",
+      state: "completed",
+    });
     expect(updates.at(-1)).toEqual({ status: "idle", attention: "none" });
   });
 
