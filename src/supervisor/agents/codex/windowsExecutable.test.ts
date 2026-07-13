@@ -29,7 +29,7 @@ describe.skipIf(process.platform !== "win32")("resolveCodexNativeExecutableForWi
     expect(target).toBeDefined();
     if (!target) return;
 
-    const root = mkdtempSync(join(tmpdir(), "lightcode-codex-native-"));
+    const root = mkdtempSync(join(tmpdir(), "poracode-codex-native-"));
     tempDirs.push(root);
     const shimPath = join(root, "codex.cmd");
     const executablePath = join(

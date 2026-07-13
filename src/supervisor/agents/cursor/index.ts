@@ -121,7 +121,7 @@ export function createCursorAdapter(): AgentAdapter {
       return capabilities;
     },
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
-    pluginId: "lightcode-status@cursor",
+    pluginId: "poracode-status@cursor",
     pluginVersion: CURSOR_PLUGIN_VERSION,
     minProtocolVersion: 1,
 

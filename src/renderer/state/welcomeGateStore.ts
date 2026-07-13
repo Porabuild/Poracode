@@ -6,7 +6,7 @@ import { readStoredBoolean } from "@/renderer/utils/localStorage";
  * welcome overlay. Owned here so the overlay and this background-work gate read
  * a single shared key.
  */
-export const WELCOME_SEEN_STORAGE_KEY = "lightcode-welcome-seen-v16";
+export const WELCOME_SEEN_STORAGE_KEY = "poracode-welcome-seen-v16";
 
 interface WelcomeGateStore {
   /**

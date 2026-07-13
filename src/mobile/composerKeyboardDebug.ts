@@ -1,9 +1,9 @@
 /**
  * Console tracing for the mobile composer keyboard dance (probe, guarded
  * focus, ghost-tap suppression). Silent by default — enable on-device via
- * `localStorage.setItem("lightcode-mobile-keyboard-debug", "1")` and reload.
+ * `localStorage.setItem("poracode-mobile-keyboard-debug", "1")` and reload.
  */
-const DEBUG_FLAG_KEY = "lightcode-mobile-keyboard-debug";
+const DEBUG_FLAG_KEY = "poracode-mobile-keyboard-debug";
 
 let enabled: boolean | null = null;
 

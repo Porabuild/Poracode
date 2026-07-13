@@ -427,7 +427,7 @@ describe("ToolCallGroup", () => {
       { ...makeCommandItem("command-1", "pnpm run test"), state: "started" },
       { ...makeFileChangeItem("file-1"), state: "started" },
       {
-        ...makeWebSearchItem("web-search-1", { query: "Lightcode", status: "running" }),
+        ...makeWebSearchItem("web-search-1", { query: "Poracode", status: "running" }),
         state: "started",
       },
     ];
@@ -439,14 +439,14 @@ describe("ToolCallGroup", () => {
     );
 
     const animatedTitles = Array.from(
-      view.container.querySelectorAll("code.lightcode-thinking-text"),
+      view.container.querySelectorAll("code.poracode-thinking-text"),
     );
     expect(animatedTitles).toHaveLength(4);
-    expect(
-      animatedTitles.map((title) => title.getAttribute("data-lightcode-shimmer-text")),
-    ).toEqual(["Read file", "Check · pnpm run test", "Edit · src/foo.ts", "Lightcode"]);
+    expect(animatedTitles.map((title) => title.getAttribute("data-poracode-shimmer-text"))).toEqual(
+      ["Read file", "Check · pnpm run test", "Edit · src/foo.ts", "Poracode"],
+    );
     expect(screen.queryByText("Working")).not.toBeInTheDocument();
-    expect(view.container.querySelector(".lightcode-pixel-loader")).toBeNull();
+    expect(view.container.querySelector(".poracode-pixel-loader")).toBeNull();
   });
 
   it("renders completed reasoning as a collapsed Thought row with a text preview", () => {
@@ -832,8 +832,8 @@ function makeChangesArrayFileChangeItem(
 ): RuntimeChatItem {
   const path =
     changeKind === "create"
-      ? "/Users/serhiivecherenko/work/lightcode/src/renderer/state/runtimeToolGrouping.ts"
-      : "/Users/serhiivecherenko/work/lightcode/src/renderer/components/thread/ChatPane/chatPaneSelectors.ts";
+      ? "/Users/serhiivecherenko/work/poracode/src/renderer/state/runtimeToolGrouping.ts"
+      : "/Users/serhiivecherenko/work/poracode/src/renderer/components/thread/ChatPane/chatPaneSelectors.ts";
   const diff =
     changeKind === "create"
       ? [
@@ -889,7 +889,7 @@ function makeChangesArrayFileChangeItem(
 }
 
 function getViewport(container: HTMLElement): HTMLDivElement {
-  const element = container.querySelector(".lightcode-tool-call-group-viewport");
+  const element = container.querySelector(".poracode-tool-call-group-viewport");
   if (!(element instanceof HTMLDivElement)) {
     throw new Error("missing tool call group viewport");
   }

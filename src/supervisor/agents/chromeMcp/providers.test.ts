@@ -15,14 +15,14 @@ const chromeMcp: ChromeMcpHttpConfig = {
 };
 
 afterEach(() => {
-  delete process.env.LIGHTCODE_CHROME_MCP_URL;
-  delete process.env.LIGHTCODE_CHROME_MCP_TOKEN;
+  delete process.env.PORACODE_CHROME_MCP_URL;
+  delete process.env.PORACODE_CHROME_MCP_TOKEN;
 });
 
 describe("Chrome MCP provider configs", () => {
   it("resolves the local HTTP endpoint from supervisor env", () => {
-    process.env.LIGHTCODE_CHROME_MCP_URL = "http://127.0.0.1:65094";
-    process.env.LIGHTCODE_CHROME_MCP_TOKEN = "host-token";
+    process.env.PORACODE_CHROME_MCP_URL = "http://127.0.0.1:65094";
+    process.env.PORACODE_CHROME_MCP_TOKEN = "host-token";
 
     expect(resolveChromeMcpHttpConfigForLaunch(windowsLocation, true)).toEqual({
       url: "http://127.0.0.1:65094/mcp",
@@ -32,8 +32,8 @@ describe("Chrome MCP provider configs", () => {
   });
 
   it("tags the endpoint with the owning thread identity", () => {
-    process.env.LIGHTCODE_CHROME_MCP_URL = "http://127.0.0.1:65094";
-    process.env.LIGHTCODE_CHROME_MCP_TOKEN = "host-token";
+    process.env.PORACODE_CHROME_MCP_URL = "http://127.0.0.1:65094";
+    process.env.PORACODE_CHROME_MCP_TOKEN = "host-token";
 
     expect(
       resolveChromeMcpHttpConfigForLaunch(windowsLocation, true, {
@@ -44,8 +44,8 @@ describe("Chrome MCP provider configs", () => {
   });
 
   it("declines for WSL projects (no in-distro bridge)", () => {
-    process.env.LIGHTCODE_CHROME_MCP_URL = "http://127.0.0.1:65094";
-    process.env.LIGHTCODE_CHROME_MCP_TOKEN = "host-token";
+    process.env.PORACODE_CHROME_MCP_URL = "http://127.0.0.1:65094";
+    process.env.PORACODE_CHROME_MCP_TOKEN = "host-token";
 
     expect(resolveChromeMcpHttpConfigForLaunch(wslLocation, true)).toBeUndefined();
     // The pre-resolved config is never handed to WSL, so every builder declines.
@@ -76,7 +76,7 @@ describe("Chrome MCP provider configs", () => {
       'mcp_servers.chrome.url="http://127.0.0.1:45678/mcp"',
     );
     expect(buildCodexChromeMcpEnv(chromeMcp)).toEqual({
-      LIGHTCODE_CHROME_MCP_TOKEN: "chrome-secret",
+      PORACODE_CHROME_MCP_TOKEN: "chrome-secret",
     });
     expect(buildGeminiChromeMcpServers(windowsLocation, true, chromeMcp)).toEqual({
       chrome: {
@@ -99,8 +99,8 @@ describe("Chrome MCP provider configs", () => {
     // The gate must live inside each builder so a call site can never forget it
     // and leak the external-Chrome endpoint into a non-opted-in thread. Env is
     // set to prove the builders honor `enabled` rather than the env fallback.
-    process.env.LIGHTCODE_CHROME_MCP_URL = "http://127.0.0.1:65094";
-    process.env.LIGHTCODE_CHROME_MCP_TOKEN = "host-token";
+    process.env.PORACODE_CHROME_MCP_URL = "http://127.0.0.1:65094";
+    process.env.PORACODE_CHROME_MCP_TOKEN = "host-token";
 
     expect(buildAcpChromeMcpServers(windowsLocation, false, chromeMcp)).toEqual([]);
     expect(buildClaudeChromeMcpServers(windowsLocation, false, chromeMcp)).toBeUndefined();
@@ -110,11 +110,9 @@ describe("Chrome MCP provider configs", () => {
   });
 
   it("uses a token env var distinct from the browser and computer-use ones", () => {
-    expect(buildCodexChromeMcpEnv(chromeMcp)).toHaveProperty("LIGHTCODE_CHROME_MCP_TOKEN");
-    expect(buildCodexChromeMcpEnv(chromeMcp)).not.toHaveProperty("LIGHTCODE_BROWSER_MCP_TOKEN");
-    expect(buildCodexChromeMcpEnv(chromeMcp)).not.toHaveProperty(
-      "LIGHTCODE_COMPUTER_USE_MCP_TOKEN",
-    );
+    expect(buildCodexChromeMcpEnv(chromeMcp)).toHaveProperty("PORACODE_CHROME_MCP_TOKEN");
+    expect(buildCodexChromeMcpEnv(chromeMcp)).not.toHaveProperty("PORACODE_BROWSER_MCP_TOKEN");
+    expect(buildCodexChromeMcpEnv(chromeMcp)).not.toHaveProperty("PORACODE_COMPUTER_USE_MCP_TOKEN");
     expect(buildCodexChromeMcpEnv(undefined)).toBeUndefined();
   });
 });

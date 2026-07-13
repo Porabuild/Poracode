@@ -342,7 +342,7 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
               {t("nav.changelog")}
             </Link>
             <a
-              href="https://github.com/poracode/poracode"
+              href="https://github.com/SDSLeon/lightcode"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 font-mono text-[13px] text-dim transition-colors hover:bg-white/[0.04] hover:text-moon"
@@ -570,7 +570,7 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
                 {t("hero.downloadFor", { platform: platform.label })}
               </a>
               <a
-                href="https://github.com/poracode/poracode"
+                href="https://github.com/SDSLeon/lightcode"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-6 font-medium text-moon transition hover:border-white/20 hover:bg-white/[0.06]"
@@ -601,7 +601,7 @@ export function HomeContent({ release }: { release: ReleaseInfo }) {
               {t("nav.changelog")}
             </Link>
             <a
-              href="https://github.com/poracode/poracode"
+              href="https://github.com/SDSLeon/lightcode"
               className="font-mono text-[13px] text-dim transition-colors hover:text-moon"
             >
               GitHub

@@ -1,4 +1,4 @@
-import { ActivityBridge } from "@lightcode/activity-bridge";
+import { ActivityBridge } from "@poracode/activity-bridge";
 import type { RemoteLiveActivityContentState } from "@/shared/remote";
 
 /**
@@ -10,7 +10,7 @@ import type { RemoteLiveActivityContentState } from "@/shared/remote";
  * locally so a Live Activity appears on the lock screen the instant a run
  * starts — without waiting for an APNs round-trip.
  *
- * Plugin-API limitation: `@lightcode/activity-bridge` exposes only
+ * Plugin-API limitation: `@poracode/activity-bridge` exposes only
  * `startActivity` / `endActivity` — there is NO local `updateActivity` method
  * (see `native/activity-bridge/src/definitions.ts`). Adding one is out of scope
  * (it lives under `native/`). So local driving is deliberately minimal: we

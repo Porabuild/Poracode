@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { OAuthToken } from "@lightcode/agents-usage";
+import type { OAuthToken } from "@poracode/agents-usage";
 
 /**
  * Factory / Droid credential resolution from the `droid` CLI's own auth store,

@@ -1,7 +1,7 @@
 import { clipboard } from "electron";
-import { allUsageProviderDescriptors } from "@lightcode/agents-usage";
+import { allUsageProviderDescriptors } from "@poracode/agents-usage";
 import type { BrowserPanelManager } from "../browser";
-import type { LightcodePaths } from "@/shared/lightcodePaths";
+import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { UsageLoginStateResponse } from "@/shared/contracts";
 import { clearUsageSecret, hasUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
 import { isCommandCodeLoginCookieLive } from "./commandCodeLoginProbe";
@@ -164,7 +164,7 @@ export class UsageLoginManager {
   private readonly deviceLoginCancel = new Map<string, () => void>();
 
   constructor(
-    private readonly paths: LightcodePaths,
+    private readonly paths: PoracodePaths,
     private readonly getBrowserPanel: () => BrowserPanelManager | null,
   ) {}
 

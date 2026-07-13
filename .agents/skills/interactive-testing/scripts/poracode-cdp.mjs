@@ -4,28 +4,28 @@
  *
  * Everything runs through `node` (always on PATH) using raw CDP over the
  * built-in WebSocket — no `agent-browser` PATH/shell quirks, no fish/zsh
- * word-splitting traps. Pairs with the DEV bridge (`window.__lightcodeDev`,
+ * word-splitting traps. Pairs with the DEV bridge (`window.__poracodeDev`,
  * see src/renderer/devBridge.ts) for instant state/navigation.
  *
- * Port defaults to $LIGHTCODE_CDP_PORT or 9222.
+ * Port defaults to $PORACODE_CDP_PORT or 9222.
  *
- *   node lightcode-cdp.mjs wait [--timeout 90]        # block until the app CDP target is up
- *   node lightcode-cdp.mjs eval '<js>' [--await]      # Runtime.evaluate, prints JSON result
- *   node lightcode-cdp.mjs shot <selector|-> <out>    # element (CSS selector) or full-viewport (-) PNG
- *   node lightcode-cdp.mjs click <selector>            # click an element through CDP input
- *   node lightcode-cdp.mjs type <selector> <text>      # focus and insert text
+ *   node poracode-cdp.mjs wait [--timeout 90]        # block until the app CDP target is up
+ *   node poracode-cdp.mjs eval '<js>' [--await]      # Runtime.evaluate, prints JSON result
+ *   node poracode-cdp.mjs shot <selector|-> <out>    # element (CSS selector) or full-viewport (-) PNG
+ *   node poracode-cdp.mjs click <selector>            # click an element through CDP input
+ *   node poracode-cdp.mjs type <selector> <text>      # focus and insert text
  *   --windowKind <main|quickComposer|browserExtract>  # select a renderer surface
- *   node lightcode-cdp.mjs nav <section>              # open Settings deep-linked (e.g. about, usage) [needs bridge]
- *   node lightcode-cdp.mjs back                       # close Settings overlay [needs bridge]
- *   node lightcode-cdp.mjs update '<json>'            # patch the app-update store [needs bridge]
- *   node lightcode-cdp.mjs reset                      # reset driven state to baseline [needs bridge]
+ *   node poracode-cdp.mjs nav <section>              # open Settings deep-linked (e.g. about, usage) [needs bridge]
+ *   node poracode-cdp.mjs back                       # close Settings overlay [needs bridge]
+ *   node poracode-cdp.mjs update '<json>'            # patch the app-update store [needs bridge]
+ *   node poracode-cdp.mjs reset                      # reset driven state to baseline [needs bridge]
  *
  * Examples:
- *   node lightcode-cdp.mjs wait
- *   node lightcode-cdp.mjs nav about
- *   node lightcode-cdp.mjs update '{"phase":"downloading","version":"1.2.3","downloadPercent":42,"downloadTransferred":30618419,"downloadTotal":113554636}'
- *   node lightcode-cdp.mjs shot "#shot-about" ~/.lightcode-smoke/shots/about.png
- *   node lightcode-cdp.mjs reset
+ *   node poracode-cdp.mjs wait
+ *   node poracode-cdp.mjs nav about
+ *   node poracode-cdp.mjs update '{"phase":"downloading","version":"1.2.3","downloadPercent":42,"downloadTransferred":30618419,"downloadTotal":113554636}'
+ *   node poracode-cdp.mjs shot "#shot-about" ~/.poracode-smoke/shots/about.png
+ *   node poracode-cdp.mjs reset
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -33,7 +33,7 @@ import { dirname, isAbsolute, resolve as resolvePath } from "node:path";
 
 const { flags, pos } = parse(process.argv.slice(2));
 const cmd = pos[0];
-const port = Number(flags.port ?? process.env.LIGHTCODE_CDP_PORT ?? 9222);
+const port = Number(flags.port ?? process.env.PORACODE_CDP_PORT ?? 9222);
 const appUrl = String(flags.appUrl ?? "http://127.0.0.1:3100/");
 const windowKind = flags.windowKind ? String(flags.windowKind) : null;
 const commandTimeoutMs = Number(flags.commandTimeoutMs ?? 8000);
@@ -108,30 +108,30 @@ async function main() {
     }
     case "nav": {
       const section = required(pos[1], "nav needs a <section> id (e.g. about)");
-      await bridgeCall(`window.__lightcodeDev.openSettings(${JSON.stringify(section)})`);
+      await bridgeCall(`window.__poracodeDev.openSettings(${JSON.stringify(section)})`);
       console.log(`nav:${section}`);
       return;
     }
     case "back": {
-      await bridgeCall(`window.__lightcodeDev.closeSettings()`);
+      await bridgeCall(`window.__poracodeDev.closeSettings()`);
       console.log("back");
       return;
     }
     case "update": {
       const json = required(pos[1], "update needs a '<json>' patch");
       const patch = JSON.parse(json); // validate before injecting
-      await bridgeCall(`window.__lightcodeDev.setUpdate(${JSON.stringify(patch)})`);
+      await bridgeCall(`window.__poracodeDev.setUpdate(${JSON.stringify(patch)})`);
       console.log("update:ok");
       return;
     }
     case "reset": {
-      await bridgeCall(`window.__lightcodeDev.reset()`);
+      await bridgeCall(`window.__poracodeDev.reset()`);
       console.log("reset:ok");
       return;
     }
     default:
       console.error(
-        "Usage: node lightcode-cdp.mjs <wait|eval|shot|click|type|nav|back|update|reset> ...\n" +
+        "Usage: node poracode-cdp.mjs <wait|eval|shot|click|type|nav|back|update|reset> ...\n" +
           "See the header of this file for examples.",
       );
       process.exit(2);
@@ -142,10 +142,10 @@ async function main() {
 async function bridgeCall(expr) {
   const client = await connect();
   try {
-    const present = await evaluate(client, "typeof window.__lightcodeDev");
+    const present = await evaluate(client, "typeof window.__poracodeDev");
     if (present !== "object") {
       throw new Error(
-        "window.__lightcodeDev is missing — is the app a DEV build with installDevBridge() wired in main.tsx?",
+        "window.__poracodeDev is missing — is the app a DEV build with installDevBridge() wired in main.tsx?",
       );
     }
     return await evaluate(client, `(${expr}, "ok")`);

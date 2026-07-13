@@ -131,7 +131,7 @@ export class StreamableHttpMcpIngress<TContext> {
     if (auth && auth.startsWith("Bearer ") && this.tokenMatches(auth.slice(7).trim())) {
       return true;
     }
-    const xToken = req.headers["x-lightcode-token"];
+    const xToken = req.headers["x-poracode-token"];
     return typeof xToken === "string" && this.tokenMatches(xToken);
   }
 
@@ -206,7 +206,7 @@ export class StreamableHttpMcpIngress<TContext> {
           res.setHeader("Access-Control-Allow-Origin", origin);
           res.setHeader(
             "Access-Control-Allow-Headers",
-            "Authorization, X-Lightcode-Token, Content-Type, Mcp-Session-Id",
+            "Authorization, X-Poracode-Token, Content-Type, Mcp-Session-Id",
           );
           res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
         }

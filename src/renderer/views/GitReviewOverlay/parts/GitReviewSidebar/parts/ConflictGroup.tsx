@@ -13,7 +13,7 @@ import { useGitTouch } from "../gitTouchContext";
 import { ConflictFileCard } from "./ConflictFileCard";
 import { reconcileStagingStatus } from "./reconcileStagingStatus";
 
-const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
+const COMPOSER_FILE_DRAG_TYPE = "application/poracode-composer-file";
 
 export function ConflictGroup(props: {
   files: GitFileChange[];

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { HostPort } from "@lightcode/agents-usage";
+import type { HostPort } from "@poracode/agents-usage";
 import type { OpenCodeWebSession } from "./openCodeWebSession";
 
 /**

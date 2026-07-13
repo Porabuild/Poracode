@@ -1,5 +1,5 @@
 /**
- * Random worktree branch-name generator (`lightcode/<adjective>-<noun>-<8hex>`).
+ * Random worktree branch-name generator (`poracode/<adjective>-<noun>-<8hex>`).
  * Lives in `src/shared` because both the renderer (BranchSelector "new branch"
  * action) and the supervisor (orchestrator `create_thread` MCP tool) mint
  * branches with the same scheme. Uses the Web Crypto global, available in both
@@ -87,5 +87,5 @@ export function generateWorktreeBranch(): string {
   const bytes = new Uint8Array(4);
   crypto.getRandomValues(bytes);
   const hash = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  return `lightcode/${adj}-${noun}-${hash}`;
+  return `poracode/${adj}-${noun}-${hash}`;
 }

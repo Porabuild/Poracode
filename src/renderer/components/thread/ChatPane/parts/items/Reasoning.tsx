@@ -60,13 +60,13 @@ export const Reasoning = memo(function Reasoning({ item }: ReasoningProps) {
         <div className="inline-flex items-center gap-1.5">
           <Brain
             ref={brainRef}
-            className="lightcode-brain-thinking size-3 shrink-0"
+            className="poracode-brain-thinking size-3 shrink-0"
             aria-label={t`Thinking`}
           />
           <span
             ref={thinkingTextRef}
-            className="lightcode-thinking-text"
-            data-lightcode-shimmer-text={t`Thinking`}
+            className="poracode-thinking-text"
+            data-poracode-shimmer-text={t`Thinking`}
           >
             <Trans>Thinking</Trans>
           </span>

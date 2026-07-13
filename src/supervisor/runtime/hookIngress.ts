@@ -20,7 +20,7 @@ export interface HookIngressBootInfo {
   url: string;
   /** Bearer secret plugins must send as `Authorization: Bearer …`. */
   secret: string;
-  /** Supervisor's max protocol version, exposed in `LIGHTCODE_HOOK_PROTOCOL_VERSION`. */
+  /** Supervisor's max protocol version, exposed in `PORACODE_HOOK_PROTOCOL_VERSION`. */
   protocolVersion: number;
   /** TCP port the server bound to (after ephemeral fallback). */
   port: number;

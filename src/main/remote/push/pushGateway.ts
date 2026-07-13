@@ -8,11 +8,11 @@
 
 /** Production gateway origin (co-hosted with the marketing site / PWA). The
  * canonical domain is `website/src/lib/seo.ts` `SITE_URL`. */
-const DEFAULT_PUSH_GATEWAY_URL = "https://lightcodeapp.com";
+const DEFAULT_PUSH_GATEWAY_URL = "https://poracodeapp.com";
 
 /** Resolve the gateway origin: env override, else the production default. */
 export function resolvePushGatewayUrl(): string {
-  const fromEnv = process.env.LIGHTCODE_PUSH_GATEWAY_URL?.trim();
+  const fromEnv = process.env.PORACODE_PUSH_GATEWAY_URL?.trim();
   return fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_PUSH_GATEWAY_URL;
 }
 

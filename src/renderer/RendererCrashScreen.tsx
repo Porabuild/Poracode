@@ -70,11 +70,11 @@ function readBridgeDiagnostics(): {
   platform?: string;
   isDev?: boolean;
 } {
-  if (typeof window === "undefined" || !("lightcode" in window)) {
+  if (typeof window === "undefined" || !("poracode" in window)) {
     return {};
   }
 
-  const bridge = window.lightcode;
+  const bridge = window.poracode;
   return {
     ...(bridge.appVersion ? { appVersion: bridge.appVersion } : {}),
     ...(bridge.electronVersion ? { electronVersion: bridge.electronVersion } : {}),

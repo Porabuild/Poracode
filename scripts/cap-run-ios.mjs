@@ -4,7 +4,7 @@
 // cannot be answered.
 //
 // Target resolution order:
-//   1. $LIGHTCODE_IOS_TARGET       - explicit override (simulator/device UDID)
+//   1. $PORACODE_IOS_TARGET       - explicit override (simulator/device UDID)
 //   2. first already-booted simulator
 //   3. first iPhone simulator on the newest available iOS runtime
 //   4. first simulator on the newest available iOS runtime
@@ -92,7 +92,7 @@ function formatTarget(target) {
 }
 
 function resolveTarget() {
-  const override = process.env.LIGHTCODE_IOS_TARGET?.trim();
+  const override = process.env.PORACODE_IOS_TARGET?.trim();
   if (override) return { id: override };
 
   const list = listTargets();
@@ -138,7 +138,7 @@ if (hasPassthroughTargetArg(extraArgs)) {
 
 args.push(...extraArgs);
 
-if (process.env.LIGHTCODE_CAP_DRY_RUN) {
+if (process.env.PORACODE_CAP_DRY_RUN) {
   console.log(`[cap-ios] dry run: cap ${args.join(" ")}`);
   process.exit(0);
 }

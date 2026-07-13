@@ -58,8 +58,8 @@ export function WorktreeModeSelect(props: {
 
   const selected = options.find((option) => option.id === props.mode) ?? options[0]!;
   const SelectedIcon = selected.icon;
-  const triggerClassName = `lightcode-composer-menu min-w-0 max-w-56 ${
-    props.compact ? "lightcode-composer-menu--compact px-2" : "px-2.5"
+  const triggerClassName = `poracode-composer-menu min-w-0 max-w-56 ${
+    props.compact ? "poracode-composer-menu--compact px-2" : "px-2.5"
   }`;
 
   // Two options (no "bring changes" variant): a dropdown for a binary choice
@@ -106,7 +106,7 @@ export function WorktreeModeSelect(props: {
   const desktopContent = (
     <ListBox
       aria-label={t`Worktree mode`}
-      className="lightcode-menu"
+      className="poracode-menu"
       selectionMode="none"
       onAction={(key) => handleSelect(key as WorktreeMode)}
     >

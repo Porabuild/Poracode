@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveLightcodePaths } from "@/shared/lightcodePaths";
+import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { saveClipboardImageFile } from "./localFiles";
 
 describe("saveClipboardImageFile", () => {
@@ -18,8 +18,8 @@ describe("saveClipboardImageFile", () => {
 
   it("sanitizes draft ids in both directory and filename", () => {
     vi.spyOn(Date, "now").mockReturnValue(1777618781449);
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-attachments-"));
-    const paths = resolveLightcodePaths(tempDir);
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-attachments-"));
+    const paths = resolvePoracodePaths(tempDir);
     const data = new Uint8Array([1, 2, 3, 4]);
 
     const filePath = saveClipboardImageFile(paths, {

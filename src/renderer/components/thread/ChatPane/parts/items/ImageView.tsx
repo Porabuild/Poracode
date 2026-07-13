@@ -54,8 +54,8 @@ export const ImageCard = memo(function ImageCard({ source }: { source: ImageView
 
   return (
     <figure
-      className="lightcode-image-card group relative m-0 inline-flex max-w-full overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)]"
-      data-lightcode-image-card="true"
+      className="poracode-image-card group relative m-0 inline-flex max-w-full overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)]"
+      data-poracode-image-card="true"
     >
       <button
         type="button"
@@ -72,7 +72,7 @@ export const ImageCard = memo(function ImageCard({ source }: { source: ImageView
           className={chatInlineImageClass}
         />
       </button>
-      <div className="lightcode-image-action-toolbar pointer-events-none absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
+      <div className="poracode-image-action-toolbar pointer-events-none absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-lg bg-black/50 p-0.5 opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
         <CopyImageButton source={source} />
         <DownloadImageButton src={source.src} fileName={source.fileName} />
         <IconButton label={t`Open preview`} onClick={openPreview}>

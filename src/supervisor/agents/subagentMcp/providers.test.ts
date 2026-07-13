@@ -39,7 +39,7 @@ describe("Subagent MCP provider configs", () => {
       "-c",
       'mcp_servers.subagents.url="http://127.0.0.1:9200/mcp"',
       "-c",
-      'mcp_servers.subagents.bearer_token_env_var="LIGHTCODE_SUBAGENT_MCP_TOKEN"',
+      'mcp_servers.subagents.bearer_token_env_var="PORACODE_SUBAGENT_MCP_TOKEN"',
       "-c",
       "mcp_servers.subagents.tool_timeout_sec=300",
     ]);
@@ -64,8 +64,8 @@ describe("Subagent MCP provider configs", () => {
   });
 
   it("uses a token env var distinct from the browser MCP one", () => {
-    expect(CODEX_SUBAGENT_MCP_TOKEN_ENV).toBe("LIGHTCODE_SUBAGENT_MCP_TOKEN");
-    expect(CODEX_SUBAGENT_MCP_TOKEN_ENV).not.toBe("LIGHTCODE_BROWSER_MCP_TOKEN");
+    expect(CODEX_SUBAGENT_MCP_TOKEN_ENV).toBe("PORACODE_SUBAGENT_MCP_TOKEN");
+    expect(CODEX_SUBAGENT_MCP_TOKEN_ENV).not.toBe("PORACODE_BROWSER_MCP_TOKEN");
   });
 
   it("emits nothing when disabled", () => {

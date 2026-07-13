@@ -970,7 +970,7 @@ body.bg-background {
 
 /* The bubble supplies the surface; flatten the composer's own card chrome so
    it doesn't read as a box-in-a-box. */
-.m-compose-bubble .lightcode-composer-shell {
+.m-compose-bubble .poracode-composer-shell {
   border: none;
   background: transparent;
   box-shadow: none;
@@ -1000,7 +1000,7 @@ body.bg-background {
   touch-action: manipulation;
 }
 
-.m-compose-bubble .lightcode-mention-input {
+.m-compose-bubble .poracode-mention-input {
   transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
@@ -1012,13 +1012,13 @@ body.bg-background {
 .m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-worktree-row],
 .m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-compact-header],
 .m-compose-dock:not([data-expanded]) .m-compose-bubble .m-draft [data-draft-hero],
-.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-toolbar,
-.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-drop-overlay,
-.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-border-glow,
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-composer-toolbar,
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-composer-drop-overlay,
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-composer-border-glow,
 .m-compose-dock:not([data-expanded])
   .m-compose-bubble
-  .lightcode-composer-shell
-  > :not([data-composer-input-anchor]):not(.lightcode-composer-toolbar) {
+  .poracode-composer-shell
+  > :not([data-composer-input-anchor]):not(.poracode-composer-toolbar) {
   display: none;
 }
 
@@ -1041,8 +1041,8 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell
-  .lightcode-composer-send {
+  .poracode-composer-shell
+  .poracode-composer-send {
   width: var(--m-floating-control-inner-size);
   height: var(--m-floating-control-inner-size);
   min-width: var(--m-floating-control-inner-size);
@@ -1053,13 +1053,13 @@ body.bg-background {
   max-height: var(--m-floating-control-line-height);
 }
 
-.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-mention-input {
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-mention-input {
   min-height: var(--m-floating-control-line-height);
   max-height: var(--m-floating-control-line-height);
   padding: calc((var(--m-floating-control-line-height) - 1lh) / 2) 1rem;
 }
 
-.m-compose-dock:not([data-expanded]) .m-compose-bubble .lightcode-composer-shell {
+.m-compose-dock:not([data-expanded]) .m-compose-bubble .poracode-composer-shell {
   position: relative;
 }
 
@@ -1222,38 +1222,38 @@ body.bg-background {
    inline-block shrink-wrap), so it's a descendant, not a direct child —
    target it by descendant. Scoped to the mobile stylesheet, so the compact
    desktop hover UI is untouched. */
-.lightcode-message-action-strip {
+.poracode-message-action-strip {
   gap: 0.25rem;
   opacity: 1;
 }
 
-.lightcode-message-action-strip button {
+.poracode-message-action-strip button {
   position: relative;
   width: 1.5rem;
   height: 1.5rem;
 }
 
-.lightcode-message-action-strip button::after {
+.poracode-message-action-strip button::after {
   content: "";
   position: absolute;
   inset: calc((1.5rem - var(--m-tap-min)) / 2);
 }
 
-.lightcode-message-action-strip button > svg {
+.poracode-message-action-strip button > svg {
   width: 1rem;
   height: 1rem;
 }
 
-.lightcode-image-action-toolbar {
+.poracode-image-action-toolbar {
   pointer-events: auto;
   opacity: 1;
 }
 
-.lightcode-subagent-dock-row {
+.poracode-subagent-dock-row {
   padding-right: 2rem;
 }
 
-.lightcode-subagent-dismiss {
+.poracode-subagent-dismiss {
   opacity: 1;
 }
 
@@ -1416,7 +1416,7 @@ body.bg-background {
   padding-bottom: 0;
 }
 
-.m-thread .m-thread-content [data-lightcode-chat-scroller] {
+.m-thread .m-thread-content [data-poracode-chat-scroller] {
   padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
 }
 
@@ -2098,7 +2098,7 @@ body.bg-background {
   display: none;
 }
 
-.m-main .m-thread .lightcode-composer-shell [data-composer-input-anchor] {
+.m-main .m-thread .poracode-composer-shell [data-composer-input-anchor] {
   overflow: hidden;
   max-height: var(--m-floating-control-line-height);
   transition: max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1);
@@ -2107,15 +2107,15 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock[data-expanded]
-  .lightcode-composer-shell
+  .poracode-composer-shell
   [data-composer-input-anchor] {
   max-height: 12rem;
 }
 
 /* Collapse every toolbar control past the summary trio, and the leading/after
    extras (context ring, attach, mic) — width+opacity so it animates. */
-.m-main .m-thread .lightcode-composer-toolbar > .relative > div > *,
-.m-main .m-thread .lightcode-composer-toolbar > .flex.shrink-0 > * {
+.m-main .m-thread .poracode-composer-toolbar > .relative > div > *,
+.m-main .m-thread .poracode-composer-toolbar > .flex.shrink-0 > * {
   transition:
     max-width 0.28s cubic-bezier(0.32, 0.72, 0, 1),
     opacity 0.2s ease;
@@ -2125,20 +2125,20 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell
-  .lightcode-composer-toolbar
+  .poracode-composer-shell
+  .poracode-composer-toolbar
   > .relative
   > div
-  > :nth-child(n + 4):not(:has(.lightcode-composer-mode-icon)):not(
-    :has(.lightcode-composer-permission-icon)
+  > :nth-child(n + 4):not(:has(.poracode-composer-mode-icon)):not(
+    :has(.poracode-composer-permission-icon)
   ),
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell
-  .lightcode-composer-toolbar
+  .poracode-composer-shell
+  .poracode-composer-toolbar
   > .flex.shrink-0
-  > :not(.lightcode-composer-send) {
+  > :not(.poracode-composer-send) {
   /* display:none, not max-width:0 — zero-width flex items still earn the
      row's 0.875rem gap on both sides, which read as uneven spacing between
      the visible summary chips. The reveal on expand is covered by the
@@ -2154,8 +2154,8 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar
   > .relative
   > div
   > * {
@@ -2166,12 +2166,12 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar
   > .relative
   > div
   > *
-  :is(svg, .lightcode-composer-permission-icon, .lightcode-composer-mode-icon) {
+  :is(svg, .poracode-composer-permission-icon, .poracode-composer-mode-icon) {
   width: 1rem;
   height: 1rem;
 }
@@ -2184,14 +2184,14 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-send:is([disabled], [data-disabled], [aria-disabled="true"]) {
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-send:is([disabled], [data-disabled], [aria-disabled="true"]) {
   display: none;
 }
 
 /* One composer language across screens: compact matches the home bubble's
    pill (hairline, radius, translucent surface, shadow)… */
-.m-main .m-thread .lightcode-composer-shell {
+.m-main .m-thread .poracode-composer-shell {
   border-color: var(--hairline, var(--border));
   transition:
     border-radius 0.32s cubic-bezier(0.32, 0.72, 0, 1),
@@ -2200,7 +2200,7 @@ body.bg-background {
     border-color 0.15s ease;
 }
 
-.m-main .m-thread .m-thread-compose-dock:not([data-expanded]) .lightcode-composer-shell {
+.m-main .m-thread .m-thread-compose-dock:not([data-expanded]) .poracode-composer-shell {
   border-radius: var(--m-floating-control-radius);
   background: var(--m-glass-surface);
   backdrop-filter: blur(12px);
@@ -2223,7 +2223,7 @@ body.bg-background {
 /* …and expanded matches the expanded bubble: flatter radius, opaque surface,
    and the same animated border glow the draft composer shows (the glow node
    is rendered for every variant; desktop only lights it for drafts). */
-.m-main .m-thread .m-thread-compose-dock[data-expanded] .lightcode-composer-shell {
+.m-main .m-thread .m-thread-compose-dock[data-expanded] .poracode-composer-shell {
   border-radius: 1rem;
   border-color: transparent;
   background: var(--composer-surface, var(--sidebar-background, var(--background)));
@@ -2232,8 +2232,8 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock[data-expanded]
-  .lightcode-composer-shell
-  .lightcode-composer-border-glow {
+  .poracode-composer-shell
+  .poracode-composer-border-glow {
   opacity: 0.7;
   transition: opacity 0.3s ease;
 }
@@ -2241,8 +2241,8 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock[data-expanded]
-  .lightcode-composer-shell
-  .lightcode-composer-border-glow::before {
+  .poracode-composer-shell
+  .poracode-composer-border-glow::before {
   animation-play-state: running;
 }
 
@@ -2252,7 +2252,7 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
   [data-composer-input-anchor] {
   margin-right: var(--m-floating-control-height);
 }
@@ -2260,8 +2260,8 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  .lightcode-composer-toolbar {
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-toolbar {
   position: absolute;
   right: 0.25rem;
   bottom: 0.25rem;
@@ -2276,18 +2276,18 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  .lightcode-composer-toolbar
-  > :not(:has(.lightcode-composer-send)) {
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-toolbar
+  > :not(:has(.poracode-composer-send)) {
   display: none;
 }
 
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  .lightcode-composer-toolbar
-  > :has(.lightcode-composer-send) {
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-toolbar
+  > :has(.poracode-composer-send) {
   display: flex;
   margin-left: 0;
 }
@@ -2295,26 +2295,26 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  .lightcode-composer-toolbar
-  > :has(.lightcode-composer-send)
-  > :not(.lightcode-composer-send) {
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-toolbar
+  > :has(.poracode-composer-send)
+  > :not(.poracode-composer-send) {
   display: none;
 }
 
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
-  .lightcode-composer-send {
+  .poracode-composer-shell:has([data-composer-input-anchor] [contenteditable]:not(:empty))
+  .poracode-composer-send {
   pointer-events: auto;
 }
 
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar {
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -2328,18 +2328,18 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar
-  > :has(.lightcode-composer-send) {
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar
+  > :has(.poracode-composer-send) {
   margin-left: auto;
 }
 
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar
-  .lightcode-composer-send {
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar
+  .poracode-composer-send {
   pointer-events: auto;
 }
 
@@ -2347,22 +2347,22 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell
-  .lightcode-mention-input:empty::before {
+  .poracode-composer-shell
+  .poracode-mention-input:empty::before {
   content: none;
 }
 
 /* Shared compact line metrics with the home bubble: one compact control line,
    text vertically centered (the desktop editor's padding is top-heavy). */
-.m-main .m-thread .lightcode-composer-shell .lightcode-mention-input {
+.m-main .m-thread .poracode-composer-shell .poracode-mention-input {
   transition: padding 0.32s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell
-  .lightcode-mention-input {
+  .poracode-composer-shell
+  .poracode-mention-input {
   min-height: var(--m-floating-control-line-height);
   max-height: var(--m-floating-control-line-height);
   padding: calc((var(--m-floating-control-line-height) - 1lh) / 2) 1rem;
@@ -2375,14 +2375,14 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar
   > .relative,
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar
   > .relative
   > div {
   display: flex;
@@ -2394,8 +2394,8 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar
   > .relative
   :is(button, [role="button"]) {
   display: inline-flex;
@@ -2414,8 +2414,8 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar
   > .relative
   svg.lucide-chevron-down {
   display: none;
@@ -2433,10 +2433,10 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar
   > .relative
-  span.lightcode-composer-label-hideable:not(.flex-col) {
+  span.poracode-composer-label-hideable:not(.flex-col) {
   display: inline-block;
   min-width: 0;
   max-width: 100%;
@@ -2448,10 +2448,10 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar
   > .relative
-  span.lightcode-composer-label-hideable.flex-col {
+  span.poracode-composer-label-hideable.flex-col {
   display: flex;
   min-width: 0;
   max-width: 100%;
@@ -2466,21 +2466,21 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar
   > .relative
   > div
-  > *:has(.lightcode-composer-mode-icon)
-  span.lightcode-composer-label-hideable,
+  > *:has(.poracode-composer-mode-icon)
+  span.poracode-composer-label-hideable,
 .m-main
   .m-thread
   .m-thread-compose-dock:not([data-expanded])
-  .lightcode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
-  .lightcode-composer-toolbar
+  .poracode-composer-shell:not(:has([data-composer-input-anchor] [contenteditable]:not(:empty)))
+  .poracode-composer-toolbar
   > .relative
   > div
-  > *:has(.lightcode-composer-permission-icon)
-  span.lightcode-composer-label-hideable {
+  > *:has(.poracode-composer-permission-icon)
+  span.poracode-composer-label-hideable {
   display: none;
 }
 
@@ -2504,16 +2504,16 @@ body.bg-background {
 .m-main
   .m-thread
   .m-thread-compose-dock[data-expanded]
-  .lightcode-composer-shell
-  .lightcode-composer-toolbar {
+  .poracode-composer-shell
+  .poracode-composer-toolbar {
   animation: m-thread-toolbar-enter 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* Inside the floating thread bubble, the bubble owns the card chrome just like
    the home composer. Keep the reused desktop composer as content only. */
-.m-main .m-thread .m-thread-compose-dock .lightcode-composer-shell,
-.m-main .m-thread .m-thread-compose-dock .lightcode-composer-shell:not(:focus-within),
-.m-main .m-thread .m-thread-compose-dock .lightcode-composer-shell:focus-within {
+.m-main .m-thread .m-thread-compose-dock .poracode-composer-shell,
+.m-main .m-thread .m-thread-compose-dock .poracode-composer-shell:not(:focus-within),
+.m-main .m-thread .m-thread-compose-dock .poracode-composer-shell:focus-within {
   border-color: transparent;
   background: transparent;
   box-shadow: none;
@@ -2647,7 +2647,7 @@ body.bg-background {
    the surface fill and reserve the bottom safe area on the column here (desktop
    rendering of GitReviewSidebar is untouched). Selected/active row states keep
    their own `--row-hover` fills. */
-.m-workspace .lightcode-overlay-surface {
+.m-workspace .poracode-overlay-surface {
   background: transparent;
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -2965,7 +2965,7 @@ body.bg-background {
    win over this and are enlarged in JS instead, so they aren't desynced. Scoped
    to `.m-sheet`, so the desktop popover is untouched. */
 .m-sheet .list-box-item,
-.m-sheet .lightcode-menu-item {
+.m-sheet .poracode-menu-item {
   min-height: var(--m-tap-min);
 }
 
@@ -2977,7 +2977,7 @@ body.bg-background {
 /* The model picker's search row and the list's sticky header each draw a
    hairline. In the drawer, keeping the search border transparent still reserves
    a 1px strip above the sticky header, so remove that border entirely. */
-.m-sheet .lightcode-model-menu-search {
+.m-sheet .poracode-model-menu-search {
   border-bottom-width: 0;
 }
 

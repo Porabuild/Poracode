@@ -427,7 +427,7 @@ export class PushCoordinator {
   }
 
   private attributes(): DesktopSessionAttributes {
-    return this.options.getAttributes?.() ?? { desktopId: "desktop", desktopName: "Lightcode" };
+    return this.options.getAttributes?.() ?? { desktopId: "desktop", desktopName: "Poracode" };
   }
 }
 

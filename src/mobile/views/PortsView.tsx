@@ -210,7 +210,7 @@ export function PortsView() {
   function describeError(error: unknown): string {
     if (error instanceof RemoteClientError) {
       if (error.status === 404) {
-        return t`Update Lightcode on your desktop to use port forwarding.`;
+        return t`Update Poracode on your desktop to use port forwarding.`;
       }
       if (error.code === "ports_unavailable") {
         return t`Port forwarding isn't available on this desktop.`;
@@ -224,7 +224,7 @@ export function PortsView() {
    * the authenticated proxy entry point when present (works over LAN,
    * tailscale-serve, and the relay); the raw LAN listener URL when the
    * desktop hasn't minted one but the endpoint is direct; otherwise nothing
-   * can reach the forward from here, so surface the same "update Lightcode"
+   * can reach the forward from here, so surface the same "update Poracode"
    * notice `describeError` uses for the analogous 404.
    */
   function openForwardTarget(enterPath: string | undefined, listenPort: number): void {
@@ -237,7 +237,7 @@ export function PortsView() {
       openForwardUrl(buildForwardUrl(host, listenPort));
       return;
     }
-    toast.warning(t`Update Lightcode on your desktop to use port forwarding.`);
+    toast.warning(t`Update Poracode on your desktop to use port forwarding.`);
   }
 
   function load() {

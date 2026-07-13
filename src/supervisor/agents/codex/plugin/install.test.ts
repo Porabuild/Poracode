@@ -59,7 +59,7 @@ afterEach(() => {
 
 describe("getCodexPluginPaths", () => {
   it("places Codex hooks under Poracode's private CODEX_HOME", () => {
-    const baseDir = mkdtempSync(join(tmpdir(), "lightcode-codex-paths-"));
+    const baseDir = mkdtempSync(join(tmpdir(), "poracode-codex-paths-"));
     const paths = getCodexPluginPaths({ envKind: "posix", baseDir });
 
     expect(paths.pluginDir).toBe(join(baseDir, "agent-plugins", "codex"));
@@ -179,9 +179,9 @@ describe("mergeCodexHooksDocument", () => {
     expect(h?.command).toBe(commandFor(head, "Stop"));
   });
 
-  it("prunes stale Poracode groups by native wrapper fingerprint", () => {
+  it("prunes legacy Lightcode groups by native wrapper fingerprint", () => {
     const head = nativeCommandHead(
-      "C:\\Users\\demo\\.poracode\\agent-plugins\\codex\\lightcode-hook.cmd",
+      "C:\\Users\\demo\\.poracode\\agent-plugins\\codex\\poracode-hook.cmd",
     );
     const stale = {
       hooks: [

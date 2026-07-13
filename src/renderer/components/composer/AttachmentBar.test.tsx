@@ -23,8 +23,8 @@ describe("AttachmentBar", () => {
     );
 
     expect(container.firstElementChild).toHaveClass(
-      "lightcode-attachment-bar",
-      "lightcode-attachment-bar--inset",
+      "poracode-attachment-bar",
+      "poracode-attachment-bar--inset",
     );
     expect(screen.getByAltText("screenshot.png").getAttribute("loading")).toBeNull();
     expect(screen.getByText("screenshot.png")).toBeInTheDocument();
@@ -72,8 +72,8 @@ describe("AttachmentBar", () => {
       />,
     );
 
-    expect(container.firstElementChild).toHaveClass("lightcode-attachment-bar");
-    expect(container.firstElementChild).not.toHaveClass("lightcode-attachment-bar--inset");
+    expect(container.firstElementChild).toHaveClass("poracode-attachment-bar");
+    expect(container.firstElementChild).not.toHaveClass("poracode-attachment-bar--inset");
   });
 
   it("renders the CSS selector instead of the file name on picked attachments", () => {
@@ -95,7 +95,7 @@ describe("AttachmentBar", () => {
 
     const label = screen.getByText("svg.lnXdpd > path");
     expect(label).toBeInTheDocument();
-    expect(label).toHaveClass("lightcode-attachment-chip__selector");
+    expect(label).toHaveClass("poracode-attachment-chip__selector");
     expect(label).toHaveAttribute("title", "svg.lnXdpd > path\nhttps://www.google.com/");
     expect(screen.queryByText("selection.png")).not.toBeInTheDocument();
   });

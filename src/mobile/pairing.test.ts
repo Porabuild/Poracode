@@ -28,7 +28,7 @@ describe("parsePairingUrl", () => {
 
   it("prefers the ?host= param when the link points at a hosted pairing app", () => {
     const url =
-      "https://app.lightcodeapp.com/pair?host=http%3A%2F%2F192.168.1.20%3A38987%2F#token=lc_pair_xyz";
+      "https://app.poracodeapp.com/pair?host=http%3A%2F%2F192.168.1.20%3A38987%2F#token=lc_pair_xyz";
     expect(parsePairingUrl(url)).toEqual({
       endpoint: "http://192.168.1.20:38987/",
       credential: "lc_pair_xyz",
@@ -46,7 +46,7 @@ describe("parsePairingUrl", () => {
 
   it("preserves relay-mounted endpoints from a hosted pairing link", () => {
     const url =
-      "https://app.lightcodeapp.com/pair?host=https%3A%2F%2Frelay.example.test%2Fs%2Fserver-1%2F#token=lc_pair_relay";
+      "https://app.poracodeapp.com/pair?host=https%3A%2F%2Frelay.example.test%2Fs%2Fserver-1%2F#token=lc_pair_relay";
     expect(parsePairingUrl(url)).toEqual({
       endpoint: "https://relay.example.test/s/server-1/",
       credential: "lc_pair_relay",
@@ -144,7 +144,7 @@ describe("isMixedContentEndpoint", () => {
     expect(
       isMixedContentEndpoint(
         "http://192.168.1.20:38987/",
-        locationFromUrl("https://app.lightcodeapp.com/app"),
+        locationFromUrl("https://app.poracodeapp.com/app"),
       ),
     ).toBe(true);
   });

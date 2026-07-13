@@ -117,7 +117,7 @@ function makeAgentStatus(overrides: Partial<AgentStatus> = {}): AgentStatus {
 const draftProject: Project = {
   id: "project-1",
   name: "Poracode",
-  location: { kind: "posix", path: "/tmp/lightcode" },
+  location: { kind: "posix", path: "/tmp/poracode" },
   createdAt: new Date().toISOString(),
 };
 
@@ -127,7 +127,7 @@ function renderThread(thread: Thread, agentStatus: AgentStatus) {
       <ThreadView
         thread={thread}
         agentStatus={agentStatus}
-        projectLocation={{ kind: "posix", path: "/tmp/lightcode" }}
+        projectLocation={{ kind: "posix", path: "/tmp/poracode" }}
       />
     </AppProvider>,
   );

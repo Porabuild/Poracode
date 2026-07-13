@@ -27,7 +27,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 
-public static class LightcodeComputerUseNative {
+public static class PoracodeComputerUseNative {
   public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
   [StructLayout(LayoutKind.Sequential)]
@@ -155,7 +155,7 @@ public static class LightcodeComputerUseNative {
 
 # Make GetWindowRect / capture / SetCursorPos share physical pixels on scaled
 # displays. PER_MONITOR_AWARE_V2 = -4. Guard for pre-1703 hosts that lack the API.
-try { [void][LightcodeComputerUseNative]::SetProcessDpiAwarenessContext([IntPtr](-4)) } catch {}
+try { [void][PoracodeComputerUseNative]::SetProcessDpiAwarenessContext([IntPtr](-4)) } catch {}
 
 $ASFW_ANY = [uint32]"0xFFFFFFFF"
 
@@ -185,21 +185,21 @@ $launchAliases = @(
 )
 
 function Get-WindowObject([IntPtr]$hWnd, [switch]$AllowHidden, [hashtable]$ProcessMap) {
-  if (-not [LightcodeComputerUseNative]::IsWindow($hWnd)) { return $null }
-  if (-not $AllowHidden -and -not [LightcodeComputerUseNative]::IsWindowVisible($hWnd)) { return $null }
+  if (-not [PoracodeComputerUseNative]::IsWindow($hWnd)) { return $null }
+  if (-not $AllowHidden -and -not [PoracodeComputerUseNative]::IsWindowVisible($hWnd)) { return $null }
   $titleBuilder = [Text.StringBuilder]::new(512)
-  [void][LightcodeComputerUseNative]::GetWindowText($hWnd, $titleBuilder, $titleBuilder.Capacity)
+  [void][PoracodeComputerUseNative]::GetWindowText($hWnd, $titleBuilder, $titleBuilder.Capacity)
   $title = $titleBuilder.ToString()
   if ($title.Trim().Length -eq 0) { return $null }
   $procId = [uint32]0
-  [void][LightcodeComputerUseNative]::GetWindowThreadProcessId($hWnd, [ref]$procId)
+  [void][PoracodeComputerUseNative]::GetWindowThreadProcessId($hWnd, [ref]$procId)
   if ($null -ne $ProcessMap) {
     $process = $ProcessMap[[int]$procId]
   } else {
     try { $process = Get-Process -Id ([int]$procId) -ErrorAction Stop } catch { $process = $null }
   }
-  $rect = New-Object LightcodeComputerUseNative+RECT
-  [void][LightcodeComputerUseNative]::GetWindowRect($hWnd, [ref]$rect)
+  $rect = New-Object PoracodeComputerUseNative+RECT
+  [void][PoracodeComputerUseNative]::GetWindowRect($hWnd, [ref]$rect)
   $width = [Math]::Max(0, $rect.Right - $rect.Left)
   $height = [Math]::Max(0, $rect.Bottom - $rect.Top)
   $app = if ($process -and $process.Path) { $process.Path } elseif ($process) { $process.ProcessName } else { "unknown" }
@@ -227,7 +227,7 @@ function Get-WindowList {
   $processMap = @{}
   foreach ($proc in (Get-Process)) { $processMap[[int]$proc.Id] = $proc }
   $items = New-Object System.Collections.Generic.List[object]
-  foreach ($hWnd in [LightcodeComputerUseNative]::Windows()) {
+  foreach ($hWnd in [PoracodeComputerUseNative]::Windows()) {
     $window = Get-WindowObject $hWnd -ProcessMap $processMap
     if ($null -ne $window -and $window.width -gt 0 -and $window.height -gt 0) {
       $items.Add($window)
@@ -268,7 +268,7 @@ function Recover-Window($req) {
         }
         if ($titleMatches.Count -gt 0) { $pool = $titleMatches }
       }
-      $fg = [LightcodeComputerUseNative]::GetForegroundWindow()
+      $fg = [PoracodeComputerUseNative]::GetForegroundWindow()
       foreach ($candidate in $pool) {
         if ([IntPtr]([int64]$candidate.id) -eq $fg) { return $candidate }
       }
@@ -302,33 +302,33 @@ function Require-Window($req) {
 }
 
 function Try-SetForeground([IntPtr]$hWnd) {
-  [void][LightcodeComputerUseNative]::AllowSetForegroundWindow($ASFW_ANY)
-  $fg = [LightcodeComputerUseNative]::GetForegroundWindow()
+  [void][PoracodeComputerUseNative]::AllowSetForegroundWindow($ASFW_ANY)
+  $fg = [PoracodeComputerUseNative]::GetForegroundWindow()
   $fgPid = [uint32]0
-  $fgThread = [LightcodeComputerUseNative]::GetWindowThreadProcessId($fg, [ref]$fgPid)
-  $cur = [LightcodeComputerUseNative]::GetCurrentThreadId()
+  $fgThread = [PoracodeComputerUseNative]::GetWindowThreadProcessId($fg, [ref]$fgPid)
+  $cur = [PoracodeComputerUseNative]::GetCurrentThreadId()
   $attached = $false
-  if ($fgThread -ne $cur) { $attached = [LightcodeComputerUseNative]::AttachThreadInput($fgThread, $cur, $true) }
+  if ($fgThread -ne $cur) { $attached = [PoracodeComputerUseNative]::AttachThreadInput($fgThread, $cur, $true) }
   try {
-    [void][LightcodeComputerUseNative]::BringWindowToTop($hWnd)
-    [void][LightcodeComputerUseNative]::SetForegroundWindow($hWnd)
+    [void][PoracodeComputerUseNative]::BringWindowToTop($hWnd)
+    [void][PoracodeComputerUseNative]::SetForegroundWindow($hWnd)
   } finally {
-    if ($attached) { [void][LightcodeComputerUseNative]::AttachThreadInput($fgThread, $cur, $false) }
+    if ($attached) { [void][PoracodeComputerUseNative]::AttachThreadInput($fgThread, $cur, $false) }
   }
 }
 
 function Find-WindowByProcessId([uint32]$targetPid, [int64]$preferId) {
   $fallback = $null
-  $fg = [LightcodeComputerUseNative]::GetForegroundWindow()
-  foreach ($candidateHwnd in [LightcodeComputerUseNative]::Windows()) {
+  $fg = [PoracodeComputerUseNative]::GetForegroundWindow()
+  foreach ($candidateHwnd in [PoracodeComputerUseNative]::Windows()) {
     $wPid = [uint32]0
-    [void][LightcodeComputerUseNative]::GetWindowThreadProcessId($candidateHwnd, [ref]$wPid)
+    [void][PoracodeComputerUseNative]::GetWindowThreadProcessId($candidateHwnd, [ref]$wPid)
     if ($wPid -ne $targetPid) { continue }
     $candidate = Get-WindowObject $candidateHwnd -AllowHidden
     if ($null -eq $candidate -or $candidate.width -le 0 -or $candidate.height -le 0) { continue }
     if ([int64]$candidate.id -eq $preferId) { return $candidate }
     if ($candidateHwnd -eq $fg) { return $candidate }
-    if ($null -eq $fallback -and [LightcodeComputerUseNative]::IsWindowVisible($candidateHwnd)) {
+    if ($null -eq $fallback -and [PoracodeComputerUseNative]::IsWindowVisible($candidateHwnd)) {
       $fallback = $candidate
     }
   }
@@ -338,55 +338,55 @@ function Find-WindowByProcessId([uint32]$targetPid, [int64]$preferId) {
 function Activate-Window($window) {
   $hWnd = [IntPtr]([int64]$window.id)
   $ownerPid = [uint32]0
-  [void][LightcodeComputerUseNative]::GetWindowThreadProcessId($hWnd, [ref]$ownerPid)
+  [void][PoracodeComputerUseNative]::GetWindowThreadProcessId($hWnd, [ref]$ownerPid)
   # SW_RESTORE (9) un-maximizes a maximized window, which would move/resize it
   # AFTER the agent's screenshot and break coordinate math. Only restore when the
   # window is actually minimized; otherwise SW_SHOW (5) leaves geometry untouched.
-  if ([LightcodeComputerUseNative]::IsIconic($hWnd)) {
-    [void][LightcodeComputerUseNative]::ShowWindow($hWnd, 9)
+  if ([PoracodeComputerUseNative]::IsIconic($hWnd)) {
+    [void][PoracodeComputerUseNative]::ShowWindow($hWnd, 9)
     Start-Sleep -Milliseconds 40
   } else {
-    [void][LightcodeComputerUseNative]::ShowWindow($hWnd, 5)
+    [void][PoracodeComputerUseNative]::ShowWindow($hWnd, 5)
   }
   $activated = $false
   $usedAlt = $false
   for ($attempt = 0; $attempt -lt 3; $attempt++) {
     # Some WinUI/Store apps destroy the HWND mid-activation and recreate it.
     # Re-resolve by owning PID before each attempt so we don't chase a dead handle.
-    if (-not [LightcodeComputerUseNative]::IsWindow($hWnd)) {
+    if (-not [PoracodeComputerUseNative]::IsWindow($hWnd)) {
       $replacement = Find-WindowByProcessId $ownerPid ([int64]$window.id)
       if ($null -eq $replacement) { break }
       $hWnd = [IntPtr]([int64]$replacement.id)
       $window = $replacement
     }
-    if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true; break }
+    if ([PoracodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true; break }
     # Prefer AttachThreadInput alone. The Alt nudge releases the foreground lock
     # but leaves many apps (WinUI / Store Notepad) in menu mode so type_text is
     # swallowed by the menu bar — only use it as a fallback.
     Try-SetForeground $hWnd
     Start-Sleep -Milliseconds 60
-    if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true; break }
+    if ([PoracodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true; break }
     $usedAlt = $true
     # KEYEVENTF_EXTENDEDKEY (1) matches the documented Alt unlock sequence.
-    [LightcodeComputerUseNative]::keybd_event(0x12, 0, 1, [UIntPtr]::Zero)
-    [LightcodeComputerUseNative]::keybd_event(0x12, 0, 3, [UIntPtr]::Zero)
+    [PoracodeComputerUseNative]::keybd_event(0x12, 0, 1, [UIntPtr]::Zero)
+    [PoracodeComputerUseNative]::keybd_event(0x12, 0, 3, [UIntPtr]::Zero)
     Try-SetForeground $hWnd
     Start-Sleep -Milliseconds 60
-    if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true; break }
+    if ([PoracodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true; break }
   }
   # Final HWND recovery: activation may have succeeded on a replacement window
   # that became foreground under the same process.
-  if (-not [LightcodeComputerUseNative]::IsWindow($hWnd) -or -not $activated) {
+  if (-not [PoracodeComputerUseNative]::IsWindow($hWnd) -or -not $activated) {
     $replacement = Find-WindowByProcessId $ownerPid ([int64]$window.id)
     if ($null -ne $replacement) {
       $hWnd = [IntPtr]([int64]$replacement.id)
       $window = $replacement
-      if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) {
+      if ([PoracodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) {
         $activated = $true
       } elseif (-not $activated) {
         Try-SetForeground $hWnd
         Start-Sleep -Milliseconds 60
-        if ([LightcodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true }
+        if ([PoracodeComputerUseNative]::GetForegroundWindow() -eq $hWnd) { $activated = $true }
       }
     }
   }
@@ -396,15 +396,15 @@ function Activate-Window($window) {
   if ($usedAlt) {
     # Dismiss menu mode left by the Alt nudge so subsequent typing lands in the
     # document/control instead of the File menu accelerator.
-    [LightcodeComputerUseNative]::Key(0x1B, $false)
-    [LightcodeComputerUseNative]::Key(0x1B, $true)
+    [PoracodeComputerUseNative]::Key(0x1B, $false)
+    [PoracodeComputerUseNative]::Key(0x1B, $true)
     Start-Sleep -Milliseconds 40
   }
   # Re-capture the window rect AFTER activation: show/restore may have changed the
   # window geometry. AllowHidden covers WinUI shells that briefly flip visibility
   # while becoming foreground; if the original HWND is gone, recover by PID/FG.
   $fresh = $null
-  if ([LightcodeComputerUseNative]::IsWindow($hWnd)) {
+  if ([PoracodeComputerUseNative]::IsWindow($hWnd)) {
     $fresh = Get-WindowObject $hWnd -AllowHidden
   }
   if ($null -eq $fresh) {
@@ -427,7 +427,7 @@ function Capture-Window($window, $maxDimension, $format) {
   try {
     $hdc = $graphics.GetHdc()
     try {
-      $ok = [LightcodeComputerUseNative]::PrintWindow($hWnd, $hdc, 2)
+      $ok = [PoracodeComputerUseNative]::PrintWindow($hWnd, $hdc, 2)
     } finally {
       $graphics.ReleaseHdc($hdc)
     }
@@ -557,7 +557,7 @@ function Resolve-Key($token) {
   if ($raw.Length -eq 1) {
     # Return the FULL VkKeyScan result, keeping the shift/ctrl/alt flags in the
     # high byte so Press-Chord can reproduce them (e.g. '!' => shift+1, 'A' => shift+a).
-    $vk = [LightcodeComputerUseNative]::VkKeyScan([char]$raw[0])
+    $vk = [PoracodeComputerUseNative]::VkKeyScan([char]$raw[0])
     if ($vk -eq -1) { throw "Unsupported key: $token" }
     return [int]$vk
   }
@@ -589,37 +589,37 @@ function Press-Chord($key) {
   }
   $pressed = New-Object System.Collections.Generic.List[uint16]
   try {
-    foreach ($vk in $modVks) { [LightcodeComputerUseNative]::Key($vk, $false); $pressed.Add($vk) }
-    foreach ($vk in $baseVks) { [LightcodeComputerUseNative]::Key($vk, $false); $pressed.Add($vk) }
+    foreach ($vk in $modVks) { [PoracodeComputerUseNative]::Key($vk, $false); $pressed.Add($vk) }
+    foreach ($vk in $baseVks) { [PoracodeComputerUseNative]::Key($vk, $false); $pressed.Add($vk) }
     for ($i = $baseVks.Count - 1; $i -ge 0; $i--) {
-      [LightcodeComputerUseNative]::Key($baseVks[$i], $true); [void]$pressed.Remove($baseVks[$i])
+      [PoracodeComputerUseNative]::Key($baseVks[$i], $true); [void]$pressed.Remove($baseVks[$i])
     }
     for ($i = $modVks.Count - 1; $i -ge 0; $i--) {
-      [LightcodeComputerUseNative]::Key($modVks[$i], $true); [void]$pressed.Remove($modVks[$i])
+      [PoracodeComputerUseNative]::Key($modVks[$i], $true); [void]$pressed.Remove($modVks[$i])
     }
   } finally {
     # Never leave a key physically down system-wide if we threw mid-sequence.
     for ($i = $pressed.Count - 1; $i -ge 0; $i--) {
-      try { [LightcodeComputerUseNative]::Key($pressed[$i], $true) } catch {}
+      try { [PoracodeComputerUseNative]::Key($pressed[$i], $true) } catch {}
     }
   }
 }
 
 function Mouse-Click($button, $count) {
-  $down = [LightcodeComputerUseNative]::MOUSEEVENTF_LEFTDOWN
-  $up = [LightcodeComputerUseNative]::MOUSEEVENTF_LEFTUP
+  $down = [PoracodeComputerUseNative]::MOUSEEVENTF_LEFTDOWN
+  $up = [PoracodeComputerUseNative]::MOUSEEVENTF_LEFTUP
   $b = ([string]$button).ToLowerInvariant()
   if ($b -eq "right" -or $b -eq "r") {
-    $down = [LightcodeComputerUseNative]::MOUSEEVENTF_RIGHTDOWN
-    $up = [LightcodeComputerUseNative]::MOUSEEVENTF_RIGHTUP
+    $down = [PoracodeComputerUseNative]::MOUSEEVENTF_RIGHTDOWN
+    $up = [PoracodeComputerUseNative]::MOUSEEVENTF_RIGHTUP
   } elseif ($b -eq "middle" -or $b -eq "m") {
-    $down = [LightcodeComputerUseNative]::MOUSEEVENTF_MIDDLEDOWN
-    $up = [LightcodeComputerUseNative]::MOUSEEVENTF_MIDDLEUP
+    $down = [PoracodeComputerUseNative]::MOUSEEVENTF_MIDDLEDOWN
+    $up = [PoracodeComputerUseNative]::MOUSEEVENTF_MIDDLEUP
   }
   for ($i = 0; $i -lt [Math]::Max(1, [int]$count); $i++) {
-    [LightcodeComputerUseNative]::mouse_event($down, 0, 0, 0, [UIntPtr]::Zero)
+    [PoracodeComputerUseNative]::mouse_event($down, 0, 0, 0, [UIntPtr]::Zero)
     Start-Sleep -Milliseconds 20
-    [LightcodeComputerUseNative]::mouse_event($up, 0, 0, 0, [UIntPtr]::Zero)
+    [PoracodeComputerUseNative]::mouse_event($up, 0, 0, 0, [UIntPtr]::Zero)
   }
 }
 
@@ -677,7 +677,7 @@ switch ([string]$request.action) {
       $accessibility = [pscustomobject]@{
         tree = 'Window: "' + $window.title + '", App: ' + $window.app
       }
-      $notes += "Detailed UI Automation text is not available in this Lightcode helper yet."
+      $notes += "Detailed UI Automation text is not available in this Poracode helper yet."
     }
     $result = [pscustomobject]@{
       window = Select-Window $window
@@ -701,7 +701,7 @@ switch ([string]$request.action) {
     $window = Activate-Window $window
     $x = [int]$request.input.x
     $y = [int]$request.input.y
-    [void][LightcodeComputerUseNative]::SetCursorPos([int]$window.x + $x, [int]$window.y + $y)
+    [void][PoracodeComputerUseNative]::SetCursorPos([int]$window.x + $x, [int]$window.y + $y)
     Mouse-Click $request.input.mouse_button $request.input.click_count
     $result = [pscustomobject]@{
       ok = $true
@@ -712,7 +712,7 @@ switch ([string]$request.action) {
   "type_text" {
     $window = Require-Window $request.input.window
     $window = Activate-Window $window
-    [LightcodeComputerUseNative]::SendUnicodeText([string]$request.input.text)
+    [PoracodeComputerUseNative]::SendUnicodeText([string]$request.input.text)
     $result = [pscustomobject]@{
       ok = $true
       mode = "interactive"
@@ -732,12 +732,12 @@ switch ([string]$request.action) {
   "scroll" {
     $window = Require-Window $request.input.window
     $window = Activate-Window $window
-    [void][LightcodeComputerUseNative]::SetCursorPos([int]$window.x + [int]$request.input.x, [int]$window.y + [int]$request.input.y)
+    [void][PoracodeComputerUseNative]::SetCursorPos([int]$window.x + [int]$request.input.x, [int]$window.y + [int]$request.input.y)
     if ([int]$request.input.scrollY -ne 0) {
-      [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_WHEEL, 0, 0, [uint32](-1 * [int]$request.input.scrollY), [UIntPtr]::Zero)
+      [PoracodeComputerUseNative]::mouse_event([PoracodeComputerUseNative]::MOUSEEVENTF_WHEEL, 0, 0, [uint32](-1 * [int]$request.input.scrollY), [UIntPtr]::Zero)
     }
     if ([int]$request.input.scrollX -ne 0) {
-      [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_HWHEEL, 0, 0, [uint32]([int]$request.input.scrollX), [UIntPtr]::Zero)
+      [PoracodeComputerUseNative]::mouse_event([PoracodeComputerUseNative]::MOUSEEVENTF_HWHEEL, 0, 0, [uint32]([int]$request.input.scrollX), [UIntPtr]::Zero)
     }
     $result = [pscustomobject]@{
       ok = $true
@@ -750,18 +750,18 @@ switch ([string]$request.action) {
     $window = Activate-Window $window
     $downSent = $false
     try {
-      [void][LightcodeComputerUseNative]::SetCursorPos([int]$window.x + [int]$request.input.from_x, [int]$window.y + [int]$request.input.from_y)
-      [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_LEFTDOWN, 0, 0, 0, [UIntPtr]::Zero)
+      [void][PoracodeComputerUseNative]::SetCursorPos([int]$window.x + [int]$request.input.from_x, [int]$window.y + [int]$request.input.from_y)
+      [PoracodeComputerUseNative]::mouse_event([PoracodeComputerUseNative]::MOUSEEVENTF_LEFTDOWN, 0, 0, 0, [UIntPtr]::Zero)
       $downSent = $true
       Start-Sleep -Milliseconds 40
-      [void][LightcodeComputerUseNative]::SetCursorPos([int]$window.x + [int]$request.input.to_x, [int]$window.y + [int]$request.input.to_y)
+      [void][PoracodeComputerUseNative]::SetCursorPos([int]$window.x + [int]$request.input.to_x, [int]$window.y + [int]$request.input.to_y)
       Start-Sleep -Milliseconds 40
-      [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_LEFTUP, 0, 0, 0, [UIntPtr]::Zero)
+      [PoracodeComputerUseNative]::mouse_event([PoracodeComputerUseNative]::MOUSEEVENTF_LEFTUP, 0, 0, 0, [UIntPtr]::Zero)
       $downSent = $false
     } finally {
       # Never leave the mouse button physically down if we threw mid-drag.
       if ($downSent) {
-        try { [LightcodeComputerUseNative]::mouse_event([LightcodeComputerUseNative]::MOUSEEVENTF_LEFTUP, 0, 0, 0, [UIntPtr]::Zero) } catch {}
+        try { [PoracodeComputerUseNative]::mouse_event([PoracodeComputerUseNative]::MOUSEEVENTF_LEFTUP, 0, 0, 0, [UIntPtr]::Zero) } catch {}
       }
     }
     $result = [pscustomobject]@{
@@ -820,11 +820,11 @@ switch ([string]$request.action) {
     }
 
     function Find-LaunchedWindow([uint32]$targetPid) {
-      foreach ($hWnd in [LightcodeComputerUseNative]::Windows()) {
+      foreach ($hWnd in [PoracodeComputerUseNative]::Windows()) {
         # Cheap pre-filter: resolve pid + newness from the handle alone and skip
         # windows that can never match before building the full window object.
         $wPid = [uint32]0
-        [void][LightcodeComputerUseNative]::GetWindowThreadProcessId($hWnd, [ref]$wPid)
+        [void][PoracodeComputerUseNative]::GetWindowThreadProcessId($hWnd, [ref]$wPid)
         $isNew = -not $beforeIds.Contains([int64]$hWnd)
         $pidMatch = ($targetPid -ne 0 -and $wPid -eq $targetPid)
         if (-not $isNew -and -not $pidMatch) { continue }
@@ -916,7 +916,7 @@ let cachedHelperPath: string | null = null;
 
 function ensureWindowsHelperScript(): string {
   if (cachedHelperPath) return cachedHelperPath;
-  const dir = join(tmpdir(), "lightcode-computer-use");
+  const dir = join(tmpdir(), "poracode-computer-use");
   mkdirSync(dir, { recursive: true });
   const path = join(dir, "windows-helper.ps1");
   writeFileSync(path, WINDOWS_HELPER, "utf8");

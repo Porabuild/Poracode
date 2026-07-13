@@ -153,7 +153,7 @@ export function ModelVisibilityDropdown(props: {
                 role="listbox"
                 aria-label={t`Visible models`}
                 aria-multiselectable="true"
-                className="lightcode-menu no-scrollbar max-h-[22rem] overflow-y-auto py-1.5"
+                className="poracode-menu no-scrollbar max-h-[22rem] overflow-y-auto py-1.5"
               >
                 {items.map((item) => (
                   <ModelVisibilityRow
@@ -201,7 +201,7 @@ function ModelVisibilityRow(props: {
         aria-selected={state === "all"}
         aria-checked={state === "all" ? "true" : state === "none" ? "false" : "mixed"}
         tabIndex={0}
-        className="lightcode-menu-item group mx-1.5 mb-1 flex h-7 cursor-default items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80"
+        className="poracode-menu-item group mx-1.5 mb-1 flex h-7 cursor-default items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80"
         onClick={handleToggle}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -256,7 +256,7 @@ function ModelVisibilityRow(props: {
       role="option"
       aria-selected={isVisible}
       tabIndex={0}
-      className="lightcode-menu-item group mx-1.5 flex h-7 cursor-default items-center text-foreground"
+      className="poracode-menu-item group mx-1.5 flex h-7 cursor-default items-center text-foreground"
       onClick={() => onToggle(item.modelId)}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {

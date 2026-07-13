@@ -21,7 +21,7 @@ import { AgentStatusService, parseWslRegistryDistributionNames } from "./agentSt
 const tempDirs: string[] = [];
 
 function makeTempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "lightcode-agent-status-"));
+  const dir = mkdtempSync(join(tmpdir(), "poracode-agent-status-"));
   tempDirs.push(dir);
   return dir;
 }

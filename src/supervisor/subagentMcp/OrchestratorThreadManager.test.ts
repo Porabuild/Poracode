@@ -224,12 +224,12 @@ describe("OrchestratorThreadManager.createThread", () => {
     }
   });
 
-  it("creates a worktree with a generated lightcode/ branch and launches inside it", async () => {
+  it("creates a worktree with a generated poracode/ branch and launches inside it", async () => {
     const h = makeHarness();
     const result = await createChild(h, { worktree: true });
     expect(h.worktrees).toHaveLength(1);
     const branch = h.worktrees[0]!.branch;
-    expect(branch).toMatch(/^lightcode\/[a-z]+-[a-z]+-[0-9a-f]{8}$/);
+    expect(branch).toMatch(/^poracode\/[a-z]+-[a-z]+-[0-9a-f]{8}$/);
     const event = h.lastCreated();
     expect(event.isNewWorktree).toBe(true);
     expect(event.thread.worktreePath).toBe(`/tmp/worktrees/${branch}`);

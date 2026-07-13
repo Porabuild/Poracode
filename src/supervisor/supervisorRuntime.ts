@@ -18,7 +18,7 @@ import type {
   RelocateProjectResult,
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
-import { resolveLightcodePaths } from "@/shared/lightcodePaths";
+import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { joinProjectPosixPath } from "@/shared/wsl";
 import { prefetchNativeNodeRuntime } from "./runtime/prefetchNativeNode";
 import {
@@ -49,7 +49,7 @@ import { SubagentMcpIngress } from "./subagentMcp/SubagentMcpIngress";
 import { SubagentRunManager } from "./subagentMcp/SubagentRunManager";
 import { buildSpawnableAgents } from "./subagentMcp/toolRegistry";
 import { dispatchAgentEvent } from "./runtime/agentEventDispatcher";
-import { hookDebugEnvelope, isLightcodeHookDebug } from "./runtime/hookDebug";
+import { hookDebugEnvelope, isPoracodeHookDebug } from "./runtime/hookDebug";
 import { SupervisorSharedSettingsCache } from "./runtime/supervisorSharedSettings";
 import { WslBridgeServer } from "./wsl/bridge";
 import { WslBridgeClient } from "./wsl/bridge/client";
@@ -125,7 +125,7 @@ export class SupervisorRuntime {
     // `./undefined/settings.json` in cwd. Also reject bare relative paths —
     // the supervisor must always operate out of an absolute baseDir so
     // writes land somewhere predictable regardless of cwd at spawn time.
-    const rawBaseDir = process.env.LIGHTCODE_DATA_DIR?.trim();
+    const rawBaseDir = process.env.PORACODE_DATA_DIR?.trim();
     const envBaseDir =
       rawBaseDir && rawBaseDir !== "undefined" && isAbsolute(rawBaseDir) ? rawBaseDir : undefined;
     const baseDir = envBaseDir ?? join(homedir(), ".poracode");
@@ -134,7 +134,7 @@ export class SupervisorRuntime {
     this.mcpProbeService = new McpProbeService({
       applyAuthorization: (server) => this.mcpOAuthService.applyAuthorizationToServer(server),
     });
-    const paths = resolveLightcodePaths(baseDir);
+    const paths = resolvePoracodePaths(baseDir);
     this.logsDir = paths.terminalLogsDir;
     this.settingsPath = paths.settingsPath;
     this.acpIconsDir = paths.acpIconsDir;
@@ -189,7 +189,7 @@ export class SupervisorRuntime {
       // `preferredNotifChannel: "iterm2"` all stay in place so L2 keeps
       // flowing; we just ignore the L1 signal here.
       if (this.sharedSettingsCache.read().disableCliHookPlugin) {
-        if (isLightcodeHookDebug()) {
+        if (isPoracodeHookDebug()) {
           console.log(`[supervisor] hook-debug: L1 envelope dropped (dev toggle) ← ${source}`, {
             threadId: envelope.threadId,
             sessionId: envelope.sessionId,
@@ -207,7 +207,7 @@ export class SupervisorRuntime {
         onRoutedEvent: (session, env) =>
           this.threadSessionManager.noteCliHookPluginActivity(session, env),
         onUnroutable: (env) => {
-          if (isLightcodeHookDebug()) {
+          if (isPoracodeHookDebug()) {
             console.warn(
               `[supervisor] hook-debug: envelope NOT ROUTED (no live thread) ← ${source}`,
               {
@@ -229,8 +229,8 @@ export class SupervisorRuntime {
         adapters: this.adapters,
         settingsPath: this.settingsPath,
         baseDir,
-        ...(process.env.LIGHTCODE_HOOK_PORT
-          ? { preferredPort: Number(process.env.LIGHTCODE_HOOK_PORT) }
+        ...(process.env.PORACODE_HOOK_PORT
+          ? { preferredPort: Number(process.env.PORACODE_HOOK_PORT) }
           : {}),
       },
       dispatchEnvelope,
@@ -247,7 +247,7 @@ export class SupervisorRuntime {
         onEvent: (envelope) => runHookDispatch(envelope, "wsl-bridge"),
         onBridgeExit: (distro) => this._projectWatcher?.handleWslBridgeExit(distro),
         onError: (message, error) => {
-          if (isLightcodeHookDebug()) {
+          if (isPoracodeHookDebug()) {
             console.warn(`[supervisor] hook-debug: ${message}`, error);
           }
         },

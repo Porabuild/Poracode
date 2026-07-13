@@ -7,12 +7,12 @@
  * stdout, which leaves the CLI's default policy intact.
  *
  * The CLI loads hooks from `${COPILOT_HOME ?? ~/.copilot}/hooks/*.json`, so
- * the user-global `lightcode-status.json` points its `bash` / `powershell`
- * field at this script (via the staged `lightcode-hook.{sh,cmd,ps1}` wrapper or
+ * the user-global `poracode-status.json` points its `bash` / `powershell`
+ * field at this script (via the staged `poracode-hook.{sh,cmd,ps1}` wrapper or
  * an absolute node path on WSL).
  *
  * Generic plumbing (manifest read, env-var POST, retry, debug) lives in the
- * shared `lightcode-hook-runtime.mjs` sibling. NOTE: the intent map below
+ * shared `poracode-hook-runtime.mjs` sibling. NOTE: the intent map below
  * mirrors `intentMap.ts` — keep both in sync.
  */
 
@@ -20,7 +20,7 @@ import {
   copyStringExtra,
   readPluginVersionFromManifest,
   runForwarder,
-} from "./lightcode-hook-runtime.mjs";
+} from "./poracode-hook-runtime.mjs";
 
 const PLUGIN_VERSION = readPluginVersionFromManifest(import.meta.url);
 

@@ -76,6 +76,23 @@
       }
     </style>
     <script>
+      // Preserve PWA state created before the product namespace changed.
+      (function () {
+        try {
+          for (var i = 0; i < localStorage.length; i++) {
+            var legacyKey = localStorage.key(i);
+            if (!legacyKey || !legacyKey.startsWith("lightcode")) continue;
+            var currentKey = "poracode" + legacyKey.slice("lightcode".length);
+            if (localStorage.getItem(currentKey) !== null) continue;
+            var value = localStorage.getItem(legacyKey);
+            if (value !== null) localStorage.setItem(currentKey, value);
+          }
+        } catch (e) {
+          // Storage can be unavailable; the app can still start with defaults.
+        }
+      })();
+    </script>
+    <script>
       (function () {
         try {
           var prefersDark =

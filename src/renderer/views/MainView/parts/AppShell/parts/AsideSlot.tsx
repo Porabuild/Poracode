@@ -106,7 +106,7 @@ export function AsideSlot(props: {
       ? { transition: `opacity ${contentFadeDuration} ${contentFadeEase}` }
       : {
           animation: `${
-            contentVisible ? "lightcode-panel-content-in" : "lightcode-panel-content-out"
+            contentVisible ? "poracode-panel-content-in" : "poracode-panel-content-out"
           } ${contentFadeDuration} ${contentFadeEase}`,
         }),
     willChange: "opacity",
@@ -118,9 +118,7 @@ export function AsideSlot(props: {
       {showHandle && (
         <div
           key="handle"
-          className={
-            isHorizontal ? "lightcode-resize-handle-horizontal" : "lightcode-resize-handle"
-          }
+          className={isHorizontal ? "poracode-resize-handle-horizontal" : "poracode-resize-handle"}
           onMouseDown={onResizeStart}
           onKeyDown={onResizeKeyDown}
           role="separator"

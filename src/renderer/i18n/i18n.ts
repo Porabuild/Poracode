@@ -32,7 +32,7 @@ export async function dynamicActivate(locale: SupportedLocale): Promise<void> {
 // Mirrors the localStorage key in sharedSettingsStore. Read directly here so the
 // pre-mount bootstrap doesn't have to import (and eagerly hydrate) the store —
 // the same approach `bootstrapAppThemeFromCache` takes for the theme.
-const SHARED_SETTINGS_CACHE_KEY = "lightcode-shared-settings";
+const SHARED_SETTINGS_CACHE_KEY = "poracode-shared-settings";
 
 // Ceiling on how long the pre-mount catalog load may delay first paint. A local
 // bundled chunk loads in single-digit ms; this only bounds the pathological case

@@ -117,31 +117,31 @@ describe("commitCloneProject", () => {
   });
 
   test("github source: clones, then adds the project at the returned path", async () => {
-    cloneRepo.mockResolvedValue({ path: "/Users/me/code/lightcode" });
+    cloneRepo.mockResolvedValue({ path: "/Users/me/code/poracode" });
 
     await commitCloneProject({
       choice: { kind: "native" },
       parentDir: "/Users/me/code",
-      name: "lightcode",
+      name: "poracode",
       source: {
         kind: "github",
-        nameWithOwner: "SDSLeon/lightcode",
-        account: { host: "github.com", login: "SDSLeon" },
+        nameWithOwner: "poracode/poracode",
+        account: { host: "github.com", login: "poracode" },
       },
     });
 
     expect(cloneRepo).toHaveBeenCalledWith({
       parentLocation: { kind: "posix", path: "/Users/me/code" },
-      name: "lightcode",
+      name: "poracode",
       source: {
         kind: "github",
-        nameWithOwner: "SDSLeon/lightcode",
-        account: { host: "github.com", login: "SDSLeon" },
+        nameWithOwner: "poracode/poracode",
+        account: { host: "github.com", login: "poracode" },
       },
     });
     expect(addProject).toHaveBeenCalledWith(
-      { kind: "posix", path: "/Users/me/code/lightcode" },
-      "lightcode",
+      { kind: "posix", path: "/Users/me/code/poracode" },
+      "poracode",
     );
     // Records the parent the user cloned into, not the new folder.
     expect(setLastUsedProjectDir).toHaveBeenCalledWith("native", "/Users/me/code");

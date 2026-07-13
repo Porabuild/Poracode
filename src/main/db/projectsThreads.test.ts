@@ -55,7 +55,7 @@ describe.skipIf(!sqliteAvailable)("projectsThreads (real sqlite round-trip)", ()
 
   beforeEach(() => {
     if (nativeBindingEnv) {
-      process.env.LIGHTCODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
+      process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
     }
     dir = mkdtempSync(join(tmpdir(), "lc-db-test-"));
     initDatabase(join(dir, "state.sqlite"));
@@ -73,7 +73,7 @@ describe.skipIf(!sqliteAvailable)("projectsThreads (real sqlite round-trip)", ()
   afterEach(() => {
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
-    delete process.env.LIGHTCODE_BETTER_SQLITE3_NATIVE_BINDING;
+    delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   });
 
   it("round-trips threadStatusSource through the threads table", () => {

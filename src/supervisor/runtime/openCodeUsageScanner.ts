@@ -1,4 +1,4 @@
-import { aggregateOpenCodeUsage, type HostPort, type UsageSnapshot } from "@lightcode/agents-usage";
+import { aggregateOpenCodeUsage, type HostPort, type UsageSnapshot } from "@poracode/agents-usage";
 import { hasOpenCodeGoAuth, readOpenCodeGoRows } from "./openCodeGoDb";
 import { fetchOpenCodeWeb, type OpenCodeWebSession } from "./openCodeWebSession";
 

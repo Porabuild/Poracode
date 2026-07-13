@@ -58,11 +58,13 @@ const CODEX_HOOK_EVENTS = [
 /**
  * Match any Poracode-staged Codex hook command in hooks.json. Covers both
  * the WSL shape (where `forward.mjs` is invoked directly via an absolute
- * node path) and the native shape (where `lightcode-hook.{sh,cmd,ps1}` is the
+ * node path) and the native shape (where `poracode-hook.{sh,cmd,ps1}` is the
  * entry point).
  */
-const LIGHTCODE_FORWARD_RE =
-  /agent-plugins(?:[/\\]+)codex(?:[/\\]+)(?:forward\.mjs|lightcode-hook\.(?:sh|cmd|ps1))/;
+const PORACODE_FORWARD_RE =
+  /agent-plugins(?:[/\\]+)codex(?:[/\\]+)(?:forward\.mjs|poracode-hook\.(?:sh|cmd|ps1))/;
+const MANAGED_FORWARD_RE =
+  /agent-plugins(?:[/\\]+)codex(?:[/\\]+)(?:forward\.mjs|(?:poracode|lightcode)-hook\.(?:sh|cmd|ps1))/;
 
 const callerDir =
   typeof __dirname !== "undefined"
@@ -71,7 +73,7 @@ const callerDir =
 
 const resolveSourceDir = createPluginSourceResolver({
   kind: "codex",
-  sourceEnvVar: "LIGHTCODE_CODEX_PLUGIN_SOURCE",
+  sourceEnvVar: "PORACODE_CODEX_PLUGIN_SOURCE",
   callerDir,
 });
 
@@ -121,7 +123,7 @@ export function getCodexPluginPaths(ctx?: AgentEnvContext): CodexPluginPaths {
   return codexPluginPathsMemo.call(ctx);
 }
 
-function pruneLightcodeGroups(groups: unknown): unknown[] {
+function prunePoracodeGroups(groups: unknown): unknown[] {
   if (!Array.isArray(groups)) return [];
   return groups.filter((g) => {
     if (!g || typeof g !== "object") return true;
@@ -131,7 +133,7 @@ function pruneLightcodeGroups(groups: unknown): unknown[] {
     return !hooks.some((h) => {
       if (!h || typeof h !== "object") return false;
       const cmd = (h as { type?: string; command?: string }).command;
-      return typeof cmd === "string" && LIGHTCODE_FORWARD_RE.test(cmd);
+      return typeof cmd === "string" && MANAGED_FORWARD_RE.test(cmd);
     });
   });
 }
@@ -140,7 +142,7 @@ function commandForEvent(commandHead: string, event: string): string {
   return `${commandHead} ${event}`;
 }
 
-function buildLightcodeGroup(event: string, commandHead: string): Record<string, unknown> {
+function buildPoracodeGroup(event: string, commandHead: string): Record<string, unknown> {
   const command = commandForEvent(commandHead, event);
   const hook = { type: "command", command };
   if (event === "SessionStart" || event === "PreToolUse" || event === "PostToolUse") {
@@ -172,8 +174,8 @@ export function mergeCodexHooksDocument(
 
   for (const event of CODEX_HOOK_EVENTS) {
     const prev = hooksRoot[event];
-    const pruned = pruneLightcodeGroups(prev);
-    pruned.push(buildLightcodeGroup(event, commandHead));
+    const pruned = prunePoracodeGroups(prev);
+    pruned.push(buildPoracodeGroup(event, commandHead));
     hooksRoot[event] = pruned;
   }
 
@@ -519,7 +521,7 @@ function verifyCodexInstallAt(
         for (const h of hooks) {
           if (!h || typeof h !== "object") continue;
           const cmd = (h as { command?: string }).command;
-          if (typeof cmd === "string" && LIGHTCODE_FORWARD_RE.test(cmd)) {
+          if (typeof cmd === "string" && PORACODE_FORWARD_RE.test(cmd)) {
             found = true;
             break;
           }

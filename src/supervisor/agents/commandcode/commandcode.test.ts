@@ -490,8 +490,8 @@ describe("sanitizeCommandCodeCwd", () => {
   // the raw path is sanitized — deterministic, and matching the verified
   // on-disk layout (lowercase, leading slash dropped, non-alphanumeric -> '-').
   it("maps a project cwd to command-code's projects/<dir> name", () => {
-    expect(sanitizeCommandCodeCwd("/Users/test-fixture-xyz/work/lightcode")).toBe(
-      "users-test-fixture-xyz-work-lightcode",
+    expect(sanitizeCommandCodeCwd("/Users/test-fixture-xyz/work/poracode")).toBe(
+      "users-test-fixture-xyz-work-poracode",
     );
   });
 

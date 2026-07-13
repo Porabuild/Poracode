@@ -81,7 +81,7 @@ export class AgentRegistryService {
 
   /**
    * Convert remote acp-generic icon URLs to locally-cached ones at launch so
-   * the renderer receives `lightcode-local://` icons this session (and
+   * the renderer receives `poracode-local://` icons this session (and
    * instantly on every future launch).
    */
   async cacheLocalAcpIconsOnLaunch(): Promise<void> {

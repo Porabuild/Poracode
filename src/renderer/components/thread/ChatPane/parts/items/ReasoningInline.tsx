@@ -32,7 +32,7 @@ export const ReasoningInline = memo(function ReasoningInline({ item }: Reasoning
   const brainRef = useBrainThinking(isStreaming);
   const shimmerRef = useShimmer<HTMLElement>(isStreaming);
   const title = isStreaming ? t`Thinking` : t`Thought`;
-  const shimmerData = isStreaming ? { "data-lightcode-shimmer-text": title } : {};
+  const shimmerData = isStreaming ? { "data-poracode-shimmer-text": title } : {};
 
   // Render the body only while expanded so collapsed rows don't keep hidden
   // markdown mounted (mirrors getInlineRow's isExpanded gating).
@@ -59,13 +59,13 @@ export const ReasoningInline = memo(function ReasoningInline({ item }: Reasoning
           <Brain
             ref={brainRef}
             className={`size-3 shrink-0 text-[color:var(--muted)] ${
-              isStreaming ? "lightcode-brain-thinking" : ""
+              isStreaming ? "poracode-brain-thinking" : ""
             }`}
           />
           <code
             ref={shimmerRef}
             className={`shrink-0 font-mono !text-[color:var(--muted)] ${
-              isStreaming ? "lightcode-thinking-text" : ""
+              isStreaming ? "poracode-thinking-text" : ""
             }`}
             {...shimmerData}
           >

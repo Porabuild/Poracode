@@ -1,5 +1,5 @@
 /**
- * Shared helper for injecting the Lightcode cross-provider subagents MCP server
+ * Shared helper for injecting the Poracode cross-provider subagents MCP server
  * into agent runtimes. The supervisor hosts a single in-process Streamable-HTTP
  * MCP endpoint (`SubagentMcpIngress`); each thread that opts in receives a URL +
  * per-thread bearer token at launch so the agent can discover and spawn the

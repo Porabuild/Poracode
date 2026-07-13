@@ -81,7 +81,7 @@ export function OptionMenu(props: OptionMenuProps) {
           data-collapse-tier={collapseTier}
           className={
             hideLabelOnWrap
-              ? `lightcode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
+              ? `poracode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
               : "truncate"
           }
         >
@@ -93,7 +93,7 @@ export function OptionMenu(props: OptionMenuProps) {
           data-collapse-tier={collapseTier}
           className={
             hideLabelOnWrap
-              ? `lightcode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`
+              ? `poracode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`
               : "size-3.5 text-muted"
           }
         />
@@ -103,8 +103,8 @@ export function OptionMenu(props: OptionMenuProps) {
   const selectedKeys = value ? new Set([value]) : new Set<string>();
   const isVirtualized = normalizedOptions.length > LARGE_DROPDOWN_VIRTUALIZATION_THRESHOLD;
   const listBoxClassName = isVirtualized
-    ? `lightcode-menu max-h-60 overflow-y-auto ${VIRTUALIZED_MENU_DROPDOWN_ITEM_CLASS}`
-    : "lightcode-menu max-h-60 overflow-y-auto";
+    ? `poracode-menu max-h-60 overflow-y-auto ${VIRTUALIZED_MENU_DROPDOWN_ITEM_CLASS}`
+    : "poracode-menu max-h-60 overflow-y-auto";
   const listBox = (
     <ListBox
       aria-label={t`Options`}

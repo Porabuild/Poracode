@@ -160,10 +160,10 @@ export async function requestPairingFromRunningServer(
   const isProcessAlive = options.isProcessAlive ?? pidIsAlive;
   const pid = readPidFile(join(baseDir, SERVER_LOCK_FILE));
   if (pid === null) {
-    throw new Error(`No running Lightcode server found in ${baseDir}.`);
+    throw new Error(`No running Poracode server found in ${baseDir}.`);
   }
   if (!isProcessAlive(pid)) {
-    throw new Error(`Lightcode server process ${pid} is not running.`);
+    throw new Error(`Poracode server process ${pid} is not running.`);
   }
 
   const requestLockPath = join(baseDir, PAIRING_REQUEST_LOCK_FILE);
@@ -192,7 +192,7 @@ export async function requestPairingFromRunningServer(
       if (response?.requestId === requestId) return response;
       await sleep(pollIntervalMs);
     }
-    throw new Error("Timed out waiting for the Lightcode server pairing response.");
+    throw new Error("Timed out waiting for the Poracode server pairing response.");
   } finally {
     removeFile(requestPath);
     removeFile(responsePath);

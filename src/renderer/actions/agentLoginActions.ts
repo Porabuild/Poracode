@@ -371,14 +371,14 @@ function createCompletionToken(): string {
 }
 
 function completionMarker(token: string): string {
-  return `\u001B]777;lightcode-login-complete=${token}:`;
+  return `\u001B]777;poracode-login-complete=${token}:`;
 }
 
 function appendCompletionSignal(command: string, project: Project, token: string): string {
   if (project.location.kind === "windows") {
-    return `${command}; $lcExit = if ($LASTEXITCODE -ne $null) { $LASTEXITCODE } else { 0 }; Write-Host "$([char]27)]777;lightcode-login-complete=${token}:$lcExit$([char]7)" -NoNewline`;
+    return `${command}; $lcExit = if ($LASTEXITCODE -ne $null) { $LASTEXITCODE } else { 0 }; Write-Host "$([char]27)]777;poracode-login-complete=${token}:$lcExit$([char]7)" -NoNewline`;
   }
-  const bashCommand = `${command}; __lc_exit=$?; printf '\\033]777;lightcode-login-complete=${token}:%s\\007' "$__lc_exit"`;
+  const bashCommand = `${command}; __lc_exit=$?; printf '\\033]777;poracode-login-complete=${token}:%s\\007' "$__lc_exit"`;
   return `command bash -lc ${quotePosixShellArg(bashCommand)}`;
 }
 

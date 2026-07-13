@@ -11,7 +11,7 @@ const ZAI_PATH =
   "M14.53,22.91l1.31-1.86c0.2-0.29,0.54-0.47,0.9-0.47h7.09v2.33H14.53z";
 
 export const ZaiIcon = createProviderIcon({
-  cssPrefix: "lightcode-zai-icon",
+  cssPrefix: "poracode-zai-icon",
   path: ZAI_PATH,
   viewBox: "0 0 30 30",
 });

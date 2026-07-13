@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ActivityBridge } from "@lightcode/activity-bridge";
+import { ActivityBridge } from "@poracode/activity-bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { RemoteDesktopClient } from "../remoteClient";
 import { isNativeApp } from "../pwaInstall";

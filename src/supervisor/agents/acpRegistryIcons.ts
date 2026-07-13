@@ -7,8 +7,8 @@
  * where ACP agent tiles render with no glyph until the network round-trip completes.
  *
  * This helper downloads the SVG once at install / backfill time and returns a
- * `lightcode-local://` URL pointing at the cached file. The renderer paints the
- * icon via CSS `mask-image` in `ProviderIcon`; the `lightcode-local` scheme must
+ * `poracode-local://` URL pointing at the cached file. The renderer paints the
+ * icon via CSS `mask-image` in `ProviderIcon`; the `poracode-local` scheme must
  * be registered as a standard+cors-enabled protocol in the main process for those
  * masks to load.
  */
@@ -84,7 +84,7 @@ function normalizeSvgForMask(filePath: string): void {
 }
 
 /**
- * Cache a remote ACP registry icon to disk and return a `lightcode-local://`
+ * Cache a remote ACP registry icon to disk and return a `poracode-local://`
  * URL pointing at the cached file. Reuses an existing cache entry when the
  * source URL is unchanged and the file is still on disk; mismatched or missing
  * entries trigger a fresh download.

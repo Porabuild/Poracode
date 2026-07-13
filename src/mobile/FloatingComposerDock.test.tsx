@@ -282,7 +282,7 @@ describe("FloatingComposerDock", () => {
     const restoreVisualViewport = installVisualViewport();
     // A remembered per-device height lets the dock expand at probe start; during
     // the probe the primer holds focus, so the expansion can animate.
-    window.localStorage.setItem("lightcode-mobile-keyboard-height", "320");
+    window.localStorage.setItem("poracode-mobile-keyboard-height", "320");
     resetComposerKeyboardMemoryForTests();
 
     try {

@@ -168,18 +168,17 @@ node branding/assets/build-native-assets.mjs
 
 ## 10. Domains, handles, trademark
 
-- **Primary:** `poracode.com` ✅ free · npm `poracode` ✅ · GitHub user+org `poracode` ✅ · `com.poracode.app` (appId)
+- **Primary:** `poracode.com` ✅ free · npm `poracode` ✅ · GitHub user+org `poracode` ✅
 - **Tier:** `poracode.com/cloud` (hold `pora.cloud` ✅ as redirect)
 - **Umbrella short links:** `pora.sh` ✅ / `trypora.com` ✅
 - **Trademark to file:** **PORACODE** (word mark), Nice classes **9** (software) + **42** (SaaS). Clear against _PORA AI_ (skincare, different field → coexistence likely) before the paid tier. This is the one mark to clear.
 
 ---
 
-## 11. Next: the code rename (separate, gated)
+## 11. Code rename
 
-The codebase rename (Lightcode → Poracode) is planned but **gated on two decisions**:
+The Lightcode → Poracode codebase rename is complete.
 
-1. Migrate `~/.lightcode` → `~/.poracode` (one-time auto-rename on first launch to preserve user data)?
-2. Change appId `com.lightcode.app` → `com.poracode.app` (resets macOS keychain → users re-auth providers)?
-
-Full plan in chat history (Phases A–F: brand config → mechanical sweeps → migration → strings/i18n → docs → external). The icon/favicon assets in `branding/assets/out/` drop into `build/` and `website/public/` as part of Phase E.
+- On first launch, all data from `~/.lightcode` (or the legacy `LIGHTCODE_BASE_DIR`) and the separate Electron user-data directory are copied into Poracode. The source is retained as a rollback backup, and Settings can schedule the complete import again.
+- The desktop app IDs (`com.lightcode.app` / `com.lightcode.app.nightly`) and mobile app ID (`com.lightcodeapp.mobile`) remain stable technical upgrade identities. Product names, UI, packages, and namespaces use Poracode.
+- Legacy names remain only at explicit compatibility boundaries for existing data, cached URLs, paired clients, hook cleanup, and Git checkpoints.

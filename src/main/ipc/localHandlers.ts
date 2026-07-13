@@ -1,5 +1,5 @@
 import { dirname } from "node:path";
-import { clipboard, dialog, nativeImage, shell, type BrowserWindow } from "electron";
+import { app, clipboard, dialog, nativeImage, shell, type BrowserWindow } from "electron";
 import type { BrowserPanelManager } from "../browser";
 import { openMicrophoneSettings } from "../browser/permissions";
 import {
@@ -63,11 +63,16 @@ import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../win
 import type { AgentInstanceConfig } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
-import type { LightcodePaths } from "@/shared/lightcodePaths";
+import type { PoracodePaths } from "@/shared/poracodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 import type { SshConnectionManager } from "../ssh/SshConnectionManager";
 import type { ScheduleService } from "../schedules/ScheduleService";
 import { homeScopeLocation } from "../schedules";
+import { resolvePoracodeChannel } from "@/shared/channel";
+import {
+  requestLegacyDataMigration,
+  resolveLegacyElectronUserDataDir,
+} from "../legacyDataMigration";
 
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
@@ -79,7 +84,9 @@ interface CreateLocalIpcHandlersOptions {
   startTailscale(): Promise<StartTailscaleResult>;
   setRemoteAccessAdvertisedUrl(url: string): Promise<RemoteAccessPairingInfo>;
   sshConnectionManager: SshConnectionManager;
-  requireLightcodePaths(): LightcodePaths;
+  requirePoracodePaths(): PoracodePaths;
+  legacyElectronUserDataDir?: string;
+  legacyBaseDir?: string;
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
   /** Called with the settings just written, so consumers don't re-read the file. */
@@ -105,7 +112,7 @@ function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserP
 
 let usageLoginManager: UsageLoginManager | null = null;
 function getUsageLoginManager(
-  requirePaths: () => LightcodePaths,
+  requirePaths: () => PoracodePaths,
   getBrowserPanel: () => BrowserPanelManager | null,
 ): UsageLoginManager {
   usageLoginManager ??= new UsageLoginManager(requirePaths(), getBrowserPanel);
@@ -170,9 +177,9 @@ export function createLocalIpcHandlers(
         ...(payload?.filters ? { filters: payload.filters } : {}),
       }),
     saveClipboardImage: (payload) =>
-      saveClipboardImageFile(options.requireLightcodePaths(), payload),
+      saveClipboardImageFile(options.requirePoracodePaths(), payload),
     saveHandoffContext: (payload) =>
-      saveHandoffContextFile(options.requireLightcodePaths(), payload),
+      saveHandoffContextFile(options.requirePoracodePaths(), payload),
     saveImageFile: async ({ data, suggestedName }) => {
       const win = options.getMainWindow();
       const result = await dialog.showSaveDialog(win!, {
@@ -196,7 +203,7 @@ export function createLocalIpcHandlers(
       return true;
     },
     createProjectDirectory: (payload) => createProjectDirectory(payload),
-    // Desktop-as-client: proxy a remote Lightcode server request through the
+    // Desktop-as-client: proxy a remote Poracode server request through the
     // main process (no browser CORS). Restricted to http(s) and a bounded
     // response so a hostile/buggy peer can't exfiltrate via odd schemes or
     // exhaust memory. (The remote is one the user explicitly paired with.)
@@ -251,13 +258,28 @@ export function createLocalIpcHandlers(
       showAndFocusWindow(win);
     },
     showNotification: (payload) => showOsNotification(payload, options.getMainWindow),
+    requestLegacyDataMigration: () => {
+      const baseDir = options.requirePoracodePaths().baseDir;
+      const channel = resolvePoracodeChannel();
+      const electronUserDataDir = app.getPath("userData");
+      return requestLegacyDataMigration({
+        baseDir,
+        channel,
+        electronUserDataDir,
+        legacyElectronUserDataDir:
+          options.legacyElectronUserDataDir ??
+          resolveLegacyElectronUserDataDir(electronUserDataDir, channel),
+        ...(options.legacyBaseDir ? { legacyBaseDir: options.legacyBaseDir } : {}),
+        allowCustomDataRoot: app.isPackaged,
+      });
+    },
     relaunchApp: () => {
       options.requestRelaunch();
     },
     getHomeScopeLocation: () => homeScopeLocation(),
-    getKeybindings: () => readKeybindingsFile(options.requireLightcodePaths().keybindingsPath),
+    getKeybindings: () => readKeybindingsFile(options.requirePoracodePaths().keybindingsPath),
     setKeybindings: (file) => {
-      const path = options.requireLightcodePaths().keybindingsPath;
+      const path = options.requirePoracodePaths().keybindingsPath;
       options.setGlobalShortcutsSuspended?.(false);
       options.onKeybindingsChanged?.(file);
       try {
@@ -268,7 +290,7 @@ export function createLocalIpcHandlers(
           // previous bindings — re-apply them to roll the shortcuts back.
           options.onKeybindingsChanged?.(readKeybindingsFile(path).file);
         } catch (restoreError) {
-          console.error("[lightcode] failed to restore global shortcuts:", restoreError);
+          console.error("[poracode] failed to restore global shortcuts:", restoreError);
         }
         throw error;
       }
@@ -298,9 +320,9 @@ export function createLocalIpcHandlers(
     publishRemoteGitSummaries: (payload) => {
       options.onRemoteGitSummaries?.(payload.summaries);
     },
-    getSharedSettings: () => readSharedSettingsFile(options.requireLightcodePaths().settingsPath),
+    getSharedSettings: () => readSharedSettingsFile(options.requirePoracodePaths().settingsPath),
     setSharedSettings: (settings) => {
-      const settingsPath = options.requireLightcodePaths().settingsPath;
+      const settingsPath = options.requirePoracodePaths().settingsPath;
       // Preserve supervisor-managed fields so the renderer's persist cycle
       // doesn't clobber writes made out-of-band by the supervisor.
       const onDisk = readSharedSettingsFile(settingsPath);
@@ -340,7 +362,7 @@ export function createLocalIpcHandlers(
       options.onSharedSettingsChanged?.(merged);
     },
     setClaudeProfileEnvironment: (payload) => {
-      const settingsPath = options.requireLightcodePaths().settingsPath;
+      const settingsPath = options.requirePoracodePaths().settingsPath;
       const { settings, instance } = applyClaudeProfileEnvironment(
         readSharedSettingsFile(settingsPath),
         payload,
@@ -386,7 +408,7 @@ export function createLocalIpcHandlers(
     dbUpsertThread: (thread) => dbUpsertThread(thread, 0),
     dbDeleteThread: ({ threadId }) => {
       dbDeleteThread(threadId);
-      deleteThreadAttachments(options.requireLightcodePaths(), threadId);
+      deleteThreadAttachments(options.requirePoracodePaths(), threadId);
     },
     dbDeleteProject: ({ projectId }) => dbDeleteProject(projectId),
     dbSyncAll: ({ projects, threads, viewJson }) => dbSyncAll(projects, threads, viewJson),
@@ -501,24 +523,22 @@ export function createLocalIpcHandlers(
       options.injectBrowserToMain();
     },
     startUsageLogin: (payload) =>
-      getUsageLoginManager(
-        options.requireLightcodePaths,
-        options.getBrowserPanelManager,
-      ).startLogin(payload.providerId),
+      getUsageLoginManager(options.requirePoracodePaths, options.getBrowserPanelManager).startLogin(
+        payload.providerId,
+      ),
     cancelUsageLogin: (payload) => {
       getUsageLoginManager(
-        options.requireLightcodePaths,
+        options.requirePoracodePaths,
         options.getBrowserPanelManager,
       ).cancelLogin(payload.providerId);
     },
     clearUsageLogin: (payload) =>
-      getUsageLoginManager(
-        options.requireLightcodePaths,
-        options.getBrowserPanelManager,
-      ).clearLogin(payload.providerId),
+      getUsageLoginManager(options.requirePoracodePaths, options.getBrowserPanelManager).clearLogin(
+        payload.providerId,
+      ),
     submitUsageApiKey: (payload) =>
       getUsageLoginManager(
-        options.requireLightcodePaths,
+        options.requirePoracodePaths,
         options.getBrowserPanelManager,
       ).submitApiKey(payload.providerId, payload.apiKey),
     resolveUsageLoginConfirmation: (payload) => {
@@ -526,7 +546,7 @@ export function createLocalIpcHandlers(
     },
     getUsageLoginState: () =>
       getUsageLoginManager(
-        options.requireLightcodePaths,
+        options.requirePoracodePaths,
         options.getBrowserPanelManager,
       ).getLoginState(),
     getProfileCoreStats: (req) => getProfileCoreStats(req),

@@ -5,7 +5,7 @@ import type { UsageSnapshot, UsageWindow, UsageWindowId } from "../types";
 /**
  * z.ai / Zhipu GLM Coding Plan. The plan's quota lives behind the same private
  * monitoring API the official tools call; it authenticates with a long-lived
- * API key (Bearer), not a browser cookie. Lightcode sources that key two ways
+ * API key (Bearer), not a browser cookie. Poracode sources that key two ways
  * (mirroring CodexBar, github.com/steipete/CodexBar): the native `Z_AI_API_KEY`
  * environment / config resolved host-side (`getOAuthToken`), or a key the user
  * pasted into the in-app sign-in (`getSecret(id,"apiKey")`). The pasted key wins.

@@ -8,7 +8,7 @@ const DisabledVoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPr
 );
 
 export const LazyVoiceInputButton = lazy(async () => {
-  if (import.meta.env.VITE_LIGHTCODE_BUILD_TARGET === "mobile") {
+  if (import.meta.env.VITE_PORACODE_BUILD_TARGET === "mobile") {
     return { default: DisabledVoiceInputButton };
   }
   const module = await import("./VoiceInputButton");

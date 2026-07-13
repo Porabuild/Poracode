@@ -74,7 +74,7 @@ export function SshConnectionForm({
       <Input
         className="font-mono text-xs"
         value={target}
-        list="lightcode-ssh-hosts"
+        list="poracode-ssh-hosts"
         aria-label={t`SSH hostname`}
         placeholder={t`host.com, alias, or user@host.com`}
         spellCheck={false}
@@ -82,7 +82,7 @@ export function SshConnectionForm({
         autoCorrect="off"
         onChange={(event) => setTarget(event.currentTarget.value)}
       />
-      <datalist id="lightcode-ssh-hosts">
+      <datalist id="poracode-ssh-hosts">
         {discoveredHosts.map((host) => (
           <option key={host} value={host}>
             {host}
@@ -143,7 +143,7 @@ export function SshConnectionForm({
 
       <p className="text-xs leading-5 text-muted">
         <Trans>
-          Lightcode and your agents run on the remote machine. SSH is used only to start the remote
+          Poracode and your agents run on the remote machine. SSH is used only to start the remote
           environment and secure its local tunnel.
         </Trans>
       </p>

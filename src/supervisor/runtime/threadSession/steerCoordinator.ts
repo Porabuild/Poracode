@@ -102,8 +102,8 @@ export class SteerCoordinator {
       }
       console.error("[supervisor] failed to interrupt structured turn:", error);
       captureSupervisorException(error, {
-        "lightcode.feature_area": "supervisor-runtime",
-        "lightcode.provider": session.agentKind,
+        "poracode.feature_area": "supervisor-runtime",
+        "poracode.provider": session.agentKind,
       });
     });
   }

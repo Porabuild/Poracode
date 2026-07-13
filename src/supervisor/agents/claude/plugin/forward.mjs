@@ -6,14 +6,14 @@
  *   argv[2] = hook event name (e.g. "UserPromptSubmit")
  *   stdin   = JSON payload from Claude
  *
- * Reads `LIGHTCODE_HOOK_URL`, `LIGHTCODE_HOOK_SECRET`, etc. from env, builds
+ * Reads `PORACODE_HOOK_URL`, `PORACODE_HOOK_SECRET`, etc. from env, builds
  * the universal Poracode envelope, and POSTs it. Emits NOTHING on stdout —
  * Claude relays hook stdout into the model's context for some events.
  *
- * Generic plumbing lives in the shared `lightcode-hook-runtime.mjs` sibling.
+ * Generic plumbing lives in the shared `poracode-hook-runtime.mjs` sibling.
  */
 
-import { readPluginVersionFromManifest, runForwarder } from "./lightcode-hook-runtime.mjs";
+import { readPluginVersionFromManifest, runForwarder } from "./poracode-hook-runtime.mjs";
 
 const PLUGIN_VERSION = readPluginVersionFromManifest(import.meta.url);
 

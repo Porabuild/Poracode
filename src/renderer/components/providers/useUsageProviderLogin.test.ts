@@ -1,5 +1,5 @@
 import { renderHook } from "@testing-library/react";
-import type { UsageSnapshot } from "@lightcode/agents-usage";
+import type { UsageSnapshot } from "@poracode/agents-usage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useUsageLoginStateStore } from "@/renderer/state/usageLoginStateStore";

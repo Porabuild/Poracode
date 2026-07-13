@@ -5,7 +5,7 @@ import {
   type ClaudeRefreshedToken,
   type OAuthToken,
   refreshClaudeOAuthToken,
-} from "@lightcode/agents-usage";
+} from "@poracode/agents-usage";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import { coalesceByKey } from "@/shared/coalesce";
 import {

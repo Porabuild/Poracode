@@ -9,11 +9,11 @@ import { SupervisorRuntime } from "./supervisorRuntime";
 import { configureSecretStorageKey } from "./secretStorage";
 
 initializeSupervisorSentry({
-  appVersion: process.env.LIGHTCODE_APP_VERSION ?? process.env.npm_package_version ?? "dev",
-  isDev: process.env.LIGHTCODE_IS_DEV === "1" || Boolean(process.env.VITE_DEV_SERVER_URL),
+  appVersion: process.env.PORACODE_APP_VERSION ?? process.env.npm_package_version ?? "dev",
+  isDev: process.env.PORACODE_IS_DEV === "1" || Boolean(process.env.VITE_DEV_SERVER_URL),
 });
-configureSecretStorageKey(process.env.LIGHTCODE_SECRET_STORAGE_KEY);
-delete process.env.LIGHTCODE_SECRET_STORAGE_KEY;
+configureSecretStorageKey(process.env.PORACODE_SECRET_STORAGE_KEY);
+delete process.env.PORACODE_SECRET_STORAGE_KEY;
 
 const runtime = new SupervisorRuntime((event) => {
   process.send?.(event);
@@ -54,7 +54,7 @@ process.on("message", (message: SupervisorRequest) => {
       }),
     )
     .catch((error: unknown): SupervisorReply => {
-      captureSupervisorException(error, { "lightcode.feature_area": "supervisor-ipc" });
+      captureSupervisorException(error, { "poracode.feature_area": "supervisor-ipc" });
       return {
         replyTo: message.id,
         ok: false,
@@ -78,12 +78,12 @@ process.on("SIGTERM", () => {
 
 process.on("uncaughtException", (error) => {
   console.error("[supervisor] uncaught exception:", error);
-  captureSupervisorException(error, { "lightcode.feature_area": "supervisor" });
+  captureSupervisorException(error, { "poracode.feature_area": "supervisor" });
   void flushSupervisorSentry();
 });
 
 process.on("unhandledRejection", (reason) => {
   console.error("[supervisor] unhandled rejection:", reason);
-  captureSupervisorException(reason, { "lightcode.feature_area": "supervisor" });
+  captureSupervisorException(reason, { "poracode.feature_area": "supervisor" });
   void flushSupervisorSentry();
 });

@@ -28,8 +28,8 @@ export interface BrowserMcpEnv {
 }
 
 export function readBrowserMcpEnv(): BrowserMcpEnv | null {
-  const url = process.env.LIGHTCODE_BROWSER_MCP_URL;
-  const token = process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
+  const url = process.env.PORACODE_BROWSER_MCP_URL;
+  const token = process.env.PORACODE_BROWSER_MCP_TOKEN;
   if (!url || !token) return null;
   return { url, token };
 }

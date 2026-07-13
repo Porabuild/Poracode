@@ -165,7 +165,7 @@ describe.skipIf(process.platform !== "win32")("readWslLoginShellCommandOutputAsy
     >(async () => ({
       ok: true,
       stdout: [
-        "__LIGHTCODE_ENV_BEGIN__",
+        "__PORACODE_ENV_BEGIN__",
         "PATH=/home/demo/.nvm/versions/node/v24/bin:/usr/bin:/bin",
         "NVM_DIR=/home/demo/.nvm",
         "EDITOR=nvim",
@@ -199,7 +199,7 @@ describe.skipIf(process.platform !== "win32")("readWslLoginShellCommandOutputAsy
       {
         command: "sh",
         cwd: "/home/demo/project",
-        args: ["-lc", "printf '%s\\n' '__LIGHTCODE_ENV_BEGIN__'; env"],
+        args: ["-lc", "printf '%s\\n' '__PORACODE_ENV_BEGIN__'; env"],
         loginEnv: true,
         timeoutMs: 15_000,
       },

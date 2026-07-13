@@ -12,7 +12,7 @@ describe("ipcProcedureMap", () => {
   it("defines a channel and payload schema for every procedure", () => {
     for (const [name, procedure] of Object.entries(ipcProcedureMap)) {
       expect(name.length).toBeGreaterThan(0);
-      expect(procedure.channel).toMatch(/^lightcode:/);
+      expect(procedure.channel).toMatch(/^poracode:/);
       expect(procedure.payloadSchema).toBeDefined();
     }
   });
@@ -39,7 +39,7 @@ describe("ipcProcedureMap", () => {
         connect: vi.fn<() => Promise<never>>(),
         disconnect: vi.fn<() => Promise<void>>(),
       } as never,
-      requireLightcodePaths: () =>
+      requirePoracodePaths: () =>
         ({
           baseDir: "C:\\tmp",
           dbPath: "C:\\tmp\\db.sqlite",

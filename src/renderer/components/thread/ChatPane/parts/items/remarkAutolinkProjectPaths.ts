@@ -5,10 +5,10 @@ import type { ProjectPathRef } from "./parseProjectPathRef";
  * so the markdown anchor renderer can route them to file/folder chip components
  * instead of treating them as user-authored markdown links.
  */
-export const AUTO_PATH_FILE_PREFIX = "lightcode:path:";
-export const AUTO_PATH_FOLDER_PREFIX = "lightcode:folder:";
-export const AUTO_PATH_FILE_HREF_PREFIX = "https://lightcode.local/path/";
-export const AUTO_PATH_FOLDER_HREF_PREFIX = "https://lightcode.local/folder/";
+export const AUTO_PATH_FILE_PREFIX = "poracode:path:";
+export const AUTO_PATH_FOLDER_PREFIX = "poracode:folder:";
+export const AUTO_PATH_FILE_HREF_PREFIX = "https://poracode.local/path/";
+export const AUTO_PATH_FOLDER_HREF_PREFIX = "https://poracode.local/folder/";
 
 interface MdNode {
   type: string;

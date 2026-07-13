@@ -132,7 +132,7 @@ export function ThreadHeaderStatusButton(props: {
       <Tooltip.Trigger>
         <button
           type="button"
-          className="lightcode-overlay-header__controls inline-flex shrink-0 rounded-sm p-0.5 outline-offset-2 hover:bg-[var(--row-hover)]"
+          className="poracode-overlay-header__controls inline-flex shrink-0 rounded-sm p-0.5 outline-offset-2 hover:bg-[var(--row-hover)]"
           aria-label={t`${agentLabel}: ${statusLabel}. Hover for status details.`}
           onClick={(e) => {
             e.stopPropagation();

@@ -113,7 +113,7 @@ export async function runOpenCodeOneShot(input: RunOneShotInput): Promise<string
     let session: Awaited<ReturnType<typeof acquired.client.session.create>>;
     try {
       session = await acquired.client.session.create({
-        title: `lightcode one-shot ${parsedModel.modelID}`,
+        title: `poracode one-shot ${parsedModel.modelID}`,
         // Deny everything: one-shot generation prompts must not touch the
         // filesystem or shell. Mirrors t3code's deny-all ruleset.
         permission: [{ permission: "*", pattern: "*", action: "deny" }],

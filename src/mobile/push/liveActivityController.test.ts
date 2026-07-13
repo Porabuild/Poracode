@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@lightcode/activity-bridge", () => ({
+vi.mock("@poracode/activity-bridge", () => ({
   ActivityBridge: {
     startActivity: vi.fn<() => Promise<{ activityId: string | null }>>(async () => ({
       activityId: "activity-1",
@@ -9,7 +9,7 @@ vi.mock("@lightcode/activity-bridge", () => ({
   },
 }));
 
-import { ActivityBridge } from "@lightcode/activity-bridge";
+import { ActivityBridge } from "@poracode/activity-bridge";
 import {
   __resetLiveActivityStateForTests,
   buildContentState,

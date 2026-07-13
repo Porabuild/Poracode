@@ -154,10 +154,10 @@ describe("WslBridgeServer", () => {
   });
 
   it("forwards Browser MCP upstream env into the in-WSL bridge", async () => {
-    const oldUrl = process.env.LIGHTCODE_BROWSER_MCP_URL;
-    const oldToken = process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
-    process.env.LIGHTCODE_BROWSER_MCP_URL = "http://127.0.0.1:65093";
-    process.env.LIGHTCODE_BROWSER_MCP_TOKEN = "browser-token";
+    const oldUrl = process.env.PORACODE_BROWSER_MCP_URL;
+    const oldToken = process.env.PORACODE_BROWSER_MCP_TOKEN;
+    process.env.PORACODE_BROWSER_MCP_URL = "http://127.0.0.1:65093";
+    process.env.PORACODE_BROWSER_MCP_TOKEN = "browser-token";
     const helpersDir = makeHelpersDir();
     let capturedEnv: Record<string, string> | undefined;
     try {
@@ -172,19 +172,19 @@ describe("WslBridgeServer", () => {
       await manager.ensureBridge("Ubuntu");
 
       expect(capturedEnv).toMatchObject({
-        LIGHTCODE_BROWSER_MCP_URL: "http://127.0.0.1:65093",
-        LIGHTCODE_BROWSER_MCP_TOKEN: "browser-token",
+        PORACODE_BROWSER_MCP_URL: "http://127.0.0.1:65093",
+        PORACODE_BROWSER_MCP_TOKEN: "browser-token",
       });
     } finally {
       if (oldUrl === undefined) {
-        delete process.env.LIGHTCODE_BROWSER_MCP_URL;
+        delete process.env.PORACODE_BROWSER_MCP_URL;
       } else {
-        process.env.LIGHTCODE_BROWSER_MCP_URL = oldUrl;
+        process.env.PORACODE_BROWSER_MCP_URL = oldUrl;
       }
       if (oldToken === undefined) {
-        delete process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
+        delete process.env.PORACODE_BROWSER_MCP_TOKEN;
       } else {
-        process.env.LIGHTCODE_BROWSER_MCP_TOKEN = oldToken;
+        process.env.PORACODE_BROWSER_MCP_TOKEN = oldToken;
       }
     }
   });

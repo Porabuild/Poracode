@@ -1,5 +1,5 @@
 {
-  "name": "lightcode-status",
+  "name": "poracode-status",
   "version": "1.0.1",
   "description": "Forward Command Code lifecycle events (PreToolUse/PostToolUse/Stop) to Poracode for sidebar status detection.",
   "author": "Poracode",

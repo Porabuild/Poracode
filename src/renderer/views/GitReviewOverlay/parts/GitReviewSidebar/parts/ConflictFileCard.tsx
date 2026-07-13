@@ -18,7 +18,7 @@ import { useGitReviewRowPadX } from "../gitReviewPadXContext";
 import { reconcileStagingStatus } from "./reconcileStagingStatus";
 
 const LARGE_DIFF_THRESHOLD = 500;
-const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
+const COMPOSER_FILE_DRAG_TYPE = "application/poracode-composer-file";
 
 export function ConflictFileCard(props: {
   file: GitFileChange;

@@ -208,7 +208,7 @@ function ShellSidebarSpacer(props: { hasHeaders: boolean; forceSidebarExpanded: 
   if (!isOverlay) return null;
   return (
     <div
-      className={`lightcode-sidebar-spacer shrink-0 ${!props.hasHeaders ? "-mt-5 h-[calc(100%+0.75rem)]" : ""}`}
+      className={`poracode-sidebar-spacer shrink-0 ${!props.hasHeaders ? "-mt-5 h-[calc(100%+0.75rem)]" : ""}`}
       style={{ width: SIDEBAR_COLLAPSED_WIDTH, minWidth: SIDEBAR_COLLAPSED_WIDTH }}
     />
   );
@@ -268,9 +268,9 @@ function ShellSidebarAside(props: {
   return (
     <aside
       ref={sidebarRef}
-      className={`lightcode-sidebar-aside flex min-h-0 flex-col overflow-hidden transition-[border-color] duration-200 ${
+      className={`poracode-sidebar-aside flex min-h-0 flex-col overflow-hidden transition-[border-color] duration-200 ${
         effectiveIsOverlay
-          ? `lightcode-sidebar-aside--overlay fixed inset-y-0 left-0 z-[60] border-r border-[color:var(--border)] bg-background shadow-2xl transition-transform duration-200 ${
+          ? `poracode-sidebar-aside--overlay fixed inset-y-0 left-0 z-[60] border-r border-[color:var(--border)] bg-background shadow-2xl transition-transform duration-200 ${
               effectiveClosingOverlay || !overlayReady ? "-translate-x-full" : "translate-x-0"
             }`
           : `relative ${
@@ -280,11 +280,11 @@ function ShellSidebarAside(props: {
     >
       {sidebarHeader && (
         <div
-          className={`lightcode-overlay-header flex shrink-0 items-center gap-3 ${
+          className={`poracode-overlay-header flex shrink-0 items-center gap-3 ${
             isMac() ? "pl-3 pr-2 pt-0.5" : "px-2"
           } ${
             effectiveIsOverlay
-              ? "lightcode-overlay-header--no-drag bg-background"
+              ? "poracode-overlay-header--no-drag bg-background"
               : "bg-[var(--content-background)]"
           }`}
           style={{
@@ -298,7 +298,7 @@ function ShellSidebarAside(props: {
         </div>
       )}
       <div
-        className={`lightcode-sidebar-body min-h-0 flex-1 overflow-hidden ${
+        className={`poracode-sidebar-body min-h-0 flex-1 overflow-hidden ${
           sidebarDividerBelowHeader ? `border-r ${sidebarDividerColorClass}` : ""
         }`}
       >
@@ -328,7 +328,7 @@ function ShellSidebarResizeHandle(props: {
   if (effectiveIsCollapsed || effectiveIsOverlay) return null;
   return (
     <div
-      className={`lightcode-resize-handle ${!props.hasHeaders ? "-mt-5 h-[calc(100%+0.75rem)]" : ""}`}
+      className={`poracode-resize-handle ${!props.hasHeaders ? "-mt-5 h-[calc(100%+0.75rem)]" : ""}`}
       style={
         props.hasHeaders
           ? {
@@ -540,12 +540,12 @@ export function AppShell(props: {
   return (
     <div
       ref={shellRef}
-      className="lightcode-shell flex h-full min-h-0 overflow-hidden bg-background text-foreground"
+      className="poracode-shell flex h-full min-h-0 overflow-hidden bg-background text-foreground"
       style={hasHeaders ? { paddingTop: 0 } : undefined}
     >
       <MacCollapsedTracker shellRef={shellRef} forceSidebarExpanded={forceSidebarExpanded} />
 
-      {!hasHeaders && <div aria-hidden="true" className="lightcode-drag-region" />}
+      {!hasHeaders && <div aria-hidden="true" className="poracode-drag-region" />}
 
       <ShellSidebarBackdrop forceSidebarExpanded={forceSidebarExpanded} />
       <ShellSidebarSpacer hasHeaders={hasHeaders} forceSidebarExpanded={forceSidebarExpanded} />
@@ -580,7 +580,7 @@ export function AppShell(props: {
       >
         {contentHeader && (
           <div
-            className={`lightcode-overlay-header ${macosTrafficLightPadClass} flex shrink-0 items-center gap-3 bg-[var(--content-background)] px-2`}
+            className={`poracode-overlay-header ${macosTrafficLightPadClass} flex shrink-0 items-center gap-3 bg-[var(--content-background)] px-2`}
             style={{
               height: "env(titlebar-area-height, 32px)",
               paddingRight: isWindows()
@@ -614,7 +614,7 @@ export function AppShell(props: {
           >
             <main ref={mainRef} className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
               {isMac() && !contentHeader && (
-                <div aria-hidden="true" className="lightcode-content-drag-region" />
+                <div aria-hidden="true" className="poracode-content-drag-region" />
               )}
               <div className="relative h-full min-h-0">{content}</div>
             </main>

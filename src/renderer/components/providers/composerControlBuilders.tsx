@@ -16,13 +16,13 @@ export function planWorkToggle(input: {
 }): ComposerControl {
   return {
     kind: "toggle",
-    // The `lightcode-composer-mode-icon` marker is a provider-agnostic hook the
+    // The `poracode-composer-mode-icon` marker is a provider-agnostic hook the
     // mobile compact composer keys off to surface the mode chip as an icon; it
     // rides the shared builder so every provider's plan/work toggle carries it.
     icon: input.isPlanMode ? (
-      <ClipboardList className="size-3.5 lightcode-composer-mode-icon" />
+      <ClipboardList className="size-3.5 poracode-composer-mode-icon" />
     ) : (
-      <Hammer className="size-3.5 lightcode-composer-mode-icon" />
+      <Hammer className="size-3.5 poracode-composer-mode-icon" />
     ),
     label: input.isPlanMode ? "Plan" : "Work",
     displayLabel: input.isPlanMode ? msg`Plan` : msg`Work`,

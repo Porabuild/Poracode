@@ -139,7 +139,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
-          name: Lightcode Nightly ${{ needs.prepare.outputs.tag }}
+          name: Poracode Nightly ${{ needs.prepare.outputs.tag }}
           prerelease: true
           draft: true
           make_latest: false

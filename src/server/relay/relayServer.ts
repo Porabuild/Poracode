@@ -19,11 +19,11 @@ import {
 } from "@/shared/remote/relayProtocol";
 
 /**
- * Self-hostable relay. A Lightcode server dials `/host` and registers a server
+ * Self-hostable relay. A Poracode server dials `/host` and registers a server
  * id; devices reach it at `/s/<serverId>/…`. The relay forwards visitor HTTP +
  * WebSocket traffic to the registered host over a single framed control socket
  * (relayProtocol.ts). It is a dumb pipe: all auth stays end-to-end between the
- * device and the Lightcode server, and the relay only binds a serverId to the
+ * device and the Poracode server, and the relay only binds a serverId to the
  * secret of its first live registrant to prevent hijacking.
  *
  * The account-scoped "cloud subscription" layer (mapping users → server ids,
@@ -106,10 +106,10 @@ function normalizePublicBaseUrl(raw: string): string {
   try {
     url = new URL(raw);
   } catch {
-    throw new Error("LIGHTCODE_RELAY_PUBLIC_BASE_URL must be an absolute http(s) URL.");
+    throw new Error("PORACODE_RELAY_PUBLIC_BASE_URL must be an absolute http(s) URL.");
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("LIGHTCODE_RELAY_PUBLIC_BASE_URL must be an absolute http(s) URL.");
+    throw new Error("PORACODE_RELAY_PUBLIC_BASE_URL must be an absolute http(s) URL.");
   }
   url.hash = "";
   url.search = "";

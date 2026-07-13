@@ -218,9 +218,9 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
 });
 
 describe("createGrokAdapter L1 hook plugin support", () => {
-  it("declares lightcode-status@grok with protocol version 1", () => {
+  it("declares poracode-status@grok with protocol version 1", () => {
     const adapter = createGrokAdapter();
-    expect(adapter.pluginId).toBe("lightcode-status@grok");
+    expect(adapter.pluginId).toBe("poracode-status@grok");
     expect(adapter.minProtocolVersion).toBe(1);
     expect(typeof adapter.pluginVersion).toBe("string");
     expect(adapter.pluginVersion?.length ?? 0).toBeGreaterThan(0);

@@ -1,7 +1,7 @@
 import type { Dirent } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { aggregateClaudeCost, type CostEstimate } from "@lightcode/agents-usage";
+import { aggregateClaudeCost, type CostEstimate } from "@poracode/agents-usage";
 import { claudeConfigDirs } from "./claudeCredentials";
 
 /**

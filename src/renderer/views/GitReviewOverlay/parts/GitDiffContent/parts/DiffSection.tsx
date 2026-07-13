@@ -138,7 +138,7 @@ export function DiffSection(props: {
       <FileHeader entry={entry} collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
       {mounted ? (
         <div
-          className={`lightcode-git-diff-body${isNewFile ? " diff-new-file" : ""}`}
+          className={`poracode-git-diff-body${isNewFile ? " diff-new-file" : ""}`}
           style={collapsed ? { display: "none" } : undefined}
         >
           <DiffView

@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
-import type { OAuthToken } from "@lightcode/agents-usage";
+import type { OAuthToken } from "@poracode/agents-usage";
 import { readGeminiCredsFromWsl } from "./wslCredentials";
 
 /**

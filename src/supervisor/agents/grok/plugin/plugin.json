@@ -1,5 +1,5 @@
 {
-  "name": "lightcode-status-grok",
+  "name": "poracode-status-grok",
   "version": "1.2.0",
   "description": "Grok CLI lifecycle hook forwarder for Poracode thread status",
   "author": "Poracode",

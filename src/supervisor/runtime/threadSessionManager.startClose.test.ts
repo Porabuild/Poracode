@@ -61,7 +61,7 @@ function deferred<T = void>(): {
 }
 
 function createManager(agentKind: AgentKind, adapter: AgentAdapter): ThreadSessionManager {
-  const tempDir = mkdtempSync(join(tmpdir(), "lightcode-start-close-"));
+  const tempDir = mkdtempSync(join(tmpdir(), "poracode-start-close-"));
   tempDirs.push(tempDir);
   const manager = new ThreadSessionManager({
     emit: vi.fn<() => void>(),

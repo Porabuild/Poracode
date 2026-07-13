@@ -74,13 +74,13 @@ function sleep(ms: number): Promise<void> {
 // an error message; the error status icon updates synchronously.
 const CODEX_SYSTEM_ERROR_FALLBACK_DELAY_MS = 250;
 const CODEX_RESUME_STATUS_REPLAY_SUPPRESSION_MS = 500;
-const CODEX_EVENT_DEBUG_ENV = "LIGHTCODE_DEBUG_CODEX_EVENTS";
+const CODEX_EVENT_DEBUG_ENV = "PORACODE_DEBUG_CODEX_EVENTS";
 
 type CodexEventDebugDirection =
-  | "codex->lightcode"
-  | "lightcode->codex"
-  | "lightcode:update"
-  | "lightcode:runtime"
+  | "codex->poracode"
+  | "poracode->codex"
+  | "poracode:update"
+  | "poracode:runtime"
   | "transport";
 
 function isCodexEventDebugEnabled(): boolean {
@@ -257,7 +257,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     }
     if (forwarded.length === 0) return;
     for (const event of forwarded) {
-      this.logCodexEventDebug("lightcode:runtime", event);
+      this.logCodexEventDebug("poracode:runtime", event);
     }
     if (!this.listener?.onRuntimeEvent) {
       this.bufferedRuntimeEvents.push(...forwarded);
@@ -606,7 +606,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         id: this.remoteThreadId,
         ...(this.rolloutCreatedAt ? { timestamp: this.rolloutCreatedAt } : {}),
         ...(this.rolloutCwd ? { cwd: this.rolloutCwd } : {}),
-        originator: "lightcode",
+        originator: "poracode",
         ...(this.rolloutCliVersion ? { cli_version: this.rolloutCliVersion } : {}),
         ...(this.rolloutSource ? { source: this.rolloutSource } : {}),
         ...(this.rolloutModelProvider ? { model_provider: this.rolloutModelProvider } : {}),
@@ -946,7 +946,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       "initialize",
       {
         clientInfo: {
-          name: "lightcode",
+          name: "poracode",
           version: "0.1.0",
         },
         capabilities: {
@@ -1030,7 +1030,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   private emitUpdate(update: StructuredSessionUpdate): void {
-    this.logCodexEventDebug("lightcode:update", update);
+    this.logCodexEventDebug("poracode:update", update);
     this.listener?.onUpdate(update);
   }
 

@@ -19,7 +19,7 @@ describe("createProviderIcon", () => {
     const { container } = render(<TestIcon className="extra-class" title="Test provider" />);
 
     expect(container.firstElementChild).toHaveClass(
-      "lightcode-provider-icon--working",
+      "poracode-provider-icon--working",
       "test-provider-icon--working",
       "extra-class",
     );
@@ -48,7 +48,7 @@ describe("createProviderIcon", () => {
     const { container } = render(<TestIcon tone="done" />);
 
     expect(container.firstElementChild).toHaveClass(
-      "lightcode-provider-icon--done",
+      "poracode-provider-icon--done",
       "test-provider-icon--done",
     );
     const svg = container.querySelector("svg");

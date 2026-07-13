@@ -1,5 +1,5 @@
 /**
- * Single source of truth for the pinned Node.js LTS that lightcode downloads
+ * Single source of truth for the pinned Node.js LTS that poracode downloads
  * when the user doesn't have an acceptable Node available. Both the WSL
  * runtime resolver (`src/supervisor/wsl/runtime/index.ts`) and the native
  * runtime resolver (`src/supervisor/native/runtime/index.ts`) read these
@@ -13,12 +13,12 @@
  * lockstep with `MIN_ACCEPTED_NODE_MAJOR`. After bumping, run
  * `pnpm tsx scripts/refresh-node-checksums.mjs` to refresh the table below.
  */
-export const LIGHTCODE_PINNED_NODE_VERSION = "22.11.0";
+export const PORACODE_PINNED_NODE_VERSION = "22.11.0";
 
 /**
  * Minimum Node major version we accept from the user's environment. Below
- * this, we fall back to lightcode-managed runtime. Same major as
- * `LIGHTCODE_PINNED_NODE_VERSION` so we have a single supported version line
+ * this, we fall back to poracode-managed runtime. Same major as
+ * `PORACODE_PINNED_NODE_VERSION` so we have a single supported version line
  * for testing/debugging.
  */
 export const MIN_ACCEPTED_NODE_MAJOR = 22;
@@ -46,7 +46,7 @@ export type NodeTargetTriple =
  *   transparently handles zip).
  *
  * If a checksum is empty, install fails loudly — refresh after bumping
- * `LIGHTCODE_PINNED_NODE_VERSION`.
+ * `PORACODE_PINNED_NODE_VERSION`.
  */
 export const NODE_TARBALL_CHECKSUMS: Record<NodeTargetTriple, string> = {
   // node-v22.11.0-linux-x64.tar.xz
@@ -68,15 +68,15 @@ export function nodeArchiveExtension(target: NodeTargetTriple): "tar.xz" | "zip"
 }
 
 export function nodeArchiveFileName(target: NodeTargetTriple): string {
-  return `node-v${LIGHTCODE_PINNED_NODE_VERSION}-${target}.${nodeArchiveExtension(target)}`;
+  return `node-v${PORACODE_PINNED_NODE_VERSION}-${target}.${nodeArchiveExtension(target)}`;
 }
 
 export function nodeArchiveDirName(target: NodeTargetTriple): string {
-  return `node-v${LIGHTCODE_PINNED_NODE_VERSION}-${target}`;
+  return `node-v${PORACODE_PINNED_NODE_VERSION}-${target}`;
 }
 
 export function nodeArchiveUrl(target: NodeTargetTriple): string {
-  return `https://nodejs.org/dist/v${LIGHTCODE_PINNED_NODE_VERSION}/${nodeArchiveFileName(target)}`;
+  return `https://nodejs.org/dist/v${PORACODE_PINNED_NODE_VERSION}/${nodeArchiveFileName(target)}`;
 }
 
 /**

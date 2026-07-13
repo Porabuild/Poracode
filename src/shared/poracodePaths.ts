@@ -1,8 +1,8 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { type LightcodeChannel, resolveLightcodeChannel, userDataDirNameFor } from "./channel";
+import { type PoracodeChannel, resolvePoracodeChannel, userDataDirNameFor } from "./channel";
 
-export interface LightcodePaths {
+export interface PoracodePaths {
   baseDir: string;
   dbPath: string;
   settingsPath: string;
@@ -16,21 +16,21 @@ export interface LightcodePaths {
   agentPluginsDir: string;
   /**
    * Cache directory for ACP registry agent icons. Icons are downloaded once
-   * at install/backfill time, served from disk via the `lightcode-local://`
+   * at install/backfill time, served from disk via the `poracode-local://`
    * protocol so the renderer paints them synchronously on app start instead
    * of fetching the CDN URL on every mount.
    */
   acpIconsDir: string;
 }
 
-export function resolveLightcodeBaseDir(
-  channel: LightcodeChannel = resolveLightcodeChannel(),
+export function resolvePoracodeBaseDir(
+  channel: PoracodeChannel = resolvePoracodeChannel(),
   homeDir: string = homedir(),
 ): string {
   return join(homeDir, userDataDirNameFor(channel));
 }
 
-export function resolveLightcodePaths(baseDir: string = resolveLightcodeBaseDir()): LightcodePaths {
+export function resolvePoracodePaths(baseDir: string = resolvePoracodeBaseDir()): PoracodePaths {
   const logsDir = join(baseDir, "logs");
   const cacheDir = join(baseDir, "cache");
   return {

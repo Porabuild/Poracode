@@ -8,7 +8,7 @@
       console.log(`[renderer-bootstrap] page +${Math.round(performance.now())}ms index parsed`);
     </script>
     <script>
-      // The desktop renderer requires Electron's preload bridge (window.lightcode).
+      // The desktop renderer requires Electron's preload bridge (window.poracode).
       // If this document is ever loaded in a plain browser — e.g. a phone that added
       // the dev server's "/" to its home screen — the bridge is absent and the
       // renderer cannot run (it would crash on a black screen). Redirect to the
@@ -16,11 +16,29 @@
       // is a no-op. mobile.html is a distinct document, so there is no redirect loop.
       (function () {
         try {
-          if (!("lightcode" in window)) {
+          if (!("poracode" in window)) {
             window.location.replace("/mobile.html" + window.location.search + window.location.hash);
           }
         } catch (e) {
           // Never let the guard itself break startup.
+        }
+      })();
+    </script>
+    <script>
+      // One-time namespace migration for renderer state copied from pre-rebrand
+      // installs. Keep the old keys as a backup; current code writes Poracode keys.
+      (function () {
+        try {
+          for (var i = 0; i < localStorage.length; i++) {
+            var legacyKey = localStorage.key(i);
+            if (!legacyKey || !legacyKey.startsWith("lightcode")) continue;
+            var currentKey = "poracode" + legacyKey.slice("lightcode".length);
+            if (localStorage.getItem(currentKey) !== null) continue;
+            var value = localStorage.getItem(legacyKey);
+            if (value !== null) localStorage.setItem(currentKey, value);
+          }
+        } catch (e) {
+          // Storage can be unavailable; the app can still start with defaults.
         }
       })();
     </script>
@@ -32,13 +50,13 @@
       (function () {
         try {
           var root = document.documentElement;
-          var boot = JSON.parse(localStorage.getItem("lightcode-boot") || "null");
+          var boot = JSON.parse(localStorage.getItem("poracode-boot") || "null");
           var appearance =
             boot && (boot.appearance === "light" || boot.appearance === "dark")
               ? boot.appearance
               : null;
           if (!appearance) {
-            var settings = JSON.parse(localStorage.getItem("lightcode-shared-settings") || "null");
+            var settings = JSON.parse(localStorage.getItem("poracode-shared-settings") || "null");
             var mode = settings && settings.themeMode;
             var prefersDark =
               !window.matchMedia || window.matchMedia("(prefers-color-scheme: dark)").matches;

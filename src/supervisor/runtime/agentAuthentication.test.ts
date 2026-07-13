@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveLightcodePaths } from "@/shared/lightcodePaths";
+import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { defaultSharedSettings } from "@/shared/settings";
 
 const dispatchAcpAuthenticateMock = vi.hoisted(() =>
@@ -39,10 +39,10 @@ import { SupervisorRuntime } from "../supervisorRuntime";
 
 const tempDirs: string[] = [];
 const runtimesToDispose: SupervisorRuntime[] = [];
-const lightcodeDataDirBeforeTests = process.env.LIGHTCODE_DATA_DIR;
+const poracodeDataDirBeforeTests = process.env.PORACODE_DATA_DIR;
 
 function makeTempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "lightcode-runtime-auth-"));
+  const dir = mkdtempSync(join(tmpdir(), "poracode-runtime-auth-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -79,10 +79,10 @@ afterEach(() => {
   for (const runtime of runtimesToDispose.splice(0)) {
     runtime.dispose();
   }
-  if (lightcodeDataDirBeforeTests === undefined) {
-    delete process.env.LIGHTCODE_DATA_DIR;
+  if (poracodeDataDirBeforeTests === undefined) {
+    delete process.env.PORACODE_DATA_DIR;
   } else {
-    process.env.LIGHTCODE_DATA_DIR = lightcodeDataDirBeforeTests;
+    process.env.PORACODE_DATA_DIR = poracodeDataDirBeforeTests;
   }
   dispatchAcpAuthenticateMock.mockReset();
   verifyAcpGenericAuthenticationMock.mockReset();
@@ -95,7 +95,7 @@ function writeGenericAcpSettings(
   dataDir: string,
   authAcknowledged?: { native?: boolean; wsl?: Record<string, boolean> },
 ): string {
-  const { settingsPath } = resolveLightcodePaths(dataDir);
+  const { settingsPath } = resolvePoracodePaths(dataDir);
   writeFileSync(
     settingsPath,
     JSON.stringify(
@@ -127,7 +127,7 @@ function writeGenericAcpSettings(
 describe("authenticateAcpAgent", () => {
   it("persists generic ACP auth only after verification succeeds", async () => {
     const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
+    process.env.PORACODE_DATA_DIR = dataDir;
     const settingsPath = writeGenericAcpSettings(dataDir);
     dispatchAcpAuthenticateMock.mockResolvedValue(undefined);
     verifyAcpGenericAuthenticationMock.mockResolvedValueOnce(true);
@@ -153,7 +153,7 @@ describe("authenticateAcpAgent", () => {
 
   it("clears generic ACP auth when browser login does not complete", async () => {
     const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
+    process.env.PORACODE_DATA_DIR = dataDir;
     const settingsPath = writeGenericAcpSettings(dataDir, { native: true });
     dispatchAcpAuthenticateMock.mockResolvedValue(undefined);
     verifyAcpGenericAuthenticationMock.mockResolvedValueOnce(false);

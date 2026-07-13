@@ -3,8 +3,8 @@ import { readBridge } from "@/renderer/bridge";
 import {
   buildRuntimeDiagnosticTags,
   sanitizeSentryEvent,
-  type LightcodeDiagnosticTags,
-  type LightcodeRuntimeDiagnosticContext,
+  type PoracodeDiagnosticTags,
+  type PoracodeRuntimeDiagnosticContext,
   type SentryEventLike,
 } from "@/shared/diagnostics/sentryPrivacy";
 
@@ -16,14 +16,14 @@ const DISABLED_INTEGRATIONS = new Set([
   "ReportingObserver",
 ]);
 
-function buildBaseTags(): LightcodeDiagnosticTags {
+function buildBaseTags(): PoracodeDiagnosticTags {
   const bridge = readBridge();
   return {
-    "lightcode.app_version": bridge.appVersion,
-    "lightcode.channel": bridge.channel,
-    "lightcode.electron": bridge.electronVersion,
-    "lightcode.platform": bridge.platform,
-    "lightcode.process": "renderer",
+    "poracode.app_version": bridge.appVersion,
+    "poracode.channel": bridge.channel,
+    "poracode.electron": bridge.electronVersion,
+    "poracode.platform": bridge.platform,
+    "poracode.process": "renderer",
   };
 }
 
@@ -54,7 +54,7 @@ export function initializeRendererSentry(): boolean {
     },
   });
 
-  Sentry.setContext("lightcode", {
+  Sentry.setContext("poracode", {
     appVersion: bridge.appVersion,
     channel: bridge.channel,
     isDev: bridge.isDev,
@@ -65,7 +65,7 @@ export function initializeRendererSentry(): boolean {
 }
 
 export function setRendererRuntimeDiagnosticContext(
-  context: LightcodeRuntimeDiagnosticContext,
+  context: PoracodeRuntimeDiagnosticContext,
 ): void {
   if (!Sentry.isEnabled()) return;
   Sentry.getCurrentScope().setTags(buildRuntimeDiagnosticTags(context));
@@ -73,7 +73,7 @@ export function setRendererRuntimeDiagnosticContext(
 
 export function captureRendererException(
   error: unknown,
-  context?: LightcodeRuntimeDiagnosticContext,
+  context?: PoracodeRuntimeDiagnosticContext,
 ): void {
   if (!Sentry.isEnabled()) return;
   Sentry.withScope((scope) => {

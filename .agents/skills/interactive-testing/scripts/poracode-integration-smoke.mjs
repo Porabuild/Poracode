@@ -19,14 +19,14 @@ const args = parseArgs(process.argv.slice(2));
 const command = args._[0] ?? "plan";
 const scope = String(args.scope ?? "changed");
 const mode = String(args.mode ?? "mock");
-const port = Number(args.port ?? process.env.LIGHTCODE_CDP_PORT ?? 9222);
+const port = Number(args.port ?? process.env.PORACODE_CDP_PORT ?? 9222);
 const appUrl = String(args.appUrl ?? "http://127.0.0.1:3100/");
 const timeoutMs = Number(args.timeoutMs ?? 12_000);
 const outDir = resolve(
   String(
     args.outDir ??
-      process.env.LIGHTCODE_SMOKE_OUT_DIR ??
-      join(homedir(), ".lightcode-smoke", `integration-${Date.now()}`),
+      process.env.PORACODE_SMOKE_OUT_DIR ??
+      join(homedir(), ".poracode-smoke", `integration-${Date.now()}`),
   ),
 );
 
@@ -48,9 +48,9 @@ try {
 
 function usage() {
   console.error(`Usage:
-  node lightcode-integration-smoke.mjs audit
-  node lightcode-integration-smoke.mjs plan [--scope changed|full]
-  node lightcode-integration-smoke.mjs run [--scope changed|full] [--mode mock|real] [--port 9222] [--outDir <dir>] [--ack-manual gate,gate]`);
+  node poracode-integration-smoke.mjs audit
+  node poracode-integration-smoke.mjs plan [--scope changed|full]
+  node poracode-integration-smoke.mjs run [--scope changed|full] [--mode mock|real] [--port 9222] [--outDir <dir>] [--ack-manual gate,gate]`);
 }
 
 function trackedFiles() {
@@ -116,7 +116,7 @@ function buildPlan(selectedScope) {
 }
 
 function printPlan(plan) {
-  console.log(`Lightcode smoke plan (${plan.scope})`);
+  console.log(`Poracode smoke plan (${plan.scope})`);
   console.log(`Execution mode: ${mode}`);
   if (plan.files.length > 0) {
     console.log(`Changed production files: ${plan.files.length}`);
@@ -184,7 +184,7 @@ async function runSmoke(plan) {
       await runScenario(report, "browser", () => browserScenario(client));
       await evaluate(
         client,
-        "window.__lightcodeDev.closeSettings(); new Promise((resolve) => setTimeout(resolve, 300))",
+        "window.__poracodeDev.closeSettings(); new Promise((resolve) => setTimeout(resolve, 300))",
         true,
       ).catch(() => undefined);
     }
@@ -248,10 +248,10 @@ async function baselineScenario(client) {
           title: document.title,
           bodyText: document.body?.innerText ?? "",
           rootChildren: document.querySelector("#root")?.childElementCount ?? 0,
-          lightcodeBridge: typeof window.lightcode,
-          devBridge: typeof window.__lightcodeDev,
+          poracodeBridge: typeof window.poracode,
+          devBridge: typeof window.__poracodeDev,
           crash: /renderer crash|rendered more hooks/i.test(document.body?.innerText ?? ""),
-          welcomeVisible: Boolean(document.querySelector(".lightcode-welcome-page")),
+          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page")),
           draftComposer: Boolean(document.querySelector('textarea[placeholder], [contenteditable="true"], [data-composer-input-anchor]')),
           modelPicker: Boolean(document.querySelector('[aria-label="Select model"], [aria-label="Models"]')),
         }))()`,
@@ -259,13 +259,13 @@ async function baselineScenario(client) {
     (candidate) =>
       candidate.rootChildren > 0 &&
       candidate.bodyText.trim().length > 0 &&
-      candidate.lightcodeBridge === "object" &&
+      candidate.poracodeBridge === "object" &&
       candidate.devBridge === "object",
     "renderer initialization",
   );
   assert(state.url === appUrl, `expected ${appUrl}, got ${state.url}`);
   assert(state.rootChildren > 0 && state.bodyText.trim().length > 0, "renderer root is blank");
-  assert(state.lightcodeBridge === "object", "typed preload bridge is missing");
+  assert(state.poracodeBridge === "object", "typed preload bridge is missing");
   assert(state.devBridge === "object", "DEV testing bridge is missing");
   assert(!state.crash, "renderer crash screen or hook-order failure detected");
   assert(!state.welcomeVisible, "welcome screen still blocks the smoke test surface");
@@ -280,10 +280,10 @@ async function welcomeDismissalScenario(client) {
       evaluate(
         client,
         `(() => ({
-          devBridge: typeof window.__lightcodeDev,
+          devBridge: typeof window.__poracodeDev,
           rootChildren: document.querySelector("#root")?.childElementCount ?? 0,
           bodyTextLength: document.body?.innerText.length ?? 0,
-          welcomeVisible: Boolean(document.querySelector(".lightcode-welcome-page")),
+          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page")),
         }))()`,
       ),
     (state) => state.devBridge === "object" && state.rootChildren > 0 && state.bodyTextLength > 0,
@@ -296,10 +296,10 @@ async function welcomeDismissalScenario(client) {
   const clicked = await evaluate(
     client,
     `(() => {
-      const button = document.querySelector(".lightcode-welcome-page button");
+      const button = document.querySelector(".poracode-welcome-page button");
       if (!(button instanceof HTMLButtonElement)) return false;
       button.click();
-      localStorage.setItem("lightcode-welcome-seen-v16", "true");
+      localStorage.setItem("poracode-welcome-seen-v16", "true");
       return true;
     })()`,
   );
@@ -310,10 +310,10 @@ async function welcomeDismissalScenario(client) {
         client,
         `(() => ({
           ready: document.readyState === "complete",
-          devBridge: typeof window.__lightcodeDev,
+          devBridge: typeof window.__poracodeDev,
           rootChildren: document.querySelector("#root")?.childElementCount ?? 0,
           bodyTextLength: document.body?.innerText.length ?? 0,
-          welcomeVisible: Boolean(document.querySelector(".lightcode-welcome-page")),
+          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page")),
         }))()`,
       ),
     (state) =>
@@ -327,14 +327,14 @@ async function welcomeDismissalScenario(client) {
   await new Promise((resolveWait) => setTimeout(resolveWait, 1_000));
   const stable = await evaluate(
     client,
-    `({ welcomeVisible: Boolean(document.querySelector(".lightcode-welcome-page")) })`,
+    `({ welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page")) })`,
   );
   assert(!final.welcomeVisible, "welcome screen remained visible after dismissal");
   assert(!stable.welcomeVisible, "welcome screen returned after dismissal verification");
   await evaluate(
     client,
     `(() => {
-      const app = window.__lightcodeDev.stores.app.getState();
+      const app = window.__poracodeDev.stores.app.getState();
       const project = app.projects.find((candidate) => candidate.id === "smoke-project");
       if (project) app.openDraft(project.id);
     })()`,
@@ -364,7 +364,7 @@ async function settingsScenario(client) {
   ];
   await evaluate(
     client,
-    `window.__lightcodeDev.stores.sharedSettings.getState().setMcpServers(${JSON.stringify(configuredMcpServers)})`,
+    `window.__poracodeDev.stores.sharedSettings.getState().setMcpServers(${JSON.stringify(configuredMcpServers)})`,
   );
   const sections = [
     "profile",
@@ -401,7 +401,7 @@ async function settingsScenario(client) {
   for (const section of sections) {
     await evaluate(
       client,
-      `window.__lightcodeDev.openSettings(${JSON.stringify(section)}); new Promise((resolve) => setTimeout(resolve, 200))`,
+      `window.__poracodeDev.openSettings(${JSON.stringify(section)}); new Promise((resolve) => setTimeout(resolve, 200))`,
       true,
     );
     const state = await waitForValue(
@@ -448,11 +448,8 @@ async function settingsScenario(client) {
   }
   const screenshotPath = join(outDir, "smoke-02-settings.png");
   await screenshot(client, screenshotPath);
-  await evaluate(client, "window.__lightcodeDev.closeSettings()");
-  await evaluate(
-    client,
-    "window.__lightcodeDev.stores.sharedSettings.getState().setMcpServers([])",
-  );
+  await evaluate(client, "window.__poracodeDev.closeSettings()");
+  await evaluate(client, "window.__poracodeDev.stores.sharedSettings.getState().setMcpServers([])");
   await mcpFixture.close();
   return {
     sections,
@@ -702,7 +699,7 @@ async function mcpServersSectionDeepDive(client, mcpFixture) {
     () =>
       evaluate(
         client,
-        `window.__lightcodeDev.stores.sharedSettings.getState().disabledBuiltInMcpServers.browser === true`,
+        `window.__poracodeDev.stores.sharedSettings.getState().disabledBuiltInMcpServers.browser === true`,
       ),
     Boolean,
     "MCP built-in disable persistence",
@@ -715,7 +712,7 @@ async function mcpServersSectionDeepDive(client, mcpFixture) {
     () =>
       evaluate(
         client,
-        `window.__lightcodeDev.stores.sharedSettings.getState().disabledBuiltInMcpServers.browser !== true`,
+        `window.__poracodeDev.stores.sharedSettings.getState().disabledBuiltInMcpServers.browser !== true`,
       ),
     Boolean,
     "MCP built-in re-enable persistence",
@@ -993,8 +990,8 @@ async function schedulesScenario(client) {
           client,
           `(() => ({
             text: document.body.innerText,
-            viewKind: window.__lightcodeDev.stores.app.getState().view.kind,
-            settingsOpen: window.__lightcodeDev.stores.panel.getState().settingsOpen,
+            viewKind: window.__poracodeDev.stores.app.getState().view.kind,
+            settingsOpen: window.__poracodeDev.stores.panel.getState().settingsOpen,
             runNow: Boolean(document.querySelector('[aria-label="Run now"]')),
             pause: Boolean(document.querySelector('[aria-label="Pause"]')),
           }))()`,
@@ -1031,7 +1028,7 @@ async function schedulesScenario(client) {
 async function controlGeometryScenario(client) {
   await evaluate(
     client,
-    `window.__lightcodeDev.openSettings("general"); new Promise((resolve) => setTimeout(resolve, 250))`,
+    `window.__poracodeDev.openSettings("general"); new Promise((resolve) => setTimeout(resolve, 250))`,
     true,
   );
   const switchGeometry = await waitForValue(
@@ -1062,7 +1059,7 @@ async function controlGeometryScenario(client) {
 
   await evaluate(
     client,
-    `window.__lightcodeDev.openSettings("appearance"); new Promise((resolve) => setTimeout(resolve, 250))`,
+    `window.__poracodeDev.openSettings("appearance"); new Promise((resolve) => setTimeout(resolve, 250))`,
     true,
   );
   const sliderGeometry = await evaluate(
@@ -1095,7 +1092,7 @@ async function controlGeometryScenario(client) {
   }
   const screenshotPath = join(outDir, "smoke-02-control-geometry.png");
   await screenshot(client, screenshotPath);
-  await evaluate(client, "window.__lightcodeDev.closeSettings()");
+  await evaluate(client, "window.__poracodeDev.closeSettings()");
   return {
     switchGeometry,
     sliderGeometry,
@@ -1111,7 +1108,7 @@ function isPillGeometry(geometry) {
 async function threadSearchScenario(client) {
   await evaluate(
     client,
-    `window.__lightcodeDev.stores.panel.setState({ threadSearchOpen: true }); new Promise((resolve) => setTimeout(resolve, 80))`,
+    `window.__poracodeDev.stores.panel.setState({ threadSearchOpen: true }); new Promise((resolve) => setTimeout(resolve, 80))`,
     true,
   );
   const state = await waitForValue(
@@ -1131,10 +1128,7 @@ async function threadSearchScenario(client) {
   assert(!state.crash, "thread search rendered a crash screen");
   const screenshotPath = join(outDir, "smoke-03-thread-search.png");
   await screenshot(client, screenshotPath);
-  await evaluate(
-    client,
-    "window.__lightcodeDev.stores.panel.setState({ threadSearchOpen: false })",
-  );
+  await evaluate(client, "window.__poracodeDev.stores.panel.setState({ threadSearchOpen: false })");
   return { ...state, screenshotPath };
 }
 
@@ -1143,7 +1137,7 @@ async function browserScenario(client) {
   const result = spawnSync(
     process.execPath,
     [
-      join(scriptDir, "lightcode-browser-smoke.mjs"),
+      join(scriptDir, "poracode-browser-smoke.mjs"),
       "--port",
       String(port),
       "--appUrl",
@@ -1172,7 +1166,7 @@ async function runMockIntegrations(report, client, gates) {
   const fixture = await evaluate(
     client,
     `(() => {
-      const state = window.__lightcodeDev.stores.app.getState();
+      const state = window.__poracodeDev.stores.app.getState();
       const project =
         state.projects.find((candidate) => candidate.id === "smoke-project") ??
         state.projects.find((candidate) => !candidate.disabled);
@@ -1180,7 +1174,7 @@ async function runMockIntegrations(report, client, gates) {
         project,
         threadCount: state.threads.length,
         runtimeRequests: state.runtimeRequestsByThread,
-        bridgeKeys: Object.keys(window.lightcode),
+        bridgeKeys: Object.keys(window.poracode),
         bodyText: document.body.innerText,
       };
     })()`,
@@ -1370,9 +1364,9 @@ async function runMockGate(client, gate, fixture) {
     case "native-auth-update": {
       await evaluate(
         client,
-        `window.__lightcodeDev.setUpdate({ phase: "downloaded", version: "mock-smoke" })`,
+        `window.__poracodeDev.setUpdate({ phase: "downloaded", version: "mock-smoke" })`,
       );
-      const update = await evaluate(client, "window.__lightcodeDev.stores.update.getState()");
+      const update = await evaluate(client, "window.__poracodeDev.stores.update.getState()");
       const usageState = await bridgeInvoke(client, "getUsageLoginState", {});
       assert(
         update.phase === "downloaded" && update.version === "mock-smoke",
@@ -1416,11 +1410,11 @@ async function runMockGate(client, gate, fixture) {
               settingDefs: [],
             },
           };
-          window.__lightcodeDev.stores.agentStatuses.getState().hydrateFromCache({
+          window.__poracodeDev.stores.agentStatuses.getState().hydrateFromCache({
             windows: [candidate],
             wsl: [],
           });
-          window.__lightcodeDev.stores.app.getState().openDraft(${JSON.stringify(fixture.project.id)});
+          window.__poracodeDev.stores.app.getState().openDraft(${JSON.stringify(fixture.project.id)});
           return { hydrated: true, kind: candidate.kind };
         })()`,
       );
@@ -1487,16 +1481,16 @@ async function runMockGate(client, gate, fixture) {
 
 async function bridgeInvoke(client, method, payload) {
   const payloadText = payload === undefined ? "" : JSON.stringify(payload);
-  return evaluate(client, `window.lightcode[${JSON.stringify(method)}](${payloadText})`, true);
+  return evaluate(client, `window.poracode[${JSON.stringify(method)}](${payloadText})`, true);
 }
 
 async function resetDrivenState(client) {
   await evaluate(
     client,
     `(() => {
-      window.__lightcodeDev?.closeSettings();
-      window.__lightcodeDev?.stores?.panel?.setState({ threadSearchOpen: false });
-      window.__lightcodeDev?.reset();
+      window.__poracodeDev?.closeSettings();
+      window.__poracodeDev?.stores?.panel?.setState({ threadSearchOpen: false });
+      window.__poracodeDev?.reset();
     })()`,
   );
 }
@@ -1530,7 +1524,7 @@ async function waitForTarget() {
     }
     await new Promise((resolveWait) => setTimeout(resolveWait, 500));
   }
-  throw new Error(`no Lightcode CDP target at ${appUrl} on port ${port}`);
+  throw new Error(`no Poracode CDP target at ${appUrl} on port ${port}`);
 }
 
 async function connectTarget(target) {
@@ -1615,7 +1609,7 @@ function assert(condition, message) {
 }
 
 function printReport(report, reportPath) {
-  console.log("\nLightcode integration smoke report");
+  console.log("\nPoracode integration smoke report");
   for (const result of report.automated) {
     console.log(`${result.status.toUpperCase()}: ${result.id}`);
   }

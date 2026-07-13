@@ -1,4 +1,4 @@
-import { isCommandCodeSessionLive } from "@lightcode/agents-usage";
+import { isCommandCodeSessionLive } from "@poracode/agents-usage";
 import { fetchHttpClient } from "./fetchHttpClient";
 
 /**
@@ -6,7 +6,7 @@ import { fetchHttpClient } from "./fetchHttpClient";
  * session, not a stale or mid-`/authorize` cookie that merely shares a session
  * cookie name. Used to gate the browser-login "Found a signed-in session"
  * prompt. Runs the same `/auth/get-session` probe as the usage collector via
- * the shared `@lightcode/agents-usage` helper, backed here by global fetch
+ * the shared `@poracode/agents-usage` helper, backed here by global fetch
  * (the supervisor scanner injects its own HTTP client).
  */
 

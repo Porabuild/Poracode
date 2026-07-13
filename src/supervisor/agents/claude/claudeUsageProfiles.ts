@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { collectClaude, type HostPort, type UsageSnapshot } from "@lightcode/agents-usage";
+import { collectClaude, type HostPort, type UsageSnapshot } from "@poracode/agents-usage";
 import {
   claudeProfileKind,
   isClaudeProfileKind,

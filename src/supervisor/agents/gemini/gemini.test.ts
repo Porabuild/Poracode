@@ -75,17 +75,17 @@ describe("createGeminiAdapter handleOscTitle", () => {
   });
 
   it("maps Gemini title-bar status to Poracode status", () => {
-    expect(adapter.handleOscTitle?.(oscTitle("✦  Working… (lightcode)"))).toEqual({
+    expect(adapter.handleOscTitle?.(oscTitle("✦  Working… (poracode)"))).toEqual({
       status: "working",
       attention: "working",
       corroborated: true,
     });
-    expect(adapter.handleOscTitle?.(oscTitle("◇  Ready (lightcode)"))).toEqual({
+    expect(adapter.handleOscTitle?.(oscTitle("◇  Ready (poracode)"))).toEqual({
       status: "idle",
       attention: "none",
       corroborated: true,
     });
-    expect(adapter.handleOscTitle?.(oscTitle("✋  Action Required (lightcode)"))).toEqual({
+    expect(adapter.handleOscTitle?.(oscTitle("✋  Action Required (poracode)"))).toEqual({
       status: "needs_reply",
       attention: "needs_reply",
       corroborated: true,
@@ -155,9 +155,9 @@ describe("createGeminiAdapter buildLaunchArgv", () => {
   });
 
   it("carries custom MCP settings without depending on hook-plugin launch extras", () => {
-    const baseDir = mkdtempSync(join(tmpdir(), "lightcode-gemini-mcp-"));
-    const previousDataDir = process.env.LIGHTCODE_DATA_DIR;
-    process.env.LIGHTCODE_DATA_DIR = baseDir;
+    const baseDir = mkdtempSync(join(tmpdir(), "poracode-gemini-mcp-"));
+    const previousDataDir = process.env.PORACODE_DATA_DIR;
+    process.env.PORACODE_DATA_DIR = baseDir;
     try {
       const adapter = createGeminiAdapter();
       const argv = adapter.buildLaunchArgv(project, config, "hi", undefined, {
@@ -174,7 +174,7 @@ describe("createGeminiAdapter buildLaunchArgv", () => {
       });
       const settingsPath = argv.env?.GEMINI_CLI_SYSTEM_SETTINGS_PATH;
 
-      expect(settingsPath).toMatch(/\.lightcode-thread-[0-9a-f-]+\.json$/u);
+      expect(settingsPath).toMatch(/\.poracode-thread-[0-9a-f-]+\.json$/u);
       expect(settingsPath).toContain(join(baseDir, "agent-plugins", "gemini"));
       expect(JSON.parse(readFileSync(settingsPath!, "utf8"))).toMatchObject({
         mcpServers: { memory: { command: "memory-server", timeout: 30_000 } },
@@ -182,8 +182,8 @@ describe("createGeminiAdapter buildLaunchArgv", () => {
       argv.cleanup?.();
       expect(existsSync(settingsPath!)).toBe(false);
     } finally {
-      if (previousDataDir === undefined) delete process.env.LIGHTCODE_DATA_DIR;
-      else process.env.LIGHTCODE_DATA_DIR = previousDataDir;
+      if (previousDataDir === undefined) delete process.env.PORACODE_DATA_DIR;
+      else process.env.PORACODE_DATA_DIR = previousDataDir;
       rmSync(baseDir, { recursive: true, force: true });
     }
   });
@@ -233,7 +233,7 @@ describe("createGeminiAdapter hook plugin support", () => {
 
     expect(adapter.capabilities.presentationModes).toEqual(["terminal", "gui"]);
     expect(adapter.createStructuredSession).toBeTypeOf("function");
-    expect(adapter.pluginId).toBe("lightcode-status@gemini");
+    expect(adapter.pluginId).toBe("poracode-status@gemini");
     expect(adapter.pluginVersion).toBe("1.2.3");
     expect(adapter.minProtocolVersion).toBe(1);
   });

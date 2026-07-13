@@ -69,7 +69,7 @@ function createAdapter(
 }
 
 function createManager(adapter: AgentAdapter): ThreadSessionManager {
-  const tempDir = mkdtempSync(join(tmpdir(), "lightcode-stage-input-"));
+  const tempDir = mkdtempSync(join(tmpdir(), "poracode-stage-input-"));
   tempDirs.push(tempDir);
   const manager = new ThreadSessionManager({
     emit: (_event: SupervisorEvent) => {},
@@ -162,9 +162,9 @@ describe("ThreadSessionManager.stageThreadInput", () => {
   });
 
   it("copies out-of-workspace attachments into the project for sandboxed agents", async () => {
-    const projectDir = mkdtempSync(join(tmpdir(), "lightcode-stage-project-"));
+    const projectDir = mkdtempSync(join(tmpdir(), "poracode-stage-project-"));
     tempDirs.push(projectDir);
-    const outsideDir = mkdtempSync(join(tmpdir(), "lightcode-stage-outside-"));
+    const outsideDir = mkdtempSync(join(tmpdir(), "poracode-stage-outside-"));
     tempDirs.push(outsideDir);
     const shot = join(outsideDir, "shot.png");
     writeFileSync(shot, "png");

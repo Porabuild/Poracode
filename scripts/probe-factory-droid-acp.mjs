@@ -127,7 +127,7 @@ async function main() {
   const initResult = await waitForResponse(
     send("initialize", {
       protocolVersion: 1,
-      clientInfo: { name: "lightcode-probe", version: "0.1.0" },
+      clientInfo: { name: "poracode-probe", version: "0.1.0" },
       clientCapabilities: {
         fs: { readTextFile: true, writeTextFile: true },
         terminal: true,

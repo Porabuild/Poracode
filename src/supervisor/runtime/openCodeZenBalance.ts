@@ -1,4 +1,4 @@
-import { looksSignedOut } from "@lightcode/agents-usage";
+import { looksSignedOut } from "@poracode/agents-usage";
 
 /**
  * Parse the opencode.ai Zen pay-as-you-go balance out of the account dashboard

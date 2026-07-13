@@ -130,7 +130,7 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
   });
 
   it("resolves npm .cmd shims to their package exe target when present", () => {
-    const root = mkdtempSync(join(tmpdir(), "lightcode-claude-shim-"));
+    const root = mkdtempSync(join(tmpdir(), "poracode-claude-shim-"));
     tempDirs.push(root);
     const cmdPath = join(root, "claude.cmd");
     const exePath = join(root, "node_modules", "@anthropic-ai", "claude-code", "bin", "claude.exe");
@@ -159,7 +159,7 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
     // buildAgentCommand spawned `node.exe --model ... --enable ...` and Node
     // rejected the agent's flags with "bad option: --model". The .cmd must
     // remain so resolveWindowsNodeCmdShim can extract the script entry later.
-    const root = mkdtempSync(join(tmpdir(), "lightcode-command-code-shim-"));
+    const root = mkdtempSync(join(tmpdir(), "poracode-command-code-shim-"));
     tempDirs.push(root);
     const cmdPath = join(root, "command-code.cmd");
     const nodeExePath = join(root, "node.exe");

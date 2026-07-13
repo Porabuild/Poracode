@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { allUsageProviderDescriptors } from "@lightcode/agents-usage/providers";
+import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
 import {
   agentInstanceConfigMapSchema,
   installedAcpRegistryAgentSchema,

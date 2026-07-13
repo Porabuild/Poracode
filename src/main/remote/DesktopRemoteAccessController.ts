@@ -1,14 +1,14 @@
 import type { BrowserPanelManager } from "../browser";
 import { dbGetProject, dbGetProjects, dbGetThreads } from "../db";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "../sharedSettingsFile";
-import type { LightcodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
+import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import type {
   RemoteAccessTailscaleStatus,
   StartTailscaleResult,
   SupervisorEvent,
 } from "@/shared/ipc";
 import { toErrorMessage } from "@/shared/errorMessage";
-import type { LightcodePaths } from "@/shared/lightcodePaths";
+import type { PoracodePaths } from "@/shared/poracodePaths";
 import {
   pickRemoteSettings,
   type RemoteAccessPairingInfo,
@@ -45,13 +45,13 @@ import {
 
 export interface DesktopRemoteAccessControllerOptions {
   readonly appVersion: string;
-  readonly paths: Pick<LightcodePaths, "baseDir" | "settingsPath">;
+  readonly paths: Pick<PoracodePaths, "baseDir" | "settingsPath">;
   readonly devServerUrl?: string;
   readonly callSupervisor: RemoteAccessServerOptions["callSupervisor"];
   readonly dispatchThreadCommand: NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>;
   readonly getBrowserPanelManager: () => BrowserPanelManager | null;
   readonly notifySharedSettingsChanged: (settings: SharedSettings) => void;
-  readonly reportError: (error: unknown, tags?: LightcodeDiagnosticTags) => void;
+  readonly reportError: (error: unknown, tags?: PoracodeDiagnosticTags) => void;
   readonly scheduleService: ScheduleService;
 }
 
@@ -160,7 +160,7 @@ export function createDesktopRemoteAccessController(
   const resolveAdvertisedBaseUrl = async (
     port: number,
   ): Promise<{ advertisedBaseUrl?: string; tailscaleServeUrl?: string }> => {
-    const envAdvertisedHost = process.env.LIGHTCODE_REMOTE_ACCESS_ADVERTISED_HOST?.trim();
+    const envAdvertisedHost = process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST?.trim();
     if (envAdvertisedHost) return {};
 
     const settings = readSharedSettingsFile(options.paths.settingsPath);
@@ -260,7 +260,7 @@ export function createDesktopRemoteAccessController(
         store: pushStore,
         sendPush: createPushGateway({
           onError: (error) =>
-            options.reportError(error, { "lightcode.feature_area": "remote-push" }),
+            options.reportError(error, { "poracode.feature_area": "remote-push" }),
         }),
         getThreads: () => dbGetThreads(),
         getProjects: () => dbGetProjects(),
@@ -319,8 +319,8 @@ export function createDesktopRemoteAccessController(
       attempt.serverStartPromise = serverStartPromise;
       const info = await serverStartPromise;
       if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
-      console.log("[lightcode] remote access enabled at %s", info.httpBaseUrl);
-      console.log("[lightcode] remote pairing URL: %s", info.pairingUrl);
+      console.log("[poracode] remote access enabled at %s", info.httpBaseUrl);
+      console.log("[poracode] remote pairing URL: %s", info.pairingUrl);
       return info;
     } catch (error) {
       await disposeAttemptServer(attempt).catch(() => {});
@@ -343,8 +343,8 @@ export function createDesktopRemoteAccessController(
 
       const superseded = !isCurrentStartAttempt(attempt);
       if (!superseded) {
-        console.error("[lightcode] remote access failed to start:", toErrorMessage(error));
-        options.reportError(error, { "lightcode.feature_area": "remote-access" });
+        console.error("[poracode] remote access failed to start:", toErrorMessage(error));
+        options.reportError(error, { "poracode.feature_area": "remote-access" });
       }
       throw superseded ? new RemoteAccessStartSupersededError() : error;
     } finally {
@@ -420,9 +420,9 @@ export function createDesktopRemoteAccessController(
     const serverDisposal =
       attempt?.server === server ? disposeAttemptServer(attempt) : server.dispose();
     void serverDisposal
-      .then(() => console.log("[lightcode] remote access disabled"))
+      .then(() => console.log("[poracode] remote access disabled"))
       .catch((error) =>
-        console.warn("[lightcode] remote access failed to stop cleanly:", toErrorMessage(error)),
+        console.warn("[poracode] remote access failed to stop cleanly:", toErrorMessage(error)),
       )
       .finally(() => {
         forwarding?.dispose();

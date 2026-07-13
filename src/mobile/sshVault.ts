@@ -1,5 +1,5 @@
 import { SecureStorage } from "@aparajita/capacitor-secure-storage";
-import type { SshBridgeAuthentication } from "@lightcode/ssh-bridge";
+import type { SshBridgeAuthentication } from "@poracode/ssh-bridge";
 
 const KEY_PREFIX = "remoteSshCredential.";
 

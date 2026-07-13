@@ -252,7 +252,7 @@ export async function dispatchChromeTool(
     }
     case "chrome_eval": {
       if (!ctx.allowEval) {
-        return { error: "chrome_eval is disabled. Enable it in Lightcode browser settings." };
+        return { error: "chrome_eval is disabled. Enable it in Poracode browser settings." };
       }
       const expression = String(payload.js ?? "");
       if (!expression) throw new Error("js required");
@@ -266,7 +266,7 @@ export async function dispatchChromeTool(
       if (!ctx.allowDataAccess) {
         return {
           error:
-            "chrome_cookies is disabled. Enable 'Allow agents to read/write cookies and storage' in Lightcode settings.",
+            "chrome_cookies is disabled. Enable 'Allow agents to read/write cookies and storage' in Poracode settings.",
         };
       }
       const urls = Array.isArray(payload.urls) ? (payload.urls as string[]) : undefined;

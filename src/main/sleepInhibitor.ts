@@ -1,7 +1,7 @@
 import { spawn as nodeSpawn, type ChildProcess } from "node:child_process";
 import { powerSaveBlocker } from "electron";
 
-const LOG_PREFIX = "[lightcode] sleepInhibitor:";
+const LOG_PREFIX = "[poracode] sleepInhibitor:";
 
 export interface SleepInhibitor {
   setActive(active: boolean): void;

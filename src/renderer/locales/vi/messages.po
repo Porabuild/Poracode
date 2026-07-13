@@ -1416,10 +1416,6 @@ msgid "Built-in MCP servers"
 msgstr "Máy chủ MCP tích hợp sẵn"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#~ msgid "Built-in servers are managed by Lightcode. They can be disabled globally but cannot be edited or removed."
-#~ msgstr "Các máy chủ tích hợp sẵn do Lightcode quản lý. Bạn có thể tắt chúng trên toàn hệ thống nhưng không thể chỉnh sửa hoặc xóa."
-
-#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
 msgstr "Các máy chủ tích hợp sẵn do Poracode quản lý. Bạn có thể tắt chúng trên toàn hệ thống nhưng không thể chỉnh sửa hoặc xóa."
 
@@ -2200,10 +2196,6 @@ msgid "Config directory"
 msgstr "Thư mục cấu hình"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
-#~ msgid "Configure the server Lightcode will add when supported agents start."
-#~ msgstr "Cấu hình máy chủ mà Lightcode sẽ thêm khi khởi động các tác nhân được hỗ trợ."
-
-#: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
 msgstr "Cấu hình máy chủ mà Poracode sẽ thêm khi khởi động các tác nhân được hỗ trợ."
 
@@ -2243,8 +2235,8 @@ msgid "Connect desktop"
 msgstr "Kết nối máy tính"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Connect directly, through a relay, or over SSH. Every transport uses the same Lightcode remote protocol, projects, threads, and agent runtimes."
-msgstr "Kết nối trực tiếp, qua trạm chuyển tiếp hoặc qua SSH. Mọi phương thức truyền đều dùng cùng giao thức từ xa Lightcode, dự án, luồng và môi trường chạy tác tử."
+msgid "Connect directly, through a relay, or over SSH. Every transport uses the same Poracode remote protocol, projects, threads, and agent runtimes."
+msgstr "Kết nối trực tiếp, qua trạm chuyển tiếp hoặc qua SSH. Mọi phương thức truyền đều dùng cùng giao thức từ xa Poracode, dự án, luồng và môi trường chạy tác tử."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect over SSH"
@@ -2259,8 +2251,8 @@ msgid "Connect the AI providers OpenCode can use and sign out of them here."
 msgstr "Kết nối các nhà cung cấp AI mà OpenCode có thể dùng và đăng xuất khỏi chúng tại đây."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
-#~ msgstr "Kết nối tới một máy Lightcode khác hoặc máy chủ không giao diện để duyệt và quản lý các dự án của nó tại đây. Lấy endpoint và mã ghép nối trong Cài đặt → Truy cập từ xa trên máy đó."
+#~ msgid "Connect to another Poracode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
+#~ msgstr "Kết nối tới một máy Poracode khác hoặc máy chủ không giao diện để duyệt và quản lý các dự án của nó tại đây. Lấy endpoint và mã ghép nối trong Cài đặt → Truy cập từ xa trên máy đó."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Connected"
@@ -2402,6 +2394,10 @@ msgstr "Sao chép (khuyên dùng)"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Copy {0} device code {1}"
 msgstr "Sao chép {0} mã thiết bị {1}"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
+msgstr "Sao chép toàn bộ dữ liệu Lightcode vào Poracode. Poracode sẽ khởi động lại và giữ một bản sao lưu đầy đủ của dữ liệu hiện tại."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
@@ -2558,6 +2554,10 @@ msgstr "Không thể quét skill của tác tử."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "Không thể quét cấu hình máy chủ MCP."
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Couldn't schedule the Lightcode data import."
+msgstr "Không thể lên lịch nhập dữ liệu Lightcode."
 
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -2952,8 +2952,8 @@ msgid "Dev servers listening on your desktop's localhost."
 msgstr "Máy chủ phát triển đang lắng nghe trên localhost của máy tính bạn."
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
-msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
-msgstr "Ghi đè chỉ dành cho phát triển. Chỉ hiển thị trong bản dựng LIGHTCODE DEV."
+msgid "Development-only overrides. Only visible in the PORACODE DEV build."
+msgstr "Ghi đè chỉ dành cho phát triển. Chỉ hiển thị trong bản dựng PORACODE DEV."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4175,6 +4175,14 @@ msgstr "Hình ảnh"
 msgid "Image preview"
 msgstr "Xem trước hình ảnh"
 
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import again"
+msgstr "Nhập lại"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import and restart"
+msgstr "Nhập và khởi động lại"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import conflict"
 msgstr "Xung đột khi nhập"
@@ -4195,6 +4203,14 @@ msgstr "Nhập skill của tác tử bên ngoài"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import external skills"
 msgstr "Nhập skill bên ngoài"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import Lightcode data"
+msgstr "Nhập dữ liệu Lightcode"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import Lightcode data again?"
+msgstr "Nhập lại dữ liệu Lightcode?"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
@@ -4506,9 +4522,9 @@ msgstr "Tokens trọn đời"
 msgid "Light"
 msgstr "Sáng"
 
-#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
-msgid "Lightcode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
-msgstr "Lightcode và các tác tử chạy trên máy từ xa. SSH chỉ được dùng để khởi động môi trường từ xa và bảo vệ đường hầm cục bộ của môi trường đó."
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Lightcode data import is unavailable with a custom data folder."
+msgstr "Không thể nhập dữ liệu Lightcode khi sử dụng thư mục dữ liệu tùy chỉnh."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Link to source"
@@ -4729,10 +4745,6 @@ msgstr "Quản lý các skill dùng chung trong phạm vi toàn cục và dự �
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage shared skills across Windows, WSL, and projects."
 #~ msgstr "Quản lý các skill dùng chung trên Windows, WSL và các dự án."
-
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
-#~ msgstr "Quản lý cấu hình máy chủ MCP mà Lightcode thêm khi khởi động các tác nhân được hỗ trợ. Máy chủ trong không gian làm việc có thể được cấu hình trong phần cài đặt của từng dự án."
 
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5547,6 +5559,10 @@ msgstr "Không tìm thấy tài khoản GitHub CLI nào. Đăng nhập bằng <0
 msgid "No history yet"
 msgstr "Chưa có lịch sử"
 
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "No Lightcode data was found."
+msgstr "Không tìm thấy dữ liệu Lightcode."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
 msgstr "Không có skill nào trên marketplace khớp với các bộ lọc này."
@@ -6203,8 +6219,8 @@ msgid "Pair again"
 msgstr "Ghép đôi lại"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Pair with Lightcode"
-msgstr "Ghép nối với Lightcode"
+msgid "Pair with Poracode"
+msgstr "Ghép nối với Poracode"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -6396,6 +6412,10 @@ msgstr "Trỏ hồ sơ này tới nhà cung cấp ngoài Anthropic (z.ai, …) v
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "Các chủ đề biên tập phổ biến được điều chỉnh cho phù hợp với Poracode. Mỗi cái đều theo chế độ sáng hoặc tối ở trên."
 
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
+msgstr "Poracode và các tác tử chạy trên máy từ xa. SSH chỉ được dùng để khởi động môi trường từ xa và bảo vệ đường hầm cục bộ của môi trường đó."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode không lưu thông tin xác thực marketplace dưới dạng văn bản thuần trong phần cài đặt. Mở danh mục để duyệt các skill đã được quét bảo mật."
@@ -6409,6 +6429,10 @@ msgstr "Chỉ Poracode"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
 msgstr "Poracode sẽ cài đặt hoặc tái sử dụng máy chủ trên máy SSH và lưu thông tin xác thực trong bộ nhớ bảo mật của thiết bị này."
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
+msgstr "Poracode sẽ khởi động lại, sao lưu dữ liệu hiện tại và thay thế bằng bản sao đầy đủ của dữ liệu Lightcode."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -6602,10 +6626,6 @@ msgstr "Prompt"
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "Kế hoạch đề xuất"
-
-#: src/renderer/components/mcp/McpServersManager.tsx
-#~ msgid "Provided and managed by Lightcode for supported agents."
-#~ msgstr "Do Lightcode cung cấp và quản lý cho các tác nhân được hỗ trợ."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Provided and managed by Poracode for supported agents."
@@ -7538,8 +7558,8 @@ msgid "Scheduled tasks on this desktop"
 msgstr "Tác vụ đã lên lịch trên máy tính này"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-#~ msgid "Scheduled tasks run only while this device is awake and Lightcode is open."
-#~ msgstr "Tác vụ đã lên lịch chỉ chạy khi thiết bị này đang hoạt động và Lightcode đang mở."
+#~ msgid "Scheduled tasks run only while this device is awake and Poracode is open."
+#~ msgstr "Tác vụ đã lên lịch chỉ chạy khi thiết bị này đang hoạt động và Poracode đang mở."
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9572,13 +9592,13 @@ msgstr "Cập nhật nhánh"
 msgid "Update error: {detail}"
 msgstr "Lỗi cập nhật: {detail}"
 
-#: src/mobile/views/PortsView.tsx
-msgid "Update Lightcode on your desktop to use port forwarding."
-msgstr "Cập nhật Lightcode trên máy tính của bạn để sử dụng tính năng chuyển tiếp cổng."
-
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update method"
 msgstr "Phương thức cập nhật"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Update Poracode on your desktop to use port forwarding."
+msgstr "Cập nhật Poracode trên máy tính của bạn để sử dụng tính năng chuyển tiếp cổng."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"

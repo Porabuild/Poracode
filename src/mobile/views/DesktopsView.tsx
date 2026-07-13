@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Input, Label, Tabs, TextArea, TextField, toast } from "@heroui/react";
-import type { SshBridgeAuthentication } from "@lightcode/ssh-bridge";
+import type { SshBridgeAuthentication } from "@poracode/ssh-bridge";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
   Check,

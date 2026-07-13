@@ -1,4 +1,4 @@
-import { SshBridge, type SshBridgeAuthentication } from "@lightcode/ssh-bridge";
+import { SshBridge, type SshBridgeAuthentication } from "@poracode/ssh-bridge";
 import {
   bootstrapRemoteRuntime,
   issueRemotePairingCredential,
@@ -22,7 +22,7 @@ let manifestPromise: Promise<RuntimeManifest> | null = null;
 let archivePromise: Promise<string> | null = null;
 
 function runtimeBaseUrl(): URL {
-  return new URL("./lightcode-ssh-runtime/", document.baseURI);
+  return new URL("./poracode-ssh-runtime/", document.baseURI);
 }
 
 async function loadManifest(): Promise<RuntimeManifest> {

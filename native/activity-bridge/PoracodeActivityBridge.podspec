@@ -7,7 +7,7 @@ package = JSON.parse(File.read(File.join(__dir__, 'package.json')))
 # The Swift Package Manager path lives in Package.swift; both compile the same
 # sources under ios/Sources.
 Pod::Spec.new do |s|
-  s.name = 'LightcodeActivityBridge'
+  s.name = 'PoracodeActivityBridge'
   s.version = package['version']
   s.summary = package['description']
   s.license = package['license']

@@ -364,14 +364,14 @@ describe("ACP resource path helpers", () => {
 
 describe("ACP client protocol helpers", () => {
   beforeEach(() => {
-    delete process.env.LIGHTCODE_BROWSER_MCP_URL;
-    delete process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
+    delete process.env.PORACODE_BROWSER_MCP_URL;
+    delete process.env.PORACODE_BROWSER_MCP_TOKEN;
   });
 
   const HOST_KIND: "windows" | "posix" = process.platform === "win32" ? "windows" : "posix";
 
   function makePosixProject() {
-    const root = mkdtempSync(join(tmpdir(), "lightcode-acp-"));
+    const root = mkdtempSync(join(tmpdir(), "poracode-acp-"));
     tempDirs.push(root);
     return root;
   }
@@ -653,8 +653,8 @@ describe("ACP client protocol helpers", () => {
   });
 
   it("passes selected Browser MCP to ACP session open calls", async () => {
-    process.env.LIGHTCODE_BROWSER_MCP_URL = "http://127.0.0.1:9123";
-    process.env.LIGHTCODE_BROWSER_MCP_TOKEN = "secret-token";
+    process.env.PORACODE_BROWSER_MCP_URL = "http://127.0.0.1:9123";
+    process.env.PORACODE_BROWSER_MCP_TOKEN = "secret-token";
     const mcpServers = [
       {
         type: "http",
@@ -785,8 +785,8 @@ describe("ACP client protocol helpers", () => {
   });
 
   it("appends both browser and subagents MCP servers when both are selected", async () => {
-    process.env.LIGHTCODE_BROWSER_MCP_URL = "http://127.0.0.1:9123";
-    process.env.LIGHTCODE_BROWSER_MCP_TOKEN = "secret-token";
+    process.env.PORACODE_BROWSER_MCP_URL = "http://127.0.0.1:9123";
+    process.env.PORACODE_BROWSER_MCP_TOKEN = "secret-token";
     const { connection, session } = makeConfigSyncSession();
     (session as unknown as Record<string, unknown>)["subagentMcp"] = {
       url: "http://127.0.0.1:9200/mcp",

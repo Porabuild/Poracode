@@ -608,7 +608,7 @@ describe("OpencodeSdkSession", () => {
 
     expect(create).toHaveBeenCalledWith({
       directory: "/repo",
-      title: "lightcode/thread-o",
+      title: "poracode/thread-o",
     });
   });
 
@@ -639,7 +639,7 @@ describe("OpencodeSdkSession", () => {
 
     expect(create).toHaveBeenCalledWith({
       directory: "/repo",
-      title: "lightcode/thread-o",
+      title: "poracode/thread-o",
       permission: [{ permission: "*", pattern: "*", action: "allow" }],
     });
   });

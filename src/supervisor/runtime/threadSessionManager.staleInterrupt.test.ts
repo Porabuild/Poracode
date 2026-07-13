@@ -117,7 +117,7 @@ function createManager(adapter: AgentAdapter): {
   manager: ThreadSessionManager;
   events: SupervisorEvent[];
 } {
-  const tempDir = mkdtempSync(join(tmpdir(), "lightcode-stale-interrupt-"));
+  const tempDir = mkdtempSync(join(tmpdir(), "poracode-stale-interrupt-"));
   tempDirs.push(tempDir);
   const events: SupervisorEvent[] = [];
   const manager = new ThreadSessionManager({

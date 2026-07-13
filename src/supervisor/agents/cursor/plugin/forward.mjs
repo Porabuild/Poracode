@@ -4,7 +4,7 @@
  * non-blocking response on stdout (`{}` for audit hooks, `{"continue":true}`
  * for beforeSubmitPrompt) so the agent loop never stalls.
  *
- * Generic plumbing lives in the shared `lightcode-hook-runtime.mjs` sibling.
+ * Generic plumbing lives in the shared `poracode-hook-runtime.mjs` sibling.
  * NOTE: the intent map below mirrors `intentMap.ts` — keep both in sync.
  */
 
@@ -12,7 +12,7 @@ import {
   copyStringExtra,
   readPluginVersionFromManifest,
   runForwarder,
-} from "./lightcode-hook-runtime.mjs";
+} from "./poracode-hook-runtime.mjs";
 
 const PLUGIN_VERSION = readPluginVersionFromManifest(import.meta.url);
 

@@ -1,7 +1,7 @@
 import { dbGetState, dbSetState } from "../db";
 import { BrowserWindow, screen, type RenderProcessGoneDetails } from "electron";
-import type { LightcodeChannel } from "@/shared/channel";
-import type { LightcodeWindowKind } from "@/shared/ipc";
+import type { PoracodeChannel } from "@/shared/channel";
+import type { PoracodeWindowKind } from "@/shared/ipc";
 import { installSessionPermissions } from "../browser/permissions";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "./windowMaterial";
 import {
@@ -54,14 +54,14 @@ function saveWindowBounds(window: BrowserWindow, stateKey: string): void {
 
 export interface CreateMainWindowOptions {
   title: string;
-  windowKind?: LightcodeWindowKind;
+  windowKind?: PoracodeWindowKind;
   boundsStateKey?: string | null;
   defaultWidth?: number;
   defaultHeight?: number;
   minWidth?: number;
   minHeight?: number;
   isDev: boolean;
-  channel: LightcodeChannel;
+  channel: PoracodeChannel;
   preloadPath: string;
   rendererHtmlPath: string;
   appVersion: string;

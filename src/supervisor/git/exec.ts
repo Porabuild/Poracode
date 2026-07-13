@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join, normalize, posix, win32 } from "node:path";
 import { promisify } from "node:util";
 import type { GitRemoteInfo, ProjectLocation, RemoteHostPlatform } from "@/shared/contracts";
-import { resolveLightcodePaths } from "@/shared/lightcodePaths";
+import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { attachErrorDetails, errorDetail, msg } from "@/shared/messages";
 import { getProjectName } from "@/shared/wsl";
 import { sanitizeWorktreeBranchName, sanitizeWorktreePathSegment } from "@/shared/worktree";
@@ -241,7 +241,7 @@ export async function resolveBuiltInWorktreeRoot(location: ProjectLocation): Pro
     const homePath = await resolveWslHomeDirectory(location.distro);
     return posix.join(homePath, ".poracode", "worktrees");
   }
-  return resolveLightcodePaths(join(homedir(), ".poracode")).worktreesDir;
+  return resolvePoracodePaths(join(homedir(), ".poracode")).worktreesDir;
 }
 
 export async function computeDefaultWorktreePath(

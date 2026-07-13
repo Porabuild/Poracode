@@ -379,7 +379,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       isDisabled={(isDisabled ?? false) || providers.length === 0}
       size="sm"
       variant="ghost"
-      className="lightcode-composer-menu min-w-0 px-2.5"
+      className="poracode-composer-menu min-w-0 px-2.5"
       {...(mobile ? { onPress: () => handleOpenChange(true) } : {})}
     >
       <ProviderIcon
@@ -392,7 +392,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         data-collapse-tier={collapseTier}
         className={
           hideLabelOnWrap
-            ? `lightcode-composer-label-hideable flex min-w-0 flex-col items-start justify-center gap-0.5${forceHideLabel ? " is-hidden" : ""}`
+            ? `poracode-composer-label-hideable flex min-w-0 flex-col items-start justify-center gap-0.5${forceHideLabel ? " is-hidden" : ""}`
             : "flex min-w-0 flex-col items-start justify-center gap-0.5"
         }
       >
@@ -409,7 +409,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         data-collapse-tier={collapseTier}
         className={
           hideLabelOnWrap
-            ? `lightcode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`
+            ? `poracode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`
             : "size-3.5 text-muted"
         }
       />
@@ -418,7 +418,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
 
   const renderContent = ({ expanded }: { readonly expanded: boolean }) => (
     <>
-      <div className="lightcode-model-menu-search flex items-center gap-2 border-b border-border px-3 py-2">
+      <div className="poracode-model-menu-search flex items-center gap-2 border-b border-border px-3 py-2">
         <Search className="size-3.5 shrink-0 text-muted" />
         <input
           ref={searchRef}
@@ -662,7 +662,7 @@ function WindowedProviderModelList(props: {
       aria-activedescendant={
         activeIndex >= 0 ? `${domIdPrefix}-${items[activeIndex]?.id}` : undefined
       }
-      className={`lightcode-model-menu-listbox no-scrollbar overflow-y-auto pb-1.5 outline-none ${
+      className={`poracode-model-menu-listbox no-scrollbar overflow-y-auto pb-1.5 outline-none ${
         mobileExpanded ? "max-h-none" : "max-h-72"
       }`}
       style={{ height: viewportHeight }}
@@ -760,7 +760,7 @@ function WindowedProviderModelList(props: {
             role="option"
             aria-selected={isSelected}
             data-active={isActive ? "true" : undefined}
-            className="lightcode-menu-item group mx-1.5 flex cursor-default items-center text-foreground"
+            className="poracode-menu-item group mx-1.5 flex cursor-default items-center text-foreground"
             style={{ height: modelRowHeight }}
             onPointerMove={(event) => {
               if (ignorePointerRef.current) return;

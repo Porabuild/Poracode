@@ -14,7 +14,7 @@ const port = Number(args.port ?? 9222);
 const scope = String(args.scope ?? "changed");
 const mode = String(args.mode ?? "mock");
 const root = resolve(
-  String(args.root ?? join(homedir(), ".lightcode-smoke", `automated-${Date.now()}`)),
+  String(args.root ?? join(homedir(), ".poracode-smoke", `automated-${Date.now()}`)),
 );
 const outDir = resolve(String(args.outDir ?? join(root, "artifacts")));
 const dataDir = join(root, "data");
@@ -24,11 +24,11 @@ const roamingAppDataDir = join(root, "roaming-app-data");
 const projectDir = join(root, "project");
 const integrationScript = join(
   repoRoot,
-  ".agents/skills/interactive-testing/scripts/lightcode-integration-smoke.mjs",
+  ".agents/skills/interactive-testing/scripts/poracode-integration-smoke.mjs",
 );
 const seedScript = join(
   repoRoot,
-  ".agents/skills/interactive-testing/scripts/seed-lightcode-smoke-db.mjs",
+  ".agents/skills/interactive-testing/scripts/seed-poracode-smoke-db.mjs",
 );
 
 let appProcess;
@@ -43,9 +43,9 @@ try {
     cwd: repoRoot,
     env: {
       ...process.env,
-      LIGHTCODE_CDP_PORT: String(port),
-      LIGHTCODE_BASE_DIR: dataDir,
-      LIGHTCODE_SMOKE_OUT_DIR: outDir,
+      PORACODE_CDP_PORT: String(port),
+      PORACODE_BASE_DIR: dataDir,
+      PORACODE_SMOKE_OUT_DIR: outDir,
       HOME: homeDir,
       USERPROFILE: homeDir,
       LOCALAPPDATA: localAppDataDir,
@@ -57,9 +57,7 @@ try {
   });
   appProcess.on("exit", (code, signal) => {
     if (code !== null && code !== 0 && process.exitCode === undefined) {
-      console.error(
-        `Lightcode dev process exited with code ${code}${signal ? ` (${signal})` : ""}`,
-      );
+      console.error(`Poracode dev process exited with code ${code}${signal ? ` (${signal})` : ""}`);
     }
   });
 
@@ -133,7 +131,7 @@ async function createFixture() {
   await mkdir(externalSkillDir, { recursive: true });
   await mkdir(globalManagedSkillDir, { recursive: true });
   await mkdir(globalExternalSkillDir, { recursive: true });
-  await writeFile(join(projectDir, "README.md"), "# Lightcode smoke fixture\n");
+  await writeFile(join(projectDir, "README.md"), "# Poracode smoke fixture\n");
   await writeFile(join(projectDir, "hello.txt"), "fixture data\n");
   await writeFile(
     join(managedSkillDir, "SKILL.md"),
@@ -169,9 +167,9 @@ async function createFixture() {
     "git",
     [
       "-c",
-      "user.name=Lightcode Smoke",
+      "user.name=Poracode Smoke",
       "-c",
-      "user.email=smoke@lightcode.local",
+      "user.email=smoke@poracode.local",
       "commit",
       "-qm",
       "initial fixture",
@@ -219,7 +217,7 @@ async function waitForAppTarget(portNumber, timeoutMs) {
     }
     await new Promise((done) => setTimeout(done, 500));
   }
-  throw new Error(`timed out waiting for Lightcode CDP target on port ${portNumber}`);
+  throw new Error(`timed out waiting for Poracode CDP target on port ${portNumber}`);
 }
 
 async function stopProcess(child) {

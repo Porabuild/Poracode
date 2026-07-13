@@ -178,7 +178,11 @@ export async function handleHttp(
       }
       return sessionPort;
     };
-    if (req.method === "GET" && url.pathname === "/.well-known/lightcode/environment") {
+    if (
+      req.method === "GET" &&
+      (url.pathname === "/.well-known/poracode/environment" ||
+        url.pathname === "/.well-known/lightcode/environment")
+    ) {
       writeJson(res, 200, descriptor(ctx));
       return;
     }

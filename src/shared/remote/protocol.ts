@@ -13,7 +13,7 @@ import {
 import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc/schemas";
 import { sharedSettingsSchema } from "../settings";
 
-export const LIGHTCODE_REMOTE_PROTOCOL_VERSION = 1;
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 1;
 
 export const remoteAccessScopeSchema = z.enum([
   "session:read",
@@ -75,7 +75,7 @@ export const remoteClientMetadataSchema = z.object({
 export type RemoteClientMetadata = z.infer<typeof remoteClientMetadataSchema>;
 
 export const remoteEnvironmentDescriptorSchema = z.object({
-  protocolVersion: z.literal(LIGHTCODE_REMOTE_PROTOCOL_VERSION),
+  protocolVersion: z.literal(PORACODE_REMOTE_PROTOCOL_VERSION),
   desktopId: z.string().min(1),
   label: z.string().min(1),
   appVersion: z.string().min(1),

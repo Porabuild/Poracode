@@ -40,7 +40,7 @@ import {
  * merged install runs headlessly.
  *
  * Poracode-managed entries are tagged by the staged command path
- * (`LIGHTCODE_FORWARD_RE`) and pruned/replaced on every reinstall and removed
+ * (`PORACODE_FORWARD_RE`) and pruned/replaced on every reinstall and removed
  * on uninstall, so the user's own hooks are never clobbered.
  */
 
@@ -68,10 +68,12 @@ const COMMANDCODE_HOOK_SPECS: ReadonlyArray<CommandCodeHookSpec> = [
 /**
  * Match any Poracode-staged Command Code hook command. Covers both the WSL
  * shape (`forward.mjs` invoked via absolute node path) and native
- * (`lightcode-hook.{sh,cmd,ps1}` wrapper).
+ * (`poracode-hook.{sh,cmd,ps1}` wrapper).
  */
-const LIGHTCODE_FORWARD_RE =
-  /agent-plugins(?:[/\\]+)commandcode(?:[/\\]+)(?:forward\.mjs|lightcode-hook\.(?:sh|cmd|ps1))/;
+const PORACODE_FORWARD_RE =
+  /agent-plugins(?:[/\\]+)commandcode(?:[/\\]+)(?:forward\.mjs|poracode-hook\.(?:sh|cmd|ps1))/;
+const MANAGED_FORWARD_RE =
+  /agent-plugins(?:[/\\]+)commandcode(?:[/\\]+)(?:forward\.mjs|(?:poracode|lightcode)-hook\.(?:sh|cmd|ps1))/;
 
 const callerDir =
   typeof __dirname !== "undefined"
@@ -80,7 +82,7 @@ const callerDir =
 
 const resolveSourceDir = createPluginSourceResolver({
   kind: "commandcode",
-  sourceEnvVar: "LIGHTCODE_COMMANDCODE_PLUGIN_SOURCE",
+  sourceEnvVar: "PORACODE_COMMANDCODE_PLUGIN_SOURCE",
   callerDir,
 });
 
@@ -125,7 +127,7 @@ function asObject(value: unknown): Record<string, unknown> {
 }
 
 /** True when a hook entry's nested `hooks[].command` points at our staged forwarder. */
-function entryIsLightcodeManaged(entry: unknown): boolean {
+function entryMatchesForwarder(entry: unknown, pattern: RegExp): boolean {
   if (!entry || typeof entry !== "object") return false;
   const hooks = (entry as { hooks?: unknown }).hooks;
   if (!Array.isArray(hooks)) return false;
@@ -134,17 +136,17 @@ function entryIsLightcodeManaged(entry: unknown): boolean {
       h &&
       typeof h === "object" &&
       typeof (h as { command?: unknown }).command === "string" &&
-      LIGHTCODE_FORWARD_RE.test((h as { command: string }).command),
+      pattern.test((h as { command: string }).command),
   );
 }
 
-function pruneLightcodeEntries(entries: unknown): unknown[] {
+function prunePoracodeEntries(entries: unknown): unknown[] {
   if (!Array.isArray(entries)) return [];
-  return entries.filter((entry) => !entryIsLightcodeManaged(entry));
+  return entries.filter((entry) => !entryMatchesForwarder(entry, MANAGED_FORWARD_RE));
 }
 
 /** Command Code's nested hook entry: `{ hooks: [{ type: "command", command }] }`. */
-function buildLightcodeEntry(
+function buildPoracodeEntry(
   spec: CommandCodeHookSpec,
   commandHead: string,
 ): Record<string, unknown> {
@@ -163,8 +165,8 @@ export function mergeCommandCodeSettings(
   const settings = asObject(existingParsed);
   const hooksRoot = asObject(settings.hooks);
   for (const spec of COMMANDCODE_HOOK_SPECS) {
-    const pruned = pruneLightcodeEntries(hooksRoot[spec.event]);
-    pruned.push(buildLightcodeEntry(spec, commandHead));
+    const pruned = prunePoracodeEntries(hooksRoot[spec.event]);
+    pruned.push(buildPoracodeEntry(spec, commandHead));
     hooksRoot[spec.event] = pruned;
   }
   settings.hooks = hooksRoot;
@@ -179,7 +181,7 @@ export function removeCommandCodeHooks(existingParsed: unknown): Record<string, 
   const settings = asObject(existingParsed);
   const hooksRoot = asObject(settings.hooks);
   for (const spec of COMMANDCODE_HOOK_SPECS) {
-    const pruned = pruneLightcodeEntries(hooksRoot[spec.event]);
+    const pruned = prunePoracodeEntries(hooksRoot[spec.event]);
     if (pruned.length > 0) hooksRoot[spec.event] = pruned;
     else delete hooksRoot[spec.event];
   }
@@ -366,7 +368,7 @@ export function uninstallCommandCodePlugin(ctx?: AgentEnvContext): void {
   removeStagedPluginDir("commandcode", ctx);
 }
 
-function settingsJsonHasLightcodeEntry(settingsPath: string): boolean {
+function settingsJsonHasPoracodeEntry(settingsPath: string): boolean {
   if (!existsSync(settingsPath)) return false;
   try {
     const doc = JSON.parse(readFileSync(settingsPath, "utf8")) as {
@@ -376,7 +378,7 @@ function settingsJsonHasLightcodeEntry(settingsPath: string): boolean {
     for (const spec of COMMANDCODE_HOOK_SPECS) {
       const entries = doc.hooks[spec.event];
       if (!Array.isArray(entries)) continue;
-      if (entries.some(entryIsLightcodeManaged)) return true;
+      if (entries.some((entry) => entryMatchesForwarder(entry, PORACODE_FORWARD_RE))) return true;
     }
     return false;
   } catch {
@@ -393,6 +395,6 @@ function verifyCommandCodeInstallAt(
 ): { installed: boolean; version?: string } {
   return verifyStagedPluginAt(readableDir, target, {
     assets: COMMANDCODE_VERIFY_ASSETS,
-    extraCheck: () => settingsJsonHasLightcodeEntry(settingsPath),
+    extraCheck: () => settingsJsonHasPoracodeEntry(settingsPath),
   });
 }

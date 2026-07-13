@@ -122,7 +122,7 @@ describe("ChatPane", () => {
     vi.useRealTimers();
     MockResizeObserver.reset();
     localStorage.clear();
-    Reflect.deleteProperty(window, "lightcode");
+    Reflect.deleteProperty(window, "poracode");
     useAppStore.setState((state) => ({
       ...state,
       projects: [],
@@ -785,7 +785,7 @@ describe("ChatPane", () => {
 
   it("shows the requested command in expanded command accordions", async () => {
     const thread = makeThread();
-    const command = String.raw`cd C:\Users\sdsle\work\lightcode && "C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.1.0_x64__8wekyb3d8bbwe\pwsh.exe" -Command 'git status --short'`;
+    const command = String.raw`cd C:\Users\sdsle\work\poracode && "C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.1.0_x64__8wekyb3d8bbwe\pwsh.exe" -Command 'git status --short'`;
     seedCommandItem(thread.id, "cmd-1", command, "status output");
 
     renderChatPane(thread);
@@ -842,12 +842,10 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     expect(
-      view.container.querySelectorAll(
-        '[data-lightcode-shimmer-text="Agent · protocol specialist"]',
-      ),
+      view.container.querySelectorAll('[data-poracode-shimmer-text="Agent · protocol specialist"]'),
     ).toHaveLength(1);
     expect(view.container.textContent).not.toContain("specialist·5 steps");
-    expect(view.container.querySelector(".lightcode-pixel-loader")).toBeNull();
+    expect(view.container.querySelector(".poracode-pixel-loader")).toBeNull();
     expect(view.container.querySelector(".lucide-chevron-right")).toHaveClass(
       "[@media(hover:hover)]:opacity-0",
       "[@media(hover:hover)]:group-hover:opacity-100",
@@ -1044,7 +1042,7 @@ describe("ChatPane", () => {
     const openExternal = vi
       .fn<(href: string) => Promise<void>>()
       .mockRejectedValue(new Error("open failed"));
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
         openExternal,
@@ -1308,7 +1306,7 @@ describe("ChatPane", () => {
       useAppStore.getState().upsertThreadFileCheckpoint(thread.id, {
         threadId: thread.id,
         checkpointItemId: "user-1",
-        ref: "refs/lightcode/checkpoints/thread/user-1",
+        ref: "refs/poracode/checkpoints/thread/user-1",
         commit: "abc123",
         capturedAt: "2026-05-01T12:00:00.000Z",
       });
@@ -1328,7 +1326,7 @@ describe("ChatPane", () => {
     const thread = { ...makeThread(), status: "idle" as const };
     const rollbackThreadConversation = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     Object.assign(window, {
-      lightcode: {
+      poracode: {
         rollbackThreadConversation,
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -1344,7 +1342,7 @@ describe("ChatPane", () => {
     const buttons = screen.getAllByRole("button", { name: "Revert to this checkpoint" });
     expect(buttons).toHaveLength(1);
     expect(screen.getByText("Follow-up prompt").closest(".surface")).toContainElement(buttons[0]!);
-    expect(buttons[0]!.closest(".lightcode-message-action-strip")).not.toBeNull();
+    expect(buttons[0]!.closest(".poracode-message-action-strip")).not.toBeNull();
 
     fireEvent.click(buttons[0]!);
     expect(await screen.findByText("Revert to checkpoint?")).toBeInTheDocument();
@@ -1370,7 +1368,7 @@ describe("ChatPane", () => {
     const thread = { ...makeThread(), status: "idle" as const };
     const rollbackThreadConversation = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     Object.assign(window, {
-      lightcode: {
+      poracode: {
         rollbackThreadConversation,
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -1410,7 +1408,7 @@ describe("ChatPane", () => {
   it("continues local checkpoint revert when provider rollback fails", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
     Object.assign(window, {
-      lightcode: {
+      poracode: {
         rollbackThreadConversation: vi
           .fn<() => Promise<void>>()
           .mockRejectedValue(new Error("Codex does not support checkpoint rollback.")),
@@ -1487,7 +1485,7 @@ describe("ChatPane", () => {
     fireEvent.click(screen.getByRole("button", { name: "Revert" }));
 
     await waitFor(() =>
-      expect(localStorage.getItem("lightcode-chat-checkpoint-revert-skip-confirm")).toBe("1"),
+      expect(localStorage.getItem("poracode-chat-checkpoint-revert-skip-confirm")).toBe("1"),
     );
 
     act(() => {

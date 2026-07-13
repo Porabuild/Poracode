@@ -16,7 +16,7 @@ import { InlineNameInput } from "./InlineNameInput";
 import { InlineDraftRow } from "./InlineDraftRow";
 import type { TreeDraftState } from "./useProjectTree";
 
-const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
+const COMPOSER_FILE_DRAG_TYPE = "application/poracode-composer-file";
 
 export function TreeEntryRow(props: {
   entry: ProjectTreeEntry;
@@ -126,7 +126,7 @@ export function TreeEntryRow(props: {
           }}
           onDragStart={(event) => {
             event.dataTransfer.setData(
-              "application/lightcode-project-tree",
+              "application/poracode-project-tree",
               JSON.stringify({ path: entry.path, type: entry.type }),
             );
             if (!isDirectory) {
@@ -152,7 +152,7 @@ export function TreeEntryRow(props: {
             if (!isDirectory) return;
             event.preventDefault();
             useProjectTreeStore.getState().setDropTargetPath(null);
-            const payload = event.dataTransfer.getData("application/lightcode-project-tree");
+            const payload = event.dataTransfer.getData("application/poracode-project-tree");
             if (!payload) return;
             try {
               const { path } = JSON.parse(payload) as { path: string };

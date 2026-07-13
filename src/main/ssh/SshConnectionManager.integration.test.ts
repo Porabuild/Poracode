@@ -7,15 +7,15 @@ import { REMOTE_STANDARD_SCOPES } from "@/shared/remote";
 import { RemoteDesktopClient } from "@/shared/remote/client";
 import { SshConnectionManager } from "./SshConnectionManager";
 
-const target = process.env.LIGHTCODE_SSH_E2E_TARGET;
-const identityFile = process.env.LIGHTCODE_SSH_E2E_IDENTITY;
-const port = Number(process.env.LIGHTCODE_SSH_E2E_PORT ?? "22");
-const runAgent = process.env.LIGHTCODE_SSH_E2E_AGENT === "1";
-const agentProjectPath = process.env.LIGHTCODE_SSH_E2E_PROJECT;
+const target = process.env.PORACODE_SSH_E2E_TARGET;
+const identityFile = process.env.PORACODE_SSH_E2E_IDENTITY;
+const port = Number(process.env.PORACODE_SSH_E2E_PORT ?? "22");
+const runAgent = process.env.PORACODE_SSH_E2E_AGENT === "1";
+const agentProjectPath = process.env.PORACODE_SSH_E2E_PROJECT;
 
 describe.skipIf(!target || !identityFile)("SshConnectionManager real SSH", () => {
   const root = resolve(import.meta.dirname, "../../..");
-  const cacheDir = join(tmpdir(), "lightcode-ssh-e2e-runtime-bundles");
+  const cacheDir = join(tmpdir(), "poracode-ssh-e2e-runtime-bundles");
   mkdirSync(cacheDir, { recursive: true });
   const manager = new SshConnectionManager({
     mainBundleDir: join(root, "dist", "main"),
@@ -34,7 +34,7 @@ describe.skipIf(!target || !identityFile)("SshConnectionManager real SSH", () =>
     async () => {
       const connection = {
         id: crypto.randomUUID(),
-        label: "Lightcode SSH E2E",
+        label: "Poracode SSH E2E",
         target: target!,
         port,
         identityFile: identityFile!,
@@ -122,12 +122,12 @@ describe.skipIf(!target || !identityFile)("SshConnectionManager real SSH", () =>
       ).toBeDefined();
       expect(
         agentProjectPath,
-        "LIGHTCODE_SSH_E2E_PROJECT is required for the agent probe",
+        "PORACODE_SSH_E2E_PROJECT is required for the agent probe",
       ).toBeTruthy();
       const projectResult = await client.projectCommand({
         kind: "add-existing",
         path: agentProjectPath!,
-        name: "Lightcode SSH E2E",
+        name: "Poracode SSH E2E",
       });
       const project = projectResult.project;
       expect(project).toBeDefined();

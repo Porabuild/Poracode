@@ -32,7 +32,7 @@ import {
  *   1. **Plugin staging** under `~/.poracode/agent-plugins/copilot/` — copies
  *      `forward.mjs` + `plugin.json` + the shared forwarder runtime + the
  *      native wrapper script. Same shape as Claude/Codex/Gemini.
- *   2. **Global hook config** at `${COPILOT_HOME ?? ~/.copilot}/hooks/lightcode-status.json`.
+ *   2. **Global hook config** at `${COPILOT_HOME ?? ~/.copilot}/hooks/poracode-status.json`.
  *      Copilot CLI loads this at every session regardless of cwd. Done at
  *      install time, not per-spawn — no per-project file is written.
  *
@@ -62,7 +62,8 @@ const COPILOT_HOOK_EVENTS = [
   "errorOccurred",
 ] as const;
 
-const GLOBAL_HOOK_FILENAME = "lightcode-status.json";
+const GLOBAL_HOOK_FILENAME = "poracode-status.json";
+const LEGACY_GLOBAL_HOOK_FILENAME = "lightcode-status.json";
 const GLOBAL_HOOK_DIR_NAME = "hooks";
 const HOOK_TIMEOUT_SEC = 5;
 
@@ -73,7 +74,7 @@ const callerDir =
 
 const resolveSourceDir = createPluginSourceResolver({
   kind: "copilot",
-  sourceEnvVar: "LIGHTCODE_COPILOT_PLUGIN_SOURCE",
+  sourceEnvVar: "PORACODE_COPILOT_PLUGIN_SOURCE",
   callerDir,
 });
 
@@ -218,6 +219,7 @@ export function installCopilotPlugin(
       : {}),
   });
   if (!writeResult.ok) return writeResult;
+  removeHookFile(join(globalCopilotDir, GLOBAL_HOOK_DIR_NAME, LEGACY_GLOBAL_HOOK_FILENAME));
 
   console.log(
     [
@@ -260,6 +262,12 @@ function installCopilotPluginWsl(
       reason: `failed to write Copilot hook file at ${linuxHookFilePath} in wsl distro ${distro}: ${writeResult.reason}`,
     };
   }
+  removeHookFile(
+    toWslUncPath(
+      distro,
+      `${linuxCopilotDir}/${GLOBAL_HOOK_DIR_NAME}/${LEGACY_GLOBAL_HOOK_FILENAME}`,
+    ),
+  );
 
   console.log(
     [
@@ -306,18 +314,20 @@ export function isCopilotPluginInstalled(ctx?: AgentEnvContext): {
 }
 
 export function uninstallCopilotPlugin(ctx?: AgentEnvContext): void {
-  const hookFile = isWslPluginContext(ctx)
-    ? toWslUncPath(
-        ctx.wslDistro,
-        `${wslGlobalCopilotDir(ctx.wslDistro)}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`,
-      )
-    : join(nativeGlobalCopilotDir(), GLOBAL_HOOK_DIR_NAME, GLOBAL_HOOK_FILENAME);
-  try {
-    if (existsSync(hookFile)) unlinkSync(hookFile);
-  } catch {
-    // best-effort uninstall
-  }
+  const hookDir = isWslPluginContext(ctx)
+    ? toWslUncPath(ctx.wslDistro, `${wslGlobalCopilotDir(ctx.wslDistro)}/${GLOBAL_HOOK_DIR_NAME}`)
+    : join(nativeGlobalCopilotDir(), GLOBAL_HOOK_DIR_NAME);
+  removeHookFile(join(hookDir, GLOBAL_HOOK_FILENAME));
+  removeHookFile(join(hookDir, LEGACY_GLOBAL_HOOK_FILENAME));
   removeStagedPluginDir("copilot", ctx);
+}
+
+function removeHookFile(path: string): void {
+  try {
+    if (existsSync(path)) unlinkSync(path);
+  } catch {
+    // best-effort cleanup
+  }
 }
 
 // ── Hook config rendering / write ─────────────────────────────────────────

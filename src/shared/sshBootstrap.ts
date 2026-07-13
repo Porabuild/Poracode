@@ -32,7 +32,7 @@ export interface RemoteRuntimeTransport {
 
 /** Upload destination consumed by INSTALL_REMOTE_RUNTIME_SCRIPT. */
 export function remoteRuntimeUploadPath(hash: string): string {
-  return `.lightcode/ssh/uploads/${hash}.tar.gz`;
+  return `.poracode/ssh/uploads/${hash}.tar.gz`;
 }
 
 /**
@@ -83,7 +83,7 @@ export async function waitForRemoteEndpoint(
   let lastError: unknown;
   while (Date.now() < deadline) {
     try {
-      const response = await fetchImpl(new URL(".well-known/lightcode/environment", endpoint), {
+      const response = await fetchImpl(new URL(".well-known/poracode/environment", endpoint), {
         signal: AbortSignal.timeout(1_000),
       });
       if (response.ok) return;

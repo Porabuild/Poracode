@@ -333,7 +333,7 @@ describe("readWorkflowRun transcript-dir fallback", () => {
         message: {
           role: "user",
           content:
-            "You are reviewing the UNCOMMITTED changes in the git repo at C:/Users/sdsle/work/lightcode (branch master).\nGet the diff with: git -C C:/Users/sdsle/work/lightcode diff HEAD\nThe changes touch a workflow-transcript reader/display feature (src/supervisor/workflows/transcriptReader.ts, renderer workflow run store/overlay, shared contracts).\nRead the surrounding code as needed to judge correctness, not just the diff hunks.\n\nFocus: shared contract / IPC schema changes (workflowTranscript.ts, schemas.ts). Are new fields validated, optional vs required correct, renderer and supervisor in agreement, backward compatible with old transcripts?",
+            "You are reviewing the UNCOMMITTED changes in the git repo at C:/Users/sdsle/work/poracode (branch master).\nGet the diff with: git -C C:/Users/sdsle/work/poracode diff HEAD\nThe changes touch a workflow-transcript reader/display feature (src/supervisor/workflows/transcriptReader.ts, renderer workflow run store/overlay, shared contracts).\nRead the surrounding code as needed to judge correctness, not just the diff hunks.\n\nFocus: shared contract / IPC schema changes (workflowTranscript.ts, schemas.ts). Are new fields validated, optional vs required correct, renderer and supervisor in agreement, backward compatible with old transcripts?",
         },
       }),
     );
@@ -344,7 +344,7 @@ describe("readWorkflowRun transcript-dir fallback", () => {
         message: {
           role: "user",
           content:
-            "You are reviewing the UNCOMMITTED changes in the git repo at C:/Users/sdsle/work/lightcode (branch master).\nGet the diff with: git -C C:/Users/sdsle/work/lightcode diff HEAD\nThe changes touch a workflow-transcript reader/display feature (src/supervisor/workflows/transcriptReader.ts, renderer workflow run store/overlay, shared contracts).\nRead the surrounding code as needed to judge correctness, not just the diff hunks.\n\nA reviewer claims this issue. Adversarially verify it by reading the actual code. Default to isReal=false unless you can confirm it from the code.\n\nTitle: applyWorkflowPlan matches transcript agents to planned agents by positional index, but transcript order is non-deterministic\nFile: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx:428\nDetail: Check it.",
+            "You are reviewing the UNCOMMITTED changes in the git repo at C:/Users/sdsle/work/poracode (branch master).\nGet the diff with: git -C C:/Users/sdsle/work/poracode diff HEAD\nThe changes touch a workflow-transcript reader/display feature (src/supervisor/workflows/transcriptReader.ts, renderer workflow run store/overlay, shared contracts).\nRead the surrounding code as needed to judge correctness, not just the diff hunks.\n\nA reviewer claims this issue. Adversarially verify it by reading the actual code. Default to isReal=false unless you can confirm it from the code.\n\nTitle: applyWorkflowPlan matches transcript agents to planned agents by positional index, but transcript order is non-deterministic\nFile: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx:428\nDetail: Check it.",
         },
       }),
     );

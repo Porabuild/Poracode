@@ -108,7 +108,7 @@ function HookInstallProposal(props: {
       props.presentationMode !== "terminal" ||
       dismissed ||
       typeof window === "undefined" ||
-      !window.lightcode?.getAgentHookPluginStatuses
+      !window.poracode?.getAgentHookPluginStatuses
     ) {
       setStatus(undefined);
       return;

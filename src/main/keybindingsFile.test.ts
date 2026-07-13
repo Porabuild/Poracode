@@ -18,7 +18,7 @@ afterEach(() => {
 
 describe("readKeybindingsFile", () => {
   it("creates the default Poracode keybinding file when missing", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
 
     const config = readKeybindingsFile(path);
@@ -29,7 +29,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("preserves user-provided bindings and backfills new composer-control defaults", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     const custom = {
       version: 1,
@@ -50,7 +50,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("backfills the new-thread shortcuts into pre-existing files", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     // A file that predates the thread.new defaults (only an unrelated binding).
     writeFileSync(
@@ -68,7 +68,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("backfills the global quick-composer shortcut into pre-existing files", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     writeFileSync(
       path,
@@ -90,7 +90,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("backfills the toggle-file-tree shortcut into pre-existing files", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     // A file that predates the files.toggle default (only an unrelated binding).
     writeFileSync(
@@ -106,7 +106,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("backfills the toggle-side-panel shortcut into pre-existing files", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     // A file that predates the sidebar.toggle default (only an unrelated binding).
     writeFileSync(
@@ -123,7 +123,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("backfills the toggle-browser-panel shortcut into pre-existing files", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     // A file that predates the browser.toggle default (only an unrelated binding).
     writeFileSync(
@@ -140,7 +140,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("backfills the rename-chat shortcut into pre-existing files", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     // A file that predates the thread.rename default (only an unrelated binding).
     writeFileSync(
@@ -157,7 +157,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("backfills the add-project shortcut into pre-existing files", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     // A file that predates the project.add default (only an unrelated binding).
     writeFileSync(
@@ -174,7 +174,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("backfills the find.open shortcut into pre-existing files", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     writeFileSync(
       path,
@@ -190,7 +190,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("backfills the next/previous chat shortcuts into pre-existing files", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     // A file that predates the thread.next/thread.previous defaults.
     writeFileSync(
@@ -212,7 +212,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("backfills the next/previous tab shortcuts into pre-existing files", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     // A file that predates the tab.next/tab.previous defaults.
     writeFileSync(
@@ -234,7 +234,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("rekeys a pre-existing Fast-toggle off the old Ctrl+F default", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     // A file that still has the legacy default (composer.toggle-fast on Ctrl+F),
     // which now collides with find.open.
@@ -259,7 +259,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("leaves a user-customized Fast-toggle binding untouched", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     const custom = { command: "composer.toggle-fast", key: "Ctrl+E", when: "composerFocus" };
     writeFileSync(path, `${JSON.stringify({ version: 1, keybindings: [custom] })}\n`, "utf8");
@@ -272,7 +272,7 @@ describe("readKeybindingsFile", () => {
   });
 
   it("does not override a customized composer binding", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     const customEffort = { command: "composer.cycle-effort", key: "Ctrl+E", when: "composerFocus" };
     writeFileSync(path, `${JSON.stringify({ version: 1, keybindings: [customEffort] })}\n`, "utf8");
@@ -290,7 +290,7 @@ describe("readKeybindingsFile", () => {
 
 describe("writeKeybindingsFile", () => {
   it("persists bindings atomically and round-trips through the reader", () => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-keybindings-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
     const path = join(tempDir, "keybindings.json");
     const next = {
       version: 1 as const,

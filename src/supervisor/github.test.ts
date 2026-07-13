@@ -448,7 +448,7 @@ describe("GitHubService", () => {
       >(async (_location, input) => {
         const args = input.args;
         if (input.command === "mktemp") {
-          return { ok: true, stdout: "/tmp/lightcode-pr-body-abc123\n", stderr: "", exitCode: 0 };
+          return { ok: true, stdout: "/tmp/poracode-pr-body-abc123\n", stderr: "", exitCode: 0 };
         }
         if (args[0] === "pr" && args[1] === "create") {
           return {
@@ -509,7 +509,7 @@ describe("GitHubService", () => {
 
       expect(writeNewFile).toHaveBeenCalledWith(
         { ...wslLocation, linuxPath: "/tmp" },
-        "/tmp/lightcode-pr-body-abc123/body.md",
+        "/tmp/poracode-pr-body-abc123/body.md",
         Buffer.from("Some description", "utf8"),
       );
       const createCall = processExec.mock.calls.find(([, input]) => {
@@ -518,11 +518,11 @@ describe("GitHubService", () => {
       });
       const createArgs = createCall![1].args;
       expect(createArgs).toContain("--body-file");
-      expect(createArgs).toContain("/tmp/lightcode-pr-body-abc123/body.md");
+      expect(createArgs).toContain("/tmp/poracode-pr-body-abc123/body.md");
       expect(createArgs).not.toContain("--body");
       expect(rm).toHaveBeenCalledWith(
         { ...wslLocation, linuxPath: "/tmp" },
-        "/tmp/lightcode-pr-body-abc123",
+        "/tmp/poracode-pr-body-abc123",
         { recursive: true, force: true },
       );
     });

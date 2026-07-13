@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const pkg = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
-const release = `lightcode@${pkg.version}`;
+const release = `poracode@${pkg.version}`;
 const sentryCli = process.platform === "win32" ? "sentry-cli.cmd" : "sentry-cli";
 
 function run(args, options = {}) {

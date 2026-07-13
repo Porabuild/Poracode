@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * Provider usage contracts. The canonical usage vocabulary (UsageSnapshot etc.)
- * is owned by the standalone `@lightcode/agents-usage` package and re-exported
+ * is owned by the standalone `@poracode/agents-usage` package and re-exported
  * here so the renderer and supervisor share one set of types without the
  * renderer importing a collector (which would drag fetch/child_process into the
  * browser bundle). Only the IPC request payload needs a runtime Zod schema; the
@@ -21,9 +21,9 @@ export type {
   UsageCredits,
   UsageMechanism,
   UsageProviderDescriptor,
-} from "@lightcode/agents-usage";
+} from "@poracode/agents-usage";
 
-import type { UsageSnapshot } from "@lightcode/agents-usage";
+import type { UsageSnapshot } from "@poracode/agents-usage";
 
 export const providerUsagePayloadSchema = z.object({
   /** Restrict collection to these provider ids; omitted = all known providers. */

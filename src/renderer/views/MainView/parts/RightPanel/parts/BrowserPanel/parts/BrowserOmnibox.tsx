@@ -232,7 +232,7 @@ export function BrowserOmnibox(props: {
       <input
         ref={inputRef}
         type="text"
-        data-lightcode-browser-address=""
+        data-poracode-browser-address=""
         className="h-7 w-full rounded border border-border bg-[var(--field-background)] px-2 text-[12px] text-foreground outline-none placeholder:text-[color:var(--field-placeholder)] focus:border-[color:var(--accent)]"
         placeholder={t`Search or enter address`}
         value={urlInput}

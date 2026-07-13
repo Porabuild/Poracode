@@ -12,7 +12,7 @@
         },
         {
           "kind": "fixed",
-          "text": "Claude usage keeps loading after your sign-in token expires — Lightcode now renews it automatically instead of showing a misleading “Not signed in”."
+          "text": "Claude usage keeps loading after your sign-in token expires — Poracode now renews it automatically instead of showing a misleading “Not signed in”."
         }
       ]
     },
@@ -43,12 +43,12 @@
     {
       "version": "1.4.0",
       "date": "2026-06-28",
-      "title": "Lightcode in 13 languages, a dockable browser & custom shortcuts",
-      "summary": "A big feature release: Lightcode now speaks 13 languages, the built-in browser pops out into its own window with a real address bar and bookmarks, and you can rebind every keyboard shortcut. New usage providers, configurable worktree placement, and a built-in What's New round it out, alongside broad reliability fixes.",
+      "title": "Poracode in 13 languages, a dockable browser & custom shortcuts",
+      "summary": "A big feature release: Poracode now speaks 13 languages, the built-in browser pops out into its own window with a real address bar and bookmarks, and you can rebind every keyboard shortcut. New usage providers, configurable worktree placement, and a built-in What's New round it out, alongside broad reliability fixes.",
       "changes": [
         {
           "kind": "added",
-          "text": "Lightcode is now available in 13 languages — English, Spanish, Russian, Ukrainian, Simplified Chinese, Japanese, Brazilian Portuguese, German, French, Korean, Polish, Vietnamese, and Turkish — with a new Language setting to choose your display language or follow your operating system, and a separate language for AI-generated commit messages and pull request summaries."
+          "text": "Poracode is now available in 13 languages — English, Spanish, Russian, Ukrainian, Simplified Chinese, Japanese, Brazilian Portuguese, German, French, Korean, Polish, Vietnamese, and Turkish — with a new Language setting to choose your display language or follow your operating system, and a separate language for AI-generated commit messages and pull request summaries."
         },
         {
           "kind": "added",
@@ -68,7 +68,7 @@
         },
         {
           "kind": "added",
-          "text": "Choose where Lightcode creates git worktrees — in one shared folder or nested inside each project under .lightcode/worktrees — with per-project overrides for native and WSL paths, and point a project at its new location if you move its folder on disk."
+          "text": "Choose where Poracode creates git worktrees — in one shared folder or nested inside each project under .poracode/worktrees — with per-project overrides for native and WSL paths, and point a project at its new location if you move its folder on disk."
         },
         {
           "kind": "added",
@@ -76,7 +76,7 @@
         },
         {
           "kind": "added",
-          "text": "Run GitHub Copilot and Cursor as new built-in agents you can install, update, and launch directly in Lightcode."
+          "text": "Run GitHub Copilot and Cursor as new built-in agents you can install, update, and launch directly in Poracode."
         },
         {
           "kind": "improved",
@@ -100,7 +100,7 @@
         },
         {
           "kind": "fixed",
-          "text": "System notifications now appear reliably, and clicking one brings Lightcode to the front and opens the thread that triggered it."
+          "text": "System notifications now appear reliably, and clicking one brings Poracode to the front and opens the thread that triggered it."
         },
         {
           "kind": "fixed",
@@ -132,7 +132,7 @@
         },
         {
           "kind": "fixed",
-          "text": "Deleting a Claude profile now clears its agent status across native, WSL, and discovery lists, keeping what Lightcode detects in sync with your saved profiles."
+          "text": "Deleting a Claude profile now clears its agent status across native, WSL, and discovery lists, keeping what Poracode detects in sync with your saved profiles."
         }
       ]
     },
@@ -148,7 +148,7 @@
         },
         {
           "kind": "added",
-          "text": "Start a new project by cloning any GitHub repository directly from Lightcode."
+          "text": "Start a new project by cloning any GitHub repository directly from Poracode."
         },
         {
           "kind": "added",
@@ -196,7 +196,7 @@
         },
         {
           "kind": "added",
-          "text": "Lightcode now supports Claude Fable 5, so you can run the latest Claude model directly in your sessions."
+          "text": "Poracode now supports Claude Fable 5, so you can run the latest Claude model directly in your sessions."
         },
         {
           "kind": "improved",
@@ -220,7 +220,7 @@
       "version": "1.2.0",
       "date": "2026-06-05",
       "title": "Provider usage tracking, Command Code, and rebuilt themes",
-      "summary": "A big feature release: track your provider quotas and usage for Claude Code, Codex, and more in one place, run the new Command Code CLI entirely inside Lightcode, and enjoy fully rebuilt light and dark themes. Git worktrees are faster with inline diffs and live status, and WSL and Windows support is stronger across the board.",
+      "summary": "A big feature release: track your provider quotas and usage for Claude Code, Codex, and more in one place, run the new Command Code CLI entirely inside Poracode, and enjoy fully rebuilt light and dark themes. Git worktrees are faster with inline diffs and live status, and WSL and Windows support is stronger across the board.",
       "changes": [
         {
           "kind": "added",
@@ -228,7 +228,7 @@
         },
         {
           "kind": "added",
-          "text": "Command Code joins as a built-in CLI provider that you can install, update, log in to, and resume sessions with entirely inside Lightcode."
+          "text": "Command Code joins as a built-in CLI provider that you can install, update, log in to, and resume sessions with entirely inside Poracode."
         },
         {
           "kind": "added",
@@ -272,11 +272,11 @@
       "version": "1.1.1",
       "date": "2026-05-30",
       "title": "Smoother microphone access and wider file reach",
-      "summary": "A focused patch that smooths out microphone permissions and lets Lightcode open files beyond your active project, plus a fix for links to deeply nested paths.",
+      "summary": "A focused patch that smooths out microphone permissions and lets Poracode open files beyond your active project, plus a fix for links to deeply nested paths.",
       "changes": [
         {
           "kind": "improved",
-          "text": "Lightcode now handles OS-level microphone permission gracefully and gives you a direct link to system settings when access needs to be granted."
+          "text": "Poracode now handles OS-level microphone permission gracefully and gives you a direct link to system settings when access needs to be granted."
         },
         {
           "kind": "added",
@@ -355,12 +355,12 @@
     {
       "version": "1.0.0",
       "date": "2026-05-22",
-      "title": "Lightcode reaches its first stable release",
-      "summary": "The first stable public release of Lightcode, graduating from the 0.9.x betas into a polished build with refreshed chrome, smoother Browser MCP controls, and better multi-agent diff handling.",
+      "title": "Poracode reaches its first stable release",
+      "summary": "The first stable public release of Poracode, graduating from the 0.9.x betas into a polished build with refreshed chrome, smoother Browser MCP controls, and better multi-agent diff handling.",
       "changes": [
         {
           "kind": "added",
-          "text": "Lightcode reaches its first stable public release, bringing the workspace-native experience for orchestrating Claude, Codex, Gemini, Grok, Command Code, and other coding agents out of beta."
+          "text": "Poracode reaches its first stable public release, bringing the workspace-native experience for orchestrating Claude, Codex, Gemini, Grok, Command Code, and other coding agents out of beta."
         },
         {
           "kind": "improved",

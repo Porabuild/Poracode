@@ -91,14 +91,14 @@ export function UnifiedRightPanel(props: {
     };
   };
 
-  const dragCtl = "lightcode-overlay-header__controls";
+  const dragCtl = "poracode-overlay-header__controls";
 
   return (
     <div
-      data-lightcode-panel=""
+      data-poracode-panel=""
       className="flex h-full min-h-0 flex-col bg-[var(--content-background)]"
     >
-      <div className={`lightcode-overlay-header ${panelHeaderRowClass}`}>
+      <div className={`poracode-overlay-header ${panelHeaderRowClass}`}>
         {projectName && (
           <PanelHeaderProjectName
             name={projectName}

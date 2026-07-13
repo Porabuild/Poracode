@@ -247,7 +247,7 @@ describe("WslBridgeClient", () => {
 
     const client = new WslBridgeClient(mockServer);
     const result = await client.createGitCheckpointSnapshot(makeLocation(), {
-      ref: "refs/lightcode/checkpoints/thread/item",
+      ref: "refs/poracode/checkpoints/thread/item",
       metadata: { threadId: "thread", checkpointItemId: "item" },
     });
 
@@ -255,7 +255,7 @@ describe("WslBridgeClient", () => {
     expect(fake.lastRequest.url).toBe("/v1/git/checkpoint-snapshot");
     expect(fake.lastRequest.body).toEqual({
       projectRoot: "/home/user/proj",
-      ref: "refs/lightcode/checkpoints/thread/item",
+      ref: "refs/poracode/checkpoints/thread/item",
       metadata: { threadId: "thread", checkpointItemId: "item" },
     });
   });

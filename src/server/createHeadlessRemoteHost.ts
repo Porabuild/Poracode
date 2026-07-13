@@ -12,7 +12,7 @@ import {
   dbUpsertThread,
   initDatabase,
 } from "@/main/db";
-import { prepareLightcodeDataRoot } from "@/main/lightcodeData";
+import { preparePoracodeDataRoot } from "@/main/poracodeData";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "@/main/sharedSettingsFile";
 import { SupervisorClient } from "@/main/supervisor/SupervisorClient";
 import {
@@ -67,7 +67,7 @@ export interface HeadlessRemoteHostOptions {
   readonly bundledSkillsDir?: string;
   /** base64 32-byte AES key shared with the supervisor for secret sealing. */
   readonly secretStorageKey: string;
-  /** Data dir; defaults to the standard Lightcode base dir for the channel. */
+  /** Data dir; defaults to the standard Poracode base dir for the channel. */
   readonly baseDir?: string;
   readonly host?: string;
   readonly port?: number;
@@ -127,7 +127,7 @@ export function resolveLocalProxyBase(bindHost: string | undefined, httpBaseUrl:
 
 export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): HeadlessRemoteHost {
   const isDev = options.isDev ?? false;
-  const paths = prepareLightcodeDataRoot(options.baseDir);
+  const paths = preparePoracodeDataRoot(options.baseDir);
   initDatabase(paths.dbPath);
   // No agent session survived the restart; without a renderer to run
   // markThreadsInactiveOnLaunch, stale live statuses would be re-served to
@@ -174,8 +174,8 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
       const info = appControlsMcpIngress?.getInfo();
       return info
         ? {
-            LIGHTCODE_APP_CONTROLS_MCP_URL: info.url,
-            LIGHTCODE_APP_CONTROLS_MCP_TOKEN: info.token,
+            PORACODE_APP_CONTROLS_MCP_URL: info.url,
+            PORACODE_APP_CONTROLS_MCP_TOKEN: info.token,
           }
         : {};
     },
@@ -222,7 +222,7 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
   const advertisedHost =
     options.advertisedHost ??
     (isDev
-      ? process.env.LIGHTCODE_REMOTE_ACCESS_ADVERTISED_HOST?.trim() || "127.0.0.1"
+      ? process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST?.trim() || "127.0.0.1"
       : remoteAccessAdvertisedHost({ bindHost: host }));
   const pairingAppUrl = options.pairingAppUrl ?? remoteAccessPairingAppUrl();
 

@@ -1,7 +1,7 @@
 // Phase-locks the working-icon shine sweep across every on-screen instance.
 //
 // The sweep is a `steps()` (≈20fps) transform animation on the
-// `.lightcode-provider-icon__mask-scan::before` pseudo-element (see styles.css).
+// `.poracode-provider-icon__mask-scan::before` pseudo-element (see styles.css).
 // A `steps()` animation only produces a compositor frame when its value
 // actually changes, so a single icon redraws ~20×/s. But a working thread shows
 // its icon in several places at once (sidebar row + recent-threads row + ...),
@@ -15,10 +15,10 @@
 // coalesces them into a single redraw per step (true ~20fps total, regardless
 // of how many working icons are visible).
 
-const MASK_SCAN_ANIMATION_NAME = "lightcode-provider-icon-mask-scan";
+const MASK_SCAN_ANIMATION_NAME = "poracode-provider-icon-mask-scan";
 
 /**
- * Ref callback for the `.lightcode-provider-icon__mask-scan` span. Snaps the
+ * Ref callback for the `.poracode-provider-icon__mask-scan` span. Snaps the
  * pseudo-element's shine animation onto the shared document-timeline phase.
  */
 export function syncMaskScanPhase(node: HTMLElement | null): void {

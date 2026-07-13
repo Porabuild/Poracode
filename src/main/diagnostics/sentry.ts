@@ -1,8 +1,8 @@
 import { app } from "electron";
-import type { LightcodeChannel } from "@/shared/channel";
+import type { PoracodeChannel } from "@/shared/channel";
 import {
   sanitizeSentryEvent,
-  type LightcodeDiagnosticTags,
+  type PoracodeDiagnosticTags,
   type SentryEventLike,
 } from "@/shared/diagnostics/sentryPrivacy";
 import {
@@ -27,7 +27,7 @@ let mainSentry: MainSentryModule | null | undefined;
 export type MainSentryOptions = {
   appVersion: string;
   isDev: boolean;
-  channel: LightcodeChannel;
+  channel: PoracodeChannel;
 };
 
 function loadMainSentry(): MainSentryModule | null {
@@ -40,7 +40,7 @@ function loadMainSentry(): MainSentryModule | null {
   } catch (error) {
     mainSentry = null;
     console.warn(
-      "[lightcode] Sentry main process integration unavailable:",
+      "[poracode] Sentry main process integration unavailable:",
       error instanceof Error ? error.message : String(error),
     );
   }
@@ -67,16 +67,16 @@ function shouldEnableSentry(options: MainSentryOptions): boolean {
   return process.env.SENTRY_ENABLE_DEV === "1";
 }
 
-function buildBaseTags(options: MainSentryOptions): LightcodeDiagnosticTags {
+function buildBaseTags(options: MainSentryOptions): PoracodeDiagnosticTags {
   return {
-    "lightcode.app_version": options.appVersion,
-    "lightcode.arch": process.arch,
-    "lightcode.channel": options.channel,
-    "lightcode.chrome": process.versions.chrome ?? "unknown",
-    "lightcode.electron": process.versions.electron ?? "unknown",
-    "lightcode.node": process.versions.node,
-    "lightcode.platform": process.platform,
-    "lightcode.process": "main",
+    "poracode.app_version": options.appVersion,
+    "poracode.arch": process.arch,
+    "poracode.channel": options.channel,
+    "poracode.chrome": process.versions.chrome ?? "unknown",
+    "poracode.electron": process.versions.electron ?? "unknown",
+    "poracode.node": process.versions.node,
+    "poracode.platform": process.platform,
+    "poracode.process": "main",
   };
 }
 
@@ -97,7 +97,7 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
 
   Sentry.init({
     dsn,
-    release: `lightcode@${options.appVersion}`,
+    release: `poracode@${options.appVersion}`,
     environment: readSentryEnvironment(options),
     sendDefaultPii: false,
     attachScreenshot: false,
@@ -121,7 +121,7 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
     },
   });
 
-  Sentry.setContext("lightcode", {
+  Sentry.setContext("poracode", {
     appVersion: options.appVersion,
     channel: options.channel,
     packaged: app.isPackaged,
@@ -131,7 +131,7 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
   return true;
 }
 
-export function captureMainException(error: unknown, tags?: LightcodeDiagnosticTags): void {
+export function captureMainException(error: unknown, tags?: PoracodeDiagnosticTags): void {
   const Sentry = loadMainSentry();
   if (!Sentry) return;
   if (!Sentry.isEnabled()) return;

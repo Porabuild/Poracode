@@ -33,7 +33,7 @@ describe("SkillsService", () => {
   let adapters: ReadonlyMap<string, AgentAdapter>;
 
   beforeEach(async () => {
-    root = await mkdtemp(join(tmpdir(), "lightcode-skills-"));
+    root = await mkdtemp(join(tmpdir(), "poracode-skills-"));
     home = join(root, "home");
     projectPath = join(root, "project");
     await mkdir(projectPath, { recursive: true });
@@ -259,13 +259,13 @@ describe("SkillsService", () => {
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      env: { LIGHTCODE_BUNDLED_SKILLS_DIR: bundledDir },
+      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
     });
 
     const scan = await bundledService.scan({ projectLocation, agentKind: "claude" });
     const bundled = scan.skills.find((skill) => skill.name === "skill-creator");
     expect(bundled).toMatchObject({
-      providerId: "lightcode-built-in",
+      providerId: "poracode-built-in",
       providerGroupId: "poracode",
       providerGroupLabel: "Poracode",
       providerGroupOrder: -1,
@@ -405,7 +405,7 @@ describe("SkillsService", () => {
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      env: { LIGHTCODE_BUNDLED_SKILLS_DIR: bundledDir },
+      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
     });
 
     const scan = await bundledService.scan({ projectLocation, agentKind: "claude" });
@@ -489,7 +489,7 @@ describe("SkillsService", () => {
     const readerService = new SkillsService({
       adapters: new Map([["reader", agentsReader]]),
       homeDirectory: () => home,
-      env: { LIGHTCODE_BUNDLED_SKILLS_DIR: bundledDir },
+      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
     });
     const displayHome = home.replaceAll("\\", "/");
 
@@ -540,7 +540,7 @@ describe("SkillsService", () => {
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      env: { LIGHTCODE_BUNDLED_SKILLS_DIR: bundledDir },
+      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
     });
 
     await bundledService.prepareForLaunch(projectLocation, "claude");
@@ -555,7 +555,7 @@ describe("SkillsService", () => {
     const scan = await bundledService.scan({ projectLocation, agentKind: "claude" });
     expect(
       scan.skills.filter((skill) => skill.name === "skill-creator").map((s) => s.providerId),
-    ).toEqual(["lightcode-built-in"]);
+    ).toEqual(["poracode-built-in"]);
   });
 
   it("removes stale bundled projections left in shared skill folders", async () => {
@@ -564,15 +564,15 @@ describe("SkillsService", () => {
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      env: { LIGHTCODE_BUNDLED_SKILLS_DIR: bundledDir },
+      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
     });
     const mirrored = join(home, ".agents", "skills", "skill-creator");
-    const disabledDir = join(home, ".agents", "skills.lightcode-disabled");
+    const disabledDir = join(home, ".agents", "skills.poracode-disabled");
     const disabledMirror = join(disabledDir, "skill-creator");
     for (const path of [mirrored, disabledMirror]) {
       await writeSkill(path, "skill-creator", "Stale projection");
       await writeFile(
-        join(path, ".lightcode-skill.json"),
+        join(path, ".poracode-skill.json"),
         JSON.stringify({
           version: 1,
           mode: "projection",
@@ -599,7 +599,7 @@ describe("SkillsService", () => {
     const bundledService = new SkillsService({
       adapters,
       homeDirectory: () => home,
-      env: { LIGHTCODE_BUNDLED_SKILLS_DIR: bundledDir },
+      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
     });
     const displayHome = home.replaceAll("\\", "/");
     const bundledSegment = {
@@ -664,7 +664,7 @@ describe("SkillsService", () => {
     const readerService = new SkillsService({
       adapters: new Map([["reader", reader]]),
       homeDirectory: () => home,
-      env: { LIGHTCODE_BUNDLED_SKILLS_DIR: bundledDir },
+      env: { PORACODE_BUNDLED_SKILLS_DIR: bundledDir },
     });
     expect(
       await readerService.rewriteTerminalSkillSegments({
@@ -772,7 +772,7 @@ describe("SkillsService", () => {
     const projection = join(projectPath, ".claude", "skills", "testing");
     expect(await readFile(join(projection, "SKILL.md"), "utf8")).toContain("testing");
     expect(
-      JSON.parse(await readFile(join(projection, ".lightcode-skill.json"), "utf8")),
+      JSON.parse(await readFile(join(projection, ".poracode-skill.json"), "utf8")),
     ).toMatchObject({ mode: "projection", sourcePath: managed });
 
     await service.setEnabled({ absolutePath: managed, enabled: false, projectLocation });
@@ -792,7 +792,7 @@ describe("SkillsService", () => {
     await writeSkill(provider, "testing");
 
     await service.setEnabled({ absolutePath: provider, enabled: false, projectLocation });
-    const disabled = join(projectPath, ".claude", "skills.lightcode-disabled", "testing");
+    const disabled = join(projectPath, ".claude", "skills.poracode-disabled", "testing");
     await expect(readFile(join(provider, "SKILL.md"), "utf8")).rejects.toMatchObject({
       code: "ENOENT",
     });
@@ -800,7 +800,7 @@ describe("SkillsService", () => {
 
     await writeSkill(provider, "testing");
     await writeFile(
-      join(provider, ".lightcode-skill.json"),
+      join(provider, ".poracode-skill.json"),
       JSON.stringify({ version: 1, mode: "projection", sourcePath: managed, sourceHash: "stale" }),
       "utf8",
     );
@@ -832,8 +832,8 @@ describe("SkillsService", () => {
     expect((await lstat(linked!)).isSymbolicLink()).toBe(true);
     await service.setEnabled({ absolutePath: source, enabled: false, projectLocation });
 
-    const disabledSource = join(home, ".claude", "skills.lightcode-disabled", "linked-review");
-    const disabledLink = join(home, ".agents", "skills.lightcode-disabled", "linked-review");
+    const disabledSource = join(home, ".claude", "skills.poracode-disabled", "linked-review");
+    const disabledLink = join(home, ".agents", "skills.poracode-disabled", "linked-review");
     await expect(lstat(linked!)).rejects.toMatchObject({ code: "ENOENT" });
     expect((await lstat(disabledLink)).isSymbolicLink()).toBe(true);
     expect(await realpath(disabledLink)).toBe(await realpath(disabledSource));
@@ -881,7 +881,7 @@ describe("SkillsService", () => {
     expect((await lstat(linked!)).isSymbolicLink()).toBe(true);
     expect(await realpath(linked!)).toBe(await realpath(source));
     await expect(
-      lstat(join(home, ".agents", "skills.lightcode-disabled", "linked-review")),
+      lstat(join(home, ".agents", "skills.poracode-disabled", "linked-review")),
     ).rejects.toMatchObject({ code: "ENOENT" });
   });
 
@@ -907,7 +907,7 @@ describe("SkillsService", () => {
     await service.prepareForLaunch(projectLocation);
 
     expect(await readFile(join(provider, "SKILL.md"), "utf8")).toContain("Provider version");
-    await expect(readFile(join(provider, ".lightcode-skill.json"), "utf8")).rejects.toMatchObject({
+    await expect(readFile(join(provider, ".poracode-skill.json"), "utf8")).rejects.toMatchObject({
       code: "ENOENT",
     });
   });

@@ -1,6 +1,6 @@
 import { protocol } from "electron";
 
-export const PICKER_SCHEME = "lightcode-picker";
+export const PICKER_SCHEME = "poracode-picker";
 export const PICKER_COMMIT_ORIGIN = `${PICKER_SCHEME}://commit`;
 
 export type PickerPayload =

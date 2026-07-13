@@ -33,7 +33,7 @@ let appRendered = false;
 function renderCrashScreen(report: RendererCrashReport): void {
   if (renderingCrashScreen) return;
   renderingCrashScreen = true;
-  console.error(`[lightcode][mobile:${report.kind}]`, report);
+  console.error(`[poracode][mobile:${report.kind}]`, report);
   try {
     reactRoot?.render(<RendererCrashScreen report={report} />);
   } finally {
@@ -59,7 +59,7 @@ window.addEventListener("error", (event) => {
     return;
   }
   if (appRendered) {
-    console.error("[lightcode][mobile:uncaught]", event.error ?? event.message);
+    console.error("[poracode][mobile:uncaught]", event.error ?? event.message);
     return;
   }
   showCrash("uncaught", event.error ?? event.message, buildSource(event));
@@ -71,7 +71,7 @@ window.addEventListener("unhandledrejection", (event) => {
     return;
   }
   if (appRendered) {
-    console.error("[lightcode][mobile:unhandled-rejection]", event.reason);
+    console.error("[poracode][mobile:unhandled-rejection]", event.reason);
     return;
   }
   showCrash("unhandled-rejection", event.reason);

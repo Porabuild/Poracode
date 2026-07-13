@@ -11,7 +11,7 @@ import {
 import { setUnstableSessionModel } from "./unstableModelCompat";
 
 /**
- * Synchronizes Lightcode thread configuration with one live ACP session.
+ * Synchronizes Poracode thread configuration with one live ACP session.
  *
  * This object owns only the ACP-advertised configuration metadata needed to
  * translate subsequent updates. Session lifecycle and the committed

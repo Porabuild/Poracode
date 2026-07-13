@@ -9,14 +9,14 @@ import {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  Reflect.deleteProperty(window, "lightcode");
+  Reflect.deleteProperty(window, "poracode");
 });
 
 describe("RendererCrashScreen", () => {
   it("builds diagnostics with bridge and stack details", () => {
     const error = new Error("startup failed");
     Object.assign(window, {
-      lightcode: {
+      poracode: {
         appVersion: "0.1.7",
         electronVersion: "41.5.0",
         platform: "darwin",

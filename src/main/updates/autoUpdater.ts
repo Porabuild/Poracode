@@ -1,7 +1,7 @@
 import { autoUpdater } from "electron-updater";
-import type { LightcodeChannel } from "@/shared/channel";
+import type { PoracodeChannel } from "@/shared/channel";
 import type { UpdateStatus } from "@/shared/ipc";
-import type { LightcodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
+import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 
 /**
  * Delay before the first update check once the app is ready. Matches VS Code's
@@ -25,9 +25,9 @@ export interface AutoUpdaterController {
 
 export function createAutoUpdaterController(
   sendStatus: (status: UpdateStatus) => void,
-  channel: LightcodeChannel,
+  channel: PoracodeChannel,
   isDev: boolean,
-  reportError: (error: unknown, tags?: LightcodeDiagnosticTags) => void = () => {},
+  reportError: (error: unknown, tags?: PoracodeDiagnosticTags) => void = () => {},
   beforeInstall: () => void = () => {},
 ): AutoUpdaterController {
   let initialized = false;
@@ -48,7 +48,7 @@ export function createAutoUpdaterController(
     checkInFlight = true;
     void autoUpdater.checkForUpdates().catch((error: unknown) => {
       checkInFlight = false;
-      reportError(error, { "lightcode.feature_area": "updates" });
+      reportError(error, { "poracode.feature_area": "updates" });
     });
   }
 
@@ -104,7 +104,7 @@ export function createAutoUpdaterController(
     });
     autoUpdater.on("error", (error) => {
       checkInFlight = false;
-      reportError(error, { "lightcode.feature_area": "updates" });
+      reportError(error, { "poracode.feature_area": "updates" });
       sendStatus({ type: "error", message: error.message });
     });
 
@@ -145,7 +145,7 @@ export function createAutoUpdaterController(
       if ((error as NodeJS.ErrnoException).code === "EPIPE") {
         return;
       }
-      reportError(error, { "lightcode.feature_area": "updates" });
+      reportError(error, { "poracode.feature_area": "updates" });
       throw error;
     }
   }

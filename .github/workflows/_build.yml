@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       channel:
-        description: "Lightcode release channel (stable | nightly)"
+        description: "Poracode release channel (stable | nightly)"
         required: true
         type: string
       sentry_environment:
@@ -88,7 +88,7 @@ jobs:
         run: pnpm run build
         shell: bash
         env:
-          LIGHTCODE_CHANNEL: ${{ inputs.channel }}
+          PORACODE_CHANNEL: ${{ inputs.channel }}
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
           SENTRY_ENVIRONMENT: ${{ inputs.sentry_environment }}
           POSTHOG_ENABLED: ${{ vars.POSTHOG_ENABLED || '1' }}
@@ -123,7 +123,7 @@ jobs:
           node scripts/build-desktop-artifact.mjs --platform "${{ matrix.platform }}" --skip-build
         shell: bash
         env:
-          LIGHTCODE_CHANNEL: ${{ inputs.channel }}
+          PORACODE_CHANNEL: ${{ inputs.channel }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
@@ -134,7 +134,7 @@ jobs:
           node scripts/build-desktop-artifact.mjs --platform mac --skip-build
         shell: bash
         env:
-          LIGHTCODE_CHANNEL: ${{ inputs.channel }}
+          PORACODE_CHANNEL: ${{ inputs.channel }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # macOS Developer ID signing (base64-encoded .p12 + password).
           CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
@@ -149,7 +149,7 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          apps=(release/mac*/Lightcode*.app)
+          apps=(release/mac*/Poracode*.app)
           if [ "${#apps[@]}" -eq 0 ]; then
             echo "::error::No packaged macOS app bundles found under release/mac*."
             exit 1
@@ -164,11 +164,11 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: |
-            release/Lightcode-*.exe
-            release/Lightcode-*.dmg
-            release/Lightcode-*.zip
-            release/Lightcode-*.AppImage
-            release/Lightcode-*.deb
+            release/Poracode-*.exe
+            release/Poracode-*.dmg
+            release/Poracode-*.zip
+            release/Poracode-*.AppImage
+            release/Poracode-*.deb
             release/latest*.yml
             release/nightly*.yml
             release/*.blockmap

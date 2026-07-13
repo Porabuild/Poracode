@@ -9,16 +9,16 @@ describe("sentryPrivacy", () => {
   it("keeps only allowlisted diagnostic tags", () => {
     const event = sanitizeSentryEvent({
       tags: {
-        "lightcode.provider": "codex",
-        "lightcode.presentation": "terminal",
+        "poracode.provider": "codex",
+        "poracode.presentation": "terminal",
         repo: "secret-repo",
         user: "someone@example.com",
       },
     });
 
     expect(event.tags).toEqual({
-      "lightcode.provider": "codex",
-      "lightcode.presentation": "terminal",
+      "poracode.provider": "codex",
+      "poracode.presentation": "terminal",
     });
   });
 
@@ -26,7 +26,7 @@ describe("sentryPrivacy", () => {
     const event = sanitizeSentryEvent({
       breadcrumbs: [{ message: "terminal output" }],
       extra: { prompt: "write code", token: "secret" },
-      modules: { lightcode: "0.1.7" },
+      modules: { poracode: "0.1.7" },
       request: { url: "file:///Users/alice/work/repo" },
       server_name: "alice-macbook",
       user: { id: "alice" },
@@ -72,10 +72,10 @@ describe("sentryPrivacy", () => {
     });
   });
 
-  it("preserves the lightcode context (channel, appVersion, packaged) while still dropping disallowed contexts", () => {
+  it("preserves the poracode context (channel, appVersion, packaged) while still dropping disallowed contexts", () => {
     const event = sanitizeSentryEvent({
       contexts: {
-        lightcode: {
+        poracode: {
           appVersion: "0.9.5",
           channel: "nightly",
           packaged: true,
@@ -86,7 +86,7 @@ describe("sentryPrivacy", () => {
       },
     } satisfies SentryEventLike);
 
-    expect(event.contexts?.lightcode).toEqual({
+    expect(event.contexts?.poracode).toEqual({
       appVersion: "0.9.5",
       channel: "nightly",
       packaged: true,
@@ -105,10 +105,10 @@ describe("sentryPrivacy", () => {
         featureArea: "thread",
       }),
     ).toEqual({
-      "lightcode.feature_area": "thread",
-      "lightcode.presentation": "gui",
-      "lightcode.provider": "codex",
-      "lightcode.runtime_kind": "structured",
+      "poracode.feature_area": "thread",
+      "poracode.presentation": "gui",
+      "poracode.provider": "codex",
+      "poracode.runtime_kind": "structured",
     });
   });
 });

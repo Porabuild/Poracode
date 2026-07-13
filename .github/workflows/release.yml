@@ -176,7 +176,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
-          name: Lightcode ${{ needs.prepare.outputs.tag }}
+          name: Poracode ${{ needs.prepare.outputs.tag }}
           draft: true
           generate_release_notes: true
           fail_on_unmatched_files: true

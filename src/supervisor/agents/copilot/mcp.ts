@@ -35,7 +35,7 @@ function valueEnvName(server: McpServer, field: string): string {
     .digest("hex")
     .slice(0, 16)
     .toUpperCase();
-  return `LIGHTCODE_COPILOT_MCP_${hash}`;
+  return `PORACODE_COPILOT_MCP_${hash}`;
 }
 
 function protectedValues(
@@ -92,7 +92,7 @@ export function writeCopilotMcpConfig(
   if (servers.length === 0) return undefined;
 
   const safeSessionId = sessionId.replace(/[^A-Za-z0-9._-]/gu, "_");
-  const directoryName = "lightcode-copilot-mcp";
+  const directoryName = "poracode-copilot-mcp";
   const fileName = `${safeSessionId}-${randomUUID()}.json`;
   const linuxDirectory = `/tmp/${directoryName}`;
   const filePath =

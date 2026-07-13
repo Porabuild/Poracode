@@ -48,7 +48,7 @@ export function classifyModelTier(modelId: string, modelLabel: string): ModelTie
 
 /** Base routing guidance always included in the MCP `initialize` instructions. */
 export const SUBAGENT_MCP_INSTRUCTIONS_BASE = [
-  "Use the subagents MCP server to delegate work to the other AI agents connected to this Lightcode session.",
+  "Use the subagents MCP server to delegate work to the other AI agents connected to this Poracode session.",
   "Call list_agents first for the compact provider roster, then call get_agent with the chosen provider id for its models, reasoning options, Fast availability, and permissions preset.",
   "There are two delegation lanes.",
   "Lightweight subagent runs (spawn_agent, run_agent, wait_for_agent, get_status, cancel): quick, ephemeral helpers whose output streams into your own thread and disappears afterwards — best for search, summarization, bulk edits, and one-off checks.",

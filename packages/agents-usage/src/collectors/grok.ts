@@ -110,7 +110,7 @@ function grokGrpcRequest(http: HttpClient, cookie: string): Promise<HttpResponse
       "Content-Type": "application/grpc-web+proto",
       "x-grpc-web": "1",
       "x-user-agent": "connect-es/2.1.1",
-      "User-Agent": "Lightcode",
+      "User-Agent": "Poracode",
     },
     bodyBytes: GROK_GRPC_EMPTY_FRAME_BYTES,
     timeoutMs: 15_000,

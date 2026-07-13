@@ -644,7 +644,7 @@ function parsePrimedEnvProbeOutput(stdout: string): Record<string, string> | und
   return parsed;
 }
 
-const PRIMED_ENV_MARKER = "__LIGHTCODE_ENV_BEGIN__";
+const PRIMED_ENV_MARKER = "__PORACODE_ENV_BEGIN__";
 /** Matches a line that opens a new exported var: `NAME=value`. */
 const PRIMED_ENV_VAR_RE = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/;
 

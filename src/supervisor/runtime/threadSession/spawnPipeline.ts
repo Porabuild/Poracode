@@ -77,7 +77,7 @@ export interface SpawnThreadInput {
   /**
    * Extra env injected into the agent PTY (merged on top of agentEnv +
    * provider spawnEnv). Currently used by the CLI hook ingress to ferry
-   * `LIGHTCODE_HOOK_URL` / `LIGHTCODE_HOOK_SECRET` / `LIGHTCODE_THREAD_ID` etc.
+   * `PORACODE_HOOK_URL` / `PORACODE_HOOK_SECRET` / `PORACODE_THREAD_ID` etc.
    */
   extraEnv?: Record<string, string>;
   structuredSession?: StructuredSessionHandle;
@@ -411,8 +411,8 @@ export class SpawnPipeline {
         .catch((error) => {
           console.error("[supervisor] initial turn failed:", error);
           captureSupervisorException(error, {
-            "lightcode.feature_area": "supervisor-runtime",
-            "lightcode.provider": payload.agentKind,
+            "poracode.feature_area": "supervisor-runtime",
+            "poracode.provider": payload.agentKind,
           });
           const activeSession = ctx.sessions.get(payload.threadId);
           if (!activeSession) {
@@ -458,8 +458,8 @@ export class SpawnPipeline {
         );
 
     // Append CLI hook plugin args (e.g. Claude `--settings <path>`); env vars
-    // (`LIGHTCODE_HOOK_URL`, `LIGHTCODE_HOOK_SECRET`, `LIGHTCODE_THREAD_ID`,
-    // `LIGHTCODE_AGENT_KIND`, `LIGHTCODE_HOOK_PROTOCOL_VERSION`) flow through
+    // (`PORACODE_HOOK_URL`, `PORACODE_HOOK_SECRET`, `PORACODE_THREAD_ID`,
+    // `PORACODE_AGENT_KIND`, `PORACODE_HOOK_PROTOCOL_VERSION`) flow through
     // `spawnThread` → `agentEnv` so they end up in the PTY env on every
     // platform (WSL, win32, posix). Failure to resolve plugin extras silently
     // degrades to L2 — the supervisor must never block thread creation on
@@ -793,7 +793,7 @@ export class SpawnPipeline {
     }
 
     const agentEnv = this.resolveAgentProcessEnv(input.adapter);
-    const cliHookEnvInjected = Boolean(input.extraEnv?.LIGHTCODE_HOOK_URL);
+    const cliHookEnvInjected = Boolean(input.extraEnv?.PORACODE_HOOK_URL);
     const providerEnv =
       input.projectLocation.kind === "wsl"
         ? input.adapter.spawnEnv?.wsl
@@ -1096,8 +1096,8 @@ export class SpawnPipeline {
     } catch (error) {
       console.error("[supervisor] structured session creation failed:", error);
       captureSupervisorException(error, {
-        "lightcode.feature_area": "supervisor-runtime",
-        "lightcode.provider": agentKind,
+        "poracode.feature_area": "supervisor-runtime",
+        "poracode.provider": agentKind,
       });
       return undefined;
     }

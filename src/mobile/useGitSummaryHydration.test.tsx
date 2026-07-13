@@ -17,8 +17,8 @@ vi.mock("@/renderer/bridge", () => ({
 function makeProject(): Project {
   return {
     id: "project-1",
-    name: "lightcode",
-    location: { kind: "posix", path: "/repo/lightcode" },
+    name: "poracode",
+    location: { kind: "posix", path: "/repo/poracode" },
     createdAt: "2024-01-01T00:00:00.000Z",
   };
 }

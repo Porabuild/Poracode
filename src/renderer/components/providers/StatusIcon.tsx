@@ -34,23 +34,23 @@ export function StatusIcon(props: {
 
   return (
     <span
-      className={`lightcode-provider-icon lightcode-provider-icon--${tone} ${cssPrefix} ${cssPrefix}--${tone}${className ? ` ${className}` : ""}`}
+      className={`poracode-provider-icon poracode-provider-icon--${tone} ${cssPrefix} ${cssPrefix}--${tone}${className ? ` ${className}` : ""}`}
     >
       <svg
         aria-hidden={title ? undefined : true}
-        className="lightcode-provider-icon__svg"
+        className="poracode-provider-icon__svg"
         role={title ? "img" : undefined}
         viewBox={viewBox}
       >
         {title ? <title>{title}</title> : null}
         {tone === "working" ? (
-          <path className="lightcode-provider-icon__shell" d={path} {...pathProps} />
+          <path className="poracode-provider-icon__shell" d={path} {...pathProps} />
         ) : null}
         {secondaryPath ? (
-          <path className="lightcode-provider-icon__shell" d={secondaryPath} {...pathProps} />
+          <path className="poracode-provider-icon__shell" d={secondaryPath} {...pathProps} />
         ) : null}
         <path
-          className={`lightcode-provider-icon__fill${tone === "done" ? " opacity-40" : ""}`}
+          className={`poracode-provider-icon__fill${tone === "done" ? " opacity-40" : ""}`}
           d={path}
           {...pathProps}
         />
@@ -77,7 +77,7 @@ export function StatusIcon(props: {
       {tone === "working" && maskUrl ? (
         <span
           ref={syncMaskScanPhase}
-          className="lightcode-provider-icon__mask-scan"
+          className="poracode-provider-icon__mask-scan"
           aria-hidden="true"
           style={{ WebkitMaskImage: maskUrl, maskImage: maskUrl }}
         />

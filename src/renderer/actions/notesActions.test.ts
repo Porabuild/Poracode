@@ -8,7 +8,7 @@ vi.mock("./threadActions", () => ({ openNewThread }));
 beforeEach(() => {
   openNewThread.mockReset();
   useAppStore.setState({ pendingComposerSeeds: {} });
-  window.lightcode = {} as typeof window.lightcode;
+  window.poracode = {} as typeof window.poracode;
 });
 
 describe("newThreadFromText", () => {

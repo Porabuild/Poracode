@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
-import { resolveLightcodeBaseDir } from "@/shared/lightcodePaths";
+import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { getProjectPosixPath } from "@/shared/wsl";
 
 /**
@@ -26,7 +26,7 @@ let cachedProbeDir: string | undefined;
 
 export function getAgentProbeCwd(location: ProjectLocation): string {
   if (location.kind !== "posix") return getProjectPosixPath(location);
-  const probeDir = cachedProbeDir ?? join(resolveLightcodeBaseDir(), "agent-probe");
+  const probeDir = cachedProbeDir ?? join(resolvePoracodeBaseDir(), "agent-probe");
   try {
     // mkdir on every call: `recursive: true` is a cheap no-op when the dir
     // already exists, and recovers automatically if the cached dir was removed

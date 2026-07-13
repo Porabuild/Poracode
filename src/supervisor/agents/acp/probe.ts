@@ -428,7 +428,7 @@ export async function probeAcpCapabilities(
       (async () => {
         const initResult = await connection.initialize({
           protocolVersion: PROTOCOL_VERSION,
-          clientInfo: { name: "lightcode-probe", version: "0.1.0" },
+          clientInfo: { name: "poracode-probe", version: "0.1.0" },
           clientCapabilities: { auth: { terminal: true } },
         });
         if (initResult.authMethods?.length) {
@@ -656,7 +656,7 @@ export async function authenticateAcpAgent(
         );
         const initResult = await connection.initialize({
           protocolVersion: PROTOCOL_VERSION,
-          clientInfo: { name: "lightcode-auth", version: "0.1.0" },
+          clientInfo: { name: "poracode-auth", version: "0.1.0" },
         });
         if (!initResult.authMethods?.some((method) => method.id === methodId)) {
           throw new Error(`ACP auth method not found: ${methodId}`);
@@ -733,7 +733,7 @@ export async function logoutAcpAgent(
         );
         const initResult = await connection.initialize({
           protocolVersion: PROTOCOL_VERSION,
-          clientInfo: { name: "lightcode-auth", version: "0.1.0" },
+          clientInfo: { name: "poracode-auth", version: "0.1.0" },
         });
         if (initResult.agentCapabilities?.auth?.logout === undefined) {
           throw new Error("ACP logout is not supported by this agent.");

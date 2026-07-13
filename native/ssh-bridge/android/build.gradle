@@ -15,7 +15,7 @@ buildscript {
 apply plugin: 'com.android.library'
 
 android {
-    namespace = "com.lightcodeapp.sshbridge"
+    namespace = "com.poracode.sshbridge"
     compileSdk = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 36
     defaultConfig {
         minSdk = project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 24

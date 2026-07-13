@@ -11,7 +11,7 @@
 
 The main process forks the supervisor as a child process. Communication is UUID-keyed request/reply over `process.send()` + `process.on("message")`. The supervisor also emits fire-and-forget events (thread output, state changes, agent statuses) that the main process forwards to the renderer via `webContents.send` (received in the renderer through `ipcRenderer.on`).
 
-The preload bridge (`window.lightcode`) wraps all IPC into typed async methods defined by the `LightcodeBridge` type, declared in `src/shared/ipc/bridge.ts` and re-exported via the `src/shared/ipc.ts` barrel.
+The preload bridge (`window.poracode`) wraps all IPC into typed async methods defined by the `PoracodeBridge` type, declared in `src/shared/ipc/bridge.ts` and re-exported via the `src/shared/ipc.ts` barrel.
 
 ## State Management
 
@@ -67,4 +67,4 @@ SQLite via Drizzle ORM (`src/main/db.ts`, `db.schema.ts`). Drizzle tables: `proj
 
 Commit message generation (`src/supervisor/commitMessageGenerator.ts`) spawns a one-shot agent CLI call with a conventional-commits prompt piped to stdin. Falls back across providers if the preferred one fails.
 
-Worktree paths are computed within a centralized directory (`~/.lightcode/worktrees/<repo-id>/<branch-id>`) via `src/supervisor/git.ts` and `src/shared/worktree.ts`.
+Worktree paths are computed within a centralized directory (`~/.poracode/worktrees/<repo-id>/<branch-id>`) via `src/supervisor/git.ts` and `src/shared/worktree.ts`.

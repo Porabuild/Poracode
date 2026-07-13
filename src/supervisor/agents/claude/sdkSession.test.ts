@@ -862,7 +862,7 @@ describe("ClaudeSdkSession", () => {
       cwd: "/home/demo/project/subdir",
       env: {
         BROWSER: "/bin/true",
-        CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode",
+        CLAUDE_AGENT_SDK_CLIENT_APP: "poracode",
         LOCALAPPDATA: "C:\\Users\\demo\\AppData\\Local",
         PATH: "C:\\Windows\\System32",
         FOO: "bar",
@@ -894,7 +894,7 @@ describe("ClaudeSdkSession", () => {
         "export NVM_DIR='/home/demo/.nvm'",
         "export LS_COLORS='rs=0:di=01;34:ln=01'",
         "export BROWSER='/bin/true'",
-        "export CLAUDE_AGENT_SDK_CLIENT_APP='lightcode'",
+        "export CLAUDE_AGENT_SDK_CLIENT_APP='poracode'",
         "export FOO='bar'",
         "exec '/home/demo/.local/bin/claude' 'chat' '--json'",
       ].join("; "),
@@ -942,7 +942,7 @@ describe("ClaudeSdkSession", () => {
         args: ["chat", "--json"],
         cwd: "C:\\repo\\subdir",
         env: {
-          CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode",
+          CLAUDE_AGENT_SDK_CLIENT_APP: "poracode",
           FOO: "bar",
           PATH: "C:\\Windows\\System32",
         },
@@ -959,7 +959,7 @@ describe("ClaudeSdkSession", () => {
       expect(options).toMatchObject({
         cwd: "C:\\repo\\subdir",
         env: expect.objectContaining({
-          CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode",
+          CLAUDE_AGENT_SDK_CLIENT_APP: "poracode",
           FOO: "bar",
           PATH: "C:\\Windows\\System32",
         }),

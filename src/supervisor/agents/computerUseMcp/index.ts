@@ -12,8 +12,8 @@ export interface ComputerUseMcpEnv {
   token: string;
 }
 
-export const COMPUTER_USE_MCP_URL_ENV = "LIGHTCODE_COMPUTER_USE_MCP_URL";
-export const COMPUTER_USE_MCP_TOKEN_ENV = "LIGHTCODE_COMPUTER_USE_MCP_TOKEN";
+export const COMPUTER_USE_MCP_URL_ENV = "PORACODE_COMPUTER_USE_MCP_URL";
+export const COMPUTER_USE_MCP_TOKEN_ENV = "PORACODE_COMPUTER_USE_MCP_TOKEN";
 
 export function readComputerUseMcpEnv(): ComputerUseMcpEnv | null {
   const url = process.env[COMPUTER_USE_MCP_URL_ENV];

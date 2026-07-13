@@ -10,7 +10,7 @@ export interface ApnsConfig {
   teamId: string;
   /** PEM contents of the .p8 signing key, newlines normalized. */
   authKey: string;
-  /** App bundle id, e.g. com.lightcodeapp.mobile. */
+  /** App bundle id, e.g. com.poracode.app. */
   topic: string;
   env: "production" | "sandbox";
   /** APNs host derived from `env`. */

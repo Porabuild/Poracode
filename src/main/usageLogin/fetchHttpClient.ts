@@ -1,4 +1,4 @@
-import type { HttpClient } from "@lightcode/agents-usage";
+import type { HttpClient } from "@poracode/agents-usage";
 
 const DEFAULT_PROBE_TIMEOUT_MS = 5_000;
 

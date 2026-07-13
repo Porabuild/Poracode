@@ -2,7 +2,7 @@ import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
 
 // @ts-expect-error The hook runtime is shipped as plain standalone ESM.
-import { readJsonFromStream } from "./lightcode-hook-runtime.mjs";
+import { readJsonFromStream } from "./poracode-hook-runtime.mjs";
 
 describe("readJsonFromStream", () => {
   it("parses JSON payloads below the cap", async () => {

@@ -122,7 +122,7 @@ function createHarness() {
   >(async () => {
     events.push("hooks");
     return {
-      env: { LIGHTCODE_HOOK_URL: "http://127.0.0.1/hook" },
+      env: { PORACODE_HOOK_URL: "http://127.0.0.1/hook" },
       extraArgs: [],
     };
   });
@@ -223,7 +223,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
     expect(spawnInput).toMatchObject({
       threadId: THREAD_ID,
       launchPrompt: "",
-      extraEnv: { LIGHTCODE_HOOK_URL: "http://127.0.0.1/hook" },
+      extraEnv: { PORACODE_HOOK_URL: "http://127.0.0.1/hook" },
     });
   });
 

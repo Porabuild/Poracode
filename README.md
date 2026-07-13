@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="build/icon.png" width="128" height="128" alt="Lightcode" />
+  <img src="build/icon.png" width="128" height="128" alt="Poracode" />
 </p>
 
-<h1 align="center">Lightcode</h1>
+<h1 align="center">Poracode</h1>
 
 <p align="center">
   <strong>One window for all your AI coding agents.</strong><br />
@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://poracode.com">Website</a> · <a href="https://github.com/poracode/poracode/releases">Download</a> · <a href="https://github.com/poracode/poracode/issues">Report Bug</a> · <a href="https://github.com/poracode/poracode/issues">Request Feature</a>
+  <a href="https://poracode.com">Website</a> · <a href="https://github.com/SDSLeon/lightcode/releases">Download</a> · <a href="https://github.com/SDSLeon/lightcode/issues">Report Bug</a> · <a href="https://github.com/SDSLeon/lightcode/issues">Request Feature</a>
 </p>
 
 <p align="center">
@@ -20,16 +20,16 @@
 ---
 
 <p align="center">
-  <img src="website/public/hero-screenshot.png" alt="Lightcode — AI agents running side-by-side" width="960" />
+  <img src="website/public/hero-screenshot.png" alt="Poracode — AI agents running side-by-side" width="960" />
 </p>
 
 ## Supported Agents
 
 **Claude** · **Codex** · **OpenCode** · **Gemini** · **Grok** · **Antigravity** · **Cursor** · **Command Code** · **Copilot** and any agent from the [ACP registry](https://agentclientprotocol.com).
 
-## Why Lightcode?
+## Why Poracode?
 
-If you use more than one AI coding agent, you know the pain: separate terminals, separate apps, no shared context. Lightcode puts them all in one place.
+If you use more than one AI coding agent, you know the pain: separate terminals, separate apps, no shared context. Poracode puts them all in one place.
 
 ### Infinite Threads & Layouts
 
@@ -49,7 +49,7 @@ Optimized to stay fast and responsive, even when you have lots of agent sessions
 
 ### Session Persistence
 
-Sessions are saved automatically, so you can close Lightcode and pick up right where you left off.
+Sessions are saved automatically, so you can close Poracode and pick up right where you left off.
 
 ### Built-in Browser
 
@@ -57,7 +57,7 @@ Open web pages, attach browser context to agents, and keep research in the same 
 
 ### In-App GitHub PRs
 
-View diffs, stage files, generate commit messages with AI, and review GitHub PRs directly inside Lightcode.
+View diffs, stage files, generate commit messages with AI, and review GitHub PRs directly inside Poracode.
 
 ### Code Editor
 
@@ -65,7 +65,7 @@ Monaco-based editor with LSP support for quick edits without switching to your I
 
 ### Cross-Platform Desktop
 
-Run Lightcode on macOS, Windows, and Linux, with a polished interface that feels at home on both Mac and Windows.
+Run Poracode on macOS, Windows, and Linux, with a polished interface that feels at home on both Mac and Windows.
 
 ### WSL Support
 
@@ -77,7 +77,7 @@ Install and run any agent from the [Agent Client Protocol](https://agentclientpr
 
 ## Install
 
-Download the latest release for your platform from the [releases page](https://github.com/poracode/poracode/releases) or visit [poracode.com](https://poracode.com).
+Download the latest release for your platform from the [releases page](https://github.com/SDSLeon/lightcode/releases) or visit [poracode.com](https://poracode.com).
 
 | Platform | Format           |
 | -------- | ---------------- |
@@ -87,13 +87,13 @@ Download the latest release for your platform from the [releases page](https://g
 
 ### Getting Started
 
-1. Install Lightcode for your platform.
+1. Install Poracode for your platform.
 2. Install the AI agent CLIs you want to use (e.g., [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Codex](https://github.com/openai/codex)).
-3. Open Lightcode, add your project, and start orchestrating.
+3. Open Poracode, add your project, and start orchestrating.
 
 ## Contributing
 
-Contributions are welcome! Please open an [issue](https://github.com/poracode/poracode/issues) first to discuss what you'd like to change.
+Contributions are welcome! Please open an [issue](https://github.com/SDSLeon/lightcode/issues) first to discuss what you'd like to change.
 
 ## License
 

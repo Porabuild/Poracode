@@ -5,7 +5,7 @@ import type {
 import { readBridge } from "@/renderer/bridge";
 import { createPostHogClient, type PostHogClientConfig } from "./posthogClient";
 
-const INSTALL_ID_STORAGE_KEY = "lightcode-posthog-anonymous-id";
+const INSTALL_ID_STORAGE_KEY = "poracode-posthog-anonymous-id";
 
 function readBuildEnv(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";

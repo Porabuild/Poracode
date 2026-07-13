@@ -23,7 +23,7 @@ import {
   dbUpsertThread,
   initDatabase,
 } from "./db";
-import { cleanupOrphanedAttachments, prepareLightcodeDataRoot } from "./lightcodeData";
+import { cleanupOrphanedAttachments, preparePoracodeDataRoot } from "./poracodeData";
 import { handleOrchestratorThreadCreated } from "./orchestratorThreadBridge";
 import { createLocalIpcHandlers, showAddFilesDialog } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
@@ -58,9 +58,9 @@ import { createTray, type TrayHandle } from "./tray";
 import { readKeybindingsFile } from "./keybindingsFile";
 import { QuickComposerShortcutManager } from "./quickComposerShortcut";
 import { shouldStartMinimized, syncWindowsStartupRegistration } from "./startupSettings";
-import { type LightcodePaths, resolveLightcodeBaseDir } from "@/shared/lightcodePaths";
+import { type PoracodePaths, resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { getAppName } from "@/shared/appName";
-import { resolveLightcodeChannel } from "@/shared/channel";
+import { productNameFor, resolvePoracodeChannel } from "@/shared/channel";
 import {
   IPC_EVENT_CHANNELS,
   IPC_WINDOW_CHANNELS,
@@ -83,13 +83,29 @@ import {
   ScheduleRunCoordinator,
 } from "./schedules";
 import { AppControlsMcpIngress } from "./app-controls";
+import { legacyProductNameFor, resolveLegacyElectronUserDataDir } from "./legacyDataMigration";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
-const channel = resolveLightcodeChannel();
-const baseDirOverride = process.env.LIGHTCODE_BASE_DIR;
+const channel = resolvePoracodeChannel();
+const baseDirOverride = process.env.PORACODE_BASE_DIR;
+const legacyBaseDirOverride = process.env.LIGHTCODE_BASE_DIR?.trim() || undefined;
+const defaultElectronUserDataDir = app.getPath("userData");
+const legacyElectronUserDataDir = legacyBaseDirOverride
+  ? join(legacyBaseDirOverride, "userData")
+  : resolveLegacyElectronUserDataDir(defaultElectronUserDataDir, channel, isDev);
 
-if (process.env.LIGHTCODE_CDP_PORT) {
-  app.commandLine.appendSwitch("remote-debugging-port", process.env.LIGHTCODE_CDP_PORT);
+// Electron keys macOS Keychain and Linux secret-store entries by app name.
+// Initialize Chromium's crypto under the pre-rebrand technical identity so
+// migrated secrets and browser sessions remain decryptable. The visible name
+// is restored after Electron captures the crypto configuration during startup.
+const preserveLegacySafeStorageIdentity = !isDev && process.platform !== "win32";
+if (preserveLegacySafeStorageIdentity) {
+  app.setName(legacyProductNameFor(channel));
+  app.setPath("userData", defaultElectronUserDataDir);
+}
+
+if (process.env.PORACODE_CDP_PORT) {
+  app.commandLine.appendSwitch("remote-debugging-port", process.env.PORACODE_CDP_PORT);
 }
 
 // Windows HDR can make DWM acrylic visibly change opacity when Chromium starts
@@ -111,6 +127,22 @@ if (baseDirOverride) {
   app.setPath("userData", join(app.getPath("userData"), "Dev"));
 }
 
+const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
+let poracodePaths: PoracodePaths | null = null;
+if (hasSingleInstanceLock) {
+  const electronUserDataDir = app.getPath("userData");
+  poracodePaths = preparePoracodeDataRoot(
+    baseDirOverride ?? (isDev ? join(homedir(), ".poracode-dev") : resolvePoracodeBaseDir(channel)),
+    {
+      channel,
+      electronUserDataDir,
+      legacyElectronUserDataDir,
+      ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
+      allowCustomDataRoot: app.isPackaged,
+    },
+  );
+}
+
 const sentryEnabled = initializeMainSentry({ appVersion: app.getVersion(), isDev, channel });
 
 // Fallback global handlers so a stray throw in any main-process callback
@@ -119,19 +151,18 @@ const sentryEnabled = initializeMainSentry({ appVersion: app.getVersion(), isDev
 // Sentry's Electron integration also hooks these, but only when a DSN is
 // configured and initialization succeeded; this guarantees coverage otherwise.
 process.on("uncaughtException", (error) => {
-  console.error("[lightcode] uncaught exception:", error);
-  captureMainException(error, { "lightcode.feature_area": "main" });
+  console.error("[poracode] uncaught exception:", error);
+  captureMainException(error, { "poracode.feature_area": "main" });
 });
 process.on("unhandledRejection", (reason) => {
-  console.error("[lightcode] unhandled rejection:", reason);
-  captureMainException(reason, { "lightcode.feature_area": "main" });
+  console.error("[poracode] unhandled rejection:", reason);
+  captureMainException(reason, { "poracode.feature_area": "main" });
 });
 const posthogEnabled = process.env.POSTHOG_ENABLED !== "0";
 const posthogKey = posthogEnabled ? (process.env.POSTHOG_KEY ?? "").trim() : "";
 const posthogHost = (process.env.POSTHOG_HOST ?? "").trim();
 const posthogEnableDev = process.env.POSTHOG_ENABLE_DEV === "1";
 
-const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
 const WINDOW_CHROME_HEIGHT = 32;
 
 let mainWindow: BrowserWindow | null = null;
@@ -141,7 +172,6 @@ let quickComposerDismissTimer: ReturnType<typeof setTimeout> | null = null;
 let revealMainAfterQuickComposerDismiss = false;
 let mainRendererReady = false;
 const pendingQuickComposerSubmissions: QuickComposerSubmission[] = [];
-let lightcodePaths: LightcodePaths | null = null;
 let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
 let browserMcpIngress: BrowserMcpIngress | null = null;
@@ -157,9 +187,9 @@ let quickComposerShortcutManager: QuickComposerShortcutManager | null = null;
 let isQuitting = false;
 
 function isCloseToTrayEnabled(): boolean {
-  if (!lightcodePaths) return false;
+  if (!poracodePaths) return false;
   try {
-    return readSharedSettingsFile(lightcodePaths.settingsPath).closeToTray;
+    return readSharedSettingsFile(poracodePaths.settingsPath).closeToTray;
   } catch {
     return false;
   }
@@ -176,9 +206,9 @@ function resolveWindowChromeOptions(): {
 } {
   let mode: "system" | "light" | "dark" = "dark";
   let wantGlass = false;
-  if (lightcodePaths) {
+  if (poracodePaths) {
     try {
-      const settings = readSharedSettingsFile(lightcodePaths.settingsPath);
+      const settings = readSharedSettingsFile(poracodePaths.settingsPath);
       mode = settings.themeMode;
       wantGlass = settings.sidebarTranslucency === true;
     } catch {
@@ -192,11 +222,11 @@ function resolveWindowChromeOptions(): {
 }
 
 function primeBrowserAllowFlags(settings?: SharedSettings): void {
-  if (!lightcodePaths) return;
+  if (!poracodePaths) return;
   let allowEval = false;
   let allowDataAccess = false;
   try {
-    const s = settings ?? readSharedSettingsFile(lightcodePaths.settingsPath);
+    const s = settings ?? readSharedSettingsFile(poracodePaths.settingsPath);
     allowEval = s.browser?.allowEval === true;
     allowDataAccess = s.browser?.allowDataAccess === true;
   } catch {
@@ -216,14 +246,14 @@ function primeBrowserAllowFlags(settings?: SharedSettings): void {
 let lastAppliedLaunchAtStartup: boolean | null = null;
 
 function syncStartupSettings(settings?: SharedSettings): void {
-  if (!lightcodePaths) return;
+  if (!poracodePaths) return;
   try {
-    const s = settings ?? readSharedSettingsFile(lightcodePaths.settingsPath);
+    const s = settings ?? readSharedSettingsFile(poracodePaths.settingsPath);
     if (s.launchAtStartup === lastAppliedLaunchAtStartup) return;
     syncWindowsStartupRegistration(app, s, process.platform, isDev);
     lastAppliedLaunchAtStartup = s.launchAtStartup;
   } catch (error) {
-    console.warn("[lightcode] failed to update Windows startup registration", error);
+    console.warn("[poracode] failed to update Windows startup registration", error);
   }
 }
 
@@ -311,8 +341,8 @@ function createQuickComposerAppWindow(): BrowserWindow {
     },
     onRendererProcessGone: (details) => {
       captureMainException(new Error(`Quick composer renderer gone: ${details.reason}`), {
-        "lightcode.feature_area": "quick-composer",
-        "lightcode.process": "renderer",
+        "poracode.feature_area": "quick-composer",
+        "poracode.process": "renderer",
       });
     },
   });
@@ -377,8 +407,8 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
     onRendererProcessGone: (details) => {
       mainRendererReady = false;
       captureMainException(new Error(`Renderer process gone: ${details.reason}`), {
-        "lightcode.feature_area": "renderer",
-        "lightcode.process": "renderer",
+        "poracode.feature_area": "renderer",
+        "poracode.process": "renderer",
       });
     },
   });
@@ -438,8 +468,8 @@ function createBrowserExtractWindow(): BrowserWindow {
     },
     onRendererProcessGone: (details) => {
       captureMainException(new Error(`Browser renderer process gone: ${details.reason}`), {
-        "lightcode.feature_area": "browser",
-        "lightcode.process": "renderer",
+        "poracode.feature_area": "browser",
+        "poracode.process": "renderer",
       });
     },
   });
@@ -474,16 +504,16 @@ function injectBrowserToMain(): void {
 const workingThreads = new Set<string>();
 const sleepInhibitor = createSleepInhibitor();
 
-function requireLightcodePaths(): LightcodePaths {
-  if (!lightcodePaths) {
+function requirePoracodePaths(): PoracodePaths {
+  if (!poracodePaths) {
     throw new Error("Poracode paths are not initialized.");
   }
-  return lightcodePaths;
+  return poracodePaths;
 }
 
 function updatePowerSaveBlocker(): void {
-  const enabled = lightcodePaths
-    ? readSharedSettingsFile(lightcodePaths.settingsPath).preventSleepWhileWorking
+  const enabled = poracodePaths
+    ? readSharedSettingsFile(poracodePaths.settingsPath).preventSleepWhileWorking
     : true;
   sleepInhibitor.setActive(enabled && workingThreads.size > 0);
 }
@@ -514,9 +544,9 @@ if (!hasSingleInstanceLock) {
   app.on("second-instance", (_event, commandLine) => {
     if (!app.isReady()) return;
     if (
-      lightcodePaths &&
+      poracodePaths &&
       shouldStartMinimized(
-        readSharedSettingsFile(lightcodePaths.settingsPath),
+        readSharedSettingsFile(poracodePaths.settingsPath),
         commandLine,
         process.platform,
       )
@@ -529,17 +559,16 @@ if (!hasSingleInstanceLock) {
   void app
     .whenReady()
     .then(async () => {
+      if (preserveLegacySafeStorageIdentity) app.setName(productNameFor(channel));
       Menu.setApplicationMenu(null);
 
       installLocalFileProtocolHandler();
       installPickerProtocolHandler();
+      // Keep the pre-rebrand partition so browser cookies and sign-ins survive.
       electronSession.fromPartition("persist:lightcode-browser").setUserAgent(browserUserAgent);
 
-      lightcodePaths = prepareLightcodeDataRoot(
-        baseDirOverride ??
-          (isDev ? join(homedir(), ".lightcode-dev") : resolveLightcodeBaseDir(channel)),
-      );
-      const initialSettings = readSharedSettingsFile(lightcodePaths.settingsPath);
+      const paths = requirePoracodePaths();
+      const initialSettings = readSharedSettingsFile(paths.settingsPath);
       syncStartupSettings(initialSettings);
       const showMainWindowOnReady = !shouldStartMinimized(
         initialSettings,
@@ -552,18 +581,18 @@ if (!hasSingleInstanceLock) {
         windowsJobObjectManager = manager;
         jobObjectReady = manager.start().catch((error) => {
           console.error(
-            "[lightcode] Windows Job Object helper unavailable:",
+            "[poracode] Windows Job Object helper unavailable:",
             error instanceof Error ? error.message : String(error),
           );
-          captureMainException(error, { "lightcode.feature_area": "process-lifecycle" });
+          captureMainException(error, { "poracode.feature_area": "process-lifecycle" });
           if (windowsJobObjectManager === manager) {
             windowsJobObjectManager = null;
           }
         });
       }
 
-      initDatabase(lightcodePaths.dbPath);
-      const secretStorageKey = readOrCreateSafeStorageSecretKey(lightcodePaths.baseDir);
+      initDatabase(paths.dbPath);
+      const secretStorageKey = readOrCreateSafeStorageSecretKey(paths.baseDir);
       // Configure the same key in main so it can seal captured secrets (e.g. usage
       // login cookies); the supervisor configures it from the env var it receives.
       configureSecretStorageKey(secretStorageKey);
@@ -582,7 +611,7 @@ if (!hasSingleInstanceLock) {
           : join(__dirname, "..", "..", "resources", "agent-plugins"),
         wslHelpersDir,
         bundledSkillsDir,
-        cacheDir: join(lightcodePaths.baseDir, "ssh-runtime-bundles"),
+        cacheDir: join(paths.baseDir, "ssh-runtime-bundles"),
       });
 
       // Assigned after the browser services are composed and before the
@@ -602,23 +631,23 @@ if (!hasSingleInstanceLock) {
           const env: Record<string, string> = {};
           const browserInfo = browserMcpIngress?.getInfo();
           if (browserInfo) {
-            env.LIGHTCODE_BROWSER_MCP_URL = browserInfo.url;
-            env.LIGHTCODE_BROWSER_MCP_TOKEN = browserInfo.token;
+            env.PORACODE_BROWSER_MCP_URL = browserInfo.url;
+            env.PORACODE_BROWSER_MCP_TOKEN = browserInfo.token;
           }
           const chromeInfo = chromeMcpIngress?.getInfo();
           if (chromeInfo) {
-            env.LIGHTCODE_CHROME_MCP_URL = chromeInfo.url;
-            env.LIGHTCODE_CHROME_MCP_TOKEN = chromeInfo.token;
+            env.PORACODE_CHROME_MCP_URL = chromeInfo.url;
+            env.PORACODE_CHROME_MCP_TOKEN = chromeInfo.token;
           }
           const computerUseInfo = computerUseMcpIngress?.getInfo();
           if (computerUseInfo) {
-            env.LIGHTCODE_COMPUTER_USE_MCP_URL = computerUseInfo.url;
-            env.LIGHTCODE_COMPUTER_USE_MCP_TOKEN = computerUseInfo.token;
+            env.PORACODE_COMPUTER_USE_MCP_URL = computerUseInfo.url;
+            env.PORACODE_COMPUTER_USE_MCP_TOKEN = computerUseInfo.token;
           }
           const appControlsInfo = appControlsMcpIngress?.getInfo();
           if (appControlsInfo) {
-            env.LIGHTCODE_APP_CONTROLS_MCP_URL = appControlsInfo.url;
-            env.LIGHTCODE_APP_CONTROLS_MCP_TOKEN = appControlsInfo.token;
+            env.PORACODE_APP_CONTROLS_MCP_URL = appControlsInfo.url;
+            env.PORACODE_APP_CONTROLS_MCP_TOKEN = appControlsInfo.token;
           }
           return env;
         },
@@ -663,7 +692,7 @@ if (!hasSingleInstanceLock) {
         },
         ensureHomeProject: ensureHomeProjectRow,
         getProject: dbGetProject,
-        getSharedSettings: () => readSharedSettingsFile(requireLightcodePaths().settingsPath),
+        getSharedSettings: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
         upsertThread: dbUpsertThread,
         deleteThread: dbDeleteThread,
         threadExists: (threadId) => dbGetThread(threadId) != null,
@@ -690,7 +719,7 @@ if (!hasSingleInstanceLock) {
         },
       );
 
-      browserPanelManager = new BrowserPanelManager(lightcodePaths, browserUserAgent, {
+      browserPanelManager = new BrowserPanelManager(paths, browserUserAgent, {
         isExtracted: () => browserExtractWindow !== null && !browserExtractWindow.isDestroyed(),
         focusExtractedWindow: focusBrowserExtractWindow,
       });
@@ -700,25 +729,25 @@ if (!hasSingleInstanceLock) {
       // connects to, plus a `chrome` MCP ingress agents reach the same way as the
       // embedded `browser` server. They live side by side.
       chromeBridgeServer = new ChromeBridgeServer({
-        pairingFilePath: join(lightcodePaths.baseDir, "chrome-bridge.json"),
+        pairingFilePath: join(paths.baseDir, "chrome-bridge.json"),
       });
       chromeMcpIngress = new ChromeMcpIngress();
       chromeMcpIngress.setConnectionAccessor(() => chromeBridgeServer?.getConnection() ?? null);
       primeBrowserAllowFlags(initialSettings);
       const mcpInfoReady = browserMcpIngress.start().catch((err) => {
-        console.error("[lightcode] browser MCP ingress failed to start:", err);
+        console.error("[poracode] browser MCP ingress failed to start:", err);
         return null;
       });
       const chromeMcpReady = chromeMcpIngress.start().catch((err) => {
-        console.error("[lightcode] chrome MCP ingress failed to start:", err);
+        console.error("[poracode] chrome MCP ingress failed to start:", err);
         return null;
       });
       const appControlsMcpReady = appControlsMcpIngress.start().catch((err) => {
-        console.error("[lightcode] app controls MCP ingress failed to start:", err);
+        console.error("[poracode] app controls MCP ingress failed to start:", err);
         return null;
       });
       chromeBridgeServer.start().catch((err) => {
-        console.error("[lightcode] chrome bridge server failed to start:", err);
+        console.error("[poracode] chrome bridge server failed to start:", err);
       });
       // Computer-use drives the host desktop and is only supported on macOS and
       // Windows (matches createComputerUseDriver). On other platforms the ingress
@@ -734,7 +763,7 @@ if (!hasSingleInstanceLock) {
             for (const threadId of threadIds) {
               void supervisorClient.call("interruptThread", { threadId }).catch((error) => {
                 console.error(
-                  `[lightcode] failed to interrupt computer-use thread ${threadId}:`,
+                  `[poracode] failed to interrupt computer-use thread ${threadId}:`,
                   error,
                 );
               });
@@ -745,14 +774,14 @@ if (!hasSingleInstanceLock) {
           onActivity: (event) => computerUseDesktopOverlay?.setActivity(event),
         });
         computerUseMcpInfoReady = computerUseMcpIngress.start().catch((err) => {
-          console.error("[lightcode] computer use MCP ingress failed to start:", err);
+          console.error("[poracode] computer use MCP ingress failed to start:", err);
           return null;
         });
       }
 
       const controller = createDesktopRemoteAccessController({
         appVersion: app.getVersion(),
-        paths: lightcodePaths,
+        paths,
         ...(process.env.VITE_DEV_SERVER_URL
           ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }
           : {}),
@@ -778,16 +807,16 @@ if (!hasSingleInstanceLock) {
         (accelerator) => {
           tray?.setQuickComposerShortcut(accelerator);
           if (accelerator) {
-            console.log(`[lightcode] registered ${accelerator} for quick composer`);
+            console.log(`[poracode] registered ${accelerator} for quick composer`);
           }
         },
       );
       try {
         quickComposerShortcutManager.apply(
-          readKeybindingsFile(requireLightcodePaths().keybindingsPath).file,
+          readKeybindingsFile(requirePoracodePaths().keybindingsPath).file,
         );
       } catch (error) {
-        console.warn("[lightcode] failed to register the quick composer shortcut", error);
+        console.warn("[poracode] failed to register the quick composer shortcut", error);
       }
 
       registerIpcHandlers({
@@ -801,7 +830,9 @@ if (!hasSingleInstanceLock) {
           startTailscale: controller.startTailscale,
           setRemoteAccessAdvertisedUrl: controller.setAdvertisedUrl,
           sshConnectionManager,
-          requireLightcodePaths,
+          requirePoracodePaths,
+          legacyElectronUserDataDir,
+          ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
           updatePowerSaveBlocker,
           autoUpdater: autoUpdaterController,
           onSharedSettingsChanged: handleSharedSettingsChanged,
@@ -871,10 +902,10 @@ if (!hasSingleInstanceLock) {
       await jobObjectReady;
 
       const hookDebugOn =
-        Boolean(process.env.LIGHTCODE_HOOK_DEBUG) && process.env.LIGHTCODE_HOOK_DEBUG !== "0";
+        Boolean(process.env.PORACODE_HOOK_DEBUG) && process.env.PORACODE_HOOK_DEBUG !== "0";
       if (hookDebugOn) {
         console.log(
-          "[lightcode] LIGHTCODE_HOOK_DEBUG is on — watch for [supervisor] hook-debug lines (HookIngress, WSL bridge, L1/L2 spawn, envelopes).",
+          "[poracode] PORACODE_HOOK_DEBUG is on — watch for [supervisor] hook-debug lines (HookIngress, WSL bridge, L1/L2 spawn, envelopes).",
         );
       }
 
@@ -884,16 +915,16 @@ if (!hasSingleInstanceLock) {
         computerUseMcpInfoReady,
         appControlsMcpReady,
       ]);
-      supervisorClient.start(lightcodePaths.baseDir);
+      supervisorClient.start(paths.baseDir);
       scheduleService.start();
 
       void controller.startIfEnabled();
 
       initialMainWindow.once("ready-to-show", () => {
         setTimeout(() => {
-          const paths = requireLightcodePaths();
+          const attachmentPaths = requirePoracodePaths();
           cleanupOrphanedAttachments(
-            paths.attachmentsDir,
+            attachmentPaths.attachmentsDir,
             dbGetThreads().map((thread) => thread.id),
           );
         }, 0);
@@ -910,8 +941,8 @@ if (!hasSingleInstanceLock) {
             clearTimeout(debounce);
           }
           debounce = setTimeout(() => {
-            console.log("[lightcode] supervisor changed, restarting…");
-            supervisorClient.start(requireLightcodePaths().baseDir);
+            console.log("[poracode] supervisor changed, restarting…");
+            supervisorClient.start(requirePoracodePaths().baseDir);
           }, 200);
         });
       }
@@ -961,8 +992,8 @@ if (!hasSingleInstanceLock) {
       });
     })
     .catch((error: unknown) => {
-      console.error("[lightcode] failed to initialize:", error);
-      captureMainException(error, { "lightcode.feature_area": "main-initialization" });
+      console.error("[poracode] failed to initialize:", error);
+      captureMainException(error, { "poracode.feature_area": "main-initialization" });
       app.quit();
     });
 }

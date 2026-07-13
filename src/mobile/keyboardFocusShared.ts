@@ -17,7 +17,7 @@ import { getMobileRuntimePlatform } from "./mobilePlatform";
  * is stable per device, so remember the last measured one and lift by it on
  * later focuses.
  */
-const KEYBOARD_HEIGHT_KEY = "lightcode-mobile-keyboard-height";
+const KEYBOARD_HEIGHT_KEY = "poracode-mobile-keyboard-height";
 const ANDROID_KEYBOARD_HEIGHT_KEY = `${KEYBOARD_HEIGHT_KEY}:android`;
 /** Give up a cold-keyboard probe after this long with no measurement. */
 export const COLD_KEYBOARD_PROBE_TIMEOUT_MS = 1_200;

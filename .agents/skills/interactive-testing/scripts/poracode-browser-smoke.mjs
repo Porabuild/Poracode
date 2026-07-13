@@ -4,10 +4,10 @@ import { homedir } from "node:os";
 import { resolve as resolvePath } from "node:path";
 
 const args = parseArgs(process.argv.slice(2));
-const port = Number(args.port ?? process.env.LIGHTCODE_CDP_PORT ?? 9222);
+const port = Number(args.port ?? process.env.PORACODE_CDP_PORT ?? 9222);
 const appUrl = args.appUrl ?? "http://127.0.0.1:3100/";
-const defaultOutDir = `${homedir()}\\.lightcode-smoke\\artifacts\\browser-${Date.now()}`;
-const outDir = resolvePath(args.outDir ?? process.env.LIGHTCODE_SMOKE_OUT_DIR ?? defaultOutDir);
+const defaultOutDir = `${homedir()}\\.poracode-smoke\\artifacts\\browser-${Date.now()}`;
+const outDir = resolvePath(args.outDir ?? process.env.PORACODE_SMOKE_OUT_DIR ?? defaultOutDir);
 const waitMs = Number(args.waitMs ?? 10000);
 const commandTimeoutMs = Number(args.commandTimeoutMs ?? 8000);
 
@@ -20,7 +20,7 @@ const appTarget = await waitForAppTarget();
 const app = await connectTarget(appTarget);
 
 try {
-  step("connected to Lightcode renderer");
+  step("connected to Poracode renderer");
   await send(app, "Page.enable");
   await send(app, "Runtime.enable");
   await installConsoleCollector();
@@ -29,7 +29,7 @@ try {
   const initial = await rendererSnapshot();
   assert(initial.url === appUrl, "App target", `expected ${appUrl}, got ${initial.url}`);
   assert(
-    initial.text.includes("Lightcode") || initial.text.includes("Poracode"),
+    initial.text.includes("Poracode") || initial.text.includes("Poracode"),
     "App boot",
     "renderer body contains the app shell text",
   );
@@ -41,8 +41,8 @@ try {
 
   step("creating Browser tab");
   const runId = Date.now();
-  const firstTitle = `LC Browser Smoke ${runId}`;
-  const secondTitle = `LC Browser Smoke ${runId} 2`;
+  const firstTitle = `Poracode Browser Smoke ${runId}`;
+  const secondTitle = `Poracode Browser Smoke ${runId} 2`;
   const firstUrl = smokeDataUrl(firstTitle, "first page");
   const secondUrl = smokeDataUrl(secondTitle, "second page");
 
@@ -183,7 +183,7 @@ async function waitForAppTarget() {
   return waitFor(async () => {
     const targets = await listTargets();
     return targets.find((target) => target.type === "page" && target.url === appUrl);
-  }, `Lightcode page target at ${appUrl}`);
+  }, `Poracode page target at ${appUrl}`);
 }
 
 async function listTargets() {
@@ -398,7 +398,7 @@ async function waitForBrowserSettingsPage(options = {}) {
 
 async function browserState() {
   const json = await evaluate(
-    `(async () => JSON.stringify(await window.lightcode.browserGetState()))()`,
+    `(async () => JSON.stringify(await window.poracode.browserGetState()))()`,
     { awaitPromise: true },
   );
   return JSON.parse(json);
@@ -419,7 +419,7 @@ async function callBridge(method, payload) {
   const result = await evaluate(
     `(() => {
       window.__smokeBridgeErrors ??= [];
-      return window.lightcode[${JSON.stringify(method)}](${JSON.stringify(payload)}).then(
+      return window.poracode[${JSON.stringify(method)}](${JSON.stringify(payload)}).then(
         () => ({ ok: true }),
         (error) => {
           window.__smokeBridgeErrors.push(String(error));
@@ -554,7 +554,7 @@ function assert(condition, label, detail) {
 }
 
 function printReport(errors) {
-  console.log("Lightcode Browser Panel Smoke");
+  console.log("Poracode Browser Panel Smoke");
   for (const result of results) {
     console.log(`${result.status}: ${result.label} - ${result.detail}`);
   }

@@ -19,7 +19,7 @@ export function SidebarHeaderControls() {
   const browserVisible = browserPanelOpen && rightPanelTab === "browser";
 
   return (
-    <div className="lightcode-overlay-header__controls flex items-center gap-1.5">
+    <div className="poracode-overlay-header__controls flex items-center gap-1.5">
       <Tooltip delay={150}>
         <Tooltip.Trigger>
           <Button

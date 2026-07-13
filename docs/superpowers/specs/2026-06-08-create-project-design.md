@@ -27,7 +27,7 @@ Implement a unified "create project" flow with:
 - `ProjectLocation` (`src/shared/contracts/common.ts`): discriminated union `windows | wsl | posix`.
 - Helpers (`src/shared/wsl.ts`): `parseWslUncPath`, `getProjectName`, `toWslUncPath`, `getProjectFsPath`.
 - IPC: `pickFolder(defaultPath?)`, `listWslDistros()` already exist (`procedures/app.ts`, `localHandlers.ts`).
-- Settings: JSON at `~/.lightcode/settings.json`; renderer store `sharedSettingsStore.ts`; schema `src/shared/settings.ts`. At design time: no last-used directory persisted, no create-directory IPC.
+- Settings: JSON at `~/.poracode/settings.json`; renderer store `sharedSettingsStore.ts`; schema `src/shared/settings.ts`. At design time: no last-used directory persisted, no create-directory IPC.
 
 This section captures the **pre-implementation baseline**. All of the targets below — the "Start from scratch" / "Use an existing folder" menu, the "Name project" modal, per-runtime last-used-dir persistence (`lastUsedProjectDirs`), and the `createProjectDirectory` IPC — have since shipped.
 

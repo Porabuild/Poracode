@@ -1,15 +1,15 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
-import { type LightcodeChannel, normalizeChannel } from "@/shared/channel";
+import { type PoracodeChannel, normalizeChannel } from "@/shared/channel";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
 import {
   createInvokeBridge,
   IPC_EVENT_CHANNELS,
   IPC_WINDOW_CHANNELS,
-  LIGHTCODE_WINDOW_KINDS,
+  PORACODE_WINDOW_KINDS,
   type BrowserEvent,
-  type LightcodeBridge,
-  type LightcodeWindowKind,
+  type PoracodeBridge,
+  type PoracodeWindowKind,
   type NotificationClickEvent,
   type QuickComposerSubmission,
   type SupervisorEvent,
@@ -41,7 +41,7 @@ function resolveIsDev(): boolean {
   return false;
 }
 
-function resolveChannel(): LightcodeChannel {
+function resolveChannel(): PoracodeChannel {
   const prefix = "--lc-channel=";
   for (const arg of process.argv) {
     if (arg.startsWith(prefix)) {
@@ -51,10 +51,10 @@ function resolveChannel(): LightcodeChannel {
   return "stable";
 }
 
-function resolveWindowKind(): LightcodeWindowKind {
+function resolveWindowKind(): PoracodeWindowKind {
   const kind = resolveArgValue("--lc-window-kind=");
-  return (LIGHTCODE_WINDOW_KINDS as readonly string[]).includes(kind)
-    ? (kind as LightcodeWindowKind)
+  return (PORACODE_WINDOW_KINDS as readonly string[]).includes(kind)
+    ? (kind as PoracodeWindowKind)
     : "main";
 }
 
@@ -86,7 +86,7 @@ function resolveArgBoolean(prefix: string): boolean {
   return resolveArgValue(prefix) === "1";
 }
 
-const bridge: LightcodeBridge = {
+const bridge: PoracodeBridge = {
   platform: process.platform,
   appVersion: resolveAppVersion(),
   arch: process.arch,
@@ -189,4 +189,4 @@ const bridge: LightcodeBridge = {
   },
 };
 
-contextBridge.exposeInMainWorld("lightcode", bridge);
+contextBridge.exposeInMainWorld("poracode", bridge);

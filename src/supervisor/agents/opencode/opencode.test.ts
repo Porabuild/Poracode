@@ -377,7 +377,7 @@ describe("createOpenCodeAdapter", () => {
     const adapter = createOpenCodeAdapter();
     expect(adapter.kind).toBe("opencode");
     expect(adapter.label).toBe("OpenCode");
-    expect(adapter.pluginId).toBe("lightcode-status@opencode");
+    expect(adapter.pluginId).toBe("poracode-status@opencode");
     expect(adapter.minProtocolVersion).toBe(1);
   });
 
@@ -518,7 +518,7 @@ describe("createOpenCodeAdapter", () => {
 
     expect(argv.env?.OPENCODE_CONFIG_CONTENT).toBeDefined();
     expect(argv.env?.OPENCODE_CONFIG_CONTENT).not.toContain("Bearer secret");
-    expect(argv.env?.OPENCODE_CONFIG_CONTENT).toContain("{env:LIGHTCODE_MCP_OPENCODE_");
+    expect(argv.env?.OPENCODE_CONFIG_CONTENT).toContain("{env:PORACODE_MCP_OPENCODE_");
     expect(Object.values(argv.env ?? {})).toContain("Bearer secret");
   });
 

@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
-import type { UsageSnapshot } from "@lightcode/agents-usage";
+import type { UsageSnapshot } from "@poracode/agents-usage";
 import { usageStatusText } from "./usageFormat";
 
 function authMissingSnapshot(providerId: string): UsageSnapshot {

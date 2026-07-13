@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { allUsageProviderDescriptors } from "@lightcode/agents-usage";
+import { allUsageProviderDescriptors } from "@poracode/agents-usage";
 import { hasUsageSecret } from "@/shared/usageSecretStore";
 
 vi.mock("electron", () => ({ clipboard: { writeText: vi.fn<(text: string) => void>() } }));

@@ -115,6 +115,7 @@ describe("ThreadView", () => {
         },
         mcpServers: [],
         disabledBuiltInMcpServerIds: [],
+        disabledBuiltInMcpTools: {},
       });
     });
   });

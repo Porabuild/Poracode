@@ -221,6 +221,30 @@ describe("RemoteDesktopClient", () => {
     await expect(client.environment()).rejects.toThrow(/incompatible/i);
   });
 
+  it("falls back to the legacy environment endpoint when the Poracode endpoint is unavailable", async () => {
+    const requestedPaths: string[] = [];
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async (url) => {
+      const pathname = new URL(url).pathname;
+      requestedPaths.push(pathname);
+      if (pathname === "/.well-known/poracode/environment") {
+        return new Response(
+          JSON.stringify({ error: { code: "not_found", message: "Not found." } }),
+          {
+            status: 404,
+            headers: { "content-type": "application/json" },
+          },
+        );
+      }
+      return descriptorResponse(1, ["session:read"]);
+    });
+
+    await expect(client.environment()).resolves.toMatchObject({ desktopId: "desktop-1" });
+    expect(requestedPaths).toEqual([
+      "/.well-known/poracode/environment",
+      "/.well-known/lightcode/environment",
+    ]);
+  });
+
   it("drops server-advertised scopes this build does not know instead of failing to parse", async () => {
     const client = new RemoteDesktopClient("http://127.0.0.1:38987/", undefined, async () =>
       descriptorResponse(1, ["session:read", "session:operate", "future:capability"]),

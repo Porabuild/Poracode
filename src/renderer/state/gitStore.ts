@@ -389,7 +389,7 @@ function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boolean {
  * to serialize and useful at first paint are persisted — the in-flight `prFiles`
  * / `prDiffs` caches are kept session-local since they're tied to overlay state.
  */
-const PERSIST_KEY = "lightcode-git-cache-v1";
+const PERSIST_KEY = "poracode-git-cache-v1";
 const PERSIST_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 interface PersistedSnapshot {

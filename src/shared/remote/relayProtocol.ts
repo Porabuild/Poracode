@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * Relay transport for cross-network access (docs/REMOTE_ARCHITECTURE.md, Phase
- * 5). A Lightcode server behind NAT dials OUT to a relay and registers under a
+ * 5). A Poracode server behind NAT dials OUT to a relay and registers under a
  * server id; a device points its endpoint at `https://<relay>/s/<serverId>/`
  * and the relay tunnels its HTTP + WebSocket traffic to the registered server.
  *
@@ -20,7 +20,7 @@ import { z } from "zod";
  * "cloud subscription" service (hosting, billing, per-account routing) layers on
  * top and is out of repo scope.
  */
-export const LIGHTCODE_RELAY_PROTOCOL_VERSION = 1;
+export const PORACODE_RELAY_PROTOCOL_VERSION = 1;
 
 /** Default cap on a single tunneled HTTP body (request or response) in bytes. */
 export const DEFAULT_RELAY_MAX_BODY_BYTES = 64 * 1024 * 1024;
@@ -34,7 +34,7 @@ export function relayWebSocketPayloadLimit(maxBodyBytes: number): number {
 /** Host → relay: claim a server id on this control socket. */
 export const relayRegisterFrameSchema = z.object({
   t: z.literal("register"),
-  protocolVersion: z.literal(LIGHTCODE_RELAY_PROTOCOL_VERSION),
+  protocolVersion: z.literal(PORACODE_RELAY_PROTOCOL_VERSION),
   serverId: z.string().min(1),
   /** Shared secret proving ownership of `serverId` (prevents hijacking). */
   secret: z.string().min(1),

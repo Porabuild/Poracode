@@ -1,6 +1,6 @@
 import { collectPaneIds, type PaneLayout, type PaneLayoutAxis } from "@/shared/paneLayout";
 
-export const SPLIT_SIZE_STORAGE_PREFIX = "lightcode-pane-sizes";
+export const SPLIT_SIZE_STORAGE_PREFIX = "poracode-pane-sizes";
 const PANE_ID_SEPARATOR = "\0";
 
 export const MIN_PANE_PERCENT = 15;

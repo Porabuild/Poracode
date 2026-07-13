@@ -1,4 +1,4 @@
-import type { LightcodeChannel } from "../channel";
+import type { PoracodeChannel } from "../channel";
 import type { RemoteThreadCommand } from "../contracts";
 import type { SharedSettings } from "../settings";
 import { createChannel } from "./core";
@@ -13,24 +13,24 @@ import {
 import type { BrowserEvent, NotificationClickEvent, SupervisorEvent, UpdateStatus } from "./events";
 import type { QuickComposerSubmission } from "./schemas";
 
-export const LIGHTCODE_WINDOW_KINDS = ["main", "browserExtract", "quickComposer"] as const;
-export type LightcodeWindowKind = (typeof LIGHTCODE_WINDOW_KINDS)[number];
+export const PORACODE_WINDOW_KINDS = ["main", "browserExtract", "quickComposer"] as const;
+export type PoracodeWindowKind = (typeof PORACODE_WINDOW_KINDS)[number];
 
 type ProcedureArgs<Name extends IpcProcedureName> =
   (typeof ipcProcedureMap)[Name]["__types"]["args"];
 
-export type LightcodeInvokeBridge = {
+export type PoracodeInvokeBridge = {
   [Name in IpcProcedureName]: (...args: ProcedureArgs<Name>) => Promise<IpcProcedureResult<Name>>;
 };
 
-export type LightcodeBridge = LightcodeInvokeBridge & {
+export type PoracodeBridge = PoracodeInvokeBridge & {
   platform: NodeJS.Platform;
   appVersion: string;
   arch: string;
   chromeVersion: string;
   isDev: boolean;
-  windowKind: LightcodeWindowKind;
-  channel: LightcodeChannel;
+  windowKind: PoracodeWindowKind;
+  channel: PoracodeChannel;
   electronVersion: string;
   nodeVersion: string;
   posthogEnableDev: boolean;
@@ -57,8 +57,8 @@ export type LightcodeBridge = LightcodeInvokeBridge & {
 
 export function createInvokeBridge(
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>,
-): LightcodeInvokeBridge {
-  const bridge = {} as LightcodeInvokeBridge;
+): PoracodeInvokeBridge {
+  const bridge = {} as PoracodeInvokeBridge;
   const names = Object.keys(ipcProcedureMap) as IpcProcedureName[];
   for (const name of names) {
     const procedure = ipcProcedureMap[name];

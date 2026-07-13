@@ -140,7 +140,7 @@ export function SidebarProjectHeader(props: {
           </span>
         }
         tooltip={isDisabled ? t`${projectLocation} (disabled)` : projectLocation}
-        className={`lightcode-sidebar-project-nudge !pl-1${isDragging ? " opacity-60" : ""}${
+        className={`poracode-sidebar-project-nudge !pl-1${isDragging ? " opacity-60" : ""}${
           isDisabled ? " opacity-50" : ""
         }`}
         onPress={() => {

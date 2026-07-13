@@ -301,7 +301,7 @@ async function main() {
   }
 
   // 2. Create the stage in tmp (outside the pnpm workspace).
-  const stageRoot = mkdtempSync(join(tmpdir(), "lightcode-stage-"));
+  const stageRoot = mkdtempSync(join(tmpdir(), "poracode-stage-"));
   console.log(`[stage] root: ${stageRoot}`);
 
   try {
@@ -431,7 +431,7 @@ function buildElectronBuilderConfig() {
   // renderer-only transitive peers along.
   //
   // Channel-keyed values come from scripts/electron-builder.shared.cjs.
-  const channel = channelTable.normalizeChannel(process.env.LIGHTCODE_CHANNEL);
+  const channel = channelTable.normalizeChannel(process.env.PORACODE_CHANNEL);
   const appId = channelTable.appIdFor(channel);
   const productName = channelTable.productNameFor(channel);
   const updaterChannel = channelTable.updaterChannelFor(channel);

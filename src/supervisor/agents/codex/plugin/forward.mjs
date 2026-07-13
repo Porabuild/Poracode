@@ -8,10 +8,10 @@
  *
  * Stop: Codex requires JSON on stdout when exit code is 0 — always emit `{}`.
  *
- * Generic plumbing lives in the shared `lightcode-hook-runtime.mjs` sibling.
+ * Generic plumbing lives in the shared `poracode-hook-runtime.mjs` sibling.
  */
 
-import { readPluginVersionFromManifest, runForwarder } from "./lightcode-hook-runtime.mjs";
+import { readPluginVersionFromManifest, runForwarder } from "./poracode-hook-runtime.mjs";
 
 const PLUGIN_VERSION = readPluginVersionFromManifest(import.meta.url);
 

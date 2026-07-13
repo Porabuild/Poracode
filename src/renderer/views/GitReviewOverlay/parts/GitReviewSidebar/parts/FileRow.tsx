@@ -21,7 +21,7 @@ import { useGitReviewRowPadX } from "../gitReviewPadXContext";
 import { useGitTouch } from "../gitTouchContext";
 import { reconcileStagingStatus } from "./reconcileStagingStatus";
 
-const COMPOSER_FILE_DRAG_TYPE = "application/lightcode-composer-file";
+const COMPOSER_FILE_DRAG_TYPE = "application/poracode-composer-file";
 
 export function FileRow(props: {
   path: string;

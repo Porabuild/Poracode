@@ -270,7 +270,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     try {
       created = await acquired.client.session.create({
         directory: this.sdkDirectory,
-        title: `lightcode/${this.threadId.slice(0, 8)}`,
+        title: `poracode/${this.threadId.slice(0, 8)}`,
         ...(permission ? { permission } : {}),
       });
     } catch (cause) {
@@ -282,7 +282,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       try {
         created = await retryAcquired.client.session.create({
           directory: this.sdkDirectory,
-          title: `lightcode/${this.threadId.slice(0, 8)}`,
+          title: `poracode/${this.threadId.slice(0, 8)}`,
           ...(permission ? { permission } : {}),
         });
       } catch (retryCause) {

@@ -497,9 +497,9 @@ export class GitWorktreeService {
     branch: string,
     sourceBranch: string,
   ): Promise<void> {
-    await execGit(location, ["config", `branch.${branch}.lightcodeSource`, sourceBranch]).catch(
+    await execGit(location, ["config", `branch.${branch}.poracodeSource`, sourceBranch]).catch(
       (error) => {
-        console.warn(`[git] failed to write lightcodeSource config for branch ${branch}:`, error);
+        console.warn(`[git] failed to write poracodeSource config for branch ${branch}:`, error);
       },
     );
   }
@@ -578,7 +578,7 @@ export class GitWorktreeService {
       const result = await execGit(location, [
         "config",
         "--get",
-        `branch.${branch}.lightcodeSource`,
+        `branch.${branch}.poracodeSource`,
       ]);
       const sourceBranch = result.trim() || null;
       if (sourceBranch) {

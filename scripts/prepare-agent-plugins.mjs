@@ -14,11 +14,11 @@
  * Provider assets are discovered from
  * `src/supervisor/agents/<kind>/plugin/`: a directory participates when it
  * contains `plugin.json`, and must contain exactly one supported runtime asset
- * (`forward.mjs`, or OpenCode's in-process `lightcode-status.mjs`). This keeps
+ * (`forward.mjs`, or OpenCode's in-process `poracode-status.mjs`). This keeps
  * packaging registration beside the provider instead of duplicating a list in
  * this script.
  *
- * Plus a shared forwarder runtime under `_runtime/lightcode-hook-runtime.mjs`
+ * Plus a shared forwarder runtime under `_runtime/poracode-hook-runtime.mjs`
  * that's deployed next to each `forward.mjs` at install time. Single source
  * of truth for the manifest read / postWithRetry / envelope plumbing across
  * all forwarder providers.
@@ -35,7 +35,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(__dirname, "..");
 const agentsDir = join(repoRoot, "src", "supervisor", "agents");
 const destBase = join(repoRoot, "resources", "agent-plugins");
-const PROVIDER_RUNTIME_ASSETS = ["forward.mjs", "lightcode-status.mjs"];
+const PROVIDER_RUNTIME_ASSETS = ["forward.mjs", "poracode-status.mjs"];
 
 /**
  * @typedef {{ kind: string; assets: readonly string[]; srcDir: string }} AgentPluginSource
@@ -74,8 +74,8 @@ export function discoverAgentPluginSources(sourceAgentsDir) {
  */
 export function resolveSharedForwardRuntime(sourceAgentsDir) {
   const runtime = {
-    src: join(sourceAgentsDir, "plugin", "forward-runtime", "lightcode-hook-runtime.mjs"),
-    destRel: join("_runtime", "lightcode-hook-runtime.mjs"),
+    src: join(sourceAgentsDir, "plugin", "forward-runtime", "poracode-hook-runtime.mjs"),
+    destRel: join("_runtime", "poracode-hook-runtime.mjs"),
   };
   if (!existsSync(runtime.src)) {
     throw new Error(`[prepare-agent-plugins] missing shared runtime source: ${runtime.src}`);

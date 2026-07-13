@@ -292,8 +292,8 @@ describe("useComposerKeyboard", () => {
   it("focuses directly on Android and ignores legacy shared remembered height", () => {
     const restoreVisualViewport = installVisualViewport();
     vi.stubGlobal("Capacitor", { getPlatform: () => "android" });
-    window.localStorage.setItem("lightcode-mobile-keyboard-height", "480");
-    window.localStorage.setItem("lightcode-mobile-keyboard-height:android", "336");
+    window.localStorage.setItem("poracode-mobile-keyboard-height", "480");
+    window.localStorage.setItem("poracode-mobile-keyboard-height:android", "336");
     resetComposerKeyboardMemoryForTests();
 
     try {
@@ -310,8 +310,8 @@ describe("useComposerKeyboard", () => {
       expect(document.activeElement).not.toHaveAttribute("data-composer-keyboard-primer");
       expect(screen.getByLabelText("lift offset")).toHaveTextContent("0");
       expect(screen.getByLabelText("measuring keyboard")).toHaveTextContent("false");
-      expect(window.localStorage.getItem("lightcode-mobile-keyboard-height")).toBe("480");
-      expect(window.localStorage.getItem("lightcode-mobile-keyboard-height:android")).toBe("336");
+      expect(window.localStorage.getItem("poracode-mobile-keyboard-height")).toBe("480");
+      expect(window.localStorage.getItem("poracode-mobile-keyboard-height:android")).toBe("336");
     } finally {
       restoreVisualViewport();
     }
@@ -320,7 +320,7 @@ describe("useComposerKeyboard", () => {
   it("pins the lift to the remembered height while the primer probes on first focus", async () => {
     const restoreVisualViewport = installVisualViewport();
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    window.localStorage.setItem("lightcode-mobile-keyboard-height", "347");
+    window.localStorage.setItem("poracode-mobile-keyboard-height", "347");
 
     try {
       const { rerender } = render(<ComposerKeyboardHarness />);
@@ -368,7 +368,7 @@ describe("useComposerKeyboard", () => {
 
   it("probes through the primer again when refocusing after the keyboard was dismissed", () => {
     const restoreVisualViewport = installVisualViewport();
-    window.localStorage.setItem("lightcode-mobile-keyboard-height", "347");
+    window.localStorage.setItem("poracode-mobile-keyboard-height", "347");
 
     try {
       keyboardMock.offset = 347;

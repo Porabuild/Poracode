@@ -78,6 +78,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "openMicrophoneSettings",
   "focusWindow",
   "showNotification",
+  "requestLegacyDataMigration",
   "relaunchApp",
   "getHomeScopeLocation",
   "getKeybindings",

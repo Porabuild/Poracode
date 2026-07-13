@@ -63,7 +63,7 @@ const mainProcessFetch: RemoteFetch = async (url, init) => {
 };
 
 /**
- * Desktop-as-client. Lets the Electron desktop connect to *other* Lightcode
+ * Desktop-as-client. Lets the Electron desktop connect to *other* Poracode
  * servers (another desktop's remote access, or a headless `pnpm run server`)
  * and surface their projects in the sidebar — the mirror image of the PWA,
  * which connects to a single desktop. See docs/REMOTE_ARCHITECTURE.md, Phase 4.
@@ -404,7 +404,7 @@ interface RemoteServersState {
   }): Promise<WriteProjectFileResult>;
   /** Exchange a pairing token for an access token, then connect + snapshot. */
   pairServer(input: { endpoint: string; token: string }): Promise<RemoteServerRecord>;
-  /** Bootstrap a remote Lightcode host over SSH, then pair through the same protocol. */
+  /** Bootstrap a remote Poracode host over SSH, then pair through the same protocol. */
   pairSshServer(connection: SshConnectionConfig): Promise<RemoteServerRecord>;
   removeServer(desktopId: string): void;
   /** Re-fetch a connected server's snapshot. */
@@ -579,7 +579,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         const tokenResult = await factory(normalized).exchangePairingCredential({
           credential: input.token,
           scopes: REMOTE_STANDARD_SCOPES,
-          client: { label: "Lightcode Desktop", deviceType: "desktop" },
+          client: { label: "Poracode Desktop", deviceType: "desktop" },
         });
         const client = factory(normalized, tokenResult.accessToken);
         const [environment, snapshot, agentStatuses] = await Promise.all([
@@ -1076,7 +1076,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       };
     },
     {
-      name: "lightcode-remote-servers",
+      name: "poracode-remote-servers",
       storage: createJSONStorage(() => localStorage),
       // Persist only durable connection identity (incl. the bearer accessToken)
       // so connections survive a reload; runtime snapshots are re-fetched on

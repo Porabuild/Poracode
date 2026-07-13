@@ -221,7 +221,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     // WSL OAuth flows try to open a browser; no-op it so the PTY doesn't hang.
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
     // ── CLI hook plugin support ──────────────────────────────────────────
-    pluginId: "lightcode-status@claude",
+    pluginId: "poracode-status@claude",
     pluginVersion: CLAUDE_PLUGIN_VERSION,
     minProtocolVersion: 1,
     async isPluginSupported(ctx) {

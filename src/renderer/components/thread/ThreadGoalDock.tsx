@@ -55,8 +55,8 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
     <ThreadDockSection ariaLabel={t`Thread goal dock`} className="px-2 py-1">
       <div className="flex min-w-0 items-center gap-2 leading-5">
         {isActive ? (
-          <span className="lightcode-goal-active-icon shrink-0" aria-hidden="true">
-            <span className="lightcode-goal-active-icon__ring" />
+          <span className="poracode-goal-active-icon shrink-0" aria-hidden="true">
+            <span className="poracode-goal-active-icon__ring" />
             <StatusIcon className={`size-3.5 ${statusIconClass}`} />
           </span>
         ) : (

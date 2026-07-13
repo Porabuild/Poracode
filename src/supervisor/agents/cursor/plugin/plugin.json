@@ -1,5 +1,5 @@
 {
-  "name": "lightcode-status-cursor",
+  "name": "poracode-status-cursor",
   "version": "1.0.4",
   "description": "Cursor CLI lifecycle hook forwarder for Poracode thread status"
 }

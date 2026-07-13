@@ -31,7 +31,7 @@ export function ThreadDraftCompactHeader(props: {
     >
       <div
         ref={props.dragHandleRef}
-        className={`${props.dragHandleRef ? "lightcode-content-over-drag-region cursor-grab active:cursor-grabbing" : "lightcode-content-over-drag-region--drag"} ${props.alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
+        className={`${props.dragHandleRef ? "poracode-content-over-drag-region cursor-grab active:cursor-grabbing" : "poracode-content-over-drag-region--drag"} ${props.alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
       >
         <TerminalSquare className="size-3.5 shrink-0 text-muted/60" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-muted">
@@ -51,7 +51,7 @@ export function ThreadDraftCompactHeader(props: {
             <button
               type="button"
               aria-label={t`Close pane`}
-              className="lightcode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+              className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
               onClick={(e) => {
                 e.stopPropagation();
                 props.onClose?.();

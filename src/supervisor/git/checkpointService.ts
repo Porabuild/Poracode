@@ -11,7 +11,8 @@ import type { WslBridgeClient } from "../wsl/bridge/client";
 import { execGit, removeWslPathViaBridge } from "./exec";
 
 const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
-const REF_ROOT = "refs/lightcode/checkpoints";
+const REF_ROOT = "refs/poracode/checkpoints";
+const LEGACY_REF_ROOT = "refs/lightcode/checkpoints";
 
 type CheckpointMetadata = FileCheckpointRecord | FileCheckpointTurn;
 
@@ -45,7 +46,7 @@ export class GitCheckpointService {
       checkpointItemId: input.baseCheckpointItemId,
     });
     const ref = checkpointRef(input.threadId, input.checkpointItemId);
-    const baseRef = checkpointRef(input.threadId, input.baseCheckpointItemId);
+    const baseRef = base.ref;
     await this.writeSnapshot(input.projectLocation, {
       threadId: input.threadId,
       checkpointItemId: input.checkpointItemId,
@@ -77,11 +78,13 @@ export class GitCheckpointService {
     threadId: string;
     projectLocation: ProjectLocation;
   }): Promise<{ checkpoints: FileCheckpointRecord[]; turns: FileCheckpointTurn[] }> {
-    const prefix = `${REF_ROOT}/${refSegment(input.threadId)}/`;
+    const prefixes = [REF_ROOT, LEGACY_REF_ROOT].map(
+      (root) => `${root}/${refSegment(input.threadId)}/`,
+    );
     const output = await execGit(input.projectLocation, [
       "for-each-ref",
       "--format=%(refname)",
-      prefix,
+      ...prefixes,
     ]);
     const refs = output
       .split(/\r?\n/)
@@ -105,8 +108,8 @@ export class GitCheckpointService {
     checkpointItemId: string;
     projectLocation: ProjectLocation;
   }): Promise<void> {
-    const ref = checkpointRef(input.threadId, input.checkpointItemId);
-    await execGit(input.projectLocation, ["rev-parse", "--verify", `${ref}^{commit}`]);
+    const checkpoint = await this.readCheckpoint(input.projectLocation, input);
+    const ref = checkpoint.ref;
     await execGit(input.projectLocation, ["clean", "-fd"]);
     await execGit(input.projectLocation, ["read-tree", "--reset", "-u", ref]);
     if (await resolveHeadCommit(input.projectLocation)) {
@@ -118,12 +121,12 @@ export class GitCheckpointService {
     projectLocation: ProjectLocation,
     input: { threadId: string; checkpointItemId: string },
   ): Promise<FileCheckpointRecord> {
-    const ref = checkpointRef(input.threadId, input.checkpointItemId);
-    const metadata = await this.readCheckpointMetadata(projectLocation, ref);
-    if (!metadata) {
-      throw new Error(`No file checkpoint exists for item ${input.checkpointItemId}.`);
+    for (const root of [REF_ROOT, LEGACY_REF_ROOT]) {
+      const ref = checkpointRef(input.threadId, input.checkpointItemId, root);
+      const metadata = await this.readCheckpointMetadata(projectLocation, ref);
+      if (metadata) return metadata;
     }
-    return metadata;
+    throw new Error(`No file checkpoint exists for item ${input.checkpointItemId}.`);
   }
 
   private async writeSnapshot(
@@ -228,7 +231,7 @@ async function createTempIndexPath(projectLocation: ProjectLocation): Promise<st
   const indexPath = (
     await execGit(projectLocation, ["rev-parse", "--path-format=absolute", "--git-path", "index"])
   ).trim();
-  return `${indexPath}.lightcode-${randomUUID()}`;
+  return `${indexPath}.poracode-${randomUUID()}`;
 }
 
 async function removeTempIndex(projectLocation: ProjectLocation, tempIndex: string): Promise<void> {
@@ -271,8 +274,8 @@ function parseNameStatusLine(line: string): FileCheckpointChangedFile | null {
   return path ? { status, path } : null;
 }
 
-function checkpointRef(threadId: string, checkpointItemId: string): string {
-  return `${REF_ROOT}/${refSegment(threadId)}/${refSegment(checkpointItemId)}`;
+function checkpointRef(threadId: string, checkpointItemId: string, root = REF_ROOT): string {
+  return `${root}/${refSegment(threadId)}/${refSegment(checkpointItemId)}`;
 }
 
 function refSegment(value: string): string {

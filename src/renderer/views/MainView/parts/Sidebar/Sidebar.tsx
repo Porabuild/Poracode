@@ -407,7 +407,7 @@ export function Sidebar() {
                         </span>
                       </span>
                     }
-                    className="lightcode-sidebar-project-nudge !pl-1"
+                    className="poracode-sidebar-project-nudge !pl-1"
                     onPress={() => toggleProjectCollapsed(homeProject.id)}
                     suffix={
                       <HomeTerminalButton

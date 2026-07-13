@@ -100,7 +100,7 @@ function EffortMultiSelect(props: { selected: Set<string>; onToggle: (tier: stri
             role="listbox"
             aria-label={t`Effort levels`}
             aria-multiselectable="true"
-            className="lightcode-menu py-1"
+            className="poracode-menu py-1"
           >
             {CLAUDE_EFFORT_TIERS.map((tier) => {
               const active = props.selected.has(tier);
@@ -154,7 +154,7 @@ function PresetMenu(props: { onApply: (preset: ProfilePreset) => void }) {
       </Popover.Trigger>
       <Popover.Content placement="bottom end" className="w-40 p-0">
         <Popover.Dialog className="!p-0">
-          <div role="menu" aria-label={t`Provider presets`} className="lightcode-menu py-1">
+          <div role="menu" aria-label={t`Provider presets`} className="poracode-menu py-1">
             {PROFILE_PRESETS.map((preset) => (
               <button
                 key={preset.id}

@@ -7,7 +7,7 @@ import type { ProjectLocation } from "@/shared/contracts";
 const tempDirs: string[] = [];
 
 function makeTempHome(): string {
-  const dir = mkdtempSync(join(tmpdir(), "lightcode-antigravity-"));
+  const dir = mkdtempSync(join(tmpdir(), "poracode-antigravity-"));
   tempDirs.push(dir);
   return dir;
 }

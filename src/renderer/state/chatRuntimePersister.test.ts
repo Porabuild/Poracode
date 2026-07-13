@@ -56,7 +56,7 @@ beforeEach(() => {
     runtimeStructuralVersionByThread: {},
     runtimeCompletedTurnsByThread: {},
   });
-  window.lightcode = {} as typeof window.lightcode;
+  window.poracode = {} as typeof window.poracode;
 });
 
 afterEach(() => {

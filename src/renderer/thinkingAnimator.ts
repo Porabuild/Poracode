@@ -1,6 +1,6 @@
 // Shared 20fps driver for the "thinking" UI animations — the
-// `.lightcode-thinking-text` shimmer ("Working for"/"Thinking"/"Compacting"/
-// "Proposed plan") and the `.lightcode-brain-thinking` firing.
+// `.poracode-thinking-text` shimmer ("Working for"/"Thinking"/"Compacting"/
+// "Proposed plan") and the `.poracode-brain-thinking` firing.
 //
 // Why this exists instead of CSS animations:
 // Both effects animate properties that CANNOT run on the compositor —
@@ -61,7 +61,7 @@ function isAppActive(): boolean {
 }
 
 // Triangle 0→1→0 over the period, mapped to 0.45..1 (matches the old
-// @keyframes lightcode-brain-firing: 0%/100% = 0.45, 50% = 1).
+// @keyframes poracode-brain-firing: 0%/100% = 0.45, 50% = 1).
 function brainOpacity(phase01: number): number {
   const tri = 1 - Math.abs(1 - 2 * phase01);
   return 0.45 + 0.55 * tri;
@@ -143,7 +143,7 @@ function useAnimatedElement<T extends Element>(
 }
 
 /**
- * Register a `.lightcode-thinking-text` element to receive the shimmer sweep
+ * Register a `.poracode-thinking-text` element to receive the shimmer sweep
  * while `active`. Attach the returned ref to the element. No-op when inactive,
  * so the timer only runs while a label is actually shimmering.
  */
@@ -164,7 +164,7 @@ export function useShimmerRef<T extends HTMLElement>(
 }
 
 /**
- * Register a `.lightcode-brain-thinking` SVG to receive the staggered per-path
+ * Register a `.poracode-brain-thinking` SVG to receive the staggered per-path
  * opacity firing while `active`. Attach the returned ref to the icon. Gating on
  * `active` (not just mount) matters because a Reasoning block can transition
  * streaming→completed without unmounting — the firing must stop with it.

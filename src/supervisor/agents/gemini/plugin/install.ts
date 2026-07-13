@@ -119,7 +119,7 @@ const callerDir =
 
 const resolveSourceDir = createPluginSourceResolver({
   kind: "gemini",
-  sourceEnvVar: "LIGHTCODE_GEMINI_PLUGIN_SOURCE",
+  sourceEnvVar: "PORACODE_GEMINI_PLUGIN_SOURCE",
   callerDir,
 });
 
@@ -199,7 +199,7 @@ export function createGeminiThreadSettingsFile(
   const sourcePath = resolveSettingsWritePath(ctx, paths.settingsPath);
   if (!existsSync(sourcePath)) return undefined;
 
-  const fileName = `.lightcode-thread-${randomUUID()}.json`;
+  const fileName = `.poracode-thread-${randomUUID()}.json`;
   const settingsPath = isWslPluginContext(ctx)
     ? `${paths.pluginDir.replace(/\/$/u, "")}/${fileName}`
     : join(paths.pluginDir, fileName);
@@ -222,7 +222,7 @@ export function createGeminiThreadSettingsFile(
 }
 
 /**
- * Merge (or clear) a single lightcode-managed `mcpServers` entry, preserving
+ * Merge (or clear) a single poracode-managed `mcpServers` entry, preserving
  * every other key. Browser and subagents each own one key, so their syncs can
  * run independently against the same `settings.json` without clobbering one
  * another. Returns `undefined` when the map ends up empty so the caller can
@@ -647,10 +647,10 @@ function verifyGeminiInstallAt(
 
 /**
  * Match either the WSL command shape (`forward.mjs` invoked via absolute
- * node path) or the native shape (`lightcode-hook.{sh,cmd,ps1}` wrapper).
+ * node path) or the native shape (`poracode-hook.{sh,cmd,ps1}` wrapper).
  */
-const LIGHTCODE_GEMINI_HOOK_RE =
-  /agent-plugins(?:[/\\]+)gemini(?:[/\\]+)(?:forward\.mjs|lightcode-hook\.(?:sh|cmd|ps1))/;
+const PORACODE_GEMINI_HOOK_RE =
+  /agent-plugins(?:[/\\]+)gemini(?:[/\\]+)(?:forward\.mjs|poracode-hook\.(?:sh|cmd|ps1))/;
 
 function hasGeminiHooks(hooks: Record<string, unknown> | undefined): boolean {
   if (!hooks) return false;
@@ -664,7 +664,7 @@ function hasGeminiHooks(hooks: Record<string, unknown> | undefined): boolean {
       return hookEntries.some((hook) => {
         if (!hook || typeof hook !== "object") return false;
         const command = (hook as { command?: unknown }).command;
-        return typeof command === "string" && LIGHTCODE_GEMINI_HOOK_RE.test(command);
+        return typeof command === "string" && PORACODE_GEMINI_HOOK_RE.test(command);
       });
     });
     if (!found) return false;
@@ -683,7 +683,7 @@ export function renderGeminiSettings(opts: RenderGeminiSettingsOptions): GeminiS
     const entry: GeminiHookEntry = {
       hooks: [
         {
-          name: `lightcode-status-${spec.event}`,
+          name: `poracode-status-${spec.event}`,
           type: "command",
           command: `${opts.headExpression} ${spec.event}`,
           timeout: 5000,

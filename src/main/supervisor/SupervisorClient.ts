@@ -1,7 +1,7 @@
 import { fork, type ChildProcess } from "node:child_process";
 import type { Readable } from "node:stream";
 import { randomUUID } from "node:crypto";
-import type { LightcodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
+import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import type {
   IpcProcedurePayload,
@@ -50,25 +50,25 @@ export interface SupervisorClientOptions {
   /**
    * Directory containing the in-WSL helpers shipped with the app
    * (`watcher.node`, `bridge.mjs`). Forwarded to the supervisor via
-   * `LIGHTCODE_WSL_HELPERS_DIR` so the bridge server can stage assets
+   * `PORACODE_WSL_HELPERS_DIR` so the bridge server can stage assets
    * into running distros.
    */
   wslHelpersDir: string;
   /**
    * Directory containing the read-only skills shipped with the app
    * (`skill-creator`, …). Forwarded to the supervisor via
-   * `LIGHTCODE_BUNDLED_SKILLS_DIR` so the skills service can surface them.
+   * `PORACODE_BUNDLED_SKILLS_DIR` so the skills service can surface them.
    */
   bundledSkillsDir?: string;
   secretStorageKey: string;
   /**
    * Optional resolver invoked at every supervisor spawn, returning extra env
    * vars to merge into the child env. Used by the in-app browser MCP wiring
-   * to inject `LIGHTCODE_BROWSER_MCP_*` per-launch.
+   * to inject `PORACODE_BROWSER_MCP_*` per-launch.
    */
   resolveExtraEnv?: () => Record<string, string>;
   assignPid?(pid: number): Promise<void>;
-  reportError?(error: unknown, tags?: LightcodeDiagnosticTags): void;
+  reportError?(error: unknown, tags?: PoracodeDiagnosticTags): void;
   onEvent(event: SupervisorEvent): void;
   onReset(): void;
 }
@@ -115,17 +115,17 @@ export class SupervisorClient {
       stdio: ["ignore", "pipe", "pipe", "ipc"],
       env: {
         ...process.env,
-        LIGHTCODE_APP_VERSION: this.options.appVersion,
-        LIGHTCODE_IS_DEV: this.options.isDev ? "1" : "0",
-        LIGHTCODE_DATA_DIR: baseDir,
-        LIGHTCODE_SECRET_STORAGE_KEY: this.options.secretStorageKey,
-        LIGHTCODE_WSL_HELPERS_DIR: this.options.wslHelpersDir,
+        PORACODE_APP_VERSION: this.options.appVersion,
+        PORACODE_IS_DEV: this.options.isDev ? "1" : "0",
+        PORACODE_DATA_DIR: baseDir,
+        PORACODE_SECRET_STORAGE_KEY: this.options.secretStorageKey,
+        PORACODE_WSL_HELPERS_DIR: this.options.wslHelpersDir,
         // Back-compat for one release; older supervisor builds still read
         // the legacy var. Safe to drop once min supported supervisor knows
-        // about LIGHTCODE_WSL_HELPERS_DIR.
-        LIGHTCODE_WSL_WATCHER_DIR: this.options.wslHelpersDir,
+        // about PORACODE_WSL_HELPERS_DIR.
+        PORACODE_WSL_WATCHER_DIR: this.options.wslHelpersDir,
         ...(this.options.bundledSkillsDir
-          ? { LIGHTCODE_BUNDLED_SKILLS_DIR: this.options.bundledSkillsDir }
+          ? { PORACODE_BUNDLED_SKILLS_DIR: this.options.bundledSkillsDir }
           : {}),
         ...extraEnv,
       },
@@ -137,10 +137,10 @@ export class SupervisorClient {
     if (typeof child.pid === "number") {
       void this.options.assignPid?.(child.pid).catch((error) => {
         console.error(
-          "[lightcode] failed to assign supervisor to Windows Job Object:",
+          "[poracode] failed to assign supervisor to Windows Job Object:",
           error instanceof Error ? error.message : String(error),
         );
-        this.options.reportError?.(error, { "lightcode.feature_area": "supervisor" });
+        this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
       });
     }
 
@@ -170,8 +170,8 @@ export class SupervisorClient {
       this.reset(new Error("Supervisor exited"));
       if (!this.disposed && code !== 0 && this.baseDir) {
         const error = new Error(`Supervisor exited with code ${code ?? "unknown"}`);
-        console.error(`[lightcode] ${error.message}, restarting…`);
-        this.options.reportError?.(error, { "lightcode.feature_area": "supervisor" });
+        console.error(`[poracode] ${error.message}, restarting…`);
+        this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
         setTimeout(() => {
           if (!this.child && this.baseDir) {
             this.start(this.baseDir);

@@ -15,8 +15,8 @@ let package = Package(
         .package(name: "AparajitaCapacitorSecureStorage", path: "../../../node_modules/@aparajita/capacitor-secure-storage"),
         .package(name: "CapacitorApp", path: "../../../node_modules/@capacitor/app"),
         .package(name: "CapacitorPushNotifications", path: "../../../node_modules/@capacitor/push-notifications"),
-        .package(name: "LightcodeActivityBridge", path: "../../../node_modules/@lightcode/activity-bridge"),
-        .package(name: "LightcodeSshBridge", path: "../../../node_modules/@lightcode/ssh-bridge")
+        .package(name: "PoracodeActivityBridge", path: "../../../node_modules/@poracode/activity-bridge"),
+        .package(name: "PoracodeSshBridge", path: "../../../node_modules/@poracode/ssh-bridge")
     ],
     targets: [
         .target(
@@ -27,8 +27,8 @@ let package = Package(
                 .product(name: "AparajitaCapacitorSecureStorage", package: "AparajitaCapacitorSecureStorage"),
                 .product(name: "CapacitorApp", package: "CapacitorApp"),
                 .product(name: "CapacitorPushNotifications", package: "CapacitorPushNotifications"),
-                .product(name: "LightcodeActivityBridge", package: "LightcodeActivityBridge"),
-                .product(name: "LightcodeSshBridge", package: "LightcodeSshBridge")
+                .product(name: "PoracodeActivityBridge", package: "PoracodeActivityBridge"),
+                .product(name: "PoracodeSshBridge", package: "PoracodeSshBridge")
             ]
         )
     ]

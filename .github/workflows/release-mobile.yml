@@ -1,6 +1,6 @@
 name: Release Mobile
 
-# Releases the Lightcode mobile PWA to its three targets. Each target is
+# Releases the Poracode mobile PWA to its three targets. Each target is
 # independently selectable so you can ship a partial release (e.g. web only,
 # or push an iOS hotfix without re-releasing Android).
 #
@@ -64,9 +64,9 @@ jobs:
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      LIGHTCODE_MOBILE_APP_HOST: ${{ vars.LIGHTCODE_MOBILE_APP_HOST }}
-      LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
-      LIGHTCODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.LIGHTCODE_MOBILE_APPLE_TEAM_ID }}
+      PORACODE_MOBILE_APP_HOST: ${{ vars.PORACODE_MOBILE_APP_HOST }}
+      PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
+      PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID }}
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6
@@ -95,9 +95,9 @@ jobs:
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-      LIGHTCODE_MOBILE_APP_HOST: ${{ vars.LIGHTCODE_MOBILE_APP_HOST }}
-      LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
-      LIGHTCODE_MOBILE_REQUIRE_ANDROID_LINKS: "1"
+      PORACODE_MOBILE_APP_HOST: ${{ vars.PORACODE_MOBILE_APP_HOST }}
+      PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
+      PORACODE_MOBILE_REQUIRE_ANDROID_LINKS: "1"
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6
@@ -144,7 +144,7 @@ jobs:
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lightcode-android-aab
+          name: poracode-android-aab
           path: android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
 
@@ -171,9 +171,9 @@ jobs:
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
-      LIGHTCODE_MOBILE_APP_HOST: ${{ vars.LIGHTCODE_MOBILE_APP_HOST }}
-      LIGHTCODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.LIGHTCODE_MOBILE_APPLE_TEAM_ID }}
-      LIGHTCODE_MOBILE_REQUIRE_IOS_LINKS: "1"
+      PORACODE_MOBILE_APP_HOST: ${{ vars.PORACODE_MOBILE_APP_HOST }}
+      PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID }}
+      PORACODE_MOBILE_REQUIRE_IOS_LINKS: "1"
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6
@@ -217,7 +217,7 @@ jobs:
         if: env.IOS_DIST_CERT_BASE64 != ''
         uses: actions/upload-artifact@v4
         with:
-          name: lightcode-ios-ipa
+          name: poracode-ios-ipa
           path: ${{ runner.temp }}/export/*.ipa
           if-no-files-found: error
 

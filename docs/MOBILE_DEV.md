@@ -22,15 +22,15 @@ helper:
 | `dev:ios:app` / `dev:android:app` | target-resolving `cap run <platform> --live-reload`      | —       |
 | `android-reverse-server-port.mjs` | Android only: keeps `adb reverse tcp:38987` applied      | —       |
 
-`dev:mobile:server` sets `LIGHTCODE_IS_DEV=1`, which turns on two dev-only
+`dev:mobile:server` sets `PORACODE_IS_DEV=1`, which turns on two dev-only
 conveniences in the server (see [Why dev mode matters](#why-dev-mode-matters)):
 loopback advertising + loopback CORS. **No other env vars are needed** — pairing
 works against `http://127.0.0.1:38987/` out of the box.
 
 The iOS and Android launch wrappers pass an explicit native target so Capacitor
 does not stop at an interactive device picker under `concurrently`. Override the
-automatic choice with `LIGHTCODE_IOS_TARGET=<simulator-udid>` or
-`LIGHTCODE_ANDROID_TARGET=<device-or-avd-id>`.
+automatic choice with `PORACODE_IOS_TARGET=<simulator-udid>` or
+`PORACODE_ANDROID_TARGET=<device-or-avd-id>`.
 
 The endpoint is the **same on both platforms**: the iOS simulator shares the
 Mac's loopback natively, and on Android the reverse-port helper maps the
@@ -39,7 +39,7 @@ emulators and USB devices; it re-applies automatically when a device boots or
 restarts). Capacitor itself forwards only the Vite port (`--forwardPorts` takes
 a single pair), which is why the server port has its own helper.
 
-The server's data dir is `~/.poracode`. Override with `LIGHTCODE_BASE_DIR` to run
+The server's data dir is `~/.poracode`. Override with `PORACODE_BASE_DIR` to run
 an isolated instance (avoids the single-instance lock clash with a running
 desktop app or a second server).
 
@@ -47,7 +47,7 @@ desktop app or a second server).
 
 1. Grab the pairing token — the server prints it at startup:
    ```
-   [lightcode-server] pair a device:   http://127.0.0.1:38987/pair#token=lc_pair_…
+   [poracode-server] pair a device:   http://127.0.0.1:38987/pair#token=lc_pair_…
    ```
    Need a fresh one (10-min TTL, in-memory only)? Send `SIGUSR2`:
    ```bash
@@ -65,7 +65,7 @@ up/down arrows move focus between the two fields reliably.
 
 ## Why dev mode matters
 
-Two things break dev pairing on a stock (non-dev) server; `LIGHTCODE_IS_DEV=1`
+Two things break dev pairing on a stock (non-dev) server; `PORACODE_IS_DEV=1`
 fixes both:
 
 - **iOS ATS** (`ios/App/App/Info.plist` → `NSAllowsLocalNetworking`) permits
@@ -99,8 +99,8 @@ app land on the hosted PWA (`poracode.com/mobile-app`); users with it get the ap
 
 **To make links actually route into the app (ops — needs secrets + hosting):**
 
-1. **Apple Team ID** — set `LIGHTCODE_MOBILE_APPLE_TEAM_ID` (+ Android
-   `LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS`) so
+1. **Apple Team ID** — set `PORACODE_MOBILE_APPLE_TEAM_ID` (+ Android
+   `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS`) so
    `scripts/finalize-mobile-build.mjs` emits a **non-empty** AASA/assetlinks into
    `dist/mobile/.well-known/` (AASA `appIDs = <team>.com.lightcodeapp.mobile`,
    components match `/pair*` and `/app*`).
@@ -109,7 +109,7 @@ app land on the hosted PWA (`poracode.com/mobile-app`); users with it get the ap
    `vercel.json` → `dist/mobile`) from the marketing site (`website/`). Either
    point poracode.com's domain at the mobile-PWA project, or add the rewrites +
    AASA route into `website/`.
-3. **Desktop** — set `LIGHTCODE_REMOTE_ACCESS_PAIRING_APP_URL=https://poracode.com`
+3. **Desktop** — set `PORACODE_REMOTE_ACCESS_PAIRING_APP_URL=https://poracode.com`
    in packaged builds so minted QR/links are `https://poracode.com/pair?host=…#token=…`.
 4. Rebuild the app (`cap sync` + `pnpm run dev:ios`) so the entitlement + plugin
    ship. Universal-link routing **cannot be exercised in the simulator** until
@@ -128,14 +128,14 @@ the human-facing landing page. Changing that requires patching `buildPairingUrl`
 - **"Load failed" on Pair** → almost always ATS or CORS (see [Why dev mode
   matters](#why-dev-mode-matters)). Confirm the server advertised loopback
   (`grep "listening at" server log` → `http://127.0.0.1:38987/`) and that you
-  ran with `LIGHTCODE_IS_DEV=1`. Sanity-check CORS:
+  ran with `PORACODE_IS_DEV=1`. Sanity-check CORS:
   ```bash
   curl -s -D - -o /dev/null -H "Origin: http://localhost:3100" \
-    http://127.0.0.1:38987/.well-known/lightcode/environment | grep -i access-control
+    http://127.0.0.1:38987/.well-known/poracode/environment | grep -i access-control
   ```
-- **"data dir … is in use by another Lightcode process (pid N)"** → a desktop
+- **"data dir … is in use by another Poracode process (pid N)"** → a desktop
   app or a prior server holds the lock. Kill it (`kill N`) or run with a separate
-  `LIGHTCODE_BASE_DIR`.
+  `PORACODE_BASE_DIR`.
 - **Invalid pairing token** → tokens are single-use and expire in 10 min; mint a
   fresh one with `SIGUSR2` (above).
 - **`@capacitor/app` not found at runtime in the sim** → the plugin is native;

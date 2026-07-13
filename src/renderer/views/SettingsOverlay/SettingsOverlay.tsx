@@ -126,10 +126,10 @@ export function SettingsOverlay(props: { onClose: () => void }) {
         if (typeof el.scrollIntoView === "function") {
           el.scrollIntoView({ behavior: "smooth", block: "start" });
         }
-        el.classList.add("lightcode-setting-highlight");
+        el.classList.add("poracode-setting-highlight");
         el.addEventListener(
           "animationend",
-          () => el.classList.remove("lightcode-setting-highlight"),
+          () => el.classList.remove("poracode-setting-highlight"),
           { once: true },
         );
         setScrollTarget(null);

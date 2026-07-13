@@ -196,6 +196,7 @@ export function buildLocalPairingManifestJson(): string {
 }
 
 const LOCAL_PAIRING_SERVICE_WORKER_JS = `const CACHE_NAME = "poracode-remote-local-v1";
+const LEGACY_CACHE_NAME = "lightcode-remote-local-v1";
 const SHELL_URLS = ["/app", "/manifest.webmanifest", "/app-icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -204,7 +205,7 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(caches.delete(LEGACY_CACHE_NAME).then(() => self.clients.claim()));
 });
 
 self.addEventListener("fetch", (event) => {

@@ -54,6 +54,7 @@ class PoracodeMobileDatabase extends DexieDatabase {
   preferences!: EntityTable<StoredPreference, "key">;
 
   constructor() {
+    // Stable pre-rebrand IndexedDB identity; changing it would orphan pairings.
     super("lightcode-mobile");
     this.version(1).stores({
       desktops: "desktopId, updatedAt, lastConnectedAt",
@@ -73,7 +74,7 @@ export const mobileDb = new PoracodeMobileDatabase();
  * read resolves. The mirror is a fast-path seed only — the Dexie row stays the
  * authoritative cache and overwrites the seed as soon as it loads.
  */
-const SHELL_MIRROR_KEY = "lightcode-mobile.shellSnapshotMirror";
+const SHELL_MIRROR_KEY = "poracode-mobile.shellSnapshotMirror";
 
 export function readShellSnapshotMirror(): StoredShellSnapshot | null {
   try {

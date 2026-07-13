@@ -7,8 +7,8 @@ import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistS
  * keep their collapsed state; the slice under PERSIST_KEY takes over on the
  * first write.
  */
-const LEGACY_COLLAPSED_KEY = "lightcode-sidebar-collapsed";
-const PERSIST_KEY = "lightcode-sidebar-overlay";
+const LEGACY_COLLAPSED_KEY = "poracode-sidebar-collapsed";
+const PERSIST_KEY = "poracode-sidebar-overlay";
 
 interface SidebarOverlayState {
   isCollapsed: boolean;

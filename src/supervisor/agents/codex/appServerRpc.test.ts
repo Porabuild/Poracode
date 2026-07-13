@@ -77,7 +77,7 @@ describe("CodexAppServerRpc", () => {
       );
       expect(writes).toEqual([
         {
-          id: "lightcode-0",
+          id: "poracode-0",
           method: "thread/read",
           params: { threadId: "provider-thread" },
         },
@@ -85,7 +85,7 @@ describe("CodexAppServerRpc", () => {
 
       listener().onMessage({
         jsonrpc: "2.0",
-        id: "lightcode-0",
+        id: "poracode-0",
         result: { late: true },
       });
     } finally {
@@ -97,20 +97,20 @@ describe("CodexAppServerRpc", () => {
     const { debugEvents, listener, rpc } = createRpcHarness();
     const pending = rpc.request("thread/read", { threadId: "provider-thread" });
 
-    const response = { jsonrpc: "2.0", id: "lightcode-0", result: { ok: true } };
+    const response = { jsonrpc: "2.0", id: "poracode-0", result: { ok: true } };
     listener().onMessage({ jsonrpc: "2.0", id: "unknown", result: { ignored: true } });
     listener().onMessage(response);
 
     await expect(pending).resolves.toEqual({ ok: true });
     expect(debugEvents).toContainEqual({
-      direction: "lightcode->codex",
+      direction: "poracode->codex",
       payload: {
-        id: "lightcode-0",
+        id: "poracode-0",
         method: "thread/read",
         params: { threadId: "provider-thread" },
       },
     });
-    expect(debugEvents).toContainEqual({ direction: "codex->lightcode", payload: response });
+    expect(debugEvents).toContainEqual({ direction: "codex->poracode", payload: response });
   });
 
   it("rejects error responses with the app-server message", async () => {
@@ -119,7 +119,7 @@ describe("CodexAppServerRpc", () => {
 
     listener().onMessage({
       jsonrpc: "2.0",
-      id: "lightcode-0",
+      id: "poracode-0",
       error: { code: -32000, message: "turn rejected" },
     });
 
@@ -134,7 +134,7 @@ describe("CodexAppServerRpc", () => {
       const pending = rpc.request("thread/read", { threadId: "provider-thread" });
 
       listener().onMessage({
-        id: "lightcode-0",
+        id: "poracode-0",
         error: { code: -32001, message: "Server overloaded; retry later." },
       });
       await Promise.resolve();
@@ -143,12 +143,12 @@ describe("CodexAppServerRpc", () => {
       await vi.advanceTimersByTimeAsync(1);
       expect(writes).toHaveLength(2);
       expect(writes[1]).toMatchObject({
-        id: "lightcode-1",
+        id: "poracode-1",
         method: "thread/read",
         params: { threadId: "provider-thread" },
       });
 
-      listener().onMessage({ id: "lightcode-1", result: { ok: true } });
+      listener().onMessage({ id: "poracode-1", result: { ok: true } });
       await expect(pending).resolves.toEqual({ ok: true });
     } finally {
       random.mockRestore();

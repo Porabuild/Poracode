@@ -1,4 +1,4 @@
-package com.lightcodeapp.mobile;
+package com.poracode.app;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;

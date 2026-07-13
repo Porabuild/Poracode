@@ -39,7 +39,7 @@ describe("opencode hosts subagents MCP (live)", () => {
       : { kind: "posix", path: projectDir };
 
   beforeAll(async () => {
-    projectDir = mkdtempSync(join(tmpdir(), "lightcode-oc-subagent-int-"));
+    projectDir = mkdtempSync(join(tmpdir(), "poracode-oc-subagent-int-"));
     writeFileSync(join(projectDir, "README.md"), "# opencode subagent host fixture\n");
 
     const adapters = new Map<AgentKind, AgentAdapter>(

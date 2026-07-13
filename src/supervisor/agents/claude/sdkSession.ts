@@ -624,13 +624,13 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       const env =
         this.input.projectLocation.kind === "wsl"
           ? {
-              CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode",
+              CLAUDE_AGENT_SDK_CLIENT_APP: "poracode",
               BROWSER: "/bin/true",
               ...(this.input.env ?? {}),
             }
           : {
               ...(posixEnv ?? process.env),
-              CLAUDE_AGENT_SDK_CLIENT_APP: "lightcode",
+              CLAUDE_AGENT_SDK_CLIENT_APP: "poracode",
               ...(this.input.env ?? {}),
             };
       // Posix builds ship without the SDK's bundled `claude` SEA binary
@@ -773,8 +773,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         } catch (error) {
           if (!this.disposed) {
             captureSupervisorException(error, {
-              "lightcode.feature_area": "provider-sdk",
-              "lightcode.provider": "claude",
+              "poracode.feature_area": "provider-sdk",
+              "poracode.provider": "claude",
             });
             const message = error instanceof Error ? error.message : String(error);
             this.reportError(message);
@@ -785,8 +785,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       .catch((error) => {
         if (this.disposed) return;
         captureSupervisorException(error, {
-          "lightcode.feature_area": "provider-sdk",
-          "lightcode.provider": "claude",
+          "poracode.feature_area": "provider-sdk",
+          "poracode.provider": "claude",
         });
         const message = error instanceof Error ? error.message : String(error);
         this.reportError(message);

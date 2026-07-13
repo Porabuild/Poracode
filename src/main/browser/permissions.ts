@@ -51,16 +51,16 @@ async function ensureMacMicrophoneAccess(): Promise<boolean> {
   // denial rather than silently hanging.
   if (status === "denied" || status === "restricted") {
     console.error(
-      `[lightcode][mic] OS microphone access is "${status}"; not prompting (change in System Settings › Privacy & Security › Microphone)`,
+      `[poracode][mic] OS microphone access is "${status}"; not prompting (change in System Settings › Privacy & Security › Microphone)`,
     );
     return false;
   }
   try {
     const granted = await systemPreferences.askForMediaAccess("microphone");
-    console.error(`[lightcode][mic] OS prompt result: ${granted ? "granted" : "denied"}`);
+    console.error(`[poracode][mic] OS prompt result: ${granted ? "granted" : "denied"}`);
     return granted;
   } catch (error) {
-    console.error("[lightcode][mic] askForMediaAccess(microphone) failed", error);
+    console.error("[poracode][mic] askForMediaAccess(microphone) failed", error);
     return false;
   }
 }

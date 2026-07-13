@@ -364,7 +364,7 @@ export function AppContent() {
       <div className="flex h-full flex-col">
         {activeGroupId && activeGroupName && (
           <div
-            className={`lightcode-content-over-drag-region ${macosTrafficLightPadClass} flex h-[env(titlebar-area-height,32px)] shrink-0 items-center gap-1 border-b border-[var(--hairline)] px-2`}
+            className={`poracode-content-over-drag-region ${macosTrafficLightPadClass} flex h-[env(titlebar-area-height,32px)] shrink-0 items-center gap-1 border-b border-[var(--hairline)] px-2`}
           >
             <span className="truncate text-xs font-medium text-muted">{activeGroupName}</span>
             <button

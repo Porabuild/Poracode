@@ -3,7 +3,7 @@ import { AlertDialog, Checkbox } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
 
-const PREF_KEY = "lightcode-delete-worktree-pref";
+const PREF_KEY = "poracode-delete-worktree-pref";
 
 export type WorktreeDeletePref = "thread-only" | "thread-and-worktree";
 

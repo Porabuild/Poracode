@@ -586,7 +586,7 @@ describe("RemoteAccessServer", () => {
     expect(pairingUrl.pathname).toBe("/pair");
 
     const descriptorResponse = await fetch(
-      new URL("/.well-known/lightcode/environment", info.httpBaseUrl),
+      new URL("/.well-known/poracode/environment", info.httpBaseUrl),
     );
     expect(descriptorResponse.status).toBe(200);
     await expect(descriptorResponse.json()).resolves.toMatchObject({
@@ -599,6 +599,14 @@ describe("RemoteAccessServer", () => {
         process.platform === "linux"
           ? process.platform
           : undefined,
+    });
+
+    const legacyDescriptorResponse = await fetch(
+      new URL("/.well-known/lightcode/environment", info.httpBaseUrl),
+    );
+    expect(legacyDescriptorResponse.status).toBe(200);
+    await expect(legacyDescriptorResponse.json()).resolves.toMatchObject({
+      desktopId: "desktop-test",
     });
 
     const pairingPageResponse = await fetch(info.pairingUrl);
@@ -621,7 +629,9 @@ describe("RemoteAccessServer", () => {
 
     const serviceWorkerResponse = await fetch(new URL("/service-worker.js", info.httpBaseUrl));
     expect(serviceWorkerResponse.status).toBe(200);
-    await expect(serviceWorkerResponse.text()).resolves.toContain("poracode-remote-local");
+    const serviceWorker = await serviceWorkerResponse.text();
+    expect(serviceWorker).toContain("poracode-remote-local");
+    expect(serviceWorker).toContain("caches.delete(LEGACY_CACHE_NAME)");
 
     const { ws, ready } = await openPairedSocket(info);
     expect(ready).toMatchObject({ type: "ready", seq: 0 });
@@ -911,19 +921,19 @@ describe("RemoteAccessServer", () => {
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
       port: 0,
-      pairingAppUrl: "https://mobile.lightcode.test/app",
+      pairingAppUrl: "https://mobile.poracode.test/app",
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
     });
     servers.push(server);
     const info = await server.start();
-    const descriptorUrl = new URL("/.well-known/lightcode/environment", info.httpBaseUrl);
+    const descriptorUrl = new URL("/.well-known/poracode/environment", info.httpBaseUrl);
 
     const hostedResponse = await fetch(descriptorUrl, {
-      headers: { origin: "https://mobile.lightcode.test" },
+      headers: { origin: "https://mobile.poracode.test" },
     });
     expect(hostedResponse.status).toBe(200);
     expect(hostedResponse.headers.get("access-control-allow-origin")).toBe(
-      "https://mobile.lightcode.test",
+      "https://mobile.poracode.test",
     );
 
     const nativeResponse = await fetch(descriptorUrl, {
@@ -954,7 +964,7 @@ describe("RemoteAccessServer", () => {
     });
     servers.push(devServer);
     const devInfo = await devServer.start();
-    const devDescriptorUrl = new URL("/.well-known/lightcode/environment", devInfo.httpBaseUrl);
+    const devDescriptorUrl = new URL("/.well-known/poracode/environment", devInfo.httpBaseUrl);
     const devResponse = await fetch(devDescriptorUrl, {
       headers: { origin: "http://localhost:3100" },
     });
@@ -972,7 +982,7 @@ describe("RemoteAccessServer", () => {
     servers.push(prodServer);
     const prodInfo = await prodServer.start();
     const prodResponse = await fetch(
-      new URL("/.well-known/lightcode/environment", prodInfo.httpBaseUrl),
+      new URL("/.well-known/poracode/environment", prodInfo.httpBaseUrl),
       { headers: { origin: "http://localhost:3100" } },
     );
     expect(prodResponse.status).toBe(403);
@@ -1010,7 +1020,7 @@ describe("RemoteAccessServer", () => {
     });
     servers.push(server);
     await server.start();
-    const localUrl = new URL("/.well-known/lightcode/environment", `http://127.0.0.1:${port}/`);
+    const localUrl = new URL("/.well-known/poracode/environment", `http://127.0.0.1:${port}/`);
 
     const allowed = await fetch(localUrl, { headers: { origin: advertised } });
     expect(allowed.status).toBe(200);
@@ -1027,7 +1037,7 @@ describe("RemoteAccessServer", () => {
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
       port: 0,
-      pairingAppUrl: "https://mobile.lightcode.test/app",
+      pairingAppUrl: "https://mobile.poracode.test/app",
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
     });
     servers.push(server);
@@ -1467,8 +1477,8 @@ describe("RemoteAccessServer", () => {
       body: JSON.stringify({
         procedure: "workflowGetRun",
         payload: {
-          manifestPath: "/tmp/lightcode/workflows/wf_1.json",
-          transcriptDir: "/tmp/lightcode/subagents/workflows/wf_1",
+          manifestPath: "/tmp/poracode/workflows/wf_1.json",
+          transcriptDir: "/tmp/poracode/subagents/workflows/wf_1",
           includeAgentChats: true,
           location: { kind: "posix", path: "/tmp/example" },
         },
@@ -1478,8 +1488,8 @@ describe("RemoteAccessServer", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ result: { run: null } });
     expect(callSupervisor).toHaveBeenCalledWith("workflowGetRun", {
-      manifestPath: "/tmp/lightcode/workflows/wf_1.json",
-      transcriptDir: "/tmp/lightcode/subagents/workflows/wf_1",
+      manifestPath: "/tmp/poracode/workflows/wf_1.json",
+      transcriptDir: "/tmp/poracode/subagents/workflows/wf_1",
       includeAgentChats: true,
       location: { kind: "posix", path: "/tmp/example" },
     });
@@ -1859,6 +1869,7 @@ describe("RemoteAccessServer", () => {
     expect(callSupervisor).toHaveBeenCalledWith("startThread", {
       ...payload,
       disabledBuiltInMcpServerIds: [],
+      disabledBuiltInMcpTools: {},
       mcpServers: [],
       threadId: "thread-1",
     });

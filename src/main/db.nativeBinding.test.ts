@@ -6,7 +6,7 @@ describe("resolveBetterSqliteNativeBindingOptions", () => {
   it("uses an explicit better-sqlite3 native binding path when it exists", () => {
     expect(
       resolveBetterSqliteNativeBindingOptions(
-        { LIGHTCODE_BETTER_SQLITE3_NATIVE_BINDING: "/native/better_sqlite3.node" },
+        { PORACODE_BETTER_SQLITE3_NATIVE_BINDING: "/native/better_sqlite3.node" },
         "/app",
         (path) => path === "/native/better_sqlite3.node",
       ),
@@ -16,11 +16,11 @@ describe("resolveBetterSqliteNativeBindingOptions", () => {
   it("throws a named error when the explicit binding path does not exist", () => {
     expect(() =>
       resolveBetterSqliteNativeBindingOptions(
-        { LIGHTCODE_BETTER_SQLITE3_NATIVE_BINDING: "/typo/better_sqlite3.node" },
+        { PORACODE_BETTER_SQLITE3_NATIVE_BINDING: "/typo/better_sqlite3.node" },
         "/app",
         () => false,
       ),
-    ).toThrow(/LIGHTCODE_BETTER_SQLITE3_NATIVE_BINDING/);
+    ).toThrow(/PORACODE_BETTER_SQLITE3_NATIVE_BINDING/);
   });
 
   it("uses the cwd-relative prepared binding for headless server runs", () => {
@@ -30,7 +30,7 @@ describe("resolveBetterSqliteNativeBindingOptions", () => {
 
     expect(
       resolveBetterSqliteNativeBindingOptions(
-        { LIGHTCODE_HEADLESS_SERVER: "1" },
+        { PORACODE_HEADLESS_SERVER: "1" },
         cwd,
         exists,
         "/anything/dist/main",
@@ -44,13 +44,13 @@ describe("resolveBetterSqliteNativeBindingOptions", () => {
   it("probes the module-relative server-native binding when cwd-relative is missing", () => {
     // Launched from an arbitrary dir (systemd/cron): only the bundle-relative
     // path (dist/main/../server-native) resolves.
-    const moduleDir = join("/opt", "lightcode", "dist", "main");
+    const moduleDir = join("/opt", "poracode", "dist", "main");
     const bundleRelative = join(moduleDir, "..", "server-native", "better_sqlite3.node");
     const exists = (path: string) => path === bundleRelative;
 
     expect(
       resolveBetterSqliteNativeBindingOptions(
-        { LIGHTCODE_HEADLESS_SERVER: "1" },
+        { PORACODE_HEADLESS_SERVER: "1" },
         "/some/other/dir",
         exists,
         moduleDir,
@@ -61,11 +61,11 @@ describe("resolveBetterSqliteNativeBindingOptions", () => {
   it("prefers the cwd-relative binding when both exist", () => {
     const cwd = "/app";
     const cwdRelative = join(cwd, "dist", "server-native", "better_sqlite3.node");
-    const moduleDir = join("/opt", "lightcode", "dist", "main");
+    const moduleDir = join("/opt", "poracode", "dist", "main");
 
     expect(
       resolveBetterSqliteNativeBindingOptions(
-        { LIGHTCODE_HEADLESS_SERVER: "1" },
+        { PORACODE_HEADLESS_SERVER: "1" },
         cwd,
         () => true,
         moduleDir,
@@ -76,7 +76,7 @@ describe("resolveBetterSqliteNativeBindingOptions", () => {
   it("falls back to the package default when no prepared binding exists", () => {
     expect(
       resolveBetterSqliteNativeBindingOptions(
-        { LIGHTCODE_HEADLESS_SERVER: "1" },
+        { PORACODE_HEADLESS_SERVER: "1" },
         "/app",
         () => false,
         "/anything/dist/main",

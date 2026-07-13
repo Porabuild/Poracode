@@ -1,4 +1,4 @@
-import type { UsageWindow } from "@lightcode/agents-usage/types";
+import type { UsageWindow } from "@poracode/agents-usage/types";
 import { ProviderIcon } from "./ProviderIcon";
 import { pickUsageRings } from "./usageProviders";
 import { usageToneColor } from "./usageTone";

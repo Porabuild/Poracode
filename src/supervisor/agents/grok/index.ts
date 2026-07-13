@@ -98,7 +98,7 @@ export function createGrokAdapter(): AgentAdapter {
     handleOscNotification: iterm2ProgressOscHint,
     handleOscTitle: brailleSpinnerOscTitleHint,
 
-    pluginId: "lightcode-status@grok",
+    pluginId: "poracode-status@grok",
     pluginVersion: GROK_PLUGIN_VERSION,
     minProtocolVersion: 1,
 
@@ -119,8 +119,8 @@ export function createGrokAdapter(): AgentAdapter {
       uninstallGrokPlugin(ctx);
     },
     // No `pluginLaunchExtras` env/args needed — Grok auto-loads
-    // `~/.grok/hooks/lightcode-status.json` written at install time, and
-    // `LIGHTCODE_HOOK_*` env is injected by the coordinator.
+    // `~/.grok/hooks/poracode-status.json` written at install time, and
+    // `PORACODE_HOOK_*` env is injected by the coordinator.
     async pluginLaunchExtras() {
       return {};
     },

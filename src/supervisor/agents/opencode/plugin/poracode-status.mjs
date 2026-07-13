@@ -23,14 +23,14 @@
  * and registers each function as a separate plugin (silent duplicate). Do
  * not add additional named OR default exports beyond this single object.
  *
- * Filename note: deliberately `lightcode-status.mjs` in the source tree.
- * The supervisor drops it as `lightcode-status.js` into OpenCode's
+ * Filename note: deliberately `poracode-status.mjs` in the source tree.
+ * The supervisor drops it as `poracode-status.js` into OpenCode's
  * auto-discovery directory (`~/.config/opencode/plugins/`) — OpenCode's glob
  * is `{plugin,plugins}/*.{ts,js}` so `.mjs` would be silently ignored. Bun
  * (OpenCode's runtime) handles ESM syntax in `.js` natively. The displayed
  * plugin name in OpenCode's TUI status panel (`dialog-status.tsx`) is the
  * basename of the dropped file before the first dot, so naming the drop
- * `lightcode-status.js` produces "lightcode-status". The Windows panel
+ * `poracode-status.js` produces "poracode-status". The Windows panel
  * display is buggy upstream — OpenCode `split("/")`s a native `\`-path —
  * and cannot be fixed plugin-side. `id` is still set because newer OpenCode
  * builds will read it.
@@ -47,11 +47,11 @@ import { setTimeout as sleep } from "node:timers/promises";
 //   1. Deployed in OpenCode's plugins/ dir → sibling `<basename>.plugin.json`
 //      (the installer drops both files together so `import.meta.url` reaches
 //      the manifest at runtime). OpenCode auto-loads `.{ts,js}` only, so the
-//      deployed plugin file is `lightcode-status.js` and its manifest is
-//      `lightcode-status.plugin.json`.
+//      deployed plugin file is `poracode-status.js` and its manifest is
+//      `poracode-status.plugin.json`.
 //   2. Staged in our agent-plugins/ dir → sibling `plugin.json` (matches
 //      `installerBase`'s canonical filename, used by tests / dev paths). The
-//      staged file is `lightcode-status.mjs`.
+//      staged file is `poracode-status.mjs`.
 function readPluginVersionFromManifest() {
   try {
     const filePath = fileURLToPath(import.meta.url);
@@ -78,13 +78,13 @@ const PLUGIN_VERSION = readPluginVersionFromManifest();
 const PROTOCOL_VERSION = 1;
 
 function hookDebugEnabled() {
-  const v = process.env.LIGHTCODE_HOOK_DEBUG;
+  const v = process.env.PORACODE_HOOK_DEBUG;
   return v === "1" || v === "true" || Boolean(v && v !== "0" && v !== "false");
 }
 
 function debugLog(message) {
   if (hookDebugEnabled()) {
-    process.stderr.write(`[lightcode-opencode] ${message}\n`);
+    process.stderr.write(`[poracode-opencode] ${message}\n`);
   }
 }
 
@@ -165,17 +165,15 @@ async function postWithRetry(url, headers, body, attempts = 2) {
 }
 
 async function forwardIntent(eventType, intent, sessionId, extra) {
-  const url = process.env.LIGHTCODE_HOOK_URL;
-  const secret = process.env.LIGHTCODE_HOOK_SECRET;
-  const threadId = process.env.LIGHTCODE_THREAD_ID;
-  const agentKind = process.env.LIGHTCODE_AGENT_KIND ?? "opencode";
-  const supervisorProtocol = Number(
-    process.env.LIGHTCODE_HOOK_PROTOCOL_VERSION ?? PROTOCOL_VERSION,
-  );
+  const url = process.env.PORACODE_HOOK_URL;
+  const secret = process.env.PORACODE_HOOK_SECRET;
+  const threadId = process.env.PORACODE_THREAD_ID;
+  const agentKind = process.env.PORACODE_AGENT_KIND ?? "opencode";
+  const supervisorProtocol = Number(process.env.PORACODE_HOOK_PROTOCOL_VERSION ?? PROTOCOL_VERSION);
   const negotiatedProtocol = Math.min(PROTOCOL_VERSION, supervisorProtocol || PROTOCOL_VERSION);
 
   if (!url || !secret) {
-    debugLog(`skip ${eventType}: missing LIGHTCODE_HOOK_URL or LIGHTCODE_HOOK_SECRET`);
+    debugLog(`skip ${eventType}: missing PORACODE_HOOK_URL or PORACODE_HOOK_SECRET`);
     return;
   }
 
@@ -203,7 +201,7 @@ async function forwardIntent(eventType, intent, sessionId, extra) {
 }
 
 export default {
-  id: "lightcode-status",
+  id: "poracode-status",
   server: async () => ({
     // Unified event dispatcher — see file header for why session/permission
     // lifecycle hooks must come through here, not as top-level keys.

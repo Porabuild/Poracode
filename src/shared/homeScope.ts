@@ -1,5 +1,7 @@
 import type { Project } from "./contracts";
 
+// Persisted in project/thread rows; keep the legacy ID so upgraded databases
+// do not create a second Home project or orphan existing Home threads.
 export const HOME_PROJECT_ID = "__lightcode_home__";
 export const HOME_PROJECT_NAME = "Home";
 

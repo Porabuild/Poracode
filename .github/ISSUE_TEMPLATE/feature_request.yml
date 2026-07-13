@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an improvement for Lightcode.
+description: Suggest an improvement for Poracode.
 title: "feat: "
 labels: [enhancement]
 body:
@@ -19,7 +19,7 @@ body:
     id: solution
     attributes:
       label: Proposed solution
-      description: What would you like Lightcode to do?
+      description: What would you like Poracode to do?
     validations:
       required: true
   - type: textarea

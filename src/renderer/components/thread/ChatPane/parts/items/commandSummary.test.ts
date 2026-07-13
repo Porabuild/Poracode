@@ -42,7 +42,7 @@ describe("humanIntentTitle", () => {
   });
 
   it("describes PowerShell Get-Content -Path ranges", () => {
-    const full = String.raw`cd C:\Users\sdsle\work\lightcode && "C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.1.0_x64__8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-Content -Path src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx | Select-Object -Skip 550 -First 110'`;
+    const full = String.raw`cd C:\Users\sdsle\work\poracode && "C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.1.0_x64__8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-Content -Path src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx | Select-Object -Skip 550 -First 110'`;
     const display = commandIntentDisplay(full);
 
     expect(display.title).toBe(
@@ -84,13 +84,13 @@ describe("humanIntentTitle", () => {
   });
 
   it("preserves Windows paths in PowerShell Get-Content -LiteralPath", () => {
-    const full = String.raw`pwsh -Command 'Get-Content -LiteralPath C:\Users\sdsle\work\lightcode\src\foo.ts'`;
+    const full = String.raw`pwsh -Command 'Get-Content -LiteralPath C:\Users\sdsle\work\poracode\src\foo.ts'`;
     const display = commandIntentDisplay(full);
 
     expect(display.title).toBe("View: foo.ts");
     expect(display.parts).toEqual({
       prefix: "View: ",
-      path: String.raw`C:\Users\sdsle\work\lightcode\src\foo.ts`,
+      path: String.raw`C:\Users\sdsle\work\poracode\src\foo.ts`,
       filePath: true,
     });
   });
@@ -106,7 +106,7 @@ describe("humanIntentTitle", () => {
   });
 
   it("strips PowerShell cd …; before intent", () => {
-    const full = 'cd "c:\\Users\\me\\work\\lightcode"; pnpm exec oxfmt src/a.ts';
+    const full = 'cd "c:\\Users\\me\\work\\poracode"; pnpm exec oxfmt src/a.ts';
     expect(humanIntentTitle(full)).toBe("Format files");
   });
 

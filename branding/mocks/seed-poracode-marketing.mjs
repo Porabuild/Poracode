@@ -26,7 +26,7 @@ const readArg = (n) => {
   const i = args.indexOf(`--${n}`);
   return i === -1 ? undefined : args[i + 1];
 };
-const baseDir = readArg("baseDir") ?? process.env.LIGHTCODE_BASE_DIR;
+const baseDir = readArg("baseDir") ?? process.env.PORACODE_BASE_DIR;
 const projectPath = readArg("projectPath") ?? "/Users/dev/work/acme-web";
 if (!baseDir) throw new Error("--baseDir required");
 const dbPath = path.join(path.resolve(baseDir), "state.sqlite");

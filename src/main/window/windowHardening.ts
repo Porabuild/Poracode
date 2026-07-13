@@ -1,6 +1,6 @@
 import type { BrowserWindow, RenderProcessGoneDetails } from "electron";
-import type { LightcodeChannel } from "@/shared/channel";
-import type { LightcodeWindowKind } from "@/shared/ipc";
+import type { PoracodeChannel } from "@/shared/channel";
+import type { PoracodeWindowKind } from "@/shared/ipc";
 
 interface AppNavigationGuardOptions {
   isDev: boolean;
@@ -12,7 +12,7 @@ interface AppNavigationGuardOptions {
 /**
  * Lock a privileged renderer to the app's own origin: deny `window.open`, and
  * block any top-level navigation/redirect to an off-app URL. The renderer holds
- * the full `lightcode` preload bridge (DB, file pickers, openExternal, supervisor
+ * the full `poracode` preload bridge (DB, file pickers, openExternal, supervisor
  * RPC); a navigation away from the app origin would let that page inherit it.
  * External links go through IPC/openExternal, so the renderer never legitimately
  * navigates itself away or opens new windows.
@@ -35,7 +35,7 @@ export function installAppNavigationGuards(
   };
   const blockOffAppNavigation = (event: Electron.Event, target: string): void => {
     if (!isAllowedAppUrl(target)) {
-      console.warn(`[lightcode] blocked ${prefix}navigation to off-app URL: ${target}`);
+      console.warn(`[poracode] blocked ${prefix}navigation to off-app URL: ${target}`);
       event.preventDefault();
     }
   };
@@ -65,14 +65,14 @@ export function installRendererReloadGuard(
   window.webContents.on("render-process-gone", (_event, details) => {
     if (details.reason === "clean-exit" || window.isDestroyed()) return;
     console.error(
-      `[lightcode] ${prefix}renderer gone: reason=${details.reason} exitCode=${details.exitCode}`,
+      `[poracode] ${prefix}renderer gone: reason=${details.reason} exitCode=${details.exitCode}`,
     );
     options.onRendererProcessGone?.(details);
     const now = Date.now();
     reloadCount = now - lastReloadAt < 5_000 ? reloadCount + 1 : 1;
     lastReloadAt = now;
     if (reloadCount > 3) {
-      console.error(`[lightcode] ${prefix}renderer gone too many times in a row, not reloading`);
+      console.error(`[poracode] ${prefix}renderer gone too many times in a row, not reloading`);
       return;
     }
     options.loadRenderer();
@@ -82,8 +82,8 @@ export function installRendererReloadGuard(
 interface RendererArgumentsOptions {
   appVersion: string;
   isDev: boolean;
-  windowKind: LightcodeWindowKind;
-  channel: LightcodeChannel;
+  windowKind: PoracodeWindowKind;
+  channel: PoracodeChannel;
   posthogEnableDev: boolean;
   posthogEnabled: boolean;
   posthogHost: string;

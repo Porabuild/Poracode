@@ -34,7 +34,7 @@ describe("PushCoordinator", () => {
   let now: number;
 
   const threads = [{ id: "thread-1", title: "Release check", projectId: "project-1" }];
-  const projects = [{ id: "project-1", name: "Lightcode" }];
+  const projects = [{ id: "project-1", name: "Poracode" }];
 
   function makeCoordinator(): PushCoordinator {
     return new PushCoordinator({

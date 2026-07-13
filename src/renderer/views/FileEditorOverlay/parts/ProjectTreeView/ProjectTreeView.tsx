@@ -108,7 +108,7 @@ export function ProjectTreeView(props: {
         onDrop={(event) => {
           event.preventDefault();
           useProjectTreeStore.getState().setDropTargetPath(null);
-          const payload = event.dataTransfer.getData("application/lightcode-project-tree");
+          const payload = event.dataTransfer.getData("application/poracode-project-tree");
           if (!payload) return;
           try {
             const { path } = JSON.parse(payload) as { path: string };
@@ -124,7 +124,7 @@ export function ProjectTreeView(props: {
       >
         <div className="flex items-center gap-2 border-b border-[color:var(--border)] px-0 py-2">
           <div
-            data-lightcode-find-scope="tree"
+            data-poracode-find-scope="tree"
             className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[color:var(--border)] bg-background px-3 py-1.5"
           >
             <Search className="size-3.5 shrink-0 text-muted" />

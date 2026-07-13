@@ -32,7 +32,7 @@ vi.mock("@/shared/ipc", () => ({
 }));
 
 vi.mock("./picker/pickerProtocol", () => ({
-  PICKER_COMMIT_ORIGIN: "lightcode-picker",
+  PICKER_COMMIT_ORIGIN: "poracode-picker",
   onPickerCommit: vi.fn<() => () => void>(() => vi.fn<() => void>()),
 }));
 

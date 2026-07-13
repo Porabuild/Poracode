@@ -42,8 +42,8 @@ function renderComposerControl(control: ComposerControl, index: number) {
     return (
       <Tooltip key={`toggle-${index}`}>
         <ToggleButton
-          className={`lightcode-composer-toggle ${
-            control.isCurrentState ? "lightcode-composer-toggle--current " : ""
+          className={`poracode-composer-toggle ${
+            control.isCurrentState ? "poracode-composer-toggle--current " : ""
           }min-w-0 px-2.5`}
           isDisabled={control.isDisabled ?? false}
           isSelected={control.isSelected}
@@ -84,7 +84,7 @@ function renderComposerControl(control: ComposerControl, index: number) {
     <OptionMenu
       key={`menu-${index}`}
       buttonVariant="ghost"
-      className="lightcode-composer-menu min-w-0 px-2.5"
+      className="poracode-composer-menu min-w-0 px-2.5"
       options={control.options}
       value={control.value}
       onChange={control.onChange ?? (() => undefined)}
@@ -279,7 +279,7 @@ export function ContinueInProviderDialog(props: {
                   <div className="flex flex-wrap items-center gap-1">
                     <OptionMenu
                       buttonVariant="ghost"
-                      className="lightcode-composer-menu min-w-0 px-2.5"
+                      className="poracode-composer-menu min-w-0 px-2.5"
                       iconOnly
                       value={selectedKind}
                       options={otherAgents.map((a) => ({

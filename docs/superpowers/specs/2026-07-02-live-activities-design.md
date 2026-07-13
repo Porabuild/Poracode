@@ -39,9 +39,9 @@ separately). Live Activities require the Capacitor iOS app.
 Live Activity UI is always SwiftUI — even in a Capacitor app the lock-screen
 card and Dynamic Island presentations cannot be web-rendered.
 
-- New extension target `LightcodeActivities`. The `ios/` project is not
+- New extension target `PoracodeActivities`. The `ios/` project is not
   committed (it's generated via `npx cap add`), so the extension's Swift
-  sources live in-repo under `native/ios/LightcodeActivities/`;
+  sources live in-repo under `native/ios/PoracodeActivities/`;
   `scripts/configure-mobile-native.mjs` copies them into the generated
   project, and creating the extension target is a documented one-time Xcode
   step (`docs/RELEASE_MOBILE.md`) — pbxproj target injection via regex is
@@ -78,7 +78,7 @@ card and Dynamic Island presentations cannot be web-rendered.
   (`desktopName`, running count) + thread rows with status and
   `Text(timerInterval:)` elapsed timers, exactly the mock's layout.
 
-### 2. Capacitor plugin `@lightcode/activity-bridge` (local plugin)
+### 2. Capacitor plugin `@poracode/activity-bridge` (local plugin)
 
 Thin Swift bridge between the web layer and ActivityKit. Lives in the repo
 (local Capacitor plugin), no behavior on Android/web (no-op stubs).

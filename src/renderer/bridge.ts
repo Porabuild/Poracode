@@ -1,7 +1,7 @@
-import type { LightcodeBridge } from "@/shared/ipc";
+import type { PoracodeBridge } from "@/shared/ipc";
 
-export function readBridge(): LightcodeBridge {
-  return window.lightcode;
+export function readBridge(): PoracodeBridge {
+  return window.poracode;
 }
 
 export function isWindows(): boolean {
@@ -27,5 +27,5 @@ export function isQuickComposerWindow(): boolean {
  * hidden in that case — the shim swallows or rejects their bridge calls.
  */
 export function isRemoteSession(): boolean {
-  return typeof window !== "undefined" && window.lightcode?.appVersion === "remote";
+  return typeof window !== "undefined" && window.poracode?.appVersion === "remote";
 }

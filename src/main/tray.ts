@@ -1,10 +1,10 @@
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { Menu, Tray, app, nativeImage, type MenuItemConstructorOptions } from "electron";
-import type { LightcodeChannel } from "@/shared/channel";
+import type { PoracodeChannel } from "@/shared/channel";
 
 interface CreateTrayOptions {
-  channel: LightcodeChannel;
+  channel: PoracodeChannel;
   appName: string;
   onShow(): void;
   onQuickComposer?(): void;
@@ -17,7 +17,7 @@ export interface TrayHandle {
   setQuickComposerShortcut(shortcut: string | null): void;
 }
 
-export function resolveTrayIconPath(channel: LightcodeChannel): string | null {
+export function resolveTrayIconPath(channel: PoracodeChannel): string | null {
   const suffix = channel === "nightly" ? "-nightly" : "";
   const candidates: string[] = [];
   if (app.isPackaged) {
@@ -39,12 +39,12 @@ export function createTray(options: CreateTrayOptions): TrayHandle {
   let quickComposerShortcut: string | null = null;
   const iconPath = resolveTrayIconPath(channel);
   if (!iconPath) {
-    console.warn("[lightcode] Tray icon not found; skipping tray creation.");
+    console.warn("[poracode] Tray icon not found; skipping tray creation.");
     return { available: false, destroy: () => {}, setQuickComposerShortcut: () => {} };
   }
   const image = nativeImage.createFromPath(iconPath);
   if (image.isEmpty()) {
-    console.warn(`[lightcode] Tray icon is empty: ${iconPath}`);
+    console.warn(`[poracode] Tray icon is empty: ${iconPath}`);
     return { available: false, destroy: () => {}, setQuickComposerShortcut: () => {} };
   }
   const trayImage = process.platform === "darwin" ? image.resize({ width: 18, height: 18 }) : image;

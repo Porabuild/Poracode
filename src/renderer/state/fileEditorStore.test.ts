@@ -394,7 +394,7 @@ describe("resolvePathForFileOpen (worktree-relative traversal regression)", () =
 });
 
 describe("fileEditorStore remote roots", () => {
-  const originalLightcode = window.lightcode;
+  const originalPoracode = window.poracode;
 
   beforeEach(() => {
     useFileEditorStore.setState({
@@ -411,7 +411,7 @@ describe("fileEditorStore remote roots", () => {
     useRemoteServersStore.getState().closeRemoteThread();
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useGitStore.setState({ statuses: {}, worktreeStatuses: {} });
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       writable: true,
       value: undefined,
@@ -419,17 +419,17 @@ describe("fileEditorStore remote roots", () => {
   });
 
   afterEach(() => {
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       writable: true,
-      value: originalLightcode,
+      value: originalPoracode,
     });
   });
 
   it("saves project files through the remote bridge without local git side effects", async () => {
     const writeProjectFile = vi.fn<() => Promise<void>>();
     const gitStage = vi.fn<() => Promise<void>>();
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       writable: true,
       value: {

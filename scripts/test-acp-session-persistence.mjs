@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 
 // Gemini stores sessions here
-const CHATS_DIR = join(homedir(), ".gemini", "tmp", "lightcode", "chats");
+const CHATS_DIR = join(homedir(), ".gemini", "tmp", "poracode", "chats");
 
 function listSessions() {
   if (!existsSync(CHATS_DIR)) return [];
@@ -95,7 +95,7 @@ async function main() {
   // Initialize
   const initId = send("initialize", {
     protocolVersion: 1,
-    clientInfo: { name: "lightcode-test", version: "0.1.0" },
+    clientInfo: { name: "poracode-test", version: "0.1.0" },
     clientCapabilities: {
       fs: { readTextFile: true, writeTextFile: true },
       terminal: true,

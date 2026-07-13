@@ -102,7 +102,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
     // partialL1). Install is manual-only (the launch path never installs a
     // missing plugin) and the hooks live in the user's `~/.commandcode/
     // settings.json`, which the CLI auto-trusts.
-    pluginId: "lightcode-status@commandcode",
+    pluginId: "poracode-status@commandcode",
     pluginVersion: COMMANDCODE_PLUGIN_VERSION,
     minProtocolVersion: 1,
     async isPluginSupported() {

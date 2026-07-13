@@ -2,7 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { HostPort, OAuthToken, UsageSnapshot } from "@lightcode/agents-usage";
+import type { HostPort, OAuthToken, UsageSnapshot } from "@poracode/agents-usage";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { LocalUsageCollector } from "./localUsageCollectors";
 import { UsageService } from "./usageService";
@@ -43,7 +43,7 @@ function makeHost(tokens: Record<string, OAuthToken | undefined>): HostPort {
 
 const cachePaths: string[] = [];
 function tempCachePath(): string {
-  const path = join(tmpdir(), `lightcode-usage-test-${process.pid}-${cachePaths.length}.json`);
+  const path = join(tmpdir(), `poracode-usage-test-${process.pid}-${cachePaths.length}.json`);
   cachePaths.push(path);
   return path;
 }
@@ -289,7 +289,7 @@ describe("UsageService", () => {
   });
 
   it("collects Claude profile usage from the profile config directory", async () => {
-    const profileDir = join(tmpdir(), `lightcode-usage-claude-profile-${process.pid}`);
+    const profileDir = join(tmpdir(), `poracode-usage-claude-profile-${process.pid}`);
     cachePaths.push(profileDir);
     mkdirSync(profileDir, { recursive: true });
     writeFileSync(

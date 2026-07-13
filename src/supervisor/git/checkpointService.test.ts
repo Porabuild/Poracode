@@ -29,7 +29,7 @@ afterEach(async () => {
 });
 
 function makeRepo(): { dir: string; location: ProjectLocation } {
-  const dir = mkdtempSync(join(tmpdir(), "lightcode-checkpoints-"));
+  const dir = mkdtempSync(join(tmpdir(), "poracode-checkpoints-"));
   tempDirs.push(dir);
   git(dir, "init");
   git(dir, "config", "user.email", "test@example.com");
@@ -107,5 +107,30 @@ describe.skipIf(!hasGit())("GitCheckpointService", () => {
         projectLocation: location,
       }),
     ).rejects.toThrow("No file checkpoint exists for item user-1.");
+  });
+
+  it("reads and restores checkpoints created under the legacy ref namespace", async () => {
+    const { dir, location } = makeRepo();
+    const service = new GitCheckpointService();
+    const checkpoint = await service.create({
+      threadId: "thread-1",
+      checkpointItemId: "user-1",
+      projectLocation: location,
+    });
+    const legacyRef = checkpoint.ref.replace("refs/poracode/", "refs/lightcode/");
+    git(dir, "update-ref", legacyRef, checkpoint.commit);
+    git(dir, "update-ref", "-d", checkpoint.ref);
+
+    writeFileSync(join(dir, "README.md"), "after\n");
+    await service.restore({
+      threadId: "thread-1",
+      checkpointItemId: "user-1",
+      projectLocation: location,
+    });
+
+    expect(readFileSync(join(dir, "README.md"), "utf8")).toBe("before\n");
+    await expect(
+      service.list({ threadId: "thread-1", projectLocation: location }),
+    ).resolves.toMatchObject({ checkpoints: [{ ref: legacyRef }] });
   });
 });

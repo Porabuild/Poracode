@@ -131,7 +131,7 @@ describe("pending PR refresh", () => {
     vi.useFakeTimers();
     ghGetPrForBranchMock.mockReset();
     ghGetPrDetailsMock.mockReset();
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
         platform: "darwin",
@@ -425,7 +425,7 @@ describe("watcher git status refresh", () => {
         }) => Promise<{ statuses: Record<string, GitStatusResult> }>
       >()
       .mockResolvedValue({ statuses: { "/repo-wt": worktreeStatus } });
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
         platform: "darwin",
@@ -505,7 +505,7 @@ describe("watcher git status refresh", () => {
           "/repo-wt": detail === "full" ? fullWorktreeStatus : summaryWorktreeStatus,
         },
       }));
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: { platform: "darwin", getGitStatus, gitWorktreeStatusBatch },
     });
@@ -574,7 +574,7 @@ describe("watcher git status refresh", () => {
         }
         return { statuses: { "/repo-wt": summaryWorktreeStatus } };
       });
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: { platform: "darwin", getGitStatus, gitWorktreeStatusBatch },
     });
@@ -633,7 +633,7 @@ describe("watcher git status refresh", () => {
         worktrees: [{ path: "/repo", branch: "feature/pr-checks", commit: "abc123", isMain: true }],
         ghAvailable: false,
       });
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
         platform: "darwin",
@@ -696,7 +696,7 @@ describe("watcher git status refresh", () => {
         worktrees: [{ path: "/repo", branch: "feature/pr-checks", commit: "abc123", isMain: true }],
         ghAvailable: false,
       });
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
         platform: "darwin",
@@ -744,7 +744,7 @@ describe("watcher git status refresh", () => {
         }) => Promise<{ statuses: Record<string, GitStatusResult> }>
       >()
       .mockResolvedValue({ statuses: { "/repo-wt": worktreeStatus } });
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
         platform: "darwin",
@@ -795,7 +795,7 @@ describe("watcher git status refresh", () => {
       });
     const getGitStatus = vi.fn<() => Promise<GitStatusResult>>().mockResolvedValue(status);
     const gitWatchWorktrees = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
         platform: "darwin",
@@ -866,7 +866,7 @@ describe("watcher git status refresh", () => {
         ],
         ghAvailable: false,
       });
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
         platform: "darwin",
@@ -905,7 +905,7 @@ describe("watcher git status refresh", () => {
     const gitProjectSnapshot = vi
       .fn<() => Promise<{ status: GitStatusResult; worktrees: []; ghAvailable: boolean }>>()
       .mockResolvedValue({ status, worktrees: [], ghAvailable: false });
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
         platform: "darwin",
@@ -941,7 +941,7 @@ describe("watcher git status refresh", () => {
     const gitProjectSnapshot = vi
       .fn<() => Promise<{ status: GitStatusResult; worktrees: []; ghAvailable: boolean }>>()
       .mockResolvedValue({ status, worktrees: [], ghAvailable: false });
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
         platform: "darwin",

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import type { OAuthToken } from "@lightcode/agents-usage";
+import type { OAuthToken } from "@poracode/agents-usage";
 import { withReadonlyDb } from "./sqliteRead";
 
 const execFileAsync = promisify(execFile);

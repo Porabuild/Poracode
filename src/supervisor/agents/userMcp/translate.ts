@@ -143,7 +143,7 @@ function openCodeMcpEnvVar(
   kind: "ENV" | "HEADER",
   key: string,
 ): string {
-  return `LIGHTCODE_MCP_OPENCODE_${envLabel(server.name, "SERVER")}_${envIdentityHash(server.name, server.id)}_${kind}_${envLabel(key, "VALUE")}_${envIdentityHash(kind, key)}`;
+  return `PORACODE_MCP_OPENCODE_${envLabel(server.name, "SERVER")}_${envIdentityHash(server.name, server.id)}_${kind}_${envLabel(key, "VALUE")}_${envIdentityHash(kind, key)}`;
 }
 
 /**
@@ -242,7 +242,7 @@ function envLabel(value: string, fallback: string): string {
 }
 
 function codexMcpEnvPrefix(server: Pick<McpServer, "id" | "name">): string {
-  return `LIGHTCODE_MCP_${envLabel(server.name, "SERVER")}_${envIdentityHash(server.name, server.id)}`;
+  return `PORACODE_MCP_${envLabel(server.name, "SERVER")}_${envIdentityHash(server.name, server.id)}`;
 }
 
 export function codexMcpTokenEnvVar(server: Pick<McpServer, "id" | "name">): string {

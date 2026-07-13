@@ -85,7 +85,7 @@ async function main() {
   console.log("\n--- Phase 1: Initialize ---");
   const initId = send("initialize", {
     protocolVersion: 1,
-    clientInfo: { name: "lightcode-verify", version: "0.1.0" },
+    clientInfo: { name: "poracode-verify", version: "0.1.0" },
     clientCapabilities: {
       fs: { readTextFile: true, writeTextFile: true },
       terminal: true,

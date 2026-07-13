@@ -1,14 +1,14 @@
 {
-  "name": "@lightcode/activity-bridge",
+  "name": "@poracode/activity-bridge",
   "version": "1.0.0",
-  "description": "Capacitor bridge from the Lightcode mobile web layer to iOS ActivityKit (Live Activities / Dynamic Island). No-op on Android and web.",
+  "description": "Capacitor bridge from the Poracode mobile web layer to iOS ActivityKit (Live Activities / Dynamic Island). No-op on Android and web.",
   "license": "Apache-2.0",
   "author": "SDSLeon",
   "files": [
     "src",
     "ios/Sources",
     "Package.swift",
-    "LightcodeActivityBridge.podspec",
+    "PoracodeActivityBridge.podspec",
     "README.md"
   ],
   "type": "module",

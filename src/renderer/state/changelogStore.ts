@@ -15,10 +15,10 @@ import {
   writeStoredString,
 } from "@/renderer/utils/localStorage";
 
-const SEEN_VERSION_KEY = "lightcode-changelog-seen-version";
-const ACK_VERSION_KEY = "lightcode-changelog-ack-version";
-const HIDDEN_KEY = "lightcode-whatsnew-hidden";
-const CACHE_KEY = "lightcode-changelog-cache";
+const SEEN_VERSION_KEY = "poracode-changelog-seen-version";
+const ACK_VERSION_KEY = "poracode-changelog-ack-version";
+const HIDDEN_KEY = "poracode-whatsnew-hidden";
+const CACHE_KEY = "poracode-changelog-cache";
 
 function currentAppVersion(): string {
   try {

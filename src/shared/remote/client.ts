@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  LIGHTCODE_REMOTE_PROTOCOL_VERSION,
+  PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_STANDARD_SCOPES,
   filterKnownRemoteAccessScopes,
   remoteAgentStatusesSchema,
@@ -236,12 +236,18 @@ export class RemoteDesktopClient {
   }
 
   async environment(): Promise<RemoteEnvironmentDescriptor> {
-    const raw = await this.requestJson("/.well-known/lightcode/environment");
+    let raw: unknown;
+    try {
+      raw = await this.requestJson("/.well-known/poracode/environment");
+    } catch (error) {
+      if (!(error instanceof RemoteClientError) || error.status !== 404) throw error;
+      raw = await this.requestJson("/.well-known/lightcode/environment");
+    }
     // Pre-parse the protocol version with a loose schema so a mismatch (the
     // literal in the strict schema would otherwise dump a JSON ZodError) yields
     // a readable, branchable error instead.
     const version = z.object({ protocolVersion: z.unknown() }).safeParse(raw).data?.protocolVersion;
-    if (version !== LIGHTCODE_REMOTE_PROTOCOL_VERSION) {
+    if (version !== PORACODE_REMOTE_PROTOCOL_VERSION) {
       throw new RemoteClientError(
         "This app version is incompatible with that server. Update both to the same version.",
         409,

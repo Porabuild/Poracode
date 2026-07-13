@@ -6,7 +6,7 @@ import type { UsageTokens } from "./types";
  * number for subscription/OAuth users (who are billed by quota windows, not
  * tokens) — always surface cost as "estimated".
  *
- * The table rots; treat it as a dated snapshot. The host/log-scanner (Lightcode
+ * The table rots; treat it as a dated snapshot. The host/log-scanner (Poracode
  * phase 2) can also source rates dynamically (e.g. models.dev). Matching is by
  * longest substring of the model id.
  *

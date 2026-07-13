@@ -16,7 +16,7 @@ import type {
   WriteTerminalPayload,
   ScheduledTaskInput,
 } from "@/shared/contracts";
-import type { BrowserState, BrowserTabInfo, LightcodeBridge } from "@/shared/ipc";
+import type { BrowserState, BrowserTabInfo, PoracodeBridge } from "@/shared/ipc";
 import {
   isGitRemoteNoopProcedure,
   isGitRemoteProcedure,
@@ -29,7 +29,7 @@ import { pushDesktopSettingsDiff } from "./settingsSync";
 import { applyAgentStatuses } from "./storeSync";
 
 /**
- * Remote-session implementation of `window.lightcode`. The desktop renderer
+ * Remote-session implementation of `window.poracode`. The desktop renderer
  * components reused by the PWA (ChatPane, ThreadComposerSection,
  * ThreadDraftView, …) call the bridge for thread mutations and shell
  * conveniences. Here those calls are routed to the paired desktop over the
@@ -287,8 +287,8 @@ const remoteBridge = {
 };
 
 export function installRemoteBridge(): void {
-  if (typeof window === "undefined" || window.lightcode !== undefined) return;
-  window.lightcode = new Proxy(remoteBridge, {
+  if (typeof window === "undefined" || window.poracode !== undefined) return;
+  window.poracode = new Proxy(remoteBridge, {
     get(target, prop, receiver) {
       if (prop in target) {
         return Reflect.get(target, prop, receiver) as unknown;
@@ -305,5 +305,5 @@ export function installRemoteBridge(): void {
       }
       return () => Promise.reject(new Error(`"${prop}" is not available in a remote session.`));
     },
-  }) as unknown as LightcodeBridge;
+  }) as unknown as PoracodeBridge;
 }

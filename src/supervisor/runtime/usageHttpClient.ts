@@ -1,4 +1,4 @@
-import type { HttpClient, HttpRequest, HttpResponse } from "@lightcode/agents-usage";
+import type { HttpClient, HttpRequest, HttpResponse } from "@poracode/agents-usage";
 
 /**
  * Node implementation of the usage HostPort's HTTP client: global fetch with an

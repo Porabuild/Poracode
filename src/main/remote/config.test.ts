@@ -10,10 +10,10 @@ import {
 } from "./config";
 
 const ENV_KEYS = [
-  "LIGHTCODE_REMOTE_ACCESS_ADVERTISED_HOST",
-  "LIGHTCODE_REMOTE_ACCESS_HOST",
-  "LIGHTCODE_REMOTE_ACCESS_PAIRING_APP_URL",
-  "LIGHTCODE_REMOTE_ACCESS_PORT",
+  "PORACODE_REMOTE_ACCESS_ADVERTISED_HOST",
+  "PORACODE_REMOTE_ACCESS_HOST",
+  "PORACODE_REMOTE_ACCESS_PAIRING_APP_URL",
+  "PORACODE_REMOTE_ACCESS_PORT",
 ] as const;
 
 afterEach(() => {
@@ -41,15 +41,15 @@ describe("remote access config", () => {
   });
 
   it("accepts explicit overrides", () => {
-    process.env.LIGHTCODE_REMOTE_ACCESS_ADVERTISED_HOST = "mobile-test.lightcode.local";
-    process.env.LIGHTCODE_REMOTE_ACCESS_HOST = "192.168.1.20";
-    process.env.LIGHTCODE_REMOTE_ACCESS_PORT = "49999";
-    process.env.LIGHTCODE_REMOTE_ACCESS_PAIRING_APP_URL = "https://preview.lightcodeapp.com";
+    process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST = "mobile-test.poracode.local";
+    process.env.PORACODE_REMOTE_ACCESS_HOST = "192.168.1.20";
+    process.env.PORACODE_REMOTE_ACCESS_PORT = "49999";
+    process.env.PORACODE_REMOTE_ACCESS_PAIRING_APP_URL = "https://preview.poracodeapp.com";
 
-    expect(remoteAccessAdvertisedHost()).toBe("mobile-test.lightcode.local");
+    expect(remoteAccessAdvertisedHost()).toBe("mobile-test.poracode.local");
     expect(remoteAccessHost()).toBe("192.168.1.20");
     expect(remoteAccessPort()).toBe(49999);
-    expect(remoteAccessPairingAppUrl()).toBe("https://preview.lightcodeapp.com");
+    expect(remoteAccessPairingAppUrl()).toBe("https://preview.poracodeapp.com");
   });
 
   it("detects a preferred LAN IPv4 address across interface naming styles", () => {

@@ -3,7 +3,7 @@ import { registerPlugin } from "@capacitor/core";
 import type { ActivityBridgePlugin } from "./definitions";
 
 /**
- * `@lightcode/activity-bridge` — thin bridge to iOS ActivityKit.
+ * `@poracode/activity-bridge` — thin bridge to iOS ActivityKit.
  *
  * On iOS the native `ActivityBridgePlugin` (Swift) handles everything. On the
  * web and on Android there is no native implementation, so Capacitor falls back

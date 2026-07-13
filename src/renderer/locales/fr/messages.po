@@ -1416,10 +1416,6 @@ msgid "Built-in MCP servers"
 msgstr "Serveurs MCP intégrés"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#~ msgid "Built-in servers are managed by Lightcode. They can be disabled globally but cannot be edited or removed."
-#~ msgstr "Les serveurs intégrés sont gérés par Lightcode. Ils peuvent être désactivés globalement, mais ne peuvent être ni modifiés ni supprimés."
-
-#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
 msgstr "Les serveurs intégrés sont gérés par Poracode. Ils peuvent être désactivés globalement, mais ne peuvent être ni modifiés ni supprimés."
 
@@ -2200,10 +2196,6 @@ msgid "Config directory"
 msgstr "Dossier de configuration"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
-#~ msgid "Configure the server Lightcode will add when supported agents start."
-#~ msgstr "Configurez le serveur que Lightcode ajoutera au démarrage des agents compatibles."
-
-#: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
 msgstr "Configurez le serveur que Poracode ajoutera au démarrage des agents compatibles."
 
@@ -2243,8 +2235,8 @@ msgid "Connect desktop"
 msgstr "Connecter le bureau"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Connect directly, through a relay, or over SSH. Every transport uses the same Lightcode remote protocol, projects, threads, and agent runtimes."
-msgstr "Connectez-vous directement, via un relais ou par SSH. Chaque transport utilise le même protocole distant Lightcode, les mêmes projets, fils et environnements d’exécution d’agents."
+msgid "Connect directly, through a relay, or over SSH. Every transport uses the same Poracode remote protocol, projects, threads, and agent runtimes."
+msgstr "Connectez-vous directement, via un relais ou par SSH. Chaque transport utilise le même protocole distant Poracode, les mêmes projets, fils et environnements d’exécution d’agents."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect over SSH"
@@ -2259,8 +2251,8 @@ msgid "Connect the AI providers OpenCode can use and sign out of them here."
 msgstr "Connectez ici les fournisseurs d'IA qu'OpenCode peut utiliser et déconnectez-vous-en."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
-#~ msgstr "Connectez-vous à un autre poste Lightcode ou à un serveur sans interface pour parcourir et gérer ses projets ici. Récupérez son point d'accès et son jeton d'appairage dans Paramètres → Accès distant sur cette machine."
+#~ msgid "Connect to another Poracode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
+#~ msgstr "Connectez-vous à un autre poste Poracode ou à un serveur sans interface pour parcourir et gérer ses projets ici. Récupérez son point d'accès et son jeton d'appairage dans Paramètres → Accès distant sur cette machine."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Connected"
@@ -2402,6 +2394,10 @@ msgstr "Copier (recommandé)"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Copy {0} device code {1}"
 msgstr "Copier {0} le code de l'appareil {1}"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
+msgstr "Copiez toutes les données Lightcode dans Poracode. Poracode redémarrera et conservera une sauvegarde complète de ses données actuelles."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
@@ -2558,6 +2554,10 @@ msgstr "Impossible d’analyser les compétences des agents."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "Impossible d’analyser les configurations des serveurs MCP."
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Couldn't schedule the Lightcode data import."
+msgstr "Impossible de planifier l’importation des données Lightcode."
 
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -2952,8 +2952,8 @@ msgid "Dev servers listening on your desktop's localhost."
 msgstr "Serveurs de développement à l'écoute sur le localhost de votre bureau."
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
-msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
-msgstr "Remplacements réservés au développement. Visible uniquement dans la version LIGHTCODE DEV."
+msgid "Development-only overrides. Only visible in the PORACODE DEV build."
+msgstr "Remplacements réservés au développement. Visible uniquement dans la version PORACODE DEV."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4175,6 +4175,14 @@ msgstr "Image"
 msgid "Image preview"
 msgstr "Aperçu de l'image"
 
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import again"
+msgstr "Importer à nouveau"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import and restart"
+msgstr "Importer et redémarrer"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import conflict"
 msgstr "Conflit d’importation"
@@ -4195,6 +4203,14 @@ msgstr "Importer des compétences d’agents externes"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import external skills"
 msgstr "Importer des compétences externes"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import Lightcode data"
+msgstr "Importer les données Lightcode"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import Lightcode data again?"
+msgstr "Importer à nouveau les données Lightcode ?"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
@@ -4506,9 +4522,9 @@ msgstr "Tokens cumulés"
 msgid "Light"
 msgstr "Clair"
 
-#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
-msgid "Lightcode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
-msgstr "Lightcode et vos agents s’exécutent sur la machine distante. SSH sert uniquement à démarrer l’environnement distant et à sécuriser son tunnel local."
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Lightcode data import is unavailable with a custom data folder."
+msgstr "L’importation des données Lightcode n’est pas disponible avec un dossier de données personnalisé."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Link to source"
@@ -4729,10 +4745,6 @@ msgstr "Gérez les compétences partagées dans les portées globales et de proj
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage shared skills across Windows, WSL, and projects."
 #~ msgstr "Gérez les compétences partagées entre Windows, WSL et les projets."
-
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
-#~ msgstr "Gérez les configurations de serveurs MCP que Lightcode ajoute au démarrage des agents compatibles. Les serveurs de l’espace de travail peuvent être configurés dans les paramètres de chaque projet."
 
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5546,6 +5558,10 @@ msgstr "Aucun compte GitHub CLI trouvé. Connectez-vous avec <0>gh auth login</0
 msgid "No history yet"
 msgstr "Aucun historique pour l’instant"
 
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "No Lightcode data was found."
+msgstr "Aucune donnée Lightcode n’a été trouvée."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
 msgstr "Aucune compétence de la place de marché ne correspond à ces filtres."
@@ -6202,8 +6218,8 @@ msgid "Pair again"
 msgstr "Associer à nouveau"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Pair with Lightcode"
-msgstr "Associer à Lightcode"
+msgid "Pair with Poracode"
+msgstr "Associer à Poracode"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -6395,6 +6411,10 @@ msgstr "Dirigez ce profil vers un fournisseur non-Anthropic (z.ai, …) avec des
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "Thèmes d'éditeur populaires adaptés à Poracode. Chacun suit le mode clair ou sombre ci-dessus."
 
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
+msgstr "Poracode et vos agents s’exécutent sur la machine distante. SSH sert uniquement à démarrer l’environnement distant et à sécuriser son tunnel local."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode ne stocke pas les identifiants de marketplace en clair dans les paramètres. Ouvrez le catalogue pour parcourir ses skills analysées sur le plan de la sécurité."
@@ -6408,6 +6428,10 @@ msgstr "Poracode uniquement"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
 msgstr "Poracode installera ou réutilisera son serveur sur l’hôte SSH et conservera les identifiants dans le stockage sécurisé de cet appareil."
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
+msgstr "Poracode va redémarrer, sauvegarder ses données actuelles et les remplacer par une copie complète de vos données Lightcode."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -6601,10 +6625,6 @@ msgstr "Prompts"
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "Plan proposé"
-
-#: src/renderer/components/mcp/McpServersManager.tsx
-#~ msgid "Provided and managed by Lightcode for supported agents."
-#~ msgstr "Fourni et géré par Lightcode pour les agents compatibles."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Provided and managed by Poracode for supported agents."
@@ -7537,8 +7557,8 @@ msgid "Scheduled tasks on this desktop"
 msgstr "Tâches planifiées sur cet ordinateur"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-#~ msgid "Scheduled tasks run only while this device is awake and Lightcode is open."
-#~ msgstr "Les tâches planifiées ne s’exécutent que lorsque cet appareil est actif et que Lightcode est ouvert."
+#~ msgid "Scheduled tasks run only while this device is awake and Poracode is open."
+#~ msgstr "Les tâches planifiées ne s’exécutent que lorsque cet appareil est actif et que Poracode est ouvert."
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9571,13 +9591,13 @@ msgstr "Mettre à jour la branche"
 msgid "Update error: {detail}"
 msgstr "Erreur de mise à jour : {detail}"
 
-#: src/mobile/views/PortsView.tsx
-msgid "Update Lightcode on your desktop to use port forwarding."
-msgstr "Mettez à jour Lightcode sur votre bureau pour utiliser le transfert de port."
-
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update method"
 msgstr "Méthode de mise à jour"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Update Poracode on your desktop to use port forwarding."
+msgstr "Mettez à jour Poracode sur votre bureau pour utiliser le transfert de port."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"

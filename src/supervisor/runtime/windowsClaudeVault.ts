@@ -66,7 +66,7 @@ if ($found.Count -gt 0) { [Console]::Out.Write($found[0]) }
 
 const PS_READ_TARGET_SCRIPT = `
 $ErrorActionPreference = 'SilentlyContinue'
-$targetName = $env:LIGHTCODE_CRED_TARGET
+$targetName = $env:PORACODE_CRED_TARGET
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -127,7 +127,7 @@ export async function readWindowsCredentialTarget(targetName: string): Promise<s
         timeout: 6_000,
         windowsHide: true,
         maxBuffer: 1024 * 1024,
-        env: { ...process.env, LIGHTCODE_CRED_TARGET: targetName },
+        env: { ...process.env, PORACODE_CRED_TARGET: targetName },
       },
     );
     const out = stdout.trim();

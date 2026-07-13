@@ -34,7 +34,7 @@ describe("buildPromptContentBlocks", () => {
       {
         kind: "image",
         mimeType: "image/png",
-        dataUrl: "lightcode-local://local/C:/tmp/shot.png",
+        dataUrl: "poracode-local://local/C:/tmp/shot.png",
         path: "C:\\tmp\\shot.png",
         name: "shot.png",
         source: "attachment",
@@ -60,28 +60,28 @@ describe("buildPromptContentBlocks", () => {
 
 describe("toLocalFileUrl", () => {
   it("builds a constant-host URL for a POSIX absolute path", () => {
-    expect(toLocalFileUrl("/Users/me/img.png")).toBe("lightcode-local://local/Users/me/img.png");
+    expect(toLocalFileUrl("/Users/me/img.png")).toBe("poracode-local://local/Users/me/img.png");
   });
 
   it("builds a constant-host URL for a Windows drive path", () => {
     expect(toLocalFileUrl("C:\\Users\\me\\img.png")).toBe(
-      "lightcode-local://local/C:/Users/me/img.png",
+      "poracode-local://local/C:/Users/me/img.png",
     );
   });
 
   // Regression guard for the `standard: true` scheme privilege (commit bd0faf73).
   // Standard/special schemes parse with WHATWG "special authority ignore
   // slashes": leading slashes collapse and the first path segment is consumed
-  // as the (lowercased) host. The old `lightcode-local:///<path>` form
+  // as the (lowercased) host. The old `poracode-local:///<path>` form
   // therefore lost its first path segment — `/Users` on macOS, the drive
   // letter on Windows — so the protocol handler resolved the wrong file and
   // pasted images failed to render. The constant `local` host absorbs that
   // parsing so the real path survives intact in `pathname`. This helper mirrors
   // the resolution in src/main/attachments/localFiles.ts.
   function resolveLikeProtocolHandler(url: string, platform: "darwin" | "win32"): string {
-    // lightcode-local is non-special in Node; swap to a special scheme to
+    // poracode-local is non-special in Node; swap to a special scheme to
     // reproduce Chromium's standard-scheme canonicalization (host extraction).
-    const asSpecial = url.replace(/^lightcode-local:/, "https:");
+    const asSpecial = url.replace(/^poracode-local:/, "https:");
     const raw = decodeURIComponent(new URL(asSpecial).pathname);
     return platform === "win32" && /^\/[A-Za-z]:/.test(raw) ? raw.slice(1) : raw;
   }

@@ -66,8 +66,8 @@ vi.mock("@/main/supervisor/SupervisorClient", () => ({
   },
 }));
 
-vi.mock("@/main/lightcodeData", () => ({
-  prepareLightcodeDataRoot: () => {
+vi.mock("@/main/poracodeData", () => ({
+  preparePoracodeDataRoot: () => {
     const base = h.tmpBase;
     return {
       baseDir: base,

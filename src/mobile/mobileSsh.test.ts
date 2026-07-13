@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SshBridgePlugin } from "@lightcode/ssh-bridge";
+import type { SshBridgePlugin } from "@poracode/ssh-bridge";
 import type { SshConnectionConfig } from "@/shared/ssh";
 
 const bridge = vi.hoisted(() => ({
@@ -12,7 +12,7 @@ const bridge = vi.hoisted(() => ({
   disconnect: vi.fn<SshBridgePlugin["disconnect"]>(),
 }));
 
-vi.mock("@lightcode/ssh-bridge", () => ({ SshBridge: bridge }));
+vi.mock("@poracode/ssh-bridge", () => ({ SshBridge: bridge }));
 
 import { __resetMobileSshRuntimeForTests, connectMobileSsh, probeMobileSshHost } from "./mobileSsh";
 
@@ -122,7 +122,7 @@ describe("mobile SSH bootstrap", () => {
     await connectMobileSsh(connection, { kind: "password", password: "secret" }, false);
     expect(bridge.upload).toHaveBeenCalledWith({
       connectionId: connection.id,
-      remotePath: `.lightcode/ssh/uploads/${"b".repeat(64)}.tar.gz`,
+      remotePath: `.poracode/ssh/uploads/${"b".repeat(64)}.tar.gz`,
       base64: "AQID",
     });
   });

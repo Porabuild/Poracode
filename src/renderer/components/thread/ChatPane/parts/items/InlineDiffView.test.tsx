@@ -37,7 +37,7 @@ describe("InlineDiffView", () => {
 
   it("merges repeated same-file chunks and normalizes absolute OpenCode paths", () => {
     const absolutePath =
-      "/Users/serhiivecherenko/work/lightcode/src/renderer/components/thread/threadErrorState.ts";
+      "/Users/serhiivecherenko/work/poracode/src/renderer/components/thread/threadErrorState.ts";
     const diff = [
       `diff --git a/${absolutePath} b/${absolutePath}`,
       `--- a/${absolutePath}`,

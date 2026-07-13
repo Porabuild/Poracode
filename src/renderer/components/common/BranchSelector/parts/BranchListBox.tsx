@@ -102,7 +102,7 @@ export function BranchListBox(props: {
     <Virtualizer layout={ListLayout} layoutOptions={{ rowHeight, padding: 8 }}>
       <ListBox
         aria-label={t`Branches`}
-        className={`lightcode-menu max-h-60 overflow-y-auto ${mobile ? "" : VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS}`}
+        className={`poracode-menu max-h-60 overflow-y-auto ${mobile ? "" : VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS}`}
         items={items}
         selectedKeys={
           isWorktree || worktreeMode ? new Set([baseBranch ?? value]) : new Set([value])

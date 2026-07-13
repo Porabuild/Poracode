@@ -44,7 +44,7 @@ export function buildPickerScript(tabId: string, commitOrigin: string): string {
     host.remove();
     document.removeEventListener("keydown", onKey, true);
     window.removeEventListener("keydown", onKey, true);
-    window.removeEventListener("__lightcode_picker_cancel", onCancel, true);
+    window.removeEventListener("__poracode_picker_cancel", onCancel, true);
     scrim.removeEventListener("mousemove", onMove, true);
     scrim.removeEventListener("click", onClick, true);
   }
@@ -188,7 +188,7 @@ export function buildPickerScript(tabId: string, commitOrigin: string): string {
 
   document.addEventListener("keydown", onKey, true);
   window.addEventListener("keydown", onKey, true);
-  window.addEventListener("__lightcode_picker_cancel", onCancel, true);
+  window.addEventListener("__poracode_picker_cancel", onCancel, true);
   scrim.addEventListener("mousemove", onMove, true);
   scrim.addEventListener("click", onClick, true);
   });

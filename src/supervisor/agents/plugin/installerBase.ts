@@ -15,7 +15,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { resolveLightcodePaths } from "@/shared/lightcodePaths";
+import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { toWslUncPath } from "@/shared/wsl";
 import {
   getCachedWslHomeDirectory,
@@ -47,7 +47,7 @@ export function isWslPluginContext(ctx: AgentEnvContext | undefined): ctx is Wsl
 
 export interface PluginSourceResolverOptions {
   kind: string;
-  /** Env var override for the source dir, e.g. `LIGHTCODE_CLAUDE_PLUGIN_SOURCE`. */
+  /** Env var override for the source dir, e.g. `PORACODE_CLAUDE_PLUGIN_SOURCE`. */
   sourceEnvVar: string;
   /**
    * `__dirname` of the *caller* (the provider's install.ts). Fallback candidate
@@ -59,7 +59,7 @@ export interface PluginSourceResolverOptions {
 
 /**
  * Memoized per-call: the first successful resolve is cached for the lifetime
- * of the closure. The `LIGHTCODE_*_PLUGIN_SOURCE` env override is therefore
+ * of the closure. The `PORACODE_*_PLUGIN_SOURCE` env override is therefore
  * read only on the first call; subsequent env mutations are ignored.
  */
 export function createPluginSourceResolver(opts: PluginSourceResolverOptions): () => string {
@@ -223,7 +223,7 @@ export function buildNativeHookCommandHead(
  * through the shell it found on PATH (sh/bash via Git for Windows on most
  * developer machines), which can't parse PowerShell syntax and aborts with
  * `eval: line 3: syntax error near unexpected token '&'`. Routing through the
- * staged `lightcode-hook.cmd` wrapper via `cmd.exe /d /s /c call …` keeps the
+ * staged `poracode-hook.cmd` wrapper via `cmd.exe /d /s /c call …` keeps the
  * command pwsh-free and works under both sh and cmd shells. POSIX hosts get
  * the same shape as `buildNativeHookCommandHead`.
  */
@@ -251,7 +251,7 @@ export function getWslPluginBaseDirs(distro: string, kind: string): WslPluginBas
 }
 
 export function getNativePluginBaseDir(kind: string, baseDir?: string): string {
-  const paths = resolveLightcodePaths(baseDir);
+  const paths = resolvePoracodePaths(baseDir);
   return join(paths.agentPluginsDir, kind);
 }
 
@@ -364,16 +364,16 @@ export function warnIfPluginManifestMissing(kind: string, version: string, devHi
 /**
  * Filename of the per-plugin native hook wrapper. The wrapper sits next
  * to `forward.mjs` in the plugin staging dir and runs `forward.mjs` under
- * lightcode's bundled Electron Node via `ELECTRON_RUN_AS_NODE=1`. On
+ * poracode's bundled Electron Node via `ELECTRON_RUN_AS_NODE=1`. On
  * Windows we write a `.cmd` because cmd.exe doesn't accept inline
  * `VAR=val` prefixes; everywhere else we write a POSIX `.sh`.
  */
 export function getNativeHookWrapperFilename(): string {
-  return process.platform === "win32" ? "lightcode-hook.cmd" : "lightcode-hook.sh";
+  return process.platform === "win32" ? "poracode-hook.cmd" : "poracode-hook.sh";
 }
 
 function getNativeHookPowerShellWrapperFilename(): string {
-  return "lightcode-hook.ps1";
+  return "poracode-hook.ps1";
 }
 
 /**
@@ -382,7 +382,7 @@ function getNativeHookPowerShellWrapperFilename(): string {
  *   - When `nodePath` is provided, the wrapper invokes that bare Node
  *     binary directly — fastest path (~30–50 ms cold) and what we always
  *     prefer.
- *   - Otherwise it falls back to running lightcode's bundled Electron
+ *   - Otherwise it falls back to running poracode's bundled Electron
  *     binary with `ELECTRON_RUN_AS_NODE=1`, which still produces a
  *     working Node runtime but pays a ~150 ms startup tax per spawn.
  *
@@ -392,7 +392,7 @@ function getNativeHookPowerShellWrapperFilename(): string {
  * portable if the staging dir is relocated.
  */
 export interface RenderNativeHookWrapperOptions {
-  /** lightcode's bundled Electron binary, used as the fallback runtime. */
+  /** poracode's bundled Electron binary, used as the fallback runtime. */
   electronPath: string;
   /** Absolute path to a usable native Node binary (preferred runtime). */
   nodePath?: string;
@@ -706,14 +706,14 @@ export function ensureNativeStateLink(source: string, target: string, kind: "dir
 /**
  * Filename of the shared forwarder runtime that ships next to each provider's
  * `forward.mjs` in the staging dir. Each `forward.mjs` imports it as a
- * sibling (`./lightcode-hook-runtime.mjs`) and calls `runForwarder({...})`.
+ * sibling (`./poracode-hook-runtime.mjs`) and calls `runForwarder({...})`.
  */
-export const FORWARD_RUNTIME_FILE = "lightcode-hook-runtime.mjs";
+export const FORWARD_RUNTIME_FILE = "poracode-hook-runtime.mjs";
 
 let cachedRuntimeSourcePath: string | undefined;
 
 /**
- * Resolve the canonical `lightcode-hook-runtime.mjs` source path. Mirrors
+ * Resolve the canonical `poracode-hook-runtime.mjs` source path. Mirrors
  * `createPluginSourceResolver`: checks packaged `<resources>/agent-plugins/
  * _runtime/`, then dev candidates relative to this module's location.
  * Memoized for the supervisor lifetime.
@@ -749,7 +749,7 @@ export function resolveForwardRuntimeSourcePath(): string {
 /**
  * Copy the shared runtime into a native plugin staging dir. Idempotent:
  * skips when target file is identical (size+mtime). Targets sit next to
- * `forward.mjs` so its relative `import "./lightcode-hook-runtime.mjs"`
+ * `forward.mjs` so its relative `import "./poracode-hook-runtime.mjs"`
  * resolves.
  */
 export function copyForwardRuntimeFile(targetDir: string): void {
@@ -800,7 +800,7 @@ export interface VerifyStagedPluginOptions {
   assets?: readonly string[];
   /**
    * When true (default), native installs must also have the
-   * `lightcode-hook.{sh,cmd}` wrapper next to forward.mjs. WSL installs bake
+   * `poracode-hook.{sh,cmd}` wrapper next to forward.mjs. WSL installs bake
    * the absolute node path directly into hook commands and never need it.
    * Providers that don't use a forwarder wrapper (OpenCode in-process plugin)
    * set this to false.
@@ -853,7 +853,7 @@ export interface StagePluginAssetsToWslOptions {
    */
   assets?: readonly string[];
   /**
-   * When true, also stage the shared `lightcode-hook-runtime.mjs` next to
+   * When true, also stage the shared `poracode-hook-runtime.mjs` next to
    * `forward.mjs`. Forwarder-based providers (claude/codex/gemini/copilot/
    * cursor) pass true; OpenCode (in-process plugin, no forwarder) passes false.
    */

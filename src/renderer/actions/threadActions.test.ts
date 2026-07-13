@@ -274,12 +274,12 @@ describe("threadActions", () => {
     const firstThread = makeThread({
       id: "thread-a",
       worktreePath,
-      worktreeBranch: "lightcode/feature",
+      worktreeBranch: "poracode/feature",
     });
     const secondThread = makeThread({
       id: "thread-b",
       worktreePath,
-      worktreeBranch: "lightcode/feature",
+      worktreeBranch: "poracode/feature",
     });
     useAppStore.setState((state) => ({ ...state, threads: [firstThread, secondThread] }));
 
@@ -294,7 +294,7 @@ describe("threadActions", () => {
     const worktreePath = "/repo/.worktrees/feature";
     const thread = makeThread({
       worktreePath,
-      worktreeBranch: "lightcode/feature",
+      worktreeBranch: "poracode/feature",
     });
     useAppStore.setState((state) => ({ ...state, threads: [thread] }));
 
@@ -307,7 +307,7 @@ describe("threadActions", () => {
       threadId: thread.id,
       projectId: thread.projectId,
       worktreePath,
-      worktreeBranch: "lightcode/feature",
+      worktreeBranch: "poracode/feature",
     });
   });
 
@@ -317,7 +317,7 @@ describe("threadActions", () => {
       resolveClose = resolve;
     });
     bridge.closeThread.mockReturnValueOnce(closePromise);
-    localStorage.setItem("lightcode-delete-worktree-pref", "thread-and-worktree");
+    localStorage.setItem("poracode-delete-worktree-pref", "thread-and-worktree");
     const worktreePath = "/repo/.worktrees/feature";
     const project = useAppStore.getState().addProject({
       kind: "posix",
@@ -326,7 +326,7 @@ describe("threadActions", () => {
     const thread = makeThread({
       projectId: project.id,
       worktreePath,
-      worktreeBranch: "lightcode/feature",
+      worktreeBranch: "poracode/feature",
     });
     useAppStore.setState((state) => ({ ...state, threads: [thread] }));
 
@@ -343,7 +343,7 @@ describe("threadActions", () => {
       expect(performWorktreeRemoval).toHaveBeenCalledWith(
         project,
         worktreePath,
-        "lightcode/feature",
+        "poracode/feature",
       );
     });
   });

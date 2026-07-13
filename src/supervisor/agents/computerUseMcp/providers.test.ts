@@ -14,14 +14,14 @@ const computerUseMcp: ComputerUseMcpHttpConfig = {
 };
 
 afterEach(() => {
-  delete process.env.LIGHTCODE_COMPUTER_USE_MCP_URL;
-  delete process.env.LIGHTCODE_COMPUTER_USE_MCP_TOKEN;
+  delete process.env.PORACODE_COMPUTER_USE_MCP_URL;
+  delete process.env.PORACODE_COMPUTER_USE_MCP_TOKEN;
 });
 
 describe("Computer Use MCP provider configs", () => {
   it("resolves the local HTTP endpoint from supervisor env", () => {
-    process.env.LIGHTCODE_COMPUTER_USE_MCP_URL = "http://127.0.0.1:65094";
-    process.env.LIGHTCODE_COMPUTER_USE_MCP_TOKEN = "host-token";
+    process.env.PORACODE_COMPUTER_USE_MCP_URL = "http://127.0.0.1:65094";
+    process.env.PORACODE_COMPUTER_USE_MCP_TOKEN = "host-token";
 
     expect(resolveComputerUseMcpHttpConfigForLaunch(windowsLocation, true)).toEqual({
       url: "http://127.0.0.1:65094/mcp",
@@ -31,8 +31,8 @@ describe("Computer Use MCP provider configs", () => {
   });
 
   it("tags the endpoint with the owning thread identity", () => {
-    process.env.LIGHTCODE_COMPUTER_USE_MCP_URL = "http://127.0.0.1:65094";
-    process.env.LIGHTCODE_COMPUTER_USE_MCP_TOKEN = "host-token";
+    process.env.PORACODE_COMPUTER_USE_MCP_URL = "http://127.0.0.1:65094";
+    process.env.PORACODE_COMPUTER_USE_MCP_TOKEN = "host-token";
 
     expect(
       resolveComputerUseMcpHttpConfigForLaunch(windowsLocation, true, {
@@ -62,7 +62,7 @@ describe("Computer Use MCP provider configs", () => {
       'mcp_servers.computer_use.url="http://127.0.0.1:45678/mcp"',
     );
     expect(buildCodexComputerUseMcpEnv(computerUseMcp)).toEqual({
-      LIGHTCODE_COMPUTER_USE_MCP_TOKEN: "computer-use-secret",
+      PORACODE_COMPUTER_USE_MCP_TOKEN: "computer-use-secret",
     });
     expect(buildGeminiComputerUseMcpServers(windowsLocation, true, computerUseMcp)).toEqual({
       computer_use: {
@@ -85,8 +85,8 @@ describe("Computer Use MCP provider configs", () => {
     // The gate must live inside each builder so a call site can never forget it
     // and leak the desktop-control endpoint into a non-opted-in thread. Env is
     // set to prove the builders honor `enabled` rather than the env fallback.
-    process.env.LIGHTCODE_COMPUTER_USE_MCP_URL = "http://127.0.0.1:65094";
-    process.env.LIGHTCODE_COMPUTER_USE_MCP_TOKEN = "host-token";
+    process.env.PORACODE_COMPUTER_USE_MCP_URL = "http://127.0.0.1:65094";
+    process.env.PORACODE_COMPUTER_USE_MCP_TOKEN = "host-token";
 
     expect(buildAcpComputerUseMcpServers(windowsLocation, false, computerUseMcp)).toEqual([]);
     expect(

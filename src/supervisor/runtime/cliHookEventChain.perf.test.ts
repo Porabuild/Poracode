@@ -17,13 +17,13 @@ import { ThreadOutputPipeline } from "./threadOutputPipeline";
  *   ThreadOutputPipeline.applyCliHookPluginState → thread-state emit
  *
  * Six logical threads post concurrently (Promise.all over per-thread loops).
- * Scale with `LIGHTCODE_PERF_SCALE` (default 1): events per thread = 40 × scale, capped at 400.
+ * Scale with `PORACODE_PERF_SCALE` (default 1): events per thread = 40 × scale, capped at 400.
  */
 
 const THREAD_COUNT = 6;
 
 function eventsPerThread(): number {
-  const scale = Math.max(1, Math.min(20, Number(process.env.LIGHTCODE_PERF_SCALE ?? "1") || 1));
+  const scale = Math.max(1, Math.min(20, Number(process.env.PORACODE_PERF_SCALE ?? "1") || 1));
   return Math.min(400, 40 * scale);
 }
 
@@ -155,7 +155,7 @@ describe("CLI hook event chain (6 threads)", () => {
     expect(avg).toBeLessThan(30);
     expect(p95).toBeLessThan(160);
 
-    if (process.env.LIGHTCODE_PERF_LOG) {
+    if (process.env.PORACODE_PERF_LOG) {
       console.log(
         `[perf/cli-hook] threads=${THREAD_COUNT} events/thread=${n} total=${totalEvents} wallMs=${wallMs.toFixed(1)} avgMs=${avg.toFixed(3)} p50Ms=${p50.toFixed(3)} p95Ms=${p95.toFixed(3)}`,
       );

@@ -6,7 +6,7 @@
 // explicit --target instead.
 //
 // Target resolution order:
-//   1. $LIGHTCODE_ANDROID_TARGET      - explicit override (device serial or AVD id)
+//   1. $PORACODE_ANDROID_TARGET      - explicit override (device serial or AVD id)
 //   2. first already-connected device - attach to a running emulator / phone
 //   3. AVD with the highest API level - boot the newest virtual device
 //
@@ -89,7 +89,7 @@ function listTargets() {
 }
 
 function resolveTarget() {
-  const override = process.env.LIGHTCODE_ANDROID_TARGET?.trim();
+  const override = process.env.PORACODE_ANDROID_TARGET?.trim();
   if (override) return override;
 
   const list = listTargets();
@@ -132,7 +132,7 @@ const nativeRunArgs = [
   ...process.argv.slice(2),
 ];
 
-if (process.env.LIGHTCODE_CAP_DRY_RUN) {
+if (process.env.PORACODE_CAP_DRY_RUN) {
   console.log(`[cap-android] dry run: ${gradleCommand} ${gradleArgs.join(" ")}`);
   console.log(`[cap-android] dry run: node ${nativeRunBin} ${nativeRunArgs.join(" ")}`);
   process.exit(0);

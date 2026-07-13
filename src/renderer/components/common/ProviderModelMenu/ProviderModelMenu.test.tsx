@@ -477,7 +477,7 @@ describe("ProviderModelMenu", () => {
       });
       expect(row).not.toBeNull();
       const label = within(row as HTMLElement).getByText(subProviderLabel);
-      const providerIcon = (row as HTMLElement).querySelector(".lightcode-provider-icon");
+      const providerIcon = (row as HTMLElement).querySelector(".poracode-provider-icon");
       expect(providerIcon).not.toBeNull();
       expect(label.compareDocumentPosition(providerIcon as Element)).toBe(
         Node.DOCUMENT_POSITION_FOLLOWING,

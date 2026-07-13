@@ -25,11 +25,11 @@ export const ContextCompaction = memo(function ContextCompaction({ item }: Conte
     return (
       <Surface variant="transparent" className={chatMessageSurfaceClass}>
         <div className="inline-flex min-w-0 items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          <Layers className="size-3 shrink-0 lightcode-compacting-icon" />
+          <Layers className="size-3 shrink-0 poracode-compacting-icon" />
           <span
             ref={thinkingTextRef}
-            className="lightcode-thinking-text"
-            data-lightcode-shimmer-text={compactingLabel}
+            className="poracode-thinking-text"
+            data-poracode-shimmer-text={compactingLabel}
           >
             {compactingLabel}
           </span>
@@ -41,7 +41,7 @@ export const ContextCompaction = memo(function ContextCompaction({ item }: Conte
   return (
     <div className="flex w-full flex-col items-stretch justify-center px-3 py-2 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
       <span className="inline-flex min-w-0 items-center gap-1.5 self-start leading-none italic opacity-80">
-        <Layers className="size-3 shrink-0 lightcode-compacted-icon" />
+        <Layers className="size-3 shrink-0 poracode-compacted-icon" />
         {summary ?? t`Context compacted`}
       </span>
     </div>

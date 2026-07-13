@@ -1,17 +1,18 @@
-import { Button } from "@heroui/react";
+import { useState } from "react";
+import { Button, toast } from "@heroui/react";
 import { Download, ExternalLink, RefreshCw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { readBridge } from "@/renderer/bridge";
-import { PixelLoader } from "@/renderer/components/common";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { ConfirmDialog, PixelLoader } from "@/renderer/components/common";
 import { useUpdateStore } from "@/renderer/state/updateStore";
 import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
 import { productNameFor } from "@/shared/channel";
 import { formatBytes } from "@/shared/formatBytes";
-import { SettingsPage } from "./SettingsForm";
+import { SettingRow, SettingsPage } from "./SettingsForm";
 import appIconStableUrl from "../../../../../build/icon.png";
 import appIconNightlyUrl from "../../../../../build/icon-nightly.png";
 
-const GITHUB_REPO = "https://github.com/poracode/poracode";
+const GITHUB_REPO = "https://github.com/SDSLeon/lightcode";
 const WEBSITE_URL = "https://poracode.com/";
 
 function AboutLink(props: { href: string; children: React.ReactNode }) {
@@ -99,7 +100,7 @@ function UpdateButton() {
             // Updater failures already surface via onUpdateStatus (toast). This
             // catch only keeps an IPC transport rejection from bubbling to the
             // window as an unhandled rejection, which renders the crash screen.
-            console.error("[lightcode][updates] check-for-update failed", error);
+            console.error("[poracode][updates] check-for-update failed", error);
           })
       }
     >
@@ -111,84 +112,151 @@ function UpdateButton() {
 export function AboutSettings() {
   const { t } = useLingui();
   const bridge = readBridge();
+  const [showMigrationConfirm, setShowMigrationConfirm] = useState(false);
+  const [migrationPending, setMigrationPending] = useState(false);
   const productName = productNameFor(bridge.channel);
   const appIconUrl = bridge.channel === "nightly" ? appIconNightlyUrl : appIconStableUrl;
   const currentYear = new Date().getFullYear();
 
+  const importLegacyData = async () => {
+    setShowMigrationConfirm(false);
+    setMigrationPending(true);
+    try {
+      const result = await bridge.requestLegacyDataMigration();
+      if (result.status === "no-legacy-data") {
+        toast.warning(t`No Lightcode data was found.`);
+        return;
+      }
+      if (result.status === "unavailable") {
+        toast.warning(t`Lightcode data import is unavailable with a custom data folder.`);
+        return;
+      }
+      await bridge.relaunchApp();
+    } catch (error) {
+      toast.danger(
+        error instanceof Error ? error.message : t`Couldn't schedule the Lightcode data import.`,
+      );
+    } finally {
+      setMigrationPending(false);
+    }
+  };
+
   return (
-    <SettingsPage title={t`About`} bodyClassName="">
-      <div className="mb-8 flex items-center gap-4">
-        <img src={appIconUrl} alt={productName} className="size-12 shrink-0 rounded-lg" />
-        <div>
-          <p className="text-lg text-foreground">
-            <BrandWordmark />
-          </p>
-          <p className="text-xs text-muted">
-            <Trans>AI agent orchestrator — manage coding agents via Terminal and Native ACP.</Trans>
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">
-              <Trans comment="About page label: app version row">Version</Trans>
+    <>
+      <SettingsPage title={t`About`} bodyClassName="">
+        <div className="mb-8 flex items-center gap-4">
+          <img src={appIconUrl} alt={productName} className="size-12 shrink-0 rounded-lg" />
+          <div>
+            <p className="text-lg text-foreground">
+              <BrandWordmark />
             </p>
-            <p className="text-xs text-muted">{bridge.appVersion}</p>
+            <p className="text-xs text-muted">
+              <Trans>
+                AI agent orchestrator — manage coding agents via Terminal and Native ACP.
+              </Trans>
+            </p>
           </div>
-          <div className="shrink-0">
-            <UpdateButton />
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                <Trans comment="About page label: app version row">Version</Trans>
+              </p>
+              <p className="text-xs text-muted">{bridge.appVersion}</p>
+            </div>
+            <div className="shrink-0">
+              <UpdateButton />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-medium text-foreground">
+              <Trans comment="About page label: release channel (stable/nightly)">Channel</Trans>
+            </p>
+            <p className="text-sm text-muted capitalize">{bridge.channel}</p>
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-medium text-foreground">
+              <Trans comment="About page label: Electron framework version">Electron</Trans>
+            </p>
+            <p className="text-sm text-muted">{bridge.electronVersion}</p>
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-medium text-foreground">
+              <Trans comment="About page label: software license row">License</Trans>
+            </p>
+            <p className="text-sm text-muted">Apache-2.0</p>
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-sm font-medium text-foreground">
-            <Trans comment="About page label: release channel (stable/nightly)">Channel</Trans>
-          </p>
-          <p className="text-sm text-muted capitalize">{bridge.channel}</p>
+        {!isRemoteSession() && !bridge.isDev ? (
+          <div className="mt-8 border-t border-[var(--hairline)] pt-6">
+            <SettingRow
+              title={t`Import Lightcode data`}
+              description={
+                <Trans>
+                  Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete
+                  backup of its current data.
+                </Trans>
+              }
+            >
+              <Button
+                size="sm"
+                variant="secondary"
+                isPending={migrationPending}
+                onPress={() => setShowMigrationConfirm(true)}
+              >
+                <Trans>Import again</Trans>
+              </Button>
+            </SettingRow>
+          </div>
+        ) : null}
+
+        <div className="mt-8 space-y-3 border-t border-[var(--hairline)] pt-6">
+          <AboutLink href={WEBSITE_URL}>
+            <Trans comment="External link to the product website">Website</Trans>
+          </AboutLink>
+          <br />
+          <AboutLink href={GITHUB_REPO}>
+            <Trans>GitHub Repository</Trans>
+          </AboutLink>
+          <br />
+          <AboutLink href={`${GITHUB_REPO}/releases`}>
+            <Trans comment="Link to the list of release notes">Changelog</Trans>
+          </AboutLink>
+          <br />
+          <AboutLink href={`${GITHUB_REPO}/issues`}>
+            <Trans>Report an Issue</Trans>
+          </AboutLink>
+          <br />
+          <AboutLink href={`${GITHUB_REPO}/blob/master/LICENSE`}>
+            <Trans comment="Link to the license file">License</Trans>
+          </AboutLink>
         </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-sm font-medium text-foreground">
-            <Trans comment="About page label: Electron framework version">Electron</Trans>
-          </p>
-          <p className="text-sm text-muted">{bridge.electronVersion}</p>
-        </div>
-
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-sm font-medium text-foreground">
-            <Trans comment="About page label: software license row">License</Trans>
-          </p>
-          <p className="text-sm text-muted">Apache-2.0</p>
-        </div>
-      </div>
-
-      <div className="mt-8 space-y-3 border-t border-[var(--hairline)] pt-6">
-        <AboutLink href={WEBSITE_URL}>
-          <Trans comment="External link to the product website">Website</Trans>
-        </AboutLink>
-        <br />
-        <AboutLink href={GITHUB_REPO}>
-          <Trans>GitHub Repository</Trans>
-        </AboutLink>
-        <br />
-        <AboutLink href={`${GITHUB_REPO}/releases`}>
-          <Trans comment="Link to the list of release notes">Changelog</Trans>
-        </AboutLink>
-        <br />
-        <AboutLink href={`${GITHUB_REPO}/issues`}>
-          <Trans>Report an Issue</Trans>
-        </AboutLink>
-        <br />
-        <AboutLink href={`${GITHUB_REPO}/blob/master/LICENSE`}>
-          <Trans comment="Link to the license file">License</Trans>
-        </AboutLink>
-      </div>
-
-      <p className="mt-8 text-xs text-muted">
-        <Trans>&copy; {currentYear} Serhii Vecherenko. All rights reserved.</Trans>
-      </p>
-    </SettingsPage>
+        <p className="mt-8 text-xs text-muted">
+          <Trans>&copy; {currentYear} Serhii Vecherenko. All rights reserved.</Trans>
+        </p>
+      </SettingsPage>
+      <ConfirmDialog
+        isOpen={showMigrationConfirm}
+        title={t`Import Lightcode data again?`}
+        body={
+          <Trans>
+            Poracode will restart, back up its current data, and replace it with a complete copy of
+            your Lightcode data.
+          </Trans>
+        }
+        confirmLabel={t`Import and restart`}
+        confirmVariant="primary"
+        status="warning"
+        onConfirm={() => void importLegacyData()}
+        onClose={() => setShowMigrationConfirm(false)}
+      />
+    </>
   );
 }

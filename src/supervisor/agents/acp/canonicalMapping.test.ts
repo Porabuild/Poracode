@@ -352,7 +352,7 @@ describe("mapAcpSessionUpdate", () => {
         title: "mcp__browser__snapshot",
         kind: "other",
         status: "in_progress",
-        rawInput: { url: "https://lightcode.app" },
+        rawInput: { url: "https://poracode.app" },
       } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
       state,
     );
@@ -363,7 +363,7 @@ describe("mapAcpSessionUpdate", () => {
         name: "mcp__browser__snapshot",
         title: "mcp__browser__snapshot",
         kind: "other",
-        args: { url: "https://lightcode.app" },
+        args: { url: "https://poracode.app" },
         status: "running",
       },
     });

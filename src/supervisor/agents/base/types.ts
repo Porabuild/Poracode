@@ -46,7 +46,7 @@ export interface AgentEnvContext {
   wslDistro?: string;
   /**
    * Poracode data base dir for native (non-WSL) plugin staging. Populated by
-   * the supervisor so dev runs (`~/.lightcode-dev`) stage plugins separately
+   * the supervisor so dev runs (`~/.poracode-dev`) stage plugins separately
    * from prod (`~/.poracode`). WSL plugin installs ignore this and stage
    * into the distro's `$HOME/.poracode/` via `resolveWslHomeDirectoryAsync`.
    */
@@ -533,7 +533,7 @@ export interface AgentSkillRootSpec {
 export interface AgentSkillSupport {
   /** Provider-owned roots discovered by the Skills manager. `.agents/skills` is canonical. */
   readonly roots: readonly AgentSkillRootSpec[];
-  /** Provider roots that need a Lightcode-owned copy of canonical skills. */
+  /** Provider roots that need a Poracode-owned copy of canonical skills. */
   readonly projectionRoots?: readonly AgentSkillRootSpec[];
   readonly invocation: "slash" | "dollar" | "prompt";
   /** Provider-native duplicate resolution, using root ids plus canonical `agents`. */

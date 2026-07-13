@@ -130,7 +130,7 @@ describe("SkillsManager", () => {
         skill({
           id: "global:claude:testing:off",
           name: "testing",
-          absolutePath: "C:\\Users\\me\\.claude\\skills.lightcode-disabled\\testing",
+          absolutePath: "C:\\Users\\me\\.claude\\skills.poracode-disabled\\testing",
           rootPath: "C:\\Users\\me\\.claude\\skills",
           providerId: "claude",
           providerLabel: "Claude Code",
@@ -158,9 +158,9 @@ describe("SkillsManager", () => {
           mutable: false,
         }),
         skill({
-          id: "global:lightcode-built-in:create-skill:on",
+          id: "global:poracode-built-in:create-skill:on",
           name: "create-skill",
-          providerId: "lightcode-built-in",
+          providerId: "poracode-built-in",
           providerLabel: "Poracode built-ins",
           providerGroupId: "poracode",
           providerGroupLabel: "Poracode",

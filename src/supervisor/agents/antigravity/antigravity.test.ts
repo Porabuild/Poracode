@@ -300,7 +300,7 @@ describe("detectAntigravityTerminalStatus", () => {
       "      ▄▀▀▄        Antigravity CLI 1.0.0",
       "     ▀▀▀▀▀▀       user@example.com",
       "    ▀▀▀▀▀▀▀▀      Gemini 3.5 Flash (High)",
-      "   ▄▀▀    ▀▀▄     ~/work/lightcode",
+      "   ▄▀▀    ▀▀▄     ~/work/poracode",
       "",
       "────────────────────────────────────────────────────────────────────────────────",
       ">",

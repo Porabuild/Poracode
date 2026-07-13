@@ -138,7 +138,7 @@ export function WelcomeOverlay() {
   return (
     <div
       ref={containerRef}
-      className={`lightcode-welcome-page fixed inset-0 z-50 flex flex-col bg-background transition-opacity ${
+      className={`poracode-welcome-page fixed inset-0 z-50 flex flex-col bg-background transition-opacity ${
         visible ? "opacity-100 duration-150" : "opacity-0 duration-500"
       }`}
       onTransitionEnd={handleTransitionEnd}
@@ -168,42 +168,42 @@ export function WelcomeOverlay() {
         }
       }}
     >
-      <div className="lightcode-welcome-bg-glow absolute inset-0 z-0 pointer-events-none" />
+      <div className="poracode-welcome-bg-glow absolute inset-0 z-0 pointer-events-none" />
       <pre
-        className="lightcode-welcome-code-wall absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-50 p-8 m-0"
+        className="poracode-welcome-code-wall absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-50 p-8 m-0"
         aria-hidden="true"
       >
         {WELCOME_BACKGROUND_CODE}
       </pre>
 
       <div
-        className="lightcode-overlay-header relative z-10 flex shrink-0 items-center px-2"
+        className="poracode-overlay-header relative z-10 flex shrink-0 items-center px-2"
         style={{ height: "env(titlebar-area-height, 32px)" }}
       />
 
       <div className="relative z-10 flex flex-1 items-center justify-center px-6">
-        <div className="lightcode-welcome-stage flex w-full max-w-[680px] flex-col items-center gap-8 text-center">
-          <div className="lightcode-welcome-icon-wrap relative flex size-24 items-center justify-center">
-            <span className="lightcode-welcome-light absolute inset-[-18px] rounded-full" />
-            <span className="lightcode-welcome-splash absolute inset-[-26px] rounded-full" />
-            <span className="lightcode-welcome-orbit absolute inset-[-12px] rounded-full">
+        <div className="poracode-welcome-stage flex w-full max-w-[680px] flex-col items-center gap-8 text-center">
+          <div className="poracode-welcome-icon-wrap relative flex size-24 items-center justify-center">
+            <span className="poracode-welcome-light absolute inset-[-18px] rounded-full" />
+            <span className="poracode-welcome-splash absolute inset-[-26px] rounded-full" />
+            <span className="poracode-welcome-orbit absolute inset-[-12px] rounded-full">
               <span
                 ref={cometRef}
-                className="lightcode-welcome-comet absolute left-1/2 top-0 size-1 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                className="poracode-welcome-comet absolute left-1/2 top-0 size-1 -translate-x-1/2 -translate-y-1/2 rounded-full"
               />
             </span>
-            <span className="lightcode-welcome-ring absolute inset-[5px] rounded-[1.85rem]" />
-            <span className="lightcode-welcome-reveal lightcode-welcome-icon-glass absolute inset-2 rounded-[1.65rem]" />
+            <span className="poracode-welcome-ring absolute inset-[5px] rounded-[1.85rem]" />
+            <span className="poracode-welcome-reveal poracode-welcome-icon-glass absolute inset-2 rounded-[1.65rem]" />
             <img
               src={appIconUrl}
               alt=""
               draggable={false}
-              className="lightcode-welcome-reveal relative size-20 rounded-[1.55rem]"
+              className="poracode-welcome-reveal relative size-20 rounded-[1.55rem]"
             />
           </div>
 
           <div
-            className={`lightcode-welcome-reveal lightcode-welcome-reveal-1 flex flex-col items-center gap-3 transition-all duration-700 ${
+            className={`poracode-welcome-reveal poracode-welcome-reveal-1 flex flex-col items-center gap-3 transition-all duration-700 ${
               visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
             }`}
           >
@@ -216,7 +216,7 @@ export function WelcomeOverlay() {
           </div>
 
           <div
-            className={`lightcode-welcome-reveal lightcode-welcome-reveal-2 grid w-full max-w-[460px] grid-cols-1 gap-3 transition-all delay-150 duration-700 sm:grid-cols-2 ${
+            className={`poracode-welcome-reveal poracode-welcome-reveal-2 grid w-full max-w-[460px] grid-cols-1 gap-3 transition-all delay-150 duration-700 sm:grid-cols-2 ${
               visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
             }`}
           >
@@ -224,7 +224,7 @@ export function WelcomeOverlay() {
               fullWidth
               size="lg"
               variant="tertiary"
-              className="lightcode-welcome-button h-12 justify-center gap-2 !text-white"
+              className="poracode-welcome-button h-12 justify-center gap-2 !text-white"
               onPress={handleAskQuestion}
             >
               <MessageSquareText className="size-4" />
@@ -238,7 +238,7 @@ export function WelcomeOverlay() {
                 fullWidth
                 size="lg"
                 variant="tertiary"
-                className="lightcode-welcome-button h-12 justify-center gap-2 !text-white"
+                className="poracode-welcome-button h-12 justify-center gap-2 !text-white"
               >
                 <FolderPlus className="size-4" />
                 <Trans>Add Project</Trans>

@@ -31,7 +31,7 @@ vi.mock("@capacitor/push-notifications", () => ({
     ),
   },
 }));
-vi.mock("@lightcode/activity-bridge", () => ({
+vi.mock("@poracode/activity-bridge", () => ({
   ActivityBridge: {
     isSupported: vi.fn<() => Promise<{ liveActivities: boolean; pushToStart: boolean }>>(
       async () => ({ liveActivities: false, pushToStart: false }),
@@ -44,7 +44,7 @@ vi.mock("@lightcode/activity-bridge", () => ({
   },
 }));
 
-import { ActivityBridge } from "@lightcode/activity-bridge";
+import { ActivityBridge } from "@poracode/activity-bridge";
 import type { RemotePushRegistration } from "@/shared/remote";
 import type { RemoteDesktopClient } from "../remoteClient";
 import {

@@ -2,7 +2,7 @@
  * DEV-only bridge for the interactive-testing skill (CDP smoke tests).
  *
  * Exposes the renderer's Zustand stores plus a few navigation/state helpers on
- * `window.__lightcodeDev` so an external CDP driver can put the UI into any
+ * `window.__poracodeDev` so an external CDP driver can put the UI into any
  * state — app-update phases, settings sections, panels — WITHOUT clicking
  * through real flows or waiting on real async. Some states (a live download at a
  * specific byte count) are otherwise impossible to trigger on demand.
@@ -22,10 +22,10 @@ type UpdateStoreState = ReturnType<typeof useUpdateStore.getState>;
 export function installDevBridge(): void {
   if (!import.meta.env.DEV) return;
 
-  const target = globalThis as unknown as { __lightcodeDev?: unknown };
-  if (target.__lightcodeDev) return;
+  const target = globalThis as unknown as { __poracodeDev?: unknown };
+  if (target.__poracodeDev) return;
 
-  target.__lightcodeDev = {
+  target.__poracodeDev = {
     /** Raw Zustand stores — call `.getState()` / `.setState()` to inspect or drive any state. */
     stores: {
       update: useUpdateStore,

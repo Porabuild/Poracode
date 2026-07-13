@@ -4,16 +4,16 @@
  *
  * Gemini hooks communicate via JSON stdin/stdout. This script writes only a
  * final JSON object to stdout, and sends diagnostics to stderr when
- * LIGHTCODE_HOOK_DEBUG is enabled.
+ * PORACODE_HOOK_DEBUG is enabled.
  *
- * Generic plumbing lives in the shared `lightcode-hook-runtime.mjs` sibling.
+ * Generic plumbing lives in the shared `poracode-hook-runtime.mjs` sibling.
  */
 
 import {
   copyStringExtra,
   readPluginVersionFromManifest,
   runForwarder,
-} from "./lightcode-hook-runtime.mjs";
+} from "./poracode-hook-runtime.mjs";
 
 const PLUGIN_VERSION = readPluginVersionFromManifest(import.meta.url);
 

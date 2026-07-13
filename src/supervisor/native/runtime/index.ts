@@ -29,11 +29,11 @@
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, renameSync } from "node:fs";
 import { join } from "node:path";
-import { resolveLightcodePaths } from "@/shared/lightcodePaths";
+import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { pruneStaleRuntimeDirs, safeRm } from "../../runtime/cleanup";
 import { downloadToFile, verifySha256 } from "../../runtime/download";
 import {
-  LIGHTCODE_PINNED_NODE_VERSION,
+  PORACODE_PINNED_NODE_VERSION,
   MIN_ACCEPTED_NODE_MAJOR,
   NODE_TARBALL_CHECKSUMS,
   detectNativeNodeTarget,
@@ -54,7 +54,7 @@ export interface ResolvedNativeNode {
   /** Reported version, e.g. "22.11.0". */
   nodeVersion: string;
   /** How we found it — useful for logs and tests. */
-  source: "user-installed" | "lightcode-managed";
+  source: "user-installed" | "poracode-managed";
 }
 
 export interface NativeRuntimeProgressEvent {
@@ -136,7 +136,7 @@ async function resolveNativeNodeUncached(
   onProgress?.({ kind: "probe-start" });
 
   const target = detectNativeNodeTarget();
-  const baseDir = options?.baseDir ?? resolveLightcodePaths().baseDir;
+  const baseDir = options?.baseDir ?? resolvePoracodePaths().baseDir;
 
   if (target) {
     const managedPath = managedNodePath(baseDir, target);
@@ -144,12 +144,12 @@ async function resolveNativeNodeUncached(
       onProgress?.({
         kind: "probe-found-managed",
         nodePath: managedPath,
-        version: LIGHTCODE_PINNED_NODE_VERSION,
+        version: PORACODE_PINNED_NODE_VERSION,
       });
       return {
         nodePath: managedPath,
-        nodeVersion: LIGHTCODE_PINNED_NODE_VERSION,
-        source: "lightcode-managed",
+        nodeVersion: PORACODE_PINNED_NODE_VERSION,
+        source: "poracode-managed",
       };
     }
   }
@@ -339,7 +339,7 @@ export async function installNativeRuntime(
   const checksum = NODE_TARBALL_CHECKSUMS[target];
   if (!checksum) {
     throw new Error(
-      `lightcode is missing the SHA256 checksum for Node ${LIGHTCODE_PINNED_NODE_VERSION} ${target}; rerun scripts/refresh-node-checksums.mjs`,
+      `poracode is missing the SHA256 checksum for Node ${PORACODE_PINNED_NODE_VERSION} ${target}; rerun scripts/refresh-node-checksums.mjs`,
     );
   }
 
@@ -374,7 +374,7 @@ export async function installNativeRuntime(
     const finalDir = join(runtimeDir, nodeArchiveDirName(target));
     if (existsSync(finalDir)) {
       // Concurrent install or earlier failure left a partial dir; the
-      // runtime dir is owned exclusively by lightcode, so we replace it.
+      // runtime dir is owned exclusively by poracode, so we replace it.
       safeRm(finalDir);
     }
     renameSync(stagedDir, finalDir);

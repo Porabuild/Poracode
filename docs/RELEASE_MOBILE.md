@@ -1,4 +1,4 @@
-# Lightcode Mobile — deploy & release
+# Poracode Mobile — deploy & release
 
 The mobile app is the PWA in `src/mobile/` (entry `mobile.html`). It is a remote
 client that pairs to a desktop's embedded remote-access server and reuses the
@@ -39,7 +39,7 @@ the hosted PWA is the install/landing surface and the HTTPS-desktop path.
 pnpm run build:mobile      # → dist/mobile (mobile-only; emits index.html + mobile.html)
 ```
 
-`build:mobile` sets `LIGHTCODE_BUILD_TARGET=mobile`, which makes `vite.config.ts`
+`build:mobile` sets `PORACODE_BUILD_TARGET=mobile`, which makes `vite.config.ts`
 build only the mobile entry into `dist/mobile`, then `scripts/finalize-mobile-build.mjs`
 mirrors `mobile.html` → `index.html` (what Vercel and Capacitor serve at `/`) and
 generates the app-link association files under `dist/mobile/.well-known/`.
@@ -66,7 +66,7 @@ also serves the PNG icon set from `/icons/*`.
 1. Create a Vercel project pointing at this repo, Root Directory = repo root.
 2. Add repo secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
 3. On the **desktop**, turn on **Settings → Remote Access** and set
-   `LIGHTCODE_REMOTE_ACCESS_PAIRING_APP_URL=https://<your-host>`
+   `PORACODE_REMOTE_ACCESS_PAIRING_APP_URL=https://<your-host>`
    so the pairing QR encodes `https://<your-host>/pair?host=<desktop>#token=…`
    (this is what enables app-vs-PWA routing below).
 
@@ -77,7 +77,8 @@ Deploy: `Actions → Release Mobile` with **Web** ticked (or push a `mobile-v*` 
 ## 2. Native apps (Capacitor)
 
 `capacitor.config.json` wraps the built PWA (`webDir: dist/mobile`) as native iOS
-and Android apps (`appId: com.lightcodeapp.mobile`). The native projects
+and Android apps (`appId: com.lightcodeapp.mobile`). This pre-rebrand identifier is intentionally
+retained so Poracode upgrades preserve the existing Lightcode app sandbox. The native projects
 (`android/`, `ios/`) are generated, not committed yet:
 
 ```bash
@@ -95,9 +96,9 @@ adaptive-icon layers, dark splash screens) with:
 ````bash
 node branding/assets/build-native-assets.mjs
 ``` `scripts/configure-mobile-native.mjs` applies the native
-pieces Lightcode needs after each sync:
+pieces Poracode needs after each sync:
 
-- Android App Links intent filter for `https://<LIGHTCODE_MOBILE_APP_HOST>/pair`
+- Android App Links intent filter for `https://<PORACODE_MOBILE_APP_HOST>/pair`
   and `/app`.
 - iOS `NSAllowsLocalNetworking` for LAN desktop pairing.
 - iOS Associated Domains entitlements for `applinks:` and `webcredentials:`.
@@ -124,15 +125,15 @@ scanning the QR:
 To enable this, configure the release secrets that `scripts/finalize-mobile-build.mjs`
 uses to generate the hosted association files:
 
-- `LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS` — one or more **Play app
+- `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS` — one or more **Play app
   signing** SHA-256 certificate fingerprints, comma- or newline-separated.
-- `LIGHTCODE_MOBILE_APPLE_TEAM_ID` — your Apple Team ID.
-- `LIGHTCODE_MOBILE_APP_HOST` — the hosted PWA domain, for native app-link
-  declarations (for example `app.lightcodeapp.com`, without a path).
+- `PORACODE_MOBILE_APPLE_TEAM_ID` — your Apple Team ID.
+- `PORACODE_MOBILE_APP_HOST` — the hosted PWA domain, for native app-link
+  declarations (for example `app.poracodeapp.com`, without a path).
 
 When these values are absent, local/web builds emit valid non-associating files
 instead of shipping placeholders. Android and iOS release jobs set
-`LIGHTCODE_MOBILE_REQUIRE_ANDROID_LINKS=1` / `LIGHTCODE_MOBILE_REQUIRE_IOS_LINKS=1`,
+`PORACODE_MOBILE_REQUIRE_ANDROID_LINKS=1` / `PORACODE_MOBILE_REQUIRE_IOS_LINKS=1`,
 so a store build fails if the platform's association value or app host is missing.
 
 In-browser, the app also offers **Add to Home Screen** when the browser exposes
@@ -158,9 +159,9 @@ upload steps activate automatically once their secrets are present.
 
 | Target  | Secrets                                                                                                                                                                                                                                                                                 |
 | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web     | `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, optional `LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS`, optional `LIGHTCODE_MOBILE_APPLE_TEAM_ID`, var `LIGHTCODE_MOBILE_APP_HOST`                                                                                          |
-| Android | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, `LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS`, var `LIGHTCODE_MOBILE_APP_HOST`, `PLAY_SERVICE_ACCOUNT_JSON` (optional → auto-publish), var `PLAY_TRACK` (default `internal`) |
-| iOS     | `IOS_DIST_CERT_BASE64`, `IOS_DIST_CERT_PASSWORD`, `LIGHTCODE_MOBILE_APPLE_TEAM_ID`, var `LIGHTCODE_MOBILE_APP_HOST`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_PRIVATE_KEY`                                                                         |
+| Web     | `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, optional `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS`, optional `PORACODE_MOBILE_APPLE_TEAM_ID`, var `PORACODE_MOBILE_APP_HOST`                                                                                          |
+| Android | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS`, var `PORACODE_MOBILE_APP_HOST`, `PLAY_SERVICE_ACCOUNT_JSON` (optional → auto-publish), var `PLAY_TRACK` (default `internal`) |
+| iOS     | `IOS_DIST_CERT_BASE64`, `IOS_DIST_CERT_PASSWORD`, `PORACODE_MOBILE_APPLE_TEAM_ID`, var `PORACODE_MOBILE_APP_HOST`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_PRIVATE_KEY`                                                                         |
 
 Each platform job uses a GitHub Environment (`mobile-web` / `mobile-android` /
 `mobile-ios`) so you can add required reviewers for production releases.
@@ -173,10 +174,10 @@ Background push (turn complete / needs input) and lock-screen / Dynamic Island
 **Live Activities** are iOS-only. They ride on two Capacitor plugins:
 
 - `@capacitor/push-notifications` — ordinary APNs alert pushes (device token).
-- `@lightcode/activity-bridge` — a **local** plugin in `native/activity-bridge/`
+- `@poracode/activity-bridge` — a **local** plugin in `native/activity-bridge/`
   bridging ActivityKit (start/end activities, push-to-start + per-activity
   update tokens). No-op on Android/web. Linked from the root `package.json` as
-  `"@lightcode/activity-bridge": "file:native/activity-bridge"`.
+  `"@poracode/activity-bridge": "file:native/activity-bridge"`.
 
 The desktop never talks to APNs directly (the `.p8` auth key can't ship in the
 app); it posts to a small hosted **push gateway** that holds the key and signs
@@ -199,10 +200,10 @@ Run after every `cap sync` (via `pnpm run cap:sync`). When `ios/` is present it:
 - Sets `NSSupportsLiveActivities` and `NSSupportsLiveActivitiesFrequentUpdates`
   to `YES` in the **app** target's `Info.plist`.
 - Adds `aps-environment` to `ios/App/App/App.entitlements` (default
-  `production`; override with `LIGHTCODE_IOS_APS_ENVIRONMENT=development` for
+  `production`; override with `PORACODE_IOS_APS_ENVIRONMENT=development` for
   debug/TestFlight sandbox builds) and wires `CODE_SIGN_ENTITLEMENTS`.
-- Copies the widget-extension sources from `native/ios/LightcodeActivities/`
-  into `ios/App/LightcodeActivities/` (idempotent), so the manual Xcode step is
+- Copies the widget-extension sources from `native/ios/PoracodeActivities/`
+  into `ios/App/PoracodeActivities/` (idempotent), so the manual Xcode step is
   just "add existing folder as a target".
 
 ### One-time manual Xcode steps
@@ -214,20 +215,20 @@ After the first `cap add ios` + `pnpm run cap:sync`:
    Signing & Capabilities → **+ Capability → Push Notifications**. (The script
    already added `aps-environment`; this registers the capability in Xcode.)
 2. **Create the widget extension target.** File → New → Target →
-   **Widget Extension**, name it `LightcodeActivities`, and tick "Include Live
+   **Widget Extension**, name it `PoracodeActivities`, and tick "Include Live
    Activity". Delete Xcode's boilerplate sources.
 3. **Add the copied sources.** Right-click the new target group → Add Files →
-   select `ios/App/LightcodeActivities/` (`LightcodeActivitiesBundle.swift`,
+   select `ios/App/PoracodeActivities/` (`PoracodeActivitiesBundle.swift`,
    `DesktopSessionLiveActivity.swift`, `ThreadStatusDisplay.swift`, `Info.plist`),
-   added to the `LightcodeActivities` target.
+   added to the `PoracodeActivities` target.
 4. **Share the ActivityAttributes file.** Add
    `native/activity-bridge/ios/Sources/ActivityBridgePlugin/DesktopSessionAttributes.swift`
-   to the `LightcodeActivities` target's membership as well (it is already
+   to the `PoracodeActivities` target's membership as well (it is already
    compiled into the app plugin target). ActivityKit requires the **exact same**
    `ActivityAttributes` type in both targets — use one shared file reference,
    do not copy it.
 5. **Bundle id & signing.** Set the extension's bundle id to
-   `com.lightcodeapp.mobile.LightcodeActivities` (must be prefixed by the app id
+   `com.lightcodeapp.mobile.PoracodeActivities` (must be prefixed by the app id
    `com.lightcodeapp.mobile`), select the team, and let Xcode manage the
    extension's provisioning profile.
 
@@ -268,7 +269,7 @@ HTTP v1 with a service-account OAuth2 bearer.
 
 **Firebase setup.** Create a Firebase project, add an Android app with id
 `com.lightcodeapp.mobile`, and download its `google-services.json`. Point
-`LIGHTCODE_ANDROID_GOOGLE_SERVICES_JSON` at that file (a path, relative to the
+`PORACODE_ANDROID_GOOGLE_SERVICES_JSON` at that file (a path, relative to the
 repo root or absolute). Generate a **service-account** key (Project settings →
 Service accounts → Generate new private key) for the gateway env below.
 

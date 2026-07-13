@@ -36,16 +36,16 @@ export function useResizablePanels(refs: {
   overlayRef: RefObject<HTMLDivElement | null>;
 }) {
   const [sidebarWidth, setSidebarWidth] = useState(() =>
-    readStoredNumber("lightcode-sidebar-width", SIDEBAR_DEFAULT_WIDTH),
+    readStoredNumber("poracode-sidebar-width", SIDEBAR_DEFAULT_WIDTH),
   );
   const [panelWidth, setPanelWidth] = useState(() =>
-    readStoredNumber("lightcode-panel-width", PANEL_DEFAULT_WIDTH),
+    readStoredNumber("poracode-panel-width", PANEL_DEFAULT_WIDTH),
   );
   const [panelHeight, setPanelHeight] = useState(() =>
-    readStoredNumber("lightcode-panel-height", PANEL_BOTTOM_DEFAULT_HEIGHT),
+    readStoredNumber("poracode-panel-height", PANEL_BOTTOM_DEFAULT_HEIGHT),
   );
   const [gitPanelWidth, setGitPanelWidth] = useState(() =>
-    readStoredNumber("lightcode-git-panel-width", GIT_PANEL_DEFAULT_WIDTH),
+    readStoredNumber("poracode-git-panel-width", GIT_PANEL_DEFAULT_WIDTH),
   );
   const sizeRef = useRef({
     sidebarWidth,
@@ -119,19 +119,19 @@ export function useResizablePanels(refs: {
   );
 
   useEffect(() => {
-    localStorage.setItem("lightcode-sidebar-width", String(sidebarWidth));
+    localStorage.setItem("poracode-sidebar-width", String(sidebarWidth));
   }, [sidebarWidth]);
 
   useEffect(() => {
-    localStorage.setItem("lightcode-panel-width", String(panelWidth));
+    localStorage.setItem("poracode-panel-width", String(panelWidth));
   }, [panelWidth]);
 
   useEffect(() => {
-    localStorage.setItem("lightcode-panel-height", String(panelHeight));
+    localStorage.setItem("poracode-panel-height", String(panelHeight));
   }, [panelHeight]);
 
   useEffect(() => {
-    localStorage.setItem("lightcode-git-panel-width", String(gitPanelWidth));
+    localStorage.setItem("poracode-git-panel-width", String(gitPanelWidth));
   }, [gitPanelWidth]);
 
   // Ends an in-flight resize (teardown + persist final size). Called on unmount

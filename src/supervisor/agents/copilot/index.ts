@@ -95,7 +95,7 @@ export function createCopilotAdapter(): AgentAdapter {
       return status;
     },
     // ── CLI hook plugin support ──────────────────────────────────────────
-    pluginId: "lightcode-status@copilot",
+    pluginId: "poracode-status@copilot",
     pluginVersion: COPILOT_PLUGIN_VERSION,
     minProtocolVersion: 1,
     // Copilot CLI's hook event vocabulary lacks a clean turn-finished signal:
@@ -117,8 +117,8 @@ export function createCopilotAdapter(): AgentAdapter {
       uninstallCopilotPlugin(ctx);
     },
     // No `pluginLaunchExtras` needed — Copilot CLI auto-loads
-    // `${COPILOT_HOME ?? ~/.copilot}/hooks/lightcode-status.json` written at
-    // install time, and `LIGHTCODE_HOOK_*` env is injected by the coordinator.
+    // `${COPILOT_HOME ?? ~/.copilot}/hooks/poracode-status.json` written at
+    // install time, and `PORACODE_HOOK_*` env is injected by the coordinator.
     buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       const sessionId = launchOptions?.resumeThreadId ?? randomUUID();
       const mcp = writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);

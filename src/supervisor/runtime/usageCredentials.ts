@@ -1,4 +1,4 @@
-import type { CredentialStore } from "@lightcode/agents-usage";
+import type { CredentialStore } from "@poracode/agents-usage";
 import { getUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
 import { refreshRejectedClaudeToken, resolveClaudeToken } from "./claudeCredentials";
 import { resolveCodexToken } from "./codexCredentials";

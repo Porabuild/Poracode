@@ -1,14 +1,14 @@
 ---
 name: release-notes
-description: Write consistent, hand-written-looking changelog entries for a Lightcode release. Use when the user wants to "add release notes", "update the changelog", "write the changelog for vX.Y.Z", "cut a release entry", or has just tagged/shipped a release and wants the in-app + website changelog updated. Distills a release's auto-generated PR list (and any maintainer highlight notes) into one curated entry appended to website/public/changelog.json — the single source the desktop app fetches and the marketing site serves.
+description: Write consistent, hand-written-looking changelog entries for a Poracode release. Use when the user wants to "add release notes", "update the changelog", "write the changelog for vX.Y.Z", "cut a release entry", or has just tagged/shipped a release and wants the in-app + website changelog updated. Distills a release's auto-generated PR list (and any maintainer highlight notes) into one curated entry appended to website/public/changelog.json — the single source the desktop app fetches and the marketing site serves.
 allowed-tools: Bash(gh:*), Bash(git:*), Bash(pnpm:*), Bash(node:*), Read, Edit, Write, Grep, Glob
 ---
 
-# Release Notes — Lightcode
+# Release Notes — Poracode
 
 Turn a release's raw, machine-generated PR list into a **curated, human-readable changelog entry** that reads like a person wrote it — and keep every release in the changelog consistent in voice, shape, and length.
 
-Lightcode's changelog is **curated data**, not auto-generated. GitHub already auto-lists merged PRs on the Release page; this skill produces the _hand-written_ layer that ships inside the app (Settings → Changelog, the "What's New" dialog) and on the marketing site.
+Poracode's changelog is **curated data**, not auto-generated. GitHub already auto-lists merged PRs on the Release page; this skill produces the _hand-written_ layer that ships inside the app (Settings → Changelog, the "What's New" dialog) and on the marketing site.
 
 ## When to use
 
@@ -24,7 +24,7 @@ Lightcode's changelog is **curated data**, not auto-generated. GitHub already au
 ## The one file you edit
 
 There is a **single source of truth**: **`website/public/changelog.json`** on master.
-The marketing site serves it at `https://www.lightcodeapp.com/changelog.json` and the
+The marketing site serves it at `https://www.poracodeapp.com/changelog.json` and the
 desktop app fetches + caches it at runtime, so editing this one file (and pushing to
 master, which redeploys the site) updates both surfaces **without an app rebuild**.
 
@@ -49,7 +49,7 @@ not localized — only the surrounding app UI chrome is).
 
 ## Step 1 — Gather source material
 
-Resolve the repo slug from the remote (default `poracode/poracode`):
+Resolve the repo slug from the remote (default `SDSLeon/lightcode`):
 
 ```bash
 gh repo view --json nameWithOwner -q .nameWithOwner
@@ -93,13 +93,13 @@ This is the consistency contract. Match the voice of the existing entries (read 
 - ❌ No PR numbers, no `by @handle`, no `dependabot`/CI/chore/`build(deps)` items, no raw PR-title phrasing.
 - ❌ No version number inside `title`.
 - ✅ Vary sentence openings — don't write "Added X. Added Y. Added Z." Describe the _benefit_, not the implementation or the commit.
-- ✅ Keep product nouns literal: `Lightcode, Claude, Codex, Gemini, Grok, Command Code, WSL, ACP, Opus 4.8, Ultracode, Fable 5, Git, GitHub, macOS, Windows, Linux`.
+- ✅ Keep product nouns literal: `Poracode, Claude, Codex, Gemini, Grok, Command Code, WSL, ACP, Opus 4.8, Ultracode, Fable 5, Git, GitHub, macOS, Windows, Linux`.
 - ✅ Each feature appears in the release that introduced it — don't repeat it in a later patch.
 
 ### Good vs bad
 
 ```
-✅ { kind: "added", text: "Start a new project by cloning any GitHub repository directly from Lightcode." }
+✅ { kind: "added", text: "Start a new project by cloning any GitHub repository directly from Poracode." }
 ❌ { kind: "added", text: "Add GitHub repository clone flow by @SDSLeon in #167" }   // raw PR title + noise
 ❌ { kind: "added", text: "Added clone." }                                            // too thin, no benefit
 ```

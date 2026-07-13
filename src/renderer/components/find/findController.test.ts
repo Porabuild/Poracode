@@ -32,7 +32,7 @@ describe("resolveFindTarget", () => {
 
   it("does not route browser chrome focus to chat find", () => {
     useAppStore.setState({ view: { kind: "thread", panes: ["thread-1"] } });
-    document.body.innerHTML = `<div data-lightcode-browser=""><input id="address" /></div>`;
+    document.body.innerHTML = `<div data-poracode-browser=""><input id="address" /></div>`;
     document.getElementById("address")?.focus();
 
     expect(resolveFindTarget()).toBeNull();

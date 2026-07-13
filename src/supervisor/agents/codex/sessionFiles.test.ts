@@ -39,7 +39,7 @@ describe("parseCodexRolloutMeta", () => {
   it("parses originator and source from a rollout session_meta line", () => {
     const result = parseCodexRolloutMeta(
       "C:\\Users\\sdsle\\.codex\\sessions\\2026\\04\\05\\rollout-2026-04-05T19-22-30-019d6099-45a3-7962-a595-2d7f59276118.jsonl",
-      '{"timestamp":"2026-04-06T02:22:34.368Z","type":"session_meta","payload":{"id":"019d6099-45a3-7962-a595-2d7f59276118","cwd":"C:\\\\Users\\\\sdsle\\\\work\\\\lightcode","originator":"codex-tui","source":"cli"}}',
+      '{"timestamp":"2026-04-06T02:22:34.368Z","type":"session_meta","payload":{"id":"019d6099-45a3-7962-a595-2d7f59276118","cwd":"C:\\\\Users\\\\sdsle\\\\work\\\\poracode","originator":"codex-tui","source":"cli"}}',
       123,
     );
 
@@ -47,7 +47,7 @@ describe("parseCodexRolloutMeta", () => {
       id: "019d6099-45a3-7962-a595-2d7f59276118",
       path: "C:\\Users\\sdsle\\.codex\\sessions\\2026\\04\\05\\rollout-2026-04-05T19-22-30-019d6099-45a3-7962-a595-2d7f59276118.jsonl",
       updatedAt: 123,
-      cwd: "C:\\Users\\sdsle\\work\\lightcode",
+      cwd: "C:\\Users\\sdsle\\work\\poracode",
       originator: "codex-tui",
       source: "cli",
     });

@@ -285,8 +285,8 @@ export function BranchSelector(props: BranchSelectorProps) {
       isDisabled={isDisabled ?? false}
       size="sm"
       variant="ghost"
-      className={`lightcode-composer-menu min-w-0 max-w-48 ${
-        compact ? "lightcode-composer-menu--compact px-2" : "px-2.5"
+      className={`poracode-composer-menu min-w-0 max-w-48 ${
+        compact ? "poracode-composer-menu--compact px-2" : "px-2.5"
       }`}
       {...(isRemote ? { onPress: () => setIsOpen(true) } : {})}
     >
@@ -302,7 +302,7 @@ export function BranchSelector(props: BranchSelectorProps) {
           data-collapse-tier={collapseTier}
           className={
             hideLabelOnWrap
-              ? `lightcode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
+              ? `poracode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
               : "truncate"
           }
         >
@@ -314,7 +314,7 @@ export function BranchSelector(props: BranchSelectorProps) {
           data-collapse-tier={collapseTier}
           className={
             hideLabelOnWrap
-              ? `lightcode-composer-label-hideable ${triggerIconSize} text-muted${forceHideLabel ? " is-hidden" : ""}`
+              ? `poracode-composer-label-hideable ${triggerIconSize} text-muted${forceHideLabel ? " is-hidden" : ""}`
               : `${triggerIconSize} text-muted`
           }
         />

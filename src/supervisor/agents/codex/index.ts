@@ -131,7 +131,7 @@ export function createCodexAdapter(): AgentAdapter {
       return capabilities;
     },
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
-    pluginId: "lightcode-status@codex",
+    pluginId: "poracode-status@codex",
     pluginVersion: CODEX_PLUGIN_VERSION,
     minProtocolVersion: 1,
     async isPluginSupported(ctx) {

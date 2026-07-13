@@ -12,7 +12,7 @@ describe("ProjectTreeService", () => {
   let service: ProjectTreeService;
 
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-project-tree-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-project-tree-"));
     location =
       process.platform === "win32"
         ? { kind: "windows", path: tempDir }
@@ -81,7 +81,7 @@ describe("ProjectTreeService", () => {
   it("reads absolute file paths inside and outside the project root", async () => {
     const insidePath = join(tempDir, "inside.txt");
     writeFileSync(insidePath, "inside\n", "utf8");
-    const externalDir = mkdtempSync(join(tmpdir(), "lightcode-abs-external-"));
+    const externalDir = mkdtempSync(join(tmpdir(), "poracode-abs-external-"));
     const outsidePath = join(externalDir, "outside.txt");
     writeFileSync(outsidePath, "outside\n", "utf8");
 
@@ -118,7 +118,7 @@ describe("ProjectTreeService", () => {
   });
 
   it("readExternalFile reads files outside the project root", async () => {
-    const externalDir = mkdtempSync(join(tmpdir(), "lightcode-external-"));
+    const externalDir = mkdtempSync(join(tmpdir(), "poracode-external-"));
     const outsidePath = join(externalDir, "outside.txt");
     writeFileSync(outsidePath, "outside\n", "utf8");
 
@@ -138,13 +138,13 @@ describe("ProjectTreeService", () => {
     await expect(
       service.readExternalFile({
         projectLocation: location,
-        absolutePath: join(tmpdir(), "lightcode-does-not-exist-xyz.txt"),
+        absolutePath: join(tmpdir(), "poracode-does-not-exist-xyz.txt"),
       }),
     ).resolves.toMatchObject({ status: "missing" });
   });
 
   it("writeExternalFile saves a file outside the project root", async () => {
-    const externalDir = mkdtempSync(join(tmpdir(), "lightcode-external-"));
+    const externalDir = mkdtempSync(join(tmpdir(), "poracode-external-"));
     const outsidePath = join(externalDir, "writable.txt");
     writeFileSync(outsidePath, "before\n", "utf8");
 
@@ -380,7 +380,7 @@ describe("ProjectTreeService.browseHostDirectory", () => {
   let service: ProjectTreeService;
 
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "lightcode-host-browse-"));
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-host-browse-"));
     service = new ProjectTreeService();
   });
 

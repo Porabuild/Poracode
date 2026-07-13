@@ -58,5 +58,5 @@ if (!existsSync(builtBinding)) {
 
 mkdirSync(outputDir, { recursive: true });
 copyFileSync(builtBinding, outputFile);
-console.log(`[lightcode-server] prepared Node-ABI better-sqlite3 binding: ${outputFile}`);
-console.log("[lightcode-server] headless server will use it automatically from this repo.");
+console.log(`[poracode-server] prepared Node-ABI better-sqlite3 binding: ${outputFile}`);
+console.log("[poracode-server] headless server will use it automatically from this repo.");

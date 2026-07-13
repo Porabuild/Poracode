@@ -401,7 +401,7 @@ export function AppDndProvider(props: {
         sidebarSortTargetRef.current = null;
         mainPanelDropActiveRef.current = false;
         // Lets CSS opt chat scrollers out of dnd-kit's AutoScroller ancestor scan.
-        document.documentElement.dataset.lightcodeDragActive = "true";
+        document.documentElement.dataset.poracodeDragActive = "true";
       }}
       onDragMove={(event) => {
         const data = event.operation.source?.data as DragSourceData | undefined;
@@ -547,7 +547,7 @@ export function AppDndProvider(props: {
         paneIndicatorRef.current = null;
         mainPanelDropActiveRef.current = false;
         sidebarSortTargetRef.current = null;
-        delete document.documentElement.dataset.lightcodeDragActive;
+        delete document.documentElement.dataset.poracodeDragActive;
       }}
     >
       {props.children}

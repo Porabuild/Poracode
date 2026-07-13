@@ -4,7 +4,7 @@ import { parseCodexSocketMessage } from "./acpProtocol";
 import { buildCodexQuestionAnswerEvents } from "./acpQuestionAnswer";
 import type { CodexStdioTransport } from "./stdioTransport";
 
-export type CodexRpcDebugDirection = "codex->lightcode" | "lightcode->codex" | "transport";
+export type CodexRpcDebugDirection = "codex->poracode" | "poracode->codex" | "transport";
 
 export type CodexAppServerRpcTransport = Pick<
   CodexStdioTransport,
@@ -96,7 +96,7 @@ export class CodexAppServerRpc {
     params: Record<string, unknown>,
     timeoutMs: number,
   ): Promise<unknown> {
-    const id = `lightcode-${this.requestSequence++}`;
+    const id = `poracode-${this.requestSequence++}`;
 
     const pending = new Promise<unknown>((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -153,7 +153,7 @@ export class CodexAppServerRpc {
   }
 
   private handleMessage(payload: unknown): void {
-    this.listener?.onDebug?.("codex->lightcode", payload);
+    this.listener?.onDebug?.("codex->poracode", payload);
     const message = parseCodexSocketMessage(payload);
 
     if (message.kind === "response") {
@@ -240,7 +240,7 @@ export class CodexAppServerRpc {
   }
 
   private write(message: Record<string, unknown>): void {
-    this.listener?.onDebug?.("lightcode->codex", message);
+    this.listener?.onDebug?.("poracode->codex", message);
     this.transport.write(message);
   }
 

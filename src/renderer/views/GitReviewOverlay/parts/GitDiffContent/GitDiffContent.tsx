@@ -182,8 +182,8 @@ export function GitDiffContent(props: {
 
   return (
     <div
-      data-lightcode-find-scope="git"
-      className="lightcode-git-diff-content relative h-full min-h-0"
+      data-poracode-find-scope="git"
+      className="poracode-git-diff-content relative h-full min-h-0"
     >
       <GitFindBar containerRef={selectedFile ? singleFileScrollRef : scrollRef} />
       {showLoader && (

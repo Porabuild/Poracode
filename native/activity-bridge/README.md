@@ -1,19 +1,19 @@
-# @lightcode/activity-bridge
+# @poracode/activity-bridge
 
-Local Capacitor 8 plugin bridging the Lightcode mobile web layer to iOS
+Local Capacitor 8 plugin bridging the Poracode mobile web layer to iOS
 **ActivityKit** (Live Activities / Dynamic Island). No-op on Android and web.
 
 Linked from the repo root as a `file:` dependency:
 
 ```jsonc
 // package.json
-"@lightcode/activity-bridge": "file:native/activity-bridge"
+"@poracode/activity-bridge": "file:native/activity-bridge"
 ```
 
 ## JS usage
 
 ```ts
-import { ActivityBridge } from "@lightcode/activity-bridge";
+import { ActivityBridge } from "@poracode/activity-bridge";
 
 const { liveActivities, pushToStart } = await ActivityBridge.isSupported();
 const { token } = await ActivityBridge.getPushToStartToken(); // iOS 17.2+, else null
@@ -42,14 +42,14 @@ Capacitor discovers the plugin via the `capacitor.ios` key in `package.json`.
 Both integration paths are provided and compile the same sources under
 `ios/Sources/ActivityBridgePlugin`:
 
-- **CocoaPods** (default for `cap add ios`) — `LightcodeActivityBridge.podspec`.
+- **CocoaPods** (default for `cap add ios`) — `PoracodeActivityBridge.podspec`.
 - **Swift Package Manager** (`cap add ios --packagemanager SPM`) — `Package.swift`.
 
 ### Shared ActivityAttributes
 
 `ios/Sources/ActivityBridgePlugin/DesktopSessionAttributes.swift` defines the
 `DesktopSessionAttributes` type. ActivityKit requires the **exact same** type
-in both the app plugin target and the `LightcodeActivities` widget-extension
+in both the app plugin target and the `PoracodeActivities` widget-extension
 target, so add this file as a **shared file reference** to the extension target
 (do not duplicate it). See `docs/RELEASE_MOBILE.md`.
 

@@ -207,8 +207,8 @@ function createController() {
   return createDesktopRemoteAccessController({
     appVersion: "9.9.9-test",
     paths: {
-      baseDir: "/tmp/lightcode-controller-test",
-      settingsPath: "/tmp/lightcode-controller-test/settings.json",
+      baseDir: "/tmp/poracode-controller-test",
+      settingsPath: "/tmp/poracode-controller-test/settings.json",
     },
     callSupervisor,
     dispatchThreadCommand: vi.fn<DesktopRemoteAccessControllerOptions["dispatchThreadCommand"]>(
@@ -254,7 +254,7 @@ describe("DesktopRemoteAccessController", () => {
     h.enableTailscaleServe.mockResolvedValue({ ok: true });
     h.disableTailscaleServe.mockResolvedValue();
     h.launchTailscaleApp.mockResolvedValue({ ok: true });
-    delete process.env.LIGHTCODE_REMOTE_ACCESS_ADVERTISED_HOST;
+    delete process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST;
     logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -264,7 +264,7 @@ describe("DesktopRemoteAccessController", () => {
     logSpy.mockRestore();
     warnSpy.mockRestore();
     errorSpy.mockRestore();
-    delete process.env.LIGHTCODE_REMOTE_ACCESS_ADVERTISED_HOST;
+    delete process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST;
   });
 
   it("coalesces enable calls while a server start is in flight", async () => {

@@ -51,12 +51,12 @@ import { buildOpenCodeSubagentMcp } from "../mcpSubagent";
  * document so the agent CLI invokes the forwarder via shell command — OpenCode
  * loads plugin files in-process. So "install" here means:
  *
- *   1. Stage `plugin.json` + `lightcode-status.mjs` to
- *      `~/.poracode/agent-plugins/opencode/` (the canonical lightcode-managed
+ *   1. Stage `plugin.json` + `poracode-status.mjs` to
+ *      `~/.poracode/agent-plugins/opencode/` (the canonical poracode-managed
  *      location used for version bookkeeping and the manifest the supervisor
  *      reads at boot).
  *   2. Copy the staged plugin into OpenCode's auto-discovery directory at
- *      `~/.config/opencode/plugins/lightcode-status.js`. OpenCode globs
+ *      `~/.config/opencode/plugins/poracode-status.js`. OpenCode globs
  *      `{plugin,plugins}/*.{ts,js}` (no `.mjs`!) so the deployed file uses
  *      `.js`. Bun (OpenCode's runtime) treats ESM syntax in `.js` natively.
  *
@@ -66,57 +66,62 @@ import { buildOpenCodeSubagentMcp } from "../mcpSubagent";
  * across Windows/WSL — auto-discovery from `plugins/` is the well-trodden
  * path every other ecosystem plugin (Warp, sample plugins) uses, and the
  * displayed name in OpenCode's TUI status panel comes from the basename of
- * the dropped file, so naming the drop `lightcode-status.js` gives the right
+ * the dropped file, so naming the drop `poracode-status.js` gives the right
  * label without further plumbing.
  *
- * Older lightcode builds added a `file://` plugin entry to opencode.json that
+ * Older poracode builds added a `file://` plugin entry to opencode.json that
  * would now be a dead reference; install removes it on every run so users
  * upgrading from those builds aren't left with a ghost entry.
  *
- * The plugin reads `LIGHTCODE_HOOK_URL` / `LIGHTCODE_HOOK_SECRET` /
- * `LIGHTCODE_THREAD_ID` etc. from `process.env` at hook time. When those
+ * The plugin reads `PORACODE_HOOK_URL` / `PORACODE_HOOK_SECRET` /
+ * `PORACODE_THREAD_ID` etc. from `process.env` at hook time. When those
  * vars are unset (i.e. the user runs `opencode` outside Poracode) the
  * handlers no-op.
  */
 
 /** Files staged into `~/.poracode/agent-plugins/opencode/`. */
-const OPENCODE_PLUGIN_ASSET_FILES = ["plugin.json", "lightcode-status.mjs"] as const;
+const OPENCODE_PLUGIN_ASSET_FILES = ["plugin.json", "poracode-status.mjs"] as const;
 
 /**
  * Filename OpenCode auto-discovers in its plugins/ directory. Must use a `.js`
  * (or `.ts`) extension — OpenCode's loader scans `{plugin,plugins}/*.{ts,js}`
  * and silently ignores any other extension.
  */
-const OPENCODE_PLUGIN_DROP_FILE_NAME = "lightcode-status.js";
+const OPENCODE_PLUGIN_DROP_FILE_NAME = "poracode-status.js";
 
 /**
  * Filename of the manifest we drop next to the plugin file. Lets the plugin
  * read its version at runtime from `import.meta.url`'s directory.
  */
-const OPENCODE_PLUGIN_DROP_MANIFEST_NAME = "lightcode-status.plugin.json";
+const OPENCODE_PLUGIN_DROP_MANIFEST_NAME = "poracode-status.plugin.json";
 
 /**
  * Older Poracode versions dropped a `.mjs` here, which OpenCode never loaded
  * (auto-discovery is `*.{ts,js}` only). Cleaned up at install/uninstall time
  * so users upgrading don't end up with two stale siblings.
  */
-const OPENCODE_LEGACY_DROP_FILES = ["lightcode-status.mjs"] as const;
+const OPENCODE_LEGACY_DROP_FILES = [
+  "poracode-status.mjs",
+  "lightcode-status.js",
+  "lightcode-status.mjs",
+  "lightcode-status.plugin.json",
+] as const;
 
 /**
  * Substring identifying our entry in the user's `opencode.json` `"plugin"`
- * array. Older lightcode versions registered a `file://` URL here pointing
+ * array. Older poracode versions registered a `file://` URL here pointing
  * at the staged plugin under `~/.poracode/`. We no longer write such an
  * entry but still scrub any prior one out on every install / uninstall.
  */
-const LIGHTCODE_PLUGIN_SPEC_MARKER = "agent-plugins/opencode/";
+const PORACODE_PLUGIN_SPEC_MARKER = "agent-plugins/opencode/";
 
 const OPENCODE_CONFIG_FILE_NAME = "opencode.json";
 
 /**
- * All `mcp` server keys Lightcode owns in `opencode.json`. Scrubbed together at
- * install/uninstall so no stale lightcode-managed entry survives a reinstall.
+ * All `mcp` server keys Poracode owns in `opencode.json`. Scrubbed together at
+ * install/uninstall so no stale poracode-managed entry survives a reinstall.
  */
-const LIGHTCODE_MANAGED_MCP_KEYS = [
+const PORACODE_MANAGED_MCP_KEYS = [
   BROWSER_MCP_SERVER_NAME,
   SUBAGENT_MCP_SERVER_NAME,
   COMPUTER_USE_MCP_SERVER_NAME,
@@ -136,7 +141,7 @@ const callerDir =
 
 const resolveSourceDir = createPluginSourceResolver({
   kind: "opencode",
-  sourceEnvVar: "LIGHTCODE_OPENCODE_PLUGIN_SOURCE",
+  sourceEnvVar: "PORACODE_OPENCODE_PLUGIN_SOURCE",
   callerDir,
 });
 
@@ -247,23 +252,23 @@ export function installOpenCodePlugin(
   const opencodeManifestFile = join(opencodePluginsDir, OPENCODE_PLUGIN_DROP_MANIFEST_NAME);
   try {
     mkdirSync(opencodePluginsDir, { recursive: true });
-    copyFileSync(join(pluginDir, "lightcode-status.mjs"), opencodePluginFile);
+    copyFileSync(join(pluginDir, "poracode-status.mjs"), opencodePluginFile);
     copyFileSync(join(pluginDir, "plugin.json"), opencodeManifestFile);
     cleanupLegacyDrops(opencodePluginsDir);
   } catch (error) {
     return {
       ok: false,
-      reason: `failed to copy lightcode-status plugin into ${opencodePluginsDir}: ${
+      reason: `failed to copy poracode-status plugin into ${opencodePluginsDir}: ${
         error instanceof Error ? error.message : String(error)
       }`,
     };
   }
 
-  // Best-effort: scrub the dead `file://...` entry older lightcode versions
+  // Best-effort: scrub the dead `file://...` entry older poracode versions
   // wrote into opencode.json. Browser MCP is synced at OpenCode launch time so
   // it can honor the user's provider setting.
   const nativeConfigPath = join(resolveOpenCodeNativeConfigDir(), OPENCODE_CONFIG_FILE_NAME);
-  updateOpenCodeConfigFile(nativeConfigPath, { remove: LIGHTCODE_MANAGED_MCP_KEYS });
+  updateOpenCodeConfigFile(nativeConfigPath, { remove: PORACODE_MANAGED_MCP_KEYS });
 
   console.log(
     `[supervisor] OpenCode hook plugin staged v${manifest.version} at ${pluginDir} ` +
@@ -296,7 +301,7 @@ function installOpenCodePluginWsl(
   const opencodePluginFile = `${opencodeDir.linuxDir}/${OPENCODE_PLUGIN_DROP_FILE_NAME}`;
   const opencodePluginUnc = `${opencodeDir.uncDir}\\${OPENCODE_PLUGIN_DROP_FILE_NAME}`;
   const opencodeManifestUnc = `${opencodeDir.uncDir}\\${OPENCODE_PLUGIN_DROP_MANIFEST_NAME}`;
-  const stagedPluginUnc = toWslUncPath(distro, `${linuxPluginDir}/lightcode-status.mjs`);
+  const stagedPluginUnc = toWslUncPath(distro, `${linuxPluginDir}/poracode-status.mjs`);
   const stagedManifestUnc = toWslUncPath(distro, `${linuxPluginDir}/plugin.json`);
 
   try {
@@ -308,7 +313,7 @@ function installOpenCodePluginWsl(
     const detail = error instanceof Error ? error.message : String(error);
     return {
       ok: false,
-      reason: `failed to copy lightcode-status plugin into ${opencodeDir.linuxDir} (distro ${distro}): ${detail}`,
+      reason: `failed to copy poracode-status plugin into ${opencodeDir.linuxDir} (distro ${distro}): ${detail}`,
     };
   }
 
@@ -317,7 +322,7 @@ function installOpenCodePluginWsl(
   const cfgDir = resolveOpenCodeWslConfigDir(distro);
   if (cfgDir) {
     const wslConfigPath = `${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`;
-    updateOpenCodeConfigFile(wslConfigPath, { remove: LIGHTCODE_MANAGED_MCP_KEYS });
+    updateOpenCodeConfigFile(wslConfigPath, { remove: PORACODE_MANAGED_MCP_KEYS });
   }
 
   console.log(
@@ -375,7 +380,7 @@ function verifyOpenCodeInstallAt(
   // Byte-for-byte equality so a hand-edited drop is treated as not-installed
   // and the next install call restages.
   try {
-    const stagedPlugin = readFileSync(join(readableStagingDir, "lightcode-status.mjs"));
+    const stagedPlugin = readFileSync(join(readableStagingDir, "poracode-status.mjs"));
     const droppedBuf = readFileSync(droppedPlugin);
     if (stagedPlugin.length !== droppedBuf.length) return { installed: false };
     if (!stagedPlugin.equals(droppedBuf)) return { installed: false };
@@ -428,7 +433,7 @@ function readJsonFileOrEmpty(path: string): ReadJsonOk | ReadJsonErr {
 
 interface OpenCodeMcpConfigUpdate {
   /**
-   * Lightcode-managed `mcp` server keys to strip before (re)adding. Callers
+   * Poracode-managed `mcp` server keys to strip before (re)adding. Callers
    * pass only the keys they own so unrelated MCP servers (and each other's
    * entries — browser vs subagents) are preserved across independent syncs.
    */
@@ -438,9 +443,9 @@ interface OpenCodeMcpConfigUpdate {
 }
 
 /**
- * Update `opencode.json` in a single read+write: scrub any lightcode-managed
- * `file://` plugin entry (left behind by older lightcode builds) and merge the
- * requested lightcode-managed MCP server entries under `mcp`. Only the keys in
+ * Update `opencode.json` in a single read+write: scrub any poracode-managed
+ * `file://` plugin entry (left behind by older poracode builds) and merge the
+ * requested poracode-managed MCP server entries under `mcp`. Only the keys in
  * `update.remove` are touched, so browser and subagents syncs can run
  * independently without clobbering one another. Writes only when the resulting
  * JSON actually differs from what's on disk. Best-effort: missing files /
@@ -459,7 +464,7 @@ function updateOpenCodeConfigFile(configPath: string, update: OpenCodeMcpConfigU
   if (Array.isArray(existingPlugin)) {
     const filtered = existingPlugin.filter((entry) => {
       if (typeof entry !== "string") return true;
-      return !entry.includes(LIGHTCODE_PLUGIN_SPEC_MARKER);
+      return !entry.includes(PORACODE_PLUGIN_SPEC_MARKER);
     });
     if (filtered.length === 0) {
       delete config.plugin;
@@ -571,7 +576,7 @@ function writeOpenCodeConfigUpdate(
 
 /**
  * Removes the dropped plugin file from OpenCode's plugins/ directory and any
- * legacy drops, plus scrubs the lightcode entry from opencode.json. Staging
+ * legacy drops, plus scrubs the poracode entry from opencode.json. Staging
  * dir under `~/.poracode/` stays so version diagnostics survive.
  * Best-effort: missing files / unreachable distros are swallowed.
  */
@@ -586,7 +591,7 @@ export function uninstallOpenCodePlugin(ctx?: AgentEnvContext): void {
     const cfgDir = resolveOpenCodeWslConfigDir(ctx.wslDistro);
     if (cfgDir) {
       updateOpenCodeConfigFile(`${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`, {
-        remove: LIGHTCODE_MANAGED_MCP_KEYS,
+        remove: PORACODE_MANAGED_MCP_KEYS,
       });
     }
     removeStagedPluginDir("opencode", ctx);
@@ -597,7 +602,7 @@ export function uninstallOpenCodePlugin(ctx?: AgentEnvContext): void {
   removeIfPresent(join(pluginsDir, OPENCODE_PLUGIN_DROP_MANIFEST_NAME));
   cleanupLegacyDrops(pluginsDir);
   updateOpenCodeConfigFile(join(resolveOpenCodeNativeConfigDir(), OPENCODE_CONFIG_FILE_NAME), {
-    remove: LIGHTCODE_MANAGED_MCP_KEYS,
+    remove: PORACODE_MANAGED_MCP_KEYS,
   });
   removeStagedPluginDir("opencode", ctx);
 }

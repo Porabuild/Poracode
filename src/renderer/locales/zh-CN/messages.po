@@ -1416,10 +1416,6 @@ msgid "Built-in MCP servers"
 msgstr "内置 MCP 服务器"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#~ msgid "Built-in servers are managed by Lightcode. They can be disabled globally but cannot be edited or removed."
-#~ msgstr "内置服务器由 Lightcode 管理。可以全局禁用，但不能编辑或删除。"
-
-#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
 msgstr "内置服务器由 Poracode 管理。可以全局禁用，但不能编辑或删除。"
 
@@ -2200,10 +2196,6 @@ msgid "Config directory"
 msgstr "配置目录"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
-#~ msgid "Configure the server Lightcode will add when supported agents start."
-#~ msgstr "配置 Lightcode 在受支持的代理启动时添加的服务器。"
-
-#: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
 msgstr "配置 Poracode 在受支持的代理启动时添加的服务器。"
 
@@ -2243,8 +2235,8 @@ msgid "Connect desktop"
 msgstr "连接桌面端"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Connect directly, through a relay, or over SSH. Every transport uses the same Lightcode remote protocol, projects, threads, and agent runtimes."
-msgstr "可直接、通过中继或通过 SSH 连接。所有传输方式都使用相同的 Lightcode 远程协议、项目、线程和代理运行时。"
+msgid "Connect directly, through a relay, or over SSH. Every transport uses the same Poracode remote protocol, projects, threads, and agent runtimes."
+msgstr "可直接、通过中继或通过 SSH 连接。所有传输方式都使用相同的 Poracode 远程协议、项目、线程和代理运行时。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect over SSH"
@@ -2259,8 +2251,8 @@ msgid "Connect the AI providers OpenCode can use and sign out of them here."
 msgstr "在此连接 OpenCode 可使用的 AI 提供商，并退出登录。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
-#~ msgstr "连接到另一台 Lightcode 桌面端或无界面服务器，即可在此浏览和管理其项目。请在对方设备的“设置 → 远程访问”中获取其端点和配对令牌。"
+#~ msgid "Connect to another Poracode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
+#~ msgstr "连接到另一台 Poracode 桌面端或无界面服务器，即可在此浏览和管理其项目。请在对方设备的“设置 → 远程访问”中获取其端点和配对令牌。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Connected"
@@ -2402,6 +2394,10 @@ msgstr "复制（推荐）"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Copy {0} device code {1}"
 msgstr "复制{0}设备代码{1}"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
+msgstr "将所有 Lightcode 数据复制到 Poracode。Poracode 将重新启动，并保留当前数据的完整备份。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
@@ -2558,6 +2554,10 @@ msgstr "无法扫描智能体技能。"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "无法扫描 MCP 服务器配置。"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Couldn't schedule the Lightcode data import."
+msgstr "无法安排 Lightcode 数据导入。"
 
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -2952,8 +2952,8 @@ msgid "Dev servers listening on your desktop's localhost."
 msgstr "监听桌面端 localhost 的开发服务器。"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
-msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
-msgstr "仅开发覆盖。仅在 LIGHTCODE DEV 版本中可见。"
+msgid "Development-only overrides. Only visible in the PORACODE DEV build."
+msgstr "仅开发覆盖。仅在 PORACODE DEV 版本中可见。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4175,6 +4175,14 @@ msgstr "图片"
 msgid "Image preview"
 msgstr "图片预览"
 
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import again"
+msgstr "再次导入"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import and restart"
+msgstr "导入并重新启动"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import conflict"
 msgstr "导入冲突"
@@ -4195,6 +4203,14 @@ msgstr "导入外部智能体技能"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import external skills"
 msgstr "导入外部技能"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import Lightcode data"
+msgstr "导入 Lightcode 数据"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import Lightcode data again?"
+msgstr "再次导入 Lightcode 数据？"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
@@ -4506,9 +4522,9 @@ msgstr "累计token数"
 msgid "Light"
 msgstr "浅色"
 
-#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
-msgid "Lightcode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
-msgstr "Lightcode 和代理在远程计算机上运行。SSH 仅用于启动远程环境并保护其本地隧道。"
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Lightcode data import is unavailable with a custom data folder."
+msgstr "使用自定义数据文件夹时无法导入 Lightcode 数据。"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Link to source"
@@ -4729,10 +4745,6 @@ msgstr "管理全局和项目范围内的共享技能。"
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage shared skills across Windows, WSL, and projects."
 #~ msgstr "管理 Windows、WSL 和项目之间的共享技能。"
-
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
-#~ msgstr "管理 Lightcode 在启动受支持的代理时添加的 MCP 服务器配置。工作区服务器可在各项目的设置中配置。"
 
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5546,6 +5558,10 @@ msgstr "未找到 GitHub CLI 帐户。使用<0>gh auth login</0>登录，或<1>�
 msgid "No history yet"
 msgstr "暂无历史记录"
 
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "No Lightcode data was found."
+msgstr "未找到 Lightcode 数据。"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
 msgstr "没有符合这些筛选条件的市场技能。"
@@ -6202,8 +6218,8 @@ msgid "Pair again"
 msgstr "重新配对"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Pair with Lightcode"
-msgstr "与 Lightcode 配对"
+msgid "Pair with Poracode"
+msgstr "与 Poracode 配对"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -6395,6 +6411,10 @@ msgstr "将此配置指向非Anthropic服务商（z.ai，…），并自定义�
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "流行的编辑器主题适应 Poracode。每个都遵循上面的浅色或深色模式。"
 
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
+msgstr "Poracode 和代理在远程计算机上运行。SSH 仅用于启动远程环境并保护其本地隧道。"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode 不会以明文形式在设置中存储市场凭据。打开目录即可浏览经过安全扫描的技能。"
@@ -6408,6 +6428,10 @@ msgstr "仅限 Poracode"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
 msgstr "Poracode 将在 SSH 主机上安装或复用其服务器，并将凭据保存在此设备的安全存储中。"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
+msgstr "Poracode 将重新启动，备份当前数据，并用 Lightcode 数据的完整副本替换当前数据。"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -6601,10 +6625,6 @@ msgstr "提示"
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "拟议计划"
-
-#: src/renderer/components/mcp/McpServersManager.tsx
-#~ msgid "Provided and managed by Lightcode for supported agents."
-#~ msgstr "由 Lightcode 为受支持的代理提供和管理。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Provided and managed by Poracode for supported agents."
@@ -7537,8 +7557,8 @@ msgid "Scheduled tasks on this desktop"
 msgstr "此桌面上的计划任务"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-#~ msgid "Scheduled tasks run only while this device is awake and Lightcode is open."
-#~ msgstr "计划任务仅在此设备处于唤醒状态且 Lightcode 已打开时运行。"
+#~ msgid "Scheduled tasks run only while this device is awake and Poracode is open."
+#~ msgstr "计划任务仅在此设备处于唤醒状态且 Poracode 已打开时运行。"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9571,13 +9591,13 @@ msgstr "更新分支"
 msgid "Update error: {detail}"
 msgstr "更新错误：{detail}"
 
-#: src/mobile/views/PortsView.tsx
-msgid "Update Lightcode on your desktop to use port forwarding."
-msgstr "请在桌面端更新 Lightcode 以使用端口转发。"
-
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update method"
 msgstr "更新方法"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Update Poracode on your desktop to use port forwarding."
+msgstr "请在桌面端更新 Poracode 以使用端口转发。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"

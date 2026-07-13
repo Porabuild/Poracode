@@ -1,5 +1,5 @@
 {
-  "name": "lightcode-status-copilot",
+  "name": "poracode-status-copilot",
   "version": "1.0.3",
   "description": "GitHub Copilot CLI lifecycle hook forwarder for Poracode thread status",
   "author": "Poracode",

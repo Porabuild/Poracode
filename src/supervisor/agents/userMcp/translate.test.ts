@@ -153,8 +153,8 @@ describe("custom MCP translators", () => {
 
     expect(launch.configContent).not.toContain("Bearer secret");
     expect(launch.configContent).not.toContain('"MODE":"test"');
-    expect(config.mcp["local.tools"]?.environment?.MODE).toMatch(/^\{env:LIGHTCODE_MCP_/u);
-    expect(config.mcp.remote?.headers?.Authorization).toMatch(/^\{env:LIGHTCODE_MCP_/u);
+    expect(config.mcp["local.tools"]?.environment?.MODE).toMatch(/^\{env:PORACODE_MCP_/u);
+    expect(config.mcp.remote?.headers?.Authorization).toMatch(/^\{env:PORACODE_MCP_/u);
     expect(Object.values(launch.env)).toEqual(
       expect.arrayContaining(["test", "Bearer secret", "yes"]),
     );

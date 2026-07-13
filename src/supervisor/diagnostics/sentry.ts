@@ -1,6 +1,6 @@
 import {
   sanitizeSentryEvent,
-  type LightcodeDiagnosticTags,
+  type PoracodeDiagnosticTags,
   type SentryEventLike,
 } from "@/shared/diagnostics/sentryPrivacy";
 import {
@@ -27,7 +27,7 @@ function loadSupervisorSentry(): SupervisorSentryModule | null {
   } catch (error) {
     supervisorSentry = null;
     console.warn(
-      "[lightcode] Sentry supervisor integration unavailable:",
+      "[poracode] Sentry supervisor integration unavailable:",
       error instanceof Error ? error.message : String(error),
     );
   }
@@ -48,13 +48,13 @@ function readSentryEnvironment(options: SupervisorSentryOptions): string {
   );
 }
 
-function buildBaseTags(options: SupervisorSentryOptions): LightcodeDiagnosticTags {
+function buildBaseTags(options: SupervisorSentryOptions): PoracodeDiagnosticTags {
   return {
-    "lightcode.app_version": options.appVersion,
-    "lightcode.arch": process.arch,
-    "lightcode.node": process.versions.node,
-    "lightcode.platform": process.platform,
-    "lightcode.process": "supervisor",
+    "poracode.app_version": options.appVersion,
+    "poracode.arch": process.arch,
+    "poracode.node": process.versions.node,
+    "poracode.platform": process.platform,
+    "poracode.process": "supervisor",
   };
 }
 
@@ -71,7 +71,7 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
 
   Sentry.init({
     dsn,
-    release: `lightcode@${options.appVersion}`,
+    release: `poracode@${options.appVersion}`,
     environment: readSentryEnvironment(options),
     sendDefaultPii: false,
     defaultIntegrations: false,
@@ -87,7 +87,7 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
     },
   });
 
-  Sentry.setContext("lightcode", {
+  Sentry.setContext("poracode", {
     appVersion: options.appVersion,
     process: "supervisor",
   });
@@ -95,7 +95,7 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
   return true;
 }
 
-export function captureSupervisorException(error: unknown, tags?: LightcodeDiagnosticTags): void {
+export function captureSupervisorException(error: unknown, tags?: PoracodeDiagnosticTags): void {
   const Sentry = loadSupervisorSentry();
   if (!Sentry) return;
   if (!Sentry.isEnabled()) return;

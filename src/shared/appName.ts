@@ -1,6 +1,6 @@
-import { type LightcodeChannel, productNameFor } from "./channel";
+import { type PoracodeChannel, productNameFor } from "./channel";
 
-export function getAppName(channel: LightcodeChannel, isDev: boolean): string {
+export function getAppName(channel: PoracodeChannel, isDev: boolean): string {
   const base = productNameFor(channel);
   return isDev ? `${base} (dev)` : base;
 }

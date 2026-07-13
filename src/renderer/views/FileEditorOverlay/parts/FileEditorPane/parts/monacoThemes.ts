@@ -15,7 +15,7 @@ export function defineAppThemes(monaco: Monaco) {
   monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions(diagOpts);
   monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions(diagOpts);
 
-  monaco.editor.defineTheme("lightcode-dark", {
+  monaco.editor.defineTheme("poracode-dark", {
     base: "vs-dark",
     inherit: true,
     rules: [],
@@ -34,7 +34,7 @@ export function defineAppThemes(monaco: Monaco) {
     },
   });
 
-  monaco.editor.defineTheme("lightcode-light", {
+  monaco.editor.defineTheme("poracode-light", {
     base: "vs",
     inherit: true,
     rules: [],

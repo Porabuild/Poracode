@@ -7,7 +7,7 @@
  */
 export const WELCOME_BACKGROUND_CODE =
   `import { startTransition, useEffect, useState } from "react";
-import { invokeAgent, type AgentStatus } from "@lightcode/agents";
+import { invokeAgent, type AgentStatus } from "@poracode/agents";
 import { PTYSession } from "@/shared/pty";
 import { useAppStore } from "@/renderer/state/appStore";
 import { readBridge } from "@/renderer/bridge";

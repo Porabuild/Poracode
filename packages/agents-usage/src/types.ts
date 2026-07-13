@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * Canonical usage vocabulary shared by every collector and consumed unchanged
- * by Lightcode's IPC layer + UI. Provider-native payloads are normalized into
+ * by Poracode's IPC layer + UI. Provider-native payloads are normalized into
  * these shapes at the collector boundary so shared code never sees a vendor
  * field name.
  */

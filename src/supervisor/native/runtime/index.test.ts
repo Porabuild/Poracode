@@ -50,7 +50,7 @@ vi.mock("../../runtime/spawn", () => ({
 
 const tempDirs: string[] = [];
 
-function makeTempDir(prefix = "lightcode-native-runtime-"): string {
+function makeTempDir(prefix = "poracode-native-runtime-"): string {
   const dir = mkdtempSync(join(tmpdir(), prefix));
   tempDirs.push(dir);
   return dir;
@@ -110,7 +110,7 @@ describe("resolveNativeNode managed-runtime fast path", () => {
       onProgress: (e) => events.push(e.kind),
     });
     expect(resolved).not.toBeNull();
-    expect(resolved?.source).toBe("lightcode-managed");
+    expect(resolved?.source).toBe("poracode-managed");
     expect(resolved?.nodePath).toBe(nodePath);
     expect(events).toContain("probe-start");
     expect(events).toContain("probe-found-managed");
@@ -192,7 +192,7 @@ describe("installNativeRuntime", () => {
 
     // Create a half-finished archive dir with a sentinel file. Install
     // should blow it away and replace it (the runtime dir is owned
-    // exclusively by lightcode).
+    // exclusively by poracode).
     const finalDir = join(baseDir, "runtime", nodeArchiveDirName(target));
     mkdirSync(finalDir, { recursive: true });
     writeFileSync(join(finalDir, "leftover-from-previous-attempt"), "x");

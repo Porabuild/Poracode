@@ -18,7 +18,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Lightcode version
+      label: Poracode version
       description: Paste the app version, commit, or build you are running.
       placeholder: v1.0.0
     validations:

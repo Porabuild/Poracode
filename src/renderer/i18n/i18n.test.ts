@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { bootstrapAppLocaleFromCache, i18n } from "./i18n";
 
-const CACHE_KEY = "lightcode-shared-settings";
+const CACHE_KEY = "poracode-shared-settings";
 
 describe("bootstrapAppLocaleFromCache", () => {
   beforeEach(() => {

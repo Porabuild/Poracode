@@ -10,24 +10,45 @@ import type { Project, Thread, AppView } from "@/shared/contracts";
  * it as committed. Reporting is the minimum so the loss is observable.
  */
 function reportPersistError(operation: string, error: unknown): void {
-  console.error(`[lightcode] failed to persist ${operation}:`, error);
+  console.error(`[poracode] failed to persist ${operation}:`, error);
   captureRendererException(error, { featureArea: "app-state-persistence" });
 }
 
 /**
  * Raw string-level storage backend backed by SQLite via IPC.
  *
- * For the main app store ("lightcode-app-v2"), it maps the Zustand persist
+ * For the main app store ("poracode-app-v2"), it maps the Zustand persist
  * format to/from individual SQLite rows (projects, threads, view).
  * For other stores, it uses the generic key-value `app_state` table.
  */
 function hasBridge(): boolean {
-  return typeof window !== "undefined" && window.lightcode !== undefined;
+  return typeof window !== "undefined" && window.poracode !== undefined;
 }
 
-const APP_STORE_NAME = "lightcode-app-v2";
+const APP_STORE_NAME = "poracode-app-v2";
+const CURRENT_STORAGE_PREFIX = "poracode";
+const LEGACY_STORAGE_PREFIX = "lightcode";
 const lastStorageValues = new Map<string, StorageValue<unknown>>();
 const lastStorageJson = new Map<string, string>();
+
+function legacyStorageName(name: string): string | null {
+  return name.startsWith(CURRENT_STORAGE_PREFIX)
+    ? LEGACY_STORAGE_PREFIX + name.slice(CURRENT_STORAGE_PREFIX.length)
+    : null;
+}
+
+async function readPersistedState(name: string): Promise<string | null> {
+  const current = await readBridge().dbGetState(name);
+  if (current) return current;
+  const legacyName = legacyStorageName(name);
+  if (!legacyName) return null;
+  const legacy = await readBridge().dbGetState(legacyName);
+  if (!legacy) return null;
+  await readBridge()
+    .dbSetState(name, legacy)
+    .catch((error) => reportPersistError(`migration of state "${name}"`, error));
+  return legacy;
+}
 
 const dbStorageBackend = {
   async getItem(name: string): Promise<StorageValue<unknown> | null> {
@@ -35,7 +56,7 @@ const dbStorageBackend = {
     if (name === APP_STORE_NAME) {
       return loadAppStore();
     }
-    return parseStorageValue(await readBridge().dbGetState(name));
+    return parseStorageValue(await readPersistedState(name));
   },
 
   async setItem(name: string, value: StorageValue<unknown>): Promise<void> {

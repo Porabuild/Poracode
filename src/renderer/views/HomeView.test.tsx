@@ -64,8 +64,8 @@ describe("HomeView", () => {
     const { container } = render(<HomeView />);
 
     expect(screen.getByText("ACP thread")).toBeInTheDocument();
-    expect(container.querySelector(".lightcode-provider-icon--external")).toBeInTheDocument();
-    expect(container.querySelector(".lightcode-provider-icon__generic")).not.toBeInTheDocument();
+    expect(container.querySelector(".poracode-provider-icon--external")).toBeInTheDocument();
+    expect(container.querySelector(".poracode-provider-icon__generic")).not.toBeInTheDocument();
   });
 });
 

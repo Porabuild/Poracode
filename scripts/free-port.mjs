@@ -152,12 +152,12 @@ try {
   const verb = ports.length === 1 ? "is" : "are";
 
   if (pids.length === 0) {
-    console.log(`[lightcode] ${portLabel} ${verb} already free`);
+    console.log(`[poracode] ${portLabel} ${verb} already free`);
     process.exit(0);
   }
 
   console.log(
-    `[lightcode] Reclaiming ${portLabel.toLowerCase()} from PID${pids.length === 1 ? "" : "s"} ${pids.join(", ")}`,
+    `[poracode] Reclaiming ${portLabel.toLowerCase()} from PID${pids.length === 1 ? "" : "s"} ${pids.join(", ")}`,
   );
 
   for (const pid of pids) {
@@ -165,7 +165,7 @@ try {
   }
 
   await waitForPortsFree(ports);
-  console.log(`[lightcode] ${portLabel} ${verb} now free`);
+  console.log(`[poracode] ${portLabel} ${verb} now free`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);

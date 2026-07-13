@@ -15,10 +15,10 @@ export const macosTrafficLightGutterClass = "w-[68px] shrink-0" as const;
 /**
  * Opt-in class for content elements that sit at the top-left of the main area when the sidebar
  * is collapsed on macOS — the matching CSS rule (gated by `[data-mac-collapsed]` on
- * `.lightcode-shell`) adds 28px of left padding so they clear the traffic-light controls. The
+ * `.poracode-shell`) adds 28px of left padding so they clear the traffic-light controls. The
  * gate is pure CSS, so descendants don't subscribe to sidebar state.
  */
-export const macosTrafficLightPadClass = "lightcode-mac-traffic-light-pad" as const;
+export const macosTrafficLightPadClass = "poracode-mac-traffic-light-pad" as const;
 
 /**
  * Inline styles for full-width overlay title rows: titlebar height plus right inset on
@@ -61,12 +61,11 @@ export const sidebarColumnLayoutClass = "flex h-full min-h-0 min-w-0 flex-col ga
 
 /**
  * Primary surface for overlay and docked tool panels (matches main content / thread area).
- * The `lightcode-overlay-surface` marker lets the translucent-sidebar CSS turn this
+ * The `poracode-overlay-surface` marker lets the translucent-sidebar CSS turn this
  * transparent when it sits inside the sidebar column, so overlay sidebars get the same
  * glass treatment as the main app sidebar (see styles.css).
  */
-export const overlaySidebarSurfaceClass =
-  "lightcode-overlay-surface bg-[var(--content-background)]";
+export const overlaySidebarSurfaceClass = "poracode-overlay-surface bg-[var(--content-background)]";
 
 /** File editor, git, settings overlays, etc.: layout + background. */
 export const overlaySidebarColumnClass = `${sidebarColumnLayoutClass} ${overlaySidebarSurfaceClass}`;

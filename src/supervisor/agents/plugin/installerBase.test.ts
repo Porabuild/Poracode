@@ -33,7 +33,7 @@ import {
 
 const tempDirs: string[] = [];
 
-function makeTempDir(prefix = "lightcode-installer-base-"): string {
+function makeTempDir(prefix = "poracode-installer-base-"): string {
   const dir = mkdtempSync(join(tmpdir(), prefix));
   tempDirs.push(dir);
   return dir;
@@ -56,7 +56,7 @@ describe("isWslPluginContext", () => {
 });
 
 describe("createPluginSourceResolver", () => {
-  const ENV_KEY = "LIGHTCODE_TEST_PLUGIN_SOURCE";
+  const ENV_KEY = "PORACODE_TEST_PLUGIN_SOURCE";
 
   beforeEach(() => {
     delete process.env[ENV_KEY];
@@ -163,7 +163,7 @@ describe("parseExistingHooksJson", () => {
 
 describe("isPluginAssetsFresh + copyPluginAssetsIfStale", () => {
   function seedSource(): string {
-    const sourceDir = makeTempDir("lightcode-installer-base-src-");
+    const sourceDir = makeTempDir("poracode-installer-base-src-");
     for (const file of PLUGIN_ASSET_FILES) {
       writeFileSync(join(sourceDir, file), `${file} v1`, "utf8");
     }
@@ -308,10 +308,10 @@ describe("renderNativeHookWrapper", () => {
       body.indexOf("set ELECTRON_RUN_AS_NODE=1"),
     );
     expect(body).toContain(
-      'pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0lightcode-hook.ps1" %*',
+      'pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0poracode-hook.ps1" %*',
     );
     expect(body).toContain(
-      'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0lightcode-hook.ps1" %*',
+      'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0poracode-hook.ps1" %*',
     );
   });
 });
@@ -340,26 +340,26 @@ describe("buildNativeHookCommandHead", () => {
   const missingShell = () => undefined;
 
   it("prefers PowerShell 7 for native Windows hook wrappers", () => {
-    const commandHead = buildNativeHookCommandHead("C:\\Users\\u\\lightcode-hook.cmd", (name) =>
+    const commandHead = buildNativeHookCommandHead("C:\\Users\\u\\poracode-hook.cmd", (name) =>
       name === "pwsh.exe" ? "C:\\Program Files\\PowerShell\\7\\pwsh.exe" : undefined,
     );
     const expected =
       process.platform === "win32"
-        ? 'pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\lightcode-hook.ps1"'
-        : "'C:\\Users\\u\\lightcode-hook.cmd'";
+        ? 'pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\poracode-hook.ps1"'
+        : "'C:\\Users\\u\\poracode-hook.cmd'";
     expect(commandHead).toBe(expected);
   });
 
   it("falls back to Windows PowerShell when PowerShell 7 is missing", () => {
-    const commandHead = buildNativeHookCommandHead("C:\\Users\\u\\lightcode-hook.cmd", (name) =>
+    const commandHead = buildNativeHookCommandHead("C:\\Users\\u\\poracode-hook.cmd", (name) =>
       name === "powershell.exe"
         ? "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
         : undefined,
     );
     const expected =
       process.platform === "win32"
-        ? 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\lightcode-hook.ps1"'
-        : "'C:\\Users\\u\\lightcode-hook.cmd'";
+        ? 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\poracode-hook.ps1"'
+        : "'C:\\Users\\u\\poracode-hook.cmd'";
     expect(commandHead).toBe(expected);
   });
 
@@ -373,13 +373,13 @@ describe("buildNativeHookCommandHead", () => {
   });
 
   it("escapes embedded quotes for the active native shell", () => {
-    const commandHead = buildNativeHookCommandHead('C:\\Users\\a"b\\lightcode-hook.cmd', (name) =>
+    const commandHead = buildNativeHookCommandHead('C:\\Users\\a"b\\poracode-hook.cmd', (name) =>
       name === "pwsh.exe" ? "C:\\Program Files\\PowerShell\\7\\pwsh.exe" : undefined,
     );
     const expected =
       process.platform === "win32"
-        ? 'pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\a\\"b\\lightcode-hook.ps1"'
-        : "'C:\\Users\\a\"b\\lightcode-hook.cmd'";
+        ? 'pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\a\\"b\\poracode-hook.ps1"'
+        : "'C:\\Users\\a\"b\\poracode-hook.cmd'";
     expect(commandHead).toBe(expected);
   });
 });
@@ -389,21 +389,21 @@ describe("buildNativeHookCmdShellCommand", () => {
   it.skipIf(!isWindows)(
     "returns the cmd.exe-routed wrapper invocation on Windows (pwsh-free)",
     () => {
-      const command = buildNativeHookCmdShellCommand("C:\\Users\\u\\lightcode-hook.cmd");
-      expect(command).toBe('cmd.exe /d /s /c call "C:\\Users\\u\\lightcode-hook.cmd"');
+      const command = buildNativeHookCmdShellCommand("C:\\Users\\u\\poracode-hook.cmd");
+      expect(command).toBe('cmd.exe /d /s /c call "C:\\Users\\u\\poracode-hook.cmd"');
       expect(command).not.toMatch(/pwsh|powershell/i);
     },
   );
 
   it.skipIf(isWindows)("returns a single-quoted wrapper path on POSIX", () => {
-    const command = buildNativeHookCmdShellCommand("/home/u/lightcode-hook.sh");
-    expect(command).toBe("'/home/u/lightcode-hook.sh'");
+    const command = buildNativeHookCmdShellCommand("/home/u/poracode-hook.sh");
+    expect(command).toBe("'/home/u/poracode-hook.sh'");
   });
 });
 
 describe("buildNativeHookCommandHeads", () => {
   it("centralizes generic, bash, and PowerShell native command shapes", () => {
-    const heads = buildNativeHookCommandHeads("C:\\Users\\u\\lightcode-hook.cmd", (name) =>
+    const heads = buildNativeHookCommandHeads("C:\\Users\\u\\poracode-hook.cmd", (name) =>
       name === "pwsh.exe" ? "C:\\Program Files\\PowerShell\\7\\pwsh.exe" : undefined,
     );
 
@@ -411,13 +411,13 @@ describe("buildNativeHookCommandHeads", () => {
       process.platform === "win32"
         ? {
             command:
-              'pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\lightcode-hook.ps1"',
-            bashCommand: "'C:\\Users\\u\\lightcode-hook.cmd'",
-            powershellCommand: "& 'C:\\Users\\u\\lightcode-hook.ps1'",
+              'pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "C:\\Users\\u\\poracode-hook.ps1"',
+            bashCommand: "'C:\\Users\\u\\poracode-hook.cmd'",
+            powershellCommand: "& 'C:\\Users\\u\\poracode-hook.ps1'",
           }
         : {
-            command: "'C:\\Users\\u\\lightcode-hook.cmd'",
-            bashCommand: "'C:\\Users\\u\\lightcode-hook.cmd'",
+            command: "'C:\\Users\\u\\poracode-hook.cmd'",
+            bashCommand: "'C:\\Users\\u\\poracode-hook.cmd'",
           };
     expect(heads).toEqual(expected);
   });

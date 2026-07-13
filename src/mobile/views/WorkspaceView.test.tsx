@@ -65,7 +65,7 @@ vi.mock("@/renderer/components/common", () => ({
               branch: "feature/worktree",
               baseBranch: "feature/worktree",
               isWorktree: true,
-              worktreePath: "/repo/.lightcode/worktrees/feature",
+              worktreePath: "/repo/.poracode/worktrees/feature",
             })
           }
         >
@@ -227,7 +227,7 @@ describe("mobile WorkspaceView branch selector", () => {
   });
 
   it("keeps worktree branch labels read-only like desktop", () => {
-    renderWorkspace(makeProject(), "/repo/.lightcode/worktrees/feature");
+    renderWorkspace(makeProject(), "/repo/.poracode/worktrees/feature");
 
     expect(branchSelectorRender).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Switch branch" })).not.toBeInTheDocument();
@@ -266,7 +266,7 @@ describe("mobile WorkspaceView branch selector", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open worktree branch" }));
 
     expect(onOpenWorktreeBranch).toHaveBeenCalledWith({
-      worktreePath: "/repo/.lightcode/worktrees/feature",
+      worktreePath: "/repo/.poracode/worktrees/feature",
       worktreeBranch: "feature/worktree",
     });
   });

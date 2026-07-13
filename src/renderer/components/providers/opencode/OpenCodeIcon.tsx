@@ -6,7 +6,7 @@ const OPENCODE_FRAME_PATH = "M0 0 H240 V300 H0 Z M60 60 H180 V240 H60 Z";
 const OPENCODE_PANEL_PATH = "M60 120 H180 V240 H60 Z";
 
 export const OpenCodeIcon = createProviderIcon({
-  cssPrefix: "lightcode-opencode-icon",
+  cssPrefix: "poracode-opencode-icon",
   path: OPENCODE_FRAME_PATH,
   secondaryPath: OPENCODE_PANEL_PATH,
   fillRule: "evenodd",

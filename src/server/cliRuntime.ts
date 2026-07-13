@@ -3,7 +3,7 @@ import { writeSync } from "node:fs";
 /**
  * Shared boilerplate for the standalone server/relay CLI entrypoints: idempotent
  * signal-driven shutdown and a fatal-startup-error reporter. `prefix` is the log
- * tag (e.g. `[lightcode-server]`).
+ * tag (e.g. `[poracode-server]`).
  */
 
 /**

@@ -41,7 +41,7 @@ function SidebarHeaderWordmark(props: {
       <button
         type="button"
         aria-label={title}
-        className="lightcode-overlay-header__controls shrink-0 leading-none text-muted transition-colors hover:text-foreground"
+        className="poracode-overlay-header__controls shrink-0 leading-none text-muted transition-colors hover:text-foreground"
         onClick={onTitleClick}
       >
         {content}
@@ -123,7 +123,7 @@ function SidebarHeaderRow(props: {
                   size="sm"
                   variant="ghost"
                   aria-label={props.title}
-                  className="lightcode-overlay-header__controls size-6 min-w-0 shrink-0 text-muted hover:text-foreground"
+                  className="poracode-overlay-header__controls size-6 min-w-0 shrink-0 text-muted hover:text-foreground"
                   onPress={props.onTitleClick}
                 >
                   <House className="size-3.5" />
@@ -190,7 +190,7 @@ export function PageLayout(props: {
     </SidebarHeaderRow>
   );
 
-  // macOS only: drop the empty center `lightcode-overlay-header` when there is no content so main
+  // macOS only: drop the empty center `poracode-overlay-header` when there is no content so main
   // + the right column reclaim the titlebar row next to hidden-inset chrome. Other platforms keep
   // the empty row (signalled by the empty fragment, since `null` would suppress it everywhere).
   const contentHeader = contentHeaderChildren ?? (isMac() ? null : <></>);

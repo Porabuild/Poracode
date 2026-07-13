@@ -32,7 +32,7 @@ import {
 import { pruneStaleRuntimeDirs, safeRm } from "../../runtime/cleanup";
 import { downloadToFile, verifySha256 } from "../../runtime/download";
 import {
-  LIGHTCODE_PINNED_NODE_VERSION,
+  PORACODE_PINNED_NODE_VERSION,
   MIN_ACCEPTED_NODE_MAJOR,
   NODE_TARBALL_CHECKSUMS,
   nodeArchiveDirName,
@@ -43,7 +43,7 @@ import {
 } from "../../runtime/pinnedNode";
 import { spawnAndAwaitExit } from "../../runtime/spawn";
 
-export { LIGHTCODE_PINNED_NODE_VERSION, MIN_ACCEPTED_NODE_MAJOR, NODE_TARBALL_CHECKSUMS };
+export { PORACODE_PINNED_NODE_VERSION, MIN_ACCEPTED_NODE_MAJOR, NODE_TARBALL_CHECKSUMS };
 
 export type LinuxArch = "x64" | "arm64";
 /**
@@ -62,7 +62,7 @@ export interface ResolvedNode {
   /** Version string, e.g. "22.11.0". */
   nodeVersion: string;
   /** Whether we found the user's node or installed our own. */
-  source: "user-installed" | "lightcode-managed";
+  source: "user-installed" | "poracode-managed";
 }
 
 /**
@@ -139,8 +139,8 @@ export async function resolveNodeForDistro(
   const installed = await installRuntimeIntoDistro(distro, options);
   const resolved: ResolvedNode = {
     nodePath: installed.nodePath,
-    nodeVersion: LIGHTCODE_PINNED_NODE_VERSION,
-    source: "lightcode-managed",
+    nodeVersion: PORACODE_PINNED_NODE_VERSION,
+    source: "poracode-managed",
   };
   distroNodeCache.set(distro, resolved);
   options?.onProgress?.({ kind: "ready", nodePath: installed.nodePath });
@@ -194,7 +194,7 @@ async function batchWslCommandsForBootstrap(
   distro: string,
   commands: string[],
 ): Promise<{ ok: boolean; stdout: string }[]> {
-  const sep = "---LIGHTCODE_BOOTSTRAP_BATCH_SEP---";
+  const sep = "---PORACODE_BOOTSTRAP_BATCH_SEP---";
   const script = commands.map((cmd) => `(${cmd}) 2>/dev/null; printf '\\n${sep}\\n'`).join("\n");
   try {
     const { stdout } = await execFileAsync(
@@ -254,7 +254,7 @@ export async function installRuntimeIntoDistro(
   const checksum = NODE_TARBALL_CHECKSUMS[target];
   if (!checksum) {
     throw new Error(
-      `lightcode is missing the SHA256 checksum for Node ${LIGHTCODE_PINNED_NODE_VERSION} ${target}; rerun scripts/refresh-node-checksums.mjs`,
+      `poracode is missing the SHA256 checksum for Node ${PORACODE_PINNED_NODE_VERSION} ${target}; rerun scripts/refresh-node-checksums.mjs`,
     );
   }
 
@@ -278,7 +278,7 @@ export async function installRuntimeIntoDistro(
   const url = nodeArchiveUrl(target);
 
   options?.onProgress?.({ kind: "download-start", url, target });
-  const tmpTarball = join(tmpdir(), `lightcode-node-${Date.now()}-${tarballName}`);
+  const tmpTarball = join(tmpdir(), `poracode-node-${Date.now()}-${tarballName}`);
   try {
     await downloadToFile(url, tmpTarball, {
       ...(options?.onProgress

@@ -152,7 +152,7 @@ export function ProjectSwitchMenu(props: {
       selectionMode="single"
       selectedKeys={[currentProjectId]}
       onAction={(key) => handleSelect(String(key))}
-      className="lightcode-menu min-w-56"
+      className="poracode-menu min-w-56"
     >
       {projects.map((project) => {
         const isHome = isHomeProject(project);

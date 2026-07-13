@@ -81,7 +81,7 @@ describe("createAutoUpdaterController", () => {
     // the toast + Sentry report, independent of the swallowed rejection.
     autoUpdaterMock.emit("error", failure);
     expect(sendStatus).toHaveBeenCalledWith({ type: "error", message: failure.message });
-    expect(reportError).toHaveBeenCalledWith(failure, { "lightcode.feature_area": "updates" });
+    expect(reportError).toHaveBeenCalledWith(failure, { "poracode.feature_area": "updates" });
   });
 
   it("runs an initial check after launch and then keeps checking on the hourly interval", async () => {

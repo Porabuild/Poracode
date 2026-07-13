@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { UsageWindow } from "@lightcode/agents-usage";
+import type { UsageWindow } from "@poracode/agents-usage";
 import type { AgentInstanceConfigMap } from "@/shared/contracts";
 import {
   isClaudeUsageProvider,

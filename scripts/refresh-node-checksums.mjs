@@ -4,11 +4,11 @@
  * Node.js LTS version and writes the relevant rows into
  * `src/supervisor/runtime/pinnedNode.ts`.
  *
- * Run after bumping `LIGHTCODE_PINNED_NODE_VERSION` in that file:
+ * Run after bumping `PORACODE_PINNED_NODE_VERSION` in that file:
  *
  *   pnpm tsx scripts/refresh-node-checksums.mjs
  *
- * Covers every target lightcode ships a managed-runtime install for:
+ * Covers every target poracode ships a managed-runtime install for:
  *   - linux-x64 / linux-arm64        (.tar.xz)   — WSL + native Linux
  *   - darwin-x64 / darwin-arm64      (.tar.xz)   — native macOS
  *   - win-x64 / win-arm64            (.zip)      — native Windows
@@ -35,10 +35,10 @@ const TARGETS = /** @type {const} */ ([
 
 function readPinnedVersion() {
   const src = readFileSync(indexFile, "utf8");
-  const match = /LIGHTCODE_PINNED_NODE_VERSION\s*=\s*"([^"]+)"/.exec(src);
+  const match = /PORACODE_PINNED_NODE_VERSION\s*=\s*"([^"]+)"/.exec(src);
   if (!match) {
     throw new Error(
-      `could not find LIGHTCODE_PINNED_NODE_VERSION in ${indexFile} — has the constant been renamed?`,
+      `could not find PORACODE_PINNED_NODE_VERSION in ${indexFile} — has the constant been renamed?`,
     );
   }
   return match[1];

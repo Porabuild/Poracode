@@ -146,7 +146,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
 
     // ── CLI hook plugin support ──────────────────────────────────────────
-    pluginId: "lightcode-status@opencode",
+    pluginId: "poracode-status@opencode",
     pluginVersion: OPENCODE_PLUGIN_VERSION,
     minProtocolVersion: 1,
     async isPluginSupported(ctx) {
@@ -170,7 +170,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
     },
     async pluginLaunchExtras() {
       // Plugin is auto-loaded from the plugins/ directory; no CLI flag or
-      // env override is needed. LIGHTCODE_HOOK_URL et al are injected by the
+      // env override is needed. PORACODE_HOOK_URL et al are injected by the
       // cli-hook coordinator regardless of what we return.
       return {};
     },

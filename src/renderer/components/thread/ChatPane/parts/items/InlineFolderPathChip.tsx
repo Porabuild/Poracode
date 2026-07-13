@@ -36,8 +36,8 @@ export function InlineFolderPathChip({
 
   const chipInner = (
     <>
-      <img className="lightcode-inline-path-chip__icon" src={iconUrl} alt="" draggable={false} />
-      <span className="lightcode-inline-path-chip__name">{path}</span>
+      <img className="poracode-inline-path-chip__icon" src={iconUrl} alt="" draggable={false} />
+      <span className="poracode-inline-path-chip__name">{path}</span>
     </>
   );
 
@@ -54,7 +54,7 @@ export function InlineFolderPathChip({
 
   if (actions.length === 0) {
     return (
-      <span className="lightcode-inline-path-chip" title={path}>
+      <span className="poracode-inline-path-chip" title={path}>
         {chipInner}
       </span>
     );
@@ -67,7 +67,7 @@ export function InlineFolderPathChip({
       return (
         <button
           type="button"
-          className="lightcode-inline-path-chip"
+          className="poracode-inline-path-chip"
           title={path}
           onClick={() => actions[0]!.run()}
         >
@@ -83,7 +83,7 @@ export function InlineFolderPathChip({
         trigger={
           <button
             type="button"
-            className="lightcode-inline-path-chip"
+            className="poracode-inline-path-chip"
             title={path}
             aria-expanded={isOpen}
             onClick={() => setIsOpen(true)}
@@ -113,7 +113,7 @@ export function InlineFolderPathChip({
 
   return (
     <Dropdown>
-      <button type="button" className="lightcode-inline-path-chip" title={path}>
+      <button type="button" className="poracode-inline-path-chip" title={path}>
         {chipInner}
       </button>
       <Dropdown.Popover className="min-w-[220px]">

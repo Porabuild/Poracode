@@ -72,12 +72,12 @@ interface LocatedFile {
 type ReadTextFile = (path: string) => string | undefined;
 
 const LEGACY_APP_MANAGED_OPENCODE_NAMES = new Set([
-  "lightcode_browser",
-  "lightcode_subagent",
-  "lightcode_subagents",
-  "lightcode_computer_use",
-  "lightcode_chrome",
-  "lightcode",
+  "poracode_browser",
+  "poracode_subagent",
+  "poracode_subagents",
+  "poracode_computer_use",
+  "poracode_chrome",
+  "poracode",
   "poracode_browser",
   "poracode_subagent",
   "poracode_subagents",

@@ -106,7 +106,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
   const isFullscreenOverlay = browserOverlayOpen && browserOverlayMaximized;
   const hasWindowHeader = isFullscreenOverlay || isWindowSurface;
   const headerButtonClass = `${
-    hasWindowHeader ? "lightcode-overlay-header__controls " : ""
+    hasWindowHeader ? "poracode-overlay-header__controls " : ""
   }${panelHeaderIconButtonClass}`;
   const restoreToPanel = () => {
     setBrowserOverlayMaximized(false);
@@ -128,7 +128,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
   return (
     <div
       ref={rootRef}
-      data-lightcode-browser=""
+      data-poracode-browser=""
       role="group"
       aria-label={t`Browser`}
       className="flex h-full w-full min-h-0 flex-col bg-[var(--content-background)]"
@@ -137,8 +137,8 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
         <div
           className={`${
             hasWindowHeader
-              ? "lightcode-overlay-header"
-              : "lightcode-overlay-header lightcode-overlay-header--no-drag"
+              ? "poracode-overlay-header"
+              : "poracode-overlay-header poracode-overlay-header--no-drag"
           } flex shrink-0 items-center gap-1 border-b border-[color:var(--border)] bg-[var(--content-background)] px-2`}
           style={hasWindowHeader ? overlayHeaderStyle() : { height: "32px" }}
         >

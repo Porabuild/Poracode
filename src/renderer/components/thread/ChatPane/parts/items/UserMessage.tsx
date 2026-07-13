@@ -197,7 +197,7 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
         ? "max-h-[50vh] overflow-y-auto"
         : "";
   const baseBodyClass = `min-w-0 leading-snug ${!isRemote && checkpointRevert ? "pr-12" : "pr-7"} ${collapseClass}`;
-  const inlineBodyClass = `${baseBodyClass} lightcode-user-message-inline-content whitespace-pre-wrap break-words text-[length:var(--lc-chat-font-size)] text-foreground`;
+  const inlineBodyClass = `${baseBodyClass} poracode-user-message-inline-content whitespace-pre-wrap break-words text-[length:var(--lc-chat-font-size)] text-foreground`;
 
   let bodyContent: ReactNode = null;
   let bodyClass = baseBodyClass;
@@ -205,9 +205,9 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
     bodyClass = inlineBodyClass;
     bodyContent = (
       <>
-        <span className="lightcode-slash-chip lightcode-slash-chip--user-message mr-1.5">
-          <span className="lightcode-slash-chip__slash">/</span>
-          <span className="lightcode-slash-chip__name">{slashCommand}</span>
+        <span className="poracode-slash-chip poracode-slash-chip--user-message mr-1.5">
+          <span className="poracode-slash-chip__slash">/</span>
+          <span className="poracode-slash-chip__name">{slashCommand}</span>
         </span>
         {renderUserMessageInlineContent(content, commandPrefixLength, actions)}
       </>
@@ -266,7 +266,7 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
         </>
       ) : null}
       {!isRemote ? (
-        <div className="lightcode-message-action-strip absolute right-2 top-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+        <div className="poracode-message-action-strip absolute right-2 top-2 z-10 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
           {checkpointRevert ? (
             <CheckpointRevertButton
               itemId={checkpointRevert.itemId}

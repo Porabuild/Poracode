@@ -331,7 +331,7 @@ export function RemoteServersSettings() {
   return (
     <SettingsPage
       title={t`Remote Environments`}
-      description={t`Connect directly, through a relay, or over SSH. Every transport uses the same Lightcode remote protocol, projects, threads, and agent runtimes.`}
+      description={t`Connect directly, through a relay, or over SSH. Every transport uses the same Poracode remote protocol, projects, threads, and agent runtimes.`}
       bodyClassName="space-y-3"
     >
       {servers.length > 0 ? (
@@ -376,7 +376,7 @@ export function RemoteServersSettings() {
         <div className="flex gap-2">
           <Button variant="tertiary" size="sm" onPress={() => setAdding("direct")}>
             <Link2 className="size-4" />
-            <Trans>Pair with Lightcode</Trans>
+            <Trans>Pair with Poracode</Trans>
           </Button>
           <Button variant="tertiary" size="sm" onPress={() => setAdding("ssh")}>
             <Plus className="size-4" />

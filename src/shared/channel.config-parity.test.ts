@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   appIdFor,
   artifactPrefixFor,
-  LIGHTCODE_CHANNELS,
+  PORACODE_CHANNELS,
   productNameFor,
   updaterChannelFor,
   userDataDirNameFor,
@@ -22,10 +22,10 @@ const cjs = requireFromHere("../../scripts/electron-builder.shared.cjs") as {
 
 describe("electron-builder.shared.cjs mirrors src/shared/channel.ts", () => {
   it("exposes the same channel list", () => {
-    expect([...cjs.CHANNELS]).toEqual([...LIGHTCODE_CHANNELS]);
+    expect([...cjs.CHANNELS]).toEqual([...PORACODE_CHANNELS]);
   });
 
-  for (const channel of LIGHTCODE_CHANNELS) {
+  for (const channel of PORACODE_CHANNELS) {
     it(`agrees on every value for "${channel}"`, () => {
       expect(cjs.productNameFor(channel)).toBe(productNameFor(channel));
       expect(cjs.appIdFor(channel)).toBe(appIdFor(channel));

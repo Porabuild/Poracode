@@ -11,7 +11,7 @@ const CLIENT_SOURCE_RE = /[\\/]src[\\/](?:renderer|mobile)[\\/].*\.[tj]sx?(?:$|\
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 const MATERIAL_ICON_DIR = resolve(__dirname, "node_modules/material-icon-theme/icons");
 const MATERIAL_ICON_ASSET_PREFIX = "/assets/material-icons/";
-const MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(__dirname, ".lightcode/worktrees"))}/**`;
+const MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(__dirname, ".poracode/worktrees"))}/**`;
 const DESKTOP_OPTIMIZED_DEPS = [
   "@chenglou/pretext",
   "@dnd-kit/dom",
@@ -81,13 +81,13 @@ function buildPostHogEnvDefines(mode: string): Record<string, string> {
 // Inline ternary instead of importing src/shared/channel.normalizeChannel —
 // keeps config loading uniform with tsdown.config.ts. Parity is pinned by
 // src/shared/channel.config-parity.test.ts.
-const lightcodeChannel = process.env.LIGHTCODE_CHANNEL === "nightly" ? "nightly" : "stable";
+const poracodeChannel = process.env.PORACODE_CHANNEL === "nightly" ? "nightly" : "stable";
 
-// Mobile-only build target (LIGHTCODE_BUILD_TARGET=mobile) produces a
+// Mobile-only build target (PORACODE_BUILD_TARGET=mobile) produces a
 // self-contained PWA bundle in dist/mobile for standalone hosting (Vercel),
 // omitting the desktop renderer entry. The default build emits both entries to
 // dist/renderer for the Electron app and its embedded remote-access server.
-const mobileOnly = process.env.LIGHTCODE_BUILD_TARGET === "mobile";
+const mobileOnly = process.env.PORACODE_BUILD_TARGET === "mobile";
 
 // Dev-only: connect the renderer to the standalone React DevTools app for
 // inspecting/profiling rerenders. The React DevTools *browser extension* uses
@@ -97,15 +97,15 @@ const mobileOnly = process.env.LIGHTCODE_BUILD_TARGET === "mobile";
 // `react-devtools` app (run via `pnpm devtools`), which serves a backend on
 // :8097 that the page connects to. The hook must be installed *before* React
 // loads, so we inject a classic <script> at the top of <head>; the deferred
-// `main.tsx` module script runs after it. Opt-in via LIGHTCODE_REACT_DEVTOOLS=1
+// `main.tsx` module script runs after it. Opt-in via PORACODE_REACT_DEVTOOLS=1
 // (set by the `dev:devtools` script) so a normal `pnpm dev` stays noise-free
 // when the standalone app isn't running.
 function reactDevtoolsStandalone(): Plugin {
   return {
-    name: "lightcode:react-devtools-standalone",
+    name: "poracode:react-devtools-standalone",
     apply: "serve",
     transformIndexHtml() {
-      if (process.env.LIGHTCODE_REACT_DEVTOOLS !== "1") {
+      if (process.env.PORACODE_REACT_DEVTOOLS !== "1") {
         return;
       }
       return [
@@ -121,7 +121,7 @@ function reactDevtoolsStandalone(): Plugin {
 
 function resizeObserverLoopErrorFilter(): Plugin {
   return {
-    name: "lightcode:resize-observer-loop-error-filter",
+    name: "poracode:resize-observer-loop-error-filter",
     apply: "serve",
     transformIndexHtml() {
       return [
@@ -164,7 +164,7 @@ function rendererBootstrapTiming(): Plugin {
   ]);
 
   return {
-    name: "lightcode:renderer-bootstrap-timing",
+    name: "poracode:renderer-bootstrap-timing",
     apply: "serve",
     configureServer(server) {
       const serverStartedAt = performance.now();
@@ -192,7 +192,7 @@ function rendererBootstrapTiming(): Plugin {
 
 function mobileDevIndex(): Plugin {
   return {
-    name: "lightcode:mobile-dev-index",
+    name: "poracode:mobile-dev-index",
     apply: "serve",
     configureServer(server) {
       if (!mobileOnly) return;
@@ -210,7 +210,7 @@ function mobileDevIndex(): Plugin {
 
 function mobileSshRuntime(): Plugin {
   return {
-    name: "lightcode:mobile-ssh-runtime",
+    name: "poracode:mobile-ssh-runtime",
     apply: "serve",
     configureServer(server) {
       if (!mobileOnly) return;
@@ -218,7 +218,7 @@ function mobileSshRuntime(): Plugin {
       server.middlewares.use((req, res, next) => {
         const pathname = (req.url ?? "").split("?", 1)[0];
         const name = pathname?.match(
-          /^\/lightcode-ssh-runtime\/(manifest\.json|runtime\.bin)$/,
+          /^\/poracode-ssh-runtime\/(manifest\.json|runtime\.bin)$/,
         )?.[1];
         if (!name) return next();
         const path = resolve(root, name);
@@ -236,7 +236,7 @@ function mobileSshRuntime(): Plugin {
 function materialIconAssets(): Plugin[] {
   return [
     {
-      name: "lightcode:material-icon-assets-dev",
+      name: "poracode:material-icon-assets-dev",
       apply: "serve",
       configureServer(server) {
         server.middlewares.use(MATERIAL_ICON_ASSET_PREFIX, (req, res, next) => {
@@ -274,7 +274,7 @@ function materialIconAssets(): Plugin[] {
       },
     },
     {
-      name: "lightcode:material-icon-assets-build",
+      name: "poracode:material-icon-assets-build",
       apply: "build",
       buildStart() {
         for (const entry of readdirSync(MATERIAL_ICON_DIR, { withFileTypes: true })) {
@@ -315,10 +315,8 @@ export default defineConfig(({ mode }) => ({
   base: "./",
   define: {
     ...buildPostHogEnvDefines(mode),
-    __LIGHTCODE_CHANNEL__: JSON.stringify(lightcodeChannel),
-    "import.meta.env.VITE_LIGHTCODE_BUILD_TARGET": JSON.stringify(
-      mobileOnly ? "mobile" : "desktop",
-    ),
+    __PORACODE_CHANNEL__: JSON.stringify(poracodeChannel),
+    "import.meta.env.VITE_PORACODE_BUILD_TARGET": JSON.stringify(mobileOnly ? "mobile" : "desktop"),
   },
   resolve: {
     tsconfigPaths: true,

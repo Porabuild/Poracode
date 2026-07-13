@@ -8,7 +8,7 @@
 Files excluded by `.gitignore` (most commonly `.env` and friends) are not part of a
 checkout, so a freshly created worktree is missing them. Users currently have to copy
 them by hand or script it via the setup script. Project worktree settings should let
-users declare which ignored files to carry over, and Lightcode should copy them
+users declare which ignored files to carry over, and Poracode should copy them
 automatically when a worktree is created.
 
 ## Decisions

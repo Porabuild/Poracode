@@ -51,7 +51,7 @@ describe("createClaudeAdapter handleOscTitle", () => {
 describe("createClaudeAdapter handleOscNotification (iTerm2 OSC 9;4 progress)", () => {
   const adapter = createClaudeAdapter();
 
-  // Real bodies observed in ~/.lightcode-dev/logs/terminal/*.log after the
+  // Real bodies observed in ~/.poracode-dev/logs/terminal/*.log after the
   // `preferredNotifChannel: "iterm2"` settings flip: "4;0;", "4;0;0", "4;3;0".
   // See plugin/install.ts for the settings wiring.
   it("maps state 0 (remove progress) to idle", () => {

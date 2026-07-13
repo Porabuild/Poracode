@@ -126,7 +126,7 @@ export function BrowserTabStrip(props: { onCreateTab: () => void; variant?: "row
   }
 
   const isHeader = variant === "header";
-  const noDrag = isHeader ? "lightcode-overlay-header__controls" : "";
+  const noDrag = isHeader ? "poracode-overlay-header__controls" : "";
   const containerClass = isHeader
     ? // Stretch tabs to the full titlebar height so their hit area reaches the
       // very top pixel: in fullscreen the cursor can slam to the top edge and

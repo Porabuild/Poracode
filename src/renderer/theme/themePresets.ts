@@ -63,11 +63,11 @@ export const THEME_SPECS: AppThemeSpec[] = [
     },
   },
 
-  // Lightcode Legacy — the original pre-Poracode look (neutral graphite +
+  // Poracode Legacy — the original pre-Poracode look (neutral graphite +
   // blue accent), preserved as a selectable theme so the old style isn't lost.
   {
-    id: "lightcode-legacy",
-    label: "Lightcode Legacy",
+    id: "poracode-legacy",
+    label: "Poracode Legacy",
     light: {
       bg: "#f1f1f4",
       surface: "#fafafb",
@@ -381,7 +381,8 @@ export const APP_THEME_PRESETS: AppThemePreset[] = THEME_SPECS.map((spec) => ({
 const PRESETS_BY_ID = new Map(APP_THEME_PRESETS.map((entry) => [entry.id, entry]));
 
 export function getThemePreset(id: string): AppThemePreset {
-  return PRESETS_BY_ID.get(id) ?? PRESETS_BY_ID.get(DEFAULT_THEME_ID)!;
+  const currentId = id === "lightcode-legacy" ? "poracode-legacy" : id;
+  return PRESETS_BY_ID.get(currentId) ?? PRESETS_BY_ID.get(DEFAULT_THEME_ID)!;
 }
 
 /** `{ id, label }` options for a Select, in catalog order. */

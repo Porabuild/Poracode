@@ -230,7 +230,7 @@ describe("Claude SDK probe process handling", () => {
 
   it("wraps native Windows SDK .cmd shims instead of spawning them directly", () => {
     Object.defineProperty(process, "platform", { value: "win32", configurable: true });
-    const dir = mkdtempSync(join(tmpdir(), "lightcode-claude-probe-shim-"));
+    const dir = mkdtempSync(join(tmpdir(), "poracode-claude-probe-shim-"));
     tempDirs.push(dir);
     const scriptPath = join(dir, "node_modules", "@anthropic-ai", "claude-code", "cli.mjs");
     mkdirSync(join(scriptPath, ".."), { recursive: true });

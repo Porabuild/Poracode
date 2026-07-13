@@ -130,8 +130,8 @@ const config: ThreadConfig = {
 };
 
 function clearBrowserMcpEnv(): void {
-  delete process.env.LIGHTCODE_BROWSER_MCP_URL;
-  delete process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
+  delete process.env.PORACODE_BROWSER_MCP_URL;
+  delete process.env.PORACODE_BROWSER_MCP_TOKEN;
 }
 
 describe("agent command builders", () => {
@@ -190,17 +190,17 @@ describe("agent command builders", () => {
   });
 
   it("injects Codex browser MCP config when enabled, using a token env var", () => {
-    const oldUrl = process.env.LIGHTCODE_BROWSER_MCP_URL;
-    const oldToken = process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
-    process.env.LIGHTCODE_BROWSER_MCP_URL = "http://127.0.0.1:9123";
-    process.env.LIGHTCODE_BROWSER_MCP_TOKEN = "secret-token";
+    const oldUrl = process.env.PORACODE_BROWSER_MCP_URL;
+    const oldToken = process.env.PORACODE_BROWSER_MCP_TOKEN;
+    process.env.PORACODE_BROWSER_MCP_URL = "http://127.0.0.1:9123";
+    process.env.PORACODE_BROWSER_MCP_TOKEN = "secret-token";
     try {
       const spec = buildCodexAppServerCommand(windowsProject, { browserMcpEnabled: true });
       const { cmdArgs } = parseWindowsSpec(spec);
 
       expect(cmdArgs).toContain('mcp_servers.browser.url="http://127.0.0.1:9123/mcp"');
       expect(cmdArgs).toContain(
-        'mcp_servers.browser.bearer_token_env_var="LIGHTCODE_BROWSER_MCP_TOKEN"',
+        'mcp_servers.browser.bearer_token_env_var="PORACODE_BROWSER_MCP_TOKEN"',
       );
       expect(cmdArgs).not.toContain('mcp_servers.browser.bearer_token="secret-token"');
 
@@ -209,14 +209,14 @@ describe("agent command builders", () => {
       expect(disabledArgs.some((a) => a.startsWith("mcp_servers.browser"))).toBe(false);
     } finally {
       if (oldUrl === undefined) {
-        delete process.env.LIGHTCODE_BROWSER_MCP_URL;
+        delete process.env.PORACODE_BROWSER_MCP_URL;
       } else {
-        process.env.LIGHTCODE_BROWSER_MCP_URL = oldUrl;
+        process.env.PORACODE_BROWSER_MCP_URL = oldUrl;
       }
       if (oldToken === undefined) {
-        delete process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
+        delete process.env.PORACODE_BROWSER_MCP_TOKEN;
       } else {
-        process.env.LIGHTCODE_BROWSER_MCP_TOKEN = oldToken;
+        process.env.PORACODE_BROWSER_MCP_TOKEN = oldToken;
       }
     }
   });
@@ -235,7 +235,7 @@ describe("agent command builders", () => {
 
     expect(cmdArgs).toContain('mcp_servers.subagents.url="http://127.0.0.1:9200/mcp"');
     expect(cmdArgs).toContain(
-      'mcp_servers.subagents.bearer_token_env_var="LIGHTCODE_SUBAGENT_MCP_TOKEN"',
+      'mcp_servers.subagents.bearer_token_env_var="PORACODE_SUBAGENT_MCP_TOKEN"',
     );
     expect(cmdArgs).not.toContain('mcp_servers.subagents.bearer_token="subagent-token"');
 

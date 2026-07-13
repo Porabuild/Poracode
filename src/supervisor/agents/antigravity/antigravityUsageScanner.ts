@@ -3,7 +3,7 @@ import {
   antigravityQuotaSummaryWindows,
   type UsageWindow,
   type UsageSnapshot,
-} from "@lightcode/agents-usage";
+} from "@poracode/agents-usage";
 import {
   GET_COMMAND_MODEL_CONFIGS,
   GET_USER_STATUS,

@@ -24,7 +24,7 @@ import type { BrowserMcpHttpConfig } from "../agents/browserMcp";
 import type { ComputerUseMcpHttpConfig } from "../agents/computerUseMcp";
 import type { ChromeMcpHttpConfig } from "../agents/chromeMcp";
 import type { WslBridgeServer } from "../wsl/bridge";
-import { isLightcodeHookDebug } from "./hookDebug";
+import { isPoracodeHookDebug } from "./hookDebug";
 import { HookIngress, type HookIngressBootInfo } from "./hookIngress";
 
 export interface CliHookPluginCoordinatorOptions {
@@ -32,10 +32,10 @@ export interface CliHookPluginCoordinatorOptions {
   settingsPath: string;
   /**
    * Poracode data base dir for native plugin staging. Forwarded to each
-   * adapter's `ctx.baseDir` so dev (`~/.lightcode-dev`) and prod
+   * adapter's `ctx.baseDir` so dev (`~/.poracode-dev`) and prod
    * (`~/.poracode`) keep separate plugin stages instead of stomping the
    * same `agent-plugins/` directory. Omit only in tests — production callers
-   * always pass the resolved lightcode data dir.
+   * always pass the resolved poracode data dir.
    */
   baseDir?: string;
   /** TCP port preference; falls back to ephemeral on collision. */
@@ -116,7 +116,7 @@ export class CliHookPluginCoordinator {
     const ingressOptions: import("./hookIngress").HookIngressOptions = {
       onEvent,
       onError: (message, error) => {
-        if (isLightcodeHookDebug()) {
+        if (isPoracodeHookDebug()) {
           console.warn(`[supervisor] hook-debug: ${message}`, error);
         }
       },
@@ -158,7 +158,7 @@ export class CliHookPluginCoordinator {
     this.ingress.start();
     void this.ingress.ready
       .then((info) => {
-        if (isLightcodeHookDebug()) {
+        if (isPoracodeHookDebug()) {
           console.log(`[supervisor] hook-debug: HookIngress listening ${info.url}`);
         }
       })
@@ -242,18 +242,18 @@ export class CliHookPluginCoordinator {
     const launchExtras = (await slice.pluginLaunchExtras?.(ctx)) ?? {};
 
     const env: Record<string, string> = {
-      LIGHTCODE_HOOK_URL: transport.url,
-      LIGHTCODE_HOOK_SECRET: transport.secret,
+      PORACODE_HOOK_URL: transport.url,
+      PORACODE_HOOK_SECRET: transport.secret,
       // Some agent CLIs sanitize the hook subprocess env, dropping any var whose
       // NAME matches a secret denylist (command-code strips /SECRET|TOKEN|AUTH|
-      // KEY|.../). That removes LIGHTCODE_HOOK_SECRET and leaves the forwarder
+      // KEY|.../). That removes PORACODE_HOOK_SECRET and leaves the forwarder
       // unable to authenticate its POST (it requires url && secret), so status
       // intents never arrive. Carry the same value under a neutral name the
       // denylist doesn't match; the shared forwarder falls back to it.
-      LIGHTCODE_HOOK_NONCE: transport.secret,
-      LIGHTCODE_HOOK_PROTOCOL_VERSION: String(transport.protocolVersion),
-      LIGHTCODE_THREAD_ID: input.threadId,
-      LIGHTCODE_AGENT_KIND: input.agentKind,
+      PORACODE_HOOK_NONCE: transport.secret,
+      PORACODE_HOOK_PROTOCOL_VERSION: String(transport.protocolVersion),
+      PORACODE_THREAD_ID: input.threadId,
+      PORACODE_AGENT_KIND: input.agentKind,
       ...(launchExtras.env ?? {}),
     };
     return { env, extraArgs: launchExtras.args ?? [] };

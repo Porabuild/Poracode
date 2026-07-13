@@ -539,7 +539,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     console.log("[acp] sending initialize...");
     const initResult = await this.connection.initialize({
       protocolVersion: PROTOCOL_VERSION,
-      clientInfo: { name: "lightcode", version: "0.1.0" },
+      clientInfo: { name: "poracode", version: "0.1.0" },
       clientCapabilities: {
         fs: { readTextFile: true, writeTextFile: true },
         elicitation: { form: {}, url: {} },

@@ -45,7 +45,7 @@ export interface OpenTabOptions {
   groupColor?: string;
 }
 
-/** Outbound (Lightcode -> extension) request payloads, minus the correlation id. */
+/** Outbound (Poracode -> extension) request payloads, minus the correlation id. */
 type RequestPayload =
   | { type: "listTabs" }
   | { type: "attach"; tabId?: number }
@@ -258,7 +258,7 @@ export class ExternalChromeConnection {
     }
     if (type === "detached") {
       if (msg.tabId !== this.attachedTabId) return;
-      // The user closed the tab or dismissed the "Lightcode is debugging"
+      // The user closed the tab or dismissed the "Poracode is debugging"
       // banner. Drop the attachment so the next command re-attaches.
       this.attachedTabId = null;
       this.attachedUrl = undefined;

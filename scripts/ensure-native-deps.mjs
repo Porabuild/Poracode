@@ -28,7 +28,7 @@ function ensureElectronBinary() {
   // weight there and its flakiness shouldn't fail the build. App-running flows
   // (local dev, packaging) leave this unset and still get the enforced download.
   if (process.env.ELECTRON_SKIP_BINARY_DOWNLOAD) {
-    console.log("[lightcode] ELECTRON_SKIP_BINARY_DOWNLOAD set; skipping Electron binary check");
+    console.log("[poracode] ELECTRON_SKIP_BINARY_DOWNLOAD set; skipping Electron binary check");
     return;
   }
 
@@ -45,7 +45,7 @@ function ensureElectronBinary() {
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     console.log(
-      `[lightcode] Electron binary missing; running electron/install.js (attempt ${attempt}/${maxAttempts})`,
+      `[poracode] Electron binary missing; running electron/install.js (attempt ${attempt}/${maxAttempts})`,
     );
     // We only reach this loop when the executable is absent. A flaked or partial
     // extraction can still leave dist/version + path.txt behind, which makes
@@ -70,7 +70,7 @@ function ensureElectronBinary() {
   }
 
   throw new Error(
-    `[lightcode] Electron binary is unavailable after ${maxAttempts} attempts of electron/install.js`,
+    `[poracode] Electron binary is unavailable after ${maxAttempts} attempts of electron/install.js`,
   );
 }
 
@@ -80,7 +80,7 @@ function ensureNodePty() {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `[lightcode] node-pty is unavailable: ${message}. If pnpm blocked native build scripts, run 'pnpm approve-builds' and reinstall.`,
+      `[poracode] node-pty is unavailable: ${message}. If pnpm blocked native build scripts, run 'pnpm approve-builds' and reinstall.`,
       { cause: error },
     );
   }
@@ -92,7 +92,7 @@ function ensureBetterSqlite3() {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `[lightcode] better-sqlite3 is unavailable: ${message}. If pnpm blocked native build scripts, run 'pnpm approve-builds' and reinstall.`,
+      `[poracode] better-sqlite3 is unavailable: ${message}. If pnpm blocked native build scripts, run 'pnpm approve-builds' and reinstall.`,
       { cause: error },
     );
   }

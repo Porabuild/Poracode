@@ -9,7 +9,7 @@ describe("prepareClaudeMergedSettingsFile (native)", () => {
   let workDir: string;
 
   beforeAll(() => {
-    workDir = mkdtempSync(join(tmpdir(), "lightcode-merged-settings-test-"));
+    workDir = mkdtempSync(join(tmpdir(), "poracode-merged-settings-test-"));
   });
 
   afterAll(() => {
@@ -30,7 +30,7 @@ describe("prepareClaudeMergedSettingsFile (native)", () => {
       ultracode: true,
       fastMode: true,
     });
-    expect(outPath).toBe(join(workDir, "settings-lightcode.json"));
+    expect(outPath).toBe(join(workDir, "settings-poracode.json"));
     const written = JSON.parse(await fs.readFile(outPath!, "utf8"));
     expect(written.ultracode).toBe(true);
     expect(written.fastMode).toBe(true);
@@ -52,7 +52,7 @@ describe("prepareClaudeMergedSettingsFile (native)", () => {
     const outPath = await prepareClaudeMergedSettingsFile(pluginSettings, posixLocation, {
       ultracode: true,
     });
-    expect(outPath).toBe(join(workDir, "settings-lightcode.json"));
+    expect(outPath).toBe(join(workDir, "settings-poracode.json"));
     const written = JSON.parse(await fs.readFile(outPath!, "utf8"));
     expect(written).toEqual({ ultracode: true });
   });

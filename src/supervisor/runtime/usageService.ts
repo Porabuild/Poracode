@@ -5,7 +5,7 @@ import {
   type HostPort,
   type UsageCollectorRegistry,
   type UsageSnapshot,
-} from "@lightcode/agents-usage";
+} from "@poracode/agents-usage";
 import { coalesceByKey } from "@/shared/coalesce";
 import type { ProviderUsagePayload, ProviderUsageResponse } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";

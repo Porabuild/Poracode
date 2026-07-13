@@ -214,7 +214,7 @@ function ActiveSubAgentRow({
       <button
         type="button"
         onClick={() => openSubAgent(threadId, item.id)}
-        className={`lightcode-subagent-dock-row flex min-w-0 flex-1 text-left transition-[padding,background-color] duration-150 hover:bg-foreground/5 group-hover:pr-8 ${innerClass}`}
+        className={`poracode-subagent-dock-row flex min-w-0 flex-1 text-left transition-[padding,background-color] duration-150 hover:bg-foreground/5 group-hover:pr-8 ${innerClass}`}
         aria-label={display.title}
         title={display.title}
       >
@@ -260,7 +260,7 @@ function ActiveSubAgentRow({
           e.stopPropagation();
           dismiss(threadId, itemId);
         }}
-        className="lightcode-subagent-dismiss absolute right-1 top-1/2 flex -translate-y-1/2 items-center justify-center rounded p-0.5 text-muted/70 opacity-0 transition-opacity duration-150 hover:bg-danger-500/10 hover:text-danger-500 group-hover:opacity-100 focus:opacity-100"
+        className="poracode-subagent-dismiss absolute right-1 top-1/2 flex -translate-y-1/2 items-center justify-center rounded p-0.5 text-muted/70 opacity-0 transition-opacity duration-150 hover:bg-danger-500/10 hover:text-danger-500 group-hover:opacity-100 focus:opacity-100"
       >
         <X className="size-3" />
       </button>

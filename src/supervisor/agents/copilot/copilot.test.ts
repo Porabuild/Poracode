@@ -403,12 +403,12 @@ describe("detectCopilotStatusLineModel", () => {
     // The picker overlay can sit on the same logical line as the status row;
     // `.` matches `\r`, so the captured "model" ends up being the picker glyphs
     // glued together. Reject so we don't pass garbage to `--model` on resume.
-    const text = "~/work/lightcode [↗ master]          ──────────────❯";
+    const text = "~/work/poracode [↗ master]          ──────────────❯";
     expect(detectCopilotStatusLineModel(text)).toBeNull();
   });
 
   it("rejects captured model when it spans an embedded \\r (picker glyphs across two visual lines)", () => {
-    const text = "~/work/lightcode [↗ master]          ─────────\r  ─────❯";
+    const text = "~/work/poracode [↗ master]          ─────────\r  ─────❯";
     expect(detectCopilotStatusLineModel(text)).toBeNull();
   });
 });
@@ -488,10 +488,10 @@ describe("Copilot CLI MCP configuration", () => {
     const local = launch.config.mcpServers["local-tools"];
     const remote = launch.config.mcpServers.Vercel;
     expect(local?.type === "stdio" ? local.env?.API_TOKEN : undefined).toMatch(
-      /^\$\{LIGHTCODE_COPILOT_MCP_[A-F0-9]{16}\}$/u,
+      /^\$\{PORACODE_COPILOT_MCP_[A-F0-9]{16}\}$/u,
     );
     expect(remote?.type === "http" ? remote.headers?.Authorization : undefined).toMatch(
-      /^\$\{LIGHTCODE_COPILOT_MCP_[A-F0-9]{16}\}$/u,
+      /^\$\{PORACODE_COPILOT_MCP_[A-F0-9]{16}\}$/u,
     );
   });
 

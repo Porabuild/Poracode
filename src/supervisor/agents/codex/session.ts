@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
-import { resolveLightcodePaths } from "@/shared/lightcodePaths";
+import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import {
   findSessionFiles,
   getCachedWslHomeDirectory,
@@ -18,11 +18,7 @@ import {
 } from "./sessionFiles";
 
 function nativePrivateCodexHome(): string {
-  return join(
-    resolveLightcodePaths(process.env.LIGHTCODE_DATA_DIR).agentPluginsDir,
-    "codex",
-    "home",
-  );
+  return join(resolvePoracodePaths(process.env.PORACODE_DATA_DIR).agentPluginsDir, "codex", "home");
 }
 
 function nativeCodexHomeCandidates(): string[] {

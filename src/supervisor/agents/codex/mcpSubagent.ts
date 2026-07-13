@@ -7,11 +7,11 @@ import {
  * Distinct from the browser MCP token env var so the two servers can never
  * collide on a single Codex invocation.
  */
-export const CODEX_SUBAGENT_MCP_TOKEN_ENV = "LIGHTCODE_SUBAGENT_MCP_TOKEN";
+export const CODEX_SUBAGENT_MCP_TOKEN_ENV = "PORACODE_SUBAGENT_MCP_TOKEN";
 
 /**
  * Codex CLI accepts inline TOML overrides via `-c key.path=value`. Build the
- * override sequence registering the Lightcode cross-provider subagents MCP
+ * override sequence registering the Poracode cross-provider subagents MCP
  * server for a single Codex invocation, using Codex's streamable-HTTP MCP
  * transport.
  *

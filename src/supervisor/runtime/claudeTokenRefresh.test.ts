@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type { ClaudeRefreshedToken, OAuthToken } from "@lightcode/agents-usage";
+import type { ClaudeRefreshedToken, OAuthToken } from "@poracode/agents-usage";
 import {
   type ClaudeRefreshDeps,
   isClaudeTokenExpired,
@@ -282,7 +282,7 @@ describe("refreshClaudeFileTokenIfExpired", () => {
   });
 
   it("coalesces proactive and forced refreshes for the same credentials file", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "lightcode-claude-refresh-"));
+    const dir = mkdtempSync(join(tmpdir(), "poracode-claude-refresh-"));
     const platform = Object.getOwnPropertyDescriptor(process, "platform");
     Object.defineProperty(process, "platform", { value: "linux" });
     try {

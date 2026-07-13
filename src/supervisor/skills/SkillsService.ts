@@ -66,14 +66,14 @@ import {
 } from "./skillPromptInjection";
 
 const SKILL_FILE = "SKILL.md";
-const MANIFEST_FILE = ".lightcode-skill.json";
+const MANIFEST_FILE = ".poracode-skill.json";
 /** Root id/label for read-only skills shipped with the app (resources/skills). */
-const BUNDLED_PROVIDER_ID = "lightcode-built-in";
+const BUNDLED_PROVIDER_ID = "poracode-built-in";
 const BUNDLED_PROVIDER_LABEL = "Poracode built-ins";
 const PORACODE_PROVIDER_GROUP_ID = "poracode";
 const PORACODE_PROVIDER_GROUP_LABEL = "Poracode";
 const PORACODE_PROVIDER_GROUP_ORDER = -1;
-const DISABLED_SUFFIX = ".lightcode-disabled";
+const DISABLED_SUFFIX = ".poracode-disabled";
 const MAX_SKILL_FILE_BYTES = 1024 * 1024;
 const SKILLS_SH_URL = "https://www.skills.sh/";
 const SKILLS_DIRECTORY_URL = "https://www.skillsdirectory.com/";
@@ -627,7 +627,7 @@ export class SkillsService {
     ) {
       throw new Error(`A managed skill named ${skillId} already exists.`);
     }
-    const stagingPath = join(destinationRoot.fsPath, `.lightcode-marketplace-${randomUUID()}`);
+    const stagingPath = join(destinationRoot.fsPath, `.poracode-marketplace-${randomUUID()}`);
     const backups: Array<{ original: string; backup: string }> = [];
     try {
       await mkdir(stagingPath, { recursive: true });
@@ -674,7 +674,7 @@ export class SkillsService {
       });
       for (const original of [destination, disabledDestination]) {
         if (!(await pathExists(original))) continue;
-        const backup = join(dirname(original), `.lightcode-backup-${randomUUID()}`);
+        const backup = join(dirname(original), `.poracode-backup-${randomUUID()}`);
         await rename(original, backup);
         backups.push({ original, backup });
       }
@@ -921,7 +921,7 @@ export class SkillsService {
           `A skill named ${basename(payload.absolutePath)} already exists in the destination.`,
         );
       }
-      displacedProjection = join(disabledRoot(root.fsPath), `.lightcode-enable-${randomUUID()}`);
+      displacedProjection = join(disabledRoot(root.fsPath), `.poracode-enable-${randomUUID()}`);
       await this.ensureDirectory(environment, dirname(displacedProjection));
       await this.moveSkillPath(environment, destination, displacedProjection);
     }
@@ -975,7 +975,7 @@ export class SkillsService {
     const payload = deleteSkillPayloadSchema.parse(input);
     const environment = await this.resolveEnvironment(payload.projectLocation, payload.wslDistro);
     this.mutableRootForPath(payload.absolutePath, this.roots(environment));
-    const backup = join(dirname(payload.absolutePath), `.lightcode-delete-${randomUUID()}`);
+    const backup = join(dirname(payload.absolutePath), `.poracode-delete-${randomUUID()}`);
     await rename(payload.absolutePath, backup);
     try {
       await this.syncProjections(environment);
@@ -1019,7 +1019,7 @@ export class SkillsService {
       for (const item of prepared) {
         for (const original of [item.destination, item.disabledDestination]) {
           if (!(await pathExists(original))) continue;
-          const backup = join(dirname(original), `.lightcode-backup-${randomUUID()}`);
+          const backup = join(dirname(original), `.poracode-backup-${randomUUID()}`);
           await rename(original, backup);
           item.backups.push({ original, backup });
         }
@@ -1240,7 +1240,7 @@ export class SkillsService {
       environment,
       destination,
       disabledDestination,
-      stagingPath: join(destinationRoot.fsPath, `.lightcode-import-${randomUUID()}`),
+      stagingPath: join(destinationRoot.fsPath, `.poracode-import-${randomUUID()}`),
       ...(sourceHash ? { sourceHash } : {}),
       backups: [],
     };
@@ -1531,12 +1531,12 @@ export class SkillsService {
 
   /**
    * Read-only skills shipped with the app (`resources/skills`, surfaced via
-   * `LIGHTCODE_BUNDLED_SKILLS_DIR`). Always host-side paths, even for WSL
+   * `PORACODE_BUNDLED_SKILLS_DIR`). Always host-side paths, even for WSL
    * environments — the supervisor reads them directly and delivers them
    * through prompt injection or terminal path hints.
    */
   private bundledRoot(): LocatedRoot | undefined {
-    const dir = this.env.LIGHTCODE_BUNDLED_SKILLS_DIR?.trim();
+    const dir = this.env.PORACODE_BUNDLED_SKILLS_DIR?.trim();
     if (!dir) return undefined;
     return {
       providerId: BUNDLED_PROVIDER_ID,
@@ -1854,7 +1854,7 @@ export class SkillsService {
   }
 
   /**
-   * Sync one projection target: remove stale/disabled Lightcode-owned copies
+   * Sync one projection target: remove stale/disabled Poracode-owned copies
    * (identified by their projection manifest), then copy each source skill in,
    * skipping unchanged copies via the source hash. Folders without a matching
    * manifest are user-owned and never overwritten.

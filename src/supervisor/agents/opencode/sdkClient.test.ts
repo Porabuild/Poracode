@@ -39,8 +39,8 @@ function makeHandle(baseUrl: string) {
 }
 
 describe("acquireOpenCodeServer", () => {
-  const oldBrowserMcpUrl = process.env.LIGHTCODE_BROWSER_MCP_URL;
-  const oldBrowserMcpToken = process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
+  const oldBrowserMcpUrl = process.env.PORACODE_BROWSER_MCP_URL;
+  const oldBrowserMcpToken = process.env.PORACODE_BROWSER_MCP_TOKEN;
 
   beforeEach(() => {
     mocks.buildOpenCodeServerCommand.mockReset().mockReturnValue({
@@ -52,20 +52,20 @@ describe("acquireOpenCodeServer", () => {
     mocks.createOpencodeClient.mockReset();
     mocks.resolveAgentBinaryPath.mockReset().mockReturnValue("opencode");
     mocks.spawnOpenCodeServer.mockReset();
-    process.env.LIGHTCODE_BROWSER_MCP_URL = "http://127.0.0.1:9321";
-    process.env.LIGHTCODE_BROWSER_MCP_TOKEN = "test-token";
+    process.env.PORACODE_BROWSER_MCP_URL = "http://127.0.0.1:9321";
+    process.env.PORACODE_BROWSER_MCP_TOKEN = "test-token";
   });
 
   afterEach(() => {
     if (oldBrowserMcpUrl === undefined) {
-      delete process.env.LIGHTCODE_BROWSER_MCP_URL;
+      delete process.env.PORACODE_BROWSER_MCP_URL;
     } else {
-      process.env.LIGHTCODE_BROWSER_MCP_URL = oldBrowserMcpUrl;
+      process.env.PORACODE_BROWSER_MCP_URL = oldBrowserMcpUrl;
     }
     if (oldBrowserMcpToken === undefined) {
-      delete process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
+      delete process.env.PORACODE_BROWSER_MCP_TOKEN;
     } else {
-      process.env.LIGHTCODE_BROWSER_MCP_TOKEN = oldBrowserMcpToken;
+      process.env.PORACODE_BROWSER_MCP_TOKEN = oldBrowserMcpToken;
     }
   });
 

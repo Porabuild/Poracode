@@ -239,7 +239,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
         ) : undefined
       }
       usageHeaderActions={
-        <UsagePanelHeaderActions dragControlClass="lightcode-overlay-header__controls" />
+        <UsagePanelHeaderActions dragControlClass="poracode-overlay-header__controls" />
       }
       showTerminalTab={props.includeTerminal}
       showFilesTab={!isHomeScope}

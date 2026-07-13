@@ -1,4 +1,4 @@
-import type { OAuthToken } from "@lightcode/agents-usage";
+import type { OAuthToken } from "@poracode/agents-usage";
 
 /**
  * z.ai / Zhipu GLM Coding Plan credential resolution from the environment,

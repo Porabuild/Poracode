@@ -237,7 +237,7 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
         }),
     }),
     {
-      name: "lightcode-agent-statuses-v1",
+      name: "poracode-agent-statuses-v1",
       version: 3,
       // v3 adds structured skill command metadata. Drop older cached statuses
       // so enabled skills are not hidden until the next manual provider refresh.

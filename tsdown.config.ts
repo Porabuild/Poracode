@@ -11,20 +11,20 @@ function readEnvValue(key: string): string {
 // tsdown's config loader doesn't follow TS-extension resolution. Equivalence
 // with src/shared/channel.normalizeChannel + scripts/electron-builder.shared.cjs
 // is pinned by src/shared/channel.config-parity.test.ts.
-const channel = process.env.LIGHTCODE_CHANNEL === "nightly" ? "nightly" : "stable";
+const channel = process.env.PORACODE_CHANNEL === "nightly" ? "nightly" : "stable";
 
 const buildDefines = {
   __BUILD_SENTRY_DSN__: JSON.stringify(readEnvValue("SENTRY_DSN")),
   __BUILD_SENTRY_ENVIRONMENT__: JSON.stringify(readEnvValue("SENTRY_ENVIRONMENT")),
-  __LIGHTCODE_CHANNEL__: JSON.stringify(channel),
+  __PORACODE_CHANNEL__: JSON.stringify(channel),
 };
 
 const deps = {
-  // @lightcode/agents-usage is an internal workspace package consumed from
+  // @poracode/agents-usage is an internal workspace package consumed from
   // source (its exports point at src/*.ts). It must be bundled into the
   // supervisor — left external, Node's ESM loader would try to load its raw
   // extensionless .ts imports at runtime and crash.
-  alwaysBundle: ["electron-updater", "simple-git", "zod", /^@lightcode\/agents-usage(?:\/|$)/],
+  alwaysBundle: ["electron-updater", "simple-git", "zod", /^@poracode\/agents-usage(?:\/|$)/],
   onlyBundle: false as const,
   neverBundle: [
     "electron",

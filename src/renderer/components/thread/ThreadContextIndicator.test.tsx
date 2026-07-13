@@ -31,12 +31,10 @@ describe("ThreadContextIndicator", () => {
     fireEvent.click(trigger);
 
     expect(trigger).toHaveAttribute("data-tone", "normal");
-    expect(container.querySelector(".lightcode-context-indicator__ring-number")).toHaveTextContent(
+    expect(container.querySelector(".poracode-context-indicator__ring-number")).toHaveTextContent(
       "36",
     );
-    expect(
-      container.querySelector(".lightcode-context-indicator__percent"),
-    ).not.toBeInTheDocument();
+    expect(container.querySelector(".poracode-context-indicator__percent")).not.toBeInTheDocument();
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 

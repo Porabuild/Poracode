@@ -1,7 +1,7 @@
 {
-  "name": "@lightcode/agents-usage",
+  "name": "@poracode/agents-usage",
   "version": "0.1.0",
-  "description": "Cross-platform usage & quota collection for AI coding agents (Claude, Codex, Copilot, ...). Runtime-agnostic core powering Lightcode's in-app usage tracking; a Windows-first alternative to codexbar/openusage.",
+  "description": "Cross-platform usage & quota collection for AI coding agents (Claude, Codex, Copilot, ...). Runtime-agnostic core powering Poracode's in-app usage tracking; a Windows-first alternative to codexbar/openusage.",
   "keywords": [
     "ai",
     "claude",

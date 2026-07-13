@@ -165,7 +165,7 @@ export function AppProvider(props: {
       document.documentElement.dataset.nativeMaterial = "off";
       return;
     }
-    if (!syncWindowChrome || typeof window === "undefined" || !("lightcode" in window)) {
+    if (!syncWindowChrome || typeof window === "undefined" || !("poracode" in window)) {
       return;
     }
 

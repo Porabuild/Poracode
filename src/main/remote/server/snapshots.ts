@@ -1,5 +1,5 @@
 import {
-  LIGHTCODE_REMOTE_PROTOCOL_VERSION,
+  PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_STANDARD_SCOPES,
   remoteAgentStatusesSchema,
   remoteEnvironmentDescriptorSchema,
@@ -37,7 +37,7 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       ? process.platform
       : undefined;
   return remoteEnvironmentDescriptorSchema.parse({
-    protocolVersion: LIGHTCODE_REMOTE_PROTOCOL_VERSION,
+    protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
     desktopId: ctx.options.identity.desktopId,
     label: ctx.options.identity.label,
     appVersion: ctx.options.appVersion,

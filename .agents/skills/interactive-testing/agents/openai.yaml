@@ -1,4 +1,4 @@
 interface:
-  display_name: "Lightcode Integration Testing"
+  display_name: "Poracode Integration Testing"
   short_description: "Scripted Electron smoke and coverage testing"
   default_prompt: "Use $interactive-testing to run a diff-derived integration smoke test and report explicit coverage evidence."

@@ -1416,10 +1416,6 @@ msgid "Built-in MCP servers"
 msgstr "기본 제공 MCP 서버"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#~ msgid "Built-in servers are managed by Lightcode. They can be disabled globally but cannot be edited or removed."
-#~ msgstr "기본 제공 서버는 Lightcode에서 관리합니다. 전역으로 비활성화할 수 있지만 편집하거나 제거할 수 없습니다."
-
-#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
 msgstr "기본 제공 서버는 Poracode에서 관리합니다. 전역으로 비활성화할 수 있지만 편집하거나 제거할 수 없습니다."
 
@@ -2200,10 +2196,6 @@ msgid "Config directory"
 msgstr "설정 디렉터리"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
-#~ msgid "Configure the server Lightcode will add when supported agents start."
-#~ msgstr "지원되는 에이전트가 시작될 때 Lightcode에서 추가할 서버를 구성하세요."
-
-#: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
 msgstr "지원되는 에이전트가 시작될 때 Poracode에서 추가할 서버를 구성하세요."
 
@@ -2243,8 +2235,8 @@ msgid "Connect desktop"
 msgstr "데스크톱 연결"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Connect directly, through a relay, or over SSH. Every transport uses the same Lightcode remote protocol, projects, threads, and agent runtimes."
-msgstr "직접, 릴레이 또는 SSH를 통해 연결하세요. 모든 전송 방식은 동일한 Lightcode 원격 프로토콜, 프로젝트, 스레드 및 에이전트 런타임을 사용합니다."
+msgid "Connect directly, through a relay, or over SSH. Every transport uses the same Poracode remote protocol, projects, threads, and agent runtimes."
+msgstr "직접, 릴레이 또는 SSH를 통해 연결하세요. 모든 전송 방식은 동일한 Poracode 원격 프로토콜, 프로젝트, 스레드 및 에이전트 런타임을 사용합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect over SSH"
@@ -2259,8 +2251,8 @@ msgid "Connect the AI providers OpenCode can use and sign out of them here."
 msgstr "OpenCode가 사용할 수 있는 AI 공급자를 여기에서 연결하고 로그아웃하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
-#~ msgstr "다른 Lightcode 데스크톱이나 헤드리스 서버에 연결하면 여기에서 해당 프로젝트를 탐색하고 관리할 수 있습니다. 해당 기기의 설정 → 원격 액세스에서 엔드포인트와 페어링 토큰을 확인하세요."
+#~ msgid "Connect to another Poracode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
+#~ msgstr "다른 Poracode 데스크톱이나 헤드리스 서버에 연결하면 여기에서 해당 프로젝트를 탐색하고 관리할 수 있습니다. 해당 기기의 설정 → 원격 액세스에서 엔드포인트와 페어링 토큰을 확인하세요."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Connected"
@@ -2402,6 +2394,10 @@ msgstr "복사(권장)"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Copy {0} device code {1}"
 msgstr "{0} 장치 코드 {1} 복사"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
+msgstr "모든 Lightcode 데이터를 Poracode로 복사합니다. Poracode가 다시 시작되며 현재 데이터의 전체 백업을 보관합니다."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
@@ -2558,6 +2554,10 @@ msgstr "에이전트 스킬을 검사하지 못했습니다."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "MCP 서버 구성을 스캔할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Couldn't schedule the Lightcode data import."
+msgstr "Lightcode 데이터 가져오기를 예약할 수 없습니다."
 
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -2952,8 +2952,8 @@ msgid "Dev servers listening on your desktop's localhost."
 msgstr "데스크톱의 localhost에서 대기 중인 개발 서버입니다."
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
-msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
-msgstr "개발 전용 재정의. LIGHTCODE DEV 빌드에서만 볼 수 있습니다."
+msgid "Development-only overrides. Only visible in the PORACODE DEV build."
+msgstr "개발 전용 재정의. PORACODE DEV 빌드에서만 볼 수 있습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4175,6 +4175,14 @@ msgstr "이미지"
 msgid "Image preview"
 msgstr "이미지 미리보기"
 
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import again"
+msgstr "다시 가져오기"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import and restart"
+msgstr "가져오고 다시 시작"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import conflict"
 msgstr "가져오기 충돌"
@@ -4195,6 +4203,14 @@ msgstr "외부 에이전트 스킬 가져오기"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import external skills"
 msgstr "외부 스킬 가져오기"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import Lightcode data"
+msgstr "Lightcode 데이터 가져오기"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import Lightcode data again?"
+msgstr "Lightcode 데이터를 다시 가져오시겠습니까?"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
@@ -4506,9 +4522,9 @@ msgstr "누적 토큰"
 msgid "Light"
 msgstr "라이트"
 
-#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
-msgid "Lightcode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
-msgstr "Lightcode와 에이전트는 원격 머신에서 실행됩니다. SSH는 원격 환경을 시작하고 로컬 터널을 보호하는 데만 사용됩니다."
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Lightcode data import is unavailable with a custom data folder."
+msgstr "사용자 지정 데이터 폴더에서는 Lightcode 데이터를 가져올 수 없습니다."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Link to source"
@@ -4729,10 +4745,6 @@ msgstr "전역 및 프로젝트 범위의 공유 스킬을 관리합니다."
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage shared skills across Windows, WSL, and projects."
 #~ msgstr "Windows, WSL 및 프로젝트에서 공유 스킬을 관리합니다."
-
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
-#~ msgstr "지원되는 에이전트를 시작할 때 Lightcode에서 추가하는 MCP 서버 구성을 관리하세요. 작업 영역 서버는 각 프로젝트 설정에서 구성할 수 있습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5547,6 +5559,10 @@ msgstr "GitHub CLI 계정을 찾을 수 없습니다. <0>gh auth login</0>으로
 msgid "No history yet"
 msgstr "아직 기록이 없습니다"
 
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "No Lightcode data was found."
+msgstr "Lightcode 데이터를 찾을 수 없습니다."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
 msgstr "이 필터와 일치하는 마켓플레이스 스킬이 없습니다."
@@ -6203,8 +6219,8 @@ msgid "Pair again"
 msgstr "다시 페어링"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Pair with Lightcode"
-msgstr "Lightcode와 페어링"
+msgid "Pair with Poracode"
+msgstr "Poracode와 페어링"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -6396,6 +6412,10 @@ msgstr "사용자 지정 환경 변수, 모델 이름, 추론 강도 단계로 �
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "Poracode에 맞게 조정된 인기 있는 편집기 테마입니다. 각각은 위의 밝은 모드 또는 어두운 모드를 따릅니다."
 
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
+msgstr "Poracode와 에이전트는 원격 머신에서 실행됩니다. SSH는 원격 환경을 시작하고 로컬 터널을 보호하는 데만 사용됩니다."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode는 마켓플레이스 자격 증명을 설정에 일반 텍스트로 저장하지 않습니다. 카탈로그를 열어 보안 검사를 마친 스킬을 살펴보세요."
@@ -6409,6 +6429,10 @@ msgstr "Poracode 전용"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
 msgstr "Poracode는 SSH 호스트에 서버를 설치하거나 기존 서버를 재사용하며 자격 증명을 이 기기의 보안 저장소에 보관합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
+msgstr "Poracode가 다시 시작되어 현재 데이터를 백업한 다음 Lightcode 데이터의 전체 복사본으로 교체합니다."
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -6602,10 +6626,6 @@ msgstr "프롬프트"
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "제안된 계획"
-
-#: src/renderer/components/mcp/McpServersManager.tsx
-#~ msgid "Provided and managed by Lightcode for supported agents."
-#~ msgstr "지원되는 에이전트를 위해 Lightcode에서 제공하고 관리합니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Provided and managed by Poracode for supported agents."
@@ -7538,8 +7558,8 @@ msgid "Scheduled tasks on this desktop"
 msgstr "이 데스크톱의 예약 작업"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-#~ msgid "Scheduled tasks run only while this device is awake and Lightcode is open."
-#~ msgstr "예약 작업은 이 기기가 켜져 있고 Lightcode가 열려 있을 때만 실행됩니다."
+#~ msgid "Scheduled tasks run only while this device is awake and Poracode is open."
+#~ msgstr "예약 작업은 이 기기가 켜져 있고 Poracode가 열려 있을 때만 실행됩니다."
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9572,13 +9592,13 @@ msgstr "브랜치 업데이트"
 msgid "Update error: {detail}"
 msgstr "업데이트 오류:{detail}"
 
-#: src/mobile/views/PortsView.tsx
-msgid "Update Lightcode on your desktop to use port forwarding."
-msgstr "포트 포워딩을 사용하려면 데스크톱의 Lightcode를 업데이트하세요."
-
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update method"
 msgstr "업데이트 방법"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Update Poracode on your desktop to use port forwarding."
+msgstr "포트 포워딩을 사용하려면 데스크톱의 Poracode를 업데이트하세요."
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"

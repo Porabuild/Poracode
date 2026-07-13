@@ -31,7 +31,7 @@ export const useAppStore = create<AppStoreState>()(
         ...createSubAgentOverlaySlice(...a),
       }),
       {
-        name: "lightcode-app-v2",
+        name: "poracode-app-v2",
         version: 4,
         storage: createDbStorage(),
         merge: (persistedState, currentState) => {

@@ -1,4 +1,4 @@
-package com.lightcodeapp.sshbridge;
+package com.poracode.sshbridge;
 
 import android.util.Base64;
 import com.getcapacitor.JSArray;
@@ -232,7 +232,7 @@ public class SshBridgePlugin extends Plugin {
                     } catch (IOException error) {
                         if (!socket.isClosed()) android.util.Log.w("SshBridge", "SSH forwarder stopped", error);
                     }
-                }, "lightcode-ssh-forward-" + connectionId);
+                }, "poracode-ssh-forward-" + connectionId);
                 thread.setDaemon(true);
                 state.forwardSocket = socket;
                 state.forwardThread = thread;

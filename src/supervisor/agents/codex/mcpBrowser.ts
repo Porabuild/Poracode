@@ -5,7 +5,7 @@ import {
   type BrowserMcpLocation,
 } from "@/supervisor/agents/browserMcp";
 
-export const CODEX_BROWSER_MCP_TOKEN_ENV = "LIGHTCODE_BROWSER_MCP_TOKEN";
+export const CODEX_BROWSER_MCP_TOKEN_ENV = "PORACODE_BROWSER_MCP_TOKEN";
 
 /**
  * Codex CLI accepts inline TOML overrides via `-c key.path=value`. Build the

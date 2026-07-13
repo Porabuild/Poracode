@@ -24,8 +24,8 @@ export function bumpProfileDataGeneration(): void {
 /** How long durable usage events are retained (well beyond the 364-day heatmap). */
 const USAGE_EVENTS_RETENTION_DAYS = 730;
 
-const HEADLESS_SERVER_ENV = "LIGHTCODE_HEADLESS_SERVER";
-const BETTER_SQLITE_NATIVE_BINDING_ENV = "LIGHTCODE_BETTER_SQLITE3_NATIVE_BINDING";
+const HEADLESS_SERVER_ENV = "PORACODE_HEADLESS_SERVER";
+const BETTER_SQLITE_NATIVE_BINDING_ENV = "PORACODE_BETTER_SQLITE3_NATIVE_BINDING";
 const DEFAULT_SERVER_NATIVE_BINDING = join("dist", "server-native", "better_sqlite3.node");
 
 export function resolveBetterSqliteNativeBindingOptions(

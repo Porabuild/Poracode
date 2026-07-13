@@ -31,7 +31,7 @@ const PERSIST_DEBOUNCE_MS = 600;
 const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function hasBridge(): boolean {
-  return typeof window !== "undefined" && !!window.lightcode?.dbSetProjectNotes;
+  return typeof window !== "undefined" && !!window.poracode?.dbSetProjectNotes;
 }
 
 function makeTodoId(): string {

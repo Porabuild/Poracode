@@ -26,7 +26,7 @@ describe("app controls MCP provider mappings", () => {
       "mcp_servers.poracode.url",
     );
     expect(buildCodexAppControlsMcpEnv(config)).toEqual({
-      LIGHTCODE_APP_CONTROLS_MCP_TOKEN: "secret",
+      PORACODE_APP_CONTROLS_MCP_TOKEN: "secret",
     });
     expect(buildGeminiAppControlsMcpServers(location, config)?.poracode).toMatchObject({
       httpUrl: config.url,

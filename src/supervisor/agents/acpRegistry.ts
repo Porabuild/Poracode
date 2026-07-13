@@ -46,7 +46,7 @@ export async function fetchAcpRegistry(): Promise<AcpRegistryListResult> {
 
 /**
  * Cache every (agentId, iconUrl) pair in parallel and return the resolved
- * `lightcode-local://` (or unchanged, on download failure) URL per agent.
+ * `poracode-local://` (or unchanged, on download failure) URL per agent.
  * Without the parallelism N installed agents become N serial CDN fetches;
  * with it total wall-clock is one round-trip.
  */
@@ -147,7 +147,7 @@ export async function backfillAcpRegistryAgentIcons(input: {
 
 /**
  * Launch-time icon repair: convert any installed acp-generic icon still
- * pointing at a remote CDN URL to a locally-cached `lightcode-local://` URL,
+ * pointing at a remote CDN URL to a locally-cached `poracode-local://` URL,
  * using the URL already stored in settings — no registry fetch. An install
  * that ran offline (or predates icon caching) otherwise re-fetches the icon
  * over the network on every start, which flickers the sidebar rows until the
@@ -470,7 +470,7 @@ export async function installAcpRegistryAgent(input: {
     throw new Error(`ACP registry agent not found: ${input.agentId}`);
   }
 
-  // Cache the icon to disk so settings stores a `lightcode-local://` URL
+  // Cache the icon to disk so settings stores a `poracode-local://` URL
   // rather than the upstream CDN URL — the renderer can then paint the icon
   // synchronously on every app start.
   const cachedIcon = agent.icon

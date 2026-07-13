@@ -39,7 +39,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-public static class LightcodeJobObjectApi {
+public static class PoracodeJobObjectApi {
     private const int JobObjectExtendedLimitInformation = 9;
     private const uint JobObjectLimitKillOnJobClose = 0x00002000;
     private const uint ProcessSetQuota = 0x0100;
@@ -172,12 +172,12 @@ function Send-Message($message) {
 $job = [IntPtr]::Zero
 
 try {
-  $parentPidRaw = $env:LIGHTCODE_PARENT_PID
+  $parentPidRaw = $env:PORACODE_PARENT_PID
   if ($parentPidRaw) {
-    [LightcodeJobObjectApi]::ExitWhenProcessExits([int]$parentPidRaw)
+    [PoracodeJobObjectApi]::ExitWhenProcessExits([int]$parentPidRaw)
   }
 
-  $job = [LightcodeJobObjectApi]::CreateKillOnCloseJobObject()
+  $job = [PoracodeJobObjectApi]::CreateKillOnCloseJobObject()
   Send-Message @{ type = 'ready' }
 
   while (($line = [Console]::In.ReadLine()) -ne $null) {
@@ -196,7 +196,7 @@ try {
     }
 
     try {
-      [LightcodeJobObjectApi]::AssignPid($job, [int]$request.pid)
+      [PoracodeJobObjectApi]::AssignPid($job, [int]$request.pid)
       Send-Message @{ type = 'assigned'; id = [int]$request.id; pid = [int]$request.pid }
     } catch {
       Send-Message @{ type = 'error'; id = [int]$request.id; message = $_.Exception.Message }
@@ -207,7 +207,7 @@ try {
   exit 1
 } finally {
   if ($job -ne [IntPtr]::Zero) {
-    [LightcodeJobObjectApi]::CloseHandle($job) | Out-Null
+    [PoracodeJobObjectApi]::CloseHandle($job) | Out-Null
   }
 }`;
 }
@@ -267,7 +267,7 @@ export class WindowsJobObjectManager {
       {
         env: {
           ...process.env,
-          LIGHTCODE_PARENT_PID: String(process.pid),
+          PORACODE_PARENT_PID: String(process.pid),
         },
         stdio: ["pipe", "pipe", "pipe"],
         windowsHide: true,
@@ -424,7 +424,7 @@ export class WindowsJobObjectManager {
     this.rejectPendingAssignments(error);
 
     if (!this.isDisposing && child) {
-      console.error("[lightcode] Windows Job Object helper exited:", error.message);
+      console.error("[poracode] Windows Job Object helper exited:", error.message);
     }
   }
 

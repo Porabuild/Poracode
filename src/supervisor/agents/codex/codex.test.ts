@@ -125,14 +125,14 @@ describe("deriveCodexStructuredState", () => {
     expect(
       parseCodexSocketMessage({
         jsonrpc: "2.0",
-        id: "lightcode-1",
+        id: "poracode-1",
         result: {
           ok: true,
         },
       }),
     ).toEqual({
       kind: "response",
-      id: "lightcode-1",
+      id: "poracode-1",
       result: {
         ok: true,
       },

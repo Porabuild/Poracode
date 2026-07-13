@@ -32,7 +32,7 @@ function uninstallListener(): void {
  * visible — e.g. a terminal inside a login overlay, a Monaco editor inside the
  * file-editor overlay, or an open mention popover inside a sub-agent drawer.
  */
-const FOCUS_RETAINS_ESCAPE = ".xterm, .monaco-editor, .lightcode-mention-input";
+const FOCUS_RETAINS_ESCAPE = ".xterm, .monaco-editor, .poracode-mention-input";
 
 function onKeyDown(event: KeyboardEvent): void {
   if (event.key !== "Escape") return;

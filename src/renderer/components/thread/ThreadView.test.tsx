@@ -145,7 +145,7 @@ describe("ThreadView", () => {
     });
 
     const browserIcon = screen.getByLabelText("Browser MCP enabled for this thread");
-    expect(hasAncestorWithClassFragment(browserIcon, "lightcode-overlay-header__controls")).toBe(
+    expect(hasAncestorWithClassFragment(browserIcon, "poracode-overlay-header__controls")).toBe(
       true,
     );
     expect(screen.queryByLabelText("Disable Browser MCP")).toBeNull();
@@ -268,6 +268,7 @@ describe("ThreadView", () => {
         prompt: "hi",
         mcpServers: [],
         disabledBuiltInMcpServerIds: [],
+        disabledBuiltInMcpTools: {},
         initialSize: {
           cols: 120,
           rows: 40,
@@ -408,7 +409,7 @@ describe("ThreadView", () => {
   it("strips Electron IPC framing from launch errors before surfacing them", async () => {
     bridge.startThread.mockRejectedValueOnce(
       new Error(
-        "Error invoking remote method 'lightcode:start-thread': Error: This conversation can't be resumed.",
+        "Error invoking remote method 'poracode:start-thread': Error: This conversation can't be resumed.",
       ),
     );
     const onLaunchFailed = vi.fn<(message: string) => void>();
@@ -673,7 +674,7 @@ describe("ThreadView", () => {
     expect(
       hasAncestorWithClassFragment(
         screen.getAllByLabelText("Select model")[0]!,
-        "lightcode-composer-shell--preserve-disabled-controls",
+        "poracode-composer-shell--preserve-disabled-controls",
       ),
     ).toBe(true);
     // The stop button stands in for the send button during launch.

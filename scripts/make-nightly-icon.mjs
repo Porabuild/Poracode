@@ -28,7 +28,7 @@ const OUT_ICNS = join(BUILD_DIR, "icon-nightly.icns");
 const OUT_ICO = join(BUILD_DIR, "icon-nightly.ico");
 
 const SIZE = 1024;
-const stage = mkdtempSync(join(tmpdir(), "lightcode-nightly-icon-"));
+const stage = mkdtempSync(join(tmpdir(), "poracode-nightly-icon-"));
 console.log(`stage: ${stage}`);
 
 try {

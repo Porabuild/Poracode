@@ -11,7 +11,7 @@
  *
  * Security note: we deliberately resolve ONLY self-contained inline images
  * (`data:` URLs, magic-detected base64, raw `<svg>`). We never promote an
- * agent-supplied `http(s)://`, `file://`, `lightcode-local://`, or filesystem
+ * agent-supplied `http(s)://`, `file://`, `poracode-local://`, or filesystem
  * path into an `<img src>` — that would let a malicious/prompt-injected tool
  * result trigger an outbound request (tracking pixel / SSRF) or read a local
  * file on the user's machine simply because the user viewed the thread. Such

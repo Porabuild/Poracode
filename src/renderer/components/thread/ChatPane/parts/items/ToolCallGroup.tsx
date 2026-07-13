@@ -165,7 +165,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
             ) : null}
             <div
               ref={scrollRef}
-              className={`lightcode-tool-call-group-viewport flex flex-col gap-0.5 pr-1 ${
+              className={`poracode-tool-call-group-viewport flex flex-col gap-0.5 pr-1 ${
                 showAll ? "max-h-[420px] overflow-y-auto" : ""
               }`}
             >
@@ -383,12 +383,12 @@ function InlineRowTitle({
   const shimmerRef = useShimmer<HTMLElement>(isRunning);
   const displayTitle = normalizeCallTitleSeparator(title);
   const displayPrefix = titleParts ? normalizeCallTitleSeparator(titleParts.prefix) : undefined;
-  const shimmerData = isRunning ? { "data-lightcode-shimmer-text": displayTitle } : {};
+  const shimmerData = isRunning ? { "data-poracode-shimmer-text": displayTitle } : {};
   if (titleParts) {
     return (
       <code
         ref={shimmerRef}
-        className={`flex min-w-0 items-baseline overflow-hidden font-mono !text-[color:var(--muted)] ${isRunning ? "lightcode-thinking-text !flex" : ""}`}
+        className={`flex min-w-0 items-baseline overflow-hidden font-mono !text-[color:var(--muted)] ${isRunning ? "poracode-thinking-text !flex" : ""}`}
         {...shimmerData}
       >
         <span className="shrink-0 whitespace-pre">{displayPrefix}</span>
@@ -411,7 +411,7 @@ function InlineRowTitle({
   return (
     <code
       ref={shimmerRef}
-      className={`min-w-0 truncate font-mono !text-[color:var(--muted)] ${isRunning ? "lightcode-thinking-text" : ""}`}
+      className={`min-w-0 truncate font-mono !text-[color:var(--muted)] ${isRunning ? "poracode-thinking-text" : ""}`}
       {...shimmerData}
     >
       {displayTitle}

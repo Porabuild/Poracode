@@ -1,20 +1,20 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveLightcodeBaseDir, resolveLightcodePaths } from "./lightcodePaths";
+import { resolvePoracodeBaseDir, resolvePoracodePaths } from "./poracodePaths";
 
-describe("lightcodePaths", () => {
+describe("poracodePaths", () => {
   it("derives the default base dir under the user home", () => {
-    expect(resolveLightcodeBaseDir("stable")).toBe(join(homedir(), ".poracode"));
+    expect(resolvePoracodeBaseDir("stable")).toBe(join(homedir(), ".poracode"));
   });
 
   it("returns the nightly base dir when the channel is nightly", () => {
-    expect(resolveLightcodeBaseDir("nightly")).toBe(join(homedir(), ".poracode-nightly"));
+    expect(resolvePoracodeBaseDir("nightly")).toBe(join(homedir(), ".poracode-nightly"));
   });
 
   it("derives all persisted paths from the provided base dir", () => {
-    const baseDir = join("tmp", "lightcode");
-    expect(resolveLightcodePaths(baseDir)).toEqual({
+    const baseDir = join("tmp", "poracode");
+    expect(resolvePoracodePaths(baseDir)).toEqual({
       baseDir,
       dbPath: join(baseDir, "state.sqlite"),
       settingsPath: join(baseDir, "settings.json"),

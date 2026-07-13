@@ -114,7 +114,7 @@ describe.skipIf(process.platform !== "win32")("buildWindowsCommand", () => {
   });
 
   it("bypasses npm .cmd shims so multiline args stay in argv", () => {
-    const dir = mkdtempSync(join(tmpdir(), "lightcode-cmd-shim-"));
+    const dir = mkdtempSync(join(tmpdir(), "poracode-cmd-shim-"));
     tempDirs.push(dir);
     const scriptPath = join(dir, "node_modules", "command-code", "dist", "index.mjs");
     mkdirSync(join(scriptPath, ".."), { recursive: true });

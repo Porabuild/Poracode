@@ -148,7 +148,7 @@ export function ComposerAddMenu(props: {
     <Button
       isIconOnly
       aria-label={t`Add attachment or capability`}
-      className="lightcode-composer-menu min-w-9 px-2"
+      className="poracode-composer-menu min-w-9 px-2"
       size="sm"
       variant="ghost"
       {...(mobile ? { onPress: () => setIsOpen(true) } : {})}
@@ -277,7 +277,7 @@ export function ComposerAddMenu(props: {
           onAction={(key) => {
             if (key === "file") handlePickFiles();
           }}
-          className="lightcode-menu min-w-52"
+          className="poracode-menu min-w-52"
         >
           {showFileOption ? (
             <Dropdown.Item id="file" textValue={t`File`}>
@@ -310,7 +310,7 @@ export function ComposerAddMenu(props: {
                     selectionMode="multiple"
                     selectedKeys={submenuSelectedKeys}
                     onSelectionChange={handleSubmenuSelection}
-                    className="lightcode-menu max-h-72 min-w-56 overflow-y-auto"
+                    className="poracode-menu max-h-72 min-w-56 overflow-y-auto"
                   >
                     {visibleMcpServers.map((server) => {
                       const Icon = server.descriptor.icon;

@@ -376,13 +376,13 @@ describe("runAgentLoginCommand", () => {
 
     const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
     const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
-    const token = /lightcode-login-complete=([^:]+):/u.exec(script)?.[1];
+    const token = /poracode-login-complete=([^:]+):/u.exec(script)?.[1];
     expect(token).toBeTruthy();
 
     emit({
       type: "thread-output",
       threadId: shellId!,
-      data: `\u001B]777;lightcode-login-complete=${token}:1\u0007`,
+      data: `\u001B]777;poracode-login-complete=${token}:1\u0007`,
       outputLength: 0,
     });
     vi.advanceTimersByTime(1200);
@@ -401,13 +401,13 @@ describe("runAgentLoginCommand", () => {
 
     const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
     const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
-    const token = /lightcode-login-complete=([^:]+):/u.exec(script)?.[1];
+    const token = /poracode-login-complete=([^:]+):/u.exec(script)?.[1];
     expect(token).toBeTruthy();
 
     emit({
       type: "thread-output",
       threadId: shellId!,
-      data: `\u001B]777;lightcode-login-complete=${token}:0\u0007`,
+      data: `\u001B]777;poracode-login-complete=${token}:0\u0007`,
       outputLength: 0,
     });
 
@@ -429,7 +429,7 @@ describe("runAgentLoginCommand", () => {
 
     const innerScript = unwrapBashScript(script);
     expect(innerScript).toContain("https://opencode.ai/install | bash");
-    expect(innerScript).toContain("printf '\\033]777;lightcode-login-complete=lc_");
+    expect(innerScript).toContain("printf '\\033]777;poracode-login-complete=lc_");
     expect(innerScript).toContain('"$__lc_exit"');
   });
 });

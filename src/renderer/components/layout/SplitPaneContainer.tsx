@@ -154,8 +154,8 @@ const Divider = React.memo(
         }}
         className={`${
           divider.parentAxis === "vertical"
-            ? "lightcode-pane-divider"
-            : "lightcode-pane-divider-horizontal"
+            ? "poracode-pane-divider"
+            : "poracode-pane-divider-horizontal"
         }`}
         style={{
           position: "absolute",
@@ -198,10 +198,10 @@ const DividerDropZone = React.memo(
       <div
         ref={elementRef}
         aria-hidden="true"
-        className={`lightcode-pane-divider-drop-zone ${
+        className={`poracode-pane-divider-drop-zone ${
           divider.parentAxis === "vertical"
-            ? "lightcode-pane-divider-drop-zone--vertical"
-            : "lightcode-pane-divider-drop-zone--horizontal"
+            ? "poracode-pane-divider-drop-zone--vertical"
+            : "poracode-pane-divider-drop-zone--horizontal"
         } ${isHighlighted ? "is-highlighted" : ""}`}
       />
     );

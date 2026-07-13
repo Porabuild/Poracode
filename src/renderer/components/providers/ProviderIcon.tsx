@@ -27,7 +27,7 @@ function DoneCheckOverlay() {
     <svg
       aria-hidden
       viewBox="0 0 24 24"
-      className="lightcode-provider-icon__done-check text-success"
+      className="poracode-provider-icon__done-check text-success"
     >
       <path
         d="M5 13l4 4L19 7"
@@ -45,16 +45,16 @@ function ExternalProviderIcon(props: { src: string; tone: StatusTone; className?
   const style = externalIconStyle(props.src);
   return (
     <span
-      className={`lightcode-provider-icon lightcode-provider-icon--external lightcode-provider-icon--${props.tone}${props.className ? ` ${props.className}` : ""}`}
+      className={`poracode-provider-icon poracode-provider-icon--external poracode-provider-icon--${props.tone}${props.className ? ` ${props.className}` : ""}`}
     >
       <span
-        className={`lightcode-provider-icon__mask${props.tone === "done" ? " opacity-40" : ""}`}
+        className={`poracode-provider-icon__mask${props.tone === "done" ? " opacity-40" : ""}`}
         style={style}
       />
       {props.tone === "working" ? (
         <span
           ref={syncMaskScanPhase}
-          className="lightcode-provider-icon__mask lightcode-provider-icon__mask-scan"
+          className="poracode-provider-icon__mask poracode-provider-icon__mask-scan"
           style={style}
         />
       ) : null}
@@ -83,10 +83,10 @@ function claudeProfileBadgeLabel(kind: string, fallbackLabel: string | undefined
 function GenericProviderIcon(props: { label?: string; tone: StatusTone; className?: string }) {
   return (
     <span
-      className={`lightcode-provider-icon lightcode-provider-icon--${props.tone}${props.className ? ` ${props.className}` : ""}`}
+      className={`poracode-provider-icon poracode-provider-icon--${props.tone}${props.className ? ` ${props.className}` : ""}`}
     >
       <span
-        className={`lightcode-provider-icon__generic${props.tone === "done" ? " opacity-40" : ""}`}
+        className={`poracode-provider-icon__generic${props.tone === "done" ? " opacity-40" : ""}`}
       >
         {fallbackInitial(props.label)}
       </span>

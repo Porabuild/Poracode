@@ -5,7 +5,7 @@ import Foundation
 ///
 /// IMPORTANT: ActivityKit requires the *exact same* `ActivityAttributes` type
 /// (same name, same `ContentState` shape) to be compiled into BOTH the app's
-/// plugin target and the `LightcodeActivities` widget-extension target. This
+/// plugin target and the `PoracodeActivities` widget-extension target. This
 /// file is the single source of truth — add it as a shared file reference to
 /// the widget extension target (see docs/RELEASE_MOBILE.md), do not copy it.
 ///

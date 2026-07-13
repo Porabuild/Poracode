@@ -1,6 +1,6 @@
 import { registerPlugin } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
-import { ActivityBridge } from "@lightcode/activity-bridge";
+import { ActivityBridge } from "@poracode/activity-bridge";
 import type { RemotePushRegistration } from "@/shared/remote";
 import type { RemoteDesktopClient } from "../remoteClient";
 
@@ -9,7 +9,7 @@ import type { RemoteDesktopClient } from "../remoteClient";
  *
  * iOS: collects the ordinary APNs device token (via
  * `@capacitor/push-notifications`), plus the Live Activity push-to-start token
- * and per-activity update tokens (via `@lightcode/activity-bridge`).
+ * and per-activity update tokens (via `@poracode/activity-bridge`).
  *
  * Android: the same `@capacitor/push-notifications` "registration" listener
  * yields the device's **FCM registration token** (Android has no native code

@@ -14,14 +14,14 @@ const bridgeMcp: BrowserMcpHttpConfig = {
 };
 
 afterEach(() => {
-  delete process.env.LIGHTCODE_BROWSER_MCP_URL;
-  delete process.env.LIGHTCODE_BROWSER_MCP_TOKEN;
+  delete process.env.PORACODE_BROWSER_MCP_URL;
+  delete process.env.PORACODE_BROWSER_MCP_TOKEN;
 });
 
 describe("WSL Browser MCP provider configs", () => {
   it("resolves WSL Browser MCP through the in-distro bridge", async () => {
-    process.env.LIGHTCODE_BROWSER_MCP_URL = "http://127.0.0.1:65093";
-    process.env.LIGHTCODE_BROWSER_MCP_TOKEN = "host-token";
+    process.env.PORACODE_BROWSER_MCP_URL = "http://127.0.0.1:65093";
+    process.env.PORACODE_BROWSER_MCP_TOKEN = "host-token";
     const ensureBridge = vi.fn<() => Promise<{ baseUrl: string; secret: string }>>(async () => ({
       baseUrl: "http://127.0.0.1:45678",
       secret: "bridge-secret",
@@ -53,7 +53,7 @@ describe("WSL Browser MCP provider configs", () => {
       'mcp_servers.browser.url="http://127.0.0.1:45678/mcp"',
     );
     expect(buildCodexBrowserMcpEnv(bridgeMcp)).toEqual({
-      LIGHTCODE_BROWSER_MCP_TOKEN: "bridge-secret",
+      PORACODE_BROWSER_MCP_TOKEN: "bridge-secret",
     });
     expect(buildGeminiBrowserMcpServers(wslLocation, bridgeMcp)).toEqual({
       browser: {
@@ -73,8 +73,8 @@ describe("WSL Browser MCP provider configs", () => {
   });
 
   it("does not fall back to host-gateway MCP when WSL bridge resolution failed", () => {
-    process.env.LIGHTCODE_BROWSER_MCP_URL = "http://127.0.0.1:65093";
-    process.env.LIGHTCODE_BROWSER_MCP_TOKEN = "host-token";
+    process.env.PORACODE_BROWSER_MCP_URL = "http://127.0.0.1:65093";
+    process.env.PORACODE_BROWSER_MCP_TOKEN = "host-token";
 
     expect(buildAcpBrowserMcpServers(wslLocation, true)).toEqual([]);
     expect(buildClaudeBrowserMcpServers(wslLocation, true)).toBeUndefined();

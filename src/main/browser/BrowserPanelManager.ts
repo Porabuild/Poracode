@@ -9,7 +9,7 @@ import {
   type BrowserTabInfo,
 } from "@/shared/ipc";
 import type { UsageLoginConfirmationAction, UsageLoginDeviceCode } from "@/shared/contracts";
-import type { LightcodePaths } from "@/shared/lightcodePaths";
+import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { BrowserLinkOpenTarget, BrowserLinkPresentationMode } from "@/shared/settings";
 import { dbGetState, dbSetState } from "../db";
 import { readSharedSettingsFile } from "../sharedSettingsFile";
@@ -85,7 +85,7 @@ export class BrowserPanelManager {
   });
 
   constructor(
-    private readonly paths: LightcodePaths,
+    private readonly paths: PoracodePaths,
     private readonly browserUserAgent: string,
     private readonly options: BrowserPanelManagerOptions = {},
   ) {
@@ -733,7 +733,7 @@ export class BrowserPanelManager {
     if (active && active.isAttached()) {
       active.webContents
         .executeJavaScript(
-          `(() => { window.dispatchEvent(new CustomEvent("__lightcode_picker_cancel")); })()`,
+          `(() => { window.dispatchEvent(new CustomEvent("__poracode_picker_cancel")); })()`,
           false,
         )
         .catch(() => {});

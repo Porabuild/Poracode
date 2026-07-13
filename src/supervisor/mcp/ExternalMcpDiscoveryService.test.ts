@@ -81,7 +81,7 @@ describe("ExternalMcpDiscoveryService", () => {
         mcp: {
           user_tool: { type: 'local', command: ['npx', '-y', 'user-tool'], timeout: 7000 },
           browser: { type: 'remote', url: 'https://managed.example.test/mcp' },
-          lightcode_subagents: { type: 'remote', url: 'https://legacy.example.test/mcp' },
+          poracode_subagents: { type: 'remote', url: 'https://legacy.example.test/mcp' },
           CaseManaged: { type: 'remote', url: 'https://sidecar.example.test/mcp' },
         },
       }`,

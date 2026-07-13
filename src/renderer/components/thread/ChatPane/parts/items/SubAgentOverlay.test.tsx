@@ -109,13 +109,13 @@ describe("SubAgentOverlay", () => {
       </AppProvider>,
     );
 
-    const row = view.container.querySelector(".lightcode-subagent-dock-row");
+    const row = view.container.querySelector(".poracode-subagent-dock-row");
     expect(row).not.toBeNull();
     expect(
-      row?.querySelector('[data-lightcode-shimmer-text="Agent: protocol specialist"]'),
+      row?.querySelector('[data-poracode-shimmer-text="Agent: protocol specialist"]'),
     ).toBeNull();
     expect(row?.textContent).not.toContain("specialist·GPT");
-    expect(row?.querySelector(".lightcode-pixel-loader")).not.toBeNull();
+    expect(row?.querySelector(".poracode-pixel-loader")).not.toBeNull();
   });
 
   it("renders child messages through the main timeline parser", async () => {

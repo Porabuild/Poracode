@@ -6,7 +6,7 @@
 //   node scripts/probe-opencode-events.mjs [prompt]
 //
 // Prerequisite: opencode binary on PATH at C:/Users/sdsle/.opencode/bin/opencode.exe
-// (or wherever the user's lightcode resolution points to).
+// (or wherever the user's poracode resolution points to).
 
 import { spawn } from "node:child_process";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2";

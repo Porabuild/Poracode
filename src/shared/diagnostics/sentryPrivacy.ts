@@ -1,26 +1,26 @@
-export const LIGHTCODE_DIAGNOSTIC_TAG_KEYS = [
-  "lightcode.app_version",
-  "lightcode.arch",
-  "lightcode.channel",
-  "lightcode.chrome",
-  "lightcode.electron",
-  "lightcode.feature_area",
-  "lightcode.node",
-  "lightcode.platform",
-  "lightcode.presentation",
-  "lightcode.process",
-  "lightcode.provider",
-  "lightcode.runtime_kind",
+export const PORACODE_DIAGNOSTIC_TAG_KEYS = [
+  "poracode.app_version",
+  "poracode.arch",
+  "poracode.channel",
+  "poracode.chrome",
+  "poracode.electron",
+  "poracode.feature_area",
+  "poracode.node",
+  "poracode.platform",
+  "poracode.presentation",
+  "poracode.process",
+  "poracode.provider",
+  "poracode.runtime_kind",
   "event.environment",
   "event.origin",
   "event.process",
 ] as const;
 
-export type LightcodeDiagnosticTagKey = (typeof LIGHTCODE_DIAGNOSTIC_TAG_KEYS)[number];
+export type PoracodeDiagnosticTagKey = (typeof PORACODE_DIAGNOSTIC_TAG_KEYS)[number];
 
-export type LightcodeDiagnosticTags = Partial<Record<LightcodeDiagnosticTagKey, string>>;
+export type PoracodeDiagnosticTags = Partial<Record<PoracodeDiagnosticTagKey, string>>;
 
-export type LightcodeRuntimeDiagnosticContext = {
+export type PoracodeRuntimeDiagnosticContext = {
   provider?: string;
   presentation?: "gui" | "terminal";
   runtimeKind?: "pty" | "structured";
@@ -47,14 +47,14 @@ export type SentryEventLike = Record<string, unknown> & {
   user?: Record<string, unknown>;
 };
 
-const ALLOWED_TAG_KEYS = new Set<string>(LIGHTCODE_DIAGNOSTIC_TAG_KEYS);
+const ALLOWED_TAG_KEYS = new Set<string>(PORACODE_DIAGNOSTIC_TAG_KEYS);
 const ALLOWED_CONTEXT_KEYS = new Set([
   "app",
   "browser",
   "chrome",
   "device",
   "gpu",
-  "lightcode",
+  "poracode",
   "node",
   "os",
   "runtime",
@@ -169,13 +169,13 @@ function sanitizeException(exception: SentryEventLike["exception"]): SentryEvent
 }
 
 export function buildRuntimeDiagnosticTags(
-  context: LightcodeRuntimeDiagnosticContext,
-): LightcodeDiagnosticTags {
+  context: PoracodeRuntimeDiagnosticContext,
+): PoracodeDiagnosticTags {
   return {
-    ...(context.provider ? { "lightcode.provider": context.provider } : {}),
-    ...(context.presentation ? { "lightcode.presentation": context.presentation } : {}),
-    ...(context.runtimeKind ? { "lightcode.runtime_kind": context.runtimeKind } : {}),
-    ...(context.featureArea ? { "lightcode.feature_area": context.featureArea } : {}),
+    ...(context.provider ? { "poracode.provider": context.provider } : {}),
+    ...(context.presentation ? { "poracode.presentation": context.presentation } : {}),
+    ...(context.runtimeKind ? { "poracode.runtime_kind": context.runtimeKind } : {}),
+    ...(context.featureArea ? { "poracode.feature_area": context.featureArea } : {}),
   };
 }
 

@@ -1,6 +1,6 @@
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import type { AntigravityModelQuota } from "@lightcode/agents-usage";
+import type { AntigravityModelQuota } from "@poracode/agents-usage";
 
 /**
  * Antigravity language-server RPC: the Connect-RPC calls against the loopback LS

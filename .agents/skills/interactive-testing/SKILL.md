@@ -1,9 +1,9 @@
 ---
 name: interactive-testing
-description: Run repeatable integration and smoke testing against the real Lightcode Electron app through Chrome DevTools Protocol. Use when asked to smoke test, integration test, interactively test, verify a refactor in the UI, reproduce a renderer crash, click through the app, or check that changes did not regress functionality. Build a diff-derived coverage plan, run the scripted baseline and targeted scenarios, complete every required manual gate, capture screenshots and runtime errors, and report explicit per-surface evidence.
+description: Run repeatable integration and smoke testing against the real Poracode Electron app through Chrome DevTools Protocol. Use when asked to smoke test, integration test, interactively test, verify a refactor in the UI, reproduce a renderer crash, click through the app, or check that changes did not regress functionality. Build a diff-derived coverage plan, run the scripted baseline and targeted scenarios, complete every required manual gate, capture screenshots and runtime errors, and report explicit per-surface evidence.
 ---
 
-# Interactive Testing — Lightcode
+# Interactive Testing — Poracode
 
 Test the real Electron renderer, preload bridge, main process, and supervisor integration. Treat unit tests as complementary; do not substitute them for this workflow when the skill triggers.
 
@@ -13,13 +13,13 @@ Test the real Electron renderer, preload bridge, main process, and supervisor in
 2. Audit the functional inventory:
 
    ```sh
-   node .agents/skills/interactive-testing/scripts/lightcode-integration-smoke.mjs audit
+   node .agents/skills/interactive-testing/scripts/poracode-integration-smoke.mjs audit
    ```
 
 3. Generate the diff-derived plan:
 
    ```sh
-   node .agents/skills/interactive-testing/scripts/lightcode-integration-smoke.mjs plan --scope changed
+   node .agents/skills/interactive-testing/scripts/poracode-integration-smoke.mjs plan --scope changed
    ```
 
 4. Boot an isolated dev app unless the user explicitly requests their existing profile.
@@ -38,23 +38,23 @@ The one-command runner below checks that ports are free and refuses to touch an 
 pnpm run smoke:integration -- --scope changed --mode mock
 ```
 
-This creates and commits a disposable fixture project, seeds an isolated database, starts Electron with an isolated profile, dismisses and verifies the first-launch welcome screen, runs the integration suite, writes screenshots/report artifacts under `~/.lightcode-smoke`, and tears down the process automatically. No provider credentials, PTY input, git mutations, MCP server, mobile device, or native update flow is required for the default mock run.
+This creates and commits a disposable fixture project, seeds an isolated database, starts Electron with an isolated profile, dismisses and verifies the first-launch welcome screen, runs the integration suite, writes screenshots/report artifacts under `~/.poracode-smoke`, and tears down the process automatically. No provider credentials, PTY input, git mutations, MCP server, mobile device, or native update flow is required for the default mock run.
 
-The committed dev hooks in `src/main/main.ts` must honor `LIGHTCODE_CDP_PORT` and `LIGHTCODE_BASE_DIR`. Never rename or delete `~/.lightcode-dev` as a workaround.
+The committed dev hooks in `src/main/main.ts` must honor `PORACODE_CDP_PORT` and `PORACODE_BASE_DIR`. Never rename or delete `~/.poracode-dev` as a workaround.
 
 ## Run the deterministic suite
 
 Changed-surface run:
 
 ```sh
-node .agents/skills/interactive-testing/scripts/lightcode-integration-smoke.mjs run \
+node .agents/skills/interactive-testing/scripts/poracode-integration-smoke.mjs run \
   --scope changed --mode mock --port 9222 --outDir "$SMOKE_ROOT/artifacts"
 ```
 
 Full functional inventory run:
 
 ```sh
-node .agents/skills/interactive-testing/scripts/lightcode-integration-smoke.mjs run \
+node .agents/skills/interactive-testing/scripts/poracode-integration-smoke.mjs run \
   --scope full --mode mock --port 9222 --outDir "$SMOKE_ROOT/artifacts"
 ```
 
@@ -69,7 +69,7 @@ The runner first dismisses the welcome screen through its real primary action an
 Do not acknowledge a real gate before exercising it. After completing real gates through real controls, record them:
 
 ```sh
-node .agents/skills/interactive-testing/scripts/lightcode-integration-smoke.mjs run \
+node .agents/skills/interactive-testing/scripts/poracode-integration-smoke.mjs run \
   --scope changed --mode real --port 9222 --outDir "$SMOKE_ROOT/artifacts" \
   --ack-manual provider-live,runtime-requests
 ```
@@ -79,7 +79,7 @@ node .agents/skills/interactive-testing/scripts/lightcode-integration-smoke.mjs 
 Use raw CDP helpers for state, evaluation, and screenshots:
 
 ```sh
-H=.agents/skills/interactive-testing/scripts/lightcode-cdp.mjs
+H=.agents/skills/interactive-testing/scripts/poracode-cdp.mjs
 node "$H" eval 'location.href'
 node "$H" nav about
 node "$H" shot - "$SMOKE_ROOT/artifacts/manual-about.png"
@@ -102,7 +102,7 @@ For a changed provider, start a fresh thread in the isolated project, observe th
 The integration runner invokes this automatically when Browser-related paths changed. It can also be run directly:
 
 ```sh
-node .agents/skills/interactive-testing/scripts/lightcode-browser-smoke.mjs \
+node .agents/skills/interactive-testing/scripts/poracode-browser-smoke.mjs \
   --port 9222 --outDir "$SMOKE_ROOT/artifacts/browser"
 ```
 
@@ -118,7 +118,7 @@ If a changed behavior cannot be automated against a safe fixture, add a determin
 
 ## Safety and teardown
 
-- Default to `LIGHTCODE_BASE_DIR` under `$HOME/.lightcode-smoke`; never mutate real threads or settings.
+- Default to `PORACODE_BASE_DIR` under `$HOME/.poracode-smoke`; never mutate real threads or settings.
 - Never blanket-kill Electron, Node, or `electron.exe`. Stop only the background process/session launched for this run.
 - Never send destructive prompts or approve destructive permission requests.
 - Write artifacts outside the repository so file watchers do not restart Electron.

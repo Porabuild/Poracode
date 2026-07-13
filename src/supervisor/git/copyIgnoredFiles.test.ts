@@ -58,8 +58,8 @@ describe("copyIgnoredFilesIntoWorktree", () => {
   let worktreeDir: string;
 
   beforeEach(async () => {
-    repoDir = await mkdtemp(join(tmpdir(), "lightcode-copy-src-"));
-    worktreeDir = await mkdtemp(join(tmpdir(), "lightcode-copy-dest-"));
+    repoDir = await mkdtemp(join(tmpdir(), "poracode-copy-src-"));
+    worktreeDir = await mkdtemp(join(tmpdir(), "poracode-copy-dest-"));
 
     await execFileAsync("git", ["init"], { cwd: repoDir });
     await writeFile(join(repoDir, ".gitignore"), ".env*\nsecrets/\n");

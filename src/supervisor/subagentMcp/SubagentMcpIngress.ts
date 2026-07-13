@@ -145,7 +145,7 @@ export class SubagentMcpIngress {
     if (auth && auth.startsWith("Bearer ")) {
       token = auth.slice(7).trim();
     } else {
-      const xToken = req.headers["x-lightcode-token"];
+      const xToken = req.headers["x-poracode-token"];
       if (typeof xToken === "string") token = xToken;
     }
     if (!token) return null;

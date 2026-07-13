@@ -16,7 +16,7 @@ import { writeFileAtomic } from "@/shared/atomicFile";
  * permissions.
  *
  * Precedence:
- *   1. `LIGHTCODE_SECRET_STORAGE_KEY` env (base64, 32 bytes) — lets an operator
+ *   1. `PORACODE_SECRET_STORAGE_KEY` env (base64, 32 bytes) — lets an operator
  *      inject a key from a real secret manager and keep it off disk.
  *   2. the persisted key file.
  *   3. a freshly generated key, persisted for next boot.
@@ -70,10 +70,10 @@ function readOrCreatePersistedSecret(
 
 export function readOrCreateHeadlessSecretKey(baseDir: string): string {
   return readOrCreatePersistedSecret(keyFilePath(baseDir), {
-    fromEnv: process.env.LIGHTCODE_SECRET_STORAGE_KEY?.trim(),
+    fromEnv: process.env.PORACODE_SECRET_STORAGE_KEY?.trim(),
     validateEnv: (value) => {
       if (!isValidKey(value)) {
-        throw new Error("LIGHTCODE_SECRET_STORAGE_KEY must be a base64-encoded 32-byte key.");
+        throw new Error("PORACODE_SECRET_STORAGE_KEY must be a base64-encoded 32-byte key.");
       }
     },
     isValid: isValidKey,
@@ -86,12 +86,12 @@ const RELAY_SECRET_FILE = "relay-secret";
 /**
  * Secret that proves ownership of this server's relay id (its desktopId) to a
  * relay. Persisted so the id stays claimable across restarts; env-overridable
- * via `LIGHTCODE_REMOTE_RELAY_SECRET`. Unlike the storage key this need not be
+ * via `PORACODE_REMOTE_RELAY_SECRET`. Unlike the storage key this need not be
  * 32 bytes — it's an opaque bearer string between the server and the relay.
  */
 export function readOrCreateRelaySecret(baseDir: string): string {
   return readOrCreatePersistedSecret(join(baseDir, RELAY_SECRET_FILE), {
-    fromEnv: process.env.LIGHTCODE_REMOTE_RELAY_SECRET?.trim(),
+    fromEnv: process.env.PORACODE_REMOTE_RELAY_SECRET?.trim(),
     isValid: (value) => value.length > 0,
     generate: () => randomBytes(32).toString("base64url"),
   });

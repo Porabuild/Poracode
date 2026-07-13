@@ -120,7 +120,7 @@ export const XTermSurface = forwardRef<
       onReset: () => void;
       onExited: (exitCode: number | null) => void;
     }) => () => void;
-    /** Override PTY input/resize for a terminal hosted on a remote Lightcode server. */
+    /** Override PTY input/resize for a terminal hosted on a remote Poracode server. */
     writeInput?: (data: string) => Promise<void>;
     resizeBackingTerminal?: (size: TerminalSize) => Promise<void>;
     /**
@@ -264,7 +264,7 @@ export const XTermSurface = forwardRef<
     const RESIZE_DEBOUNCE_BUFFER_THRESHOLD = 200;
 
     // Resolve the PTY backend: a caller-provided override (a terminal hosted on
-    // a remote Lightcode server) or the local supervisor bridge. Each reads its
+    // a remote Poracode server) or the local supervisor bridge. Each reads its
     // ref lazily so a later prop update is still honored.
     const writeInputToPty = (data: string): Promise<void> =>
       writeInputRef.current
@@ -909,7 +909,7 @@ export const XTermSurface = forwardRef<
     } else if (key === "paste-in-input") {
       if (!terminal.hasSelection()) return;
       window.dispatchEvent(
-        new CustomEvent("lightcode:paste-to-composer", { detail: terminal.getSelection() }),
+        new CustomEvent("poracode:paste-to-composer", { detail: terminal.getSelection() }),
       );
       terminal.clearSelection();
     }
@@ -952,16 +952,16 @@ export const XTermSurface = forwardRef<
   return (
     <ContextMenu items={contextMenuItems} onAction={handleContextMenuAction}>
       <div
-        className={`lightcode-terminal-shell relative h-full w-full overflow-visible ${className ?? ""}`}
+        className={`poracode-terminal-shell relative h-full w-full overflow-visible ${className ?? ""}`}
         style={
           {
-            "--lightcode-terminal-scrollbar-width": `${TERMINAL_SCROLLBAR_WIDTH}px`,
+            "--poracode-terminal-scrollbar-width": `${TERMINAL_SCROLLBAR_WIDTH}px`,
           } as CSSProperties
         }
       >
         <div
           ref={mountRef}
-          className={`lightcode-terminal-pane h-full ${
+          className={`poracode-terminal-pane h-full ${
             fixedTerminalSize ? "min-w-max overflow-visible" : "min-w-0 overflow-hidden"
           }`}
         />
@@ -984,13 +984,13 @@ export const XTermSurface = forwardRef<
         ) : null}
         <div
           ref={scrollbarTrackRef}
-          className={`lightcode-terminal-scrollbar absolute bottom-0 right-0 top-0 ${
+          className={`poracode-terminal-scrollbar absolute bottom-0 right-0 top-0 ${
             scrollbar.isVisible ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
           onPointerDown={handleScrollbarPointerDown}
         >
           <div
-            className="lightcode-terminal-scrollbar__thumb"
+            className="poracode-terminal-scrollbar__thumb"
             style={{
               height: `${scrollbar.thumbHeightPercent}%`,
               top: `${scrollbar.thumbTopPercent}%`,

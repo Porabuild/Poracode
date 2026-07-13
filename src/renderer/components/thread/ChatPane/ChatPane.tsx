@@ -297,7 +297,7 @@ export function ChatPane(props: ChatPaneProps) {
         <div className="relative min-h-0 flex-1">
           <div
             ref={setScrollContainer}
-            data-lightcode-chat-scroller="true"
+            data-poracode-chat-scroller="true"
             className="min-h-0 h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
             style={scrollFadeStyle}
             onWheelCapture={(event) => {
@@ -490,7 +490,7 @@ function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean })
         const elapsed = formatElapsed(elapsedSeconds);
         const text = elapsedSeconds < 1 ? "" : t`Worked for ${elapsed}`;
         node.textContent = text;
-        node.dataset.lightcodeShimmerText = text;
+        node.dataset.poracodeShimmerText = text;
         return;
       }
       const pauseState = pauseStateRef.current;
@@ -502,7 +502,7 @@ function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean })
       const elapsed = formatElapsed(elapsedSeconds);
       const text = elapsedSeconds < 1 ? "" : t`Working for ${elapsed}`;
       node.textContent = text;
-      node.dataset.lightcodeShimmerText = text;
+      node.dataset.poracodeShimmerText = text;
     };
 
     if (isPaused) {
@@ -528,7 +528,7 @@ function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean })
 
   const isThinking = !isPaused && turn.endedAt === null;
   useShimmerRef(textRef, isThinking);
-  const className = isThinking ? "lightcode-thinking-text" : "text-muted";
+  const className = isThinking ? "poracode-thinking-text" : "text-muted";
   return <span ref={textRef} className={className} aria-live="polite" />;
 }
 

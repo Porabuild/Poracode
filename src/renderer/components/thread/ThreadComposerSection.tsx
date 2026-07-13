@@ -513,8 +513,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       const text = (e as CustomEvent<string>).detail;
       if (text) setPrompt((prev) => prev + text);
     }
-    window.addEventListener("lightcode:paste-to-composer", handlePasteToComposer);
-    return () => window.removeEventListener("lightcode:paste-to-composer", handlePasteToComposer);
+    window.addEventListener("poracode:paste-to-composer", handlePasteToComposer);
+    return () => window.removeEventListener("poracode:paste-to-composer", handlePasteToComposer);
   }, []);
 
   // Publish the rendered presentation + collapsed state so the browser element
@@ -778,18 +778,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             {thread.worktreePath ? (
                               <Tooltip delay={0}>
                                 <Tooltip.Trigger tabIndex={-1} role="none">
-                                  <div className="lightcode-composer-static lightcode-composer-worktree min-w-0 max-w-48 px-2.5">
+                                  <div className="poracode-composer-static poracode-composer-worktree min-w-0 max-w-48 px-2.5">
                                     <GitFork className="size-3.5 text-muted" />
                                     <span
                                       data-collapse-tier={3}
-                                      className="lightcode-composer-label-hideable truncate"
+                                      className="poracode-composer-label-hideable truncate"
                                     >
                                       {branchName}
                                     </span>
                                     {thread.prNumber ? (
                                       <span
                                         data-collapse-tier={3}
-                                        className="lightcode-composer-label-hideable shrink-0 text-muted/60"
+                                        className="poracode-composer-label-hideable shrink-0 text-muted/60"
                                       >
                                         PR #{thread.prNumber}
                                       </span>

@@ -37,7 +37,7 @@ describe("QuestionAnswer", () => {
     expect(screen.getByText("Use README.md instead.")).toBeInTheDocument();
     const revertButton = screen.getByRole("button", { name: "Revert to this checkpoint" });
     expect(revertButton).toBeInTheDocument();
-    expect(revertButton.closest(".lightcode-message-action-strip")).not.toBeNull();
+    expect(revertButton.closest(".poracode-message-action-strip")).not.toBeNull();
   });
 
   it("renders nothing when the payload has no questions", () => {

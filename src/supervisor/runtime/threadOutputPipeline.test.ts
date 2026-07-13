@@ -43,7 +43,7 @@ describe("resolveThreadStatusSource", () => {
     ).toBe("terminal_parse");
   });
 
-  it("returns cli_hook when LIGHTCODE_HOOK_URL was injected at spawn (before any hook POST)", () => {
+  it("returns cli_hook when PORACODE_HOOK_URL was injected at spawn (before any hook POST)", () => {
     expect(
       resolveThreadStatusSource({
         cliHookEnvInjected: true,
@@ -437,7 +437,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
         pty: { write: vi.fn<(data: string) => void>() },
       } as unknown as SessionRuntime;
 
-      p.handlePtyData(session, "\x1b]0;⠴ lightcode\x07");
+      p.handlePtyData(session, "\x1b]0;⠴ poracode\x07");
 
       expect(session.status).toBe("working");
       expect(session.attention).toBe("working");
@@ -499,7 +499,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
         pty: { write: vi.fn<(data: string) => void>() },
       } as unknown as SessionRuntime;
 
-      p.handlePtyData(session, "\x1b]0;⠴ lightcode\x07");
+      p.handlePtyData(session, "\x1b]0;⠴ poracode\x07");
       session.hasCliHookPluginActivity = true;
       p.applyCliHookPluginState(session, { status: "idle", attention: "none" });
 
@@ -550,7 +550,7 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
         pty: { write: vi.fn<(data: string) => void>() },
       } as unknown as SessionRuntime;
 
-      p.handlePtyData(session, "\x1b]0;⠴ lightcode\x07");
+      p.handlePtyData(session, "\x1b]0;⠴ poracode\x07");
       await vi.advanceTimersByTimeAsync(600);
       expect(resolveThreadStatusSource(session)).toBe("terminal_parse");
 

@@ -1,4 +1,4 @@
-// The mobile-only Vite build (LIGHTCODE_BUILD_TARGET=mobile) emits its entry
+// The mobile-only Vite build (PORACODE_BUILD_TARGET=mobile) emits its entry
 // as `mobile.html` (named after the source file). Hosting platforms and the
 // Capacitor native shells both default to serving `index.html` from the web
 // root, so mirror the entry to `index.html`. Asset URLs use a relative base
@@ -11,16 +11,16 @@ const source = join(outDir, "mobile.html");
 const target = join(outDir, "index.html");
 const wellKnownDir = join(outDir, ".well-known");
 const sshRuntimeSourceDir = resolve(process.cwd(), "resources/mobile-ssh-runtime");
-const sshRuntimeTargetDir = join(outDir, "lightcode-ssh-runtime");
-const appId = readEnv("LIGHTCODE_MOBILE_APP_ID") || "com.lightcodeapp.mobile";
+const sshRuntimeTargetDir = join(outDir, "poracode-ssh-runtime");
+const appId = readEnv("PORACODE_MOBILE_APP_ID") || "com.lightcodeapp.mobile";
 const androidFingerprints = readFingerprintList();
-const appleTeamId = readEnv("LIGHTCODE_MOBILE_APPLE_TEAM_ID");
+const appleTeamId = readEnv("PORACODE_MOBILE_APPLE_TEAM_ID");
 const requireAndroidLinks =
-  readBoolEnv("LIGHTCODE_MOBILE_REQUIRE_NATIVE_LINKS") ||
-  readBoolEnv("LIGHTCODE_MOBILE_REQUIRE_ANDROID_LINKS");
+  readBoolEnv("PORACODE_MOBILE_REQUIRE_NATIVE_LINKS") ||
+  readBoolEnv("PORACODE_MOBILE_REQUIRE_ANDROID_LINKS");
 const requireIosLinks =
-  readBoolEnv("LIGHTCODE_MOBILE_REQUIRE_NATIVE_LINKS") ||
-  readBoolEnv("LIGHTCODE_MOBILE_REQUIRE_IOS_LINKS");
+  readBoolEnv("PORACODE_MOBILE_REQUIRE_NATIVE_LINKS") ||
+  readBoolEnv("PORACODE_MOBILE_REQUIRE_IOS_LINKS");
 
 if (!existsSync(source)) {
   console.error(`[finalize-mobile-build] missing ${source}; did the mobile build run?`);
@@ -29,12 +29,12 @@ if (!existsSync(source)) {
 
 if (requireAndroidLinks && androidFingerprints.length === 0) {
   console.error(
-    "[finalize-mobile-build] missing LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINT for Android App Links.",
+    "[finalize-mobile-build] missing PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINT for Android App Links.",
   );
   process.exit(1);
 }
 if (requireIosLinks && !appleTeamId) {
-  console.error("[finalize-mobile-build] missing LIGHTCODE_MOBILE_APPLE_TEAM_ID for iOS links.");
+  console.error("[finalize-mobile-build] missing PORACODE_MOBILE_APPLE_TEAM_ID for iOS links.");
   process.exit(1);
 }
 
@@ -62,8 +62,8 @@ function readBoolEnv(key) {
 
 function readFingerprintList() {
   const raw =
-    readEnv("LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS") ||
-    readEnv("LIGHTCODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINT");
+    readEnv("PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS") ||
+    readEnv("PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINT");
   return raw
     .split(/[\n,]/)
     .map((value) => value.trim())

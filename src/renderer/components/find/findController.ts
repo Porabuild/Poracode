@@ -13,7 +13,7 @@ export type FindTarget = "editor" | "terminal" | "settings" | "git" | "tree" | "
 
 /**
  * Decide which surface a Find (Ctrl+F) press should target. Focus wins first
- * (cursor inside Monaco, an xterm, or a surface tagged `data-lightcode-find-
+ * (cursor inside Monaco, an xterm, or a surface tagged `data-poracode-find-
  * scope`); otherwise the topmost open overlay is used; the active chat is the
  * fallback. Returns null when nothing is searchable (e.g. a blocking modal owns
  * its own input, or the home view).
@@ -23,12 +23,12 @@ export function resolveFindTarget(): FindTarget | null {
   if (isEditorFocusElement(element)) return "editor";
   if (isTerminalFocusElement(element)) return "terminal";
   const scope = element
-    ?.closest("[data-lightcode-find-scope]")
-    ?.getAttribute("data-lightcode-find-scope");
+    ?.closest("[data-poracode-find-scope]")
+    ?.getAttribute("data-poracode-find-scope");
   if (scope === "git" || scope === "settings" || scope === "tree" || scope === "chat") {
     return scope;
   }
-  if (element?.closest("[data-lightcode-browser]")) return null;
+  if (element?.closest("[data-poracode-browser]")) return null;
 
   const panel = usePanelStore.getState();
   // Blocking modals trap their own input — leave Ctrl+F to them.

@@ -40,8 +40,8 @@ const args = process.argv.slice(2);
 
 function usage() {
   console.error(`Usage:
-  node --no-warnings .agents/skills/interactive-testing/scripts/seed-lightcode-smoke-db.mjs --baseDir <dir> --projectDir <dir> [--reset]
-  node --no-warnings .agents/skills/interactive-testing/scripts/seed-lightcode-smoke-db.mjs --baseDir <dir> --wslDistro <name> --wslLinuxPath <path> [--reset]`);
+  node --no-warnings .agents/skills/interactive-testing/scripts/seed-poracode-smoke-db.mjs --baseDir <dir> --projectDir <dir> [--reset]
+  node --no-warnings .agents/skills/interactive-testing/scripts/seed-poracode-smoke-db.mjs --baseDir <dir> --wslDistro <name> --wslLinuxPath <path> [--reset]`);
 }
 
 function readArg(name) {
@@ -116,12 +116,12 @@ function resolveProjectLocation(projectDir) {
     : { kind: "posix", path: path.resolve(projectDir) };
 }
 
-const baseDir = readArg("baseDir") ?? process.env.LIGHTCODE_BASE_DIR;
-const projectDir = readArg("projectDir") ?? process.env.LIGHTCODE_SMOKE_PROJECT_DIR;
+const baseDir = readArg("baseDir") ?? process.env.PORACODE_BASE_DIR;
+const projectDir = readArg("projectDir") ?? process.env.PORACODE_SMOKE_PROJECT_DIR;
 
 if (!baseDir) {
   usage();
-  throw new Error("--baseDir or LIGHTCODE_BASE_DIR is required");
+  throw new Error("--baseDir or PORACODE_BASE_DIR is required");
 }
 
 const projectLocation = resolveProjectLocation(projectDir);

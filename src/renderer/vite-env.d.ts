@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 
-import type { LightcodeBridge } from "@/shared/ipc";
+import type { PoracodeBridge } from "@/shared/ipc";
 
 declare global {
   interface Window {
-    lightcode: LightcodeBridge;
+    poracode: PoracodeBridge;
   }
 }

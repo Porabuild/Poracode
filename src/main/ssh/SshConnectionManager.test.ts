@@ -42,7 +42,7 @@ describe("SSH command construction", () => {
       "-i",
       "/keys/id_ed25519",
     ]);
-    expect(buildScpArgs(connection(), "/tmp/runtime.tar.gz", ".lightcode/upload.tar.gz")).toEqual([
+    expect(buildScpArgs(connection(), "/tmp/runtime.tar.gz", ".poracode/upload.tar.gz")).toEqual([
       "-q",
       "-o",
       "BatchMode=yes",
@@ -55,7 +55,7 @@ describe("SSH command construction", () => {
       "-i",
       "/keys/id_ed25519",
       "/tmp/runtime.tar.gz",
-      "dev@example.com:.lightcode/upload.tar.gz",
+      "dev@example.com:.poracode/upload.tar.gz",
     ]);
   });
 
@@ -82,7 +82,7 @@ Host build
 
 describe("SSH runtime bundle", () => {
   it("includes generated supervisor chunks and every external runtime dependency", () => {
-    const root = mkdtempSync(join(tmpdir(), "lightcode-ssh-bundle-test-"));
+    const root = mkdtempSync(join(tmpdir(), "poracode-ssh-bundle-test-"));
     tempDirs.push(root);
     const mainBundleDir = join(root, "main");
     const agentPluginsDir = join(root, "agent-plugins");

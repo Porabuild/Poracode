@@ -22,7 +22,7 @@ export function MarkdownPreview(props: { content: string; compact?: boolean }) {
   return (
     <div className={`h-full overflow-auto ${props.compact ? "px-5 py-3" : "px-6 py-4"}`}>
       <div
-        className={`lightcode-markdown-preview mx-auto w-full max-w-3xl ${props.compact ? "lightcode-markdown-preview--compact" : ""}`}
+        className={`poracode-markdown-preview mx-auto w-full max-w-3xl ${props.compact ? "poracode-markdown-preview--compact" : ""}`}
       >
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}

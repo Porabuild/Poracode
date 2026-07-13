@@ -7,7 +7,7 @@ import { getCursorPluginPaths, installCursorPlugin, mergeCursorHooksDocument } f
 const tempDirs: string[] = [];
 
 function makeTempDir(label: string): string {
-  const dir = mkdtempSync(join(tmpdir(), `lightcode-cursor-${label}-`));
+  const dir = mkdtempSync(join(tmpdir(), `poracode-cursor-${label}-`));
   tempDirs.push(dir);
   return dir;
 }
@@ -30,7 +30,7 @@ describe("getCursorPluginPaths", () => {
 
 describe("mergeCursorHooksDocument", () => {
   it("renders entries for all five lifecycle events with version 1", () => {
-    const head = '"/home/demo/.poracode/agent-plugins/cursor/lightcode-hook.sh"';
+    const head = '"/home/demo/.poracode/agent-plugins/cursor/poracode-hook.sh"';
     const merged = mergeCursorHooksDocument(null, head);
 
     expect(merged.version).toBe(1);
@@ -56,7 +56,7 @@ describe("mergeCursorHooksDocument", () => {
     expect((merged.hooks.postToolUse?.[0] as { matcher?: string })?.matcher).toBe("*");
   });
 
-  it("preserves user-defined entries while replacing stale Poracode entries", () => {
+  it("preserves user-defined entries while replacing legacy Lightcode entries", () => {
     const userEntry = { type: "command", command: "/usr/local/bin/my-policy.sh" };
     const staleHead = '"/home/demo/.poracode/agent-plugins/cursor/lightcode-hook.sh"';
     const existing = {
@@ -91,7 +91,7 @@ describe("installCursorPlugin", () => {
 
     expect(existsSync(join(result.paths.pluginDir, "plugin.json"))).toBe(true);
     expect(existsSync(join(result.paths.pluginDir, "forward.mjs"))).toBe(true);
-    expect(existsSync(join(result.paths.pluginDir, "lightcode-hook-runtime.mjs"))).toBe(true);
+    expect(existsSync(join(result.paths.pluginDir, "poracode-hook-runtime.mjs"))).toBe(true);
     expect(result.paths.globalHooksPath).toBe(join(globalCursorDirOverride, "hooks.json"));
     expect(existsSync(result.paths.globalHooksPath)).toBe(true);
 
@@ -104,7 +104,7 @@ describe("installCursorPlugin", () => {
     };
     expect(doc.version).toBe(1);
     expect(doc.hooks.sessionStart?.[0]?.command).toMatch(
-      /agent-plugins[\\/]+cursor[\\/]+lightcode-hook\.(?:sh|cmd|ps1)['"]? sessionStart$/,
+      /agent-plugins[\\/]+cursor[\\/]+poracode-hook\.(?:sh|cmd|ps1)['"]? sessionStart$/,
     );
   });
 
@@ -170,7 +170,7 @@ describe("installCursorPlugin", () => {
     const sessionStart = doc.hooks.sessionStart!;
     expect(sessionStart).toHaveLength(2);
     expect(sessionStart[0]).toEqual({ type: "command", command: "/usr/local/bin/audit.sh" });
-    expect(sessionStart[1]?.command).toMatch(/lightcode-hook\.(?:sh|cmd|ps1)['"]? sessionStart$/);
+    expect(sessionStart[1]?.command).toMatch(/poracode-hook\.(?:sh|cmd|ps1)['"]? sessionStart$/);
   });
 
   it("regenerates a zero-filled hooks.json", () => {
@@ -185,7 +185,7 @@ describe("installCursorPlugin", () => {
     const doc = JSON.parse(readFileSync(hooksPath, "utf8")) as {
       hooks: Record<string, Array<Record<string, unknown>>>;
     };
-    expect(doc.hooks.sessionStart?.[0]?.command).toMatch(/lightcode-hook\.(?:sh|cmd|ps1)/);
+    expect(doc.hooks.sessionStart?.[0]?.command).toMatch(/poracode-hook\.(?:sh|cmd|ps1)/);
   });
 });
 
@@ -200,7 +200,7 @@ async function isCursorPluginInstalledForTest(
   const hooksPath = join(globalCursorDir, "hooks.json");
   if (!existsSync(join(pluginDir, "plugin.json"))) return { installed: false };
   if (!existsSync(join(pluginDir, "forward.mjs"))) return { installed: false };
-  if (!existsSync(join(pluginDir, "lightcode-hook-runtime.mjs"))) return { installed: false };
+  if (!existsSync(join(pluginDir, "poracode-hook-runtime.mjs"))) return { installed: false };
   if (!existsSync(hooksPath)) return { installed: false };
   const doc = JSON.parse(readFileSync(hooksPath, "utf8")) as { hooks?: Record<string, unknown> };
   if (!doc.hooks) return { installed: false };

@@ -28,7 +28,7 @@ describe("ItemMarkdownInner", () => {
   beforeEach(() => {
     codeBlockSpy.mockClear();
     toastDangerSpy.mockClear();
-    Reflect.deleteProperty(window, "lightcode");
+    Reflect.deleteProperty(window, "poracode");
   });
 
   it("routes supported fenced code blocks through CodeBlock", () => {
@@ -146,7 +146,7 @@ describe("ItemMarkdownInner", () => {
         <ChatPaneActionsContext.Provider value={actions}>
           <ItemMarkdownInner
             text={
-              "Changed [styles.css](/Users/serhiivecherenko/work/lightcode/src/renderer/styles.css)"
+              "Changed [styles.css](/Users/serhiivecherenko/work/poracode/src/renderer/styles.css)"
             }
           />
         </ChatPaneActionsContext.Provider>
@@ -258,7 +258,7 @@ describe("ItemMarkdownInner", () => {
     const openExternal = vi
       .fn<(href: string) => Promise<void>>()
       .mockRejectedValue(new Error("open failed"));
-    Object.defineProperty(window, "lightcode", {
+    Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
         openExternal,
@@ -287,7 +287,7 @@ function makeActions(): ChatPaneActions {
     revealProjectFolderInTree: vi.fn<(path: string) => void>(),
     showProjectEntryInExplorer: vi.fn<(path: string) => void>(),
     onContentHeightChange: vi.fn<() => void>(),
-    projectLocation: { kind: "posix", path: "/Users/serhiivecherenko/work/lightcode" },
+    projectLocation: { kind: "posix", path: "/Users/serhiivecherenko/work/poracode" },
     projectRootNames: new Set(["src"]),
   };
 }

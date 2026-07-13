@@ -122,8 +122,8 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
         {display.parts ? (
           <code
             ref={titleRef}
-            className={`flex min-w-0 items-baseline overflow-hidden font-mono text-[color:var(--muted)] ${isRunning ? "lightcode-thinking-text !flex" : ""}`}
-            {...(isRunning ? { "data-lightcode-shimmer-text": displayTitle } : {})}
+            className={`flex min-w-0 items-baseline overflow-hidden font-mono text-[color:var(--muted)] ${isRunning ? "poracode-thinking-text !flex" : ""}`}
+            {...(isRunning ? { "data-poracode-shimmer-text": displayTitle } : {})}
           >
             <span className="shrink-0 whitespace-pre">{displayPrefix}</span>
             {display.parts.filePath ? (
@@ -140,8 +140,8 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
         ) : (
           <code
             ref={titleRef}
-            className={`block min-w-0 truncate font-mono text-[color:var(--muted)] ${isRunning ? "lightcode-thinking-text" : ""}`}
-            {...(isRunning ? { "data-lightcode-shimmer-text": displayTitle } : {})}
+            className={`block min-w-0 truncate font-mono text-[color:var(--muted)] ${isRunning ? "poracode-thinking-text" : ""}`}
+            {...(isRunning ? { "data-poracode-shimmer-text": displayTitle } : {})}
           >
             {displayTitle}
           </code>

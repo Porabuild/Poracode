@@ -14,7 +14,7 @@ build/icons/
 tmp/
 .agent/
 mcps/
-lightcode-diff.patch
+poracode-diff.patch
 review.diff
 .spec-workflow/
 **/worktrees/

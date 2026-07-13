@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { allUsageProviderDescriptors } from "@lightcode/agents-usage";
+import { allUsageProviderDescriptors } from "@poracode/agents-usage";
 import type { AgentInstanceConfig } from "@/shared/contracts";
 import { isEncryptedSecret } from "@/shared/secretStorage";
 import {
@@ -20,7 +20,7 @@ import {
 const tempDirs: string[] = [];
 
 function makeTempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "lightcode-settings-"));
+  const dir = mkdtempSync(join(tmpdir(), "poracode-settings-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -239,6 +239,7 @@ describe("sharedSettingsFile", () => {
       enabledMcpServers: {},
       mcpServers: [],
       disabledBuiltInMcpServers: {},
+      disabledBuiltInMcpTools: {},
       browser: {
         allowEval: false,
         allowDataAccess: false,

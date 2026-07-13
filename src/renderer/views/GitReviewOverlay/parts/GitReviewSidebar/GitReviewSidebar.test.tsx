@@ -305,7 +305,7 @@ describe("GitReviewSidebar", () => {
   it("reports failed file staging before refreshing the git state", async () => {
     const project: Project = {
       id: "project-1",
-      name: "Lightcode",
+      name: "Poracode",
       createdAt: new Date().toISOString(),
       location: { kind: "windows", path: "C:\\repo" },
     };
@@ -489,7 +489,7 @@ describe("GitReviewSidebar", () => {
   it("routes conflict file actions through the touch menu when provided", () => {
     const project: Project = {
       id: "project-1",
-      name: "Lightcode",
+      name: "Poracode",
       createdAt: new Date().toISOString(),
       location: { kind: "windows", path: "C:\\repo" },
     };
@@ -552,7 +552,7 @@ describe("GitReviewSidebar", () => {
   it("uses the conflict resolver launch override when provided", () => {
     const project: Project = {
       id: "project-1",
-      name: "Lightcode",
+      name: "Poracode",
       createdAt: new Date().toISOString(),
       location: { kind: "windows", path: "C:\\repo" },
     };
@@ -654,13 +654,13 @@ describe("GitReviewSidebar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add Remote" }));
     fireEvent.change(screen.getByLabelText("Remote name"), { target: { value: " upstream " } });
     fireEvent.change(screen.getByLabelText("Remote URL"), {
-      target: { value: " git@github.com:example/lightcode.git " },
+      target: { value: " git@github.com:example/poracode.git " },
     });
     const addButtons = screen.getAllByRole("button", { name: "Add Remote" });
     fireEvent.click(addButtons[addButtons.length - 1]!);
 
     await waitFor(() =>
-      expect(onAddRemote).toHaveBeenCalledWith("upstream", "git@github.com:example/lightcode.git"),
+      expect(onAddRemote).toHaveBeenCalledWith("upstream", "git@github.com:example/poracode.git"),
     );
     await waitFor(() => expect(screen.queryByLabelText("Remote URL")).not.toBeInTheDocument());
   });
@@ -679,10 +679,10 @@ describe("GitReviewSidebar", () => {
       tracking: "origin/feature/worktree",
       hasRemote: true,
       remoteInfo: {
-        url: "https://github.com/example/lightcode.git",
+        url: "https://github.com/example/poracode.git",
         platform: "github",
         owner: "example",
-        repo: "lightcode",
+        repo: "poracode",
       },
       ahead: 0,
       behind: 0,

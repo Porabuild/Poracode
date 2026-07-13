@@ -7,13 +7,13 @@
  * the JSON payload on stdin. The payload also carries `hook_event_name`, so we
  * prefer that and fall back to argv.
  *
- * Reads `LIGHTCODE_HOOK_URL` / `LIGHTCODE_HOOK_SECRET` / `LIGHTCODE_THREAD_ID`
+ * Reads `PORACODE_HOOK_URL` / `PORACODE_HOOK_SECRET` / `PORACODE_THREAD_ID`
  * from env, maps the event to a universal Poracode intent, and POSTs the
  * envelope. When those vars are unset (the user runs `command-code` outside
  * Poracode) the forwarder no-ops. Emits NOTHING on stdout — Command Code, like
  * Claude Code, can relay hook stdout into the model's context.
  *
- * Generic plumbing lives in the shared `lightcode-hook-runtime.mjs` sibling.
+ * Generic plumbing lives in the shared `poracode-hook-runtime.mjs` sibling.
  * NOTE: the intent map below mirrors `intentMap.ts` — keep both in sync.
  */
 
@@ -21,7 +21,7 @@ import {
   copyStringExtra,
   readPluginVersionFromManifest,
   runForwarder,
-} from "./lightcode-hook-runtime.mjs";
+} from "./poracode-hook-runtime.mjs";
 
 const PLUGIN_VERSION = readPluginVersionFromManifest(import.meta.url);
 

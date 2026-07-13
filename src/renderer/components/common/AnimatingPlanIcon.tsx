@@ -13,8 +13,8 @@ export function AnimatingPlanIcon({ className, ...props }: SVGProps<SVGSVGElemen
       className={className}
       {...props}
     >
-      <path d="m3 7 2 2 4-4" className="lightcode-plan-check-1" />
-      <path d="m3 17 2 2 4-4" className="lightcode-plan-check-2" />
+      <path d="m3 7 2 2 4-4" className="poracode-plan-check-1" />
+      <path d="m3 17 2 2 4-4" className="poracode-plan-check-2" />
       <path d="M13 6h8" />
       <path d="M13 12h8" />
       <path d="M13 18h8" />

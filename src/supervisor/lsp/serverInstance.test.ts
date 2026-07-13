@@ -70,7 +70,7 @@ describe("ServerInstance", () => {
   });
 
   it("starts a language server and returns JSON-RPC request results", async () => {
-    const projectDir = await mkdtemp(join(tmpdir(), "lightcode-lsp-project-"));
+    const projectDir = await mkdtemp(join(tmpdir(), "poracode-lsp-project-"));
     const serverPath = join(projectDir, "fake-lsp-server.mjs");
     await writeFile(serverPath, fakeServerSource, "utf8");
 

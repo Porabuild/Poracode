@@ -54,7 +54,7 @@ function runtimePackageJson(): string {
   );
   return `${JSON.stringify(
     {
-      name: "lightcode-ssh-runtime",
+      name: "poracode-ssh-runtime",
       version: packageJson.version,
       private: true,
       engines: packageJson.engines,

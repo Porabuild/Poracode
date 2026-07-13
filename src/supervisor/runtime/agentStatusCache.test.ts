@@ -3,17 +3,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
-import { resolveLightcodePaths } from "@/shared/lightcodePaths";
+import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import type { AgentAdapter } from "../agents/base";
 import { detectWslAgentStatuses, SupervisorRuntime } from "../supervisorRuntime";
 import { STATUS_CACHE_VERSION } from "./agentStatusService";
 
 const tempDirs: string[] = [];
 const runtimesToDispose: SupervisorRuntime[] = [];
-const lightcodeDataDirBeforeTests = process.env.LIGHTCODE_DATA_DIR;
+const poracodeDataDirBeforeTests = process.env.PORACODE_DATA_DIR;
 
 function makeTempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "lightcode-runtime-status-"));
+  const dir = mkdtempSync(join(tmpdir(), "poracode-runtime-status-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -28,10 +28,10 @@ afterEach(() => {
   for (const runtime of runtimesToDispose.splice(0)) {
     runtime.dispose();
   }
-  if (lightcodeDataDirBeforeTests === undefined) {
-    delete process.env.LIGHTCODE_DATA_DIR;
+  if (poracodeDataDirBeforeTests === undefined) {
+    delete process.env.PORACODE_DATA_DIR;
   } else {
-    process.env.LIGHTCODE_DATA_DIR = lightcodeDataDirBeforeTests;
+    process.env.PORACODE_DATA_DIR = poracodeDataDirBeforeTests;
   }
   vi.useRealTimers();
   for (const dir of tempDirs.splice(0)) {
@@ -42,9 +42,9 @@ afterEach(() => {
 describe("agent status cache", () => {
   it("migrates stale cached settingDefs to current schema", () => {
     const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
+    process.env.PORACODE_DATA_DIR = dataDir;
 
-    const { cacheDir, statusCachePath } = resolveLightcodePaths(dataDir);
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
     mkdirSync(cacheDir, { recursive: true });
     writeFileSync(
       statusCachePath,
@@ -171,9 +171,9 @@ describe("agent status cache", () => {
 
   it("adds adapter default slash commands to stale cached statuses", () => {
     const dataDir = makeTempDir();
-    process.env.LIGHTCODE_DATA_DIR = dataDir;
+    process.env.PORACODE_DATA_DIR = dataDir;
 
-    const { cacheDir, statusCachePath } = resolveLightcodePaths(dataDir);
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
     mkdirSync(cacheDir, { recursive: true });
     writeFileSync(
       statusCachePath,

@@ -693,7 +693,7 @@ describe("mapCodexNotification — item lifecycle (item/started, item/completed)
           type: "mcpToolCall",
           server: "codex_apps",
           tool: "github.fetch_pr",
-          arguments: { repo_full_name: "SDSLeon/lightcode", pr_number: 264 },
+          arguments: { repo_full_name: "poracode/poracode", pr_number: 264 },
         },
       },
       state,
@@ -703,7 +703,7 @@ describe("mapCodexNotification — item lifecycle (item/started, item/completed)
     expect((started[0] as { payload: Record<string, unknown> }).payload).toMatchObject({
       name: "mcp__github__fetch_pr",
       serverId: "github",
-      args: { repo_full_name: "SDSLeon/lightcode", pr_number: 264 },
+      args: { repo_full_name: "poracode/poracode", pr_number: 264 },
       status: "running",
     });
   });
@@ -996,7 +996,7 @@ describe("mapCodexNotification — item lifecycle (item/started, item/completed)
           type: "fileChange",
           changes: [
             {
-              path: "/tmp/lightcode-codex-probe/probe.txt",
+              path: "/tmp/poracode-codex-probe/probe.txt",
               kind: { type: "update", move_path: null },
               diff: "@@ -1 +1 @@\n-before\n+after\n",
             },
@@ -1008,13 +1008,13 @@ describe("mapCodexNotification — item lifecycle (item/started, item/completed)
     );
 
     expect((events[0] as { payload: Record<string, unknown> }).payload).toMatchObject({
-      path: "/tmp/lightcode-codex-probe/probe.txt",
+      path: "/tmp/poracode-codex-probe/probe.txt",
       changeKind: "edit",
       diffSummary: { added: 1, removed: 1 },
       args: {
         changes: [
           {
-            path: "/tmp/lightcode-codex-probe/probe.txt",
+            path: "/tmp/poracode-codex-probe/probe.txt",
             kind: { type: "update", move_path: null },
             diff: "@@ -1 +1 @@\n-before\n+after\n",
           },
@@ -1074,14 +1074,14 @@ describe("mapCodexNotification — item lifecycle (item/started, item/completed)
         threadId: "x",
         itemId: "fc-output",
         delta:
-          "Success. Updated the following files:\nM\nC:\\Users\\sdsle\\work\\lightcode\\src\\foo.ts",
+          "Success. Updated the following files:\nM\nC:\\Users\\sdsle\\work\\poracode\\src\\foo.ts",
       },
       state,
     );
 
     expect(events[0]).toMatchObject({
       type: "item.updated",
-      payload: { path: "C:\\Users\\sdsle\\work\\lightcode\\src\\foo.ts" },
+      payload: { path: "C:\\Users\\sdsle\\work\\poracode\\src\\foo.ts" },
     });
     expect(events[1]).toMatchObject({
       type: "content.delta",

@@ -376,7 +376,7 @@ const singleEffortMultiContextCursorStatus: AgentStatus = {
 describe("ThreadDraftView", () => {
   beforeEach(() => {
     composerSpy.mockClear();
-    delete (window as unknown as { lightcode?: unknown }).lightcode;
+    delete (window as unknown as { poracode?: unknown }).poracode;
     useAgentStatusesStore.setState({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -438,7 +438,7 @@ describe("ThreadDraftView", () => {
   });
 
   afterEach(() => {
-    delete (window as unknown as { lightcode?: unknown }).lightcode;
+    delete (window as unknown as { poracode?: unknown }).poracode;
   });
 
   it("switches to the first installed agent when statuses resolve after mount", async () => {
@@ -564,7 +564,7 @@ describe("ThreadDraftView", () => {
     );
 
     composerSpy.mockClear();
-    (window as unknown as { lightcode?: unknown }).lightcode = { appVersion: "remote" };
+    (window as unknown as { poracode?: unknown }).poracode = { appVersion: "remote" };
 
     render(
       <ThreadDraftView project={project} agentStatuses={[statusWithVersion]} onStart={onStart} />,

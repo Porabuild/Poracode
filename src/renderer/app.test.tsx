@@ -1363,7 +1363,7 @@ describe("App", () => {
           attention: "none",
           canResumeWithConfig: false,
           worktreePath: "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
-          worktreeBranch: "lightcode/brave-heron",
+          worktreeBranch: "poracode/brave-heron",
           archived: false,
           done: false,
           starred: false,
@@ -1380,7 +1380,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(bridge.gitGetWorktreeSourceBranch).toHaveBeenCalledWith({
         projectLocation: { kind: "windows", path: "C:\\repo" },
-        branch: "lightcode/brave-heron",
+        branch: "poracode/brave-heron",
       });
     });
 
@@ -1391,12 +1391,12 @@ describe("App", () => {
           kind: "windows",
           path: "C:\\Users\\demo\\.poracode\\worktrees\\repo-12345678\\feature-x",
         },
-        worktreeBranch: "lightcode/brave-heron",
+        worktreeBranch: "poracode/brave-heron",
         sourceBranch: "master",
       });
       expect(bridge.gitDeleteBranch).toHaveBeenCalledWith({
         projectLocation: { kind: "windows", path: "C:\\repo" },
-        branch: "lightcode/brave-heron",
+        branch: "poracode/brave-heron",
         force: true,
       });
     });

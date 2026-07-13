@@ -1,4 +1,4 @@
-package com.lightcodeapp.mobile;
+package com.poracode.app;
 
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;

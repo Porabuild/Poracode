@@ -1,5 +1,5 @@
 import { BrowserWindow, screen, type Rectangle, type RenderProcessGoneDetails } from "electron";
-import type { LightcodeChannel } from "@/shared/channel";
+import type { PoracodeChannel } from "@/shared/channel";
 import { installSessionPermissions } from "../browser/permissions";
 import { showAndFocusWindow } from "./showAndFocusWindow";
 import {
@@ -17,7 +17,7 @@ export const QUICK_COMPOSER_HEIGHT = 470;
 export interface CreateQuickComposerWindowOptions {
   title: string;
   isDev: boolean;
-  channel: LightcodeChannel;
+  channel: PoracodeChannel;
   preloadPath: string;
   rendererHtmlPath: string;
   appVersion: string;

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   appIdFor,
   artifactPrefixFor,
-  LIGHTCODE_CHANNELS,
+  PORACODE_CHANNELS,
   productNameFor,
   updaterChannelFor,
   userDataDirNameFor,
@@ -10,7 +10,7 @@ import {
 
 describe("channel", () => {
   it("enumerates exactly stable and nightly", () => {
-    expect(LIGHTCODE_CHANNELS).toEqual(["stable", "nightly"]);
+    expect(PORACODE_CHANNELS).toEqual(["stable", "nightly"]);
   });
 
   it("returns the right product names", () => {
@@ -19,8 +19,8 @@ describe("channel", () => {
   });
 
   it("returns the right app ids", () => {
-    expect(appIdFor("stable")).toBe("com.poracode.app");
-    expect(appIdFor("nightly")).toBe("com.poracode.app.nightly");
+    expect(appIdFor("stable")).toBe("com.lightcode.app");
+    expect(appIdFor("nightly")).toBe("com.lightcode.app.nightly");
   });
 
   it("returns the right user data dir names", () => {
@@ -40,30 +40,30 @@ describe("channel", () => {
   });
 });
 
-describe("resolveLightcodeChannel", () => {
+describe("resolvePoracodeChannel", () => {
   afterEach(() => {
     vi.resetModules();
   });
 
-  it("defaults to stable when __LIGHTCODE_CHANNEL__ is unset", async () => {
+  it("defaults to stable when __PORACODE_CHANNEL__ is unset", async () => {
     vi.resetModules();
     const mod = await import("./channel");
-    expect(mod.resolveLightcodeChannel()).toBe("stable");
+    expect(mod.resolvePoracodeChannel()).toBe("stable");
   });
 
   it("returns nightly when the build-time constant is 'nightly'", async () => {
     vi.resetModules();
-    vi.stubGlobal("__LIGHTCODE_CHANNEL__", "nightly");
+    vi.stubGlobal("__PORACODE_CHANNEL__", "nightly");
     const mod = await import("./channel");
-    expect(mod.resolveLightcodeChannel()).toBe("nightly");
+    expect(mod.resolvePoracodeChannel()).toBe("nightly");
     vi.unstubAllGlobals();
   });
 
   it("falls back to stable for any unknown value", async () => {
     vi.resetModules();
-    vi.stubGlobal("__LIGHTCODE_CHANNEL__", "beta");
+    vi.stubGlobal("__PORACODE_CHANNEL__", "beta");
     const mod = await import("./channel");
-    expect(mod.resolveLightcodeChannel()).toBe("stable");
+    expect(mod.resolvePoracodeChannel()).toBe("stable");
     vi.unstubAllGlobals();
   });
 });

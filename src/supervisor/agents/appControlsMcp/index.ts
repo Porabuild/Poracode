@@ -15,8 +15,8 @@ export interface AppControlsMcpHttpConfig {
 }
 
 export const APP_CONTROLS_MCP_SERVER_NAME = "poracode";
-export const APP_CONTROLS_MCP_URL_ENV = "LIGHTCODE_APP_CONTROLS_MCP_URL";
-export const APP_CONTROLS_MCP_TOKEN_ENV = "LIGHTCODE_APP_CONTROLS_MCP_TOKEN";
+export const APP_CONTROLS_MCP_URL_ENV = "PORACODE_APP_CONTROLS_MCP_URL";
+export const APP_CONTROLS_MCP_TOKEN_ENV = "PORACODE_APP_CONTROLS_MCP_TOKEN";
 
 export function resolveAppControlsMcpHttpConfig(
   location: AppControlsMcpLocation,

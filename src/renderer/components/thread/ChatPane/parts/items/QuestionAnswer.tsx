@@ -56,7 +56,7 @@ export function QuestionAnswer({ item, checkpointRevert }: QuestionAnswerProps) 
         ))}
       </div>
       {checkpointRevert ? (
-        <div className="lightcode-message-action-strip absolute right-2 top-1/2 z-10 -translate-y-1/2 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+        <div className="poracode-message-action-strip absolute right-2 top-1/2 z-10 -translate-y-1/2 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
           <CheckpointRevertButton
             itemId={checkpointRevert.itemId}
             onRequestRevert={checkpointRevert.onRequestRevert}

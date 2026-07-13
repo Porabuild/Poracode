@@ -117,7 +117,7 @@ export function FileEditorPane(props: {
     return () => window.removeEventListener("keydown", handleKeyDown);
   });
 
-  const monacoTheme = theme === "dark" ? "lightcode-dark" : "lightcode-light";
+  const monacoTheme = theme === "dark" ? "poracode-dark" : "poracode-light";
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]">

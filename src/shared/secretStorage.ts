@@ -9,7 +9,7 @@ export { isEncryptedSecret };
  * Symmetric secret sealing shared by the main and supervisor processes. The key
  * is derived once in main from Electron `safeStorage` (see
  * `src/main/secretStorageKey.ts`) and handed to the supervisor over the
- * `LIGHTCODE_SECRET_STORAGE_KEY` env var. Both processes call
+ * `PORACODE_SECRET_STORAGE_KEY` env var. Both processes call
  * `configureSecretStorageKey` at boot, then seal/unseal with the same AES-256-GCM
  * scheme — so a value encrypted in one process decrypts in the other without any
  * plaintext crossing the IPC channel. Pure `node:crypto`; no Electron import, so

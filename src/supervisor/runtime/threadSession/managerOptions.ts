@@ -86,7 +86,7 @@ export interface ThreadSessionManagerOptions {
     servers: McpServer[],
     projectLocation: ProjectLocation,
   ): Promise<McpServer[]>;
-  /** Synchronize Lightcode-owned provider skill projections before a new agent process starts. */
+  /** Synchronize Poracode-owned provider skill projections before a new agent process starts. */
   prepareSkillsForLaunch?(projectLocation: ProjectLocation, agentKind: AgentKind): Promise<void>;
   /**
    * Portable-skills fallback for structured turns: returns inline SKILL.md

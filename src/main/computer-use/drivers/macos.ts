@@ -225,7 +225,7 @@ export class MacComputerUseDriver implements ComputerUseDriver {
       "macOS captures the visible screen region; occluded windows and locked screens may require the user to reveal or unlock the desktop.",
     ];
     if (input.include_screenshot !== false) {
-      const captureDir = join(tmpdir(), "lightcode-computer-use");
+      const captureDir = join(tmpdir(), "poracode-computer-use");
       await mkdir(captureDir, { recursive: true });
       // Mirror the Windows driver's defaults: downscale to 1280px max and
       // encode JPEG (quality 75) so passive captures don't bill multi-MB

@@ -1415,10 +1415,6 @@ msgid "Built-in MCP servers"
 msgstr "組み込みMCPサーバー"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#~ msgid "Built-in servers are managed by Lightcode. They can be disabled globally but cannot be edited or removed."
-#~ msgstr "組み込みサーバーはLightcodeによって管理されます。グローバルに無効化できますが、編集や削除はできません。"
-
-#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
 msgstr "組み込みサーバーはPoracodeによって管理されます。グローバルに無効化できますが、編集や削除はできません。"
 
@@ -2199,10 +2195,6 @@ msgid "Config directory"
 msgstr "設定ディレクトリ"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
-#~ msgid "Configure the server Lightcode will add when supported agents start."
-#~ msgstr "対応エージェントの起動時にLightcodeが追加するサーバーを設定します。"
-
-#: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
 msgstr "対応エージェントの起動時にPoracodeが追加するサーバーを設定します。"
 
@@ -2242,8 +2234,8 @@ msgid "Connect desktop"
 msgstr "デスクトップに接続"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Connect directly, through a relay, or over SSH. Every transport uses the same Lightcode remote protocol, projects, threads, and agent runtimes."
-msgstr "直接、リレー経由、または SSH で接続します。どのトランスポートでも、同じ Lightcode リモートプロトコル、プロジェクト、スレッド、エージェントランタイムを使用します。"
+msgid "Connect directly, through a relay, or over SSH. Every transport uses the same Poracode remote protocol, projects, threads, and agent runtimes."
+msgstr "直接、リレー経由、または SSH で接続します。どのトランスポートでも、同じ Poracode リモートプロトコル、プロジェクト、スレッド、エージェントランタイムを使用します。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connect over SSH"
@@ -2258,8 +2250,8 @@ msgid "Connect the AI providers OpenCode can use and sign out of them here."
 msgstr "OpenCode が使用できる AI プロバイダーをここで接続し、サインアウトします。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-#~ msgid "Connect to another Lightcode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
-#~ msgstr "別の Lightcode デスクトップまたはヘッドレスサーバーに接続すると、そのプロジェクトをここから参照・管理できます。エンドポイントとペアリングトークンは、その端末の「設定 → リモートアクセス」から取得してください。"
+#~ msgid "Connect to another Poracode desktop or a headless server to browse and manage its projects from here. Get its endpoint and pairing token from Settings → Remote Access on that machine."
+#~ msgstr "別の Poracode デスクトップまたはヘッドレスサーバーに接続すると、そのプロジェクトをここから参照・管理できます。エンドポイントとペアリングトークンは、その端末の「設定 → リモートアクセス」から取得してください。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Connected"
@@ -2401,6 +2393,10 @@ msgstr "コピー（推奨）"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Copy {0} device code {1}"
 msgstr "{0}デバイス コード{1}をコピーします"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
+msgstr "すべての Lightcode データを Poracode にコピーします。Poracode は再起動し、現在のデータの完全なバックアップを保持します。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Copy Current URL"
@@ -2557,6 +2553,10 @@ msgstr "エージェントスキルをスキャンできませんでした。"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "MCP サーバー設定をスキャンできませんでした。"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Couldn't schedule the Lightcode data import."
+msgstr "Lightcode データのインポートを予約できませんでした。"
 
 #: src/mobile/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -2951,8 +2951,8 @@ msgid "Dev servers listening on your desktop's localhost."
 msgstr "デスクトップの localhost で待ち受けている開発サーバー。"
 
 #: src/renderer/views/SettingsOverlay/parts/DevSettings.tsx
-msgid "Development-only overrides. Only visible in the LIGHTCODE DEV build."
-msgstr "開発専用の上書き。 LIGHTCODE DEV ビルドでのみ表示されます。"
+msgid "Development-only overrides. Only visible in the PORACODE DEV build."
+msgstr "開発専用の上書き。 PORACODE DEV ビルドでのみ表示されます。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4174,6 +4174,14 @@ msgstr "画像"
 msgid "Image preview"
 msgstr "画像プレビュー"
 
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import again"
+msgstr "再度インポート"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import and restart"
+msgstr "インポートして再起動"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import conflict"
 msgstr "インポートの競合"
@@ -4194,6 +4202,14 @@ msgstr "外部エージェントのスキルをインポート"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Import external skills"
 msgstr "外部スキルをインポート"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import Lightcode data"
+msgstr "Lightcode データをインポート"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Import Lightcode data again?"
+msgstr "Lightcode データを再度インポートしますか？"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
@@ -4505,9 +4521,9 @@ msgstr "累計トークン"
 msgid "Light"
 msgstr "ライト"
 
-#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
-msgid "Lightcode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
-msgstr "Lightcode とエージェントはリモートマシン上で実行されます。SSH はリモート環境の起動とローカルトンネルの保護にのみ使用されます。"
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Lightcode data import is unavailable with a custom data folder."
+msgstr "カスタムデータフォルダーでは Lightcode データをインポートできません。"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Link to source"
@@ -4728,10 +4744,6 @@ msgstr "グローバルおよびプロジェクトスコープの共有スキル
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage shared skills across Windows, WSL, and projects."
 #~ msgstr "Windows、WSL、プロジェクト間の共有スキルを管理します。"
-
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#~ msgid "Manage the MCP server configurations Lightcode adds when starting supported agents. Workspace servers can be configured in each project's settings."
-#~ msgstr "対応エージェントの起動時にLightcodeが追加するMCPサーバー設定を管理します。ワークスペースのサーバーは、各プロジェクトの設定で構成できます。"
 
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -5545,6 +5557,10 @@ msgstr "GitHub CLI アカウントが見つかりません。 <0>gh auth login</
 msgid "No history yet"
 msgstr "履歴はまだありません"
 
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "No Lightcode data was found."
+msgstr "Lightcode データが見つかりませんでした。"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
 msgstr "これらのフィルターに一致するマーケットプレイススキルはありません。"
@@ -6201,8 +6217,8 @@ msgid "Pair again"
 msgstr "もう一度ペアリング"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Pair with Lightcode"
-msgstr "Lightcode とペアリング"
+msgid "Pair with Poracode"
+msgstr "Poracode とペアリング"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -6394,6 +6410,10 @@ msgstr "このプロファイルを、カスタムの環境変数・モデル名
 msgid "Popular editor themes adapted to Poracode. Each follows the light or dark mode above."
 msgstr "人気のエディター テーマを Poracode に適合させました。それぞれは上記のライト モードまたはダーク モードに従います。"
 
+#: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
+msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
+msgstr "Poracode とエージェントはリモートマシン上で実行されます。SSH はリモート環境の起動とローカルトンネルの保護にのみ使用されます。"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode はマーケットプレイスの認証情報を設定に平文で保存しません。カタログを開いて、セキュリティスキャン済みのスキルを確認してください。"
@@ -6407,6 +6427,10 @@ msgstr "Poracode のみ"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
 msgstr "Poracode は SSH ホストにサーバーをインストールまたは再利用し、認証情報をこのデバイスのセキュアストレージに保存します。"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
+msgstr "Poracode は再起動し、現在のデータをバックアップしてから、Lightcode データの完全なコピーに置き換えます。"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -6600,10 +6624,6 @@ msgstr "プロンプト"
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 msgid "Proposed plan"
 msgstr "提案された計画"
-
-#: src/renderer/components/mcp/McpServersManager.tsx
-#~ msgid "Provided and managed by Lightcode for supported agents."
-#~ msgstr "対応エージェント向けにLightcodeによって提供および管理されています。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Provided and managed by Poracode for supported agents."
@@ -7536,8 +7556,8 @@ msgid "Scheduled tasks on this desktop"
 msgstr "このデスクトップのスケジュールタスク"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
-#~ msgid "Scheduled tasks run only while this device is awake and Lightcode is open."
-#~ msgstr "スケジュールタスクは、このデバイスが起動中でLightcodeが開いている間のみ実行されます。"
+#~ msgid "Scheduled tasks run only while this device is awake and Poracode is open."
+#~ msgstr "スケジュールタスクは、このデバイスが起動中でPoracodeが開いている間のみ実行されます。"
 
 #: src/mobile/settingsSections.ts
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -9570,13 +9590,13 @@ msgstr "ブランチを更新する"
 msgid "Update error: {detail}"
 msgstr "更新エラー:{detail}"
 
-#: src/mobile/views/PortsView.tsx
-msgid "Update Lightcode on your desktop to use port forwarding."
-msgstr "ポート転送を使用するには、デスクトップの Lightcode を更新してください。"
-
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Update method"
 msgstr "更新方法"
+
+#: src/mobile/views/PortsView.tsx
+msgid "Update Poracode on your desktop to use port forwarding."
+msgstr "ポート転送を使用するには、デスクトップの Poracode を更新してください。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Update task"

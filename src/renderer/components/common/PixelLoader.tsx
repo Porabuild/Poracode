@@ -93,14 +93,14 @@ function buildPatternStyles(name: PatternKey, frames: Frames): string {
 
     if (activeCount === 0) {
       rules.push(
-        `.lightcode-pixel-loader[data-pattern="${name}"] .lightcode-pixel-loader__cell--${rect} { opacity: 0; }`,
+        `.poracode-pixel-loader[data-pattern="${name}"] .poracode-pixel-loader__cell--${rect} { opacity: 0; }`,
       );
     } else if (activeCount === F) {
       rules.push(
-        `.lightcode-pixel-loader[data-pattern="${name}"] .lightcode-pixel-loader__cell--${rect} { opacity: 1; }`,
+        `.poracode-pixel-loader[data-pattern="${name}"] .poracode-pixel-loader__cell--${rect} { opacity: 1; }`,
       );
     } else {
-      const animName = `lightcode-pixel-anim-${name}-${rect}`;
+      const animName = `poracode-pixel-anim-${name}-${rect}`;
 
       rules.push(`@keyframes ${animName} {`);
       for (let f = 0; f < F; f++) {
@@ -141,7 +141,7 @@ function buildPatternStyles(name: PatternKey, frames: Frames): string {
       rules.push(`}`);
 
       rules.push(
-        `.lightcode-pixel-loader[data-pattern="${name}"].lightcode-pixel-loader--animated .lightcode-pixel-loader__cell--${rect} {` +
+        `.poracode-pixel-loader[data-pattern="${name}"].poracode-pixel-loader--animated .poracode-pixel-loader__cell--${rect} {` +
           `  animation-name: ${animName};` +
           `  animation-duration: var(--pixel-loader-duration, 1000ms);` +
           `  animation-delay: var(--pixel-loader-delay, 0s);` +
@@ -151,7 +151,7 @@ function buildPatternStyles(name: PatternKey, frames: Frames): string {
       );
 
       rules.push(
-        `.lightcode-pixel-loader[data-pattern="${name}"]:not(.lightcode-pixel-loader--animated) .lightcode-pixel-loader__cell--${rect} {` +
+        `.poracode-pixel-loader[data-pattern="${name}"]:not(.poracode-pixel-loader--animated) .poracode-pixel-loader__cell--${rect} {` +
           `  opacity: ${activeFrames[0] ? 1 : 0};` +
           `}`,
       );
@@ -163,7 +163,7 @@ function buildPatternStyles(name: PatternKey, frames: Frames): string {
 
 function injectPatternStyles(): void {
   if (typeof document === "undefined") return;
-  const id = "lightcode-pixel-loader-styles";
+  const id = "poracode-pixel-loader-styles";
   const existing = document.getElementById(id);
   if (
     existing instanceof HTMLStyleElement &&
@@ -203,9 +203,9 @@ export function PixelLoader({
   const sizeClass = ICON_SIZE_CLASS[size];
 
   const mergedClass = [
-    "lightcode-pixel-loader",
+    "poracode-pixel-loader",
     sizeClass,
-    isAnimated && "lightcode-pixel-loader--animated",
+    isAnimated && "poracode-pixel-loader--animated",
     "shrink-0",
     className,
   ]
@@ -263,7 +263,7 @@ export function PixelLoader({
               height={cell}
               rx={rx}
               ry={rx}
-              className={`lightcode-pixel-loader__cell lightcode-pixel-loader__cell--${i}`}
+              className={`poracode-pixel-loader__cell poracode-pixel-loader__cell--${i}`}
             />
           );
         })}

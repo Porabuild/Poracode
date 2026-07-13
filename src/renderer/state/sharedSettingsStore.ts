@@ -26,7 +26,7 @@ import type {
   McpServer,
 } from "@/shared/contracts";
 
-const STORAGE_KEY = "lightcode-shared-settings";
+const STORAGE_KEY = "poracode-shared-settings";
 
 interface SharedSettingsState extends SharedSettings {
   sharedSettingsHydrated: boolean;
@@ -153,7 +153,7 @@ interface SharedSettingsState extends SharedSettings {
 const RECENT_MODELS_LIMIT = 16;
 
 function hasBridge(): boolean {
-  return typeof window !== "undefined" && window.lightcode !== undefined;
+  return typeof window !== "undefined" && window.poracode !== undefined;
 }
 
 function loadFallbackSettings(): SharedSettings {

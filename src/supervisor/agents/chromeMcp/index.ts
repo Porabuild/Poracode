@@ -17,8 +17,8 @@ export type ChromeMcpLocation = BrowserMcpLocation;
 
 export const CHROME_MCP_SERVER_NAME = "chrome";
 
-export const CHROME_MCP_URL_ENV = "LIGHTCODE_CHROME_MCP_URL";
-export const CHROME_MCP_TOKEN_ENV = "LIGHTCODE_CHROME_MCP_TOKEN";
+export const CHROME_MCP_URL_ENV = "PORACODE_CHROME_MCP_URL";
+export const CHROME_MCP_TOKEN_ENV = "PORACODE_CHROME_MCP_TOKEN";
 
 export interface ChromeMcpHttpConfig {
   url: string;

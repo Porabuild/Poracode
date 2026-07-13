@@ -279,7 +279,7 @@ describe("orchestrator tool dispatch", () => {
           threadId: "child-1",
           title: "Ticket",
           worktreePath: "/tmp/wt/x",
-          branch: "lightcode/x",
+          branch: "poracode/x",
         };
       },
     } as Partial<OrchestratorThreadManager>);
@@ -301,7 +301,7 @@ describe("orchestrator tool dispatch", () => {
       thread_id: "child-1",
       title: "Ticket",
       worktree_path: "/tmp/wt/x",
-      branch: "lightcode/x",
+      branch: "poracode/x",
     });
     expect(calls).toEqual([
       {

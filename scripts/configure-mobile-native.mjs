@@ -4,25 +4,23 @@ import { resolve } from "node:path";
 const root = process.cwd();
 // Domain that owns pairing/universal links. The installed app claims
 // `applinks:<host>` so https://<host>/pair opens the app instead of the hosted
-// PWA. Override with LIGHTCODE_MOBILE_APP_HOST (e.g. a staging domain).
+// PWA. Override with PORACODE_MOBILE_APP_HOST (e.g. a staging domain).
 const DEFAULT_MOBILE_APP_HOST = "poracode.com";
 const appHost = readAppHost();
 const requireAndroidLinks =
-  readBoolEnv("LIGHTCODE_MOBILE_REQUIRE_NATIVE_LINKS") ||
-  readBoolEnv("LIGHTCODE_MOBILE_REQUIRE_ANDROID_LINKS");
+  readBoolEnv("PORACODE_MOBILE_REQUIRE_NATIVE_LINKS") ||
+  readBoolEnv("PORACODE_MOBILE_REQUIRE_ANDROID_LINKS");
 const requireIosLinks =
-  readBoolEnv("LIGHTCODE_MOBILE_REQUIRE_NATIVE_LINKS") ||
-  readBoolEnv("LIGHTCODE_MOBILE_REQUIRE_IOS_LINKS");
+  readBoolEnv("PORACODE_MOBILE_REQUIRE_NATIVE_LINKS") ||
+  readBoolEnv("PORACODE_MOBILE_REQUIRE_IOS_LINKS");
 
 if ((requireAndroidLinks || requireIosLinks) && !appHost) {
-  console.error(
-    "[configure-mobile-native] missing LIGHTCODE_MOBILE_APP_HOST for native app links.",
-  );
+  console.error("[configure-mobile-native] missing PORACODE_MOBILE_APP_HOST for native app links.");
   process.exit(1);
 }
 
 if (!appHost) {
-  console.log("[configure-mobile-native] LIGHTCODE_MOBILE_APP_HOST not set; skipping app links.");
+  console.log("[configure-mobile-native] PORACODE_MOBILE_APP_HOST not set; skipping app links.");
 } else {
   configureAndroid(appHost);
   configureIosAppLinks(appHost);
@@ -47,12 +45,12 @@ function readBoolEnv(key) {
 }
 
 function readAppHost() {
-  const raw = readEnv("LIGHTCODE_MOBILE_APP_HOST") || DEFAULT_MOBILE_APP_HOST;
+  const raw = readEnv("PORACODE_MOBILE_APP_HOST") || DEFAULT_MOBILE_APP_HOST;
   if (!raw) return "";
   try {
     return new URL(raw.includes("://") ? raw : `https://${raw}`).host;
   } catch {
-    console.error(`[configure-mobile-native] invalid LIGHTCODE_MOBILE_APP_HOST: ${raw}`);
+    console.error(`[configure-mobile-native] invalid PORACODE_MOBILE_APP_HOST: ${raw}`);
     process.exit(1);
   }
 }
@@ -221,7 +219,7 @@ function addPlistBoolean(plistPath, key) {
 
 function configureIosApsEnvironment() {
   const entitlementsPath = resolve(root, "ios/App/App/App.entitlements");
-  const apsEnvironment = readEnv("LIGHTCODE_IOS_APS_ENVIRONMENT") || "production";
+  const apsEnvironment = readEnv("PORACODE_IOS_APS_ENVIRONMENT") || "production";
 
   let entitlements = existsSync(entitlementsPath)
     ? readFileSync(entitlementsPath, "utf8")
@@ -270,10 +268,10 @@ function configureAndroidPush() {
 // Copy the Firebase config into android/app/. Warn (don't fail) when the env var
 // is unset — an app-links-only build still needs to succeed.
 function copyAndroidGoogleServices() {
-  const src = readEnv("LIGHTCODE_ANDROID_GOOGLE_SERVICES_JSON");
+  const src = readEnv("PORACODE_ANDROID_GOOGLE_SERVICES_JSON");
   if (!src) {
     console.warn(
-      "[configure-mobile-native] LIGHTCODE_ANDROID_GOOGLE_SERVICES_JSON not set; " +
+      "[configure-mobile-native] PORACODE_ANDROID_GOOGLE_SERVICES_JSON not set; " +
         "Android push disabled until android/app/google-services.json is provided.",
     );
     return;
@@ -352,15 +350,15 @@ function copyWidgetExtensionSources() {
     return;
   }
 
-  const sourceDir = resolve(root, "native/ios/LightcodeActivities");
+  const sourceDir = resolve(root, "native/ios/PoracodeActivities");
   if (!existsSync(sourceDir)) {
     console.log(
-      "[configure-mobile-native] native/ios/LightcodeActivities missing; skipping widget sources.",
+      "[configure-mobile-native] native/ios/PoracodeActivities missing; skipping widget sources.",
     );
     return;
   }
 
-  const destDir = resolve(iosAppDir, "LightcodeActivities");
+  const destDir = resolve(iosAppDir, "PoracodeActivities");
   cpSync(sourceDir, destDir, { recursive: true });
-  console.log("[configure-mobile-native] synced LightcodeActivities widget-extension sources.");
+  console.log("[configure-mobile-native] synced PoracodeActivities widget-extension sources.");
 }

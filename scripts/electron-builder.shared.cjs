@@ -23,7 +23,7 @@ function productNameFor(channel) {
 }
 
 function appIdFor(channel) {
-  return channel === "nightly" ? "com.poracode.app.nightly" : "com.poracode.app";
+  return channel === "nightly" ? "com.lightcode.app.nightly" : "com.lightcode.app";
 }
 
 function userDataDirNameFor(channel) {

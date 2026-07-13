@@ -474,7 +474,7 @@ async function runWithCodexAppServer<T>(
       (async () => {
         client = new ProbeClient(transport);
         const initResult = await client.request("initialize", {
-          clientInfo: { name: "lightcode-probe", version: "0.1.0" },
+          clientInfo: { name: "poracode-probe", version: "0.1.0" },
           capabilities: { experimentalApi: true, requestAttestation: false },
         });
         client.notify("initialized");
