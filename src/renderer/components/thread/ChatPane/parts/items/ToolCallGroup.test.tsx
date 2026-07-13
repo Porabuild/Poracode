@@ -39,6 +39,7 @@ describe("ToolCallGroup", () => {
     expect(viewport.className).not.toContain("overflow-y-auto");
     expect(viewport).toHaveClass("gap-0.5");
     expect(body).toHaveClass("border-l", "border-dashed");
+    expect(body).toHaveClass("ml-1.5", "pl-2.5");
     expect(body).not.toHaveClass("border-t");
     expect(showAll.parentElement).toHaveClass("justify-start");
     expect(showAll).toHaveClass("-ml-1");
