@@ -22,6 +22,7 @@ vi.mock("node:child_process", async () => {
 
 import {
   clearExecutablePathCache,
+  extractWindowsCmdShimScript,
   getRefreshedWindowsPath,
   invalidateExecutablePathCache,
   resolveExecutablePath,
@@ -186,6 +187,42 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
     expect(resolveExecutablePath("command-code")).toBe(cmdPath);
   });
 
+  it("keeps the .cmd path for npm shims with an extensionless bin script (e.g. grok.cmd)", () => {
+    // Regression: @xai-official/grok's npm bin entry has no .js extension
+    // (`"%_prog%"  "%dp0%\node_modules\@xai-official\grok\bin\grok" %*`), so
+    // the .js-only shim guard missed it and the exe substitution matched the
+    // shim's `IF EXIST "%dp0%\node.exe"` line — resolving `grok` to node.exe.
+    // Detection then read node's version and the ACP probe spawned
+    // `node.exe agent stdio`, breaking version, models, and account info.
+    const root = mkdtempSync(join(tmpdir(), "poracode-grok-shim-"));
+    tempDirs.push(root);
+    const cmdPath = join(root, "grok.cmd");
+    const nodeExePath = join(root, "node.exe");
+    writeFileSync(nodeExePath, "");
+    writeFileSync(
+      cmdPath,
+      [
+        "@ECHO off",
+        "SETLOCAL",
+        'IF EXIST "%dp0%\\node.exe" (',
+        '  SET "_prog=%dp0%\\node.exe"',
+        ") ELSE (",
+        '  SET "_prog=node"',
+        ")",
+        'endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\node_modules\\@xai-official\\grok\\bin\\grok" %*',
+        "",
+      ].join("\r\n"),
+    );
+    spawnSyncMock.mockReturnValueOnce({
+      error: undefined,
+      status: 0,
+      stdout: [join(root, "grok"), cmdPath].join("\r\n"),
+      stderr: "",
+    });
+
+    expect(resolveExecutablePath("grok")).toBe(cmdPath);
+  });
+
   it("applies the same fallback to async resolution", async () => {
     execFileAsyncMock.mockRejectedValueOnce(new Error("not found")).mockResolvedValueOnce({
       stdout: "C:\\Users\\demo\\scoop\\shims\\opencode.exe\r\n",
@@ -273,5 +310,22 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
       .mockReturnValueOnce({ error: undefined, status: 0, stdout: USER_REG_QUERY, stderr: "" })
       .mockReturnValueOnce({ error: undefined, status: 0, stdout: MACHINE_REG_QUERY, stderr: "" });
     expect(getRefreshedWindowsPath()).toContain("C:\\Users\\demo\\.local\\bin");
+  });
+});
+
+describe("extractWindowsCmdShimScript", () => {
+  it("extracts .js/.mjs script entries", () => {
+    const body = '"%dp0%\\node.exe"  "%dp0%\\node_modules\\command-code\\dist\\index.mjs" %*';
+    expect(extractWindowsCmdShimScript(body)).toBe("node_modules\\command-code\\dist\\index.mjs");
+  });
+
+  it("extracts extensionless %_prog% bin scripts", () => {
+    const body = '"%_prog%"  "%dp0%\\node_modules\\@xai-official\\grok\\bin\\grok" %*';
+    expect(extractWindowsCmdShimScript(body)).toBe("node_modules\\@xai-official\\grok\\bin\\grok");
+  });
+
+  it("returns undefined for exe-wrapping shims", () => {
+    const body = '"%dp0%\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe" %*';
+    expect(extractWindowsCmdShimScript(body)).toBeUndefined();
   });
 });

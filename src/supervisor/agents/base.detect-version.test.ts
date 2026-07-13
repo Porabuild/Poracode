@@ -82,6 +82,21 @@ describe("detectAgentInstall version probe", () => {
       expect.anything(),
     );
   });
+
+  it("extracts the full semver from a v-prefixed version string", async () => {
+    // Regression: `\b\d+\.\d+…` could not match right after a leading `v`
+    // (no word boundary between two word characters), so "v24.14.0" was
+    // mis-extracted as "14.0" — surfacing a phantom newer version in the UI.
+    execFileAsyncMock.mockImplementation(async (_cmd: unknown, args: unknown) => {
+      const joined = (Array.isArray(args) ? args : []).join(" ");
+      if (joined.includes("command -v")) return { stdout: "/opt/tools/grok\n", stderr: "" };
+      return { stdout: "v24.14.0\n", stderr: "" };
+    });
+
+    const status = await detectAgentInstall(undefined, spec);
+
+    expect(status.version).toBe("24.14.0");
+  });
 });
 
 describe("detectAgentInstall WSL interop guard", () => {

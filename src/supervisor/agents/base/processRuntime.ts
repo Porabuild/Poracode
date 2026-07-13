@@ -287,17 +287,34 @@ function parseWindowsExecutablePath(stdout: string): string | undefined {
   return resolveWindowsCmdExeTarget(resolved) ?? resolved;
 }
 
+/**
+ * Extract the `%dp0%`-relative Node script entry from an npm-style `.cmd`
+ * shim body. Matches explicit `.js/.cjs/.mjs` entries as well as the
+ * extensionless bin scripts npm's cmd-shim writes for packages whose bin file
+ * has no extension (e.g. @xai-official/grok:
+ * `"%_prog%"  "%dp0%\node_modules\@xai-official\grok\bin\grok" %*`).
+ * Returns undefined for exe-wrapping shims.
+ */
+export function extractWindowsCmdShimScript(body: string): string | undefined {
+  const js = /["']?%dp0%\\([^"']+?\.[cm]?js)["']?\s+%\*/i.exec(body)?.[1];
+  if (js) return js;
+  const prog = /"%_prog%"\s+["']?%dp0%\\([^"']+?)["']?\s+%\*/i.exec(body)?.[1];
+  if (prog && !/\.(?:exe|cmd|bat|com|ps1)$/i.test(prog)) return prog;
+  return undefined;
+}
+
 function resolveWindowsCmdExeTarget(path: string | undefined): string | undefined {
   if (!path || !/\.cmd$/i.test(path)) return undefined;
   try {
     const body = readFileSync(path, "utf8");
-    // npm's standard Node-script shim wraps `"%dp0%\node.exe" "%dp0%\…\entry.mjs" %*`.
+    // npm's standard Node-script shim wraps `"%dp0%\node.exe" "%dp0%\…\entry.mjs" %*`
+    // (or `"%_prog%" "%dp0%\node_modules\…\bin\<name>" %*` for extensionless bins).
     // Leave those alone so the downstream resolveWindowsNodeCmdShim (in base/index.ts)
     // can extract the script entry and invoke node with it directly. Substituting to
     // node.exe here would strip the script arg and pass agent flags straight to
     // node, which rejects them ("bad option: --model", etc.) and exits — breaking
     // every npm-installed agent (codex, commandcode, gemini, …) on Windows.
-    if (/["']?%dp0%\\[^"']+?\.[cm]?js["']?\s+%\*/i.test(body)) return undefined;
+    if (extractWindowsCmdShimScript(body) !== undefined) return undefined;
     const match = /"%dp0%\\([^"]+?\.exe)"/i.exec(body);
     if (!match?.[1]) return undefined;
     const target = join(dirname(path), match[1]);

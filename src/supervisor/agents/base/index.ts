@@ -15,6 +15,7 @@ import {
   getPrimedPosixEnv,
   getProjectShellEnv,
   getWindowsPathOverrideEnv,
+  extractWindowsCmdShimScript,
   isWslInteropBinaryPath,
   readCommandOutputAsync,
   readWslLoginShellCommandOutputAsync,
@@ -209,8 +210,7 @@ function resolveWindowsNodeCmdShim(commandPath: string):
     return undefined;
   }
 
-  const match = /["']?%dp0%\\([^"']+?\.[cm]?js)["']?\s+%\*/i.exec(content);
-  const relScript = match?.[1];
+  const relScript = extractWindowsCmdShimScript(content);
   if (!relScript) return undefined;
 
   const baseDir = dirname(effectivePath);
@@ -454,8 +454,11 @@ async function resolveDetectedBinary(
 
 function extractSemverFromVersionOutput(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
-  const match = raw.match(/\b\d+\.\d+(?:\.\d+)?(?:[-+][\w.]+)?\b/);
-  return match ? match[0] : raw.trim() || undefined;
+  // Allow a leading `v` ("v24.14.0"): without it, `\b` cannot match between
+  // `v` and the first digit, so the regex would skip past the major segment
+  // and latch onto "14.0" mid-string.
+  const match = raw.match(/\bv?(\d+\.\d+(?:\.\d+)?(?:[-+][\w.]+)?)\b/i);
+  return match ? match[1] : raw.trim() || undefined;
 }
 
 async function readDetectedVersion(
