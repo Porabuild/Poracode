@@ -74,11 +74,10 @@ describe("parseCursorUsage", () => {
     expect(api.resetsAt).toBe(1_719_600_000_000);
   });
 
-  it("treats breakdown.total as real spend and derives the allowance from the percent", () => {
-    // Live payload shape: used/limit/remaining clamp at the included $20 while
-    // breakdown.total carries the real spend ($20 included + $8.75 bonus
-    // consumed = $28.75). The authoritative 55.07% then implies a ~$52.21
-    // allowance (28.75 / 0.5507), keeping the dollars consistent with the bar.
+  it("treats breakdown.total as real spend against the vendor plan limit", () => {
+    // Live payload: used/limit clamp at included $20 while breakdown.total is
+    // real spend ($20 included + $8.75 bonus = $28.75). API % is a separate
+    // meter — do not invent limit = spend / percent ($28.75 / 55% ≈ $52).
     const body = {
       membershipType: "pro",
       individualUsage: {
@@ -96,12 +95,11 @@ describe("parseCursorUsage", () => {
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
     expect(api.usedPercent).toBeCloseTo(55.07);
     expect(api.used).toBeCloseTo(28.75);
-    expect(api.limit).toBeCloseTo(52.21, 1);
+    expect(api.limit).toBeCloseTo(20);
   });
 
-  it("derives the allowance when the clamped dollars disagree with the percent (no breakdown)", () => {
-    // Older payloads without a breakdown: used/limit cap at the plan price
-    // ($20/$20) while the percent says 44% consumed → allowance ≈ $45.45.
+  it("keeps plan dollars when they disagree with API percent (no breakdown)", () => {
+    // Clamped plan price $20/$20; API bar can still be 44% of a different pool.
     const body = {
       membershipType: "pro",
       individualUsage: {
@@ -112,7 +110,29 @@ describe("parseCursorUsage", () => {
     const api = snap.windows.find((w) => w.id === "cursor-api")!;
     expect(api.usedPercent).toBe(44);
     expect(api.used).toBeCloseTo(20);
-    expect(api.limit).toBeCloseTo(45.45, 1);
+    expect(api.limit).toBeCloseTo(20);
+  });
+
+  it("shows overspend past the plan limit without inventing a percent-derived ceiling", () => {
+    // User case: ~$35.61 total cost, $20 Pro included, API bar ~4.5%.
+    // Old math: $35.61 / 0.04555 ≈ $782 nonsense allowance.
+    const body = {
+      membershipType: "pro",
+      individualUsage: {
+        plan: {
+          used: 2000,
+          limit: 2000,
+          breakdown: { included: 2000, bonus: 1561, total: 3561 },
+          autoPercentUsed: 22.37,
+          apiPercentUsed: 4.555,
+        },
+      },
+    };
+    const snap = parseCursorUsage(body, {}, NOW);
+    const api = snap.windows.find((w) => w.id === "cursor-api")!;
+    expect(api.usedPercent).toBeCloseTo(4.555);
+    expect(api.used).toBeCloseTo(35.61);
+    expect(api.limit).toBeCloseTo(20);
   });
 
   it("keeps the vendor limit when the dollars already agree with the percent", () => {

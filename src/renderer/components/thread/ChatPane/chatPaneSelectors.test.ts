@@ -481,7 +481,7 @@ describe("chatPaneSelectors", () => {
     expect(selectActiveSubAgentParentItemIds(state, "t1")).toEqual(["sub:run-1"]);
   });
 
-  it("groups edits only with edits to the same file", () => {
+  it("groups adjacent edits with the rest of the tool-call run", () => {
     const state = {
       runtimeItemIdsByThread: {
         t1: [
@@ -572,20 +572,18 @@ describe("chatPaneSelectors", () => {
       {
         kind: "tool_call_group",
         id: "tool-call-group:edit-1",
-        itemIds: ["edit-1", "edit-2"],
-      },
-      {
-        kind: "tool_call_group",
-        id: "tool-call-group:command-1",
-        itemIds: ["command-1", "command-2"],
+        itemIds: ["edit-1", "edit-2", "command-1", "command-2"],
       },
       { kind: "item", id: "assistant-2" },
-      { kind: "item", id: "edit-3" },
-      { kind: "item", id: "edit-4" },
+      {
+        kind: "tool_call_group",
+        id: "tool-call-group:edit-3",
+        itemIds: ["edit-3", "edit-4"],
+      },
     ]);
   });
 
-  it("applies the same edit grouping rule to generic edit tool calls", () => {
+  it("groups generic edit tool calls with adjacent tools", () => {
     const state = {
       runtimeItemIdsByThread: {
         t1: ["tool-edit-1", "tool-edit-2", "tool-read-1", "tool-edit-3"],
@@ -643,10 +641,8 @@ describe("chatPaneSelectors", () => {
       {
         kind: "tool_call_group",
         id: "tool-call-group:tool-edit-1",
-        itemIds: ["tool-edit-1", "tool-edit-2"],
+        itemIds: ["tool-edit-1", "tool-edit-2", "tool-read-1", "tool-edit-3"],
       },
-      { kind: "item", id: "tool-read-1" },
-      { kind: "item", id: "tool-edit-3" },
     ]);
   });
 });

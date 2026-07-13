@@ -456,6 +456,7 @@ function buildElectronBuilderConfig() {
   const updaterChannel = channelTable.updaterChannelFor(channel);
   const prefix = channelTable.artifactPrefixFor(channel);
   const iconSuffix = channel === "nightly" ? "-nightly" : "";
+  const runtimeIconSuffix = channel === "nightly" ? "-nightly-mac" : "";
   const publishChannelLine = updaterChannel ? `\n  channel: ${updaterChannel}` : "";
   const macEntitlements = "build/entitlements.mac.plist";
   const macEntitlementsInherit = "build/entitlements.mac.plist";
@@ -492,7 +493,7 @@ extraResources:
     to: skills
     filter:
       - "**/*"
-  - from: build/icon${iconSuffix}.png
+  - from: build/icon${runtimeIconSuffix}.png
     to: app-icon.png
 
 extraMetadata:

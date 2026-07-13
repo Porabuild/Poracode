@@ -849,6 +849,7 @@
     --window-overlay-background: rgba(0, 0, 0, 0);
     --composer-surface: var(--surface);
     --interactive-cursor: default;
+    --cursor-interactive: default;
 
     /* Theme-adaptive interaction overlays. Derived from --foreground so they
        invert per theme: a light wash on dark themes (matching the old
@@ -2489,6 +2490,10 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   vertical-align: middle;
   user-select: none;
   cursor: default;
+}
+
+.poracode-slash-chip[data-skill-name] {
+  gap: 0.25em;
 }
 
 .poracode-slash-chip__slash {

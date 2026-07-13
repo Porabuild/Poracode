@@ -4,7 +4,6 @@ import type {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import type { ToolCallPayload } from "@/shared/contracts";
-import { canShareRuntimeToolGroup } from "@/renderer/state/runtimeToolGrouping";
 import { imageViewRendersInline } from "./parts/items/imageViewSource";
 import {
   isToolGroupItem as isGroupableItemType,
@@ -157,9 +156,6 @@ function buildTimelineEntries(
       const nextId = itemIds[idx]!;
       const next = items?.[nextId];
       if (!next || !isToolGroupItem(next) || childParentIds.has(nextId)) {
-        break;
-      }
-      if (!canShareRuntimeToolGroup(item, next)) {
         break;
       }
       groupIds.push(nextId);

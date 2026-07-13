@@ -4,7 +4,6 @@ import { imageViewRendersInline } from "../components/thread/ChatPane/parts/item
 import { isSubAgentTool } from "../components/thread/ChatPane/parts/items/toolDisplay";
 import { readBridge } from "../bridge";
 import { useAppStore } from "./appStore";
-import { canShareRuntimeToolGroup } from "./runtimeToolGrouping";
 import {
   subscribeRuntimePersistenceDirtyThreads,
   type CompletedTurnRecord,
@@ -272,7 +271,6 @@ function compactRuntimeItemsForPersistence(
     while (idx < items.length) {
       const next = items[idx]!;
       if (!isToolGroupItem(next) || next.state !== "completed") break;
-      if (!canShareRuntimeToolGroup(run[0]!, next)) break;
       run.push(next);
       idx += 1;
     }
