@@ -18,6 +18,7 @@ import {
 const { bridge } = vi.hoisted(() => ({
   bridge: {
     closeThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    appendUsageEvents: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   },
 }));
 const { hasHydratedThreadRuntimeItems, hydrateThreadRuntimeItems } = vi.hoisted(() => ({
@@ -480,7 +481,11 @@ describe("threadActions", () => {
 
       switchToAdjacentThread(threads[2]!, "next");
       await waitFor(() =>
-        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["a"] }),
+        expect(useAppStore.getState().view).toEqual({
+          kind: "thread",
+          panes: ["a"],
+          paneLayout: { kind: "leaf", paneId: "a", slotId: "c" },
+        }),
       );
     });
 
@@ -495,7 +500,11 @@ describe("threadActions", () => {
 
       switchToAdjacentThread(threads[0]!, "previous");
       await waitFor(() =>
-        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["c"] }),
+        expect(useAppStore.getState().view).toEqual({
+          kind: "thread",
+          panes: ["c"],
+          paneLayout: { kind: "leaf", paneId: "c", slotId: "a" },
+        }),
       );
     });
 
