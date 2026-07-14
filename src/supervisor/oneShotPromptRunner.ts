@@ -92,14 +92,36 @@ export interface RunOneShotPromptOptions {
 export async function runOneShotPromptWithFallback(
   options: RunOneShotPromptOptions,
 ): Promise<string> {
+  return runOneShotPromptWithFallbackImpl(options, false);
+}
+
+/** Run the fallback chain through an adapter's provider-enforced text-only path. */
+export async function runTextOnlyOneShotPromptWithFallback(
+  options: RunOneShotPromptOptions,
+): Promise<string> {
+  return runOneShotPromptWithFallbackImpl(options, true);
+}
+
+async function runOneShotPromptWithFallbackImpl(
+  options: RunOneShotPromptOptions,
+  textOnly: boolean,
+): Promise<string> {
   if (options.attempts.length === 0) {
-    throw new Error("runOneShotPromptWithFallback: no attempts provided");
+    throw new Error(
+      `${textOnly ? "runTextOnlyOneShotPromptWithFallback" : "runOneShotPromptWithFallback"}: no attempts provided`,
+    );
   }
-  if (!options.adapter.runOneShot && !options.adapter.buildOneShotCommand) {
-    throw new Error(`${options.adapter.label} does not support one-shot generation`);
+  const runOneShot = textOnly ? options.adapter.runTextOnlyOneShot : options.adapter.runOneShot;
+  const buildOneShotCommand = textOnly
+    ? options.adapter.buildTextOnlyOneShotCommand
+    : options.adapter.buildOneShotCommand;
+  const generationLabel = textOnly ? "text-only one-shot generation" : "one-shot generation";
+  const logLabel = textOnly ? "text-only one-shot" : "one-shot";
+  if (!runOneShot && !buildOneShotCommand) {
+    throw new Error(`${options.adapter.label} does not support ${generationLabel}`);
   }
 
-  const useSdkPath = typeof options.adapter.runOneShot === "function";
+  const useSdkPath = typeof runOneShot === "function";
 
   let lastError: unknown;
   for (let i = 0; i < options.attempts.length; i++) {
@@ -109,11 +131,11 @@ export async function runOneShotPromptWithFallback(
 
     if (useSdkPath) {
       console.log(
-        `[${options.logTag}] sdk one-shot ${attempt.level} (prompt ${prompt.length} chars)`,
+        `[${options.logTag}] sdk ${logLabel} ${attempt.level} (prompt ${prompt.length} chars)`,
       );
       const signal = wrapTimeoutSignal(options.signal, options.timeoutMs);
       try {
-        return await options.adapter.runOneShot!({
+        return await runOneShot.call(options.adapter, {
           location: options.location,
           model: options.model,
           effort: options.effort,
@@ -128,7 +150,7 @@ export async function runOneShotPromptWithFallback(
         // explicit abort.
         if (hasNextAttempt && !isAbortError(err)) {
           console.warn(
-            `[${options.logTag}] sdk one-shot ${attempt.level} for ${options.adapter.label} failed (${formatError(err)}); retrying with ${options.attempts[i + 1]!.level}`,
+            `[${options.logTag}] sdk ${logLabel} ${attempt.level} for ${options.adapter.label} failed (${formatError(err)}); retrying with ${options.attempts[i + 1]!.level}`,
           );
           continue;
         }
@@ -136,10 +158,11 @@ export async function runOneShotPromptWithFallback(
       }
     }
 
-    if (!options.adapter.buildOneShotCommand) {
-      throw new Error(`${options.adapter.label} does not support one-shot generation`);
+    if (!buildOneShotCommand) {
+      throw new Error(`${options.adapter.label} does not support ${generationLabel}`);
     }
-    const cmd = options.adapter.buildOneShotCommand(
+    const cmd = buildOneShotCommand.call(
+      options.adapter,
       options.model,
       options.effort,
       prompt,
@@ -147,7 +170,7 @@ export async function runOneShotPromptWithFallback(
       options.fast,
     );
     if (!cmd) {
-      throw new Error(`${options.adapter.label} does not support one-shot generation`);
+      throw new Error(`${options.adapter.label} does not support ${generationLabel}`);
     }
     const { spec: spawnSpec, spawn } = prepareOneShot(options.location, cmd);
 

@@ -3,6 +3,7 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
+import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
@@ -192,6 +193,7 @@ export function showFilesPanel(projectId: string, worktreePath?: string): void {
 }
 
 export function openGitReview(projectId: string, worktreePath?: string): void {
+  if (findExperimentByWorktree(projectId, worktreePath)) return;
   const mode = useSharedSettings.getState().gitReviewMode;
   const panelStore = usePanelStore.getState();
   const gitReviewContext = panelStore.gitReviewContext;
@@ -219,6 +221,7 @@ export function openGitReview(projectId: string, worktreePath?: string): void {
 }
 
 export function showGitReviewPanel(projectId: string, worktreePath?: string): void {
+  if (findExperimentByWorktree(projectId, worktreePath)) return;
   const panelStore = usePanelStore.getState();
   panelStore.setGitReviewContext({ projectId, ...(worktreePath ? { worktreePath } : {}) });
   panelStore.setGitReviewAsPanel(true);

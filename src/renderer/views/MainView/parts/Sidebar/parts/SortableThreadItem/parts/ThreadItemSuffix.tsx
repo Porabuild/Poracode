@@ -22,8 +22,9 @@ export function ThreadItemSuffix(props: {
   thread: Thread;
   showWorktreeBadge: boolean;
   showWorktreeFilesButton: boolean;
+  isExperimentCandidate: boolean;
 }) {
-  const { thread, showWorktreeBadge, showWorktreeFilesButton } = props;
+  const { thread, showWorktreeBadge, showWorktreeFilesButton, isExperimentCandidate } = props;
   const { t } = useLingui();
   const threadRemoveAction = useSharedSettings((s) => s.threadRemoveAction);
   const isFilesActive = useIsWorktreeFilesPanelActive(thread.worktreePath);
@@ -70,56 +71,62 @@ export function ThreadItemSuffix(props: {
           >
             <AnimatedTerminalIcon className="size-3.5" isBusy={isTerminalBusy} />
           </SidebarPanelDragButton>
-          <SyncBadge projectId={thread.projectId} worktreePath={thread.worktreePath} />
-          <GitBadge
-            projectId={thread.projectId}
-            projectName={thread.worktreeBranch ?? ""}
-            worktreePath={thread.worktreePath}
-            onPress={() => openGitReview(thread.projectId, thread.worktreePath)}
-            isActive={isGitActive}
-            fallbackToWorktreeIcon
-          />
+          {!isExperimentCandidate ? (
+            <>
+              <SyncBadge projectId={thread.projectId} worktreePath={thread.worktreePath} />
+              <GitBadge
+                projectId={thread.projectId}
+                projectName={thread.worktreeBranch ?? ""}
+                worktreePath={thread.worktreePath}
+                onPress={() => openGitReview(thread.projectId, thread.worktreePath)}
+                isActive={isGitActive}
+                fallbackToWorktreeIcon
+              />
+            </>
+          ) : null}
         </>
       )}
       <span className="relative w-[2.4ch] shrink-0">
         <RelativeTime
           iso={thread.updatedAt}
-          className="block text-center font-mono text-[10px] tabular-nums text-muted group-hover:invisible"
+          className={`block text-center font-mono text-[10px] tabular-nums text-muted ${isExperimentCandidate ? "" : "group-hover:invisible"}`}
         />
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label={
-            threadRemoveAction === "archive"
-              ? t`Archive ${thread.title}`
-              : t`Delete ${thread.title}`
-          }
-          className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (threadRemoveAction === "archive") {
-              archiveThread(thread.id);
-            } else {
-              deleteThread(thread.id, thread.worktreePath, thread.projectId);
+        {!isExperimentCandidate ? (
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label={
+              threadRemoveAction === "archive"
+                ? t`Archive ${thread.title}`
+                : t`Delete ${thread.title}`
             }
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
+            className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
+            onClick={(event) => {
               event.stopPropagation();
               if (threadRemoveAction === "archive") {
                 archiveThread(thread.id);
               } else {
                 deleteThread(thread.id, thread.worktreePath, thread.projectId);
               }
-            }
-          }}
-        >
-          {threadRemoveAction === "archive" ? (
-            <Archive className="size-3.5" />
-          ) : (
-            <Trash2 className="size-3.5" />
-          )}
-        </div>
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.stopPropagation();
+                if (threadRemoveAction === "archive") {
+                  archiveThread(thread.id);
+                } else {
+                  deleteThread(thread.id, thread.worktreePath, thread.projectId);
+                }
+              }
+            }}
+          >
+            {threadRemoveAction === "archive" ? (
+              <Archive className="size-3.5" />
+            ) : (
+              <Trash2 className="size-3.5" />
+            )}
+          </div>
+        ) : null}
       </span>
     </>
   );

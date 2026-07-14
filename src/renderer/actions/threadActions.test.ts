@@ -211,6 +211,31 @@ describe("threadActions", () => {
     });
   });
 
+  it("opens an experiment candidate without hydrating or mounting its siblings", async () => {
+    const firstThread = makeThread({
+      id: "thread-experiment-a",
+      groupId: "experiment-1",
+      presentationMode: "gui",
+    });
+    const secondThread = makeThread({
+      id: "thread-experiment-b",
+      groupId: "experiment-1",
+      presentationMode: "gui",
+    });
+    useAppStore.setState((state) => ({ ...state, threads: [firstThread, secondThread] }));
+
+    openThread(firstThread.id, { standalone: true });
+
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({
+        kind: "thread",
+        panes: [firstThread.id],
+      });
+    });
+    expect(hydrateThreadRuntimeItems).toHaveBeenCalledTimes(1);
+    expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(firstThread.id);
+  });
+
   it("queues terminal reconnects as launching when reopening", () => {
     const thread = makeThread({
       status: "inactive",

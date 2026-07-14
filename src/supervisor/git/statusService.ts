@@ -435,15 +435,20 @@ export class GitStatusService {
     location: ProjectLocation,
     filePath?: string,
     staged?: boolean,
+    maxBuffer?: number,
   ): Promise<GitDiffResult> {
     const args = ["diff"];
     if (staged) args.push("--cached");
     if (filePath) args.push("--", filePath);
 
-    let diff = await execGit(location, args, { timeout: GIT_DIFF_TIMEOUT });
+    let diff = await execGit(location, args, {
+      timeout: GIT_DIFF_TIMEOUT,
+      ...(maxBuffer ? { maxBuffer } : {}),
+    });
     if (filePath && /^diff --(?:cc|combined)\b/m.test(diff)) {
       const headDiff = await execGit(location, ["diff", "HEAD", "--", filePath], {
         timeout: GIT_DIFF_TIMEOUT,
+        ...(maxBuffer ? { maxBuffer } : {}),
       }).catch((error) => {
         console.warn(`[git] diff HEAD -- ${filePath} failed:`, error);
         return "";
@@ -454,6 +459,7 @@ export class GitStatusService {
       diff = await execGit(location, ["diff", "--no-index", "--", "/dev/null", filePath], {
         timeout: GIT_DIFF_TIMEOUT,
         allowNonZeroExit: true,
+        ...(maxBuffer ? { maxBuffer } : {}),
       }).catch((error) => {
         console.warn(`[git] diff --no-index for ${filePath} failed:`, error);
         return "";

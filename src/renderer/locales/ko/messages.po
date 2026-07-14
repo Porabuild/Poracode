@@ -30,7 +30,14 @@ msgstr "(브랜치 없음)"
 msgid "(no message)"
 msgstr "(메시지 없음)"
 
+#. placeholder {0}: candidates.length
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "{0, plural, one {# candidate} other {# candidates}}"
+msgstr "{0, plural, one {후보 #개} other {후보 #개}}"
+
 #. placeholder {0}: details.changedFiles
+#. placeholder {0}: stats.files
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# 파일} other {# 파일}}"
@@ -72,6 +79,11 @@ msgstr "{0, plural, one {스킬 #개} other {스킬 #개}}"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "{0, plural, one {# tool} other {# tools}}"
 msgstr "{0, plural, one {도구 #개} other {도구 #개}}"
+
+#. placeholder {0}: candidates.length
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
+msgstr "{0, plural, one {후보(#개)} other {후보(#개)}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -378,6 +390,10 @@ msgstr "{loginLabel} {0} {env}"
 msgid "{loginLabel} {env}"
 msgstr "{loginLabel} {env}"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
+#~ msgstr "{loserCount, plural, one {다른 후보와 해당 작업 트리가 제거됩니다.} other {다른 후보 #개와 해당 작업 트리가 제거됩니다.}}"
+
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{maxLabel} context"
 msgstr "{maxLabel} 컨텍스트"
@@ -420,6 +436,10 @@ msgstr "{projectLocation}(비활성화)"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
 msgstr "{projectName} 설정"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "{provider} does not support text-only one-shot generation"
+msgstr "{provider}에서는 텍스트 전용 원샷 생성을 지원하지 않습니다"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -507,9 +527,21 @@ msgstr "30일"
 msgid "7d"
 msgstr "7일"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "A candidate is no longer on its experiment branch."
+msgstr "후보가 더 이상 실험 브랜치에 있지 않습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A frozen worktree source requires a full commit hash"
+msgstr "고정된 작업 트리 소스에는 전체 커밋 해시가 필요합니다"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "a supported coding agent"
 msgstr "지원되는 코딩 에이전트"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A worktree owner requires a frozen branch source"
+msgstr "작업 트리 소유자에는 고정된 소스 브랜치가 필요합니다"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Abort Merge"
@@ -665,6 +697,10 @@ msgstr "기존 폴더 추가"
 msgid "Add attachment or capability"
 msgstr "첨부 파일 또는 기능 추가"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Add candidate"
+msgstr "후보 추가"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add Claude profile"
 msgstr "Claude 프로필 추가"
@@ -770,6 +806,11 @@ msgstr "에이전트 채팅 (ACP / markdown). 명령 행은 이 크기에서 1px
 msgid "Agent encountered an error."
 msgstr "에이전트에 오류가 발생했습니다."
 
+#. placeholder {0}: index + 1
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Agent for candidate {0}"
+msgstr "후보 {0}의 에이전트"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is active and ready"
 msgstr "에이전트가 활성 상태이며 준비되었습니다"
@@ -831,6 +872,10 @@ msgstr "AI 에이전트 오케스트레이터 — 터미널 및 기본 ACP를 �
 msgid "AI git actions"
 msgstr "AI git 작업"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "AI judge"
+msgstr "AI 심사"
+
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "AI providers"
 msgstr "AI 공급자"
@@ -858,6 +903,11 @@ msgstr "모든 계정"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All agent apps"
 msgstr "모든 에이전트 앱"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "All candidate sessions, worktrees, and branches will be removed."
+msgstr "모든 후보 세션, 작업 트리 및 브랜치가 제거됩니다."
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "All devices"
@@ -928,6 +978,10 @@ msgstr "항상"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Always excluded"
 msgstr "항상 제외됨"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "An expected worktree owner requires a branch"
+msgstr "예상 작업 트리 소유자에는 브랜치가 필요합니다"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
@@ -1072,6 +1126,10 @@ msgstr "질문하기"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "At"
 msgstr "시간"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "At least two worktrees must be created. Any partial experiment was cleaned up."
+msgstr "최소 두 개의 작업 트리를 만들어야 합니다. 일부만 생성된 실험은 정리되었습니다."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Attach"
@@ -1225,6 +1283,10 @@ msgstr "백그라운드 프로세스가 다시 시작되었습니다."
 msgid "Background tasks"
 msgstr "백그라운드 작업"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Base branch"
+msgstr "기준 브랜치"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Base branch is ahead — branch must be updated first."
@@ -1306,6 +1368,10 @@ msgstr "아래쪽"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "'{branch}' 브랜치에는 '{path}'에 커밋되지 않은 변경 사항이 있습니다. 병합하기 전에 커밋하거나 스태시하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "branch {branch}: {detail}"
+msgstr "브랜치 {branch}: {detail}"
 
 #. placeholder {0}: props.branch
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
@@ -1462,6 +1528,7 @@ msgstr "포트를 불러올 수 없습니다"
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/experiment/NewExperimentModal.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1560,6 +1627,10 @@ msgstr "PR의 변경 사항"
 msgid "Changes requested"
 msgstr "변경 요청됨"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Changes unavailable"
+msgstr "변경 사항을 확인할 수 없음"
+
 #. About page label: release channel (stable/nightly)
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Channel"
@@ -1646,6 +1717,10 @@ msgstr "폴더 선택"
 msgid "Choose a folder…"
 msgstr "폴더를 선택하세요…"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Choose a local base branch for the experiment."
+msgstr "실험에 사용할 로컬 기준 브랜치를 선택하세요."
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a parent folder"
 msgstr "상위 폴더 선택"
@@ -1653,6 +1728,10 @@ msgstr "상위 폴더 선택"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "Choose an MCP server configuration file"
 #~ msgstr "MCP 서버 구성 파일 선택"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Choose at least two candidates and enter a prompt."
+msgstr "후보를 두 개 이상 선택하고 프롬프트를 입력하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
@@ -1838,6 +1917,10 @@ msgstr "편집기 닫기"
 #: src/renderer/commands/registry.ts
 msgid "Close Editor Tab"
 msgstr "편집기 탭 닫기"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Close experiment"
+msgstr "실험 닫기"
 
 #: src/mobile/views/FilesView.tsx
 msgid "Close file actions"
@@ -2190,6 +2273,10 @@ msgstr "Computer Use 사용 중 — 대화형 작업이 데스크톱을 제어�
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
 #~ msgstr "이 스레드에 대해 컴퓨터 사용이 활성화되었습니다."
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Computing changes…"
+msgstr "변경 사항 계산 중…"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -2660,6 +2747,18 @@ msgstr "자격 증명이 구성되었습니다."
 msgid "Credits"
 msgstr "크레딧"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Crown"
+msgstr "우승자로 선택"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Crown with AI"
+msgstr "AI로 우승자 선택"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Crowned"
+msgstr "선택됨"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "MCP Market에서 관리하는 엄선된 무료 및 프리미엄 스킬입니다."
@@ -2886,6 +2985,10 @@ msgstr "거부"
 msgid "Deny and tell the agent what to do differently…"
 msgstr "거부하고 에이전트에게 다르게 해야 할 일을 알려주세요…"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Describe the task to run with multiple agents…"
+msgstr "여러 에이전트로 실행할 작업을 설명하세요…"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Describe what the agent should do"
 msgstr "에이전트가 수행할 작업을 설명하세요"
@@ -2915,6 +3018,10 @@ msgstr "데스크톱 설정"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Destination"
 msgstr "대상"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "detached HEAD"
+msgstr "분리된 HEAD"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Details"
@@ -3041,6 +3148,11 @@ msgstr "스킬을 비활성화하면 활성 스킬 폴더 밖으로 이동하고
 msgid "Discard"
 msgstr "삭제"
 
+#. placeholder {0}: entry.group.groupName
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Discard {0}"
+msgstr "{0} 버리기"
+
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Discard all changes"
 msgstr "모든 변경 사항 버리기"
@@ -3052,6 +3164,16 @@ msgstr "변경 사항 버리기"
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Discard changes to <0>{title}</0>? This cannot be undone."
 msgstr "<0>{title}</0>의 변경 사항을 버릴까요? 이 작업은 되돌릴 수 없습니다."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Discard experiment"
+msgstr "실험 폐기"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Discard experiment?"
+msgstr "실험을 폐기할까요?"
 
 #: src/mobile/views/useOpenFile.ts
 #: src/renderer/commands/registry.ts
@@ -3492,6 +3614,82 @@ msgstr "펼쳐서 액세스를 검토하거나 취소합니다."
 msgid "Expand todo dock"
 msgstr "할 일 도크 확장"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected branch {branch} at {expected}, but found {actual}"
+msgstr "브랜치 {branch}이(가) {expected}을(를) 가리켜야 하지만 실제로는 {actual}을(를) 가리킵니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected source worktree branch {expected}, but found {actual}"
+msgstr "작업 트리 소스 브랜치는 {expected}이어야 하지만 실제로는 {actual}입니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected worktree branch {expected}, but found {actual}"
+msgstr "작업 트리 브랜치는 {expected}이어야 하지만 실제로는 {actual}입니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected worktree HEAD {expected}, but found {actual}"
+msgstr "작업 트리 HEAD는 {expected}이어야 하지만 실제로는 {actual}입니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected worktree owner {expected}, but found {actual}"
+msgstr "작업 트리 소유자는 {expected}이어야 하지만 실제로는 {actual}입니다"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Experiment"
+msgstr "실험"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate changed while its diff was being captured"
+msgstr "차이점을 캡처하는 동안 실험 후보가 변경되었습니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate changed while its stats were being captured"
+msgstr "통계를 캡처하는 동안 실험 후보가 변경되었습니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate diff is too large to compare safely"
+msgstr "실험 후보의 차이점이 너무 커서 안전하게 비교할 수 없습니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate has too many untracked files ({count}; maximum {maximum})"
+msgstr "실험 후보에 추적되지 않은 파일이 너무 많습니다({count}개, 최대 {maximum}개)"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate no longer descends from its frozen base commit"
+msgstr "실험 후보가 더 이상 고정된 기본 커밋의 하위 항목이 아닙니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate thread ids must be unique"
+msgstr "실험 후보 스레드 ID는 고유해야 합니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment diff base must be a full commit hash"
+msgstr "실험 차이점의 기준은 전체 커밋 해시여야 합니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge requires at least two candidates"
+msgstr "실험 평가에는 후보가 두 개 이상 필요합니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge returned an empty rationale"
+msgstr "실험 평가기가 빈 근거를 반환했습니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge returned an invalid response shape"
+msgstr "실험 평가기가 유효하지 않은 형식의 응답을 반환했습니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge returned invalid JSON"
+msgstr "실험 평가기가 유효하지 않은 JSON을 반환했습니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge winner must be between 1 and {candidateCount}"
+msgstr "실험 평가의 우승자는 1에서 {candidateCount} 사이여야 합니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment prompt must not be blank"
+msgstr "실험 프롬프트는 비워 둘 수 없습니다"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "MCP 서버 내보내기"
@@ -3536,6 +3734,10 @@ msgid "Failed to close remote thread."
 msgstr "원격 스레드를 닫지 못했습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to create owned worktree: {detail}. Rollback left branch {branch}: {rollback}"
+msgstr "소유권이 표시된 작업 트리를 만들지 못했습니다: {detail}. 롤백 후에도 브랜치 {branch}이(가) 남았습니다: {rollback}"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create pull request: {detail}"
 msgstr "풀 요청 생성 실패: {detail}"
 
@@ -3555,7 +3757,16 @@ msgstr "풀 요청 병합 실패: {detail}"
 msgid "Failed to open remote thread."
 msgstr "원격 스레드를 열지 못했습니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to record frozen source metadata: {detail}. Rollback left {rollback}"
+msgstr "고정된 소스 메타데이터를 기록하지 못했습니다: {detail}. 롤백 후에도 {rollback}이(가) 남았습니다"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
+msgstr "소유권이 표시된 브랜치 메타데이터를 기록하지 못했습니다: {detail}. 롤백 후에도 브랜치 {branch}이(가) 남았습니다: {rollback}"
+
 #: src/renderer/components/thread/buildModelPickerControls.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Fast"
 msgstr "빠르게"
 
@@ -3775,6 +3986,15 @@ msgstr "브라우저 페이지 강제 새로고침"
 msgid "Fork"
 msgstr "포크"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Fork from"
+msgstr "분기 기준"
+
+#. placeholder {0}: exp.baseBranch
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Forked from <0>{0}</0>"
+msgstr "<0>{0}</0>에서 분기됨"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Form"
 msgstr "양식"
@@ -3824,6 +4044,10 @@ msgstr "최신 macOS와 유사하게 시스템 블러 효과(비브런시)로 �
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Frosting of the {appearance}-mode sidebar over the system blur. Higher holds the theme color; lower shows more of what's behind."
 msgstr "시스템 블러 위에 적용되는 {appearance} 모드 사이드바의 프로스트 강도입니다. 높을수록 테마 색상이 유지되고, 낮을수록 뒤 배경이 더 비칩니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Frozen worktree source is not a local branch: {branch}"
+msgstr "고정된 작업 트리 소스가 로컬 브랜치가 아닙니다: {branch}"
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -4167,6 +4391,7 @@ msgstr "ID 파일 경로"
 #. Microphone input level when not testing
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
 msgstr "유휴"
@@ -4425,6 +4650,10 @@ msgstr "이탤릭체"
 msgid "JSON"
 msgstr "JSON"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Judging…"
+msgstr "평가 중…"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Jump to section"
 msgstr "섹션으로 이동"
@@ -4504,6 +4733,10 @@ msgstr "댓글 남기기"
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "적음"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Let an AI judge compare the candidate changes."
+msgstr "AI가 후보의 변경 사항을 비교하도록 합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the embedded page. Off by default — turn on only when you trust the loaded sites and the agent."
@@ -4718,6 +4951,10 @@ msgstr "최장 작업"
 msgid "Looking for dev servers…"
 msgstr "개발 서버를 찾는 중…"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Losing worktrees and branches will be removed. Their session history will remain."
+msgstr "선정되지 않은 작업 트리와 브랜치는 제거됩니다. 세션 기록은 유지됩니다."
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "사이드바를 반투명하게 만듭니다 — Windows 11에서는 시스템 블러 효과, 그 외 환경에서는 반투명 색조를 사용합니다."
@@ -4919,14 +5156,27 @@ msgstr "MCP 도구 호출"
 msgid "MCP transport type"
 msgstr "MCP 전송 유형"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Merge {crownedLabel}'s changes into {mergeTarget}?"
+msgstr "{crownedLabel}의 변경 사항을 {mergeTarget}에 병합할까요?"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
 msgstr "병합 및 제거"
+
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Merge candidate {0} ({label}) as experiment winner"
+msgstr "후보 {0}({label}): 실험 우승자로 병합"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge conflicts must be resolved."
 msgstr "병합 충돌을 해결해야 합니다."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Merge experiment winner?"
+msgstr "실험 우승자를 병합할까요?"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Merge failed"
@@ -4978,14 +5228,24 @@ msgstr "이 pull request를 하나의 squash 커밋으로 병합합니다."
 msgid "Merge to Source"
 msgstr "소스에 병합"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Merge winner"
+msgstr "우승자 병합"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Merge Worktree"
 msgstr "작업 트리 병합"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Merged"
 msgstr "병합됨"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Merged the experiment winner into {sourceBranch}."
+msgstr "실험 우승자를 {sourceBranch}에 병합했습니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merging is blocked"
@@ -5070,6 +5330,11 @@ msgstr "모델"
 #: src/renderer/commands/registry.ts
 msgid "Model added to favorites"
 msgstr "모델을 즐겨찾기에 추가함"
+
+#. placeholder {0}: index + 1
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Model for candidate {0}"
+msgstr "후보 {0}의 모델"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -5275,6 +5540,10 @@ msgstr "새로운 Claude 프로필 이름"
 msgid "New code"
 msgstr "새 코드"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "New experiment"
+msgstr "새 실험"
+
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
 msgstr "새 파일"
@@ -5478,6 +5747,10 @@ msgstr "변경사항 없음"
 msgid "No changes to display"
 msgstr "표시할 변경사항이 없습니다."
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "No changes yet"
+msgstr "아직 변경 사항 없음"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
 msgstr "이 PR에 대해 보고된 검사가 없습니다."
@@ -5518,6 +5791,10 @@ msgstr "아직 데이터가 없습니다"
 #: src/renderer/views/ProfileOverlay/parts/BreakdownBars.tsx
 msgid "No data yet."
 msgstr "아직 데이터가 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No default one-shot model configured for {provider}"
+msgstr "{provider}의 기본 원샷 모델이 구성되지 않았습니다"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -5563,6 +5840,10 @@ msgstr "GitHub CLI 계정을 찾을 수 없습니다. <0>gh auth login</0>으로
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "아직 기록이 없습니다"
+
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "No installed agents with selectable models are available for this project."
+msgstr "이 프로젝트에서 선택 가능한 모델이 있는 설치된 에이전트를 사용할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -5762,9 +6043,18 @@ msgstr "작업 트리 없음"
 msgid "No wrap"
 msgstr "줄바꿈 없음"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "none"
+msgstr "없음"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "None"
 msgstr "없음"
+
+#: src/renderer/actions/experimentActions.ts
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "None of these agents can run the AI comparison."
+msgstr "이 에이전트 중 AI 비교를 실행할 수 있는 에이전트가 없습니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -5896,6 +6186,7 @@ msgid "Only when unfocused"
 msgstr "포커스가 없을 때만"
 
 #: src/renderer/notifications.ts
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -5948,6 +6239,11 @@ msgstr "브라우저 열기"
 msgid "Open browser tab"
 msgstr "브라우저 탭 열기"
 
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Open candidate {0}: {label}"
+msgstr "후보 {0} 열기: {label}"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "체크 열기"
@@ -5967,6 +6263,15 @@ msgstr "충돌 해결 도구 열기 위치:"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Open dialog"
 msgstr "대화상자 열기"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Open experiment"
+msgstr "실험 열기"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Open experiment board"
+msgstr "실험 보드 열기"
 
 #: src/renderer/commands/registry.ts
 msgid "Open File"
@@ -6618,7 +6923,9 @@ msgstr "프로젝트"
 msgid "Projects live on the connected desktop. Add one before starting a thread."
 msgstr "프로젝트는 연결된 데스크톱에 있습니다. 스레드를 시작하기 전에 프로젝트를 추가하세요."
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Prompt"
 msgstr "프롬프트"
@@ -7019,6 +7326,11 @@ msgstr "작업 제거"
 msgid "Remove bookmark"
 msgstr "북마크 삭제"
 
+#. placeholder {0}: index + 1
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Remove candidate {0}"
+msgstr "후보 {0} 제거"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "Claude 프로필 삭제"
@@ -7085,6 +7397,10 @@ msgstr "채팅 이름 바꾸기"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Rename connection"
 msgstr "연결 이름 변경"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Rename experiment"
+msgstr "실험 이름 변경"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -7270,6 +7586,10 @@ msgstr "{serverName} 확인 재시도"
 msgid "Retry check"
 msgstr "확인 재시도"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Retry cleanup"
+msgstr "정리 다시 시도"
+
 #: src/mobile/components.tsx
 msgid "Retry now"
 msgstr "지금 다시 시도"
@@ -7400,6 +7720,14 @@ msgstr "{loginCommand}을 실행하여 로그인합니다."
 msgid "Run a new thread on {0}."
 msgstr "{0}에서 새 스레드를 실행합니다."
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Run as experiment"
+msgstr "실험으로 실행"
+
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Run as experiment with multiple agents"
+msgstr "여러 에이전트로 실험 실행"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run at"
 msgstr "실행 시각"
@@ -7407,6 +7735,10 @@ msgstr "실행 시각"
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "Run command"
 msgstr "명령 실행"
+
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Run experiment"
+msgstr "실험 실행"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Run in a separate worktree"
@@ -7420,6 +7752,10 @@ msgstr "가능한 경우 GPU에서 로컬 전사를 실행합니다."
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Run now"
 msgstr "지금 실행"
+
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Run one prompt with multiple agents, then compare their work."
+msgstr "하나의 프롬프트를 여러 에이전트로 실행한 다음 결과를 비교합니다."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Run standalone tasks on this device without a project."
@@ -7786,6 +8122,11 @@ msgstr "옵션을 선택하세요"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Select branch"
 msgstr "브랜치 선택"
+
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Select candidate {0} ({label}) as winner"
+msgstr "후보 {0}({label}): 우승자로 선택"
 
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
@@ -8174,6 +8515,14 @@ msgstr "슬래시 명령"
 msgid "Some checks are failing or pending."
 msgstr "일부 검사가 실패했거나 보류 중입니다."
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Some experiment worktrees could not be removed."
+msgstr "일부 실험 작업 트리를 제거하지 못했습니다."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Some losing worktrees could not be removed."
+msgstr "일부 탈락 후보의 작업 트리를 제거하지 못했습니다."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
 msgstr "일부 제공자 폴더를 검사하지 못했습니다. 성공적으로 불러온 스킬은 계속 표시됩니다."
@@ -8197,6 +8546,10 @@ msgstr "마켓플레이스 스킬 정렬"
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Sort threads"
 msgstr "스레드 정렬"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source branch {branch} moved before the worktree was created"
+msgstr "작업 트리가 생성되기 전에 소스 브랜치 {branch}이(가) 이동했습니다"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Sources"
@@ -8798,6 +9151,18 @@ msgstr "에이전트"
 msgid "the app"
 msgstr "앱"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "the base branch"
+#~ msgstr "기준 브랜치"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "The candidates changed after judging. Compare them again."
+msgstr "평가 후 후보가 변경되었습니다. 다시 비교하세요."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "The candidates have not made any changes yet."
+msgstr "후보가 아직 변경 사항을 만들지 않았습니다."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "선택한 폴더"
@@ -8810,6 +9175,15 @@ msgstr "아래에서 자체 간격이 설정되지 않은 모든 공급자에 �
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."
 msgstr "데스크톱 서버가 아직 시작 중입니다."
+
+#: src/renderer/actions/experimentActions.ts
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadPane.tsx
+msgid "The experiment candidate worktree is unavailable."
+msgstr "실험 후보의 작업 트리를 사용할 수 없습니다."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "The experiment prompt is too long."
+msgstr "실험 프롬프트가 너무 깁니다."
 
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -8899,6 +9273,10 @@ msgstr "대상 공급자"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "Windows 사용자"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "the winner"
+msgstr "우승자"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -9271,6 +9649,11 @@ msgstr "페이지에 입력(먼저 필드를 탭하세요)"
 msgid "Unable to authenticate {0}."
 msgstr "{0}을(를) 인증할 수 없습니다."
 
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to compare candidates: {0}"
+msgstr "후보를 비교할 수 없습니다: {0}"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Unable to connect over SSH."
 msgstr "SSH를 통해 연결할 수 없습니다."
@@ -9299,6 +9682,10 @@ msgstr "WSL 작업 트리 디렉터리 \"{path}\"을(를) 생성할 수 없습�
 msgid "Unable to delete the worktree."
 msgstr "worktree를 삭제할 수 없습니다."
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to determine the experiment's source branch."
+msgstr "실험의 소스 브랜치를 확인할 수 없습니다."
+
 #. placeholder {0}: props.selectedAgent.label
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Unable to install {0} hooks."
@@ -9326,6 +9713,11 @@ msgstr "{0}을(를) 로그아웃할 수 없습니다."
 msgid "Unable to merge"
 msgstr "병합할 수 없습니다"
 
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to merge the experiment winner: {0}"
+msgstr "실험 우승자를 병합할 수 없습니다: {0}"
+
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to open {0} login."
@@ -9344,6 +9736,19 @@ msgstr "해당 데스크톱과 페어링할 수 없습니다."
 #: src/mobile/views/DesktopsView.tsx
 msgid "Unable to probe the SSH host."
 msgstr "SSH 호스트를 확인할 수 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to read experiment candidate status"
+msgstr "실험 후보 상태를 읽을 수 없습니다"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to read the candidate changes: {0}"
+msgstr "후보의 변경 사항을 읽을 수 없습니다: {0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to read untracked candidate file: {path}"
+msgstr "추적되지 않은 후보 파일을 읽을 수 없습니다: {path}"
 
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
@@ -9371,8 +9776,16 @@ msgid "Unable to remove worktree."
 msgstr "작업 트리를 제거할 수 없습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to resolve branch tips for fast-forward merge"
+msgstr "빨리 감기 병합을 위한 브랜치 끝을 확인할 수 없습니다"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to resolve home directory for WSL distro \"{distro}\""
 msgstr "WSL 배포판 \"{distro}\"의 홈 디렉터리를 확인할 수 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to resolve the experiment candidate commit"
+msgstr "실험 후보 커밋을 확인할 수 없습니다"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to restore the SSH connection."
@@ -9854,6 +10267,26 @@ msgstr "음성 입력 언어"
 msgid "Voice input model"
 msgstr "음성 입력 모델"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before cleaning up."
+msgstr "정리하기 전에 모든 후보가 완료될 때까지 기다리세요."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before comparing them."
+msgstr "비교하기 전에 모든 후보가 완료될 때까지 기다리세요."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before discarding the experiment."
+msgstr "실험을 폐기하기 전에 모든 후보가 완료될 때까지 기다리세요."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Wait for every candidate to finish before judging."
+msgstr "평가하기 전에 모든 후보가 완료될 때까지 기다리세요."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before merging a winner."
+msgstr "우승자를 병합하기 전에 모든 후보가 완료될 때까지 기다리세요."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "스레드 시작이 완료될 때까지 기다리세요."
@@ -10034,6 +10467,10 @@ msgstr "윈도우"
 #~ msgid "Windows is not supported yet. Install inside WSL or on macOS/Linux."
 #~ msgstr "윈도우는 아직 지원되지 않습니다. WSL 내부 또는 macOS/Linux에 설치합니다."
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Winner merged."
+msgstr "우승자를 병합했습니다."
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Work"
 msgstr "작업"
@@ -10081,6 +10518,7 @@ msgstr "워크플로"
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Working"
 msgstr "작업 중"
 
@@ -10113,9 +10551,17 @@ msgstr "작업 영역 보기"
 msgid "Worktree"
 msgstr "작업 트리"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Worktree {path} has uncommitted changes"
+msgstr "작업 트리 {path}에 커밋되지 않은 변경 사항이 있습니다"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree + changes"
 msgstr "작업 트리 + 변경 사항"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "worktree at {path}: {detail}"
+msgstr "{path}의 작업 트리: {detail}"
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Worktree base folder"
@@ -10204,6 +10650,10 @@ msgstr "WSL 기본 폴더"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "이름"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Your pick"
+msgstr "내 선택"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Zoom in"

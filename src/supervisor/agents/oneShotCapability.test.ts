@@ -27,6 +27,24 @@ describe("supportsOneShot capability", () => {
     },
   );
 
+  it.each(adapters.map((adapter) => [adapter.kind, adapter] as const))(
+    "matches the actual text-only one-shot execution path for %s",
+    (_kind, adapter) => {
+      const hasTextOnlyPath =
+        typeof adapter.runTextOnlyOneShot === "function" ||
+        typeof adapter.buildTextOnlyOneShotCommand === "function";
+      expect(adapter.capabilities.supportsTextOnlyOneShot ?? false).toBe(hasTextOnlyPath);
+    },
+  );
+
+  it("only advertises text-only one-shots where the provider can enforce them", () => {
+    const supported = adapters
+      .filter((adapter) => adapter.capabilities.supportsTextOnlyOneShot === true)
+      .map((adapter) => adapter.kind)
+      .sort();
+    expect(supported).toEqual(["claude"]);
+  });
+
   it("marks every first-class adapter as one-shot capable (they are all CLIs)", () => {
     // First-class providers are CLIs with a headless prompt path, so each must
     // expose one-shot support. Only runtime-registered ACP-registry generics

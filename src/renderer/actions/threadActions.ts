@@ -4,6 +4,7 @@ import { isHomeProject } from "@/shared/homeScope";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
@@ -96,11 +97,15 @@ export function openNewThreadInWorktree(input: {
   });
 }
 
-export function openThread(threadId: string, options?: { focusComposer?: boolean }): void {
+export function openThread(
+  threadId: string,
+  options?: { focusComposer?: boolean; standalone?: boolean },
+): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((item) => item.id === threadId);
+  const standalone = options?.standalone ?? findExperimentByThreadId(threadId) !== undefined;
   const requestId = ++openThreadRequestId;
-  const threadIdsToHydrate = getGuiThreadIdsToHydrateBeforeOpen(threadId);
+  const threadIdsToHydrate = getGuiThreadIdsToHydrateBeforeOpen(threadId, standalone);
 
   // Phase 1 (urgent): flip the optimistic active-thread id in its own cheap
   // commit so the sidebar row highlights immediately. This does not touch
@@ -125,10 +130,12 @@ export function openThread(threadId: string, options?: { focusComposer?: boolean
     }
 
     startTransition(() => {
-      useAppStore.getState().openThread(threadId);
+      const nextStore = useAppStore.getState();
+      if (standalone) nextStore.openThreadStandalone(threadId);
+      else nextStore.openThread(threadId);
       // Clear in the same auto-batched commit as the pane swap so the highlight
       // hands off to `view.panes` without a flicker.
-      useAppStore.getState().setPendingActiveThread(null);
+      nextStore.setPendingActiveThread(null);
       if (options?.focusComposer) {
         useAppStore.getState().requestComposerFocus(threadId);
       }
@@ -206,13 +213,13 @@ export function switchToAdjacentThread(current: Thread, direction: "next" | "pre
   if (nextId && nextId !== current.id) openThread(nextId);
 }
 
-function getGuiThreadIdsToHydrateBeforeOpen(threadId: string): string[] {
+function getGuiThreadIdsToHydrateBeforeOpen(threadId: string, standalone = false): string[] {
   const state = useAppStore.getState();
   const clickedThread = state.threads.find((thread) => thread.id === threadId);
   if (!clickedThread) return [];
 
   let candidates = [clickedThread];
-  if (clickedThread.groupId) {
+  if (!standalone && clickedThread.groupId) {
     const groupThreads = state.threads.filter(
       (thread) => thread.groupId === clickedThread.groupId && !thread.done && !thread.archived,
     );
@@ -278,6 +285,12 @@ export function sweepStaleThreads(): void {
 
   const store = useAppStore.getState();
   const visibleThreadIds = new Set(store.view.kind === "thread" ? store.view.panes : []);
+  if (store.view.kind === "experiment") {
+    const experiment = useExperimentStore.getState().experiments[store.view.experimentId];
+    for (const candidate of experiment?.candidates ?? []) {
+      visibleThreadIds.add(candidate.threadId);
+    }
+  }
   const staleBefore = Date.now() - staleThreadUnloadMinutes * 60_000;
 
   for (const thread of store.threads) {
@@ -296,6 +309,7 @@ export function sweepStaleThreads(): void {
 }
 
 export function archiveThread(threadId: string): void {
+  if (findExperimentByThreadId(threadId)) return;
   void unloadStoredThread(threadId).catch(() => undefined);
   useAppStore.getState().archiveThread(threadId);
 }
@@ -305,6 +319,7 @@ export function unloadThread(threadId: string): void {
 }
 
 export function toggleMarkThreadDone(threadId: string): void {
+  if (findExperimentByThreadId(threadId)) return;
   const store = useAppStore.getState();
   const thread = store.threads.find((t) => t.id === threadId);
   if (!thread) return;
@@ -353,6 +368,7 @@ function deleteThreadOnly(threadId: string): void {
 }
 
 export function deleteThread(threadId: string, worktreePath?: string, projectId?: string): void {
+  if (findExperimentByThreadId(threadId)) return;
   if (!worktreePath) {
     deleteThreadOnly(threadId);
     return;

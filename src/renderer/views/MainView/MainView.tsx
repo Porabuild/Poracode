@@ -1,11 +1,13 @@
 import { startTransition, useEffect } from "react";
 import type { AgentStatus } from "@/shared/contracts";
 import { buildPaneLayoutFromLegacy } from "@/shared/paneLayout";
+import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
 import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useWelcomeGateStore } from "@/renderer/state/welcomeGateStore";
 import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -22,6 +24,7 @@ import { WorktreeDeleteDialogs } from "@/renderer/views/MainView/parts/WorktreeD
 import { PullFromSourceDialog } from "@/renderer/views/MainView/parts/PullFromSourceDialog";
 import { MainPageLayout, StalePanelCleanup } from "@/renderer/views/MainView/parts/MainPageLayout";
 import { ThreadSearchOverlayHost } from "@/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay";
+import { ThreadLiveWorkflowTracker } from "@/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile";
 
 function findMissingWslDistro(distros: readonly string[], statuses: readonly AgentStatus[]) {
   const cachedDistros = new Set(
@@ -117,6 +120,28 @@ export function MainView(props: { storeHydrated: boolean; loadT0: number }) {
       <AppOverlays />
       <WorktreeDeleteDialogs />
       <PullFromSourceDialog />
+      <ExperimentWorkflowTrackers />
     </>
+  );
+}
+
+function ExperimentWorkflowTrackers() {
+  const experiments = useExperimentStore((state) => state.experiments);
+  const threads = useAppStore((state) => state.threads);
+  const projects = useAppStore((state) => state.projects);
+
+  return Object.values(experiments).flatMap((experiment) =>
+    experiment.candidates.map((candidate) => {
+      const thread = threads.find((item) => item.id === candidate.threadId);
+      const project = projects.find((item) => item.id === experiment.projectId);
+      if (!thread?.worktreePath || !project) return null;
+      return (
+        <ThreadLiveWorkflowTracker
+          key={candidate.threadId}
+          threadId={candidate.threadId}
+          projectLocation={buildWorktreeLocation(project.location, thread.worktreePath)}
+        />
+      );
+    }),
   );
 }

@@ -17,3 +17,4 @@ export * from "./contracts/profile";
 export * from "./contracts/schedule";
 export * from "./contracts/mcpServer";
 export * from "./contracts/skill";
+export * from "./contracts/experiment";

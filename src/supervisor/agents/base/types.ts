@@ -452,6 +452,29 @@ export interface AgentOneShotRunner {
       }
     | undefined;
   runOneShot?(input: RunOneShotInput): Promise<string>;
+  /**
+   * Build a provider-enforced text-only one-shot invocation. Unlike the
+   * general one-shot lane, this must disable every tool, MCP, plugin, and hook
+   * surface rather than relying on prompt instructions or approval policy.
+   */
+  buildTextOnlyOneShotCommand?(
+    model: string,
+    effort?: string,
+    prompt?: string,
+    location?: ProjectLocation,
+    fast?: boolean,
+  ):
+    | {
+        command: string;
+        args: string[];
+        stdin?: string;
+        isolateCwd?: boolean;
+        pty?: boolean;
+        env?: Record<string, string>;
+      }
+    | undefined;
+  /** Run a provider-enforced text-only one-shot through a structured runtime. */
+  runTextOnlyOneShot?(input: RunOneShotInput): Promise<string>;
   buildContextExtractionCommand?(
     sessionRef: SessionRef,
     location: ProjectLocation,

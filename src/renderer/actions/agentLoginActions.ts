@@ -18,7 +18,7 @@ function resolveLoginProject(): Project | undefined {
     if (project) return project;
   }
 
-  if (view.kind === "draft") {
+  if (view.kind === "draft" || view.kind === "experiment") {
     const project = app.projects.find((candidate) => candidate.id === view.projectId);
     if (project) return project;
   }

@@ -447,6 +447,36 @@ describe("agent command builders", () => {
     });
   });
 
+  it("builds a Claude text-only one-shot with provider extensions disabled", () => {
+    expect(
+      createClaudeAdapter().buildTextOnlyOneShotCommand?.(
+        "claude-opus-4-8",
+        "high",
+        "Judge these diffs",
+      ),
+    ).toEqual({
+      command: "claude",
+      args: [
+        "-p",
+        "Judge these diffs",
+        "--model",
+        "claude-opus-4-8",
+        "--fallback-model",
+        "haiku",
+        "--no-session-persistence",
+        "--safe-mode",
+        "--tools",
+        "",
+        "--mcp-config",
+        '{"mcpServers":{}}',
+        "--strict-mcp-config",
+        "--effort",
+        "high",
+      ],
+      stdin: "",
+    });
+  });
+
   it("forwards effort to Grok one-shots as --reasoning-effort", () => {
     expect(
       createGrokAdapter().buildOneShotCommand?.("grok-4.5", "low", "Summarize this diff"),

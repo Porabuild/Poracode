@@ -11,6 +11,8 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
+import { discardExperiment } from "./experimentActions";
 
 // The home dir doesn't change at runtime, so cache the single IPC roundtrip
 // and reuse it across callers (MainView mount effect + WelcomeOverlay
@@ -112,6 +114,17 @@ export async function relocateProject(projectId: string): Promise<void> {
 }
 
 export function deleteProject(projectId: string): void {
+  void deleteProjectAsync(projectId);
+}
+
+async function deleteProjectAsync(projectId: string): Promise<void> {
+  const experimentIds = Object.values(useExperimentStore.getState().experiments)
+    .filter((experiment) => experiment.projectId === projectId)
+    .map((experiment) => experiment.id);
+  for (const experimentId of experimentIds) {
+    if (!(await discardExperiment(experimentId))) return;
+  }
+
   const store = useAppStore.getState();
   const projectThreadIds = store.threads.filter((t) => t.projectId === projectId).map((t) => t.id);
 

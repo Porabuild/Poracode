@@ -30,7 +30,14 @@ msgstr "(немає гілки)"
 msgid "(no message)"
 msgstr "(немає повідомлення)"
 
+#. placeholder {0}: candidates.length
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "{0, plural, one {# candidate} other {# candidates}}"
+msgstr "{0, plural, one {# кандидат} few {# кандидати} many {# кандидатів} other {# кандидата}}"
+
 #. placeholder {0}: details.changedFiles
+#. placeholder {0}: stats.files
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# файл} few {# файли} many {# файлів} other {# файлу}}"
@@ -72,6 +79,11 @@ msgstr "{0, plural, one {# навичка} other {# навичок}}"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "{0, plural, one {# tool} other {# tools}}"
 msgstr "{0, plural, one {# інструмент} few {# інструменти} many {# інструментів} other {# інструмента}}"
+
+#. placeholder {0}: candidates.length
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
+msgstr "{0, plural, one {Кандидат (#)} few {Кандидати (#)} many {Кандидати (#)} other {Кандидати (#)}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -378,6 +390,10 @@ msgstr "{loginLabel} {0} {env}"
 msgid "{loginLabel} {env}"
 msgstr "{loginLabel} {env}"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
+#~ msgstr "{loserCount, plural, one {Іншого кандидата та його worktree буде видалено.} few {Інших # кандидатів та їхні worktree буде видалено.} many {Інших # кандидатів та їхні worktree буде видалено.} other {Інших # кандидата та їхні worktree буде видалено.}}"
+
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{maxLabel} context"
 msgstr "Контекст {maxLabel}"
@@ -420,6 +436,10 @@ msgstr "{projectLocation} (вимкнено)"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
 msgstr "Налаштування {projectName}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "{provider} does not support text-only one-shot generation"
+msgstr "{provider} не підтримує одноразове генерування лише тексту"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -507,9 +527,21 @@ msgstr "30 дн"
 msgid "7d"
 msgstr "7 дн"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "A candidate is no longer on its experiment branch."
+msgstr "Один із кандидатів більше не перебуває в гілці експерименту."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A frozen worktree source requires a full commit hash"
+msgstr "Для замороженого джерела worktree потрібен повний хеш коміту"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "a supported coding agent"
 msgstr "підтримуваний агент кодування"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A worktree owner requires a frozen branch source"
+msgstr "Для власника worktree потрібна заморожена вихідна гілка"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Abort Merge"
@@ -665,6 +697,10 @@ msgstr "Додати наявну папку"
 msgid "Add attachment or capability"
 msgstr "Додати вкладення або можливість"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Add candidate"
+msgstr "Додати кандидата"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add Claude profile"
 msgstr "Додати профіль Claude"
@@ -770,6 +806,11 @@ msgstr "Чат агента (ACP / markdown). Рядки команд викор
 msgid "Agent encountered an error."
 msgstr "Агент натрапив на помилку."
 
+#. placeholder {0}: index + 1
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Agent for candidate {0}"
+msgstr "Агент для кандидата {0}"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is active and ready"
 msgstr "Агент активний і готовий"
@@ -831,6 +872,10 @@ msgstr "Оркестратор AI-агентів — керуйте агента
 msgid "AI git actions"
 msgstr "Дії AI у git"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "AI judge"
+msgstr "AI-суддя"
+
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "AI providers"
 msgstr "Постачальники AI"
@@ -858,6 +903,11 @@ msgstr "Усі облікові записи"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All agent apps"
 msgstr "Усі застосунки агентів"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "All candidate sessions, worktrees, and branches will be removed."
+msgstr "Усі сеанси кандидатів, worktree та гілки буде видалено."
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "All devices"
@@ -928,6 +978,10 @@ msgstr "Завжди"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Always excluded"
 msgstr "Завжди виключено"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "An expected worktree owner requires a branch"
+msgstr "Для очікуваного власника worktree потрібна гілка"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
@@ -1072,6 +1126,10 @@ msgstr "Поставити запитання"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "At"
 msgstr "О"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "At least two worktrees must be created. Any partial experiment was cleaned up."
+msgstr "Потрібно створити щонайменше два worktree. Усі дані незавершеного експерименту видалено."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Attach"
@@ -1225,6 +1283,10 @@ msgstr "Фоновий процес перезапущено"
 msgid "Background tasks"
 msgstr "Фонові завдання"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Base branch"
+msgstr "Базова гілка"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Base branch is ahead — branch must be updated first."
@@ -1306,6 +1368,10 @@ msgstr "Знизу"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "У гілці '{branch}' є незакомічені зміни в '{path}' — закомітьте їх або помістіть у stash перед злиттям"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "branch {branch}: {detail}"
+msgstr "гілка {branch}: {detail}"
 
 #. placeholder {0}: props.branch
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
@@ -1462,6 +1528,7 @@ msgstr "Не вдалося завантажити порти"
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/experiment/NewExperimentModal.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1560,6 +1627,10 @@ msgstr "Зміни в PR"
 msgid "Changes requested"
 msgstr "Запитано зміни"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Changes unavailable"
+msgstr "Зміни недоступні"
+
 #. About page label: release channel (stable/nightly)
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Channel"
@@ -1646,6 +1717,10 @@ msgstr "Виберіть папку"
 msgid "Choose a folder…"
 msgstr "Виберіть папку…"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Choose a local base branch for the experiment."
+msgstr "Виберіть локальну базову гілку для експерименту."
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a parent folder"
 msgstr "Виберіть батьківську папку"
@@ -1653,6 +1728,10 @@ msgstr "Виберіть батьківську папку"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "Choose an MCP server configuration file"
 #~ msgstr "Вибрати файл конфігурації сервера MCP"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Choose at least two candidates and enter a prompt."
+msgstr "Виберіть щонайменше двох кандидатів і введіть промпт."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
@@ -1838,6 +1917,10 @@ msgstr "Закрити редактор"
 #: src/renderer/commands/registry.ts
 msgid "Close Editor Tab"
 msgstr "Закрити вкладку редактора"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Close experiment"
+msgstr "Закрити експеримент"
 
 #: src/mobile/views/FilesView.tsx
 msgid "Close file actions"
@@ -2190,6 +2273,10 @@ msgstr "Computer Use увімкнено — інтерактивні дії за
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
 #~ msgstr "Керування комп'ютером увімкнено для цього треду"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Computing changes…"
+msgstr "Обчислення змін…"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -2660,6 +2747,18 @@ msgstr "Облікові дані налаштовано."
 msgid "Credits"
 msgstr "Кредити"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Crown"
+msgstr "Обрати переможцем"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Crown with AI"
+msgstr "Обрати переможця за допомогою AI"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Crowned"
+msgstr "Обрано переможцем"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "Відібрані безкоштовні та преміальні навички під керуванням MCP Market."
@@ -2886,6 +2985,10 @@ msgstr "Заборонити"
 msgid "Deny and tell the agent what to do differently…"
 msgstr "Заборонити й сказати агенту, що зробити інакше…"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Describe the task to run with multiple agents…"
+msgstr "Опишіть завдання, яке мають виконати кілька агентів…"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Describe what the agent should do"
 msgstr "Опишіть, що має зробити агент"
@@ -2915,6 +3018,10 @@ msgstr "Налаштування робочого стола"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Destination"
 msgstr "Призначення"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "detached HEAD"
+msgstr "відокремлений HEAD"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Details"
@@ -3041,6 +3148,11 @@ msgstr "Після вимкнення навичка переміщується 
 msgid "Discard"
 msgstr "Відхилити"
 
+#. placeholder {0}: entry.group.groupName
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Discard {0}"
+msgstr "Відхилити {0}"
+
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Discard all changes"
 msgstr "Відкинути всі зміни"
@@ -3052,6 +3164,16 @@ msgstr "Відкинути зміни"
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Discard changes to <0>{title}</0>? This cannot be undone."
 msgstr "Відкинути зміни в <0>{title}</0>? Це не можна буде скасувати."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Discard experiment"
+msgstr "Відхилити експеримент"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Discard experiment?"
+msgstr "Відхилити експеримент?"
 
 #: src/mobile/views/useOpenFile.ts
 #: src/renderer/commands/registry.ts
@@ -3492,6 +3614,82 @@ msgstr "Розгорніть, щоб переглянути або відкли�
 msgid "Expand todo dock"
 msgstr "Розгорнути панель завдань"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected branch {branch} at {expected}, but found {actual}"
+msgstr "Очікувалося, що гілка {branch} вказує на {expected}, але вона вказує на {actual}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected source worktree branch {expected}, but found {actual}"
+msgstr "Очікувалася вихідна гілка worktree {expected}, але знайдено {actual}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected worktree branch {expected}, but found {actual}"
+msgstr "Очікувалася гілка worktree {expected}, але знайдено {actual}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected worktree HEAD {expected}, but found {actual}"
+msgstr "Очікувався HEAD worktree {expected}, але знайдено {actual}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected worktree owner {expected}, but found {actual}"
+msgstr "Очікувався власник worktree {expected}, але знайдено {actual}"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Experiment"
+msgstr "Експеримент"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate changed while its diff was being captured"
+msgstr "Кандидат експерименту змінився під час отримання його diff"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate changed while its stats were being captured"
+msgstr "Кандидат експерименту змінився під час отримання його статистики"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate diff is too large to compare safely"
+msgstr "Diff кандидата експерименту завеликий для безпечного порівняння"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate has too many untracked files ({count}; maximum {maximum})"
+msgstr "У кандидата експерименту забагато невідстежуваних файлів ({count}; максимум {maximum})"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate no longer descends from its frozen base commit"
+msgstr "Кандидат експерименту більше не є нащадком замороженого базового коміту"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate thread ids must be unique"
+msgstr "Ідентифікатори тредів кандидатів експерименту мають бути унікальними"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment diff base must be a full commit hash"
+msgstr "Базою diff експерименту має бути повний хеш коміту"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge requires at least two candidates"
+msgstr "Для оцінювання експерименту потрібно щонайменше два кандидати"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge returned an empty rationale"
+msgstr "Оцінювач експерименту повернув порожнє обґрунтування"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge returned an invalid response shape"
+msgstr "Оцінювач експерименту повернув відповідь неприпустимої структури"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge returned invalid JSON"
+msgstr "Оцінювач експерименту повернув неприпустимий JSON"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge winner must be between 1 and {candidateCount}"
+msgstr "Номер переможця експерименту має бути від 1 до {candidateCount}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment prompt must not be blank"
+msgstr "Промпт експерименту не може бути порожнім"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "Експортувати сервери MCP"
@@ -3536,6 +3734,10 @@ msgid "Failed to close remote thread."
 msgstr "Не вдалося закрити віддалений тред."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to create owned worktree: {detail}. Rollback left branch {branch}: {rollback}"
+msgstr "Не вдалося створити worktree, що належить застосунку: {detail}. Після відкочування залишилася гілка {branch}: {rollback}"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create pull request: {detail}"
 msgstr "Не вдалося створити pull request: {detail}"
 
@@ -3555,7 +3757,16 @@ msgstr "Не вдалося виконати злиття pull request: {detail}
 msgid "Failed to open remote thread."
 msgstr "Не вдалося відкрити віддалений тред."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to record frozen source metadata: {detail}. Rollback left {rollback}"
+msgstr "Не вдалося записати метадані замороженого джерела: {detail}. Після відкочування залишилося: {rollback}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
+msgstr "Не вдалося записати метадані гілки, що належить застосунку: {detail}. Після відкочування залишилася гілка {branch}: {rollback}"
+
 #: src/renderer/components/thread/buildModelPickerControls.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Fast"
 msgstr "Швидкий"
 
@@ -3775,6 +3986,15 @@ msgstr "Примусово перезавантажити сторінку бр�
 msgid "Fork"
 msgstr "Розгалуження"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Fork from"
+msgstr "Розгалуження від"
+
+#. placeholder {0}: exp.baseBranch
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Forked from <0>{0}</0>"
+msgstr "Створено розгалуження від <0>{0}</0>"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Form"
 msgstr "Форма"
@@ -3824,6 +4044,10 @@ msgstr "Зробіть бічну панель матовою за допомо�
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Frosting of the {appearance}-mode sidebar over the system blur. Higher holds the theme color; lower shows more of what's behind."
 msgstr "Матовість бічної панелі в режимі «{appearance}» поверх системного розмиття. Вище значення зберігає колір теми; нижче — більше показує те, що позаду."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Frozen worktree source is not a local branch: {branch}"
+msgstr "Заморожене джерело worktree не є локальною гілкою: {branch}"
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -4167,6 +4391,7 @@ msgstr "Шлях до файлу ідентифікації"
 #. Microphone input level when not testing
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
 msgstr "Очікування"
@@ -4425,6 +4650,10 @@ msgstr "Курсив"
 msgid "JSON"
 msgstr "JSON"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Judging…"
+msgstr "Оцінювання…"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Jump to section"
 msgstr "Перейти до розділу"
@@ -4504,6 +4733,10 @@ msgstr "Залишити коментар"
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "Менше"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Let an AI judge compare the candidate changes."
+msgstr "Доручити AI-судді порівняти зміни кандидатів."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the embedded page. Off by default — turn on only when you trust the loaded sites and the agent."
@@ -4718,6 +4951,10 @@ msgstr "Найдовше завдання"
 msgid "Looking for dev servers…"
 msgstr "Пошук серверів розробки…"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Losing worktrees and branches will be removed. Their session history will remain."
+msgstr "Worktree та гілки кандидатів, які не перемогли, буде видалено. Історію їхніх сеансів буде збережено."
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "Зробіть бічну панель напівпрозорою — системне розмиття у Windows 11 і напівпрозоре тонування в інших системах."
@@ -4919,14 +5156,27 @@ msgstr "Виклики інструментів MCP"
 msgid "MCP transport type"
 msgstr "Тип транспорту MCP"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Merge {crownedLabel}'s changes into {mergeTarget}?"
+msgstr "Злити зміни {crownedLabel} у {mergeTarget}?"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
 msgstr "Злити та видалити"
+
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Merge candidate {0} ({label}) as experiment winner"
+msgstr "Злити зміни кандидата {0} ({label}) як переможця експерименту"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge conflicts must be resolved."
 msgstr "Конфлікти злиття мають бути вирішені."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Merge experiment winner?"
+msgstr "Злити зміни переможця експерименту?"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Merge failed"
@@ -4978,14 +5228,24 @@ msgstr "Злити цей pull request одним squash-комітом."
 msgid "Merge to Source"
 msgstr "Злити в джерело"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Merge winner"
+msgstr "Злити зміни переможця"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Merge Worktree"
 msgstr "Злити worktree"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Merged"
 msgstr "Злито"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Merged the experiment winner into {sourceBranch}."
+msgstr "Зміни переможця експерименту злито в {sourceBranch}."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merging is blocked"
@@ -5070,6 +5330,11 @@ msgstr "Модель"
 #: src/renderer/commands/registry.ts
 msgid "Model added to favorites"
 msgstr "Модель додано до обраного"
+
+#. placeholder {0}: index + 1
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Model for candidate {0}"
+msgstr "Модель для кандидата {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -5275,6 +5540,10 @@ msgstr "Нова назва профілю Claude"
 msgid "New code"
 msgstr "Новий код"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "New experiment"
+msgstr "Новий експеримент"
+
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
 msgstr "Новий файл"
@@ -5478,6 +5747,10 @@ msgstr "Немає змін"
 msgid "No changes to display"
 msgstr "Немає змін для відображення"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "No changes yet"
+msgstr "Змін поки немає"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
 msgstr "Для цього PR не повідомлено про перевірки."
@@ -5518,6 +5791,10 @@ msgstr "Даних поки немає"
 #: src/renderer/views/ProfileOverlay/parts/BreakdownBars.tsx
 msgid "No data yet."
 msgstr "Даних ще немає."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No default one-shot model configured for {provider}"
+msgstr "Для {provider} не налаштовано типову модель одноразового генерування"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -5563,6 +5840,10 @@ msgstr "Облікові записи GitHub CLI не знайдено. Увій
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "Історії ще немає"
+
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "No installed agents with selectable models are available for this project."
+msgstr "Для цього проєкту немає встановлених агентів із моделями, які можна вибрати."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -5762,9 +6043,18 @@ msgstr "Немає worktree"
 msgid "No wrap"
 msgstr "Без перенесення"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "none"
+msgstr "немає"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "None"
 msgstr "Немає"
+
+#: src/renderer/actions/experimentActions.ts
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "None of these agents can run the AI comparison."
+msgstr "Жоден із цих агентів не може виконати порівняння за допомогою AI."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -5896,6 +6186,7 @@ msgid "Only when unfocused"
 msgstr "Лише коли немає фокусу"
 
 #: src/renderer/notifications.ts
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -5948,6 +6239,11 @@ msgstr "Відкрити браузер"
 msgid "Open browser tab"
 msgstr "Відкрити вкладку браузера"
 
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Open candidate {0}: {label}"
+msgstr "Відкрити кандидата {0}: {label}"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "Відкрити перевірку"
@@ -5967,6 +6263,15 @@ msgstr "Відкрити засіб розв'язання конфліктів �
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Open dialog"
 msgstr "Відкрити діалог"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Open experiment"
+msgstr "Відкрити експеримент"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Open experiment board"
+msgstr "Відкрити дошку експерименту"
 
 #: src/renderer/commands/registry.ts
 msgid "Open File"
@@ -6618,7 +6923,9 @@ msgstr "Проєкти"
 msgid "Projects live on the connected desktop. Add one before starting a thread."
 msgstr "Проєкти розміщені на підключеному комп’ютері. Додайте проєкт, перш ніж почати тред."
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Prompt"
 msgstr "Промпт"
@@ -7019,6 +7326,11 @@ msgstr "Видалити дію"
 msgid "Remove bookmark"
 msgstr "Видалити закладку"
 
+#. placeholder {0}: index + 1
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Remove candidate {0}"
+msgstr "Видалити кандидата {0}"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "Видалити профіль Claude"
@@ -7085,6 +7397,10 @@ msgstr "Перейменувати чат"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Rename connection"
 msgstr "Перейменувати підключення"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Rename experiment"
+msgstr "Перейменувати експеримент"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -7270,6 +7586,10 @@ msgstr "Повторити перевірку {serverName}"
 msgid "Retry check"
 msgstr "Повторити перевірку"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Retry cleanup"
+msgstr "Повторити очищення"
+
 #: src/mobile/components.tsx
 msgid "Retry now"
 msgstr "Повторить сейчас"
@@ -7400,6 +7720,14 @@ msgstr "Запустіть {loginCommand}, щоб увійти."
 msgid "Run a new thread on {0}."
 msgstr "Запустити новий потік на {0}."
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Run as experiment"
+msgstr "Запустити як експеримент"
+
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Run as experiment with multiple agents"
+msgstr "Запустити як експеримент із кількома агентами"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run at"
 msgstr "Запустити о"
@@ -7407,6 +7735,10 @@ msgstr "Запустити о"
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "Run command"
 msgstr "Виконати команду"
+
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Run experiment"
+msgstr "Запустити експеримент"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Run in a separate worktree"
@@ -7420,6 +7752,10 @@ msgstr "Виконувати локальне транскрибування н�
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Run now"
 msgstr "Запустити зараз"
+
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Run one prompt with multiple agents, then compare their work."
+msgstr "Запустіть один промпт за допомогою кількох агентів, а потім порівняйте їхню роботу."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Run standalone tasks on this device without a project."
@@ -7786,6 +8122,11 @@ msgstr "Виберіть варіант"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Select branch"
 msgstr "Вибрати гілку"
+
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Select candidate {0} ({label}) as winner"
+msgstr "Вибрати кандидата {0} ({label}) переможцем"
 
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
@@ -8174,6 +8515,14 @@ msgstr "Slash-команди"
 msgid "Some checks are failing or pending."
 msgstr "Деякі перевірки не пройдені або очікують виконання."
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Some experiment worktrees could not be removed."
+msgstr "Не вдалося видалити деякі worktree експерименту."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Some losing worktrees could not be removed."
+msgstr "Не вдалося видалити деякі worktree кандидатів, що програли."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
 msgstr "Деякі папки провайдерів не вдалося просканувати. Успішно завантажені навички все одно відображаються."
@@ -8197,6 +8546,10 @@ msgstr "Сортувати навички маркетплейсу"
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Sort threads"
 msgstr "Сортувати треди"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source branch {branch} moved before the worktree was created"
+msgstr "Вихідна гілка {branch} перемістилася до створення worktree"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Sources"
@@ -8798,6 +9151,18 @@ msgstr "Агент"
 msgid "the app"
 msgstr "програму"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "the base branch"
+#~ msgstr "базову гілку"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "The candidates changed after judging. Compare them again."
+msgstr "Кандидати змінилися після оцінювання. Порівняйте їх знову."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "The candidates have not made any changes yet."
+msgstr "Кандидати ще не внесли жодних змін."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "обрана папка"
@@ -8810,6 +9175,15 @@ msgstr "Періодичність фонового оновлення за за
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."
 msgstr "Сервер робочого стола ще запускається."
+
+#: src/renderer/actions/experimentActions.ts
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadPane.tsx
+msgid "The experiment candidate worktree is unavailable."
+msgstr "Worktree кандидата експерименту недоступний."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "The experiment prompt is too long."
+msgstr "Промпт експерименту задовгий."
 
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -8899,6 +9273,10 @@ msgstr "цільовий провайдер"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "користувача Windows"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "the winner"
+msgstr "переможця"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -9271,6 +9649,11 @@ msgstr "Вводите на странице (сначала коснитесь 
 msgid "Unable to authenticate {0}."
 msgstr "Не вдалося автентифікувати {0}."
 
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to compare candidates: {0}"
+msgstr "Не вдалося порівняти кандидатів: {0}"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Unable to connect over SSH."
 msgstr "Не вдалося підключитися через SSH."
@@ -9299,6 +9682,10 @@ msgstr "Не вдалося створити каталог worktree WSL \"{path
 msgid "Unable to delete the worktree."
 msgstr "Не вдалося видалити worktree."
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to determine the experiment's source branch."
+msgstr "Не вдалося визначити вихідну гілку експерименту."
+
 #. placeholder {0}: props.selectedAgent.label
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Unable to install {0} hooks."
@@ -9326,6 +9713,11 @@ msgstr "Не вдалося вийти з {0}."
 msgid "Unable to merge"
 msgstr "Не вдалося виконати merge"
 
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to merge the experiment winner: {0}"
+msgstr "Не вдалося злити зміни переможця експерименту: {0}"
+
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to open {0} login."
@@ -9344,6 +9736,19 @@ msgstr "Не удалось связать с этим десктопом."
 #: src/mobile/views/DesktopsView.tsx
 msgid "Unable to probe the SSH host."
 msgstr "Не вдалося перевірити SSH-хост."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to read experiment candidate status"
+msgstr "Не вдалося прочитати стан кандидата експерименту"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to read the candidate changes: {0}"
+msgstr "Не вдалося прочитати зміни кандидатів: {0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to read untracked candidate file: {path}"
+msgstr "Не вдалося прочитати невідстежуваний файл кандидата: {path}"
 
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
@@ -9371,8 +9776,16 @@ msgid "Unable to remove worktree."
 msgstr "Не вдалося видалити worktree."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to resolve branch tips for fast-forward merge"
+msgstr "Не вдалося визначити вершини гілок для fast-forward-злиття"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to resolve home directory for WSL distro \"{distro}\""
 msgstr "Не вдалося визначити домашній каталог для дистрибутива WSL \"{distro}\""
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to resolve the experiment candidate commit"
+msgstr "Не вдалося визначити коміт кандидата експерименту"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to restore the SSH connection."
@@ -9854,6 +10267,26 @@ msgstr "Мова голосового вводу"
 msgid "Voice input model"
 msgstr "Модель голосового вводу"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before cleaning up."
+msgstr "Зачекайте, доки всі кандидати завершать роботу, перш ніж виконувати очищення."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before comparing them."
+msgstr "Зачекайте, доки всі кандидати завершать роботу, перш ніж порівнювати їх."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before discarding the experiment."
+msgstr "Зачекайте, доки всі кандидати завершать роботу, перш ніж відхиляти експеримент."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Wait for every candidate to finish before judging."
+msgstr "Зачекайте, доки всі кандидати завершать роботу, перш ніж оцінювати їх."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before merging a winner."
+msgstr "Зачекайте, доки всі кандидати завершать роботу, перш ніж зливати зміни переможця."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "Зачекайте, поки тред завершить запуск."
@@ -10034,6 +10467,10 @@ msgstr "Windows"
 #~ msgid "Windows is not supported yet. Install inside WSL or on macOS/Linux."
 #~ msgstr "Windows поки не підтримується. Встановіть у WSL або на macOS/Linux."
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Winner merged."
+msgstr "Зміни переможця злито."
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Work"
 msgstr "Робота"
@@ -10081,6 +10518,7 @@ msgstr "Робочі процеси"
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Working"
 msgstr "Працює"
 
@@ -10113,9 +10551,17 @@ msgstr "Подання робочої області"
 msgid "Worktree"
 msgstr "Worktree"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Worktree {path} has uncommitted changes"
+msgstr "У worktree {path} є незакомічені зміни"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree + changes"
 msgstr "Worktree + зміни"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "worktree at {path}: {detail}"
+msgstr "worktree за шляхом {path}: {detail}"
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Worktree base folder"
@@ -10204,6 +10650,10 @@ msgstr "Базова папка WSL"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "Ваше ім'я"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Your pick"
+msgstr "Ваш вибір"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Zoom in"

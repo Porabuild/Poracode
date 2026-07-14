@@ -11,22 +11,16 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import {
-  DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE,
-  resolveMcpLaunchSnapshot,
-} from "@/shared/contracts";
-import { isHomeProjectId } from "@/shared/homeScope";
+import { DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE } from "@/shared/contracts";
 import { isOpenCodeBrowserMcpEnabled } from "@/shared/opencodeSettings";
-import { buildPromptContentBlocks } from "@/shared/promptContent";
 
 import { useAppStore } from "@/renderer/state/appStore";
-import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import { ComputerUseChip, McpChip } from "@/renderer/components/composer/AttachmentBar";
 import { browserMcpServer } from "@/renderer/components/composer/composerMcpServers";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { readBridge } from "@/renderer/bridge";
-import { captureThreadStarted } from "@/renderer/analytics/posthog";
+import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActions";
 import { setRendererRuntimeDiagnosticContext } from "@/renderer/diagnostics/sentry";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import type { TerminalPaneHandle } from "./TerminalPane";
@@ -243,83 +237,14 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     launchRequestRef.current = launchKey;
     onLaunchConsumed?.();
 
-    // Optimistic user_message for the FIRST prompt in a fresh GUI thread.
-    // Without this the chat sits empty for the duration of the supervisor's
-    // structured-session bringup (process spawn + ACP handshake +
-    // newSession), which can be a noticeable delay. The supervisor reuses
-    // this id when it emits its own canonical user_message events so the
-    // renderer's per-id dedupe drops the duplicate.
-    const presentation = thread.presentationMode ?? "terminal";
-    if (thread.config.model) {
-      useSharedSettings
-        .getState()
-        .pushRecentModel(thread.agentKind, thread.config.model, presentation);
-    }
-
-    let optimisticUserMessageItemId: string | undefined;
-    if (
-      presentation === "gui" &&
-      pendingLaunchPrompt.length > 0 &&
-      thread.sessionRef === undefined
-    ) {
-      optimisticUserMessageItemId = `user-${crypto.randomUUID()}`;
-      useAppStore.getState().applyRuntimeEvent(thread.id, {
-        type: "item.started",
-        threadId: thread.id,
-        itemId: optimisticUserMessageItemId,
-        itemType: "user_message",
-        payload: { content: buildPromptContentBlocks(pendingLaunchPrompt, pendingLaunchSegments) },
-      });
-      useAppStore.getState().applyRuntimeEvent(thread.id, {
-        type: "item.completed",
-        threadId: thread.id,
-        itemId: optimisticUserMessageItemId,
-      });
-      useAppStore.getState().updateThreadRuntime(thread.id, {
-        status: "working",
-        attention: "working",
-        canResumeWithConfig: thread.canResumeWithConfig,
-        ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-      });
-    }
-
     void (async () => {
-      if (optimisticUserMessageItemId && !isHomeProjectId(thread.projectId)) {
-        await captureFileCheckpoint({
-          threadId: thread.id,
-          checkpointItemId: optimisticUserMessageItemId,
-          projectLocation,
-        });
-      }
-      const sharedSettings = useSharedSettings.getState();
-      const projectMcpServers =
-        useAppStore.getState().projects.find((project) => project.id === thread.projectId)
-          ?.mcpServers ?? [];
-      const mcpLaunchSnapshot = resolveMcpLaunchSnapshot(sharedSettings, projectMcpServers);
-      await readBridge().startThread({
-        threadId: thread.id,
+      await performInitialThreadLaunch({
+        thread,
         projectLocation,
-        agentKind: thread.agentKind,
-        ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
-        config: thread.config,
         prompt: pendingLaunchPrompt,
         ...(pendingLaunchSegments ? { segments: pendingLaunchSegments } : {}),
         initialSize: launchTerminalSize,
-        ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-        ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
-        ...mcpLaunchSnapshot,
-        ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
       });
-      captureThreadStarted(
-        {
-          agentKind: thread.agentKind,
-          config: thread.config,
-          ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
-          ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
-          ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-        },
-        pendingLaunchSegments,
-      );
     })().catch((error) => {
       launchRequestRef.current = null;
       onLaunchFailed?.(formatLaunchError(error, t`Thread failed to start.`));
@@ -332,15 +257,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     pendingLaunchSegments,
     projectLocation,
     launchTerminalSize,
-    thread.agentKind,
-    thread.agentInstanceId,
-    thread.canResumeWithConfig,
-    thread.config,
-    thread.id,
-    thread.presentationMode,
-    thread.projectId,
-    thread.sessionRef,
-    thread.worktreePath,
+    thread,
   ]);
 
   const alignClass =

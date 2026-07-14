@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import type { PromptSegment } from "@/shared/contracts";
 import { createSlashCommandChipElement } from "./SlashCommandChip";
-import { serializeComposerContent, serializeToSegments } from "./serializeMentions";
+import {
+  rebuildEditedPromptSegments,
+  serializeComposerContent,
+  serializeToSegments,
+} from "./serializeMentions";
 
 describe("serializeComposerContent", () => {
   let container: HTMLDivElement;
@@ -143,5 +148,47 @@ describe("serializeComposerContent", () => {
       ];
       expect(m.flattenSegments(segments)).toBe("hello");
     });
+  });
+});
+
+describe("rebuildEditedPromptSegments", () => {
+  const skill: Extract<PromptSegment, { kind: "skill" }> = {
+    kind: "skill",
+    name: "review-code",
+    path: "C:\\Users\\me\\.agents\\skills\\review-code\\SKILL.md",
+    invocation: "$review-code",
+    provider: "Codex",
+    scope: "global",
+  };
+  const attachment: Extract<PromptSegment, { kind: "attachment" }> = {
+    kind: "attachment",
+    path: "C:\\tmp\\context.txt",
+  };
+  const original: PromptSegment[] = [
+    attachment,
+    skill,
+    { kind: "text", content: " inspect " },
+    { kind: "file", path: "src/main.ts" },
+    { kind: "text", content: " now" },
+  ];
+
+  it("preserves visible structured tokens without duplicating their flattened text", () => {
+    expect(
+      rebuildEditedPromptSegments("$review-code inspect @src/main.ts, then @src/new.ts", original),
+    ).toEqual([
+      attachment,
+      skill,
+      { kind: "text", content: " inspect " },
+      { kind: "file", path: "src/main.ts" },
+      { kind: "text", content: ", then " },
+      { kind: "file", path: "src/new.ts" },
+    ]);
+  });
+
+  it("drops removed visible tokens while retaining invisible attachments", () => {
+    expect(rebuildEditedPromptSegments("Inspect the implementation", original)).toEqual([
+      attachment,
+      { kind: "text", content: "Inspect the implementation" },
+    ]);
   });
 });

@@ -16,7 +16,7 @@ export function resolveProjectIdForView(
   threads: ReadonlyArray<{ id: string; projectId: string }>,
   focusedPaneId: string | null,
 ): string | undefined {
-  if (view.kind === "draft") return view.projectId;
+  if (view.kind === "draft" || view.kind === "experiment") return view.projectId;
   if (view.kind === "thread") {
     const paneId = resolveActivePaneId(view.panes, focusedPaneId);
     const draftProjectId = parseDraftProjectId(paneId);

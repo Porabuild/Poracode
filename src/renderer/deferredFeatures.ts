@@ -34,6 +34,12 @@ export const DeferredCloneProjectModal = preloadable(() =>
   ),
 );
 
+export const DeferredNewExperimentModal = preloadable(() =>
+  import("@/renderer/components/experiment/NewExperimentModal").then(
+    (module) => module.NewExperimentModal,
+  ),
+);
+
 export const DeferredProjectAuxiliaryPanel = preloadable(() =>
   import("@/renderer/views/MainView/parts/ProjectAuxiliaryPanel").then(
     (module) => module.ProjectAuxiliaryPanel,
@@ -106,6 +112,7 @@ const prewarmTasks = [
   DeferredSettingsOverlay.preload,
   DeferredCreateProjectModal.preload,
   DeferredCloneProjectModal.preload,
+  DeferredNewExperimentModal.preload,
   DeferredProjectSettingsOverlay.preload,
   DeferredProjectAuxiliaryPanel.preload,
   DeferredDevTerminalPanel.preload,

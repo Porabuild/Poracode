@@ -30,7 +30,14 @@ msgstr "(dal yok)"
 msgid "(no message)"
 msgstr "(mesaj yok)"
 
+#. placeholder {0}: candidates.length
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "{0, plural, one {# candidate} other {# candidates}}"
+msgstr "{0, plural, one {# aday} other {# aday}}"
+
 #. placeholder {0}: details.changedFiles
+#. placeholder {0}: stats.files
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# dosya} other {# dosya}}"
@@ -72,6 +79,11 @@ msgstr "{0, plural, one {# beceri} other {# beceri}}"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "{0, plural, one {# tool} other {# tools}}"
 msgstr "{0, plural, one {# araç} other {# araç}}"
+
+#. placeholder {0}: candidates.length
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
+msgstr "{0, plural, one {Aday (#)} other {Adaylar (#)}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -378,6 +390,10 @@ msgstr "{loginLabel} {0} {env}"
 msgid "{loginLabel} {env}"
 msgstr "{loginLabel} {env}"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
+#~ msgstr "{loserCount, plural, one {Diğer aday ve çalışma ağacı kaldırılacak.} other {Diğer # aday ve çalışma ağaçları kaldırılacak.}}"
+
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{maxLabel} context"
 msgstr "{maxLabel} bağlam"
@@ -420,6 +436,10 @@ msgstr "{projectLocation} (devre dışı)"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
 msgstr "{projectName} Ayarları"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "{provider} does not support text-only one-shot generation"
+msgstr "{provider} yalnızca metin içeren tek seferlik üretimi desteklemiyor"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -507,9 +527,21 @@ msgstr "30g"
 msgid "7d"
 msgstr "7g"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "A candidate is no longer on its experiment branch."
+msgstr "Bir aday artık deney şubesinde değil."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A frozen worktree source requires a full commit hash"
+msgstr "Dondurulmuş bir çalışma ağacı kaynağı tam commit karması gerektirir"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "a supported coding agent"
 msgstr "desteklenen bir kodlama aracısı"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A worktree owner requires a frozen branch source"
+msgstr "Bir çalışma ağacı sahibi, dondurulmuş bir şube kaynağı gerektirir"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Abort Merge"
@@ -665,6 +697,10 @@ msgstr "Mevcut klasör ekle"
 msgid "Add attachment or capability"
 msgstr "Ek veya yetenek ekleyin"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Add candidate"
+msgstr "Aday ekle"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add Claude profile"
 msgstr "Claude profili ekle"
@@ -770,6 +806,11 @@ msgstr "Temsilci sohbeti (ACP / markdown). Komut satırları bu boyutu eksi 1 p
 msgid "Agent encountered an error."
 msgstr "Temsilci bir hatayla karşılaştı."
 
+#. placeholder {0}: index + 1
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Agent for candidate {0}"
+msgstr "Aday {0} için ajan"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is active and ready"
 msgstr "Temsilci aktif ve hazır"
@@ -831,6 +872,10 @@ msgstr "AI aracı orkestratörü — kodlama aracılarını Terminal ve Yerel AC
 msgid "AI git actions"
 msgstr "Yapay zeka git işlemleri"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "AI judge"
+msgstr "Yapay zeka hakemi"
+
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "AI providers"
 msgstr "Yapay zeka sağlayıcıları"
@@ -858,6 +903,11 @@ msgstr "Tüm hesaplar"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All agent apps"
 msgstr "Tüm ajan uygulamaları"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "All candidate sessions, worktrees, and branches will be removed."
+msgstr "Adaylara ait tüm oturumlar, çalışma ağaçları ve şubeler kaldırılacak."
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "All devices"
@@ -928,6 +978,10 @@ msgstr "Her zaman"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Always excluded"
 msgstr "Her zaman hariç tutuldu"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "An expected worktree owner requires a branch"
+msgstr "Beklenen çalışma ağacı sahibi bir şube gerektirir"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
@@ -1072,6 +1126,10 @@ msgstr "Soru Sor"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "At"
 msgstr "Saat"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "At least two worktrees must be created. Any partial experiment was cleaned up."
+msgstr "En az iki çalışma ağacı oluşturulmalıdır. Kısmen oluşturulan deney temizlendi."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Attach"
@@ -1225,6 +1283,10 @@ msgstr "Arka plan işlemi yeniden başlatıldı"
 msgid "Background tasks"
 msgstr "Arka plan görevleri"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Base branch"
+msgstr "Ana şube"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Base branch is ahead — branch must be updated first."
@@ -1306,6 +1368,10 @@ msgstr "Alt"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "'{branch}' şubesinde '{path}'de kaydedilmemiş değişiklikler var — birleştirmeden önce bunları kaydedin veya saklayın"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "branch {branch}: {detail}"
+msgstr "şube {branch}: {detail}"
 
 #. placeholder {0}: props.branch
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
@@ -1462,6 +1528,7 @@ msgstr "Portlar yüklenemedi"
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/experiment/NewExperimentModal.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1560,6 +1627,10 @@ msgstr "PR'deki değişiklikler"
 msgid "Changes requested"
 msgstr "Talep edilen değişiklikler"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Changes unavailable"
+msgstr "Değişikliklere erişilemiyor"
+
 #. About page label: release channel (stable/nightly)
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Channel"
@@ -1646,6 +1717,10 @@ msgstr "Bir klasör seçin"
 msgid "Choose a folder…"
 msgstr "Bir klasör seçin…"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Choose a local base branch for the experiment."
+msgstr "Deney için yerel bir ana şube seçin."
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a parent folder"
 msgstr "Bir ana klasör seçin"
@@ -1653,6 +1728,10 @@ msgstr "Bir ana klasör seçin"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "Choose an MCP server configuration file"
 #~ msgstr "Bir MCP sunucusu yapılandırma dosyası seçin"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Choose at least two candidates and enter a prompt."
+msgstr "En az iki aday seçin ve bir istem girin."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
@@ -1838,6 +1917,10 @@ msgstr "Düzenleyiciyi kapat"
 #: src/renderer/commands/registry.ts
 msgid "Close Editor Tab"
 msgstr "Düzenleyici Sekmesini Kapat"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Close experiment"
+msgstr "Deneyi kapat"
 
 #: src/mobile/views/FilesView.tsx
 msgid "Close file actions"
@@ -2190,6 +2273,10 @@ msgstr "Computer Use etkin — etkileşimli eylemler masaüstünü kontrol eder;
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
 #~ msgstr "Bu konu için Bilgisayar Kullanımı etkinleştirildi"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Computing changes…"
+msgstr "Değişiklikler hesaplanıyor…"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -2660,6 +2747,18 @@ msgstr "Kimlik bilgileri yapılandırıldı."
 msgid "Credits"
 msgstr "Krediler"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Crown"
+msgstr "Kazanan seç"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Crown with AI"
+msgstr "Yapay zekayla kazanan seç"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Crowned"
+msgstr "Kazanan seçildi"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "MCP Market tarafından yönetilen seçilmiş ücretsiz ve premium beceriler."
@@ -2886,6 +2985,10 @@ msgstr "Reddet"
 msgid "Deny and tell the agent what to do differently…"
 msgstr "Reddet ve aracıya neyi farklı yapması gerektiğini söyle…"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Describe the task to run with multiple agents…"
+msgstr "Birden fazla ajanın çalıştıracağı görevi açıklayın…"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Describe what the agent should do"
 msgstr "Ajanın ne yapması gerektiğini açıklayın"
@@ -2915,6 +3018,10 @@ msgstr "Masaüstü Ayarları"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Destination"
 msgstr "Hedef"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "detached HEAD"
+msgstr "ayrık HEAD"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Details"
@@ -3041,6 +3148,11 @@ msgstr "Bir beceriyi devre dışı bırakmak onu etkin beceri klasörlerinden ç
 msgid "Discard"
 msgstr "Sil"
 
+#. placeholder {0}: entry.group.groupName
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Discard {0}"
+msgstr "{0} öğesini sil"
+
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Discard all changes"
 msgstr "Tüm değişiklikleri at"
@@ -3052,6 +3164,16 @@ msgstr "Değişiklikleri at"
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Discard changes to <0>{title}</0>? This cannot be undone."
 msgstr "<0>{title}</0> üzerindeki değişiklikler atılsın mı? Bu geri alınamaz."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Discard experiment"
+msgstr "Deneyi sil"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Discard experiment?"
+msgstr "Deney silinsin mi?"
 
 #: src/mobile/views/useOpenFile.ts
 #: src/renderer/commands/registry.ts
@@ -3492,6 +3614,82 @@ msgstr "Erişimi incelemek veya iptal etmek için genişletin."
 msgid "Expand todo dock"
 msgstr "Yapılacaklar iskelesini genişlet"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected branch {branch} at {expected}, but found {actual}"
+msgstr "{branch} şubesi için {expected} bekleniyordu ancak {actual} bulundu"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected source worktree branch {expected}, but found {actual}"
+msgstr "Kaynak çalışma ağacı şubesi olarak {expected} bekleniyordu ancak {actual} bulundu"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected worktree branch {expected}, but found {actual}"
+msgstr "Çalışma ağacı şubesi olarak {expected} bekleniyordu ancak {actual} bulundu"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected worktree HEAD {expected}, but found {actual}"
+msgstr "Çalışma ağacı HEAD'i olarak {expected} bekleniyordu ancak {actual} bulundu"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected worktree owner {expected}, but found {actual}"
+msgstr "Çalışma ağacı sahibi olarak {expected} bekleniyordu ancak {actual} bulundu"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Experiment"
+msgstr "Deney"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate changed while its diff was being captured"
+msgstr "Deney adayı, farkı yakalanırken değişti"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate changed while its stats were being captured"
+msgstr "Deney adayı, istatistikleri yakalanırken değişti"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate diff is too large to compare safely"
+msgstr "Deney adayının farkı güvenli karşılaştırma için çok büyük"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate has too many untracked files ({count}; maximum {maximum})"
+msgstr "Deney adayının çok fazla izlenmeyen dosyası var ({count}; en fazla: {maximum})"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate no longer descends from its frozen base commit"
+msgstr "Deney adayı artık dondurulmuş temel commit'inden türemiyor"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate thread ids must be unique"
+msgstr "Deney adaylarının konu kimlikleri benzersiz olmalıdır"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment diff base must be a full commit hash"
+msgstr "Deney farkı tabanı tam bir commit karması olmalıdır"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge requires at least two candidates"
+msgstr "Deney hakemi en az iki aday gerektirir"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge returned an empty rationale"
+msgstr "Deney hakemi boş bir gerekçe döndürdü"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge returned an invalid response shape"
+msgstr "Deney hakemi geçersiz bir yanıt yapısı döndürdü"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge returned invalid JSON"
+msgstr "Deney hakemi geçersiz JSON döndürdü"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge winner must be between 1 and {candidateCount}"
+msgstr "Deney hakeminin kazananı 1 ile {candidateCount} arasında olmalıdır"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment prompt must not be blank"
+msgstr "Deney istemi boş olmamalıdır"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "MCP sunucularını dışa aktar"
@@ -3536,6 +3734,10 @@ msgid "Failed to close remote thread."
 msgstr "Uzak konu kapatılamadı."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to create owned worktree: {detail}. Rollback left branch {branch}: {rollback}"
+msgstr "Sahipli çalışma ağacı oluşturulamadı: {detail}. Geri alma işlemi {branch} şubesini bıraktı: {rollback}"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create pull request: {detail}"
 msgstr "Çekme isteği oluşturulamadı: {detail}"
 
@@ -3555,7 +3757,16 @@ msgstr "Çekme isteği birleştirilemedi: {detail}"
 msgid "Failed to open remote thread."
 msgstr "Uzak konu açılamadı."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to record frozen source metadata: {detail}. Rollback left {rollback}"
+msgstr "Dondurulmuş kaynak meta verileri kaydedilemedi: {detail}. Geri alma işlemi {rollback} bıraktı"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
+msgstr "Sahipli şube meta verileri kaydedilemedi: {detail}. Geri alma işlemi {branch} şubesini bıraktı: {rollback}"
+
 #: src/renderer/components/thread/buildModelPickerControls.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Fast"
 msgstr "Hızlı"
 
@@ -3775,6 +3986,15 @@ msgstr "Tarayıcı sayfasını zorla yeniden yükle"
 msgid "Fork"
 msgstr "Fork"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Fork from"
+msgstr "Fork kaynağı"
+
+#. placeholder {0}: exp.baseBranch
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Forked from <0>{0}</0>"
+msgstr "<0>{0}</0> kaynağından forklandı"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Form"
 msgstr "Form"
@@ -3824,6 +4044,10 @@ msgstr "Kenar çubuğunu, son macOS sürümlerini andıran sistem bulanıklık m
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Frosting of the {appearance}-mode sidebar over the system blur. Higher holds the theme color; lower shows more of what's behind."
 msgstr "{appearance} modundaki kenar çubuğunun sistem bulanıklığı üzerindeki buzlu cam yoğunluğu. Yüksek değer tema rengini korur; düşük değer arkadakini daha çok gösterir."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Frozen worktree source is not a local branch: {branch}"
+msgstr "Dondurulmuş çalışma ağacı kaynağı yerel bir şube değil: {branch}"
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -4167,6 +4391,7 @@ msgstr "Kimlik dosyası yolu"
 #. Microphone input level when not testing
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
 msgstr "Boşta"
@@ -4425,6 +4650,10 @@ msgstr "italik"
 msgid "JSON"
 msgstr "JSON"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Judging…"
+msgstr "Değerlendiriliyor…"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Jump to section"
 msgstr "Bölüme git"
@@ -4504,6 +4733,10 @@ msgstr "Yorum bırak"
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "Az"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Let an AI judge compare the candidate changes."
+msgstr "Adayların değişikliklerini bir yapay zeka hakeminin karşılaştırmasını sağlayın."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the embedded page. Off by default — turn on only when you trust the loaded sites and the agent."
@@ -4718,6 +4951,10 @@ msgstr "En uzun görev"
 msgid "Looking for dev servers…"
 msgstr "Geliştirme sunucuları aranıyor…"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Losing worktrees and branches will be removed. Their session history will remain."
+msgstr "Seçilmeyen adayların çalışma ağaçları ve şubeleri kaldırılacak. Oturum geçmişleri korunacak."
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "Kenar çubuğunu yarı saydam yapın — Windows 11'de sistem bulanıklık materyali, diğerlerinde yarı saydam bir ton."
@@ -4919,14 +5156,27 @@ msgstr "MCP araç çağrıları"
 msgid "MCP transport type"
 msgstr "MCP aktarım türü"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Merge {crownedLabel}'s changes into {mergeTarget}?"
+msgstr "{crownedLabel} adayının değişiklikleri {mergeTarget} ile birleştirilsin mi?"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
 msgstr "Birleştir ve Kaldır"
+
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Merge candidate {0} ({label}) as experiment winner"
+msgstr "{0} numaralı adayı ({label}) deney kazananı olarak birleştir"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge conflicts must be resolved."
 msgstr "Birleştirme çakışmaları çözülmelidir."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Merge experiment winner?"
+msgstr "Deney kazananı birleştirilsin mi?"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Merge failed"
@@ -4978,14 +5228,24 @@ msgstr "Bu pull request'i tek bir squash commit ile birleştir."
 msgid "Merge to Source"
 msgstr "Kaynağa Birleştir"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Merge winner"
+msgstr "Kazananı birleştir"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Merge Worktree"
 msgstr "Worktree'yi Birleştir"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Merged"
 msgstr "Birleştirilmiş"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Merged the experiment winner into {sourceBranch}."
+msgstr "Deney kazananı {sourceBranch} şubesiyle birleştirildi."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merging is blocked"
@@ -5070,6 +5330,11 @@ msgstr "Model"
 #: src/renderer/commands/registry.ts
 msgid "Model added to favorites"
 msgstr "Model favorilere eklendi"
+
+#. placeholder {0}: index + 1
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Model for candidate {0}"
+msgstr "Aday {0} için model"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -5275,6 +5540,10 @@ msgstr "Yeni Claude profil adı"
 msgid "New code"
 msgstr "Yeni kod"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "New experiment"
+msgstr "Yeni deney"
+
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
 msgstr "Yeni dosya"
@@ -5478,6 +5747,10 @@ msgstr "Değişiklik yok"
 msgid "No changes to display"
 msgstr "Görüntülenecek değişiklik yok"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "No changes yet"
+msgstr "Henüz değişiklik yok"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
 msgstr "Bu PR için herhangi bir kontrol raporlanmadı."
@@ -5518,6 +5791,10 @@ msgstr "Henüz veri yok"
 #: src/renderer/views/ProfileOverlay/parts/BreakdownBars.tsx
 msgid "No data yet."
 msgstr "Henüz veri yok."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No default one-shot model configured for {provider}"
+msgstr "{provider} için varsayılan tek seferlik model yapılandırılmamış"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -5563,6 +5840,10 @@ msgstr "GitHub CLI hesabı bulunamadı. <0>gh auth login</0> ile oturum açın v
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "Henüz geçmiş yok"
+
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "No installed agents with selectable models are available for this project."
+msgstr "Bu proje için seçilebilir modellere sahip yüklü bir ajan yok."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -5762,9 +6043,18 @@ msgstr "Çalışma ağacı yok"
 msgid "No wrap"
 msgstr "Satır kaydırma yok"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "none"
+msgstr "yok"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "None"
 msgstr "Yok"
+
+#: src/renderer/actions/experimentActions.ts
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "None of these agents can run the AI comparison."
+msgstr "Bu ajanların hiçbiri yapay zeka karşılaştırmasını çalıştıramıyor."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -5896,6 +6186,7 @@ msgid "Only when unfocused"
 msgstr "Yalnızca odaklanmadığında"
 
 #: src/renderer/notifications.ts
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -5948,6 +6239,11 @@ msgstr "Tarayıcıyı aç"
 msgid "Open browser tab"
 msgstr "Tarayıcı sekmesi aç"
 
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Open candidate {0}: {label}"
+msgstr "{0} numaralı adayı aç: {label}"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "Kontrolü aç"
@@ -5967,6 +6263,15 @@ msgstr "Çakışma çözümleyiciyi şurada açın"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Open dialog"
 msgstr "İletişim kutusunu aç"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Open experiment"
+msgstr "Deneyi aç"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Open experiment board"
+msgstr "Deney panosunu aç"
 
 #: src/renderer/commands/registry.ts
 msgid "Open File"
@@ -6618,7 +6923,9 @@ msgstr "Projeler"
 msgid "Projects live on the connected desktop. Add one before starting a thread."
 msgstr "Projeler bağlı masaüstünde bulunur. Bir iş parçacığı başlatmadan önce bir proje ekleyin."
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Prompt"
 msgstr "İstem"
@@ -7019,6 +7326,11 @@ msgstr "Eylemi kaldır"
 msgid "Remove bookmark"
 msgstr "Yer imini kaldır"
 
+#. placeholder {0}: index + 1
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Remove candidate {0}"
+msgstr "{0}. adayı kaldır"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "Claude profilini kaldır"
@@ -7085,6 +7397,10 @@ msgstr "Sohbeti yeniden adlandır"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Rename connection"
 msgstr "Bağlantıyı yeniden adlandır"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Rename experiment"
+msgstr "Deneyi yeniden adlandır"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -7270,6 +7586,10 @@ msgstr "{serverName} sunucusunu yeniden dene"
 msgid "Retry check"
 msgstr "Kontrolü yeniden dene"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Retry cleanup"
+msgstr "Temizlemeyi yeniden dene"
+
 #: src/mobile/components.tsx
 msgid "Retry now"
 msgstr "Şimdi tekrar dene"
@@ -7400,6 +7720,14 @@ msgstr "Oturum açmak için {loginCommand} komutunu çalıştırın."
 msgid "Run a new thread on {0}."
 msgstr "{0} üzerinde yeni bir iş parçacığı çalıştır."
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Run as experiment"
+msgstr "Deney olarak çalıştır"
+
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Run as experiment with multiple agents"
+msgstr "Birden fazla ajanla deney olarak çalıştır"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run at"
 msgstr "Çalıştırma zamanı"
@@ -7407,6 +7735,10 @@ msgstr "Çalıştırma zamanı"
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "Run command"
 msgstr "Komutu çalıştır"
+
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Run experiment"
+msgstr "Deneyi çalıştır"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Run in a separate worktree"
@@ -7420,6 +7752,10 @@ msgstr "Mümkün olduğunda GPU'da yerel transkripsiyonu çalıştırın."
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Run now"
 msgstr "Şimdi çalıştır"
+
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Run one prompt with multiple agents, then compare their work."
+msgstr "Tek bir istemi birden fazla ajanla çalıştırın, ardından çalışmalarını karşılaştırın."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Run standalone tasks on this device without a project."
@@ -7786,6 +8122,11 @@ msgstr "Bir seçenek seçin"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Select branch"
 msgstr "Şube seç"
+
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Select candidate {0} ({label}) as winner"
+msgstr "{0} numaralı adayı ({label}) kazanan olarak seç"
 
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
@@ -8174,6 +8515,14 @@ msgstr "Eğik çizgi komutları"
 msgid "Some checks are failing or pending."
 msgstr "Bazı kontroller başarısız oluyor veya beklemede."
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Some experiment worktrees could not be removed."
+msgstr "Bazı deney çalışma ağaçları kaldırılamadı."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Some losing worktrees could not be removed."
+msgstr "Kaybeden adayların bazı çalışma ağaçları kaldırılamadı."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
 msgstr "Bazı sağlayıcı klasörleri taranamadı. Başarıyla yüklenen beceriler gösterilmeye devam ediyor."
@@ -8197,6 +8546,10 @@ msgstr "Marketplace becerilerini sırala"
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Sort threads"
 msgstr "Konuları sırala"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source branch {branch} moved before the worktree was created"
+msgstr "Kaynak şube {branch}, çalışma ağacı oluşturulmadan önce taşındı"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Sources"
@@ -8798,6 +9151,18 @@ msgstr "Temsilci"
 msgid "the app"
 msgstr "uygulama"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "the base branch"
+#~ msgstr "ana şube"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "The candidates changed after judging. Compare them again."
+msgstr "Adaylar değerlendirmeden sonra değişti. Yeniden karşılaştırın."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "The candidates have not made any changes yet."
+msgstr "Adaylar henüz herhangi bir değişiklik yapmadı."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "seçilen klasör"
@@ -8810,6 +9175,15 @@ msgstr "Aşağıda kendi aralığı ayarlanmamış sağlayıcılar için kullan�
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."
 msgstr "Masaüstü sunucusu hâlâ başlatılıyor."
+
+#: src/renderer/actions/experimentActions.ts
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadPane.tsx
+msgid "The experiment candidate worktree is unavailable."
+msgstr "Deney adayının çalışma ağacı kullanılamıyor."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "The experiment prompt is too long."
+msgstr "Deney istemi çok uzun."
 
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -8899,6 +9273,10 @@ msgstr "hedef sağlayıcı"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "Windows kullanıcısı"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "the winner"
+msgstr "kazanan"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -9271,6 +9649,11 @@ msgstr "Sayfaya yazın (önce bir alana dokunun)"
 msgid "Unable to authenticate {0}."
 msgstr "{0} kimlik doğrulaması yapılamıyor."
 
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to compare candidates: {0}"
+msgstr "Adaylar karşılaştırılamadı: {0}"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Unable to connect over SSH."
 msgstr "SSH üzerinden bağlanılamadı."
@@ -9299,6 +9682,10 @@ msgstr "\"{path}\" WSL çalışma ağacı dizini oluşturulamıyor"
 msgid "Unable to delete the worktree."
 msgstr "Worktree silinemedi."
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to determine the experiment's source branch."
+msgstr "Deneyin kaynak şubesi belirlenemedi."
+
 #. placeholder {0}: props.selectedAgent.label
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Unable to install {0} hooks."
@@ -9326,6 +9713,11 @@ msgstr "{0} oturumu kapatılamıyor."
 msgid "Unable to merge"
 msgstr "Merge yapılamıyor"
 
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to merge the experiment winner: {0}"
+msgstr "Deney kazananı birleştirilemedi: {0}"
+
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to open {0} login."
@@ -9344,6 +9736,19 @@ msgstr "Bu masaüstüyle eşleştirilemiyor."
 #: src/mobile/views/DesktopsView.tsx
 msgid "Unable to probe the SSH host."
 msgstr "SSH ana makinesi kontrol edilemedi."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to read experiment candidate status"
+msgstr "Deney adayının durumu okunamadı"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to read the candidate changes: {0}"
+msgstr "Aday değişiklikleri okunamadı: {0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to read untracked candidate file: {path}"
+msgstr "Adayın izlenmeyen dosyası okunamadı: {path}"
 
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
@@ -9371,8 +9776,16 @@ msgid "Unable to remove worktree."
 msgstr "Çalışma ağacı kaldırılamıyor."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to resolve branch tips for fast-forward merge"
+msgstr "Fast-forward birleştirmesi için şube uçları çözümlenemedi"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to resolve home directory for WSL distro \"{distro}\""
 msgstr "\"{distro}\" WSL dağıtımı için giriş dizini çözümlenemiyor"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to resolve the experiment candidate commit"
+msgstr "Deney adayının commit'i çözümlenemedi"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to restore the SSH connection."
@@ -9854,6 +10267,26 @@ msgstr "Ses giriş dili"
 msgid "Voice input model"
 msgstr "Ses girişi modeli"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before cleaning up."
+msgstr "Temizlemeden önce tüm adayların çalışmasını tamamlamasını bekleyin."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before comparing them."
+msgstr "Karşılaştırmadan önce tüm adayların çalışmasını tamamlamasını bekleyin."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before discarding the experiment."
+msgstr "Deneyi silmeden önce tüm adayların çalışmasını tamamlamasını bekleyin."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Wait for every candidate to finish before judging."
+msgstr "Değerlendirmeden önce tüm adayların çalışmasını tamamlamasını bekleyin."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before merging a winner."
+msgstr "Kazananı birleştirmeden önce tüm adayların çalışmasını tamamlamasını bekleyin."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "Konunun başlatılmasının bitmesini bekleyin."
@@ -10034,6 +10467,10 @@ msgstr "Windows"
 #~ msgid "Windows is not supported yet. Install inside WSL or on macOS/Linux."
 #~ msgstr "Windows henüz desteklenmiyor. WSL'nin içine veya macOS/Linux'a yükleyin."
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Winner merged."
+msgstr "Kazanan birleştirildi."
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Work"
 msgstr "İş"
@@ -10081,6 +10518,7 @@ msgstr "İş akışları"
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Working"
 msgstr "Çalışıyor"
 
@@ -10113,9 +10551,17 @@ msgstr "Çalışma alanı görünümü"
 msgid "Worktree"
 msgstr "Çalışma Ağacı"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Worktree {path} has uncommitted changes"
+msgstr "{path} çalışma ağacında commit edilmemiş değişiklikler var"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree + changes"
 msgstr "Çalışma ağacı + değişiklikler"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "worktree at {path}: {detail}"
+msgstr "{path} konumundaki çalışma ağacı: {detail}"
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Worktree base folder"
@@ -10204,6 +10650,10 @@ msgstr "WSL temel klasörü"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "Adınız"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Your pick"
+msgstr "Seçiminiz"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Zoom in"

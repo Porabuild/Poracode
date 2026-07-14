@@ -9,11 +9,13 @@ import type {
 } from "@/shared/contracts";
 import { useAppStore } from "./appStore";
 import { useGitStore } from "./gitStore";
+import { useExperimentStore } from "./experimentStore";
 import { buildBranchPrKey } from "./gitSelectors";
 import { usePanelStore } from "./panelStore";
 import { useSidebarUiStore } from "./sidebarUiStore";
 import {
   cleanupGitRefreshProjects,
+  getProjectActiveWorktreePaths,
   getWatcherRefreshMode,
   PR_PENDING_REFRESH_INTERVAL_MS,
   PR_POST_PUSH_STATUS_POLL_MS,
@@ -135,6 +137,9 @@ describe("pending PR refresh", () => {
       configurable: true,
       value: {
         platform: "darwin",
+        dbSetState: vi
+          .fn<(key: string, value: string) => Promise<void>>()
+          .mockResolvedValue(undefined),
         ghGetPrForBranch: ghGetPrForBranchMock,
         ghGetPrDetails: ghGetPrDetailsMock,
       },
@@ -164,11 +169,66 @@ describe("pending PR refresh", () => {
       threadListLimits: {},
     });
     useAppStore.setState({ projects: [project], threads: [], view: { kind: "home" } });
+    useExperimentStore.setState({ experiments: {}, launcher: null });
   });
 
   afterEach(() => {
     stopPendingPrRefresh();
     vi.useRealTimers();
+  });
+
+  it("keeps running experiment worktrees active when the project and group are collapsed", () => {
+    useSidebarUiStore.setState({ collapsedProjects: { [project.id]: true } });
+    useAppStore.setState({
+      threads: [
+        {
+          ...worktreeThread,
+          id: "candidate-1",
+          worktreePath: "/repo/experiment-one",
+          worktreeBranch: "poracode/one",
+        },
+        {
+          ...worktreeThread,
+          id: "candidate-2",
+          worktreePath: "/repo/experiment-two",
+          worktreeBranch: "poracode/two",
+        },
+      ],
+    });
+    useExperimentStore.getState().addExperiment({
+      id: "experiment-1",
+      projectId: project.id,
+      title: "Experiment",
+      prompt: "Implement it",
+      baseBranch: "main",
+      baseCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      candidates: [
+        {
+          threadId: "candidate-1",
+          agentKind: "codex",
+          worktreePath: "/repo/experiment-one",
+          worktreeBranch: "poracode/one",
+          worktreeOwnerToken: "experiment-1:candidate-1",
+          worktreeState: "owned",
+        },
+        {
+          threadId: "candidate-2",
+          agentKind: "codex",
+          worktreePath: "/repo/experiment-two",
+          worktreeBranch: "poracode/two",
+          worktreeOwnerToken: "experiment-1:candidate-2",
+          worktreeState: "owned",
+        },
+      ],
+      status: "running",
+      createdAt: "2026-07-13T00:00:00.000Z",
+      updatedAt: "2026-07-13T00:00:00.000Z",
+    });
+
+    expect(getProjectActiveWorktreePaths(project.id)).toEqual([
+      "/repo/experiment-one",
+      "/repo/experiment-two",
+    ]);
   });
 
   it("refetches pending PR status until it leaves pending", async () => {

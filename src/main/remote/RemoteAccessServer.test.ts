@@ -8,7 +8,13 @@ import {
 import { connect, createServer as createNetServer, type AddressInfo, type Socket } from "node:net";
 import { WebSocket, WebSocketServer } from "ws";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Project, ScheduledTask, ScheduledTaskInput, Thread } from "@/shared/contracts";
+import type {
+  Experiment,
+  Project,
+  ScheduledTask,
+  ScheduledTaskInput,
+  Thread,
+} from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { pickRemoteSettings, type RemoteSettings } from "@/shared/remote";
 import { defaultSharedSettings } from "@/shared/settings";
@@ -25,6 +31,7 @@ import {
   dbGetThreads,
   dbReplaceThreadRuntimeItems,
   dbReplaceThreadRuntimeSnapshot,
+  dbSetState,
   dbUpsertProject,
   dbUpsertThread,
 } from "../db";
@@ -103,6 +110,8 @@ afterEach(async () => {
   vi.mocked(dbReplaceThreadRuntimeSnapshot).mockReset();
   vi.mocked(dbUpsertProject).mockReset();
   vi.mocked(dbUpsertThread).mockReset();
+  dbSetState("poracode-experiments-v1", "");
+  vi.mocked(dbSetState).mockClear();
 });
 
 function createTestProject(overrides: Partial<Project> = {}): Project {
@@ -133,6 +142,44 @@ function createTestThread(overrides: Partial<Thread> = {}): Thread {
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
   };
+}
+
+function persistTestExperiment(overrides: Partial<Experiment> = {}): Experiment {
+  const experiment: Experiment = {
+    id: "experiment-1",
+    projectId: "project-1",
+    title: "Experiment",
+    prompt: "Implement the change",
+    baseBranch: "main",
+    baseCommit: "a".repeat(40),
+    candidates: [
+      {
+        threadId: "thread-1",
+        agentKind: "codex",
+        worktreePath: "/repo/one",
+        worktreeBranch: "poracode/experiment-one",
+        worktreeOwnerToken: "experiment-1:thread-1",
+        worktreeState: "owned",
+      },
+      {
+        threadId: "thread-2",
+        agentKind: "claude",
+        worktreePath: "/repo/two",
+        worktreeBranch: "poracode/experiment-two",
+        worktreeOwnerToken: "experiment-1:thread-2",
+        worktreeState: "owned",
+      },
+    ],
+    status: "running",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+  dbSetState(
+    "poracode-experiments-v1",
+    JSON.stringify({ state: { experiments: { [experiment.id]: experiment } }, version: 1 }),
+  );
+  return experiment;
 }
 
 function mockThreadDb(initialThreads: Thread[] = []): { readonly threads: () => Thread[] } {
@@ -1998,6 +2045,111 @@ describe("RemoteAccessServer", () => {
     ws.close();
   });
 
+  it("rejects destructive remote commands for experiment candidates before persistence", async () => {
+    const candidate = createTestThread({
+      worktreePath: "/repo/one",
+      worktreeBranch: "poracode/experiment-one",
+    });
+    const db = mockThreadDb([candidate]);
+    persistTestExperiment();
+    vi.mocked(dbGetProjects).mockReturnValue([createTestProject()]);
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => undefined as never,
+    );
+    const dispatchThreadCommand = vi.fn<
+      NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>
+    >(() => true);
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+      dispatchThreadCommand,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    };
+    const commands = [
+      {
+        threadId: "thread-1",
+        body: {
+          kind: "start",
+          projectId: "project-1",
+          agentKind: "codex",
+          config: { model: "gpt-5" },
+          prompt: "replace candidate",
+        },
+      },
+      { threadId: "thread-1", body: { kind: "set-done", done: true } },
+      {
+        threadId: "thread-1",
+        body: { kind: "set-worktree", worktreePath: "/repo/reassigned" },
+      },
+      { threadId: "thread-1", body: { kind: "archive" } },
+      { threadId: "thread-1", body: { kind: "delete" } },
+      {
+        threadId: "thread-3",
+        body: {
+          kind: "delete-worktree-group",
+          projectId: "project-1",
+          worktreePath: "/repo/one",
+          threadIds: ["thread-3", "thread-1"],
+        },
+      },
+    ] as const;
+
+    for (const command of commands) {
+      const response = await fetch(
+        new URL(`/api/threads/${command.threadId}/command`, info.httpBaseUrl),
+        { method: "POST", headers, body: JSON.stringify(command.body) },
+      );
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toMatchObject({
+        error: { code: "experiment_owned" },
+      });
+    }
+
+    expect(db.threads()).toEqual([candidate]);
+    expect(dbUpsertThread).not.toHaveBeenCalled();
+    expect(dbDeleteThread).not.toHaveBeenCalled();
+    expect(callSupervisor).not.toHaveBeenCalled();
+    expect(dispatchThreadCommand).not.toHaveBeenCalled();
+
+    const restartResponse = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        threadId: "thread-1",
+        projectLocation: { kind: "posix", path: "/repo/one" },
+        agentKind: "codex",
+        config: { model: "gpt-5" },
+        prompt: "",
+        initialSize: { cols: 120, rows: 30 },
+        presentationMode: "terminal",
+      }),
+    });
+    expect(restartResponse.status).toBe(409);
+    await expect(restartResponse.json()).resolves.toMatchObject({
+      error: { code: "experiment_owned" },
+    });
+
+    dbSetState("poracode-experiments-v1", "{");
+    const unreadableResponse = await fetch(
+      new URL("/api/threads/thread-1/command", info.httpBaseUrl),
+      { method: "POST", headers, body: JSON.stringify({ kind: "archive" }) },
+    );
+    expect(unreadableResponse.status).toBe(503);
+    await expect(unreadableResponse.json()).resolves.toMatchObject({
+      error: { code: "experiment_state_unavailable" },
+    });
+    expect(db.threads()).toEqual([candidate]);
+  });
+
   it("forwards thread close through the session route and keeps terminal close as an alias", async () => {
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
       async () => undefined as never,
@@ -2155,6 +2307,41 @@ describe("RemoteAccessServer", () => {
       },
     });
     ws.close();
+  });
+
+  it("rejects remote removal of a project with durable experiment ownership", async () => {
+    const project = createTestProject();
+    vi.mocked(dbGetProjects).mockReturnValue([project]);
+    vi.mocked(dbGetThreads).mockReturnValue([createTestThread()]);
+    persistTestExperiment();
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => undefined as never,
+    );
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read", "projects:manage"]);
+    const response = await fetch(new URL("/api/projects/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ kind: "remove", projectId: project.id }),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "experiment_owned" },
+    });
+    expect(callSupervisor).not.toHaveBeenCalled();
+    expect(dbDeleteProject).not.toHaveBeenCalled();
   });
 
   it("serves browser state/commands and streams mirror status to watchers", async () => {
@@ -3184,6 +3371,159 @@ describe("RemoteAccessServer", () => {
       error: { code: "missing_scope" },
     });
     expect(calls.filter((c) => c.name === "gitPush")).toHaveLength(1);
+  });
+
+  it("rejects remote Git lifecycle mutations for experiment-owned branches and worktrees", async () => {
+    persistTestExperiment();
+    vi.mocked(dbGetProjects).mockReturnValue([createTestProject()]);
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => undefined as never,
+    );
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    };
+    const projectLocation = { kind: "posix", path: "/repo" } as const;
+    const worktreeLocation = { kind: "posix", path: "/repo/one" } as const;
+    const calls = [
+      {
+        procedure: "gitSwitchBranch",
+        payload: {
+          projectLocation: { kind: "posix", path: `${worktreeLocation.path}/./` },
+          branch: "feature/other",
+        },
+      },
+      {
+        procedure: "gitDeleteBranch",
+        payload: { projectLocation, branch: "poracode/experiment-one" },
+      },
+      {
+        procedure: "gitRemoveWorktree",
+        payload: { projectLocation, path: "/repo/one" },
+      },
+      {
+        procedure: "gitRemoveWorktree",
+        payload: {
+          projectLocation: { kind: "windows", path: "/repo" },
+          path: "/REPO/ONE",
+          force: true,
+        },
+      },
+      {
+        procedure: "gitMergeToSource",
+        payload: {
+          projectLocation,
+          worktreeLocation,
+          worktreeBranch: "poracode/experiment-one",
+          sourceBranch: "main",
+        },
+      },
+      {
+        procedure: "gitRevertAll",
+        payload: { projectLocation: worktreeLocation },
+      },
+      {
+        procedure: "gitRevertAll",
+        payload: { projectLocation: { kind: "windows", path: worktreeLocation.path } },
+      },
+      {
+        procedure: "writeProjectFile",
+        payload: {
+          projectLocation: worktreeLocation,
+          path: "src/index.ts",
+          content: "changed",
+          baseModifiedAtMs: 0,
+        },
+      },
+      {
+        procedure: "gitPruneWorktrees",
+        payload: { projectLocation, activeWorktreePaths: [] },
+      },
+      {
+        procedure: "rollbackThreadConversation",
+        payload: { threadId: "thread-1", numTurns: 1 },
+      },
+    ] as const;
+
+    for (const call of calls) {
+      const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+        method: "POST",
+        headers,
+        body: JSON.stringify(call),
+      });
+      const body = await response.json();
+      expect(response.status, `${call.procedure}: ${JSON.stringify(body)}`).toBe(409);
+      expect(body).toMatchObject({
+        error: { code: "experiment_owned" },
+      });
+    }
+    expect(callSupervisor).not.toHaveBeenCalled();
+  });
+
+  it("fails closed for remote worktree mutations while candidate ownership has no path", async () => {
+    const experiment = persistTestExperiment();
+    delete experiment.candidates[0]!.worktreePath;
+    dbSetState(
+      "poracode-experiments-v1",
+      JSON.stringify({ state: { experiments: { [experiment.id]: experiment } }, version: 1 }),
+    );
+    vi.mocked(dbGetProjects).mockReturnValue([createTestProject()]);
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => undefined as never,
+    );
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    };
+    const calls = [
+      {
+        procedure: "gitSwitchBranch",
+        payload: {
+          projectLocation: { kind: "posix", path: "/repo/recovered" },
+          branch: "feature/other",
+        },
+      },
+      {
+        procedure: "gitRemoveWorktree",
+        payload: {
+          projectLocation: { kind: "posix", path: "/repo" },
+          path: "/repo/recovered",
+        },
+      },
+    ] as const;
+
+    for (const call of calls) {
+      const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+        method: "POST",
+        headers,
+        body: JSON.stringify(call),
+      });
+      expect(response.status).toBe(409);
+      await expect(response.json()).resolves.toMatchObject({
+        error: { code: "experiment_owned" },
+      });
+    }
+    expect(callSupervisor).not.toHaveBeenCalled();
   });
 
   it("rejects settings endpoints when no gateway is configured", async () => {

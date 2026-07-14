@@ -27,6 +27,8 @@ import {
 import { copyIgnoredFilesIntoWorktree } from "./copyIgnoredFiles";
 import { parseStatusPorcelainV2 } from "./statusParsing";
 
+const WORKTREE_OWNER_REFLOG_PREFIX = "poracode experiment owner ";
+
 function trimTrailingSeparators(path: string): string {
   const trimmed = path.replace(/[\\/]+$/, "");
   return trimmed || path;
@@ -50,7 +52,7 @@ async function removeWorktreeDirectory(location: ProjectLocation, path: string):
 
 /** Argv for `git branch` to feed {@link parseBranchListOutput}. */
 export function buildBranchListArgs(includeRemote: boolean): string[] {
-  const args = ["branch", "--format=%(refname)\t%(objectname:short)\t%(HEAD)", "--sort=-HEAD"];
+  const args = ["branch", "--format=%(refname)\t%(objectname)\t%(HEAD)", "--sort=-HEAD"];
   if (includeRemote) args.push("-a");
   return args;
 }
@@ -190,6 +192,8 @@ export class GitWorktreeService {
     transferUncommitted?: boolean,
     keepChangesInSource?: boolean,
     worktreePlacement?: WorktreePathOptions,
+    sourceBranchOverride?: string,
+    ownerToken?: string,
   ): Promise<GitAddWorktreeResult> {
     const resolvedPath =
       path ??
@@ -198,6 +202,31 @@ export class GitWorktreeService {
       throw new Error(msg("git.worktree.noBranch"));
     }
     await ensureWorktreeParentExists(location, resolvedPath);
+
+    // A bare remote-tracking branch name (e.g. "feature/x" when only
+    // `origin/feature/x` exists locally) is not a valid object on its own, so
+    // `git worktree add -b <new> <path> feature/x` fails with "not a valid
+    // object name". Qualify it with its remote before forking.
+    const resolvedStartPoint =
+      startPoint && createBranch
+        ? await this.resolveStartPointRef(location, startPoint)
+        : startPoint;
+    const validatedSourceBranch = sourceBranchOverride
+      ? await this.validateFrozenSourceBranch(location, sourceBranchOverride, resolvedStartPoint)
+      : undefined;
+    const ownedBranchPrepared = Boolean(ownerToken);
+    if (ownerToken) {
+      if (!branch || !createBranch || !resolvedStartPoint || !validatedSourceBranch) {
+        throw new Error(msg("experiment.worktree.ownerNeedsFrozenSource"));
+      }
+      await this.prepareOwnedBranch(
+        location,
+        branch,
+        resolvedStartPoint,
+        validatedSourceBranch,
+        ownerToken,
+      );
+    }
 
     // Optionally bring the main checkout's uncommitted changes into the new
     // worktree: stash (including untracked files), create the worktree, then
@@ -214,17 +243,8 @@ export class GitWorktreeService {
         )
       : undefined;
 
-    // A bare remote-tracking branch name (e.g. "feature/x" when only
-    // `origin/feature/x` exists locally) is not a valid object on its own, so
-    // `git worktree add -b <new> <path> feature/x` fails with "not a valid
-    // object name". Qualify it with its remote before forking.
-    const resolvedStartPoint =
-      startPoint && createBranch
-        ? await this.resolveStartPointRef(location, startPoint)
-        : startPoint;
-
     const args = ["worktree", "add"];
-    if (createBranch && branch) {
+    if (createBranch && branch && !ownedBranchPrepared) {
       args.push("-b", branch, resolvedPath, ...(resolvedStartPoint ? [resolvedStartPoint] : []));
     } else {
       args.push(resolvedPath, ...(branch ? [branch] : []));
@@ -234,6 +254,23 @@ export class GitWorktreeService {
     } catch (error) {
       // Creation failed — put the changes back on the source before bailing out.
       if (stashSha) await this.restoreSourceStash(location, stashSha);
+      if (ownedBranchPrepared && branch) {
+        try {
+          await this.deleteBranchWithPruneRetry(location, branch, true);
+        } catch (rollbackError) {
+          const creationDetail = error instanceof Error ? error.message : String(error);
+          const rollbackDetail =
+            rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
+          throw new Error(
+            msg("experiment.worktree.creationRollbackFailed", {
+              detail: creationDetail,
+              branch,
+              rollback: rollbackDetail,
+            }),
+            { cause: rollbackError },
+          );
+        }
+      }
       throw error;
     }
 
@@ -255,12 +292,55 @@ export class GitWorktreeService {
       }
     }
 
-    if (branch && createBranch) {
+    if (branch && createBranch && !ownedBranchPrepared) {
       // Record the resolved (qualified) start-point so the diff base matches
       // what we actually forked from — e.g. "origin/feature/x", not "feature/x".
-      const sourceBranch = resolvedStartPoint ?? (await this.getCurrentBranch(location));
+      const sourceBranch =
+        validatedSourceBranch ?? resolvedStartPoint ?? (await this.getCurrentBranch(location));
       if (sourceBranch && sourceBranch !== branch) {
-        await this.writeWorktreeSourceBranch(location, branch, sourceBranch);
+        if (validatedSourceBranch) {
+          try {
+            await this.writeWorktreeSourceBranchStrict(location, branch, sourceBranch);
+          } catch (metadataError) {
+            const rollbackFailures: string[] = [];
+            try {
+              await execGit(location, ["worktree", "remove", "--force", resolvedPath]);
+            } catch (rollbackError) {
+              rollbackFailures.push(
+                msg("experiment.worktree.rollbackWorktree", {
+                  path: resolvedPath,
+                  detail:
+                    rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+                }),
+              );
+            }
+            try {
+              await execGit(location, ["branch", "-D", branch]);
+            } catch (rollbackError) {
+              rollbackFailures.push(
+                msg("experiment.worktree.rollbackBranch", {
+                  branch,
+                  detail:
+                    rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+                }),
+              );
+            }
+            if (rollbackFailures.length > 0) {
+              const metadataDetail =
+                metadataError instanceof Error ? metadataError.message : String(metadataError);
+              throw new Error(
+                msg("experiment.worktree.sourceMetadataRollbackFailed", {
+                  detail: metadataDetail,
+                  rollback: rollbackFailures.join("; "),
+                }),
+                { cause: metadataError },
+              );
+            }
+            throw metadataError;
+          }
+        } else {
+          await this.writeWorktreeSourceBranch(location, branch, sourceBranch);
+        }
       }
     }
 
@@ -284,6 +364,8 @@ export class GitWorktreeService {
     path: string,
     force: boolean,
     deleteBranch?: boolean,
+    expectedBranch?: string,
+    expectedOwnerToken?: string,
   ): Promise<void> {
     const targetPath = normalizeWorktreePath(location, path);
     let branchToDelete: string | undefined;
@@ -299,12 +381,26 @@ export class GitWorktreeService {
       if (registeredWorktree?.isMain) {
         throw new Error("Cannot remove the main worktree.");
       }
+      if (expectedBranch && registeredWorktree && registeredWorktree.branch !== expectedBranch) {
+        throw new Error(
+          msg("experiment.merge.worktreeBranchMismatch", {
+            expected: expectedBranch,
+            actual: registeredWorktree.branch,
+          }),
+        );
+      }
+      if (expectedOwnerToken && registeredWorktree) {
+        if (!expectedBranch) {
+          throw new Error(msg("experiment.worktree.expectedOwnerNeedsBranch"));
+        }
+        await this.assertWorktreeOwner(location, expectedBranch, expectedOwnerToken);
+      }
       if (deleteBranch) {
         branchToDelete = registeredWorktree?.branch;
         if (branchToDelete === "detached") branchToDelete = undefined;
       }
     } catch (error) {
-      if (deleteBranch) {
+      if (deleteBranch && !expectedBranch && !expectedOwnerToken) {
         console.error("[supervisor] failed to identify branch for worktree removal:", error);
       } else {
         throw error;
@@ -320,12 +416,22 @@ export class GitWorktreeService {
     try {
       await execGit(location, removeArgs, { timeout: GIT_WORKTREE_REMOVE_TIMEOUT });
       if (branchToDelete) {
-        await this.deleteBranch(location, branchToDelete, force).catch((error) => {
-          console.warn(
-            `[git] failed to delete branch ${branchToDelete} after worktree removal:`,
-            error,
-          );
-        });
+        const deleteBranchOperation = this.deleteBranch(
+          location,
+          branchToDelete,
+          force,
+          expectedOwnerToken,
+        );
+        if (expectedOwnerToken) {
+          await deleteBranchOperation;
+        } else {
+          await deleteBranchOperation.catch((error) => {
+            console.warn(
+              `[git] failed to delete branch ${branchToDelete} after worktree removal:`,
+              error,
+            );
+          });
+        }
       }
     } catch (error) {
       if (!force || registeredWorktree?.isMain) {
@@ -349,12 +455,22 @@ export class GitWorktreeService {
         throw error;
       }
       if (branchToDelete) {
-        await this.deleteBranch(location, branchToDelete, force).catch((branchErr) => {
-          console.warn(
-            `[git] failed to delete branch ${branchToDelete} after worktree removal:`,
-            branchErr,
-          );
-        });
+        const deleteBranchOperation = this.deleteBranch(
+          location,
+          branchToDelete,
+          force,
+          expectedOwnerToken,
+        );
+        if (expectedOwnerToken) {
+          await deleteBranchOperation;
+        } else {
+          await deleteBranchOperation.catch((branchErr) => {
+            console.warn(
+              `[git] failed to delete branch ${branchToDelete} after worktree removal:`,
+              branchErr,
+            );
+          });
+        }
       }
     }
   }
@@ -372,7 +488,19 @@ export class GitWorktreeService {
     );
   }
 
-  async deleteBranch(location: ProjectLocation, branch: string, force: boolean): Promise<void> {
+  async deleteBranch(
+    location: ProjectLocation,
+    branch: string,
+    force: boolean,
+    expectedOwnerToken?: string,
+  ): Promise<void> {
+    if (expectedOwnerToken) {
+      await this.assertWorktreeOwner(location, branch, expectedOwnerToken);
+      if (!(await this.branchExists(location, branch))) {
+        await this.clearWorktreeBranchMetadata(location, branch);
+        return;
+      }
+    }
     // The caller decides whether a force delete is safe (e.g. the PR is merged).
     // We intentionally don't second-guess that here: a soft delete simply
     // surfaces git's "not fully merged" error so the UI can offer a force option.
@@ -407,6 +535,7 @@ export class GitWorktreeService {
     branch: string,
     sourceBranchOverride?: string,
   ): Promise<GitGetWorktreeSourceBranchResult> {
+    const ownerToken = await this.readWorktreeOwner(location, branch);
     const sourceBranch =
       sourceBranchOverride && sourceBranchOverride !== branch
         ? sourceBranchOverride
@@ -429,7 +558,7 @@ export class GitWorktreeService {
         // branches may not share history
       }
     }
-    return { sourceBranch, commitsAhead, sourceAhead };
+    return { sourceBranch, ownerToken, commitsAhead, sourceAhead };
   }
 
   /**
@@ -502,6 +631,92 @@ export class GitWorktreeService {
         console.warn(`[git] failed to write poracodeSource config for branch ${branch}:`, error);
       },
     );
+  }
+
+  private async writeWorktreeSourceBranchStrict(
+    location: ProjectLocation,
+    branch: string,
+    sourceBranch: string,
+  ): Promise<void> {
+    await execGit(location, ["config", `branch.${branch}.poracodeSource`, sourceBranch]);
+  }
+
+  private async writeWorktreeOwnerStrict(
+    location: ProjectLocation,
+    branch: string,
+    ownerToken: string,
+  ): Promise<void> {
+    await execGit(location, ["config", `branch.${branch}.poracodeOwner`, ownerToken]);
+  }
+
+  private async prepareOwnedBranch(
+    location: ProjectLocation,
+    branch: string,
+    startPoint: string,
+    sourceBranch: string,
+    ownerToken: string,
+  ): Promise<void> {
+    const branchRef = `refs/heads/${branch}`;
+    const zeroOid = "0".repeat(startPoint.length);
+    await execGit(location, [
+      "update-ref",
+      "--create-reflog",
+      "-m",
+      `${WORKTREE_OWNER_REFLOG_PREFIX}${ownerToken}`,
+      branchRef,
+      startPoint,
+      zeroOid,
+    ]);
+    try {
+      await this.writeWorktreeOwnerStrict(location, branch, ownerToken);
+      await this.writeWorktreeSourceBranchStrict(location, branch, sourceBranch);
+    } catch (metadataError) {
+      try {
+        await this.deleteBranchWithPruneRetry(location, branch, true);
+      } catch (rollbackError) {
+        const metadataDetail =
+          metadataError instanceof Error ? metadataError.message : String(metadataError);
+        const rollbackDetail =
+          rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
+        throw new Error(
+          msg("experiment.worktree.metadataRollbackFailed", {
+            detail: metadataDetail,
+            branch,
+            rollback: rollbackDetail,
+          }),
+          { cause: rollbackError },
+        );
+      }
+      throw metadataError;
+    }
+  }
+
+  private async validateFrozenSourceBranch(
+    location: ProjectLocation,
+    sourceBranch: string,
+    startPoint: string | undefined,
+  ): Promise<string> {
+    if (!startPoint || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(startPoint)) {
+      throw new Error(msg("experiment.worktree.frozenSourceNeedsCommit"));
+    }
+    const matchingBranch = await execGit(location, [
+      "branch",
+      "--list",
+      "--format=%(refname:short)",
+      "--",
+      sourceBranch,
+    ]);
+    if (!matchingBranch.split(/\r?\n/).includes(sourceBranch)) {
+      throw new Error(msg("experiment.worktree.frozenSourceNotLocal", { branch: sourceBranch }));
+    }
+    const [sourceCommit, startCommit] = await Promise.all([
+      execGit(location, ["rev-parse", "--verify", `refs/heads/${sourceBranch}^{commit}`]),
+      execGit(location, ["rev-parse", "--verify", `${startPoint}^{commit}`]),
+    ]);
+    if (sourceCommit.trim() !== startCommit.trim()) {
+      throw new Error(msg("experiment.worktree.sourceMoved", { branch: sourceBranch }));
+    }
+    return sourceBranch;
   }
 
   /** Re-point linked worktrees after the main repo (or a worktree) moved on disk. */
@@ -588,6 +803,57 @@ export class GitWorktreeService {
       // no explicit source branch configured
     }
     return this.inferWorktreeSourceBranch(location, branch);
+  }
+
+  private async readWorktreeOwner(
+    location: ProjectLocation,
+    branch: string,
+  ): Promise<string | null> {
+    const configuredOwner = await execGit(
+      location,
+      ["config", "--get", `branch.${branch}.poracodeOwner`],
+      { acceptedExitCodes: [1] },
+    );
+    if (configuredOwner.trim()) return configuredOwner.trim();
+    if (!(await this.branchExists(location, branch))) return null;
+
+    const reflog = await execGit(location, ["reflog", "show", branch, "--format=%gs"]);
+    const ownerEntry = reflog
+      .split(/\r?\n/u)
+      .find((line) => line.startsWith(WORKTREE_OWNER_REFLOG_PREFIX));
+    return ownerEntry?.slice(WORKTREE_OWNER_REFLOG_PREFIX.length).trim() || null;
+  }
+
+  private async assertWorktreeOwner(
+    location: ProjectLocation,
+    branch: string,
+    expectedOwnerToken: string,
+  ): Promise<void> {
+    const ownerToken = await this.readWorktreeOwner(location, branch);
+    if (ownerToken !== expectedOwnerToken) {
+      throw new Error(
+        msg("experiment.worktree.ownerMismatch", {
+          expected: expectedOwnerToken,
+          actual: ownerToken ?? msg("experiment.worktree.noOwner"),
+        }),
+      );
+    }
+  }
+
+  private async branchExists(location: ProjectLocation, branch: string): Promise<boolean> {
+    const output = await execGit(location, ["show-ref", "--verify", `refs/heads/${branch}`], {
+      acceptedExitCodes: [1],
+    });
+    return output.trim().length > 0;
+  }
+
+  private async clearWorktreeBranchMetadata(
+    location: ProjectLocation,
+    branch: string,
+  ): Promise<void> {
+    await execGit(location, ["config", "--remove-section", `branch.${branch}`], {
+      acceptedExitCodes: [5],
+    });
   }
 
   private async inferWorktreeSourceBranch(

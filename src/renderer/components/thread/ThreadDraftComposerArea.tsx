@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Tooltip, toast } from "@heroui/react";
-import { Download, Monitor, Webhook, X } from "lucide-react";
+import { Download, FlaskConical, Monitor, Webhook, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentHookPluginStatus,
@@ -14,7 +14,7 @@ import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { skillSegmentFromSlashCommand } from "@/shared/promptContent";
-import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { isQuickComposerWindow, isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
   AttachmentBar,
   ComputerUseChip,
@@ -51,6 +51,7 @@ import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
@@ -211,6 +212,8 @@ function DraftComposerAfterControls(props: {
   onPickFiles: () => void;
   showVoiceInputButton: boolean;
   isDisabled: boolean;
+  experimentDisabled: boolean;
+  onRunExperiment?: (() => void) | undefined;
   mentionRef: RefObject<MentionInputHandle | null>;
   voiceInputRef: RefObject<VoiceInputHandle | null>;
   computerUse: {
@@ -219,8 +222,29 @@ function DraftComposerAfterControls(props: {
     onToggle: (next: boolean) => void;
   };
 }) {
+  const { t } = useLingui();
   return (
     <>
+      {props.onRunExperiment ? (
+        <Tooltip delay={300}>
+          <Tooltip.Trigger>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label={t`Run as experiment`}
+              isDisabled={props.isDisabled || props.experimentDisabled}
+              onPress={props.onRunExperiment}
+              className="text-muted"
+            >
+              <FlaskConical className="size-4" />
+            </Button>
+          </Tooltip.Trigger>
+          <Tooltip.Content>
+            <Trans>Run as experiment with multiple agents</Trans>
+          </Tooltip.Content>
+        </Tooltip>
+      ) : null}
       <ComposerAddMenu
         mcpServers={props.mcpServers}
         customMcpServers={props.customMcpServers}
@@ -268,6 +292,7 @@ export function ThreadDraftComposerArea(props: {
   const [agentUpdating, setAgentUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isRemote = isRemoteSession();
+  const isQuickComposer = window.poracode ? isQuickComposerWindow() : false;
   const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemote;
   // Persistent (standing-default) composer MCP enablement, keyed by MCP id.
   const persistentMcpServers = useSharedSettings((s) => s.enabledMcpServers);
@@ -633,6 +658,33 @@ export function ThreadDraftComposerArea(props: {
     });
   }
 
+  function openExperimentLauncher() {
+    const allSegments = [
+      ...attachments.toSegments(),
+      ...(mentionRef.current?.serializeSegments() ?? []),
+    ];
+    const boundSegments = bindLeadingSkillUnlessLocalAction(allSegments, availableCommands, {
+      agentKind: props.selectedAgent.kind,
+      presentationMode: props.presentationMode,
+    });
+    const segments = rebindSkillSegments(
+      boundSegments,
+      availableCommands,
+      (name) => t`Use the ${name} skill.`,
+    );
+    const experimentPrompt = flattenSegments(segments) || prompt.trim();
+    if (!experimentPrompt) return;
+    useExperimentStore.getState().openLauncher({
+      projectId: props.project.id,
+      baseBranch: props.gitBranch ?? "",
+      prompt: experimentPrompt,
+      segments,
+      agentKind: props.selectedAgent.kind,
+      config: { ...props.config },
+      presentationMode: props.presentationMode,
+    });
+  }
+
   useLayoutEffect(() => {
     const saved = initialDraftRef.current;
     if (!saved) {
@@ -895,6 +947,10 @@ export function ThreadDraftComposerArea(props: {
             customMcpServers={customMcpServers}
             showVoiceInputButton={showVoiceInputButton}
             isDisabled={authRequired || agentUpdating || isSubmitting}
+            experimentDisabled={!hasContent}
+            {...(!isHomeScope && !isRemote && !isQuickComposer && props.gitBranch
+              ? { onRunExperiment: openExperimentLauncher }
+              : {})}
             mentionRef={mentionRef}
             voiceInputRef={voiceInputRef}
             computerUse={{

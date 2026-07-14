@@ -1,4 +1,5 @@
 import { startTransition, useRef } from "react";
+import { Trans } from "@lingui/react/macro";
 import type {
   ExtractContextResult,
   PromptSegment,
@@ -9,6 +10,7 @@ import type {
 import { resolveProjectLocation } from "@/shared/worktree";
 import { toggleMarkThreadDone } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useProject, useThread } from "@/renderer/state/useThread";
 import { ThreadView } from "@/renderer/components/thread/ThreadView";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
@@ -37,6 +39,11 @@ export function ThreadPane(props: {
   ) => void;
 }) {
   const thread = useThread(props.threadId);
+  const experiment = useExperimentStore((state) =>
+    Object.values(state.experiments).find((candidate) =>
+      candidate.candidates.some((item) => item.threadId === props.threadId),
+    ),
+  );
   const project = useProject(thread?.projectId);
   const installedAgents = useInstalledAgents();
   const projectAgentStatuses = useProjectAgentStatuses(project?.location);
@@ -66,6 +73,16 @@ export function ThreadPane(props: {
 
   if (!thread) return null;
   if (!project) return null;
+  if (experiment && !thread.worktreePath) {
+    return (
+      <div
+        ref={paneElementRef}
+        className="flex h-full min-w-0 flex-1 items-center justify-center px-6 text-center text-sm text-foreground-muted"
+      >
+        <Trans>The experiment candidate worktree is unavailable.</Trans>
+      </div>
+    );
+  }
   const projectLocation = resolveProjectLocation(project.location, thread.worktreePath);
   return (
     <ThreadView
@@ -82,9 +99,13 @@ export function ThreadPane(props: {
       {...(props.paneCount > 1 ? { dragHandleRef: handleRef } : {})}
       droppableRef={paneElementRef}
       onClose={props.onClose}
-      onMarkDone={() => {
-        toggleMarkThreadDone(props.threadId);
-      }}
+      {...(!experiment
+        ? {
+            onMarkDone: () => {
+              toggleMarkThreadDone(props.threadId);
+            },
+          }
+        : {})}
       projectLocation={projectLocation}
       onLaunchConsumed={() => consumeThreadLaunch(thread.id)}
       onLaunchFailed={(message) => {

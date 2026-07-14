@@ -16,6 +16,7 @@ import { RemoteHttpError } from "./auth";
  */
 export interface RemoteProjectCommandDeps {
   getProjects(): Project[];
+  hasProjectExperiment(projectId: string): boolean;
   /** Thread ids belonging to a project, closed best-effort before removal. */
   listProjectThreadIds(projectId: string): readonly string[];
   upsertProject(project: Project, sortOrder: number): void;
@@ -207,6 +208,13 @@ export async function applyRemoteProjectCommand(
       const exists = deps.getProjects().some((project) => project.id === command.projectId);
       if (!exists) {
         throw new RemoteHttpError("project_not_found", "Project not found.", 404);
+      }
+      if (deps.hasProjectExperiment(command.projectId)) {
+        throw new RemoteHttpError(
+          "experiment_owned",
+          "Remove the project's experiments before removing the project.",
+          409,
+        );
       }
       // Tear down running sessions before the cascade drops their rows.
       for (const threadId of deps.listProjectThreadIds(command.projectId)) {

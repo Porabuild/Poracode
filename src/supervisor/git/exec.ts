@@ -97,15 +97,25 @@ export async function ghVersionWslBridge(
 export async function execGit(
   location: ProjectLocation,
   args: string[],
-  options?: { timeout?: number; allowNonZeroExit?: boolean; env?: Record<string, string> },
+  options?: {
+    timeout?: number;
+    allowNonZeroExit?: boolean;
+    acceptedExitCodes?: readonly number[];
+    env?: Record<string, string>;
+    maxBuffer?: number;
+  },
 ): Promise<string> {
   const timeout = options?.timeout ?? GIT_DEFAULT_TIMEOUT;
-  const maxBuffer = 50 * 1024 * 1024;
+  const maxBuffer = options?.maxBuffer ?? 50 * 1024 * 1024;
 
   try {
     if (location.kind === "wsl") {
       const bridgeResult = await execGitWslBridge(location, args, timeout, options?.env);
+      if (bridgeResult.stdout.length > maxBuffer) {
+        throw new Error(`Git output exceeded the ${maxBuffer}-byte limit`);
+      }
       if (bridgeResult.ok) return bridgeResult.stdout;
+      if (options?.acceptedExitCodes?.includes(bridgeResult.exitCode)) return bridgeResult.stdout;
       if (options?.allowNonZeroExit && bridgeResult.stdout) return bridgeResult.stdout;
       throw gitBridgeResultToError(bridgeResult);
     }
@@ -120,6 +130,16 @@ export async function execGit(
     });
     return stdout;
   } catch (error: unknown) {
+    if (
+      options?.acceptedExitCodes &&
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      typeof error.code === "number" &&
+      options.acceptedExitCodes.includes(error.code)
+    ) {
+      return "stdout" in error ? String(error.stdout ?? "") : "";
+    }
     if (options?.allowNonZeroExit && error && typeof error === "object" && "stdout" in error) {
       const stdout = String((error as { stdout: unknown }).stdout);
       if (stdout) {

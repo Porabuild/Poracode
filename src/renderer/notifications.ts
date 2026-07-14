@@ -5,6 +5,7 @@ import type { NotificationClickEvent } from "@/shared/ipc";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 
@@ -67,7 +68,22 @@ function classifyTransition(
 
 function isThreadInActivePanes(threadId: string): boolean {
   const view = useAppStore.getState().view;
-  return view.kind === "thread" && view.panes.includes(threadId);
+  if (view.kind === "thread") return view.panes.includes(threadId);
+  if (view.kind !== "experiment") return false;
+  return (
+    useExperimentStore
+      .getState()
+      .experiments[view.experimentId]?.candidates.some(
+        (candidate) => candidate.threadId === threadId,
+      ) ?? false
+  );
+}
+
+function openNotificationThread(threadId: string): void {
+  const standalone = Object.values(useExperimentStore.getState().experiments).some((experiment) =>
+    experiment.candidates.some((candidate) => candidate.threadId === threadId),
+  );
+  openThread(threadId, { focusComposer: true, ...(standalone ? { standalone: true } : {}) });
 }
 
 function getProjectName(projectId: string): string {
@@ -112,7 +128,7 @@ function showToastNotification(
   const detail = getStatusDetail(category, status);
 
   const open = () => {
-    openThread(threadId, { focusComposer: true });
+    openNotificationThread(threadId);
     toast.close(toastId);
   };
 
@@ -166,7 +182,7 @@ function showBrowserNotification(
       });
       native.onclick = () => {
         void readBridge().focusWindow();
-        openThread(threadId, { focusComposer: true });
+        openNotificationThread(threadId);
         native.close();
       };
     } catch {
@@ -225,7 +241,7 @@ function showNativeNotification(
 }
 
 export function handleNotificationClick(event: NotificationClickEvent): void {
-  openThread(event.threadId, { focusComposer: true });
+  openNotificationThread(event.threadId);
 }
 
 export function handleThreadStateNotification(

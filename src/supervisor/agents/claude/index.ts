@@ -373,6 +373,37 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         ...(env ? { env } : {}),
       };
     },
+    buildTextOnlyOneShotCommand(model, effort, prompt, location, fast) {
+      if (!prompt) return undefined;
+      const args = [
+        "-p",
+        prompt,
+        "--model",
+        model,
+        "--fallback-model",
+        "haiku",
+        "--no-session-persistence",
+        "--safe-mode",
+        "--tools",
+        "",
+        "--mcp-config",
+        JSON.stringify({ mcpServers: {} }),
+        "--strict-mcp-config",
+      ];
+      if (effort) {
+        args.push("--effort", effort);
+      }
+      if (fast) {
+        args.push("--settings", JSON.stringify({ fastMode: true }));
+      }
+      const env = location ? profileEnv(location) : undefined;
+      return {
+        command: "claude",
+        args,
+        stdin: "",
+        ...(env ? { env } : {}),
+      };
+    },
     buildContextExtractionCommand(sessionRef, location, model) {
       // The resumed session is read-only here; --no-session-persistence
       // prevents the extraction turn from being written back to disk.

@@ -14,7 +14,6 @@ import type {
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { friendlyError } from "@/shared/messages";
 import { isHomeProject } from "@/shared/homeScope";
-import { buildWorktreeLocation } from "@/shared/worktree";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { buildPaneLayoutFromLegacy, findPaneAlign, findPaneSlotId } from "@/shared/paneLayout";
 import { titlePromptFromSegments } from "@/shared/threadTitle";
@@ -25,17 +24,21 @@ import {
   useAgentStatusesStore,
 } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { getProjectActiveWorktreePaths, refreshGitProject } from "@/renderer/state/gitRefresh";
-import { useGitStore } from "@/renderer/state/gitStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import {
+  findExperimentByGroupId,
+  findExperimentByThreadId,
+} from "@/renderer/state/experimentStore";
+import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import {
   useInitialProjectDraftConfig,
   useProjectIds,
   useProjectWithoutDraftConfig,
 } from "@/renderer/state/useThread";
-import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
-import { closeAllPanels } from "@/renderer/actions/panelActions";
 import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
+import {
+  primeWorktreeGitState,
+  runWorktreeSetupScript,
+} from "@/renderer/actions/worktreeLaunchActions";
 import {
   resolvePaneDomKey,
   SplitPaneContainer,
@@ -44,13 +47,9 @@ import {
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
-import {
-  normalizeShellScript,
-  startShellWithToast,
-  writeScriptToShellThenExitOnSuccess,
-} from "@/renderer/utils/shellUtils";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { HomeView } from "@/renderer/views/HomeView";
+import { ExperimentView } from "@/renderer/views/ExperimentView/ExperimentView";
 import { SchedulesView } from "@/renderer/views/SchedulesView/SchedulesView";
 import { buildProjectDraftConfig } from "./draftConfig";
 import { ThreadPane } from "./parts/ThreadPane";
@@ -130,7 +129,8 @@ export async function startThreadFromDraft(
   const activeGroup =
     options.preserveActiveGroup !== false &&
     currentView.kind === "thread" &&
-    currentView.activeGroupId
+    currentView.activeGroupId &&
+    !findExperimentByGroupId(currentView.activeGroupId)
       ? {
           groupId: currentView.activeGroupId,
           groupName: store.threads.find((thread) => thread.groupId === currentView.activeGroupId)
@@ -186,6 +186,7 @@ export function AppContent() {
     closeOriginal: boolean,
     extractedContext: ExtractContextResult | null,
   ) {
+    if (findExperimentByThreadId(sourceThread.id)) return;
     const storeProjects = useAppStore.getState().projects;
     const project = storeProjects.find((p) => p.id === sourceThread.projectId);
     if (!project) return;
@@ -274,6 +275,10 @@ export function AppContent() {
     );
   }
 
+  if (view.kind === "experiment") {
+    return <ExperimentView experimentId={view.experimentId} />;
+  }
+
   if (view.kind === "schedules") {
     return (
       <div className="h-full overflow-y-auto px-6 pb-8 pt-4 [scrollbar-gutter:stable]">
@@ -354,7 +359,13 @@ export function AppContent() {
           paneAlign={paneAlign}
           headerNeedsTrafficLightPad={headerNeedsTrafficLightPad}
           onClose={() => closePane(paneId)}
-          onContinueInProvider={(...args) => void handleContinueInProvider(...args)}
+          {...(!findExperimentByThreadId(paneId)
+            ? {
+                onContinueInProvider: (...args: Parameters<typeof handleContinueInProvider>) => {
+                  void handleContinueInProvider(...args);
+                },
+              }
+            : {})}
         />
       );
       return (
@@ -401,97 +412,6 @@ export function AppContent() {
       <HomeView />
     </div>
   );
-}
-
-export async function primeWorktreeGitState(project: Project, worktreePath: string): Promise<void> {
-  const worktreePaths = [
-    ...new Set([...getProjectActiveWorktreePaths(project.id), worktreePath]),
-  ].sort();
-  const watchWorktrees = readBridge()
-    .gitWatchWorktrees({ projectId: project.id, worktreePaths })
-    .catch(() => undefined);
-  if (project.location.kind === "wsl") return;
-  await watchWorktrees;
-  void readBridge()
-    .getGitStatus({ projectLocation: buildWorktreeLocation(project.location, worktreePath) })
-    .then((status) => useGitStore.getState().setWorktreeStatus(worktreePath, status))
-    .catch(() => undefined);
-}
-
-export function runWorktreeSetupScript(
-  project: Project,
-  worktreePath: string,
-  setupScript: string,
-): void {
-  // Blank / comments-only scripts have nothing to run — skip the terminal
-  // entirely rather than leaving an idle "setup" shell behind.
-  if (!normalizeShellScript(setupScript)) return;
-
-  const wtLocation = buildWorktreeLocation(project.location, worktreePath);
-  const store = useDevTerminalStore.getState();
-  const tab = store.addTab(project.id, "setup", worktreePath);
-  const autoShow = useSharedSettings.getState().autoShowTerminalPanel;
-  const panelAlreadyOpen = store.isOpen;
-  if (autoShow) {
-    store.openWorktreePanel(project.id, worktreePath);
-  }
-  store.setActiveTab(tab.id);
-
-  // When the terminal panel is (or becomes) visible, every tab mounts its own
-  // XTermSurface, which spawns the PTY itself at the measured viewport size.
-  // Spawning eagerly too would create a second PTY for the same shell id and
-  // race it, re-running the setup chain. Only spawn eagerly when the panel
-  // stays closed (no surface ever mounts), where this is the sole spawn.
-  if (!autoShow && !panelAlreadyOpen) {
-    startShellWithToast(
-      {
-        shellId: tab.id,
-        projectLocation: wtLocation,
-        worktreePath,
-      },
-      "setup shell",
-    );
-  }
-
-  // Auto-close the setup terminal once every command succeeds (the script
-  // self-exits) so worktrees don't accumulate stale shells. A failed setup
-  // stops short of the exit and leaves the shell open for inspection.
-  const detach = writeScriptToShellThenExitOnSuccess(tab.id, setupScript, wtLocation.kind, () =>
-    removeWorktreeSetupTab(tab),
-  );
-  // If the tab is closed before setup finishes (manual close, worktree
-  // deletion), `closeThread` suppresses `thread-exited`, so detach the exit
-  // listener here instead of leaking it for the rest of the session.
-  const unsubscribeTabs = useDevTerminalStore.subscribe((state, prev) => {
-    if (state.tabs === prev.tabs) return;
-    if (state.tabs.some((t) => t.id === tab.id)) return;
-    detach();
-    unsubscribeTabs();
-  });
-}
-
-/**
- * Removes a finished setup terminal tab. The PTY has already exited (success or
- * a manual `exit`), so the supervisor session is gone — removing the tab is
- * sufficient and `closeThread` would be a no-op. If the setup tab was the only
- * one in the worktree context the panel is showing, close the panel too so the
- * auto-opened panel doesn't linger on an empty "Open a terminal" state (mirrors
- * manual close in DevTerminalPanel).
- */
-function removeWorktreeSetupTab(tab: DevTerminalTab): void {
-  const store = useDevTerminalStore.getState();
-  const showingThisContext =
-    store.isOpen &&
-    store.activeProjectId === tab.projectId &&
-    (store.activeWorktreePath ?? undefined) === tab.worktreePath;
-  store.removeTab(tab.id);
-  if (!showingThisContext) return;
-  const remaining = useDevTerminalStore
-    .getState()
-    .tabs.filter((t) => t.projectId === tab.projectId && t.worktreePath === tab.worktreePath);
-  if (remaining.length > 0) return;
-  if (useSharedSettings.getState().terminalPosition !== "bottom") closeAllPanels();
-  useDevTerminalStore.getState().closePanel();
 }
 
 /**

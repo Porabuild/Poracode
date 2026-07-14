@@ -7,6 +7,7 @@ import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -18,7 +19,8 @@ export async function performWorktreeRemoval(
   project: Project,
   worktreePath: string,
   worktreeBranch?: string,
-): Promise<void> {
+  expectedOwnerToken?: string,
+): Promise<boolean> {
   const resolvedWorktreeBranch = resolveWorktreeBranch(project.id, worktreePath, worktreeBranch);
 
   const cleanupScript = project.scripts?.cleanupScript;
@@ -57,12 +59,16 @@ export async function performWorktreeRemoval(
       path: worktreePath,
       force: true,
       deleteBranch: false,
+      ...(resolvedWorktreeBranch ? { expectedBranch: resolvedWorktreeBranch } : {}),
+      ...(expectedOwnerToken ? { expectedOwnerToken } : {}),
     });
   } catch (err: unknown) {
     const detail = errorDetail(err);
-    console.warn(`[renderer] failed to remove worktree ${worktreePath}:`, detail);
-    toast.danger(detail || i18n._(msg`Unable to remove worktree.`));
-    return;
+    if (!detail.toLowerCase().includes("not found")) {
+      console.warn(`[renderer] failed to remove worktree ${worktreePath}:`, detail);
+      toast.danger(detail || i18n._(msg`Unable to remove worktree.`));
+      return false;
+    }
   }
 
   if (resolvedWorktreeBranch) {
@@ -79,6 +85,7 @@ export async function performWorktreeRemoval(
         projectLocation: project.location,
         branch: resolvedWorktreeBranch,
         force: !hasUnmergedPr,
+        ...(expectedOwnerToken ? { expectedOwnerToken } : {}),
       });
     } catch (err: unknown) {
       const detail = errorDetail(err);
@@ -89,10 +96,11 @@ export async function performWorktreeRemoval(
           worktreeBranch: resolvedWorktreeBranch,
           error: detail,
         });
-        return;
+        return false;
       }
       if (!detail.toLowerCase().includes("not found")) {
         console.warn(`[renderer] failed to delete branch ${resolvedWorktreeBranch}:`, detail);
+        return false;
       }
     }
 
@@ -101,6 +109,7 @@ export async function performWorktreeRemoval(
       .then((branches) => useGitStore.getState().setBranches(project.id, branches))
       .catch(() => undefined);
   }
+  return true;
 }
 
 export function deleteWorktreeGroup(
@@ -108,6 +117,7 @@ export function deleteWorktreeGroup(
   worktreePath: string,
   threadIds: string[],
 ): void {
+  if (threadIds.some((threadId) => findExperimentByThreadId(threadId))) return;
   const project = useAppStore.getState().projects.find((p) => p.id === projectId);
   if (!project) return;
 

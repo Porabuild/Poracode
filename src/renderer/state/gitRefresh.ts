@@ -7,6 +7,7 @@ import type {
 } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { summaryBackfillMissed, useGitStore } from "@/renderer/state/gitStore";
 import { buildBranchNamePrKey, buildBranchPrKey } from "@/renderer/state/gitSelectors";
@@ -237,6 +238,23 @@ export function getProjectActiveWorktreePaths(projectId: string): string[] {
   const paths = new Set<string>();
   const project = appState.projects.find((p) => p.id === projectId);
   const projectThreads = appState.threads.filter((t) => t.projectId === projectId && !t.archived);
+  const experimentState = useExperimentStore.getState();
+
+  for (const experiment of Object.values(experimentState.experiments)) {
+    if (
+      experiment.projectId !== projectId ||
+      (experiment.status !== "running" &&
+        !(appState.view.kind === "experiment" && appState.view.experimentId === experiment.id))
+    ) {
+      continue;
+    }
+    for (const candidate of experiment.candidates) {
+      const worktreePath = appState.threads.find(
+        (thread) => thread.id === candidate.threadId,
+      )?.worktreePath;
+      if (worktreePath) paths.add(worktreePath);
+    }
+  }
 
   if (project && !project.disabled && !(sidebarState.collapsedProjects[projectId] ?? false)) {
     const rows = buildSidebarProjectRows({

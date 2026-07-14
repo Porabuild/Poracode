@@ -15,6 +15,7 @@ function makeDeps(overrides?: Partial<RemoteProjectCommandDeps>) {
   });
   const deps: RemoteProjectCommandDeps = {
     getProjects: () => [...projects],
+    hasProjectExperiment: () => false,
     listProjectThreadIds: () => [],
     upsertProject,
     deleteProject,
@@ -129,6 +130,28 @@ describe("applyRemoteProjectCommand", () => {
     await expect(
       applyRemoteProjectCommand({ kind: "remove", projectId: "missing" }, deps),
     ).rejects.toMatchObject({ status: 404, code: "project_not_found" });
+  });
+
+  it("rejects removing a project that owns an experiment before closing threads", async () => {
+    const closeThread = vi.fn<RemoteProjectCommandDeps["closeThread"]>(async () => {});
+    const { deps, projects, deleteProject } = makeDeps({
+      closeThread,
+      hasProjectExperiment: (projectId) => projectId === "p1",
+      listProjectThreadIds: () => ["t1"],
+    });
+    projects.push({
+      id: "p1",
+      name: "x",
+      location: { kind: "posix", path: "/x" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    await expect(
+      applyRemoteProjectCommand({ kind: "remove", projectId: "p1" }, deps),
+    ).rejects.toMatchObject({ status: 409, code: "experiment_owned" });
+    expect(closeThread).not.toHaveBeenCalled();
+    expect(deleteProject).not.toHaveBeenCalled();
+    expect(projects).toHaveLength(1);
   });
 
   it("rejects an invalid project name", async () => {

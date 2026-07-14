@@ -4,6 +4,7 @@ export type AppView =
   | { kind: "home" }
   | { kind: "schedules" }
   | { kind: "draft"; projectId: string }
+  | { kind: "experiment"; experimentId: string; projectId: string }
   | {
       kind: "thread";
       panes: [string, ...string[]];

@@ -241,6 +241,11 @@ export const agentCapabilitySchema = z.object({
    */
   supportsOneShot: z.boolean().optional(),
   /**
+   * Whether the adapter exposes a provider-enforced text-only one-shot path
+   * with tools, MCPs, plugins, and hooks disabled. Optional: absent = false.
+   */
+  supportsTextOnlyOneShot: z.boolean().optional(),
+  /**
    * When true, the agent can only read files inside its working directory (e.g.
    * Command Code sandboxes file access to the project/worktree). Attachments
    * that live outside the workspace are copied into a workspace-local dir and

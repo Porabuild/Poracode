@@ -3,6 +3,10 @@ import { isThreadTurnActive } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  getRunningExperimentCandidateIds,
+  useExperimentStore,
+} from "@/renderer/state/experimentStore";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { startDeferredFeaturePrewarm } from "@/renderer/deferredFeatures";
@@ -20,6 +24,150 @@ function scheduleIdle(work: () => void): IdleCallbackHandle {
   return { cancel: () => clearTimeout(timeoutId) };
 }
 
+function recoverExperimentCandidateWorktrees(): Promise<void> | null {
+  const appState = useAppStore.getState();
+  const experiments = Object.values(useExperimentStore.getState().experiments);
+  if (experiments.length === 0) return null;
+
+  return (async () => {
+    const resolvedByThreadId = new Map<
+      string,
+      {
+        readonly branch: string;
+        readonly path: string | undefined;
+        readonly preserveCandidatePath: boolean;
+        readonly state: "pending" | "owned" | "removed";
+      }
+    >();
+    const threadById = new Map(appState.threads.map((thread) => [thread.id, thread] as const));
+
+    for (const project of appState.projects) {
+      const projectExperiments = experiments.filter(
+        (experiment) => experiment.projectId === project.id,
+      );
+      if (projectExperiments.length === 0) continue;
+      try {
+        const { worktrees } = await readBridge().gitListWorktrees({
+          projectLocation: project.location,
+        });
+        for (const experiment of projectExperiments) {
+          for (const candidate of experiment.candidates) {
+            const state = candidate.worktreeState;
+            if (state === "removed") {
+              resolvedByThreadId.set(candidate.threadId, {
+                branch: candidate.worktreeBranch,
+                path: undefined,
+                preserveCandidatePath: false,
+                state,
+              });
+              continue;
+            }
+            const caseInsensitive = project.location.kind === "windows";
+            const recordedPaths = new Set(
+              [threadById.get(candidate.threadId)?.worktreePath, candidate.worktreePath]
+                .filter((path): path is string => path !== undefined)
+                .map((path) => normalizeWorktreePath(path, caseInsensitive)),
+            );
+            const registeredAtRecordedPath = worktrees.some((worktree) =>
+              recordedPaths.has(normalizeWorktreePath(worktree.path, caseInsensitive)),
+            );
+            const branchWorktree = worktrees.find(
+              (worktree) => worktree.branch === candidate.worktreeBranch,
+            );
+            let recoveredState = state;
+            let recoveredPath = branchWorktree?.path;
+            let preserveCandidatePath = registeredAtRecordedPath;
+            if (branchWorktree) {
+              try {
+                const metadata = await readBridge().gitGetWorktreeSourceBranch({
+                  projectLocation: project.location,
+                  branch: candidate.worktreeBranch,
+                });
+                if (metadata.ownerToken === candidate.worktreeOwnerToken) {
+                  recoveredState = "owned";
+                } else {
+                  recoveredPath = undefined;
+                  preserveCandidatePath = registeredAtRecordedPath;
+                }
+              } catch (error) {
+                captureRendererException(error, { featureArea: "hydration" });
+                recoveredPath = undefined;
+                preserveCandidatePath = registeredAtRecordedPath;
+              }
+            } else if (state === "pending") {
+              recoveredPath = undefined;
+            }
+            resolvedByThreadId.set(candidate.threadId, {
+              branch: candidate.worktreeBranch,
+              path: recoveredPath,
+              preserveCandidatePath,
+              state: recoveredState,
+            });
+          }
+        }
+      } catch (error) {
+        captureRendererException(error, { featureArea: "hydration" });
+      }
+    }
+
+    if (resolvedByThreadId.size === 0) return;
+    useAppStore.setState((state) => ({
+      threads: state.threads.map((thread) => {
+        const resolved = resolvedByThreadId.get(thread.id);
+        if (!resolved) return thread;
+        if (resolved.path) {
+          if (thread.worktreePath === resolved.path && thread.worktreeBranch === resolved.branch) {
+            return thread;
+          }
+          return {
+            ...thread,
+            worktreePath: resolved.path,
+            worktreeBranch: resolved.branch,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        if (thread.worktreePath === undefined) return thread;
+        const { worktreePath: _worktreePath, ...withoutWorktreePath } = thread;
+        return {
+          ...withoutWorktreePath,
+          worktreeBranch: resolved.branch,
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    }));
+    useExperimentStore.setState((state) => ({
+      experiments: Object.fromEntries(
+        Object.entries(state.experiments).map(([experimentId, experiment]) => [
+          experimentId,
+          {
+            ...experiment,
+            candidates: experiment.candidates.map((candidate) => {
+              const resolved = resolvedByThreadId.get(candidate.threadId);
+              if (!resolved) return candidate;
+              const { worktreePath: _worktreePath, ...candidateWithoutPath } = candidate;
+              if (resolved.path) {
+                return {
+                  ...candidateWithoutPath,
+                  worktreePath: resolved.path,
+                  worktreeState: resolved.state,
+                };
+              }
+              return resolved.preserveCandidatePath
+                ? { ...candidate, worktreeState: resolved.state }
+                : { ...candidateWithoutPath, worktreeState: resolved.state };
+            }),
+          },
+        ]),
+      ),
+    }));
+  })();
+}
+
+function normalizeWorktreePath(path: string, caseInsensitive: boolean): string {
+  const normalized = path.replace(/\\/gu, "/").replace(/\/+$/u, "");
+  return caseInsensitive ? normalized.toLowerCase() : normalized;
+}
+
 export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
   const runtimeOwner = options.runtimeOwner ?? true;
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
@@ -30,22 +178,37 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
   const view = useAppStore((state) => state.view);
 
   const [initialLoading, setInitialLoading] = useState(true);
-  const [storeHydrated, setStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
+  const [appStoreHydrated, setAppStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
+  const [experimentStoreHydrated, setExperimentStoreHydrated] = useState(() =>
+    useExperimentStore.persist.hasHydrated(),
+  );
+  const storeHydrated = appStoreHydrated && experimentStoreHydrated;
   const [loadT0] = useState(() => Date.now());
 
   useEffect(() => {
     const unsubscribeHydrate = useAppStore.persist.onHydrate(() => {
-      setStoreHydrated(false);
+      setAppStoreHydrated(false);
     });
     const unsubscribeFinishHydration = useAppStore.persist.onFinishHydration(() => {
-      setStoreHydrated(true);
+      setAppStoreHydrated(true);
     });
+    const unsubscribeExperimentHydrate = useExperimentStore.persist.onHydrate(() => {
+      setExperimentStoreHydrated(false);
+    });
+    const unsubscribeExperimentFinishHydration = useExperimentStore.persist.onFinishHydration(
+      () => {
+        setExperimentStoreHydrated(true);
+      },
+    );
 
-    setStoreHydrated(useAppStore.persist.hasHydrated());
+    setAppStoreHydrated(useAppStore.persist.hasHydrated());
+    setExperimentStoreHydrated(useExperimentStore.persist.hasHydrated());
 
     return () => {
       unsubscribeHydrate();
       unsubscribeFinishHydration();
+      unsubscribeExperimentHydrate();
+      unsubscribeExperimentFinishHydration();
     };
   }, []);
 
@@ -56,21 +219,35 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     }
 
     let isActive = true;
-    const restoredView = useAppStore.getState().view;
+    const appState = useAppStore.getState();
+    const experimentStore = useExperimentStore.getState();
+    experimentStore.reconcileExperiments(new Set(appState.projects.map((project) => project.id)));
+    const restoredView = appState.view;
+    if (
+      restoredView.kind === "experiment" &&
+      !useExperimentStore.getState().experiments[restoredView.experimentId]
+    ) {
+      appState.openHome();
+    }
     console.log(
       `[renderer] +${Date.now() - loadT0}ms: store hydrated, view=${JSON.stringify(restoredView)}, ${useAppStore.getState().projects.length} projects, ${useAppStore.getState().threads.length} threads`,
     );
 
-    if (!runtimeOwner) {
-      setInitialLoading(false);
-      return;
-    }
-
     void (async () => {
+      const candidateRecovery = recoverExperimentCandidateWorktrees();
+      if (candidateRecovery) await candidateRecovery;
+      if (!isActive) return;
+      if (!runtimeOwner) {
+        setInitialLoading(false);
+        return;
+      }
+
       startTransition(() => {
         markThreadsInactiveOnLaunch();
         purgeStaleArchivedThreads(30);
       });
+
+      const snapshotsPromise = readBridge().getThreadSnapshots();
 
       const visibleGuiThreadIds = collectVisibleGuiThreadIds();
       if (visibleGuiThreadIds.length > 0) {
@@ -80,32 +257,13 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
       }
 
       if (!isActive) return;
-      startTransition(() => {
-        console.log(`[renderer] +${Date.now() - loadT0}ms: initialLoading = false`);
-        setInitialLoading(false);
-      });
-    })();
-
-    const idleHandle = scheduleIdle(() => {
-      if (!isActive) return;
-      const days = useSharedSettings.getState().autoArchiveDoneAfterDays;
-      if (days > 0) {
-        startTransition(() => {
-          archiveOldDoneThreads(days);
-        });
-      }
-    });
-
-    void readBridge()
-      .getThreadSnapshots()
-      .then((snapshots) => {
-        if (!isActive) {
-          return;
-        }
+      try {
+        const snapshots = await snapshotsPromise;
+        if (!isActive) return;
 
         const currentView = useAppStore.getState().view;
-        const selectedIds = new Set(currentView.kind === "thread" ? currentView.panes : []);
-        const storeThreadIds = new Set(useAppStore.getState().threads.map((t) => t.id));
+        const selectedIds = collectRetainedThreadIds(currentView);
+        const storeThreadIds = new Set(useAppStore.getState().threads.map((thread) => thread.id));
 
         for (const snapshot of snapshots) {
           if (!selectedIds.has(snapshot.threadId) && storeThreadIds.has(snapshot.threadId)) {
@@ -119,13 +277,49 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
 
         startTransition(() => {
           reconcileRuntimeSnapshots(
-            selectedIds.size > 0 ? snapshots.filter((s) => selectedIds.has(s.threadId)) : [],
+            selectedIds.size > 0
+              ? snapshots.filter((snapshot) => selectedIds.has(snapshot.threadId))
+              : [],
           );
+          console.log(`[renderer] +${Date.now() - loadT0}ms: initialLoading = false`);
+          setInitialLoading(false);
         });
-      })
-      .catch((error: unknown) => {
+      } catch (error) {
         captureRendererException(error, { featureArea: "hydration" });
-      });
+        if (!isActive) return;
+        startTransition(() => {
+          const candidateIds = getRunningExperimentCandidateIds();
+          for (const threadId of candidateIds) {
+            const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
+            if (thread?.status === "inactive") {
+              updateThreadRuntime(threadId, {
+                status: "launching",
+                attention: "none",
+                canResumeWithConfig: thread.canResumeWithConfig,
+              });
+            }
+          }
+          console.log(`[renderer] +${Date.now() - loadT0}ms: initialLoading = false`);
+          setInitialLoading(false);
+        });
+      }
+    })();
+
+    if (!runtimeOwner) {
+      return () => {
+        isActive = false;
+      };
+    }
+
+    const idleHandle = scheduleIdle(() => {
+      if (!isActive) return;
+      const days = useSharedSettings.getState().autoArchiveDoneAfterDays;
+      if (days > 0) {
+        startTransition(() => {
+          archiveOldDoneThreads(days);
+        });
+      }
+    });
 
     return () => {
       isActive = false;
@@ -137,6 +331,7 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     purgeStaleArchivedThreads,
     archiveOldDoneThreads,
     reconcileRuntimeSnapshots,
+    updateThreadRuntime,
     runtimeOwner,
     storeHydrated,
   ]);
@@ -150,11 +345,21 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     void readBridge()
       .getThreadSnapshots()
       .then((snapshots) => {
-        if (cancelled || snapshots.length === 0) {
-          return;
-        }
+        if (cancelled) return;
+        const snapshotIds = new Set(snapshots.map((snapshot) => snapshot.threadId));
         for (const snapshot of snapshots) {
           updateThreadRuntime(snapshot.threadId, snapshot);
+        }
+        for (const threadId of getRunningExperimentCandidateIds()) {
+          if (snapshotIds.has(threadId)) continue;
+          const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
+          if (thread?.status === "launching") {
+            updateThreadRuntime(threadId, {
+              status: "inactive",
+              attention: "none",
+              canResumeWithConfig: thread.canResumeWithConfig,
+            });
+          }
         }
       })
       .catch((error: unknown) => {
@@ -184,8 +389,7 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
 
 function collectVisibleGuiThreadIds(): string[] {
   const state = useAppStore.getState();
-  if (state.view.kind !== "thread") return [];
-  const visibleThreadIds = new Set(state.view.panes);
+  const visibleThreadIds = collectRetainedThreadIds(state.view);
   return state.threads
     .filter(
       (thread) =>
@@ -194,4 +398,17 @@ function collectVisibleGuiThreadIds(): string[] {
         !isThreadTurnActive(thread.status),
     )
     .map((thread) => thread.id);
+}
+
+function collectRetainedThreadIds(
+  view: ReturnType<typeof useAppStore.getState>["view"],
+): Set<string> {
+  const retained = getRunningExperimentCandidateIds();
+  if (view.kind === "thread") {
+    for (const threadId of view.panes) retained.add(threadId);
+  } else if (view.kind === "experiment") {
+    const experiment = useExperimentStore.getState().experiments[view.experimentId];
+    for (const candidate of experiment?.candidates ?? []) retained.add(candidate.threadId);
+  }
+  return retained;
 }

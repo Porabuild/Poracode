@@ -8,6 +8,8 @@ import type {
   GeneratePrSummaryResult,
   GenerateTitlePayload,
   GenerateTitleResult,
+  JudgeExperimentPayload,
+  JudgeExperimentResult,
 } from "@/shared/contracts";
 import { generateCommitMessage } from "../commitMessageGenerator";
 import {
@@ -16,6 +18,7 @@ import {
 } from "../contextExtractor";
 import { generatePrSummary } from "../prSummaryGenerator";
 import { generateTitle } from "../titleGenerator";
+import { judgeExperiment } from "../experimentJudge";
 import type { AgentAdapter } from "../agents/base";
 
 export interface GenerationServiceDeps {
@@ -83,6 +86,19 @@ export class GenerationService {
       payload.model,
       payload.effort,
       payload.language,
+    );
+  }
+
+  async judgeExperiment(payload: JudgeExperimentPayload): Promise<JudgeExperimentResult> {
+    const adapter = this.requireAdapter(payload.agentKind);
+    return judgeExperiment(
+      payload.projectLocation,
+      adapter,
+      payload.prompt,
+      payload.candidates,
+      payload.model,
+      payload.effort,
+      payload.fast,
     );
   }
 

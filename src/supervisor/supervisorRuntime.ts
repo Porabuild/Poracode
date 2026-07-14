@@ -489,6 +489,8 @@ export class SupervisorRuntime {
       payload.path,
       payload.force,
       payload.deleteBranch,
+      payload.expectedBranch,
+      payload.expectedOwnerToken,
     );
   }
 

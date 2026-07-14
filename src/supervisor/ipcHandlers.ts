@@ -110,6 +110,11 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     generateCommitMessage: (payload) => generation.generateCommitMessage(payload),
     generateTitle: (payload) => generation.generateTitle(payload),
     generatePrSummary: (payload) => generation.generatePrSummary(payload),
+    getExperimentCandidateDiff: (payload) =>
+      git.getExperimentCandidateDiff(payload.projectLocation, payload.baseRef),
+    getExperimentCandidateStats: (payload) =>
+      git.getExperimentCandidateStats(payload.projectLocation, payload.baseRef),
+    judgeExperiment: (payload) => generation.judgeExperiment(payload),
     gitListBranches: (payload) => git.listBranches(payload.projectLocation, payload.includeRemote),
     gitFetch: (payload) => git.fetch(payload.projectLocation, payload.remote, payload.prune),
     gitListWorktrees: (payload) => git.listWorktrees(payload.projectLocation),
@@ -127,13 +132,20 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
           ...(payload.worktreeRoot ? { root: payload.worktreeRoot } : {}),
           ...(payload.worktreeOmitRepoDir ? { omitRepoDir: true } : {}),
         },
+        payload.sourceBranch,
+        payload.ownerToken,
       ),
     gitRemoveWorktree: (payload) => runtime.gitRemoveWorktree(payload),
     gitPruneWorktrees: (payload) => runtime.gitPruneWorktrees(payload),
     gitDeleteBranch: (payload) =>
       payload.remote
         ? git.deleteRemoteBranch(payload.projectLocation, payload.remote, payload.branch)
-        : git.deleteBranch(payload.projectLocation, payload.branch, payload.force),
+        : git.deleteBranch(
+            payload.projectLocation,
+            payload.branch,
+            payload.force,
+            payload.expectedOwnerToken,
+          ),
     gitSwitchBranch: (payload) =>
       git.switchBranch(payload.projectLocation, payload.branch, payload.createNew),
     gitPull: (payload) => git.pull(payload.projectLocation, payload.remote ?? "origin"),
@@ -167,6 +179,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
         payload.worktreeLocation,
         payload.worktreeBranch,
         payload.sourceBranch,
+        payload.expectedWorktreeCommit,
       ),
     gitPullFromSource: (payload) =>
       git.pullFromSource(

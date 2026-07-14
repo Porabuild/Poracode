@@ -46,11 +46,11 @@ import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer/ImageLightbox";
 import { MainView } from "@/renderer/views/MainView/MainView";
 import { QuickComposerOverlay } from "@/renderer/views/QuickComposerOverlay/QuickComposerOverlay";
+import { startThreadFromDraft } from "@/renderer/views/MainView/parts/AppContent/AppContent";
 import {
   primeWorktreeGitState,
   runWorktreeSetupScript,
-  startThreadFromDraft,
-} from "@/renderer/views/MainView/parts/AppContent/AppContent";
+} from "@/renderer/actions/worktreeLaunchActions";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel";
 import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";

@@ -30,7 +30,14 @@ msgstr "(kein Branch)"
 msgid "(no message)"
 msgstr "(keine Nachricht)"
 
+#. placeholder {0}: candidates.length
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "{0, plural, one {# candidate} other {# candidates}}"
+msgstr "{0, plural, one {# Kandidat} other {# Kandidaten}}"
+
 #. placeholder {0}: details.changedFiles
+#. placeholder {0}: stats.files
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# Datei} other {# Dateien}}"
@@ -72,6 +79,11 @@ msgstr "{0, plural, one {# Skill} other {# Skills}}"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "{0, plural, one {# tool} other {# tools}}"
 msgstr "{0, plural, one {# Tool} other {# Tools}}"
+
+#. placeholder {0}: candidates.length
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
+msgstr "{0, plural, one {Kandidat (#)} other {Kandidaten (#)}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -378,6 +390,10 @@ msgstr "{loginLabel}{0}{env}"
 msgid "{loginLabel} {env}"
 msgstr "{loginLabel}{env}"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
+#~ msgstr "{loserCount, plural, one {Der andere Kandidat und sein Worktree werden entfernt.} other {Die anderen # Kandidaten und ihre Worktrees werden entfernt.}}"
+
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "{maxLabel} context"
 msgstr "{maxLabel} Kontext"
@@ -420,6 +436,10 @@ msgstr "{projectLocation} (deaktiviert)"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
 msgstr "{projectName}-Einstellungen"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "{provider} does not support text-only one-shot generation"
+msgstr "{provider} unterstützt keine einmalige reine Textgenerierung"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -507,9 +527,21 @@ msgstr "30 T"
 msgid "7d"
 msgstr "7 T"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "A candidate is no longer on its experiment branch."
+msgstr "Ein Kandidat befindet sich nicht mehr auf seinem Experiment-Branch."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A frozen worktree source requires a full commit hash"
+msgstr "Eine eingefrorene Worktree-Quelle erfordert einen vollständigen Commit-Hash"
+
 #: src/renderer/components/thread/threadDraftViewHelpers.ts
 msgid "a supported coding agent"
 msgstr "ein unterstützter Codierungsagent"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A worktree owner requires a frozen branch source"
+msgstr "Ein Worktree-Eigentümer erfordert eine eingefrorene Branch-Quelle"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Abort Merge"
@@ -665,6 +697,10 @@ msgstr "Vorhandenen Ordner hinzufügen"
 msgid "Add attachment or capability"
 msgstr "Anhang oder Fähigkeit hinzufügen"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Add candidate"
+msgstr "Kandidaten hinzufügen"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Add Claude profile"
 msgstr "Claude-Profil hinzufügen"
@@ -770,6 +806,11 @@ msgstr "Agenten-Chat (ACP / Markdown). Befehlszeilen verwenden diese Größe min
 msgid "Agent encountered an error."
 msgstr "Der Agent hat einen Fehler festgestellt."
 
+#. placeholder {0}: index + 1
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Agent for candidate {0}"
+msgstr "Agent für Kandidat {0}"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is active and ready"
 msgstr "Der Agent ist aktiv und bereit"
@@ -831,6 +872,10 @@ msgstr "KI-Agenten-Orchestrator – Codierungsagenten über Terminal und natives
 msgid "AI git actions"
 msgstr "KI-Git-Aktionen"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "AI judge"
+msgstr "KI-Juror"
+
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "AI providers"
 msgstr "KI-Anbieter"
@@ -858,6 +903,11 @@ msgstr "Alle Konten"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All agent apps"
 msgstr "Alle Agent-Apps"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "All candidate sessions, worktrees, and branches will be removed."
+msgstr "Alle Sitzungen, Worktrees und Branches der Kandidaten werden entfernt."
 
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "All devices"
@@ -928,6 +978,10 @@ msgstr "Immer"
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Always excluded"
 msgstr "Immer ausgeschlossen"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "An expected worktree owner requires a branch"
+msgstr "Ein erwarteter Worktree-Eigentümer erfordert einen Branch"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
@@ -1072,6 +1126,10 @@ msgstr "Frage stellen"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "At"
 msgstr "Um"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "At least two worktrees must be created. Any partial experiment was cleaned up."
+msgstr "Es müssen mindestens zwei Worktrees erstellt werden. Ein unvollständiges Experiment wurde bereinigt."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Attach"
@@ -1225,6 +1283,10 @@ msgstr "Hintergrundprozess neu gestartet"
 msgid "Background tasks"
 msgstr "Hintergrundaufgaben"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Base branch"
+msgstr "Basis-Branch"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Base branch is ahead — branch must be updated first."
@@ -1306,6 +1368,10 @@ msgstr "Unten"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "Der Zweig „{branch}“ enthält nicht festgeschriebene Änderungen in „{path}“ – schreiben Sie sie fest oder speichern Sie sie vor dem Zusammenführen"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "branch {branch}: {detail}"
+msgstr "Branch {branch}: {detail}"
 
 #. placeholder {0}: props.branch
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
@@ -1462,6 +1528,7 @@ msgstr "Ports konnten nicht geladen werden"
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/experiment/NewExperimentModal.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1560,6 +1627,10 @@ msgstr "Änderungen im PR"
 msgid "Changes requested"
 msgstr "Änderungen angefordert"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Changes unavailable"
+msgstr "Änderungen nicht verfügbar"
+
 #. About page label: release channel (stable/nightly)
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Channel"
@@ -1646,6 +1717,10 @@ msgstr "Ordner auswählen"
 msgid "Choose a folder…"
 msgstr "Wählen Sie einen Ordner…"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Choose a local base branch for the experiment."
+msgstr "Wählen Sie einen lokalen Basis-Branch für das Experiment aus."
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a parent folder"
 msgstr "Übergeordneten Ordner auswählen"
@@ -1653,6 +1728,10 @@ msgstr "Übergeordneten Ordner auswählen"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "Choose an MCP server configuration file"
 #~ msgstr "Eine MCP-Server-Konfigurationsdatei auswählen"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Choose at least two candidates and enter a prompt."
+msgstr "Wählen Sie mindestens zwei Kandidaten aus und geben Sie einen Prompt ein."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Choose how to sign in for {env}."
@@ -1838,6 +1917,10 @@ msgstr "Editor schließen"
 #: src/renderer/commands/registry.ts
 msgid "Close Editor Tab"
 msgstr "Editor-Tab schließen"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Close experiment"
+msgstr "Experiment schließen"
 
 #: src/mobile/views/FilesView.tsx
 msgid "Close file actions"
@@ -2190,6 +2273,10 @@ msgstr "Computer Use aktiviert — interaktive Aktionen übernehmen den Desktop;
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
 #~ msgstr "Computernutzung für diesen Thread aktiviert"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Computing changes…"
+msgstr "Änderungen werden berechnet…"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -2660,6 +2747,18 @@ msgstr "Anmeldeinformationen sind konfiguriert."
 msgid "Credits"
 msgstr "Credits"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Crown"
+msgstr "Krönen"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Crown with AI"
+msgstr "Mit KI krönen"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Crowned"
+msgstr "Gekrönt"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "Kuratierte kostenlose und Premium-Skills, verwaltet von MCP Market."
@@ -2886,6 +2985,10 @@ msgstr "Ablehnen"
 msgid "Deny and tell the agent what to do differently…"
 msgstr "Lehnen Sie ab und sagen Sie dem Agenten, was er anders machen soll ..."
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Describe the task to run with multiple agents…"
+msgstr "Beschreiben Sie die Aufgabe, die mit mehreren Agenten ausgeführt werden soll…"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Describe what the agent should do"
 msgstr "Beschreibe, was der Agent tun soll"
@@ -2915,6 +3018,10 @@ msgstr "Desktop-Einstellungen"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Destination"
 msgstr "Ziel"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "detached HEAD"
+msgstr "losgelöster HEAD"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #~ msgid "Details"
@@ -3041,6 +3148,11 @@ msgstr "Beim Deaktivieren wird ein Skill aus den aktiven Skill-Ordnern verschobe
 msgid "Discard"
 msgstr "Verwerfen"
 
+#. placeholder {0}: entry.group.groupName
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Discard {0}"
+msgstr "{0} verwerfen"
+
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Discard all changes"
 msgstr "Alle Änderungen verwerfen"
@@ -3052,6 +3164,16 @@ msgstr "Änderungen verwerfen"
 #: src/mobile/views/GitActionSheet.tsx
 msgid "Discard changes to <0>{title}</0>? This cannot be undone."
 msgstr "Änderungen an <0>{title}</0> verwerfen? Das kann nicht rückgängig gemacht werden."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Discard experiment"
+msgstr "Experiment verwerfen"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Discard experiment?"
+msgstr "Experiment verwerfen?"
 
 #: src/mobile/views/useOpenFile.ts
 #: src/renderer/commands/registry.ts
@@ -3492,6 +3614,82 @@ msgstr "Zum Prüfen oder Entziehen des Zugriffs erweitern."
 msgid "Expand todo dock"
 msgstr "Erweitern Sie das Aufgaben-Dock"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected branch {branch} at {expected}, but found {actual}"
+msgstr "Branch {branch} wurde bei {expected} erwartet, aber {actual} gefunden"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected source worktree branch {expected}, but found {actual}"
+msgstr "Worktree-Quell-Branch {expected} wurde erwartet, aber {actual} gefunden"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected worktree branch {expected}, but found {actual}"
+msgstr "Worktree-Branch {expected} wurde erwartet, aber {actual} gefunden"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected worktree HEAD {expected}, but found {actual}"
+msgstr "Worktree-HEAD {expected} wurde erwartet, aber {actual} gefunden"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Expected worktree owner {expected}, but found {actual}"
+msgstr "Worktree-Eigentümer {expected} wurde erwartet, aber {actual} gefunden"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Experiment"
+msgstr "Experiment"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate changed while its diff was being captured"
+msgstr "Der Experimentkandidat hat sich während der Erfassung seines Diffs geändert"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate changed while its stats were being captured"
+msgstr "Der Experimentkandidat hat sich während der Erfassung seiner Statistiken geändert"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate diff is too large to compare safely"
+msgstr "Der Diff des Experimentkandidaten ist zu groß für einen sicheren Vergleich"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate has too many untracked files ({count}; maximum {maximum})"
+msgstr "Der Experimentkandidat hat zu viele nicht verfolgte Dateien ({count}; Maximum: {maximum})"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate no longer descends from its frozen base commit"
+msgstr "Der Experimentkandidat stammt nicht mehr von seinem eingefrorenen Basis-Commit ab"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment candidate thread ids must be unique"
+msgstr "Die Thread-IDs der Experimentkandidaten müssen eindeutig sein"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment diff base must be a full commit hash"
+msgstr "Die Experiment-Diff-Basis muss ein vollständiger Commit-Hash sein"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge requires at least two candidates"
+msgstr "Der Experiment-Juror benötigt mindestens zwei Kandidaten"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge returned an empty rationale"
+msgstr "Der Experiment-Juror hat eine leere Begründung zurückgegeben"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge returned an invalid response shape"
+msgstr "Der Experiment-Juror hat eine Antwort in einem ungültigen Format zurückgegeben"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge returned invalid JSON"
+msgstr "Der Experiment-Juror hat ungültiges JSON zurückgegeben"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment judge winner must be between 1 and {candidateCount}"
+msgstr "Der Gewinner des Experiment-Jurors muss zwischen 1 und {candidateCount} liegen"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Experiment prompt must not be blank"
+msgstr "Der Experiment-Prompt darf nicht leer sein"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "MCP-Server exportieren"
@@ -3536,6 +3734,10 @@ msgid "Failed to close remote thread."
 msgstr "Remote-Thread konnte nicht geschlossen werden."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to create owned worktree: {detail}. Rollback left branch {branch}: {rollback}"
+msgstr "Eigener Worktree konnte nicht erstellt werden: {detail}. Beim Rollback blieb Branch {branch} zurück: {rollback}"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Failed to create pull request: {detail}"
 msgstr "Pull-Anfrage konnte nicht erstellt werden: {detail}"
 
@@ -3555,7 +3757,16 @@ msgstr "Pull-Anfrage konnte nicht zusammengeführt werden: {detail}"
 msgid "Failed to open remote thread."
 msgstr "Remote-Thread konnte nicht geöffnet werden."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to record frozen source metadata: {detail}. Rollback left {rollback}"
+msgstr "Metadaten der eingefrorenen Quelle konnten nicht erfasst werden: {detail}. Beim Rollback blieb {rollback} zurück"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
+msgstr "Metadaten des eigenen Branches konnten nicht erfasst werden: {detail}. Beim Rollback blieb Branch {branch} zurück: {rollback}"
+
 #: src/renderer/components/thread/buildModelPickerControls.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Fast"
 msgstr "Schnell"
 
@@ -3775,6 +3986,15 @@ msgstr "Browserseite neu laden erzwingen"
 msgid "Fork"
 msgstr "Fork"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Fork from"
+msgstr "Fork von"
+
+#. placeholder {0}: exp.baseBranch
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Forked from <0>{0}</0>"
+msgstr "Von <0>{0}</0> geforkt"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Form"
 msgstr "Formular"
@@ -3824,6 +4044,10 @@ msgstr "Die Seitenleiste mit dem Unschärfe-Material des Systems (Vibrancy) matt
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Frosting of the {appearance}-mode sidebar over the system blur. Higher holds the theme color; lower shows more of what's behind."
 msgstr "Mattierung der Seitenleiste im {appearance}-Modus über der System-Unschärfe. Höher hält die Designfarbe; niedriger zeigt mehr vom Hintergrund."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Frozen worktree source is not a local branch: {branch}"
+msgstr "Die eingefrorene Worktree-Quelle ist kein lokaler Branch: {branch}"
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
@@ -4167,6 +4391,7 @@ msgstr "Pfad zur Identitätsdatei"
 #. Microphone input level when not testing
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
 msgstr "Leerlauf"
@@ -4425,6 +4650,10 @@ msgstr "Kursiv"
 msgid "JSON"
 msgstr "JSON"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Judging…"
+msgstr "Bewertung läuft…"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Jump to section"
 msgstr "Zu Bereich springen"
@@ -4504,6 +4733,10 @@ msgstr "Kommentar hinterlassen"
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "Weniger"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Let an AI judge compare the candidate changes."
+msgstr "Lassen Sie einen KI-Juror die Änderungen der Kandidaten vergleichen."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the embedded page. Off by default — turn on only when you trust the loaded sites and the agent."
@@ -4718,6 +4951,10 @@ msgstr "Längste Aufgabe"
 msgid "Looking for dev servers…"
 msgstr "Suche nach Dev-Servern…"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Losing worktrees and branches will be removed. Their session history will remain."
+msgstr "Die Worktrees und Branches der unterlegenen Kandidaten werden entfernt. Ihr Sitzungsverlauf bleibt erhalten."
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
 msgstr "Die Seitenleiste durchscheinend machen — das Unschärfe-Material des Systems unter Windows 11, sonst eine durchscheinende Tönung."
@@ -4919,14 +5156,27 @@ msgstr "MCP-Toolaufrufe"
 msgid "MCP transport type"
 msgstr "MCP-Transporttyp"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Merge {crownedLabel}'s changes into {mergeTarget}?"
+msgstr "Änderungen von {crownedLabel} in {mergeTarget} zusammenführen?"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
 msgstr "Zusammenführen und entfernen"
+
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Merge candidate {0} ({label}) as experiment winner"
+msgstr "Kandidat {0} ({label}) als Gewinner des Experiments zusammenführen"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merge conflicts must be resolved."
 msgstr "Zusammenführungskonflikte müssen gelöst werden."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Merge experiment winner?"
+msgstr "Gewinner des Experiments zusammenführen?"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Merge failed"
@@ -4978,14 +5228,24 @@ msgstr "Diesen Pull Request mit einem Squash-Commit zusammenführen."
 msgid "Merge to Source"
 msgstr "In Quelle zusammenführen"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Merge winner"
+msgstr "Gewinner zusammenführen"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Merge Worktree"
 msgstr "Arbeitsbaum zusammenführen"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "Merged"
 msgstr "Zusammengeführt"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Merged the experiment winner into {sourceBranch}."
+msgstr "Der Gewinner des Experiments wurde in {sourceBranch} zusammengeführt."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Merging is blocked"
@@ -5070,6 +5330,11 @@ msgstr "Modell"
 #: src/renderer/commands/registry.ts
 msgid "Model added to favorites"
 msgstr "Modell zu Favoriten hinzugefügt"
+
+#. placeholder {0}: index + 1
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Model for candidate {0}"
+msgstr "Modell für Kandidat {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -5275,6 +5540,10 @@ msgstr "Neuer Claude-Profilname"
 msgid "New code"
 msgstr "Neuer Code"
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "New experiment"
+msgstr "Neues Experiment"
+
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
 msgstr "Neue Datei"
@@ -5478,6 +5747,10 @@ msgstr "Keine Änderungen"
 msgid "No changes to display"
 msgstr "Keine Änderungen anzuzeigen"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "No changes yet"
+msgstr "Noch keine Änderungen"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
 msgstr "Für diese PR wurden keine Checks gemeldet."
@@ -5518,6 +5791,10 @@ msgstr "Noch keine Daten"
 #: src/renderer/views/ProfileOverlay/parts/BreakdownBars.tsx
 msgid "No data yet."
 msgstr "Noch keine Daten."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No default one-shot model configured for {provider}"
+msgstr "Für {provider} ist kein standardmäßiges One-Shot-Modell konfiguriert"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -5563,6 +5840,10 @@ msgstr "Keine GitHub-CLI-Konten gefunden. Melden Sie sich mit <0>gh auth login</
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "Noch kein Verlauf"
+
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "No installed agents with selectable models are available for this project."
+msgstr "Für dieses Projekt sind keine installierten Agenten mit auswählbaren Modellen verfügbar."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -5762,9 +6043,18 @@ msgstr "Kein Arbeitsbaum"
 msgid "No wrap"
 msgstr "Kein Umbruch"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "none"
+msgstr "keine"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "None"
 msgstr "Keine"
+
+#: src/renderer/actions/experimentActions.ts
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "None of these agents can run the AI comparison."
+msgstr "Keiner dieser Agenten kann den KI-Vergleich ausführen."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/GitDiffContent.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
@@ -5896,6 +6186,7 @@ msgid "Only when unfocused"
 msgstr "Nur wenn nicht fokussiert"
 
 #: src/renderer/notifications.ts
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -5948,6 +6239,11 @@ msgstr "Browser öffnen"
 msgid "Open browser tab"
 msgstr "Browser-Tab öffnen"
 
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Open candidate {0}: {label}"
+msgstr "Kandidat {0} öffnen: {label}"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "Open check"
 msgstr "Offene Prüfung"
@@ -5967,6 +6263,15 @@ msgstr "Öffnen Sie den Konfliktlöser in"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Open dialog"
 msgstr "Dialog öffnen"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Open experiment"
+msgstr "Experiment öffnen"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
+msgid "Open experiment board"
+msgstr "Experiment-Board öffnen"
 
 #: src/renderer/commands/registry.ts
 msgid "Open File"
@@ -6618,7 +6923,9 @@ msgstr "Projekte"
 msgid "Projects live on the connected desktop. Add one before starting a thread."
 msgstr "Projekte befinden sich auf dem verbundenen Desktop. Füge eines hinzu, bevor du einen Thread startest."
 
+#: src/renderer/components/experiment/NewExperimentModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Prompt"
 msgstr "Prompt"
@@ -7019,6 +7326,11 @@ msgstr "Aktion entfernen"
 msgid "Remove bookmark"
 msgstr "Lesezeichen entfernen"
 
+#. placeholder {0}: index + 1
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Remove candidate {0}"
+msgstr "Kandidat {0} entfernen"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Remove Claude profile"
 msgstr "Claude-Profil entfernen"
@@ -7085,6 +7397,10 @@ msgstr "Chat umbenennen"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Rename connection"
 msgstr "Verbindung umbenennen"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+msgid "Rename experiment"
+msgstr "Experiment umbenennen"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
@@ -7270,6 +7586,10 @@ msgstr "Prüfung von {serverName} wiederholen"
 msgid "Retry check"
 msgstr "Prüfung wiederholen"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Retry cleanup"
+msgstr "Bereinigung erneut versuchen"
+
 #: src/mobile/components.tsx
 msgid "Retry now"
 msgstr "Jetzt erneut versuchen"
@@ -7400,6 +7720,14 @@ msgstr "Führen Sie {loginCommand} aus, um sich anzumelden."
 msgid "Run a new thread on {0}."
 msgstr "Neuen Thread auf {0} starten."
 
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Run as experiment"
+msgstr "Als Experiment ausführen"
+
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Run as experiment with multiple agents"
+msgstr "Als Experiment mit mehreren Agenten ausführen"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run at"
 msgstr "Ausführen am"
@@ -7407,6 +7735,10 @@ msgstr "Ausführen am"
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "Run command"
 msgstr "Befehl ausführen"
+
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Run experiment"
+msgstr "Experiment ausführen"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Run in a separate worktree"
@@ -7420,6 +7752,10 @@ msgstr "Lokale Transkription auf der GPU ausführen, sofern verfügbar."
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Run now"
 msgstr "Jetzt ausführen"
+
+#: src/renderer/components/experiment/NewExperimentModal.tsx
+msgid "Run one prompt with multiple agents, then compare their work."
+msgstr "Einen Prompt mit mehreren Agenten ausführen und anschließend ihre Arbeit vergleichen."
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Run standalone tasks on this device without a project."
@@ -7786,6 +8122,11 @@ msgstr "Option auswählen"
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Select branch"
 msgstr "Zweig auswählen"
+
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Select candidate {0} ({label}) as winner"
+msgstr "Kandidat {0} ({label}) als Gewinner auswählen"
 
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
@@ -8174,6 +8515,14 @@ msgstr "Slash-Befehle"
 msgid "Some checks are failing or pending."
 msgstr "Einige Prüfungen schlagen fehl oder stehen noch aus."
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Some experiment worktrees could not be removed."
+msgstr "Einige Worktrees des Experiments konnten nicht entfernt werden."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Some losing worktrees could not be removed."
+msgstr "Einige Worktrees der unterlegenen Kandidaten konnten nicht entfernt werden."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
 msgstr "Einige Anbieterordner konnten nicht gescannt werden. Erfolgreich geladene Skills werden weiterhin angezeigt."
@@ -8197,6 +8546,10 @@ msgstr "Marketplace-Skills sortieren"
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Sort threads"
 msgstr "Threads sortieren"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Source branch {branch} moved before the worktree was created"
+msgstr "Quell-Branch {branch} wurde verschoben, bevor der Worktree erstellt wurde"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Sources"
@@ -8798,6 +9151,18 @@ msgstr "Der Agent"
 msgid "the app"
 msgstr "die App"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "the base branch"
+#~ msgstr "der Basis-Branch"
+
+#: src/renderer/actions/experimentActions.ts
+msgid "The candidates changed after judging. Compare them again."
+msgstr "Die Kandidaten haben sich nach der Bewertung geändert. Vergleichen Sie sie erneut."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "The candidates have not made any changes yet."
+msgstr "Die Kandidaten haben noch keine Änderungen vorgenommen."
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "den gewählten Ordner"
@@ -8810,6 +9175,15 @@ msgstr "Der Standard-Aktualisierungstakt im Hintergrund, der für jeden Anbieter
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "The desktop server is still coming online."
 msgstr "Der Desktop-Server wird noch gestartet."
+
+#: src/renderer/actions/experimentActions.ts
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadPane.tsx
+msgid "The experiment candidate worktree is unavailable."
+msgstr "Der Worktree des Experimentkandidaten ist nicht verfügbar."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "The experiment prompt is too long."
+msgstr "Der Experiment-Prompt ist zu lang."
 
 #. placeholder {0}: createTarget.wslDistro
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -8899,6 +9273,10 @@ msgstr "der Zielanbieter"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
 msgstr "den Windows-Benutzer"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "the winner"
+msgstr "der Gewinner"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -9271,6 +9649,11 @@ msgstr "In die Seite tippen (zuerst ein Feld antippen)"
 msgid "Unable to authenticate {0}."
 msgstr "{0} konnte nicht authentifiziert werden."
 
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to compare candidates: {0}"
+msgstr "Kandidaten können nicht verglichen werden: {0}"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Unable to connect over SSH."
 msgstr "Verbindung über SSH nicht möglich."
@@ -9299,6 +9682,10 @@ msgstr "Das WSL-Worktree-Verzeichnis „{path}“ kann nicht erstellt werden."
 msgid "Unable to delete the worktree."
 msgstr "Der Worktree kann nicht gelöscht werden."
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to determine the experiment's source branch."
+msgstr "Der Quell-Branch des Experiments konnte nicht ermittelt werden."
+
 #. placeholder {0}: props.selectedAgent.label
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Unable to install {0} hooks."
@@ -9326,6 +9713,11 @@ msgstr "Abmelden von {0} nicht möglich."
 msgid "Unable to merge"
 msgstr "Merge nicht möglich"
 
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to merge the experiment winner: {0}"
+msgstr "Der Gewinner des Experiments konnte nicht zusammengeführt werden: {0}"
+
 #. placeholder {0}: input.label
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Unable to open {0} login."
@@ -9344,6 +9736,19 @@ msgstr "Kopplung mit diesem Desktop nicht möglich."
 #: src/mobile/views/DesktopsView.tsx
 msgid "Unable to probe the SSH host."
 msgstr "Der SSH-Host konnte nicht geprüft werden."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to read experiment candidate status"
+msgstr "Status des Experimentkandidaten konnte nicht gelesen werden"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to read the candidate changes: {0}"
+msgstr "Die Änderungen der Kandidaten konnten nicht gelesen werden: {0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to read untracked candidate file: {path}"
+msgstr "Nicht verfolgte Kandidatendatei konnte nicht gelesen werden: {path}"
 
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
@@ -9371,8 +9776,16 @@ msgid "Unable to remove worktree."
 msgstr "Worktree konnte nicht entfernt werden."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to resolve branch tips for fast-forward merge"
+msgstr "Branch-Spitzen für den Fast-Forward-Merge konnten nicht aufgelöst werden"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to resolve home directory for WSL distro \"{distro}\""
 msgstr "Das Home-Verzeichnis für die WSL-Distribution „{distro}“ kann nicht aufgelöst werden."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Unable to resolve the experiment candidate commit"
+msgstr "Commit des Experimentkandidaten konnte nicht aufgelöst werden"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Unable to restore the SSH connection."
@@ -9854,6 +10267,26 @@ msgstr "Spracheingabesprache"
 msgid "Voice input model"
 msgstr "Spracheingabemodell"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before cleaning up."
+msgstr "Warten Sie, bis alle Kandidaten fertig sind, bevor Sie die Bereinigung durchführen."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before comparing them."
+msgstr "Warten Sie, bis alle Kandidaten fertig sind, bevor Sie sie vergleichen."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before discarding the experiment."
+msgstr "Warten Sie, bis alle Kandidaten fertig sind, bevor Sie das Experiment verwerfen."
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Wait for every candidate to finish before judging."
+msgstr "Warten Sie, bis alle Kandidaten fertig sind, bevor Sie sie bewerten."
+
+#: src/renderer/actions/experimentActions.ts
+msgid "Wait for every candidate to finish before merging a winner."
+msgstr "Warten Sie, bis alle Kandidaten fertig sind, bevor Sie einen Gewinner zusammenführen."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Wait for the thread to finish starting."
 msgstr "Warten Sie, bis der Thread gestartet ist."
@@ -10034,6 +10467,10 @@ msgstr "Windows"
 #~ msgid "Windows is not supported yet. Install inside WSL or on macOS/Linux."
 #~ msgstr "Windows wird noch nicht unterstützt. Installieren Sie innerhalb der WSL oder unter macOS/Linux."
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Winner merged."
+msgstr "Gewinner zusammengeführt."
+
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Work"
 msgstr "Arbeit"
@@ -10081,6 +10518,7 @@ msgstr "Workflows"
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Working"
 msgstr "Arbeiten"
 
@@ -10113,9 +10551,17 @@ msgstr "Arbeitsbereichsansicht"
 msgid "Worktree"
 msgstr "Worktree"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Worktree {path} has uncommitted changes"
+msgstr "Worktree {path} enthält nicht committete Änderungen"
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree + changes"
 msgstr "Worktree + Änderungen"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "worktree at {path}: {detail}"
+msgstr "Worktree unter {path}: {detail}"
 
 #: src/renderer/views/SettingsOverlay/parts/WorktreeBaseFolderField.tsx
 msgid "Worktree base folder"
@@ -10204,6 +10650,10 @@ msgstr "WSL-Basisordner"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "Ihr Name"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Your pick"
+msgstr "Ihre Auswahl"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Zoom in"

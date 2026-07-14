@@ -56,6 +56,12 @@ vi.mock("node:child_process", async () => {
 });
 
 import { computeDefaultWorktreePath, GitService, parseRemoteUrl } from "./git";
+import {
+  gitAddWorktreePayloadSchema,
+  gitDeleteBranchPayloadSchema,
+  gitMergeToSourcePayloadSchema,
+  gitRemoveWorktreePayloadSchema,
+} from "@/shared/contracts";
 
 // Every git invocation is prefixed with `-c core.quotepath=false` (see
 // withQuotePathDisabled in git/exec.ts) so non-ASCII paths print as raw UTF-8.
@@ -85,6 +91,86 @@ function mockGitCommands(handler: (args: string[]) => { stdout?: string; error?:
     },
   );
 }
+
+describe("git worktree contract validation", () => {
+  const projectLocation = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\repo",
+  };
+  const frozenCommit = "a".repeat(40);
+
+  it("requires complete frozen-source metadata", () => {
+    const payload = {
+      projectLocation,
+      branch: "poracode/candidate",
+      createBranch: true,
+      startPoint: frozenCommit,
+      sourceBranch: "main",
+      ownerToken: "experiment-1",
+    };
+
+    expect(gitAddWorktreePayloadSchema.safeParse(payload).success).toBe(true);
+    expect(gitAddWorktreePayloadSchema.safeParse({ ...payload, createBranch: false }).success).toBe(
+      false,
+    );
+    expect(gitAddWorktreePayloadSchema.safeParse({ ...payload, branch: undefined }).success).toBe(
+      false,
+    );
+    expect(gitAddWorktreePayloadSchema.safeParse({ ...payload, startPoint: "main" }).success).toBe(
+      false,
+    );
+    expect(
+      gitAddWorktreePayloadSchema.safeParse({ ...payload, sourceBranch: undefined }).success,
+    ).toBe(false);
+  });
+
+  it("requires branch-scoped ownership expectations", () => {
+    expect(
+      gitRemoveWorktreePayloadSchema.safeParse({
+        projectLocation,
+        path: "C:\\repo\\candidate",
+        expectedOwnerToken: "experiment-1:candidate-1",
+      }).success,
+    ).toBe(false);
+    expect(
+      gitDeleteBranchPayloadSchema.safeParse({
+        projectLocation,
+        branch: "candidate",
+        remote: "origin",
+        expectedOwnerToken: "experiment-1:candidate-1",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts only full commit hashes for an expected merge commit", () => {
+    const payload = {
+      projectLocation,
+      worktreeLocation: projectLocation,
+      worktreeBranch: "feature",
+      sourceBranch: "main",
+    };
+
+    expect(gitMergeToSourcePayloadSchema.safeParse(payload).success).toBe(true);
+    expect(
+      gitMergeToSourcePayloadSchema.safeParse({
+        ...payload,
+        expectedWorktreeCommit: frozenCommit,
+      }).success,
+    ).toBe(true);
+    expect(
+      gitMergeToSourcePayloadSchema.safeParse({
+        ...payload,
+        expectedWorktreeCommit: "b".repeat(64),
+      }).success,
+    ).toBe(true);
+    expect(
+      gitMergeToSourcePayloadSchema.safeParse({
+        ...payload,
+        expectedWorktreeCommit: "abc123",
+      }).success,
+    ).toBe(false);
+  });
+});
 
 describe("computeDefaultWorktreePath", () => {
   beforeEach(() => {
@@ -230,6 +316,120 @@ describe("GitService.addWorktree", () => {
     );
     expect(configCall).toBeDefined();
     expect(configCall![1]).toContain("master");
+  });
+
+  it("stores an explicit source branch when the worktree starts from a frozen commit", async () => {
+    const frozenCommit = "a".repeat(40);
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "add") return { stdout: "" };
+      if (args[0] === "branch" && args[1] === "--list") return { stdout: "main\n" };
+      if (args[0] === "rev-parse") return { stdout: `${frozenCommit}\n` };
+      if (args[0] === "config") return { stdout: "" };
+      return { stdout: "" };
+    });
+
+    await new GitService().addWorktree(
+      location,
+      "C:\\Users\\demo\\.poracode\\worktrees\\poracode-12345678\\poracode-brave-heron",
+      "poracode/brave-heron",
+      true,
+      frozenCommit,
+      undefined,
+      false,
+      false,
+      undefined,
+      "main",
+      "experiment-1",
+    );
+
+    const sourceConfigCall = execFileMock.mock.calls.find(
+      (call: unknown[]) =>
+        Array.isArray(call[1]) &&
+        gitSubcommandArgs(call[1] as string[])[0] === "config" &&
+        gitSubcommandArgs(call[1] as string[]).includes(
+          "branch.poracode/brave-heron.poracodeSource",
+        ),
+    );
+    expect(sourceConfigCall).toBeDefined();
+    expect(sourceConfigCall![1]).toContain("main");
+    const ownerConfigCall = execFileMock.mock.calls.find(
+      (call: unknown[]) =>
+        Array.isArray(call[1]) &&
+        gitSubcommandArgs(call[1] as string[]).includes(
+          "branch.poracode/brave-heron.poracodeOwner",
+        ),
+    );
+    expect(ownerConfigCall).toBeDefined();
+    expect(ownerConfigCall![1]).toContain("experiment-1");
+    const commands = execFileMock.mock.calls.map((call: unknown[]) =>
+      gitSubcommandArgs(call[1] as string[]),
+    );
+    expect(commands).toContainEqual([
+      "update-ref",
+      "--create-reflog",
+      "-m",
+      "poracode experiment owner experiment-1",
+      "refs/heads/poracode/brave-heron",
+      frozenCommit,
+      "0".repeat(40),
+    ]);
+    expect(commands).toContainEqual([
+      "worktree",
+      "add",
+      "C:\\Users\\demo\\.poracode\\worktrees\\poracode-12345678\\poracode-brave-heron",
+      "poracode/brave-heron",
+    ]);
+    const worktreeAddIndex = commands.findIndex(
+      (args) => args[0] === "worktree" && args[1] === "add",
+    );
+    expect(
+      commands.findIndex((args) => args.includes("branch.poracode/brave-heron.poracodeOwner")),
+    ).toBeLessThan(worktreeAddIndex);
+    expect(
+      commands.findIndex((args) => args.includes("branch.poracode/brave-heron.poracodeSource")),
+    ).toBeLessThan(worktreeAddIndex);
+  });
+
+  it("reports frozen-metadata rollback leftovers with their path and branch", async () => {
+    const frozenCommit = "a".repeat(40);
+    const worktreePath =
+      "C:\\Users\\demo\\.poracode\\worktrees\\poracode-12345678\\poracode-brave-heron";
+    mockGitCommands((args) => {
+      if (args[0] === "branch" && args[1] === "--list") return { stdout: "main\n" };
+      if (args[0] === "rev-parse") return { stdout: `${frozenCommit}\n` };
+      if (args[0] === "worktree" && args[1] === "add") return { stdout: "" };
+      if (args[0] === "config") return { error: new Error("config failed") };
+      if (args[0] === "worktree" && args[1] === "remove") {
+        return { error: new Error("remove failed") };
+      }
+      if (args[0] === "branch" && args[1] === "-D") {
+        return { error: new Error("delete failed") };
+      }
+      return { stdout: "" };
+    });
+
+    await expect(
+      new GitService().addWorktree(
+        location,
+        worktreePath,
+        "poracode/brave-heron",
+        true,
+        frozenCommit,
+        undefined,
+        false,
+        false,
+        undefined,
+        "main",
+      ),
+    ).rejects.toThrow(
+      `Rollback left worktree at ${worktreePath}: Git worktree failed: remove failed; branch poracode/brave-heron: Git branch failed: delete failed`,
+    );
+
+    const commands = execFileMock.mock.calls.map((call: unknown[]) =>
+      gitSubcommandArgs(call[1] as string[]),
+    );
+    expect(commands).toContainEqual(["worktree", "remove", "--force", worktreePath]);
+    expect(commands).toContainEqual(["branch", "-D", "poracode/brave-heron"]);
   });
 
   it("qualifies a bare remote-tracking branch start point with its remote", async () => {
@@ -1150,6 +1350,175 @@ describe("GitService.getDiff", () => {
   });
 });
 
+describe("GitService.getExperimentCandidateDiff", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\candidate",
+  };
+  const baseRef = "a".repeat(40);
+  const headCommit = "c".repeat(40);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("compares the full working tree to the frozen base and appends only untracked diffs", async () => {
+    const trackedDiff = [
+      "diff --git a/src/tracked.ts b/src/tracked.ts",
+      "--- a/src/tracked.ts",
+      "+++ b/src/tracked.ts",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+    ].join("\n");
+    const untrackedDiff = [
+      "diff --git a/src/new.ts b/src/new.ts",
+      "new file mode 100644",
+      "--- /dev/null",
+      "+++ b/src/new.ts",
+      "@@ -0,0 +1 @@",
+      "+new file",
+    ].join("\n");
+
+    mockGitCommands((args) => {
+      if (args[0] === "rev-parse" && args[2] === "HEAD^{commit}") {
+        return { stdout: `${headCommit}\n` };
+      }
+      if (args[0] === "diff" && args[1] === baseRef && args[2] === "--") {
+        return { stdout: trackedDiff };
+      }
+      if (args[0] === "status") {
+        return {
+          stdout: ["# branch.oid abc123", "# branch.head experiment", "? src/new.ts"].join("\n"),
+        };
+      }
+      if (args[0] === "ls-files") return { stdout: "src/new.ts\0" };
+      if (args[0] === "diff" && args[1] === "--" && args[2] === "src/new.ts") {
+        return { stdout: "" };
+      }
+      if (args[0] === "diff" && args[1] === "--no-index") {
+        return { stdout: untrackedDiff };
+      }
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().getExperimentCandidateDiff(location, baseRef);
+
+    expect(result).toEqual({
+      diff: `${trackedDiff}\n${untrackedDiff}`,
+      headCommit,
+    });
+    const diffCommands = execFileMock.mock.calls
+      .map((call: unknown[]) => gitSubcommandArgs(call[1] as string[]))
+      .filter((args) => args[0] === "diff");
+    expect(diffCommands).toContainEqual(["diff", baseRef, "--"]);
+    expect(diffCommands.some((args) => args.includes("--cached"))).toBe(false);
+  });
+
+  it("rejects non-commit diff bases before invoking git", async () => {
+    await expect(
+      new GitService().getExperimentCandidateDiff(location, "--output=stolen"),
+    ).rejects.toThrow("must be a full commit hash");
+    expect(execFileMock).not.toHaveBeenCalled();
+  });
+
+  it("fails instead of silently omitting an unreadable untracked file", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "rev-parse" && args[2] === "HEAD^{commit}") {
+        return { stdout: `${headCommit}\n` };
+      }
+      if (args[0] === "status") {
+        return {
+          stdout: ["# branch.oid abc123", "# branch.head experiment", "? src/vanished.ts"].join(
+            "\n",
+          ),
+        };
+      }
+      if (args[0] === "ls-files") return { stdout: "src/vanished.ts\0" };
+      return { stdout: "" };
+    });
+
+    await expect(new GitService().getExperimentCandidateDiff(location, baseRef)).rejects.toThrow(
+      "Unable to read untracked candidate file: src/vanished.ts",
+    );
+  });
+
+  it("rejects a candidate that changes while its diff is being captured", async () => {
+    let diffCalls = 0;
+    mockGitCommands((args) => {
+      if (args[0] === "rev-parse" && args[2] === "HEAD^{commit}") {
+        return { stdout: `${headCommit}\n` };
+      }
+      if (args[0] === "diff" && args[1] === baseRef && args[2] === "--") {
+        diffCalls += 1;
+        return { stdout: diffCalls === 1 ? "first" : "second" };
+      }
+      if (args[0] === "status") {
+        return { stdout: ["# branch.oid abc123", "# branch.head experiment"].join("\n") };
+      }
+      return { stdout: "" };
+    });
+
+    await expect(new GitService().getExperimentCandidateDiff(location, baseRef)).rejects.toThrow(
+      "changed while its diff was being captured",
+    );
+  });
+
+  it("rejects a candidate that no longer descends from the frozen base", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "rev-parse" && args[2] === "HEAD^{commit}") {
+        return { stdout: `${headCommit}\n` };
+      }
+      if (args[0] === "merge-base") return { error: new Error("not an ancestor") };
+      return { stdout: "" };
+    });
+
+    await expect(new GitService().getExperimentCandidateDiff(location, baseRef)).rejects.toThrow(
+      "no longer descends from its frozen base commit",
+    );
+  });
+});
+
+describe("GitService.getExperimentCandidateStats", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\candidate",
+  };
+  const baseRef = "b".repeat(40);
+  const headCommit = "d".repeat(40);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("summarizes committed, working-tree, and untracked changes from the frozen base", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "rev-parse" && args[2] === "HEAD^{commit}") {
+        return { stdout: `${headCommit}\n` };
+      }
+      if (args[0] === "diff" && args[1] === "--numstat" && args[2] === baseRef) {
+        return { stdout: "4\t2\tsrc/tracked.ts\n" };
+      }
+      if (args[0] === "status") {
+        return {
+          stdout: ["# branch.oid abc123", "# branch.head experiment", "? src/new.ts"].join("\n"),
+        };
+      }
+      if (args[0] === "ls-files") return { stdout: "src/new.ts\0" };
+      if (args[0] === "diff" && args[1] === "--no-index" && args[2] === "--numstat") {
+        return { stdout: "3\t0\t/dev/null => src/new.ts\n" };
+      }
+      return { stdout: "" };
+    });
+
+    await expect(new GitService().getExperimentCandidateStats(location, baseRef)).resolves.toEqual({
+      insertions: 7,
+      deletions: 2,
+      files: 2,
+    });
+  });
+});
+
 describe("GitService.getStatus Windows path normalization", () => {
   const location = {
     kind: "windows" as const,
@@ -1646,6 +2015,244 @@ describe("GitService.mergeToSource (non-FF path)", () => {
   });
 });
 
+describe("GitService.mergeToSource immutable commit validation", () => {
+  const repoLocation = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\repo",
+  };
+  const worktreeLocation = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\worktree",
+  };
+  const expectedCommit = "b".repeat(40);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("validates the candidate worktree and merges the expected commit instead of the branch name", async () => {
+    const sourceCommit = "a".repeat(40);
+    const mergedCommit = "c".repeat(40);
+    let branchReads = 0;
+    mockGitCommands((args) => {
+      if (args[0] === "status") return { stdout: "" };
+      if (args[0] === "branch" && args[1] === "--show-current") {
+        return { stdout: branchReads++ === 0 ? "feature\n" : "main\n" };
+      }
+      if (args[0] === "rev-parse") {
+        const ref = args[args.length - 1];
+        if (ref === `refs/heads/main^{commit}`) return { stdout: `${sourceCommit}\n` };
+        if (ref === "HEAD") return { stdout: `${mergedCommit}\n` };
+        return { stdout: `${expectedCommit}\n` };
+      }
+      if (args[0] === "merge-base") return { error: new Error("not ancestor") };
+      if (args[0] === "worktree" && args[1] === "list") {
+        return {
+          stdout: [
+            "worktree C:/Users/demo/work/repo",
+            `HEAD ${sourceCommit}`,
+            "branch refs/heads/main",
+            "",
+            "worktree C:/Users/demo/work/worktree",
+            `HEAD ${expectedCommit}`,
+            "branch refs/heads/feature",
+            "",
+          ].join("\n"),
+        };
+      }
+      if (args[0] === "merge") return { stdout: "" };
+      return { stdout: "" };
+    });
+
+    await expect(
+      new GitService().mergeToSource(
+        repoLocation,
+        worktreeLocation,
+        "feature",
+        "main",
+        expectedCommit,
+      ),
+    ).resolves.toEqual({
+      merged: true,
+      fastForward: false,
+      newSourceCommit: mergedCommit,
+    });
+
+    const mergeCall = execFileMock.mock.calls.find(
+      (call: unknown[]) =>
+        Array.isArray(call[1]) && gitSubcommandArgs(call[1] as string[])[0] === "merge",
+    );
+    expect(gitSubcommandArgs(mergeCall![1] as string[])).toEqual([
+      "merge",
+      expectedCommit,
+      "--no-edit",
+      "--no-ff",
+    ]);
+  });
+
+  it.each([
+    {
+      name: "dirty worktree",
+      status: " M src/file.ts\n",
+      branch: "feature",
+      head: expectedCommit,
+      ref: expectedCommit,
+      error: "has uncommitted changes",
+    },
+    {
+      name: "wrong branch",
+      status: "",
+      branch: "other",
+      head: expectedCommit,
+      ref: expectedCommit,
+      error: "Expected worktree branch feature",
+    },
+    {
+      name: "moved HEAD",
+      status: "",
+      branch: "feature",
+      head: "c".repeat(40),
+      ref: expectedCommit,
+      error: "Expected worktree HEAD",
+    },
+    {
+      name: "moved branch ref",
+      status: "",
+      branch: "feature",
+      head: expectedCommit,
+      ref: "c".repeat(40),
+      error: "Expected branch feature",
+    },
+  ])("rejects a $name before merging", async ({ status, branch, head, ref, error }) => {
+    mockGitCommands((args) => {
+      if (args[0] === "status") return { stdout: status };
+      if (args[0] === "branch" && args[1] === "--show-current") {
+        return { stdout: `${branch}\n` };
+      }
+      if (args[0] === "rev-parse" && args[args.length - 1] === "HEAD^{commit}") {
+        return { stdout: `${head}\n` };
+      }
+      if (args[0] === "rev-parse") return { stdout: `${ref}\n` };
+      return { stdout: "" };
+    });
+
+    await expect(
+      new GitService().mergeToSource(
+        repoLocation,
+        worktreeLocation,
+        "feature",
+        "main",
+        expectedCommit,
+      ),
+    ).rejects.toThrow(error);
+    expect(
+      execFileMock.mock.calls.some(
+        (call: unknown[]) =>
+          Array.isArray(call[1]) && gitSubcommandArgs(call[1] as string[])[0] === "merge",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("GitService.mergeToSource fast-forward safety", () => {
+  const repoLocation = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\repo",
+  };
+  const worktreeLocation = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\worktree",
+  };
+  const sourceCommit = "a".repeat(40);
+  const worktreeCommit = "b".repeat(40);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("refuses to fast-forward a checked-out source with local changes", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "rev-parse") {
+        return {
+          stdout:
+            args[args.length - 1] === `refs/heads/main^{commit}` ? sourceCommit : worktreeCommit,
+        };
+      }
+      if (args[0] === "merge-base") return { stdout: "" };
+      if (args[0] === "worktree" && args[1] === "list") {
+        return {
+          stdout: [
+            "worktree C:/Users/demo/work/repo",
+            `HEAD ${sourceCommit}`,
+            "branch refs/heads/main",
+            "",
+            "worktree C:/Users/demo/work/worktree",
+            `HEAD ${worktreeCommit}`,
+            "branch refs/heads/feature",
+            "",
+          ].join("\n"),
+        };
+      }
+      if (args[0] === "status") return { stdout: " M README.md\n" };
+      if (args[0] === "branch" && args[1] === "--show-current") {
+        return { stdout: "main\n" };
+      }
+      return { stdout: "" };
+    });
+
+    await expect(
+      new GitService().mergeToSource(repoLocation, worktreeLocation, "feature", "main"),
+    ).rejects.toThrow("has uncommitted changes");
+    expect(
+      execFileMock.mock.calls.some(
+        (call: unknown[]) =>
+          Array.isArray(call[1]) && gitSubcommandArgs(call[1] as string[])[0] === "merge",
+      ),
+    ).toBe(false);
+  });
+
+  it("uses the observed source tip as a compare-and-swap guard when updating its ref", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "rev-parse") {
+        return {
+          stdout:
+            args[args.length - 1] === `refs/heads/main^{commit}` ? sourceCommit : worktreeCommit,
+        };
+      }
+      if (args[0] === "merge-base") return { stdout: "" };
+      if (args[0] === "worktree" && args[1] === "list") {
+        return {
+          stdout: [
+            "worktree C:/Users/demo/work/repo",
+            `HEAD ${worktreeCommit}`,
+            "branch refs/heads/other",
+            "",
+          ].join("\n"),
+        };
+      }
+      return { stdout: "" };
+    });
+
+    await expect(
+      new GitService().mergeToSource(repoLocation, worktreeLocation, "feature", "main"),
+    ).resolves.toEqual({
+      merged: true,
+      fastForward: true,
+      newSourceCommit: worktreeCommit,
+    });
+
+    const commands = execFileMock.mock.calls.map((call: unknown[]) =>
+      gitSubcommandArgs(call[1] as string[]),
+    );
+    expect(commands).toContainEqual([
+      "update-ref",
+      "refs/heads/main",
+      worktreeCommit,
+      sourceCommit,
+    ]);
+  });
+});
+
 describe("GitService.mergeToSource (source branch checked out elsewhere)", () => {
   const repoLocation = {
     kind: "windows" as const,
@@ -1678,6 +2285,9 @@ describe("GitService.mergeToSource (source branch checked out elsewhere)", () =>
         };
       }
       if (args[0] === "status" && args[1] === "--porcelain") return { stdout: "" };
+      if (args[0] === "branch" && args[1] === "--show-current") {
+        return { stdout: "master\n" };
+      }
       if (args[0] === "merge") return { stdout: "" };
       if (args[0] === "rev-parse") return { stdout: "abc123\n" };
       return { stdout: "" };
@@ -1713,6 +2323,47 @@ describe("GitService.mergeToSource (source branch checked out elsewhere)", () =>
     expect(mergeCall).toBeDefined();
   });
 
+  it("refuses to merge after the source worktree switches branches", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "merge-base") return { error: new Error("not ancestor") };
+      if (args[0] === "worktree" && args[1] === "list") {
+        return {
+          stdout: [
+            "worktree C:/Users/demo/work/repo",
+            "HEAD abc123",
+            "branch refs/heads/master",
+            "",
+            "worktree C:/Users/demo/work/worktree",
+            "HEAD def456",
+            "branch refs/heads/feature",
+            "",
+          ].join("\n"),
+        };
+      }
+      if (args[0] === "branch" && args[1] === "--show-current") {
+        return { stdout: "important-work\n" };
+      }
+      if (args[0] === "rev-parse") return { stdout: "abc123\n" };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().mergeToSource(
+      repoLocation,
+      worktreeLocation,
+      "feature",
+      "master",
+    );
+
+    expect(result.merged).toBe(false);
+    expect(result.error).toContain("Expected source worktree branch master");
+    expect(
+      execFileMock.mock.calls.some(
+        (call: unknown[]) =>
+          Array.isArray(call[1]) && gitSubcommandArgs(call[1] as string[])[0] === "merge",
+      ),
+    ).toBe(false);
+  });
+
   it("fails with a clear error when the checked-out source worktree has local changes", async () => {
     mockGitCommands((args) => {
       if (args[0] === "merge-base") return { error: new Error("not ancestor") };
@@ -1731,6 +2382,9 @@ describe("GitService.mergeToSource (source branch checked out elsewhere)", () =>
         };
       }
       if (args[0] === "status" && args[1] === "--porcelain") return { stdout: " M README.md\n" };
+      if (args[0] === "branch" && args[1] === "--show-current") {
+        return { stdout: "master\n" };
+      }
       return { stdout: "" };
     });
 
@@ -1765,7 +2419,9 @@ describe("GitService.getWorktreeSourceBranch", () => {
   it("recovers a missing source branch from the main worktree branch", async () => {
     mockGitCommands((args) => {
       if (args[0] === "config" && args[1] === "--get") {
-        return { error: new Error("not found") };
+        return {
+          error: Object.assign(new Error("not found"), { code: 1, stdout: "", stderr: "" }),
+        };
       }
       if (args[0] === "worktree" && args[1] === "list") {
         return {
@@ -1792,6 +2448,7 @@ describe("GitService.getWorktreeSourceBranch", () => {
 
     expect(result).toEqual({
       sourceBranch: "master",
+      ownerToken: null,
       commitsAhead: 1,
       sourceAhead: 1,
     });
@@ -1812,6 +2469,77 @@ describe("GitService.getWorktreeSourceBranch", () => {
         Array.isArray(call[1]) && gitSubcommandArgs(call[1] as string[])[0] === "rev-list",
     );
     expect(revListCall![1]).toContain("origin/master...poracode/brave-heron");
+  });
+
+  it("returns the durable worktree owner marker", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "config" && args[1] === "--get") {
+        if (args[2]?.endsWith(".poracodeOwner")) return { stdout: "experiment-1\n" };
+        if (args[2]?.endsWith(".poracodeSource")) return { stdout: "main\n" };
+      }
+      if (args[0] === "remote") return { stdout: "" };
+      if (args[0] === "rev-list") return { stdout: "0\t2\n" };
+      return { stdout: "" };
+    });
+
+    await expect(
+      new GitService().getWorktreeSourceBranch(location, "poracode/brave-heron"),
+    ).resolves.toEqual({
+      sourceBranch: "main",
+      ownerToken: "experiment-1",
+      commitsAhead: 2,
+      sourceAhead: 0,
+    });
+  });
+
+  it("recovers the owner marker from the branch creation reflog", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "config" && args[1] === "--get") {
+        if (args[2]?.endsWith(".poracodeOwner")) {
+          return {
+            error: Object.assign(new Error("not found"), { code: 1, stdout: "", stderr: "" }),
+          };
+        }
+        return { stdout: "main\n" };
+      }
+      if (args[0] === "show-ref") {
+        return { stdout: "abc123 refs/heads/poracode/brave-heron\n" };
+      }
+      if (args[0] === "reflog") {
+        return { stdout: "poracode experiment owner experiment-1:candidate-1\n" };
+      }
+      if (args[0] === "remote") return { stdout: "" };
+      if (args[0] === "rev-list") return { stdout: "0\t0\n" };
+      return { stdout: "" };
+    });
+
+    await expect(
+      new GitService().getWorktreeSourceBranch(location, "poracode/brave-heron"),
+    ).resolves.toEqual({
+      sourceBranch: "main",
+      ownerToken: "experiment-1:candidate-1",
+      commitsAhead: 0,
+      sourceAhead: 0,
+    });
+  });
+
+  it("does not treat a Git config failure as a missing owner marker", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "config" && args[1] === "--get") {
+        return {
+          error: Object.assign(new Error("config locked"), {
+            code: 128,
+            stdout: "",
+            stderr: "config locked",
+          }),
+        };
+      }
+      return { stdout: "" };
+    });
+
+    await expect(
+      new GitService().getWorktreeSourceBranch(location, "poracode/brave-heron"),
+    ).rejects.toThrow("config locked");
   });
 });
 
@@ -1884,6 +2612,58 @@ describe("GitService.removeWorktree", () => {
       "--force",
       worktreePath,
     ]);
+  });
+
+  it("refuses to remove a worktree that switched away from its expected branch", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "list") {
+        return {
+          stdout: `worktree ${location.path}\nHEAD abc123\nbranch refs/heads/main\n\nworktree ${worktreePath.replace(/\\/g, "/")}\nHEAD def456\nbranch refs/heads/important-work\n\n`,
+        };
+      }
+      return { stdout: "" };
+    });
+
+    await expect(
+      new GitService().removeWorktree(location, worktreePath, true, false, "experiment-candidate"),
+    ).rejects.toThrow("Expected worktree branch experiment-candidate, but found important-work");
+    expect(
+      execFileMock.mock.calls.some((call: unknown[]) => {
+        const args = gitSubcommandArgs(call[1] as string[]);
+        return args[0] === "worktree" && args[1] === "remove";
+      }),
+    ).toBe(false);
+  });
+
+  it("refuses to remove a worktree whose owner marker changed", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "worktree" && args[1] === "list") {
+        return {
+          stdout: `worktree ${location.path}\nHEAD abc123\nbranch refs/heads/main\n\nworktree ${worktreePath.replace(/\\/g, "/")}\nHEAD def456\nbranch refs/heads/experiment-candidate\n\n`,
+        };
+      }
+      if (args[0] === "config" && args[1] === "--get") {
+        return { stdout: "another-experiment:candidate\n" };
+      }
+      return { stdout: "" };
+    });
+
+    await expect(
+      new GitService().removeWorktree(
+        location,
+        worktreePath,
+        true,
+        true,
+        "experiment-candidate",
+        "experiment-1:candidate-1",
+      ),
+    ).rejects.toThrow("Expected worktree owner experiment-1:candidate-1");
+    expect(
+      execFileMock.mock.calls.some((call: unknown[]) => {
+        const args = gitSubcommandArgs(call[1] as string[]);
+        return args[0] === "worktree" && args[1] === "remove";
+      }),
+    ).toBe(false);
   });
 
   it("does not prune worktrees from a sibling path with the same prefix", async () => {
@@ -2100,6 +2880,25 @@ describe("GitService.deleteBranch", () => {
       (c: unknown[]) => Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[]).includes("-d"),
     );
     expect(softDeleteCall).toBeUndefined();
+  });
+
+  it("refuses to delete a branch whose owner marker changed", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "config" && args[1] === "--get") {
+        return { stdout: "another-experiment:candidate\n" };
+      }
+      return { stdout: "" };
+    });
+
+    await expect(
+      new GitService().deleteBranch(location, "feature/x", true, "experiment-1:candidate-1"),
+    ).rejects.toThrow("Expected worktree owner experiment-1:candidate-1");
+    expect(
+      execFileMock.mock.calls.some((call: unknown[]) => {
+        const args = gitSubcommandArgs(call[1] as string[]);
+        return args[0] === "branch" && args[1] === "-D";
+      }),
+    ).toBe(false);
   });
 
   it("prunes stale worktree metadata before retrying a force delete", async () => {

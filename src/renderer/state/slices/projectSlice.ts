@@ -143,7 +143,10 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
       );
 
       let nextView = state.view;
-      if (state.view.kind === "draft" && state.view.projectId === projectId) {
+      if (
+        (state.view.kind === "draft" || state.view.kind === "experiment") &&
+        state.view.projectId === projectId
+      ) {
         nextView = { kind: "home" };
       } else if (state.view.kind === "thread") {
         nextView = state.view.panes.reduce<AppView>((view, paneId) => {
@@ -250,7 +253,10 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
       );
 
       let nextView = state.view;
-      if (state.view.kind === "draft" && state.view.projectId === projectId) {
+      if (
+        (state.view.kind === "draft" || state.view.kind === "experiment") &&
+        state.view.projectId === projectId
+      ) {
         nextView = { kind: "home" };
       } else if (state.view.kind === "thread") {
         nextView = state.view.panes.reduce<AppView>((view, paneId) => {

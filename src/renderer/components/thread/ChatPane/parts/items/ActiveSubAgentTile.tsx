@@ -29,9 +29,14 @@ import {
 interface ActiveSubAgentTileProps {
   threadId: string;
   projectLocation?: ProjectLocation;
+  registrationOnly?: boolean;
 }
 
-export function ActiveSubAgentTile({ threadId, projectLocation }: ActiveSubAgentTileProps) {
+export function ActiveSubAgentTile({
+  threadId,
+  projectLocation,
+  registrationOnly = false,
+}: ActiveSubAgentTileProps) {
   const { t } = useLingui();
   const ids = useAppStore((s) => selectActiveSubAgentParentItemIds(s, threadId));
   const dismissed = useThreadSubAgentDockStore((s) => s.dismissedByThread[threadId]);
@@ -65,6 +70,18 @@ export function ActiveSubAgentTile({ threadId, projectLocation }: ActiveSubAgent
         ? t`Background tasks`
         : t`Subagents`;
   const HeaderIcon = workflowCount === visibleIds.length ? GitBranch : Bot;
+
+  if (registrationOnly) {
+    return visibleIds.map((id) => (
+      <ActiveSubAgentRow
+        key={id}
+        threadId={threadId}
+        itemId={id}
+        registrationOnly
+        {...(projectLocation ? { projectLocation } : {})}
+      />
+    ));
+  }
 
   return (
     <ThreadDockSection placement="composer" collapsed={false}>
@@ -108,10 +125,12 @@ function ActiveSubAgentRow({
   threadId,
   itemId,
   projectLocation,
+  registrationOnly = false,
 }: {
   threadId: string;
   itemId: string;
   projectLocation?: ProjectLocation;
+  registrationOnly?: boolean;
 }) {
   const { t } = useLingui();
   const item = useAppStore(getRuntimeItemStoreSelector(threadId, itemId));
@@ -194,7 +213,7 @@ function ActiveSubAgentRow({
   ]);
 
   const isRunning = item?.state !== "completed" || payload?.status === "running" || workflowIsLive;
-  if (!item || !payload?.name) return null;
+  if (registrationOnly || !item || !payload?.name) return null;
 
   const display = deriveToolDisplay(payload);
   const isDone = !isRunning;
@@ -263,6 +282,13 @@ function ActiveSubAgentRow({
       </button>
     </li>
   );
+}
+
+export function ThreadLiveWorkflowTracker(props: {
+  threadId: string;
+  projectLocation: ProjectLocation;
+}) {
+  return <ActiveSubAgentTile {...props} registrationOnly />;
 }
 
 function WorkflowDockStats({ run }: { run: WorkflowRun }) {

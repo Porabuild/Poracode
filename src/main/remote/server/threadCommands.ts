@@ -27,6 +27,10 @@ import {
 import { RemoteHttpError } from "../auth";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { makeThreadTitle, titlePromptFromSegments } from "@/shared/threadTitle";
+import {
+  assertRemoteGitMutationExperimentSafe,
+  hasPersistedProjectExperiment,
+} from "../experimentOwnership";
 import { applyRemoteProjectCommand } from "../projectCommands";
 import type { RemoteServerContext } from "./context";
 import { readJsonBody } from "./requestBody";
@@ -60,6 +64,7 @@ export async function runGitCall(ctx: RemoteServerContext, req: IncomingMessage)
   const parsedPayload = ipcProcedureMap[name].payloadSchema.parse(payload) as IpcProcedurePayload<
     typeof name
   >;
+  assertRemoteGitMutationExperimentSafe(procedure, parsedPayload);
   return ctx.options.callSupervisor(name, parsedPayload);
 }
 
@@ -76,6 +81,7 @@ export function runProjectCommand(
 ): Promise<RemoteProjectCommandResult> {
   return applyRemoteProjectCommand(command, {
     getProjects: () => dbGetProjects(),
+    hasProjectExperiment: (projectId) => hasPersistedProjectExperiment(projectId),
     listProjectThreadIds: (projectId) =>
       dbGetThreads()
         .filter((thread) => thread.projectId === projectId)

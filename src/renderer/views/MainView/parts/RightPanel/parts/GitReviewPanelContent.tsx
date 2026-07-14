@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { useAppStore } from "@/renderer/state/appStore";
+import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
@@ -19,7 +20,11 @@ export function GitReviewPanelContent(props: {
     gitPanelContext ? s.projects.find((p) => p.id === gitPanelContext.projectId) : undefined,
   );
 
-  if (!gitPanelContext || !project) {
+  if (
+    !gitPanelContext ||
+    !project ||
+    findExperimentByWorktree(gitPanelContext.projectId, gitPanelContext.worktreePath)
+  ) {
     return undefined;
   }
 

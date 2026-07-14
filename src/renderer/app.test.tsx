@@ -8,6 +8,7 @@ import { useAppStore } from "./state/appStore";
 import { useGitStore } from "./state/gitStore";
 import { usePanelStore } from "./state/panelStore";
 import { useSidebarUiStore } from "./state/sidebarUiStore";
+import { useExperimentStore } from "./state/experimentStore";
 import { gitMergeAndRemove } from "@/renderer/actions/gitActions";
 import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 
@@ -363,6 +364,7 @@ describe("App", () => {
       lastViewedAtByThreadId: {},
       view: { kind: "home" },
     }));
+    useExperimentStore.setState({ experiments: {}, launcher: null });
     useGitStore.setState({
       statuses: {},
       worktreeStatuses: {},
@@ -1094,7 +1096,7 @@ describe("App", () => {
     }));
 
     render(<App />);
-    fireEvent.click(screen.getByText("start-worktree"));
+    fireEvent.click(await screen.findByText("start-worktree"));
 
     await waitFor(() => {
       expect(bridge.gitAddWorktree).toHaveBeenCalledWith({
@@ -1169,7 +1171,7 @@ describe("App", () => {
     }));
 
     render(<App />);
-    fireEvent.click(screen.getByText("start-worktree"));
+    fireEvent.click(await screen.findByText("start-worktree"));
 
     await waitFor(() => {
       expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
@@ -1305,7 +1307,7 @@ describe("App", () => {
     }));
 
     render(<App />);
-    fireEvent.click(screen.getByText("attach-existing-worktree"));
+    fireEvent.click(await screen.findByText("attach-existing-worktree"));
 
     await waitFor(() => {
       const threads = useAppStore.getState().threads;
@@ -1377,7 +1379,7 @@ describe("App", () => {
     }));
 
     render(<App />);
-    fireEvent.click(screen.getByText("merge-remove-worktree"));
+    fireEvent.click(await screen.findByText("merge-remove-worktree"));
 
     await waitFor(() => {
       expect(bridge.gitGetWorktreeSourceBranch).toHaveBeenCalledWith({

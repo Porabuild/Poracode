@@ -333,44 +333,94 @@ export const gitListWorktreesPayloadSchema = z.object({
 });
 export type GitListWorktreesPayload = z.infer<typeof gitListWorktreesPayloadSchema>;
 
-export const gitAddWorktreePayloadSchema = z.object({
-  projectLocation: projectLocationSchema,
-  path: z.string().min(1).optional(),
-  branch: z.string().optional(),
-  createBranch: z.boolean().default(false),
-  startPoint: z.string().optional(),
-  /**
-   * Resolved worktree root (from global settings + per-project override). When
-   * set, worktrees go under this directory instead of the built-in default.
-   * Ignored when an explicit `path` is supplied.
-   */
-  worktreeRoot: z.string().min(1).optional(),
-  /**
-   * When true (project-relative mode), skip the disambiguating `<repo-hash>`
-   * segment so the worktree lands directly at `<root>/<branch>`.
-   */
-  worktreeOmitRepoDir: z.boolean().optional(),
-  /** Gitignore-style patterns for ignored files to copy from the main project. */
-  copyIgnoredPatterns: z.array(z.string()).optional(),
-  /**
-   * Bring the main checkout's uncommitted changes (including untracked files)
-   * into the new worktree.
-   */
-  transferUncommitted: z.boolean().default(false),
-  /**
-   * When transferring: keep a copy of the changes on the source branch (COPY).
-   * Defaults to false, which leaves the source branch clean (MOVE).
-   */
-  keepChangesInSource: z.boolean().default(false),
-});
+const fullCommitOidSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i);
+
+export const gitAddWorktreePayloadSchema = z
+  .object({
+    projectLocation: projectLocationSchema,
+    path: z.string().min(1).optional(),
+    branch: z.string().optional(),
+    createBranch: z.boolean().default(false),
+    startPoint: z.string().optional(),
+    /** Source branch metadata when `startPoint` is an immutable commit hash. */
+    sourceBranch: z.string().min(1).max(255).optional(),
+    /** Stable owner marker used to prove lifecycle ownership after recovery. */
+    ownerToken: z.string().min(1).max(128).optional(),
+    /**
+     * Resolved worktree root (from global settings + per-project override). When
+     * set, worktrees go under this directory instead of the built-in default.
+     * Ignored when an explicit `path` is supplied.
+     */
+    worktreeRoot: z.string().min(1).optional(),
+    /**
+     * When true (project-relative mode), skip the disambiguating `<repo-hash>`
+     * segment so the worktree lands directly at `<root>/<branch>`.
+     */
+    worktreeOmitRepoDir: z.boolean().optional(),
+    /** Gitignore-style patterns for ignored files to copy from the main project. */
+    copyIgnoredPatterns: z.array(z.string()).optional(),
+    /**
+     * Bring the main checkout's uncommitted changes (including untracked files)
+     * into the new worktree.
+     */
+    transferUncommitted: z.boolean().default(false),
+    /**
+     * When transferring: keep a copy of the changes on the source branch (COPY).
+     * Defaults to false, which leaves the source branch clean (MOVE).
+     */
+    keepChangesInSource: z.boolean().default(false),
+  })
+  .superRefine((payload, ctx) => {
+    if (payload.ownerToken && !payload.sourceBranch) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A worktree owner token requires a frozen source branch",
+        path: ["ownerToken"],
+      });
+    }
+    if (!payload.sourceBranch) return;
+    if (payload.createBranch !== true) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A frozen source branch requires createBranch to be true",
+        path: ["createBranch"],
+      });
+    }
+    if (!payload.branch?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A frozen source branch requires a new branch name",
+        path: ["branch"],
+      });
+    }
+    if (!payload.startPoint || !fullCommitOidSchema.safeParse(payload.startPoint).success) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A frozen source branch requires a full commit hash start point",
+        path: ["startPoint"],
+      });
+    }
+  });
 export type GitAddWorktreePayload = z.infer<typeof gitAddWorktreePayloadSchema>;
 
-export const gitRemoveWorktreePayloadSchema = z.object({
-  projectLocation: projectLocationSchema,
-  path: z.string().min(1),
-  force: z.boolean().default(false),
-  deleteBranch: z.boolean().default(false),
-});
+export const gitRemoveWorktreePayloadSchema = z
+  .object({
+    projectLocation: projectLocationSchema,
+    path: z.string().min(1),
+    force: z.boolean().default(false),
+    deleteBranch: z.boolean().default(false),
+    expectedBranch: z.string().min(1).optional(),
+    expectedOwnerToken: z.string().min(1).max(128).optional(),
+  })
+  .superRefine((payload, ctx) => {
+    if (payload.expectedOwnerToken && !payload.expectedBranch) {
+      ctx.addIssue({
+        code: "custom",
+        message: "An expected worktree owner requires an expected branch",
+        path: ["expectedOwnerToken"],
+      });
+    }
+  });
 export type GitRemoveWorktreePayload = z.infer<typeof gitRemoveWorktreePayloadSchema>;
 
 export const gitPruneWorktreesPayloadSchema = z.object({
@@ -379,12 +429,23 @@ export const gitPruneWorktreesPayloadSchema = z.object({
 });
 export type GitPruneWorktreesPayload = z.infer<typeof gitPruneWorktreesPayloadSchema>;
 
-export const gitDeleteBranchPayloadSchema = z.object({
-  projectLocation: projectLocationSchema,
-  branch: z.string().min(1),
-  force: z.boolean().default(false),
-  remote: z.string().optional(),
-});
+export const gitDeleteBranchPayloadSchema = z
+  .object({
+    projectLocation: projectLocationSchema,
+    branch: z.string().min(1),
+    force: z.boolean().default(false),
+    remote: z.string().optional(),
+    expectedOwnerToken: z.string().min(1).max(128).optional(),
+  })
+  .superRefine((payload, ctx) => {
+    if (payload.remote && payload.expectedOwnerToken) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A remote branch cannot have a local worktree owner",
+        path: ["expectedOwnerToken"],
+      });
+    }
+  });
 export type GitDeleteBranchPayload = z.infer<typeof gitDeleteBranchPayloadSchema>;
 
 export const gitSwitchBranchPayloadSchema = z.object({
@@ -453,6 +514,7 @@ export type GitGetWorktreeSourceBranchPayload = z.infer<
 
 export interface GitGetWorktreeSourceBranchResult {
   sourceBranch: string | null;
+  ownerToken?: string | null;
   commitsAhead: number;
   sourceAhead: number;
 }
@@ -462,6 +524,7 @@ export const gitMergeToSourcePayloadSchema = z.object({
   worktreeLocation: projectLocationSchema,
   worktreeBranch: z.string().min(1),
   sourceBranch: z.string().min(1),
+  expectedWorktreeCommit: fullCommitOidSchema.optional(),
 });
 export type GitMergeToSourcePayload = z.infer<typeof gitMergeToSourcePayloadSchema>;
 

@@ -8,6 +8,7 @@ import {
   DeferredBrowserHost as PrewarmedBrowserHost,
   DeferredCloneProjectModal as PrewarmedCloneProjectModal,
   DeferredCreateProjectModal as PrewarmedCreateProjectModal,
+  DeferredNewExperimentModal as PrewarmedNewExperimentModal,
   DeferredFileEditorOverlay,
   DeferredGitReviewOverlay,
   DeferredLoginTerminalOverlay as PrewarmedLoginTerminalOverlay,
@@ -35,6 +36,7 @@ import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
 import { WhatsNewOverlay } from "@/renderer/views/WhatsNewOverlay";
 import { RemoteProjectModal } from "@/renderer/views/RemoteProjectModal/RemoteProjectModal";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
+import { findExperimentByWorktree, useExperimentStore } from "@/renderer/state/experimentStore";
 
 function useEverEnabled(active: boolean): boolean {
   const [enabled, setEnabled] = useState(active);
@@ -58,7 +60,11 @@ export function AppOverlays() {
   const gitReviewProject = gitReviewContext
     ? projects.find((p) => p.id === gitReviewContext.projectId)
     : undefined;
-  const gitOverlayVisible = gitOverlayOpen && !!gitReviewContext && !!gitReviewProject;
+  const gitOverlayVisible =
+    gitOverlayOpen &&
+    !!gitReviewContext &&
+    !!gitReviewProject &&
+    !findExperimentByWorktree(gitReviewContext.projectId, gitReviewContext.worktreePath);
   const prReviewContext = usePanelStore((s) => s.prReviewContext);
   const prReviewProject = prReviewContext
     ? projects.find((p) => p.id === prReviewContext.projectId)
@@ -202,6 +208,7 @@ export function AppOverlays() {
       <DeferredLoginTerminalOverlay />
       <DeferredCreateProjectModal />
       <DeferredCloneProjectModal />
+      <DeferredNewExperimentModal />
     </>
   );
 }
@@ -257,6 +264,16 @@ function DeferredCloneProjectModal() {
   return enabled ? (
     <Suspense>
       <PrewarmedCloneProjectModal />
+    </Suspense>
+  ) : null;
+}
+
+function DeferredNewExperimentModal() {
+  const open = useExperimentStore((state) => state.launcher !== null);
+  const enabled = useEverEnabled(open);
+  return enabled ? (
+    <Suspense>
+      <PrewarmedNewExperimentModal />
     </Suspense>
   ) : null;
 }
