@@ -80,6 +80,12 @@ export function SidebarThreadGroup(props: {
           icon: <FlaskConical className="size-3.5" />,
         },
         {
+          id: "open-all",
+          label: t`Open All`,
+          icon: <Columns2 className="size-3.5" />,
+          isDisabled: activeThreads.length < 2,
+        },
+        {
           id: "rename-group",
           label: t`Rename experiment`,
           icon: <Pencil className="size-3.5" />,
@@ -143,7 +149,8 @@ export function SidebarThreadGroup(props: {
               openExperimentBoard();
             }
             if (key === "open-all") {
-              useAppStore.getState().openGroupView(entry.group.groupId);
+              if (experiment) useAppStore.getState().openGroupGrid(entry.group.groupId);
+              else useAppStore.getState().openGroupView(entry.group.groupId);
             }
             if (key === "rename-group") {
               setEditingThreadId(collapseKey);
@@ -239,6 +246,23 @@ export function SidebarThreadGroup(props: {
                 </Tooltip.Content>
               </Tooltip>
             )}
+            {!isRenamingGroup && experiment && activeThreads.length >= 2 ? (
+              <Tooltip delay={300}>
+                <Tooltip.Trigger>
+                  <button
+                    type="button"
+                    aria-label={t`Open All`}
+                    className={`flex h-[18px] shrink-0 items-center justify-center rounded text-muted/40 transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground ${hiddenGroupActionClass}`}
+                    onClick={() => useAppStore.getState().openGroupGrid(entry.group.groupId)}
+                  >
+                    <Columns2 className="size-3" />
+                  </button>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  <Trans>Open All</Trans>
+                </Tooltip.Content>
+              </Tooltip>
+            ) : null}
             {!isRenamingGroup && (
               <span className="relative w-[2.4ch] shrink-0">
                 <RelativeTime

@@ -40,9 +40,7 @@ export function ThreadPane(props: {
 }) {
   const thread = useThread(props.threadId);
   const experiment = useExperimentStore((state) =>
-    Object.values(state.experiments).find((candidate) =>
-      candidate.candidates.some((item) => item.threadId === props.threadId),
-    ),
+    thread?.groupId ? state.experiments[thread.groupId] : undefined,
   );
   const project = useProject(thread?.projectId);
   const installedAgents = useInstalledAgents();

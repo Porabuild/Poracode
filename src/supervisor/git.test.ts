@@ -322,7 +322,7 @@ describe("GitService.addWorktree", () => {
     const frozenCommit = "a".repeat(40);
     mockGitCommands((args) => {
       if (args[0] === "worktree" && args[1] === "add") return { stdout: "" };
-      if (args[0] === "branch" && args[1] === "--list") return { stdout: "main\n" };
+      if (args[0] === "show-ref") return { stdout: `${frozenCommit} refs/heads/main\n` };
       if (args[0] === "rev-parse") return { stdout: `${frozenCommit}\n` };
       if (args[0] === "config") return { stdout: "" };
       return { stdout: "" };
@@ -395,7 +395,7 @@ describe("GitService.addWorktree", () => {
     const worktreePath =
       "C:\\Users\\demo\\.poracode\\worktrees\\poracode-12345678\\poracode-brave-heron";
     mockGitCommands((args) => {
-      if (args[0] === "branch" && args[1] === "--list") return { stdout: "main\n" };
+      if (args[0] === "show-ref") return { stdout: `${frozenCommit} refs/heads/main\n` };
       if (args[0] === "rev-parse") return { stdout: `${frozenCommit}\n` };
       if (args[0] === "worktree" && args[1] === "add") return { stdout: "" };
       if (args[0] === "config") return { error: new Error("config failed") };
@@ -2406,7 +2406,7 @@ describe("GitService.mergeToSource (source branch checked out elsewhere)", () =>
   });
 });
 
-describe("GitService.getWorktreeSourceBranch", () => {
+describe("GitService worktree metadata", () => {
   const location = {
     kind: "windows" as const,
     path: "C:\\Users\\demo\\work\\poracode",
@@ -2448,7 +2448,6 @@ describe("GitService.getWorktreeSourceBranch", () => {
 
     expect(result).toEqual({
       sourceBranch: "master",
-      ownerToken: null,
       commitsAhead: 1,
       sourceAhead: 1,
     });
@@ -2483,12 +2482,9 @@ describe("GitService.getWorktreeSourceBranch", () => {
     });
 
     await expect(
-      new GitService().getWorktreeSourceBranch(location, "poracode/brave-heron"),
+      new GitService().getWorktreeOwner(location, "poracode/brave-heron"),
     ).resolves.toEqual({
-      sourceBranch: "main",
       ownerToken: "experiment-1",
-      commitsAhead: 2,
-      sourceAhead: 0,
     });
   });
 
@@ -2514,12 +2510,9 @@ describe("GitService.getWorktreeSourceBranch", () => {
     });
 
     await expect(
-      new GitService().getWorktreeSourceBranch(location, "poracode/brave-heron"),
+      new GitService().getWorktreeOwner(location, "poracode/brave-heron"),
     ).resolves.toEqual({
-      sourceBranch: "main",
       ownerToken: "experiment-1:candidate-1",
-      commitsAhead: 0,
-      sourceAhead: 0,
     });
   });
 
@@ -2538,7 +2531,7 @@ describe("GitService.getWorktreeSourceBranch", () => {
     });
 
     await expect(
-      new GitService().getWorktreeSourceBranch(location, "poracode/brave-heron"),
+      new GitService().getWorktreeOwner(location, "poracode/brave-heron"),
     ).rejects.toThrow("config locked");
   });
 });

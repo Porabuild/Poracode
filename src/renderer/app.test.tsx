@@ -364,7 +364,7 @@ describe("App", () => {
       lastViewedAtByThreadId: {},
       view: { kind: "home" },
     }));
-    useExperimentStore.setState({ experiments: {}, launcher: null });
+    useExperimentStore.setState({ experiments: {} });
     useGitStore.setState({
       statuses: {},
       worktreeStatuses: {},

@@ -333,7 +333,7 @@ export const gitListWorktreesPayloadSchema = z.object({
 });
 export type GitListWorktreesPayload = z.infer<typeof gitListWorktreesPayloadSchema>;
 
-const fullCommitOidSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i);
+export const fullCommitOidSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i);
 
 export const gitAddWorktreePayloadSchema = z
   .object({
@@ -514,9 +514,18 @@ export type GitGetWorktreeSourceBranchPayload = z.infer<
 
 export interface GitGetWorktreeSourceBranchResult {
   sourceBranch: string | null;
-  ownerToken?: string | null;
   commitsAhead: number;
   sourceAhead: number;
+}
+
+export const gitGetWorktreeOwnerPayloadSchema = gitGetWorktreeSourceBranchPayloadSchema.pick({
+  projectLocation: true,
+  branch: true,
+});
+export type GitGetWorktreeOwnerPayload = z.infer<typeof gitGetWorktreeOwnerPayloadSchema>;
+
+export interface GitGetWorktreeOwnerResult {
+  ownerToken: string | null;
 }
 
 export const gitMergeToSourcePayloadSchema = z.object({

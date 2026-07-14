@@ -1637,6 +1637,42 @@ describe("group view layout restore", () => {
     }));
   });
 
+  it("opens four or more group threads in a balanced two-row grid", () => {
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const groupId = "group-grid";
+    const ids = Array.from(
+      { length: 5 },
+      (_, index) =>
+        useAppStore.getState().createThread({
+          projectId: project.id,
+          agentKind: "codex",
+          config: { model: "m" },
+          prompt: `t${index}`,
+          groupId,
+          groupName: "Grid",
+        }).id,
+    );
+
+    useAppStore.getState().openGroupGrid(groupId);
+
+    const view = useAppStore.getState().view;
+    const expectedIds = [...ids].reverse();
+    expect(view.kind).toBe("thread");
+    expect(view.kind === "thread" && view.panes).toEqual(expectedIds);
+    expect(view.kind === "thread" && view.activeGroupId).toBe(groupId);
+    expect(view.kind === "thread" && view.paneLayout).toMatchObject({
+      kind: "split",
+      axis: "horizontal",
+      children: [
+        { kind: "split", axis: "vertical", children: [{}, {}, {}] },
+        { kind: "split", axis: "vertical", children: [{}, {}] },
+      ],
+    });
+  });
+
   it("restores the saved pane layout after closing and reopening a reordered group", () => {
     const project = useAppStore.getState().addProject({
       kind: "windows",

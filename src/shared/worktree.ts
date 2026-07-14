@@ -22,6 +22,11 @@ export function sanitizeWorktreePathSegment(value: string): string {
   return sanitized || "project";
 }
 
+export function normalizeWorktreePathForComparison(path: string, caseInsensitive: boolean): string {
+  const normalized = path.replace(/\\/gu, "/").replace(/\/+$/u, "");
+  return caseInsensitive ? normalized.toLowerCase() : normalized;
+}
+
 /**
  * Parse the "copy ignored files" textarea into a clean pattern list:
  * one gitignore-style pattern per line, blanks and `#` comments dropped.

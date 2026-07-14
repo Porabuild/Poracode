@@ -280,8 +280,7 @@ export class GitMergeService {
     worktreeBranch: string,
     expectedCommit: string,
   ): Promise<void> {
-    const status = await execGit(worktreeLocation, ["status", "--porcelain"]);
-    if (status.trim()) {
+    if (await this.hasLocalChanges(worktreeLocation)) {
       throw new Error(
         msg("experiment.merge.worktreeDirty", { path: getProjectFsPath(worktreeLocation) }),
       );

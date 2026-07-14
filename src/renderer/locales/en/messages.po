@@ -31,6 +31,8 @@ msgid "(no message)"
 msgstr "(no message)"
 
 #. placeholder {0}: candidates.length
+#. placeholder {0}: props.candidates.length
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "{0, plural, one {# candidate} other {# candidates}}"
 msgstr "{0, plural, one {# candidate} other {# candidates}}"
@@ -82,8 +84,8 @@ msgstr "{0, plural, one {# tool} other {# tools}}"
 
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
-msgstr "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
+#~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
+#~ msgstr "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -528,6 +530,7 @@ msgid "7d"
 msgstr "7d"
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentWorktreeActions.ts
 msgid "A candidate is no longer on its experiment branch."
 msgstr "A candidate is no longer on its experiment branch."
 
@@ -697,7 +700,7 @@ msgstr "Add an existing folder"
 msgid "Add attachment or capability"
 msgstr "Add attachment or capability"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Add candidate"
 msgstr "Add candidate"
 
@@ -808,8 +811,8 @@ msgstr "Agent encountered an error."
 
 #. placeholder {0}: index + 1
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Agent for candidate {0}"
-msgstr "Agent for candidate {0}"
+#~ msgid "Agent for candidate {0}"
+#~ msgstr "Agent for candidate {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is active and ready"
@@ -872,6 +875,7 @@ msgstr "AI agent orchestrator — manage coding agents via Terminal and Native A
 msgid "AI git actions"
 msgstr "AI git actions"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "AI judge"
 msgstr "AI judge"
@@ -1284,8 +1288,8 @@ msgid "Background tasks"
 msgstr "Background tasks"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Base branch"
-msgstr "Base branch"
+#~ msgid "Base branch"
+#~ msgstr "Base branch"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -1528,7 +1532,7 @@ msgstr "Can't load ports"
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1636,6 +1640,7 @@ msgstr "Changes unavailable"
 msgid "Channel"
 msgstr "Channel"
 
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
@@ -1831,6 +1836,7 @@ msgstr "Clear search"
 msgid "Clear thread search"
 msgstr "Clear thread search"
 
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "CLI"
@@ -2986,8 +2992,8 @@ msgid "Deny and tell the agent what to do differently…"
 msgstr "Deny and tell the agent what to do differently…"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Describe the task to run with multiple agents…"
-msgstr "Describe the task to run with multiple agents…"
+#~ msgid "Describe the task to run with multiple agents…"
+#~ msgstr "Describe the task to run with multiple agents…"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Describe what the agent should do"
@@ -3635,6 +3641,7 @@ msgid "Expected worktree owner {expected}, but found {actual}"
 msgstr "Expected worktree owner {expected}, but found {actual}"
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Experiment"
 msgstr "Experiment"
 
@@ -3765,6 +3772,7 @@ msgstr "Failed to record frozen source metadata: {detail}. Rollback left {rollba
 msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
 msgstr "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
 
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Fast"
@@ -3987,8 +3995,13 @@ msgid "Fork"
 msgstr "Fork"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Fork from"
-msgstr "Fork from"
+#~ msgid "Fork from"
+#~ msgstr "Fork from"
+
+#. placeholder {0}: props.baseBranch
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
+msgid "Fork from <0>{0}</0>"
+msgstr "Fork from <0>{0}</0>"
 
 #. placeholder {0}: exp.baseBranch
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
@@ -5333,8 +5346,8 @@ msgstr "Model added to favorites"
 
 #. placeholder {0}: index + 1
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Model for candidate {0}"
-msgstr "Model for candidate {0}"
+#~ msgid "Model for candidate {0}"
+#~ msgstr "Model for candidate {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -5541,8 +5554,8 @@ msgid "New code"
 msgstr "New code"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "New experiment"
-msgstr "New experiment"
+#~ msgid "New experiment"
+#~ msgstr "New experiment"
 
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
@@ -5842,8 +5855,8 @@ msgid "No history yet"
 msgstr "No history yet"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "No installed agents with selectable models are available for this project."
-msgstr "No installed agents with selectable models are available for this project."
+#~ msgid "No installed agents with selectable models are available for this project."
+#~ msgstr "No installed agents with selectable models are available for this project."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -6214,6 +6227,7 @@ msgstr "Open a terminal"
 msgid "Open a thread first to attach to it."
 msgstr "Open a thread first to attach to it."
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open All"
 msgstr "Open All"
@@ -6923,7 +6937,6 @@ msgstr "Projects"
 msgid "Projects live on the connected desktop. Add one before starting a thread."
 msgstr "Projects live on the connected desktop. Add one before starting a thread."
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
@@ -7327,7 +7340,7 @@ msgid "Remove bookmark"
 msgstr "Remove bookmark"
 
 #. placeholder {0}: index + 1
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Remove candidate {0}"
 msgstr "Remove candidate {0}"
 
@@ -7721,12 +7734,12 @@ msgid "Run a new thread on {0}."
 msgstr "Run a new thread on {0}."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Run as experiment"
-msgstr "Run as experiment"
+#~ msgid "Run as experiment"
+#~ msgstr "Run as experiment"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Run as experiment with multiple agents"
-msgstr "Run as experiment with multiple agents"
+#~ msgid "Run as experiment with multiple agents"
+#~ msgstr "Run as experiment with multiple agents"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run at"
@@ -7736,7 +7749,7 @@ msgstr "Run at"
 msgid "Run command"
 msgstr "Run command"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Run experiment"
 msgstr "Run experiment"
 
@@ -7753,7 +7766,8 @@ msgstr "Run local transcription on the GPU when available."
 msgid "Run now"
 msgstr "Run now"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Run one prompt with multiple agents, then compare their work."
 msgstr "Run one prompt with multiple agents, then compare their work."
 
@@ -9177,6 +9191,7 @@ msgid "The desktop server is still coming online."
 msgstr "The desktop server is still coming online."
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentWorktreeActions.ts
 #: src/renderer/views/MainView/parts/AppContent/parts/ThreadPane.tsx
 msgid "The experiment candidate worktree is unavailable."
 msgstr "The experiment candidate worktree is unavailable."

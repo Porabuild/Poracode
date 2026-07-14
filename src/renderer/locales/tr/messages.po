@@ -31,6 +31,8 @@ msgid "(no message)"
 msgstr "(mesaj yok)"
 
 #. placeholder {0}: candidates.length
+#. placeholder {0}: props.candidates.length
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "{0, plural, one {# candidate} other {# candidates}}"
 msgstr "{0, plural, one {# aday} other {# aday}}"
@@ -82,8 +84,8 @@ msgstr "{0, plural, one {# araç} other {# araç}}"
 
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
-msgstr "{0, plural, one {Aday (#)} other {Adaylar (#)}}"
+#~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
+#~ msgstr "{0, plural, one {Aday (#)} other {Adaylar (#)}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -528,6 +530,7 @@ msgid "7d"
 msgstr "7g"
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentWorktreeActions.ts
 msgid "A candidate is no longer on its experiment branch."
 msgstr "Bir aday artık deney şubesinde değil."
 
@@ -697,7 +700,7 @@ msgstr "Mevcut klasör ekle"
 msgid "Add attachment or capability"
 msgstr "Ek veya yetenek ekleyin"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Add candidate"
 msgstr "Aday ekle"
 
@@ -808,8 +811,8 @@ msgstr "Temsilci bir hatayla karşılaştı."
 
 #. placeholder {0}: index + 1
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Agent for candidate {0}"
-msgstr "Aday {0} için ajan"
+#~ msgid "Agent for candidate {0}"
+#~ msgstr "Aday {0} için ajan"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is active and ready"
@@ -872,6 +875,7 @@ msgstr "AI aracı orkestratörü — kodlama aracılarını Terminal ve Yerel AC
 msgid "AI git actions"
 msgstr "Yapay zeka git işlemleri"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "AI judge"
 msgstr "Yapay zeka hakemi"
@@ -1284,8 +1288,8 @@ msgid "Background tasks"
 msgstr "Arka plan görevleri"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Base branch"
-msgstr "Ana şube"
+#~ msgid "Base branch"
+#~ msgstr "Ana şube"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -1528,7 +1532,7 @@ msgstr "Portlar yüklenemedi"
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1636,6 +1640,7 @@ msgstr "Değişikliklere erişilemiyor"
 msgid "Channel"
 msgstr "Kanal"
 
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
@@ -1831,6 +1836,7 @@ msgstr "Aramayı temizle"
 msgid "Clear thread search"
 msgstr "Konu aramasını temizle"
 
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "CLI"
@@ -2986,8 +2992,8 @@ msgid "Deny and tell the agent what to do differently…"
 msgstr "Reddet ve aracıya neyi farklı yapması gerektiğini söyle…"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Describe the task to run with multiple agents…"
-msgstr "Birden fazla ajanın çalıştıracağı görevi açıklayın…"
+#~ msgid "Describe the task to run with multiple agents…"
+#~ msgstr "Birden fazla ajanın çalıştıracağı görevi açıklayın…"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Describe what the agent should do"
@@ -3635,6 +3641,7 @@ msgid "Expected worktree owner {expected}, but found {actual}"
 msgstr "Çalışma ağacı sahibi olarak {expected} bekleniyordu ancak {actual} bulundu"
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Experiment"
 msgstr "Deney"
 
@@ -3765,6 +3772,7 @@ msgstr "Dondurulmuş kaynak meta verileri kaydedilemedi: {detail}. Geri alma iş
 msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
 msgstr "Sahipli şube meta verileri kaydedilemedi: {detail}. Geri alma işlemi {branch} şubesini bıraktı: {rollback}"
 
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Fast"
@@ -3987,8 +3995,13 @@ msgid "Fork"
 msgstr "Fork"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Fork from"
-msgstr "Fork kaynağı"
+#~ msgid "Fork from"
+#~ msgstr "Fork kaynağı"
+
+#. placeholder {0}: props.baseBranch
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
+msgid "Fork from <0>{0}</0>"
+msgstr "<0>{0}</0> üzerinden çatalla"
 
 #. placeholder {0}: exp.baseBranch
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
@@ -5333,8 +5346,8 @@ msgstr "Model favorilere eklendi"
 
 #. placeholder {0}: index + 1
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Model for candidate {0}"
-msgstr "Aday {0} için model"
+#~ msgid "Model for candidate {0}"
+#~ msgstr "Aday {0} için model"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -5541,8 +5554,8 @@ msgid "New code"
 msgstr "Yeni kod"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "New experiment"
-msgstr "Yeni deney"
+#~ msgid "New experiment"
+#~ msgstr "Yeni deney"
 
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
@@ -5842,8 +5855,8 @@ msgid "No history yet"
 msgstr "Henüz geçmiş yok"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "No installed agents with selectable models are available for this project."
-msgstr "Bu proje için seçilebilir modellere sahip yüklü bir ajan yok."
+#~ msgid "No installed agents with selectable models are available for this project."
+#~ msgstr "Bu proje için seçilebilir modellere sahip yüklü bir ajan yok."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -6214,6 +6227,7 @@ msgstr "Bir terminal aç"
 msgid "Open a thread first to attach to it."
 msgstr "Eklemek için önce bir konu açın."
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open All"
 msgstr "Tümünü Aç"
@@ -6923,7 +6937,6 @@ msgstr "Projeler"
 msgid "Projects live on the connected desktop. Add one before starting a thread."
 msgstr "Projeler bağlı masaüstünde bulunur. Bir iş parçacığı başlatmadan önce bir proje ekleyin."
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
@@ -7327,7 +7340,7 @@ msgid "Remove bookmark"
 msgstr "Yer imini kaldır"
 
 #. placeholder {0}: index + 1
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Remove candidate {0}"
 msgstr "{0}. adayı kaldır"
 
@@ -7721,12 +7734,12 @@ msgid "Run a new thread on {0}."
 msgstr "{0} üzerinde yeni bir iş parçacığı çalıştır."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Run as experiment"
-msgstr "Deney olarak çalıştır"
+#~ msgid "Run as experiment"
+#~ msgstr "Deney olarak çalıştır"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Run as experiment with multiple agents"
-msgstr "Birden fazla ajanla deney olarak çalıştır"
+#~ msgid "Run as experiment with multiple agents"
+#~ msgstr "Birden fazla ajanla deney olarak çalıştır"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run at"
@@ -7736,7 +7749,7 @@ msgstr "Çalıştırma zamanı"
 msgid "Run command"
 msgstr "Komutu çalıştır"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Run experiment"
 msgstr "Deneyi çalıştır"
 
@@ -7753,7 +7766,8 @@ msgstr "Mümkün olduğunda GPU'da yerel transkripsiyonu çalıştırın."
 msgid "Run now"
 msgstr "Şimdi çalıştır"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Run one prompt with multiple agents, then compare their work."
 msgstr "Tek bir istemi birden fazla ajanla çalıştırın, ardından çalışmalarını karşılaştırın."
 
@@ -9177,6 +9191,7 @@ msgid "The desktop server is still coming online."
 msgstr "Masaüstü sunucusu hâlâ başlatılıyor."
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentWorktreeActions.ts
 #: src/renderer/views/MainView/parts/AppContent/parts/ThreadPane.tsx
 msgid "The experiment candidate worktree is unavailable."
 msgstr "Deney adayının çalışma ağacı kullanılamıyor."

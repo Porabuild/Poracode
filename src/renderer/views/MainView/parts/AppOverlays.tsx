@@ -8,7 +8,6 @@ import {
   DeferredBrowserHost as PrewarmedBrowserHost,
   DeferredCloneProjectModal as PrewarmedCloneProjectModal,
   DeferredCreateProjectModal as PrewarmedCreateProjectModal,
-  DeferredNewExperimentModal as PrewarmedNewExperimentModal,
   DeferredFileEditorOverlay,
   DeferredGitReviewOverlay,
   DeferredLoginTerminalOverlay as PrewarmedLoginTerminalOverlay,
@@ -36,7 +35,7 @@ import { WelcomeOverlay } from "@/renderer/views/WelcomeOverlay";
 import { WhatsNewOverlay } from "@/renderer/views/WhatsNewOverlay";
 import { RemoteProjectModal } from "@/renderer/views/RemoteProjectModal/RemoteProjectModal";
 import { useLoginTerminalStore } from "@/renderer/state/loginTerminalStore";
-import { findExperimentByWorktree, useExperimentStore } from "@/renderer/state/experimentStore";
+import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 
 function useEverEnabled(active: boolean): boolean {
   const [enabled, setEnabled] = useState(active);
@@ -208,7 +207,6 @@ export function AppOverlays() {
       <DeferredLoginTerminalOverlay />
       <DeferredCreateProjectModal />
       <DeferredCloneProjectModal />
-      <DeferredNewExperimentModal />
     </>
   );
 }
@@ -264,16 +262,6 @@ function DeferredCloneProjectModal() {
   return enabled ? (
     <Suspense>
       <PrewarmedCloneProjectModal />
-    </Suspense>
-  ) : null;
-}
-
-function DeferredNewExperimentModal() {
-  const open = useExperimentStore((state) => state.launcher !== null);
-  const enabled = useEverEnabled(open);
-  return enabled ? (
-    <Suspense>
-      <PrewarmedNewExperimentModal />
     </Suspense>
   ) : null;
 }

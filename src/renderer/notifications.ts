@@ -80,10 +80,7 @@ function isThreadInActivePanes(threadId: string): boolean {
 }
 
 function openNotificationThread(threadId: string): void {
-  const standalone = Object.values(useExperimentStore.getState().experiments).some((experiment) =>
-    experiment.candidates.some((candidate) => candidate.threadId === threadId),
-  );
-  openThread(threadId, { focusComposer: true, ...(standalone ? { standalone: true } : {}) });
+  openThread(threadId, { focusComposer: true });
 }
 
 function getProjectName(projectId: string): string {

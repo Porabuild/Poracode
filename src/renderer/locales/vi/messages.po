@@ -31,6 +31,8 @@ msgid "(no message)"
 msgstr "(không có tin nhắn)"
 
 #. placeholder {0}: candidates.length
+#. placeholder {0}: props.candidates.length
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "{0, plural, one {# candidate} other {# candidates}}"
 msgstr "{0, plural, one {# ứng viên} other {# ứng viên}}"
@@ -82,8 +84,8 @@ msgstr "{0, plural, one {# công cụ} other {# công cụ}}"
 
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
-msgstr "{0, plural, one {Ứng viên (#)} other {Ứng viên (#)}}"
+#~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
+#~ msgstr "{0, plural, one {Ứng viên (#)} other {Ứng viên (#)}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -528,6 +530,7 @@ msgid "7d"
 msgstr "7 ngày"
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentWorktreeActions.ts
 msgid "A candidate is no longer on its experiment branch."
 msgstr "Một ứng viên không còn ở nhánh thử nghiệm của mình."
 
@@ -697,7 +700,7 @@ msgstr "Thêm thư mục hiện có"
 msgid "Add attachment or capability"
 msgstr "Thêm tệp đính kèm hoặc khả năng"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Add candidate"
 msgstr "Thêm ứng viên"
 
@@ -808,8 +811,8 @@ msgstr "Tác nhân đã gặp lỗi."
 
 #. placeholder {0}: index + 1
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Agent for candidate {0}"
-msgstr "Tác nhân cho ứng viên {0}"
+#~ msgid "Agent for candidate {0}"
+#~ msgstr "Tác nhân cho ứng viên {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is active and ready"
@@ -872,6 +875,7 @@ msgstr "Trình điều phối tác nhân AI - quản lý các tác nhân mã hó
 msgid "AI git actions"
 msgstr "Thao tác git bằng AI"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "AI judge"
 msgstr "AI đánh giá"
@@ -1284,8 +1288,8 @@ msgid "Background tasks"
 msgstr "Tác vụ nền"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Base branch"
-msgstr "Nhánh cơ sở"
+#~ msgid "Base branch"
+#~ msgstr "Nhánh cơ sở"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -1528,7 +1532,7 @@ msgstr "Không thể tải danh sách cổng"
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1636,6 +1640,7 @@ msgstr "Không thể xem các thay đổi"
 msgid "Channel"
 msgstr "Kênh"
 
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
@@ -1831,6 +1836,7 @@ msgstr "Xóa tìm kiếm"
 msgid "Clear thread search"
 msgstr "Xóa tìm kiếm luồng"
 
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "CLI"
@@ -2986,8 +2992,8 @@ msgid "Deny and tell the agent what to do differently…"
 msgstr "Từ chối và cho tác nhân biết cần làm gì khác đi…"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Describe the task to run with multiple agents…"
-msgstr "Mô tả tác vụ cần chạy với nhiều tác nhân…"
+#~ msgid "Describe the task to run with multiple agents…"
+#~ msgstr "Mô tả tác vụ cần chạy với nhiều tác nhân…"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Describe what the agent should do"
@@ -3635,6 +3641,7 @@ msgid "Expected worktree owner {expected}, but found {actual}"
 msgstr "Dự kiến chủ sở hữu cây làm việc là {expected}, nhưng tìm thấy {actual}"
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Experiment"
 msgstr "Thử nghiệm"
 
@@ -3765,6 +3772,7 @@ msgstr "Không thể ghi siêu dữ liệu nguồn đã đóng băng: {detail}. 
 msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
 msgstr "Không thể ghi siêu dữ liệu của nhánh có chủ sở hữu: {detail}. Quá trình hoàn tác vẫn để lại nhánh {branch}: {rollback}"
 
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Fast"
@@ -3987,8 +3995,13 @@ msgid "Fork"
 msgstr "Fork"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Fork from"
-msgstr "Phân nhánh từ"
+#~ msgid "Fork from"
+#~ msgstr "Phân nhánh từ"
+
+#. placeholder {0}: props.baseBranch
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
+msgid "Fork from <0>{0}</0>"
+msgstr "Phân nhánh từ <0>{0}</0>"
 
 #. placeholder {0}: exp.baseBranch
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
@@ -5333,8 +5346,8 @@ msgstr "Đã thêm mô hình vào mục yêu thích"
 
 #. placeholder {0}: index + 1
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Model for candidate {0}"
-msgstr "Mô hình cho ứng viên {0}"
+#~ msgid "Model for candidate {0}"
+#~ msgstr "Mô hình cho ứng viên {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -5541,8 +5554,8 @@ msgid "New code"
 msgstr "Mã mới"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "New experiment"
-msgstr "Thử nghiệm mới"
+#~ msgid "New experiment"
+#~ msgstr "Thử nghiệm mới"
 
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
@@ -5842,8 +5855,8 @@ msgid "No history yet"
 msgstr "Chưa có lịch sử"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "No installed agents with selectable models are available for this project."
-msgstr "Không có tác nhân nào đã cài đặt có mô hình có thể chọn dành cho dự án này."
+#~ msgid "No installed agents with selectable models are available for this project."
+#~ msgstr "Không có tác nhân nào đã cài đặt có mô hình có thể chọn dành cho dự án này."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -6214,6 +6227,7 @@ msgstr "Mở terminal"
 msgid "Open a thread first to attach to it."
 msgstr "Mở một luồng trước để đính kèm vào đó."
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open All"
 msgstr "Mở tất cả"
@@ -6923,7 +6937,6 @@ msgstr "Dự án"
 msgid "Projects live on the connected desktop. Add one before starting a thread."
 msgstr "Dự án nằm trên máy tính đã kết nối. Hãy thêm một dự án trước khi bắt đầu luồng."
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
@@ -7327,7 +7340,7 @@ msgid "Remove bookmark"
 msgstr "Xóa dấu trang"
 
 #. placeholder {0}: index + 1
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Remove candidate {0}"
 msgstr "Xóa ứng viên {0}"
 
@@ -7721,12 +7734,12 @@ msgid "Run a new thread on {0}."
 msgstr "Chạy luồng mới trên {0}."
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Run as experiment"
-msgstr "Chạy dưới dạng thử nghiệm"
+#~ msgid "Run as experiment"
+#~ msgstr "Chạy dưới dạng thử nghiệm"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Run as experiment with multiple agents"
-msgstr "Chạy dưới dạng thử nghiệm với nhiều tác nhân"
+#~ msgid "Run as experiment with multiple agents"
+#~ msgstr "Chạy dưới dạng thử nghiệm với nhiều tác nhân"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run at"
@@ -7736,7 +7749,7 @@ msgstr "Chạy lúc"
 msgid "Run command"
 msgstr "Chạy lệnh"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Run experiment"
 msgstr "Chạy thử nghiệm"
 
@@ -7753,7 +7766,8 @@ msgstr "Chạy phiên âm cục bộ trên GPU khi có sẵn."
 msgid "Run now"
 msgstr "Chạy ngay"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Run one prompt with multiple agents, then compare their work."
 msgstr "Chạy một lời nhắc với nhiều tác nhân, rồi so sánh kết quả của họ."
 
@@ -9177,6 +9191,7 @@ msgid "The desktop server is still coming online."
 msgstr "Máy chủ trên máy tính vẫn đang khởi động."
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentWorktreeActions.ts
 #: src/renderer/views/MainView/parts/AppContent/parts/ThreadPane.tsx
 msgid "The experiment candidate worktree is unavailable."
 msgstr "Cây làm việc của ứng viên thử nghiệm không khả dụng."

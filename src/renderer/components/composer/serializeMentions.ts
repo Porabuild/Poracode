@@ -140,12 +140,6 @@ export function flattenSegments(segments: PromptSegment[]): string {
   return rest.map(inlinePromptSegmentText).join("").trim();
 }
 
-function structuredSegmentToken(segment: PromptSegment): string | null {
-  if (segment.kind === "file") return `@${segment.path}`;
-  if (segment.kind === "skill") return segment.invocation;
-  return null;
-}
-
 function isStructuredTokenBoundary(content: string, start: number, length: number): boolean {
   const before = content[start - 1];
   const after = content[start + length];
@@ -163,8 +157,8 @@ export function rebuildEditedPromptSegments(
 ): PromptSegment[] {
   const attachments = originalSegments.filter((segment) => segment.kind === "attachment");
   const structured = originalSegments
-    .map((segment) => ({ segment, token: structuredSegmentToken(segment) }))
-    .filter((entry): entry is { segment: PromptSegment; token: string } => entry.token !== null)
+    .filter((segment) => segment.kind === "file" || segment.kind === "skill")
+    .map((segment) => ({ segment, token: inlinePromptSegmentText(segment) }))
     .sort((a, b) => b.token.length - a.token.length);
   const rebuilt: PromptSegment[] = [];
   let textStart = 0;

@@ -81,10 +81,9 @@ export function SortableThreadItem(props: {
   } = props;
   const { t } = useLingui();
   const experiment = useExperimentStore((state) =>
-    Object.values(state.experiments).find((candidate) =>
-      candidate.candidates.some((item) => item.threadId === thread.id),
-    ),
+    thread.groupId ? state.experiments[thread.groupId] : undefined,
   );
+  const isExperimentCandidate = experiment !== undefined;
   const isCurrentThread = useIsCurrentThread(thread.id);
   const hasDraft = useThreadHasDraft(thread.id);
   const currentThreadCount = useCurrentThreadIdsCount();
@@ -105,9 +104,9 @@ export function SortableThreadItem(props: {
     id: `thread:${thread.id}`,
     index: props.threadIndex,
     type: "thread",
-    accept: sortDisabled || experiment ? [] : ["thread", "worktree-group"],
+    accept: sortDisabled || isExperimentCandidate ? [] : ["thread", "worktree-group"],
     group: props.group,
-    disabled: sortDisabled || experiment !== undefined,
+    disabled: sortDisabled || isExperimentCandidate,
     data: {
       type: "thread",
       threadId: thread.id,
@@ -127,7 +126,7 @@ export function SortableThreadItem(props: {
     <div ref={ref} className="relative w-full pb-0.5">
       <ContextMenu
         items={[
-          ...(thread.worktreePath && !experiment
+          ...(thread.worktreePath && !isExperimentCandidate
             ? [
                 {
                   id: "new-thread-in-worktree",
@@ -179,7 +178,7 @@ export function SortableThreadItem(props: {
             isDisabled: unloadDisabledReason !== undefined,
             ...(unloadDisabledReason ? { disabledReason: unloadDisabledReason } : {}),
           },
-          ...(!experiment
+          ...(!isExperimentCandidate
             ? [
                 {
                   id: "mark-done",
@@ -193,7 +192,7 @@ export function SortableThreadItem(props: {
             label: thread.starred ? t`Unpin` : t`Pin to top`,
             icon: <Star className="size-3.5" />,
           },
-          ...(!experiment
+          ...(!isExperimentCandidate
             ? [
                 {
                   id: "continue-in",
@@ -213,7 +212,7 @@ export function SortableThreadItem(props: {
                 },
               ]
             : []),
-          ...(thread.groupId && !experiment
+          ...(thread.groupId && !isExperimentCandidate
             ? [
                 {
                   id: "ungroup",
@@ -230,7 +229,7 @@ export function SortableThreadItem(props: {
                 },
               ]
             : []),
-          ...(!experiment
+          ...(!isExperimentCandidate
             ? [
                 { type: "separator" as const },
                 {
@@ -280,7 +279,7 @@ export function SortableThreadItem(props: {
           if (key === "create-pr") openGitReview(thread.projectId, thread.worktreePath);
           if (key === "open-experiment" && experiment)
             useAppStore.getState().openExperiment(experiment.id, experiment.projectId);
-          if (key === "continue-in" && !experiment) continueInProvider(thread.id);
+          if (key === "continue-in" && !isExperimentCandidate) continueInProvider(thread.id);
           if (key === "group-open-threads") {
             const state = useAppStore.getState();
             if (state.view.kind !== "thread") return;
@@ -322,12 +321,12 @@ export function SortableThreadItem(props: {
               return { threads: updatedThreads, view };
             });
           }
-          if (key === "archive" && !experiment) archiveThread(thread.id);
+          if (key === "archive" && !isExperimentCandidate) archiveThread(thread.id);
           if (key === "rename") props.setEditingThreadId(thread.id);
           if (key === "unload") unloadThread(thread.id);
           if (key === "mark-done") toggleMarkThreadDone(thread.id);
           if (key === "toggle-star") toggleStarThread(thread.id);
-          if (key === "delete" && !experiment)
+          if (key === "delete" && !isExperimentCandidate)
             deleteThread(thread.id, thread.worktreePath, thread.projectId);
           if (key.startsWith("action:")) {
             runProjectAction(project.id, key.slice("action:".length), thread.worktreePath);
@@ -365,7 +364,7 @@ export function SortableThreadItem(props: {
           }
           tooltip={editingThreadId === thread.id ? undefined : thread.title}
           isActive={isCurrentThread}
-          onPress={() => openThread(thread.id, { standalone: experiment !== undefined })}
+          onPress={() => openThread(thread.id)}
           onDoubleClick={() => props.setEditingThreadId(thread.id)}
           isDragging={isDragging}
           suffix={
@@ -373,7 +372,7 @@ export function SortableThreadItem(props: {
               thread={thread}
               showWorktreeBadge={showWorktreeBadge}
               showWorktreeFilesButton={showWorktreeFilesButton}
-              isExperimentCandidate={experiment !== undefined}
+              isExperimentCandidate={isExperimentCandidate}
             />
           }
         />

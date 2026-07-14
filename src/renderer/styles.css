@@ -625,6 +625,11 @@
    the panel's own luminance toward black is foreground-independent, so the fill
    lands at a uniform ~1.28:1 across every light preset. Dark keeps HeroUI's stock
    fill, so this is light-only. */
+.dark .button--tertiary,
+[data-theme="dark"] .button--tertiary {
+  --button-fg: #fff;
+}
+
 .light .button--tertiary,
 [data-theme="light"] .button--tertiary,
 .light .button--primary,

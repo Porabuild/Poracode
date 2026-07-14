@@ -408,6 +408,14 @@ export interface SubagentOneShotCommandInput {
   location: ProjectLocation;
 }
 
+export interface OneShotCommand {
+  command: string;
+  args: string[];
+  stdin?: string;
+  pty?: boolean;
+  env?: Record<string, string>;
+}
+
 /**
  * A CLI invocation for a one-shot subagent child. Deliberately omits
  * `isolateCwd` (used by title/commit generation to avoid clobbering the session
@@ -416,12 +424,10 @@ export interface SubagentOneShotCommandInput {
  * child has no interactive approval channel — it must never block waiting for
  * input).
  */
-export interface OneShotChildCommand {
-  command: string;
-  args: string[];
-  stdin?: string;
-  pty?: boolean;
-  env?: Record<string, string>;
+export type OneShotChildCommand = OneShotCommand;
+
+export interface OneShotGenerationCommand extends OneShotCommand {
+  isolateCwd?: boolean;
 }
 
 export interface AgentOneShotRunner {
@@ -441,16 +447,7 @@ export interface AgentOneShotRunner {
     prompt?: string,
     location?: ProjectLocation,
     fast?: boolean,
-  ):
-    | {
-        command: string;
-        args: string[];
-        stdin?: string;
-        isolateCwd?: boolean;
-        pty?: boolean;
-        env?: Record<string, string>;
-      }
-    | undefined;
+  ): OneShotGenerationCommand | undefined;
   runOneShot?(input: RunOneShotInput): Promise<string>;
   /**
    * Build a provider-enforced text-only one-shot invocation. Unlike the
@@ -463,16 +460,7 @@ export interface AgentOneShotRunner {
     prompt?: string,
     location?: ProjectLocation,
     fast?: boolean,
-  ):
-    | {
-        command: string;
-        args: string[];
-        stdin?: string;
-        isolateCwd?: boolean;
-        pty?: boolean;
-        env?: Record<string, string>;
-      }
-    | undefined;
+  ): OneShotGenerationCommand | undefined;
   /** Run a provider-enforced text-only one-shot through a structured runtime. */
   runTextOnlyOneShot?(input: RunOneShotInput): Promise<string>;
   buildContextExtractionCommand?(

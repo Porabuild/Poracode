@@ -4,6 +4,7 @@ import { ToggleButton, Tooltip } from "@heroui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
+import type { ButtonProps } from "@/renderer/components/common/Button";
 import { EffortContextMenu } from "@/renderer/components/common/EffortContextMenu/EffortContextMenu";
 import { OptionMenu } from "@/renderer/components/common/OptionMenu";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
@@ -223,6 +224,8 @@ export function ThreadComposer(props: {
   promptDisabled?: boolean;
   hideSubmitButton?: boolean;
   submitLabel: string;
+  submitContent?: ReactNode;
+  submitVariant?: ButtonProps["variant"];
   submitDisabled: boolean;
   submitPending?: boolean;
   stopPending?: boolean;
@@ -250,6 +253,8 @@ export function ThreadComposer(props: {
     promptDisabled = false,
     hideSubmitButton = false,
     submitLabel,
+    submitContent,
+    submitVariant,
     submitDisabled,
     submitPending = false,
     stopPending = false,
@@ -763,16 +768,17 @@ export function ThreadComposer(props: {
     }
     return (
       <Button
-        isIconOnly
+        isIconOnly={!submitContent}
         aria-label={submitLabel}
-        className="poracode-composer-send"
+        className={submitContent ? "h-9 px-3" : "poracode-composer-send"}
         isDisabled={submitDisabled || promptDisabled}
         isPending={submitPending}
         onPress={onSubmit}
         size="sm"
+        {...(submitVariant ? { variant: submitVariant } : {})}
       >
         {({ isPending }) =>
-          isPending ? <PixelLoader size="xs" /> : <ArrowUp className="size-4" />
+          isPending ? <PixelLoader size="xs" /> : (submitContent ?? <ArrowUp className="size-4" />)
         }
       </Button>
     );

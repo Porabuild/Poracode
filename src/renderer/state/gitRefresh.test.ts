@@ -169,7 +169,7 @@ describe("pending PR refresh", () => {
       threadListLimits: {},
     });
     useAppStore.setState({ projects: [project], threads: [], view: { kind: "home" } });
-    useExperimentStore.setState({ experiments: {}, launcher: null });
+    useExperimentStore.setState({ experiments: {} });
   });
 
   afterEach(() => {

@@ -31,6 +31,8 @@ msgid "(no message)"
 msgstr "（没有消息）"
 
 #. placeholder {0}: candidates.length
+#. placeholder {0}: props.candidates.length
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "{0, plural, one {# candidate} other {# candidates}}"
 msgstr "{0, plural, one {# 个候选项} other {# 个候选项}}"
@@ -82,8 +84,8 @@ msgstr "{0, plural, one {# 个工具} other {# 个工具}}"
 
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
-msgstr "{0, plural, one {候选项（# 个）} other {候选项（# 个）}}"
+#~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
+#~ msgstr "{0, plural, one {候选项（# 个）} other {候选项（# 个）}}"
 
 #. placeholder {0}: details.patterns.length
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
@@ -528,6 +530,7 @@ msgid "7d"
 msgstr "7天"
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentWorktreeActions.ts
 msgid "A candidate is no longer on its experiment branch."
 msgstr "候选项已不在其实验分支上。"
 
@@ -697,7 +700,7 @@ msgstr "添加现有文件夹"
 msgid "Add attachment or capability"
 msgstr "添加附件或功能"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Add candidate"
 msgstr "添加候选项"
 
@@ -808,8 +811,8 @@ msgstr "代理遇到错误。"
 
 #. placeholder {0}: index + 1
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Agent for candidate {0}"
-msgstr "候选项 {0} 的智能体"
+#~ msgid "Agent for candidate {0}"
+#~ msgstr "候选项 {0} 的智能体"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent is active and ready"
@@ -872,6 +875,7 @@ msgstr "AI 代理协调器 — 通过终端和本机 ACP 管理编码代理。"
 msgid "AI git actions"
 msgstr "AI git操作"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "AI judge"
 msgstr "AI 评审"
@@ -1284,8 +1288,8 @@ msgid "Background tasks"
 msgstr "后台任务"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Base branch"
-msgstr "基准分支"
+#~ msgid "Base branch"
+#~ msgstr "基准分支"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -1528,7 +1532,7 @@ msgstr "无法加载端口"
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -1636,6 +1640,7 @@ msgstr "无法获取更改"
 msgid "Channel"
 msgstr "频道"
 
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
@@ -1831,6 +1836,7 @@ msgstr "清除搜索"
 msgid "Clear thread search"
 msgstr "清除线程搜索"
 
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "CLI"
@@ -2986,8 +2992,8 @@ msgid "Deny and tell the agent what to do differently…"
 msgstr "拒绝并告诉代理换一种做法……"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Describe the task to run with multiple agents…"
-msgstr "描述要由多个智能体执行的任务…"
+#~ msgid "Describe the task to run with multiple agents…"
+#~ msgstr "描述要由多个智能体执行的任务…"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Describe what the agent should do"
@@ -3635,6 +3641,7 @@ msgid "Expected worktree owner {expected}, but found {actual}"
 msgstr "预期工作树所有者为 {expected}，但实际为 {actual}"
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Experiment"
 msgstr "实验"
 
@@ -3765,6 +3772,7 @@ msgstr "记录冻结源元数据失败：{detail}。回滚后仍留下 {rollback
 msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {branch}: {rollback}"
 msgstr "记录已标记所有者的分支元数据失败：{detail}。回滚后仍留下分支 {branch}：{rollback}"
 
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/buildModelPickerControls.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Fast"
@@ -3987,8 +3995,13 @@ msgid "Fork"
 msgstr "派生"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Fork from"
-msgstr "分叉自"
+#~ msgid "Fork from"
+#~ msgstr "分叉自"
+
+#. placeholder {0}: props.baseBranch
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
+msgid "Fork from <0>{0}</0>"
+msgstr "从 <0>{0}</0> 分叉"
 
 #. placeholder {0}: exp.baseBranch
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
@@ -5332,8 +5345,8 @@ msgstr "已将模型添加到收藏夹"
 
 #. placeholder {0}: index + 1
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "Model for candidate {0}"
-msgstr "候选项 {0} 的模型"
+#~ msgid "Model for candidate {0}"
+#~ msgstr "候选项 {0} 的模型"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Model id"
@@ -5540,8 +5553,8 @@ msgid "New code"
 msgstr "新代码"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "New experiment"
-msgstr "新建实验"
+#~ msgid "New experiment"
+#~ msgstr "新建实验"
 
 #: src/mobile/views/FilesView.tsx
 msgid "New file"
@@ -5841,8 +5854,8 @@ msgid "No history yet"
 msgstr "暂无历史记录"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
-msgid "No installed agents with selectable models are available for this project."
-msgstr "此项目中没有具有可选模型的已安装智能体。"
+#~ msgid "No installed agents with selectable models are available for this project."
+#~ msgstr "此项目中没有具有可选模型的已安装智能体。"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "No Lightcode data was found."
@@ -6213,6 +6226,7 @@ msgstr "打开终端"
 msgid "Open a thread first to attach to it."
 msgstr "首先打开一个线程以附加到它。"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open All"
 msgstr "打开全部"
@@ -6922,7 +6936,6 @@ msgstr "项目"
 msgid "Projects live on the connected desktop. Add one before starting a thread."
 msgstr "项目位于已连接的桌面端。开始线程前请先添加一个项目。"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
@@ -7326,7 +7339,7 @@ msgid "Remove bookmark"
 msgstr "移除书签"
 
 #. placeholder {0}: index + 1
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Remove candidate {0}"
 msgstr "移除候选项 {0}"
 
@@ -7720,12 +7733,12 @@ msgid "Run a new thread on {0}."
 msgstr "在 {0} 上运行新线程。"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Run as experiment"
-msgstr "作为实验运行"
+#~ msgid "Run as experiment"
+#~ msgstr "作为实验运行"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Run as experiment with multiple agents"
-msgstr "使用多个智能体作为实验运行"
+#~ msgid "Run as experiment with multiple agents"
+#~ msgstr "使用多个智能体作为实验运行"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Run at"
@@ -7735,7 +7748,7 @@ msgstr "运行时间"
 msgid "Run command"
 msgstr "运行命令"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Run experiment"
 msgstr "运行实验"
 
@@ -7752,7 +7765,8 @@ msgstr "如果可用，请在 GPU 上运行本地转录。"
 msgid "Run now"
 msgstr "立即运行"
 
-#: src/renderer/components/experiment/NewExperimentModal.tsx
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Run one prompt with multiple agents, then compare their work."
 msgstr "让多个智能体运行同一个提示，然后比较它们的成果。"
 
@@ -9176,6 +9190,7 @@ msgid "The desktop server is still coming online."
 msgstr "桌面服务器仍在启动。"
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentWorktreeActions.ts
 #: src/renderer/views/MainView/parts/AppContent/parts/ThreadPane.tsx
 msgid "The experiment candidate worktree is unavailable."
 msgstr "实验候选项的工作树不可用。"

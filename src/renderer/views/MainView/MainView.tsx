@@ -129,11 +129,13 @@ function ExperimentWorkflowTrackers() {
   const experiments = useExperimentStore((state) => state.experiments);
   const threads = useAppStore((state) => state.threads);
   const projects = useAppStore((state) => state.projects);
+  const threadById = new Map(threads.map((thread) => [thread.id, thread] as const));
+  const projectById = new Map(projects.map((project) => [project.id, project] as const));
 
   return Object.values(experiments).flatMap((experiment) =>
     experiment.candidates.map((candidate) => {
-      const thread = threads.find((item) => item.id === candidate.threadId);
-      const project = projects.find((item) => item.id === experiment.projectId);
+      const thread = threadById.get(candidate.threadId);
+      const project = projectById.get(experiment.projectId);
       if (!thread?.worktreePath || !project) return null;
       return (
         <ThreadLiveWorkflowTracker

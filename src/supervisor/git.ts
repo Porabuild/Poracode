@@ -5,6 +5,7 @@ import type {
   GitDiffResult,
   GitFileContentResult,
   GitFinishMergeResult,
+  GitGetWorktreeOwnerResult,
   GitGetWorktreeSourceBranchResult,
   GitMergeToSourceResult,
   GitPullFromSourceResult,
@@ -16,15 +17,12 @@ import type {
   GetExperimentCandidateStatsResult,
   ProjectLocation,
 } from "@/shared/contracts";
-import { MAX_EXPERIMENT_DIFF_LENGTH, MAX_EXPERIMENT_UNTRACKED_FILES } from "@/shared/contracts";
-import { msg } from "@/shared/messages";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import {
   computeDefaultWorktreePath,
   execGit,
   execGitBatchWslBridge,
   GIT_CLONE_TIMEOUT,
-  GIT_DIFF_TIMEOUT,
   GIT_HOOK_TIMEOUT,
   getLocationIdentity,
   ghVersionWslBridge,
@@ -35,11 +33,8 @@ import {
   type WorktreePathOptions,
 } from "./git/exec";
 import { GitMergeService } from "./git/mergeService";
-import {
-  buildGitStatusResultFromOutputs,
-  parseDiffNumstat,
-  parseStatusPorcelainV2,
-} from "./git/statusParsing";
+import { buildGitStatusResultFromOutputs, parseStatusPorcelainV2 } from "./git/statusParsing";
+import { GitExperimentService } from "./git/experimentService";
 import { GitStatusService } from "./git/statusService";
 import {
   GitWorktreeService,
@@ -63,6 +58,7 @@ export {
 
 export class GitService {
   private readonly statusService = new GitStatusService();
+  private readonly experimentService = new GitExperimentService(this.statusService);
   private readonly worktreeService = new GitWorktreeService();
   private readonly mergeService = new GitMergeService(this.worktreeService);
 
@@ -185,158 +181,14 @@ export class GitService {
     location: ProjectLocation,
     baseRef: string,
   ): Promise<GetExperimentCandidateDiffResult> {
-    if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(baseRef)) {
-      throw new Error(msg("experiment.diff.baseFullCommit"));
-    }
-
-    const first = await this.captureExperimentCandidateDiff(location, baseRef);
-    const second = await this.captureExperimentCandidateDiff(location, baseRef);
-    if (first.headCommit !== second.headCommit || first.diff !== second.diff) {
-      throw new Error(msg("experiment.candidate.changedDuringDiff"));
-    }
-    return second;
-  }
-
-  private async captureExperimentCandidateDiff(
-    location: ProjectLocation,
-    baseRef: string,
-  ): Promise<GetExperimentCandidateDiffResult> {
-    const headCommit = await this.getExperimentHeadCommit(location);
-    await this.assertExperimentHeadDescendsFromBase(location, baseRef, headCommit);
-    const trackedDiff = await execGit(location, ["diff", baseRef, "--"], {
-      timeout: GIT_DIFF_TIMEOUT,
-      maxBuffer: MAX_EXPERIMENT_DIFF_LENGTH,
-    });
-    const status = await this.statusService.getStatusSummary(location);
-    if (!status.isRepo) {
-      throw new Error(msg("experiment.candidate.statusFailed"));
-    }
-    const untrackedFiles = status.unstaged.filter((file) => file.status === "?");
-    if (untrackedFiles.length > MAX_EXPERIMENT_UNTRACKED_FILES) {
-      throw new Error(
-        msg("experiment.candidate.tooManyUntracked", {
-          count: untrackedFiles.length,
-          maximum: MAX_EXPERIMENT_UNTRACKED_FILES,
-        }),
-      );
-    }
-    const parts = trackedDiff.trim() ? [trackedDiff.trimEnd()] : [];
-    let capturedLength = trackedDiff.length;
-    for (const file of untrackedFiles) {
-      const remaining = MAX_EXPERIMENT_DIFF_LENGTH - capturedLength;
-      if (remaining <= 0) {
-        throw new Error(msg("experiment.candidate.diffTooLarge"));
-      }
-      const result = await this.statusService.getDiff(location, file.path, false, remaining);
-      if (!result.diff.trim()) {
-        throw new Error(msg("experiment.candidate.untrackedReadFailed", { path: file.path }));
-      }
-      capturedLength += result.diff.length;
-      if (capturedLength > MAX_EXPERIMENT_DIFF_LENGTH) {
-        throw new Error(msg("experiment.candidate.diffTooLarge"));
-      }
-      parts.push(result.diff.trimEnd());
-    }
-    const finalHeadCommit = await this.getExperimentHeadCommit(location);
-    if (finalHeadCommit !== headCommit) {
-      throw new Error(msg("experiment.candidate.changedDuringDiff"));
-    }
-    return { diff: parts.join("\n"), headCommit };
+    return this.experimentService.getCandidateDiff(location, baseRef);
   }
 
   async getExperimentCandidateStats(
     location: ProjectLocation,
     baseRef: string,
   ): Promise<GetExperimentCandidateStatsResult> {
-    if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(baseRef)) {
-      throw new Error(msg("experiment.diff.baseFullCommit"));
-    }
-
-    const first = await this.captureExperimentCandidateStats(location, baseRef);
-    const second = await this.captureExperimentCandidateStats(location, baseRef);
-    if (
-      first.headCommit !== second.headCommit ||
-      first.insertions !== second.insertions ||
-      first.deletions !== second.deletions ||
-      first.files !== second.files
-    ) {
-      throw new Error(msg("experiment.candidate.changedDuringStats"));
-    }
-    return {
-      insertions: second.insertions,
-      deletions: second.deletions,
-      files: second.files,
-    };
-  }
-
-  private async captureExperimentCandidateStats(
-    location: ProjectLocation,
-    baseRef: string,
-  ): Promise<GetExperimentCandidateStatsResult & { headCommit: string }> {
-    const headCommit = await this.getExperimentHeadCommit(location);
-    await this.assertExperimentHeadDescendsFromBase(location, baseRef, headCommit);
-    const trackedNumstat = await execGit(location, ["diff", "--numstat", baseRef, "--"], {
-      timeout: GIT_DIFF_TIMEOUT,
-      maxBuffer: 1_000_000,
-    });
-    const status = await this.statusService.getStatusSummary(location);
-    if (!status.isRepo) {
-      throw new Error(msg("experiment.candidate.statusFailed"));
-    }
-
-    const entries = parseDiffNumstat(trackedNumstat);
-    const untrackedFiles = status.unstaged.filter((file) => file.status === "?");
-    if (untrackedFiles.length > MAX_EXPERIMENT_UNTRACKED_FILES) {
-      throw new Error(
-        msg("experiment.candidate.tooManyUntracked", {
-          count: untrackedFiles.length,
-          maximum: MAX_EXPERIMENT_UNTRACKED_FILES,
-        }),
-      );
-    }
-    for (const file of untrackedFiles) {
-      const output = await execGit(
-        location,
-        ["diff", "--no-index", "--numstat", "--", "/dev/null", file.path],
-        {
-          timeout: GIT_DIFF_TIMEOUT,
-          allowNonZeroExit: true,
-          maxBuffer: 64_000,
-        },
-      );
-      entries.push(...parseDiffNumstat(output));
-    }
-
-    const finalHeadCommit = await this.getExperimentHeadCommit(location);
-    if (finalHeadCommit !== headCommit) {
-      throw new Error(msg("experiment.candidate.changedDuringStats"));
-    }
-    return {
-      insertions: entries.reduce((total, entry) => total + entry.insertions, 0),
-      deletions: entries.reduce((total, entry) => total + entry.deletions, 0),
-      files: new Set(entries.map((entry) => entry.path)).size,
-      headCommit,
-    };
-  }
-
-  private async getExperimentHeadCommit(location: ProjectLocation): Promise<string> {
-    const commit = (await execGit(location, ["rev-parse", "--verify", "HEAD^{commit}"])).trim();
-    if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(commit)) {
-      throw new Error(msg("experiment.candidate.commitResolveFailed"));
-    }
-    return commit.toLowerCase();
-  }
-
-  private async assertExperimentHeadDescendsFromBase(
-    location: ProjectLocation,
-    baseRef: string,
-    headCommit: string,
-  ): Promise<void> {
-    try {
-      await execGit(location, ["merge-base", "--is-ancestor", baseRef, headCommit]);
-    } catch {
-      throw new Error(msg("experiment.candidate.notDescendant"));
-    }
+    return this.experimentService.getCandidateStats(location, baseRef);
   }
 
   async stage(location: ProjectLocation, filePath: string): Promise<void> {
@@ -555,6 +407,13 @@ export class GitService {
     sourceBranchOverride?: string,
   ): Promise<GitGetWorktreeSourceBranchResult> {
     return this.worktreeService.getWorktreeSourceBranch(location, branch, sourceBranchOverride);
+  }
+
+  async getWorktreeOwner(
+    location: ProjectLocation,
+    branch: string,
+  ): Promise<GitGetWorktreeOwnerResult> {
+    return this.worktreeService.getWorktreeOwner(location, branch);
   }
 
   async mergeToSource(

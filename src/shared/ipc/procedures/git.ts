@@ -16,6 +16,7 @@ import {
   gitDeleteBranchPayloadSchema,
   gitFetchPayloadSchema,
   gitFinishMergePayloadSchema,
+  gitGetWorktreeOwnerPayloadSchema,
   gitGetWorktreeSourceBranchPayloadSchema,
   gitInitPayloadSchema,
   gitListWorktreesPayloadSchema,
@@ -72,6 +73,8 @@ import type {
   GitFileContentResult,
   GitFinishMergePayload,
   GitFinishMergeResult,
+  GitGetWorktreeOwnerPayload,
+  GitGetWorktreeOwnerResult,
   GitGetWorktreeSourceBranchPayload,
   GitGetWorktreeSourceBranchResult,
   GitInitPayload,
@@ -292,6 +295,11 @@ export const gitProcedures = {
     GitGetWorktreeSourceBranchResult,
     "supervisor"
   >("gitGetWorktreeSourceBranch", "supervisor", gitGetWorktreeSourceBranchPayloadSchema),
+  gitGetWorktreeOwner: definePayloadProcedure<
+    GitGetWorktreeOwnerPayload,
+    GitGetWorktreeOwnerResult,
+    "supervisor"
+  >("gitGetWorktreeOwner", "supervisor", gitGetWorktreeOwnerPayloadSchema),
   gitMergeToSource: definePayloadProcedure<
     GitMergeToSourcePayload,
     GitMergeToSourceResult,

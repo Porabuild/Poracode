@@ -1,14 +1,16 @@
 import { normalize, posix as posixPath, win32 as win32Path } from "node:path";
 import {
+  fullCommitOidSchema,
   type GitAddWorktreeResult,
   type GitBranchListResult,
+  type GitGetWorktreeOwnerResult,
   type GitGetWorktreeSourceBranchResult,
   type GitSwitchBranchResult,
   type GitWorktreeInfo,
   type GitWorktreeListResult,
   type ProjectLocation,
 } from "@/shared/contracts";
-import { msg } from "@/shared/messages";
+import { errorDetail, msg } from "@/shared/messages";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { rm } from "node:fs/promises";
 import {
@@ -258,14 +260,11 @@ export class GitWorktreeService {
         try {
           await this.deleteBranchWithPruneRetry(location, branch, true);
         } catch (rollbackError) {
-          const creationDetail = error instanceof Error ? error.message : String(error);
-          const rollbackDetail =
-            rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
           throw new Error(
             msg("experiment.worktree.creationRollbackFailed", {
-              detail: creationDetail,
+              detail: errorDetail(error),
               branch,
-              rollback: rollbackDetail,
+              rollback: errorDetail(rollbackError),
             }),
             { cause: rollbackError },
           );
@@ -309,28 +308,24 @@ export class GitWorktreeService {
               rollbackFailures.push(
                 msg("experiment.worktree.rollbackWorktree", {
                   path: resolvedPath,
-                  detail:
-                    rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+                  detail: errorDetail(rollbackError),
                 }),
               );
             }
             try {
-              await execGit(location, ["branch", "-D", branch]);
+              await this.deleteBranchWithPruneRetry(location, branch, true);
             } catch (rollbackError) {
               rollbackFailures.push(
                 msg("experiment.worktree.rollbackBranch", {
                   branch,
-                  detail:
-                    rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
+                  detail: errorDetail(rollbackError),
                 }),
               );
             }
             if (rollbackFailures.length > 0) {
-              const metadataDetail =
-                metadataError instanceof Error ? metadataError.message : String(metadataError);
               throw new Error(
                 msg("experiment.worktree.sourceMetadataRollbackFailed", {
-                  detail: metadataDetail,
+                  detail: errorDetail(metadataError),
                   rollback: rollbackFailures.join("; "),
                 }),
                 { cause: metadataError },
@@ -416,22 +411,12 @@ export class GitWorktreeService {
     try {
       await execGit(location, removeArgs, { timeout: GIT_WORKTREE_REMOVE_TIMEOUT });
       if (branchToDelete) {
-        const deleteBranchOperation = this.deleteBranch(
+        await this.deleteBranchAfterWorktreeRemoval(
           location,
           branchToDelete,
           force,
           expectedOwnerToken,
         );
-        if (expectedOwnerToken) {
-          await deleteBranchOperation;
-        } else {
-          await deleteBranchOperation.catch((error) => {
-            console.warn(
-              `[git] failed to delete branch ${branchToDelete} after worktree removal:`,
-              error,
-            );
-          });
-        }
       }
     } catch (error) {
       if (!force || registeredWorktree?.isMain) {
@@ -455,24 +440,30 @@ export class GitWorktreeService {
         throw error;
       }
       if (branchToDelete) {
-        const deleteBranchOperation = this.deleteBranch(
+        await this.deleteBranchAfterWorktreeRemoval(
           location,
           branchToDelete,
           force,
           expectedOwnerToken,
         );
-        if (expectedOwnerToken) {
-          await deleteBranchOperation;
-        } else {
-          await deleteBranchOperation.catch((branchErr) => {
-            console.warn(
-              `[git] failed to delete branch ${branchToDelete} after worktree removal:`,
-              branchErr,
-            );
-          });
-        }
       }
     }
+  }
+
+  private async deleteBranchAfterWorktreeRemoval(
+    location: ProjectLocation,
+    branch: string,
+    force: boolean,
+    expectedOwnerToken: string | undefined,
+  ): Promise<void> {
+    const operation = this.deleteBranch(location, branch, force, expectedOwnerToken);
+    if (expectedOwnerToken) {
+      await operation;
+      return;
+    }
+    await operation.catch((error) => {
+      console.warn(`[git] failed to delete branch ${branch} after worktree removal:`, error);
+    });
   }
 
   async deleteRemoteBranch(
@@ -535,7 +526,6 @@ export class GitWorktreeService {
     branch: string,
     sourceBranchOverride?: string,
   ): Promise<GitGetWorktreeSourceBranchResult> {
-    const ownerToken = await this.readWorktreeOwner(location, branch);
     const sourceBranch =
       sourceBranchOverride && sourceBranchOverride !== branch
         ? sourceBranchOverride
@@ -558,7 +548,14 @@ export class GitWorktreeService {
         // branches may not share history
       }
     }
-    return { sourceBranch, ownerToken, commitsAhead, sourceAhead };
+    return { sourceBranch, commitsAhead, sourceAhead };
+  }
+
+  async getWorktreeOwner(
+    location: ProjectLocation,
+    branch: string,
+  ): Promise<GitGetWorktreeOwnerResult> {
+    return { ownerToken: await this.readWorktreeOwner(location, branch) };
   }
 
   /**
@@ -674,15 +671,11 @@ export class GitWorktreeService {
       try {
         await this.deleteBranchWithPruneRetry(location, branch, true);
       } catch (rollbackError) {
-        const metadataDetail =
-          metadataError instanceof Error ? metadataError.message : String(metadataError);
-        const rollbackDetail =
-          rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
         throw new Error(
           msg("experiment.worktree.metadataRollbackFailed", {
-            detail: metadataDetail,
+            detail: errorDetail(metadataError),
             branch,
-            rollback: rollbackDetail,
+            rollback: errorDetail(rollbackError),
           }),
           { cause: rollbackError },
         );
@@ -696,17 +689,10 @@ export class GitWorktreeService {
     sourceBranch: string,
     startPoint: string | undefined,
   ): Promise<string> {
-    if (!startPoint || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i.test(startPoint)) {
+    if (!startPoint || !fullCommitOidSchema.safeParse(startPoint).success) {
       throw new Error(msg("experiment.worktree.frozenSourceNeedsCommit"));
     }
-    const matchingBranch = await execGit(location, [
-      "branch",
-      "--list",
-      "--format=%(refname:short)",
-      "--",
-      sourceBranch,
-    ]);
-    if (!matchingBranch.split(/\r?\n/).includes(sourceBranch)) {
+    if (!(await this.branchExists(location, sourceBranch))) {
       throw new Error(msg("experiment.worktree.frozenSourceNotLocal", { branch: sourceBranch }));
     }
     const [sourceCommit, startCommit] = await Promise.all([
