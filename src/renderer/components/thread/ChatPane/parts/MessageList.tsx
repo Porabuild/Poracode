@@ -361,6 +361,10 @@ export function MessageList({
   const totalSize = virtualizer.getTotalSize();
   const firstVisibleStart = virtualItems[0]?.start ?? 0;
 
+  useLayoutEffect(() => {
+    parentActions?.onContentHeightChange();
+  }, [parentActions, totalSize]);
+
   // The "live tail" index drives the auto-expand on `ToolCallGroup`. Trailing
   // empty/in-flight reasoning items don't count: an agent emitting a reasoning
   // bracket between tool calls would otherwise collapse the group prematurely
@@ -556,15 +560,18 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
     },
     [index, measureElement],
   );
+  const remeasureRow = useCallback(() => {
+    const element = rowElementRef.current;
+    if (!element) return;
+    measureElement(index, element);
+  }, [index, measureElement]);
   const scheduleLiveMeasure = useCallback(() => {
     if (liveMeasureRafRef.current !== null) return;
     liveMeasureRafRef.current = requestAnimationFrame(() => {
       liveMeasureRafRef.current = null;
-      const element = rowElementRef.current;
-      if (!element) return;
-      measureElement(index, element);
+      remeasureRow();
     });
-  }, [index, measureElement]);
+  }, [remeasureRow]);
   useLayoutEffect(() => {
     if (!isLastEntry) return;
     return useAppStore.subscribe(
@@ -629,6 +636,7 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
             threadId={threadId}
             entry={entry}
             isLastEntry={isLastEntry}
+            onHeightChange={remeasureRow}
             checkpointRevert={
               checkpointRevertItemId ? { itemId: checkpointRevertItemId, onRequestRevert } : null
             }

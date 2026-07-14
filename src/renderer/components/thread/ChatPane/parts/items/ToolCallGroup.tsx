@@ -1,5 +1,13 @@
 import { Disclosure } from "@heroui/react";
-import { Fragment, memo, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Fragment,
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
@@ -64,6 +72,8 @@ interface ToolCallGroupProps {
   itemIds: readonly string[];
   /** True while this group is the tail of the timeline. Drives default expand state. */
   isLive?: boolean;
+  /** Synchronously remeasure the owning virtual row after an explicit layout change. */
+  onHeightChange?: () => void;
 }
 
 const TOOL_CALL_GROUP_MAX_VISIBLE_ROWS = 8;
@@ -72,6 +82,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
   threadId,
   itemIds,
   isLive = false,
+  onHeightChange,
 }: ToolCallGroupProps) {
   const items = useAppStore(
     useShallow((state) =>
@@ -87,7 +98,19 @@ export const ToolCallGroup = memo(function ToolCallGroup({
   const [isExpanded, setIsExpanded] = useState(isLive);
   const [showAll, setShowAll] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const previousLayoutRef = useRef({ isExpanded, showAll });
   const hasOverflowRows = items.length > TOOL_CALL_GROUP_MAX_VISIBLE_ROWS;
+
+  useLayoutEffect(() => {
+    const previous = previousLayoutRef.current;
+    if (previous.isExpanded === isExpanded && previous.showAll === showAll) return;
+    previousLayoutRef.current = { isExpanded, showAll };
+    if (onHeightChange) {
+      onHeightChange();
+    } else {
+      actions?.onContentHeightChange();
+    }
+  }, [actions, isExpanded, onHeightChange, showAll]);
 
   useEffect(() => {
     if (!isLive) setIsExpanded(false);
@@ -116,10 +139,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
       <Disclosure
         className="text-[length:var(--lc-chat-font-size-command)] leading-tight"
         isExpanded={isExpanded}
-        onExpandedChange={(next) => {
-          setIsExpanded(next);
-          actions?.onContentHeightChange();
-        }}
+        onExpandedChange={setIsExpanded}
       >
         <Disclosure.Heading>
           <Disclosure.Trigger className={`group ${chatRowClass} gap-2 ${chatRowHoverClass}`}>
@@ -161,10 +181,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                       type="button"
                       aria-expanded={showAll}
                       className="-ml-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-[color:var(--muted)] transition-colors hover:bg-foreground/5 hover:text-foreground"
-                      onClick={() => {
-                        setShowAll((prev) => !prev);
-                        actions?.onContentHeightChange();
-                      }}
+                      onClick={() => setShowAll((prev) => !prev)}
                     >
                       {showAll ? <Trans>Show less</Trans> : <Trans>Show all</Trans>}
                     </button>
