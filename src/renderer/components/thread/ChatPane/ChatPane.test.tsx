@@ -6,8 +6,16 @@ import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { ChatPane } from "./ChatPane";
 
-const { hydrateThreadRuntimeItems } = vi.hoisted(() => ({
+const {
+  hydrateThreadRuntimeItems,
+  loadOlderThreadRuntimeItems,
+  releaseThreadRuntimeItems,
+  retainThreadRuntimeItems,
+} = vi.hoisted(() => ({
   hydrateThreadRuntimeItems: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  loadOlderThreadRuntimeItems: vi.fn<() => Promise<boolean>>().mockResolvedValue(false),
+  releaseThreadRuntimeItems: vi.fn<() => void>(),
+  retainThreadRuntimeItems: vi.fn<() => void>(),
 }));
 const { hydrateFileCheckpoints, finalizeFileCheckpoint } = vi.hoisted(() => ({
   hydrateFileCheckpoints: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -20,6 +28,9 @@ const { virtualizerScrollToIndex } = vi.hoisted(() => ({
 
 vi.mock("@/renderer/state/chatRuntimePersister", () => ({
   hydrateThreadRuntimeItems,
+  loadOlderThreadRuntimeItems,
+  releaseThreadRuntimeItems,
+  retainThreadRuntimeItems,
 }));
 
 vi.mock("@/renderer/state/fileCheckpointActions", () => ({
@@ -123,7 +134,15 @@ describe("ChatPane", () => {
     vi.useRealTimers();
     MockResizeObserver.reset();
     localStorage.clear();
-    Reflect.deleteProperty(window, "poracode");
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: {
+        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
     useAppStore.setState((state) => ({
       ...state,
       projects: [],
@@ -1405,6 +1424,8 @@ describe("ChatPane", () => {
     Object.assign(window, {
       poracode: {
         rollbackThreadConversation,
+        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
     });
@@ -1447,6 +1468,8 @@ describe("ChatPane", () => {
     Object.assign(window, {
       poracode: {
         rollbackThreadConversation,
+        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
     });
@@ -1489,6 +1512,8 @@ describe("ChatPane", () => {
         rollbackThreadConversation: vi
           .fn<() => Promise<void>>()
           .mockRejectedValue(new Error("Codex does not support checkpoint rollback.")),
+        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
     });

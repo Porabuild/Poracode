@@ -13,6 +13,11 @@ import {
   dbUpsertProject,
   dbUpsertThread,
 } from "./projectsThreads";
+import {
+  dbClaimRemoteCommand,
+  dbCompleteRemoteCommand,
+  dbFailRemoteCommand,
+} from "./remoteCommandReceipts";
 
 // node_modules/better-sqlite3 may be compiled for Electron's ABI; fall back to
 // the Node-ABI binding `pnpm run prepare:server-native` places in dist (the
@@ -111,6 +116,28 @@ describe.skipIf(!sqliteAvailable)("projectsThreads (real sqlite round-trip)", ()
     expect(dbGetProject("project-1")?.mcpServers?.[0]).toMatchObject({
       id: "memory-id",
       name: "memory",
+    });
+  });
+
+  it("replays durable remote command receipts without reclaiming them", () => {
+    expect(dbClaimRemoteCommand("command-1", "/api/threads/start")).toEqual({
+      state: "claimed",
+    });
+    dbCompleteRemoteCommand("command-1", { threadId: "thread-1" });
+    expect(dbClaimRemoteCommand("command-1", "/api/threads/start")).toEqual({
+      state: "completed",
+      response: { threadId: "thread-1" },
+    });
+    expect(dbClaimRemoteCommand("command-1", "/api/threads/thread-1/send")).toEqual({
+      state: "conflict",
+    });
+
+    expect(dbClaimRemoteCommand("command-2", "/api/threads/thread-1/send")).toEqual({
+      state: "claimed",
+    });
+    dbFailRemoteCommand("command-2");
+    expect(dbClaimRemoteCommand("command-2", "/api/threads/thread-1/send")).toEqual({
+      state: "failed",
     });
   });
 

@@ -10,6 +10,7 @@ import type {
   ThreadContextUsage,
   ToolCallPayload,
 } from "@/shared/contracts";
+import type { PersistedRuntimeItem } from "@/shared/ipc";
 import { isSubAgentTool } from "@/shared/toolCallClassification";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { SliceCreator } from "./shared";
@@ -20,23 +21,6 @@ import {
 } from "./runtimeEventReducer";
 
 const STALE_SUB_AGENT_ERROR_MESSAGE = msg`Interrupted: agent session ended before completion.`;
-
-type RuntimePersistenceDirtyListener = (threadIds: readonly string[]) => void;
-
-const runtimePersistenceDirtyListeners = new Set<RuntimePersistenceDirtyListener>();
-
-export function subscribeRuntimePersistenceDirtyThreads(
-  listener: RuntimePersistenceDirtyListener,
-): () => void {
-  runtimePersistenceDirtyListeners.add(listener);
-  return () => runtimePersistenceDirtyListeners.delete(listener);
-}
-
-export function markThreadRuntimeForPersistence(threadId: string): void {
-  for (const listener of runtimePersistenceDirtyListeners) {
-    listener([threadId]);
-  }
-}
 
 /**
  * Frozen "Worked for X" record for a turn that has finished. Persisted so the
@@ -81,6 +65,17 @@ export interface RuntimeChatItem {
    * pinned "running" on disk). Never persisted; absent on DB-hydrated items.
    */
   observedLive?: boolean;
+}
+
+export function toRuntimeChatItem(item: PersistedRuntimeItem): RuntimeChatItem {
+  return {
+    id: item.id,
+    type: item.type as RuntimeChatItem["type"],
+    state: item.state,
+    payload: item.payload,
+    streams: item.streams as RuntimeChatItem["streams"],
+    ...(item.parentItemId ? { parentItemId: item.parentItemId } : {}),
+  };
 }
 
 export interface OpenRuntimeRequest {
@@ -149,6 +144,10 @@ export interface RuntimeEventSlice {
   truncateThreadRuntimeAfter(threadId: string, checkpointItemId: string): void;
   /** Replace the persisted item list for a thread (used during DB hydration). */
   hydrateThreadRuntimeItems(threadId: string, items: RuntimeChatItem[]): void;
+  /** Prepend an older persisted page while preserving newer live items. */
+  prependThreadRuntimeItems(threadId: string, items: RuntimeChatItem[]): void;
+  /** Drop an inactive transcript projection without deleting its SQLite rows. */
+  evictThreadRuntimeItems(threadId: string): void;
   /** Replace the persisted completed-turn list (used during DB hydration). */
   hydrateThreadCompletedTurns(threadId: string, turns: ReadonlyArray<CompletedTurnRecord>): void;
   /**
@@ -235,7 +234,6 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       ) {
         return {};
       }
-      markThreadRuntimeForPersistence(threadId);
       const { [threadId]: _droppedItemIds, ...runtimeItemIdsByThread } =
         state.runtimeItemIdsByThread;
       const { [threadId]: _droppedItems, ...runtimeItemsByIdByThread } =
@@ -272,7 +270,6 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         nextItems[id] = terminateSubAgentItem(item);
       }
       if (!nextItems) return {};
-      markThreadRuntimeForPersistence(threadId);
       return {
         runtimeItemsByIdByThread: {
           ...state.runtimeItemsByIdByThread,
@@ -306,8 +303,6 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       const keptCompletedTurns = completedTurns.filter(
         (turn) => turn.anchorItemId === null || keptIdSet.has(turn.anchorItemId),
       );
-      markThreadRuntimeForPersistence(threadId);
-
       return {
         runtimeItemIdsByThread: {
           ...state.runtimeItemIdsByThread,
@@ -352,6 +347,53 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
           ...state.runtimeStructuralVersionByThread,
           [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
         },
+      };
+    }),
+
+  prependThreadRuntimeItems: (threadId, items) =>
+    set((state) => {
+      if (items.length === 0) return {};
+      const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
+      const existingItems = state.runtimeItemsByIdByThread[threadId] ?? {};
+      const incoming = items.filter((item) => !existingItems[item.id]);
+      if (incoming.length === 0) return {};
+      return {
+        runtimeItemIdsByThread: {
+          ...state.runtimeItemIdsByThread,
+          [threadId]: [...incoming.map((item) => item.id), ...existingIds],
+        },
+        runtimeItemsByIdByThread: {
+          ...state.runtimeItemsByIdByThread,
+          [threadId]: {
+            ...Object.fromEntries(incoming.map((item) => [item.id, item])),
+            ...existingItems,
+          },
+        },
+        runtimeStructuralVersionByThread: {
+          ...state.runtimeStructuralVersionByThread,
+          [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+        },
+      };
+    }),
+
+  evictThreadRuntimeItems: (threadId) =>
+    set((state) => {
+      if (!(threadId in state.runtimeItemIdsByThread)) return {};
+      const { [threadId]: _itemIds, ...runtimeItemIdsByThread } = state.runtimeItemIdsByThread;
+      const { [threadId]: _items, ...runtimeItemsByIdByThread } = state.runtimeItemsByIdByThread;
+      const { [threadId]: _context, ...runtimeContextByThread } = state.runtimeContextByThread;
+      const { [threadId]: _version, ...runtimeStructuralVersionByThread } =
+        state.runtimeStructuralVersionByThread;
+      const { [threadId]: _turns, ...runtimeCompletedTurnsByThread } =
+        state.runtimeCompletedTurnsByThread;
+      const { [threadId]: _openTurn, ...runtimeOpenTurnByThread } = state.runtimeOpenTurnByThread;
+      return {
+        runtimeItemIdsByThread,
+        runtimeItemsByIdByThread,
+        runtimeContextByThread,
+        runtimeStructuralVersionByThread,
+        runtimeCompletedTurnsByThread,
+        runtimeOpenTurnByThread,
       };
     }),
 

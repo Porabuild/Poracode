@@ -123,6 +123,30 @@ describe("RemoteDesktopClient", () => {
     expect(signal?.aborted).toBe(false);
   });
 
+  it("uses the optimistic message id as the remote send idempotency key", async () => {
+    let commandId = "";
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (_url, init) => {
+        commandId = init?.headers?.["x-poracode-command-id"] ?? "";
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await client.sendThreadInput({
+      threadId: "thread-1",
+      prompt: "continue",
+      config: { model: "gpt-5" },
+      userMessageItemId: "user-message-1",
+    });
+
+    expect(commandId).toBe("user-message-1");
+  });
+
   it("times out requests even when the transport ignores abort signals", async () => {
     vi.useFakeTimers();
     let signal: AbortSignal | undefined;

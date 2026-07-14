@@ -3,7 +3,6 @@ import { create } from "zustand";
 import type { RuntimeEvent } from "@/shared/contracts";
 import {
   createRuntimeEventSlice,
-  subscribeRuntimePersistenceDirtyThreads,
   type RuntimeChatItem,
   type RuntimeEventSlice,
 } from "./runtimeEventSlice";
@@ -117,32 +116,22 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(afterItems?.["i1"]?.streams.assistant_text).toBe("Hello");
   });
 
-  it("stores context usage updates and schedules persistence outside state", () => {
-    const dirtyThreads: Array<readonly string[]> = [];
-    const unsubscribe = subscribeRuntimePersistenceDirtyThreads((threadIds) => {
-      dirtyThreads.push(threadIds);
-    });
-    try {
-      apply("t1", {
-        type: "context.updated",
-        threadId: "t1",
-        usage: {
-          usedTokens: 71_000,
-          maxTokens: 200_000,
-          breakdown: [{ id: "input", label: "Input", tokens: 71_000 }],
-        },
-      });
-
-      const state = store.getState();
-      expect(state.runtimeContextByThread["t1"]).toEqual({
+  it("stores context usage updates", () => {
+    apply("t1", {
+      type: "context.updated",
+      threadId: "t1",
+      usage: {
         usedTokens: 71_000,
         maxTokens: 200_000,
         breakdown: [{ id: "input", label: "Input", tokens: 71_000 }],
-      });
-      expect(dirtyThreads).toEqual([["t1"]]);
-    } finally {
-      unsubscribe();
-    }
+      },
+    });
+
+    expect(store.getState().runtimeContextByThread["t1"]).toEqual({
+      usedTokens: 71_000,
+      maxTokens: 200_000,
+      breakdown: [{ id: "input", label: "Input", tokens: 71_000 }],
+    });
   });
 
   it("preserves the context limit and replaces stale breakdown on partial updates", () => {
@@ -538,7 +527,7 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     });
   });
 
-  it("clearThreadRuntimeEvents drops items and requests for that thread only and schedules persistence", () => {
+  it("clearThreadRuntimeEvents drops items and requests for that thread only", () => {
     apply("t1", {
       type: "item.started",
       threadId: "t1",
@@ -559,24 +548,15 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
       payload: { summary: "Pick" },
     });
 
-    const dirtyThreads: Array<readonly string[]> = [];
-    const unsubscribe = subscribeRuntimePersistenceDirtyThreads((threadIds) => {
-      dirtyThreads.push(threadIds);
-    });
-    try {
-      store.getState().clearThreadRuntimeEvents("t1");
+    store.getState().clearThreadRuntimeEvents("t1");
 
-      expect(store.getState().runtimeItemIdsByThread["t1"]).toBeUndefined();
-      expect(store.getState().runtimeItemsByIdByThread["t1"]).toBeUndefined();
-      expect(store.getState().runtimeRequestsByThread["t1"]).toBeUndefined();
-      expect(store.getState().runtimeItemIdsByThread["t2"]).toEqual(["i2"]);
-      expect(dirtyThreads).toEqual([["t1"]]);
-    } finally {
-      unsubscribe();
-    }
+    expect(store.getState().runtimeItemIdsByThread["t1"]).toBeUndefined();
+    expect(store.getState().runtimeItemsByIdByThread["t1"]).toBeUndefined();
+    expect(store.getState().runtimeRequestsByThread["t1"]).toBeUndefined();
+    expect(store.getState().runtimeItemIdsByThread["t2"]).toEqual(["i2"]);
   });
 
-  it("truncates a thread transcript to a checkpoint item and schedules persistence", () => {
+  it("truncates a thread transcript to a checkpoint item", () => {
     for (const itemId of ["user-1", "assistant-1", "user-2", "assistant-2"]) {
       apply("t1", {
         type: "item.started",
@@ -597,23 +577,14 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
       { startedAt: 3, endedAt: 4, anchorItemId: "assistant-2" },
     ]);
 
-    const dirtyThreads: Array<readonly string[]> = [];
-    const unsubscribe = subscribeRuntimePersistenceDirtyThreads((threadIds) => {
-      dirtyThreads.push(threadIds);
-    });
-    try {
-      store.getState().truncateThreadRuntimeAfter("t1", "assistant-1");
+    store.getState().truncateThreadRuntimeAfter("t1", "assistant-1");
 
-      expect(store.getState().runtimeItemIdsByThread["t1"]).toEqual(["user-1", "assistant-1"]);
-      expect(store.getState().runtimeItemsByIdByThread["t1"]?.["user-2"]).toBeUndefined();
-      expect(store.getState().runtimeRequestsByThread["t1"]).toEqual([]);
-      expect(store.getState().runtimeCompletedTurnsByThread["t1"]).toEqual([
-        { startedAt: 1, endedAt: 2, anchorItemId: "assistant-1" },
-      ]);
-      expect(dirtyThreads).toEqual([["t1"]]);
-    } finally {
-      unsubscribe();
-    }
+    expect(store.getState().runtimeItemIdsByThread["t1"]).toEqual(["user-1", "assistant-1"]);
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["user-2"]).toBeUndefined();
+    expect(store.getState().runtimeRequestsByThread["t1"]).toEqual([]);
+    expect(store.getState().runtimeCompletedTurnsByThread["t1"]).toEqual([
+      { startedAt: 1, endedAt: 2, anchorItemId: "assistant-1" },
+    ]);
   });
 
   it("merges persisted completed turns with live turns during hydration", () => {

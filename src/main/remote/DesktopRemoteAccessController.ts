@@ -278,6 +278,7 @@ export function createDesktopRemoteAccessController(
       const server = new RemoteAccessServer({
         appVersion: options.appVersion,
         identity,
+        ownsSupervisorPersistence: false,
         authStore,
         host: remoteHost,
         port: remoteAccessPort(),

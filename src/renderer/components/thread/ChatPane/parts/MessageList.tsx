@@ -421,6 +421,7 @@ export function MessageList({
         });
       }
       state.truncateThreadRuntimeAfter(threadId, itemId);
+      await readBridge().dbTruncateThreadRuntimeAfter({ threadId, itemId });
       parentActions?.onContentHeightChange();
     },
     [checkpointActions, parentActions, projectLocation, threadId],

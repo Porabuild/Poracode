@@ -14,16 +14,21 @@ import { pickRemoteSettings, type RemoteSettings } from "@/shared/remote";
 import { defaultSharedSettings } from "@/shared/settings";
 import type { BrowserPanelManager } from "../browser";
 import {
+  dbAppendThreadCompletedTurn,
+  dbApplyThreadRuntimeEvents,
+  dbClaimRemoteCommand,
+  dbCompleteRemoteCommand,
   dbDeleteProject,
   dbDeleteThread,
+  dbFailRemoteCommand,
   dbGetThreadCompletedTurns,
   dbGetProjects,
   dbGetThread,
   dbGetThreadContextUsage,
+  dbGetLatestThreadRuntimeAnchorItemId,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeSummaries,
   dbGetThreads,
-  dbReplaceThreadRuntimeItems,
   dbReplaceThreadRuntimeSnapshot,
   dbUpsertProject,
   dbUpsertThread,
@@ -47,15 +52,20 @@ vi.mock("../db", () => {
   // real SQLite) or an identity write would never invalidate the cached read.
   let profileDataGeneration = 0;
   return {
+    dbAppendThreadCompletedTurn: vi.fn<(...args: unknown[]) => void>(),
+    dbApplyThreadRuntimeEvents: vi.fn<(...args: unknown[]) => void>(),
+    dbClaimRemoteCommand: vi.fn<() => { state: "claimed" }>(() => ({ state: "claimed" })),
+    dbCompleteRemoteCommand: vi.fn<(...args: unknown[]) => void>(),
+    dbFailRemoteCommand: vi.fn<(...args: unknown[]) => void>(),
     dbDeleteThread: vi.fn<(threadId: string) => void>(),
     dbGetProjects: vi.fn<() => unknown[]>(() => []),
     dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
     dbGetThreadContextUsage: vi.fn<() => null>(() => null),
+    dbGetLatestThreadRuntimeAnchorItemId: vi.fn<() => null>(() => null),
     dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
     dbGetThreadRuntimeSummaries: vi.fn<() => Record<string, unknown>>(() => ({})),
     dbGetThread: vi.fn<(threadId: string) => unknown>(() => null),
     dbGetThreads: vi.fn<() => unknown[]>(() => []),
-    dbReplaceThreadRuntimeItems: vi.fn<(...args: unknown[]) => void>(),
     dbReplaceThreadRuntimeSnapshot: vi.fn<(...args: unknown[]) => void>(),
     dbUpsertProject: vi.fn<(project: unknown, sortOrder: number) => void>(),
     dbDeleteProject: vi.fn<(projectId: string) => void>(),
@@ -90,16 +100,21 @@ function getFreePort(): Promise<number> {
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.dispose()));
+  vi.mocked(dbAppendThreadCompletedTurn).mockReset();
   vi.mocked(dbDeleteProject).mockReset();
+  vi.mocked(dbApplyThreadRuntimeEvents).mockReset();
+  vi.mocked(dbClaimRemoteCommand).mockReset().mockReturnValue({ state: "claimed" });
+  vi.mocked(dbCompleteRemoteCommand).mockReset();
+  vi.mocked(dbFailRemoteCommand).mockReset();
   vi.mocked(dbDeleteThread).mockReset();
   vi.mocked(dbGetThreadCompletedTurns).mockReset().mockReturnValue([]);
   vi.mocked(dbGetProjects).mockReset().mockReturnValue([]);
   vi.mocked(dbGetThreadContextUsage).mockReset().mockReturnValue(null);
+  vi.mocked(dbGetLatestThreadRuntimeAnchorItemId).mockReset().mockReturnValue(null);
   vi.mocked(dbGetThreadRuntimeItems).mockReset().mockReturnValue([]);
   vi.mocked(dbGetThreadRuntimeSummaries).mockReset().mockReturnValue({});
   vi.mocked(dbGetThread).mockReset().mockReturnValue(null);
   vi.mocked(dbGetThreads).mockReset().mockReturnValue([]);
-  vi.mocked(dbReplaceThreadRuntimeItems).mockReset();
   vi.mocked(dbReplaceThreadRuntimeSnapshot).mockReset();
   vi.mocked(dbUpsertProject).mockReset();
   vi.mocked(dbUpsertThread).mockReset();
@@ -510,7 +525,7 @@ describe("RemoteAccessServer", () => {
     });
   });
 
-  it("flushes runtime items before a settling thread-state can be snapshotted", () => {
+  it("persists runtime event batches immediately before a settling thread-state", () => {
     mockThreadDb([
       createTestThread({
         id: "thread-runtime",
@@ -548,7 +563,14 @@ describe("RemoteAccessServer", () => {
         { type: "item.completed", threadId: "thread-runtime", itemId: "assistant-1" },
       ],
     });
-    expect(dbReplaceThreadRuntimeItems).not.toHaveBeenCalled();
+    expect(dbApplyThreadRuntimeEvents).toHaveBeenCalledWith(
+      "thread-runtime",
+      expect.arrayContaining([
+        expect.objectContaining({ type: "item.started", itemId: "assistant-1" }),
+        expect.objectContaining({ type: "content.delta", delta: "hello" }),
+        expect.objectContaining({ type: "item.completed", itemId: "assistant-1" }),
+      ]),
+    );
 
     server.publishSupervisorEvent({
       type: "thread-state",
@@ -558,14 +580,7 @@ describe("RemoteAccessServer", () => {
       canResumeWithConfig: false,
     });
 
-    expect(dbReplaceThreadRuntimeItems).toHaveBeenCalledWith("thread-runtime", [
-      expect.objectContaining({
-        id: "assistant-1",
-        type: "assistant_message",
-        state: "completed",
-        streams: { assistant_text: "hello" },
-      }),
-    ]);
+    expect(dbApplyThreadRuntimeEvents).toHaveBeenCalledTimes(1);
   });
 
   it("serves descriptor, snapshot, and websocket supervisor events", async () => {
@@ -1873,6 +1888,57 @@ describe("RemoteAccessServer", () => {
       mcpServers: [],
       threadId: "thread-1",
     });
+  });
+
+  it("replays a completed remote start receipt without launching twice", async () => {
+    mockThreadDb([createTestThread()]);
+    const result = { threadId: "thread-1" };
+    vi.mocked(dbClaimRemoteCommand)
+      .mockReturnValueOnce({ state: "claimed" })
+      .mockReturnValueOnce({ state: "completed", response: result });
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => result as never,
+    );
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+    const headers = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      "x-poracode-command-id": "prompt-item-1",
+    };
+    const body = JSON.stringify({
+      threadId: "thread-1",
+      projectLocation: { kind: "posix", path: "/repo" },
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      prompt: "continue",
+      initialSize: { cols: 120, rows: 30 },
+    });
+
+    const first = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body,
+    });
+    const retry = await fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+      method: "POST",
+      headers,
+      body,
+    });
+
+    expect(first.status).toBe(200);
+    expect(retry.status).toBe(200);
+    await expect(retry.json()).resolves.toEqual(result);
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+    expect(dbCompleteRemoteCommand).toHaveBeenCalledWith("prompt-item-1", result);
   });
 
   it("persists simple thread commands and mirrors them to the renderer", async () => {

@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { RemoteAccessScope } from "@/shared/remote";
+import { REMOTE_COMMAND_ID_HEADER, type RemoteAccessScope } from "@/shared/remote";
 import { parseBearerAuthorizationHeader, RemoteHttpError, type RemoteAuthStore } from "../auth";
 import type { RemoteAccessServerOptions } from "../RemoteAccessServer";
 
@@ -114,7 +114,10 @@ export class RemoteServerSecurity {
   constructor(private readonly ctx: SecurityContext) {}
 
   applyCors(req: IncomingMessage, res: ServerResponse): boolean {
-    res.setHeader("Access-Control-Allow-Headers", "authorization, content-type");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      `authorization, content-type, ${REMOTE_COMMAND_ID_HEADER}`,
+    );
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     const origin = this.trustedRequestOrigin(req);
     if (origin === false) return false;

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
+  REMOTE_COMMAND_ID_HEADER,
   REMOTE_STANDARD_SCOPES,
   filterKnownRemoteAccessScopes,
   remoteAgentStatusesSchema,
@@ -454,6 +455,9 @@ export class RemoteDesktopClient {
   async startThread(input: StartRemoteThreadInput): Promise<StartThreadResult> {
     const result = await this.requestJson("/api/threads/start", {
       method: "POST",
+      headers: {
+        [REMOTE_COMMAND_ID_HEADER]: input.userMessageItemId ?? crypto.randomUUID(),
+      },
       body: {
         ...(input.threadId ? { threadId: input.threadId } : {}),
         projectLocation: input.projectLocation,
@@ -494,6 +498,9 @@ export class RemoteDesktopClient {
     const parsed = sendThreadInputPayloadSchema.parse(input);
     await this.requestJson(`/api/threads/${encodeURIComponent(input.threadId)}/send`, {
       method: "POST",
+      headers: {
+        [REMOTE_COMMAND_ID_HEADER]: parsed.userMessageItemId ?? crypto.randomUUID(),
+      },
       body: {
         prompt: parsed.prompt,
         config: parsed.config,
@@ -537,6 +544,9 @@ export class RemoteDesktopClient {
     const { threadId, ...body } = command;
     await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/command`, {
       method: "POST",
+      ...(command.kind === "start"
+        ? { headers: { [REMOTE_COMMAND_ID_HEADER]: `thread-start:${threadId}` } }
+        : {}),
       body,
     });
   }
@@ -711,12 +721,13 @@ export class RemoteDesktopClient {
     init: {
       readonly method?: "GET" | "POST";
       readonly body?: unknown;
+      readonly headers?: Readonly<Record<string, string>>;
       /** Per-call deadline override; defaults to the client's requestTimeoutMs.
        * Long-running ops (clone, push, PR creation) pass a larger value. */
       readonly timeoutMs?: number;
     } = {},
   ): Promise<unknown> {
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = { ...init.headers };
     if (init.body !== undefined) {
       headers["content-type"] = "application/json";
     }

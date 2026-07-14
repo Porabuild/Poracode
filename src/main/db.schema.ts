@@ -59,6 +59,15 @@ export const appState = sqliteTable("app_state", {
   value: text("value").notNull(), // JSON
 });
 
+export const remoteCommandReceipts = sqliteTable("remote_command_receipts", {
+  commandId: text("command_id").primaryKey(),
+  route: text("route").notNull(),
+  state: text("state").notNull(),
+  response: text("response"),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
 /**
  * Per-project notes panel content. One row per project, keyed by project id.
  * `doc` holds the TipTap (ProseMirror) JSON for the free-form notes editor;

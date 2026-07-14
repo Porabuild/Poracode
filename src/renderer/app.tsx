@@ -35,7 +35,6 @@ import { useDevTerminalStore } from "./state/devTerminalStore";
 import { applyAgentStatusSupervisorEvent, useAgentStatusesStore } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
-import { installRuntimeItemsPersister } from "./state/chatRuntimePersister";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
@@ -404,7 +403,6 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
           await startThreadFromDraft(project, submission.input, { preserveActiveGroup: false });
         })().catch(() => undefined);
       }),
-      installRuntimeItemsPersister(),
       installRemoteGitSummaryPublisher(),
     ]
   : [];

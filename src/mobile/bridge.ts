@@ -220,6 +220,8 @@ const remoteBridge = {
   // Runtime history hydration is fed by the remote sync layer instead of the
   // local DB; empty results keep `hydrateThreadRuntimeItems` a no-op.
   dbGetThreadRuntimeItems: () => Promise.resolve([]),
+  dbGetThreadRuntimeItemsPage: () => Promise.resolve({ items: [], nextCursor: null }),
+  dbTruncateThreadRuntimeAfter: () => Promise.resolve(),
   dbGetThreadCompletedTurns: () => Promise.resolve([]),
   dbGetThreadContextUsage: () => Promise.resolve(null),
 

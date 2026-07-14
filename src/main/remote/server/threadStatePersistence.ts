@@ -2,14 +2,12 @@ import type { Thread } from "@/shared/contracts";
 import { isThreadTurnActive } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import {
+  dbAppendThreadCompletedTurn,
   dbGetThread,
-  dbGetThreadCompletedTurns,
-  dbGetThreadRuntimeItems,
+  dbGetLatestThreadRuntimeAnchorItemId,
   dbGetThreads,
-  dbReplaceThreadRuntimeSnapshot,
   dbUpsertThread,
   type PersistedCompletedTurn,
-  type PersistedRuntimeItem,
 } from "../../db";
 import { sortOrderForThread } from "./snapshots";
 
@@ -47,21 +45,17 @@ function deriveTurnTiming(
 }
 
 /**
- * Remote-started threads are created directly in the durable DB before the
- * supervisor starts running. When no renderer window is present, the remote
- * server is also the only process that sees later supervisor status events, so
- * it must mirror those thread-state transitions into the same DB row.
+ * Mirrors supervisor thread-state transitions into the durable DB for both
+ * desktop main and the headless remote host.
  */
-export function persistRemoteThreadStateEvent(event: ThreadStateEvent): void {
+export function persistThreadStateEvent(event: ThreadStateEvent): void {
   const thread = dbGetThread(event.threadId);
   if (!thread) return;
 
-  // The desktop's `updateThreadRuntime` treats every supervisor status event as
-  // authoritative and records the event's status source alongside it (sources
-  // legitimately change, e.g. terminal_parse -> cli_hook when the hook plugin
-  // activates). Mirror that here: never drop a transition on a source mismatch,
-  // or the DB row freezes at its creation status and snapshots re-serve the
-  // stale "working"/"launching" state to remote clients forever.
+  // Every supervisor status event is authoritative, and status sources can
+  // legitimately change (for example terminal_parse -> cli_hook). Never drop a
+  // transition on a source mismatch or the durable row can freeze at a stale
+  // "working"/"launching" state.
   const nowIso = new Date().toISOString();
   const turnTiming = deriveTurnTiming(thread, event.status, nowIso);
   const nextSessionRef =
@@ -110,23 +104,12 @@ function appendCompletedTurnIfClosed(
     return;
   }
 
-  const items = dbGetThreadRuntimeItems(threadId);
-  const turns = dbGetThreadCompletedTurns(threadId);
   const record: PersistedCompletedTurn = {
     startedAt: new Date(startedAt).toISOString(),
     endedAt: new Date(endedAt).toISOString(),
-    anchorItemId: resolveCompletedTurnAnchorItemId(items),
+    anchorItemId: dbGetLatestThreadRuntimeAnchorItemId(threadId),
   };
-  dbReplaceThreadRuntimeSnapshot(threadId, items, [...turns, record], undefined);
-}
-
-function resolveCompletedTurnAnchorItemId(items: readonly PersistedRuntimeItem[]): string | null {
-  for (let index = items.length - 1; index >= 0; index -= 1) {
-    const item = items[index]!;
-    if (item.type === "user_message" || item.type === "plan" || item.type === "error") continue;
-    return item.id;
-  }
-  return null;
+  dbAppendThreadCompletedTurn(threadId, record);
 }
 
 function parseTurnIso(iso: string | undefined): number | null {

@@ -86,6 +86,7 @@ import { AppControlsMcpIngress } from "./app-controls";
 import { legacyProductNameFor, resolveLegacyElectronUserDataDir } from "./legacyDataMigration";
 import { refreshMacDockIcon } from "./macDockIcon";
 import { repairLegacyMacAppPath } from "./macAppPathMigration";
+import { persistSupervisorEvent } from "./remote/server/runtimePersistence";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 const channel = resolvePoracodeChannel();
@@ -675,6 +676,7 @@ if (!hasSingleInstanceLock) {
             });
             return;
           }
+          persistSupervisorEvent(event);
           handleSupervisorEventForSleep(event);
           scheduleRunCoordinator?.observeSupervisorEvent(event);
           remoteAccessController?.handleSupervisorEvent(event);

@@ -10,7 +10,12 @@ import { useShimmerRef } from "@/renderer/thinkingAnimator";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useThreadHasBackgroundActivity } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
-import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
+import {
+  hydrateThreadRuntimeItems,
+  loadOlderThreadRuntimeItems,
+  releaseThreadRuntimeItems,
+  retainThreadRuntimeItems,
+} from "@/renderer/state/chatRuntimePersister";
 import {
   finalizeFileCheckpoint,
   hydrateFileCheckpoints,
@@ -181,8 +186,40 @@ export function ChatPane(props: ChatPaneProps) {
   ]);
 
   useEffect(() => {
+    retainThreadRuntimeItems(threadId);
     void hydrateThreadRuntimeItems(threadId);
+    return () => releaseThreadRuntimeItems(threadId);
   }, [threadId]);
+
+  useEffect(() => {
+    if (!scrollEl || !isInitialScrollSettled) return;
+    let loading = false;
+    let cancelled = false;
+    const onScroll = () => {
+      if (loading || scrollEl.scrollTop > 160) return;
+      loading = true;
+      const previousHeight = scrollEl.scrollHeight;
+      void loadOlderThreadRuntimeItems(threadId)
+        .then((loaded) => {
+          if (!loaded || cancelled) return;
+          requestAnimationFrame(() => {
+            if (cancelled) return;
+            const delta = scrollEl.scrollHeight - previousHeight;
+            if (delta <= 0) return;
+            scrollControlsRef.current?.noteProgrammaticScroll(scrollEl.scrollTop + delta);
+            scrollEl.scrollTop += delta;
+          });
+        })
+        .finally(() => {
+          loading = false;
+        });
+    };
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelled = true;
+      scrollEl.removeEventListener("scroll", onScroll);
+    };
+  }, [isInitialScrollSettled, scrollEl, threadId]);
 
   useEffect(() => {
     if (!targetContext || isHomeScope) return;

@@ -38,6 +38,14 @@ const {
       dbGetThreadRuntimeItems: vi
         .fn<(threadId: string) => Promise<unknown[]>>()
         .mockResolvedValue([]),
+      dbGetThreadRuntimeItemsPage: vi
+        .fn<
+          (payload: { threadId: string; limit: number }) => Promise<{
+            items: unknown[];
+            nextCursor: number | null;
+          }>
+        >()
+        .mockResolvedValue({ items: [], nextCursor: null }),
       dbGetThreadCompletedTurns: vi
         .fn<(threadId: string) => Promise<unknown[]>>()
         .mockResolvedValue([]),
@@ -730,9 +738,10 @@ describe("App", () => {
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
     useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
-    let resolveRuntimeItems: (items: unknown[]) => void = () => undefined;
-    bridge.dbGetThreadRuntimeItems.mockReturnValueOnce(
-      new Promise<unknown[]>((resolve) => {
+    let resolveRuntimeItems: (page: { items: unknown[]; nextCursor: number | null }) => void = () =>
+      undefined;
+    bridge.dbGetThreadRuntimeItemsPage.mockReturnValueOnce(
+      new Promise<{ items: unknown[]; nextCursor: number | null }>((resolve) => {
         resolveRuntimeItems = resolve;
       }),
     );
@@ -776,11 +785,14 @@ describe("App", () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(bridge.dbGetThreadRuntimeItems).toHaveBeenCalledWith("thread-visible-gui");
+      expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledWith({
+        threadId: "thread-visible-gui",
+        limit: 200,
+      });
     });
     expect(screen.queryByTestId("thread-view-thread-visible-gui")).not.toBeInTheDocument();
 
-    resolveRuntimeItems([]);
+    resolveRuntimeItems({ items: [], nextCursor: null });
 
     await waitFor(() => {
       expect(screen.getByTestId("thread-view-thread-visible-gui")).toBeInTheDocument();
