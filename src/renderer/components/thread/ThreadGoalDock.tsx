@@ -5,8 +5,8 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadGoalDockState } from "./threadGoalState";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
+import { formatElapsed } from "@/renderer/utils/formatTime";
 import { ThreadDockSection } from "./ThreadDockUI";
-import { formatElapsed } from "./ChatPane/formatElapsed";
 import { formatTokenCount } from "./formatTokenCount";
 
 interface ThreadGoalDockProps {

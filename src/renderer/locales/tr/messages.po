@@ -1507,6 +1507,10 @@ msgstr "Projeyi kaldırmayı iptal et"
 msgid "cancelled"
 msgstr "iptal edildi"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Cancelled"
+msgstr "İptal edildi"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot create a default worktree path without a branch name"
 msgstr "Dal adı olmadan varsayılan çalışma ağacı yolu oluşturulamıyor"
@@ -1632,6 +1636,7 @@ msgstr "Kontrol ediliyor…"
 
 #: src/mobile/views/pr/PrChecksPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
 msgstr "Kontroller"
@@ -2152,6 +2157,10 @@ msgstr "Bu terminaldeki istemleri tamamlayın. Bittiğinde kapanır."
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "completed"
 msgstr "tamamlandı"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Completed"
+msgstr "Tamamlandı"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -3523,6 +3532,7 @@ msgstr "{0} öğesinden bağlam çıkarılıyor..."
 msgid "failed"
 msgstr "başarısız oldu"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "Başarısız"
@@ -5247,6 +5257,10 @@ msgstr "Dikkat Edilmesi Gerekiyor · Yanıt gerekli"
 msgid "Needs reply"
 msgstr "Yanıt gerekiyor"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Neutral"
+msgstr "Nötr"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Yeni"
@@ -5478,6 +5492,7 @@ msgstr "Değişiklik yok"
 msgid "No changes to display"
 msgstr "Görüntülenecek değişiklik yok"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
 msgstr "Bu PR için herhangi bir kontrol raporlanmadı."
@@ -6280,6 +6295,10 @@ msgstr "Sunucudaki üst klasör"
 msgid "Parent folder, e.g. /home/me/projects"
 msgstr "Üst klasör, örn. /home/me/projects"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Passed"
+msgstr "Geçti"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Passphrase (optional)"
 msgstr "Parola ifadesi (isteğe bağlı)"
@@ -6337,6 +6356,10 @@ msgstr "En yoğun gün"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "pending"
 msgstr "beklemede"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Pending"
+msgstr "Bekliyor"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "pending review"
@@ -7446,6 +7469,7 @@ msgstr "Bu zamanlamayı aşağıdaki zamanlamaya göre otomatik olarak çalışt
 msgid "running"
 msgstr "çalışıyor"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Running"
 msgstr "Çalışıyor"
@@ -8165,6 +8189,10 @@ msgstr "Beceri marketplace'i"
 msgid "Skills.sh"
 msgstr "Skills.sh"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Skipped"
+msgstr "Atlandı"
+
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
 msgstr "Eğik çizgi komutları"
@@ -8694,6 +8722,7 @@ msgstr "Doğrudan eşleştirmek veya SSH üzerinden uzak bir makineye bağlanmak
 #~ msgstr "Masaüstünüzdeki Poracode ile eşleştirmek için + öğesine dokunun."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Target branch"
 msgstr "Hedef şube"
 
@@ -9497,7 +9526,7 @@ msgid "Uninstall"
 msgstr "Kaldır"
 
 #: src/renderer/components/thread/threadContextUsage.ts
-#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Bilinmiyor"

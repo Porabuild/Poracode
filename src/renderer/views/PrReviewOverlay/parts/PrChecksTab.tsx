@@ -1,38 +1,20 @@
 import { CheckCircle2, Clock, ExternalLink, XCircle } from "lucide-react";
 import { Link } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { PR_CHECK_FAILURE_CONCLUSIONS, type PrCheck } from "@/shared/contracts";
-import { PixelLoader } from "@/renderer/components/common";
+import { PixelLoader, PrCheckStatusText } from "@/renderer/components/common";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
-
-type CheckTone = "success" | "danger" | "warning" | "neutral";
-
-function getCheckTone(check: PrCheck): CheckTone {
-  const conclusion = check.conclusion?.toUpperCase?.() ?? "";
-  const state = check.state?.toUpperCase?.() ?? "";
-  if (conclusion === "SUCCESS" || state === "SUCCESS") return "success";
-  if (PR_CHECK_FAILURE_CONCLUSIONS.has(conclusion) || state === "ERROR" || state === "FAILURE") {
-    return "danger";
-  }
-  if (state === "PENDING" || state === "EXPECTED" || (state && state !== "COMPLETED")) {
-    return "warning";
-  }
-  return "neutral";
-}
+import {
+  countPassedPrChecks,
+  getPrCheckPresentation,
+  PR_CHECK_TONE_TEXT_CLASS,
+} from "@/renderer/utils/prStatus";
 
 const TONE_ICON = {
   success: CheckCircle2,
   danger: XCircle,
   warning: Clock,
   neutral: Clock,
-} as const;
-
-const TONE_CLASS = {
-  success: "text-success",
-  danger: "text-danger",
-  warning: "text-warning",
-  neutral: "text-muted/70",
 } as const;
 
 export function PrChecksTab(props: { cacheKey: string; loading: boolean }) {
@@ -57,7 +39,7 @@ export function PrChecksTab(props: { cacheKey: string; loading: boolean }) {
     );
   }
 
-  const passed = checks.filter((c) => getCheckTone(c) === "success").length;
+  const passed = countPassedPrChecks(checks);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-3">
@@ -70,23 +52,21 @@ export function PrChecksTab(props: { cacheKey: string; loading: boolean }) {
       </div>
       <ul className="divide-y divide-[color:var(--border)] overflow-hidden rounded-2xl border border-[color:var(--border)] bg-surface-tertiary/30">
         {checks.map((check, idx) => {
-          const tone = getCheckTone(check);
+          const tone = getPrCheckPresentation(check).tone;
           const Icon = TONE_ICON[tone];
           return (
             <li
               key={`${check.name}-${idx}`}
               className="flex items-center gap-3 px-3 py-2 hover:bg-foreground/[0.03]"
             >
-              <Icon className={`size-4 shrink-0 ${TONE_CLASS[tone]}`} />
+              <Icon className={`size-4 shrink-0 ${PR_CHECK_TONE_TEXT_CLASS[tone]}`} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-xs font-medium text-foreground">{check.name}</div>
-                {(check.workflowName || check.conclusion || check.state) && (
-                  <div className="mt-0.5 truncate text-[11px] text-muted">
-                    {check.workflowName ? `${check.workflowName} · ` : ""}
-                    {check.conclusion || check.state || t`Unknown`}
-                  </div>
+                {check.workflowName && (
+                  <div className="mt-0.5 truncate text-[11px] text-muted">{check.workflowName}</div>
                 )}
               </div>
+              <PrCheckStatusText check={check} className="shrink-0 text-[11px]" />
               {check.url ? (
                 <Link
                   aria-label={t`Open check`}

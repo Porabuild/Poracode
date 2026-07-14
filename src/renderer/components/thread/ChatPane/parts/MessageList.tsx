@@ -5,6 +5,7 @@ import { Trans } from "@lingui/react/macro";
 import type { MessageItemPayload, ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { isIosTouchScroll } from "@/renderer/utils/iosScroll";
+import { formatElapsed } from "@/renderer/utils/formatTime";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
@@ -17,7 +18,6 @@ import {
   RevertCheckpointDialog,
   type CheckpointGuard,
 } from "./CheckpointRevertControls";
-import { formatElapsed } from "../formatElapsed";
 import { useChatPaneActions } from "../chatPaneActionsContext";
 import {
   growingStreamLength,

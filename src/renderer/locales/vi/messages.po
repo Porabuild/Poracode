@@ -1507,6 +1507,10 @@ msgstr "Hủy xóa dự án"
 msgid "cancelled"
 msgstr "đã hủy"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Cancelled"
+msgstr "Đã hủy"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot create a default worktree path without a branch name"
 msgstr "Không thể tạo đường dẫn cây làm việc mặc định mà không có tên nhánh"
@@ -1632,6 +1636,7 @@ msgstr "Đang kiểm tra…"
 
 #: src/mobile/views/pr/PrChecksPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
 msgstr "Kiểm tra"
@@ -2152,6 +2157,10 @@ msgstr "Hoàn thành các lời nhắc trong thiết bị đầu cuối này. Đ
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "completed"
 msgstr "hoàn thành"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Completed"
+msgstr "Đã hoàn tất"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -3523,6 +3532,7 @@ msgstr "Đang trích xuất ngữ cảnh từ {0}..."
 msgid "failed"
 msgstr "thất bại"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "Thất bại"
@@ -5247,6 +5257,10 @@ msgstr "Cần chú ý · Cần trả lời"
 msgid "Needs reply"
 msgstr "Cần trả lời"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Neutral"
+msgstr "Trung lập"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Mới"
@@ -5478,6 +5492,7 @@ msgstr "Không có thay đổi"
 msgid "No changes to display"
 msgstr "Không có thay đổi nào để hiển thị"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
 msgstr "Không có kiểm tra nào được báo cáo cho PR này."
@@ -6280,6 +6295,10 @@ msgstr "Thư mục cha trên máy chủ"
 msgid "Parent folder, e.g. /home/me/projects"
 msgstr "Thư mục cha, ví dụ /home/me/projects"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Passed"
+msgstr "Đã đạt"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Passphrase (optional)"
 msgstr "Cụm mật khẩu (không bắt buộc)"
@@ -6337,6 +6356,10 @@ msgstr "Ngày cao điểm"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "pending"
 msgstr "đang chờ xử lý"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Pending"
+msgstr "Đang chờ"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "pending review"
@@ -7446,6 +7469,7 @@ msgstr "Tự động chạy lịch này theo lịch bên dưới."
 msgid "running"
 msgstr "đang chạy"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Running"
 msgstr "Đang chạy"
@@ -8165,6 +8189,10 @@ msgstr "Marketplace skill"
 msgid "Skills.sh"
 msgstr "Skills.sh"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Skipped"
+msgstr "Đã bỏ qua"
+
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
 msgstr "Lệnh gạch chéo"
@@ -8694,6 +8722,7 @@ msgstr "Nhấn + để ghép đôi trực tiếp hoặc kết nối với máy t
 #~ msgstr "Nhấn + để ghép đôi với Poracode trên máy tính của bạn."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Target branch"
 msgstr "Nhánh mục tiêu"
 
@@ -9497,7 +9526,7 @@ msgid "Uninstall"
 msgstr "Gỡ cài đặt"
 
 #: src/renderer/components/thread/threadContextUsage.ts
-#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Không xác định"
