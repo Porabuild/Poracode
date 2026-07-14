@@ -1,4 +1,4 @@
-import { memo, useDeferredValue, useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Surface } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { MessageItemPayload } from "@/shared/contracts";
@@ -12,7 +12,7 @@ import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { CopyTextButton } from "./CopyTextButton";
 import { ImageCard } from "./ImageView";
 import { imageViewSourceFromImageBlock } from "./imageViewSource";
-import { ItemMarkdown } from "./ItemMarkdown";
+import { SmoothItemMarkdown } from "./ItemMarkdown";
 
 interface AssistantMessageProps {
   threadId: string;
@@ -53,8 +53,6 @@ export const AssistantMessage = memo(function AssistantMessage({
           ?.map((b) => (b.kind === "text" ? b.text : ""))
           .filter(Boolean)
           .join("\n") ?? "");
-  const deferredText = useDeferredValue(rawText);
-  const text = item.state === "completed" ? rawText : deferredText;
   const isStreaming = item.state !== "completed";
   // Agents (e.g. ACP providers) can embed images directly in a message as image
   // content blocks; render them inline beneath any text.
@@ -70,7 +68,9 @@ export const AssistantMessage = memo(function AssistantMessage({
   return (
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="min-w-0 leading-snug">
-        {rawText.length > 0 ? <ItemMarkdown text={text} /> : null}
+        {rawText.length > 0 ? (
+          <SmoothItemMarkdown text={rawText} isStreaming={isStreaming} />
+        ) : null}
         {imageSources.length > 0 ? (
           <div className="mt-1 flex flex-col gap-2">
             {imageSources.map((source, index) => (

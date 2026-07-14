@@ -146,7 +146,6 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     const scrollElement = getScrollElement(container);
-    const contentElement = getContentElement(scrollElement);
     const metrics = installScrollMetrics(scrollElement, {
       scrollHeight: 200,
       clientHeight: 100,
@@ -166,7 +165,7 @@ describe("ChatPane", () => {
 
     act(() => {
       metrics.setScrollHeight(300);
-      MockResizeObserver.notify(contentElement);
+      MockResizeObserver.notify(scrollElement);
     });
 
     await waitFor(() => expect(metrics.getScrollTop()).toBe(300));
