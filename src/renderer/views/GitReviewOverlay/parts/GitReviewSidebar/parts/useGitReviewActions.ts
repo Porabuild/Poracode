@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo, GitStatusResult, Project, ProjectLocation } from "@/shared/contracts";
@@ -128,6 +129,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   // gitReviewActionStore.
   const {
     commitMessage,
+    mergeMessageTemplate,
     commitGen,
     prTitle,
     prBody,
@@ -158,6 +160,18 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   const setIsAbortingMerge = (value: boolean) => patch(storeKey, { isAbortingMerge: value });
   const setIsFinishingMerge = (value: boolean) => patch(storeKey, { isFinishingMerge: value });
   const setIsCreatingPr = (value: boolean) => patch(storeKey, { isCreatingPr: value });
+  const mergeMessage = gitStatus ? gitStatus.mergeMessage || null : undefined;
+
+  useEffect(() => {
+    if (mergeMessage === undefined || mergeMessage === mergeMessageTemplate) return;
+
+    patch(storeKey, {
+      mergeMessageTemplate: mergeMessage,
+      ...(mergeMessage && (!commitMessage || commitMessage === mergeMessageTemplate)
+        ? { commitMessage: mergeMessage, commitGen: null }
+        : {}),
+    });
+  }, [commitMessage, mergeMessage, mergeMessageTemplate, patch, storeKey]);
 
   const writeActions = usePrWriteActions({
     projectLocation: project.location,

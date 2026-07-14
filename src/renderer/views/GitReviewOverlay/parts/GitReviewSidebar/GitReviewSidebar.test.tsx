@@ -221,6 +221,7 @@ vi.mock("@/renderer/components/providers/commitGen", () => ({
 }));
 
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useGitReviewActionStore } from "@/renderer/state/gitReviewActionStore";
 import { GitReviewSidebar } from "./GitReviewSidebar";
 import { GitTouchProvider, type GitTouchFileTarget } from "./gitTouchContext";
 import type { ConflictResolverLaunchInput } from "./parts/useConflictResolver";
@@ -246,6 +247,7 @@ describe("GitReviewSidebar", () => {
       statuses: {},
       worktreeStatuses: {},
     });
+    useGitReviewActionStore.setState({ panels: {} });
   });
 
   it("renders worktree changes from the provided git status", () => {
@@ -296,6 +298,160 @@ describe("GitReviewSidebar", () => {
     expect(screen.getByText("worktree-only.ts")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Commit message (Ctrl+Enter)")).toBeInTheDocument();
     expect(screen.queryByText("main-only.ts")).not.toBeInTheDocument();
+  });
+
+  it("uses Git's merge message as an editable commit template", async () => {
+    const project: Project = {
+      id: "merge-project",
+      name: "Poracode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo-worktree" },
+    };
+    const status = (mergeMessage: string): GitStatusResult => ({
+      isRepo: true,
+      branch: "feature",
+      tracking: "origin/feature",
+      hasRemote: true,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 1,
+      staged: [
+        {
+          path: "src/merged.ts",
+          status: "M",
+          staged: true,
+          insertions: 1,
+          deletions: 0,
+        },
+      ],
+      unstaged: [],
+      totalInsertions: 1,
+      totalDeletions: 0,
+      mergeInProgress: true,
+      mergeMessage,
+      conflictFiles: [
+        {
+          path: "src/conflict.ts",
+          status: "U",
+          staged: false,
+          insertions: 1,
+          deletions: 1,
+        },
+      ],
+    });
+    const firstStatus = status("Merge branch 'main' into feature");
+    const view = render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={firstStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={0}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    const input = screen.getByLabelText("Commit message");
+    await waitFor(() => expect(input).toHaveValue("Merge branch 'main' into feature"));
+
+    view.rerender(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={status("Merge branch 'develop' into feature")}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={1}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+    await waitFor(() => expect(input).toHaveValue("Merge branch 'develop' into feature"));
+
+    fireEvent.change(input, { target: { value: "Custom merge message" } });
+    view.rerender(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={status("Merge branch 'release' into feature")}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={2}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+    await waitFor(() => expect(input).toHaveValue("Custom merge message"));
+
+    fireEvent.change(input, { target: { value: "" } });
+    view.rerender(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={status("Merge branch 'release' into feature")}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={3}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+    await waitFor(() => expect(input).toHaveValue(""));
+  });
+
+  it("does not replace a commit message typed before the conflict", async () => {
+    useGitReviewActionStore.getState().patch("typed-project", {
+      commitMessage: "Keep my message",
+    });
+    const project: Project = {
+      id: "typed-project",
+      name: "Poracode",
+      createdAt: new Date().toISOString(),
+      location: { kind: "windows", path: "C:\\repo" },
+    };
+    const gitStatus: GitStatusResult = {
+      isRepo: true,
+      branch: "feature",
+      tracking: "",
+      hasRemote: false,
+      remoteInfo: null,
+      ahead: 0,
+      behind: 0,
+      staged: [
+        {
+          path: "src/merged.ts",
+          status: "M",
+          staged: true,
+          insertions: 1,
+          deletions: 0,
+        },
+      ],
+      unstaged: [],
+      totalInsertions: 1,
+      totalDeletions: 0,
+      mergeInProgress: true,
+      mergeMessage: "Merge branch 'main' into feature",
+      conflictFiles: [],
+    };
+
+    render(
+      <GitReviewSidebar
+        project={project}
+        gitStatus={gitStatus}
+        selectedFile={null}
+        selectedStaged={false}
+        refreshKey={0}
+        onSelectFile={() => undefined}
+        onClose={() => undefined}
+        onRefresh={() => undefined}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("Commit message")).toHaveValue("Keep my message"),
+    );
   });
 
   it("reports failed file staging before refreshing the git state", async () => {

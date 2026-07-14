@@ -40,6 +40,8 @@ export interface GeneratedDraftMeta {
 export interface GitReviewActionState {
   /** Draft commit message — typed by the user or filled in by generation. */
   commitMessage: string;
+  /** Last Git merge-message template observed for this panel. */
+  mergeMessageTemplate: string | null;
   /** Provenance of the last AI-generated commit message (null once consumed/replaced). */
   commitGen: GeneratedDraftMeta | null;
   /** Draft PR title. */
@@ -73,6 +75,7 @@ export interface GitReviewActionState {
 /** Stable default returned for panels with no state yet — never mutate. */
 const EMPTY_STATE: GitReviewActionState = Object.freeze({
   commitMessage: "",
+  mergeMessageTemplate: null,
   commitGen: null,
   prTitle: "",
   prBody: "",

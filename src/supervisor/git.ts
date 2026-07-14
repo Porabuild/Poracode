@@ -59,6 +59,7 @@ export class GitService {
 
   setWslClient(client: WslBridgeClient | undefined): void {
     setWslGitBridgeClient(client);
+    this.statusService.setWslClient(client);
   }
 
   async getStatus(location: ProjectLocation): Promise<GitStatusResult> {

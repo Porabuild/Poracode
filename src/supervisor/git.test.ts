@@ -1186,8 +1186,22 @@ describe("GitService.getStatus Windows path normalization", () => {
   });
 
   it("reports mergeInProgress when unmerged entries exist", async () => {
+    readFileMock.mockResolvedValue(
+      [
+        "Merge branch 'main' of github.com:owner/repo into feature-a",
+        "",
+        "# Conflicts:",
+        "#\tsrc/file.ts",
+      ].join("\n"),
+    );
     mockGitCommands((args) => {
-      if (args[0] === "rev-parse") return { stdout: "true\n" };
+      if (args[0] === "rev-parse") {
+        return {
+          stdout: args.includes("--git-path")
+            ? "C:/Users/demo/work/poracode/.git/MERGE_MSG\n"
+            : "true\n",
+        };
+      }
       if (args[0] === "status") {
         return {
           stdout: [
@@ -1205,11 +1219,13 @@ describe("GitService.getStatus Windows path normalization", () => {
     const result = await new GitService().getStatus(location);
 
     expect(result.mergeInProgress).toBe(true);
+    expect(result.mergeMessage).toBe("Merge branch 'main' of github.com:owner/repo into feature-a");
     expect(result.conflictFiles).toEqual([
       { path: "src/file.ts", status: "U", staged: false, insertions: 0, deletions: 0 },
     ]);
     expect(result.staged).toEqual([]);
     expect(result.unstaged).toEqual([]);
+    expect(readFileMock).toHaveBeenCalledWith("C:/Users/demo/work/poracode/.git/MERGE_MSG", "utf8");
   });
 
   it("does not report mergeInProgress when no unmerged entries exist", async () => {
@@ -1307,6 +1323,72 @@ describe("GitService.getStatus Windows path normalization", () => {
         }),
       );
       expect(execFileMock).not.toHaveBeenCalled();
+    } finally {
+      service.setWslClient(undefined);
+    }
+  });
+
+  it("reads the merge message from the linked-worktree Git path in WSL", async () => {
+    const gitBatch = vi.fn<
+      (
+        location: WslLocation,
+        input: { commands: WslGitExecInput[]; timeoutMs?: number },
+      ) => Promise<{ results: WslGitExecResult[] }>
+    >(async () => ({
+      results: [
+        { ok: true, stdout: "true\n", stderr: "", exitCode: 0 },
+        {
+          ok: true,
+          stdout: [
+            "# branch.oid abc123",
+            "# branch.head feature-a",
+            "u UU N... 100644 100644 100644 100644 a b c src/file.ts",
+          ].join("\n"),
+          stderr: "",
+          exitCode: 0,
+        },
+        { ok: true, stdout: "", stderr: "", exitCode: 0 },
+        { ok: true, stdout: "", stderr: "", exitCode: 0 },
+        { ok: true, stdout: "", stderr: "", exitCode: 0 },
+      ],
+    }));
+    const mergeMessagePath = "/home/demo/repo/.git/worktrees/feature-a/MERGE_MSG";
+    const gitExec = vi.fn<
+      (location: WslLocation, input: WslGitExecInput) => Promise<WslGitExecResult>
+    >(async (_location, input) => ({
+      ok: true,
+      stdout: input.args.includes("--git-path") ? `${mergeMessagePath}\n` : "",
+      stderr: "",
+      exitCode: 0,
+    }));
+    const readFile = vi.fn<WslBridgeClient["readFile"]>(async () => ({
+      tooLarge: false as const,
+      size: 83,
+      mtimeMs: 1,
+      contentBase64: Buffer.from(
+        "Merge branch 'main' into feature-a\n\n# Conflicts:\n#\tsrc/file.ts\n",
+      ).toString("base64"),
+    }));
+    const service = new GitService();
+    service.setWslClient({ gitBatch, gitExec, readFile } as unknown as WslBridgeClient);
+
+    try {
+      const result = await service.getStatus({
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/demo/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\repo",
+      });
+
+      expect(result.mergeMessage).toBe("Merge branch 'main' into feature-a");
+      expect(readFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          distro: "Ubuntu",
+          linuxPath: "/home/demo/repo/.git/worktrees/feature-a",
+        }),
+        mergeMessagePath,
+        { maxBytes: 64 * 1024 },
+      );
     } finally {
       service.setWslClient(undefined);
     }

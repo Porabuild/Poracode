@@ -36,6 +36,7 @@ export interface GitStatusResult {
   totalInsertions: number;
   totalDeletions: number;
   mergeInProgress?: boolean;
+  mergeMessage?: string;
   conflictFiles?: GitFileChange[];
 }
 

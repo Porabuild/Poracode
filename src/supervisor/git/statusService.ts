@@ -1,5 +1,5 @@
 import { readFile, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 import {
   type GitDiffBatchResult,
   type GitDiffResult,
@@ -9,6 +9,7 @@ import {
   type ProjectLocation,
 } from "@/shared/contracts";
 import { getProjectFsPath, toWslUncPath } from "@/shared/wsl";
+import type { WslBridgeClient } from "../wsl/bridge/client";
 import {
   execGit,
   execGitBatchWslBridge,
@@ -37,6 +38,11 @@ interface UntrackedStatsCacheEntry {
 }
 
 const BINARY_SCAN_BYTES = 8000;
+const MAX_MERGE_MESSAGE_BYTES = 64 * 1024;
+
+function stripCommitMessageComments(message: string): string {
+  return message.replace(/^\s*#.*$\n?/gm, "").trim();
+}
 
 function isProbablyBinary(buffer: Buffer): boolean {
   const scanLength = Math.min(buffer.length, BINARY_SCAN_BYTES);
@@ -69,6 +75,11 @@ function countTextLines(buffer: Buffer): number {
 
 export class GitStatusService {
   private readonly untrackedStatsCache = new Map<string, UntrackedStatsCacheEntry>();
+  private wslClient: WslBridgeClient | undefined;
+
+  setWslClient(client: WslBridgeClient | undefined): void {
+    this.wslClient = client;
+  }
 
   async getStatus(location: ProjectLocation): Promise<GitStatusResult> {
     if (location.kind === "wsl") {
@@ -121,12 +132,7 @@ export class GitStatusService {
 
     const { totalInsertions, totalDeletions } = sumChangeTotals(parsed);
 
-    const conflictFileChanges: GitFileChange[] =
-      parsed.mergeInProgress && parsed.conflictFiles.length > 0
-        ? await this.buildConflictFileChanges(location, parsed.conflictFiles)
-        : [];
-
-    return {
+    const base: GitStatusResult = {
       isRepo: true,
       branch: parsed.branch,
       tracking: parsed.tracking,
@@ -138,10 +144,8 @@ export class GitStatusService {
       unstaged: parsed.unstaged,
       totalInsertions,
       totalDeletions,
-      ...(parsed.mergeInProgress
-        ? { mergeInProgress: true, conflictFiles: conflictFileChanges }
-        : {}),
     };
+    return this.applyParsedMergeState(location, parsed, base);
   }
 
   async getStatusSummary(location: ProjectLocation): Promise<GitStatusResult> {
@@ -200,12 +204,57 @@ export class GitStatusService {
     base: GitStatusResult,
   ): Promise<GitStatusResult> {
     if (!base.isRepo) return base;
-    const parsed = parseStatusPorcelainV2(statusOutput);
-    if (!parsed.mergeInProgress || parsed.conflictFiles.length === 0) {
-      return base;
+    return this.applyParsedMergeState(location, parseStatusPorcelainV2(statusOutput), base);
+  }
+
+  private async applyParsedMergeState(
+    location: ProjectLocation,
+    parsed: ParsedPorcelainStatus,
+    base: GitStatusResult,
+  ): Promise<GitStatusResult> {
+    if (!parsed.mergeInProgress) return base;
+    const [conflictFileChanges, mergeMessage] = await Promise.all([
+      this.buildConflictFileChanges(location, parsed.conflictFiles),
+      this.getMergeMessage(location),
+    ]);
+    return {
+      ...base,
+      mergeInProgress: true,
+      conflictFiles: conflictFileChanges,
+      ...(mergeMessage ? { mergeMessage } : {}),
+    };
+  }
+
+  private async getMergeMessage(location: ProjectLocation): Promise<string | undefined> {
+    try {
+      const mergeMessagePath = (
+        await execGit(location, ["rev-parse", "--path-format=absolute", "--git-path", "MERGE_MSG"])
+      ).trim();
+      if (!mergeMessagePath) return undefined;
+
+      const raw =
+        location.kind === "wsl"
+          ? await this.readMergeMessageWsl(location, mergeMessagePath)
+          : await readFile(mergeMessagePath, "utf8");
+      const message = stripCommitMessageComments(raw);
+      return message || undefined;
+    } catch {
+      return undefined;
     }
-    const conflictFileChanges = await this.buildConflictFileChanges(location, parsed.conflictFiles);
-    return { ...base, mergeInProgress: true, conflictFiles: conflictFileChanges };
+  }
+
+  private async readMergeMessageWsl(
+    location: ProjectLocation & { kind: "wsl" },
+    mergeMessagePath: string,
+  ): Promise<string> {
+    if (!this.wslClient) throw new Error("WSL bridge unavailable");
+    const result = await this.wslClient.readFile(
+      { ...location, linuxPath: posix.dirname(mergeMessagePath) },
+      mergeMessagePath,
+      { maxBytes: MAX_MERGE_MESSAGE_BYTES },
+    );
+    if (result.tooLarge) return "";
+    return Buffer.from(result.contentBase64, "base64").toString("utf8");
   }
 
   private async getStatusBatchedWsl(
