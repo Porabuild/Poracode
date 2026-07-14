@@ -1652,19 +1652,20 @@ html[data-platform="darwin"] .poracode-content-over-drag-region--drag {
   }
 }
 
-/* Pause the always-on status-icon animations when the window is hidden or
-   unfocused (attributes toggled by uiAnimationActivity.ts). The static glow and
-   colour stay, so a backgrounded window still shows which threads are busy — we
-   just stop driving the GPU compositor while nobody is looking. Drop the
-   `data-app-unfocused` selectors if you want the sweep to keep running while the
-   window is visible-but-unfocused. */
+/* Keep status-icon animations alive at about 5fps when the window is hidden or
+   unfocused (attributes toggled by uiAnimationActivity.ts). This preserves the
+   working signal in a visible background window without paying the foreground
+   compositor cost. */
 html[data-app-hidden] .poracode-provider-icon__mask-scan::before,
-html[data-app-unfocused] .poracode-provider-icon__mask-scan::before,
+html[data-app-unfocused] .poracode-provider-icon__mask-scan::before {
+  animation-timing-function: steps(8, jump-end);
+}
+
 html[data-app-hidden] .poracode-provider-icon--attention,
 html[data-app-unfocused] .poracode-provider-icon--attention,
 html[data-app-hidden] .poracode-provider-icon--finished,
 html[data-app-unfocused] .poracode-provider-icon--finished {
-  animation-play-state: paused;
+  animation-timing-function: steps(9, jump-end);
 }
 
 /* Honour the OS "reduce motion" setting — drop the moving sweep/pulse entirely

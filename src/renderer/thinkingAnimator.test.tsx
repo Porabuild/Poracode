@@ -64,14 +64,21 @@ describe("thinkingAnimator", () => {
     expect(el.style.backgroundPositionX).toBe("");
   });
 
-  it("freezes ticks while the app is backgrounded", () => {
-    document.documentElement.setAttribute("data-app-hidden", "");
-    const { getByTestId } = render(<ShimmerProbe active={true} />);
-    const el = getByTestId("shimmer") as HTMLSpanElement;
-    const initial = el.style.backgroundPositionX; // painted once on register
-    vi.advanceTimersByTime(1000);
-    expect(el.style.backgroundPositionX).toBe(initial); // ticks are no-ops while hidden
-  });
+  it.each(["data-app-hidden", "data-app-unfocused"])(
+    "continues at a lower rate while the app has %s",
+    (attribute) => {
+      document.documentElement.setAttribute(attribute, "");
+      const { getByTestId } = render(<ShimmerProbe active={true} />);
+      const el = getByTestId("shimmer") as HTMLSpanElement;
+      const initial = el.style.backgroundPositionX;
+
+      vi.advanceTimersByTime(150);
+      expect(el.style.backgroundPositionX).toBe(initial);
+
+      vi.advanceTimersByTime(50);
+      expect(parseFloat(el.style.backgroundPositionX)).toBeCloseTo(-18.2, 1);
+    },
+  );
 
   it("fires the three brain path groups out of phase", () => {
     const { getByTestId } = render(<BrainProbe active={true} />);

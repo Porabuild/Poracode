@@ -18,8 +18,8 @@
 // element is only dirtied ~20×/s; between ticks nothing is invalidated, so the
 // renderer's frame pipeline goes idle. The visuals are identical (same gradient
 // sweep, same staggered brain firing), and a shared wall-clock phase keeps every
-// instance perfectly in sync. The timer pauses while the window is hidden or
-// unfocused (delegating that policy to uiAnimationActivity.ts), and honours
+// instance perfectly in sync. The timer drops to 5fps while the window is
+// hidden or unfocused (using the state from uiAnimationActivity.ts), and honours
 // `prefers-reduced-motion` by painting one static frame.
 
 import { useEffect, useRef } from "react";
@@ -27,6 +27,8 @@ import type { RefObject } from "react";
 
 const FPS = 20;
 const TICK_MS = Math.round(1000 / FPS); // 50ms
+const BACKGROUND_FPS = 5;
+const BACKGROUND_TICK_MS = Math.round(1000 / BACKGROUND_FPS); // 200ms
 const SHIMMER_PERIOD_MS = 2200; // matches the previous 2.2s background-position sweep
 const BRAIN_PERIOD_MS = 1800; // matches the previous 1.8s opacity pulse
 const BRAIN_GROUP_DELAY_MS = 600; // matches the previous 0s / 0.6s / 1.2s stagger
@@ -36,6 +38,7 @@ const shimmerEls = new Set<HTMLElement>();
 // doesn't re-run querySelectorAll on every frame.
 const brainPaths = new Map<SVGSVGElement, SVGPathElement[]>();
 let timer: ReturnType<typeof setInterval> | null = null;
+let lastPaintAt = Number.NEGATIVE_INFINITY;
 
 function hasRegistered(): boolean {
   return shimmerEls.size > 0 || brainPaths.size > 0;
@@ -49,15 +52,12 @@ function prefersReducedMotion(): boolean {
   );
 }
 
-// Single source of truth for "should UI animations run": uiAnimationActivity.ts
-// toggles these attributes on visibilitychange/focus/blur, and styles.css uses
-// the same attributes to pause the compositor-driven icon animations. Reading
-// them here keeps the JS-driven thinking animations gated by the exact same
-// policy — change "when to pause" in one place and both follow.
-function isAppActive(): boolean {
-  if (typeof document === "undefined") return false;
+// uiAnimationActivity.ts toggles these attributes on visibilitychange/focus/blur,
+// and styles.css uses the same state to slow compositor-driven icon animations.
+function isAppBackgrounded(): boolean {
+  if (typeof document === "undefined") return true;
   const root = document.documentElement;
-  return !root.hasAttribute("data-app-hidden") && !root.hasAttribute("data-app-unfocused");
+  return root.hasAttribute("data-app-hidden") || root.hasAttribute("data-app-unfocused");
 }
 
 // Triangle 0→1→0 over the period, mapped to 0.45..1 (matches the old
@@ -84,10 +84,10 @@ function paintFrame(now: number): void {
 }
 
 function tick(): void {
-  // Freeze (skip writes) while backgrounded/unfocused — nothing to drive, and
-  // the static frozen frame is fine. Next tick resumes within ~50ms on refocus.
-  if (!isAppActive()) return;
-  paintFrame(Date.now());
+  const now = Date.now();
+  if (isAppBackgrounded() && now - lastPaintAt < BACKGROUND_TICK_MS) return;
+  paintFrame(now);
+  lastPaintAt = now;
 }
 
 function ensureRunning(): void {
@@ -97,7 +97,9 @@ function ensureRunning(): void {
     return;
   }
   if (typeof setInterval !== "function") return;
-  paintFrame(Date.now());
+  const now = Date.now();
+  paintFrame(now);
+  lastPaintAt = now;
   timer = setInterval(tick, TICK_MS);
 }
 
