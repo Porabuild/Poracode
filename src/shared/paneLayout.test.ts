@@ -145,6 +145,16 @@ describe("replacePaneIdInLayout", () => {
     expect(replacePaneIdInLayout(layout, "old", "new")).toEqual({
       kind: "leaf",
       paneId: "new",
+      slotId: "old",
+    });
+  });
+
+  it("preserves an existing slot identity", () => {
+    const layout: PaneLayout = { kind: "leaf", paneId: "old", slotId: "slot-a" };
+    expect(replacePaneIdInLayout(layout, "old", "new")).toEqual({
+      kind: "leaf",
+      paneId: "new",
+      slotId: "slot-a",
     });
   });
 
@@ -182,6 +192,25 @@ describe("swapPaneIdsInLayout", () => {
     const ids = collectPaneIds(result);
     expect(ids[0]).toBe("b");
     expect(ids[1]).toBe("a");
+  });
+
+  it("moves each pane slot with its pane", () => {
+    const layout: PaneLayout = {
+      kind: "split",
+      axis: "vertical",
+      children: [
+        { kind: "leaf", paneId: "a", slotId: "slot-a" },
+        { kind: "leaf", paneId: "b", slotId: "slot-b" },
+      ],
+    };
+    expect(swapPaneIdsInLayout(layout, "a", "b")).toEqual({
+      kind: "split",
+      axis: "vertical",
+      children: [
+        { kind: "leaf", paneId: "b", slotId: "slot-b" },
+        { kind: "leaf", paneId: "a", slotId: "slot-a" },
+      ],
+    });
   });
 });
 

@@ -5,14 +5,8 @@ import { renderWithI18n } from "@/renderer/testUtils/i18n";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
 
 vi.mock("@/renderer/state/appStore", () => ({
-  useAppStore: Object.assign(
-    (selector: (s: { chatScrollToBottomTokens: Record<string, number> }) => unknown) =>
-      selector({ chatScrollToBottomTokens: {} }),
-    {
-      subscribe: () => () => undefined,
-      getState: () => ({ chatScrollToBottomTokens: {} }),
-    },
-  ),
+  useAppStore: (selector: (s: { chatScrollToBottomTokens: Record<string, number> }) => unknown) =>
+    selector({ chatScrollToBottomTokens: {} }),
 }));
 
 vi.mock("@/renderer/state/panelResizeSignal", () => ({
@@ -22,19 +16,16 @@ vi.mock("@/renderer/state/panelResizeSignal", () => ({
 
 function Harness(props: {
   scrollEl: HTMLDivElement;
-  contentEl: HTMLDivElement;
   controlsRef: React.RefObject<ChatScrollControlsHandle | null>;
   virtualScrollToBottom: () => void;
   initialScrollSettled?: boolean;
 }) {
   const scrollRef = useRef(props.scrollEl);
-  const contentRef = useRef(props.contentEl);
   const virtualScrollToBottomRef = useRef(props.virtualScrollToBottom);
   return (
     <ChatScrollControls
       ref={props.controlsRef}
       scrollRef={scrollRef}
-      contentRef={contentRef}
       layoutChangeToken={null}
       threadId="thread-1"
       tailLoaderVisible={false}
@@ -48,7 +39,6 @@ function Harness(props: {
 describe("ChatScrollControls", () => {
   it("skips scrollTop writes and virtualizer reconcile when already at bottom", () => {
     const scrollEl = document.createElement("div");
-    const contentEl = document.createElement("div");
     const scrollTopSetter = vi.fn<(value: number) => void>();
     Object.defineProperties(scrollEl, {
       scrollHeight: { configurable: true, get: () => 1000 },
@@ -65,7 +55,6 @@ describe("ChatScrollControls", () => {
     renderWithI18n(
       <Harness
         scrollEl={scrollEl}
-        contentEl={contentEl}
         controlsRef={controlsRef}
         virtualScrollToBottom={virtualScrollToBottom}
       />,
@@ -85,7 +74,6 @@ describe("ChatScrollControls", () => {
   it("reports thread-open settling until a user scroll-away ends the window", () => {
     let scrollTop = 100;
     const scrollEl = document.createElement("div");
-    const contentEl = document.createElement("div");
     Object.defineProperties(scrollEl, {
       scrollHeight: { configurable: true, get: () => 1000 },
       clientHeight: { configurable: true, get: () => 200 },
@@ -102,7 +90,6 @@ describe("ChatScrollControls", () => {
     renderWithI18n(
       <Harness
         scrollEl={scrollEl}
-        contentEl={contentEl}
         controlsRef={controlsRef}
         virtualScrollToBottom={() => undefined}
       />,
@@ -122,7 +109,6 @@ describe("ChatScrollControls", () => {
   it("writes scrollTop when content grows past the bottom pin", () => {
     let scrollTop = 100;
     const scrollEl = document.createElement("div");
-    const contentEl = document.createElement("div");
     Object.defineProperties(scrollEl, {
       scrollHeight: { configurable: true, get: () => 1000 },
       clientHeight: { configurable: true, get: () => 200 },
@@ -140,7 +126,6 @@ describe("ChatScrollControls", () => {
     renderWithI18n(
       <Harness
         scrollEl={scrollEl}
-        contentEl={contentEl}
         controlsRef={controlsRef}
         virtualScrollToBottom={virtualScrollToBottom}
       />,
@@ -159,7 +144,6 @@ describe("ChatScrollControls", () => {
     let scrollHeight = 400;
     let scrollTop = 200;
     const scrollEl = document.createElement("div");
-    const contentEl = document.createElement("div");
     Object.defineProperties(scrollEl, {
       scrollHeight: { configurable: true, get: () => scrollHeight },
       clientHeight: { configurable: true, get: () => 200 },
@@ -177,7 +161,6 @@ describe("ChatScrollControls", () => {
     renderWithI18n(
       <Harness
         scrollEl={scrollEl}
-        contentEl={contentEl}
         controlsRef={controlsRef}
         virtualScrollToBottom={virtualScrollToBottom}
       />,
@@ -210,7 +193,6 @@ describe("ChatScrollControls", () => {
     let scrollHeight = 1000;
     let scrollTop = 800;
     const scrollEl = document.createElement("div");
-    const contentEl = document.createElement("div");
     Object.defineProperties(scrollEl, {
       scrollHeight: { configurable: true, get: () => scrollHeight },
       clientHeight: { configurable: true, get: () => 200 },
@@ -228,7 +210,6 @@ describe("ChatScrollControls", () => {
     renderWithI18n(
       <Harness
         scrollEl={scrollEl}
-        contentEl={contentEl}
         controlsRef={controlsRef}
         virtualScrollToBottom={virtualScrollToBottom}
       />,

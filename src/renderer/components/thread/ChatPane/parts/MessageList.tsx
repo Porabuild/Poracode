@@ -28,6 +28,12 @@ import {
 import { ChatItemRow } from "./items/ChatItemRow";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline } from "./items/imageViewSource";
+import {
+  getTimelineMeasurementSignature,
+  readTimelineMeasurements,
+  writeTimelineMeasurements,
+} from "./timelineMeasurementCache";
+import { BOTTOM_EPSILON_PX } from "../chatScrollGeometry";
 
 export interface CheckpointRevertActions {
   rollbackThreadConversation(input: { threadId: string; numTurns: number }): Promise<void>;
@@ -110,6 +116,13 @@ export function MessageList({
   const [pendingRevertItemId, setPendingRevertItemId] = useState<string | null>(null);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [revertError, setRevertError] = useState<string | null>(null);
+  const [initialMeasurementSignature] = useState(() =>
+    getTimelineMeasurementSignature(scrollElement),
+  );
+  const [initialMeasurementsCache] = useState(() =>
+    readTimelineMeasurements(threadId, initialMeasurementSignature),
+  );
+  const measurementSignatureRef = useRef(initialMeasurementSignature);
   const virtualizer = useVirtualizer({
     count: entries.length,
     getScrollElement: useCallback(() => scrollElement, [scrollElement]),
@@ -128,7 +141,29 @@ export function MessageList({
     // off). Keep it on elsewhere — it's load-bearing nowhere else and flipping it
     // for everyone is out of scope for this fix.
     useAnimationFrameWithResizeObserver: !deferScrollCompensation,
+    // Force the first range calculation to the tail. A fixed overshoot avoids
+    // both an extra estimation pass and a mismatch when restored measurements
+    // are taller than the current estimates.
+    initialOffset: () => Number.MAX_SAFE_INTEGER,
+    initialMeasurementsCache,
+    anchorTo: "end",
+    followOnAppend: true,
+    scrollEndThreshold: BOTTOM_EPSILON_PX,
   });
+
+  useLayoutEffect(() => {
+    const signature = getTimelineMeasurementSignature(scrollElement);
+    if (measurementSignatureRef.current === null) {
+      measurementSignatureRef.current = signature;
+    }
+    return () => {
+      const cacheSignature = measurementSignatureRef.current;
+      if (!cacheSignature || getTimelineMeasurementSignature(scrollElement) !== cacheSignature) {
+        return;
+      }
+      writeTimelineMeasurements(threadId, cacheSignature, virtualizer.takeSnapshot());
+    };
+  }, [scrollElement, threadId, virtualizer]);
 
   useLayoutEffect(() => {
     if (!parentActions?.registerVirtualScrollToBottom) return;
@@ -149,14 +184,10 @@ export function MessageList({
   }, [entries.length, registerScrollToIndex, virtualizer]);
 
   useLayoutEffect(() => {
-    // Compensate scroll when a row above the viewport (or any row while
-    // bottom-sticky) trades its estimated height for a real measurement —
-    // otherwise the estimate error shifts the visible content. Always return
-    // false so TanStack never calls scrollTo itself: that adjustment runs
-    // outside React's commit and paints one frame apart from the translateY /
-    // row-height change, which reads as flicker. Instead the delta is
-    // accumulated here and applied in the layout effect below, in the same
-    // commit (and therefore the same paint) as the DOM change it compensates.
+    // Compensate when a row above a user-controlled scrollback window trades
+    // its estimate for a real measurement. End-pinned growth is owned by
+    // TanStack's native anchor; scrollback corrections stay synchronous with
+    // our row commit so they do not paint a frame apart from the height change.
     virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (item, delta, instance) => {
       if (!scrollElement) return false;
       const isAboveViewport = item.start + item.size <= scrollElement.scrollTop;
@@ -170,19 +201,14 @@ export function MessageList({
       if (hasIntent && (stickToBottom || !isAboveViewport)) {
         return false;
       }
-      if (stickToBottom || isAboveViewport) {
+      // Native end anchoring owns sticky row growth. Keep the custom buffered
+      // compensation only for rows above a user-controlled scrollback window.
+      if (!stickToBottom && isAboveViewport) {
         pendingScrollCompensationRef.current += delta;
         // Defer above-viewport corrections only for momentum coasts without a
         // hard intent flag (iOS / trackpad). While intent is active we apply
-        // above-viewport deltas in the same frame as the measure. Sticky pin
-        // writes stay synchronous when there is no intent.
-        if (
-          isAboveViewport &&
-          !stickToBottom &&
-          !hasIntent &&
-          instance?.isScrolling &&
-          instance.scrollDirection === "backward"
-        ) {
+        // above-viewport deltas in the same frame as the measure.
+        if (!hasIntent && instance?.isScrolling && instance.scrollDirection === "backward") {
           isCompensationDeferredRef.current = true;
         }
       }
@@ -325,10 +351,6 @@ export function MessageList({
     [entries, threadId],
   );
   const lastLiveIndex = useAppStore(liveTailSelector);
-
-  useLayoutEffect(() => {
-    parentActions?.onContentHeightChange();
-  }, [parentActions, totalSize]);
 
   const measureRowElement = useCallback(
     (index: number, element: HTMLDivElement | null) => {

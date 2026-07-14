@@ -2,7 +2,7 @@ import React from "react";
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PaneLayout } from "@/shared/paneLayout";
-import { computeLayout, SplitPaneContainer } from "./SplitPaneContainer";
+import { computeLayout, resolvePaneDomKey, SplitPaneContainer } from "./SplitPaneContainer";
 import { splitStorageKey, writeStoredSizes } from "./paneSizeStorage";
 
 vi.mock("@dnd-kit/react", () => ({
@@ -207,6 +207,70 @@ describe("SplitPaneContainer", () => {
 
     expect(container.querySelector<HTMLElement>('[role="separator"]')).toBe(divider);
     expect(parseFloat(divider!.style.left)).toBeCloseTo(976 / 3);
+  });
+
+  it("keeps a pane shell mounted when its caller-provided DOM key stays stable", () => {
+    let mountCount = 0;
+    function PaneShell({ paneId }: { paneId: string }) {
+      const instance = React.useRef<number | null>(null);
+      if (instance.current === null) instance.current = ++mountCount;
+      return React.createElement("div", {
+        "data-pane-id": paneId,
+        "data-pane-instance": instance.current,
+      });
+    }
+    const renderPane = (paneId: string) => React.createElement(PaneShell, { paneId });
+    const getPaneDomKey = () => "primary-gui";
+    const { container, rerender } = render(
+      React.createElement(SplitPaneContainer, {
+        layout: { kind: "leaf", paneId: "thread-a" },
+        renderPane,
+        getPaneDomKey,
+      }),
+    );
+    const firstShell = container.querySelector<HTMLElement>("[data-pane-id='thread-a']");
+
+    rerender(
+      React.createElement(SplitPaneContainer, {
+        layout: { kind: "leaf", paneId: "thread-b" },
+        renderPane,
+        getPaneDomKey,
+      }),
+    );
+
+    const secondShell = container.querySelector<HTMLElement>("[data-pane-id='thread-b']");
+    expect(secondShell).toBe(firstShell);
+    expect(secondShell?.dataset.paneInstance).toBe("1");
+    expect(mountCount).toBe(1);
+  });
+
+  it("uses each GUI pane's stable slot key", () => {
+    const guiKey = resolvePaneDomKey({
+      paneId: "thread-a",
+      paneSlotId: "slot-a",
+      presentationMode: "gui",
+    });
+    expect(
+      resolvePaneDomKey({
+        paneId: "thread-a-replacement",
+        paneSlotId: "slot-a",
+        presentationMode: "gui",
+      }),
+    ).toBe(guiKey);
+    expect(
+      resolvePaneDomKey({
+        paneId: "thread-a",
+        paneSlotId: "slot-a",
+        presentationMode: "terminal",
+      }),
+    ).toBe("thread-a");
+    expect(
+      resolvePaneDomKey({
+        paneId: "thread-b",
+        paneSlotId: "slot-b",
+        presentationMode: "gui",
+      }),
+    ).not.toBe(guiKey);
   });
 
   it("rereads projected sizes when returning to a previously cached layout key", () => {

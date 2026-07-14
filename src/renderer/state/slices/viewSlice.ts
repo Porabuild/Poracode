@@ -3,6 +3,7 @@ import { makeDraftPaneId } from "@/shared/paneId";
 import {
   adjustInsertTargetForRemoval,
   collectPaneIds,
+  findPaneSlotId,
   insertPaneInLayout,
   removePaneFromLayout,
   splitPaneInLayout,
@@ -32,11 +33,19 @@ export interface ViewSlice {
   focusedPaneId: string | null;
   pendingComposerFocusThreadId: string | null;
   chatScrollToBottomTokens: Record<string, number>;
+  /**
+   * Optimistic, urgent active-thread id used only for instant sidebar-row
+   * highlighting on click. Decoupled from `view.panes` (which drives the heavy
+   * pane remount) so the highlight can paint a frame before the blocking mount.
+   * Non-null only while an `openThread` switch is in flight.
+   */
+  pendingActiveThreadId: string | null;
   groupLayouts: Record<string, SavedGroupLayout>;
   setFocusedPane: (paneId: string) => void;
   requestComposerFocus: (threadId: string) => void;
   clearComposerFocusRequest: (threadId: string) => void;
   requestChatScrollToBottom: (threadId: string) => void;
+  setPendingActiveThread: (threadId: string | null) => void;
   openDraft: (projectId: string) => void;
   openDraftSideBySide: (projectId: string) => void;
   openHome: () => void;
@@ -79,6 +88,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
   focusedPaneId: null,
   pendingComposerFocusThreadId: null,
   chatScrollToBottomTokens: {},
+  pendingActiveThreadId: null,
   groupLayouts: {},
   setFocusedPane: (paneId) => set({ focusedPaneId: paneId }),
   requestComposerFocus: (threadId) => set({ pendingComposerFocusThreadId: threadId }),
@@ -93,6 +103,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         [threadId]: (state.chatScrollToBottomTokens[threadId] ?? 0) + 1,
       },
     })),
+  setPendingActiveThread: (threadId) => set({ pendingActiveThreadId: threadId }),
   openDraft: (projectId) => set({ view: { kind: "draft", projectId } }),
   openDraftSideBySide: (projectId) =>
     set((state) => {
@@ -312,9 +323,8 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       if (existing.includes(threadId) || index < 0 || index >= existing.length) {
         return {};
       }
-      const nextPanes = [...existing] as [string, ...string[]];
-      nextPanes[index] = threadId;
-      const nextView: AppView = { ...state.view, panes: nextPanes };
+      const nextView = replacePaneInView(state.view, existing[index]!, threadId);
+      const nextPanes = nextView.panes;
       const cleared = clearFinishedAndDone(state.threads, nextPanes);
       return cleared ? { view: nextView, threads: cleared } : { view: nextView };
     }),
@@ -443,6 +453,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       if ("paneId" in target && target.paneId === paneId) return {};
 
       const layout = currentPaneLayout(state.view);
+      const slotId = findPaneSlotId(layout, paneId) ?? paneId;
       const layoutWithoutPane = removePaneFromLayout(layout, paneId);
       if (!layoutWithoutPane) {
         return {};
@@ -450,11 +461,12 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
 
       const nextLayout =
         "paneId" in target
-          ? splitPaneInLayout(layoutWithoutPane, target.paneId, paneId, target.edge)
+          ? splitPaneInLayout(layoutWithoutPane, target.paneId, paneId, target.edge, slotId)
           : insertPaneInLayout(
               layoutWithoutPane,
               adjustInsertTargetForRemoval(layout, paneId, target),
               paneId,
+              slotId,
             );
       preservePaneSizeStorageForLayoutChange(layout, nextLayout);
       return {

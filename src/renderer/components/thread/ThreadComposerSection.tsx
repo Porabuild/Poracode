@@ -131,9 +131,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInterrupting, setIsInterrupting] = useState(false);
   const attachments = useAttachments();
-  // Unsent composer content survives leaving this thread: switching panes
-  // remounts this section (ThreadPane is keyed by threadId), so we save the
-  // typed segments + attachments on unmount and restore them on the next mount.
+  // Unsent composer content survives leaving this thread. The primary GUI pane
+  // keeps this section mounted across thread switches, so the thread-keyed
+  // layout effects below save and restore without exposing another thread's
+  // editor state for a paint.
   const saveThreadDraftContent = useAppStore((s) => s.saveThreadDraftContent);
   const clearThreadDraftContent = useAppStore((s) => s.clearThreadDraftContent);
   // The MentionInput owns the live editor DOM; mirror its latest serialized
@@ -149,11 +150,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // re-save the just-sent text as a stale draft. Reset every time (success or
   // failure) because this composer is reused for the next message.
   const submittedRef = useRef(false);
-  // Captured once at mount; consumed (and cleared) by the restore effect below.
-  const initialThreadDraftRef = useRef(useAppStore.getState().threadDraftContents[thread.id]);
-  // Guards the restore effect so it runs exactly once — when the editor first
-  // mounts — even though its dep (`editorMounted`) can flip after mount.
-  const draftRestoredRef = useRef(false);
+  const composerSessionRef = useRef({ threadId: thread.id });
+  if (composerSessionRef.current.threadId !== thread.id) {
+    composerSessionRef.current = { threadId: thread.id };
+  }
+  const preparedThreadIdRef = useRef<string | null>(null);
+  const restoredThreadIdRef = useRef<string | null>(null);
   const pendingPickedAttachments = useBrowserAttachInbox((s) => s.itemsByThread[thread.id]);
   const addPickedRef = useRef(attachments.addPicked);
   addPickedRef.current = attachments.addPicked;
@@ -394,6 +396,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   }
 
   function submitPrompt(segments: PromptSegment[]) {
+    const composerSession = composerSessionRef.current;
     submitComposerPrompt(segments, {
       thread,
       agentStatus,
@@ -410,6 +413,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       terminalPaneRef: props.terminalPaneRef,
       latestSegmentsRef,
       submittedRef,
+      isCurrentSession: () => composerSessionRef.current === composerSession,
       setPrompt,
       setHasContent,
       setIsSubmitting,
@@ -444,19 +448,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     }
   }, [filteredCommands.length, slashActiveIndex]);
 
-  useEffect(() => {
-    setPrompt("");
-    setIsInterrupting(false);
-    setSlashQuery(null);
-    setSlashActiveIndex(0);
-    setContextDockOpen(false);
-    setComposerCollapsed(collapseTerminalComposerSetting);
-  }, [thread.id, collapseTerminalComposerSetting]);
-
   // Restore an unsent draft saved the last time this thread's composer was
-  // mounted. useLayoutEffect (and reading the editor via the imperative handle)
-  // runs before paint so the text never flashes empty. Consume the entry so a
-  // later real send doesn't resurrect it.
+  // active. useLayoutEffect runs before paint so the previous thread's editor
+  // content is cleared before the new thread is visible. Consume the entry so
+  // a later real send doesn't resurrect it.
   //
   // A terminal thread that is still `launching` hides the whole composer (so the
   // MentionInput — and `mentionRef` — does not exist yet). Restoring into a null
@@ -465,9 +460,25 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // flips, at which point `mentionRef` is attached.
   const editorMounted = !usesTerminalPresentation || thread.status !== "launching";
   useLayoutEffect(() => {
-    if (draftRestoredRef.current || !editorMounted) return;
-    draftRestoredRef.current = true;
-    const saved = initialThreadDraftRef.current;
+    if (preparedThreadIdRef.current !== thread.id) {
+      preparedThreadIdRef.current = thread.id;
+      mentionRef.current?.clear();
+      latestSegmentsRef.current = [];
+      if (attachments.attachments.length > 0) attachments.clearAll();
+      submittedRef.current = false;
+      setPrompt("");
+      setHasContent(false);
+      setIsSubmitting(false);
+      setIsInterrupting(false);
+      setSlashQuery(null);
+      setSlashActiveIndex(0);
+      setControlOpenRequest(null);
+      setContextDockOpen(false);
+      setComposerCollapsed(collapseTerminalComposerSetting);
+    }
+    if (restoredThreadIdRef.current === thread.id || !editorMounted) return;
+    restoredThreadIdRef.current = thread.id;
+    const saved = useAppStore.getState().threadDraftContents[thread.id];
     if (!saved) return;
     if (saved.segments.length > 0) {
       mentionRef.current?.restoreFromSegments(saved.segments);
@@ -477,14 +488,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       attachments.restore(saved.attachments);
     }
     clearThreadDraftContent(thread.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- restore runs once, when the editor first mounts
-  }, [editorMounted]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset/restore is keyed to the active thread and editor mount; attachment/editor methods are read from this render
+  }, [editorMounted, thread.id]);
+
+  useEffect(() => {
+    setComposerCollapsed(collapseTerminalComposerSetting);
+  }, [collapseTerminalComposerSetting]);
 
   // Save whatever is left in the composer when this thread's section unmounts
   // (navigating to another thread/pane). A cleared composer leaves both refs
   // empty, so a just-sent message is not re-saved; an in-flight submit is
   // skipped via submittedRef because its text has already been handed off.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const tid = thread.id;
     return () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps -- reading the latest refs at unmount is the point: they mirror the live composer state
@@ -822,6 +837,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     );
                     const renderVoiceInput = () => (
                       <ComposerVoiceInput
+                        key={thread.id}
                         show={showVoiceInputButton}
                         isDisabled={
                           authRequired ||

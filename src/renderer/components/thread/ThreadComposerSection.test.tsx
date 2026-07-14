@@ -102,6 +102,16 @@ const guiThread: Thread = {
   updatedAt: new Date().toISOString(),
 };
 
+const secondGuiThread: Thread = {
+  ...guiThread,
+  id: "thread-gui-second",
+  title: "Second Codex GUI thread",
+  sessionRef: {
+    providerSessionId: "session-gui-second",
+    discoveredAt: new Date().toISOString(),
+  },
+};
+
 const codexGuiStatus: AgentStatus = {
   kind: "codex",
   label: "Codex",
@@ -287,6 +297,67 @@ describe("ThreadComposerSection", () => {
     });
     // The draft is consumed on restore so a later real send can't resurrect it.
     expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+  });
+
+  it("switches drafts without remounting the primary GUI composer shell", async () => {
+    useAppStore.setState({
+      threadDraftContents: {
+        [secondGuiThread.id]: {
+          segments: [{ kind: "text", content: "second thread draft" }],
+          attachments: [],
+        },
+      },
+    });
+    const { rerender } = renderComposer();
+    const firstInput = screen.getByRole("textbox");
+    firstInput.appendChild(document.createTextNode("first thread draft"));
+    fireEvent.input(firstInput);
+
+    rerender(
+      composerElement({
+        thread: secondGuiThread,
+        onSubmitInput: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox")).toHaveTextContent("second thread draft");
+    });
+    expect(screen.getByRole("textbox")).toBe(firstInput);
+    expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
+      { kind: "text", content: "first thread draft" },
+    ]);
+    expect(useAppStore.getState().threadDraftContents[secondGuiThread.id]).toBeUndefined();
+  });
+
+  it("does not let an older thread's failed submit overwrite the reused composer", async () => {
+    let rejectSubmit: ((reason: Error) => void) | undefined;
+    const onSubmitInput = vi.fn<(prompt: string, segments?: unknown) => Promise<void>>(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectSubmit = reject;
+        }),
+    );
+    const { rerender } = renderComposer({ onSubmitInput });
+    const firstInput = screen.getByRole("textbox");
+    firstInput.appendChild(document.createTextNode("send from first"));
+    fireEvent.input(firstInput);
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => expect(onSubmitInput).toHaveBeenCalledOnce());
+
+    rerender(composerElement({ thread: secondGuiThread, onSubmitInput }));
+    const secondInput = screen.getByRole("textbox");
+    secondInput.appendChild(document.createTextNode("keep in second"));
+    fireEvent.input(secondInput);
+    await act(async () => {
+      rejectSubmit?.(new Error("send failed"));
+      await Promise.resolve();
+    });
+
+    expect(secondInput).toHaveTextContent("keep in second");
+    expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
+      { kind: "text", content: "send from first" },
+    ]);
   });
 
   it("does not leave a draft behind once the message is sent", async () => {

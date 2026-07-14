@@ -53,6 +53,8 @@ export interface ComposerSubmitContext {
   latestSegmentsRef: { current: PromptSegment[] };
   /** True while a submit is in flight; gates the unmount draft-save. */
   submittedRef: { current: boolean };
+  /** Prevent an older thread's async submit from mutating the reused composer shell. */
+  isCurrentSession: () => boolean;
   setPrompt: (value: string) => void;
   setHasContent: (value: boolean) => void;
   setIsSubmitting: (value: boolean) => void;
@@ -199,20 +201,26 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     .then(denyPendingApproval)
     .then(runSubmission)
     .then(() => {
-      if (!clearedBeforeSendSettled) {
+      if (!clearedBeforeSendSettled && ctx.isCurrentSession()) {
         clearSubmittedComposer();
       }
     })
     .catch((error: unknown) => {
       // Leave the prompt intact so the user can retry.
-      if (clearedBeforeSendSettled) {
+      if (ctx.isCurrentSession()) {
         restoreSubmittedComposer();
+      } else {
+        useAppStore.getState().saveThreadDraftContent(thread.id, {
+          segments: submittedInputSegments,
+          attachments: submittedAttachments,
+        });
       }
       toast.danger(friendlyError(error));
     })
     .finally(() => {
       // The composer is now either cleared (success) or restored (failure);
       // either way the refs reflect the real state, so re-arm draft-saving.
+      if (!ctx.isCurrentSession()) return;
       ctx.submittedRef.current = false;
       ctx.setIsSubmitting(false);
     });

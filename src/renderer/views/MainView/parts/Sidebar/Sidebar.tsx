@@ -39,7 +39,7 @@ import { openTerminal } from "@/renderer/actions/terminalActions";
 import { openThread } from "@/renderer/actions/threadActions";
 import {
   useCurrentProjectId,
-  useCurrentThreadIds,
+  useIsCurrentThread,
   useCurrentWorktreePath,
   useIsProjectTerminalActive,
   useIsProjectTerminalBusy,
@@ -167,8 +167,23 @@ function RemoteAccessSidebarIcon(props: { status: RemoteAccessSidebarStatus }) {
   );
 }
 
+function CollapsedThreadRailButton(props: { thread: Thread }) {
+  const { thread } = props;
+  const isActive = useIsCurrentThread(thread.id);
+  return (
+    <SidebarButton
+      iconOnly
+      icon={<ThreadIcon thread={thread} />}
+      label={
+        thread.done ? <span className="opacity-50 line-through">{thread.title}</span> : thread.title
+      }
+      isActive={isActive}
+      onPress={() => openThread(thread.id)}
+    />
+  );
+}
+
 function CollapsedThreadRail() {
-  const currentThreadIds = useCurrentThreadIds();
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
   const activeThreads = useAppStore(
     useShallow((state) =>
@@ -192,20 +207,7 @@ function CollapsedThreadRail() {
       style={scrollFadeStyle}
     >
       {activeThreads.map((thread) => (
-        <SidebarButton
-          key={thread.id}
-          iconOnly
-          icon={<ThreadIcon thread={thread} />}
-          label={
-            thread.done ? (
-              <span className="opacity-50 line-through">{thread.title}</span>
-            ) : (
-              thread.title
-            )
-          }
-          isActive={currentThreadIds.includes(thread.id)}
-          onPress={() => openThread(thread.id)}
-        />
+        <CollapsedThreadRailButton key={thread.id} thread={thread} />
       ))}
     </div>
   );

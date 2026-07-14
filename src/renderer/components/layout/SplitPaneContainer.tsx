@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useReducer, useRef } from "react";
 import { useDroppable } from "@dnd-kit/react";
 import { msg } from "@lingui/core/macro";
+import type { ThreadPresentationMode } from "@/shared/contracts";
 import { type PaneLayout, type PaneLayoutAxis } from "@/shared/paneLayout";
 import { useIsInsertSplitHighlighted, useIsRootInsertHighlighted } from "@/renderer/dnd";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -21,6 +22,14 @@ const KEY_RESIZE_STEP_PERCENT = 2;
 
 export type Rect = { left: number; top: number; width: number; height: number };
 type ContainerSize = { width: number; height: number };
+
+export function resolvePaneDomKey(input: {
+  paneId: string;
+  paneSlotId: string;
+  presentationMode: ThreadPresentationMode | undefined;
+}): string {
+  return input.presentationMode === "gui" ? `pane-slot:${input.paneSlotId}` : input.paneId;
+}
 
 type ComputedPane = { paneId: string; rect: Rect };
 
@@ -268,6 +277,7 @@ const RootInsertZone = React.memo(function RootInsertZone(props: {
 export function SplitPaneContainer(props: {
   layout: PaneLayout;
   renderPane: (paneId: string, rect: Rect) => React.ReactNode;
+  getPaneDomKey?: (paneId: string) => string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -550,14 +560,18 @@ export function SplitPaneContainer(props: {
           bottom: ROOT_INSERT_ZONE_INSET,
         }}
       >
-        {/* Sort by id so React keeps the same DOM slot per pane across layout
-            swaps; reparenting an absolutely-positioned pane resets `scrollTop`
-            on the nested chat scroller. */}
-        {[...computed.panes]
-          .sort((a, b) => a.paneId.localeCompare(b.paneId))
-          .map((pane) => (
+        {/* Sort by DOM key so React keeps the same DOM slot per pane across
+            layout swaps; reparenting an absolutely-positioned pane resets
+            `scrollTop` on the nested chat scroller. */}
+        {computed.panes
+          .map((pane) => ({
+            pane,
+            domKey: props.getPaneDomKey?.(pane.paneId) ?? pane.paneId,
+          }))
+          .sort((a, b) => a.domKey.localeCompare(b.domKey))
+          .map(({ pane, domKey }) => (
             <div
-              key={pane.paneId}
+              key={domKey}
               ref={(element) => {
                 if (element) paneElementRefs.current.set(pane.paneId, element);
                 else paneElementRefs.current.delete(pane.paneId);

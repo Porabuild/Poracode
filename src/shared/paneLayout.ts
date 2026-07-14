@@ -1,7 +1,7 @@
 export type PaneLayoutAxis = "horizontal" | "vertical";
 
 export type PaneLayout =
-  | { kind: "leaf"; paneId: string }
+  | { kind: "leaf"; paneId: string; slotId?: string }
   | { kind: "split"; axis: PaneLayoutAxis; children: [PaneLayout, PaneLayout, ...PaneLayout[]] };
 
 export interface PaneLayoutInsertTarget {
@@ -54,7 +54,9 @@ export function replacePaneIdInLayout(
   newPaneId: string,
 ): PaneLayout {
   if (layout.kind === "leaf") {
-    return layout.paneId === oldPaneId ? { kind: "leaf", paneId: newPaneId } : layout;
+    return layout.paneId === oldPaneId
+      ? { kind: "leaf", paneId: newPaneId, slotId: layout.slotId ?? oldPaneId }
+      : layout;
   }
 
   return normalizeLayout({
@@ -70,10 +72,14 @@ export function swapPaneIdsInLayout(
   firstPaneId: string,
   secondPaneId: string,
 ): PaneLayout {
-  return mapPaneLayout(layout, (paneId) => {
-    if (paneId === firstPaneId) return secondPaneId;
-    if (paneId === secondPaneId) return firstPaneId;
-    return paneId;
+  const firstPane = findPaneLeaf(layout, firstPaneId);
+  const secondPane = findPaneLeaf(layout, secondPaneId);
+  if (!firstPane || !secondPane) return layout;
+
+  return mapPaneLayout(layout, (pane) => {
+    if (pane.paneId === firstPaneId) return secondPane;
+    if (pane.paneId === secondPaneId) return firstPane;
+    return pane;
   });
 }
 
@@ -82,21 +88,22 @@ export function splitPaneInLayout(
   targetPaneId: string,
   newPaneId: string,
   edge: "left" | "right" | "top" | "bottom",
+  slotId?: string,
 ): PaneLayout {
   if (layout.kind === "leaf") {
     if (layout.paneId !== targetPaneId) return layout;
     const axis = edge === "left" || edge === "right" ? "vertical" : "horizontal";
     const children: PaneLayout[] =
       edge === "left" || edge === "top"
-        ? [{ kind: "leaf", paneId: newPaneId }, layout]
-        : [layout, { kind: "leaf", paneId: newPaneId }];
+        ? [makePaneLeaf(newPaneId, slotId), layout]
+        : [layout, makePaneLeaf(newPaneId, slotId)];
     return makeSplit(axis, children);
   }
 
   return normalizeLayout({
     ...layout,
     children: layout.children.map((child) =>
-      splitPaneInLayout(child, targetPaneId, newPaneId, edge),
+      splitPaneInLayout(child, targetPaneId, newPaneId, edge, slotId),
     ) as [PaneLayout, PaneLayout, ...PaneLayout[]],
   });
 }
@@ -123,8 +130,20 @@ export function insertPaneInLayout(
   layout: PaneLayout,
   target: PaneLayoutInsertTarget,
   paneId: string,
+  slotId?: string,
 ): PaneLayout {
-  return insertIntoPath(layout, target.path, target.axis, target.index, { kind: "leaf", paneId });
+  return insertIntoPath(
+    layout,
+    target.path,
+    target.axis,
+    target.index,
+    makePaneLeaf(paneId, slotId),
+  );
+}
+
+export function findPaneSlotId(layout: PaneLayout, paneId: string): string | null {
+  const pane = findPaneLeaf(layout, paneId);
+  return pane ? (pane.slotId ?? pane.paneId) : null;
 }
 
 export function adjustInsertTargetForRemoval(
@@ -233,19 +252,39 @@ function samePath(left: number[], right: number[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
-function mapPaneLayout(layout: PaneLayout, mapPaneId: (paneId: string) => string): PaneLayout {
+function findPaneLeaf(
+  layout: PaneLayout,
+  paneId: string,
+): Extract<PaneLayout, { kind: "leaf" }> | null {
+  if (layout.kind === "leaf") return layout.paneId === paneId ? layout : null;
+
+  for (const child of layout.children) {
+    const pane = findPaneLeaf(child, paneId);
+    if (pane) return pane;
+  }
+  return null;
+}
+
+function mapPaneLayout(
+  layout: PaneLayout,
+  mapPane: (pane: Extract<PaneLayout, { kind: "leaf" }>) => Extract<PaneLayout, { kind: "leaf" }>,
+): PaneLayout {
   if (layout.kind === "leaf") {
-    return { kind: "leaf", paneId: mapPaneId(layout.paneId) };
+    return mapPane(layout);
   }
 
   return normalizeLayout({
     ...layout,
-    children: layout.children.map((child) => mapPaneLayout(child, mapPaneId)) as [
+    children: layout.children.map((child) => mapPaneLayout(child, mapPane)) as [
       PaneLayout,
       PaneLayout,
       ...PaneLayout[],
     ],
   });
+}
+
+function makePaneLeaf(paneId: string, slotId?: string): PaneLayout {
+  return slotId ? { kind: "leaf", paneId, slotId } : { kind: "leaf", paneId };
 }
 
 function walk(layout: PaneLayout, visitor: (paneId: string) => void) {

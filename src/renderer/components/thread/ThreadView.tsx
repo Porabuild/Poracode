@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Tooltip } from "@heroui/react";
 import { ArrowRightLeft, Bug, CircleCheck, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -212,8 +212,10 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     });
   }, [agentStatus?.capabilities.presentationMode, thread.agentKind, thread.presentationMode]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    setContinueDialogOpen(false);
     setRuntimeDebugOpen(false);
+    setIsTitleTooltipOpen(false);
   }, [thread.id]);
 
   useEffect(() => {

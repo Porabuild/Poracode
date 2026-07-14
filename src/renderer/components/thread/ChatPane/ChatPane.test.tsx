@@ -43,6 +43,7 @@ vi.mock("@tanstack/react-virtual", () => ({
     measure: vi.fn<() => void>(),
     measureElement: vi.fn<(element: HTMLDivElement | null) => void>(),
     resizeItem: vi.fn<(index: number, size: number) => void>(),
+    takeSnapshot: () => [],
     options: { measureElement: () => 96 },
     scrollToIndex: (
       index: number,
@@ -171,7 +172,7 @@ describe("ChatPane", () => {
     await waitFor(() => expect(metrics.getScrollTop()).toBe(300));
   });
 
-  it("pins sticky content growth without virtualizer reconciliation", async () => {
+  it("does not duplicate native sticky growth with virtualizer reconciliation", async () => {
     const thread = makeThread();
     seedAssistantMessage(thread.id, "Inspect output");
     useAppStore.setState({ projects: [project] });
@@ -195,6 +196,8 @@ describe("ChatPane", () => {
 
     act(() => {
       metrics.setScrollHeight(300);
+      // TanStack's end anchor applies the virtual row delta first.
+      metrics.setScrollTop(300);
       MockResizeObserver.notify(contentElement);
     });
 
@@ -242,7 +245,7 @@ describe("ChatPane", () => {
     expect(getScrollElement(container).className).toContain("[overflow-anchor:none]");
   });
 
-  it("re-pins in the same resize frame when bottom-pinned content collapses", async () => {
+  it("does not disturb the native end anchor when bottom-pinned content collapses", async () => {
     const thread = makeThread();
     seedPlanItem(thread.id, [{ step: "Inspect output", status: "in_progress" }]);
 
@@ -264,6 +267,8 @@ describe("ChatPane", () => {
 
     act(() => {
       metrics.setScrollHeight(220);
+      // TanStack's end anchor applies the virtual row delta first.
+      metrics.setScrollTop(220);
       MockResizeObserver.notify(contentElement);
     });
 
@@ -301,6 +306,8 @@ describe("ChatPane", () => {
     });
 
     act(() => {
+      // TanStack's end anchor applies the delayed virtual row delta.
+      metrics.setScrollTop(300);
       MockResizeObserver.notify(contentElement);
     });
 
@@ -510,6 +517,8 @@ describe("ChatPane", () => {
 
     act(() => {
       metrics.setScrollHeight(300);
+      // TanStack follows the append after sticky mode was re-engaged.
+      metrics.setScrollTop(300);
       MockResizeObserver.notify(contentElement);
     });
 

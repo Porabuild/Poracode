@@ -69,7 +69,6 @@ export function ThreadPane(props: {
   const projectLocation = resolveProjectLocation(project.location, thread.worktreePath);
   return (
     <ThreadView
-      key={props.threadId}
       thread={thread}
       projectName={project.name}
       agentStatus={agentStatus}

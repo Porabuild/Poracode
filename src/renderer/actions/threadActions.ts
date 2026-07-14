@@ -97,15 +97,38 @@ export function openNewThreadInWorktree(input: {
 }
 
 export function openThread(threadId: string, options?: { focusComposer?: boolean }): void {
-  const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
+  const store = useAppStore.getState();
+  const thread = store.threads.find((item) => item.id === threadId);
   const requestId = ++openThreadRequestId;
   const threadIdsToHydrate = getGuiThreadIdsToHydrateBeforeOpen(threadId);
 
+  // Phase 1 (urgent): flip the optimistic active-thread id in its own cheap
+  // commit so the sidebar row highlights immediately. This does not touch
+  // `view.panes`, so it does not trigger the heavy pane remount. Snapshot the
+  // current view so the deferred swap can bail if the user navigates elsewhere
+  // within the frame (setPendingActiveThread leaves `view`'s reference intact).
+  store.setPendingActiveThread(threadId);
+  const viewAtSchedule = store.view;
+
+  // Phase 2 (deferred): perform the real pane swap that mounts the target
+  // thread. Kept behind a frame so the highlight paints first; the previous
+  // pane stays visible until the new one mounts (no blank flash).
   const applyOpen = () => {
+    // Superseded by a newer openThread — that call owns the pending id and will
+    // clear it, so leave it untouched here.
     if (requestId !== openThreadRequestId) return;
+    // The user navigated somewhere else (Home/Draft/another pane) during the
+    // frame; honor that instead of clobbering it, and drop the stale highlight.
+    if (useAppStore.getState().view !== viewAtSchedule) {
+      useAppStore.getState().setPendingActiveThread(null);
+      return;
+    }
 
     startTransition(() => {
       useAppStore.getState().openThread(threadId);
+      // Clear in the same auto-batched commit as the pane swap so the highlight
+      // hands off to `view.panes` without a flicker.
+      useAppStore.getState().setPendingActiveThread(null);
       if (options?.focusComposer) {
         useAppStore.getState().requestComposerFocus(threadId);
       }
@@ -123,6 +146,8 @@ export function openThread(threadId: string, options?: { focusComposer?: boolean
   };
 
   if (threadIdsToHydrate.length > 0) {
+    // Hydration already yields (awaited), so the highlight paints during the
+    // SQLite fetch — no extra frame needed before the swap.
     void Promise.all(threadIdsToHydrate.map((id) => hydrateThreadRuntimeItems(id))).then(
       applyOpen,
       applyOpen,
@@ -130,7 +155,24 @@ export function openThread(threadId: string, options?: { focusComposer?: boolean
     return;
   }
 
-  applyOpen();
+  // Defer the heavy pane swap one frame so the urgent highlight commit paints
+  // first. requestAnimationFrame alone is not enough: Chromium parks rAF
+  // entirely for occluded windows, which would stall the open until the window
+  // is next visible (e.g. thread opens driven from the mobile remote). The
+  // timeout fallback keeps the swap flowing (throttled timers still fire) while
+  // the rAF path preserves the paint-first ordering when visible.
+  let applied = false;
+  let frameId: number | null = null;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const applyOnce = () => {
+    if (applied) return;
+    applied = true;
+    if (frameId !== null) cancelAnimationFrame(frameId);
+    if (timeoutId !== null) clearTimeout(timeoutId);
+    applyOpen();
+  };
+  frameId = requestAnimationFrame(applyOnce);
+  if (!applied) timeoutId = setTimeout(applyOnce, 50);
 }
 
 /**

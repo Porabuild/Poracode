@@ -242,13 +242,6 @@ export function replacePaneInView(
   // the user's custom sizes back to an equal split.
   migratePaneSizeStorage(oldPaneId, newPaneId);
 
-  if (!view.paneLayout) {
-    const panes = [...view.panes] as [string, ...string[]];
-    const idx = panes.indexOf(oldPaneId);
-    if (idx !== -1) panes[idx] = newPaneId;
-    return { ...view, panes };
-  }
-
   const layout = replacePaneIdInLayout(currentPaneLayout(view), oldPaneId, newPaneId);
   return {
     kind: "thread",

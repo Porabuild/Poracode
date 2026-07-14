@@ -53,6 +53,7 @@ describe("threadActions", () => {
       projects: [],
       threads: [],
       view: { kind: "home" },
+      pendingActiveThreadId: null,
       pendingThreadLaunches: {},
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
@@ -162,9 +163,13 @@ describe("threadActions", () => {
     openThread(firstThread.id);
     openThread(secondThread.id);
 
-    expect(useAppStore.getState().view).toEqual({
-      kind: "thread",
-      panes: [secondThread.id],
+    // The newer (terminal) open applies on the next animation frame — deferred
+    // so the sidebar highlight paints before the heavy pane mount.
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({
+        kind: "thread",
+        panes: [secondThread.id],
+      });
     });
 
     resolveFirstHydration();
@@ -462,29 +467,39 @@ describe("threadActions", () => {
       usePanelStore.setState({ threadSortMode: "manual" });
     });
 
-    it("opens the next thread in sidebar order and wraps at the end", () => {
+    // openThread defers the pane swap by a frame (so the sidebar highlight
+    // paints first), so these assertions wait for the swap to land.
+    it("opens the next thread in sidebar order and wraps at the end", async () => {
       const threads = ["a", "b", "c"].map((id) => makeThread({ id }));
       useAppStore.setState((state) => ({ ...state, threads }));
 
       switchToAdjacentThread(threads[1]!, "next");
-      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["c"] });
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["c"] }),
+      );
 
       switchToAdjacentThread(threads[2]!, "next");
-      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["a"] });
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["a"] }),
+      );
     });
 
-    it("opens the previous thread and wraps at the start", () => {
+    it("opens the previous thread and wraps at the start", async () => {
       const threads = ["a", "b", "c"].map((id) => makeThread({ id }));
       useAppStore.setState((state) => ({ ...state, threads }));
 
       switchToAdjacentThread(threads[1]!, "previous");
-      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["a"] });
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["a"] }),
+      );
 
       switchToAdjacentThread(threads[0]!, "previous");
-      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["c"] });
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["c"] }),
+      );
     });
 
-    it("stays within the current thread's project", () => {
+    it("stays within the current thread's project", async () => {
       const threads = [
         makeThread({ id: "a", projectId: "p1" }),
         makeThread({ id: "x", projectId: "p2" }),
@@ -493,7 +508,9 @@ describe("threadActions", () => {
       useAppStore.setState((state) => ({ ...state, threads }));
 
       switchToAdjacentThread(threads[0]!, "next");
-      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["b"] });
+      await waitFor(() =>
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["b"] }),
+      );
     });
 
     it("does nothing when the project has a single thread", () => {

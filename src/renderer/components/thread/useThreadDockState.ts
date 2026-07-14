@@ -17,6 +17,8 @@ import {
   type ThreadTodoDockState,
 } from "./threadTodoState";
 
+const EMPTY_DISMISSED_ERROR_ITEM_IDS: ReadonlySet<string> = new Set();
+
 export interface ThreadDockState {
   todoDockCollapsed: boolean;
   todoDockPlacement: ThreadTodoDockPlacement;
@@ -55,47 +57,58 @@ export function useThreadDockState(threadId: string): ThreadDockState {
 
   // If the plan is retired, but the agent sends an update (new object reference
   // in the store), un-retire it so the user sees the progress.
-  const lastTodoItemRef = useRef(todoItem);
+  const lastTodoItemRef = useRef({ threadId, item: todoItem });
   useEffect(() => {
+    if (lastTodoItemRef.current.threadId !== threadId) {
+      lastTodoItemRef.current = { threadId, item: todoItem };
+      return;
+    }
     if (
       retiredSourceItemId &&
       todoItem?.id === retiredSourceItemId &&
-      todoItem !== lastTodoItemRef.current
+      todoItem !== lastTodoItemRef.current.item
     ) {
       retireTodoDock(threadId, undefined);
     }
-    lastTodoItemRef.current = todoItem;
+    lastTodoItemRef.current = { threadId, item: todoItem };
   }, [todoItem, retiredSourceItemId, threadId, retireTodoDock]);
 
-  const [dismissedGoalItemId, setDismissedGoalItemId] = useState<string | null>(null);
+  const [dismissedGoal, setDismissedGoal] = useState<{
+    threadId: string;
+    itemId: string;
+  } | null>(null);
   const lastGoalItemRef = useRef(goalItem);
   useEffect(() => {
     if (
-      dismissedGoalItemId &&
-      goalItem?.id === dismissedGoalItemId &&
+      dismissedGoal?.threadId === threadId &&
+      goalItem?.id === dismissedGoal.itemId &&
       goalItem !== lastGoalItemRef.current
     ) {
-      setDismissedGoalItemId(null);
+      setDismissedGoal(null);
     }
     lastGoalItemRef.current = goalItem;
-  }, [dismissedGoalItemId, goalItem]);
+  }, [dismissedGoal, goalItem, threadId]);
 
   const errorDockStatesRaw = useAppStore(
     useShallow((s) => selectThreadErrorDockStates(s, threadId)),
   );
-  const [dismissedErrorItemIds, setDismissedErrorItemIds] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
-  useEffect(() => {
-    setDismissedErrorItemIds(new Set());
-  }, [threadId]);
+  const [dismissedErrors, setDismissedErrors] = useState<{
+    threadId: string;
+    itemIds: ReadonlySet<string>;
+  }>(() => ({ threadId, itemIds: new Set() }));
+  const dismissedErrorItemIds =
+    dismissedErrors.threadId === threadId
+      ? dismissedErrors.itemIds
+      : EMPTY_DISMISSED_ERROR_ITEM_IDS;
   const errorDockStates = useMemo(
     () => errorDockStatesRaw.filter((state) => !dismissedErrorItemIds.has(state.sourceItemId)),
     [dismissedErrorItemIds, errorDockStatesRaw],
   );
 
   const showTodoDock = todoDockState !== null && todoDockState.sourceItemId !== retiredSourceItemId;
-  const showGoalDock = goalDockState !== null && goalDockState.sourceItemId !== dismissedGoalItemId;
+  const showGoalDock =
+    goalDockState !== null &&
+    (dismissedGoal?.threadId !== threadId || goalDockState.sourceItemId !== dismissedGoal.itemId);
   const visibleTodoDockState = showTodoDock ? todoDockState : null;
   const visibleGoalDockState = showGoalDock ? goalDockState : null;
   const showTodoInRightRail = showTodoDock && todoDockPlacement === "right";
@@ -122,10 +135,15 @@ export function useThreadDockState(threadId: string): ThreadDockState {
     hiddenRuntimeItemId,
     dockLayoutToken,
     onGoalDockDismiss: () => {
-      if (visibleGoalDockState) setDismissedGoalItemId(visibleGoalDockState.sourceItemId);
+      if (visibleGoalDockState) {
+        setDismissedGoal({ threadId, itemId: visibleGoalDockState.sourceItemId });
+      }
     },
     onDismissError: (sourceItemId) =>
-      setDismissedErrorItemIds((prev) => new Set([...prev, sourceItemId])),
+      setDismissedErrors((prev) => ({
+        threadId,
+        itemIds: new Set([...(prev.threadId === threadId ? prev.itemIds : []), sourceItemId]),
+      })),
     onTodoDockCollapsedChange: (collapsed) => setTodoDockCollapsed(threadId, collapsed),
     onTodoDockPlacementChange: (placement) => setTodoDockPlacement(threadId, placement),
     onTodoDockRetire: () => {

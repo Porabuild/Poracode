@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
-import type { PaneLayout } from "@/shared/paneLayout";
+import { findPaneSlotId, type PaneLayout } from "@/shared/paneLayout";
 import {
   readStoredSizes,
   splitStorageKey,
@@ -323,7 +323,10 @@ describe("appStore runtime config sync", () => {
 
     useAppStore.getState().openThread(threadThree.id);
     const view = useAppStore.getState().view;
-    expect(view).toEqual({ kind: "thread", panes: [threadThree.id, t2.id] });
+    expect(view.kind === "thread" && view.panes).toEqual([threadThree.id, t2.id]);
+    expect(view.kind === "thread" && view.paneLayout).toBeTruthy();
+    if (view.kind !== "thread" || !view.paneLayout) return;
+    expect(findPaneSlotId(view.paneLayout, threadThree.id)).toBe(t1.id);
   });
 
   it("openThread is no-op when thread is already in panes", () => {
@@ -1301,7 +1304,10 @@ describe("grid layout actions", () => {
 
     useAppStore.getState().replacePaneAtIndex(ids[3]!, 1);
     const view = useAppStore.getState().view;
-    expect(view).toEqual({ kind: "thread", panes: [ids[0], ids[3], ids[2]] });
+    expect(view.kind === "thread" && view.panes).toEqual([ids[0], ids[3], ids[2]]);
+    expect(view.kind === "thread" && view.paneLayout).toBeTruthy();
+    if (view.kind !== "thread" || !view.paneLayout) return;
+    expect(findPaneSlotId(view.paneLayout, ids[3]!)).toBe(ids[1]);
   });
 
   it("movePaneToIndex reorders pane position", () => {
@@ -1579,6 +1585,43 @@ describe("grid layout actions", () => {
         { kind: "leaf", paneId: ids[3] },
       ],
     });
+  });
+
+  it("keeps a secondary pane slot through replacement, move, and swap", () => {
+    const ids = createThreads(4);
+    useAppStore.setState((state) => ({
+      ...state,
+      view: {
+        kind: "thread",
+        panes: [ids[0]!, ids[1]!, ids[2]!] as [string, ...string[]],
+        paneLayout: {
+          kind: "split",
+          axis: "vertical",
+          children: [
+            { kind: "leaf", paneId: ids[0]!, slotId: "slot-a" },
+            { kind: "leaf", paneId: ids[1]!, slotId: "slot-b" },
+            { kind: "leaf", paneId: ids[2]!, slotId: "slot-c" },
+          ],
+        },
+      },
+    }));
+
+    useAppStore.getState().replacePaneById(ids[3]!, ids[1]!);
+    let view = useAppStore.getState().view;
+    expect(view.kind === "thread" && view.paneLayout).toBeTruthy();
+    if (view.kind !== "thread" || !view.paneLayout) return;
+    expect(findPaneSlotId(view.paneLayout, ids[3]!)).toBe("slot-b");
+
+    useAppStore.getState().movePaneToLayoutTarget(ids[3]!, { paneId: ids[2]!, edge: "right" });
+    view = useAppStore.getState().view;
+    if (view.kind !== "thread" || !view.paneLayout) return;
+    expect(findPaneSlotId(view.paneLayout, ids[3]!)).toBe("slot-b");
+
+    useAppStore.getState().swapPanes(ids[3]!, ids[0]!);
+    view = useAppStore.getState().view;
+    if (view.kind !== "thread" || !view.paneLayout) return;
+    expect(findPaneSlotId(view.paneLayout, ids[3]!)).toBe("slot-b");
+    expect(findPaneSlotId(view.paneLayout, ids[0]!)).toBe("slot-a");
   });
 });
 

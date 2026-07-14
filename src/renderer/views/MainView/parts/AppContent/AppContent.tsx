@@ -16,7 +16,7 @@ import { friendlyError } from "@/shared/messages";
 import { isHomeProject } from "@/shared/homeScope";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
-import { buildPaneLayoutFromLegacy, findPaneAlign } from "@/shared/paneLayout";
+import { buildPaneLayoutFromLegacy, findPaneAlign, findPaneSlotId } from "@/shared/paneLayout";
 import { titlePromptFromSegments } from "@/shared/threadTitle";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -36,7 +36,11 @@ import {
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { closeAllPanels } from "@/renderer/actions/panelActions";
 import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
-import { SplitPaneContainer, type Rect } from "@/renderer/components/layout/SplitPaneContainer";
+import {
+  resolvePaneDomKey,
+  SplitPaneContainer,
+  type Rect,
+} from "@/renderer/components/layout/SplitPaneContainer";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
@@ -316,6 +320,13 @@ export function AppContent() {
     }
     const activeGroupId = view.activeGroupId;
     const hasGroupHeader = !!(activeGroupId && activeGroupName);
+    function getPaneDomKey(paneId: string) {
+      return resolvePaneDomKey({
+        paneId,
+        paneSlotId: findPaneSlotId(paneLayout, paneId) ?? paneId,
+        presentationMode: storeThreads.find((thread) => thread.id === paneId)?.presentationMode,
+      });
+    }
 
     function renderPane(paneId: string, rect: Rect) {
       const paneDraftProjectId = parseDraftProjectId(paneId);
@@ -326,7 +337,6 @@ export function AppContent() {
       const headerNeedsTrafficLightPad = rect.left === 0 && rect.top === 0 && !hasGroupHeader;
       const paneContent = paneDraftProjectId ? (
         <DraftPane
-          key={paneId}
           paneId={paneId}
           projectId={paneDraftProjectId}
           paneCount={paneCount}
@@ -339,7 +349,6 @@ export function AppContent() {
         />
       ) : (
         <ThreadPane
-          key={paneId}
           threadId={paneId}
           paneCount={paneCount}
           paneAlign={paneAlign}
@@ -350,7 +359,6 @@ export function AppContent() {
       );
       return (
         <div
-          key={paneId}
           className="h-full outline-none"
           tabIndex={-1}
           onFocusCapture={() => useAppStore.getState().setFocusedPane(paneId)}
@@ -378,7 +386,11 @@ export function AppContent() {
           </div>
         )}
         <div className="min-h-0 flex-1">
-          <SplitPaneContainer layout={paneLayout} renderPane={renderPane} />
+          <SplitPaneContainer
+            layout={paneLayout}
+            renderPane={renderPane}
+            getPaneDomKey={getPaneDomKey}
+          />
         </div>
       </div>
     );

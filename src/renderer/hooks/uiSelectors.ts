@@ -217,9 +217,23 @@ export function useActiveProjectThreads(projectId: string | undefined): Thread[]
   );
 }
 
-/** Whether a given thread id is currently open in any pane. */
+/**
+ * Whether a given thread id is currently open in any pane — with an optimistic
+ * override while an `openThread` switch is in flight. When `pendingActiveThreadId`
+ * is set, the clicked thread highlights immediately and the previous primary pane
+ * (panes[0]) de-highlights, while any secondary split panes keep their highlight
+ * ("pending replaces panes[0]"). This lets the sidebar acknowledge a click a frame
+ * before the heavy pane remount commits. Returns a primitive (Object.is-stable).
+ */
 export function useIsCurrentThread(threadId: string): boolean {
-  return useAppStore((s) => s.view.kind === "thread" && s.view.panes.includes(threadId));
+  return useAppStore((s) => {
+    const pending = s.pendingActiveThreadId;
+    if (pending !== null) {
+      if (threadId === pending) return true;
+      return s.view.kind === "thread" && s.view.panes.indexOf(threadId, 1) !== -1;
+    }
+    return s.view.kind === "thread" && s.view.panes.includes(threadId);
+  });
 }
 
 /**

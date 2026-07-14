@@ -26,7 +26,6 @@ import {
   shouldRepinForContentGrowth,
   THREAD_OPEN_COALESCE_MS,
 } from "./chatScrollGeometry";
-import { selectChatScrollAnchor, selectChatScrollAnchorForTimeline } from "./chatPaneSelectors";
 
 const USER_SCROLL_INTENT_MS = 750;
 /** Minimum at-bottom cache when no coalesce window is active. */
@@ -52,8 +51,6 @@ export const ChatScrollControls = forwardRef<
   ChatScrollControlsHandle,
   {
     scrollRef: React.RefObject<HTMLDivElement | null>;
-    contentRef: React.RefObject<HTMLDivElement | null>;
-    hiddenRuntimeItemId?: string | undefined;
     layoutChangeToken: string | null | undefined;
     threadId: string;
     tailLoaderVisible: boolean;
@@ -65,8 +62,6 @@ export const ChatScrollControls = forwardRef<
   const { t } = useLingui();
   const {
     scrollRef,
-    contentRef,
-    hiddenRuntimeItemId,
     layoutChangeToken,
     threadId,
     tailLoaderVisible,
@@ -277,12 +272,11 @@ export const ChatScrollControls = forwardRef<
     }
 
     if (hasScheduledLayoutSync()) return;
-    // During an active panel/divider drag the viewport changes every frame, and
-    // both this scroller's ResizeObserver and MessageList's totalSize effect
-    // call in here per frame. Collapse to a single coalesced rAF (no synchronous
+    // During an active panel/divider drag the viewport changes every frame.
+    // Collapse ResizeObserver updates to a single coalesced rAF (no synchronous
     // read, no chained settle passes) so the content still reflows and stays
-    // bottom-pinned live, but we do at most one forced reflow per frame instead
-    // of stacking several. The drag-end reconcile below runs the full settle.
+    // bottom-pinned live, but we do at most one forced reflow per frame. The
+    // drag-end reconcile below runs the full settle.
     //
     // Same coalescing while the initial thread-open settle is still running, and
     // for a short window after open while the virtualizer finishes measuring
@@ -447,22 +441,18 @@ export const ChatScrollControls = forwardRef<
 
   useEffect(() => {
     const el = scrollRef.current;
-    const content = contentRef.current;
-    if (!el && !content) return;
+    if (!el) return;
     const observer = new ResizeObserver(() => {
       // ResizeObserver already runs after layout and before paint, so syncing
-      // immediately here avoids a visible one-frame catch-up when rows collapse
-      // or when the viewport shrinks because surrounding UI grew.
+      // immediately here avoids a visible one-frame catch-up when the viewport
+      // changes because surrounding UI or panel dimensions changed.
       syncLayoutNowAndAfterPaint();
     });
     if (el) {
       observer.observe(el);
     }
-    if (content) {
-      observer.observe(content);
-    }
     return () => observer.disconnect();
-  }, [contentRef, scrollRef, threadId]);
+  }, [scrollRef, threadId]);
 
   const syncPinnedContentChange = useEffectEvent(() => {
     if (pinRafRef.current !== null) {
@@ -489,17 +479,6 @@ export const ChatScrollControls = forwardRef<
       }
     };
   });
-
-  useLayoutEffect(() => {
-    return useAppStore.subscribe(
-      (s) =>
-        hiddenRuntimeItemId
-          ? selectChatScrollAnchorForTimeline(s, threadId, hiddenRuntimeItemId)
-          : selectChatScrollAnchor(s, threadId),
-      () => syncPinnedContentChange(),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- subscription identity is keyed to the rendered thread; the effect event reads latest layout refs.
-  }, [hiddenRuntimeItemId, threadId]);
 
   useLayoutEffect(() => {
     syncPinnedContentChange();

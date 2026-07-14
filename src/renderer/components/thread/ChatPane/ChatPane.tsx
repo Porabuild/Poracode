@@ -364,10 +364,9 @@ export function ChatPane(props: ChatPaneProps) {
             </div>
           </div>
           <ChatScrollControls
+            key={`scroll:${threadId}`}
             ref={scrollControlsRef}
             scrollRef={scrollRef}
-            contentRef={contentRef}
-            hiddenRuntimeItemId={hiddenRuntimeItemId}
             layoutChangeToken={layoutChangeToken}
             threadId={threadId}
             tailLoaderVisible={showTailLoader}
@@ -376,6 +375,7 @@ export function ChatPane(props: ChatPaneProps) {
             onInitialScrollSettled={() => setInitialScrollSettledThreadId(threadId)}
           />
           <SubAgentOverlay
+            key={`subagent:${threadId}`}
             threadId={threadId}
             {...(project ? { projectLocation: project.location } : {})}
           />

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import type { VirtualItem } from "@tanstack/react-virtual";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
@@ -7,16 +8,14 @@ import {
   type ChatPaneActions,
 } from "../chatPaneActionsContext";
 import { MessageList } from "./MessageList";
+import { clearTimelineMeasurementCache } from "./timelineMeasurementCache";
 
-type MockVirtualRow = {
-  key: string;
-  index: number;
-  start: number;
-};
+type MockVirtualRow = Pick<VirtualItem, "key" | "index" | "start">;
 
 type MockVirtualizer = {
   getVirtualItems: () => MockVirtualRow[];
   getTotalSize: () => number;
+  takeSnapshot: () => VirtualItem[];
   measure: () => void;
   measureElement: (element: HTMLDivElement | null) => void;
   resizeItem: (index: number, size: number) => void;
@@ -38,6 +37,11 @@ type MockVirtualizerOptions = {
   measureElement?: unknown;
   useFlushSync?: boolean;
   useAnimationFrameWithResizeObserver?: boolean;
+  initialOffset?: () => number;
+  initialMeasurementsCache?: VirtualItem[];
+  anchorTo?: "start" | "end";
+  followOnAppend?: boolean;
+  scrollEndThreshold?: number;
 };
 
 const {
@@ -49,6 +53,7 @@ const {
   scrollToIndexMock,
   getVirtualItemsMock,
   getTotalSizeMock,
+  takeSnapshotMock,
 } = vi.hoisted(() => ({
   useVirtualizerMock: vi.fn<(options: MockVirtualizerOptions) => MockVirtualizer>(),
   measureMock: vi.fn<() => void>(),
@@ -60,6 +65,7 @@ const {
     vi.fn<(index: number, options?: { align?: "start" | "center" | "end" | "auto" }) => void>(),
   getVirtualItemsMock: vi.fn<() => MockVirtualRow[]>(),
   getTotalSizeMock: vi.fn<() => number>(),
+  takeSnapshotMock: vi.fn<() => VirtualItem[]>(),
 }));
 
 const { isIosTouchScrollMock } = vi.hoisted(() => ({
@@ -91,6 +97,7 @@ const PNG_BASE64 =
 describe("MessageList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearTimelineMeasurementCache();
     // Default to the non-iOS (desktop) path; iOS-specific tests opt in.
     // `clearAllMocks` resets call history but not the return value, so reset here.
     isIosTouchScrollMock.mockReturnValue(false);
@@ -106,10 +113,12 @@ describe("MessageList", () => {
       { key: "row-3", index: 2, start: 192 },
     ]);
     getTotalSizeMock.mockReturnValue(384);
+    takeSnapshotMock.mockReturnValue([]);
     optionsMeasureElementMock.mockReturnValue(96);
     useVirtualizerMock.mockReturnValue({
       getVirtualItems: getVirtualItemsMock,
       getTotalSize: getTotalSizeMock,
+      takeSnapshot: takeSnapshotMock,
       measure: measureMock,
       measureElement: measureElementMock,
       resizeItem: resizeItemMock,
@@ -155,6 +164,9 @@ describe("MessageList", () => {
     expect(virtualizerOptions.measureElement).toBeUndefined();
     expect(virtualizerOptions.useFlushSync).toBe(true);
     expect(virtualizerOptions.useAnimationFrameWithResizeObserver).toBe(true);
+    expect(virtualizerOptions.anchorTo).toBe("end");
+    expect(virtualizerOptions.followOnAppend).toBe(true);
+    expect(virtualizerOptions.scrollEndThreshold).toBe(4);
     expect(screen.queryByText("item-1")).not.toBeInTheDocument();
     expect(screen.getByText("item-2")).toBeInTheDocument();
     expect(screen.getByText("item-3")).toBeInTheDocument();
@@ -216,6 +228,66 @@ describe("MessageList", () => {
     const virtualizerOptions = useVirtualizerMock.mock.calls[0]![0];
     expect(virtualizerOptions.estimateSize(0)).toBe(320);
     expect(virtualizerOptions.estimateSize(1)).toBe(384);
+  });
+
+  it("overshoots initialOffset so the first range starts at the transcript tail", () => {
+    render(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["item-1", "item-2", "item-3"])}
+        scrollElement={document.createElement("div")}
+      />,
+    );
+
+    const virtualizerOptions = useVirtualizerMock.mock.calls[0]![0];
+    expect(virtualizerOptions.initialOffset?.()).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  it("restores cached measurements only at the same transcript width", () => {
+    const snapshot: VirtualItem[] = [
+      { key: "item-3", index: 2, start: 210, size: 120, end: 330, lane: 0 },
+    ];
+    takeSnapshotMock.mockReturnValue(snapshot);
+    const firstScrollElement = document.createElement("div");
+    Object.defineProperty(firstScrollElement, "clientWidth", { configurable: true, value: 500 });
+    const first = render(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["item-1", "item-2", "item-3"])}
+        scrollElement={firstScrollElement}
+      />,
+    );
+
+    first.unmount();
+
+    const sameWidthScrollElement = document.createElement("div");
+    Object.defineProperty(sameWidthScrollElement, "clientWidth", {
+      configurable: true,
+      value: 500,
+    });
+    const sameWidth = render(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["item-1", "item-2", "item-3"])}
+        scrollElement={sameWidthScrollElement}
+      />,
+    );
+    expect(useVirtualizerMock.mock.calls.at(-1)?.[0].initialMeasurementsCache).toEqual(snapshot);
+    sameWidth.unmount();
+
+    const differentWidthScrollElement = document.createElement("div");
+    Object.defineProperty(differentWidthScrollElement, "clientWidth", {
+      configurable: true,
+      value: 600,
+    });
+    render(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["item-1", "item-2", "item-3"])}
+        scrollElement={differentWidthScrollElement}
+      />,
+    );
+    expect(useVirtualizerMock.mock.calls.at(-1)?.[0].initialMeasurementsCache).toEqual([]);
   });
 
   it("never lets TanStack adjust scroll itself and compensates rows fully above the viewport on the next commit", () => {
@@ -314,7 +386,7 @@ describe("MessageList", () => {
     }
   });
 
-  it("still writes the bottom-sticky compensation immediately on iOS", () => {
+  it("leaves bottom-sticky compensation to native end anchoring on iOS", () => {
     isIosTouchScrollMock.mockReturnValue(true);
     const actions = {
       openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
@@ -327,8 +399,8 @@ describe("MessageList", () => {
     };
     const { scrollElement, shouldAdjust, commit } = renderCompensationList(actions);
 
-    // Below-viewport streaming row while pinned: never deferred (no upward
-    // momentum at the bottom), so the pin stays tight.
+    // Below-viewport streaming row while pinned is owned by the native end
+    // anchor, including during iOS momentum tracking.
     expect(
       shouldAdjust({ start: 96, size: 100 }, 24, {
         isScrolling: true,
@@ -337,7 +409,7 @@ describe("MessageList", () => {
     ).toBe(false);
 
     commit();
-    expect(scrollElement.scrollTop).toBe(184);
+    expect(scrollElement.scrollTop).toBe(160);
   });
 
   it("does not apply sticky measure compensation while the user has scroll intent", () => {
@@ -396,7 +468,7 @@ describe("MessageList", () => {
     expect(noteProgrammaticScroll).toHaveBeenCalledWith(80);
   });
 
-  it("compensates streaming row height changes when bottom-sticky", () => {
+  it("leaves bottom-sticky row growth to native end anchoring", () => {
     const actions = {
       openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
       revealProjectFolderInTree: vi.fn<(path: string) => void>(),
@@ -411,7 +483,7 @@ describe("MessageList", () => {
     expect(shouldAdjust({ start: 96, size: 100 }, 24, idleVirtualizer)).toBe(false);
 
     commit();
-    expect(scrollElement.scrollTop).toBe(184);
+    expect(scrollElement.scrollTop).toBe(160);
   });
 
   it("measures newly mounted rows synchronously so estimate corrections land pre-paint", () => {
@@ -613,7 +685,7 @@ describe("MessageList", () => {
     ).toBe("1");
   });
 
-  it("reports virtual total size changes to parent actions", () => {
+  it("leaves virtual total size changes to native end anchoring", () => {
     const onContentHeightChange = vi.fn<() => void>();
     const actions = {
       openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
@@ -634,7 +706,7 @@ describe("MessageList", () => {
       </ChatPaneActionsContext.Provider>,
     );
 
-    expect(onContentHeightChange).toHaveBeenCalledOnce();
+    expect(onContentHeightChange).not.toHaveBeenCalled();
 
     getTotalSizeMock.mockReturnValue(288);
     rerender(
@@ -647,7 +719,7 @@ describe("MessageList", () => {
       </ChatPaneActionsContext.Provider>,
     );
 
-    expect(onContentHeightChange).toHaveBeenCalledTimes(2);
+    expect(onContentHeightChange).not.toHaveBeenCalled();
   });
 
   it("delegates height change to parent actions without forcing list measurement", () => {
