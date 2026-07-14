@@ -120,6 +120,7 @@ describe("native ACP registry aliases", () => {
       "claude-acp": "claude",
       "codex-acp": "codex",
       cursor: "cursor",
+      "factory-droid": "factory",
       gemini: "gemini",
       "github-copilot": "copilot",
       "github-copilot-cli": "copilot",
@@ -137,6 +138,7 @@ describe("native ACP registry aliases", () => {
     expect([...APP_SUPPORTED_ACP_AGENT_IDS].toSorted()).toEqual(aliasesWithNativeSupport);
     expect([...APP_SUPPORTED_ACP_AGENT_IDS].toSorted()).toEqual([
       "cursor",
+      "factory-droid",
       "gemini",
       "github-copilot",
       "github-copilot-cli",
@@ -246,6 +248,13 @@ const registry: AcpRegistryListResult = {
       distribution: {
         binary: { windows: { archive: "https://example.com/grok.zip", cmd: "grok" } },
       },
+    },
+    {
+      id: "factory-droid",
+      name: "Factory Droid",
+      version: "0.170.0",
+      description: "Factory Droid through ACP",
+      distribution: { npx: { package: "droid" } },
     },
   ],
 };
@@ -392,6 +401,7 @@ describe("AcpRegistrySettings", () => {
 
     const cases = [
       { pattern: /First-class Cursor Agent integration/u, label: "Cursor" },
+      { pattern: /First-class Factory Droid integration/u, label: "Factory Droid" },
       { pattern: /First-class Gemini CLI integration/u, label: "Gemini" },
       { pattern: /First-class GitHub Copilot CLI integration/u, label: "GitHub Copilot" },
     ];
@@ -488,6 +498,9 @@ describe("AcpRegistrySettings", () => {
     expect(entries.get("grok")?.installCommand(wslProject)).toContain(
       "curl -fsSL https://x.ai/cli/install.sh | bash",
     );
+    expect(entries.get("factory")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://app.factory.ai/cli | sh",
+    );
     expect(entries.get("cursor")?.installCommand(wslProject)).toContain(
       "curl https://cursor.com/install -fsS | bash",
     );
@@ -524,6 +537,9 @@ describe("AcpRegistrySettings", () => {
 
       expect(entries.get("grok")?.installCommand(windowsProject)).toContain(
         "irm https://x.ai/cli/install.ps1 | iex",
+      );
+      expect(entries.get("factory")?.installCommand(windowsProject)).toContain(
+        "irm https://app.factory.ai/cli/windows | iex",
       );
       expect(entries.get("cursor")?.installCommand(windowsProject)).toContain(
         "https://cursor.com/install?win32=true",
@@ -782,6 +798,36 @@ describe("AcpRegistrySettings", () => {
     );
   });
 
+  it("preserves a native provider's terminal-login preference", async () => {
+    statusesState.agentStatuses = [
+      makeStatus("grok", {
+        label: "Grok",
+        authState: "missing",
+        authMethods: [{ id: "agent-auth", name: "Agent auth", type: "agent" }],
+        loginCommand: "grok login --device-auth",
+        preferTerminalLogin: true,
+      }),
+    ];
+
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const grokCard = screen
+      .getByText(/First-class Grok Build CLI integration/u)
+      .closest(".rounded-lg");
+    expect(grokCard).toBeTruthy();
+
+    fireEvent.click(within(grokCard as HTMLElement).getByRole("button", { name: "Login" }));
+
+    expect(runAgentLoginCommandMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "Grok",
+        command: "grok login --device-auth",
+      }),
+    );
+    expect(bridge.authenticateAcpAgent).not.toHaveBeenCalled();
+  });
+
   it("runs ACP agent-owned auth from registry cards", async () => {
     settingsState.acpRegistryInstalledAgents = {
       "glm-acp-agent": {
@@ -815,6 +861,38 @@ describe("AcpRegistrySettings", () => {
     });
     await waitFor(() => expect(bridge.focusWindow).toHaveBeenCalled());
     await waitFor(() => expect(bridge.refreshAgentStatuses).toHaveBeenCalled());
+  });
+
+  it("runs Factory agent-owned auth from its native card", async () => {
+    statusesState.agentStatuses = [
+      makeStatus("factory", {
+        label: "Factory Droid",
+        authState: "missing",
+        authMethods: [{ id: "device-pairing", name: "Sign in with browser", type: "agent" }],
+      }),
+    ];
+
+    render(<AcpRegistrySettings />);
+
+    await screen.findByRole("heading", { name: "Agent Registry" });
+    const factoryCard = screen
+      .getByText(/First-class Factory Droid integration/u)
+      .closest(".rounded-lg");
+    expect(factoryCard).toBeTruthy();
+
+    fireEvent.click(within(factoryCard as HTMLElement).getByRole("button", { name: "Login" }));
+
+    expect(bridge.authenticateAcpAgent).toHaveBeenCalledWith({
+      agentKind: "factory",
+      methodId: "device-pairing",
+    });
+    await waitFor(() => expect(bridge.focusWindow).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(bridge.refreshAgentStatuses).toHaveBeenCalledWith([], {
+        agentKinds: ["factory"],
+        envs: [{ kind: "native" }],
+      }),
+    );
   });
 
   it("shows an Update button when the registry advertises a newer ACP version", async () => {

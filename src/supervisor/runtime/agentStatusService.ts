@@ -33,7 +33,7 @@ const execFileAsync = promisify(execFile);
  * on the project location (e.g. `grok login --device-auth` on WSL). v3 adds
  * `AgentCapability.fastDisabledReason` (Claude fast-mode org gating). v4 adds
  * `AgentCapability.supportsOneShot` (so one-shot-only AI settings selectors can
- * hide interactive-only providers like Factory Droid / Grok). v5 adds
+ * hide interactive-only provider instances). v5 adds
  * `AgentStatus.preferTerminalLogin` (probe-reported; replaces the renderer's
  * hardcoded Grok check) and `AgentCapability.browserMcpScope` /
  * `subagentMcpScope` (adapter-declared; replace the renderer shadow tables).

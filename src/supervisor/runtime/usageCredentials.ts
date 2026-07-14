@@ -22,9 +22,9 @@ import { resolveZaiToken } from "./zaiCredentials";
 type OAuthToken = NonNullable<Awaited<ReturnType<typeof resolveClaudeToken>>>;
 
 /**
- * Per-provider OAuth token resolvers. factory/zai have no agent adapter, so this
- * stays an in-file registration table (not adapter-contributed) — adding a
- * usage-tracked provider is a one-line entry here rather than a new switch case.
+ * Per-provider OAuth token resolvers. This stays an in-file registration table
+ * because usage credentials are independent from chat adapter authentication —
+ * adding a usage-tracked provider is a one-line entry rather than a switch case.
  */
 const tokenResolvers: Record<string, () => Promise<OAuthToken | undefined>> = {
   claude: resolveClaudeToken,

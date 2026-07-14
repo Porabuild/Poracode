@@ -14,6 +14,7 @@ const EXPECTED_BUILT_IN_ORDER = [
   "commandcode",
   "cursor",
   "opencode",
+  "factory",
 ] as const;
 
 const EXPECTED_SUBAGENT_APPROVAL_POLICY: Record<(typeof EXPECTED_BUILT_IN_ORDER)[number], string> =
@@ -27,6 +28,7 @@ const EXPECTED_SUBAGENT_APPROVAL_POLICY: Record<(typeof EXPECTED_BUILT_IN_ORDER)
     commandcode: "yolo",
     cursor: "never",
     opencode: "yolo",
+    factory: "auto-high",
   };
 
 function detectionProviderKinds(): string[] {

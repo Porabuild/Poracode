@@ -353,6 +353,14 @@ describe("provider lifecycle: create → unload → resume → initial message v
         return;
       }
 
+      const presentationModes = adapter.capabilities.presentationModes ?? [
+        adapter.capabilities.presentationMode,
+      ];
+      if (!presentationModes.includes("terminal")) {
+        testCtx.skip(`${kind}: adapter does not support terminal presentation`);
+        return;
+      }
+
       const status = await adapter.detectInstall();
       if (!status.installed) {
         testCtx.skip(`${kind}: CLI not installed`);

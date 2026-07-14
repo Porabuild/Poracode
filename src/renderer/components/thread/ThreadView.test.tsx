@@ -617,7 +617,7 @@ describe("ThreadView", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps the GUI ACP composer input editable while a launching stop button stands in", () => {
+  it("disables only Send while a GUI ACP thread is launching", () => {
     renderThreadView({
       thread: {
         id: "thread-gui-launching",
@@ -669,18 +669,12 @@ describe("ThreadView", () => {
     expect(screen.queryByText("terminal pane")).not.toBeInTheDocument();
     const input = screen.getByPlaceholderText("Ask Codex anything about this workspace");
     expect(input).toBeInTheDocument();
-    // Composer input must remain editable while the session is launching.
     expect(input.getAttribute("aria-disabled")).not.toBe("true");
-    expect(
-      hasAncestorWithClassFragment(
-        screen.getAllByLabelText("Select model")[0]!,
-        "poracode-composer-shell--preserve-disabled-controls",
-      ),
-    ).toBe(true);
-    // The stop button stands in for the send button during launch.
-    expect(screen.queryByLabelText("Send message")).not.toBeInTheDocument();
-    const stopButton = screen.getByLabelText("Stop response");
-    expect(stopButton.querySelector('[aria-label="Loading"]')).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Select model")[0]).not.toBeDisabled();
+    input.textContent = "test";
+    fireEvent.input(input);
+    expect(screen.queryByLabelText("Stop response")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Send message")).toBeDisabled();
   });
 
   it("keeps Claude live threads terminal-driven", () => {

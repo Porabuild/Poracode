@@ -35,6 +35,7 @@ import {
   findAgentAuthMethodForStatus,
   findTerminalAuthMethodForStatus,
   scopeEnvForStatus,
+  shouldPreferTerminalLogin,
 } from "@/renderer/utils/acpRegistryAuth";
 import { PixelLoader } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
@@ -340,12 +341,17 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
       .finally(() => setPendingAgentId(undefined));
   };
 
-  const authenticateAgent = (agentId: string, methodId: string, status: AgentStatus) => {
+  const authenticateAgent = (
+    agentId: string,
+    methodId: string,
+    status: AgentStatus,
+    agentKind = acpGenericKind(agentId),
+  ) => {
     setPendingAuthAgentId(agentId);
     setError(undefined);
     readBridge()
       .authenticateAcpAgent({
-        agentKind: acpGenericKind(agentId),
+        agentKind,
         methodId,
         ...agentAuthTarget(status),
       })
@@ -354,7 +360,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
         refreshStatuses({
           reset: false,
           scope: {
-            agentKinds: [acpGenericKind(agentId)],
+            agentKinds: [agentKind],
             envs: [scopeEnvForStatus(status)],
           },
         }),
@@ -458,9 +464,27 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
       (status): status is AgentStatus => status !== undefined,
     );
     const missingAuthStatus = authStatuses.find((status) => status.authState === "missing");
+    const agentAuthMethod =
+      missingAuthStatus && !shouldPreferTerminalLogin(missingAuthStatus)
+        ? findAgentAuthMethodForStatus(missingAuthStatus)
+        : undefined;
     const loginCommand = missingAuthStatus?.loginCommand;
     const terminalAuthMethod = findTerminalAuthMethodForStatus(missingAuthStatus);
     const loginProject = projectForStatus(missingAuthStatus);
+    const runLogin =
+      agentAuthMethod && missingAuthStatus
+        ? () => authenticateAgent(agent.id, agentAuthMethod.id, missingAuthStatus, agent.id)
+        : loginCommand && missingAuthStatus
+          ? () =>
+              runTerminalLogin({
+                agentKind: agent.id,
+                agentId: agent.id,
+                status: missingAuthStatus,
+                loginCommand,
+                ...(terminalAuthMethod?.env ? { env: terminalAuthMethod.env } : {}),
+                ...(loginProject ? { project: loginProject } : {}),
+              })
+          : undefined;
     const installTargets: InstallTarget[] = [];
     const shouldOfferWslTargets = isWindowsPlatform && wslProjectsByDistro.size > 0;
     if (shouldOfferWslTargets) {
@@ -616,21 +640,12 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
                       <AlertTriangle className="size-3.5" />
                       <Trans>Sign in required</Trans>
                     </span>
-                    {loginCommand ? (
+                    {runLogin ? (
                       <Button
                         size="sm"
                         variant="tertiary"
                         isPending={pendingAuthAgentId === agent.id}
-                        onPress={() =>
-                          runTerminalLogin({
-                            agentKind: agent.id,
-                            agentId: agent.id,
-                            status: missingAuthStatus,
-                            loginCommand,
-                            ...(terminalAuthMethod?.env ? { env: terminalAuthMethod.env } : {}),
-                            ...(loginProject ? { project: loginProject } : {}),
-                          })
-                        }
+                        onPress={runLogin}
                       >
                         {({ isPending }) => (
                           <>

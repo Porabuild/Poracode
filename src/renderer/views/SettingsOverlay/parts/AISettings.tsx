@@ -89,7 +89,7 @@ function GenConfigSection(props: {
   const installedAgents = agentStatuses.filter((a) => a.installed);
   // One-shot sections (title / commit) only offer providers that can run a
   // one-shot generation; the conflict resolver leaves this off (full session),
-  // so providers like Factory Droid stay available there.
+  // so interactive-only ACP registry providers stay available there.
   const eligibleAgents = props.requireOneShot
     ? installedAgents.filter((a) => a.capabilities.supportsOneShot === true)
     : installedAgents;
@@ -99,7 +99,7 @@ function GenConfigSection(props: {
 
   // Self-heal a stale saved selection. A one-shot section can still point at a
   // provider that was selectable before one-shot filtering existed but can't run
-  // a one-shot (e.g. Grok / Factory Droid). That provider is gone from the
+  // a one-shot (e.g. a legacy ACP-registry generic). That provider is gone from the
   // picker, so the toolbar disappears with no way to re-pick — reset to Auto.
   // Guarded on the provider being *installed but ineligible* so it never fires
   // mid-detection (when the provider is merely absent from the list yet).

@@ -1123,7 +1123,7 @@ msgstr "Authorization: Bearer token"
 msgid "Auto"
 msgstr "Automático"
 
-#: src/renderer/components/providers/acpGeneric/index.tsx
+#: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Auto Approve"
 msgstr "Aprovação automática"
 
@@ -3518,6 +3518,10 @@ msgstr "Extra Alto"
 msgid "Extracting context from {0}..."
 msgstr "Extraindo contexto de {0}..."
 
+#: src/renderer/components/providers/factory/manifest.ts
+msgid "Factory Droid"
+msgstr "Factory Droid"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "failed"
@@ -3693,6 +3697,10 @@ msgstr "Integração de primeira classe da CLI Command Code usando o tempo de ex
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Cursor Agent integration using Poracode's native runtime."
 msgstr "Integração de primeira classe do Cursor Agent usando o runtime nativo do Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Factory Droid integration using Poracode's ACP runtime."
+msgstr "Integração de primeira classe com o Factory Droid usando o runtime ACP do Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Gemini CLI integration using Poracode's native runtime."
@@ -8541,7 +8549,6 @@ msgstr "Sugestões"
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "Resuma o progresso desta semana, o trabalho inacabado e os riscos mais importantes para a próxima semana."
 
-#: src/renderer/components/providers/acpGeneric/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "Supervisionado"

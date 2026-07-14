@@ -30,7 +30,7 @@ describe("supportsOneShot capability", () => {
   it("marks every first-class adapter as one-shot capable (they are all CLIs)", () => {
     // First-class providers are CLIs with a headless prompt path, so each must
     // expose one-shot support. Only runtime-registered ACP-registry generics
-    // (e.g. Factory Droid), which are not in this built-in registry, lack it.
+    // outside this built-in registry may lack it.
     const missing = adapters
       .filter((adapter) => adapter.capabilities.supportsOneShot !== true)
       .map((adapter) => adapter.kind);

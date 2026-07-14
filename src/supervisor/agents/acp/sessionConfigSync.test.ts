@@ -3,7 +3,7 @@ import type { ThreadConfig } from "@/shared/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { AcpSessionConfigSync } from "./sessionConfigSync";
 
-type ConfigOptionResponse = { configOptions: unknown[] };
+type ConfigOptionResponse = { configOptions: unknown[] } | Record<string, never>;
 
 const previousConfig: ThreadConfig = {
   model: "model-a",
@@ -21,6 +21,19 @@ function thoughtLevelOption(id = "thought-level", currentValue = "low") {
     options: [
       { value: "low", name: "Low" },
       { value: "high", name: "High" },
+    ],
+  };
+}
+
+function modelSelectOption(currentValue = "model-a") {
+  return {
+    id: "model",
+    category: "model",
+    type: "select",
+    currentValue,
+    options: [
+      { value: "model-a", name: "Model A" },
+      { value: "model-b", name: "Model B" },
     ],
   };
 }
@@ -278,6 +291,106 @@ describe("AcpSessionConfigSync", () => {
       [{ sessionId: "session-1", configId: "mode", value: "plan" }],
       [{ sessionId: "session-1", configId: "model-new", value: "model-b" }],
       [{ sessionId: "session-1", configId: "thought-new", value: "high" }],
+    ]);
+  });
+
+  it("waits for a matching config-option update after an empty model response", async () => {
+    const initialOptions = [modelSelectOption(), thoughtLevelOption("thought-old", "low")];
+    const afterModelOptions = [
+      modelSelectOption("model-b"),
+      thoughtLevelOption("thought-new", "low"),
+    ];
+    const { connection, sync } = makeConfigSync({ configOptions: initialOptions });
+    connection.setSessionConfigOption.mockResolvedValueOnce({});
+
+    const applying = sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, model: "model-b", effort: "high" },
+      previousConfig,
+    );
+    await vi.waitFor(() => expect(connection.setSessionConfigOption).toHaveBeenCalledOnce());
+    expect(connection.setSessionConfigOption.mock.calls[0]?.[0].configId).toBe("model");
+
+    sync.rememberConfigOptionUpdate({
+      sessionUpdate: "config_option_update",
+      configOptions: afterModelOptions,
+    } as SessionUpdate);
+    await applying;
+
+    expect(connection.setSessionConfigOption.mock.calls.map(([call]) => call.configId)).toEqual([
+      "model",
+      "thought-new",
+    ]);
+  });
+
+  it("retains a config-option update that arrives before the empty response", async () => {
+    const initialOptions = [modelSelectOption(), thoughtLevelOption("thought-old", "low")];
+    const { connection, sync } = makeConfigSync({ configOptions: initialOptions });
+    connection.setSessionConfigOption.mockImplementationOnce(async () => {
+      sync.reduceSessionUpdate(undefined, {
+        sessionUpdate: "config_option_update",
+        configOptions: [modelSelectOption("model-b"), thoughtLevelOption("thought-new", "low")],
+      } as SessionUpdate);
+      return {};
+    });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { model: "model-b", effort: "high", mode: "agent", approvalPolicy: "default" },
+      undefined,
+    );
+
+    expect(connection.setSessionConfigOption.mock.calls.map(([call]) => call.configId)).toEqual([
+      "model",
+      "thought-new",
+    ]);
+  });
+
+  it("handles a config RPC that outlasts the update waiter", async () => {
+    vi.useFakeTimers();
+    const { connection, sync } = makeConfigSync({
+      configOptions: [modelSelectOption(), thoughtLevelOption()],
+    });
+    connection.setSessionConfigOption.mockImplementationOnce(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 6_000));
+      return {};
+    });
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    try {
+      const applying = sync.applyTurnConfig(
+        "session-1",
+        { ...previousConfig, model: "model-b", effort: "high" },
+        previousConfig,
+      );
+      await vi.advanceTimersByTimeAsync(6_000);
+      await expect(applying).resolves.toMatchObject({ model: "model-b", effort: "high" });
+    } finally {
+      log.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("reapplies an unchanged requested effort after switching models", async () => {
+    const initialOptions = [modelSelectOption(), thoughtLevelOption("thought-old", "high")];
+    const afterModelOptions = [
+      modelSelectOption("model-b"),
+      thoughtLevelOption("thought-new", "low"),
+    ];
+    const { connection, sync } = makeConfigSync({ configOptions: initialOptions });
+    connection.setSessionConfigOption.mockResolvedValueOnce({
+      configOptions: afterModelOptions,
+    });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, model: "model-b", effort: "high" },
+      { ...previousConfig, effort: "high" },
+    );
+
+    expect(connection.setSessionConfigOption.mock.calls.map(([call]) => call.configId)).toEqual([
+      "model",
+      "thought-new",
     ]);
   });
 

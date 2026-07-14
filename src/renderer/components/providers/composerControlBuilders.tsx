@@ -2,6 +2,7 @@ import { ClipboardList, Hammer } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
 import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
+import type { ComposerControlsInput } from "./providerComposer";
 
 /**
  * Plan/Work toggle shared by Claude, Codex, Copilot, Cursor, Gemini, and
@@ -113,4 +114,62 @@ export function standardPlanApprovalControls(input: {
         ]
       : []),
   ];
+}
+
+/**
+ * Composer controls shared by ACP-backed providers. Agents with only the
+ * protocol's synthetic default/never policies get a compact toggle; agents
+ * advertising richer policy sets get the full dropdown.
+ */
+export function buildAcpComposerControls({
+  capabilities,
+  config,
+  isDisabled,
+  onConfigChange,
+}: ComposerControlsInput): ComposerControl[] {
+  const controls: ComposerControl[] = [];
+  if (capabilities.modes.includes("plan")) {
+    controls.push(
+      planWorkToggle({
+        isPlanMode: config.mode === "plan",
+        isDisabled,
+        onChange: (isSelected) => onConfigChange({ mode: isSelected ? "plan" : "agent" }),
+      }),
+    );
+  }
+
+  const approvalPolicyIds = new Set(capabilities.approvalPolicies.map((policy) => policy.id));
+  const usesSyntheticBypassToggle =
+    capabilities.approvalPolicies.length === 0 ||
+    (capabilities.approvalPolicies.length === 1 && approvalPolicyIds.has("default")) ||
+    (approvalPolicyIds.has("never") &&
+      (capabilities.approvalPolicies.length === 1 ||
+        (capabilities.approvalPolicies.length === 2 && approvalPolicyIds.has("default"))));
+
+  if (usesSyntheticBypassToggle) {
+    const isAutoApprove = config.approvalPolicy === "never";
+    controls.push({
+      kind: "toggle",
+      label: isAutoApprove ? "Auto Approve" : "Supervised",
+      displayLabel: isAutoApprove ? msg`Auto Approve` : msg`Supervised`,
+      iconKind: "permission",
+      isSelected: isAutoApprove,
+      isCurrentState: true,
+      hideLabelOnWrap: true,
+      isDisabled,
+      onChange: (isSelected) =>
+        onConfigChange({ approvalPolicy: isSelected ? "never" : "default" }),
+    });
+  } else if (capabilities.approvalPolicies.length > 0) {
+    controls.push(
+      approvalPolicyDropdown({
+        policies: capabilities.approvalPolicies,
+        currentPolicy: config.approvalPolicy ?? capabilities.approvalPolicies[0]?.id ?? "default",
+        isDisabled,
+        onChange: (value) => onConfigChange({ approvalPolicy: value }),
+      }),
+    );
+  }
+
+  return controls;
 }

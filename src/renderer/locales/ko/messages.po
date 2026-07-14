@@ -1123,7 +1123,7 @@ msgstr "Authorization: Bearer token"
 msgid "Auto"
 msgstr "자동"
 
-#: src/renderer/components/providers/acpGeneric/index.tsx
+#: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Auto Approve"
 msgstr "자동 승인"
 
@@ -3518,6 +3518,10 @@ msgstr "매우 높음"
 msgid "Extracting context from {0}..."
 msgstr "{0}에서 컨텍스트를 추출하는 중..."
 
+#: src/renderer/components/providers/factory/manifest.ts
+msgid "Factory Droid"
+msgstr "Factory Droid"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "failed"
@@ -3693,6 +3697,10 @@ msgstr "Poracode의 네이티브 런타임을 사용한 최고 수준의 Command
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Cursor Agent integration using Poracode's native runtime."
 msgstr "Poracode의 네이티브 런타임을 사용하는 일급 Cursor Agent 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Factory Droid integration using Poracode's ACP runtime."
+msgstr "Poracode의 ACP 런타임을 사용하는 Factory Droid 일급 통합입니다."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Gemini CLI integration using Poracode's native runtime."
@@ -8541,7 +8549,6 @@ msgstr "제안"
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "이번 주의 진행 상황, 미완료 작업, 다음 주의 가장 중요한 위험을 요약해 주세요."
 
-#: src/renderer/components/providers/acpGeneric/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "감독됨"
