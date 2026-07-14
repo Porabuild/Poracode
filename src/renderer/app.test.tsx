@@ -1,9 +1,9 @@
 import { Fragment, type ReactNode } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RemoteThreadCommand } from "@/shared/contracts";
-import type { QuickComposerSubmission } from "@/shared/ipc";
+import type { QuickComposerSubmission, SupervisorEvent } from "@/shared/ipc";
 import { useAppStore } from "./state/appStore";
 import { useGitStore } from "./state/gitStore";
 import { usePanelStore } from "./state/panelStore";
@@ -11,12 +11,19 @@ import { useSidebarUiStore } from "./state/sidebarUiStore";
 import { gitMergeAndRemove } from "@/renderer/actions/gitActions";
 import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 
-const { bridge, quickComposerSubmitListeners, remoteThreadCommandListeners } = vi.hoisted(() => {
+const {
+  bridge,
+  quickComposerSubmitListeners,
+  remoteThreadCommandListeners,
+  supervisorEventListeners,
+} = vi.hoisted(() => {
   const listeners: Array<(command: RemoteThreadCommand) => void> = [];
   const quickListeners: Array<(submission: QuickComposerSubmission) => void> = [];
+  const supervisorListeners: Array<(event: SupervisorEvent) => void> = [];
   return {
     remoteThreadCommandListeners: listeners,
     quickComposerSubmitListeners: quickListeners,
+    supervisorEventListeners: supervisorListeners,
     bridge: {
       windowKind: "main",
       pickFolder: vi.fn<() => Promise<null>>().mockResolvedValue(null),
@@ -129,7 +136,12 @@ const { bridge, quickComposerSubmitListeners, remoteThreadCommandListeners } = v
       resolveThreadServerRequest: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       closeThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      onSupervisorEvent: vi.fn<() => () => void>(() => () => undefined),
+      onSupervisorEvent: vi.fn<(listener: (event: SupervisorEvent) => void) => () => void>(
+        (listener) => {
+          supervisorListeners.push(listener);
+          return () => undefined;
+        },
+      ),
       startShell: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       gitWatchProject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       gitWatchWorktrees: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -346,6 +358,15 @@ describe("App", () => {
   const originalOnHydrate = useAppStore.persist.onHydrate;
   const originalOnFinishHydration = useAppStore.persist.onFinishHydration;
 
+  function mockAnimationFrameWithFakeTimers(): void {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) =>
+      window.setTimeout(() => callback(0), 16),
+    );
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation((handle) => {
+      window.clearTimeout(handle);
+    });
+  }
+
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
@@ -384,6 +405,116 @@ describe("App", () => {
       collapsedWorktrees: {},
       threadListLimits: {},
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("keeps visible runtime streams frame-paced and throttles hidden threads", () => {
+    vi.useFakeTimers();
+    mockAnimationFrameWithFakeTimers();
+    useAppStore.setState({ view: { kind: "thread", panes: ["visible"] } });
+    const applyRuntimeEventBatches = vi.spyOn(useAppStore.getState(), "applyRuntimeEventBatches");
+    const listener = supervisorEventListeners.at(-1);
+    expect(listener).toBeDefined();
+
+    listener?.({
+      type: "thread-runtime-event",
+      threadId: "visible",
+      event: {
+        type: "item.started",
+        threadId: "visible",
+        itemId: "visible-item",
+        itemType: "assistant_message",
+      },
+    });
+    listener?.({
+      type: "thread-runtime-event",
+      threadId: "hidden",
+      event: {
+        type: "item.started",
+        threadId: "hidden",
+        itemId: "hidden-item",
+        itemType: "assistant_message",
+      },
+    });
+
+    vi.advanceTimersByTime(16);
+    expect(applyRuntimeEventBatches).toHaveBeenCalledTimes(1);
+    expect(applyRuntimeEventBatches.mock.calls[0]?.[0].map((batch) => batch.threadId)).toEqual([
+      "visible",
+    ]);
+
+    vi.advanceTimersByTime(233);
+    expect(applyRuntimeEventBatches).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    expect(applyRuntimeEventBatches).toHaveBeenCalledTimes(2);
+    expect(applyRuntimeEventBatches.mock.calls[1]?.[0].map((batch) => batch.threadId)).toEqual([
+      "hidden",
+    ]);
+  });
+
+  it("batches ten background threads with five subagents each into one store update", () => {
+    vi.useFakeTimers();
+    useAppStore.setState({ view: { kind: "home" } });
+    const applyRuntimeEventBatches = vi.spyOn(useAppStore.getState(), "applyRuntimeEventBatches");
+    const listener = supervisorEventListeners.at(-1);
+
+    listener?.({
+      type: "thread-runtime-events-multi",
+      batches: Array.from({ length: 10 }, (_thread, threadIndex) => {
+        const threadId = `thread-${threadIndex}`;
+        return {
+          threadId,
+          events: Array.from({ length: 5 }, (_subagent, subagentIndex) => ({
+            type: "item.started" as const,
+            threadId,
+            itemId: `subagent-${subagentIndex}`,
+            itemType: "tool_call" as const,
+            payload: { name: "spawnAgent", status: "running", isSubAgent: true },
+          })),
+        };
+      }),
+    });
+
+    vi.advanceTimersByTime(249);
+    expect(applyRuntimeEventBatches).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+
+    expect(applyRuntimeEventBatches).toHaveBeenCalledTimes(1);
+    const batches = applyRuntimeEventBatches.mock.calls[0]?.[0] ?? [];
+    expect(batches).toHaveLength(10);
+    expect(batches.reduce((count, batch) => count + batch.events.length, 0)).toBe(50);
+  });
+
+  it("promotes queued background events when the user opens the thread", () => {
+    vi.useFakeTimers();
+    mockAnimationFrameWithFakeTimers();
+    useAppStore.setState({ view: { kind: "thread", panes: ["visible"] } });
+    const applyRuntimeEventBatches = vi.spyOn(useAppStore.getState(), "applyRuntimeEventBatches");
+    const listener = supervisorEventListeners.at(-1);
+
+    listener?.({
+      type: "thread-runtime-event",
+      threadId: "hidden",
+      event: {
+        type: "item.started",
+        threadId: "hidden",
+        itemId: "hidden-item",
+        itemType: "assistant_message",
+      },
+    });
+    vi.advanceTimersByTime(100);
+    expect(applyRuntimeEventBatches).not.toHaveBeenCalled();
+
+    useAppStore.setState({ view: { kind: "thread", panes: ["hidden"] } });
+    vi.advanceTimersByTime(16);
+
+    expect(applyRuntimeEventBatches).toHaveBeenCalledTimes(1);
+    expect(applyRuntimeEventBatches.mock.calls[0]?.[0].map((batch) => batch.threadId)).toEqual([
+      "hidden",
+    ]);
   });
 
   it("creates and queues a thread requested by a remote client", async () => {

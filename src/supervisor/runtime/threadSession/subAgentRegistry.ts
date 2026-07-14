@@ -56,11 +56,21 @@ export class SubAgentRegistry {
   bufferEvent(threadId: string, parentItemId: string, event: RuntimeEvent): void {
     const key = subAgentKey(threadId, parentItemId);
     const buffer = this.buffers.get(key);
-    if (buffer) {
-      buffer.push(event);
-    } else {
+    if (!buffer) {
       this.buffers.set(key, [event]);
+      return;
     }
+    const previous = buffer.at(-1);
+    if (
+      event.type === "content.delta" &&
+      previous?.type === "content.delta" &&
+      previous.itemId === event.itemId &&
+      previous.stream === event.stream
+    ) {
+      buffer[buffer.length - 1] = { ...previous, delta: previous.delta + event.delta };
+      return;
+    }
+    buffer.push(event);
   }
 
   /** Drain and remove the buffer for `parentItemId`. Returns `[]` if none. */
