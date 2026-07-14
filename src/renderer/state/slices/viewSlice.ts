@@ -49,6 +49,7 @@ export interface ViewSlice {
   openDraft: (projectId: string) => void;
   openDraftSideBySide: (projectId: string) => void;
   openHome: () => void;
+  openPullRequests: () => void;
   openSchedules: () => void;
   openThread: (threadId: string) => void;
   openThreadSideBySide: (threadId: string) => void;
@@ -155,6 +156,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       };
     }),
   openHome: () => set({ view: { kind: "home" } }),
+  openPullRequests: () => set({ view: { kind: "pullRequests" } }),
   openSchedules: () => set({ view: { kind: "schedules" } }),
   openThread: (threadId) =>
     set((state) => {

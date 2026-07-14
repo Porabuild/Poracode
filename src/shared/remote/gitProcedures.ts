@@ -57,6 +57,7 @@ export const GIT_REMOTE_PROCEDURE_SCOPES = {
   ghCheckAvailable: "session:read",
   ghGetPrForBranch: "session:read",
   ghListPrs: "session:read",
+  ghListPullRequests: "session:read",
   ghGetPrChecks: "session:read",
   ghGetPrFiles: "session:read",
   ghGetPrDiff: "session:read",

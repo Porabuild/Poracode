@@ -540,6 +540,7 @@ msgstr "Konto"
 msgid "Account options"
 msgstr "Kontooptionen"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Accounts"
 msgstr "Konten"
@@ -634,6 +635,10 @@ msgstr "Fügen Sie ein Projekt hinzu, bevor Sie einen Agenten installieren."
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before signing in."
 msgstr "Fügen Sie ein Projekt hinzu, bevor Sie sich anmelden."
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Add a project to see pull requests."
+msgstr "Fügen Sie ein Projekt hinzu, um Pull Requests anzuzeigen."
 
 #: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -845,6 +850,7 @@ msgstr "Benachrichtigungen, wenn Threads dich brauchen"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
@@ -1114,6 +1120,10 @@ msgstr "Authentifizierung erforderlich"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Authentication setup cannot be imported"
 msgstr "Die Authentifizierungskonfiguration kann nicht importiert werden"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Authored"
+msgstr "Erstellt"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Authorization: Bearer token"
@@ -1636,6 +1646,18 @@ msgstr "Wird überprüft…"
 msgid "Checks"
 msgstr "Prüfungen"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Checks failed"
+msgstr "Prüfungen fehlgeschlagen"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Checks passed"
+msgstr "Prüfungen bestanden"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Checks pending"
+msgstr "Prüfungen ausstehend"
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a folder"
 msgstr "Ordner auswählen"
@@ -1966,6 +1988,7 @@ msgid "Close usage details"
 msgstr "Nutzungsdetails schließen"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Geschlossen"
 
@@ -2486,6 +2509,11 @@ msgstr "Der Kontext konnte nicht extrahiert werden."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not generate commit message: {detail}"
 msgstr "Commit-Nachricht konnte nicht generiert werden: {detail}"
+
+#. placeholder {0}: failure.project.name
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Could not load pull requests for {0}."
+msgstr "Pull Requests für {0} konnten nicht geladen werden."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3150,6 +3178,7 @@ msgid "Downloading voice model..."
 msgstr "Sprachmodell wird heruntergeladen..."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Draft"
 msgstr "Entwurf"
 
@@ -3640,9 +3669,17 @@ msgstr "Nach Projekt filtern"
 msgid "Filter marketplace by source"
 msgstr "Marketplace nach Quelle filtern"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Filter pull requests"
+msgstr "Pull Requests filtern"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Filter skills by status"
 msgstr "Skills nach Status filtern"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Filters"
+msgstr "Filter"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -4597,6 +4634,10 @@ msgstr "PR wird geladen…"
 msgid "Loading previous runs"
 msgstr "Frühere Ausführungen werden geladen"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Loading pull requests"
+msgstr "Pull Requests werden geladen"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Loading registry..."
 msgstr "Registry wird geladen..."
@@ -4984,6 +5025,7 @@ msgstr "Arbeitsbaum zusammenführen"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merged"
 msgstr "Zusammengeführt"
 
@@ -5584,6 +5626,10 @@ msgstr "Keine Übereinstimmungen."
 msgid "No matching agents."
 msgstr "Keine passenden Agenten."
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "No matching pull requests."
+msgstr "Keine passenden Pull Requests."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "No matching schedules."
 msgstr "Keine passenden Zeitpläne."
@@ -5667,6 +5713,10 @@ msgstr "Noch keine Anbieter verbunden."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "No providers ready yet"
 msgstr "Noch kein Anbieter bereit"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "No pull requests found."
+msgstr "Keine Pull Requests gefunden."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "No remote configured. Add a remote to enable push and pull."
@@ -5898,6 +5948,7 @@ msgstr "Nur wenn nicht fokussiert"
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "Offen"
@@ -6157,6 +6208,10 @@ msgstr "Optionen"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
 msgid "Or write a custom answer"
 msgstr "Oder schreiben Sie eine individuelle Antwort"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Other"
+msgstr "Andere"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
@@ -6611,6 +6666,7 @@ msgstr "Projektspezifische Überschreibungen zusätzlich zu den globalen Suchein
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Projects"
 msgstr "Projekte"
 
@@ -6728,6 +6784,10 @@ msgstr "Pull Request {0}"
 msgid "Pull request #{0}"
 msgstr "Pull Request #{0}"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Pull request category"
+msgstr "Pull-Request-Kategorie"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request merged"
 msgstr "Pull Request zusammengeführt"
@@ -6735,6 +6795,11 @@ msgstr "Pull Request zusammengeführt"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Pull request options"
 msgstr "Pull-Request-Optionen"
+
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Pull requests"
+msgstr "Pull Requests"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
@@ -6869,6 +6934,7 @@ msgstr "Benachrichtigungsinhalt verbergen"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -7323,6 +7389,10 @@ msgstr "Zum Kontrollpunkt zurückkehren?"
 msgid "Revert to this checkpoint"
 msgstr "Zu diesem Kontrollpunkt zurückkehren"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Review and track work across your GitHub accounts."
+msgstr "Arbeit über Ihre GitHub-Konten hinweg prüfen und verfolgen."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Review Changes"
@@ -7356,6 +7426,10 @@ msgstr "PR #{prNumber} für {0} überprüfen"
 #: src/mobile/settingsSections.ts
 msgid "Review presentation"
 msgstr "Review-Darstellung"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Reviewing"
+msgstr "Zu prüfen"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
@@ -7650,6 +7724,10 @@ msgstr "Modelle suchen..."
 msgid "Search or enter address"
 msgstr "Adresse suchen oder eingeben"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Search pull requests"
+msgstr "Pull Requests durchsuchen"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Search repositories"
 msgstr "Repositories durchsuchen"
@@ -7894,6 +7972,7 @@ msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "Zeigen Sie einen projektlosen Home-Bereich für Agentensitzungen auf Betriebssystemebene an."
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"

@@ -31,6 +31,7 @@ export function PrReviewSidebar(props: {
   projectLocation: ProjectLocation;
   prKey: string;
   worktreePath?: string | undefined;
+  skipLocalSync?: boolean;
   onSelectFile: (path: string) => void;
   onClose: () => void;
   onRefresh: () => void;
@@ -43,6 +44,7 @@ export function PrReviewSidebar(props: {
     projectLocation,
     prKey,
     worktreePath,
+    skipLocalSync,
     onSelectFile,
     onClose,
     onRefresh,
@@ -60,6 +62,7 @@ export function PrReviewSidebar(props: {
   } = usePrWriteActions({
     projectLocation,
     prKey,
+    ...(skipLocalSync ? { skipLocalSync: true } : {}),
     onRefresh,
   });
 
@@ -155,6 +158,7 @@ export function PrReviewSidebar(props: {
             prKey={prKey}
             projectId={projectId}
             worktreePath={worktreePath}
+            {...(skipLocalSync ? { skipLocalSync: true } : {})}
             prLoading={prLoading}
             pendingAction={pendingAction}
             handleMergePr={handleMergePr}

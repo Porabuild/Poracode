@@ -540,6 +540,7 @@ msgstr "Tài khoản"
 msgid "Account options"
 msgstr "Tùy chọn tài khoản"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Accounts"
 msgstr "Tài khoản"
@@ -634,6 +635,10 @@ msgstr "Thêm một dự án trước khi cài đặt một tác nhân."
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before signing in."
 msgstr "Thêm một dự án trước khi đăng nhập."
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Add a project to see pull requests."
+msgstr "Thêm một dự án để xem các pull request."
 
 #: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -845,6 +850,7 @@ msgstr "Cảnh báo khi luồng cần bạn"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
@@ -1114,6 +1120,10 @@ msgstr "Yêu cầu xác thực"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Authentication setup cannot be imported"
 msgstr "Không thể nhập thiết lập xác thực"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Authored"
+msgstr "Do bạn tạo"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Authorization: Bearer token"
@@ -1636,6 +1646,18 @@ msgstr "Đang kiểm tra…"
 msgid "Checks"
 msgstr "Kiểm tra"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Checks failed"
+msgstr "Kiểm tra thất bại"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Checks passed"
+msgstr "Kiểm tra thành công"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Checks pending"
+msgstr "Kiểm tra đang chờ"
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a folder"
 msgstr "Chọn một thư mục"
@@ -1966,6 +1988,7 @@ msgid "Close usage details"
 msgstr "Đóng chi tiết sử dụng"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Đã đóng"
 
@@ -2486,6 +2509,11 @@ msgstr "Không thể trích xuất ngữ cảnh."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not generate commit message: {detail}"
 msgstr "Không thể tạo thông báo commit: {detail}"
+
+#. placeholder {0}: failure.project.name
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Could not load pull requests for {0}."
+msgstr "Không thể tải pull request cho {0}."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3150,6 +3178,7 @@ msgid "Downloading voice model..."
 msgstr "Đang tải xuống mẫu giọng nói..."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Draft"
 msgstr "Bản nháp"
 
@@ -3640,9 +3669,17 @@ msgstr "Lọc theo dự án"
 msgid "Filter marketplace by source"
 msgstr "Lọc marketplace theo nguồn"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Filter pull requests"
+msgstr "Lọc pull request"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Filter skills by status"
 msgstr "Lọc skill theo trạng thái"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Filters"
+msgstr "Bộ lọc"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -4597,6 +4634,10 @@ msgstr "Đang tải PR…"
 msgid "Loading previous runs"
 msgstr "Đang tải các lần chạy trước"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Loading pull requests"
+msgstr "Đang tải pull request"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Loading registry..."
 msgstr "Đang tải sổ đăng ký..."
@@ -4984,6 +5025,7 @@ msgstr "Hợp nhất Worktree"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merged"
 msgstr "Đã hợp nhất"
 
@@ -5584,6 +5626,10 @@ msgstr "Không tìm thấy kết quả phù hợp."
 msgid "No matching agents."
 msgstr "Không có tác nhân nào phù hợp."
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "No matching pull requests."
+msgstr "Không có pull request nào phù hợp."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "No matching schedules."
 msgstr "Không có lịch phù hợp."
@@ -5667,6 +5713,10 @@ msgstr "Chưa có nhà cung cấp nào được kết nối."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "No providers ready yet"
 msgstr "Chưa có nhà cung cấp nào sẵn sàng"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "No pull requests found."
+msgstr "Không tìm thấy pull request."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "No remote configured. Add a remote to enable push and pull."
@@ -5898,6 +5948,7 @@ msgstr "Chỉ khi không tập trung"
 #: src/renderer/notifications.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "Mở"
@@ -6157,6 +6208,10 @@ msgstr "Tùy chọn"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/userInputForm.tsx
 msgid "Or write a custom answer"
 msgstr "Hoặc viết một câu trả lời tùy chỉnh"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Other"
+msgstr "Khác"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
@@ -6611,6 +6666,7 @@ msgstr "Ghi đè dành riêng cho dự án ở đầu cài đặt tìm kiếm ch
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Projects"
 msgstr "Dự án"
 
@@ -6728,6 +6784,10 @@ msgstr "Pull request {0}"
 msgid "Pull request #{0}"
 msgstr "Pull request #{0}"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Pull request category"
+msgstr "Danh mục pull request"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request merged"
 msgstr "Pull request đã được hợp nhất"
@@ -6735,6 +6795,11 @@ msgstr "Pull request đã được hợp nhất"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Pull request options"
 msgstr "Tùy chọn pull request"
+
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Pull requests"
+msgstr "Pull request"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
@@ -6869,6 +6934,7 @@ msgstr "Ẩn nội dung thông báo"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -7323,6 +7389,10 @@ msgstr "Hoàn nguyên về điểm kiểm tra?"
 msgid "Revert to this checkpoint"
 msgstr "Quay lại điểm kiểm tra này"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Review and track work across your GitHub accounts."
+msgstr "Xem xét và theo dõi công việc trên các tài khoản GitHub của bạn."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Review Changes"
@@ -7356,6 +7426,10 @@ msgstr "Xem lại PR #{prNumber} cho {0}"
 #: src/mobile/settingsSections.ts
 msgid "Review presentation"
 msgstr "Hiển thị đánh giá"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Reviewing"
+msgstr "Đang xem xét"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
@@ -7650,6 +7724,10 @@ msgstr "Tìm kiếm mô hình..."
 msgid "Search or enter address"
 msgstr "Tìm kiếm hoặc nhập địa chỉ"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Search pull requests"
+msgstr "Tìm kiếm pull request"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Search repositories"
 msgstr "Tìm kiếm kho lưu trữ"
@@ -7894,6 +7972,7 @@ msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "Hiển thị phạm vi Trang chủ không có dự án cho các phiên tác nhân cấp hệ điều hành."
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"

@@ -85,6 +85,24 @@ describe("selectAnyObstructingOverlayOpen", () => {
   });
 });
 
+describe("setPrReviewContext", () => {
+  beforeEach(() => {
+    resetPanelStore();
+  });
+
+  afterEach(() => {
+    resetPanelStore();
+  });
+
+  it("updates local sync safety when reopening the same pull request", () => {
+    const context = { projectId: "p", prNumber: 42, prKey: "p:42" };
+    usePanelStore.getState().setPrReviewContext({ ...context, skipLocalSync: true });
+    usePanelStore.getState().setPrReviewContext(context);
+
+    expect(usePanelStore.getState().prReviewContext).toEqual(context);
+  });
+});
+
 describe("create project modal", () => {
   beforeEach(() => {
     resetPanelStore();

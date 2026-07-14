@@ -13,6 +13,7 @@ const ADMIN_BYPASS_RX = /--admin|base branch policy|not mergeable/i;
 export interface UsePrWriteActionsArgs {
   projectLocation: ProjectLocation;
   localSyncLocation?: ProjectLocation | undefined;
+  skipLocalSync?: boolean | undefined;
   prKey: string | undefined;
   /** PR head branch — required for the on-demand `handleRefreshPr` refetch. */
   branch?: string | undefined;
@@ -44,7 +45,8 @@ export interface UsePrWriteActionsResult {
  * stay in lockstep across surfaces.
  */
 export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteActionsResult {
-  const { projectLocation, localSyncLocation, prKey, branch, projectId, onRefresh } = args;
+  const { projectLocation, localSyncLocation, skipLocalSync, prKey, branch, projectId, onRefresh } =
+    args;
   const [pendingAction, setPendingAction] = useState<PrWriteAction | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const prLoading = pendingAction !== null;
@@ -159,12 +161,14 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
         prNumber: prData.number,
         rebase,
       });
-      const syncPayload = {
-        projectLocation: localSyncLocation ?? projectLocation,
-        remote: "origin",
-      };
-      if (rebase) await readBridge().gitPullRebase(syncPayload);
-      else await readBridge().gitPull(syncPayload);
+      if (!skipLocalSync) {
+        const syncPayload = {
+          projectLocation: localSyncLocation ?? projectLocation,
+          remote: "origin",
+        };
+        if (rebase) await readBridge().gitPullRebase(syncPayload);
+        else await readBridge().gitPull(syncPayload);
+      }
       onRefresh();
     } catch (err) {
       console.error("[git] update PR branch failed", err);

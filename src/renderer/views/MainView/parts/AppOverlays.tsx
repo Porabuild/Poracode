@@ -172,6 +172,7 @@ export function AppOverlays() {
                 prReviewContext.prKey ??
                 resolvePrKey(prReviewContext.projectId, prReviewContext.worktreePath)
               }
+              {...(prReviewContext.skipLocalSync ? { skipLocalSync: true } : {})}
               {...(prReviewContext.worktreePath
                 ? {
                     locationOverride: buildWorktreeLocation(

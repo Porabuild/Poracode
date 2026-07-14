@@ -17,11 +17,18 @@ import {
   type GhGetPrFilesResult,
   type GhGetPrDiffResult,
   type GhListAccountsResult,
+  type GhListPullRequestsResult,
   type GhListReposResult,
   type GitHubAccountRef,
   type GitHubRepoSummary,
 } from "@/shared/contracts";
-import { mapGitHubApiRepo, mapPrData, mapPrDetails, parseGhAuthAccounts } from "./githubMappers";
+import {
+  mapGitHubApiRepo,
+  mapPrData,
+  mapPrDetails,
+  mapPullRequestSummary,
+  parseGhAuthAccounts,
+} from "./githubMappers";
 
 // Re-export the pure mappers previously defined inline here so the module's
 // public surface stays identical for github.test.ts and bridge consumers.
@@ -39,6 +46,7 @@ const GH_CLONE_TIMEOUT = 600_000;
 // renderer adds client-side search over whatever we return.
 const GH_REPO_PAGE_SIZE = 100;
 const GH_REPO_MAX_PAGES = 5;
+const PULL_REQUEST_LIST_LIMIT = 1_000;
 const CREATE_PR_STATUS_WAIT_MS = 15_000;
 const CREATE_PR_STATUS_POLL_MS = 5_000;
 const PR_VIEW_FIELDS =
@@ -47,6 +55,7 @@ const PR_VIEW_FIELDS =
 // doesn't need viewerDidAuthor, so we skip the extra `gh api user` lookup).
 const PR_LIST_FIELDS =
   "number,headRefName,url,state,title,baseRefName,isDraft,reviewDecision,statusCheckRollup,updatedAt,mergeable,mergeStateStatus";
+const PULL_REQUEST_LIST_FIELDS = `${PR_LIST_FIELDS},author,additions,deletions,reviewRequests`;
 
 function selectLatestPr(items: unknown[]): Record<string, unknown> | null {
   return items.reduce<Record<string, unknown> | null>((latest, item) => {
@@ -75,6 +84,18 @@ function isRepoNotFoundError(error: unknown): boolean {
     lower.includes("could not resolve to a repository") ||
     lower.includes("no such repository") ||
     lower.includes("repository not found")
+  );
+}
+
+function isNoGitHubRepositoryError(error: unknown): boolean {
+  if (isRepoNotFoundError(error)) return true;
+  const msg = error instanceof Error ? error.message : String(error);
+  const lower = msg.toLowerCase();
+  return (
+    lower.includes("not a git repository") ||
+    lower.includes("no git remotes") ||
+    lower.includes("none of the git remotes") ||
+    lower.includes("unable to determine current repository")
   );
 }
 
@@ -366,10 +387,15 @@ export class GitHubService {
     }
   }
 
-  private async getViewerLogin(location: ProjectLocation): Promise<string | undefined> {
+  private async getViewerLogin(
+    location: ProjectLocation,
+    forceRefresh = false,
+  ): Promise<string | undefined> {
     const key = locationKey(location);
-    const cached = this.viewerLoginCache.get(key);
-    if (cached !== undefined) return cached ?? undefined;
+    if (!forceRefresh) {
+      const cached = this.viewerLoginCache.get(key);
+      if (cached !== undefined) return cached ?? undefined;
+    }
     try {
       const stdout = await this.runGh(location, ["api", "user", "--jq", ".login"]);
       const login = stdout.trim();
@@ -538,6 +564,56 @@ export class GitHubService {
       return result;
     } catch (err) {
       if (isRepoNotFoundError(err)) return {};
+      throw classifyError(err, "pr list");
+    }
+  }
+
+  /** List open PRs with viewer-specific metadata for the global Pull Requests page. */
+  async listPullRequests(location: ProjectLocation): Promise<GhListPullRequestsResult> {
+    const args = [
+      "pr",
+      "list",
+      "--state",
+      "open",
+      "--limit",
+      String(PULL_REQUEST_LIST_LIMIT),
+      "--json",
+      PULL_REQUEST_LIST_FIELDS,
+    ];
+
+    try {
+      let stdout: string;
+      let viewerLogin: string | undefined;
+
+      if (location.kind === "wsl") {
+        const key = locationKey(location);
+        const results = await this.runGhBatch(location, [args, ["api", "user", "--jq", ".login"]]);
+        const listResult = results[0]!;
+        if (!listResult.ok) throw processResultToError(listResult);
+        stdout = listResult.stdout;
+        viewerLogin = results[1]?.ok ? results[1].stdout.trim() || undefined : undefined;
+        this.viewerLoginCache.set(key, viewerLogin ?? null);
+      } else {
+        [stdout, viewerLogin] = await Promise.all([
+          this.runGh(location, args),
+          this.getViewerLogin(location, true),
+        ]);
+      }
+
+      const items = JSON.parse(stdout);
+      const pullRequests = Array.isArray(items)
+        ? items
+            .filter((item): item is Record<string, unknown> =>
+              Boolean(item && typeof item === "object"),
+            )
+            .map((item) => mapPullRequestSummary(item, viewerLogin))
+        : [];
+      return {
+        pullRequests,
+        ...(viewerLogin ? { viewerLogin } : {}),
+      };
+    } catch (err) {
+      if (isNoGitHubRepositoryError(err)) return { pullRequests: [] };
       throw classifyError(err, "pr list");
     }
   }

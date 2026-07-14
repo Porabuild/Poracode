@@ -210,6 +210,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       ),
     ghGetPrForBranch: (payload) => github.getPrForBranch(payload.projectLocation, payload.branch),
     ghListPrs: async (payload) => ({ prs: await github.listPrs(payload.projectLocation) }),
+    ghListPullRequests: (payload) => github.listPullRequests(payload.projectLocation),
     ghMergePr: (payload) =>
       github.mergePr(payload.projectLocation, payload.prNumber, payload.method, payload.admin),
     ghClosePr: (payload) => github.closePr(payload.projectLocation, payload.prNumber),

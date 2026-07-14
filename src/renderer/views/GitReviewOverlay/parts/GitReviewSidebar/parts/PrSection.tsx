@@ -50,6 +50,7 @@ export function PrSection(props: {
   prKey: string;
   projectId: string;
   worktreePath?: string | undefined;
+  skipLocalSync?: boolean;
   prLoading: boolean;
   /** Which write action is in flight, so only its button spins (others stay disabled). */
   pendingAction?: PrWriteAction | null | undefined;
@@ -65,6 +66,7 @@ export function PrSection(props: {
     prKey,
     projectId,
     worktreePath,
+    skipLocalSync,
     prLoading,
     pendingAction,
     handleMergePr,
@@ -153,6 +155,8 @@ export function PrSection(props: {
                     projectId,
                     ...(worktreePath !== undefined ? { worktreePath } : {}),
                     prNumber: number,
+                    prKey,
+                    ...(skipLocalSync ? { skipLocalSync: true } : {}),
                   })
                 }
               >

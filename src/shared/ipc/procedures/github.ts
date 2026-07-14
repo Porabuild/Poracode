@@ -9,6 +9,7 @@ import {
   ghGetPrFilesPayloadSchema,
   ghGetPrForBranchPayloadSchema,
   ghListAccountsPayloadSchema,
+  ghListPullRequestsPayloadSchema,
   ghListPrsPayloadSchema,
   ghListReposPayloadSchema,
   ghMarkPrReadyPayloadSchema,
@@ -36,6 +37,8 @@ import type {
   GhGetPrForBranchPayload,
   GhListAccountsPayload,
   GhListAccountsResult,
+  GhListPullRequestsPayload,
+  GhListPullRequestsResult,
   GhListPrsPayload,
   GhListPrsResult,
   GhListReposPayload,
@@ -72,6 +75,11 @@ export const githubProcedures = {
     "supervisor",
     ghListPrsPayloadSchema,
   ),
+  ghListPullRequests: definePayloadProcedure<
+    GhListPullRequestsPayload,
+    GhListPullRequestsResult,
+    "supervisor"
+  >("ghListPullRequests", "supervisor", ghListPullRequestsPayloadSchema),
   ghMergePr: definePayloadProcedure<GhMergePrPayload, void, "supervisor">(
     "ghMergePr",
     "supervisor",

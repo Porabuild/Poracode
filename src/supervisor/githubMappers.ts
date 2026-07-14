@@ -18,6 +18,7 @@ import {
   type PrReviewState,
   type PrReviewSummary,
   type PrState,
+  type PullRequestSummary,
 } from "@/shared/contracts";
 
 export function mapPrState(raw: { state: string; isDraft: boolean }): PrState {
@@ -67,7 +68,7 @@ export function mapPrData(raw: Record<string, unknown>, viewerLogin?: string): P
   const author = raw.author as { login?: unknown } | null | undefined;
   const authorLogin = author && typeof author.login === "string" ? author.login : undefined;
   if (authorLogin && viewerLogin) {
-    result.viewerDidAuthor = authorLogin === viewerLogin;
+    result.viewerDidAuthor = authorLogin.toLowerCase() === viewerLogin.toLowerCase();
   }
   const cs = aggregateChecksStatus(raw.statusCheckRollup);
   if (cs) result.checksStatus = cs;
@@ -98,6 +99,42 @@ export function mapPrAuthor(raw: unknown): PrAuthor | undefined {
   if (!login) return undefined;
   const avatarUrl = typeof obj.avatarUrl === "string" ? obj.avatarUrl : undefined;
   return avatarUrl ? { login, avatarUrl } : { login };
+}
+
+function repositoryFromPrUrl(rawUrl: unknown): string {
+  if (typeof rawUrl !== "string" || !rawUrl) return "";
+  try {
+    const segments = new URL(rawUrl).pathname.split("/").filter(Boolean);
+    const pullIndex = segments.lastIndexOf("pull");
+    return pullIndex >= 2 ? `${segments[pullIndex - 2]}/${segments[pullIndex - 1]}` : "";
+  } catch {
+    return "";
+  }
+}
+
+export function mapPullRequestSummary(
+  raw: Record<string, unknown>,
+  viewerLogin?: string,
+): PullRequestSummary {
+  const author = mapPrAuthor(raw.author);
+  const reviewRequested =
+    viewerLogin !== undefined &&
+    Array.isArray(raw.reviewRequests) &&
+    raw.reviewRequests.some((request) => {
+      if (!request || typeof request !== "object") return false;
+      const login = (request as Record<string, unknown>).login;
+      return typeof login === "string" && login.toLowerCase() === viewerLogin.toLowerCase();
+    });
+
+  return {
+    pr: mapPrData(raw, viewerLogin),
+    headBranch: typeof raw.headRefName === "string" ? raw.headRefName : "",
+    ...(author ? { author } : {}),
+    additions: typeof raw.additions === "number" ? raw.additions : 0,
+    deletions: typeof raw.deletions === "number" ? raw.deletions : 0,
+    repository: repositoryFromPrUrl(raw.url),
+    reviewRequested,
+  };
 }
 
 export function mapPrCommit(raw: unknown): PrCommitSummary | null {

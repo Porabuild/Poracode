@@ -1532,6 +1532,47 @@ describe("RemoteAccessServer", () => {
     });
   });
 
+  it("allows paired clients to list the global pull request rows", async () => {
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
+      if (name === "ghListPullRequests") {
+        return { pullRequests: [], viewerLogin: "remote-user" } as never;
+      }
+      throw new Error(`unexpected supervisor call: ${name}`);
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+
+    const response = await fetch(new URL("/api/git/call", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        procedure: "ghListPullRequests",
+        payload: {
+          projectLocation: { kind: "posix", path: "/tmp/example" },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      result: { pullRequests: [], viewerLogin: "remote-user" },
+    });
+    expect(callSupervisor).toHaveBeenCalledWith("ghListPullRequests", {
+      projectLocation: { kind: "posix", path: "/tmp/example" },
+    });
+  });
+
   it("rate limits pairing token exchange attempts", async () => {
     const server = new RemoteAccessServer({
       appVersion: "1.0.0",

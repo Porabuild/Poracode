@@ -141,6 +141,30 @@ export interface GhListPrsResult {
   prs: Record<string, PrData>;
 }
 
+export interface PullRequestSummary {
+  /** Overlay-ready PR data for this row. */
+  pr: PrData;
+  headBranch: string;
+  author?: PrAuthor;
+  additions: number;
+  deletions: number;
+  /** "owner/repository", derived from the canonical PR URL. */
+  repository: string;
+  /** True when the authenticated viewer is currently requested to review. */
+  reviewRequested: boolean;
+}
+
+export const ghListPullRequestsPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+});
+export type GhListPullRequestsPayload = z.infer<typeof ghListPullRequestsPayloadSchema>;
+
+export interface GhListPullRequestsResult {
+  pullRequests: PullRequestSummary[];
+  /** The account active in this project's native or WSL runtime. */
+  viewerLogin?: string;
+}
+
 export const ghMergePrPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   prNumber: z.number().int().min(1),

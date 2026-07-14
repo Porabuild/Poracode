@@ -393,6 +393,185 @@ describe("GitHubService", () => {
     });
   });
 
+  describe("listPullRequests", () => {
+    it("returns overlay-ready rows scoped to the native runtime account", async () => {
+      execFileAsyncMock.mockImplementation(async (...args: unknown[]) => {
+        const ghArgs = args[1] as string[];
+        if (ghArgs[0] === "api") return { stdout: "WindowsUser\n" };
+        return {
+          stdout: JSON.stringify([
+            {
+              number: 42,
+              headRefName: "feature/review",
+              url: "https://github.com/owner/repo/pull/42",
+              state: "OPEN",
+              title: "Review me",
+              baseRefName: "main",
+              isDraft: false,
+              author: { login: "OtherUser", avatarUrl: "https://avatars.example/other" },
+              additions: 12,
+              deletions: 3,
+              reviewRequests: [{ login: "windowsuser" }],
+              updatedAt: "2026-07-13T10:00:00Z",
+            },
+            {
+              number: 41,
+              headRefName: "feature/authored",
+              url: "https://github.com/owner/repo/pull/41",
+              state: "OPEN",
+              title: "My PR",
+              baseRefName: "main",
+              isDraft: false,
+              author: { login: "WINDOWSUSER" },
+              additions: 5,
+              deletions: 1,
+              reviewRequests: [],
+              updatedAt: "2026-07-12T10:00:00Z",
+            },
+          ]),
+        };
+      });
+
+      const result = await new GitHubService().listPullRequests(location);
+
+      expect(result.viewerLogin).toBe("WindowsUser");
+      expect(result.pullRequests).toEqual([
+        expect.objectContaining({
+          headBranch: "feature/review",
+          repository: "owner/repo",
+          additions: 12,
+          deletions: 3,
+          reviewRequested: true,
+          author: { login: "OtherUser", avatarUrl: "https://avatars.example/other" },
+          pr: expect.objectContaining({ number: 42, viewerDidAuthor: false }),
+        }),
+        expect.objectContaining({
+          headBranch: "feature/authored",
+          reviewRequested: false,
+          pr: expect.objectContaining({ number: 41, viewerDidAuthor: true }),
+        }),
+      ]);
+      const listCall = buildAgentCommandMock.mock.calls.find(
+        (call) => (call[2] as string[])[0] === "pr",
+      );
+      expect(listCall?.[2]).toEqual([
+        "pr",
+        "list",
+        "--state",
+        "open",
+        "--limit",
+        "1000",
+        "--json",
+        expect.stringContaining("reviewRequests"),
+      ]);
+    });
+
+    it("refreshes the native viewer identity on each global list load", async () => {
+      let viewerRequest = 0;
+      execFileAsyncMock.mockImplementation(async (...args: unknown[]) => {
+        const ghArgs = args[1] as string[];
+        if (ghArgs[0] === "api") {
+          viewerRequest += 1;
+          return { stdout: viewerRequest === 1 ? "FirstUser\n" : "SecondUser\n" };
+        }
+        return {
+          stdout: JSON.stringify([
+            {
+              number: 42,
+              headRefName: "feature/authored",
+              url: "https://github.com/owner/repo/pull/42",
+              state: "OPEN",
+              title: "Authored PR",
+              baseRefName: "main",
+              isDraft: false,
+              author: { login: "SecondUser" },
+              additions: 1,
+              deletions: 0,
+              reviewRequests: [],
+              updatedAt: "2026-07-13T10:00:00Z",
+            },
+          ]),
+        };
+      });
+      const service = new GitHubService();
+
+      const first = await service.listPullRequests(location);
+      const second = await service.listPullRequests(location);
+
+      expect(first.viewerLogin).toBe("FirstUser");
+      expect(first.pullRequests[0]?.pr.viewerDidAuthor).toBe(false);
+      expect(second.viewerLogin).toBe("SecondUser");
+      expect(second.pullRequests[0]?.pr.viewerDidAuthor).toBe(true);
+      expect(viewerRequest).toBe(2);
+    });
+
+    it("runs both list and viewer lookup inside the WSL project runtime", async () => {
+      const processBatch = vi.fn<
+        () => Promise<{
+          results: { ok: boolean; stdout: string; stderr: string; exitCode: number }[];
+        }>
+      >(async () => ({
+        results: [
+          {
+            ok: true,
+            stdout: JSON.stringify([
+              {
+                number: 9,
+                headRefName: "wsl/pr",
+                url: "https://github.com/wsl-owner/repo/pull/9",
+                state: "OPEN",
+                title: "WSL PR",
+                baseRefName: "main",
+                isDraft: false,
+                author: { login: "review-author" },
+                additions: 2,
+                deletions: 4,
+                reviewRequests: [{ login: "WslAccount" }],
+                updatedAt: "2026-07-13T11:00:00Z",
+              },
+            ]),
+            stderr: "",
+            exitCode: 0,
+          },
+          { ok: true, stdout: "WslAccount\n", stderr: "", exitCode: 0 },
+        ],
+      }));
+      const service = new GitHubService();
+      service.setWslClient({ processBatch } as never);
+
+      const result = await service.listPullRequests(wslLocation);
+
+      expect(result).toMatchObject({
+        viewerLogin: "WslAccount",
+        pullRequests: [
+          {
+            headBranch: "wsl/pr",
+            repository: "wsl-owner/repo",
+            reviewRequested: true,
+          },
+        ],
+      });
+      expect(execFileAsyncMock).not.toHaveBeenCalled();
+      expect(processBatch).toHaveBeenCalledWith(wslLocation, {
+        timeoutMs: 30_000,
+        commands: [
+          expect.objectContaining({
+            command: "gh",
+            cwd: "/home/demo/repo",
+            args: expect.arrayContaining(["pr", "list", "open"]),
+            loginEnv: true,
+          }),
+          {
+            command: "gh",
+            cwd: "/home/demo/repo",
+            args: ["api", "user", "--jq", ".login"],
+            loginEnv: true,
+          },
+        ],
+      });
+    });
+  });
+
   describe("createPr", () => {
     it("creates a PR using body-file and returns data from pr view", async () => {
       const viewJson = JSON.stringify({
