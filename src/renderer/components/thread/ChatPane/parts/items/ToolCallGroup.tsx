@@ -149,37 +149,45 @@ export const ToolCallGroup = memo(function ToolCallGroup({
         </Disclosure.Heading>
         <Disclosure.Content>
           <Disclosure.Body className={`ml-1.5 ${chatRowRailClass} pb-0 pl-2.5 pt-0`}>
-            {hasOverflowRows && !sameFileEditSummary ? (
-              <div className="mb-0.5 flex justify-start">
-                <button
-                  type="button"
-                  aria-expanded={showAll}
-                  className="-ml-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-[color:var(--muted)] transition-colors hover:bg-foreground/5 hover:text-foreground"
-                  onClick={() => {
-                    setShowAll((prev) => !prev);
-                    actions?.onContentHeightChange();
-                  }}
-                >
-                  {showAll ? <Trans>Show less</Trans> : <Trans>Show all</Trans>}
-                </button>
-              </div>
-            ) : null}
-            <div
-              ref={scrollRef}
-              className={`poracode-tool-call-group-viewport flex flex-col gap-0.5 pr-1 ${
-                showAll ? "max-h-[420px] overflow-y-auto" : ""
-              }`}
-            >
-              {sameFileEditSummary ? (
-                <SameFileEditGroupBody items={items} />
-              ) : (
-                visibleItems.map((item) => (
-                  <div key={item.id} className="animate-tool-call-enter">
-                    <GroupRowInline item={item} />
+            {/* React Aria keeps collapsed disclosure panels mounted (hidden), so
+                gate the heavy group children on `isExpanded` — matches
+                ChatItemAccordion. Panels snap closed (transitions disabled in
+                styles.css), so a plain conditional is correct; no keep-alive. */}
+            {isExpanded ? (
+              <>
+                {hasOverflowRows && !sameFileEditSummary ? (
+                  <div className="mb-0.5 flex justify-start">
+                    <button
+                      type="button"
+                      aria-expanded={showAll}
+                      className="-ml-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-[color:var(--muted)] transition-colors hover:bg-foreground/5 hover:text-foreground"
+                      onClick={() => {
+                        setShowAll((prev) => !prev);
+                        actions?.onContentHeightChange();
+                      }}
+                    >
+                      {showAll ? <Trans>Show less</Trans> : <Trans>Show all</Trans>}
+                    </button>
                   </div>
-                ))
-              )}
-            </div>
+                ) : null}
+                <div
+                  ref={scrollRef}
+                  className={`poracode-tool-call-group-viewport flex flex-col gap-0.5 pr-1 ${
+                    showAll ? "max-h-[420px] overflow-y-auto" : ""
+                  }`}
+                >
+                  {sameFileEditSummary ? (
+                    <SameFileEditGroupBody items={items} />
+                  ) : (
+                    visibleItems.map((item) => (
+                      <div key={item.id} className="animate-tool-call-enter">
+                        <GroupRowInline item={item} />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
+            ) : null}
           </Disclosure.Body>
         </Disclosure.Content>
       </Disclosure>

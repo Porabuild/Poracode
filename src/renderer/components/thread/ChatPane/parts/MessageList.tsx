@@ -28,6 +28,7 @@ import {
 import { ChatItemRow } from "./items/ChatItemRow";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline } from "./items/imageViewSource";
+import { isToolLikeItem } from "./items/toolCallCategorization";
 import {
   getTimelineMeasurementSignature,
   readTimelineMeasurements,
@@ -79,6 +80,18 @@ const CHAT_TRANSCRIPT_OVERSCAN = 16;
 const DEFAULT_ROW_ESTIMATE_PX = 96;
 const INLINE_IMAGE_ROW_ESTIMATE_PX = 320;
 const ASSISTANT_IMAGE_ROW_ESTIMATE_PX = 384;
+// A collapsed tool/command/file/search row — and a collapsed tool-call group —
+// renders a single accordion/disclosure trigger: `chatRowClass`'s `py-1` (8px)
+// wrapping command-size text with `leading-tight` (~15px at the 13px default),
+// plus the virtual row wrapper's `pb-1` (4px) ≈ 27px. Groups are only expanded
+// while they are the live tail (measured immediately), so collapsed is the
+// right default. This was 64 (group) / 56 (items) — a ~2x over-estimate that
+// fed a large estimate→measure delta into scroll compensation on scrollback.
+const COLLAPSED_ROW_ESTIMATE_PX = 28;
+// The completed reasoning "Thought" toggle is a custom row (not the accordion):
+// `py-2` (16px) around a single ~12px icon/label line (`size-3` icons,
+// `leading-none`), plus the virtual row wrapper's `pb-1` (4px) ≈ 32px. Was 52.
+const COLLAPSED_REASONING_ROW_ESTIMATE_PX = 32;
 const SKIP_REVERT_CONFIRM_PREF_KEY = "poracode-chat-checkpoint-revert-skip-confirm";
 // How long the iOS scroll-compensation flush waits for momentum to idle before
 // applying the buffered delta. Matches @tanstack/virtual-core's
@@ -161,7 +174,15 @@ export function MessageList({
       if (!cacheSignature || getTimelineMeasurementSignature(scrollElement) !== cacheSignature) {
         return;
       }
-      writeTimelineMeasurements(threadId, cacheSignature, virtualizer.takeSnapshot());
+      const state = useAppStore.getState();
+      const measurements = virtualizer
+        .takeSnapshot()
+        .filter((measurement) =>
+          isRemountStableSnapshotItem(
+            selectRuntimeItemById(state, threadId, String(measurement.key)),
+          ),
+        );
+      writeTimelineMeasurements(threadId, cacheSignature, measurements);
     };
   }, [scrollElement, threadId, virtualizer]);
 
@@ -676,7 +697,9 @@ function liveStreamMeasureToken(item: RuntimeChatItem | undefined): string | nul
 
 function estimateTimelineEntrySize(entry: ChatTimelineEntry | undefined, threadId: string): number {
   if (!entry) return DEFAULT_ROW_ESTIMATE_PX;
-  if (entry.kind === "tool_call_group") return 64;
+  // A tool-call group only estimates while collapsed (it auto-expands solely as
+  // the live tail, which is measured immediately), so use the collapsed trigger.
+  if (entry.kind === "tool_call_group") return COLLAPSED_ROW_ESTIMATE_PX;
   return estimateRuntimeItemSize(selectRuntimeItemById(useAppStore.getState(), threadId, entry.id));
 }
 
@@ -689,7 +712,7 @@ function estimateRuntimeItemSize(item: ReturnType<typeof selectRuntimeItemById>)
     case "user_message":
       return 88;
     case "reasoning":
-      return item.state === "completed" ? 52 : 128;
+      return item.state === "completed" ? COLLAPSED_REASONING_ROW_ESTIMATE_PX : 128;
     case "plan":
       return 128;
     case "tool_call":
@@ -697,15 +720,42 @@ function estimateRuntimeItemSize(item: ReturnType<typeof selectRuntimeItemById>)
     case "image_view":
     case "dynamic_tool_call":
       if (imageViewRendersInline(item.payload)) return INLINE_IMAGE_ROW_ESTIMATE_PX;
-      return item.state === "completed" ? 56 : 132;
+      return item.state === "completed" ? COLLAPSED_ROW_ESTIMATE_PX : 132;
     case "command_execution":
     case "file_change":
     case "web_search":
-      return item.state === "completed" ? 56 : 132;
+      return item.state === "completed" ? COLLAPSED_ROW_ESTIMATE_PX : 132;
     case "error":
       return 80;
     default:
       return DEFAULT_ROW_ESTIMATE_PX;
+  }
+}
+
+/**
+ * Whether a completed row's measured height survives a remount unchanged, so its
+ * cached measurement may be restored (see `writeTimelineMeasurements`). Kept
+ * beside `estimateRuntimeItemSize` because both are per-type tables that must
+ * stay in sync: a row type with local expand/collapse state remounts collapsed
+ * (its `useState` dies with the fiber), so restoring an expanded-state size
+ * would hand scroll compensation one huge delta on first revisit — the jump the
+ * snapshot cache exists to prevent. Tool-call groups, reasoning ("Thought"
+ * toggle), user messages (clamped "Show more"), and every tool/command/file/
+ * search accordion are therefore unstable; non-completed rows are dropped too
+ * since their height keeps changing while the thread works in the background.
+ */
+function isRemountStableSnapshotItem(item: RuntimeChatItem | undefined): boolean {
+  if (!item || item.state !== "completed") return false;
+  switch (item.type) {
+    case "assistant_message":
+    case "plan":
+    case "question_answer":
+    case "error":
+      return true;
+    default:
+      // Inline image cards have no disclosure; every other tool-like row renders
+      // the collapsible accordion and remounts collapsed.
+      return isToolLikeItem(item) && imageViewRendersInline(item.payload);
   }
 }
 

@@ -61,6 +61,38 @@ describe("ToolCallGroup", () => {
     expect(viewport.className).not.toContain("overflow-y-auto");
   });
 
+  it("does not mount child rows while collapsed and mounts them once expanded", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeToolItem("tool-1", "Read file one"),
+      makeToolItem("tool-2", "Read file two"),
+    ];
+    seedThread(threadId, items);
+
+    // isLive=false → the group starts collapsed. React Aria keeps the panel
+    // mounted-but-hidden, so this asserts the `isExpanded` gate actually skips
+    // rendering the heavy child rows (not just hiding them).
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+      false,
+    );
+
+    // Header still derives from the summary while collapsed.
+    expect(screen.getByText("2 views")).toBeInTheDocument();
+    // No child row content and no viewport container are mounted.
+    expect(view.container.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
+    expect(screen.queryByText("Read file one")).not.toBeInTheDocument();
+    expect(screen.queryByText("Read file two")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /2 views/i }));
+
+    // Expanded: child rows mount.
+    expect(view.container.querySelector(".poracode-tool-call-group-viewport")).not.toBeNull();
+    expect(screen.getByText("Read file one")).toBeInTheDocument();
+    expect(screen.getByText("Read file two")).toBeInTheDocument();
+  });
+
   it("renders every row inline when the group fits under the cap", () => {
     const threadId = "thread-1";
     const items = Array.from({ length: 6 }, (_, index) =>
@@ -537,10 +569,10 @@ describe("ToolCallGroup", () => {
   });
 });
 
-function renderToolCallGroup(threadId: string, itemIds: readonly string[]) {
+function renderToolCallGroup(threadId: string, itemIds: readonly string[], isLive = true) {
   return render(
     <AppProvider>
-      <ToolCallGroup threadId={threadId} itemIds={itemIds} isLive />
+      <ToolCallGroup threadId={threadId} itemIds={itemIds} isLive={isLive} />
     </AppProvider>,
   );
 }

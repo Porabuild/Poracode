@@ -49,11 +49,11 @@ const {
   measureMock,
   measureElementMock,
   resizeItemMock,
+  takeSnapshotMock,
   optionsMeasureElementMock,
   scrollToIndexMock,
   getVirtualItemsMock,
   getTotalSizeMock,
-  takeSnapshotMock,
 } = vi.hoisted(() => ({
   useVirtualizerMock: vi.fn<(options: MockVirtualizerOptions) => MockVirtualizer>(),
   measureMock: vi.fn<() => void>(),
@@ -113,8 +113,8 @@ describe("MessageList", () => {
       { key: "row-3", index: 2, start: 192 },
     ]);
     getTotalSizeMock.mockReturnValue(384);
-    takeSnapshotMock.mockReturnValue([]);
     optionsMeasureElementMock.mockReturnValue(96);
+    takeSnapshotMock.mockReturnValue([]);
     useVirtualizerMock.mockReturnValue({
       getVirtualItems: getVirtualItemsMock,
       getTotalSize: getTotalSizeMock,
@@ -244,6 +244,7 @@ describe("MessageList", () => {
   });
 
   it("restores cached measurements only at the same transcript width", () => {
+    hydrateCompletedAssistantMessages("thread-1", ["item-3"]);
     const snapshot: VirtualItem[] = [
       { key: "item-3", index: 2, start: 210, size: 120, end: 330, lane: 0 },
     ];
@@ -288,6 +289,188 @@ describe("MessageList", () => {
       />,
     );
     expect(useVirtualizerMock.mock.calls.at(-1)?.[0].initialMeasurementsCache).toEqual([]);
+  });
+
+  it("estimates collapsed tool, group, and reasoning rows near their one-line height", () => {
+    const threadId = "thread-estimates";
+    useAppStore.getState().hydrateThreadRuntimeItems(threadId, [
+      { id: "tool-1", type: "tool_call", state: "completed", payload: {}, streams: {} },
+      { id: "cmd-1", type: "command_execution", state: "completed", payload: {}, streams: {} },
+      { id: "reason-1", type: "reasoning", state: "completed", payload: {}, streams: {} },
+    ]);
+
+    render(
+      <MessageList
+        threadId={threadId}
+        entries={[
+          { kind: "item", id: "tool-1" },
+          { kind: "item", id: "cmd-1" },
+          { kind: "item", id: "reason-1" },
+          { kind: "tool_call_group", id: "group-1", itemIds: ["tool-2", "tool-3"] },
+        ]}
+        scrollElement={document.createElement("div")}
+      />,
+    );
+
+    const virtualizerOptions = useVirtualizerMock.mock.calls[0]![0];
+    // Collapsed accordion trigger (~27px), not the old 56/64 over-estimate.
+    expect(virtualizerOptions.estimateSize(0)).toBe(28);
+    expect(virtualizerOptions.estimateSize(1)).toBe(28);
+    // Reasoning "Thought" toggle uses py-2, so ~32px.
+    expect(virtualizerOptions.estimateSize(2)).toBe(32);
+    // Collapsed tool-call group shares the accordion trigger.
+    expect(virtualizerOptions.estimateSize(3)).toBe(28);
+  });
+
+  it("snapshots measured sizes on unmount and restores them on remount of the same thread", () => {
+    const threadId = "thread-snapshot-restore";
+    hydrateCompletedAssistantMessages(threadId, ["item-1", "item-2"]);
+    const snapshot = [{ key: "item-1", index: 0, start: 0, end: 40, size: 40, lane: 0 }];
+    takeSnapshotMock.mockReturnValue(snapshot);
+
+    const { unmount } = render(
+      <MessageList
+        threadId={threadId}
+        entries={makeEntries(["item-1", "item-2"])}
+        scrollElement={createSizedScrollElement()}
+      />,
+    );
+
+    expect(useVirtualizerMock.mock.calls[0]![0].initialMeasurementsCache).toEqual([]);
+
+    unmount();
+    expect(takeSnapshotMock).toHaveBeenCalled();
+
+    useVirtualizerMock.mockClear();
+    render(
+      <MessageList
+        threadId={threadId}
+        entries={makeEntries(["item-1", "item-2"])}
+        scrollElement={createSizedScrollElement()}
+      />,
+    );
+
+    // The prior snapshot's measurements are handed back so rows never
+    // re-estimate. Content, not array identity, is what virtual-core consumes.
+    expect(useVirtualizerMock.mock.calls[0]![0].initialMeasurementsCache).toEqual(snapshot);
+  });
+
+  it("forwards a stale snapshot verbatim after truncation (virtual-core matches by key)", () => {
+    const threadId = "thread-snapshot-truncated";
+    hydrateCompletedAssistantMessages(threadId, ["item-1", "item-2", "item-3"]);
+    const snapshot = [
+      { key: "item-1", index: 0, start: 0, end: 40, size: 40, lane: 0 },
+      { key: "item-2", index: 1, start: 40, end: 80, size: 40, lane: 0 },
+      { key: "item-3", index: 2, start: 80, end: 120, size: 40, lane: 0 },
+    ];
+    takeSnapshotMock.mockReturnValue(snapshot);
+
+    const { unmount } = render(
+      <MessageList
+        threadId={threadId}
+        entries={makeEntries(["item-1", "item-2", "item-3"])}
+        scrollElement={createSizedScrollElement()}
+      />,
+    );
+    unmount();
+
+    useVirtualizerMock.mockClear();
+    // Timeline truncated to a single item (e.g. checkpoint revert). Stale keys
+    // in the snapshot are harmless: virtual-core seeds itemSizeCache by key and
+    // reads sizes via getItemKey, so no index-based guard is needed here.
+    render(
+      <MessageList
+        threadId={threadId}
+        entries={makeEntries(["item-1"])}
+        scrollElement={createSizedScrollElement()}
+      />,
+    );
+
+    expect(useVirtualizerMock.mock.calls[0]![0].initialMeasurementsCache).toEqual(snapshot);
+  });
+
+  it("drops expansion-dependent rows from the snapshot so they re-estimate collapsed", () => {
+    // Regression (adversarial review A3): a group/tool/reasoning/user row the
+    // user expanded before leaving snapshots its TALL measured height under a
+    // content-stable key, but always remounts collapsed — restoring that size
+    // would hand scroll compensation one huge delta on first revisit.
+    const threadId = "thread-snapshot-expandable";
+    useAppStore.getState().hydrateThreadRuntimeItems(threadId, [
+      {
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        payload: {},
+        streams: {},
+      },
+      { id: "assistant-2", type: "assistant_message", state: "updated", payload: {}, streams: {} },
+      { id: "tool-1", type: "tool_call", state: "completed", payload: {}, streams: {} },
+      { id: "reason-1", type: "reasoning", state: "completed", payload: {}, streams: {} },
+      { id: "user-1", type: "user_message", state: "completed", payload: {}, streams: {} },
+    ]);
+    takeSnapshotMock.mockReturnValue([
+      { key: "assistant-1", index: 0, start: 0, end: 200, size: 200, lane: 0 },
+      { key: "assistant-2", index: 1, start: 200, end: 320, size: 120, lane: 0 },
+      { key: "tool-1", index: 2, start: 320, end: 720, size: 400, lane: 0 },
+      { key: "reason-1", index: 3, start: 720, end: 1020, size: 300, lane: 0 },
+      { key: "user-1", index: 4, start: 1020, end: 1260, size: 240, lane: 0 },
+      { key: "tool-call-group:tool-2", index: 5, start: 1260, end: 1660, size: 400, lane: 0 },
+    ]);
+
+    const entries = [
+      ...makeEntries(["assistant-1", "assistant-2", "tool-1", "reason-1", "user-1"]),
+      { kind: "tool_call_group" as const, id: "tool-call-group:tool-2", itemIds: ["tool-2"] },
+    ];
+    const { unmount } = render(
+      <MessageList
+        threadId={threadId}
+        entries={entries}
+        scrollElement={createSizedScrollElement()}
+      />,
+    );
+    unmount();
+
+    useVirtualizerMock.mockClear();
+    render(
+      <MessageList
+        threadId={threadId}
+        entries={entries}
+        scrollElement={createSizedScrollElement()}
+      />,
+    );
+
+    // Only the completed assistant message survives: the streaming one is
+    // still changing, and every collapsible row (tool, reasoning, clamped user
+    // message, group) remounts collapsed, so it must fall back to the accurate
+    // collapsed estimate instead of a stale expanded measurement.
+    expect(useVirtualizerMock.mock.calls[0]![0].initialMeasurementsCache).toEqual([
+      { key: "assistant-1", index: 0, start: 0, end: 200, size: 200, lane: 0 },
+    ]);
+  });
+
+  it("does not restore when the prior mount measured nothing", () => {
+    const threadId = "thread-snapshot-empty";
+    takeSnapshotMock.mockReturnValue([]);
+
+    const { unmount } = render(
+      <MessageList
+        threadId={threadId}
+        entries={makeEntries(["item-1"])}
+        scrollElement={createSizedScrollElement()}
+      />,
+    );
+    unmount();
+
+    useVirtualizerMock.mockClear();
+    render(
+      <MessageList
+        threadId={threadId}
+        entries={makeEntries(["item-1"])}
+        scrollElement={createSizedScrollElement()}
+      />,
+    );
+
+    expect(useVirtualizerMock.mock.calls[0]![0].initialMeasurementsCache).toEqual([]);
   });
 
   it("never lets TanStack adjust scroll itself and compensates rows fully above the viewport on the next commit", () => {
@@ -757,6 +940,29 @@ describe("MessageList", () => {
 
 function makeEntries(itemIds: readonly string[]) {
   return itemIds.map((id) => ({ kind: "item" as const, id }));
+}
+
+function createSizedScrollElement(clientWidth = 500) {
+  const scrollElement = document.createElement("div");
+  Object.defineProperty(scrollElement, "clientWidth", { configurable: true, value: clientWidth });
+  return scrollElement;
+}
+
+/**
+ * Seeds completed assistant messages so snapshot entries under these ids pass
+ * the remount-stable filter (collapsible/streaming rows are dropped on write).
+ */
+function hydrateCompletedAssistantMessages(threadId: string, itemIds: readonly string[]) {
+  useAppStore.getState().hydrateThreadRuntimeItems(
+    threadId,
+    itemIds.map((id) => ({
+      id,
+      type: "assistant_message" as const,
+      state: "completed" as const,
+      payload: {},
+      streams: {},
+    })),
+  );
 }
 
 const idleVirtualizer = { isScrolling: false, scrollDirection: null } as const;
