@@ -9,7 +9,7 @@ import {
   isToolGroupItem as isGroupableItemType,
   isToolLikeItem,
 } from "./parts/items/toolCallCategorization";
-import { isSubAgentTool, isWorkflowTool } from "./parts/items/toolDisplay";
+import { isSubAgentTool } from "./parts/items/toolDisplay";
 
 export const EMPTY_THREAD_ITEM_IDS = Object.freeze([]) as readonly string[];
 export const EMPTY_THREAD_TIMELINE_ENTRIES = Object.freeze([]) as readonly ChatTimelineEntry[];
@@ -261,67 +261,6 @@ function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
     return false;
   }
   return true;
-}
-
-function isActiveSubAgentParent(item: RuntimeChatItem): boolean {
-  if (item.type !== "tool_call") return false;
-  const payload = item.payload as ToolCallPayload | undefined;
-  if (!isSubAgentTool(payload)) return false;
-  // Workflow tools complete on the parent SDK stream the moment they're
-  // launched (background), but the real work continues for minutes. Keep
-  // them in the active list as long as the SDK didn't reject the launch —
-  // ActiveSubAgentTile subscribes to the manifest and auto-dismisses once
-  // it sees a terminal status.
-  if (isWorkflowTool(payload)) return payload?.status !== "error";
-  if (item.state === "completed" && payload?.status !== "running") return false;
-  return true;
-}
-
-const activeSubAgentIdsCache = new Map<
-  string,
-  {
-    sourceItemIds: readonly string[];
-    structuralVersion: number;
-    result: readonly string[];
-  }
->();
-
-const EMPTY_ACTIVE_SUB_AGENT_IDS = Object.freeze([]) as readonly string[];
-
-/**
- * Item ids of every currently-running sub-agent parent in the thread, in
- * chronological order. Drives the pinned `ActiveSubAgentTile` strip above the
- * composer. Cached by structural version so streaming deltas do not reallocate.
- */
-export function selectActiveSubAgentParentItemIds(
-  state: AppStoreState,
-  threadId: string,
-): readonly string[] {
-  const itemIds = state.runtimeItemIdsByThread[threadId];
-  if (!itemIds?.length) return EMPTY_ACTIVE_SUB_AGENT_IDS;
-  const structuralVersion = state.runtimeStructuralVersionByThread?.[threadId] ?? 0;
-  const cached = activeSubAgentIdsCache.get(threadId);
-  if (
-    cached &&
-    cached.sourceItemIds === itemIds &&
-    cached.structuralVersion === structuralVersion
-  ) {
-    return cached.result;
-  }
-  const items = state.runtimeItemsByIdByThread[threadId];
-  const result: string[] = [];
-  for (const id of itemIds) {
-    const item = items?.[id];
-    if (item && isActiveSubAgentParent(item)) result.push(id);
-  }
-  const finalResult = result.length === 0 ? EMPTY_ACTIVE_SUB_AGENT_IDS : result;
-  if (activeSubAgentIdsCache.size > 200) activeSubAgentIdsCache.clear();
-  activeSubAgentIdsCache.set(threadId, {
-    sourceItemIds: itemIds,
-    structuralVersion,
-    result: finalResult,
-  });
-  return finalResult;
 }
 
 /** O(1) for the common case (last row is streaming target). */

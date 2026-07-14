@@ -1208,6 +1208,34 @@ describe("ChatPane", () => {
     expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
   });
 
+  it("keeps the working timer live while a native Agent call is still running", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T12:02:00.000Z"));
+    const thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
+    };
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "agent-1",
+      itemType: "tool_call",
+      payload: {
+        name: "Agent",
+        status: "running",
+        args: { subagent_type: "Explore" },
+      },
+    });
+
+    renderChatPane(thread);
+
+    expect(screen.getByText("Working for 2m 00s")).toBeInTheDocument();
+    expect(screen.queryByText("Worked for 1m 15s")).not.toBeInTheDocument();
+  });
+
   it("renders anchored completed turn duration inside a chat surface", () => {
     const thread = makeThread();
     seedAssistantMessage(thread.id, "Inspect output");

@@ -10,9 +10,18 @@ type MockContextMenuItem = {
   disabledReason?: string;
 };
 
-const { sortableRefMock, contextMenuItemsMock, useThreadHasDraftMock } = vi.hoisted(() => ({
+const {
+  sortableRefMock,
+  contextMenuItemsMock,
+  getStatusToneMock,
+  useThreadHasBackgroundActivityMock,
+  useThreadHasDraftMock,
+} = vi.hoisted(() => ({
   sortableRefMock: vi.fn<(element: HTMLElement | null) => void>(),
   contextMenuItemsMock: vi.fn<(items: MockContextMenuItem[]) => void>(),
+  getStatusToneMock:
+    vi.fn<(thread: Thread, opts?: { hasBackgroundActivity?: boolean }) => string>(),
+  useThreadHasBackgroundActivityMock: vi.fn<(threadId: string) => boolean>(),
   useThreadHasDraftMock: vi.fn<(threadId: string) => boolean>(),
 }));
 
@@ -40,13 +49,15 @@ vi.mock("@/renderer/components/providers/ThreadProviderIcon", () => ({
 }));
 
 vi.mock("@/renderer/components/providers/statusTone", () => ({
-  getStatusTone: () => "default",
+  getStatusTone: getStatusToneMock,
 }));
 
 vi.mock("@/renderer/hooks/uiSelectors", () => ({
   useCurrentThreadIdsCount: () => 1,
   useProjectAgentStatuses: () => [],
   useIsCurrentThread: () => false,
+  useThreadHasBackgroundActivity: (threadId: string) =>
+    useThreadHasBackgroundActivityMock(threadId),
   useThreadHasDraft: (threadId: string) => useThreadHasDraftMock(threadId),
   useIsWorktreeFilesPanelActive: () => false,
   useIsWorktreeGitPanelActive: () => false,
@@ -124,8 +135,31 @@ describe("SortableThreadItem", () => {
   beforeEach(() => {
     sortableRefMock.mockClear();
     contextMenuItemsMock.mockClear();
+    getStatusToneMock.mockReset();
+    getStatusToneMock.mockReturnValue("default");
+    useThreadHasBackgroundActivityMock.mockReset();
+    useThreadHasBackgroundActivityMock.mockReturnValue(false);
     useThreadHasDraftMock.mockReset();
     useThreadHasDraftMock.mockReturnValue(false);
+  });
+
+  it("keeps the row visually working while the thread has background activity", () => {
+    const thread = makeThread();
+    useThreadHasBackgroundActivityMock.mockReturnValue(true);
+
+    render(
+      <SortableThreadItem
+        thread={thread}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+
+    expect(getStatusToneMock).toHaveBeenCalledWith(thread, { hasBackgroundActivity: true });
   });
 
   it("shows the draft dot after the title when the thread has an unsent draft", () => {

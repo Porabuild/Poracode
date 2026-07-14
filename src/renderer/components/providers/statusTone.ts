@@ -11,7 +11,7 @@ export type StatusTone =
 
 export function getStatusTone(
   thread: Pick<Thread, "status" | "done">,
-  opts?: { hasLiveWorkflow?: boolean },
+  opts?: { hasBackgroundActivity?: boolean },
 ): StatusTone {
   if (thread.done) {
     return "done";
@@ -29,10 +29,10 @@ export function getStatusTone(
     return "working";
   }
 
-  // A live background workflow keeps a settled thread visually working without
+  // Live background work keeps a settled thread visually working without
   // changing `thread.status`. Keep it below error/attention and do not mask an
   // explicitly inactive thread.
-  if (opts?.hasLiveWorkflow && (thread.status === "idle" || thread.status === "finished")) {
+  if (opts?.hasBackgroundActivity && (thread.status === "idle" || thread.status === "finished")) {
     return "working";
   }
 

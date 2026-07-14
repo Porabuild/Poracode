@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { Thread } from "@/shared/contracts";
 import type { AppStoreState } from "@/renderer/state/appStore";
 import {
+  selectActiveNativeSubAgentThreadIds,
   selectActiveSubAgentParentItemIds,
+  selectThreadHasActiveNativeSubAgent,
+} from "@/renderer/state/subAgentSelectors";
+import {
   selectChatScrollAnchor,
   selectChildTimelineEntries,
   selectVisibleThreadRuntimeItemIds,
@@ -404,11 +409,82 @@ describe("chatPaneSelectors", () => {
     } as unknown as AppStoreState;
 
     expect(selectActiveSubAgentParentItemIds(state, "t1")).toEqual(["workflow-1"]);
+    expect(selectThreadHasActiveNativeSubAgent(state, "t1")).toBe(false);
     expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
       { kind: "item", id: "tool-1" },
       { kind: "item", id: "workflow-1" },
       { kind: "item", id: "tool-2" },
     ]);
+  });
+
+  it("tracks running native Agent calls without retaining completed ones", () => {
+    const itemIds = ["agent-running", "agent-completed", "workflow-completed"];
+    const items = {
+      "agent-running": {
+        id: "agent-running",
+        type: "tool_call",
+        state: "started",
+        payload: {
+          name: "Agent",
+          status: "running",
+          args: { subagent_type: "Explore" },
+        },
+        streams: {},
+      },
+      "agent-completed": {
+        id: "agent-completed",
+        type: "tool_call",
+        state: "completed",
+        payload: {
+          name: "Agent",
+          status: "success",
+          args: { subagent_type: "Explore" },
+        },
+        streams: {},
+      },
+      "workflow-completed": {
+        id: "workflow-completed",
+        type: "tool_call",
+        state: "completed",
+        payload: { name: "Workflow", status: "success" },
+        streams: {},
+      },
+    };
+    const activeState = {
+      runtimeItemIdsByThread: { t1: itemIds },
+      runtimeItemsByIdByThread: { t1: items },
+      runtimeStructuralVersionByThread: { t1: 1 },
+    } as unknown as AppStoreState;
+    const settledState = {
+      runtimeItemIdsByThread: { t1: itemIds },
+      runtimeItemsByIdByThread: {
+        t1: {
+          ...items,
+          "agent-running": {
+            ...items["agent-running"],
+            state: "completed",
+            payload: { ...items["agent-running"].payload, status: "success" },
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { t1: 2 },
+    } as unknown as AppStoreState;
+
+    expect(selectActiveSubAgentParentItemIds(activeState, "t1")).toEqual([
+      "agent-running",
+      "workflow-completed",
+    ]);
+    expect(selectThreadHasActiveNativeSubAgent(activeState, "t1")).toBe(true);
+    expect(selectActiveSubAgentParentItemIds(settledState, "t1")).toEqual(["workflow-completed"]);
+    expect(selectThreadHasActiveNativeSubAgent(settledState, "t1")).toBe(false);
+
+    const projectThreads = [{ id: "t1" }] as Thread[];
+    expect(selectActiveNativeSubAgentThreadIds(activeState, projectThreads)).toEqual(["t1"]);
+    const settledThreadIds = selectActiveNativeSubAgentThreadIds(settledState, projectThreads);
+    expect(settledThreadIds).toEqual([]);
+    expect(selectActiveNativeSubAgentThreadIds(settledState, projectThreads)).toBe(
+      settledThreadIds,
+    );
   });
 
   it("keeps subagents MCP calls as tools and only treats the synthetic tile as an agent", () => {

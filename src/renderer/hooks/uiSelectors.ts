@@ -9,6 +9,14 @@ import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import {
+  selectActiveNativeSubAgentThreadIds,
+  selectThreadHasActiveNativeSubAgent,
+} from "@/renderer/state/subAgentSelectors";
+import {
+  useThreadHasLiveWorkflow,
+  useThreadLiveWorkflowStore,
+} from "@/renderer/state/threadLiveWorkflowStore";
 
 const EMPTY_STRINGS: string[] = [];
 const EMPTY_THREADS: Thread[] = [];
@@ -24,6 +32,27 @@ function selectCurrentProjectId(s: ReturnType<typeof useAppStore.getState>) {
     return s.threads.find((t) => t.id === firstPaneId)?.projectId;
   }
   return undefined;
+}
+
+export function useThreadHasBackgroundActivity(threadId: string): boolean {
+  const hasActiveNativeSubAgent = useAppStore((s) =>
+    selectThreadHasActiveNativeSubAgent(s, threadId),
+  );
+  const hasLiveWorkflow = useThreadHasLiveWorkflow(threadId);
+  return hasActiveNativeSubAgent || hasLiveWorkflow;
+}
+
+export function useActiveNativeSubAgentThreadIds(threads: readonly Thread[]): readonly string[] {
+  return useAppStore((state) => selectActiveNativeSubAgentThreadIds(state, threads));
+}
+
+/** Threads with live background activity (live workflow OR active native sub-agent), as a set. */
+export function useLiveBackgroundThreadIds(threads: readonly Thread[]): ReadonlySet<string> {
+  const liveWorkflowThreadIds = useThreadLiveWorkflowStore((s) => s.liveThreadIds);
+  const activeNativeSubAgentThreadIds = useActiveNativeSubAgentThreadIds(threads);
+  return activeNativeSubAgentThreadIds.length === 0
+    ? liveWorkflowThreadIds
+    : new Set([...liveWorkflowThreadIds, ...activeNativeSubAgentThreadIds]);
 }
 
 export function useCurrentProjectId(): string | undefined {

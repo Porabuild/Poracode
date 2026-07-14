@@ -16,9 +16,13 @@ export function parseMcpName(payload: ToolCallPayload): McpInfo | null {
   return null;
 }
 
+export function isWorkflowTool(payload: ToolCallPayload | undefined): boolean {
+  return payload?.name === "Workflow";
+}
+
 export function isSubAgentTool(payload: ToolCallPayload | undefined): boolean {
   if (!payload || parseMcpName(payload)) return false;
-  if (payload.isSubAgent === true || payload.name === "Workflow") return true;
+  if (payload.isSubAgent === true || isWorkflowTool(payload)) return true;
   if (!payload.args || typeof payload.args !== "object" || Array.isArray(payload.args))
     return false;
   const args = payload.args as Record<string, unknown>;

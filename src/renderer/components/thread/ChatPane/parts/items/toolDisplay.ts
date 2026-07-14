@@ -21,7 +21,7 @@ import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import type { ToolCallPayload } from "@/shared/contracts";
 import { extractLeadingPath } from "@/shared/extractLeadingPath";
-import { parseMcpName, type McpInfo } from "@/shared/toolCallClassification";
+import { isWorkflowTool, parseMcpName, type McpInfo } from "@/shared/toolCallClassification";
 import { i18n } from "@/renderer/i18n/i18n";
 import { extractAcpPatchTargetPath } from "./acpToolPayload";
 import { parseWorkflowInfo } from "./workflowDisplay";
@@ -88,10 +88,7 @@ type AcpLocation = NonNullable<ToolCallPayload["locations"]>[number];
  * pill from the moment the call starts — even before any child events arrive.
  */
 export { isSubAgentTool } from "@/shared/toolCallClassification";
-
-export function isWorkflowTool(payload: ToolCallPayload | undefined): boolean {
-  return payload?.name === "Workflow";
-}
+export { isWorkflowTool };
 
 export function deriveToolDisplay(payload: ToolCallPayload): ToolDisplay {
   const args = readArgsObject(payload);

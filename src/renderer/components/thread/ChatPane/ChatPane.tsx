@@ -8,6 +8,7 @@ import { chatMessageSurfaceClass } from "./parts/items/chatMessageSurface";
 import { readBridge } from "@/renderer/bridge";
 import { useShimmerRef } from "@/renderer/thinkingAnimator";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
+import { useThreadHasBackgroundActivity } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import {
@@ -16,7 +17,6 @@ import {
 } from "@/renderer/state/fileCheckpointActions";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
-import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
 import {
   buildFileEditorContext,
@@ -234,12 +234,12 @@ export function ChatPane(props: ChatPaneProps) {
 
   const isEmpty = timelineEntries.length === 0 && !hasSupplementaryContent;
   const isLive = isThreadTurnActive(status);
-  // A detached background workflow keeps the thread doing real work after the
+  // Detached background work keeps the thread doing real work after the
   // foreground turn settles. Treat that as "still working" for the tail-loader
   // timer (so it keeps ticking "Working for ...") without touching `status` -
   // composer interrupt/steer and notifications stay on the raw status.
-  const hasLiveWorkflow = useThreadHasLiveWorkflow(threadId);
-  const showWorkingTimer = isLive || hasLiveWorkflow;
+  const hasBackgroundActivity = useThreadHasBackgroundActivity(threadId);
+  const showWorkingTimer = isLive || hasBackgroundActivity;
   const hasOpenRuntimeRequest = useAppStore(
     (s) => (s.runtimeRequestsByThread[threadId]?.length ?? 0) > 0,
   );
@@ -414,7 +414,7 @@ function resolveTurnTiming(thread: Thread, forceLive = false): TurnTiming | null
   const isLive = forceLive || isThreadTurnActive(thread.status);
 
   if (isLive) {
-    // When only a background workflow keeps the thread live, the foreground
+    // When only background work keeps the thread live, the foreground
     // turn has ended and `activeTurnStartedAt` is cleared - fall back to the
     // just-completed turn's start so the timer continues from there instead of
     // reseeding at mount time.

@@ -57,21 +57,21 @@ export function isSidebarGroupCollapsed(
 }
 
 /** Pinned or attention-needing threads are never hidden behind "See more". */
-function threadIsProtected(thread: Thread, liveWorkflowThreadIds: ReadonlySet<string>): boolean {
+function threadIsProtected(thread: Thread, liveBackgroundThreadIds: ReadonlySet<string>): boolean {
   return (
     thread.starred ||
     isThreadTurnActive(thread.status) ||
     thread.status === "error" ||
-    liveWorkflowThreadIds.has(thread.id)
+    liveBackgroundThreadIds.has(thread.id)
   );
 }
 
 function entryIsProtected(
   entry: ThreadListEntry,
-  liveWorkflowThreadIds: ReadonlySet<string>,
+  liveBackgroundThreadIds: ReadonlySet<string>,
 ): boolean {
-  if (entry.kind === "thread") return threadIsProtected(entry.thread, liveWorkflowThreadIds);
-  return entry.group.threads.some((t) => threadIsProtected(t, liveWorkflowThreadIds));
+  if (entry.kind === "thread") return threadIsProtected(entry.thread, liveBackgroundThreadIds);
+  return entry.group.threads.some((t) => threadIsProtected(t, liveBackgroundThreadIds));
 }
 
 /**
@@ -175,12 +175,12 @@ export function buildSidebarProjectRows(input: {
   expandAllGroups?: boolean;
   /** Max list items shown before "See more"; protected items are always kept. */
   visibleLimit: number;
-  /** Threads with a live background workflow — kept visible like working ones. */
-  liveWorkflowThreadIds?: ReadonlySet<string>;
+  /** Threads with live background activity — kept visible like working ones. */
+  liveBackgroundThreadIds?: ReadonlySet<string>;
 }): SidebarRow[] {
   const rows: SidebarRow[] = [];
   const dndGroup = `project-entries:${input.projectId}`;
-  const liveWorkflowThreadIds = input.liveWorkflowThreadIds ?? EMPTY_THREAD_ID_SET;
+  const liveBackgroundThreadIds = input.liveBackgroundThreadIds ?? EMPTY_THREAD_ID_SET;
   const isCollapsed = (key: string) =>
     input.expandAllGroups ? false : isSidebarGroupCollapsed(input.collapsedWorktrees, key);
 
@@ -189,7 +189,7 @@ export function buildSidebarProjectRows(input: {
       (a, b) => Number(b.starred) - Number(a.starred),
     );
     const { visible, hiddenCount } = selectVisible(orderedThreads, input.visibleLimit, (t) =>
-      threadIsProtected(t, liveWorkflowThreadIds),
+      threadIsProtected(t, liveBackgroundThreadIds),
     );
     orderedThreads.forEach((thread, idx) => {
       if (!visible.has(thread)) return;
@@ -219,7 +219,7 @@ export function buildSidebarProjectRows(input: {
   const { visible, hiddenCount } = selectVisible(
     [...starredEntries, ...recentEntries, ...olderEntries],
     input.visibleLimit,
-    (e) => entryIsProtected(e, liveWorkflowThreadIds),
+    (e) => entryIsProtected(e, liveBackgroundThreadIds),
   );
   const starredVisible = starredEntries.filter((e) => visible.has(e));
   const recentVisible = recentEntries.filter((e) => visible.has(e));

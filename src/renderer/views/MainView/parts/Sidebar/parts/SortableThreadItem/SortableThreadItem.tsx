@@ -32,9 +32,9 @@ import {
   useCurrentThreadIdsCount,
   useIsCurrentThread,
   useProjectAgentStatuses,
+  useThreadHasBackgroundActivity,
   useThreadHasDraft,
 } from "@/renderer/hooks/uiSelectors";
-import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import { openGitReview } from "@/renderer/actions/panelActions";
 import {
   gitPull,
@@ -112,8 +112,8 @@ export function SortableThreadItem(props: {
 
   const isDragging = useIsDraggingThread(thread.id);
 
-  const hasLiveWorkflow = useThreadHasLiveWorkflow(thread.id);
-  const statusTone = getStatusTone(thread, { hasLiveWorkflow });
+  const hasBackgroundActivity = useThreadHasBackgroundActivity(thread.id);
+  const statusTone = getStatusTone(thread, { hasBackgroundActivity });
 
   return (
     <div ref={ref} className="relative w-full pb-0.5">

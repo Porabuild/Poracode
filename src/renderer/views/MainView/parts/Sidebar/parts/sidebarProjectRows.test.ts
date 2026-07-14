@@ -79,6 +79,24 @@ describe("buildSidebarProjectRows — See more cap (manual)", () => {
     expect(seeMore(rows)).toMatchObject({ hiddenCount: 5 });
   });
 
+  it("keeps threads with live background activity visible past the limit", () => {
+    const threads = makeThreads(15);
+    threads[12] = makeThread({ id: "background" });
+    const rows = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: threads,
+      sortMode: "manual",
+      collapsedWorktrees: {},
+      visibleLimit: 10,
+      liveBackgroundThreadIds: new Set(["background"]),
+    });
+
+    expect(
+      threadRows(rows).some((row) => row.kind === "thread" && row.thread.id === "background"),
+    ).toBe(true);
+    expect(seeMore(rows)).toMatchObject({ hiddenCount: 5 });
+  });
+
   it("reveals the next chunk when the limit grows", () => {
     const rows = build(makeThreads(15), 20);
     expect(threadRows(rows)).toHaveLength(15);

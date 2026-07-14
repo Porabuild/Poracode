@@ -4,13 +4,13 @@ import {
   useCurrentThreadIdsCount,
   useHasDraft,
   useIsCurrentProjectDraft,
+  useLiveBackgroundThreadIds,
   useProjectThreads,
 } from "@/renderer/hooks/uiSelectors";
 import { ChevronDown } from "lucide-react";
 import { useDragSource } from "@/renderer/dnd";
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
-import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { NewThreadButton } from "./NewThreadButton";
 import { buildSidebarProjectRows, type SidebarRow } from "./sidebarProjectRows";
@@ -31,7 +31,7 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
   const currentThreadCount = useCurrentThreadIdsCount();
   const isDraftActive = useIsCurrentProjectDraft(project.id);
   const source = useDragSource();
-  const liveWorkflowThreadIds = useThreadLiveWorkflowStore((s) => s.liveThreadIds);
+  const liveBackgroundThreadIds = useLiveBackgroundThreadIds(projectThreads);
 
   const rows = buildSidebarProjectRows({
     projectId: project.id,
@@ -39,7 +39,7 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
     sortMode,
     collapsedWorktrees,
     visibleLimit,
-    liveWorkflowThreadIds,
+    liveBackgroundThreadIds,
   });
 
   return (

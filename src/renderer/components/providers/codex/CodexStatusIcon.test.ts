@@ -49,28 +49,32 @@ describe("getStatusTone", () => {
     }
   });
 
-  it("shows a live background workflow as working over a settled status", () => {
+  it("shows live background activity as working over a settled status", () => {
     for (const status of ["idle", "finished"] as const) {
-      expect(getStatusTone({ done: false, status }, { hasLiveWorkflow: true })).toBe("working");
+      expect(getStatusTone({ done: false, status }, { hasBackgroundActivity: true })).toBe(
+        "working",
+      );
     }
   });
 
-  it("never lets a live workflow mask error or attention statuses", () => {
-    expect(getStatusTone({ done: false, status: "error" }, { hasLiveWorkflow: true })).toBe(
+  it("never lets background activity mask error or attention statuses", () => {
+    expect(getStatusTone({ done: false, status: "error" }, { hasBackgroundActivity: true })).toBe(
       "error",
     );
     expect(
-      getStatusTone({ done: false, status: "needs_approval" }, { hasLiveWorkflow: true }),
+      getStatusTone({ done: false, status: "needs_approval" }, { hasBackgroundActivity: true }),
     ).toBe("attention");
-    expect(getStatusTone({ done: false, status: "inactive" }, { hasLiveWorkflow: true })).toBe(
-      "inactive",
+    expect(
+      getStatusTone({ done: false, status: "inactive" }, { hasBackgroundActivity: true }),
+    ).toBe("inactive");
+    expect(getStatusTone({ done: true, status: "idle" }, { hasBackgroundActivity: true })).toBe(
+      "done",
     );
-    expect(getStatusTone({ done: true, status: "idle" }, { hasLiveWorkflow: true })).toBe("done");
   });
 
-  it("is unchanged when no workflow flag is passed", () => {
+  it("is unchanged when no background activity flag is passed", () => {
     expect(getStatusTone({ done: false, status: "finished" })).toBe("finished");
-    expect(getStatusTone({ done: false, status: "idle" }, { hasLiveWorkflow: false })).toBe(
+    expect(getStatusTone({ done: false, status: "idle" }, { hasBackgroundActivity: false })).toBe(
       "active",
     );
   });

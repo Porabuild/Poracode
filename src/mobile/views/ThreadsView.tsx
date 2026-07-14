@@ -28,7 +28,7 @@ import type { Project, Thread } from "@/shared/contracts";
 import { getBasename } from "@/shared/pathUtils";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { ThreadProviderIcon, getStatusTone } from "@/renderer/components/providers";
-import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
+import { useThreadHasBackgroundActivity } from "@/renderer/hooks/uiSelectors";
 import { InlineRenameInput } from "@/renderer/views/MainView/parts/Sidebar/parts/InlineRenameInput";
 import {
   entryIsStarred,
@@ -312,8 +312,8 @@ function ThreadRow(props: {
 }) {
   const { thread } = props;
   const { t } = useLingui();
-  const hasLiveWorkflow = useThreadHasLiveWorkflow(thread.id);
-  const tone = getStatusTone(thread, { hasLiveWorkflow });
+  const hasBackgroundActivity = useThreadHasBackgroundActivity(thread.id);
+  const tone = getStatusTone(thread, { hasBackgroundActivity });
   const live = tone !== "inactive" && tone !== "done";
   const worktreeName =
     !props.hideWorktree && thread.worktreePath ? getBasename(thread.worktreePath) : undefined;

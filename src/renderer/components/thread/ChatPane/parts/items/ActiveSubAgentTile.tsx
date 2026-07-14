@@ -6,11 +6,8 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadSubAgentDockStore } from "@/renderer/state/threadSubAgentDockStore";
 import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
 import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
-import {
-  getChildItemIdsStoreSelector,
-  getRuntimeItemStoreSelector,
-  selectActiveSubAgentParentItemIds,
-} from "../../chatPaneSelectors";
+import { selectActiveSubAgentParentItemIds } from "@/renderer/state/subAgentSelectors";
+import { getChildItemIdsStoreSelector, getRuntimeItemStoreSelector } from "../../chatPaneSelectors";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import {
   isWorkflowRunLive,

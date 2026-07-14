@@ -4,25 +4,26 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { Thread, ThreadStatusSource } from "@/shared/contracts";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getStatusTone } from "@/renderer/components/providers/statusTone";
+import { useThreadHasBackgroundActivity } from "@/renderer/hooks/uiSelectors";
 import { useThread } from "@/renderer/state/useThread";
-import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 
 export function threadRuntimeStatusLabel(
   thread: Thread,
   t: TranslateFn,
-  opts?: { hasLiveWorkflow?: boolean },
+  opts?: { hasBackgroundActivity?: boolean },
 ): string {
   const { status, attention } = thread;
   if (status === "launching") return t(msg`Launching…`);
   if (status === "inactive") return t(msg`Inactive`);
   if (status === "error") return t(msg`Error`);
-  // A settled thread with a live background workflow still reads as "Working".
-  if (status === "finished") return opts?.hasLiveWorkflow ? t(msg`Working`) : t(msg`Finished`);
+  // A settled thread with live background work still reads as "Working".
+  if (status === "finished")
+    return opts?.hasBackgroundActivity ? t(msg`Working`) : t(msg`Finished`);
   if (status === "needs_approval" || attention === "needs_approval") return t(msg`Needs approval`);
   if (status === "needs_reply" || attention === "needs_reply") return t(msg`Needs reply`);
   if (status === "working" || attention === "working") return t(msg`Working`);
-  if (status === "idle") return opts?.hasLiveWorkflow ? t(msg`Working`) : t(msg`Idle`);
+  if (status === "idle") return opts?.hasBackgroundActivity ? t(msg`Working`) : t(msg`Idle`);
   return status;
 }
 
@@ -70,11 +71,10 @@ function ThreadStatusSupportDetail({ source }: { source: ThreadStatusSource | un
   }
 }
 
-export function ThreadHeaderStatusTooltipBody(props: { thread: Thread }) {
-  const { thread } = props;
+function ThreadHeaderStatusTooltipBody(props: { thread: Thread; hasBackgroundActivity: boolean }) {
+  const { thread, hasBackgroundActivity } = props;
   const { t } = useLingui();
-  const hasLiveWorkflow = useThreadHasLiveWorkflow(thread.id);
-  const runtime = threadRuntimeStatusLabel(thread, t, { hasLiveWorkflow });
+  const runtime = threadRuntimeStatusLabel(thread, t, { hasBackgroundActivity });
   const source = thread.threadStatusSource;
   const isServer = source === "server";
   const errorMessage = thread.status === "error" ? thread.errorMessage?.trim() : undefined;
@@ -123,9 +123,9 @@ export function ThreadHeaderStatusButton(props: {
 }) {
   const { t } = useLingui();
   const thread = useThread(props.threadId) ?? props.fallbackThread;
-  const hasLiveWorkflow = useThreadHasLiveWorkflow(props.threadId);
+  const hasBackgroundActivity = useThreadHasBackgroundActivity(props.threadId);
   const agentLabel = props.agentLabel ?? props.fallbackAgentKind;
-  const statusLabel = threadRuntimeStatusLabel(thread, t, { hasLiveWorkflow });
+  const statusLabel = threadRuntimeStatusLabel(thread, t, { hasBackgroundActivity });
 
   return (
     <Tooltip delay={0}>
@@ -142,7 +142,7 @@ export function ThreadHeaderStatusButton(props: {
             kind={thread.agentKind}
             {...(props.agentIcon ? { icon: props.agentIcon } : {})}
             fallbackLabel={props.agentLabel}
-            tone={getStatusTone(thread, { hasLiveWorkflow })}
+            tone={getStatusTone(thread, { hasBackgroundActivity })}
             className="size-3.5 shrink-0"
           />
         </button>
@@ -153,7 +153,10 @@ export function ThreadHeaderStatusButton(props: {
         showArrow
         className="max-w-[min(22rem,calc(100vw-2rem))] text-left [overflow-wrap:break-word] [word-break:normal] hyphens-none"
       >
-        <ThreadHeaderStatusTooltipBody thread={thread} />
+        <ThreadHeaderStatusTooltipBody
+          thread={thread}
+          hasBackgroundActivity={hasBackgroundActivity}
+        />
       </Tooltip.Content>
     </Tooltip>
   );
