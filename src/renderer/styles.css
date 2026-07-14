@@ -2519,16 +2519,6 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   white-space: nowrap;
 }
 
-.poracode-slash-chip--user-message {
-  margin-right: 0.45rem;
-  background: var(--surface-secondary);
-  color: var(--foreground);
-}
-
-.poracode-slash-chip--user-message .poracode-slash-chip__slash {
-  color: var(--foreground);
-}
-
 .poracode-user-message-inline-content .poracode-inline-path-chip {
   background: var(--surface-secondary);
 }

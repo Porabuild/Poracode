@@ -367,7 +367,7 @@ function UserMessageSlashChip({
 }) {
   return (
     <span
-      className="poracode-slash-chip poracode-slash-chip--user-message mr-1.5"
+      className="poracode-slash-chip mr-1.5"
       {...(skillName ? { "data-skill-name": skillName } : {})}
     >
       <span className="poracode-slash-chip__slash">{icon}</span>

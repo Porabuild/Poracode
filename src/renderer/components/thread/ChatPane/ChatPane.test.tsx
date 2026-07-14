@@ -997,6 +997,7 @@ describe("ChatPane", () => {
     const badge = container.querySelector('[data-skill-name="simplify"]');
     expect(badge).toHaveTextContent("simplify");
     expect(badge?.querySelector("svg")).toBeInTheDocument();
+    expect(badge).not.toHaveClass("poracode-slash-chip--user-message");
     expect(screen.queryByText("$simplify")).not.toBeInTheDocument();
   });
 
@@ -1047,6 +1048,7 @@ describe("ChatPane", () => {
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
+    expect(screen.getByText("goal").parentElement).toHaveClass("poracode-slash-chip");
     expect(screen.getByRole("link", { name: url })).toHaveAttribute("href", url);
   });
 
