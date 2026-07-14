@@ -17,18 +17,22 @@ import { ItemMarkdown } from "./ItemMarkdown";
 interface AssistantMessageProps {
   threadId: string;
   item: RuntimeChatItem;
+  isTurnActive: boolean;
 }
 
 export const AssistantMessage = memo(function AssistantMessage({
   threadId,
   item,
+  isTurnActive,
 }: AssistantMessageProps) {
   const { t } = useLingui();
   // Matching Codex: the copy action only appears under a turn's *final* answer,
   // i.e. the last assistant message before the next user message (or the end of
   // the thread). Every turn keeps its button, not just the most recent one.
   // Sub-agent messages (those nested under a tool call) are ignored so they
-  // neither qualify nor cancel a top-level answer's terminal status.
+  // neither qualify nor cancel a top-level answer's terminal status. A
+  // completed item at the live tail is still an intermediate update until the
+  // turn itself settles, so it must not expose a copy action yet.
   const isFinalAnswer = useAppStore((state) => {
     if (item.parentItemId) return false;
     const ids = state.runtimeItemIdsByThread[threadId];
@@ -42,7 +46,7 @@ export const AssistantMessage = memo(function AssistantMessage({
       if (next.type === "user_message") return true;
       if (next.type === "assistant_message") return false;
     }
-    return true;
+    return !isTurnActive;
   });
   const stream = item.streams.assistant_text ?? "";
   const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");

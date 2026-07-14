@@ -48,6 +48,7 @@ export interface CheckpointRevertActions {
 interface MessageListProps {
   threadId: string;
   entries: readonly ChatTimelineEntry[];
+  isTurnActive?: boolean;
   scrollElement: HTMLDivElement | null;
   /**
    * Reverting is transcript-local today. Disable it while a turn is live so
@@ -104,6 +105,7 @@ const COMPENSATION_SETTLE_MS = 150;
 export function MessageList({
   threadId,
   entries,
+  isTurnActive = false,
   scrollElement,
   canRevertCheckpoints = true,
   checkpointGuard,
@@ -502,6 +504,7 @@ export function MessageList({
                   entry={entry}
                   index={virtualRow.index}
                   isLastEntry={virtualRow.index === lastLiveIndex}
+                  isTurnActive={isTurnActive}
                   measureElement={measureRowElement}
                   suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
                   canRevertCheckpoints={canRevertCheckpoints}
@@ -531,6 +534,7 @@ type VirtualChatListRowProps = {
   entry: ChatTimelineEntry;
   index: number;
   isLastEntry: boolean;
+  isTurnActive: boolean;
   measureElement: (index: number, element: HTMLDivElement | null) => void;
   suppressInlineTurnAnchorId: string | null;
   canRevertCheckpoints: boolean;
@@ -542,6 +546,7 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
   entry,
   index,
   isLastEntry,
+  isTurnActive,
   measureElement,
   suppressInlineTurnAnchorId,
   canRevertCheckpoints,
@@ -629,6 +634,7 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
             threadId={threadId}
             entry={entry}
             isLastEntry={isLastEntry}
+            isTurnActive={isTurnActive}
             checkpointRevert={
               checkpointRevertItemId ? { itemId: checkpointRevertItemId, onRequestRevert } : null
             }

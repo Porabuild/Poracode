@@ -345,6 +345,7 @@ export function ChatPane(props: ChatPaneProps) {
                     key={threadId}
                     threadId={threadId}
                     entries={timelineEntries}
+                    isTurnActive={isLive}
                     scrollElement={scrollEl}
                     registerScrollToIndex={registerScrollToIndex}
                     suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}

@@ -1049,6 +1049,30 @@ describe("ChatPane", () => {
     });
   });
 
+  it("hides the assistant copy action until the active turn settles", async () => {
+    const thread = makeThread();
+    seedAssistantMessage(thread.id, "Still working");
+    completeAssistantMessage(thread.id);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(screen.getByText("Still working")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy message" })).not.toBeInTheDocument();
+    expect(container.querySelector(".poracode-message-action-strip")).toBeNull();
+  });
+
+  it("shows the assistant copy action after the turn settles", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(screen.getByRole("button", { name: "Copy message" })).toBeInTheDocument();
+  });
+
   it("renders links in slash command user messages as links", async () => {
     const thread = makeThread();
     const url = "https://tanstack.com/blog/tanstack-virtual-chat";
@@ -1607,6 +1631,14 @@ function seedAssistantMessage(threadId: string, initialText: string, itemId = AS
     itemId,
     stream: "assistant_text",
     delta: initialText,
+  });
+}
+
+function completeAssistantMessage(threadId: string, itemId = ASSISTANT_ITEM_ID) {
+  useAppStore.getState().applyRuntimeEvent(threadId, {
+    type: "item.completed",
+    threadId,
+    itemId,
   });
 }
 
