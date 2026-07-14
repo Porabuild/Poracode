@@ -1507,6 +1507,10 @@ msgstr "프로젝트 제거 취소"
 msgid "cancelled"
 msgstr "취소됨"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Cancelled"
+msgstr "취소됨"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot create a default worktree path without a branch name"
 msgstr "브랜치 이름 없이 기본 작업 트리 경로를 생성할 수 없습니다."
@@ -1632,6 +1636,7 @@ msgstr "확인 중…"
 
 #: src/mobile/views/pr/PrChecksPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
 msgstr "검사"
@@ -2152,6 +2157,10 @@ msgstr "이 터미널의 프롬프트를 완료하세요. 완료되면 닫힙니
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "completed"
 msgstr "완료"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Completed"
+msgstr "완료됨"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -3523,6 +3532,7 @@ msgstr "{0}에서 컨텍스트를 추출하는 중..."
 msgid "failed"
 msgstr "실패"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "실패"
@@ -5247,6 +5257,10 @@ msgstr "주의 필요 · 답변 필요"
 msgid "Needs reply"
 msgstr "답장이 필요함"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Neutral"
+msgstr "중립"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "신규"
@@ -5478,6 +5492,7 @@ msgstr "변경사항 없음"
 msgid "No changes to display"
 msgstr "표시할 변경사항이 없습니다."
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
 msgstr "이 PR에 대해 보고된 검사가 없습니다."
@@ -6280,6 +6295,10 @@ msgstr "서버의 상위 폴더"
 msgid "Parent folder, e.g. /home/me/projects"
 msgstr "상위 폴더, 예: /home/me/projects"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Passed"
+msgstr "통과"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Passphrase (optional)"
 msgstr "암호 문구(선택 사항)"
@@ -6337,6 +6356,10 @@ msgstr "최고 활동일"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "pending"
 msgstr "보류 중"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Pending"
+msgstr "대기 중"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "pending review"
@@ -7446,6 +7469,7 @@ msgstr "아래 일정에 따라 이 일정을 자동으로 실행합니다."
 msgid "running"
 msgstr "실행 중"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Running"
 msgstr "실행 중"
@@ -8165,6 +8189,10 @@ msgstr "스킬 마켓플레이스"
 msgid "Skills.sh"
 msgstr "Skills.sh"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Skipped"
+msgstr "건너뜀"
+
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
 msgstr "슬래시 명령"
@@ -8694,6 +8722,7 @@ msgstr "+를 눌러 직접 페어링하거나 SSH를 통해 원격 컴퓨터에 
 #~ msgstr "+를 탭하여 데스크톱의 Poracode와 페어링하세요."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Target branch"
 msgstr "대상 브랜치"
 
@@ -9497,7 +9526,7 @@ msgid "Uninstall"
 msgstr "제거"
 
 #: src/renderer/components/thread/threadContextUsage.ts
-#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "알 수 없음"

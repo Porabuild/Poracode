@@ -6,7 +6,7 @@ import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice"
 import { useBrainThinking, useShimmer } from "@/renderer/thinkingAnimator";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatRowMetaSeparator, chatRowIndicatorClass, inlineRowTriggerClass } from "./chatRow";
-import { getReasoningLastLine, getReasoningPreview } from "./reasoningPreview";
+import { getReasoningInlinePreview, getReasoningLastLine } from "./reasoningPreview";
 import { ReasoningExpandedBody, ReasoningStreamViewport } from "./ReasoningStreamViewport";
 
 interface ReasoningInlineProps {
@@ -31,7 +31,7 @@ export const ReasoningInline = memo(function ReasoningInline({ item }: Reasoning
     ? ""
     : isStreaming
       ? getReasoningLastLine(rawText)
-      : getReasoningPreview(rawText);
+      : getReasoningInlinePreview(rawText);
   const brainRef = useBrainThinking(isStreaming);
   const shimmerRef = useShimmer<HTMLElement>(isStreaming);
   const title = isStreaming ? t`Thinking` : t`Thought`;

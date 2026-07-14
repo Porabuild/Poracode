@@ -538,13 +538,6 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
     this.remoteThreadId = threadId;
     this.launchOptions = { ...this.launchOptions, resumeThreadId: threadId };
-    if (this.hasUserMcpServers) {
-      await this.rpc.request(
-        "mcpServerStatus/list",
-        { detail: "toolsAndAuthOnly", threadId },
-        30_000,
-      );
-    }
     if (sessionRef) {
       void this.syncRemoteThreadState(threadId, toSessionRef(threadId));
     }
@@ -694,6 +687,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     const sandboxPolicy = toCodexSandboxPolicy(config.sandboxMode);
     const collaborationMode = buildCodexCollaborationMode(config);
     try {
+      if (this.hasUserMcpServers) {
+        await this.rpc.request("config/mcpServer/reload", null);
+      }
       const result = await this.rpc.request("turn/start", {
         threadId,
         input,

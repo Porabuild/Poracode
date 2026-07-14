@@ -5,6 +5,7 @@ import { Trans } from "@lingui/react/macro";
 import type { MessageItemPayload, ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { isIosTouchScroll } from "@/renderer/utils/iosScroll";
+import { formatElapsed } from "@/renderer/utils/formatTime";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
@@ -17,7 +18,6 @@ import {
   RevertCheckpointDialog,
   type CheckpointGuard,
 } from "./CheckpointRevertControls";
-import { formatElapsed } from "../formatElapsed";
 import { useChatPaneActions } from "../chatPaneActionsContext";
 import {
   growingStreamLength,
@@ -48,6 +48,7 @@ export interface CheckpointRevertActions {
 interface MessageListProps {
   threadId: string;
   entries: readonly ChatTimelineEntry[];
+  isTurnActive?: boolean;
   scrollElement: HTMLDivElement | null;
   /**
    * Reverting is transcript-local today. Disable it while a turn is live so
@@ -104,6 +105,7 @@ const COMPENSATION_SETTLE_MS = 150;
 export function MessageList({
   threadId,
   entries,
+  isTurnActive = false,
   scrollElement,
   canRevertCheckpoints = true,
   checkpointGuard,
@@ -506,6 +508,7 @@ export function MessageList({
                   entry={entry}
                   index={virtualRow.index}
                   isLastEntry={virtualRow.index === lastLiveIndex}
+                  isTurnActive={isTurnActive}
                   measureElement={measureRowElement}
                   suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
                   canRevertCheckpoints={canRevertCheckpoints}
@@ -535,6 +538,7 @@ type VirtualChatListRowProps = {
   entry: ChatTimelineEntry;
   index: number;
   isLastEntry: boolean;
+  isTurnActive: boolean;
   measureElement: (index: number, element: HTMLDivElement | null) => void;
   suppressInlineTurnAnchorId: string | null;
   canRevertCheckpoints: boolean;
@@ -546,6 +550,7 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
   entry,
   index,
   isLastEntry,
+  isTurnActive,
   measureElement,
   suppressInlineTurnAnchorId,
   canRevertCheckpoints,
@@ -637,6 +642,7 @@ const VirtualChatListRow = memo(function VirtualChatListRow({
             entry={entry}
             isLastEntry={isLastEntry}
             onHeightChange={remeasureRow}
+            isTurnActive={isTurnActive}
             checkpointRevert={
               checkpointRevertItemId ? { itemId: checkpointRevertItemId, onRequestRevert } : null
             }

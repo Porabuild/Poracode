@@ -29,7 +29,7 @@ describe("AssistantMessage", () => {
 
     render(
       <AppProvider>
-        <AssistantMessage threadId="thread-1" item={item} />
+        <AssistantMessage threadId="thread-1" item={item} isTurnActive={false} />
       </AppProvider>,
     );
 
@@ -49,7 +49,7 @@ describe("AssistantMessage", () => {
 
     render(
       <AppProvider>
-        <AssistantMessage threadId="thread-1" item={item} />
+        <AssistantMessage threadId="thread-1" item={item} isTurnActive={false} />
       </AppProvider>,
     );
 

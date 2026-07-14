@@ -388,6 +388,26 @@ describe("gitStore batch updates", () => {
     expect(secondDetails).not.toBe(firstDetails);
     expect(secondDetails["p1#42"]?.checks[0]?.conclusion).toBe("SUCCESS");
   });
+
+  it("replaces PR details when check timing changes", () => {
+    useGitStore.getState().setPrDetails("p1#42", basePrDetails);
+    const firstDetails = useGitStore.getState().prDetails;
+
+    useGitStore.getState().setPrDetails("p1#42", {
+      ...basePrDetails,
+      checks: [
+        {
+          ...basePrDetails.checks[0]!,
+          startedAt: "2026-07-13T11:25:03Z",
+          completedAt: "2026-07-13T11:25:49Z",
+        },
+      ],
+    });
+
+    const secondDetails = useGitStore.getState().prDetails;
+    expect(secondDetails).not.toBe(firstDetails);
+    expect(secondDetails["p1#42"]?.checks[0]?.completedAt).toBe("2026-07-13T11:25:49Z");
+  });
 });
 
 describe("summaryBackfillMissed", () => {

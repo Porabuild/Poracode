@@ -64,13 +64,17 @@ export class CodexAppServerRpc {
     });
   }
 
-  request(method: string, params: Record<string, unknown>, timeoutMs = 30_000): Promise<unknown> {
+  request(
+    method: string,
+    params: Record<string, unknown> | null,
+    timeoutMs = 30_000,
+  ): Promise<unknown> {
     return this.requestWithRetry(method, params, timeoutMs);
   }
 
   private async requestWithRetry(
     method: string,
-    params: Record<string, unknown>,
+    params: Record<string, unknown> | null,
     timeoutMs: number,
   ): Promise<unknown> {
     for (let attempt = 0; ; attempt += 1) {
@@ -93,7 +97,7 @@ export class CodexAppServerRpc {
 
   private requestOnce(
     method: string,
-    params: Record<string, unknown>,
+    params: Record<string, unknown> | null,
     timeoutMs: number,
   ): Promise<unknown> {
     const id = `poracode-${this.requestSequence++}`;

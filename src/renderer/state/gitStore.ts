@@ -354,7 +354,9 @@ function arePrChecksEqual(a: PrCheck, b: PrCheck): boolean {
     a.state === b.state &&
     a.conclusion === b.conclusion &&
     a.url === b.url &&
-    a.workflowName === b.workflowName
+    a.workflowName === b.workflowName &&
+    a.startedAt === b.startedAt &&
+    a.completedAt === b.completedAt
   );
 }
 

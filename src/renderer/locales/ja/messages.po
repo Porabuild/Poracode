@@ -1506,6 +1506,10 @@ msgstr "プロジェクトの削除をキャンセル"
 msgid "cancelled"
 msgstr "キャンセルされました"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Cancelled"
+msgstr "キャンセル済み"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot create a default worktree path without a branch name"
 msgstr "ブランチ名がないとデフォルトのワークツリー パスを作成できません"
@@ -1631,6 +1635,7 @@ msgstr "確認中…"
 
 #: src/mobile/views/pr/PrChecksPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
 msgstr "チェック"
@@ -2151,6 +2156,10 @@ msgstr "このターミナルでプロンプトを完了します。終了した
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "completed"
 msgstr "完了しました"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Completed"
+msgstr "完了"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -3522,6 +3531,7 @@ msgstr "{0}からコンテキストを抽出しています ..."
 msgid "failed"
 msgstr "失敗しました"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "失敗"
@@ -5245,6 +5255,10 @@ msgstr "注意が必要 · 返信が必要です"
 msgid "Needs reply"
 msgstr "返信が必要です"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Neutral"
+msgstr "中立"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "新機能"
@@ -5476,6 +5490,7 @@ msgstr "変更なし"
 msgid "No changes to display"
 msgstr "表示する変更はありません"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
 msgstr "この PR についてはチェックが報告されていません。"
@@ -6278,6 +6293,10 @@ msgstr "サーバー上の親フォルダー"
 msgid "Parent folder, e.g. /home/me/projects"
 msgstr "親フォルダー（例: /home/me/projects）"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Passed"
+msgstr "成功"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Passphrase (optional)"
 msgstr "パスフレーズ（任意）"
@@ -6334,6 +6353,10 @@ msgstr "ピークの日"
 #: src/renderer/components/thread/ChatPane/parts/items/PlanItem.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "pending"
+msgstr "保留中"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Pending"
 msgstr "保留中"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
@@ -7444,6 +7467,7 @@ msgstr "下記のスケジュールでこのスケジュールを自動的に実
 msgid "running"
 msgstr "実行中"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Running"
 msgstr "実行中"
@@ -8163,6 +8187,10 @@ msgstr "スキルマーケットプレイス"
 msgid "Skills.sh"
 msgstr "Skills.sh"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Skipped"
+msgstr "スキップ済み"
+
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
 msgstr "スラッシュコマンド"
@@ -8692,6 +8720,7 @@ msgstr "+ をタップして直接ペアリングするか、SSH 経由でリモ
 #~ msgstr "+ をタップしてデスクトップの Poracode とペアリングしてください。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Target branch"
 msgstr "対象ブランチ"
 
@@ -9495,7 +9524,7 @@ msgid "Uninstall"
 msgstr "アンインストール"
 
 #: src/renderer/components/thread/threadContextUsage.ts
-#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "不明"

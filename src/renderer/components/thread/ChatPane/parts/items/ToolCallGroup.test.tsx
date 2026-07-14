@@ -501,7 +501,10 @@ describe("ToolCallGroup", () => {
   it("renders completed reasoning as a collapsed Thought row with a text preview", () => {
     const threadId = "thread-1";
     const items = [
-      makeReasoningItem("reasoning-1", "Weighing the tradeoffs before editing the selector."),
+      makeReasoningItem(
+        "reasoning-1",
+        "Weighing the tradeoffs.\nChoosing the focused change.\nEditing the selector.",
+      ),
       makeToolItem("tool-1", "Read file"),
     ];
     seedThread(threadId, items);
@@ -514,12 +517,16 @@ describe("ToolCallGroup", () => {
     expect(screen.getByText("1 thought")).toBeInTheDocument();
     expect(screen.getByText("Thought")).toBeInTheDocument();
     expect(
-      screen.getByText("Weighing the tradeoffs before editing the selector."),
+      screen.getByText(
+        "Weighing the tradeoffs. · Choosing the focused change. · Editing the selector.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText("Thought").closest("button")).toHaveClass("overflow-hidden");
-    expect(screen.getByText("Weighing the tradeoffs before editing the selector.")).toHaveClass(
-      "truncate",
-    );
+    expect(
+      screen.getByText(
+        "Weighing the tradeoffs. · Choosing the focused change. · Editing the selector.",
+      ),
+    ).toHaveClass("truncate");
   });
 
   it("keeps streaming reasoning collapsed with a live last-line preview, then settles on completion", async () => {

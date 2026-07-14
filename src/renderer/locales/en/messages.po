@@ -1507,6 +1507,10 @@ msgstr "Cancel removing project"
 msgid "cancelled"
 msgstr "cancelled"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Cancelled"
+msgstr "Cancelled"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot create a default worktree path without a branch name"
 msgstr "Cannot create a default worktree path without a branch name"
@@ -1632,6 +1636,7 @@ msgstr "Checking…"
 
 #: src/mobile/views/pr/PrChecksPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
 msgstr "Checks"
@@ -2152,6 +2157,10 @@ msgstr "Complete the prompts in this terminal. Closes when finished."
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "completed"
 msgstr "completed"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Completed"
+msgstr "Completed"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -3523,6 +3532,7 @@ msgstr "Extracting context from {0}..."
 msgid "failed"
 msgstr "failed"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "Failed"
@@ -5247,6 +5257,10 @@ msgstr "Needs Attention · Reply required"
 msgid "Needs reply"
 msgstr "Needs reply"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Neutral"
+msgstr "Neutral"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "New"
@@ -5478,6 +5492,7 @@ msgstr "No changes"
 msgid "No changes to display"
 msgstr "No changes to display"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
 msgstr "No checks reported for this PR."
@@ -6280,6 +6295,10 @@ msgstr "Parent folder on the server"
 msgid "Parent folder, e.g. /home/me/projects"
 msgstr "Parent folder, e.g. /home/me/projects"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Passed"
+msgstr "Passed"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Passphrase (optional)"
 msgstr "Passphrase (optional)"
@@ -6337,6 +6356,10 @@ msgstr "Peak day"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "pending"
 msgstr "pending"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Pending"
+msgstr "Pending"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "pending review"
@@ -7446,6 +7469,7 @@ msgstr "Run this schedule automatically on the schedule below."
 msgid "running"
 msgstr "running"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Running"
 msgstr "Running"
@@ -8165,6 +8189,10 @@ msgstr "Skills marketplace"
 msgid "Skills.sh"
 msgstr "Skills.sh"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Skipped"
+msgstr "Skipped"
+
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
 msgstr "Slash commands"
@@ -8694,6 +8722,7 @@ msgstr "Tap + to pair directly or connect to a remote machine over SSH."
 #~ msgstr "Tap + to pair with Poracode on your desktop."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Target branch"
 msgstr "Target branch"
 
@@ -9497,7 +9526,7 @@ msgid "Uninstall"
 msgstr "Uninstall"
 
 #: src/renderer/components/thread/threadContextUsage.ts
-#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Unknown"

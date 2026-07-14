@@ -172,7 +172,7 @@ export function mapStatusCheck(raw: unknown): PrCheck | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
   // statusCheckRollup is a union: CheckRun (workflow check) or StatusContext (legacy commit status).
-  // CheckRun fields: name, status, conclusion, detailsUrl, workflowName
+  // CheckRun fields: name, status, conclusion, detailsUrl, workflowName, startedAt, completedAt
   // StatusContext fields: context (name), state, targetUrl, description
   const name =
     typeof obj.name === "string" ? obj.name : typeof obj.context === "string" ? obj.context : "";
@@ -187,12 +187,16 @@ export function mapStatusCheck(raw: unknown): PrCheck | null {
         ? obj.targetUrl
         : undefined;
   const workflowName = typeof obj.workflowName === "string" ? obj.workflowName : undefined;
+  const startedAt = typeof obj.startedAt === "string" ? obj.startedAt : undefined;
+  const completedAt = typeof obj.completedAt === "string" ? obj.completedAt : undefined;
   return {
     name,
     state,
     conclusion,
     ...(url ? { url } : {}),
     ...(workflowName ? { workflowName } : {}),
+    ...(startedAt ? { startedAt } : {}),
+    ...(completedAt ? { completedAt } : {}),
   };
 }
 

@@ -1507,6 +1507,10 @@ msgstr "Скасувати видалення проєкту"
 msgid "cancelled"
 msgstr "скасовано"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Cancelled"
+msgstr "Скасовано"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot create a default worktree path without a branch name"
 msgstr "Неможливо створити шлях worktree за замовчуванням без імені гілки"
@@ -1632,6 +1636,7 @@ msgstr "Перевірка…"
 
 #: src/mobile/views/pr/PrChecksPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
 msgstr "Перевірки"
@@ -2152,6 +2157,10 @@ msgstr "Виконайте підказки в цьому терміналі. В
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "completed"
 msgstr "завершено"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Completed"
+msgstr "Завершено"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -3523,6 +3532,7 @@ msgstr "Видобування контексту з {0}..."
 msgid "failed"
 msgstr "не вдалося"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "Помилка"
@@ -5247,6 +5257,10 @@ msgstr "Потребує уваги · Потрібна відповідь"
 msgid "Needs reply"
 msgstr "Потребує відповіді"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Neutral"
+msgstr "Нейтрально"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Нове"
@@ -5478,6 +5492,7 @@ msgstr "Немає змін"
 msgid "No changes to display"
 msgstr "Немає змін для відображення"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
 msgstr "Для цього PR не повідомлено про перевірки."
@@ -6280,6 +6295,10 @@ msgstr "Батьківська папка на сервері"
 msgid "Parent folder, e.g. /home/me/projects"
 msgstr "Батьківська папка, напр. /home/me/projects"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Passed"
+msgstr "Пройдено"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Passphrase (optional)"
 msgstr "Парольна фраза (необов’язково)"
@@ -6337,6 +6356,10 @@ msgstr "Пік активності"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "pending"
 msgstr "очікування"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Pending"
+msgstr "Очікує"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "pending review"
@@ -7446,6 +7469,7 @@ msgstr "Автоматично запускати цей розклад за р�
 msgid "running"
 msgstr "виконується"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Running"
 msgstr "Виконується"
@@ -8165,6 +8189,10 @@ msgstr "Маркетплейс навичок"
 msgid "Skills.sh"
 msgstr "Skills.sh"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Skipped"
+msgstr "Пропущено"
+
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
 msgstr "Slash-команди"
@@ -8694,6 +8722,7 @@ msgstr "Натисніть +, щоб створити пару напряму а
 #~ msgstr "Натисніть +, щоб підключитися до Poracode на вашому робочому столі."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Target branch"
 msgstr "Цільова гілка"
 
@@ -9497,7 +9526,7 @@ msgid "Uninstall"
 msgstr "Видалити"
 
 #: src/renderer/components/thread/threadContextUsage.ts
-#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Невідомо"

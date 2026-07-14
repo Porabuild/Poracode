@@ -50,6 +50,7 @@ import {
   mapGitHubApiRepo,
   parseGhAuthAccounts,
 } from "./github";
+import { mapStatusCheck } from "./githubMappers";
 import { resolveClonedProjectPath } from "./git/exec";
 
 const location = { kind: "windows" as const, path: "C:\\Users\\demo\\repo" };
@@ -813,6 +814,42 @@ describe("GitHubService", () => {
         new GitHubService().submitPrReview(location, 42, "request-changes", "   "),
       ).rejects.toThrow(/required/i);
       expect(execFileAsyncMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("mapStatusCheck", () => {
+    it("preserves check run timestamps", () => {
+      expect(
+        mapStatusCheck({
+          name: "Typecheck",
+          status: "COMPLETED",
+          conclusion: "SUCCESS",
+          startedAt: "2026-07-13T11:25:03Z",
+          completedAt: "2026-07-13T11:25:49Z",
+        }),
+      ).toEqual({
+        name: "Typecheck",
+        state: "COMPLETED",
+        conclusion: "SUCCESS",
+        startedAt: "2026-07-13T11:25:03Z",
+        completedAt: "2026-07-13T11:25:49Z",
+      });
+    });
+
+    it("preserves a status context start time without inventing a completion time", () => {
+      expect(
+        mapStatusCheck({
+          context: "Vercel",
+          state: "SUCCESS",
+          startedAt: "2026-07-13T11:25:28Z",
+          completedAt: null,
+        }),
+      ).toEqual({
+        name: "Vercel",
+        state: "SUCCESS",
+        conclusion: "",
+        startedAt: "2026-07-13T11:25:28Z",
+      });
     });
   });
 

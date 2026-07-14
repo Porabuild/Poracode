@@ -34,6 +34,8 @@ export interface PrCheck {
   conclusion: string;
   url?: string;
   workflowName?: string;
+  startedAt?: string;
+  completedAt?: string;
 }
 
 export const PR_CHECK_FAILURE_CONCLUSIONS: ReadonlySet<string> = new Set([

@@ -18,6 +18,7 @@ import {
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
+import { formatElapsed } from "@/renderer/utils/formatTime";
 import {
   buildFileEditorContext,
   openFileInEditor,
@@ -29,7 +30,6 @@ import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollC
 import { selectVisibleThreadTimelineEntries, type ChatTimelineEntry } from "./chatPaneSelectors";
 import { shouldMarkUserScrollIntentFromPointerTarget } from "./chatScrollGeometry";
 import { normalizeChatProjectPath } from "./chatPathUtils";
-import { formatElapsed } from "./formatElapsed";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { SubAgentOverlay } from "./parts/items/SubAgentOverlay";
 
@@ -345,6 +345,7 @@ export function ChatPane(props: ChatPaneProps) {
                     key={threadId}
                     threadId={threadId}
                     entries={timelineEntries}
+                    isTurnActive={isLive}
                     scrollElement={scrollEl}
                     registerScrollToIndex={registerScrollToIndex}
                     suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
