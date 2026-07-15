@@ -356,15 +356,17 @@ export function ChatPane(props: ChatPaneProps) {
   // turn.
   const turn = resolveTurnTiming(thread, showWorkingTimer);
   const mostRecentDisplayableCompletedTurn = useAppStore((s) =>
-    showWorkingTimer
-      ? null
-      : selectMostRecentDisplayableCompletedTurn(s.runtimeCompletedTurnsByThread[threadId]),
+    selectMostRecentDisplayableCompletedTurn(s.runtimeCompletedTurnsByThread[threadId]),
   );
   const mostRecentCompletedTurnAnchor = mostRecentDisplayableCompletedTurn?.anchorItemId ?? null;
+  const completedTurnAnchorAtTail = isCompletedTurnAnchorAtTimelineTail(
+    mostRecentCompletedTurnAnchor,
+    timelineEntries,
+  );
   const completedTurnCanRenderInTail =
     !showWorkingTimer &&
     (turn?.endedAt != null || mostRecentDisplayableCompletedTurn !== null) &&
-    isCompletedTurnAnchorAtTimelineTail(mostRecentCompletedTurnAnchor, timelineEntries);
+    completedTurnAnchorAtTail;
   const tailTurn =
     completedTurnCanRenderInTail && mostRecentDisplayableCompletedTurn
       ? mostRecentDisplayableCompletedTurn
@@ -384,9 +386,19 @@ export function ChatPane(props: ChatPaneProps) {
   // time when the thread is idle and no newer timeline row exists. Once an
   // optimistic next prompt is appended, keep the completed indicator inline at
   // its anchor so the prompt does not briefly occupy the old footer position.
-  const suppressInlineTurnAnchorId = completedTurnCanRenderInTail
-    ? mostRecentCompletedTurnAnchor
-    : null;
+  // When detached background work keeps the timer live after the foreground
+  // turn settles, the ticking "Working for" reseeds from that turn's start —
+  // its window subsumes the frozen "Worked for" record, so render only the
+  // live timer, never both at once.
+  const liveTimerContinuesCompletedTurn =
+    turn !== null &&
+    turn.endedAt === null &&
+    mostRecentDisplayableCompletedTurn !== null &&
+    turn.startedAt <= mostRecentDisplayableCompletedTurn.startedAt;
+  const suppressInlineTurnAnchorId =
+    completedTurnCanRenderInTail || liveTimerContinuesCompletedTurn
+      ? mostRecentCompletedTurnAnchor
+      : null;
   const checkpointGuard = useAppStore(
     useShallow((s) =>
       resolveCheckpointGuard({
