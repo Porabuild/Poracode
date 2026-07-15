@@ -72,10 +72,10 @@ export function RootLayout() {
 
   // First launch without a paired desktop lands on pairing.
   useEffect(() => {
-    if (remote.booted && remote.desktops.length === 0) {
+    if (pathname === "/threads" && remote.booted && remote.desktops.length === 0) {
       void navigate({ to: "/desktops" });
     }
-  }, [remote.booted, remote.desktops.length, navigate]);
+  }, [pathname, remote.booted, remote.desktops.length, navigate]);
 
   // Connection-state problems (offline / reconnecting / unauthorized / error)
   // are shown by the ConnectionBanner; only surface action-level errors that

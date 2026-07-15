@@ -51,7 +51,7 @@ const RESERVED_EXACT_PATHS = new Set([
   "/service-worker.js",
   "/app-icon.svg",
 ]);
-const RESERVED_PATH_PREFIXES = ["/api/", "/oauth/", "/.well-known/", "/forward/"];
+const RESERVED_PATH_PREFIXES = ["/api/", "/oauth/", "/.well-known/", "/forward/", "/app/"];
 
 export function isReservedForwardProxyPath(pathname: string): boolean {
   if (RESERVED_EXACT_PATHS.has(pathname)) return true;

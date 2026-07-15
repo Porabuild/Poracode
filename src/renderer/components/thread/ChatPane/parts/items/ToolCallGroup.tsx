@@ -56,11 +56,11 @@ import { LazyInlineDiffView } from "./LazyInlineDiffView";
 import { ReasoningInline } from "./ReasoningInline";
 import { detectLanguageFromPath, type ViewportLanguage } from "./languageDetect";
 import {
+  analyzeEditToolGroup,
   getToolLikePayload,
   isEditLikeToolPayload,
   isToolGroupItem,
   readCommandPayloadCommand,
-  summarizeSameFileEditGroup,
   summarizeToolCalls,
   type SameFileEditGroupSummary,
 } from "./toolCallCategorization";
@@ -92,14 +92,16 @@ export const ToolCallGroup = memo(function ToolCallGroup({
     ),
   );
   const actions = useChatPaneActions();
-  // Live tail expands by default so the user sees in-flight calls; collapse
-  // automatically once another item arrives after the group (isLive flips
-  // false). Manual toggles still apply afterwards.
-  const [isExpanded, setIsExpanded] = useState(isLive);
+  // Single pass: edit-only groups stay collapsed while live; same-file multi
+  // patches also get the compact "N edits: path" header.
+  const { editOnly: editOnlyGroup, sameFile: sameFileEditSummary } = analyzeEditToolGroup(items);
+  const [isExpanded, setIsExpanded] = useState(() => isLive && !editOnlyGroup);
   const [showAll, setShowAll] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const previousLayoutRef = useRef({ isExpanded, showAll });
   const hasOverflowRows = items.length > TOOL_CALL_GROUP_MAX_VISIBLE_ROWS;
+  // Preserve manual open/close across live-tail item updates.
+  const userToggledRef = useRef(false);
 
   useLayoutEffect(() => {
     const previous = previousLayoutRef.current;
@@ -113,8 +115,13 @@ export const ToolCallGroup = memo(function ToolCallGroup({
   }, [actions, isExpanded, onHeightChange, showAll]);
 
   useEffect(() => {
-    if (!isLive) setIsExpanded(false);
-  }, [isLive]);
+    if (!isLive) {
+      userToggledRef.current = false;
+      setIsExpanded(false);
+      return;
+    }
+    if (!userToggledRef.current) setIsExpanded(!editOnlyGroup);
+  }, [isLive, editOnlyGroup]);
 
   useEffect(() => {
     if (!hasOverflowRows) setShowAll(false);
@@ -130,7 +137,6 @@ export const ToolCallGroup = memo(function ToolCallGroup({
 
   if (items.length === 0) return null;
   const sections = summarizeToolCalls(items);
-  const sameFileEditSummary = summarizeSameFileEditGroup(items);
   const visibleItems =
     !showAll && hasOverflowRows ? items.slice(-TOOL_CALL_GROUP_MAX_VISIBLE_ROWS) : items;
 
@@ -139,7 +145,10 @@ export const ToolCallGroup = memo(function ToolCallGroup({
       <Disclosure
         className="text-[length:var(--lc-chat-font-size-command)] leading-tight"
         isExpanded={isExpanded}
-        onExpandedChange={setIsExpanded}
+        onExpandedChange={(next) => {
+          userToggledRef.current = true;
+          setIsExpanded(next);
+        }}
       >
         <Disclosure.Heading>
           <Disclosure.Trigger className={`group ${chatRowClass} gap-2 ${chatRowHoverClass}`}>
@@ -411,13 +420,19 @@ function InlineRowTitle({
   const displayPrefix = titleParts ? normalizeCallTitleSeparator(titleParts.prefix) : undefined;
   const shimmerData = isRunning ? { "data-poracode-shimmer-text": displayTitle } : {};
   if (titleParts) {
+    // Shimmer only the stable prefix ("Edit · "), never the path: the path can
+    // change while running (absolute → project-relative), and mutating text
+    // under `background-clip: text` leaves ghosted glyphs (see
+    // .poracode-thinking-text in styles.css).
     return (
-      <code
-        ref={shimmerRef}
-        className={`flex min-w-0 items-baseline overflow-hidden font-mono !text-[color:var(--muted)] ${isRunning ? "poracode-thinking-text !flex" : ""}`}
-        {...shimmerData}
-      >
-        <span className="shrink-0 whitespace-pre">{displayPrefix}</span>
+      <code className="flex min-w-0 items-baseline overflow-hidden font-mono !text-[color:var(--muted)]">
+        <span
+          ref={shimmerRef}
+          className={`shrink-0 whitespace-pre ${isRunning ? "poracode-thinking-text" : ""}`}
+          {...(isRunning ? { "data-poracode-shimmer-text": displayPrefix } : {})}
+        >
+          {displayPrefix}
+        </span>
         {titleParts.filePath ? (
           <>
             <span className="sr-only">{titleParts.path}</span>

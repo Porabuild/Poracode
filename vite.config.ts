@@ -83,6 +83,10 @@ function buildPostHogEnvDefines(mode: string): Record<string, string> {
 // src/shared/channel.config-parity.test.ts.
 const poracodeChannel = process.env.PORACODE_CHANNEL === "nightly" ? "nightly" : "stable";
 
+// Keep in sync with scripts/dev-server-port.mjs: smoke runs and parallel
+// worktrees override the dev-server port so isolated apps can run side by side.
+const devServerPort = Number.parseInt(process.env.PORACODE_DEV_SERVER_PORT ?? "", 10) || 3100;
+
 // Mobile-only build target (PORACODE_BUILD_TARGET=mobile) produces a
 // self-contained PWA bundle in dist/mobile for standalone hosting (Vercel),
 // omitting the desktop renderer entry. The default build emits both entries to
@@ -204,7 +208,14 @@ function mobileDevIndex(): Plugin {
 
       server.middlewares.use((req, _res, next) => {
         const [pathname, query] = (req.url ?? "").split("?", 2);
-        if (pathname === "/" || pathname === "/index.html") {
+        const acceptsHtml = req.headers.accept?.includes("text/html") ?? false;
+        const isClientRoute =
+          pathname === "/" ||
+          pathname === "/index.html" ||
+          (acceptsHtml &&
+            pathname !== "/mobile.html" &&
+            !pathname?.split("/").at(-1)?.includes("."));
+        if (isClientRoute) {
           req.url = `/mobile.html${query ? `?${query}` : ""}`;
         }
         next();
@@ -432,7 +443,7 @@ export default defineConfig(({ mode }) => ({
     // (mobile.html) straight from the dev server with HMR; the remote access
     // server redirects /app and /pair here in dev.
     host: "0.0.0.0",
-    port: 3100,
+    port: devServerPort,
     strictPort: true,
   },
 }));

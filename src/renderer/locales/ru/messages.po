@@ -1379,6 +1379,10 @@ msgstr "Закладки"
 msgid "Bottom"
 msgstr "Снизу"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "Ветка"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "В ветке '{branch}' есть незакоммиченные изменения в '{path}' — закоммитьте их или поместите в stash перед слиянием"
@@ -1427,6 +1431,7 @@ msgstr "Просмотрите свои репозитории GitHub или в�
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
@@ -4948,6 +4953,7 @@ msgstr "Загрузка…"
 msgid "local"
 msgstr "локальный"
 
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Local"
@@ -5445,7 +5451,6 @@ msgid "Modes"
 msgstr "Режимы"
 
 #: src/mobile/NarrowShell.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "Больше"
@@ -5964,6 +5969,10 @@ msgstr "Подходящих расписаний нет."
 msgid "No matching threads"
 msgstr "Подходящих тредов нет"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "Для этого запуска не включён ни один MCP-сервер"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "В этой области MCP-серверы не найдены."
@@ -6126,8 +6135,8 @@ msgid "No windows reported"
 msgstr "Окна не сообщены"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "Нет worktree"
+#~ msgid "No worktree"
+#~ msgstr "Нет worktree"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"
@@ -6485,6 +6494,10 @@ msgstr "Открыть настройки"
 #: src/renderer/components/composer/voiceError.ts
 msgid "Open Settings"
 msgstr "Открыть настройки"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Poracode on this computer, then paste its pairing token here."
+msgstr "Откройте Настройки → Удалённый доступ в Poracode на этом компьютере, затем вставьте сюда токен сопряжения."
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
@@ -6874,6 +6887,7 @@ msgstr "Перенаправление портов не включено"
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/mobile/WideShell.tsx
 msgid "Ports"
 msgstr "Порты"
 
@@ -6956,6 +6970,10 @@ msgstr "Предыдущие запуски"
 msgid "Previous tab"
 msgstr "Предыдущая вкладка"
 
+#: src/mobile/views/MoreView.tsx
+msgid "Privacy Policy"
+msgstr "Политика конфиденциальности"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Private key"
 msgstr "Закрытый ключ"
@@ -7019,6 +7037,7 @@ msgstr "Переопределения для конкретного проек�
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Projects"
@@ -7646,6 +7665,7 @@ msgstr "Изменить размер заметок и задач"
 msgid "Resize row"
 msgstr "Изменить размер строки"
 
+#: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
 msgstr "Изменить размер боковой панели"
@@ -8323,8 +8343,13 @@ msgstr "Задать или просмотреть эксперименталь�
 msgid "Set shortcut"
 msgstr "Назначить сочетание клавиш"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "Зафиксировано при запуске этой сессии — чтобы изменить серверы, начните новый тред"
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -8959,8 +8984,12 @@ msgid "Store as secret (encrypted at rest)"
 msgstr "Хранить как секрет (шифруется при хранении)"
 
 #: src/mobile/views/MoreView.tsx
-msgid "Stored on this phone; the desktop keeps its own values."
-msgstr "Хранится на этом телефоне; на десктопе остаются собственные значения."
+msgid "Stored on this device; the desktop keeps its own values."
+msgstr "Сохраняется на этом устройстве; на компьютере остаются собственные значения."
+
+#: src/mobile/views/MoreView.tsx
+#~ msgid "Stored on this phone; the desktop keeps its own values."
+#~ msgstr "Хранится на этом телефоне; на десктопе остаются собственные значения."
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -9035,6 +9064,10 @@ msgstr "Обобщи прогресс этой недели, незавершё�
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "Под наблюдением"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Support"
+msgstr "Поддержка"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Support mode appears once the session connects."
@@ -9176,8 +9209,8 @@ msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "Нажмите +, чтобы добавить папку или клонировать репозиторий на компьютере."
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Tap + to pair directly or connect to a remote machine over SSH."
-msgstr "Нажмите +, чтобы выполнить прямое сопряжение или подключиться к удаленному компьютеру по SSH."
+#~ msgid "Tap + to pair directly or connect to a remote machine over SSH."
+#~ msgstr "Нажмите +, чтобы выполнить прямое сопряжение или подключиться к удаленному компьютеру по SSH."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Tap + to pair with Poracode on your desktop."
@@ -10244,6 +10277,10 @@ msgstr "Настройки использования"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Usage unknown"
 msgstr "Использование неизвестно"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Use + to pair directly or connect to a remote machine over SSH."
+msgstr "Используйте + для прямого сопряжения или подключения к удалённому компьютеру по SSH."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"

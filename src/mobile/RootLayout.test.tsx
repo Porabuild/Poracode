@@ -11,6 +11,8 @@ const routerMock = vi.hoisted(() => ({
   pathname: "/threads",
 }));
 
+const mediaMock = vi.hoisted(() => ({ isWide: false }));
+
 const remoteMock = vi.hoisted(() => ({
   session: {
     booted: true,
@@ -70,7 +72,9 @@ vi.mock("@/renderer/views/MainView/parts/PullFromSourceDialog", () => ({
 }));
 
 vi.mock("./components", () => ({
-  ConnectionBanner: () => null,
+  ConnectionBanner: (props: { state: string }) => (
+    <div data-testid="connection-banner" data-state={props.state} />
+  ),
   ConnectionPill: (props: { state: string }) => (
     <button
       type="button"
@@ -79,17 +83,29 @@ vi.mock("./components", () => ({
       aria-label="Connection status"
     />
   ),
+  EmptyState: (props: { title: ReactNode; hint?: ReactNode; action?: ReactNode }) => (
+    <div>
+      <strong>{props.title}</strong>
+      {props.hint}
+      {props.action}
+    </div>
+  ),
   // Functional stand-in: renders the trigger plus one button per item, so
   // tests can drive the header quick menu without the portal/animation layer.
   SheetMenu: (props: {
-    items: readonly { id: string; label: string }[];
+    items: readonly { id: string; label: string; disabled?: boolean }[];
     onSelect: (id: string) => void;
     trigger: (api: { open: () => void; isOpen: boolean }) => ReactNode;
   }) => (
     <>
       {props.trigger({ open: () => {}, isOpen: false })}
       {props.items.map((item) => (
-        <button key={item.id} type="button" onClick={() => props.onSelect(item.id)}>
+        <button
+          key={item.id}
+          type="button"
+          disabled={item.disabled}
+          onClick={() => props.onSelect(item.id)}
+        >
           {item.label}
         </button>
       ))}
@@ -122,7 +138,7 @@ vi.mock("./ThreadUsageIndicator", () => ({
 
 vi.mock("./useMediaQuery", () => ({
   WIDE_SHELL_QUERY: "(min-width: 900px)",
-  useMediaQuery: () => false,
+  useMediaQuery: () => mediaMock.isWide,
 }));
 
 vi.mock("./useRemoteDesktop", () => ({
@@ -130,13 +146,17 @@ vi.mock("./useRemoteDesktop", () => ({
 }));
 
 vi.mock("./views/ThreadsView", () => ({
-  ThreadsView: () => <div data-testid="threads-view" />,
+  ThreadsView: (props: { emptyStateOverride?: ReactNode }) => (
+    <div data-testid="threads-view">{props.emptyStateOverride}</div>
+  ),
 }));
 
 describe("mobile RootLayout", () => {
   beforeEach(() => {
+    localStorage.removeItem("poracode-mobile.sidebar-width");
     routerMock.navigate.mockReset();
     routerMock.pathname = "/threads";
+    mediaMock.isWide = false;
     remoteMock.session.connection = "online";
     remoteMock.session.desktops = [{ id: "desktop-1", label: "Poracode on Mac" }];
     remoteMock.session.activeDesktop = { id: "desktop-1", label: "Poracode on Mac" };
@@ -166,11 +186,11 @@ describe("mobile RootLayout", () => {
 
     // The ⋯ quick menu hosts every secondary destination; Settings is last.
     fireEvent.click(screen.getByText("Usage"));
-    expect(routerMock.navigate).toHaveBeenCalledWith({ to: "/more/usage" });
+    expect(routerMock.navigate).toHaveBeenCalledWith({ to: "/usage" });
     fireEvent.click(screen.getByText("Connections"));
     expect(routerMock.navigate).toHaveBeenCalledWith({ to: "/desktops" });
     fireEvent.click(screen.getByText("Settings"));
-    expect(routerMock.navigate).toHaveBeenCalledWith({ to: "/more" });
+    expect(routerMock.navigate).toHaveBeenCalledWith({ to: "/settings" });
   });
 
   it("keeps the disconnected icon hidden until a desktop is active", () => {
@@ -183,17 +203,88 @@ describe("mobile RootLayout", () => {
     expect(screen.queryByTestId("connection-pill")).not.toBeInTheDocument();
   });
 
-  it("places the home connection indicator after the desktop name before the More menu", () => {
+  it("disables desktop-backed quick-menu destinations when no desktop is paired", () => {
+    remoteMock.session.connection = "offline";
+    remoteMock.session.desktops = [];
+    remoteMock.session.activeDesktop = null;
+
+    render(<RootLayout />);
+
+    expect(screen.getByRole("button", { name: "Usage" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Projects" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Browser" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Ports" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Connections" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Settings" })).toBeEnabled();
+  });
+
+  it("keeps local settings deep links open when no desktop is paired", () => {
+    routerMock.pathname = "/settings/appearance";
+    remoteMock.session.desktops = [];
+    remoteMock.session.activeDesktop = null;
+
+    render(<RootLayout />);
+
+    expect(routerMock.navigate).not.toHaveBeenCalledWith({ to: "/desktops" });
+  });
+
+  it("disables wide-shell desktop actions and hides the banner with no selected desktop", () => {
+    mediaMock.isWide = true;
+    remoteMock.session.connection = "offline";
+    remoteMock.session.desktops = [];
+    remoteMock.session.activeDesktop = null;
+
+    render(<RootLayout />);
+
+    expect(screen.getByRole("button", { name: "New thread" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Usage" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Projects" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Browser" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Ports" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Settings" })).toBeEnabled();
+    expect(screen.queryByTestId("connection-banner")).not.toBeInTheDocument();
+    expect(screen.getByText("Connect desktop")).toBeInTheDocument();
+  });
+
+  it("shows the offline banner when the selected desktop is offline", () => {
+    mediaMock.isWide = true;
     remoteMock.session.connection = "offline";
 
     render(<RootLayout />);
 
-    const brand = screen.getByText("Mac").closest("button");
+    expect(screen.getByTestId("connection-banner")).toHaveAttribute("data-state", "offline");
+  });
+
+  it("resizes and persists the wide-shell sidebar", () => {
+    mediaMock.isWide = true;
+    localStorage.setItem("poracode-mobile.sidebar-width", "360");
+
+    const { container } = render(<RootLayout />);
+    const shell = container.querySelector<HTMLElement>(".m-shell--wide");
+    const resizeHandle = screen.getByRole("separator", { name: "Resize sidebar" });
+    expect(shell?.style.getPropertyValue("--m-sidebar-width")).toBe("360px");
+
+    fireEvent.keyDown(resizeHandle, { key: "ArrowRight" });
+    expect(shell?.style.getPropertyValue("--m-sidebar-width")).toBe("384px");
+    expect(localStorage.getItem("poracode-mobile.sidebar-width")).toBe("384");
+
+    fireEvent.mouseDown(resizeHandle, { button: 0, clientX: 384 });
+    fireEvent.mouseMove(document, { clientX: 424 });
+    fireEvent.mouseUp(document, { clientX: 424 });
+    expect(shell?.style.getPropertyValue("--m-sidebar-width")).toBe("424px");
+    expect(localStorage.getItem("poracode-mobile.sidebar-width")).toBe("424");
+  });
+
+  it("places the home connection indicator after the brand before the More menu", () => {
+    remoteMock.session.connection = "offline";
+
+    render(<RootLayout />);
+
+    const brand = screen.getByRole("button", { name: "Poracode" });
     const connection = screen.getByTestId("connection-pill");
     const more = screen.getByLabelText("More");
-    expect(brand).not.toBeNull();
     expect(
-      brand!.compareDocumentPosition(connection) & Node.DOCUMENT_POSITION_FOLLOWING,
+      brand.compareDocumentPosition(connection) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
       connection.compareDocumentPosition(more) & Node.DOCUMENT_POSITION_FOLLOWING,

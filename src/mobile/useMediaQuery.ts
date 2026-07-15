@@ -6,3 +6,6 @@ export { useMediaQuery } from "@heroui/react";
 /** The PWA switches between phone chrome and the sidebar/desktop layout here;
  * matches the 767px guard in styles.css. */
 export const WIDE_SHELL_QUERY = "(min-width: 768px)";
+
+/** Menus use anchored popovers only when the browser has desktop-like input. */
+export const DESKTOP_POINTER_QUERY = "(min-width: 768px) and (hover: hover) and (pointer: fine)";

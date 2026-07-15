@@ -41,18 +41,36 @@ export function isImagePath(path: string, mimeType?: string): boolean {
   return mimeType?.startsWith("image/") === true || IMAGE_EXTENSIONS.has(getExtension(path));
 }
 
+/**
+ * Build a `poracode-local://` URL for an absolute filesystem path.
+ *
+ * Anchors the path under a constant `local` host so standard-scheme parsing
+ * does not eat `/Users` or the Windows drive letter as the host (see
+ * `localFiles.ts`). Segments are percent-encoded so literal `%` in folder
+ * names (e.g. Grok session dirs `E%3A%5Cwork…`) survives `decodeURIComponent`.
+ */
 export function toLocalFileUrl(absolutePath: string): string {
   const normalized = absolutePath.replaceAll("\\", "/");
-  // The `poracode-local` scheme is registered as `standard: true` (so cached
-  // ACP registry icons can load as CSS mask-image sources). Standard/special
-  // schemes parse with WHATWG "special authority ignore slashes": leading
-  // slashes collapse and the first path segment becomes the host. Anchoring the
-  // path to a constant `local` host keeps the real path intact in the URL's
-  // `pathname` — without it, `/Users/…` (macOS) or the drive letter (Windows)
-  // would be eaten as the host and the protocol handler would resolve the wrong
-  // file. See src/main/attachments/localFiles.ts.
   const path = normalized.startsWith("/") ? normalized : `/${normalized}`;
-  return `poracode-local://local${path}`;
+  const encoded = path
+    .split("/")
+    .map((segment, index) => {
+      if (segment.length === 0) return segment;
+      // Leave `C:` unencoded so pathname stays `/C:/Users/…`.
+      if (index === 1 && /^[A-Za-z]:$/.test(segment)) return segment;
+      return encodeURIComponent(segment);
+    })
+    .join("/");
+  return `poracode-local://local${encoded}`;
+}
+
+/** Inverse of {@link toLocalFileUrl} — same rules as the main-process protocol handler. */
+export function resolveLocalFileUrlPath(
+  url: string,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  const raw = decodeURIComponent(new URL(url).pathname);
+  return platform === "win32" && /^\/[A-Za-z]:/.test(raw) ? raw.slice(1) : raw;
 }
 
 /**

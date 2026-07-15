@@ -5,7 +5,7 @@ import { resolve as resolvePath } from "node:path";
 
 const args = parseArgs(process.argv.slice(2));
 const port = Number(args.port ?? process.env.PORACODE_CDP_PORT ?? 9222);
-const appUrl = args.appUrl ?? "http://127.0.0.1:3100/";
+const appUrl = args.appUrl ?? process.env.PORACODE_APP_URL ?? "http://127.0.0.1:3100/";
 const defaultOutDir = `${homedir()}\\.poracode-smoke\\artifacts\\browser-${Date.now()}`;
 const outDir = resolvePath(args.outDir ?? process.env.PORACODE_SMOKE_OUT_DIR ?? defaultOutDir);
 const waitMs = Number(args.waitMs ?? 10000);

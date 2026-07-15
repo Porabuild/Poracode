@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { SettingsView } from "./SettingsView";
@@ -25,7 +25,7 @@ describe("mobile SettingsView", () => {
     expect(screen.queryByText("Removal behavior")).not.toBeInTheDocument();
   });
 
-  it("lists only desktop-syncing sections — device sections live on the More tab", () => {
+  it("lists only desktop-syncing sections — device sections live on the Settings page", () => {
     render(
       <SettingsView
         threads={[]}
@@ -40,11 +40,12 @@ describe("mobile SettingsView", () => {
     expect(screen.getByText("Schedules")).toBeInTheDocument();
     expect(screen.getByText("Agents")).toBeInTheDocument();
     expect(screen.getByText("Archived Threads")).toBeInTheDocument();
+    expect(screen.getByText("Usage")).toBeInTheDocument();
     expect(screen.queryByText("Appearance")).not.toBeInTheDocument();
     expect(screen.queryByText("Notifications")).not.toBeInTheDocument();
   });
 
-  it("still renders device section pages by id (deep links from the More tab)", () => {
+  it("still renders device section pages by id (deep links from the Settings page)", () => {
     render(
       <SettingsView
         threads={[]}
@@ -75,5 +76,22 @@ describe("mobile SettingsView", () => {
       screen.getByText(/Archived threads are managed from the desktop app/i),
     ).toBeInTheDocument();
     expect(screen.queryByText("No archived threads.")).not.toBeInTheDocument();
+  });
+
+  it("opens Usage settings from Desktop Settings", () => {
+    const onSectionChange = vi.fn<(sectionId: string | null) => void>();
+    render(
+      <SettingsView
+        threads={[]}
+        projects={[]}
+        sectionId={null}
+        onSectionChange={onSectionChange}
+        onThreadAction={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Usage"));
+
+    expect(onSectionChange).toHaveBeenCalledWith("usage");
   });
 });

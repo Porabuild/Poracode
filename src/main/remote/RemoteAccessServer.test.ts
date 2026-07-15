@@ -705,6 +705,10 @@ describe("RemoteAccessServer", () => {
     expect(appResponse.status).toBe(200);
     await expect(appResponse.text()).resolves.toContain("Poracode");
 
+    const appRouteResponse = await fetch(new URL("/app/settings/appearance", info.httpBaseUrl));
+    expect(appRouteResponse.status).toBe(200);
+    await expect(appRouteResponse.text()).resolves.toContain("Poracode");
+
     const manifestResponse = await fetch(new URL("/manifest.webmanifest", info.httpBaseUrl));
     expect(manifestResponse.status).toBe(200);
     await expect(manifestResponse.json()).resolves.toMatchObject({
@@ -1179,6 +1183,30 @@ describe("RemoteAccessServer", () => {
 
     const startupPairing = new URL(info.pairingUrl);
     expect(startupPairing.origin).toBe("http://192.168.1.20:3100");
+    expect(startupPairing.pathname).toBe("/pair");
+    expect(startupPairing.searchParams.get("host")).toBe(info.httpBaseUrl);
+    expect(new URLSearchParams(startupPairing.hash.slice(1)).get("token")).toMatch(/^lc_pair_/);
+
+    const settingsPairing = new URL(server.issuePairingUrl("Settings QR"));
+    expect(settingsPairing.origin).toBe(startupPairing.origin);
+    expect(settingsPairing.pathname).toBe("/pair");
+    expect(settingsPairing.searchParams.get("host")).toBe(info.httpBaseUrl);
+  });
+
+  it("points production pairing links at the hosted Poracode app", async () => {
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      pairingAppUrl: "https://poracode.com",
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const startupPairing = new URL(info.pairingUrl);
+    expect(startupPairing.origin).toBe("https://poracode.com");
     expect(startupPairing.pathname).toBe("/pair");
     expect(startupPairing.searchParams.get("host")).toBe(info.httpBaseUrl);
     expect(new URLSearchParams(startupPairing.hash.slice(1)).get("token")).toMatch(/^lc_pair_/);

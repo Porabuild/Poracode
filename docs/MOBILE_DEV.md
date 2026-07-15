@@ -111,8 +111,9 @@ app land on the hosted PWA (`poracode.com/mobile-app`); users with it get the ap
    `vercel.json` → `dist/mobile`) from the marketing site (`website/`). Either
    point poracode.com's domain at the mobile-PWA project, or add the rewrites +
    AASA route into `website/`.
-3. **Desktop** — set `PORACODE_REMOTE_ACCESS_PAIRING_APP_URL=https://poracode.com`
-   in packaged builds so minted QR/links are `https://poracode.com/pair?host=…#token=…`.
+3. **Desktop** — packaged builds default to `https://poracode.com`, so minted
+   QR/links are `https://poracode.com/pair?host=…#token=…`. Set
+   `PORACODE_REMOTE_ACCESS_PAIRING_APP_URL` only to override that host.
 4. Rebuild the app (`cap sync` + `pnpm run dev:ios`) so the entitlement + plugin
    ship. Universal-link routing **cannot be exercised in the simulator** until
    the app is built with the entitlement _and_ the AASA is served over https.

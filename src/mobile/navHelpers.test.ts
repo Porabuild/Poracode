@@ -180,18 +180,19 @@ describe("screenDepth", () => {
     // Quick-menu destinations, the Settings page, a thread, and the full
     // new-thread composer are all pushed straight from home.
     expect(screenDepth("/thread/abc")).toBe(1);
-    expect(screenDepth("/more")).toBe(1);
+    expect(screenDepth("/settings")).toBe(1);
     expect(screenDepth("/new")).toBe(1);
     expect(screenDepth("/desktops")).toBe(1);
-    expect(screenDepth("/more/usage")).toBe(1);
-    expect(screenDepth("/more/projects")).toBe(1);
-    expect(screenDepth("/more/browser")).toBe(1);
+    expect(screenDepth("/usage")).toBe(1);
+    expect(screenDepth("/projects")).toBe(1);
+    expect(screenDepth("/browser")).toBe(1);
+    expect(screenDepth("/ports")).toBe(1);
     // Settings drill-down: device sections come off the Settings page, the
     // desktop-syncing ones off the deeper Desktop Settings list.
-    expect(screenDepth("/more/settings")).toBe(2);
-    expect(screenDepth("/more/settings/appearance")).toBe(2);
-    expect(screenDepth("/more/settings/models")).toBe(3);
-    expect(screenDepth("/more/settings/schedules")).toBe(3);
+    expect(screenDepth("/settings/desktop")).toBe(2);
+    expect(screenDepth("/settings/appearance")).toBe(2);
+    expect(screenDepth("/settings/models")).toBe(3);
+    expect(screenDepth("/settings/schedules")).toBe(3);
     expect(screenDepth("/workspace/t1")).toBe(2);
     expect(screenDepth("/terminal/p1")).toBe(2);
     expect(screenDepth("/pr/42")).toBe(2);
@@ -202,20 +203,20 @@ describe("navigationTransitionType", () => {
   it("pushes when going deeper and pops when coming back", () => {
     expect(navigationTransitionType("/threads", "/thread/abc")).toBe("push");
     expect(navigationTransitionType("/thread/abc", "/threads")).toBe("pop");
-    expect(navigationTransitionType("/threads", "/more")).toBe("push");
-    expect(navigationTransitionType("/more", "/threads")).toBe("pop");
+    expect(navigationTransitionType("/threads", "/settings")).toBe("push");
+    expect(navigationTransitionType("/settings", "/threads")).toBe("pop");
     expect(navigationTransitionType("/threads", "/desktops")).toBe("push");
-    expect(navigationTransitionType("/more", "/more/settings")).toBe("push");
-    expect(navigationTransitionType("/more", "/more/settings/appearance")).toBe("push");
-    expect(navigationTransitionType("/more/settings", "/more/settings/models")).toBe("push");
-    expect(navigationTransitionType("/more/settings/models", "/more/settings")).toBe("pop");
+    expect(navigationTransitionType("/settings", "/settings/desktop")).toBe("push");
+    expect(navigationTransitionType("/settings", "/settings/appearance")).toBe("push");
+    expect(navigationTransitionType("/settings/desktop", "/settings/models")).toBe("push");
+    expect(navigationTransitionType("/settings/models", "/settings/desktop")).toBe("pop");
     expect(navigationTransitionType("/thread/abc", "/workspace/abc")).toBe("push");
     expect(navigationTransitionType("/workspace/abc", "/thread/abc")).toBe("pop");
   });
 
   it("fades between same-depth screens (sibling switches)", () => {
-    expect(navigationTransitionType("/more", "/new")).toBe("fade");
-    expect(navigationTransitionType("/desktops", "/more/usage")).toBe("fade");
+    expect(navigationTransitionType("/settings", "/new")).toBe("fade");
+    expect(navigationTransitionType("/desktops", "/usage")).toBe("fade");
     expect(navigationTransitionType("/pr/42", "/pr/42/changes")).toBe("fade");
   });
 

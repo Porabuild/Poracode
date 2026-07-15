@@ -1856,11 +1856,22 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
    `background-position-x` only ~20×/s, letting the frame pipeline idle between
    ticks. `contain: paint` keeps each repaint scoped to the label box; the
    `background-position: 0% 0` below is the static fallback before the timer
-   runs. */
+   runs.
+
+   IMPORTANT: only apply this class to text that is STABLE while shimmering.
+   `background-clip: text` paints the glyphs as a cached text mask, and if the
+   text changes mid-shimmer Chromium can skip invalidating the old mask —
+   leaving the previous string ghosted under the new one (overlapping-text
+   corruption seen in tool-call rows whose file path swapped absolute →
+   project-relative). Tool rows therefore shimmer only their stable prefix
+   ("Edit · "), never the path. `will-change` additionally isolates the label
+   on its own composited layer, fully re-rastered each tick, so a stray text
+   change still cannot strand stale glyphs in the parent layer's tiles. */
 .poracode-thinking-text {
   position: relative;
   display: inline-block;
   contain: paint;
+  will-change: background-position;
   background-image: linear-gradient(
     90deg,
     var(--muted) 0%,

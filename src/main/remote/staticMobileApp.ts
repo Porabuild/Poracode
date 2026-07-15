@@ -21,7 +21,7 @@ const CONTENT_TYPES: Record<string, string> = {
 const RENDERER_DIST_DIR = resolve(__dirname, "../renderer");
 
 export function tryServeBuiltMobileApp(pathname: string, res: ServerResponse): boolean {
-  if (pathname === "/pair" || pathname === "/app") {
+  if (pathname === "/pair" || pathname === "/app" || pathname.startsWith("/app/")) {
     return streamFile(join(RENDERER_DIST_DIR, MOBILE_HTML_FILE), res);
   }
 

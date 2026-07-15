@@ -7,7 +7,9 @@
  * word-splitting traps. Pairs with the DEV bridge (`window.__poracodeDev`,
  * see src/renderer/devBridge.ts) for instant state/navigation.
  *
- * Port defaults to $PORACODE_CDP_PORT or 9222.
+ * Port defaults to $PORACODE_CDP_PORT or 9222; the app target URL defaults to
+ * $PORACODE_APP_URL or http://127.0.0.1:3100/. Isolated smoke runs allocate
+ * per-run ports — export both values from the runner's ports.json first.
  *
  *   node poracode-cdp.mjs wait [--timeout 90]        # block until the app CDP target is up
  *   node poracode-cdp.mjs eval '<js>' [--await]      # Runtime.evaluate, prints JSON result
@@ -34,7 +36,7 @@ import { dirname, isAbsolute, resolve as resolvePath } from "node:path";
 const { flags, pos } = parse(process.argv.slice(2));
 const cmd = pos[0];
 const port = Number(flags.port ?? process.env.PORACODE_CDP_PORT ?? 9222);
-const appUrl = String(flags.appUrl ?? "http://127.0.0.1:3100/");
+const appUrl = String(flags.appUrl ?? process.env.PORACODE_APP_URL ?? "http://127.0.0.1:3100/");
 const windowKind = flags.windowKind ? String(flags.windowKind) : null;
 const commandTimeoutMs = Number(flags.commandTimeoutMs ?? 8000);
 

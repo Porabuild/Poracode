@@ -10,11 +10,10 @@ import net from "node:net";
 const scriptDir = fileURLToPath(new URL(".", import.meta.url));
 const repoRoot = resolve(scriptDir, "../../../../");
 const args = parseArgs(process.argv.slice(2));
-const port = Number(args.port ?? 9222);
 const scope = String(args.scope ?? "changed");
 const mode = String(args.mode ?? "mock");
 const root = resolve(
-  String(args.root ?? join(homedir(), ".poracode-smoke", `automated-${Date.now()}`)),
+  String(args.root ?? join(homedir(), ".poracode-smoke", `automated-${Date.now()}-${process.pid}`)),
 );
 const outDir = resolve(String(args.outDir ?? join(root, "artifacts")));
 const dataDir = join(root, "data");
@@ -34,15 +33,23 @@ const seedScript = join(
 let appProcess;
 
 try {
-  await assertPortFree(3100, "Vite");
-  await assertPortFree(port, "Electron CDP");
+  // Each run gets its own dev-server and CDP ports so isolated apps from
+  // multiple worktrees can run side by side. Explicit --port/--vitePort values
+  // are honored (and verified free); everything else is allocated by the OS.
+  const { cdpPort: port, vitePort } = await resolvePorts();
+  const appUrl = `http://127.0.0.1:${vitePort}/`;
   await createFixture();
+  await writePortsFile(port, vitePort, appUrl);
+  console.log(
+    `Smoke ports: CDP ${port}, dev server ${vitePort}. For manual gates: PORACODE_CDP_PORT=${port} PORACODE_APP_URL=${appUrl}`,
+  );
 
   const pnpm = pnpmSpawnCommand();
   appProcess = spawn(pnpm.command, pnpm.args, {
     cwd: repoRoot,
     env: {
       ...process.env,
+      PORACODE_DEV_SERVER_PORT: String(vitePort),
       PORACODE_CDP_PORT: String(port),
       PORACODE_BASE_DIR: dataDir,
       PORACODE_SMOKE_OUT_DIR: outDir,
@@ -62,7 +69,7 @@ try {
     }
   });
 
-  await waitForAppTarget(port, 120_000);
+  await waitForAppTarget(port, appUrl, 120_000);
   const result = spawnSync(
     process.execPath,
     [
@@ -74,8 +81,12 @@ try {
       mode,
       "--port",
       String(port),
+      "--appUrl",
+      appUrl,
+      // Cold Vite transforms can take 30s+ when several worktree dev apps
+      // share the machine — the exact scenario isolated ports enable.
       "--timeoutMs",
-      "30000",
+      "60000",
       "--outDir",
       outDir,
     ],
@@ -184,8 +195,36 @@ async function createFixture() {
   );
 }
 
+async function resolvePorts() {
+  // Hold both allocation servers open at once so the OS hands out two distinct
+  // free ports; explicit values are checked against running listeners instead.
+  const holds = [];
+  try {
+    const cdpPort = args.port
+      ? await assertPortFree(Number(args.port), "Electron CDP")
+      : await allocateFreePort(holds);
+    const vitePort = args.vitePort
+      ? await assertPortFree(Number(args.vitePort), "Vite")
+      : await allocateFreePort(holds);
+    return { cdpPort, vitePort };
+  } finally {
+    for (const server of holds) server.close();
+  }
+}
+
+async function allocateFreePort(holds) {
+  return await new Promise((done, reject) => {
+    const server = net.createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      holds.push(server);
+      done(server.address().port);
+    });
+  });
+}
+
 async function assertPortFree(portNumber, label) {
-  await new Promise((done, reject) => {
+  return await new Promise((done, reject) => {
     const socket = net.createConnection({ host: "127.0.0.1", port: portNumber });
     socket.once("connect", () => {
       socket.destroy();
@@ -193,23 +232,26 @@ async function assertPortFree(portNumber, label) {
     });
     socket.once("error", () => {
       socket.destroy();
-      done();
+      done(portNumber);
     });
   });
 }
 
-async function waitForAppTarget(portNumber, timeoutMs) {
+async function writePortsFile(cdpPort, vitePort, appUrl) {
+  await writeFile(
+    join(root, "ports.json"),
+    `${JSON.stringify({ appUrl, cdpPort, devServerPort: vitePort }, null, 2)}\n`,
+  );
+}
+
+async function waitForAppTarget(portNumber, appUrl, timeoutMs) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     try {
       const response = await fetch(`http://127.0.0.1:${portNumber}/json/list`);
       if (response.ok) {
         const targets = await response.json();
-        if (
-          targets.some(
-            (target) => target.type === "page" && target.url === "http://127.0.0.1:3100/",
-          )
-        ) {
+        if (targets.some((target) => target.type === "page" && target.url === appUrl)) {
           return;
         }
       }

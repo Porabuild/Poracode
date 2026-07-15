@@ -5,7 +5,9 @@ import {
   categorizeToolName,
   categorizeVerbPrefix,
   categoryFromSummaryLabel,
+  isEditOnlyToolGroup,
   isToolGroupItem,
+  summarizeSameFileEditGroup,
 } from "./toolCallCategorization";
 
 describe("categorizeItem", () => {
@@ -79,6 +81,91 @@ describe("categoryFromSummaryLabel", () => {
   });
 });
 
+describe("summarizeSameFileEditGroup", () => {
+  it("summarizes two same-path file_change edits with total diff", () => {
+    const items = [
+      makeFileChange("a", "src/foo.ts", { added: 4, removed: 1 }),
+      makeFileChange("b", "src/foo.ts", { added: 2, removed: 3 }),
+    ];
+    expect(summarizeSameFileEditGroup(items)).toEqual({
+      count: 2,
+      path: "src/foo.ts",
+      diffSummary: { added: 6, removed: 4 },
+    });
+  });
+
+  it("keeps the same-file header when thoughts interleave the edits", () => {
+    const items = [
+      makeFileChange("a", "src/foo.ts", { added: 4, removed: 1 }),
+      makeReasoning("r1", "planning the next patch"),
+      makeFileChange("b", "src/foo.ts", { added: 2, removed: 3 }),
+      makeReasoning("r2", "done"),
+    ];
+    expect(summarizeSameFileEditGroup(items)).toEqual({
+      count: 2,
+      path: "src/foo.ts",
+      diffSummary: { added: 6, removed: 4 },
+    });
+  });
+
+  it("returns null for a single edit even with thoughts", () => {
+    const items = [makeFileChange("a", "src/foo.ts"), makeReasoning("r1", "thinking")];
+    expect(summarizeSameFileEditGroup(items)).toBeNull();
+  });
+
+  it("returns null when edits target different files", () => {
+    const items = [makeFileChange("a", "src/foo.ts"), makeFileChange("b", "src/bar.ts")];
+    expect(summarizeSameFileEditGroup(items)).toBeNull();
+  });
+
+  it("returns null when a non-edit tool breaks the edit run", () => {
+    const items = [
+      makeFileChange("a", "src/foo.ts"),
+      makeTool("t1", "Read"),
+      makeFileChange("b", "src/foo.ts"),
+    ];
+    expect(summarizeSameFileEditGroup(items)).toBeNull();
+  });
+
+  it("normalizes path separators when comparing", () => {
+    const items = [
+      makeFileChange("a", "src\\foo.ts", { added: 1, removed: 0 }),
+      makeFileChange("b", "src/foo.ts", { added: 1, removed: 0 }),
+    ];
+    expect(summarizeSameFileEditGroup(items)).toEqual({
+      count: 2,
+      path: "src\\foo.ts",
+      diffSummary: { added: 2, removed: 0 },
+    });
+  });
+});
+
+describe("isEditOnlyToolGroup", () => {
+  it("is true for pure edit groups and edit+thought groups", () => {
+    expect(
+      isEditOnlyToolGroup([makeFileChange("a", "src/foo.ts"), makeFileChange("b", "src/bar.ts")]),
+    ).toBe(true);
+    expect(
+      isEditOnlyToolGroup([
+        makeFileChange("a", "src/foo.ts"),
+        makeReasoning("r1", "thinking"),
+        makeFileChange("b", "src/foo.ts"),
+      ]),
+    ).toBe(true);
+  });
+
+  it("is false when any non-edit non-thought tool is present", () => {
+    expect(isEditOnlyToolGroup([makeTool("t1", "Read"), makeFileChange("a", "src/foo.ts")])).toBe(
+      false,
+    );
+  });
+
+  it("is false for empty or thought-only groups", () => {
+    expect(isEditOnlyToolGroup([])).toBe(false);
+    expect(isEditOnlyToolGroup([makeReasoning("r1", "only thinking")])).toBe(false);
+  });
+});
+
 describe("categorizeVerbPrefix", () => {
   it("maps reading/viewing prefixes to viewed", () => {
     expect(categorizeVerbPrefix("Reading src/foo.ts")).toBe("viewed");
@@ -101,4 +188,37 @@ describe("categorizeVerbPrefix", () => {
     expect(categorizeVerbPrefix("Unknown action")).toBe("other");
   });
 });
+
+function makeFileChange(
+  id: string,
+  path: string,
+  diffSummary: { added: number; removed: number } = { added: 1, removed: 1 },
+): RuntimeChatItem {
+  return {
+    id,
+    type: "file_change",
+    state: "completed",
+    payload: { path, changeKind: "edit", diffSummary },
+    streams: {},
+  };
+}
+
+function makeReasoning(id: string, text: string): RuntimeChatItem {
+  return {
+    id,
+    type: "reasoning",
+    state: "completed",
+    streams: { reasoning_text: text },
+  };
+}
+
+function makeTool(id: string, name: string): RuntimeChatItem {
+  return {
+    id,
+    type: "tool_call",
+    state: "completed",
+    payload: { name, status: "success" },
+    streams: {},
+  };
+}
 // @vitest-environment node

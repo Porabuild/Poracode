@@ -4,4 +4,5 @@
          WebView, so the safe-area strips stay dark when Capacitor's SystemBars
          fallback (WebView < Chromium 140) insets the WebView from the bars. -->
     <color name="windowBackground">#FF070709</color>
+    <color name="notification_accent">#FF8B7BFF</color>
 </resources>

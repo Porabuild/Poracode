@@ -184,17 +184,27 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
   const usesTerminalPresentation = presentationMode === "terminal";
   // Composer MCP servers are bound at session-create time for the active
-  // thread. The toggles are hidden here; users set them in the draft composer
-  // before launch.
+  // thread, so the "+" menu shows this run's bindings read-only: the enabled
+  // built-ins (from thread config), the custom servers recorded at launch,
+  // and Computer Use. Users change servers in the draft composer or settings
+  // before launching a new thread.
   const mcpServers = composerMcpServers.map((descriptor) => ({
     descriptor,
     enabled: thread.config[descriptor.configKey] === true,
-    visible: false,
+    visible: thread.config[descriptor.configKey] === true,
     onToggle: (next: boolean) =>
       changeThreadConfig(thread.id, {
         ...thread.config,
         ...mcpTogglePatch(descriptor.configKey, next),
       }),
+  }));
+  const launchCustomMcpNames = useAppStore(
+    (s) => s.mcpLaunchCustomServerNamesByThreadId[thread.id],
+  );
+  const customMcpServers = (launchCustomMcpNames ?? []).map((name) => ({
+    id: name,
+    name,
+    enabled: true,
   }));
   const mcpMentions: McpMentionItem[] = [
     ...composerMcpServers
@@ -769,6 +779,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         ) : null}
                         <ComposerAddMenu
                           mcpServers={mcpServers}
+                          customMcpServers={customMcpServers}
+                          readOnly
+                          computerUse={{
+                            enabled: thread.config.computerUse === true,
+                            visible: thread.config.computerUse === true,
+                            onToggle: () => {},
+                          }}
                           showFileOption={!isRemote}
                           onPickFiles={() => {
                             void readBridge()

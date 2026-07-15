@@ -8,8 +8,9 @@ import sharp from "sharp";
 import { readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const HERE = new URL(".", import.meta.url).pathname;
+const HERE = fileURLToPath(new URL(".", import.meta.url));
 const ROOT = resolve(HERE, "../..");
 
 // Tile color baked into poracode-icon.svg.
@@ -44,6 +45,7 @@ async function png(svg, size) {
 async function opaqueIcon(size) {
   return sharp({ create: { width: size, height: size, channels: 3, background: TILE_BG } })
     .composite([{ input: await png(iconSvg, size), gravity: "centre" }])
+    .removeAlpha()
     .png()
     .toBuffer();
 }

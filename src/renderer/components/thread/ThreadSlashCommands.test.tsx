@@ -568,6 +568,43 @@ describe("ThreadSlashCommands", () => {
     ).toEqual([]);
   });
 
+  it("dedupes same-named provider commands and lets the skill entry win the name", () => {
+    const commands = resolveAvailableSlashCommands(
+      [
+        {
+          id: "simplify",
+          label: "simplify — Review changed code",
+          description: "Review changed code",
+        },
+        {
+          id: "simplify",
+          label: "simplify — Review changed code (user)",
+          description: "Review changed code (user)",
+        },
+        { id: "security-review", label: "security-review" },
+      ],
+      undefined,
+      {
+        skillCommands: [
+          {
+            id: "simplify",
+            label: "simplify",
+            section: "skills",
+            skillName: "simplify",
+            skillPath: "/skills/simplify/SKILL.md",
+            skillInvocation: "/simplify",
+            skillProvider: "Claude Code",
+            skillScope: "global",
+          },
+        ],
+      },
+    );
+    expect(commands.map((command) => `${command.id}:${command.section ?? "commands"}`)).toEqual([
+      "security-review:commands",
+      "simplify:skills",
+    ]);
+  });
+
   it("does not reintroduce locally discovered skills when the provider catalog is authoritative", async () => {
     bridge.scanSkills.mockResolvedValue({
       skills: [

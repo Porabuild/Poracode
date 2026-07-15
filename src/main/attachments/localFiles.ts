@@ -3,6 +3,7 @@ import { join, normalize, resolve } from "node:path";
 import { net, protocol } from "electron";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { PoracodePaths } from "@/shared/poracodePaths";
+import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import { getProjectFsPath } from "@/shared/wsl";
 
 function sanitizeAttachmentPathPart(value: string): string {
@@ -88,10 +89,8 @@ export function registerLocalFileProtocolScheme(): void {
 export function installLocalFileProtocolHandler(): void {
   for (const scheme of LOCAL_FILE_PROTOCOL_SCHEMES) {
     protocol.handle(scheme, (request) => {
-      const raw = decodeURIComponent(new URL(request.url).pathname);
       const { pathToFileURL } = require("node:url") as typeof import("node:url");
-      const filePath =
-        process.platform === "win32" && /^\/[A-Za-z]:/.test(raw) ? raw.slice(1) : raw;
+      const filePath = resolveLocalFileUrlPath(request.url);
       if (filePath.includes("\0")) {
         return new Response("invalid path", { status: 400 });
       }

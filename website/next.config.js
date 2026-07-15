@@ -42,6 +42,14 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        source: "/pair",
+        destination: "https://poracode-pwa.vercel.app/pwa/pair",
+      },
+      {
+        source: "/app",
+        destination: "https://poracode-pwa.vercel.app/pwa/app",
+      },
+      {
         source: "/pwa/:path*",
         destination: "https://poracode-pwa.vercel.app/pwa/:path*",
       },

@@ -8,7 +8,7 @@
 
 /** Production gateway origin (co-hosted with the marketing site / PWA). The
  * canonical domain is `website/src/lib/seo.ts` `SITE_URL`. */
-const DEFAULT_PUSH_GATEWAY_URL = "https://poracodeapp.com";
+const DEFAULT_PUSH_GATEWAY_URL = "https://poracode.com";
 
 /** Resolve the gateway origin: env override, else the production default. */
 export function resolvePushGatewayUrl(): string {

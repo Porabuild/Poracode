@@ -164,6 +164,9 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
+    // Edit-only groups stay collapsed while live — open to inspect per-row diffs.
+    expandGroup(/2 edits/i);
+
     expect(screen.getByText("+4")).toHaveClass("text-success");
     expect(screen.getAllByText("-2")[0]).toHaveClass("text-danger");
     expect(screen.getByText("+5")).toHaveClass("text-success");
@@ -190,6 +193,68 @@ describe("ToolCallGroup", () => {
     expect(within(heading).getByText("-5")).toHaveClass("text-danger");
   });
 
+  it("keeps same-file edit summary when thoughts interleave the patches", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeFileChangeItem("file-1", { added: 4, removed: 2 }),
+      makeReasoningItem("reasoning-1", "planning the next hunk"),
+      makeFileChangeItem("file-2", { added: 5, removed: 3 }),
+    ];
+    seedThread(threadId, items);
+
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+      true,
+    );
+
+    // Compact same-file header, not the generic "2 edits · 1 thought" fallback.
+    const heading = screen.getByRole("button", { name: /2 edits:/i });
+    expect(within(heading).getByText("foo.ts")).toBeInTheDocument();
+    expect(within(heading).getByText("+9")).toHaveClass("text-success");
+    // Live edit groups stay collapsed — no per-edit rows auto-expanded.
+    expect(heading).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: /^Edit/i })).not.toBeInTheDocument();
+  });
+
+  it("does not auto-expand live edit-only groups", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeFileChangeItem("file-1", { added: 4, removed: 2 }, "src/a.ts"),
+      makeFileChangeItem("file-2", { added: 5, removed: 3 }, "src/b.ts"),
+    ];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+      true,
+    );
+
+    // Multi-file edit run: still "2 edits", but never open by itself while live.
+    const heading = screen.getByRole("button", { name: /2 edits/i });
+    expect(heading).toHaveAttribute("aria-expanded", "false");
+    expect(view.container.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
+  });
+
+  it("still auto-expands live groups that include non-edit tools", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeToolItem("tool-1", "Read file one"),
+      makeFileChangeItem("file-1", { added: 1, removed: 0 }),
+    ];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+      true,
+    );
+
+    expect(view.container.querySelector(".poracode-tool-call-group-viewport")).not.toBeNull();
+    expect(screen.getByText("Read file one")).toBeInTheDocument();
+  });
+
   it("flattens same-file edit groups into stacked diffs without per-edit rows", async () => {
     const threadId = "thread-1";
     const items = [
@@ -202,6 +267,8 @@ describe("ToolCallGroup", () => {
       threadId,
       items.map((item) => item.id),
     );
+
+    expandGroup(/2 edits:/i);
 
     // No nested per-edit disclosure rows — diffs render directly.
     expect(screen.queryByRole("button", { name: /^Edit:/i })).not.toBeInTheDocument();
@@ -230,7 +297,7 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByRole("button", { name: /2 edits:/i })).toBeInTheDocument();
+    expandGroup(/2 edits:/i);
     const viewport = getViewport(view.container);
     expect(within(viewport).queryAllByRole("button")).toHaveLength(0);
     await waitFor(() => {
@@ -244,6 +311,8 @@ describe("ToolCallGroup", () => {
     seedThread(threadId, [item]);
 
     renderToolCallGroup(threadId, [item.id]);
+    // Edit-only groups stay collapsed while live — open the group, then the row.
+    expandGroup(/1 edit/i);
     fireEvent.click(screen.getByText("src/foo.ts"));
 
     await waitFor(() => {
@@ -260,6 +329,7 @@ describe("ToolCallGroup", () => {
     seedThread(threadId, [item]);
 
     renderToolCallGroup(threadId, [item.id]);
+    expandGroup(/1 edit/i);
 
     expect(screen.getByText("+3")).toHaveClass("text-success");
     fireEvent.click(screen.getByText("chatPaneSelectors.ts"));
@@ -278,6 +348,7 @@ describe("ToolCallGroup", () => {
     seedThread(threadId, [item]);
 
     renderToolCallGroup(threadId, [item.id]);
+    expandGroup(/1 edit/i);
 
     expect(screen.getByText("+1")).toHaveClass("text-success");
     expect(screen.getByText("-1")).toHaveClass("text-danger");
@@ -297,6 +368,7 @@ describe("ToolCallGroup", () => {
     seedThread(threadId, [item]);
 
     renderToolCallGroup(threadId, [item.id]);
+    expandGroup(/1 edit/i);
 
     expect(screen.getByText("+1")).toHaveClass("text-success");
     expect(screen.getByText("-1")).toHaveClass("text-danger");
@@ -353,6 +425,7 @@ describe("ToolCallGroup", () => {
     seedThread(threadId, [item]);
 
     renderToolCallGroup(threadId, [item.id]);
+    expandGroup(/1 edit/i);
 
     expect(screen.getByText("+2")).toHaveClass("text-success");
     fireEvent.click(screen.getByText("runtimeToolGrouping.ts"));
@@ -487,12 +560,13 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    const animatedTitles = Array.from(
-      view.container.querySelectorAll("code.poracode-thinking-text"),
-    );
+    // Rows with structured titles shimmer only the stable prefix (a <span>);
+    // plain titles shimmer the whole <code>. The path segment must never be
+    // part of the shimmer — mutating text under background-clip:text ghosts.
+    const animatedTitles = Array.from(view.container.querySelectorAll(".poracode-thinking-text"));
     expect(animatedTitles).toHaveLength(4);
     expect(animatedTitles.map((title) => title.getAttribute("data-poracode-shimmer-text"))).toEqual(
-      ["Read file", "Check · pnpm run test", "Edit · src/foo.ts", "Poracode"],
+      ["Read file", "Check · pnpm run test", "Edit · ", "Poracode"],
     );
     expect(screen.queryByText("Working")).not.toBeInTheDocument();
     expect(view.container.querySelector(".poracode-pixel-loader")).toBeNull();
@@ -580,6 +654,7 @@ describe("ToolCallGroup", () => {
     seedThread(threadId, [item]);
 
     renderToolCallGroup(threadId, [item.id]);
+    expandGroup(/1 edit/i);
     fireEvent.click(screen.getByText("src/foo.ts"));
 
     await waitFor(() => {
@@ -608,6 +683,11 @@ function renderToolCallGroup(
       />
     </AppProvider>,
   );
+}
+
+/** Open a live edit-only group that stays collapsed by default. */
+function expandGroup(name: RegExp) {
+  fireEvent.click(screen.getByRole("button", { name }));
 }
 
 function seedThread(threadId: string, items: readonly RuntimeChatItem[]) {

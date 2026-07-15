@@ -31,6 +31,7 @@ import {
   subscribePairingLaunch,
 } from "./pairing";
 import { MobileSetupEmptyState, type MobileSetupKind } from "./setupEmptyState";
+import { isDesktopSettingsSection } from "./settingsSections";
 import type { MobileSshPairRequest } from "./views/DesktopsView";
 import { useGitSummaryHydration } from "./useGitSummaryHydration";
 import { useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
@@ -68,7 +69,7 @@ const UsagePanel = lazy(() =>
 // Typed route APIs (params/search) — decoupled from the route consts so this
 // file never imports router.tsx (which imports these components).
 const threadRouteApi = getRouteApi("/thread/$threadId");
-const settingsSectionRouteApi = getRouteApi("/more/settings/$section");
+const settingsSectionRouteApi = getRouteApi("/settings/$section");
 const workspaceRouteApi = getRouteApi("/workspace/$threadId");
 const terminalRouteApi = getRouteApi("/terminal/$projectId");
 
@@ -233,7 +234,7 @@ export function ThreadsRoute() {
       <MobileSetupEmptyState
         kind={setupKind}
         onAction={(kind) =>
-          void navigate(kind === "desktop" ? { to: "/desktops" } : { to: "/more/projects" })
+          void navigate(kind === "desktop" ? { to: "/desktops" } : { to: "/projects" })
         }
       />
     );
@@ -345,7 +346,7 @@ export function NewThreadRoute() {
     <NewThreadFlow
       onStarted={(threadId) => void navigate({ to: "/thread/$threadId", params: { threadId } })}
       onSetupAction={(kind) =>
-        void navigate(kind === "desktop" ? { to: "/desktops" } : { to: "/more/projects" })
+        void navigate(kind === "desktop" ? { to: "/desktops" } : { to: "/projects" })
       }
     />
   );
@@ -471,12 +472,14 @@ export function DesktopsRoute() {
 }
 
 export function MoreRoute() {
+  const remote = useRemote();
   const navigate = useNavigate();
   return (
     <MoreView
-      onOpen={() => void navigate({ to: "/more/settings" })}
+      hasDesktop={remote.activeDesktop !== null}
+      onOpen={() => void navigate({ to: "/settings/desktop" })}
       onOpenSettingsSection={(section) =>
-        void navigate({ to: "/more/settings/$section", params: { section } })
+        void navigate({ to: "/settings/$section", params: { section } })
       }
     />
   );
@@ -503,7 +506,7 @@ export function UsageRoute() {
       <div className="m-subscreen">
         <UsagePanel
           onOpenUsageSettings={() =>
-            void navigate({ to: "/more/settings/$section", params: { section: "usage" } })
+            void navigate({ to: "/settings/$section", params: { section: "usage" } })
           }
         />
       </div>
@@ -530,6 +533,15 @@ export function PortsRoute() {
 function SettingsRoute(props: { readonly sectionId: string | null }) {
   const remote = useRemote();
   const navigate = useNavigate();
+  const requiresDesktop = props.sectionId === null || isDesktopSettingsSection(props.sectionId);
+
+  useEffect(() => {
+    if (requiresDesktop && remote.booted && !remote.activeDesktop) {
+      void navigate({ to: "/settings", replace: true });
+    }
+  }, [navigate, remote.activeDesktop, remote.booted, requiresDesktop]);
+
+  if (requiresDesktop && !remote.activeDesktop) return null;
 
   return (
     <LazyRoute>
@@ -540,8 +552,8 @@ function SettingsRoute(props: { readonly sectionId: string | null }) {
         onSectionChange={(section) => {
           void navigate(
             section
-              ? { to: "/more/settings/$section", params: { section } }
-              : { to: "/more/settings" },
+              ? { to: "/settings/$section", params: { section } }
+              : { to: "/settings/desktop" },
           );
         }}
         onThreadAction={(thread, action) => {

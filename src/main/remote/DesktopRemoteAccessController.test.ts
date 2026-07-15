@@ -201,7 +201,7 @@ function deferredTailscaleProbe(): {
   return { probe, entered: entered.promise };
 }
 
-function createController() {
+function createController(devServerUrl?: string) {
   const callSupervisor = vi.fn<() => Promise<Record<string, never>>>(
     async () => ({}),
   ) as unknown as RemoteAccessServerOptions["callSupervisor"];
@@ -211,6 +211,7 @@ function createController() {
       baseDir: "/tmp/poracode-controller-test",
       settingsPath: "/tmp/poracode-controller-test/settings.json",
     },
+    ...(devServerUrl ? { devServerUrl } : {}),
     callSupervisor,
     dispatchThreadCommand: vi.fn<DesktopRemoteAccessControllerOptions["dispatchThreadCommand"]>(
       () => true,
@@ -267,6 +268,20 @@ describe("DesktopRemoteAccessController", () => {
     warnSpy.mockRestore();
     errorSpy.mockRestore();
     delete process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST;
+  });
+
+  it("uses the hosted pairing app in production and the local mobile app in development", async () => {
+    const production = createController();
+    await production.setEnabled(true);
+
+    expect(h.servers[0]?.options.pairingAppUrl).toBe("https://poracode.com");
+    expect(h.servers[0]?.options.devMobileAppUrl).toBeUndefined();
+
+    const development = createController("http://127.0.0.1:3100");
+    await development.setEnabled(true);
+
+    expect(h.servers[1]?.options.pairingAppUrl).toBeUndefined();
+    expect(h.servers[1]?.options.devMobileAppUrl).toBe("http://127.0.0.1:3100/mobile.html");
   });
 
   it("coalesces enable calls while a server start is in flight", async () => {

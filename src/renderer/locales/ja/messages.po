@@ -1378,6 +1378,10 @@ msgstr "ブックマーク"
 msgid "Bottom"
 msgstr "下"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "ブランチ"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "ブランチ「{branch}」には「{path}」にコミットされていない変更があります — マージする前にコミットまたはスタッシュしてください"
@@ -1426,6 +1430,7 @@ msgstr "GitHub リポジトリを参照するか、クローン URL を貼り付
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
@@ -4947,6 +4952,7 @@ msgstr "読み込み中…"
 msgid "local"
 msgstr "ローカル"
 
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Local"
@@ -5443,7 +5449,6 @@ msgid "Modes"
 msgstr "モード"
 
 #: src/mobile/NarrowShell.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "多い"
@@ -5962,6 +5967,10 @@ msgstr "一致するスケジュールはありません。"
 msgid "No matching threads"
 msgstr "一致するスレッドがありません"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "この実行で有効な MCP サーバーはありません"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "このスコープに MCP サーバーは見つかりませんでした。"
@@ -6124,8 +6133,8 @@ msgid "No windows reported"
 msgstr "ウィンドウは報告されませんでした"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "ワークツリーなし"
+#~ msgid "No worktree"
+#~ msgstr "ワークツリーなし"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"
@@ -6483,6 +6492,10 @@ msgstr "設定を開く"
 #: src/renderer/components/composer/voiceError.ts
 msgid "Open Settings"
 msgstr "設定を開く"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Poracode on this computer, then paste its pairing token here."
+msgstr "このコンピューターの Poracode で「設定」→「リモートアクセス」を開き、ペアリングトークンをここに貼り付けます。"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
@@ -6872,6 +6885,7 @@ msgstr "ポート転送が有効になっていません"
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/mobile/WideShell.tsx
 msgid "Ports"
 msgstr "ポート"
 
@@ -6954,6 +6968,10 @@ msgstr "過去の実行"
 msgid "Previous tab"
 msgstr "前のタブ"
 
+#: src/mobile/views/MoreView.tsx
+msgid "Privacy Policy"
+msgstr "プライバシーポリシー"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Private key"
 msgstr "秘密鍵"
@@ -7017,6 +7035,7 @@ msgstr "グローバル検索設定に加えてプロジェクト固有のオー
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Projects"
@@ -7644,6 +7663,7 @@ msgstr "メモと ToDo のサイズを変更する"
 msgid "Resize row"
 msgstr "行のサイズを変更する"
 
+#: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
 msgstr "サイドバーのサイズを変更する"
@@ -8321,8 +8341,13 @@ msgstr "実験目標を設定または表示する"
 msgid "Set shortcut"
 msgstr "ショートカットを設定"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "このセッションの開始時に確定されます — サーバーを変更するには新しいスレッドを開始してください"
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -8957,8 +8982,12 @@ msgid "Store as secret (encrypted at rest)"
 msgstr "シークレットとして保存（保存時に暗号化）"
 
 #: src/mobile/views/MoreView.tsx
-msgid "Stored on this phone; the desktop keeps its own values."
-msgstr "このスマートフォンに保存されます。デスクトップ側は独自の値を保持します。"
+msgid "Stored on this device; the desktop keeps its own values."
+msgstr "このデバイスに保存されます。デスクトップ側の値は変更されません。"
+
+#: src/mobile/views/MoreView.tsx
+#~ msgid "Stored on this phone; the desktop keeps its own values."
+#~ msgstr "このスマートフォンに保存されます。デスクトップ側は独自の値を保持します。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -9033,6 +9062,10 @@ msgstr "今週の進捗、未完了の作業、来週の重要なリスクをま
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "監督あり"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Support"
+msgstr "サポート"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Support mode appears once the session connects."
@@ -9174,8 +9207,8 @@ msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "+ をタップしてデスクトップでフォルダーを追加するか、リポジトリをクローンしてください。"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Tap + to pair directly or connect to a remote machine over SSH."
-msgstr "+ をタップして直接ペアリングするか、SSH 経由でリモートマシンに接続します。"
+#~ msgid "Tap + to pair directly or connect to a remote machine over SSH."
+#~ msgstr "+ をタップして直接ペアリングするか、SSH 経由でリモートマシンに接続します。"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Tap + to pair with Poracode on your desktop."
@@ -10242,6 +10275,10 @@ msgstr "利用設定"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Usage unknown"
 msgstr "使用量不明"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Use + to pair directly or connect to a remote machine over SSH."
+msgstr "「+」を使用して直接ペアリングするか、SSH 経由でリモートマシンに接続します。"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"

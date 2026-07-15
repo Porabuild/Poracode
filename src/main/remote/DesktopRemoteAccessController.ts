@@ -43,6 +43,8 @@ import {
   type TailscaleStatus,
 } from "./tailscale";
 
+const PRODUCTION_PAIRING_APP_URL = "https://poracode.com";
+
 export interface DesktopRemoteAccessControllerOptions {
   readonly appVersion: string;
   readonly paths: Pick<PoracodePaths, "baseDir" | "settingsPath">;
@@ -241,7 +243,9 @@ export function createDesktopRemoteAccessController(
       attempt.tailscaleServeUrl = advertisedResolution.tailscaleServeUrl ?? null;
       if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
       remoteTailscaleServeActiveUrl = attempt.tailscaleServeUrl;
-      const pairingAppUrl = remoteAccessPairingAppUrl();
+      const pairingAppUrl =
+        remoteAccessPairingAppUrl() ??
+        (options.devServerUrl ? undefined : PRODUCTION_PAIRING_APP_URL);
       // In dev, phones load the PWA from Vite instead of the built bundle.
       let devMobileAppUrl: string | undefined;
       if (options.devServerUrl) {

@@ -120,12 +120,17 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
           <Icon className="size-3" />
         </span>
         {display.parts ? (
-          <code
-            ref={titleRef}
-            className={`flex min-w-0 items-baseline overflow-hidden font-mono text-[color:var(--muted)] ${isRunning ? "poracode-thinking-text !flex" : ""}`}
-            {...(isRunning ? { "data-poracode-shimmer-text": displayTitle } : {})}
-          >
-            <span className="shrink-0 whitespace-pre">{displayPrefix}</span>
+          // Shimmer only the stable prefix — the path segment can change while
+          // running, and mutating text under `background-clip: text` ghosts old
+          // glyphs (see .poracode-thinking-text in styles.css).
+          <code className="flex min-w-0 items-baseline overflow-hidden font-mono text-[color:var(--muted)]">
+            <span
+              ref={titleRef}
+              className={`shrink-0 whitespace-pre ${isRunning ? "poracode-thinking-text" : ""}`}
+              {...(isRunning ? { "data-poracode-shimmer-text": displayPrefix } : {})}
+            >
+              {displayPrefix}
+            </span>
             {display.parts.filePath ? (
               <ChatFilePath
                 className="flex-1"

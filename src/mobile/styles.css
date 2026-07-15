@@ -98,7 +98,7 @@ body.bg-background {
 
 .m-shell--wide {
   display: grid;
-  grid-template-columns: clamp(264px, 26vw, 340px) minmax(0, 1fr);
+  grid-template-columns: var(--m-sidebar-width, clamp(248px, 20vw, 304px)) minmax(0, 1fr);
   grid-template-rows: 100%;
 }
 
@@ -275,14 +275,9 @@ body.bg-background {
   margin-right: 0;
 }
 
-.m-brand__title {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.m-brand__wordmark {
+  flex-shrink: 0;
   font-size: 0.875rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
 /* Icon-only connection/sync affordance. The state word and pill border are
@@ -624,11 +619,45 @@ body.bg-background {
 /* ── Sidebar + detail (wide layout) ────────────────────────────── */
 
 .m-sidebar {
+  position: relative;
   display: flex;
   min-height: 0;
   flex-direction: column;
   border-right: 1px solid var(--hairline, var(--border));
-  background: var(--sidebar-background, var(--background));
+  background: var(--background, #070709);
+}
+
+.m-sidebar__resize-handle {
+  position: absolute;
+  z-index: 20;
+  top: 0;
+  right: -6px;
+  bottom: 0;
+  display: none;
+  width: 12px;
+  cursor: col-resize;
+  outline: none;
+}
+
+.m-sidebar__resize-handle::after {
+  position: absolute;
+  top: 0;
+  right: 5px;
+  bottom: 0;
+  width: 1px;
+  background: transparent;
+  content: "";
+}
+
+.m-sidebar__resize-handle:hover::after,
+.m-sidebar__resize-handle:focus-visible::after {
+  background: var(--accent);
+}
+
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .m-sidebar__resize-handle {
+    display: block;
+  }
 }
 
 .m-sidebar__head {
@@ -638,9 +667,7 @@ body.bg-background {
   padding: calc(0.5rem + env(safe-area-inset-top)) 0.75rem 0.375rem;
 }
 
-.m-sidebar__actions {
-  display: flex;
-  gap: 0.375rem;
+.m-sidebar__primary {
   padding: 0 0.75rem 0.5rem;
 }
 
@@ -653,6 +680,41 @@ body.bg-background {
 .m-sidebar__foot {
   border-top: 1px solid var(--hairline, var(--border));
   padding: 0.375rem;
+}
+
+.m-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding-bottom: 0.375rem;
+}
+
+.m-sidebar__destination {
+  display: flex;
+  width: 100%;
+  min-height: var(--m-tap-min);
+  align-items: center;
+  gap: 0.625rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.375rem 0.625rem;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+.m-sidebar__destination:not(:disabled):hover,
+.m-sidebar__destination[data-active="true"] {
+  background: var(--row-hover);
+  color: var(--foreground, inherit);
+}
+
+.m-sidebar__destination:disabled {
+  opacity: 0.38;
+  cursor: default;
 }
 
 .m-sidebar__desktops {
@@ -705,6 +767,16 @@ body.bg-background {
 .m-detail > .m-threads,
 .m-detail > .m-page {
   overflow-y: auto;
+}
+
+.m-menu-popover {
+  width: min(18rem, calc(100vw - 1rem));
+  padding: 0.25rem;
+}
+
+.m-menu-popover .m-sheet-list {
+  gap: 0.125rem;
+  padding: 0;
 }
 
 /* ── Threads list (desktop sidebar rows, sans hover actions) ───── */
@@ -2057,6 +2129,11 @@ body.bg-background {
   background: var(--row-hover);
 }
 
+.m-sheet-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .m-sheet-action[data-static="true"] {
   cursor: default;
 }
@@ -2862,6 +2939,88 @@ body.bg-background {
   flex-direction: column;
   gap: 0.75rem;
   overflow-y: auto;
+}
+
+/* Wide touch devices keep drawers, but stop them from stretching across the
+   entire tablet. Mouse/trackpad layouts turn menus into popovers and present
+   the remaining form drawers as compact centered dialogs. */
+@media (min-width: 768px) {
+  .m-sheet,
+  .m-drawer,
+  .m-picker {
+    width: min(calc(100% - 2rem), 42rem);
+    align-self: center;
+    border-right: 1px solid var(--hairline, var(--border));
+    border-left: 1px solid var(--hairline, var(--border));
+  }
+}
+
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  :root {
+    --m-tap-min: 34px;
+  }
+
+  .m-detail > .m-page {
+    width: min(100%, 72rem);
+    align-self: center;
+  }
+
+  .m-sidebar__head {
+    padding: calc(0.375rem + env(safe-area-inset-top)) 0.625rem 0.25rem;
+  }
+
+  .m-sidebar__primary {
+    padding: 0 0.375rem 0.375rem;
+  }
+
+  .m-sidebar .m-thread-list {
+    gap: 0.125rem;
+    padding-right: 0.375rem;
+    padding-left: 0.375rem;
+  }
+
+  .m-thread-row {
+    min-height: 2.625rem;
+    border-color: transparent;
+    border-radius: 0.5rem;
+    background: transparent;
+    padding: 0.375rem 0.5rem;
+  }
+
+  .m-thread-row:hover,
+  .m-thread-row[data-active="true"] {
+    border-color: transparent;
+    background: var(--row-hover);
+  }
+
+  .m-sheet-backdrop {
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .m-sheet,
+  .m-drawer {
+    width: min(100%, 40rem);
+    height: auto;
+    max-height: min(85dvh, 48rem);
+    border: 1px solid var(--hairline, var(--border));
+    border-radius: 1rem;
+    padding-bottom: 0.875rem;
+  }
+
+  .m-sheet {
+    width: min(100%, 28rem);
+  }
+
+  .m-sheet-grabber {
+    display: none;
+  }
+
+  .m-sheet-action {
+    min-height: 2.375rem;
+    border-radius: 0.5rem;
+  }
 }
 
 @keyframes m-sheet-backdrop-in {

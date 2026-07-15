@@ -8,7 +8,7 @@ export type Chrome =
   | {
       readonly layout: "subscreen";
       readonly title: MessageDescriptor;
-      readonly backTo: "/threads" | "/more" | "/more/settings";
+      readonly backTo: "/threads" | "/settings" | "/settings/desktop";
     }
   | { readonly layout: "thread" }
   | { readonly layout: "fullscreen" };
@@ -25,34 +25,34 @@ export function getChrome(pathname: string): Chrome {
     // the shell shows no top bar at all.
     return { layout: "fullscreen" };
   }
-  const sectionMatch = /^\/more\/settings\/(.+)$/.exec(pathname);
+  if (pathname === "/settings/desktop") {
+    return { layout: "subscreen", title: msg`Desktop Settings`, backTo: "/settings" };
+  }
+  const sectionMatch = /^\/settings\/(.+)$/.exec(pathname);
   if (sectionMatch?.[1]) {
     const id = decodeURIComponent(sectionMatch[1]);
-    // Device sections are listed flat on the More screen; only desktop-syncing
+    // Device sections are listed flat on the Settings screen; only desktop-syncing
     // sections sit behind the Desktop Settings subscreen.
     return {
       layout: "subscreen",
       title: getSettingsSectionLabel(id) ?? msg`Settings`,
-      backTo: isDesktopSettingsSection(id) ? "/more/settings" : "/more",
+      backTo: isDesktopSettingsSection(id) ? "/settings/desktop" : "/settings",
     };
   }
-  if (pathname === "/more/settings") {
-    return { layout: "subscreen", title: msg`Desktop Settings`, backTo: "/more" };
-  }
   // These are pushed straight from the home header's quick menu.
-  if (pathname === "/more/usage") {
+  if (pathname === "/usage") {
     return { layout: "subscreen", title: msg`Usage`, backTo: "/threads" };
   }
-  if (pathname === "/more/browser") {
+  if (pathname === "/browser") {
     return { layout: "subscreen", title: msg`Browser`, backTo: "/threads" };
   }
-  if (pathname === "/more/ports") {
+  if (pathname === "/ports") {
     return { layout: "subscreen", title: msg`Ports`, backTo: "/threads" };
   }
-  if (pathname === "/more/projects") {
+  if (pathname === "/projects") {
     return { layout: "subscreen", title: msg`Projects`, backTo: "/threads" };
   }
-  if (pathname === "/more") {
+  if (pathname === "/settings") {
     return { layout: "subscreen", title: msg`Settings`, backTo: "/threads" };
   }
   if (pathname === "/new") {

@@ -9,11 +9,11 @@ export const DEVICE_SETTINGS_SECTION_IDS = [
   "notifications",
   "terminal",
   "git",
-  "usage",
 ] as const;
 
 export const DESKTOP_SETTINGS_SECTION_IDS = [
   "profile",
+  "usage",
   "schedules",
   "ai",
   "models",

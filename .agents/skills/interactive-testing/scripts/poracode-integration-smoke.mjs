@@ -20,7 +20,7 @@ const command = args._[0] ?? "plan";
 const scope = String(args.scope ?? "changed");
 const mode = String(args.mode ?? "mock");
 const port = Number(args.port ?? process.env.PORACODE_CDP_PORT ?? 9222);
-const appUrl = String(args.appUrl ?? "http://127.0.0.1:3100/");
+const appUrl = String(args.appUrl ?? process.env.PORACODE_APP_URL ?? "http://127.0.0.1:3100/");
 const timeoutMs = Number(args.timeoutMs ?? 12_000);
 const outDir = resolve(
   String(
@@ -50,7 +50,9 @@ function usage() {
   console.error(`Usage:
   node poracode-integration-smoke.mjs audit
   node poracode-integration-smoke.mjs plan [--scope changed|full]
-  node poracode-integration-smoke.mjs run [--scope changed|full] [--mode mock|real] [--port 9222] [--outDir <dir>] [--ack-manual gate,gate]`);
+  node poracode-integration-smoke.mjs run [--scope changed|full] [--mode mock|real] [--port <cdp port>] [--appUrl <dev server url>] [--outDir <dir>] [--ack-manual gate,gate]
+
+Port and app URL default to $PORACODE_CDP_PORT and $PORACODE_APP_URL (see the runner's ports.json), then 9222 / http://127.0.0.1:3100/.`);
 }
 
 function trackedFiles() {

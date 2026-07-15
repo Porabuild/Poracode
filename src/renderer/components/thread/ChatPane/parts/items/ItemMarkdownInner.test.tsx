@@ -153,6 +153,52 @@ describe("ItemMarkdownInner", () => {
     );
   });
 
+  it("renders Windows backslash markdown image paths without CommonMark escape corruption", () => {
+    // Paths with `\.` (dot-folders) are mangled by CommonMark unless rewritten
+    // to poracode-local:// before parse.
+    render(
+      <AppProvider>
+        <ItemMarkdownInner
+          text={
+            "![Before](C:\\Users\\sdsle\\.grok\\sessions\\E%3A%5Cwork\\assets\\image-ea056148.png)"
+          }
+        />
+      </AppProvider>,
+    );
+
+    const src = screen.getByAltText("Before").getAttribute("src") ?? "";
+    expect(src.startsWith("poracode-local://local/")).toBe(true);
+    // Literal percent folder names must be double-encoded in the URL so the
+    // protocol handler's decodeURIComponent restores E%3A… rather than E:…
+    expect(src).toContain("E%253A%255Cwork");
+    expect(src).toContain(".grok");
+    expect(src).not.toContain("sdsle.grok");
+  });
+
+  it("renders project-relative markdown image paths via the local file protocol", () => {
+    const actions = makeActions({
+      projectLocation: {
+        kind: "windows",
+        path: "E:\\work\\lightcode\\.poracode\\worktrees\\poracode-brave-willow-b4fc6c26",
+      },
+    });
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner
+            text={"![After](verification-shots/01-collapsed-same-file-edits.png)"}
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    const src = screen.getByAltText("After").getAttribute("src") ?? "";
+    expect(src.startsWith("poracode-local://local/E:")).toBe(true);
+    expect(src).toContain("verification-shots");
+    expect(src).toContain("01-collapsed-same-file-edits.png");
+  });
+
   it("normalizes absolute markdown link hrefs to project file chips", () => {
     const actions = makeActions();
 
@@ -296,7 +342,7 @@ describe("ItemMarkdownInner", () => {
   });
 });
 
-function makeActions(): ChatPaneActions {
+function makeActions(overrides?: Partial<ChatPaneActions>): ChatPaneActions {
   return {
     openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
     revealProjectFolderInTree: vi.fn<(path: string) => void>(),
@@ -304,5 +350,6 @@ function makeActions(): ChatPaneActions {
     onContentHeightChange: vi.fn<() => void>(),
     projectLocation: { kind: "posix", path: "/Users/serhiivecherenko/work/poracode" },
     projectRootNames: new Set(["src"]),
+    ...overrides,
   };
 }
