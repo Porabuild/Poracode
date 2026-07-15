@@ -41,6 +41,10 @@ export function isImagePath(path: string, mimeType?: string): boolean {
   return mimeType?.startsWith("image/") === true || IMAGE_EXTENSIONS.has(getExtension(path));
 }
 
+export function isPdfPath(path: string, mimeType?: string): boolean {
+  return mimeType === "application/pdf" || getExtension(path) === "pdf";
+}
+
 /**
  * Build a `poracode-local://` URL for an absolute filesystem path.
  *
@@ -148,7 +152,13 @@ export function buildPromptContentBlocks(
           source: "attachment",
         });
       } else {
-        content.push({ kind: "file", path: segment.path, name, source: "attachment" });
+        content.push({
+          kind: "file",
+          path: segment.path,
+          name,
+          source: "attachment",
+          ...(segment.mimeType ? { mimeType: segment.mimeType } : {}),
+        });
       }
       continue;
     }

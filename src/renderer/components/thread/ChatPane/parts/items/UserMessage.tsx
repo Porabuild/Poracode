@@ -5,8 +5,9 @@ import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
+import { openPdfPreview } from "@/renderer/components/pdf/pdfPreviewStore";
 import type { Attachment } from "@/renderer/components/composer/useAttachments";
-import { fileNameFromPath } from "@/shared/promptContent";
+import { fileNameFromPath, toLocalFileUrl } from "@/shared/promptContent";
 import { isRemoteSession } from "@/renderer/bridge";
 import {
   getRuntimeItemPayload,
@@ -235,6 +236,7 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
                 const idx = imageAttachments.findIndex((a) => a.id === att.id);
                 if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
               }}
+              onPreviewPdf={(att) => openPdfPreview(toLocalFileUrl(att.path), att.name)}
             />
           </div>
         ) : null}
@@ -479,6 +481,7 @@ function buildUserPromptAttachments(content: CanonicalContentBlock[]): Attachmen
           id: `attachment-${index}-${block.path}`,
           path: block.path,
           name: block.name ?? fileNameFromPath(block.path),
+          ...(block.mimeType ? { mimeType: block.mimeType } : {}),
           isImage: false,
         },
       ];

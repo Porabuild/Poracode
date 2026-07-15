@@ -1831,6 +1831,8 @@ msgstr "Klonen…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/pdf/PdfPreview.tsx
+#: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -2528,6 +2530,10 @@ msgstr "Commit-Nachricht konnte nicht generiert werden: {detail}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
 msgstr "Pull Requests für {0} konnten nicht geladen werden."
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+msgid "Could not open this PDF."
+msgstr "Diese PDF-Datei konnte nicht geöffnet werden."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3774,6 +3780,10 @@ msgstr "Erstklassige Grok Build CLI-Integration mit der nativen Laufzeit von Por
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Erstklassige OpenCode-Integration mithilfe der nativen SDK-Laufzeitumgebung von Poracode."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+msgid "Fit width"
+msgstr "An Breite anpassen"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Im Agenten beheben"
@@ -4653,6 +4663,11 @@ msgstr "Marketplace wird geladen…"
 msgid "Loading notes…"
 msgstr "Notizen werden geladen…"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Loading PDF…"
+msgstr "PDF wird geladen…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "PR wird geladen…"
@@ -5469,6 +5484,10 @@ msgstr "Nächstes Bild"
 #: src/renderer/components/find/FindBar.tsx
 msgid "Next match"
 msgstr "Nächste Übereinstimmung"
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+msgid "Next page"
+msgstr "Nächste Seite"
 
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
@@ -6618,7 +6637,9 @@ msgid "Prevent sleep while working"
 msgstr "Ruhezustand während der Arbeit verhindern"
 
 #. placeholder {0}: att.name
+#. placeholder {0}: props.state.fileName
 #: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/components/pdf/PdfPreview.tsx
 msgid "Preview {0}"
 msgstr "Vorschau {0}"
 
@@ -6633,6 +6654,10 @@ msgstr "Vorheriges Bild"
 #: src/renderer/components/find/FindBar.tsx
 msgid "Previous match"
 msgstr "Vorherige Übereinstimmung"
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+msgid "Previous page"
+msgstr "Vorherige Seite"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
@@ -10368,9 +10393,11 @@ msgid "Your name"
 msgstr "Ihr Name"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom in"
 msgstr "Vergrößern"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom out"
 msgstr "Verkleinern"

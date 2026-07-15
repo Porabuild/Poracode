@@ -13,7 +13,7 @@ import type {
 import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { skillSegmentFromSlashCommand } from "@/shared/promptContent";
+import { skillSegmentFromSlashCommand, toLocalFileUrl } from "@/shared/promptContent";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
   AttachmentBar,
@@ -32,6 +32,7 @@ import {
   mcpTogglePatch,
 } from "@/renderer/components/composer/composerMcpServers";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
+import { openPdfPreview } from "@/renderer/components/pdf/pdfPreviewStore";
 import {
   MentionInput,
   type McpMentionItem,
@@ -776,6 +777,7 @@ export function ThreadDraftComposerArea(props: {
               const idx = imageAttachments.findIndex((a) => a.id === att.id);
               if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
             }}
+            onPreviewPdf={(att) => openPdfPreview(toLocalFileUrl(att.path), att.name)}
             leading={
               mentionedMcpServers.length > 0 || showComputerUseChip ? (
                 <>

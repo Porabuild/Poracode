@@ -23,6 +23,8 @@ import { useLspSync } from "./parts/useLspSync";
 import { useMergeConflictContribution } from "./parts/mergeConflict/useMergeConflictContribution";
 import { useGitDiffContribution } from "./parts/gitDiff/useGitDiffContribution";
 import { setActiveFindEditor } from "@/renderer/components/find/editorFindBridge";
+import { PdfViewer } from "@/renderer/components/pdf";
+import { isPdfPath } from "@/shared/promptContent";
 
 export { getLanguageFromPath } from "./parts/langMap";
 
@@ -265,6 +267,8 @@ function EditorBody(props: {
     const buffer = state.buffers[path];
     return buffer?.status === "ready" ? (buffer.gitDiff ?? null) : null;
   });
+  const activeBuffer = useFileEditorStore((state) => state.buffers[activePath]);
+  const isPdf = isPdfPath(activePath);
 
   useMergeConflictContribution({ editor: editorInstance, monaco: monacoInstance });
   useGitDiffContribution({ editor: editorInstance, gitDiff, bufferStatus });
@@ -315,7 +319,16 @@ function EditorBody(props: {
 
   return (
     <div className="min-h-0 flex-1 overflow-hidden">
-      {bufferStatus === "ready" && showPreview && isMarkdown ? (
+      {isPdf && activeBuffer?.isLoading ? (
+        <div className="flex h-full items-center justify-center text-sm text-muted" role="status">
+          <Trans>Loading PDF…</Trans>
+        </div>
+      ) : isPdf && activeBuffer?.binaryContentBase64 ? (
+        <PdfViewer
+          fileName={getBasename(activePath)}
+          dataBase64={activeBuffer.binaryContentBase64}
+        />
+      ) : bufferStatus === "ready" && showPreview && isMarkdown ? (
         <MarkdownPreview content={content ?? ""} />
       ) : bufferStatus === "ready" ? (
         <Editor

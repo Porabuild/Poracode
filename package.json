@@ -124,6 +124,7 @@
     "micromatch": "^4.0.8",
     "monaco-editor": "^0.55.1",
     "node-pty": "^1.1.0",
+    "pdfjs-dist": "^5.7.284",
     "qrcode": "^1.5.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

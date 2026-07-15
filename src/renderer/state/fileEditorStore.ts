@@ -63,7 +63,11 @@ function externalReadAsProjectResult(result: ReadExternalFileResult): ReadProjec
       ...(result.hasBom !== undefined ? { hasBom: result.hasBom } : {}),
     };
   }
-  return { ...base, status: result.status };
+  return {
+    ...base,
+    status: result.status,
+    ...(result.contentBase64 !== undefined ? { contentBase64: result.contentBase64 } : {}),
+  };
 }
 
 export type FileEditorOverlayMode = "modal" | "fullscreen";
@@ -82,6 +86,7 @@ export interface FileEditorBuffer {
   status: ProjectFileReadStatus;
   modifiedAtMs: number;
   content: string;
+  binaryContentBase64?: string;
   savedContent: string;
   lineEnding: "lf" | "crlf";
   hasBom: boolean;
@@ -199,6 +204,7 @@ function buildBuffer(result: ReadProjectFileResult): FileEditorBuffer {
       status: result.status,
       modifiedAtMs: result.modifiedAtMs,
       content: "",
+      ...(result.contentBase64 !== undefined ? { binaryContentBase64: result.contentBase64 } : {}),
       savedContent: "",
       lineEnding: "lf",
       hasBom: false,
@@ -446,6 +452,9 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
               lineEnding: existing.lineEnding,
               hasBom: existing.hasBom,
             }
+          : {}),
+        ...(existing.binaryContentBase64 !== undefined
+          ? { contentBase64: existing.binaryContentBase64 }
           : {}),
       };
       return cachedResult;

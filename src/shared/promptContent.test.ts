@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildPromptContentBlocks, resolveLocalFileUrlPath, toLocalFileUrl } from "./promptContent";
+import {
+  buildPromptContentBlocks,
+  isPdfPath,
+  resolveLocalFileUrlPath,
+  toLocalFileUrl,
+} from "./promptContent";
 
 describe("buildPromptContentBlocks", () => {
   it("keeps text-only prompts as a text block", () => {
@@ -20,6 +25,7 @@ describe("buildPromptContentBlocks", () => {
         kind: "file",
         path: "C:\\tmp\\notes.pdf",
         name: "notes.pdf",
+        mimeType: "application/pdf",
         source: "attachment",
       },
     ]);
@@ -121,5 +127,13 @@ describe("toLocalFileUrl", () => {
     const path =
       "C:/Users/me/.grok/sessions/E%3A%5Cwork%5C.poracode%5Cworktrees%5Crepo/assets/img.png";
     expect(resolveLikeProtocolHandler(toLocalFileUrl(path), "win32")).toBe(path);
+  });
+});
+
+describe("isPdfPath", () => {
+  it("recognizes PDF MIME types and file extensions", () => {
+    expect(isPdfPath("C:\\tmp\\document.PDF")).toBe(true);
+    expect(isPdfPath("C:\\tmp\\document.bin", "application/pdf")).toBe(true);
+    expect(isPdfPath("C:\\tmp\\document.txt", "text/plain")).toBe(false);
   });
 });

@@ -103,6 +103,8 @@ export interface ReadProjectFileResult {
   status: ProjectFileReadStatus;
   modifiedAtMs: number;
   content?: string;
+  /** Base64 bytes for previewable binary files such as PDFs. */
+  contentBase64?: string;
   lineEnding?: "lf" | "crlf";
   hasBom?: boolean;
 }
@@ -160,6 +162,8 @@ export interface ReadExternalFileResult {
   status: ProjectFileReadStatus | "missing";
   modifiedAtMs: number;
   content?: string;
+  /** Base64 bytes for previewable binary files such as PDFs. */
+  contentBase64?: string;
   lineEnding?: "lf" | "crlf";
   hasBom?: boolean;
 }

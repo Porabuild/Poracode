@@ -1830,6 +1830,8 @@ msgstr "クローン作成中…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/pdf/PdfPreview.tsx
+#: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -2527,6 +2529,10 @@ msgstr "コミットメッセージを生成できませんでした:{detail}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
 msgstr "{0} のプルリクエストを読み込めませんでした。"
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+msgid "Could not open this PDF."
+msgstr "このPDFを開けませんでした。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3773,6 +3779,10 @@ msgstr "Poracode のネイティブ ランタイムを使用したファース�
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Poracode のネイティブ SDK ランタイムを使用したファーストクラスの OpenCode 統合。"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+msgid "Fit width"
+msgstr "幅に合わせる"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "エージェントで修正する"
@@ -4652,6 +4662,11 @@ msgstr "マーケットプレイスを読み込み中…"
 msgid "Loading notes…"
 msgstr "メモを読み込んでいます…"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Loading PDF…"
+msgstr "PDFを読み込み中…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "PRを読み込み中…"
@@ -5467,6 +5482,10 @@ msgstr "次の画像"
 #: src/renderer/components/find/FindBar.tsx
 msgid "Next match"
 msgstr "次の一致"
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+msgid "Next page"
+msgstr "次のページ"
 
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
@@ -6616,7 +6635,9 @@ msgid "Prevent sleep while working"
 msgstr "作業中のスリープを防止する"
 
 #. placeholder {0}: att.name
+#. placeholder {0}: props.state.fileName
 #: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/components/pdf/PdfPreview.tsx
 msgid "Preview {0}"
 msgstr "{0}をプレビューする"
 
@@ -6631,6 +6652,10 @@ msgstr "前の画像"
 #: src/renderer/components/find/FindBar.tsx
 msgid "Previous match"
 msgstr "前の一致"
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+msgid "Previous page"
+msgstr "前のページ"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
@@ -10366,9 +10391,11 @@ msgid "Your name"
 msgstr "あなたの名前"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom in"
 msgstr "ズームイン"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
+#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom out"
 msgstr "ズームアウト"

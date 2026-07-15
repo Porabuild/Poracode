@@ -76,6 +76,29 @@ describe("AttachmentBar", () => {
     expect(container.firstElementChild).not.toHaveClass("poracode-attachment-bar--inset");
   });
 
+  it("opens PDF attachments in the preview", () => {
+    const onPreviewPdf = vi.fn<(attachment: Attachment) => void>();
+    render(
+      <AttachmentBar
+        attachments={[
+          {
+            id: "pdf-1",
+            path: "C:\\tmp\\document.pdf",
+            name: "document.pdf",
+            mimeType: "application/pdf",
+            isImage: false,
+          },
+        ]}
+        onPreviewPdf={onPreviewPdf}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Preview document.pdf" }));
+    expect(onPreviewPdf).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "pdf-1", path: "C:\\tmp\\document.pdf" }),
+    );
+  });
+
   it("renders the CSS selector instead of the file name on picked attachments", () => {
     render(
       <AttachmentBar

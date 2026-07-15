@@ -170,6 +170,8 @@ export class SpawnPipeline {
     const wslSegments = payload.segments
       ? await rewriteSegmentsForWsl(payload.segments, payload.projectLocation, {
           preserveImageAttachments: useStructuredFlow,
+          preservePdfAttachments:
+            useStructuredFlow && adapter.capabilities.readsPdfAttachmentsFromHost === true,
         })
       : undefined;
     // Terminal skills fallback: skill segments the CLI can't resolve natively
