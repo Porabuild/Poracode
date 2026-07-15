@@ -5675,6 +5675,10 @@ msgstr "Brak pasujących harmonogramów."
 msgid "No matching threads"
 msgstr "Brak pasujących wątków"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "W tym uruchomieniu nie włączono żadnych serwerów MCP"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "Nie znaleziono serwerów MCP w tym zakresie."
@@ -7983,6 +7987,10 @@ msgstr "Ustaw lub wyświetl cel eksperymentalny"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Set shortcut"
 msgstr "Ustaw skrót"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "Ustalone przy starcie tej sesji — aby zmienić serwery, rozpocznij nowy wątek"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx

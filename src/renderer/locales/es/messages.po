@@ -5675,6 +5675,10 @@ msgstr "No hay programaciones coincidentes."
 msgid "No matching threads"
 msgstr "No hay hilos coincidentes"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "No hay servidores MCP habilitados para esta ejecución"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "No se encontraron servidores MCP en este ámbito."
@@ -7983,6 +7987,10 @@ msgstr "Establecer o ver un objetivo experimental"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Set shortcut"
 msgstr "Asignar atajo"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "Se fijó al iniciar esta sesión — inicia un hilo nuevo para cambiar los servidores"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx

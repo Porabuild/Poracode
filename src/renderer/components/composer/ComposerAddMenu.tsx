@@ -38,7 +38,8 @@ export type ComposerCustomMcpItem = {
   id: string;
   name: string;
   enabled: boolean;
-  onToggle: (next: boolean) => void;
+  /** Omitted in read-only mode (an active thread's bindings can't change). */
+  onToggle?: (next: boolean) => void;
 };
 
 /** Menu-selection key prefix so custom ids can never collide with registry ids. */
@@ -83,9 +84,16 @@ export function ComposerAddMenu(props: {
     visible: boolean;
     onToggle: (next: boolean) => void;
   };
+  /**
+   * Display-only mode for an active thread: MCP bindings were fixed when the
+   * session launched, so the list shows what this run has without switches
+   * being interactive.
+   */
+  readOnly?: boolean;
 }) {
   const { mcpServers, showFileOption = true, onPickFiles, computerUse } = props;
   const customMcpServers = props.customMcpServers ?? [];
+  const readOnly = props.readOnly === true;
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
@@ -93,7 +101,10 @@ export function ComposerAddMenu(props: {
   const [mobileView, setMobileView] = useState<"root" | "mcp">("root");
   const visibleMcpServers = mcpServers.filter((server) => server.visible);
   const showComputerUse = computerUse?.visible === true;
-  const hasMcpMenu = visibleMcpServers.length > 0 || showComputerUse || customMcpServers.length > 0;
+  const hasMcpRows = visibleMcpServers.length > 0 || showComputerUse || customMcpServers.length > 0;
+  // Read-only mode keeps the MCP entry visible even with nothing enabled so
+  // the user gets an explicit "none for this run" answer instead of a missing row.
+  const hasMcpMenu = hasMcpRows || readOnly;
   const computerUseSubtitle = isRemoteSession()
     ? t`Controls the paired desktop while the agent clicks or types`
     : t`Takes over the desktop while the agent clicks or types`;
@@ -134,7 +145,7 @@ export function ComposerAddMenu(props: {
     }
     for (const server of customMcpServers) {
       const next = keys !== "all" && keys.has(`${CUSTOM_KEY_PREFIX}${server.id}`);
-      if (next !== server.enabled) server.onToggle(next);
+      if (next !== server.enabled) server.onToggle?.(next);
     }
     if (showComputerUse) {
       const next = keys !== "all" && keys.has(COMPUTER_USE_KEY);
@@ -142,7 +153,12 @@ export function ComposerAddMenu(props: {
     }
   };
 
-  const persistenceCaption = <Trans>Enabled servers stay on for new threads</Trans>;
+  const persistenceCaption = readOnly ? (
+    <Trans>Set when this session started — start a new thread to change servers</Trans>
+  ) : (
+    <Trans>Enabled servers stay on for new threads</Trans>
+  );
+  const emptyReadOnlyNote = <Trans>No MCP servers are enabled for this run</Trans>;
 
   const button = (
     <Button
@@ -202,7 +218,13 @@ export function ComposerAddMenu(props: {
       {visibleMcpServers.map((server) => {
         const Icon = server.descriptor.icon;
         const label = t(server.descriptor.label);
-        return (
+        return readOnly ? (
+          <div key={server.descriptor.id} className="m-sheet-action">
+            <Icon className="size-4 text-muted" />
+            <span className="flex-1 truncate">{label}</span>
+            <MenuSwitch checked={server.enabled} />
+          </div>
+        ) : (
           <button
             key={server.descriptor.id}
             type="button"
@@ -216,20 +238,43 @@ export function ComposerAddMenu(props: {
           </button>
         );
       })}
-      {customMcpServers.map((server) => (
-        <button
-          key={`${CUSTOM_KEY_PREFIX}${server.id}`}
-          type="button"
-          className="m-sheet-action"
-          aria-pressed={server.enabled}
-          onClick={() => server.onToggle(!server.enabled)}
-        >
-          <Settings2 className="size-4 text-muted" />
-          <span className="flex-1 truncate">{server.name}</span>
-          <MenuSwitch checked={server.enabled} />
-        </button>
-      ))}
-      {showComputerUse ? (
+      {customMcpServers.map((server) =>
+        readOnly ? (
+          <div key={`${CUSTOM_KEY_PREFIX}${server.id}`} className="m-sheet-action">
+            <Settings2 className="size-4 text-muted" />
+            <span className="flex-1 truncate">{server.name}</span>
+            <MenuSwitch checked={server.enabled} />
+          </div>
+        ) : (
+          <button
+            key={`${CUSTOM_KEY_PREFIX}${server.id}`}
+            type="button"
+            className="m-sheet-action"
+            aria-pressed={server.enabled}
+            onClick={() => server.onToggle?.(!server.enabled)}
+          >
+            <Settings2 className="size-4 text-muted" />
+            <span className="flex-1 truncate">{server.name}</span>
+            <MenuSwitch checked={server.enabled} />
+          </button>
+        ),
+      )}
+      {readOnly && !hasMcpRows ? (
+        <p className="px-2 py-1 text-sm text-muted">{emptyReadOnlyNote}</p>
+      ) : null}
+      {showComputerUse && readOnly ? (
+        <div className="m-sheet-action">
+          <Monitor className="size-4 shrink-0 text-muted" />
+          <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+            <span className="truncate">
+              <Trans>Computer Use</Trans>
+            </span>
+            <span className="text-[11px] leading-snug text-muted">{computerUseSubtitle}</span>
+          </span>
+          <MenuSwitch checked={computerUse.enabled} />
+        </div>
+      ) : null}
+      {showComputerUse && !readOnly ? (
         <button
           type="button"
           className="m-sheet-action"
@@ -307,9 +352,13 @@ export function ComposerAddMenu(props: {
                 <div className="flex flex-col">
                   <Dropdown.Menu
                     aria-label={t`MCP servers`}
-                    selectionMode="multiple"
-                    selectedKeys={submenuSelectedKeys}
-                    onSelectionChange={handleSubmenuSelection}
+                    {...(readOnly
+                      ? { selectionMode: "none" as const }
+                      : {
+                          selectionMode: "multiple" as const,
+                          selectedKeys: submenuSelectedKeys,
+                          onSelectionChange: handleSubmenuSelection,
+                        })}
                     className="poracode-menu max-h-72 min-w-56 overflow-y-auto"
                   >
                     {visibleMcpServers.map((server) => {
@@ -359,6 +408,9 @@ export function ComposerAddMenu(props: {
                       </Dropdown.Item>
                     ) : null}
                   </Dropdown.Menu>
+                  {readOnly && !hasMcpRows ? (
+                    <p className="px-3 py-2 text-sm text-muted">{emptyReadOnlyNote}</p>
+                  ) : null}
                   <p className="border-t border-border px-3 py-1.5 text-[11px] leading-snug text-muted">
                     {persistenceCaption}
                   </p>

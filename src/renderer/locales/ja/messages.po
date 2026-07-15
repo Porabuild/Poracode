@@ -5673,6 +5673,10 @@ msgstr "一致するスケジュールはありません。"
 msgid "No matching threads"
 msgstr "一致するスレッドがありません"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "この実行で有効な MCP サーバーはありません"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "このスコープに MCP サーバーは見つかりませんでした。"
@@ -7981,6 +7985,10 @@ msgstr "実験目標を設定または表示する"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Set shortcut"
 msgstr "ショートカットを設定"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "このセッションの開始時に確定されます — サーバーを変更するには新しいスレッドを開始してください"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx

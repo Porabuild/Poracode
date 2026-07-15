@@ -5675,6 +5675,10 @@ msgstr "Відповідних розкладів немає."
 msgid "No matching threads"
 msgstr "Відповідних тредів немає"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "Для цього запуску не ввімкнено жодного MCP-сервера"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "У цій області MCP-серверів не знайдено."
@@ -7983,6 +7987,10 @@ msgstr "Задати або переглянути експерименталь�
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Set shortcut"
 msgstr "Призначити комбінацію клавіш"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "Зафіксовано під час запуску цієї сесії — щоб змінити сервери, почніть новий тред"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx

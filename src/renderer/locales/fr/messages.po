@@ -5674,6 +5674,10 @@ msgstr "Aucune planification correspondante."
 msgid "No matching threads"
 msgstr "Aucun fil correspondant"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "Aucun serveur MCP n'est activé pour cette exécution"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "Aucun serveur MCP trouvé dans cette portée."
@@ -7982,6 +7986,10 @@ msgstr "Définir ou afficher un objectif expérimental"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Set shortcut"
 msgstr "Définir un raccourci"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "Défini au démarrage de cette session — démarrez un nouveau fil pour changer les serveurs"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx

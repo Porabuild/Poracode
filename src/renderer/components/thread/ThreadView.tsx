@@ -296,6 +296,13 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         useAppStore.getState().projects.find((project) => project.id === thread.projectId)
           ?.mcpServers ?? [];
       const mcpLaunchSnapshot = resolveMcpLaunchSnapshot(sharedSettings, projectMcpServers);
+      // Record which custom servers this session launches with so the active
+      // composer's MCP menu can show the run's actual bindings (settings may
+      // change afterwards without affecting the running session).
+      useAppStore.getState().setThreadMcpLaunchCustomServerNames(
+        thread.id,
+        mcpLaunchSnapshot.mcpServers.map((server) => server.name),
+      );
       await readBridge().startThread({
         threadId: thread.id,
         projectLocation,
