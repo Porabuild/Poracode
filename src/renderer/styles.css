@@ -359,6 +359,9 @@
 }
 
 .poracode-welcome-bg-glow {
+  /* Isolate this full-viewport gradient's repaint so it can't invalidate the
+     sibling code wall or the z-10 stage content. */
+  contain: paint;
   background:
     radial-gradient(
       150px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px),
@@ -373,6 +376,9 @@
 }
 
 .poracode-welcome-code-wall {
+  /* Scope the masked glyph layer's repaint to itself (paint-only containment,
+     so the multi-column flow is unaffected). */
+  contain: paint;
   mask-image:
     radial-gradient(
       200px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px),
@@ -409,6 +415,33 @@
   column-width: 500px;
   column-gap: 3rem;
   user-select: none;
+}
+
+/* The welcome intro is otherwise unguarded for reduced motion. Hide the
+   decorative movers and stop the always-on ring animations — the reveal
+   elements stay visible (their steady state is opacity 1), and the JS glow
+   sampler already bails out under reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .poracode-welcome-orbit,
+  .poracode-welcome-light,
+  .poracode-welcome-splash {
+    animation: none;
+    opacity: 0;
+  }
+  /* The infinite conic spins (poracode-ring-spin-1/2) live on the ring
+     PSEUDO-elements; `animation: none` on the base element does NOT reach
+     them. The base selector also stops the ring's infinite lightning-glow
+     box-shadow pulse. */
+  .poracode-welcome-ring,
+  .poracode-welcome-ring::before,
+  .poracode-welcome-ring::after {
+    animation: none;
+  }
+  /* Show the wordmark/CTAs immediately: the reveal's `both` fill otherwise
+     holds them hidden through its ~2s delay. */
+  .poracode-welcome-reveal {
+    animation: none;
+  }
 }
 
 /* Goal dock active indicator — rotates a soft accent arc around the

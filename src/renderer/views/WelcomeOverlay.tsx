@@ -18,6 +18,17 @@ import appIconUrl from "../../../build/icon.png";
 // the rAF loop driving `--comet-x/y` can stop.
 const ORBIT_DURATION_MS = 2400;
 
+// `--comet-x/y` are the centers of a full-viewport background gradient
+// (`.poracode-welcome-bg-glow`) AND a mask over the glyph-heavy code wall
+// (`.poracode-welcome-code-wall`). Neither `background-position` nor
+// `mask-image` is compositor-animatable, so each write re-rasterizes the
+// viewport on the main thread. Writing them on every display refresh
+// (~120fps on high-refresh panels) is what drops frames — the diffuse glow
+// only needs a handful of updates per second. Gate the write to the shared
+// ~20fps cadence (matches `thinkingAnimator.ts` TICK_MS) so the frame
+// pipeline idles between ticks instead of stalling on per-frame repaints.
+const COMET_LIGHT_TICK_MS = 50; // ~20fps
+
 // The intro reveal fully settles ~3.2s after mount — the CTA buttons carry the
 // latest reveal (2.4s delay + 0.8s duration). Until then we hold first-launch
 // background work (agent detection) so its cold process spawns and re-render
@@ -71,17 +82,32 @@ export function WelcomeOverlay() {
 
   useEffect(() => {
     if (!mounted) return;
+    // Honor reduced motion: the comet is hidden by CSS in this mode, so leave
+    // the glow parked at its off-screen default rather than sampling it.
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const container = containerRef.current;
+    const comet = cometRef.current;
+    if (!container || !comet) return;
+    // `fixed inset-0` => the container's box origin is stable for the orbit's
+    // lifetime, so sample it once (as the mousemove handler already caches its
+    // rect) instead of forcing a synchronous layout read every frame.
+    const containerRect = container.getBoundingClientRect();
     let rafId = 0;
     let stopped = false;
-    const updateCometLight = () => {
+    // NEGATIVE_INFINITY so the first frame writes immediately — no one-frame
+    // gap where the glow sits at its off-screen default.
+    let lastWriteAt = Number.NEGATIVE_INFINITY;
+    const updateCometLight = (now: number) => {
       if (stopped) return;
-      if (containerRef.current && cometRef.current) {
-        const containerRect = containerRef.current.getBoundingClientRect();
-        const cometRect = cometRef.current.getBoundingClientRect();
+      // Throttle the expensive (non-compositable) write to ~20fps; skipped
+      // frames cost only a timestamp compare + reschedule.
+      if (now - lastWriteAt >= COMET_LIGHT_TICK_MS) {
+        lastWriteAt = now;
+        const cometRect = comet.getBoundingClientRect();
         const cx = cometRect.left + cometRect.width / 2 - containerRect.left;
         const cy = cometRect.top + cometRect.height / 2 - containerRect.top;
-        containerRef.current.style.setProperty("--comet-x", `${cx}px`);
-        containerRef.current.style.setProperty("--comet-y", `${cy}px`);
+        container.style.setProperty("--comet-x", `${cx}px`);
+        container.style.setProperty("--comet-y", `${cy}px`);
       }
       rafId = requestAnimationFrame(updateCometLight);
     };
