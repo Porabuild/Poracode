@@ -204,7 +204,14 @@ function mobileDevIndex(): Plugin {
 
       server.middlewares.use((req, _res, next) => {
         const [pathname, query] = (req.url ?? "").split("?", 2);
-        if (pathname === "/" || pathname === "/index.html") {
+        const acceptsHtml = req.headers.accept?.includes("text/html") ?? false;
+        const isClientRoute =
+          pathname === "/" ||
+          pathname === "/index.html" ||
+          (acceptsHtml &&
+            pathname !== "/mobile.html" &&
+            !pathname?.split("/").at(-1)?.includes("."));
+        if (isClientRoute) {
           req.url = `/mobile.html${query ? `?${query}` : ""}`;
         }
         next();

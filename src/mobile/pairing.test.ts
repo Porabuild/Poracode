@@ -143,7 +143,7 @@ describe("appUrlWithoutPairing", () => {
       appUrlWithoutPairing(
         locationFromUrl("https://poracode.com/pwa/pair?host=https://desktop.test/#token=pair"),
       ),
-    ).toBe("https://poracode.com/pwa/app");
+    ).toBe("https://poracode.com/pwa");
   });
 });
 

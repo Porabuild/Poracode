@@ -6,6 +6,7 @@ import { DesktopsView, type DesktopsViewProps } from "./DesktopsView";
 import type { StoredDesktop } from "../storage";
 
 const platform = vi.hoisted(() => ({ native: false }));
+const media = { desktopPointer: false };
 
 // The QR scanner touches the camera / a decode lib, and the install button reads
 // PWA install state — neither is exercised here, so stub them out of the tree.
@@ -59,6 +60,17 @@ function renderView(overrides?: Partial<DesktopsViewProps>) {
 describe("DesktopsView", () => {
   beforeEach(() => {
     Element.prototype.getAnimations = () => [];
+    media.desktopPointer = false;
+    window.matchMedia = vi.fn<(query: string) => MediaQueryList>((query) => ({
+      matches: media.desktopPointer && query.includes("pointer: fine"),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => true,
+    }));
   });
 
   afterEach(() => {
@@ -89,6 +101,33 @@ describe("DesktopsView", () => {
     // The brand prefix is stripped from the row title.
     expect(screen.getByText("H1FCM6T4GX")).toBeTruthy();
     expect(screen.queryByText("No connections yet")).toBeNull();
+  });
+
+  it("opens connection actions from a desktop right click", async () => {
+    media.desktopPointer = true;
+    const props = renderView({ desktops: [desktop], activeDesktopId: "d1" });
+    const row = screen.getByText("H1FCM6T4GX").closest("button");
+    expect(row).toBeTruthy();
+    fireEvent.click(row!);
+    expect(props.onSwitch).toHaveBeenCalledWith(desktop);
+    expect(screen.queryByRole("dialog", { name: "H1FCM6T4GX" })).toBeNull();
+    await act(async () => {
+      fireEvent.contextMenu(row!);
+    });
+    expect(screen.getByRole("dialog", { name: "H1FCM6T4GX" })).toBeTruthy();
+  });
+
+  it("offers paired local mode to desktop browsers", async () => {
+    media.desktopPointer = true;
+    const props = renderView();
+    fireEvent.click(screen.getByRole("button", { name: "Pair a connection" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("tab", { name: "Local" }));
+    });
+    expect(props.onEndpointChange).toHaveBeenCalledWith("http://localhost:38987/");
+    expect(
+      screen.getByText(/Open Settings .* Remote Access in Poracode on this computer/),
+    ).toBeTruthy();
   });
 
   it("auto-opens the pairing drawer when a deep-link credential is present", async () => {

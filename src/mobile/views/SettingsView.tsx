@@ -89,7 +89,7 @@ function RemoteArchivedThreads(props: SettingsThreadHandlers) {
 
 /** Section pages for every remote-safe section id (the section metadata —
  * labels, hints, icons, device/desktop grouping — lives in settingsSections.ts
- * so the eager More tab can list sections without pulling these parts in). */
+ * so the eager Settings page can list sections without pulling these parts in). */
 const SECTION_RENDERERS: Record<
   MobileSettingsSectionId,
   (handlers: SettingsThreadHandlers) => ReactNode
@@ -107,8 +107,8 @@ const SECTION_RENDERERS: Record<
   archived: (handlers) => <RemoteArchivedThreads {...handlers} />,
 };
 
-/** PWA settings behind the More tab. With no section id this is the Desktop
- * Settings subscreen (device sections are flattened into the More tab itself);
+/** PWA settings. With no section id this is the Desktop Settings subscreen
+ * (device sections are flattened into the Settings page itself);
  * with one, that section renders as its own page behind a back button. */
 export function SettingsView(
   props: SettingsThreadHandlers & {

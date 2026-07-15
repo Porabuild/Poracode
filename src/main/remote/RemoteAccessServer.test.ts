@@ -634,6 +634,10 @@ describe("RemoteAccessServer", () => {
     expect(appResponse.status).toBe(200);
     await expect(appResponse.text()).resolves.toContain("Poracode");
 
+    const appRouteResponse = await fetch(new URL("/app/settings/appearance", info.httpBaseUrl));
+    expect(appRouteResponse.status).toBe(200);
+    await expect(appRouteResponse.text()).resolves.toContain("Poracode");
+
     const manifestResponse = await fetch(new URL("/manifest.webmanifest", info.httpBaseUrl));
     expect(manifestResponse.status).toBe(200);
     await expect(manifestResponse.json()).resolves.toMatchObject({

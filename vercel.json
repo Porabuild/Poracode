@@ -10,7 +10,8 @@
     { "source": "/pair", "destination": "/pwa/mobile.html" },
     { "source": "/pwa", "destination": "/pwa/mobile.html" },
     { "source": "/pwa/app", "destination": "/pwa/mobile.html" },
-    { "source": "/pwa/pair", "destination": "/pwa/mobile.html" }
+    { "source": "/pwa/pair", "destination": "/pwa/mobile.html" },
+    { "source": "/pwa/:path*", "destination": "/pwa/mobile.html" }
   ],
   "headers": [
     {

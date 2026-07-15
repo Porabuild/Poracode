@@ -43,7 +43,7 @@ export interface MobileSettingsSection {
 /**
  * Split by where a setting lives. "This device" keys persist in this
  * browser's storage and shape the PWA itself (the desktop has its own copies);
- * they're listed flat on the More tab. "Desktop" sections edit the paired
+ * they're listed flat on the Settings page. "Desktop" sections edit the paired
  * desktop — AI helper choices sync over the remote API, thread management
  * round-trips through thread commands, and profile identity/usage stats are
  * read from and written to the desktop's local SQLite store — and live behind
@@ -82,12 +82,6 @@ export const DEVICE_SETTINGS_SECTIONS: readonly MobileSettingsSection[] = [
     hint: msg`Review presentation`,
     icon: GitFork,
   },
-  {
-    id: "usage",
-    label: MOBILE_SETTINGS_SECTION_LABELS.usage,
-    hint: msg`Tracking and display`,
-    icon: Gauge,
-  },
 ];
 
 export const DESKTOP_SETTINGS_SECTIONS: readonly MobileSettingsSection[] = [
@@ -96,6 +90,12 @@ export const DESKTOP_SETTINGS_SECTIONS: readonly MobileSettingsSection[] = [
     label: MOBILE_SETTINGS_SECTION_LABELS.profile,
     hint: msg`Identity and usage stats`,
     icon: CircleUserRound,
+  },
+  {
+    id: "usage",
+    label: MOBILE_SETTINGS_SECTION_LABELS.usage,
+    hint: msg`Tracking and display`,
+    icon: Gauge,
   },
   {
     id: "schedules",

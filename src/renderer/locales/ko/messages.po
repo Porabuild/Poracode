@@ -1357,6 +1357,7 @@ msgstr "GitHub 리포지토리를 찾아보거나 복제 URL을 붙여넣으세�
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
@@ -4698,6 +4699,7 @@ msgstr "로드 중…"
 msgid "local"
 msgstr "로컬"
 
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Local"
@@ -5163,7 +5165,6 @@ msgid "Modes"
 msgstr "모드"
 
 #: src/mobile/NarrowShell.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "많음"
@@ -6164,6 +6165,10 @@ msgid "Open Settings"
 msgstr "설정 열기"
 
 #: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Poracode on this computer, then paste its pairing token here."
+msgstr "이 컴퓨터의 Poracode에서 설정 → 원격 액세스를 연 다음 페어링 토큰을 여기에 붙여넣으세요."
+
+#: src/mobile/views/DesktopsView.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
 msgstr "데스크톱의 Poracode에서 설정 → 원격 액세스를 연 다음 여기에서 QR 코드를 스캔하세요. 또는 엔드포인트와 페어링 토큰을 직접 입력하세요."
 
@@ -6551,6 +6556,7 @@ msgstr "포트 포워딩이 활성화되지 않았습니다"
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/mobile/WideShell.tsx
 msgid "Ports"
 msgstr "포트"
 
@@ -6696,6 +6702,7 @@ msgstr "전역 검색 설정 위에 프로젝트별 재정의가 적용됩니다
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Projects"
@@ -7309,6 +7316,7 @@ msgstr "메모 및 할 일 크기 조정"
 msgid "Resize row"
 msgstr "행 크기 조정"
 
+#: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
 msgstr "사이드바 크기 조정"
@@ -7961,6 +7969,7 @@ msgstr "단축키 설정"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -8583,8 +8592,12 @@ msgid "Store as secret (encrypted at rest)"
 msgstr "비밀로 저장 (저장 시 암호화)"
 
 #: src/mobile/views/MoreView.tsx
-msgid "Stored on this phone; the desktop keeps its own values."
-msgstr "이 휴대폰에 저장됩니다. 데스크톱은 자체 값을 유지합니다."
+msgid "Stored on this device; the desktop keeps its own values."
+msgstr "이 기기에 저장되며 데스크톱은 자체 값을 유지합니다."
+
+#: src/mobile/views/MoreView.tsx
+#~ msgid "Stored on this phone; the desktop keeps its own values."
+#~ msgstr "이 휴대폰에 저장됩니다. 데스크톱은 자체 값을 유지합니다."
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -8800,8 +8813,8 @@ msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "+를 탭하여 데스크톱에서 폴더를 추가하거나 저장소를 복제하세요."
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Tap + to pair directly or connect to a remote machine over SSH."
-msgstr "+를 눌러 직접 페어링하거나 SSH를 통해 원격 컴퓨터에 연결하세요."
+#~ msgid "Tap + to pair directly or connect to a remote machine over SSH."
+#~ msgstr "+를 눌러 직접 페어링하거나 SSH를 통해 원격 컴퓨터에 연결하세요."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Tap + to pair with Poracode on your desktop."
@@ -9807,6 +9820,10 @@ msgstr "사용 설정"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Usage unknown"
 msgstr "사용량을 알 수 없음"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Use + to pair directly or connect to a remote machine over SSH."
+msgstr "+를 사용해 직접 페어링하거나 SSH를 통해 원격 컴퓨터에 연결하세요."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"

@@ -1,12 +1,16 @@
 import {
+  createBrowserHistory,
   createHashHistory,
   createRootRoute,
   createRoute,
+  createRouteMask,
   createRouter,
   Navigate,
   redirect,
 } from "@tanstack/react-router";
 import { capturePairingLaunch } from "./pairing";
+import { isNativeApp } from "./pwaInstall";
+import { migrateLegacyBrowserRoute, mobileRouterBasePath } from "./routing";
 import { isFullscreenScreenPath, navigationTransitionType } from "./navHelpers";
 import { RootLayout } from "./RootLayout";
 import { WIDE_SHELL_QUERY } from "./useMediaQuery";
@@ -32,9 +36,11 @@ import { PrConversationPage } from "./views/pr/PrConversationPage";
 import { PrLayout } from "./views/pr/PrLayout";
 import { PrOverviewPage } from "./views/pr/PrOverviewPage";
 
-// Snapshot + strip the pairing launch params BEFORE hash history reads the URL,
-// so a `#token=…` launch never confuses the router (see pairing.ts).
+// Snapshot pairing credentials before history reads the launch URL, then
+// migrate bookmarks from the former hash/state-backed routers.
 capturePairingLaunch();
+const nativeApp = isNativeApp();
+if (!nativeApp) migrateLegacyBrowserRoute(import.meta.env.BASE_URL);
 
 const rootRoute = createRootRoute({ component: RootLayout });
 
@@ -70,43 +76,43 @@ const desktopsRoute = createRoute({
 
 const moreRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/more",
+  path: "/settings",
   component: MoreRoute,
 });
 
 const usageRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/more/usage",
+  path: "/usage",
   component: UsageRoute,
 });
 
 const browserRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/more/browser",
+  path: "/browser",
   component: BrowserRoute,
 });
 
 const portsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/more/ports",
+  path: "/ports",
   component: PortsRoute,
 });
 
 const projectsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/more/projects",
+  path: "/projects",
   component: ProjectsRoute,
 });
 
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/more/settings",
+  path: "/settings/desktop",
   component: SettingsListRoute,
 });
 
 const settingsSectionRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/more/settings/$section",
+  path: "/settings/$section",
   component: SettingsSectionRoute,
 });
 
@@ -215,6 +221,8 @@ const routeTree = rootRoute.addChildren([
   prRouteTree,
 ]);
 
+const routeMasks = nativeApp ? [] : [createRouteMask({ routeTree, from: "/desktops", to: "/" })];
+
 // TanStack applies `defaultViewTransition` to EVERY navigation, including native
 // back/edge-swipe (popstate) ones, which iOS already animates interactively.
 // The `types` callback isn't told the history action, so we mirror it here:
@@ -238,7 +246,7 @@ function navigationTransitionTypes(fromPath: string | undefined, toPath: string)
   // Leaving the mirrored browser view via a native edge-swipe/back already plays
   // the OS's own interactive back animation; running our `pop` slide on top of it
   // double-animates. Skip our transition for that specific gesture-driven pop.
-  if (lastNavWasGesture && fromPath === "/more/browser") return false;
+  if (lastNavWasGesture && fromPath === "/browser") return false;
   const type = navigationTransitionType(fromPath, toPath);
   if (!type) return false;
   // Fullscreen overlay screens (workspace / PR / terminal) carry the m-screen
@@ -252,7 +260,11 @@ function navigationTransitionTypes(fromPath: string | undefined, toPath: string)
 
 export const router = createRouter({
   routeTree,
-  history: createHashHistory(),
+  history: nativeApp ? createHashHistory() : createBrowserHistory(),
+  basepath: nativeApp
+    ? "/"
+    : mobileRouterBasePath(window.location.pathname, import.meta.env.BASE_URL),
+  routeMasks,
   defaultPreload: false,
   // Native-app screen transitions on the phone layout (View Transitions API).
   defaultViewTransition: {

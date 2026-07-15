@@ -48,11 +48,10 @@ let captured: PairingLaunch | null = null;
 
 /**
  * Snapshot the pairing launch parameters (`?host=…#token=…`) exactly once, at
- * boot, BEFORE the hash-history router initializes. When a credential is
- * present the pairing params are stripped from the URL so the router starts on
- * a clean hash rather than trying to route `#token=…`. Idempotent: later calls
- * return the same snapshot, so the bridge/session read consistent values even
- * after the router takes ownership of the URL hash.
+ * boot, BEFORE the router initializes. When a credential is present the
+ * pairing params are stripped from the address bar. Idempotent: later calls
+ * return the same snapshot, so the bridge/session read consistent values after
+ * the router takes ownership of navigation.
  */
 export function capturePairingLaunch(location: Location = window.location): PairingLaunch {
   if (captured) return captured;
@@ -64,7 +63,9 @@ export function capturePairingLaunch(location: Location = window.location): Pair
       ? safeNormalizePairingEndpoint(host)
       : isNativeApp()
         ? ""
-        : safeNormalizePairingEndpoint(location.origin),
+        : import.meta.env.BASE_URL.startsWith("/") && import.meta.env.BASE_URL !== "/"
+          ? ""
+          : safeNormalizePairingEndpoint(location.origin),
     credential: hash.get("token"),
   };
   if (captured.credential) {
@@ -171,7 +172,8 @@ export function appUrlWithoutPairing(location: Location = window.location): stri
   // server serves it at /app.
   if (!url.pathname.endsWith("/mobile.html")) {
     if (url.pathname.endsWith("/pair")) {
-      url.pathname = `${url.pathname.slice(0, -"/pair".length)}/app`;
+      const prefix = url.pathname.slice(0, -"/pair".length);
+      url.pathname = prefix || "/app";
     } else if (!url.pathname.endsWith("/app")) {
       const basePath = import.meta.env.BASE_URL;
       url.pathname = basePath.startsWith("/") ? `${basePath}app` : "/app";

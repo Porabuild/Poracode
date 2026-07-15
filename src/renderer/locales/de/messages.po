@@ -1357,6 +1357,7 @@ msgstr "Durchsuchen Sie Ihre GitHub-Repositorys oder fügen Sie eine Klon-URL ei
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
@@ -4698,6 +4699,7 @@ msgstr "Laden…"
 msgid "local"
 msgstr "lokal"
 
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Local"
@@ -5163,7 +5165,6 @@ msgid "Modes"
 msgstr "Modi"
 
 #: src/mobile/NarrowShell.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "Mehr"
@@ -6164,6 +6165,10 @@ msgid "Open Settings"
 msgstr "Öffnen Sie Einstellungen"
 
 #: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Poracode on this computer, then paste its pairing token here."
+msgstr "Öffne auf diesem Computer in Poracode Einstellungen → Remotezugriff und füge dann hier den Kopplungstoken ein."
+
+#: src/mobile/views/DesktopsView.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
 msgstr "Öffne Einstellungen → Remotezugriff in Poracode auf deinem Desktop und scanne dann den QR-Code von hier — oder gib Endpunkt und Kopplungstoken manuell ein."
 
@@ -6551,6 +6556,7 @@ msgstr "Portweiterleitung ist nicht aktiviert"
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/mobile/WideShell.tsx
 msgid "Ports"
 msgstr "Ports"
 
@@ -6696,6 +6702,7 @@ msgstr "Projektspezifische Überschreibungen zusätzlich zu den globalen Suchein
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Projects"
@@ -7309,6 +7316,7 @@ msgstr "Ändern Sie die Größe von Notizen und Aufgaben"
 msgid "Resize row"
 msgstr "Größe der Zeile ändern"
 
+#: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
 msgstr "Größe der Seitenleiste ändern"
@@ -7961,6 +7969,7 @@ msgstr "Tastenkürzel festlegen"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -8583,8 +8592,12 @@ msgid "Store as secret (encrypted at rest)"
 msgstr "Als Geheimnis speichern (verschlüsselt gespeichert)"
 
 #: src/mobile/views/MoreView.tsx
-msgid "Stored on this phone; the desktop keeps its own values."
-msgstr "Auf diesem Telefon gespeichert; der Desktop behält seine eigenen Werte."
+msgid "Stored on this device; the desktop keeps its own values."
+msgstr "Auf diesem Gerät gespeichert; der Desktop behält seine eigenen Werte."
+
+#: src/mobile/views/MoreView.tsx
+#~ msgid "Stored on this phone; the desktop keeps its own values."
+#~ msgstr "Auf diesem Telefon gespeichert; der Desktop behält seine eigenen Werte."
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -8800,8 +8813,8 @@ msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "Tippen Sie auf +, um auf Ihrem Desktop einen Ordner hinzuzufügen oder ein Repository zu klonen."
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Tap + to pair directly or connect to a remote machine over SSH."
-msgstr "Tippen Sie auf +, um direkt zu koppeln oder über SSH eine Verbindung zu einem entfernten Computer herzustellen."
+#~ msgid "Tap + to pair directly or connect to a remote machine over SSH."
+#~ msgstr "Tippen Sie auf +, um direkt zu koppeln oder über SSH eine Verbindung zu einem entfernten Computer herzustellen."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Tap + to pair with Poracode on your desktop."
@@ -9807,6 +9820,10 @@ msgstr "Nutzungseinstellungen"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Usage unknown"
 msgstr "Verwendung unbekannt"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Use + to pair directly or connect to a remote machine over SSH."
+msgstr "Verwende +, um direkt zu koppeln oder dich per SSH mit einem entfernten Computer zu verbinden."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"

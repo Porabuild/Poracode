@@ -242,9 +242,15 @@ export async function handleHttp(
       writeJson(res, 200, descriptor(ctx));
       return;
     }
-    if (req.method === "GET" && (url.pathname === "/pair" || url.pathname === "/app")) {
+    if (
+      req.method === "GET" &&
+      (url.pathname === "/pair" || url.pathname === "/app" || url.pathname.startsWith("/app/"))
+    ) {
       if (ctx.options.devMobileAppUrl) {
         const target = new URL(ctx.options.devMobileAppUrl);
+        if (url.pathname.startsWith("/app/")) {
+          target.pathname = url.pathname.slice("/app".length);
+        }
         for (const [key, value] of url.searchParams) target.searchParams.set(key, value);
         target.searchParams.set("host", ctx.requireInfo().httpBaseUrl);
         res.writeHead(302, { location: target.toString() });

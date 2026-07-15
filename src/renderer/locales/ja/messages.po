@@ -1356,6 +1356,7 @@ msgstr "GitHub リポジトリを参照するか、クローン URL を貼り付
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
@@ -4697,6 +4698,7 @@ msgstr "読み込み中…"
 msgid "local"
 msgstr "ローカル"
 
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Local"
@@ -5161,7 +5163,6 @@ msgid "Modes"
 msgstr "モード"
 
 #: src/mobile/NarrowShell.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "多い"
@@ -6162,6 +6163,10 @@ msgid "Open Settings"
 msgstr "設定を開く"
 
 #: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Poracode on this computer, then paste its pairing token here."
+msgstr "このコンピューターの Poracode で「設定」→「リモートアクセス」を開き、ペアリングトークンをここに貼り付けます。"
+
+#: src/mobile/views/DesktopsView.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
 msgstr "デスクトップの Poracode で「設定 → リモートアクセス」を開き、ここから QR コードをスキャンしてください。または、エンドポイントとペアリングトークンを手動で入力します。"
 
@@ -6549,6 +6554,7 @@ msgstr "ポート転送が有効になっていません"
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/mobile/WideShell.tsx
 msgid "Ports"
 msgstr "ポート"
 
@@ -6694,6 +6700,7 @@ msgstr "グローバル検索設定に加えてプロジェクト固有のオー
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Projects"
@@ -7307,6 +7314,7 @@ msgstr "メモと ToDo のサイズを変更する"
 msgid "Resize row"
 msgstr "行のサイズを変更する"
 
+#: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
 msgstr "サイドバーのサイズを変更する"
@@ -7959,6 +7967,7 @@ msgstr "ショートカットを設定"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -8581,8 +8590,12 @@ msgid "Store as secret (encrypted at rest)"
 msgstr "シークレットとして保存（保存時に暗号化）"
 
 #: src/mobile/views/MoreView.tsx
-msgid "Stored on this phone; the desktop keeps its own values."
-msgstr "このスマートフォンに保存されます。デスクトップ側は独自の値を保持します。"
+msgid "Stored on this device; the desktop keeps its own values."
+msgstr "このデバイスに保存されます。デスクトップ側の値は変更されません。"
+
+#: src/mobile/views/MoreView.tsx
+#~ msgid "Stored on this phone; the desktop keeps its own values."
+#~ msgstr "このスマートフォンに保存されます。デスクトップ側は独自の値を保持します。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -8798,8 +8811,8 @@ msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "+ をタップしてデスクトップでフォルダーを追加するか、リポジトリをクローンしてください。"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Tap + to pair directly or connect to a remote machine over SSH."
-msgstr "+ をタップして直接ペアリングするか、SSH 経由でリモートマシンに接続します。"
+#~ msgid "Tap + to pair directly or connect to a remote machine over SSH."
+#~ msgstr "+ をタップして直接ペアリングするか、SSH 経由でリモートマシンに接続します。"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Tap + to pair with Poracode on your desktop."
@@ -9805,6 +9818,10 @@ msgstr "利用設定"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Usage unknown"
 msgstr "使用量不明"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Use + to pair directly or connect to a remote machine over SSH."
+msgstr "「+」を使用して直接ペアリングするか、SSH 経由でリモートマシンに接続します。"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"

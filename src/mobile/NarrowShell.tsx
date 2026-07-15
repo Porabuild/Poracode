@@ -12,6 +12,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { Outlet, useNavigate } from "@tanstack/react-router";
+import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
 import { ConnectionPill, SheetMenu } from "./components";
 import { preselectWorktreeDraft, runThreadAction } from "./navHelpers";
 import { ThreadTitleRow } from "./ThreadTitleRow";
@@ -21,19 +22,11 @@ import type { RemoteDesktopSession } from "./useRemoteDesktop";
 import { useSwipeBack } from "./useSwipeBack";
 import type { Chrome } from "./chrome";
 
-/** Header/sidebar brand mark: the desktop's paired label, or "Poracode".
- * Shared by {@link NarrowShell} and the wide-shell sidebar. */
-export function Brand(props: {
-  readonly subtitle?: string | undefined;
-  readonly onPress: () => void;
-}) {
-  // Desktop labels default to "Poracode on <host>"; the header only needs the
-  // host. Accept the legacy "Lightcode on …" prefix for desktops paired before
-  // the rebrand so their stored labels still render cleanly.
-  const label = props.subtitle?.replace(/^(?:Poracode|Lightcode)\s+on\s+/i, "");
+/** Header/sidebar brand mark shared by {@link NarrowShell} and the wide shell. */
+export function Brand(props: { readonly onPress: () => void }) {
   return (
     <button className="m-brand" type="button" onClick={props.onPress}>
-      <span className="m-brand__title">{label || "Poracode"}</span>
+      <BrandWordmark className="m-brand__wordmark" />
     </button>
   );
 }
@@ -104,6 +97,7 @@ export function NarrowShell(props: {
   const { remote, chrome, pathname } = props;
   const navigate = useNavigate();
   const { t } = useLingui();
+  const hasActiveDesktop = remote.activeDesktop !== null;
   const shellRef = useRef<HTMLDivElement | null>(null);
   const ignoreSearchClickRef = useRef(false);
   const ignoreSearchClickTimerRef = useRef<number | null>(null);
@@ -217,10 +211,7 @@ export function NarrowShell(props: {
         ) : (
           <>
             <div className="m-home-brand-cluster">
-              <Brand
-                subtitle={remote.activeDesktop?.label}
-                onPress={() => void navigate({ to: "/threads" })}
-              />
+              <Brand onPress={() => void navigate({ to: "/threads" })} />
               <ConnectionControl
                 remote={remote}
                 onPair={() => void navigate({ to: "/desktops" })}
@@ -299,7 +290,12 @@ export function NarrowShell(props: {
           <SheetMenu
             label={t`More`}
             items={[
-              { id: "usage", label: t`Usage`, icon: <Gauge className="size-4 text-muted" /> },
+              {
+                id: "usage",
+                label: t`Usage`,
+                icon: <Gauge className="size-4 text-muted" />,
+                disabled: !hasActiveDesktop,
+              },
               {
                 id: "desktops",
                 label: t`Connections`,
@@ -309,9 +305,20 @@ export function NarrowShell(props: {
                 id: "projects",
                 label: t`Projects`,
                 icon: <FolderGit2 className="size-4 text-muted" />,
+                disabled: !hasActiveDesktop,
               },
-              { id: "browser", label: t`Browser`, icon: <Globe className="size-4 text-muted" /> },
-              { id: "ports", label: t`Ports`, icon: <Plug className="size-4 text-muted" /> },
+              {
+                id: "browser",
+                label: t`Browser`,
+                icon: <Globe className="size-4 text-muted" />,
+                disabled: !hasActiveDesktop,
+              },
+              {
+                id: "ports",
+                label: t`Ports`,
+                icon: <Plug className="size-4 text-muted" />,
+                disabled: !hasActiveDesktop,
+              },
               {
                 id: "settings",
                 label: t`Settings`,
@@ -321,16 +328,16 @@ export function NarrowShell(props: {
             onSelect={(id) => {
               const to =
                 id === "usage"
-                  ? "/more/usage"
+                  ? "/usage"
                   : id === "desktops"
                     ? "/desktops"
                     : id === "projects"
-                      ? "/more/projects"
+                      ? "/projects"
                       : id === "browser"
-                        ? "/more/browser"
+                        ? "/browser"
                         : id === "ports"
-                          ? "/more/ports"
-                          : "/more";
+                          ? "/ports"
+                          : "/settings";
               void navigate({ to });
             }}
             trigger={renderMoreMenuTrigger}

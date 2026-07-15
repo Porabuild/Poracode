@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Popover } from "@heroui/react";
+import { Popover, useMediaQuery } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { isRemoteSession } from "@/renderer/bridge";
 import { SheetGrabber, useSheetGrabber } from "@/renderer/components/common/useSheetGrabber";
@@ -16,6 +16,12 @@ type Placement = ComponentProps<typeof Popover.Content>["placement"];
  * still fires under reduced motion, where the animation is disabled.
  */
 const SHEET_EXIT_MS = 200;
+const DESKTOP_POINTER_QUERY = "(min-width: 768px) and (hover: hover) and (pointer: fine)";
+
+function useMobileMenuSurface(): boolean {
+  const desktopPointer = useMediaQuery(DESKTOP_POINTER_QUERY);
+  return isRemoteSession() && !desktopPointer;
+}
 
 /**
  * A composer/menu popover on desktop that becomes a bottom drawer in the mobile
@@ -52,7 +58,7 @@ export function ResponsiveMenuSurface(props: {
   readonly triggerClassName?: string;
 }) {
   const { t } = useLingui();
-  const mobile = isRemoteSession();
+  const mobile = useMobileMenuSurface();
 
   // Keep the drawer mounted through its slide-out. `rendered` stays true for
   // SHEET_EXIT_MS after `isOpen` goes false; `closing` toggles `data-closing`
@@ -172,5 +178,5 @@ export function ResponsiveMenuSurface(props: {
 
 /** Whether composer menus should render as a mobile drawer instead of a popover. */
 export function useResponsiveMenu(): { readonly mobile: boolean } {
-  return { mobile: isRemoteSession() };
+  return { mobile: useMobileMenuSurface() };
 }

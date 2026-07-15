@@ -7,6 +7,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { clearPairingLaunch, parsePairingLaunch, setPairingLaunch } from "./pairing";
 import {
   DesktopsRoute,
+  SettingsSectionRoute,
   TerminalRoute,
   ThreadRoute,
   ThreadsRoute,
@@ -54,7 +55,7 @@ const fixtures = vi.hoisted(() => {
 
   return {
     project,
-    params: { threadId: routedThread.id, projectId: project.id },
+    params: { threadId: routedThread.id, projectId: project.id, section: "usage" },
     search: {} as {
       worktree?: string;
       action?: string;
@@ -69,7 +70,7 @@ const fixtures = vi.hoisted(() => {
         desktopId: "desktop-1",
         label: "Poracode on Mac",
         scopes: ["projects:manage"],
-      },
+      } as { desktopId: string; label: string; scopes: string[] } | null,
       desktops: [],
       activeDesktopId: "desktop-1",
       projects: [project],
@@ -254,13 +255,24 @@ describe("mobile route components", () => {
 
     expect(screen.queryByTestId("quick-compose")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Add project" }));
-    expect(fixtures.navigate).toHaveBeenCalledWith({ to: "/more/projects" });
+    expect(fixtures.navigate).toHaveBeenCalledWith({ to: "/projects" });
   });
 
   it("renders the home composer only after a connected desktop has projects", () => {
     render(<ThreadsRoute />);
 
     expect(screen.getByTestId("quick-compose")).toBeTruthy();
+  });
+
+  it("redirects stale Usage settings when no desktop is paired", async () => {
+    fixtures.remote.activeDesktop = null;
+    fixtures.params.section = "usage";
+
+    render(<SettingsSectionRoute />);
+
+    await waitFor(() =>
+      expect(fixtures.navigate).toHaveBeenCalledWith({ to: "/settings", replace: true }),
+    );
   });
 
   it("consumes a deep-link pairing credential after a successful pair", async () => {

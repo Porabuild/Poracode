@@ -113,20 +113,21 @@ export function screenDepth(path: string): number {
   if (isFullscreenScreenPath(path)) return 2;
   // A desktop-syncing section is pushed from the Desktop Settings list (depth
   // 2); a device section is pushed straight from the Settings page (depth 1).
-  const sectionMatch = /^\/more\/settings\/(.+)$/.exec(path);
+  if (path === "/settings/desktop") return 2;
+  const sectionMatch = /^\/settings\/(.+)$/.exec(path);
   if (sectionMatch?.[1]) {
     return isDesktopSettingsSection(decodeURIComponent(sectionMatch[1])) ? 3 : 2;
   }
-  if (path === "/more/settings") return 2;
   // First-level screens pushed from home: quick-menu destinations, the
   // Settings page, a thread, the full new-thread composer.
   if (
-    path === "/more" ||
+    path === "/settings" ||
     path === "/new" ||
     path === "/desktops" ||
-    path === "/more/usage" ||
-    path === "/more/projects" ||
-    path === "/more/browser"
+    path === "/usage" ||
+    path === "/projects" ||
+    path === "/browser" ||
+    path === "/ports"
   ) {
     return 1;
   }

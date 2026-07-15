@@ -1357,6 +1357,7 @@ msgstr "Перегляньте свої репозиторії GitHub або в�
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
@@ -4698,6 +4699,7 @@ msgstr "Завантаження…"
 msgid "local"
 msgstr "локальний"
 
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Local"
@@ -5163,7 +5165,6 @@ msgid "Modes"
 msgstr "Режими"
 
 #: src/mobile/NarrowShell.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "Більше"
@@ -6164,6 +6165,10 @@ msgid "Open Settings"
 msgstr "Відкрити налаштування"
 
 #: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Poracode on this computer, then paste its pairing token here."
+msgstr "Відкрийте Налаштування → Віддалений доступ у Poracode на цьому комп’ютері, а потім вставте сюди токен сполучення."
+
+#: src/mobile/views/DesktopsView.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
 msgstr "Відкрийте «Налаштування → Віддалений доступ» у Poracode на комп'ютері, потім відскануйте QR-код звідси — або введіть адресу й код сполучення вручну."
 
@@ -6551,6 +6556,7 @@ msgstr "Переспрямування портів не увімкнено"
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/mobile/WideShell.tsx
 msgid "Ports"
 msgstr "Порти"
 
@@ -6696,6 +6702,7 @@ msgstr "Перевизначення для конкретного проєкт�
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Projects"
@@ -7309,6 +7316,7 @@ msgstr "Змінити розмір нотаток і завдань"
 msgid "Resize row"
 msgstr "Змінити розмір рядка"
 
+#: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
 msgstr "Змінити розмір бічної панелі"
@@ -7961,6 +7969,7 @@ msgstr "Призначити комбінацію клавіш"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -8583,8 +8592,12 @@ msgid "Store as secret (encrypted at rest)"
 msgstr "Зберігати як секрет (зашифровано на диску)"
 
 #: src/mobile/views/MoreView.tsx
-msgid "Stored on this phone; the desktop keeps its own values."
-msgstr "Збережено на цьому телефоні; десктоп зберігає власні значення."
+msgid "Stored on this device; the desktop keeps its own values."
+msgstr "Зберігається на цьому пристрої; на комп’ютері залишаються власні значення."
+
+#: src/mobile/views/MoreView.tsx
+#~ msgid "Stored on this phone; the desktop keeps its own values."
+#~ msgstr "Збережено на цьому телефоні; десктоп зберігає власні значення."
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -8800,8 +8813,8 @@ msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "Натисніть +, щоб додати папку або клонувати репозиторій на вашому робочому столі."
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Tap + to pair directly or connect to a remote machine over SSH."
-msgstr "Натисніть +, щоб створити пару напряму або підключитися до віддаленого комп’ютера через SSH."
+#~ msgid "Tap + to pair directly or connect to a remote machine over SSH."
+#~ msgstr "Натисніть +, щоб створити пару напряму або підключитися до віддаленого комп’ютера через SSH."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Tap + to pair with Poracode on your desktop."
@@ -9807,6 +9820,10 @@ msgstr "Налаштування використання"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Usage unknown"
 msgstr "Використання невідоме"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Use + to pair directly or connect to a remote machine over SSH."
+msgstr "Скористайтеся +, щоб створити пару безпосередньо або підключитися до віддаленого комп’ютера через SSH."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"

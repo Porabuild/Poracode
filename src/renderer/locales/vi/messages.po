@@ -1357,6 +1357,7 @@ msgstr "Duyệt qua kho GitHub của bạn hoặc dán URL nhân bản."
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
@@ -4698,6 +4699,7 @@ msgstr "Đang tải…"
 msgid "local"
 msgstr "cục bộ"
 
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Local"
@@ -5163,7 +5165,6 @@ msgid "Modes"
 msgstr "Chế độ"
 
 #: src/mobile/NarrowShell.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "Nhiều"
@@ -6164,6 +6165,10 @@ msgid "Open Settings"
 msgstr "Mở Cài đặt"
 
 #: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Poracode on this computer, then paste its pairing token here."
+msgstr "Mở Cài đặt → Truy cập từ xa trong Poracode trên máy tính này, rồi dán mã ghép nối vào đây."
+
+#: src/mobile/views/DesktopsView.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
 msgstr "Mở Cài đặt → Truy cập từ xa trong Poracode trên máy tính của bạn, rồi quét mã QR từ đây — hoặc nhập endpoint và mã ghép nối theo cách thủ công."
 
@@ -6551,6 +6556,7 @@ msgstr "Chưa bật chuyển tiếp cổng"
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/mobile/WideShell.tsx
 msgid "Ports"
 msgstr "Cổng"
 
@@ -6696,6 +6702,7 @@ msgstr "Ghi đè dành riêng cho dự án ở đầu cài đặt tìm kiếm ch
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Projects"
@@ -7309,6 +7316,7 @@ msgstr "Thay đổi kích thước ghi chú và việc cần làm"
 msgid "Resize row"
 msgstr "Thay đổi kích thước hàng"
 
+#: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
 msgstr "Thay đổi kích thước thanh bên"
@@ -7961,6 +7969,7 @@ msgstr "Đặt phím tắt"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -8583,8 +8592,12 @@ msgid "Store as secret (encrypted at rest)"
 msgstr "Lưu dưới dạng bí mật (mã hóa khi lưu trữ)"
 
 #: src/mobile/views/MoreView.tsx
-msgid "Stored on this phone; the desktop keeps its own values."
-msgstr "Được lưu trên điện thoại này; desktop giữ các giá trị riêng."
+msgid "Stored on this device; the desktop keeps its own values."
+msgstr "Được lưu trên thiết bị này; máy tính để bàn giữ các giá trị riêng."
+
+#: src/mobile/views/MoreView.tsx
+#~ msgid "Stored on this phone; the desktop keeps its own values."
+#~ msgstr "Được lưu trên điện thoại này; desktop giữ các giá trị riêng."
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -8800,8 +8813,8 @@ msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "Nhấn + để thêm một thư mục hoặc sao chép một kho lưu trữ trên máy tính của bạn."
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Tap + to pair directly or connect to a remote machine over SSH."
-msgstr "Nhấn + để ghép đôi trực tiếp hoặc kết nối với máy từ xa qua SSH."
+#~ msgid "Tap + to pair directly or connect to a remote machine over SSH."
+#~ msgstr "Nhấn + để ghép đôi trực tiếp hoặc kết nối với máy từ xa qua SSH."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Tap + to pair with Poracode on your desktop."
@@ -9807,6 +9820,10 @@ msgstr "Cài đặt sử dụng"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Usage unknown"
 msgstr "Không rõ mức sử dụng"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Use + to pair directly or connect to a remote machine over SSH."
+msgstr "Dùng + để ghép nối trực tiếp hoặc kết nối với máy từ xa qua SSH."
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"

@@ -150,7 +150,7 @@ function UsageDrawer(props: {
         className="m-sheet-action"
         onClick={() => {
           props.onClose();
-          void navigate({ to: "/more/usage" });
+          void navigate({ to: "/usage" });
         }}
       >
         <Gauge className="size-4" />

@@ -1357,6 +1357,7 @@ msgstr "浏览您的 GitHub 存储库或粘贴克隆 URL。"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/composerMcpServers.ts
@@ -4698,6 +4699,7 @@ msgstr "加载中..."
 msgid "local"
 msgstr "本地"
 
+#: src/mobile/views/DesktopsView.tsx
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Local"
@@ -5162,7 +5164,6 @@ msgid "Modes"
 msgstr "模式"
 
 #: src/mobile/NarrowShell.tsx
-#: src/mobile/WideShell.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "多"
@@ -6163,6 +6164,10 @@ msgid "Open Settings"
 msgstr "打开设置"
 
 #: src/mobile/views/DesktopsView.tsx
+msgid "Open Settings → Remote Access in Poracode on this computer, then paste its pairing token here."
+msgstr "在此计算机上的 Poracode 中打开“设置”→“远程访问”，然后将配对令牌粘贴到此处。"
+
+#: src/mobile/views/DesktopsView.tsx
 msgid "Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from here — or enter the endpoint and pairing token manually."
 msgstr "在桌面端的 Poracode 中打开“设置 → 远程访问”，然后从这里扫描二维码——或手动输入端点和配对令牌。"
 
@@ -6550,6 +6555,7 @@ msgstr "未启用端口转发"
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/PortsView.tsx
+#: src/mobile/WideShell.tsx
 msgid "Ports"
 msgstr "端口"
 
@@ -6695,6 +6701,7 @@ msgstr "在全局搜索设置基础上的项目特定覆盖。"
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Projects"
@@ -7308,6 +7315,7 @@ msgstr "调整笔记和待办事项的大小"
 msgid "Resize row"
 msgstr "调整行大小"
 
+#: src/mobile/WideShell.tsx
 #: src/renderer/views/MainView/parts/AppShell/AppShell.tsx
 msgid "Resize sidebar"
 msgstr "调整侧边栏大小"
@@ -7960,6 +7968,7 @@ msgstr "设置快捷键"
 
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
+#: src/mobile/WideShell.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -8582,8 +8591,12 @@ msgid "Store as secret (encrypted at rest)"
 msgstr "以密文存储（静态加密）"
 
 #: src/mobile/views/MoreView.tsx
-msgid "Stored on this phone; the desktop keeps its own values."
-msgstr "存储在这部手机上；桌面保留自己的值。"
+msgid "Stored on this device; the desktop keeps its own values."
+msgstr "存储在此设备上；桌面端保留自己的设置值。"
+
+#: src/mobile/views/MoreView.tsx
+#~ msgid "Stored on this phone; the desktop keeps its own values."
+#~ msgstr "存储在这部手机上；桌面保留自己的值。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
@@ -8799,8 +8812,8 @@ msgid "Tap + to add a folder or clone a repository on your desktop."
 msgstr "点击 + 在桌面端添加文件夹或克隆存储库。"
 
 #: src/mobile/views/DesktopsView.tsx
-msgid "Tap + to pair directly or connect to a remote machine over SSH."
-msgstr "点按 + 直接配对或通过 SSH 连接到远程计算机。"
+#~ msgid "Tap + to pair directly or connect to a remote machine over SSH."
+#~ msgstr "点按 + 直接配对或通过 SSH 连接到远程计算机。"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Tap + to pair with Poracode on your desktop."
@@ -9806,6 +9819,10 @@ msgstr "使用设置"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Usage unknown"
 msgstr "用量未知"
+
+#: src/mobile/views/DesktopsView.tsx
+msgid "Use + to pair directly or connect to a remote machine over SSH."
+msgstr "使用 + 直接配对，或通过 SSH 连接到远程计算机。"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 msgid "Use an existing folder"

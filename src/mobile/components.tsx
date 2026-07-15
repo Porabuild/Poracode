@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Popover } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ReactNode } from "react";
 import { Check, ChevronRight, Columns2, Loader2, Plus, Rows2, Wifi, WifiOff } from "lucide-react";
@@ -7,6 +8,7 @@ import { SheetGrabber, useSheetGrabber } from "@/renderer/components/common/useS
 import type { ThreadStatus } from "@/shared/contracts";
 import { CONNECTION_LABELS, type ConnectionState } from "./useRemoteDesktop";
 import { THREAD_STATUS_LABELS, threadStatusTone } from "./presentation";
+import { DESKTOP_POINTER_QUERY, useMediaQuery } from "./useMediaQuery";
 
 export function ConnectionPill(props: {
   readonly state: ConnectionState;
@@ -110,10 +112,16 @@ export function MoreRow(props: {
   readonly icon: ReactNode;
   readonly label: ReactNode;
   readonly hint?: ReactNode;
+  readonly disabled?: boolean;
   readonly onPress: () => void;
 }) {
   return (
-    <button type="button" className="m-more-row" onClick={props.onPress}>
+    <button
+      type="button"
+      className="m-more-row"
+      disabled={props.disabled || undefined}
+      onClick={props.onPress}
+    >
       <span className="m-more-row__icon">{props.icon}</span>
       <span className="m-more-row__body">
         <strong>{props.label}</strong>
@@ -402,10 +410,69 @@ export function SheetMenu(props: {
   readonly trigger: (api: { readonly open: () => void; readonly isOpen: boolean }) => ReactNode;
 }) {
   const sheet = useSheet<true>();
-  const isOpen = sheet.target !== null;
+  const desktop = useMediaQuery(DESKTOP_POINTER_QUERY);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const isOpen = desktop ? popoverOpen : sheet.target !== null;
+  const open = () => {
+    if (desktop) setPopoverOpen(true);
+    else sheet.open(true);
+  };
+  const close = () => {
+    if (desktop) setPopoverOpen(false);
+    else sheet.close();
+  };
+  const items = (
+    <div className="m-sheet-list">
+      {props.items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          className={
+            item.tone === "danger"
+              ? "m-sheet-action text-danger"
+              : item.tone === "warning"
+                ? "m-sheet-action text-warning"
+                : "m-sheet-action"
+          }
+          disabled={item.disabled || undefined}
+          aria-pressed={item.selected || undefined}
+          onClick={() => {
+            props.onSelect(item.id);
+            close();
+          }}
+        >
+          {item.icon}
+          <span className="flex-1 truncate">{item.label}</span>
+          {item.hint ? <span className="shrink-0 text-xs text-muted">{item.hint}</span> : null}
+          {item.selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (desktop) {
+    return (
+      <Popover
+        isOpen={popoverOpen}
+        onOpenChange={(nextOpen) => {
+          // Row triggers keep their normal left-click action; only their
+          // explicit open handler (menu button or context menu) opens this.
+          if (!nextOpen) setPopoverOpen(false);
+        }}
+      >
+        <Popover.Trigger>{props.trigger({ open, isOpen })}</Popover.Trigger>
+        {popoverOpen ? (
+          <Popover.Content placement="bottom start" className="m-menu-popover">
+            <Popover.Dialog aria-label={props.label}>{items}</Popover.Dialog>
+          </Popover.Content>
+        ) : null}
+      </Popover>
+    );
+  }
+
   return (
     <>
-      {props.trigger({ open: () => sheet.open(true), isOpen })}
+      {props.trigger({ open, isOpen })}
       {sheet.target !== null ? (
         <BottomSheet
           label={props.label}
@@ -416,34 +483,7 @@ export function SheetMenu(props: {
           <div className="m-sheet-head">
             <span className="truncate">{props.label}</span>
           </div>
-          <div className="m-sheet-list">
-            {props.items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={
-                  item.tone === "danger"
-                    ? "m-sheet-action text-danger"
-                    : item.tone === "warning"
-                      ? "m-sheet-action text-warning"
-                      : "m-sheet-action"
-                }
-                disabled={item.disabled || undefined}
-                aria-pressed={item.selected || undefined}
-                onClick={() => {
-                  props.onSelect(item.id);
-                  sheet.close();
-                }}
-              >
-                {item.icon}
-                <span className="flex-1 truncate">{item.label}</span>
-                {item.hint ? (
-                  <span className="shrink-0 text-xs text-muted">{item.hint}</span>
-                ) : null}
-                {item.selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
-              </button>
-            ))}
-          </div>
+          {items}
         </BottomSheet>
       ) : null}
     </>

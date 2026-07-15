@@ -7,6 +7,7 @@ import { DEVICE_SETTINGS_SECTIONS } from "../settingsSections";
  * entry): this device's settings sections flattened in, with the
  * desktop-syncing sections behind the Desktop Settings subscreen. */
 export function MoreView(props: {
+  readonly hasDesktop: boolean;
   readonly onOpen: () => void;
   readonly onOpenSettingsSection: (sectionId: string) => void;
 }) {
@@ -16,7 +17,7 @@ export function MoreView(props: {
       <div className="m-settings-group">
         <div className="m-settings-group__head">
           <span>
-            <Trans>Stored on this phone; the desktop keeps its own values.</Trans>
+            <Trans>Stored on this device; the desktop keeps its own values.</Trans>
           </span>
         </div>
         <div className="m-more-list">
@@ -33,6 +34,7 @@ export function MoreView(props: {
             icon={<MonitorCog className="size-4" />}
             label={<Trans>Desktop Settings</Trans>}
             hint={<Trans>Schedules, AI, agents, and archived threads on the paired desktop</Trans>}
+            disabled={!props.hasDesktop}
             onPress={props.onOpen}
           />
         </div>

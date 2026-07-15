@@ -22,6 +22,9 @@ import { Fab, EmptyState, FullScreenDrawer, SheetMenu, useSheet } from "../compo
 import { QrScanner } from "../QrScanner";
 import { isNativeApp, isStandaloneDisplay, promptInstall, useCanInstall } from "../pwaInstall";
 import type { StoredDesktop } from "../storage";
+import { DESKTOP_POINTER_QUERY, useMediaQuery } from "../useMediaQuery";
+
+const LOCAL_DESKTOP_ENDPOINT = "http://localhost:38987/";
 
 /** "Add to Home Screen" button — only shown when the browser offers install. */
 function InstallAppButton() {
@@ -416,6 +419,9 @@ function DesktopRow(props: {
 export function DesktopsView(props: DesktopsViewProps) {
   const { t } = useLingui();
   const [scanning, setScanning] = useState(false);
+  const [pairingMethod, setPairingMethod] = useState("pairing-link");
+  const desktopPointer = useMediaQuery(DESKTOP_POINTER_QUERY);
+  const showLocalPairing = desktopPointer && !isNativeApp();
   const { pairing, onScan, showPairingHint } = props;
   // The pairing form now lives in a full-screen drawer opened from the FAB.
   const pairDrawer = useSheet<true>();
@@ -472,7 +478,7 @@ export function DesktopsView(props: DesktopsViewProps) {
         <EmptyState
           icon={<Laptop className="size-5" />}
           title={<Trans>No connections yet</Trans>}
-          hint={<Trans>Tap + to pair directly or connect to a remote machine over SSH.</Trans>}
+          hint={<Trans>Use + to pair directly or connect to a remote machine over SSH.</Trans>}
         />
       )}
 
@@ -486,13 +492,27 @@ export function DesktopsView(props: DesktopsViewProps) {
           closing={pairDrawer.closing}
           onClose={pairDrawer.close}
         >
-          <Tabs defaultSelectedKey="pairing-link" variant="secondary">
+          <Tabs
+            selectedKey={pairingMethod}
+            variant="secondary"
+            onSelectionChange={(key) => {
+              const next = String(key);
+              setPairingMethod(next);
+              if (next === "local") props.onEndpointChange(LOCAL_DESKTOP_ENDPOINT);
+            }}
+          >
             <Tabs.ListContainer>
               <Tabs.List aria-label={t`Connection method`}>
                 <Tabs.Tab id="pairing-link">
                   <Trans>Pairing link</Trans>
                   <Tabs.Indicator />
                 </Tabs.Tab>
+                {showLocalPairing ? (
+                  <Tabs.Tab id="local">
+                    <Trans>Local</Trans>
+                    <Tabs.Indicator />
+                  </Tabs.Tab>
+                ) : null}
                 {isNativeApp() ? (
                   <Tabs.Tab id="ssh">
                     <Trans>SSH</Trans>
@@ -570,6 +590,46 @@ export function DesktopsView(props: DesktopsViewProps) {
                 </Button>
               </div>
             </Tabs.Panel>
+            {showLocalPairing ? (
+              <Tabs.Panel id="local">
+                <div className="m-form">
+                  <p className="m-card__hint">
+                    <Trans>
+                      Open Settings → Remote Access in Poracode on this computer, then paste its
+                      pairing token here.
+                    </Trans>
+                  </p>
+                  <label className="m-field">
+                    <span className="m-field__label">
+                      <Trans>Pairing token</Trans>
+                    </span>
+                    <input
+                      value={props.manualToken}
+                      aria-label={t`Pairing token`}
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      placeholder="lc_pair_…"
+                      onChange={(event) => props.onTokenChange(event.currentTarget.value)}
+                    />
+                  </label>
+                  <Button
+                    className="m-form__submit text-foreground"
+                    size="sm"
+                    variant="tertiary"
+                    isDisabled={pairing || !props.canPair}
+                    onPress={props.onPair}
+                  >
+                    {pairing ? (
+                      <Loader2 className="size-4 m-spin" />
+                    ) : (
+                      <Laptop className="size-4" />
+                    )}
+                    {pairing ? t`Pairing…` : t`Pair`}
+                  </Button>
+                </div>
+              </Tabs.Panel>
+            ) : null}
             {isNativeApp() ? (
               <Tabs.Panel id="ssh">
                 <SshPairingForm onProbe={props.onProbeSsh} onPair={props.onPairSsh} />
