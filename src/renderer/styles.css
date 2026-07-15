@@ -1849,19 +1849,23 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
    repaints AND recalcs style every display refresh (~120fps). Instead the sweep
    is driven from a shared 20fps timer (thinkingAnimator.ts) that writes
    `background-position-x` only ~20×/s, letting the frame pipeline idle between
-   ticks. The `background-position: 0% 0` below is the static fallback before
-   the timer runs. */
+   ticks. `contain: paint` keeps each repaint scoped to the label box; the
+   `background-position: 0% 0` below is the static fallback before the timer
+   runs.
+
+   IMPORTANT: only apply this class to text that is STABLE while shimmering.
+   `background-clip: text` paints the glyphs as a cached text mask, and if the
+   text changes mid-shimmer Chromium can skip invalidating the old mask —
+   leaving the previous string ghosted under the new one (overlapping-text
+   corruption seen in tool-call rows whose file path swapped absolute →
+   project-relative). Tool rows therefore shimmer only their stable prefix
+   ("Edit · "), never the path. `will-change` additionally isolates the label
+   on its own composited layer, fully re-rastered each tick, so a stray text
+   change still cannot strand stale glyphs in the parent layer's tiles. */
 .poracode-thinking-text {
   position: relative;
   display: inline-block;
-  /* No `contain: paint` here, and `will-change` promotes the label to its own
-     composited layer: with `background-clip: text` the glyphs are painted as a
-     cached text mask, and combining that with paint containment + the
-     animator's out-of-band background-position writes let Chromium skip
-     invalidating the old mask when the label's text changed mid-shimmer —
-     leaving the previous title ghosted under the new one (overlapping-text
-     corruption in tool-call rows). An isolated layer is fully re-rastered on
-     each tick, so stale glyphs cannot survive in the parent layer's tiles. */
+  contain: paint;
   will-change: background-position;
   background-image: linear-gradient(
     90deg,

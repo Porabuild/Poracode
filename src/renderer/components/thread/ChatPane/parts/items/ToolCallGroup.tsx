@@ -411,13 +411,19 @@ function InlineRowTitle({
   const displayPrefix = titleParts ? normalizeCallTitleSeparator(titleParts.prefix) : undefined;
   const shimmerData = isRunning ? { "data-poracode-shimmer-text": displayTitle } : {};
   if (titleParts) {
+    // Shimmer only the stable prefix ("Edit · "), never the path: the path can
+    // change while running (absolute → project-relative), and mutating text
+    // under `background-clip: text` leaves ghosted glyphs (see
+    // .poracode-thinking-text in styles.css).
     return (
-      <code
-        ref={shimmerRef}
-        className={`flex min-w-0 items-baseline overflow-hidden font-mono !text-[color:var(--muted)] ${isRunning ? "poracode-thinking-text !flex" : ""}`}
-        {...shimmerData}
-      >
-        <span className="shrink-0 whitespace-pre">{displayPrefix}</span>
+      <code className="flex min-w-0 items-baseline overflow-hidden font-mono !text-[color:var(--muted)]">
+        <span
+          ref={shimmerRef}
+          className={`shrink-0 whitespace-pre ${isRunning ? "poracode-thinking-text" : ""}`}
+          {...(isRunning ? { "data-poracode-shimmer-text": displayPrefix } : {})}
+        >
+          {displayPrefix}
+        </span>
         {titleParts.filePath ? (
           <>
             <span className="sr-only">{titleParts.path}</span>

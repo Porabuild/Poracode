@@ -487,12 +487,13 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    const animatedTitles = Array.from(
-      view.container.querySelectorAll("code.poracode-thinking-text"),
-    );
+    // Rows with structured titles shimmer only the stable prefix (a <span>);
+    // plain titles shimmer the whole <code>. The path segment must never be
+    // part of the shimmer — mutating text under background-clip:text ghosts.
+    const animatedTitles = Array.from(view.container.querySelectorAll(".poracode-thinking-text"));
     expect(animatedTitles).toHaveLength(4);
     expect(animatedTitles.map((title) => title.getAttribute("data-poracode-shimmer-text"))).toEqual(
-      ["Read file", "Check · pnpm run test", "Edit · src/foo.ts", "Poracode"],
+      ["Read file", "Check · pnpm run test", "Edit · ", "Poracode"],
     );
     expect(screen.queryByText("Working")).not.toBeInTheDocument();
     expect(view.container.querySelector(".poracode-pixel-loader")).toBeNull();
