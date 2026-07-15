@@ -27,6 +27,26 @@ function withoutSkillCommands(
   return commands?.filter((command) => !isSkillCommand(command)) ?? EMPTY_SLASH_COMMANDS;
 }
 
+/**
+ * Providers can report the same command name from several scopes (user,
+ * project, plugin), and a name may also resolve to a skill entry. Inserting any
+ * of them types the same `/name`, and a typed name binds to the skill when one
+ * exists, so only the first occurrence per name survives and skill entries win
+ * over plain commands.
+ */
+function dedupeBaseCommands(
+  commands: readonly AgentSlashCommand[] | undefined,
+  skills: readonly AgentSlashCommand[],
+): AgentSlashCommand[] {
+  const seen = new Set(skills.map((skill) => (skill.skillName ?? skill.id).toLowerCase()));
+  return withoutSkillCommands(commands).filter((command) => {
+    const id = command.id.toLowerCase();
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
 function mergeSkillCommands(
   ...sources: (readonly AgentSlashCommand[] | undefined)[]
 ): AgentSlashCommand[] {
@@ -151,7 +171,7 @@ export function resolveAvailableSlashCommands(
   );
   if (context?.presentationMode === "terminal") {
     const base = threadCommands ?? capabilityCommands ?? EMPTY_SLASH_COMMANDS;
-    return [...withoutSkillCommands(base), ...skills];
+    return [...dedupeBaseCommands(base, skills), ...skills];
   }
   if (context?.agentKind) {
     const registration = getGuiSlashCommands(context.agentKind);
@@ -166,7 +186,7 @@ export function resolveAvailableSlashCommands(
     }
   }
   const base = threadCommands ?? capabilityCommands ?? EMPTY_SLASH_COMMANDS;
-  return [...withoutSkillCommands(base), ...skills];
+  return [...dedupeBaseCommands(base, skills), ...skills];
 }
 
 export function resolveLocalSlashCommandAction(
