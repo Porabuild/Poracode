@@ -19,7 +19,11 @@ import {
 } from "streamdown";
 import remarkGfm from "remark-gfm";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
-import { toLocalFileUrl } from "@/shared/promptContent";
+import {
+  resolveMarkdownImageUrl,
+  rewriteMarkdownLocalImageUrls,
+} from "@/shared/markdownLocalImages";
+import { getProjectFsPath } from "@/shared/wsl";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { CodeBlock } from "./CodeBlock";
@@ -91,8 +95,14 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
     ],
     [actions, rootNames],
   );
-  const markdownText = normalizeIncompleteProjectLinkTail(
-    normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(text)),
+  const projectRoot = actions?.projectLocation
+    ? getProjectFsPath(actions.projectLocation)
+    : undefined;
+  const markdownText = rewriteMarkdownLocalImageUrls(
+    normalizeIncompleteProjectLinkTail(
+      normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(text)),
+    ),
+    { ...(projectRoot ? { projectRoot } : {}) },
   );
   return (
     <div className="lc-chat-markdown prose max-w-none text-[length:var(--lc-chat-font-size)] leading-snug text-foreground prose-headings:text-[length:var(--lc-chat-font-size)] prose-p:text-[length:var(--lc-chat-font-size)] prose-p:whitespace-pre-wrap prose-li:text-[length:var(--lc-chat-font-size)] prose-pre:my-2 prose-pre:rounded prose-pre:border-0 prose-pre:bg-foreground/10 prose-pre:px-[0.5em] prose-pre:py-[0.25em] prose-pre:font-mono prose-pre:text-[0.875em] prose-pre:leading-snug prose-pre:whitespace-pre-wrap prose-pre:break-words prose-pre:overflow-x-hidden prose-code:before:content-none prose-code:after:content-none prose-a:text-foreground prose-a:no-underline prose-a:text-[length:inherit] hover:prose-a:underline hover:prose-a:decoration-1 prose-a:underline-offset-2">
@@ -218,8 +228,11 @@ function rehypeLocalImageUrls() {
 
 function rewriteLocalImageUrls(node: MarkdownHastNode): void {
   const src = node.properties?.src;
-  if (node.tagName === "img" && typeof src === "string" && /^[A-Za-z]:[\\/]/.test(src)) {
-    node.properties!.src = toLocalFileUrl(src);
+  // Fallback for absolute paths that skip the pre-parse rewrite (e.g. HTML
+  // <img>). Relative project paths need projectRoot and are handled only there.
+  if (node.tagName === "img" && typeof src === "string") {
+    const rewritten = resolveMarkdownImageUrl(src);
+    if (rewritten) node.properties!.src = rewritten;
   }
   node.children?.forEach(rewriteLocalImageUrls);
 }
