@@ -1831,8 +1831,6 @@ msgstr "복제 중…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/components/pdf/PdfPreview.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -2532,8 +2530,8 @@ msgid "Could not load pull requests for {0}."
 msgstr "{0}의 풀 리퀘스트를 불러올 수 없습니다."
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Could not open this PDF."
-msgstr "이 PDF를 열 수 없습니다."
+#~ msgid "Could not open this PDF."
+#~ msgstr "이 PDF를 열 수 없습니다."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3781,8 +3779,8 @@ msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Poracode의 기본 SDK 런타임을 사용한 최고 수준의 OpenCode 통합."
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Fit width"
-msgstr "너비에 맞추기"
+#~ msgid "Fit width"
+#~ msgstr "너비에 맞추기"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
@@ -4665,8 +4663,8 @@ msgstr "메모 로드 중…"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
-msgid "Loading PDF…"
-msgstr "PDF 불러오는 중…"
+#~ msgid "Loading PDF…"
+#~ msgstr "PDF 불러오는 중…"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
@@ -5486,8 +5484,8 @@ msgid "Next match"
 msgstr "다음 일치 항목"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Next page"
-msgstr "다음 페이지"
+#~ msgid "Next page"
+#~ msgstr "다음 페이지"
 
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
@@ -6111,6 +6109,10 @@ msgstr "Git 검토를 오른쪽 패널이나 전체 페이지로 엽니다."
 msgid "Open image preview"
 msgstr "이미지 미리보기 열기"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "브라우저에서 열기"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -6443,6 +6445,14 @@ msgstr "일시 중지"
 msgid "Paused"
 msgstr "일시중지됨"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "PDF 미리보기는 브라우저 패널에서 열립니다."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "PDF 미리보기는 브라우저에서 열립니다."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "최고 활동일"
@@ -6637,9 +6647,7 @@ msgid "Prevent sleep while working"
 msgstr "작업 중 수면 방지"
 
 #. placeholder {0}: att.name
-#. placeholder {0}: props.state.fileName
 #: src/renderer/components/composer/AttachmentBar.tsx
-#: src/renderer/components/pdf/PdfPreview.tsx
 msgid "Preview {0}"
 msgstr "미리보기 {0}"
 
@@ -6656,8 +6664,8 @@ msgid "Previous match"
 msgstr "이전 일치 항목"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Previous page"
-msgstr "이전 페이지"
+#~ msgid "Previous page"
+#~ msgstr "이전 페이지"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
@@ -10393,11 +10401,9 @@ msgid "Your name"
 msgstr "이름"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom in"
 msgstr "확대"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom out"
 msgstr "축소"

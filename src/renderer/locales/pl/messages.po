@@ -1831,8 +1831,6 @@ msgstr "Klonowanie…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/components/pdf/PdfPreview.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -2532,8 +2530,8 @@ msgid "Could not load pull requests for {0}."
 msgstr "Nie udało się załadować żądań ściągnięcia dla {0}."
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Could not open this PDF."
-msgstr "Nie udało się otworzyć tego pliku PDF."
+#~ msgid "Could not open this PDF."
+#~ msgstr "Nie udało się otworzyć tego pliku PDF."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3781,8 +3779,8 @@ msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Pierwszorzędna integracja OpenCode z wykorzystaniem natywnego środowiska wykonawczego SDK Poracode."
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Fit width"
-msgstr "Dopasuj do szerokości"
+#~ msgid "Fit width"
+#~ msgstr "Dopasuj do szerokości"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
@@ -4665,8 +4663,8 @@ msgstr "Ładowanie notatek…"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
-msgid "Loading PDF…"
-msgstr "Wczytywanie pliku PDF…"
+#~ msgid "Loading PDF…"
+#~ msgstr "Wczytywanie pliku PDF…"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
@@ -5486,8 +5484,8 @@ msgid "Next match"
 msgstr "Następne dopasowanie"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Next page"
-msgstr "Następna strona"
+#~ msgid "Next page"
+#~ msgstr "Następna strona"
 
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
@@ -6111,6 +6109,10 @@ msgstr "Otwórz przegląd git jako panel po prawej stronie lub całą stronę."
 msgid "Open image preview"
 msgstr "Otwórz podgląd obrazu"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "Otwórz w przeglądarce"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -6443,6 +6445,14 @@ msgstr "Wstrzymaj"
 msgid "Paused"
 msgstr "Wstrzymano"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "Podgląd PDF otwiera się w panelu przeglądarki."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "Podgląd PDF otwiera się w przeglądarce."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "szczytowy dzień"
@@ -6637,9 +6647,7 @@ msgid "Prevent sleep while working"
 msgstr "Zapobiegaj zasypianiu podczas pracy"
 
 #. placeholder {0}: att.name
-#. placeholder {0}: props.state.fileName
 #: src/renderer/components/composer/AttachmentBar.tsx
-#: src/renderer/components/pdf/PdfPreview.tsx
 msgid "Preview {0}"
 msgstr "Podgląd {0}"
 
@@ -6656,8 +6664,8 @@ msgid "Previous match"
 msgstr "Poprzednie dopasowanie"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Previous page"
-msgstr "Poprzednia strona"
+#~ msgid "Previous page"
+#~ msgstr "Poprzednia strona"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
@@ -10393,11 +10401,9 @@ msgid "Your name"
 msgstr "Twoje imię"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom in"
 msgstr "Powiększ"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom out"
 msgstr "Pomniejsz"

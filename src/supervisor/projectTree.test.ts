@@ -78,7 +78,7 @@ describe("ProjectTreeService", () => {
     expect(result.status).toBe("binary");
   });
 
-  it("returns PDF bytes for the built-in preview", async () => {
+  it("treats PDFs as binary without loading body bytes", async () => {
     const pdf = Buffer.from("%PDF-1.7\npreview\0bytes");
     writeFileSync(join(tempDir, "document.pdf"), pdf);
 
@@ -90,8 +90,8 @@ describe("ProjectTreeService", () => {
     expect(result).toMatchObject({
       path: "document.pdf",
       status: "binary",
-      contentBase64: pdf.toString("base64"),
     });
+    expect(result).not.toHaveProperty("contentBase64");
   });
 
   it("reads absolute file paths inside and outside the project root", async () => {
@@ -150,23 +150,22 @@ describe("ProjectTreeService", () => {
     }
   });
 
-  it("readExternalFile returns PDF bytes for the built-in preview", async () => {
+  it("readExternalFile treats PDFs as binary without loading body bytes", async () => {
     const externalDir = mkdtempSync(join(tmpdir(), "poracode-external-pdf-"));
     const outsidePath = join(externalDir, "outside.pdf");
     const pdf = Buffer.from("%PDF-1.7\nexternal\0bytes");
     writeFileSync(outsidePath, pdf);
 
     try {
-      await expect(
-        service.readExternalFile({
-          projectLocation: location,
-          absolutePath: outsidePath,
-        }),
-      ).resolves.toMatchObject({
+      const result = await service.readExternalFile({
+        projectLocation: location,
+        absolutePath: outsidePath,
+      });
+      expect(result).toMatchObject({
         path: outsidePath,
         status: "binary",
-        contentBase64: pdf.toString("base64"),
       });
+      expect(result).not.toHaveProperty("contentBase64");
     } finally {
       rmSync(externalDir, { recursive: true, force: true });
     }

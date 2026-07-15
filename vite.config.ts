@@ -359,7 +359,7 @@ export default defineConfig(({ mode }) => ({
     // first git overlay open, first terminal).
     modulePreload: {
       resolveDependencies: (_filename, deps) =>
-        deps.filter((dep) => !/(?:^|\/)(shiki-|git-diff-|pdf-|xterm-|vendor-)/.test(dep)),
+        deps.filter((dep) => !/(?:^|\/)(shiki-|git-diff-|xterm-|vendor-)/.test(dep)),
     },
     rolldownOptions: {
       input: mobileOnly
@@ -386,11 +386,6 @@ export default defineConfig(({ mode }) => ({
               name: "git-diff",
               test: /[\\/]node_modules[\\/]@git-diff-view[\\/]/,
               priority: 45,
-            },
-            {
-              name: "pdf",
-              test: /[\\/]node_modules[\\/]pdfjs-dist[\\/]/,
-              priority: 42,
             },
             {
               name: "monaco",

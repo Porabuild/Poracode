@@ -3,6 +3,7 @@ import {
   buildPromptContentBlocks,
   isPdfPath,
   resolveLocalFileUrlPath,
+  toFileUrl,
   toLocalFileUrl,
 } from "./promptContent";
 
@@ -67,6 +68,26 @@ describe("buildPromptContentBlocks", () => {
         invocation: "Use the review-code skill.",
       },
     ]);
+  });
+});
+
+describe("toFileUrl", () => {
+  it("builds a file URL for a POSIX absolute path", () => {
+    expect(toFileUrl("/Users/me/Biometric Reuse.pdf")).toBe(
+      "file:///Users/me/Biometric%20Reuse.pdf",
+    );
+  });
+
+  it("builds a file URL for a Windows drive path", () => {
+    expect(toFileUrl("C:\\Users\\me\\Biometric Reuse.pdf")).toBe(
+      "file:///C:/Users/me/Biometric%20Reuse.pdf",
+    );
+  });
+
+  it("builds a file URL for a WSL UNC path", () => {
+    expect(toFileUrl("\\\\wsl.localhost\\Ubuntu\\home\\me\\doc.pdf")).toBe(
+      "file://wsl.localhost/Ubuntu/home/me/doc.pdf",
+    );
   });
 });
 

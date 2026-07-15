@@ -35,7 +35,6 @@ import type { WslBridgeClient } from "./wsl/bridge/client";
 const BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 const MAX_HOST_BROWSE_ENTRIES = 4_000;
 const MAX_EDITABLE_FILE_SIZE = 1_000_000;
-const MAX_PDF_PREVIEW_FILE_SIZE = 32 * 1024 * 1024;
 
 type RawFileRead =
   | { kind: "tooLarge"; modifiedAtMs: number }
@@ -288,7 +287,14 @@ export class ProjectTreeService {
 
   async readProjectFile(payload: ReadProjectFilePayload): Promise<ReadProjectFileResult> {
     const path = normalizeRelativePath(payload.path);
-    const maxBytes = isPdfPath(path) ? MAX_PDF_PREVIEW_FILE_SIZE : MAX_EDITABLE_FILE_SIZE;
+    // PDFs open in the in-app browser — only metadata is needed for the editor tab.
+    if (isPdfPath(path)) {
+      return {
+        path,
+        status: "binary",
+        modifiedAtMs: await this.statProjectRelativeMtimeMs(payload.projectLocation, path),
+      };
+    }
 
     const raw =
       payload.projectLocation.kind === "wsl"
@@ -296,21 +302,16 @@ export class ProjectTreeService {
             payload.projectLocation,
             path,
             this.requireWslClient(),
-            maxBytes,
+            MAX_EDITABLE_FILE_SIZE,
           )
-        : await this.readProjectFileBufferNative(payload.projectLocation, path, maxBytes);
+        : await this.readProjectFileBufferNative(
+            payload.projectLocation,
+            path,
+            MAX_EDITABLE_FILE_SIZE,
+          );
 
     if (raw.kind === "tooLarge") {
       return { path, status: "too_large", modifiedAtMs: raw.modifiedAtMs };
-    }
-
-    if (isPdfPath(path)) {
-      return {
-        path,
-        status: "binary",
-        modifiedAtMs: raw.modifiedAtMs,
-        contentBase64: raw.buffer.toString("base64"),
-      };
     }
 
     if (isBinaryBuffer(raw.buffer)) {
@@ -405,10 +406,26 @@ export class ProjectTreeService {
     if (!isAbsolute(payload.absolutePath) && !payload.absolutePath.startsWith("/")) {
       throw new Error("Path must be absolute.");
     }
+
+    if (isPdfPath(payload.absolutePath)) {
+      try {
+        return {
+          path: payload.absolutePath,
+          status: "binary",
+          modifiedAtMs: await this.statAbsoluteMtimeMs(
+            payload.projectLocation,
+            payload.absolutePath,
+          ),
+        };
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+          return { path: payload.absolutePath, status: "missing", modifiedAtMs: 0 };
+        }
+        throw err;
+      }
+    }
+
     let raw: RawFileRead;
-    const maxBytes = isPdfPath(payload.absolutePath)
-      ? MAX_PDF_PREVIEW_FILE_SIZE
-      : MAX_EDITABLE_FILE_SIZE;
     try {
       raw =
         payload.projectLocation.kind === "wsl"
@@ -416,9 +433,9 @@ export class ProjectTreeService {
               this.externalWslLocation(payload.projectLocation, payload.absolutePath),
               payload.absolutePath,
               this.requireWslClient(),
-              maxBytes,
+              MAX_EDITABLE_FILE_SIZE,
             )
-          : await this.readAbsoluteFileBufferNative(payload.absolutePath, maxBytes);
+          : await this.readAbsoluteFileBufferNative(payload.absolutePath, MAX_EDITABLE_FILE_SIZE);
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") {
         return { path: payload.absolutePath, status: "missing", modifiedAtMs: 0 };
@@ -428,15 +445,6 @@ export class ProjectTreeService {
 
     if (raw.kind === "tooLarge") {
       return { path: payload.absolutePath, status: "too_large", modifiedAtMs: raw.modifiedAtMs };
-    }
-
-    if (isPdfPath(payload.absolutePath)) {
-      return {
-        path: payload.absolutePath,
-        status: "binary",
-        modifiedAtMs: raw.modifiedAtMs,
-        contentBase64: raw.buffer.toString("base64"),
-      };
     }
 
     if (isBinaryBuffer(raw.buffer)) {
@@ -565,6 +573,32 @@ export class ProjectTreeService {
   ): string {
     const root = posix.resolve(location.linuxPath);
     return path.startsWith("/") ? posix.resolve(path) : posix.resolve(root, path);
+  }
+
+  /** mtime only — used when PDFs skip body load for browser preview. */
+  private async statProjectRelativeMtimeMs(
+    location: ProjectLocation,
+    relativePath: string,
+  ): Promise<number> {
+    if (location.kind === "wsl") {
+      const { stats } = await this.requireWslClient().stat(location, [
+        joinProjectPosixPath(location, relativePath),
+      ]);
+      return stats[0]?.mtimeMs ?? 0;
+    }
+    return (await this.statFollowingWslSymlinks(location, relativePath)).fileStat.mtimeMs;
+  }
+
+  private async statAbsoluteMtimeMs(
+    location: ProjectLocation,
+    absolutePath: string,
+  ): Promise<number> {
+    if (location.kind === "wsl") {
+      const wslLocation = this.externalWslLocation(location, absolutePath);
+      const { stats } = await this.requireWslClient().stat(wslLocation, [absolutePath]);
+      return stats[0]?.mtimeMs ?? 0;
+    }
+    return (await stat(absolutePath)).mtimeMs;
   }
 
   private async readAbsoluteFileBufferNative(

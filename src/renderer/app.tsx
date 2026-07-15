@@ -43,7 +43,6 @@ import { titlePromptFromSegments } from "@/shared/threadTitle";
 import { i18n } from "@/renderer/i18n/i18n";
 import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer/ImageLightbox";
-import { PdfPreviewHost } from "./components/pdf";
 import { MainView } from "@/renderer/views/MainView/MainView";
 import { QuickComposerOverlay } from "@/renderer/views/QuickComposerOverlay/QuickComposerOverlay";
 import {
@@ -465,7 +464,6 @@ function QuickComposerApp() {
         <QuickComposerOverlay />
       )}
       <ImageLightboxHost />
-      <PdfPreviewHost />
     </AppProvider>
   );
 }
@@ -523,7 +521,6 @@ function MainApp() {
       <MainView storeHydrated={storeHydrated} loadT0={loadT0} />
       <DeferredCommandPalette />
       <ImageLightboxHost />
-      <PdfPreviewHost />
     </AppProvider>
   );
 }

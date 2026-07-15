@@ -1831,8 +1831,6 @@ msgstr "Clonando…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/components/pdf/PdfPreview.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -2532,8 +2530,8 @@ msgid "Could not load pull requests for {0}."
 msgstr "Não foi possível carregar os pull requests de {0}."
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Could not open this PDF."
-msgstr "Não foi possível abrir este PDF."
+#~ msgid "Could not open this PDF."
+#~ msgstr "Não foi possível abrir este PDF."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3781,8 +3779,8 @@ msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Integração OpenCode de primeira classe usando o tempo de execução SDK nativo do Poracode."
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Fit width"
-msgstr "Ajustar à largura"
+#~ msgid "Fit width"
+#~ msgstr "Ajustar à largura"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
@@ -4665,8 +4663,8 @@ msgstr "Carregando notas…"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
-msgid "Loading PDF…"
-msgstr "Carregando PDF…"
+#~ msgid "Loading PDF…"
+#~ msgstr "Carregando PDF…"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
@@ -5486,8 +5484,8 @@ msgid "Next match"
 msgstr "Próxima ocorrência"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Next page"
-msgstr "Próxima página"
+#~ msgid "Next page"
+#~ msgstr "Próxima página"
 
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
@@ -6111,6 +6109,10 @@ msgstr "Abra a revisão do Git como um painel do lado direito ou uma página int
 msgid "Open image preview"
 msgstr "Abrir prévia da imagem"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "Abrir no navegador"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -6443,6 +6445,14 @@ msgstr "Pausar"
 msgid "Paused"
 msgstr "Pausado"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "A pré-visualização do PDF abre no painel do navegador."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "A pré-visualização do PDF abre no navegador."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "dia de pico"
@@ -6637,9 +6647,7 @@ msgid "Prevent sleep while working"
 msgstr "Impedir suspensão durante o trabalho"
 
 #. placeholder {0}: att.name
-#. placeholder {0}: props.state.fileName
 #: src/renderer/components/composer/AttachmentBar.tsx
-#: src/renderer/components/pdf/PdfPreview.tsx
 msgid "Preview {0}"
 msgstr "Visualizar {0}"
 
@@ -6656,8 +6664,8 @@ msgid "Previous match"
 msgstr "Ocorrência anterior"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Previous page"
-msgstr "Página anterior"
+#~ msgid "Previous page"
+#~ msgstr "Página anterior"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
@@ -10393,11 +10401,9 @@ msgid "Your name"
 msgstr "Seu nome"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom in"
 msgstr "Aumentar zoom"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom out"
 msgstr "Diminuir zoom"

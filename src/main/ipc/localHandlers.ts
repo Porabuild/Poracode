@@ -443,6 +443,7 @@ export function createLocalIpcHandlers(
       requireBrowserPanel(options.getBrowserPanelManager).createTab({
         ...(payload.url !== undefined ? { url: payload.url } : {}),
         ...(payload.activate !== undefined ? { activate: payload.activate } : {}),
+        ...(payload.reveal !== undefined ? { reveal: payload.reveal } : {}),
       }),
     browserCloseTab: ({ tabId }) =>
       requireBrowserPanel(options.getBrowserPanelManager).closeTab(tabId),

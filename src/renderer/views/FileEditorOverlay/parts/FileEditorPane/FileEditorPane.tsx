@@ -23,7 +23,7 @@ import { useLspSync } from "./parts/useLspSync";
 import { useMergeConflictContribution } from "./parts/mergeConflict/useMergeConflictContribution";
 import { useGitDiffContribution } from "./parts/gitDiff/useGitDiffContribution";
 import { setActiveFindEditor } from "@/renderer/components/find/editorFindBridge";
-import { PdfViewer } from "@/renderer/components/pdf";
+import { openPdfPreview } from "@/renderer/components/pdf";
 import { isPdfPath } from "@/shared/promptContent";
 
 export { getLanguageFromPath } from "./parts/langMap";
@@ -267,7 +267,6 @@ function EditorBody(props: {
     const buffer = state.buffers[path];
     return buffer?.status === "ready" ? (buffer.gitDiff ?? null) : null;
   });
-  const activeBuffer = useFileEditorStore((state) => state.buffers[activePath]);
   const isPdf = isPdfPath(activePath);
 
   useMergeConflictContribution({ editor: editorInstance, monaco: monacoInstance });
@@ -319,15 +318,8 @@ function EditorBody(props: {
 
   return (
     <div className="min-h-0 flex-1 overflow-hidden">
-      {isPdf && activeBuffer?.isLoading ? (
-        <div className="flex h-full items-center justify-center text-sm text-muted" role="status">
-          <Trans>Loading PDF…</Trans>
-        </div>
-      ) : isPdf && activeBuffer?.binaryContentBase64 ? (
-        <PdfViewer
-          fileName={getBasename(activePath)}
-          dataBase64={activeBuffer.binaryContentBase64}
-        />
+      {isPdf ? (
+        <PdfBrowserPlaceholder path={activePath} projectLocation={projectLocation} />
       ) : bufferStatus === "ready" && showPreview && isMarkdown ? (
         <MarkdownPreview content={content ?? ""} />
       ) : bufferStatus === "ready" ? (
@@ -359,6 +351,30 @@ function EditorBody(props: {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function PdfBrowserPlaceholder(props: { path: string; projectLocation: ProjectLocation | null }) {
+  const { t } = useLingui();
+  const location = props.projectLocation ?? undefined;
+
+  useEffect(() => {
+    openPdfPreview(props.path, location);
+  }, [props.path, location]);
+
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center text-sm text-muted">
+      <p>
+        <Trans>PDF preview opens in the browser.</Trans>
+      </p>
+      <button
+        type="button"
+        className="rounded-md border border-[color:var(--border)] px-3 py-1.5 text-foreground transition-colors hover:bg-[var(--row-hover)]"
+        onClick={() => openPdfPreview(props.path, location)}
+      >
+        {t`Open in browser`}
+      </button>
     </div>
   );
 }

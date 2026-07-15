@@ -20,7 +20,7 @@ import { ComposerAddMenu } from "../composer/ComposerAddMenu";
 import { ComposerVoiceInput } from "../composer/ComposerVoiceInput";
 import { composerMcpServers, COMPUTER_USE_MCP_ID } from "../composer/composerMcpServers";
 import { openAttachmentLightbox } from "../composer/ImageLightbox";
-import { openPdfPreview } from "../pdf/pdfPreviewStore";
+import { openPdfPreview } from "../pdf/openPdfPreview";
 import {
   MentionInput,
   type McpMentionItem,
@@ -46,7 +46,6 @@ import { getApprovalDenyOption } from "./ThreadRuntimeRequestPanel/helpers";
 import { hasReportedContextUsage, resolveThreadContextUsageSummary } from "./threadContextUsage";
 import { buildControls } from "./buildModelPickerControls";
 import { submitComposerPrompt } from "./threadComposerSubmit";
-import { toLocalFileUrl } from "@/shared/promptContent";
 import {
   filterSlashCommands,
   handleSlashCommandPanelKeyDown,
@@ -649,7 +648,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         const idx = imageAttachments.findIndex((a) => a.id === att.id);
                         if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
                       }}
-                      onPreviewPdf={(att) => openPdfPreview(toLocalFileUrl(att.path), att.name)}
+                      onPreviewPdf={(att) => openPdfPreview(att.path)}
                     />
                   }
                   inputContent={

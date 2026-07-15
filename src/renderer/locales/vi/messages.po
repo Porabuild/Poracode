@@ -1831,8 +1831,6 @@ msgstr "Nhân bản…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/components/pdf/PdfPreview.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -2532,8 +2530,8 @@ msgid "Could not load pull requests for {0}."
 msgstr "Không thể tải pull request cho {0}."
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Could not open this PDF."
-msgstr "Không thể mở tệp PDF này."
+#~ msgid "Could not open this PDF."
+#~ msgstr "Không thể mở tệp PDF này."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3781,8 +3779,8 @@ msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Tích hợp OpenCode hạng nhất bằng thời gian chạy SDK gốc của Poracode."
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Fit width"
-msgstr "Vừa chiều rộng"
+#~ msgid "Fit width"
+#~ msgstr "Vừa chiều rộng"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
@@ -4665,8 +4663,8 @@ msgstr "Đang tải ghi chú…"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
-msgid "Loading PDF…"
-msgstr "Đang tải PDF…"
+#~ msgid "Loading PDF…"
+#~ msgstr "Đang tải PDF…"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
@@ -5486,8 +5484,8 @@ msgid "Next match"
 msgstr "Kết quả tiếp theo"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Next page"
-msgstr "Trang tiếp theo"
+#~ msgid "Next page"
+#~ msgstr "Trang tiếp theo"
 
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
@@ -6111,6 +6109,10 @@ msgstr "Mở đánh giá git dưới dạng bảng điều khiển bên phải h
 msgid "Open image preview"
 msgstr "Mở xem trước hình ảnh"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "Mở trong trình duyệt"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -6443,6 +6445,14 @@ msgstr "Tạm dừng"
 msgid "Paused"
 msgstr "Đã tạm dừng"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "Xem trước PDF mở trong bảng trình duyệt."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "Xem trước PDF mở trong trình duyệt."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "ngày cao điểm"
@@ -6637,9 +6647,7 @@ msgid "Prevent sleep while working"
 msgstr "Ngăn chế độ ngủ khi đang làm việc"
 
 #. placeholder {0}: att.name
-#. placeholder {0}: props.state.fileName
 #: src/renderer/components/composer/AttachmentBar.tsx
-#: src/renderer/components/pdf/PdfPreview.tsx
 msgid "Preview {0}"
 msgstr "Xem trước {0}"
 
@@ -6656,8 +6664,8 @@ msgid "Previous match"
 msgstr "Kết quả trước đó"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Previous page"
-msgstr "Trang trước"
+#~ msgid "Previous page"
+#~ msgstr "Trang trước"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
@@ -10393,11 +10401,9 @@ msgid "Your name"
 msgstr "Tên của bạn"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom in"
 msgstr "Phóng to"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom out"
 msgstr "Thu nhỏ"

@@ -339,7 +339,9 @@ export function selectAnyObstructingOverlayOpen(): boolean {
   ) {
     return true;
   }
-  return useFileEditorStore.getState().overlayMode === "fullscreen";
+  // File editor modal and fullscreen both cover the right panel — including
+  // modal (not only fullscreen) so PDF/browser preview isn't hidden behind it.
+  return useFileEditorStore.getState().overlayMode !== null;
 }
 
 // Narrow selectors — primitive returns, stable under Object.is.

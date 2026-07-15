@@ -1831,8 +1831,6 @@ msgstr "克隆…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/components/pdf/PdfPreview.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -2532,8 +2530,8 @@ msgid "Could not load pull requests for {0}."
 msgstr "无法加载 {0} 的拉取请求。"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Could not open this PDF."
-msgstr "无法打开此 PDF。"
+#~ msgid "Could not open this PDF."
+#~ msgstr "无法打开此 PDF。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3781,8 +3779,8 @@ msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "使用 Poracode 的本机 SDK 运行时进行一流的 OpenCode 集成。"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Fit width"
-msgstr "适合宽度"
+#~ msgid "Fit width"
+#~ msgstr "适合宽度"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
@@ -4665,8 +4663,8 @@ msgstr "正在加载笔记..."
 
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
-msgid "Loading PDF…"
-msgstr "正在加载 PDF…"
+#~ msgid "Loading PDF…"
+#~ msgstr "正在加载 PDF…"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
@@ -5485,8 +5483,8 @@ msgid "Next match"
 msgstr "下一个匹配项"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Next page"
-msgstr "下一页"
+#~ msgid "Next page"
+#~ msgstr "下一页"
 
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
@@ -6110,6 +6108,10 @@ msgstr "将 git review 作为右侧面板或整页打开。"
 msgid "Open image preview"
 msgstr "打开图片预览"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "在浏览器中打开"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -6442,6 +6444,14 @@ msgstr "暂停"
 msgid "Paused"
 msgstr "已暂停"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "PDF 预览会在浏览器面板中打开。"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "PDF 预览会在浏览器中打开。"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "最活跃日"
@@ -6636,9 +6646,7 @@ msgid "Prevent sleep while working"
 msgstr "工作时阻止系统休眠"
 
 #. placeholder {0}: att.name
-#. placeholder {0}: props.state.fileName
 #: src/renderer/components/composer/AttachmentBar.tsx
-#: src/renderer/components/pdf/PdfPreview.tsx
 msgid "Preview {0}"
 msgstr "预览{0}"
 
@@ -6655,8 +6663,8 @@ msgid "Previous match"
 msgstr "上一个匹配项"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
-msgid "Previous page"
-msgstr "上一页"
+#~ msgid "Previous page"
+#~ msgstr "上一页"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
@@ -10392,11 +10400,9 @@ msgid "Your name"
 msgstr "你的名字"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom in"
 msgstr "放大"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
-#: src/renderer/components/pdf/PdfViewer.tsx
 msgid "Zoom out"
 msgstr "缩小"
