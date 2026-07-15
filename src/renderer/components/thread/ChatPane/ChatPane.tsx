@@ -33,6 +33,14 @@ import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/Chat
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
 import { selectVisibleThreadTimelineEntries, type ChatTimelineEntry } from "./chatPaneSelectors";
+import {
+  capturePrependAnchors,
+  measurePrependAnchorDelta,
+  PREPEND_ANCHOR_EPSILON_PX,
+  PREPEND_ANCHOR_MAX_FRAMES,
+  PREPEND_ANCHOR_STABLE_FRAMES,
+  type PrependAnchor,
+} from "./chatPrependAnchor";
 import { shouldMarkUserScrollIntentFromPointerTarget } from "./chatScrollGeometry";
 import { normalizeChatProjectPath } from "./chatPathUtils";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
@@ -191,33 +199,95 @@ export function ChatPane(props: ChatPaneProps) {
     return () => releaseThreadRuntimeItems(threadId);
   }, [threadId]);
 
+  // Upward pagination. The virtualizer's `anchorTo: "end"` prepend handling
+  // applies the primary key-anchored scroll correction in the prepend commit;
+  // the anchor settle loop below (see chatPrependAnchor.ts) absorbs the
+  // residual estimate→measure drift of the freshly mounted page with absolute
+  // corrections against a row captured before the fetch.
   useEffect(() => {
     if (!scrollEl || !isInitialScrollSettled) return;
     let loading = false;
     let cancelled = false;
+    let anchors: PrependAnchor[] = [];
+    let settleRafId: number | null = null;
+
+    const stopSettleLoop = () => {
+      if (settleRafId !== null) {
+        cancelAnimationFrame(settleRafId);
+        settleRafId = null;
+      }
+    };
+    const restoreAnchors = () => {
+      stopSettleLoop();
+      let stableFrames = 0;
+      let totalFrames = 0;
+      const step = () => {
+        settleRafId = null;
+        if (cancelled || anchors.length === 0) return;
+        const delta = measurePrependAnchorDelta(scrollEl, anchors);
+        if (delta !== null && Math.abs(delta) > PREPEND_ANCHOR_EPSILON_PX) {
+          scrollControlsRef.current?.noteProgrammaticScroll(scrollEl.scrollTop + delta);
+          scrollEl.scrollTop += delta;
+          stableFrames = 0;
+        } else {
+          stableFrames += 1;
+        }
+        totalFrames += 1;
+        if (
+          stableFrames >= PREPEND_ANCHOR_STABLE_FRAMES ||
+          totalFrames >= PREPEND_ANCHOR_MAX_FRAMES
+        ) {
+          if (!loading) anchors = [];
+          return;
+        }
+        settleRafId = requestAnimationFrame(step);
+      };
+      settleRafId = requestAnimationFrame(step);
+    };
+
     const onScroll = () => {
-      if (loading || scrollEl.scrollTop > 160) return;
+      if (loading) {
+        // Keep the anchor matched to wherever the user actually is when the
+        // page lands — they usually keep scrolling while the fetch is in flight.
+        anchors = capturePrependAnchors(scrollEl);
+        return;
+      }
+      if (scrollEl.scrollTop > 160) return;
       loading = true;
-      const previousHeight = scrollEl.scrollHeight;
+      anchors = capturePrependAnchors(scrollEl);
       void loadOlderThreadRuntimeItems(threadId)
         .then((loaded) => {
-          if (!loaded || cancelled) return;
-          requestAnimationFrame(() => {
-            if (cancelled) return;
-            const delta = scrollEl.scrollHeight - previousHeight;
-            if (delta <= 0) return;
-            scrollControlsRef.current?.noteProgrammaticScroll(scrollEl.scrollTop + delta);
-            scrollEl.scrollTop += delta;
-          });
+          if (cancelled) return;
+          if (loaded) restoreAnchors();
         })
         .finally(() => {
           loading = false;
         });
     };
+    // A real gesture takes ownership of the scroll position — never fight it
+    // with anchor corrections. While a fetch is in flight the scroll handler
+    // above re-captures instead, so the landed page still restores correctly.
+    const onUserGesture = () => {
+      if (loading) return;
+      anchors = [];
+      stopSettleLoop();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isScrollNavigationKey(event.key)) onUserGesture();
+    };
     scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    scrollEl.addEventListener("wheel", onUserGesture, { passive: true });
+    scrollEl.addEventListener("pointerdown", onUserGesture, { passive: true });
+    scrollEl.addEventListener("touchstart", onUserGesture, { passive: true });
+    scrollEl.addEventListener("keydown", onKeyDown);
     return () => {
       cancelled = true;
+      stopSettleLoop();
       scrollEl.removeEventListener("scroll", onScroll);
+      scrollEl.removeEventListener("wheel", onUserGesture);
+      scrollEl.removeEventListener("pointerdown", onUserGesture);
+      scrollEl.removeEventListener("touchstart", onUserGesture);
+      scrollEl.removeEventListener("keydown", onKeyDown);
     };
   }, [isInitialScrollSettled, scrollEl, threadId]);
 
