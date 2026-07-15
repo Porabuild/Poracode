@@ -1313,6 +1313,10 @@ msgstr "Dấu trang"
 msgid "Bottom"
 msgstr "Dưới cùng"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "Nhánh"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "Nhánh '{branch}' có những thay đổi chưa được cam kết trong '{path}' — cam kết hoặc lưu trữ chúng trước khi hợp nhất"
@@ -5833,8 +5837,8 @@ msgid "No windows reported"
 msgstr "Không có cửa sổ nào được báo cáo"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "Không có worktree"
+#~ msgid "No worktree"
+#~ msgstr "Không có worktree"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"

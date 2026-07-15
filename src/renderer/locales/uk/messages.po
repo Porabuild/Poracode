@@ -1313,6 +1313,10 @@ msgstr "Закладки"
 msgid "Bottom"
 msgstr "Знизу"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "Гілка"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "У гілці '{branch}' є незакомічені зміни в '{path}' — закомітьте їх або помістіть у stash перед злиттям"
@@ -5833,8 +5837,8 @@ msgid "No windows reported"
 msgstr "Вікна не повідомлені"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "Немає worktree"
+#~ msgid "No worktree"
+#~ msgstr "Немає worktree"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"

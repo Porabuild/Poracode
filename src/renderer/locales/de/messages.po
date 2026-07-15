@@ -1313,6 +1313,10 @@ msgstr "Lesezeichen"
 msgid "Bottom"
 msgstr "Unten"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "Branch"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "Der Zweig „{branch}“ enthält nicht festgeschriebene Änderungen in „{path}“ – schreiben Sie sie fest oder speichern Sie sie vor dem Zusammenführen"
@@ -5833,8 +5837,8 @@ msgid "No windows reported"
 msgstr "Keine Fenster gemeldet"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "Kein Arbeitsbaum"
+#~ msgid "No worktree"
+#~ msgstr "Kein Arbeitsbaum"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"

@@ -1313,6 +1313,10 @@ msgstr "북마크"
 msgid "Bottom"
 msgstr "아래쪽"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "브랜치"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "'{branch}' 브랜치에는 '{path}'에 커밋되지 않은 변경 사항이 있습니다. 병합하기 전에 커밋하거나 스태시하세요."
@@ -5833,8 +5837,8 @@ msgid "No windows reported"
 msgstr "보고된 창 없음"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "작업 트리 없음"
+#~ msgid "No worktree"
+#~ msgstr "작업 트리 없음"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"

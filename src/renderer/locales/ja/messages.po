@@ -1312,6 +1312,10 @@ msgstr "ブックマーク"
 msgid "Bottom"
 msgstr "下"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "ブランチ"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "ブランチ「{branch}」には「{path}」にコミットされていない変更があります — マージする前にコミットまたはスタッシュしてください"
@@ -5831,8 +5835,8 @@ msgid "No windows reported"
 msgstr "ウィンドウは報告されませんでした"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "ワークツリーなし"
+#~ msgid "No worktree"
+#~ msgstr "ワークツリーなし"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"

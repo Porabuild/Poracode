@@ -1313,6 +1313,10 @@ msgstr "Favoris"
 msgid "Bottom"
 msgstr "En bas"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "Branche"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "La branche '{branch}' a des modifications non validées dans '{path}' - validez-les ou cachez-les avant de les fusionner"
@@ -5832,8 +5836,8 @@ msgid "No windows reported"
 msgstr "Aucune fenêtre signalée"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "Aucun arbre de travail"
+#~ msgid "No worktree"
+#~ msgstr "Aucun arbre de travail"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"

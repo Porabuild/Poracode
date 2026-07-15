@@ -1313,6 +1313,10 @@ msgstr "书签"
 msgid "Bottom"
 msgstr "底部"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "分支"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "分支“{branch}”在“{path}”中有未提交的更改 - 在合并之前提交或隐藏它们"
@@ -5832,8 +5836,8 @@ msgid "No windows reported"
 msgstr "没有报告窗口"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "无工作树"
+#~ msgid "No worktree"
+#~ msgstr "无工作树"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"

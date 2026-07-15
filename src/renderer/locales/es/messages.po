@@ -1313,6 +1313,10 @@ msgstr "Marcadores"
 msgid "Bottom"
 msgstr "Abajo"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "Rama"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "La rama '{branch}' tiene cambios sin confirmar en '{path}' — confírmalos o guárdalos en stash antes de fusionar"
@@ -5833,8 +5837,8 @@ msgid "No windows reported"
 msgstr "No se informaron ventanas"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "Sin worktree"
+#~ msgid "No worktree"
+#~ msgstr "Sin worktree"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"
