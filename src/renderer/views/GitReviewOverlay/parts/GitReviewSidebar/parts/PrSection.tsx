@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
   Eye,
   ExternalLink,
+  GitBranch,
   GitMerge,
   RefreshCw,
   ShieldOff,
@@ -22,20 +23,22 @@ import {
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { PixelLoader } from "@/renderer/components/common";
+import { PixelLoader, PrCheckStatusText } from "@/renderer/components/common";
 import type { PrWriteAction } from "@/renderer/hooks/usePrWriteActions";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import {
   usePrMergeStateStatus,
   usePrMergeable,
+  usePrBaseBranch,
   usePrNumber,
   usePrState,
   usePrTitle,
   usePrUrl,
 } from "@/renderer/state/gitSelectors";
+import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { usePrCombinedChecksStatus } from "@/renderer/hooks/usePrCombinedChecksStatus";
-import { getPrStatusTone, PR_TONE_BG_CLASS } from "@/renderer/utils/prStatus";
+import { countPassedPrChecks, getPrStatusTone, PR_TONE_BG_CLASS } from "@/renderer/utils/prStatus";
 import { GitReviewSection } from "./GitReviewSection";
 
 const BLOCK_REASON: Record<string, MessageDescriptor> = {
@@ -50,6 +53,7 @@ export function PrSection(props: {
   prKey: string;
   projectId: string;
   worktreePath?: string | undefined;
+  skipLocalSync?: boolean;
   prLoading: boolean;
   /** Which write action is in flight, so only its button spins (others stay disabled). */
   pendingAction?: PrWriteAction | null | undefined;
@@ -57,7 +61,7 @@ export function PrSection(props: {
   handleClosePr: () => Promise<void>;
   handleMarkPrReady: () => Promise<void>;
   handleUpdatePrBranch?: ((rebase?: boolean) => Promise<void>) | undefined;
-  /** Refetch this PR's live data on demand. When omitted, no refresh icon shows. */
+  /** Refetch live PR data, hydrate missing details once, and power the refresh icon. */
   onRefreshPr?: (() => void | Promise<void>) | undefined;
   isRefreshingPr?: boolean | undefined;
 }) {
@@ -65,6 +69,7 @@ export function PrSection(props: {
     prKey,
     projectId,
     worktreePath,
+    skipLocalSync,
     prLoading,
     pendingAction,
     handleMergePr,
@@ -79,11 +84,30 @@ export function PrSection(props: {
   const number = usePrNumber(prKey);
   const title = usePrTitle(prKey);
   const url = usePrUrl(prKey);
+  const baseBranch = usePrBaseBranch(prKey);
   const cacheKey = number !== undefined ? `${projectId}#${number}` : undefined;
+  const details = useGitStore((s) => (cacheKey ? s.prDetails[cacheKey] : undefined));
   const combinedChecksStatus = usePrCombinedChecksStatus(prKey, cacheKey);
   const mergeStateStatus = usePrMergeStateStatus(prKey);
   const mergeable = usePrMergeable(prKey);
+  const requestedDetailsKey = useRef<string | undefined>(undefined);
   const [bypass, setBypass] = useState(false);
+
+  useEffect(() => {
+    if (
+      !cacheKey ||
+      details ||
+      !onRefreshPr ||
+      isRefreshingPr ||
+      state === "merged" ||
+      state === "closed" ||
+      requestedDetailsKey.current === cacheKey
+    ) {
+      return;
+    }
+    requestedDetailsKey.current = cacheKey;
+    void onRefreshPr();
+  }, [cacheKey, details, isRefreshingPr, onRefreshPr, state]);
 
   const indicatorColor = PR_TONE_BG_CLASS[getPrStatusTone(state, combinedChecksStatus)];
 
@@ -106,6 +130,7 @@ export function PrSection(props: {
   // Offer refresh for live PRs only — a merged/closed PR's head branch is often
   // gone, so a by-branch refetch is pointless. Mirrors `canReview`'s exclusions.
   const canRefresh = Boolean(onRefreshPr) && state !== "merged" && state !== "closed";
+  const passedChecks = details ? countPassedPrChecks(details.checks) : 0;
 
   return (
     <GitReviewSection>
@@ -153,6 +178,8 @@ export function PrSection(props: {
                     projectId,
                     ...(worktreePath !== undefined ? { worktreePath } : {}),
                     prNumber: number,
+                    prKey,
+                    ...(skipLocalSync ? { skipLocalSync: true } : {}),
                   })
                 }
               >
@@ -165,6 +192,61 @@ export function PrSection(props: {
           </Tooltip>
         )}
       </div>
+      {(baseBranch || details) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] leading-none text-muted tabular-nums">
+          {baseBranch && (
+            <span
+              className="flex min-w-0 items-center gap-1"
+              aria-label={`${t`Target branch`}: ${baseBranch}`}
+              title={`${t`Target branch`}: ${baseBranch}`}
+            >
+              <GitBranch className="size-3 shrink-0" aria-hidden />
+              <span className="truncate font-mono text-foreground">{baseBranch}</span>
+            </span>
+          )}
+          {details && (
+            <>
+              <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap">
+                <span className="text-success">+{details.additions}</span>
+                <span className="text-danger">−{details.deletions}</span>
+              </span>
+              <Tooltip delay={300}>
+                <Tooltip.Trigger
+                  className="shrink-0 cursor-help whitespace-nowrap"
+                  aria-label={t`Checks`}
+                  tabIndex={0}
+                >
+                  <span>
+                    <Trans>Checks</Trans>:{" "}
+                    <span className="text-foreground">
+                      {passedChecks}/{details.checks.length}
+                    </span>
+                  </span>
+                </Tooltip.Trigger>
+                <Tooltip.Content placement="top" className="min-w-48 max-w-80 text-xs">
+                  {details.checks.length === 0 ? (
+                    <Trans>No checks reported for this PR.</Trans>
+                  ) : (
+                    <ul className="space-y-1 py-0.5">
+                      {details.checks.map((check, index) => {
+                        return (
+                          <li
+                            key={`${check.name}-${index}`}
+                            className="flex items-center justify-between gap-4"
+                          >
+                            <span className="min-w-0 truncate text-foreground">{check.name}</span>
+                            <PrCheckStatusText check={check} className="shrink-0" />
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </Tooltip.Content>
+              </Tooltip>
+            </>
+          )}
+        </div>
+      )}
       {state === "draft" && (
         <ButtonGroup className="w-full">
           <Button

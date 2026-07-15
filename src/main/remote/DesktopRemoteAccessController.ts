@@ -22,7 +22,7 @@ import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
-  remoteAccessPort,
+  resolveRemoteAccessPort,
 } from "./config";
 import { readOrCreateRemoteAccessIdentity } from "./identity";
 import { getRemoteAccessPairingInfo } from "./pairingInfo";
@@ -235,8 +235,9 @@ export function createDesktopRemoteAccessController(
       remoteTailscaleServeActiveUrl = null;
       const identity = readOrCreateRemoteAccessIdentity(options.paths.baseDir);
       const remoteHost = remoteAccessHost();
+      const port = await resolveRemoteAccessPort({ host: remoteHost });
       const advertisedHost = remoteAccessAdvertisedHost({ bindHost: remoteHost });
-      const advertisedResolution = await resolveAdvertisedBaseUrl(remoteAccessPort());
+      const advertisedResolution = await resolveAdvertisedBaseUrl(port);
       attempt.tailscaleServeUrl = advertisedResolution.tailscaleServeUrl ?? null;
       if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
       remoteTailscaleServeActiveUrl = attempt.tailscaleServeUrl;
@@ -252,7 +253,7 @@ export function createDesktopRemoteAccessController(
       // It owns live TCP listeners, so rebuild only after a full disable/failure.
       portForwarding ??= createPortForwarding({
         bindHost: remoteHost,
-        remoteAccessPort: remoteAccessPort(),
+        remoteAccessPort: port,
       });
       attempt.forwarding = portForwarding;
       const pushStore = new PushRegistrationStore(options.paths.baseDir);
@@ -278,9 +279,10 @@ export function createDesktopRemoteAccessController(
       const server = new RemoteAccessServer({
         appVersion: options.appVersion,
         identity,
+        ownsSupervisorPersistence: false,
         authStore,
         host: remoteHost,
-        port: remoteAccessPort(),
+        port,
         advertisedHost,
         ...(advertisedResolution.advertisedBaseUrl
           ? { advertisedBaseUrl: advertisedResolution.advertisedBaseUrl }
@@ -556,7 +558,6 @@ export function createDesktopRemoteAccessController(
       if (error instanceof RemoteAccessStartSupersededError) {
         return getRemoteAccessPairingInfo(remoteAccessServer);
       }
-      writeRemoteAccessEnabledSetting(false);
       throw error;
     }
     return getRemoteAccessPairingInfo(remoteAccessServer);
@@ -568,7 +569,6 @@ export function createDesktopRemoteAccessController(
       await startRemoteAccessServer();
     } catch (error) {
       if (error instanceof RemoteAccessStartSupersededError) return;
-      writeRemoteAccessEnabledSetting(false);
     }
   };
 

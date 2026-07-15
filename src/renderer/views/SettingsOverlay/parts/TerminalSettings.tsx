@@ -1,11 +1,10 @@
 import { startTransition } from "react";
-import { Switch } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { TerminalPosition } from "@/shared/contracts";
 import type { CliPickerTarget } from "@/shared/settings";
 import { isRemoteSession } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { Select } from "@/renderer/components/common";
+import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import {
   cliPickerTargetOptions,
@@ -70,18 +69,15 @@ export function TerminalSettings() {
             </Trans>
           }
         >
-          <Switch
+          <ToggleSwitch
+            aria-label={t`Auto-show terminal panel`}
             isSelected={autoShowTerminalPanel}
             onChange={(selected) => {
               startTransition(() => {
                 setAutoShowTerminalPanel(selected);
               });
             }}
-          >
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch>
+          />
         </SettingRow>
       )}
 
@@ -95,18 +91,15 @@ export function TerminalSettings() {
           </Trans>
         }
       >
-        <Switch
+        <ToggleSwitch
+          aria-label={t`Collapse terminal composer`}
           isSelected={collapseTerminalComposer}
           onChange={(selected) => {
             startTransition(() => {
               setCollapseTerminalComposer(selected);
             });
           }}
-        >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
+        />
       </SettingRow>
 
       {!remote && (

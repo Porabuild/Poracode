@@ -10,7 +10,12 @@ import { useShimmerRef } from "@/renderer/thinkingAnimator";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useThreadHasBackgroundActivity } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
-import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
+import {
+  hydrateThreadRuntimeItems,
+  loadOlderThreadRuntimeItems,
+  releaseThreadRuntimeItems,
+  retainThreadRuntimeItems,
+} from "@/renderer/state/chatRuntimePersister";
 import {
   finalizeFileCheckpoint,
   hydrateFileCheckpoints,
@@ -18,6 +23,7 @@ import {
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
+import { formatElapsed } from "@/renderer/utils/formatTime";
 import {
   buildFileEditorContext,
   openFileInEditor,
@@ -29,7 +35,6 @@ import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollC
 import { selectVisibleThreadTimelineEntries, type ChatTimelineEntry } from "./chatPaneSelectors";
 import { shouldMarkUserScrollIntentFromPointerTarget } from "./chatScrollGeometry";
 import { normalizeChatProjectPath } from "./chatPathUtils";
-import { formatElapsed } from "./formatElapsed";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { SubAgentOverlay } from "./parts/items/SubAgentOverlay";
 
@@ -181,8 +186,40 @@ export function ChatPane(props: ChatPaneProps) {
   ]);
 
   useEffect(() => {
+    retainThreadRuntimeItems(threadId);
     void hydrateThreadRuntimeItems(threadId);
+    return () => releaseThreadRuntimeItems(threadId);
   }, [threadId]);
+
+  useEffect(() => {
+    if (!scrollEl || !isInitialScrollSettled) return;
+    let loading = false;
+    let cancelled = false;
+    const onScroll = () => {
+      if (loading || scrollEl.scrollTop > 160) return;
+      loading = true;
+      const previousHeight = scrollEl.scrollHeight;
+      void loadOlderThreadRuntimeItems(threadId)
+        .then((loaded) => {
+          if (!loaded || cancelled) return;
+          requestAnimationFrame(() => {
+            if (cancelled) return;
+            const delta = scrollEl.scrollHeight - previousHeight;
+            if (delta <= 0) return;
+            scrollControlsRef.current?.noteProgrammaticScroll(scrollEl.scrollTop + delta);
+            scrollEl.scrollTop += delta;
+          });
+        })
+        .finally(() => {
+          loading = false;
+        });
+    };
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelled = true;
+      scrollEl.removeEventListener("scroll", onScroll);
+    };
+  }, [isInitialScrollSettled, scrollEl, threadId]);
 
   useEffect(() => {
     if (!targetContext || isHomeScope) return;
@@ -345,6 +382,7 @@ export function ChatPane(props: ChatPaneProps) {
                     key={threadId}
                     threadId={threadId}
                     entries={timelineEntries}
+                    isTurnActive={isLive}
                     scrollElement={scrollEl}
                     registerScrollToIndex={registerScrollToIndex}
                     suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}

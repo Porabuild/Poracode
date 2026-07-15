@@ -6,8 +6,16 @@ import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { ChatPane } from "./ChatPane";
 
-const { hydrateThreadRuntimeItems } = vi.hoisted(() => ({
+const {
+  hydrateThreadRuntimeItems,
+  loadOlderThreadRuntimeItems,
+  releaseThreadRuntimeItems,
+  retainThreadRuntimeItems,
+} = vi.hoisted(() => ({
   hydrateThreadRuntimeItems: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  loadOlderThreadRuntimeItems: vi.fn<() => Promise<boolean>>().mockResolvedValue(false),
+  releaseThreadRuntimeItems: vi.fn<() => void>(),
+  retainThreadRuntimeItems: vi.fn<() => void>(),
 }));
 const { hydrateFileCheckpoints, finalizeFileCheckpoint } = vi.hoisted(() => ({
   hydrateFileCheckpoints: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -20,6 +28,9 @@ const { virtualizerScrollToIndex } = vi.hoisted(() => ({
 
 vi.mock("@/renderer/state/chatRuntimePersister", () => ({
   hydrateThreadRuntimeItems,
+  loadOlderThreadRuntimeItems,
+  releaseThreadRuntimeItems,
+  retainThreadRuntimeItems,
 }));
 
 vi.mock("@/renderer/state/fileCheckpointActions", () => ({
@@ -123,7 +134,15 @@ describe("ChatPane", () => {
     vi.useRealTimers();
     MockResizeObserver.reset();
     localStorage.clear();
-    Reflect.deleteProperty(window, "poracode");
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      writable: true,
+      value: {
+        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
     useAppStore.setState((state) => ({
       ...state,
       projects: [],
@@ -146,7 +165,6 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     const scrollElement = getScrollElement(container);
-    const contentElement = getContentElement(scrollElement);
     const metrics = installScrollMetrics(scrollElement, {
       scrollHeight: 200,
       clientHeight: 100,
@@ -166,7 +184,7 @@ describe("ChatPane", () => {
 
     act(() => {
       metrics.setScrollHeight(300);
-      MockResizeObserver.notify(contentElement);
+      MockResizeObserver.notify(scrollElement);
     });
 
     await waitFor(() => expect(metrics.getScrollTop()).toBe(300));
@@ -1049,6 +1067,30 @@ describe("ChatPane", () => {
     });
   });
 
+  it("hides the assistant copy action until the active turn settles", async () => {
+    const thread = makeThread();
+    seedAssistantMessage(thread.id, "Still working");
+    completeAssistantMessage(thread.id);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(screen.getByText("Still working")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy message" })).not.toBeInTheDocument();
+    expect(container.querySelector(".poracode-message-action-strip")).toBeNull();
+  });
+
+  it("shows the assistant copy action after the turn settles", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(screen.getByRole("button", { name: "Copy message" })).toBeInTheDocument();
+  });
+
   it("renders links in slash command user messages as links", async () => {
     const thread = makeThread();
     const url = "https://tanstack.com/blog/tanstack-virtual-chat";
@@ -1382,6 +1424,8 @@ describe("ChatPane", () => {
     Object.assign(window, {
       poracode: {
         rollbackThreadConversation,
+        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
     });
@@ -1424,6 +1468,8 @@ describe("ChatPane", () => {
     Object.assign(window, {
       poracode: {
         rollbackThreadConversation,
+        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
     });
@@ -1466,6 +1512,8 @@ describe("ChatPane", () => {
         rollbackThreadConversation: vi
           .fn<() => Promise<void>>()
           .mockRejectedValue(new Error("Codex does not support checkpoint rollback.")),
+        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
     });
@@ -1607,6 +1655,14 @@ function seedAssistantMessage(threadId: string, initialText: string, itemId = AS
     itemId,
     stream: "assistant_text",
     delta: initialText,
+  });
+}
+
+function completeAssistantMessage(threadId: string, itemId = ASSISTANT_ITEM_ID) {
+  useAppStore.getState().applyRuntimeEvent(threadId, {
+    type: "item.completed",
+    threadId,
+    itemId,
   });
 }
 

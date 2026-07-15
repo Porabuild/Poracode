@@ -575,6 +575,7 @@ msgstr "Konto"
 msgid "Account options"
 msgstr "Opcje konta"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Accounts"
 msgstr "Konta"
@@ -669,6 +670,10 @@ msgstr "Dodaj projekt przed zainstalowaniem agenta."
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before signing in."
 msgstr "Dodaj projekt przed zalogowaniem."
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Add a project to see pull requests."
+msgstr "Dodaj projekt, aby zobaczyć żądania ściągnięcia."
 
 #: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -894,6 +899,7 @@ msgstr "Alerty, gdy wątki wymagają Twojej uwagi"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
@@ -1177,6 +1183,10 @@ msgstr "Wymagane uwierzytelnienie"
 msgid "Authentication setup cannot be imported"
 msgstr "Nie można zaimportować konfiguracji uwierzytelniania"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Authored"
+msgstr "Utworzone przeze mnie"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
@@ -1185,7 +1195,7 @@ msgstr "Authorization: Bearer token"
 msgid "Auto"
 msgstr "Auto"
 
-#: src/renderer/components/providers/acpGeneric/index.tsx
+#: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Auto Approve"
 msgstr "Automatyczne zatwierdzanie"
 
@@ -1578,6 +1588,10 @@ msgstr "Anuluj usuwanie projektu"
 msgid "cancelled"
 msgstr "anulowane"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Cancelled"
+msgstr "Anulowano"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot create a default worktree path without a branch name"
 msgstr "Nie można utworzyć domyślnej ścieżki drzewa roboczego bez nazwy gałęzi"
@@ -1708,9 +1722,22 @@ msgstr "Sprawdzam…"
 
 #: src/mobile/views/pr/PrChecksPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
 msgstr "Kontrole"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Checks failed"
+msgstr "Kontrole zakończone niepowodzeniem"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Checks passed"
+msgstr "Kontrole zaliczone"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Checks pending"
+msgstr "Kontrole oczekują na realizację"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a folder"
@@ -2055,6 +2082,7 @@ msgid "Close usage details"
 msgstr "Zamknij szczegóły użycia"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Zamknięte"
 
@@ -2241,6 +2269,10 @@ msgstr "Wypełnij monity w tym terminalu. Zamyka się po zakończeniu."
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "completed"
 msgstr "ukończone"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Completed"
+msgstr "Ukończono"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -2579,6 +2611,11 @@ msgstr "Nie udało się wyodrębnić kontekstu."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not generate commit message: {detail}"
 msgstr "Nie można wygenerować komunikatu zatwierdzenia: {detail}"
+
+#. placeholder {0}: failure.project.name
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Could not load pull requests for {0}."
+msgstr "Nie udało się załadować żądań ściągnięcia dla {0}."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3278,6 +3315,7 @@ msgid "Downloading voice model..."
 msgstr "Pobieranie modelu głosu..."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Draft"
 msgstr "Wersja robocza"
 
@@ -3452,8 +3490,12 @@ msgid "Endpoint"
 msgstr "Endpoint"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Endpoint, e.g. http://192.168.1.20:38987/"
-msgstr "Adres, np. http://192.168.1.20:38987/"
+#~ msgid "Endpoint, e.g. http://192.168.1.20:38987/"
+#~ msgstr "Adres, np. http://192.168.1.20:38987/"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Endpoint, e.g. http://192.168.1.20:49152/"
+msgstr "Adres, np. http://192.168.1.20:49152/"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -3723,11 +3765,16 @@ msgstr "Bardzo wysoka"
 msgid "Extracting context from {0}..."
 msgstr "Wyodrębnianie kontekstu z {0}..."
 
+#: src/renderer/components/providers/factory/manifest.ts
+msgid "Factory Droid"
+msgstr "Factory Droid"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "failed"
 msgstr "nie powiodło się"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "Niepowodzenie"
@@ -3859,9 +3906,17 @@ msgstr "Filtruj według projektu"
 msgid "Filter marketplace by source"
 msgstr "Filtruj marketplace według źródła"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Filter pull requests"
+msgstr "Filtruj żądania ściągnięcia"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Filter skills by status"
 msgstr "Filtruj umiejętności według stanu"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Filters"
+msgstr "Filtry"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -3912,6 +3967,10 @@ msgstr "Pierwszorzędna integracja Command Code CLI przy użyciu natywnego środ
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Cursor Agent integration using Poracode's native runtime."
 msgstr "Pierwszorzędna integracja Cursor Agent z wykorzystaniem natywnego środowiska uruchomieniowego Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Factory Droid integration using Poracode's ACP runtime."
+msgstr "Pierwszorzędna integracja Factory Droid korzystająca ze środowiska uruchomieniowego ACP Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Gemini CLI integration using Poracode's native runtime."
@@ -4843,6 +4902,10 @@ msgstr "Ładowanie PR…"
 msgid "Loading previous runs"
 msgstr "Ładowanie poprzednich uruchomień"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Loading pull requests"
+msgstr "Ładowanie żądań ściągnięcia"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Loading registry..."
 msgstr "Ładowanie rejestru..."
@@ -5253,6 +5316,7 @@ msgstr "Scal drzewo robocze"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merged"
 msgstr "Scalono"
 
@@ -5525,6 +5589,10 @@ msgstr "Wymaga uwagi · Wymagana odpowiedź"
 msgid "Needs reply"
 msgstr "Potrzebuje odpowiedzi"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Neutral"
+msgstr "Neutralny"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Nowość"
@@ -5764,6 +5832,7 @@ msgstr "Brak zmian do wyświetlenia"
 msgid "No changes yet"
 msgstr "Nie ma jeszcze zmian"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
 msgstr "Dla tego PR nie zgłoszono żadnych kontroli."
@@ -5878,6 +5947,10 @@ msgstr "Brak dopasowań."
 msgid "No matching agents."
 msgstr "Brak pasujących agentów."
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "No matching pull requests."
+msgstr "Brak pasujących żądań ściągnięcia."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "No matching schedules."
 msgstr "Brak pasujących harmonogramów."
@@ -5961,6 +6034,10 @@ msgstr "Nie połączono jeszcze żadnych dostawców."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "No providers ready yet"
 msgstr "Nie ma jeszcze gotowych dostawców"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "No pull requests found."
+msgstr "Nie znaleziono żądań ściągnięcia."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "No remote configured. Add a remote to enable push and pull."
@@ -6202,6 +6279,7 @@ msgstr "Tylko gdy nieaktywne"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "Otwórz"
@@ -6477,6 +6555,10 @@ msgstr "Opcje"
 msgid "Or write a custom answer"
 msgstr "Lub napisz niestandardową odpowiedź"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Other"
+msgstr "Inne"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
 msgstr "Wynik"
@@ -6599,6 +6681,10 @@ msgstr "Folder nadrzędny na serwerze"
 msgid "Parent folder, e.g. /home/me/projects"
 msgstr "Folder nadrzędny, np. /home/me/projects"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Passed"
+msgstr "Zaliczone"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Passphrase (optional)"
 msgstr "Fraza hasła (opcjonalnie)"
@@ -6656,6 +6742,10 @@ msgstr "Szczytowy dzień"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "pending"
 msgstr "w toku"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Pending"
+msgstr "Oczekuje"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "pending review"
@@ -6930,6 +7020,7 @@ msgstr "Zastąpienia specyficzne dla projektu ponad globalnymi ustawieniami wysz
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Projects"
 msgstr "Projekty"
 
@@ -7048,6 +7139,10 @@ msgstr "Pull request {0}"
 msgid "Pull request #{0}"
 msgstr "Pull request #{0}"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Pull request category"
+msgstr "Kategoria żądania ściągnięcia"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request merged"
 msgstr "Żądanie ściągnięcia scalone"
@@ -7055,6 +7150,11 @@ msgstr "Żądanie ściągnięcia scalone"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Pull request options"
 msgstr "Opcje żądania ściągnięcia"
+
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Pull requests"
+msgstr "Żądania ściągnięcia"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
@@ -7189,6 +7289,7 @@ msgstr "Ukryj treść powiadomień"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -7254,6 +7355,10 @@ msgstr "Dostęp zdalny"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Remote access pairing QR code"
 msgstr "Kod QR parowania dostępu zdalnego"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote access port {occupiedPort} is already in use. Stop the other server, then retry."
+msgstr "Port dostępu zdalnego {occupiedPort} jest już używany. Zatrzymaj drugi serwer i spróbuj ponownie."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Remote environment unavailable."
@@ -7588,6 +7693,7 @@ msgstr "Wznów"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Retry"
 msgstr "Spróbuj ponownie"
 
@@ -7656,6 +7762,10 @@ msgstr "Powrócić do punktu kontrolnego?"
 msgid "Revert to this checkpoint"
 msgstr "Wróć do tego punktu kontrolnego"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Review and track work across your GitHub accounts."
+msgstr "Przeglądaj i śledź pracę na swoich kontach GitHub."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Review Changes"
@@ -7689,6 +7799,10 @@ msgstr "Przejrzyj PR #{prNumber} dla {0}"
 #: src/mobile/settingsSections.ts
 msgid "Review presentation"
 msgstr "Prezentacja recenzji"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Reviewing"
+msgstr "Do sprawdzenia"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
@@ -7796,6 +7910,7 @@ msgstr "Automatycznie uruchamiaj ten harmonogram według poniższego harmonogram
 msgid "running"
 msgstr "uruchomiony"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Running"
 msgstr "W trakcie"
@@ -7999,6 +8114,10 @@ msgstr "Wyszukaj modele..."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "Wyszukaj lub wpisz adres"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Search pull requests"
+msgstr "Szukaj żądań ściągnięcia"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Search repositories"
@@ -8249,6 +8368,7 @@ msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "Wyświetl bezprojektowy zakres główny dla sesji agenta na poziomie systemu operacyjnego."
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"
@@ -8519,6 +8639,10 @@ msgstr "Marketplace umiejętności"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skills.sh"
 msgstr "Skills.sh"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Skipped"
+msgstr "Pominięto"
 
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
@@ -8908,7 +9032,6 @@ msgstr "Sugestie"
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "Podsumuj postępy w tym tygodniu, niedokończoną pracę i najważniejsze ryzyka na przyszły tydzień."
 
-#: src/renderer/components/providers/acpGeneric/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "Nadzorowany"
@@ -9061,6 +9184,7 @@ msgstr "Naciśnij +, aby sparować bezpośrednio lub połączyć się ze zdalnym
 #~ msgstr "Dotknij +, aby sparować się z Poracode na komputerze."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Target branch"
 msgstr "Gałąź docelowa"
 
@@ -9925,7 +10049,7 @@ msgid "Uninstall"
 msgstr "Odinstaluj"
 
 #: src/renderer/components/thread/threadContextUsage.ts
-#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Nieznany"
@@ -10473,6 +10597,7 @@ msgstr "Będzie działać w {0}:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Windows"

@@ -13,6 +13,7 @@ import {
   remoteSettingsPatchSchema,
   remoteScheduleCommandSchema,
   remoteTokenExchangePayloadSchema,
+  REMOTE_COMMAND_ID_HEADER,
   type RemoteAccessScope,
 } from "@/shared/remote";
 import {
@@ -31,7 +32,12 @@ import {
   startThreadPayloadSchema,
   writeTerminalPayloadSchema,
 } from "@/shared/contracts";
-import { dbGetThread } from "../../db";
+import {
+  dbClaimRemoteCommand,
+  dbCompleteRemoteCommand,
+  dbFailRemoteCommand,
+  dbGetThread,
+} from "../../db";
 import {
   getProfileCoreStats,
   getProfileDevicesResponse,
@@ -91,6 +97,7 @@ export function threadIdFromPath(pathname: string, suffix: string): string | nul
 const THREAD_POST_ROUTES: ReadonlyArray<{
   readonly suffix: string;
   readonly scope: RemoteAccessScope;
+  readonly idempotent?: boolean;
   dispatch(
     call: RemoteAccessServerOptions["callSupervisor"],
     body: Record<string, unknown>,
@@ -99,6 +106,7 @@ const THREAD_POST_ROUTES: ReadonlyArray<{
   {
     suffix: "/send",
     scope: "session:operate",
+    idempotent: true,
     dispatch: (call, body) => call("sendThreadInput", sendThreadInputPayloadSchema.parse(body)),
   },
   {
@@ -145,6 +153,54 @@ const THREAD_POST_ROUTES: ReadonlyArray<{
       call("resolveThreadServerRequest", resolveThreadServerRequestPayloadSchema.parse(body)),
   },
 ];
+
+function remoteCommandId(req: IncomingMessage): string | null {
+  const raw = req.headers[REMOTE_COMMAND_ID_HEADER];
+  const commandId = (Array.isArray(raw) ? raw[0] : raw)?.trim();
+  if (!commandId) return null;
+  if (!/^[A-Za-z0-9._:-]{1,128}$/.test(commandId)) {
+    throw new RemoteHttpError("invalid_command_id", "Remote command id is invalid.", 400);
+  }
+  return commandId;
+}
+
+async function runIdempotentRemoteMutation<T>(
+  req: IncomingMessage,
+  route: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const commandId = remoteCommandId(req);
+  if (!commandId) return operation();
+
+  const claim = dbClaimRemoteCommand(commandId, route);
+  if (claim.state === "completed") return claim.response as T;
+  if (claim.state === "conflict") {
+    throw new RemoteHttpError(
+      "command_id_conflict",
+      "Remote command id was already used for another operation.",
+      409,
+    );
+  }
+  if (claim.state === "in_progress") {
+    throw new RemoteHttpError("command_in_progress", "Remote command is already in progress.", 409);
+  }
+  if (claim.state === "failed") {
+    throw new RemoteHttpError(
+      "command_failed",
+      "Remote command already failed and was not repeated.",
+      409,
+    );
+  }
+
+  try {
+    const response = await operation();
+    dbCompleteRemoteCommand(commandId, response);
+    return response;
+  } catch (error) {
+    dbFailRemoteCommand(commandId);
+    throw error;
+  }
+}
 
 export async function handleHttp(
   ctx: RemoteServerContext,
@@ -474,11 +530,10 @@ export async function handleHttp(
       assertRemoteThreadStartExperimentSafe(payload.threadId);
       const mcpSnapshot =
         ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
-      writeJson(
-        res,
-        200,
-        await ctx.options.callSupervisor("startThread", { ...payload, ...mcpSnapshot }),
+      const result = await runIdempotentRemoteMutation(req, url.pathname, () =>
+        ctx.options.callSupervisor("startThread", { ...payload, ...mcpSnapshot }),
       );
+      writeJson(res, 200, result);
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/terminal/start") {
@@ -499,21 +554,28 @@ export async function handleHttp(
         threadId: commandThreadId,
       });
       assertRemoteThreadCommandExperimentSafe(command);
-      const requiresRenderer = await applyRemoteThreadCommand(ctx, command);
-      if (requiresRenderer && ctx.options.dispatchThreadCommand?.(command) !== true) {
-        throw new RemoteHttpError(
-          "desktop_unavailable",
-          "The desktop app is not available to apply this change.",
-          503,
-        );
-      }
-      if (!requiresRenderer) {
-        const rendererCommand =
-          command.kind === "start" ? { ...command, launchRuntime: false } : command;
-        ctx.options.dispatchThreadCommand?.(rendererCommand);
-        ctx.publishThreadsChanged([command.threadId]);
-      }
-      writeJson(res, 200, { ok: true });
+      const dispatch = async () => {
+        const requiresRenderer = await applyRemoteThreadCommand(ctx, command);
+        if (requiresRenderer && ctx.options.dispatchThreadCommand?.(command) !== true) {
+          throw new RemoteHttpError(
+            "desktop_unavailable",
+            "The desktop app is not available to apply this change.",
+            503,
+          );
+        }
+        if (!requiresRenderer) {
+          const rendererCommand =
+            command.kind === "start" ? { ...command, launchRuntime: false } : command;
+          ctx.options.dispatchThreadCommand?.(rendererCommand);
+          ctx.publishThreadsChanged([command.threadId]);
+        }
+        return { ok: true };
+      };
+      const result =
+        command.kind === "start"
+          ? await runIdempotentRemoteMutation(req, url.pathname, dispatch)
+          : await dispatch();
+      writeJson(res, 200, result);
       return;
     }
     if (req.method === "POST") {
@@ -522,11 +584,17 @@ export async function handleHttp(
         if (!threadId) continue;
         ctx.security.requireBearer(req, [route.scope]);
         const body = await readJsonBody(req);
-        await route.dispatch(ctx.options.callSupervisor, {
-          ...(typeof body === "object" && body !== null ? body : {}),
-          threadId,
-        });
-        writeJson(res, 200, { ok: true });
+        const dispatch = async () => {
+          await route.dispatch(ctx.options.callSupervisor, {
+            ...(typeof body === "object" && body !== null ? body : {}),
+            threadId,
+          });
+          return { ok: true };
+        };
+        const result = route.idempotent
+          ? await runIdempotentRemoteMutation(req, url.pathname, dispatch)
+          : await dispatch();
+        writeJson(res, 200, result);
         return;
       }
     }

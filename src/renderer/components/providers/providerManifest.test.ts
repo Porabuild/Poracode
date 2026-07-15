@@ -26,6 +26,7 @@ const EXPECTED_PROVIDER_ORDER = [
   "opencode",
   "cursor",
   "copilot",
+  "factory",
 ] as const;
 
 describe("renderer provider manifests", () => {
@@ -41,9 +42,9 @@ describe("renderer provider manifests", () => {
   });
 
   it("keeps usage-only providers out of chat discovery and uses canonical labels", () => {
-    expect(getProviderManifest("factory")).toBeUndefined();
     expect(getProviderManifest("zai")).toBeUndefined();
     expect(i18n._(getProviderManifest("copilot")!.label)).toBe("GitHub Copilot");
+    expect(i18n._(getProviderManifest("factory")!.label)).toBe("Factory Droid");
   });
 
   it("inherits base-provider ranks for scoped kinds and leaves unknown providers at the tail", () => {

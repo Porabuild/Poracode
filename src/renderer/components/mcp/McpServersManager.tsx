@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Input, Modal, Switch, Tooltip } from "@heroui/react";
+import { Input, Modal, Tooltip } from "@heroui/react";
 import {
   AppWindow,
   Download,
@@ -25,7 +25,7 @@ import {
   type McpServer,
   type ProjectLocation,
 } from "@/shared/contracts";
-import { Button } from "@/renderer/components/common";
+import { Button, ToggleSwitch } from "@/renderer/components/common";
 import { McpExternalImportModal, type McpImportDestination } from "./McpExternalImportModal";
 import {
   GLOBAL_MCP_DESTINATION_ID,
@@ -353,18 +353,12 @@ export function McpServersManager(props: {
                         <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">
                           {tool}
                         </span>
-                        <Switch
+                        <ToggleSwitch
                           size="sm"
                           aria-label={enabled ? t`Disable ${tool}` : t`Enable ${tool}`}
                           isSelected={enabled}
                           onChange={(selected) => toolList.onToolEnabledChange(tool, selected)}
-                        >
-                          <Switch.Content>
-                            <Switch.Control>
-                              <Switch.Thumb />
-                            </Switch.Control>
-                          </Switch.Content>
-                        </Switch>
+                        />
                       </li>
                     );
                   })}
@@ -713,17 +707,11 @@ function ConfiguredServerRow(props: {
           )}
         </Tooltip.Content>
       </Tooltip>
-      <Switch
+      <ToggleSwitch
         aria-label={server.enabled ? t`Disable ${serverName}` : t`Enable ${serverName}`}
         isSelected={server.enabled}
         onChange={props.onToggle}
-      >
-        <Switch.Content>
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch.Content>
-      </Switch>
+      />
       <Button
         isIconOnly
         size="sm"
@@ -892,17 +880,11 @@ function BuiltInServerRow(props: {
             <Tooltip.Content>{props.server.settingsLabel}</Tooltip.Content>
           </Tooltip>
         ) : null}
-        <Switch
+        <ToggleSwitch
           aria-label={enabled ? t`Disable ${serverLabel}` : t`Enable ${serverLabel}`}
           isSelected={enabled}
           onChange={props.onToggle}
-        >
-          <Switch.Content>
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch.Content>
-        </Switch>
+        />
       </div>
     </div>
   );

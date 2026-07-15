@@ -68,26 +68,32 @@ export async function commitCreateProject(params: CommitCreateProjectParams): Pr
 }
 
 /**
- * "Use an existing folder": open the native folder picker directly (no modal)
- * and add the chosen directory as a project, just like the original flow. The
- * picked path is authoritative for the runtime — a `\\wsl...` path becomes a
- * WSL project, anything else a native one. The dialog opens at the last-used
- * native directory, falling back to home.
+ * "Use an existing folder": open the system folder picker directly (no modal).
+ * Native opens at the last-used native directory or home; WSL opens inside the
+ * selected distro. The picked path remains authoritative for the runtime.
  */
-export async function addExistingProject(): Promise<void> {
-  let defaultDir = useSharedSettings.getState().lastUsedProjectDirs.native;
+export async function addExistingProject(
+  choice: RuntimeChoice = { kind: "native" },
+): Promise<void> {
+  const bridge = readBridge();
+  const lastUsedProjectDirs = useSharedSettings.getState().lastUsedProjectDirs;
+  let defaultDir =
+    choice.kind === "wsl"
+      ? (lastUsedProjectDirs[choice.distro] ?? wslHomeDir(choice.distro))
+      : lastUsedProjectDirs.native;
+
   if (!defaultDir) {
     defaultDir = await loadHomeScopeLocation()
       .then(getProjectFsPath)
       .catch(() => undefined);
   }
 
-  const picked = await readBridge().pickFolder(defaultDir);
+  const picked = await bridge.pickFolder(defaultDir);
   if (!picked) return;
 
   await commitCreateProject({
     mode: "existing",
-    choice: { kind: "native" },
+    choice,
     dir: picked,
     name: "",
   });

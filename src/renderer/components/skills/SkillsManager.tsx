@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
-import { Input, Switch, Tooltip, toast } from "@heroui/react";
+import { Input, Tooltip, toast } from "@heroui/react";
 import { Box, ChevronDown, Download, Plus, RefreshCw, Search, Store, Trash2 } from "lucide-react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { SkillEntry } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
-import { Button, ConfirmDialog, PixelLoader, Select } from "@/renderer/components/common";
+import {
+  Button,
+  ConfirmDialog,
+  PixelLoader,
+  Select,
+  ToggleSwitch,
+} from "@/renderer/components/common";
 import {
   GLOBAL_MCP_DESTINATION_ID,
   McpProjectDestinationDropdown,
@@ -555,18 +561,12 @@ function SkillRow(props: {
       </div>
       {skill.mutable ? (
         <>
-          <Switch
+          <ToggleSwitch
             aria-label={skill.enabled ? t`Disable ${skill.name}` : t`Enable ${skill.name}`}
             isSelected={skill.enabled}
             isDisabled={props.pending || (!skill.valid && !skill.enabled)}
             onChange={(enabled) => void props.onEnabledChange(skill, enabled)}
-          >
-            <Switch.Content>
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-            </Switch.Content>
-          </Switch>
+          />
           <Tooltip>
             <Tooltip.Trigger>
               <Button

@@ -12,6 +12,8 @@ export interface PrReviewContext {
   projectId: string;
   worktreePath?: string;
   prNumber: number;
+  /** Skip pulling locally for PR contexts that are not tied to a verified local checkout. */
+  skipLocalSync?: boolean;
   /**
    * Explicit prData key override for selectors (title/url/checks). Set when
    * opening a PR for a branch that has no worktree, so the overlay reads the
@@ -178,7 +180,8 @@ export const usePanelStore = create<PanelState>()((set) => ({
           prev.projectId === ctx.projectId &&
           prev.worktreePath === ctx.worktreePath &&
           prev.prNumber === ctx.prNumber &&
-          prev.prKey === ctx.prKey)
+          prev.prKey === ctx.prKey &&
+          prev.skipLocalSync === ctx.skipLocalSync)
       ) {
         return {};
       }

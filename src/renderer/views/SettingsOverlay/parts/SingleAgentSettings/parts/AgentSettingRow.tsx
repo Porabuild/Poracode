@@ -1,8 +1,7 @@
 import { startTransition } from "react";
-import { Switch } from "@heroui/react";
 import type { AgentSettingDef } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { Select } from "@/renderer/components/common";
+import { Select, ToggleSwitch } from "@/renderer/components/common";
 
 export function AgentSettingRow(props: { agentKind: string; def: AgentSettingDef }) {
   const { agentKind, def } = props;
@@ -20,7 +19,8 @@ export function AgentSettingRow(props: { agentKind: string; def: AgentSettingDef
         </p>
       </div>
       {def.type === "toggle" ? (
-        <Switch
+        <ToggleSwitch
+          aria-label={def.label}
           isSelected={value as boolean}
           size="sm"
           onChange={(selected) => {
@@ -28,11 +28,7 @@ export function AgentSettingRow(props: { agentKind: string; def: AgentSettingDef
               setAgentSetting(agentKind, def.key, selected);
             });
           }}
-        >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
+        />
       ) : (
         <Select
           aria-label={def.label}

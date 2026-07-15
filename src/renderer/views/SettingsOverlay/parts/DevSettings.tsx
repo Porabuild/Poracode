@@ -1,6 +1,6 @@
 import { startTransition } from "react";
-import { Switch } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
+import { ToggleSwitch } from "@/renderer/components/common";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 
@@ -19,18 +19,15 @@ export function DevSettings() {
         title={t`Disable CLI hook plugin (L1)`}
         description={t`Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed.`}
       >
-        <Switch
+        <ToggleSwitch
+          aria-label={t`Disable CLI hook plugin (L1)`}
           isSelected={disableCliHookPlugin}
           onChange={(selected) => {
             startTransition(() => {
               setDisableCliHookPlugin(selected);
             });
           }}
-        >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
+        />
       </SettingRow>
     </SettingsPage>
   );

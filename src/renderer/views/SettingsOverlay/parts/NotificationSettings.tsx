@@ -1,11 +1,11 @@
 import { startTransition, useEffect, useState } from "react";
-import { Button, Switch } from "@heroui/react";
+import { Button } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { NotificationFilter } from "@/shared/contracts";
 import { isRemoteSession } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { Select } from "@/renderer/components/common";
+import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { useLocalizedOptions } from "./settingsOptions";
 
@@ -85,6 +85,14 @@ function BrowserPermissionRow() {
 
 export function NotificationSettings() {
   const { t } = useLingui();
+  const doneLabel = t({
+    message: "Done",
+    comment: "Notification status: thread is done",
+  });
+  const errorLabel = t({
+    message: "Error",
+    comment: "Notification status: agent error",
+  });
   const notificationsEnabled = useSharedSettings((s) => s.notificationsEnabled);
   const setNotificationsEnabled = useSharedSettings((s) => s.setNotificationsEnabled);
   const notificationSound = useSharedSettings((s) => s.notificationSound);
@@ -109,7 +117,8 @@ export function NotificationSettings() {
         title={t`Enable notifications`}
         description={<Trans>Show notifications when thread status changes.</Trans>}
       >
-        <Switch
+        <ToggleSwitch
+          aria-label={t`Enable notifications`}
           isSelected={notificationsEnabled}
           onChange={(selected) => {
             // Browsers only grant the Notification permission from a user
@@ -129,11 +138,7 @@ export function NotificationSettings() {
               setNotificationsEnabled(selected);
             });
           }}
-        >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
+        />
       </SettingRow>
 
       <div
@@ -144,18 +149,15 @@ export function NotificationSettings() {
           title={t`Play notification sound`}
           description={<Trans>Play a sound when a notification is shown.</Trans>}
         >
-          <Switch
+          <ToggleSwitch
+            aria-label={t`Play notification sound`}
             isSelected={notificationSound}
             onChange={(selected) => {
               startTransition(() => {
                 setNotificationSound(selected);
               });
             }}
-          >
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch>
+          />
         </SettingRow>
 
         <SettingRow
@@ -187,25 +189,20 @@ export function NotificationSettings() {
               className="flex scroll-mt-4 items-center justify-between gap-4"
             >
               <div className="min-w-0">
-                <p className="text-sm text-foreground">
-                  <Trans comment="Notification status: thread is done">Done</Trans>
-                </p>
+                <p className="text-sm text-foreground">{doneLabel}</p>
                 <p className="text-xs text-muted">
                   <Trans>Thread finished or waiting for your input.</Trans>
                 </p>
               </div>
-              <Switch
+              <ToggleSwitch
+                aria-label={doneLabel}
                 isSelected={notificationStatuses.done}
                 onChange={(selected) => {
                   startTransition(() => {
                     setNotificationStatuses({ done: selected });
                   });
                 }}
-              >
-                <Switch.Control>
-                  <Switch.Thumb />
-                </Switch.Control>
-              </Switch>
+              />
             </div>
 
             <div
@@ -221,18 +218,15 @@ export function NotificationSettings() {
                   <Trans>Approval or reply required from you.</Trans>
                 </p>
               </div>
-              <Switch
+              <ToggleSwitch
+                aria-label={t`Needs Attention`}
                 isSelected={notificationStatuses.needsAttention}
                 onChange={(selected) => {
                   startTransition(() => {
                     setNotificationStatuses({ needsAttention: selected });
                   });
                 }}
-              >
-                <Switch.Control>
-                  <Switch.Thumb />
-                </Switch.Control>
-              </Switch>
+              />
             </div>
 
             <div
@@ -241,25 +235,20 @@ export function NotificationSettings() {
               className="flex scroll-mt-4 items-center justify-between gap-4"
             >
               <div className="min-w-0">
-                <p className="text-sm text-foreground">
-                  <Trans comment="Notification status: agent error">Error</Trans>
-                </p>
+                <p className="text-sm text-foreground">{errorLabel}</p>
                 <p className="text-xs text-muted">
                   <Trans>Agent encountered an error.</Trans>
                 </p>
               </div>
-              <Switch
+              <ToggleSwitch
+                aria-label={errorLabel}
                 isSelected={notificationStatuses.error}
                 onChange={(selected) => {
                   startTransition(() => {
                     setNotificationStatuses({ error: selected });
                   });
                 }}
-              >
-                <Switch.Control>
-                  <Switch.Thumb />
-                </Switch.Control>
-              </Switch>
+              />
             </div>
           </div>
         </div>
@@ -276,18 +265,15 @@ export function NotificationSettings() {
               </Trans>
             }
           >
-            <Switch
+            <ToggleSwitch
+              aria-label={t`Notify for L2 CLI threads`}
               isSelected={notifyL2Cli}
               onChange={(selected) => {
                 startTransition(() => {
                   setNotifyL2Cli(selected);
                 });
               }}
-            >
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-            </Switch>
+            />
           </SettingRow>
         )}
       </div>

@@ -46,6 +46,7 @@ try {
       PORACODE_CDP_PORT: String(port),
       PORACODE_BASE_DIR: dataDir,
       PORACODE_SMOKE_OUT_DIR: outDir,
+      ...(process.platform === "darwin" ? { PORACODE_USE_MOCK_KEYCHAIN: "1" } : {}),
       HOME: homeDir,
       USERPROFILE: homeDir,
       LOCALAPPDATA: localAppDataDir,

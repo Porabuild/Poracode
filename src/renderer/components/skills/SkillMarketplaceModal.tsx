@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from "react";
-import { Input, Modal, Switch, toast } from "@heroui/react";
+import { Input, Modal, toast } from "@heroui/react";
 import { Download, Search, Star, TrendingUp } from "lucide-react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -11,7 +11,7 @@ import {
   type SkillScanResult,
 } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
-import { Button, PixelLoader, Select } from "@/renderer/components/common";
+import { Button, PixelLoader, Select, ToggleSwitch } from "@/renderer/components/common";
 import { skillTargetRequest, type SkillTarget } from "./skillTargets";
 
 type MarketplaceSort = "rank" | "trending" | "name" | "installs";
@@ -247,14 +247,9 @@ export function SkillMarketplaceModal(props: {
                   />
                 </div>
                 <div className="flex items-center justify-between px-1">
-                  <Switch isSelected={officialOnly} onChange={setOfficialOnly}>
-                    <Switch.Content>
-                      <Switch.Control>
-                        <Switch.Thumb />
-                      </Switch.Control>
-                      <Trans>Official sources only</Trans>
-                    </Switch.Content>
-                  </Switch>
+                  <ToggleSwitch isSelected={officialOnly} onChange={setOfficialOnly}>
+                    <Trans>Official sources only</Trans>
+                  </ToggleSwitch>
                   <span className="text-xs text-muted">
                     {loading ? <PixelLoader className="mr-2 inline-flex" size="xs" /> : null}
                     <Trans>

@@ -41,6 +41,13 @@ vi.mock("@/main/db", () => ({
   dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
   dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
   dbGetThreadContextUsage: vi.fn<() => unknown>(() => null),
+  dbGetLatestThreadRuntimeAnchorItemId: vi.fn<() => null>(() => null),
+  dbAppendThreadCompletedTurn: vi.fn<() => void>(),
+  dbApplyThreadRuntimeEvents: vi.fn<() => void>(),
+  dbClaimRemoteCommand: vi.fn<() => { state: "claimed" }>(() => ({ state: "claimed" })),
+  dbCompleteRemoteCommand: vi.fn<() => void>(),
+  dbFailRemoteCommand: vi.fn<() => void>(),
+  dbReplaceThreadRuntimeSnapshot: vi.fn<() => void>(),
   dbUpsertThread: vi.fn<() => void>(),
   dbMarkLiveThreadsInactive: vi.fn<() => void>(),
   dbDeleteThread: vi.fn<() => void>(),
@@ -115,7 +122,7 @@ describe("createHeadlessRemoteHost", () => {
   });
 
   it("opens the database and forks the supervisor on start", async () => {
-    const host = makeHost();
+    const host = await makeHost();
     const info = await host.start();
 
     expect(h.initDatabase).toHaveBeenCalledWith(join(h.tmpBase, "state.sqlite"));
@@ -129,7 +136,7 @@ describe("createHeadlessRemoteHost", () => {
   });
 
   it("forks the supervisor only once across repeated start() calls", async () => {
-    const host = makeHost();
+    const host = await makeHost();
     await host.start();
     await host.start();
     expect(h.supervisorStart).toHaveBeenCalledTimes(1);
@@ -137,7 +144,7 @@ describe("createHeadlessRemoteHost", () => {
   });
 
   it("routes supervisor events to the server event stream", async () => {
-    const host = makeHost();
+    const host = await makeHost();
     await host.start();
     const publish = vi.spyOn(host.server, "publishSupervisorEvent");
 
@@ -178,7 +185,7 @@ describe("createHeadlessRemoteHost", () => {
       disabledBuiltInMcpServers: { chrome: true },
     };
 
-    const host = makeHost();
+    const host = await makeHost();
     const resolver = (
       host.server as unknown as {
         options: {
@@ -195,7 +202,7 @@ describe("createHeadlessRemoteHost", () => {
   });
 
   it("tears down the supervisor and database on dispose", async () => {
-    const host = makeHost();
+    const host = await makeHost();
     await host.start();
     await host.dispose();
 

@@ -1,6 +1,7 @@
 import { Link } from "@heroui/react";
-import { Suspense, useMemo } from "react";
+import { Suspense, useDeferredValue, useMemo } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
+import { useSmoothStreamedText } from "@/renderer/hooks/useSmoothStreamedText";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
@@ -11,6 +12,16 @@ import { DeferredItemMarkdownInner } from "@/renderer/deferredFeatures";
 
 interface ItemMarkdownProps {
   text: string;
+}
+
+interface SmoothItemMarkdownProps extends ItemMarkdownProps {
+  isStreaming: boolean;
+}
+
+export function SmoothItemMarkdown({ text, isStreaming }: SmoothItemMarkdownProps) {
+  const smoothedText = useSmoothStreamedText(text, isStreaming);
+  const deferredText = useDeferredValue(smoothedText);
+  return <ItemMarkdown text={isStreaming ? deferredText : text} />;
 }
 
 /**

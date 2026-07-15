@@ -12,6 +12,8 @@ import {
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
   dbGetThreadRuntimeItems,
+  dbGetThreadRuntimeItemsPage,
+  dbTruncateThreadRuntimeAfter,
   dbGetThreads,
   dbListScheduleRuns,
   dbReplaceThreadCompletedTurns,
@@ -413,6 +415,10 @@ export function createLocalIpcHandlers(
     dbDeleteProject: ({ projectId }) => dbDeleteProject(projectId),
     dbSyncAll: ({ projects, threads, viewJson }) => dbSyncAll(projects, threads, viewJson),
     dbGetThreadRuntimeItems: ({ threadId }) => dbGetThreadRuntimeItems(threadId),
+    dbGetThreadRuntimeItemsPage: ({ threadId, beforePosition, limit }) =>
+      dbGetThreadRuntimeItemsPage(threadId, beforePosition, limit),
+    dbTruncateThreadRuntimeAfter: ({ threadId, itemId }) =>
+      dbTruncateThreadRuntimeAfter(threadId, itemId),
     dbReplaceThreadRuntimeItems: ({ threadId, items }) =>
       dbReplaceThreadRuntimeItems(threadId, items),
     dbGetThreadCompletedTurns: ({ threadId }) => dbGetThreadCompletedTurns(threadId),

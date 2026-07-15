@@ -25,6 +25,8 @@ interface ChatItemRowProps {
   entry: ChatTimelineEntry;
   /** True when this is the tail of the visible timeline. Drives live-group expand state. */
   isLastEntry?: boolean;
+  onHeightChange?: () => void;
+  isTurnActive?: boolean;
   checkpointRevert: CheckpointRevertRequest | null;
 }
 
@@ -40,24 +42,40 @@ export const ChatItemRow = memo(function ChatItemRow({
   threadId,
   entry,
   isLastEntry = false,
+  onHeightChange,
+  isTurnActive = false,
   checkpointRevert,
 }: ChatItemRowProps) {
   "use no memo";
   if (entry.kind === "tool_call_group") {
-    return <ToolCallGroup threadId={threadId} itemIds={entry.itemIds} isLive={isLastEntry} />;
+    return (
+      <ToolCallGroup
+        threadId={threadId}
+        itemIds={entry.itemIds}
+        isLive={isLastEntry}
+        {...(onHeightChange ? { onHeightChange } : {})}
+      />
+    );
   }
   return (
-    <SingleChatItemRow threadId={threadId} itemId={entry.id} checkpointRevert={checkpointRevert} />
+    <SingleChatItemRow
+      threadId={threadId}
+      itemId={entry.id}
+      isTurnActive={isTurnActive}
+      checkpointRevert={checkpointRevert}
+    />
   );
 });
 
 const SingleChatItemRow = memo(function SingleChatItemRow({
   threadId,
   itemId,
+  isTurnActive,
   checkpointRevert,
 }: {
   threadId: string;
   itemId: string;
+  isTurnActive: boolean;
   checkpointRevert: CheckpointRevertRequest | null;
 }) {
   const item = useAppStore(getRuntimeItemStoreSelector(threadId, itemId));
@@ -76,12 +94,13 @@ const SingleChatItemRow = memo(function SingleChatItemRow({
       return <SubAgentToolCall threadId={threadId} item={item} />;
     }
   }
-  return renderItem(threadId, item, checkpointRevert);
+  return renderItem(threadId, item, isTurnActive, checkpointRevert);
 });
 
 function renderItem(
   threadId: string,
   item: RuntimeChatItem,
+  isTurnActive: boolean,
   checkpointRevert: CheckpointRevertRequest | null,
 ) {
   switch (item.type) {
@@ -90,7 +109,7 @@ function renderItem(
     case "question_answer":
       return <QuestionAnswer item={item} checkpointRevert={checkpointRevert} />;
     case "assistant_message":
-      return <AssistantMessage threadId={threadId} item={item} />;
+      return <AssistantMessage threadId={threadId} item={item} isTurnActive={isTurnActive} />;
     case "reasoning":
       return <Reasoning item={item} />;
     case "plan":

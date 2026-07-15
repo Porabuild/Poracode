@@ -81,10 +81,16 @@ vi.mock("@/renderer/utils/iosScroll", () => ({
 }));
 
 vi.mock("./items/ChatItemRow", () => ({
-  ChatItemRow: (props: { entry: { id: string } }) => {
+  ChatItemRow: (props: { entry: { id: string }; onHeightChange?: () => void }) => {
     const actions = useChatPaneActions();
     return (
-      <button type="button" onClick={() => actions?.onContentHeightChange()}>
+      <button
+        type="button"
+        onClick={() => {
+          props.onHeightChange?.();
+          actions?.onContentHeightChange();
+        }}
+      >
         {props.entry.id}
       </button>
     );
@@ -868,7 +874,7 @@ describe("MessageList", () => {
     ).toBe("1");
   });
 
-  it("leaves virtual total size changes to native end anchoring", () => {
+  it("notifies the parent when virtual total size changes", () => {
     const onContentHeightChange = vi.fn<() => void>();
     const actions = {
       openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
@@ -889,7 +895,7 @@ describe("MessageList", () => {
       </ChatPaneActionsContext.Provider>,
     );
 
-    expect(onContentHeightChange).not.toHaveBeenCalled();
+    onContentHeightChange.mockClear();
 
     getTotalSizeMock.mockReturnValue(288);
     rerender(
@@ -902,10 +908,10 @@ describe("MessageList", () => {
       </ChatPaneActionsContext.Provider>,
     );
 
-    expect(onContentHeightChange).not.toHaveBeenCalled();
+    expect(onContentHeightChange).toHaveBeenCalledOnce();
   });
 
-  it("delegates height change to parent actions without forcing list measurement", () => {
+  it("synchronously remeasures a toggled virtual row before delegating scroll pinning", () => {
     const onContentHeightChange = vi.fn<() => void>();
     const actions = {
       openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
@@ -927,12 +933,15 @@ describe("MessageList", () => {
     );
     onContentHeightChange.mockClear();
     measureElementMock.mockClear();
+    resizeItemMock.mockClear();
+    const row = screen.getByText("item-2").closest("[data-chat-virtual-row='true']");
+    if (!(row instanceof HTMLDivElement)) throw new Error("missing virtual row");
+    Object.defineProperty(row, "offsetHeight", { configurable: true, value: 123 });
 
     fireEvent.click(screen.getByText("item-2"));
 
-    // Row ResizeObservers own size recalculation. This callback is only for
-    // parent scroll pinning; forcing list measurement here creates resize churn.
-    expect(measureElementMock).not.toHaveBeenCalled();
+    expect(measureElementMock).toHaveBeenCalledWith(row);
+    expect(resizeItemMock).toHaveBeenCalledWith(1, 123);
     expect(measureMock).not.toHaveBeenCalled();
     expect(onContentHeightChange).toHaveBeenCalledOnce();
   });

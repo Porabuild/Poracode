@@ -46,6 +46,7 @@ import {
 } from "../base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { resolveAgentBinaryPath } from "../binaryResolver";
+import { DeferredTurnCompletion } from "./deferredTurnCompletion";
 import { applyClaudeContextSuffix } from "./argv";
 import {
   buildClaudeQuestionAnswerEvents,
@@ -115,6 +116,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private completedTurns: CompletedClaudeTurn[] = [];
   private currentTurnAssistantUuid: string | undefined;
   private currentTurnInFlight = false;
+  // A turn's `result` settles its status immediately, but flipping the thread
+  // to idle while a background subagent task is still live would mark a GUI
+  // thread finished mid-work. Hold the completion status here until the
+  // live-task registry drains; flush it if the stream stops first.
+  private readonly deferredCompletion = new DeferredTurnCompletion();
   // openThread() fires `startQuery` as a fire-and-forget IIFE and returns
   // synchronously, but the runtime calls `setListener` only afterwards from
   // `spawnThread`. Anything emitted in that window — early SDK system/stream
@@ -233,6 +239,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     const turnId = `turn-${randomUUID()}`;
     this.currentTurnAssistantUuid = undefined;
     this.currentTurnInFlight = true;
+    this.deferredCompletion.clear();
     this.emitRuntimeEvents(
       startClaudeTurn(this.mapperState, turnId, prompt, segments, options?.userMessageItemId),
     );
@@ -519,6 +526,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.disposed) return;
     this.disposed = true;
     this.stopGoalTracking();
+    this.flushDeferredCompletion();
     for (const [requestId, pending] of this.pendingRequests) {
       if (pending.kind === "permission") {
         pending.resolve({ behavior: "deny", message: "Session closed." });
@@ -770,6 +778,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             if (this.disposed) break;
             this.handleSdkMessage(message);
           }
+          if (!this.disposed) this.flushDeferredCompletion();
         } catch (error) {
           if (!this.disposed) {
             captureSupervisorException(error, {
@@ -779,6 +788,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             const message = error instanceof Error ? error.message : String(error);
             this.reportError(message);
             this.emitRuntimeEvents([{ type: "error", threadId: this.input.threadId, message }]);
+            this.flushDeferredCompletion();
           }
         }
       })
@@ -883,6 +893,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     const turnId = `turn-${randomUUID()}`;
     this.currentTurnInFlight = true;
     this.currentTurnAssistantUuid = undefined;
+    this.deferredCompletion.clear();
     // Seed the mapper's turn id so the eventual `result` emits the matching
     // `turn.completed`, re-closing the renderer's turn-open gate.
     this.mapperState.currentTurnId = turnId;
@@ -909,7 +920,13 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
     if (message.type === "system" && message.subtype === "session_state_changed") {
       const mapped = mapSessionState(message.state);
-      this.emitUpdate(mapped);
+      // While a turn completion is deferred behind live background tasks, a
+      // session-state idle must not settle the thread — the deferred update
+      // owns the settling status (and preserves an error outcome). Non-settling
+      // states (working, needs_approval) still pass through.
+      if (mapped.status !== "idle" || !this.deferredCompletion.hasPending) {
+        this.emitUpdate(mapped);
+      }
     }
 
     if (message.type === "assistant" && !readParentToolUseId(message)) {
@@ -965,13 +982,45 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // clean turn end, and `/clear` clears it explicitly), and the next turn
       // restarts tracking via startGoalTracking().
       this.stopGoalTracking();
-      this.emitUpdate({
+      const completion: StructuredSessionUpdate = {
         status: failed ? "error" : "idle",
         attention: failed ? "error" : "none",
         ...(errorMessage ? { errorMessage } : {}),
         ...(this.sessionId ? { sessionRef: createKnownSessionRef(this.sessionId) } : {}),
-      });
+      };
+      if (this.hasLiveSubAgentTasks()) {
+        this.deferredCompletion.defer(completion);
+      } else {
+        this.emitUpdate(completion);
+      }
     }
+    this.flushDeferredCompletionIfDrained();
+  }
+
+  private hasLiveSubAgentTasks(): boolean {
+    return (this.mapperState.activeSubAgentTaskToTool?.size ?? 0) > 0;
+  }
+
+  /**
+   * Release a deferred turn-completion status once the live background-task
+   * registry has drained. Called after every SDK message so the authoritative
+   * `task_notification` that closes the last subagent task flips the thread to
+   * its held idle/error state.
+   */
+  private flushDeferredCompletionIfDrained(): void {
+    if (!this.deferredCompletion.hasPending || this.hasLiveSubAgentTasks()) return;
+    const update = this.deferredCompletion.take();
+    if (update) this.emitUpdate(update);
+  }
+
+  /**
+   * Emit any held turn-completion status unconditionally — used when the stream
+   * ends, errors, or the session is disposed while background tasks were still
+   * live, so the thread never stays stuck `working`.
+   */
+  private flushDeferredCompletion(): void {
+    const update = this.deferredCompletion.take();
+    if (update) this.emitUpdate(update);
   }
 
   private shouldAdoptSessionId(message: SDKMessage): boolean {

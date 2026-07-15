@@ -88,6 +88,11 @@ const poracodeChannel = process.env.PORACODE_CHANNEL === "nightly" ? "nightly" :
 // omitting the desktop renderer entry. The default build emits both entries to
 // dist/renderer for the Electron app and its embedded remote-access server.
 const mobileOnly = process.env.PORACODE_BUILD_TARGET === "mobile";
+const mobileBasePath = process.env.PORACODE_MOBILE_BASE_PATH?.trim() || "./";
+const mobileOutputPath =
+  mobileBasePath === "./"
+    ? "dist/mobile"
+    : `dist/mobile/${mobileBasePath.replace(/^\/+|\/+$/g, "")}`;
 
 // Dev-only: connect the renderer to the standalone React DevTools app for
 // inspecting/profiling rerenders. The React DevTools *browser extension* uses
@@ -312,7 +317,7 @@ export default defineConfig(({ mode }) => ({
     lingui(),
     ...materialIconAssets(),
   ],
-  base: "./",
+  base: mobileOnly ? mobileBasePath : "./",
   define: {
     ...buildPostHogEnvDefines(mode),
     __PORACODE_CHANNEL__: JSON.stringify(poracodeChannel),
@@ -334,7 +339,7 @@ export default defineConfig(({ mode }) => ({
         include: [...DESKTOP_OPTIMIZED_DEPS],
       },
   build: {
-    outDir: mobileOnly ? "dist/mobile" : "dist/renderer",
+    outDir: mobileOnly ? mobileOutputPath : "dist/renderer",
     emptyOutDir: true,
     sourcemap: mobileOnly ? false : "hidden",
     // Filter modulePreload so the heaviest async chunks (shiki grammars,

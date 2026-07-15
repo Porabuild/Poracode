@@ -1,9 +1,9 @@
 import { startTransition, useEffect, useRef, useState } from "react";
-import { Switch, toast } from "@heroui/react";
+import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { I18n } from "@lingui/core";
-import { Button, Select } from "@/renderer/components/common";
+import { Button, Select, ToggleSwitch } from "@/renderer/components/common";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { friendlyError } from "@/shared/messages";
 import type { AudioTranscriptionModel } from "@/shared/settings";
@@ -118,18 +118,15 @@ export function AudioSettings() {
         title={t`Show voice input button`}
         description={<Trans>Show the microphone button in the composer.</Trans>}
       >
-        <Switch
+        <ToggleSwitch
+          aria-label={t`Show voice input button`}
           isSelected={showVoiceInputButton}
           onChange={(selected) => {
             startTransition(() => {
               setAudioSetting("showVoiceInputButton", selected);
             });
           }}
-        >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
+        />
       </SettingRow>
       <SettingRow
         anchorId="audio.microphoneDevice"
@@ -198,18 +195,15 @@ export function AudioSettings() {
         title={t`Use WebGPU acceleration`}
         description={<Trans>Run local transcription on the GPU when available.</Trans>}
       >
-        <Switch
+        <ToggleSwitch
+          aria-label={t`Use WebGPU acceleration`}
           isSelected={useWebGpu}
           onChange={(selected) => {
             startTransition(() => {
               setAudioSetting("useWebGpu", selected);
             });
           }}
-        >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
+        />
       </SettingRow>
     </SettingsPage>
   );

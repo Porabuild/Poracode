@@ -1,15 +1,14 @@
 import { isThreadTurnActive, type RuntimeEvent, type Thread } from "@/shared/contracts";
-import type { PersistedRuntimeItem } from "@/shared/ipc/schemas";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { RemoteGitSummaries, RemoteThreadSnapshot } from "@/shared/remote";
 import { remoteGitSummariesEventSchema } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { handleThreadStateNotification } from "@/renderer/notifications";
-import type {
-  CompletedTurnRecord,
-  OpenRuntimeRequest,
-  RuntimeChatItem,
+import {
+  toRuntimeChatItem,
+  type CompletedTurnRecord,
+  type OpenRuntimeRequest,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import {
   collectRuntimeEventsFromSupervisoryMessage,
@@ -30,17 +29,6 @@ import { shouldReplaceRuntimeItemsFromSnapshot } from "./guards";
  * git-summaries store) are NOT triggered here — callers attach them via the
  * {@link RemoteDispatchHooks} options on {@link dispatchRemoteSupervisorEvent}.
  */
-
-function toRuntimeChatItem(item: PersistedRuntimeItem): RuntimeChatItem {
-  return {
-    id: item.id,
-    type: item.type as RuntimeChatItem["type"],
-    state: item.state,
-    payload: item.payload,
-    streams: item.streams as RuntimeChatItem["streams"],
-    ...(item.parentItemId ? { parentItemId: item.parentItemId } : {}),
-  };
-}
 
 function toCompletedTurnRecords(
   turns: RemoteThreadSnapshot["completedTurns"],

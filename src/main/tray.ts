@@ -19,12 +19,15 @@ export interface TrayHandle {
 
 export function resolveTrayIconPath(channel: PoracodeChannel): string | null {
   const suffix = channel === "nightly" ? "-nightly" : "";
+  const isWindows = process.platform === "win32";
+  const iconName = isWindows ? "tray-icon" : "icon";
+  const extension = isWindows ? "ico" : "png";
   const candidates: string[] = [];
   if (app.isPackaged) {
-    candidates.push(join(process.resourcesPath, "app-icon.png"));
+    candidates.push(join(process.resourcesPath, isWindows ? "tray-icon.ico" : "app-icon.png"));
   } else {
-    candidates.push(join(__dirname, "..", "..", "build", `icon${suffix}.png`));
-    candidates.push(join(__dirname, "..", "..", "build", "icon.png"));
+    candidates.push(join(__dirname, "..", "..", "build", `${iconName}${suffix}.${extension}`));
+    candidates.push(join(__dirname, "..", "..", "build", `${iconName}.${extension}`));
   }
   for (const candidate of candidates) {
     if (existsSync(candidate)) {

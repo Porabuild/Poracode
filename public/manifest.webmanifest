@@ -1,10 +1,10 @@
 {
-  "id": "/",
+  "id": "./",
   "name": "Poracode",
   "short_name": "Poracode",
   "description": "Follow and steer your Poracode AI agents from your phone — threads, git review, and live browser, paired to your desktop.",
-  "start_url": "/mobile.html",
-  "scope": "/",
+  "start_url": "./app",
+  "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "background_color": "#070709",
@@ -12,25 +12,25 @@
   "categories": ["developer", "productivity", "utilities"],
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "./icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "./icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-maskable-512.png",
+      "src": "./icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/app-icon.svg",
+      "src": "./app-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"

@@ -1,8 +1,7 @@
 import { startTransition } from "react";
-import { Switch } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Select } from "@/renderer/components/common";
+import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { BrowserLinkOpenTarget, BrowserLinkPresentationMode } from "@/shared/settings";
 import { SettingRow, SettingsPage } from "./SettingsForm";
@@ -75,18 +74,15 @@ export function BrowserSettings() {
           </Trans>
         }
       >
-        <Switch
+        <ToggleSwitch
+          aria-label={t`Allow eval`}
           isSelected={allowEval}
           onChange={(selected) => {
             startTransition(() => {
               setBrowserSetting("allowEval", selected);
             });
           }}
-        >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
+        />
       </SettingRow>
       <SettingRow
         anchorId="browser.allowDataAccess"
@@ -99,18 +95,15 @@ export function BrowserSettings() {
           </Trans>
         }
       >
-        <Switch
+        <ToggleSwitch
+          aria-label={t`Allow agents to read/write cookies and storage`}
           isSelected={allowDataAccess}
           onChange={(selected) => {
             startTransition(() => {
               setBrowserSetting("allowDataAccess", selected);
             });
           }}
-        >
-          <Switch.Control>
-            <Switch.Thumb />
-          </Switch.Control>
-        </Switch>
+        />
       </SettingRow>
     </SettingsPage>
   );

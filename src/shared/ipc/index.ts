@@ -61,6 +61,7 @@ export {
   windowChromePayloadSchema,
   type PersistedCompletedTurn,
   type PersistedRuntimeItem,
+  type PersistedRuntimePage,
   type SubAgentSubscribePayload,
   type SubAgentSubscribeResult,
   type WindowChromePayload,

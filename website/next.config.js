@@ -39,6 +39,14 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: "/pwa/:path*",
+        destination: "https://poracode-pwa.vercel.app/pwa/:path*",
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

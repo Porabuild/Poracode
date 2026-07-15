@@ -425,6 +425,9 @@ importers:
       '@typescript/native-preview':
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
+      cross-env:
+        specifier: ^10.1.0
+        version: 10.1.0
       oxlint:
         specifier: ^1.72.0
         version: 1.72.0(oxlint-tsgolint@0.24.0)

@@ -28,7 +28,7 @@ import { SshConnectionForm } from "./SshConnectionForm";
 const INPUT_CLASS =
   "w-full rounded-lg border border-default-200 bg-default-50 px-2.5 py-1.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-default-400";
 
-/** "http://172.16.21.25:38987/" → "172.16.21.25:38987". */
+/** "http://172.16.21.25:49152/" → "172.16.21.25:49152". */
 function endpointHost(endpoint: string): string {
   try {
     return new URL(endpoint).host;
@@ -347,7 +347,7 @@ export function RemoteServersSettings() {
           <CompactInput
             value={endpoint}
             ariaLabel={t`Endpoint`}
-            placeholder={t`Endpoint, e.g. http://192.168.1.20:38987/`}
+            placeholder={t`Endpoint, e.g. http://192.168.1.20:49152/`}
             inputMode="url"
             onChange={setEndpoint}
             onEnter={onPair}

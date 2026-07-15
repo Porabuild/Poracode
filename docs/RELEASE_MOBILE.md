@@ -6,11 +6,11 @@ desktop renderer's components through a bridge shim.
 
 It ships to **three targets** from the same web build:
 
-| Target          | How it's served                                              | Talks to desktop over                 | Best for                                      |
-| --------------- | ------------------------------------------------------------ | ------------------------------------- | --------------------------------------------- |
-| **LAN PWA**     | The desktop's embedded server at `http://<lan-ip>:38987/app` | Same-origin HTTP (LAN)                | Zero-setup pairing on the same network        |
-| **Hosted PWA**  | Vercel (`vercel.json` → `dist/mobile`)                       | HTTPS only ⚠️ (see below)             | Install entry, QR landing, app-vs-PWA routing |
-| **Native apps** | App Store / Play, via Capacitor (`capacitor.config.json`)    | HTTP **or** HTTPS (cleartext allowed) | Store presence, native camera/push            |
+| Target          | How it's served                                               | Talks to desktop over                 | Best for                                      |
+| --------------- | ------------------------------------------------------------- | ------------------------------------- | --------------------------------------------- |
+| **LAN PWA**     | The desktop's embedded server at `http://<lan-ip>:<port>/app` | Same-origin HTTP (LAN)                | Zero-setup pairing on the same network        |
+| **Hosted PWA**  | Vercel (`vercel.json` → `dist/mobile`)                        | HTTPS only ⚠️ (see below)             | Install entry, QR landing, app-vs-PWA routing |
+| **Native apps** | App Store / Play, via Capacitor (`capacitor.config.json`)     | HTTP **or** HTTPS (cleartext allowed) | Store presence, native camera/push            |
 
 ### ⚠️ The mixed-content constraint
 

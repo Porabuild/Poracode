@@ -121,11 +121,13 @@ export function PrReviewOverlay(props: {
   prNumber: number;
   locationOverride?: ProjectLocation;
   worktreePath?: string | undefined;
+  skipLocalSync?: boolean;
   /** PR key used for selectors (matches PrSection: worktreePath ?? `__branch:${projectId}`). */
   prKey: string;
   onClose: () => void;
 }) {
-  const { project, prNumber, locationOverride, worktreePath, prKey, onClose } = props;
+  const { project, prNumber, locationOverride, worktreePath, skipLocalSync, prKey, onClose } =
+    props;
   const { t } = useLingui();
   const effectiveLocation = locationOverride ?? project.location;
   const cacheKey = `${project.id}#${prNumber}`;
@@ -294,6 +296,7 @@ export function PrReviewOverlay(props: {
           projectLocation={effectiveLocation}
           prKey={prKey}
           worktreePath={worktreePath}
+          {...(skipLocalSync ? { skipLocalSync: true } : {})}
           onSelectFile={(path) => {
             setActiveTab("changes");
             setSelectedFile((curr) => (curr === path ? null : path));

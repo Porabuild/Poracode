@@ -1,12 +1,11 @@
 import { startTransition } from "react";
-import { Switch } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { NewThreadMode } from "@/shared/contracts";
 import { isRemoteSession, isWindows } from "@/renderer/bridge";
 import type { AiContentLanguage, LocaleSetting } from "@/shared/locale";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { aiLanguageOptions, localeOptions } from "@/renderer/i18n/locales";
-import { Select } from "@/renderer/components/common";
+import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { newThreadModeOptions, useLocalizedOptions } from "./settingsOptions";
 
@@ -112,7 +111,7 @@ export function GeneralSettings() {
           title={t`Launch at startup`}
           description={<Trans>Launch Poracode automatically when you sign in to Windows.</Trans>}
         >
-          <Switch
+          <ToggleSwitch
             aria-label={t`Launch at startup`}
             isSelected={launchAtStartup}
             onChange={(selected) => {
@@ -120,13 +119,7 @@ export function GeneralSettings() {
                 setLaunchAtStartup(selected);
               });
             }}
-          >
-            <Switch.Content>
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-            </Switch.Content>
-          </Switch>
+          />
         </SettingRow>
       )}
 
@@ -136,7 +129,7 @@ export function GeneralSettings() {
           title={t`Start minimized`}
           description={<Trans>Keep Poracode in the system tray when it launches at startup.</Trans>}
         >
-          <Switch
+          <ToggleSwitch
             aria-label={t`Start minimized`}
             isSelected={startMinimized}
             onChange={(selected) => {
@@ -144,13 +137,7 @@ export function GeneralSettings() {
                 setStartMinimized(selected);
               });
             }}
-          >
-            <Switch.Content>
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-            </Switch.Content>
-          </Switch>
+          />
         </SettingRow>
       )}
 
@@ -160,18 +147,15 @@ export function GeneralSettings() {
           title={t`Home scope`}
           description={<Trans>Show a projectless Home scope for OS-level agent sessions.</Trans>}
         >
-          <Switch
+          <ToggleSwitch
+            aria-label={t`Home scope`}
             isSelected={homeScopeEnabled}
             onChange={(selected) => {
               startTransition(() => {
                 setHomeScopeEnabled(selected);
               });
             }}
-          >
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch>
+          />
         </SettingRow>
       )}
 
@@ -181,18 +165,15 @@ export function GeneralSettings() {
           title={t`Prevent sleep while working`}
           description={<Trans>Keep the system awake while any thread is actively working.</Trans>}
         >
-          <Switch
+          <ToggleSwitch
+            aria-label={t`Prevent sleep while working`}
             isSelected={preventSleepWhileWorking}
             onChange={(selected) => {
               startTransition(() => {
                 setPreventSleepWhileWorking(selected);
               });
             }}
-          >
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch>
+          />
         </SettingRow>
       )}
 
@@ -207,18 +188,15 @@ export function GeneralSettings() {
             </Trans>
           }
         >
-          <Switch
+          <ToggleSwitch
+            aria-label={t`Close to tray`}
             isSelected={closeToTray}
             onChange={(selected) => {
               startTransition(() => {
                 setCloseToTray(selected);
               });
             }}
-          >
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch>
+          />
         </SettingRow>
       )}
 
@@ -233,18 +211,15 @@ export function GeneralSettings() {
             </Trans>
           }
         >
-          <Switch
+          <ToggleSwitch
+            aria-label={t`Editor LSP`}
             isSelected={editorLspEnabled}
             onChange={(selected) => {
               startTransition(() => {
                 setEditorLspEnabled(selected);
               });
             }}
-          >
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch>
+          />
         </SettingRow>
       )}
     </SettingsPage>

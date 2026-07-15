@@ -45,7 +45,7 @@ function resolveAdb() {
   return "adb";
 }
 
-const port = parsePort(process.argv[2] ?? process.env.PORACODE_REMOTE_ACCESS_PORT ?? "38987");
+const port = parsePort(process.argv[2] ?? process.env.PORACODE_REMOTE_ACCESS_PORT ?? "49152");
 const adb = resolveAdb();
 const reversedSerials = new Set();
 

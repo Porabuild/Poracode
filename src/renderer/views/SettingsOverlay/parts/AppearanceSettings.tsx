@@ -1,7 +1,7 @@
 import { startTransition, useEffect, useState, type CSSProperties } from "react";
 import { ChevronDown, RotateCcw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Slider, SliderFill, SliderOutput, SliderThumb, SliderTrack, Switch } from "@heroui/react";
+import { Slider, SliderFill, SliderOutput, SliderThumb, SliderTrack } from "@heroui/react";
 import type { ThemeMode } from "@/shared/contracts";
 import { isMac, isRemoteSession } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -9,7 +9,7 @@ import { useResolvedAppearance } from "@/renderer/components/ui/provider";
 import { getThemePreset } from "@/renderer/theme/themePresets";
 import { applySidebarGlassTint, sidebarGlassTintDefault } from "@/renderer/theme/sidebarGlass";
 import { useNativeMaterialActive } from "@/renderer/hooks/useGlassState";
-import { Select } from "@/renderer/components/common";
+import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { ThemeGallery, ThemeSwatch } from "./ThemeGallery";
 import { fontSizeOptions, themeOptions, useLocalizedOptions } from "./settingsOptions";
@@ -155,18 +155,15 @@ export function AppearanceSettings() {
               : t`Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere.`
           }
         >
-          <Switch
+          <ToggleSwitch
+            aria-label={t`Translucent sidebar`}
             isSelected={sidebarTranslucency}
             onChange={(selected) => {
               startTransition(() => {
                 setSidebarTranslucency(selected);
               });
             }}
-          >
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch>
+          />
         </SettingRow>
       )}
 

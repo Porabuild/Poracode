@@ -14,6 +14,19 @@ function truncateOneLine(text: string, maxLength: number): string {
   return `${text.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
+function formatReasoningPreview(text: string, maxLength: number, lineSeparator: string): string {
+  const lines = text
+    // Fences must be stripped over the full text (an early fence can swallow
+    // kilobytes); afterwards only a bounded prefix can survive truncation, so
+    // cap the remaining passes instead of scanning the whole block.
+    .replace(/```[\s\S]*?(?:```|$)/g, " ")
+    .slice(0, maxLength * 8)
+    .split(/\r?\n/)
+    .map(stripMarkdownMarkers)
+    .filter(Boolean);
+  return truncateOneLine(lines.join(lineSeparator), maxLength);
+}
+
 /**
  * One-line sneak peek of a reasoning block for collapsed "Thought" rows.
  * Strips markdown structure (fences, list/heading markers, emphasis) so the
@@ -23,13 +36,19 @@ export function getReasoningPreview(
   text: string,
   maxLength: number = REASONING_PREVIEW_MAX_LENGTH,
 ): string {
-  const flattened = stripMarkdownMarkers(
-    // Fences must be stripped over the full text (an early fence can swallow
-    // kilobytes); afterwards only a bounded prefix can survive truncation, so
-    // cap the remaining passes instead of scanning the whole block.
-    text.replace(/```[\s\S]*?(?:```|$)/g, " ").slice(0, maxLength * 8),
-  );
-  return truncateOneLine(flattened, maxLength);
+  return formatReasoningPreview(text, maxLength, " ");
+}
+
+/**
+ * One-line preview for a Thought row inside a tool-call group. Keeps each
+ * non-empty source line visually distinct with the same centered-dot language
+ * used by the surrounding activity rows.
+ */
+export function getReasoningInlinePreview(
+  text: string,
+  maxLength: number = REASONING_PREVIEW_MAX_LENGTH,
+): string {
+  return formatReasoningPreview(text, maxLength, " · ");
 }
 
 /**

@@ -1,11 +1,33 @@
 export * from "./FactoryIcon";
 
 import { FactoryIcon } from "./FactoryIcon";
+import providerManifest from "./manifest";
+import { buildAcpComposerControls } from "../composerControlBuilders";
 import { registerProviderIcon } from "../ProviderIcon";
+import { registerCommitGenDefaults } from "../commitGen";
+import { registerConflictResolverDefaults } from "../conflictResolver";
+import { registerComposerControls } from "../providerComposer";
+import { registerTitleGenDefaults } from "../titleGen";
 
-// Factory's "Droid" is a runtime-registered ACP agent (`acp-generic`), so this
-// module only supplies the renderer presentation for its usage tile — the icon
-// and label keyed by the usage provider id ("factory"). The chat-surface
-// registrations (composer controls, utility defaults) belong to the agent
-// adapter, not here.
-registerProviderIcon("factory", FactoryIcon);
+const PROVIDER_KIND = providerManifest.kind;
+
+registerProviderIcon(PROVIDER_KIND, FactoryIcon);
+registerComposerControls(PROVIDER_KIND, buildAcpComposerControls);
+registerCommitGenDefaults(PROVIDER_KIND, {
+  label: "Droid",
+  hint: "auto",
+  model: "auto",
+  effort: "",
+});
+registerTitleGenDefaults(PROVIDER_KIND, {
+  label: "Droid",
+  hint: "auto",
+  model: "auto",
+  effort: "",
+});
+registerConflictResolverDefaults(PROVIDER_KIND, {
+  label: "Droid",
+  hint: "auto",
+  model: "auto",
+  effort: "",
+});

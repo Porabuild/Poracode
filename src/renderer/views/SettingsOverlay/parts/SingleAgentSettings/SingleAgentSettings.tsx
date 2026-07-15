@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useState } from "react";
-import { Button, Switch, toast } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AlertTriangle, ArrowUpCircle, LogIn, LogOut, Save } from "lucide-react";
 import { isNewerVersion } from "@/shared/agents/updateResolver";
@@ -32,7 +32,7 @@ import {
   statusUpdateScope,
   shouldPreferTerminalLogin,
 } from "@/renderer/utils/acpRegistryAuth";
-import { Input } from "@/renderer/components/common";
+import { Input, ToggleSwitch } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import {
   providerMenuKey,
@@ -704,7 +704,7 @@ export function SingleAgentSettings(props: {
                 <Trans>Update to v{latestRegistryVersion}</Trans>
               </Button>
             )}
-            <Switch
+            <ToggleSwitch
               isSelected={!isDisabled}
               isDisabled={binaryUpdatePendingEnvKey !== undefined}
               size="sm"
@@ -719,11 +719,7 @@ export function SingleAgentSettings(props: {
                     .catch(() => undefined);
                 }
               }}
-            >
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
-            </Switch>
+            />
           </div>
         </div>
 

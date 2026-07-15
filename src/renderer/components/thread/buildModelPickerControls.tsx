@@ -333,7 +333,7 @@ export function buildControls(
     thread.config,
     filteredCaps,
   );
-  const isDisabled = !thread.canResumeWithConfig;
+  const isDisabled = !thread.canResumeWithConfig && thread.status !== "launching";
   const onPatch = (patch: Partial<ThreadConfig>) =>
     onConfigChange({ ...thread.config, ...effectiveConfig, ...patch });
   const provider: ProviderModelMenuProvider = {

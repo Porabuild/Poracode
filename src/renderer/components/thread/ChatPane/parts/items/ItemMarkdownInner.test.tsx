@@ -138,6 +138,21 @@ describe("ItemMarkdownInner", () => {
     expect(img).toHaveAttribute("draggable", "false");
   });
 
+  it("renders Windows absolute markdown image paths through the local file protocol", () => {
+    render(
+      <AppProvider>
+        <ItemMarkdownInner
+          text={"![Before](C:/Users/sdsle/.poracode-smoke/artifacts/composer-before-full.png)"}
+        />
+      </AppProvider>,
+    );
+
+    expect(screen.getByAltText("Before")).toHaveAttribute(
+      "src",
+      "poracode-local://local/C:/Users/sdsle/.poracode-smoke/artifacts/composer-before-full.png",
+    );
+  });
+
   it("normalizes absolute markdown link hrefs to project file chips", () => {
     const actions = makeActions();
 

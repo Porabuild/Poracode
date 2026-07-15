@@ -633,6 +633,62 @@ describe("ACP client protocol helpers", () => {
     expect(listener.onRuntimeEvent).not.toHaveBeenCalled();
   });
 
+  it("retains replayed config options when session/resume omits them", async () => {
+    const { connection, session } = makeConfigSyncSession();
+    (session as unknown as Record<string, unknown>)["agentSessionCapabilities"] = { resume: {} };
+    const modelOptions = [
+      {
+        id: "model",
+        category: "model",
+        type: "select",
+        currentValue: "model-a",
+        options: [
+          { value: "model-a", name: "Model A" },
+          { value: "model-b", name: "Model B" },
+        ],
+      },
+      {
+        id: "thought-old",
+        category: "thought_level",
+        type: "select",
+        currentValue: "low",
+        options: [
+          { value: "low", name: "Low" },
+          { value: "high", name: "High" },
+        ],
+      },
+    ];
+    connection.resumeSession.mockImplementationOnce(async () => {
+      session.handleSessionUpdate({
+        update: { sessionUpdate: "config_option_update", configOptions: modelOptions },
+      });
+      return { modes: { availableModes: [] } };
+    });
+    connection.setSessionConfigOption
+      .mockResolvedValueOnce({
+        configOptions: [
+          { ...(modelOptions[0] as object), currentValue: "model-b" },
+          { ...(modelOptions[1] as object), id: "thought-new" },
+        ],
+      })
+      .mockResolvedValueOnce({
+        configOptions: [
+          { ...(modelOptions[0] as object), currentValue: "model-b" },
+          { ...(modelOptions[1] as object), id: "thought-new", currentValue: "high" },
+        ],
+      });
+
+    await session.openThread(
+      { model: "model-b", effort: "high" },
+      { providerSessionId: "session-resume", discoveredAt: new Date().toISOString() },
+    );
+
+    expect(connection.setSessionConfigOption.mock.calls.map(([call]) => call.configId)).toEqual([
+      "model",
+      "thought-new",
+    ]);
+  });
+
   it("falls back to session/load for known sessions when resume is not advertised", async () => {
     const { connection, session } = makeConfigSyncSession();
     const sessionRef = {
@@ -879,6 +935,48 @@ describe("ACP turn config sync", () => {
         config: expect.objectContaining({ effort: "high" }),
       }),
     );
+  });
+
+  it("retains config-option metadata during replay suppression without emitting it", async () => {
+    const { connection, listener, session } = makeConfigSyncSession({
+      currentConfig: {
+        model: "model-a",
+        effort: "low",
+        mode: "agent",
+        approvalPolicy: "default",
+      },
+    });
+    (session as unknown as Record<string, unknown>)["replayHistoryUntil"] = Date.now() + 10_000;
+    const updatedOptions = [
+      {
+        id: "thought-replayed",
+        category: "thought_level",
+        type: "select",
+        currentValue: "low",
+        options: [
+          { value: "low", name: "Low" },
+          { value: "high", name: "High" },
+        ],
+      },
+    ];
+
+    session.handleSessionUpdate({
+      update: { sessionUpdate: "config_option_update", configOptions: updatedOptions },
+    });
+
+    expect(listener.onUpdate).not.toHaveBeenCalled();
+    connection.setSessionConfigOption.mockResolvedValueOnce({ configOptions: updatedOptions });
+    await session.startTurn("continue", {
+      model: "model-a",
+      effort: "high",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    expect(connection.setSessionConfigOption).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      configId: "thought-replayed",
+      value: "high",
+    });
   });
 
   it("does not mark restored session replay as working", () => {

@@ -80,7 +80,7 @@ function desktopTitle(label: string): string {
   return stripped || label;
 }
 
-/** "http://172.16.21.25:38987/" → "172.16.21.25:38987". */
+/** "http://172.16.21.25:49152/" → "172.16.21.25:49152". */
 function endpointHost(endpoint: string): string {
   try {
     return new URL(endpoint).host;
@@ -536,7 +536,7 @@ export function DesktopsView(props: DesktopsViewProps) {
                     autoCapitalize="off"
                     autoCorrect="off"
                     spellCheck={false}
-                    placeholder="http://192.168.1.20:38987/"
+                    placeholder="http://192.168.1.20:49152/"
                     onChange={(event) => props.onEndpointChange(event.currentTarget.value)}
                   />
                 </label>

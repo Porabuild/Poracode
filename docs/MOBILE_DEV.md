@@ -17,15 +17,17 @@ helper:
 
 | Sub-script                        | What it is                                               | Port    |
 | --------------------------------- | -------------------------------------------------------- | ------- |
-| `dev:mobile:server`               | Headless remote server (`build:electron` + `server.cjs`) | `38987` |
+| `dev:mobile:server`               | Headless remote server (`build:electron` + `server.cjs`) | `49152` |
 | `dev:mobile`                      | Vite dev server for the mobile target (HMR)              | `3100`  |
 | `dev:ios:app` / `dev:android:app` | target-resolving `cap run <platform> --live-reload`      | —       |
-| `android-reverse-server-port.mjs` | Android only: keeps `adb reverse tcp:38987` applied      | —       |
+| `android-reverse-server-port.mjs` | Android only: keeps `adb reverse tcp:49152` applied      | —       |
 
-`dev:mobile:server` sets `PORACODE_IS_DEV=1`, which turns on two dev-only
-conveniences in the server (see [Why dev mode matters](#why-dev-mode-matters)):
-loopback advertising + loopback CORS. **No other env vars are needed** — pairing
-works against `http://127.0.0.1:38987/` out of the box.
+`dev:mobile:server` sets `PORACODE_IS_DEV=1` and pins
+`PORACODE_REMOTE_ACCESS_PORT=49152` for the simulator forwarding helpers. Dev
+mode turns on two conveniences in the server (see
+[Why dev mode matters](#why-dev-mode-matters)): loopback advertising + loopback
+CORS. **No manual env vars are needed** — pairing works against
+`http://127.0.0.1:49152/` out of the box.
 
 The iOS and Android launch wrappers pass an explicit native target so Capacitor
 does not stop at an interactive device picker under `concurrently`. Override the
@@ -34,7 +36,7 @@ automatic choice with `PORACODE_IOS_TARGET=<simulator-udid>` or
 
 The endpoint is the **same on both platforms**: the iOS simulator shares the
 Mac's loopback natively, and on Android the reverse-port helper maps the
-device's `127.0.0.1:38987` back to the host via `adb reverse` (works on
+device's `127.0.0.1:49152` back to the host via `adb reverse` (works on
 emulators and USB devices; it re-applies automatically when a device boots or
 restarts). Capacitor itself forwards only the Vite port (`--forwardPorts` takes
 a single pair), which is why the server port has its own helper.
@@ -47,14 +49,14 @@ desktop app or a second server).
 
 1. Grab the pairing token — the server prints it at startup:
    ```
-   [poracode-server] pair a device:   http://127.0.0.1:38987/pair#token=lc_pair_…
+   [poracode-server] pair a device:   http://127.0.0.1:49152/pair#token=lc_pair_…
    ```
    Need a fresh one (10-min TTL, in-memory only)? Send `SIGUSR2`:
    ```bash
    kill -SIGUSR2 "$(pgrep -f dist/main/server.cjs)"   # prints a new link to stdout
    ```
 2. In the app: **Connections → Pair a connection**. Endpoint
-   `http://127.0.0.1:38987/`, paste the `lc_pair_…` token, tap **Pair**.
+   `http://127.0.0.1:49152/`, paste the `lc_pair_…` token, tap **Pair**.
 3. Once universal links are live (below), a tapped pairing link opens the
    installed app and pairs automatically — no manual entry.
 
@@ -127,11 +129,11 @@ the human-facing landing page. Changing that requires patching `buildPairingUrl`
 
 - **"Load failed" on Pair** → almost always ATS or CORS (see [Why dev mode
   matters](#why-dev-mode-matters)). Confirm the server advertised loopback
-  (`grep "listening at" server log` → `http://127.0.0.1:38987/`) and that you
+  (`grep "listening at" server log` → `http://127.0.0.1:49152/`) and that you
   ran with `PORACODE_IS_DEV=1`. Sanity-check CORS:
   ```bash
   curl -s -D - -o /dev/null -H "Origin: http://localhost:3100" \
-    http://127.0.0.1:38987/.well-known/poracode/environment | grep -i access-control
+    http://127.0.0.1:49152/.well-known/poracode/environment | grep -i access-control
   ```
 - **"data dir … is in use by another Poracode process (pid N)"** → a desktop
   app or a prior server holds the lock. Kill it (`kill N`) or run with a separate
@@ -144,9 +146,9 @@ the human-facing landing page. Changing that requires patching `buildPairingUrl`
   `ANDROID_HOME`/`ANDROID_SDK_ROOT`, then `android/local.properties`
   (`sdk.dir=…`), then `PATH`. Make sure one of those points at the SDK (Gradle
   needs `JAVA_HOME` too).
-- **Android: pairing fetch fails on `127.0.0.1:38987`** → the `adb reverse`
+- **Android: pairing fetch fails on `127.0.0.1:49152`** → the `adb reverse`
   mapping is missing; check the `adb` pane of `dev:android` for the
-  "device 127.0.0.1:38987 → host" line (emulator fallback: `10.0.2.2:38987`).
+  "device 127.0.0.1:49152 → host" line (emulator fallback: `10.0.2.2:49152`).
 
 ## Related
 

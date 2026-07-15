@@ -84,6 +84,7 @@ function makeFakeSpawnedChild(pid: number): SpawnedProcess {
 function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
   let closed = false;
   let resolveNext: ((result: IteratorResult<SDKMessage>) => void) | undefined;
+  let rejectNext: ((error: unknown) => void) | undefined;
   const queuedMessages: SDKMessage[] = [];
   const setModel = vi.fn<(model?: string) => Promise<void>>().mockResolvedValue(undefined);
   const setPermissionMode = vi
@@ -111,8 +112,9 @@ function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
       if (closed) return { done: true, value: undefined };
       const queued = queuedMessages.shift();
       if (queued) return { done: false, value: queued };
-      return new Promise<IteratorResult<SDKMessage>>((resolve) => {
+      return new Promise<IteratorResult<SDKMessage>>((resolve, reject) => {
         resolveNext = resolve;
+        rejectNext = reject;
       });
     },
     async return(): Promise<IteratorResult<SDKMessage>> {
@@ -152,11 +154,19 @@ function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
     emitMessage(message: SDKMessage): void {
       const resolve = resolveNext;
       resolveNext = undefined;
+      rejectNext = undefined;
       if (resolve) {
         resolve({ done: false, value: message });
       } else {
         queuedMessages.push(message);
       }
+    },
+    emitStreamError(error: unknown): void {
+      const reject = rejectNext;
+      resolveNext = undefined;
+      rejectNext = undefined;
+      closed = true;
+      reject?.(error);
     },
   };
 }
@@ -217,6 +227,43 @@ function sdkSuccessResult(sessionId: string): SDKMessage {
     type: "result",
     subtype: "success",
     session_id: sessionId,
+  } as unknown as SDKMessage;
+}
+
+function sdkErrorResult(sessionId: string): SDKMessage {
+  return {
+    type: "result",
+    subtype: "error_during_execution",
+    is_error: true,
+    errors: ["upstream API failure"],
+    session_id: sessionId,
+  } as unknown as SDKMessage;
+}
+
+function sdkTaskStarted(sessionId: string, taskId: string, toolUseId: string): SDKMessage {
+  return {
+    type: "system",
+    subtype: "task_started",
+    uuid: `uuid-task-started-${taskId}`,
+    session_id: sessionId,
+    task_id: taskId,
+    tool_use_id: toolUseId,
+    subagent_type: "general-purpose",
+  } as unknown as SDKMessage;
+}
+
+function sdkTaskNotification(
+  sessionId: string,
+  taskId: string,
+  status: "completed" | "failed" = "completed",
+): SDKMessage {
+  return {
+    type: "system",
+    subtype: "task_notification",
+    uuid: `uuid-task-notification-${taskId}`,
+    session_id: sessionId,
+    task_id: taskId,
+    status,
   } as unknown as SDKMessage;
 }
 
@@ -1301,5 +1348,357 @@ describe("ClaudeSdkSession", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("keeps the thread working when the main result arrives while a background task is live", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-defer",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("launch a background subagent", config);
+    await flushAsyncWork();
+
+    // A background subagent registers, then the main turn's result arrives.
+    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+
+    expect(updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
+    expect(updates.some((update) => update.status === "idle")).toBe(false);
+
+    await session.dispose();
+  });
+
+  it("emits the deferred idle once the last background task_notification drains the registry", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-drain",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("launch a background subagent", config);
+    await flushAsyncWork();
+    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "working" });
+
+    fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
+    await flushAsyncWork();
+
+    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+
+    await session.dispose();
+  });
+
+  it("preserves an error result through the deferral", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-error",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("launch a background subagent", config);
+    await flushAsyncWork();
+    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+    fake.emitMessage(sdkErrorResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "working" });
+
+    fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
+    await flushAsyncWork();
+
+    expect(updates.at(-1)).toMatchObject({ status: "error", attention: "error" });
+
+    await session.dispose();
+  });
+
+  it("only emits idle after the last of multiple concurrent background tasks closes", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-multi",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("launch two background subagents", config);
+    await flushAsyncWork();
+    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-2", "toolu_bg2"));
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "working" });
+
+    fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "working" });
+    expect(updates.some((update) => update.status === "idle")).toBe(false);
+
+    fake.emitMessage(sdkTaskNotification(openedSessionId, "task-2"));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+
+    await session.dispose();
+  });
+
+  it("suppresses a session-state idle while a completion is deferred behind a live task", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-session-state",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("launch a background subagent", config);
+    await flushAsyncWork();
+    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "working" });
+    const updatesBeforeSessionState = updates.length;
+
+    // The SDK reports the session idle while the background task is still live
+    // — this must not settle the thread past the deferred completion.
+    fake.emitMessage(sdkSystemMessage("session_state_changed", openedSessionId, { state: "idle" }));
+    await flushAsyncWork();
+    expect(updates.slice(updatesBeforeSessionState).some((u) => u.status === "idle")).toBe(false);
+
+    fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+
+    await session.dispose();
+  });
+
+  it("keeps a deferred error outcome intact across a suppressed session-state idle", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-session-state-error",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("launch a background subagent", config);
+    await flushAsyncWork();
+    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+    fake.emitMessage(sdkErrorResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "working" });
+
+    fake.emitMessage(sdkSystemMessage("session_state_changed", openedSessionId, { state: "idle" }));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "working" });
+
+    fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "error", attention: "error" });
+    expect(updates.some((update) => update.status === "idle")).toBe(false);
+
+    await session.dispose();
+  });
+
+  it("flushes a deferred idle when the stream throws with a background task still live", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-streamthrow",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("launch a background subagent", config);
+    await flushAsyncWork();
+    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "working" });
+
+    // Break the stream: the pending iteration rejects, driving the catch path.
+    fake.emitStreamError(new Error("stream broke"));
+    await flushAsyncWork();
+
+    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+
+    await session.dispose();
+  });
+
+  it("flushes a deferred idle on dispose with a background task still live", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-dispose",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("launch a background subagent", config);
+    await flushAsyncWork();
+    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "working" });
+
+    await session.dispose();
+
+    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+  });
+
+  it("flushes a deferred idle when the stream ends with a background task still live", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-streamexit",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("launch a background subagent", config);
+    await flushAsyncWork();
+    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "working" });
+
+    // The SDK stream ends (session stop) before any task_notification arrives.
+    (fake.runtime as unknown as { close: () => void }).close();
+    await flushAsyncWork();
+
+    expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+
+    await session.dispose();
+  });
+
+  it("lets a new user turn own the status instead of the deferred completion", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const updates: StructuredSessionUpdate[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-bg-newturn",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: (update) => updates.push(update),
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await session.startTurn("first", config);
+    await flushAsyncWork();
+    fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
+    fake.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    expect(updates.at(-1)).toMatchObject({ status: "working" });
+
+    // A new user turn starts while the completion was deferred — it owns status.
+    await session.startTurn("second", config);
+    await flushAsyncWork();
+    const updatesAfterNewTurn = updates.length;
+
+    // The stale background task now closes: the cleared deferral must not fire.
+    fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
+    await flushAsyncWork();
+
+    expect(updates.slice(updatesAfterNewTurn).some((update) => update.status === "idle")).toBe(
+      false,
+    );
+    expect(updates.at(-1)).toMatchObject({ status: "working" });
+
+    await session.dispose();
   });
 });

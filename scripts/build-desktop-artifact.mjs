@@ -495,6 +495,8 @@ extraResources:
       - "**/*"
   - from: build/icon${runtimeIconSuffix}.png
     to: app-icon.png
+  - from: build/tray-icon${iconSuffix}.ico
+    to: tray-icon.ico
 
 extraMetadata:
   main: dist/main/main.cjs

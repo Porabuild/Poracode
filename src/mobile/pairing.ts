@@ -7,7 +7,7 @@ export interface PairingLaunch {
 }
 
 const VITE_DEV_SERVER_PORT = "3100";
-const DEFAULT_REMOTE_ACCESS_PORT = "38987";
+const DEFAULT_REMOTE_ACCESS_PORT = "49152";
 
 function normalizeEndpoint(value: string): string {
   const url = new URL(value);
@@ -170,7 +170,12 @@ export function appUrlWithoutPairing(location: Location = window.location): stri
   // On the Vite dev server the app lives at /mobile.html; only the desktop
   // server serves it at /app.
   if (!url.pathname.endsWith("/mobile.html")) {
-    url.pathname = "/app";
+    if (url.pathname.endsWith("/pair")) {
+      url.pathname = `${url.pathname.slice(0, -"/pair".length)}/app`;
+    } else if (!url.pathname.endsWith("/app")) {
+      const basePath = import.meta.env.BASE_URL;
+      url.pathname = basePath.startsWith("/") ? `${basePath}app` : "/app";
+    }
   }
   url.search = "";
   url.hash = "";

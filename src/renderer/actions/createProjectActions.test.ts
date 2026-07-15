@@ -214,6 +214,35 @@ describe("addExistingProject", () => {
     expect(mocks.loadHomeScopeLocation).not.toHaveBeenCalled();
   });
 
+  test("adds a WSL project selected through the shared folder picker", async () => {
+    mocks.pickFolder.mockResolvedValue("\\\\wsl.localhost\\Ubuntu\\home\\demo\\app");
+
+    await addExistingProject();
+
+    expect(addProject).toHaveBeenCalledWith(
+      {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/demo/app",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\app",
+      },
+      undefined,
+    );
+    expect(setLastUsedProjectDir).toHaveBeenCalledWith(
+      "Ubuntu",
+      "\\\\wsl.localhost\\Ubuntu\\home\\demo",
+    );
+  });
+
+  test("opens the WSL picker in the selected distro", async () => {
+    mocks.pickFolder.mockResolvedValue(null);
+
+    await addExistingProject({ kind: "wsl", distro: "Ubuntu" });
+
+    expect(mocks.pickFolder).toHaveBeenCalledWith("\\\\wsl.localhost\\Ubuntu\\home");
+    expect(mocks.loadHomeScopeLocation).not.toHaveBeenCalled();
+  });
+
   test("does nothing when the picker is cancelled", async () => {
     mocks.pickFolder.mockResolvedValue(null);
 

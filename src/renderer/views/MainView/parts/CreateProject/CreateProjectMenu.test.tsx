@@ -5,11 +5,15 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const mocks = vi.hoisted(() => ({
-  addExistingProject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  addExistingProject: vi.fn<(choice?: unknown) => Promise<void>>().mockResolvedValue(undefined),
+  listWslDistros: vi.fn<() => Promise<string[]>>().mockResolvedValue([]),
 }));
 
 vi.mock("@/renderer/actions/createProjectActions", () => ({
   addExistingProject: mocks.addExistingProject,
+}));
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => ({ listWslDistros: mocks.listWslDistros }),
 }));
 
 import { CreateProjectMenu } from "./CreateProjectMenu";
@@ -17,6 +21,7 @@ import { CreateProjectMenu } from "./CreateProjectMenu";
 describe("CreateProjectMenu", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.listWslDistros.mockResolvedValue([]);
     usePanelStore.setState({
       createProjectModalOpen: false,
       cloneProjectModalOpen: false,
@@ -72,8 +77,28 @@ describe("CreateProjectMenu", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add project" }));
     fireEvent.click(await screen.findByText("Use an existing folder"));
 
-    await waitFor(() => expect(mocks.addExistingProject).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.addExistingProject).toHaveBeenCalledWith({ kind: "native" }));
     expect(usePanelStore.getState().createProjectModalOpen).toBe(false);
+  });
+
+  it("shows separate native and WSL folder actions when a distro is detected", async () => {
+    mocks.listWslDistros.mockResolvedValue(["Ubuntu"]);
+    render(
+      <CreateProjectMenu>
+        <Button aria-label="Add project">+</Button>
+      </CreateProjectMenu>,
+    );
+
+    await waitFor(() => expect(mocks.listWslDistros).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Add project" }));
+    fireEvent.click(await screen.findByText("Windows"));
+    await waitFor(() => expect(mocks.addExistingProject).toHaveBeenCalledWith({ kind: "native" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Add project" }));
+    fireEvent.click(await screen.findByText("Ubuntu"));
+    await waitFor(() =>
+      expect(mocks.addExistingProject).toHaveBeenCalledWith({ kind: "wsl", distro: "Ubuntu" }),
+    );
   });
 
   it("opens Remote Environments when 'Open over SSH' is chosen", async () => {

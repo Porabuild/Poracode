@@ -22,6 +22,9 @@ let manifestPromise: Promise<RuntimeManifest> | null = null;
 let archivePromise: Promise<string> | null = null;
 
 function runtimeBaseUrl(): URL {
+  if (import.meta.env.BASE_URL.startsWith("/")) {
+    return new URL(`${import.meta.env.BASE_URL}poracode-ssh-runtime/`, window.location.origin);
+  }
   return new URL("./poracode-ssh-runtime/", document.baseURI);
 }
 

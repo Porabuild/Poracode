@@ -34,8 +34,13 @@ export {
   dbReadThreadRuntimeSummaries,
   dbGetThreadRuntimeSummaries,
   dbGetThreadRuntimeItems,
+  dbGetThreadRuntimeItemsPage,
+  dbTruncateThreadRuntimeAfter,
+  dbApplyThreadRuntimeEvents,
   dbReplaceThreadRuntimeItems,
   dbGetThreadCompletedTurns,
+  dbAppendThreadCompletedTurn,
+  dbGetLatestThreadRuntimeAnchorItemId,
   dbReplaceThreadCompletedTurns,
   dbReplaceThreadRuntimeSnapshot,
   dbGetThreadContextUsage,
@@ -44,6 +49,12 @@ export type { PersistedRuntimeItem, PersistedCompletedTurn } from "./db/runtimeI
 
 export { dbAppendUsageEvents, dbGetAllUsageEvents } from "./db/usageEvents";
 export type { UsageEventRow } from "./db/usageEvents";
+
+export {
+  dbClaimRemoteCommand,
+  dbCompleteRemoteCommand,
+  dbFailRemoteCommand,
+} from "./db/remoteCommandReceipts";
 
 export { dbGetSchedules, dbGetSchedule, dbUpsertSchedule, dbDeleteSchedule } from "./db/schedules";
 

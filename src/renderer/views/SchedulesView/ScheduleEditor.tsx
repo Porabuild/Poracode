@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { Button, Input, Label, Modal, Switch, TextArea, TextField } from "@heroui/react";
+import { Button, Input, Label, Modal, TextArea, TextField } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
-import { Select } from "@/renderer/components/common";
+import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { useAppStore } from "@/renderer/state/appStore";
 import { HOME_PROJECT_ID, isHomeProject } from "@/shared/homeScope";
 import { capabilitiesForPresentation } from "@/shared/agentSelection";
@@ -174,15 +174,11 @@ export function ScheduleEditor(props: ScheduleEditorProps) {
                     <Trans>Run this schedule automatically on the schedule below.</Trans>
                   }
                 >
-                  <Switch
+                  <ToggleSwitch
                     aria-label={t`Active`}
                     isSelected={draft.enabled}
                     onChange={(enabled) => set({ enabled })}
-                  >
-                    <Switch.Control>
-                      <Switch.Thumb />
-                    </Switch.Control>
-                  </Switch>
+                  />
                 </FieldRow>
 
                 <TextField value={draft.name} onChange={(name) => set({ name })}>

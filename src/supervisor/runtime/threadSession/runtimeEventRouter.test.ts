@@ -190,4 +190,63 @@ describe("SubAgentRegistry", () => {
 
     expect(registry.isSubscribed(threadId, parentId)).toBe(false);
   });
+
+  it("compacts adjacent buffered deltas without changing stream order", () => {
+    const registry = new SubAgentRegistry();
+    const threadId = "t1";
+    const parentId = "task-1";
+
+    registry.bufferEvent(threadId, parentId, {
+      type: "content.delta",
+      threadId,
+      itemId: "child-1",
+      stream: "assistant_text",
+      delta: "hel",
+    });
+    registry.bufferEvent(threadId, parentId, {
+      type: "content.delta",
+      threadId,
+      itemId: "child-1",
+      stream: "assistant_text",
+      delta: "lo",
+    });
+    registry.bufferEvent(threadId, parentId, {
+      type: "content.delta",
+      threadId,
+      itemId: "child-1",
+      stream: "reasoning_text",
+      delta: "why",
+    });
+    registry.bufferEvent(threadId, parentId, {
+      type: "content.delta",
+      threadId,
+      itemId: "child-1",
+      stream: "assistant_text",
+      delta: "!",
+    });
+
+    expect(registry.subscribe(threadId, parentId)).toEqual([
+      {
+        type: "content.delta",
+        threadId,
+        itemId: "child-1",
+        stream: "assistant_text",
+        delta: "hello",
+      },
+      {
+        type: "content.delta",
+        threadId,
+        itemId: "child-1",
+        stream: "reasoning_text",
+        delta: "why",
+      },
+      {
+        type: "content.delta",
+        threadId,
+        itemId: "child-1",
+        stream: "assistant_text",
+        delta: "!",
+      },
+    ]);
+  });
 });

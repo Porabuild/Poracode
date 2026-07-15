@@ -176,7 +176,7 @@ pick_port() {
   "$NODE" <<'NODE'
 const net = require("node:net");
 (async () => {
-  for (let port = 38987; port < 39187; port += 1) {
+  for (let port = 49152; port <= 65535; port += 1) {
     const available = await new Promise((resolve) => {
       const server = net.createServer();
       server.once("error", () => resolve(false));

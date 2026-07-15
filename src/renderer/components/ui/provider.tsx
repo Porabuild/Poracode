@@ -68,7 +68,7 @@ function ToastAction({ actionProps, actionLabel, isCopyAction }: ToastActionProp
       variant="ghost"
       fullWidth
       {...rest}
-      className={`w-full justify-center ${className ?? ""}`}
+      className={`w-full justify-center text-[color:var(--overlay-foreground)] ${className ?? ""}`}
     />
   );
 }
@@ -239,7 +239,7 @@ export function AppProvider(props: {
               <Toast
                 toast={toastItem}
                 variant={variant}
-                className={`lc-toast relative min-w-80 max-w-[min(42rem,calc(100vw-2rem))] border border-border/40 ${isToastPressable ? "cursor-pointer" : ""}`}
+                className={`lc-toast relative w-[min(24rem,calc(100vw-2rem))] border border-border/40 ${isToastPressable ? "cursor-pointer" : ""}`}
               >
                 {isToastPressable ? (
                   <div

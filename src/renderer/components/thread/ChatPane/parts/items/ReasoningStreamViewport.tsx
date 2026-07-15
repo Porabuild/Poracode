@@ -1,5 +1,4 @@
-import { useDeferredValue } from "react";
-import { ItemMarkdown } from "./ItemMarkdown";
+import { ItemMarkdown, SmoothItemMarkdown } from "./ItemMarkdown";
 import { useStickToBottom } from "./useStickToBottom";
 
 interface ReasoningStreamViewportProps {
@@ -15,7 +14,6 @@ interface ReasoningStreamViewportProps {
  * static body after completion.
  */
 export function ReasoningStreamViewport({ text, className }: ReasoningStreamViewportProps) {
-  const deferredText = useDeferredValue(text);
   const { scrollRef, contentRef } = useStickToBottom();
 
   return (
@@ -24,7 +22,7 @@ export function ReasoningStreamViewport({ text, className }: ReasoningStreamView
       className={`max-h-64 overflow-y-auto [scrollbar-gutter:stable] ${className ?? ""}`}
     >
       <div ref={contentRef}>
-        <ItemMarkdown text={deferredText} />
+        <SmoothItemMarkdown text={text} isStreaming />
       </div>
     </div>
   );

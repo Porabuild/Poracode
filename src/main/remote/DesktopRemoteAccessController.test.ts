@@ -61,6 +61,7 @@ const h = vi.hoisted(() => ({
     vi.fn<(port: number) => Promise<{ ok: true } | { ok: false; message: string }>>(),
   disableTailscaleServe: vi.fn<() => Promise<void>>(),
   launchTailscaleApp: vi.fn<() => Promise<{ ok: true } | { ok: false; message: string }>>(),
+  resolveRemoteAccessPort: vi.fn<() => Promise<number>>(),
 }));
 
 vi.mock("../db", () => ({
@@ -82,7 +83,7 @@ vi.mock("./config", () => ({
   remoteAccessAdvertisedHost: () => "127.0.0.1",
   remoteAccessHost: () => "127.0.0.1",
   remoteAccessPairingAppUrl: () => undefined,
-  remoteAccessPort: () => 38987,
+  resolveRemoteAccessPort: () => h.resolveRemoteAccessPort(),
 }));
 
 vi.mock("./identity", () => ({
@@ -254,6 +255,7 @@ describe("DesktopRemoteAccessController", () => {
     h.enableTailscaleServe.mockResolvedValue({ ok: true });
     h.disableTailscaleServe.mockResolvedValue();
     h.launchTailscaleApp.mockResolvedValue({ ok: true });
+    h.resolveRemoteAccessPort.mockResolvedValue(38987);
     delete process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST;
     logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -399,7 +401,7 @@ describe("DesktopRemoteAccessController", () => {
     expect(controller.getServer()).toBeNull();
   });
 
-  it("rolls back enablement and disposes forwarding after a start failure", async () => {
+  it("preserves enablement and disposes forwarding after a start failure", async () => {
     const start = deferred<RemoteAccessServerInfo>();
     h.serverPlans.push({ startPromise: start.promise });
     const controller = createController();
@@ -410,7 +412,8 @@ describe("DesktopRemoteAccessController", () => {
     start.reject(new Error("bind failed"));
 
     await expect(enabling).rejects.toThrow("bind failed");
-    expect(h.settingsPatches.map((patch) => patch.remoteAccessEnabled)).toEqual([true, false]);
+    expect(h.settingsPatches.map((patch) => patch.remoteAccessEnabled)).toEqual([true]);
+    expect(h.settings.remoteAccessEnabled).toBe(true);
     expect(h.forwardings[0]?.dispose).toHaveBeenCalledTimes(1);
     expect(controller.getServer()).toBeNull();
   });
@@ -504,7 +507,7 @@ describe("DesktopRemoteAccessController", () => {
     expect(h.servers[0]?.options.gitSummaries?.()).toEqual(summaries);
   });
 
-  it("starts only when persisted enabled and disables the setting on boot failure", async () => {
+  it("starts only when persisted enabled and preserves the setting on boot failure", async () => {
     const controller = createController();
     await controller.startIfEnabled();
     expect(h.servers).toHaveLength(0);
@@ -518,8 +521,8 @@ describe("DesktopRemoteAccessController", () => {
     start.reject(new Error("restore failed"));
 
     await expect(restoring).resolves.toBeUndefined();
-    expect(h.settings.remoteAccessEnabled).toBe(false);
-    expect(h.settingsPatches.at(-1)).toEqual({ remoteAccessEnabled: false });
+    expect(h.settings.remoteAccessEnabled).toBe(true);
+    expect(h.settingsPatches).toEqual([]);
   });
 
   it("preserves immediate quit teardown and makes final disposal idempotent", async () => {

@@ -6,7 +6,12 @@
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-const outDir = resolve(process.cwd(), "dist/mobile");
+const mobileBasePath = readEnv("PORACODE_MOBILE_BASE_PATH");
+const outDir = resolve(
+  process.cwd(),
+  "dist/mobile",
+  mobileBasePath && mobileBasePath !== "./" ? mobileBasePath.replace(/^\/+|\/+$/g, "") : "",
+);
 const source = join(outDir, "mobile.html");
 const target = join(outDir, "index.html");
 const wellKnownDir = join(outDir, ".well-known");

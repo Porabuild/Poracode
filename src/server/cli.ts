@@ -24,7 +24,7 @@ import {
  *   PORACODE_BASE_DIR                       data dir (default: per-channel)
  *   PORACODE_APP_VERSION                    reported app version
  *   PORACODE_REMOTE_ACCESS_HOST             bind host (default 0.0.0.0)
- *   PORACODE_REMOTE_ACCESS_PORT             bind port (default 38987)
+ *   PORACODE_REMOTE_ACCESS_PORT             bind port (default: first available 49152-65535)
  *   PORACODE_REMOTE_ACCESS_ADVERTISED_HOST  host advertised in pairing URLs
  *   PORACODE_SECRET_STORAGE_KEY             base64 32-byte key (else file-backed)
  *   PORACODE_BETTER_SQLITE3_NATIVE_BINDING  optional Node-ABI better_sqlite3.node
@@ -146,25 +146,25 @@ async function serve(): Promise<void> {
   const relayUrl = process.env.PORACODE_REMOTE_RELAY_URL?.trim();
   const relaySecret = relayUrl ? readOrCreateRelaySecret(baseDir) : undefined;
 
-  const host = createHeadlessRemoteHost({
-    appVersion,
-    isDev,
-    baseDir,
-    supervisorPath: join(__dirname, "supervisor.cjs"),
-    wslHelpersDir: resolveWslHelpersDir(),
-    bundledSkillsDir: resolveBundledSkillsDir(),
-    secretStorageKey,
-    ...(relayUrl ? { relayUrl } : {}),
-    ...(relaySecret ? { relaySecret } : {}),
-    onRelayRegistered: (publicUrl) =>
-      console.log("[poracode-server] reachable via relay: %s", publicUrl),
-    reportError: (error) => {
-      console.error("[poracode-server] supervisor error:", error);
-    },
-  });
-
+  let host: Awaited<ReturnType<typeof createHeadlessRemoteHost>>;
   let info;
   try {
+    host = await createHeadlessRemoteHost({
+      appVersion,
+      isDev,
+      baseDir,
+      supervisorPath: join(__dirname, "supervisor.cjs"),
+      wslHelpersDir: resolveWslHelpersDir(),
+      bundledSkillsDir: resolveBundledSkillsDir(),
+      secretStorageKey,
+      ...(relayUrl ? { relayUrl } : {}),
+      ...(relaySecret ? { relaySecret } : {}),
+      onRelayRegistered: (publicUrl) =>
+        console.log("[poracode-server] reachable via relay: %s", publicUrl),
+      reportError: (error) => {
+        console.error("[poracode-server] supervisor error:", error);
+      },
+    });
     info = await host.start();
   } catch (error) {
     // Startup failed after the lock was acquired — release it so a retry (or a

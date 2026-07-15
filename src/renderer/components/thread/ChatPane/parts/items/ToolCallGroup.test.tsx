@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
@@ -91,6 +91,22 @@ describe("ToolCallGroup", () => {
     expect(view.container.querySelector(".poracode-tool-call-group-viewport")).not.toBeNull();
     expect(screen.getByText("Read file one")).toBeInTheDocument();
     expect(screen.getByText("Read file two")).toBeInTheDocument();
+  });
+
+  it("requests row remeasurement after the collapsed layout commits", () => {
+    const threadId = "thread-1";
+    const items = [makeToolItem("tool-1", "Read file one")];
+    seedThread(threadId, items);
+    let container: HTMLElement | null = null;
+    const onHeightChange = vi.fn<() => void>(() => {
+      expect(container?.querySelector(".poracode-tool-call-group-viewport")).toBeNull();
+    });
+    const view = renderToolCallGroup(threadId, [items[0]!.id], true, onHeightChange);
+    container = view.container;
+
+    fireEvent.click(screen.getByRole("button", { name: /1 view/i }));
+
+    expect(onHeightChange).toHaveBeenCalledOnce();
   });
 
   it("renders every row inline when the group fits under the cap", () => {
@@ -485,7 +501,10 @@ describe("ToolCallGroup", () => {
   it("renders completed reasoning as a collapsed Thought row with a text preview", () => {
     const threadId = "thread-1";
     const items = [
-      makeReasoningItem("reasoning-1", "Weighing the tradeoffs before editing the selector."),
+      makeReasoningItem(
+        "reasoning-1",
+        "Weighing the tradeoffs.\nChoosing the focused change.\nEditing the selector.",
+      ),
       makeToolItem("tool-1", "Read file"),
     ];
     seedThread(threadId, items);
@@ -498,12 +517,16 @@ describe("ToolCallGroup", () => {
     expect(screen.getByText("1 thought")).toBeInTheDocument();
     expect(screen.getByText("Thought")).toBeInTheDocument();
     expect(
-      screen.getByText("Weighing the tradeoffs before editing the selector."),
+      screen.getByText(
+        "Weighing the tradeoffs. · Choosing the focused change. · Editing the selector.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText("Thought").closest("button")).toHaveClass("overflow-hidden");
-    expect(screen.getByText("Weighing the tradeoffs before editing the selector.")).toHaveClass(
-      "truncate",
-    );
+    expect(
+      screen.getByText(
+        "Weighing the tradeoffs. · Choosing the focused change. · Editing the selector.",
+      ),
+    ).toHaveClass("truncate");
   });
 
   it("keeps streaming reasoning collapsed with a live last-line preview, then settles on completion", async () => {
@@ -569,10 +592,20 @@ describe("ToolCallGroup", () => {
   });
 });
 
-function renderToolCallGroup(threadId: string, itemIds: readonly string[], isLive = true) {
+function renderToolCallGroup(
+  threadId: string,
+  itemIds: readonly string[],
+  isLive = true,
+  onHeightChange?: () => void,
+) {
   return render(
     <AppProvider>
-      <ToolCallGroup threadId={threadId} itemIds={itemIds} isLive={isLive} />
+      <ToolCallGroup
+        threadId={threadId}
+        itemIds={itemIds}
+        isLive={isLive}
+        {...(onHeightChange ? { onHeightChange } : {})}
+      />
     </AppProvider>,
   );
 }

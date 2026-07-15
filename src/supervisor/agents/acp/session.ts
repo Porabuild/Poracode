@@ -582,9 +582,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<string> {
     let availableModeIds: string[] = [];
-    let configOptions: unknown[] = [];
+    let configOptions: unknown[] | null | undefined;
     this.currentConfig = undefined;
     this.currentSlashCommands = undefined;
+    this.sessionConfigSync.rememberOptions([], []);
     const mcpServers = this.gateMcpServers([
       ...buildAcpUserMcpServers(this.mcpServers),
       ...buildAcpBrowserMcpServers(
@@ -619,7 +620,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
           });
           this.adoptSessionRef(sessionRef);
           availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
-          configOptions = result.configOptions ?? [];
+          configOptions = result.configOptions;
         } catch (error) {
           throw this.loadSessionErrorRewriter(error, sessionRef.providerSessionId);
         } finally {
@@ -638,7 +639,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
           });
           this.adoptSessionRef(sessionRef);
           availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
-          configOptions = result.configOptions ?? [];
+          configOptions = result.configOptions;
         } catch (error) {
           throw this.loadSessionErrorRewriter(error, sessionRef.providerSessionId);
         } finally {
@@ -655,11 +656,15 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.sessionId = result.sessionId;
       this.stableSessionRef = createKnownSessionRef(result.sessionId);
       availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
-      configOptions = result.configOptions ?? [];
+      configOptions = result.configOptions;
       console.log("[acp] session created:", this.sessionId, "modes:", availableModeIds);
     }
 
-    this.sessionConfigSync.rememberOptions(availableModeIds, configOptions);
+    if (Array.isArray(configOptions)) {
+      this.sessionConfigSync.rememberOptions(availableModeIds, configOptions);
+    } else {
+      this.sessionConfigSync.rememberAvailableModes(availableModeIds);
+    }
     this.currentConfig = await this.sessionConfigSync.applyTurnConfig(
       this.sessionId,
       config,
@@ -1010,6 +1015,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       }
     }
 
+    const suppressReplayUpdate =
+      this.isReplayingHistory || Date.now() < (this.replayHistoryUntil || 0);
+    if (suppressReplayUpdate && update.sessionUpdate === "config_option_update") {
+      this.sessionConfigSync.rememberConfigOptionUpdate(update);
+    }
+
     // Emit canonical events for chat-mode renderers. The legacy text/status
     // path below stays in place — terminal-mode threads still get all the
     // existing behaviour, and the canonical channel runs in parallel.
@@ -1018,7 +1029,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // `session/update` notifications. Poracode already has those messages
     // in its own DB, so we skip canonical mapping for the replay window to
     // avoid duplicating every message in the chat pane.
-    if (!this.isReplayingHistory && Date.now() >= (this.replayHistoryUntil || 0)) {
+    if (!suppressReplayUpdate) {
       const events = mapAcpSessionUpdate(params, this.ensureMapperState());
       this.rememberAcpToolCallItemId(params, events);
       if (events.length > 0) {

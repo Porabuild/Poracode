@@ -575,6 +575,7 @@ msgstr "帐户"
 msgid "Account options"
 msgstr "账户选项"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Accounts"
 msgstr "账户"
@@ -669,6 +670,10 @@ msgstr "在安装代理之前添加项目。"
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before signing in."
 msgstr "登录前添加项目。"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Add a project to see pull requests."
+msgstr "添加项目以查看拉取请求。"
 
 #: src/renderer/app.tsx
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
@@ -894,6 +899,7 @@ msgstr "线程需要你时提醒"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
@@ -1177,6 +1183,10 @@ msgstr "需要身份验证"
 msgid "Authentication setup cannot be imported"
 msgstr "无法导入身份验证设置"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Authored"
+msgstr "我创建的"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Authorization: Bearer token"
 msgstr "Authorization: Bearer token"
@@ -1185,7 +1195,7 @@ msgstr "Authorization: Bearer token"
 msgid "Auto"
 msgstr "自动"
 
-#: src/renderer/components/providers/acpGeneric/index.tsx
+#: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Auto Approve"
 msgstr "自动批准"
 
@@ -1578,6 +1588,10 @@ msgstr "取消移除项目"
 msgid "cancelled"
 msgstr "已取消"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Cancelled"
+msgstr "已取消"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot create a default worktree path without a branch name"
 msgstr "无法创建没有分支名称的默认工作树路径"
@@ -1708,9 +1722,22 @@ msgstr "正在检查..."
 
 #: src/mobile/views/pr/PrChecksPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrTabsPill.tsx
 msgid "Checks"
 msgstr "检查项"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Checks failed"
+msgstr "检查失败"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Checks passed"
+msgstr "检查通过"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Checks pending"
+msgstr "检查待定"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a folder"
@@ -2055,6 +2082,7 @@ msgid "Close usage details"
 msgstr "关闭使用详情"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "已关闭"
 
@@ -2240,6 +2268,10 @@ msgstr "完成此终端中的提示。完成后关闭。"
 #: src/renderer/components/thread/ChatPane/parts/items/PlanItem.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "completed"
+msgstr "已完成"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Completed"
 msgstr "已完成"
 
 #: src/renderer/commands/shortcutCatalog.ts
@@ -2579,6 +2611,11 @@ msgstr "无法提取上下文。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not generate commit message: {detail}"
 msgstr "无法生成提交消息：{detail}"
+
+#. placeholder {0}: failure.project.name
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Could not load pull requests for {0}."
+msgstr "无法加载 {0} 的拉取请求。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3278,6 +3315,7 @@ msgid "Downloading voice model..."
 msgstr "正在下载语音模型..."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Draft"
 msgstr "草稿"
 
@@ -3452,8 +3490,12 @@ msgid "Endpoint"
 msgstr "端点"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
-msgid "Endpoint, e.g. http://192.168.1.20:38987/"
-msgstr "端点，例如 http://192.168.1.20:38987/"
+#~ msgid "Endpoint, e.g. http://192.168.1.20:38987/"
+#~ msgstr "端点，例如 http://192.168.1.20:38987/"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Endpoint, e.g. http://192.168.1.20:49152/"
+msgstr "端点，例如 http://192.168.1.20:49152/"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -3723,11 +3765,16 @@ msgstr "超高"
 msgid "Extracting context from {0}..."
 msgstr "从{0}中提取上下文 ..."
 
+#: src/renderer/components/providers/factory/manifest.ts
+msgid "Factory Droid"
+msgstr "Factory Droid"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "failed"
 msgstr "失败了"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
 msgstr "失败"
@@ -3859,9 +3906,17 @@ msgstr "按项目筛选"
 msgid "Filter marketplace by source"
 msgstr "按来源筛选市场"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Filter pull requests"
+msgstr "筛选拉取请求"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Filter skills by status"
 msgstr "按状态筛选技能"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Filters"
+msgstr "筛选条件"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/components/find/FindBar.tsx
@@ -3912,6 +3967,10 @@ msgstr "使用 Poracode 的本机运行时实现一流的 Command Code CLI 集�
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Cursor Agent integration using Poracode's native runtime."
 msgstr "使用 Poracode 原生运行时的一流 Cursor Agent 集成。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Factory Droid integration using Poracode's ACP runtime."
+msgstr "使用 Poracode ACP 运行时的一流 Factory Droid 集成。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Gemini CLI integration using Poracode's native runtime."
@@ -4843,6 +4902,10 @@ msgstr "正在加载 PR…"
 msgid "Loading previous runs"
 msgstr "正在加载历史运行记录"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Loading pull requests"
+msgstr "正在加载拉取请求"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Loading registry..."
 msgstr "正在加载注册表..."
@@ -5252,6 +5315,7 @@ msgstr "合并工作树"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Merged"
 msgstr "已合并"
 
@@ -5524,6 +5588,10 @@ msgstr "需要关注 · 需要回复"
 msgid "Needs reply"
 msgstr "需要回复"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Neutral"
+msgstr "中立"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "新增"
@@ -5763,6 +5831,7 @@ msgstr "没有显示任何变化"
 msgid "No changes yet"
 msgstr "尚无更改"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
 msgid "No checks reported for this PR."
 msgstr "没有为此 PR 报告检查。"
@@ -5877,6 +5946,10 @@ msgstr "没有匹配项。"
 msgid "No matching agents."
 msgstr "没有匹配的代理。"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "No matching pull requests."
+msgstr "没有匹配的拉取请求。"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "No matching schedules."
 msgstr "没有匹配的计划。"
@@ -5960,6 +6033,10 @@ msgstr "尚未连接任何提供商。"
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "No providers ready yet"
 msgstr "尚无就绪的提供商"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "No pull requests found."
+msgstr "未找到拉取请求。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "No remote configured. Add a remote to enable push and pull."
@@ -6201,6 +6278,7 @@ msgstr "仅当窗口失去焦点时"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Open"
 msgstr "打开"
@@ -6476,6 +6554,10 @@ msgstr "选项"
 msgid "Or write a custom answer"
 msgstr "或者写一个自定义答案"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Other"
+msgstr "其他"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 msgid "Outcome"
 msgstr "结果"
@@ -6598,6 +6680,10 @@ msgstr "服务器上的父文件夹"
 msgid "Parent folder, e.g. /home/me/projects"
 msgstr "父文件夹，例如 /home/me/projects"
 
+#: src/renderer/utils/prStatus.ts
+msgid "Passed"
+msgstr "已通过"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Passphrase (optional)"
 msgstr "密码短语（可选）"
@@ -6655,6 +6741,10 @@ msgstr "最活跃日"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "pending"
 msgstr "待定"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Pending"
+msgstr "待处理"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "pending review"
@@ -6929,6 +7019,7 @@ msgstr "在全局搜索设置基础上的项目特定覆盖。"
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Projects"
 msgstr "项目"
 
@@ -7047,6 +7138,10 @@ msgstr "拉取请求 {0}"
 msgid "Pull request #{0}"
 msgstr "拉取请求 #{0}"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Pull request category"
+msgstr "拉取请求类别"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Pull request merged"
 msgstr "Pull request 已合并"
@@ -7054,6 +7149,11 @@ msgstr "Pull request 已合并"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Pull request options"
 msgstr "拉取请求选项"
+
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Pull requests"
+msgstr "拉取请求"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
@@ -7188,6 +7288,7 @@ msgstr "隐藏通知内容"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -7253,6 +7354,10 @@ msgstr "远程访问"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Remote access pairing QR code"
 msgstr "远程访问配对二维码"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Remote access port {occupiedPort} is already in use. Stop the other server, then retry."
+msgstr "远程访问端口 {occupiedPort} 已被占用。请停止其他服务器，然后重试。"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Remote environment unavailable."
@@ -7587,6 +7692,7 @@ msgstr "继续"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Retry"
 msgstr "重试"
 
@@ -7655,6 +7761,10 @@ msgstr "恢复到此检查点？"
 msgid "Revert to this checkpoint"
 msgstr "恢复到此检查点"
 
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Review and track work across your GitHub accounts."
+msgstr "在你的各个 GitHub 账户中审核和跟踪工作。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Review Changes"
@@ -7688,6 +7798,10 @@ msgstr "查看{0}的 PR #{prNumber}"
 #: src/mobile/settingsSections.ts
 msgid "Review presentation"
 msgstr "评审显示"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Reviewing"
+msgstr "待我审核"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
@@ -7795,6 +7909,7 @@ msgstr "按照下方的计划自动运行此计划。"
 msgid "running"
 msgstr "运行中"
 
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Running"
 msgstr "正在运行"
@@ -7998,6 +8113,10 @@ msgstr "搜索模型..."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "搜索或输入地址"
+
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
+msgid "Search pull requests"
+msgstr "搜索拉取请求"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Search repositories"
@@ -8248,6 +8367,7 @@ msgid "Show a projectless Home scope for OS-level agent sessions."
 msgstr "为操作系统级别的代理会话显示一个无项目的主页范围。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
+#: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Show all"
@@ -8518,6 +8638,10 @@ msgstr "技能市场"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skills.sh"
 msgstr "Skills.sh"
+
+#: src/renderer/utils/prStatus.ts
+msgid "Skipped"
+msgstr "已跳过"
 
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Slash commands"
@@ -8907,7 +9031,6 @@ msgstr "建议"
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "总结本周进展、未完成的工作以及下周最重要的风险。"
 
-#: src/renderer/components/providers/acpGeneric/index.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "监督"
@@ -9060,6 +9183,7 @@ msgstr "点按 + 直接配对或通过 SSH 连接到远程计算机。"
 #~ msgstr "点击 + 与桌面端的 Poracode 配对。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Target branch"
 msgstr "目标分支"
 
@@ -9924,7 +10048,7 @@ msgid "Uninstall"
 msgstr "卸载"
 
 #: src/renderer/components/thread/threadContextUsage.ts
-#: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
+#: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "未知"
@@ -10472,6 +10596,7 @@ msgstr "将在{0}运行："
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Windows"

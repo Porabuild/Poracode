@@ -276,6 +276,11 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().view).toEqual({ kind: "home" });
   });
 
+  it("opens pull requests as a main view", () => {
+    useAppStore.getState().openPullRequests();
+    expect(useAppStore.getState().view).toEqual({ kind: "pullRequests" });
+  });
+
   it("openThread replaces panes[0] and keeps secondary panes", () => {
     const project = useAppStore.getState().addProject({
       kind: "windows",

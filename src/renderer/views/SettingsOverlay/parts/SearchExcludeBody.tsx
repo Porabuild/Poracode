@@ -1,8 +1,7 @@
 import { type ReactNode, startTransition, useState } from "react";
-import { Switch } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Lock, Trash2 } from "lucide-react";
-import { Button, Input } from "@/renderer/components/common";
+import { Button, Input, ToggleSwitch } from "@/renderer/components/common";
 import { LOCKED_SEARCH_EXCLUDE } from "@/shared/searchExclude";
 
 interface SearchExcludeBodyProps {
@@ -44,6 +43,7 @@ interface Row {
 }
 
 export function SearchExcludeBody(props: SearchExcludeBodyProps) {
+  const { t } = useLingui();
   const {
     useIgnoreFiles,
     useIgnoreFilesNote,
@@ -87,16 +87,13 @@ export function SearchExcludeBody(props: SearchExcludeBodyProps) {
           <p className="text-xs text-muted">{useIgnoreFilesNote}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Switch
+          <ToggleSwitch
+            aria-label={t`Use ignore files`}
             isSelected={useIgnoreFiles}
             onChange={(selected) => {
               startTransition(() => onUseIgnoreFilesChange(selected));
             }}
-          >
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch>
+          />
           {useIgnoreFilesResetAction}
         </div>
       </div>

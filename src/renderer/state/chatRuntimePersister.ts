@@ -1,53 +1,23 @@
-import type { ThreadContextUsage, ToolCallPayload } from "@/shared/contracts";
+import type { ToolCallPayload } from "@/shared/contracts";
 import { captureRendererException } from "../diagnostics/sentry";
 import { imageViewRendersInline } from "../components/thread/ChatPane/parts/items/imageViewSource";
 import { isSubAgentTool } from "../components/thread/ChatPane/parts/items/toolDisplay";
 import { readBridge } from "../bridge";
 import { useAppStore } from "./appStore";
 import {
-  subscribeRuntimePersistenceDirtyThreads,
+  toRuntimeChatItem,
   type CompletedTurnRecord,
   type RuntimeChatItem,
 } from "./slices/runtimeEventSlice";
 
-const FLUSH_DEBOUNCE_MS = 300;
+const RUNTIME_PAGE_SIZE = 200;
+const MAX_CACHED_THREAD_TRANSCRIPTS = 40;
 const hydratedThreadRuntimeIds = new Set<string>();
 const pendingThreadRuntimeHydrations = new Map<string, Promise<boolean>>();
-
-/**
- * Persists per-thread canonical chat items to SQLite so the UI can hydrate
- * after an app restart. Subscribes to runtime item ids / maps, diffs by
- * reference, and debounce-flushes per thread.
- *
- * Designed for "fire-and-forget" persistence: missing a write under heavy
- * load is fine because the next event triggers another flush. We only persist
- * canonical items plus completed-turn markers (not requests) since requests
- * are ephemeral and resolve within a turn.
- */
-interface PendingFlush {
-  items: RuntimeChatItem[];
-  turns: ReadonlyArray<CompletedTurnRecord>;
-  contextUsage: ThreadContextUsage | null;
-}
-
-interface CompactedRuntimeItems {
-  items: RuntimeChatItem[];
-  anchorRemap: ReadonlyMap<string, string | null>;
-}
-
-export function prepareRuntimeSnapshotForPersistence(
-  items: readonly RuntimeChatItem[],
-  turns: ReadonlyArray<CompletedTurnRecord>,
-): {
-  items: RuntimeChatItem[];
-  turns: CompletedTurnRecord[];
-} {
-  const compacted = compactRuntimeItemsForPersistence(items);
-  return {
-    items: compacted.items,
-    turns: remapCompletedTurnAnchors(turns, compacted.anchorRemap),
-  };
-}
+const olderRuntimePageCursorByThread = new Map<string, number | null>();
+const pendingOlderRuntimePages = new Map<string, Promise<boolean>>();
+const retainedThreadRuntimeCounts = new Map<string, number>();
+const inactiveThreadRuntimeLru = new Set<string>();
 
 export function hasHydratedThreadRuntimeItems(threadId: string): boolean {
   return (
@@ -56,79 +26,50 @@ export function hasHydratedThreadRuntimeItems(threadId: string): boolean {
   );
 }
 
-export function installRuntimeItemsPersister(): () => void {
-  const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  const pendingThreadIds = new Set<string>();
-
-  const flushThread = (threadId: string) => {
-    pendingTimers.delete(threadId);
-    if (!pendingThreadIds.delete(threadId)) return;
-    const snapshot = collectPendingFlush(threadId);
-    if (!snapshot) return;
-    const persisted = prepareRuntimeSnapshotForPersistence(snapshot.items, snapshot.turns);
-    const bridge = readBridge();
-    void bridge
-      .dbReplaceThreadRuntimeSnapshot({
-        threadId,
-        items: persisted.items.map((item) => ({
-          id: item.id,
-          type: item.type,
-          state: item.state,
-          payload: item.payload,
-          streams: item.streams as Record<string, string>,
-          ...(item.parentItemId ? { parentItemId: item.parentItemId } : {}),
-        })),
-        turns: persisted.turns.map((turn) => ({
-          startedAt: new Date(turn.startedAt).toISOString(),
-          endedAt: new Date(turn.endedAt).toISOString(),
-          anchorItemId: turn.anchorItemId,
-        })),
-        contextUsage: snapshot.contextUsage,
-      })
-      .catch((err: unknown) => {
-        console.warn("[chat] failed to persist runtime snapshot for thread %s", threadId, err);
-        captureRendererException(err, { featureArea: "runtime-persistence" });
-      });
-  };
-
-  const scheduleFlush = (threadId: string) => {
-    pendingThreadIds.add(threadId);
-    const existing = pendingTimers.get(threadId);
-    if (existing) clearTimeout(existing);
-    const timer = setTimeout(() => flushThread(threadId), FLUSH_DEBOUNCE_MS);
-    pendingTimers.set(threadId, timer);
-  };
-
-  const unsubscribe = subscribeRuntimePersistenceDirtyThreads((dirtyThreadIds) => {
-    for (const threadId of dirtyThreadIds) {
-      scheduleFlush(threadId);
-    }
-  });
-
-  return () => {
-    unsubscribe();
-    // Drain pending debounced writes rather than dropping them, so the last
-    // items of a turn that just finished are not lost if teardown happens
-    // within the debounce window.
-    for (const timer of pendingTimers.values()) clearTimeout(timer);
-    pendingTimers.clear();
-    for (const threadId of [...pendingThreadIds]) flushThread(threadId);
-  };
+export function retainThreadRuntimeItems(threadId: string): void {
+  retainedThreadRuntimeCounts.set(threadId, (retainedThreadRuntimeCounts.get(threadId) ?? 0) + 1);
+  inactiveThreadRuntimeLru.delete(threadId);
 }
 
-function collectPendingFlush(threadId: string): PendingFlush | null {
-  const state = useAppStore.getState();
-  const ids = state.runtimeItemIdsByThread[threadId];
-  const itemsById = state.runtimeItemsByIdByThread[threadId];
-  const turns = state.runtimeCompletedTurnsByThread[threadId] ?? [];
-  const contextUsage = state.runtimeContextByThread[threadId] ?? null;
-  return {
-    items: (ids ?? [])
-      .map((itemId) => itemsById?.[itemId])
-      .filter((item): item is RuntimeChatItem => !!item),
-    turns,
-    contextUsage,
-  };
+export function releaseThreadRuntimeItems(threadId: string): void {
+  const nextCount = (retainedThreadRuntimeCounts.get(threadId) ?? 1) - 1;
+  if (nextCount > 0) {
+    retainedThreadRuntimeCounts.set(threadId, nextCount);
+    return;
+  }
+  retainedThreadRuntimeCounts.delete(threadId);
+  inactiveThreadRuntimeLru.delete(threadId);
+  inactiveThreadRuntimeLru.add(threadId);
+  evictInactiveThreadRuntimeItems();
+}
+
+export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boolean> {
+  const cursor = olderRuntimePageCursorByThread.get(threadId);
+  if (cursor === undefined || cursor === null) return false;
+  const pending = pendingOlderRuntimePages.get(threadId);
+  if (pending) return pending;
+
+  const load = (async () => {
+    const page = await readBridge().dbGetThreadRuntimeItemsPage({
+      threadId,
+      beforePosition: cursor,
+      limit: RUNTIME_PAGE_SIZE,
+    });
+    olderRuntimePageCursorByThread.set(threadId, page.nextCursor);
+    if (page.items.length === 0) return false;
+    useAppStore.getState().prependThreadRuntimeItems(threadId, page.items.map(toRuntimeChatItem));
+    return true;
+  })().catch((error: unknown) => {
+    console.warn("[chat] failed to load older runtime items for thread %s", threadId, error);
+    captureRendererException(error, { featureArea: "runtime-persistence" });
+    return false;
+  });
+  pendingOlderRuntimePages.set(threadId, load);
+  try {
+    return await load;
+  } finally {
+    pendingOlderRuntimePages.delete(threadId);
+  }
 }
 
 /**
@@ -159,24 +100,20 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
 async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolean> {
   const bridge = readBridge();
   const [itemsResult, turnsResult, contextResult] = await Promise.allSettled([
-    Promise.resolve().then(() => bridge.dbGetThreadRuntimeItems(threadId)),
+    Promise.resolve().then(() =>
+      bridge.dbGetThreadRuntimeItemsPage({ threadId, limit: RUNTIME_PAGE_SIZE }),
+    ),
     Promise.resolve().then(() => bridge.dbGetThreadCompletedTurns(threadId)),
     Promise.resolve().then(() => bridge.dbGetThreadContextUsage(threadId)),
   ]);
 
-  if (itemsResult.status === "fulfilled" && itemsResult.value.length > 0) {
-    // DB rows are already written in compacted form; rerunning the shared
-    // compactor keeps synthetic summary items normalized during hydration.
-    const { items } = compactRuntimeItemsForPersistence(
-      itemsResult.value.map((row) => ({
-        id: row.id,
-        type: row.type as RuntimeChatItem["type"],
-        state: row.state,
-        payload: row.payload,
-        streams: row.streams as RuntimeChatItem["streams"],
-        ...(row.parentItemId ? { parentItemId: row.parentItemId } : {}),
-      })),
-    );
+  if (itemsResult.status === "fulfilled") {
+    olderRuntimePageCursorByThread.set(threadId, itemsResult.value.nextCursor);
+  }
+  if (itemsResult.status === "fulfilled" && itemsResult.value.items.length > 0) {
+    // Persisted rows can contain raw tool runs or legacy synthetic summaries;
+    // normalize both forms during hydration.
+    const items = compactRuntimeItemsForHydration(itemsResult.value.items.map(toRuntimeChatItem));
     useAppStore.getState().hydrateThreadRuntimeItems(threadId, items);
     // Any sub-agent tool_call that was mid-flight when the prior session
     // ended will hydrate here as still "running" and show up in the active
@@ -228,41 +165,33 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
   );
 }
 
-function remapCompletedTurnAnchors(
-  turns: ReadonlyArray<CompletedTurnRecord>,
-  anchorRemap: ReadonlyMap<string, string | null>,
-): CompletedTurnRecord[] {
-  return turns.map((turn) => ({
-    ...turn,
-    anchorItemId: turn.anchorItemId === null ? null : (anchorRemap.get(turn.anchorItemId) ?? null),
-  }));
+function evictInactiveThreadRuntimeItems(): void {
+  while (inactiveThreadRuntimeLru.size > MAX_CACHED_THREAD_TRANSCRIPTS) {
+    const threadId = inactiveThreadRuntimeLru.keys().next().value as string | undefined;
+    if (!threadId) return;
+    inactiveThreadRuntimeLru.delete(threadId);
+    hydratedThreadRuntimeIds.delete(threadId);
+    olderRuntimePageCursorByThread.delete(threadId);
+    useAppStore.getState().evictThreadRuntimeItems(threadId);
+  }
 }
 
-function compactRuntimeItemsForPersistence(
+export function compactRuntimeItemsForHydration(
   items: readonly RuntimeChatItem[],
-): CompactedRuntimeItems {
+): RuntimeChatItem[] {
   const compacted: RuntimeChatItem[] = [];
-  const anchorRemap = new Map<string, string | null>();
-  let lastPersistedItemId: string | null = null;
   let idx = 0;
   while (idx < items.length) {
     const item = items[idx]!;
     // Error items are session-transient: they describe a failure of the run
-    // that produced them, so persisting them would resurface stale errors in
-    // the composer dock every time the thread is reopened. Dropping them here
-    // covers both the save path and hydration (which re-runs this compactor),
-    // so errors already sitting in older databases are cleaned up on load too.
+    // that produced them, so hydrating them would resurface stale errors in
+    // the composer dock every time the thread is reopened.
     if (item.type === "error" || isEmptyCompletedReasoning(item)) {
-      // If a turn marker was anchored to a row we drop on save, keep it
-      // attached to the previous surviving row so it renders in the same gap.
-      anchorRemap.set(item.id, lastPersistedItemId);
       idx += 1;
       continue;
     }
     if (!isToolGroupItem(item) || item.state !== "completed") {
       compacted.push(item);
-      anchorRemap.set(item.id, item.id);
-      lastPersistedItemId = item.id;
       idx += 1;
       continue;
     }
@@ -277,12 +206,8 @@ function compactRuntimeItemsForPersistence(
     const persistedItem =
       run.length === 1 ? normalizeToolSummaryItem(run[0]!) : summarizeToolCallRun(run);
     compacted.push(persistedItem);
-    for (const runItem of run) {
-      anchorRemap.set(runItem.id, persistedItem.id);
-    }
-    lastPersistedItemId = persistedItem.id;
   }
-  return { items: compacted, anchorRemap };
+  return compacted;
 }
 
 function normalizeToolSummaryItem(item: RuntimeChatItem): RuntimeChatItem {

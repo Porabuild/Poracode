@@ -170,6 +170,21 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
       }),
   },
   {
+    id: "factory",
+    acpRegistryAliases: [{ id: "factory-droid", nativeSupport: true }],
+    description: msg`First-class Factory Droid integration using Poracode's ACP runtime.`,
+    docsUrl: "https://docs.factory.ai/cli/getting-started/overview",
+    installCommand: (project) =>
+      posixOrWindows(
+        project,
+        "if command -v curl >/dev/null 2>&1; then curl -fsSL https://app.factory.ai/cli | sh; " +
+          "elif command -v npm >/dev/null 2>&1; then npm install -g droid; else " +
+          POSIX_MISSING_CURL_NPM_MESSAGE +
+          "; fi",
+        "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://app.factory.ai/cli/windows | iex } elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g droid } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod or Node.js/npm first, then refresh detected agents.' }",
+      ),
+  },
+  {
     id: "antigravity",
     description: msg`First-class Antigravity CLI integration using Poracode's native runtime.`,
     docsUrl: "https://antigravity.google/docs/cli-getting-started",

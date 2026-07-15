@@ -23,6 +23,7 @@ export function bumpProfileDataGeneration(): void {
 
 /** How long durable usage events are retained (well beyond the 364-day heatmap). */
 const USAGE_EVENTS_RETENTION_DAYS = 730;
+const REMOTE_COMMAND_RECEIPTS_RETENTION_DAYS = 30;
 
 const HEADLESS_SERVER_ENV = "PORACODE_HEADLESS_SERVER";
 const BETTER_SQLITE_NATIVE_BINDING_ENV = "PORACODE_BETTER_SQLITE3_NATIVE_BINDING";
@@ -210,11 +211,21 @@ export function initDatabase(dbPath: string) {
     );
     CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_schedule
       ON scheduled_task_runs (schedule_id, started_at DESC);
+    CREATE TABLE IF NOT EXISTS remote_command_receipts (
+      command_id TEXT PRIMARY KEY,
+      route TEXT NOT NULL,
+      state TEXT NOT NULL,
+      response TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_remote_command_receipts_updated
+      ON remote_command_receipts (updated_at);
   `);
 
   // Baseline schema version for future DB migrations.
   // New upgrade steps should live behind this gate when we need them.
-  const SCHEMA_VERSION = 24;
+  const SCHEMA_VERSION = 25;
 
   const storedVersion = Number(
     (
@@ -460,6 +471,21 @@ export function initDatabase(dbPath: string) {
       }
     }
 
+    if (storedVersion < 25) {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS remote_command_receipts (
+          command_id TEXT PRIMARY KEY,
+          route TEXT NOT NULL,
+          state TEXT NOT NULL,
+          response TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_remote_command_receipts_updated
+          ON remote_command_receipts (updated_at);
+      `);
+    }
+
     sqlite
       .prepare(
         "INSERT INTO app_state (key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -476,6 +502,9 @@ export function initDatabase(dbPath: string) {
   } catch {
     // usage_events may not exist on a partially-migrated db; ignore.
   }
+
+  const receiptCutoff = Date.now() - REMOTE_COMMAND_RECEIPTS_RETENTION_DAYS * 86_400_000;
+  sqlite.prepare("DELETE FROM remote_command_receipts WHERE updated_at < ?").run(receiptCutoff);
 
   console.log("[db] initialized");
   return _db;

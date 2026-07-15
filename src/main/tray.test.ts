@@ -52,9 +52,21 @@ describe("resolveTrayIconPath", () => {
   });
 
   it("prefers the nightly icon in dev nightly builds", () => {
-    existsSyncMock.mockImplementation((path) => /build[\\/]icon-nightly\.png$/u.test(path));
+    const filename = process.platform === "win32" ? "tray-icon-nightly.ico" : "icon-nightly.png";
+    existsSyncMock.mockImplementation((path) => path.endsWith(filename));
 
-    expect(resolveTrayIconPath("nightly")).toMatch(/build[\\/]icon-nightly\.png$/u);
+    expect(resolveTrayIconPath("nightly")).toMatch(
+      new RegExp(`build[\\\\/]${filename.replace(".", "\\.")}$`, "u"),
+    );
+  });
+
+  it("uses the stable icon in dev stable builds", () => {
+    const filename = process.platform === "win32" ? "tray-icon.ico" : "icon.png";
+    existsSyncMock.mockImplementation((path) => path.endsWith(filename));
+
+    expect(resolveTrayIconPath("stable")).toMatch(
+      new RegExp(`build[\\\\/]${filename.replace(".", "\\.")}$`, "u"),
+    );
   });
 
   it("falls back to no tray when the icon is missing", () => {

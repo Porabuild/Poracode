@@ -13,10 +13,13 @@ import {
 import {
   Streamdown,
   defaultRehypePlugins,
+  defaultUrlTransform,
   type Components as StreamdownComponents,
+  type UrlTransform,
 } from "streamdown";
 import remarkGfm from "remark-gfm";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
+import { toLocalFileUrl } from "@/shared/promptContent";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { CodeBlock } from "./CodeBlock";
@@ -46,7 +49,9 @@ type RehypePlugins = NonNullable<ComponentProps<typeof Streamdown>["rehypePlugin
 // file/folder hrefs there too, so harden is redundant here.
 const REHYPE_PLUGINS: RehypePlugins = Object.entries(defaultRehypePlugins)
   .filter(([key]) => key !== "harden")
-  .map(([, plugin]) => plugin);
+  .flatMap(([key, plugin]) =>
+    key === "sanitize" ? [rehypeLocalImageUrls, allowLocalImageProtocol(plugin)] : [plugin],
+  );
 
 interface ItemMarkdownInnerProps {
   text: string;
@@ -95,6 +100,7 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
         remarkPlugins={remarkPlugins}
         rehypePlugins={REHYPE_PLUGINS}
         components={MD_COMPONENTS}
+        urlTransform={transformMarkdownUrl}
         parseIncompleteMarkdown
       >
         {markdownText}
@@ -192,6 +198,50 @@ const inlineCodeChipClass =
 const markdownCodeBlockClass =
   "not-prose my-2 min-w-0 overflow-x-hidden rounded bg-foreground/10 px-[0.5em] py-[0.25em] font-mono text-[0.875em] leading-snug text-foreground";
 const markdownImageClass = `not-prose my-2 rounded-lg border border-[color:var(--border)] bg-[var(--composer-surface)] ${chatInlineImageClass}`;
+
+const transformMarkdownUrl: UrlTransform = (url, key, node) =>
+  key === "src" && node.tagName === "img" && url.startsWith("poracode-local://")
+    ? url
+    : defaultUrlTransform(url, key, node);
+
+interface MarkdownHastNode {
+  tagName?: string;
+  properties?: Record<string, unknown>;
+  children?: MarkdownHastNode[];
+}
+
+function rehypeLocalImageUrls() {
+  return (tree: MarkdownHastNode) => {
+    rewriteLocalImageUrls(tree);
+  };
+}
+
+function rewriteLocalImageUrls(node: MarkdownHastNode): void {
+  const src = node.properties?.src;
+  if (node.tagName === "img" && typeof src === "string" && /^[A-Za-z]:[\\/]/.test(src)) {
+    node.properties!.src = toLocalFileUrl(src);
+  }
+  node.children?.forEach(rewriteLocalImageUrls);
+}
+
+function allowLocalImageProtocol(plugin: RehypePlugins[number]): RehypePlugins[number] {
+  if (!Array.isArray(plugin)) return plugin;
+  const [transformer, rawSchema] = plugin;
+  const schema = rawSchema as {
+    protocols?: Record<string, readonly string[] | null | undefined>;
+  };
+  const protocols = schema.protocols ?? {};
+  return [
+    transformer,
+    {
+      ...schema,
+      protocols: {
+        ...protocols,
+        src: [...(protocols.src ?? []), "poracode-local"],
+      },
+    },
+  ] as RehypePlugins[number];
+}
 
 /**
  * Wraps a fenced code block with a copy button that reveals on hover of the

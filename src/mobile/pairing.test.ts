@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { normalizePairingEndpoint, parsePairingUrl } from "./pairing";
+import { appUrlWithoutPairing, normalizePairingEndpoint, parsePairingUrl } from "./pairing";
 
 const globalWithCapacitor = globalThis as typeof globalThis & {
   Capacitor?: { isNativePlatform: () => boolean };
@@ -74,7 +74,7 @@ describe("parsePairingUrl", () => {
 describe("normalizePairingEndpoint", () => {
   it("maps the Vite dev mobile app origin to the default desktop remote port", () => {
     expect(normalizePairingEndpoint("http://192.168.1.20:3100/")).toBe(
-      "http://192.168.1.20:38987/",
+      "http://192.168.1.20:49152/",
     );
   });
 
@@ -134,6 +134,16 @@ describe("capturePairingLaunch", () => {
       endpoint: "",
       credential: null,
     });
+  });
+});
+
+describe("appUrlWithoutPairing", () => {
+  it("preserves a hosted path prefix when stripping pairing credentials", () => {
+    expect(
+      appUrlWithoutPairing(
+        locationFromUrl("https://poracode.com/pwa/pair?host=https://desktop.test/#token=pair"),
+      ),
+    ).toBe("https://poracode.com/pwa/app");
   });
 });
 

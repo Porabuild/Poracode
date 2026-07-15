@@ -1,7 +1,8 @@
-import { isIPv4 } from "node:net";
+import { createServer, isIPv4 } from "node:net";
 import { networkInterfaces } from "node:os";
 
-export const DEFAULT_REMOTE_ACCESS_PORT = 38987;
+export const DEFAULT_REMOTE_ACCESS_PORT = 49152;
+const MAX_AUTO_REMOTE_ACCESS_PORT = 65535;
 export const DEFAULT_REMOTE_ACCESS_HOST = "0.0.0.0";
 
 type NetworkInterfaceMap = ReturnType<typeof networkInterfaces>;
@@ -15,13 +16,59 @@ export function remoteAccessHost(): string {
   return readTrimmedEnv("PORACODE_REMOTE_ACCESS_HOST") ?? DEFAULT_REMOTE_ACCESS_HOST;
 }
 
-export function remoteAccessPort(): number {
+export function remoteAccessPort(): number | undefined {
   const raw = readTrimmedEnv("PORACODE_REMOTE_ACCESS_PORT");
-  if (!raw) return DEFAULT_REMOTE_ACCESS_PORT;
+  if (!raw) return undefined;
   const explicit = Number(raw);
   return Number.isSafeInteger(explicit) && explicit >= 0 && explicit <= 65535
     ? explicit
-    : DEFAULT_REMOTE_ACCESS_PORT;
+    : undefined;
+}
+
+function canListen(port: number, host: string): Promise<boolean> {
+  return new Promise<boolean>((resolve, reject) => {
+    const server = createServer();
+    const onError = (error: NodeJS.ErrnoException) => {
+      server.off("listening", onListening);
+      if (error.code === "EADDRINUSE" || error.code === "EACCES") {
+        resolve(false);
+      } else {
+        reject(error);
+      }
+    };
+    const onListening = () => {
+      server.off("error", onError);
+      server.close((error) => (error ? reject(error) : resolve(true)));
+    };
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(port, host);
+  });
+}
+
+export async function resolveRemoteAccessPort(input?: {
+  readonly host?: string;
+  readonly port?: number;
+  readonly rangeStart?: number;
+  readonly rangeEnd?: number;
+  readonly isAvailable?: (port: number, host: string) => Promise<boolean>;
+}): Promise<number> {
+  const explicitPort = input?.port ?? remoteAccessPort();
+  if (explicitPort !== undefined) return explicitPort;
+
+  const host = input?.host ?? remoteAccessHost();
+  const rangeStart = input?.rangeStart ?? DEFAULT_REMOTE_ACCESS_PORT;
+  const rangeEnd = input?.rangeEnd ?? MAX_AUTO_REMOTE_ACCESS_PORT;
+  const isAvailable = input?.isAvailable ?? canListen;
+  for (let port = rangeStart; port <= rangeEnd; port += 1) {
+    if (await isAvailable(port, host)) return port;
+  }
+
+  throw Object.assign(new Error(`listen EADDRINUSE: address already in use ${host}:${rangeEnd}`), {
+    code: "EADDRINUSE",
+    address: host,
+    port: rangeEnd,
+  });
 }
 
 function parseIpv4(address: string): readonly [number, number, number, number] | null {

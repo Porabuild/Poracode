@@ -29,7 +29,7 @@ import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
-  remoteAccessPort,
+  resolveRemoteAccessPort,
 } from "@/main/remote/config";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
@@ -125,8 +125,15 @@ export function resolveLocalProxyBase(bindHost: string | undefined, httpBaseUrl:
   return `http://${authorityHost}:${port}`;
 }
 
-export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): HeadlessRemoteHost {
+export async function createHeadlessRemoteHost(
+  options: HeadlessRemoteHostOptions,
+): Promise<HeadlessRemoteHost> {
   const isDev = options.isDev ?? false;
+  const host = options.host ?? remoteAccessHost();
+  const port = await resolveRemoteAccessPort({
+    host,
+    ...(options.port !== undefined ? { port: options.port } : {}),
+  });
   const paths = preparePoracodeDataRoot(options.baseDir);
   initDatabase(paths.dbPath);
   // No agent session survived the restart; without a renderer to run
@@ -215,7 +222,6 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
   });
   appControlsMcpIngress = new AppControlsMcpIngress(scheduleService, dbGetThread);
 
-  const host = options.host ?? remoteAccessHost();
   // In dev, advertise loopback by default so the iOS simulator's WebView can
   // reach the server (iOS ATS `NSAllowsLocalNetworking` permits loopback but not
   // a plain-http LAN IP). An explicit env/option override still wins.
@@ -226,10 +232,9 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
       : remoteAccessAdvertisedHost({ bindHost: host }));
   const pairingAppUrl = options.pairingAppUrl ?? remoteAccessPairingAppUrl();
 
-  const portForwardPort = options.port ?? remoteAccessPort();
   const portForwarding = createPortForwarding({
     bindHost: host,
-    remoteAccessPort: portForwardPort,
+    remoteAccessPort: port,
   });
 
   const server = new RemoteAccessServer({
@@ -238,7 +243,7 @@ export function createHeadlessRemoteHost(options: HeadlessRemoteHostOptions): He
     isDev,
     authStore,
     host,
-    port: options.port ?? remoteAccessPort(),
+    port,
     advertisedHost,
     ...(pairingAppUrl ? { pairingAppUrl } : {}),
     callSupervisor: (name, payload) => supervisorClient.call(name, payload),

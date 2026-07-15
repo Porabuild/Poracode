@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_REMOTE_ACCESS_HOST,
   DEFAULT_REMOTE_ACCESS_PORT,
@@ -7,6 +7,7 @@ import {
   remoteAccessHost,
   remoteAccessPairingAppUrl,
   remoteAccessPort,
+  resolveRemoteAccessPort,
 } from "./config";
 
 const ENV_KEYS = [
@@ -34,9 +35,9 @@ function ipv4(address: string, internal = false) {
 }
 
 describe("remote access config", () => {
-  it("uses built-in host, port, and pairing defaults", () => {
+  it("uses built-in host and pairing defaults without forcing a port", () => {
     expect(remoteAccessHost()).toBe(DEFAULT_REMOTE_ACCESS_HOST);
-    expect(remoteAccessPort()).toBe(DEFAULT_REMOTE_ACCESS_PORT);
+    expect(remoteAccessPort()).toBeUndefined();
     expect(remoteAccessPairingAppUrl()).toBeUndefined();
   });
 
@@ -50,6 +51,46 @@ describe("remote access config", () => {
     expect(remoteAccessHost()).toBe("192.168.1.20");
     expect(remoteAccessPort()).toBe(49999);
     expect(remoteAccessPairingAppUrl()).toBe("https://preview.poracodeapp.com");
+  });
+
+  it("scans the dynamic/private range when no port is configured", async () => {
+    const checked: number[] = [];
+    const port = await resolveRemoteAccessPort({
+      host: "127.0.0.1",
+      rangeEnd: DEFAULT_REMOTE_ACCESS_PORT + 3,
+      isAvailable: async (candidate) => {
+        checked.push(candidate);
+        return candidate === DEFAULT_REMOTE_ACCESS_PORT + 2;
+      },
+    });
+
+    expect(port).toBe(DEFAULT_REMOTE_ACCESS_PORT + 2);
+    expect(checked).toEqual([
+      DEFAULT_REMOTE_ACCESS_PORT,
+      DEFAULT_REMOTE_ACCESS_PORT + 1,
+      DEFAULT_REMOTE_ACCESS_PORT + 2,
+    ]);
+  });
+
+  it("keeps an explicit port authoritative without probing", async () => {
+    const isAvailable = vi.fn<(port: number, host: string) => Promise<boolean>>();
+
+    await expect(
+      resolveRemoteAccessPort({ host: "127.0.0.1", port: 49999, isAvailable }),
+    ).resolves.toBe(49999);
+    expect(isAvailable).not.toHaveBeenCalled();
+  });
+
+  it("falls back to automatic selection for an invalid environment port", async () => {
+    process.env.PORACODE_REMOTE_ACCESS_PORT = "not-a-port";
+
+    await expect(
+      resolveRemoteAccessPort({
+        rangeStart: 52000,
+        rangeEnd: 52000,
+        isAvailable: async () => true,
+      }),
+    ).resolves.toBe(52000);
   });
 
   it("detects a preferred LAN IPv4 address across interface naming styles", () => {

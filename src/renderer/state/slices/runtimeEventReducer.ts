@@ -1,7 +1,6 @@
 import type { RuntimeEvent, ThreadContextUsage } from "@/shared/contracts";
 import type { AppStoreState } from "./shared";
 import {
-  markThreadRuntimeForPersistence,
   type CompletedTurnRecord,
   type OpenRuntimeRequest,
   type RuntimeChatItem,
@@ -51,7 +50,6 @@ export function applyRuntimeEventBatchesToState(
   };
   let changed = false;
   const structuralBumpThreadIds = new Set<string>();
-  const dirtyThreadIds = new Set<string>();
 
   for (const batch of batches) {
     if (batch.events.length === 0) continue;
@@ -70,14 +68,10 @@ export function applyRuntimeEventBatchesToState(
     }
     if (batchChanged) {
       changed = true;
-      dirtyThreadIds.add(threadId);
     }
   }
 
   if (!changed) return {};
-  for (const threadId of dirtyThreadIds) {
-    markThreadRuntimeForPersistence(threadId);
-  }
   if (structuralBumpThreadIds.size > 0) {
     let runtimeStructuralVersionByThread = nextState.runtimeStructuralVersionByThread;
     for (const threadId of structuralBumpThreadIds) {

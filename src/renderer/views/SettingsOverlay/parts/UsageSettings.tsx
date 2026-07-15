@@ -1,9 +1,9 @@
 import { startTransition, useEffect, useState, type FormEvent } from "react";
 import { Eye, EyeOff, LogOut, RefreshCw } from "lucide-react";
-import { NumberField, Switch } from "@heroui/react";
+import { NumberField } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
-import { Button } from "@/renderer/components/common";
+import { Button, ToggleSwitch } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import {
   formatMoney,
@@ -242,7 +242,7 @@ function UsageProviderRow(props: { id: string; label: string }) {
             ) : null}
           </div>
         </div>
-        <Switch
+        <ToggleSwitch
           aria-label={t`Track ${label} usage`}
           isSelected={enabled}
           onChange={(selected) => {
@@ -253,19 +253,7 @@ function UsageProviderRow(props: { id: string; label: string }) {
               setUsageSetting("disabledProviders", next);
             });
           }}
-        >
-          <Switch.Content>
-            <Switch.Control
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                event.currentTarget.closest("label")?.querySelector("input")?.click();
-              }}
-            >
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch.Content>
-        </Switch>
+        />
       </div>
       {enabled ? <UsageProviderControls id={id} label={label} /> : null}
     </div>
@@ -379,26 +367,15 @@ export function UsageSettings() {
           </Trans>
         }
       >
-        <Switch
+        <ToggleSwitch
+          aria-label={t`Show circles in sidebar`}
           isSelected={showInSidebar}
           onChange={(selected) => {
             startTransition(() => {
               setUsageSetting("showInSidebar", selected);
             });
           }}
-        >
-          <Switch.Content>
-            <Switch.Control
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                event.currentTarget.closest("label")?.querySelector("input")?.click();
-              }}
-            >
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch.Content>
-        </Switch>
+        />
       </SettingRow>
 
       <SettingRow
@@ -411,26 +388,15 @@ export function UsageSettings() {
           </Trans>
         }
       >
-        <Switch
+        <ToggleSwitch
+          aria-label={t`Show estimated cost`}
           isSelected={showEstimatedCost}
           onChange={(selected) => {
             startTransition(() => {
               setUsageSetting("showEstimatedCost", selected);
             });
           }}
-        >
-          <Switch.Content>
-            <Switch.Control
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                event.currentTarget.closest("label")?.querySelector("input")?.click();
-              }}
-            >
-              <Switch.Thumb />
-            </Switch.Control>
-          </Switch.Content>
-        </Switch>
+        />
       </SettingRow>
 
       <div className="pt-2">

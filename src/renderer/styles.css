@@ -359,6 +359,9 @@
 }
 
 .poracode-welcome-bg-glow {
+  /* Isolate this full-viewport gradient's repaint so it can't invalidate the
+     sibling code wall or the z-10 stage content. */
+  contain: paint;
   background:
     radial-gradient(
       150px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px),
@@ -373,6 +376,9 @@
 }
 
 .poracode-welcome-code-wall {
+  /* Scope the masked glyph layer's repaint to itself (paint-only containment,
+     so the multi-column flow is unaffected). */
+  contain: paint;
   mask-image:
     radial-gradient(
       200px circle at var(--mouse-x, -1000px) var(--mouse-y, -1000px),
@@ -409,6 +415,33 @@
   column-width: 500px;
   column-gap: 3rem;
   user-select: none;
+}
+
+/* The welcome intro is otherwise unguarded for reduced motion. Hide the
+   decorative movers and stop the always-on ring animations — the reveal
+   elements stay visible (their steady state is opacity 1), and the JS glow
+   sampler already bails out under reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .poracode-welcome-orbit,
+  .poracode-welcome-light,
+  .poracode-welcome-splash {
+    animation: none;
+    opacity: 0;
+  }
+  /* The infinite conic spins (poracode-ring-spin-1/2) live on the ring
+     PSEUDO-elements; `animation: none` on the base element does NOT reach
+     them. The base selector also stops the ring's infinite lightning-glow
+     box-shadow pulse. */
+  .poracode-welcome-ring,
+  .poracode-welcome-ring::before,
+  .poracode-welcome-ring::after {
+    animation: none;
+  }
+  /* Show the wordmark/CTAs immediately: the reveal's `both` fill otherwise
+     holds them hidden through its ~2s delay. */
+  .poracode-welcome-reveal {
+    animation: none;
+  }
 }
 
 /* Goal dock active indicator — rotates a soft accent arc around the
@@ -1657,19 +1690,20 @@ html[data-platform="darwin"] .poracode-content-over-drag-region--drag {
   }
 }
 
-/* Pause the always-on status-icon animations when the window is hidden or
-   unfocused (attributes toggled by uiAnimationActivity.ts). The static glow and
-   colour stay, so a backgrounded window still shows which threads are busy — we
-   just stop driving the GPU compositor while nobody is looking. Drop the
-   `data-app-unfocused` selectors if you want the sweep to keep running while the
-   window is visible-but-unfocused. */
+/* Keep status-icon animations alive at about 5fps when the window is hidden or
+   unfocused (attributes toggled by uiAnimationActivity.ts). This preserves the
+   working signal in a visible background window without paying the foreground
+   compositor cost. */
 html[data-app-hidden] .poracode-provider-icon__mask-scan::before,
-html[data-app-unfocused] .poracode-provider-icon__mask-scan::before,
+html[data-app-unfocused] .poracode-provider-icon__mask-scan::before {
+  animation-timing-function: steps(8, jump-end);
+}
+
 html[data-app-hidden] .poracode-provider-icon--attention,
 html[data-app-unfocused] .poracode-provider-icon--attention,
 html[data-app-hidden] .poracode-provider-icon--finished,
 html[data-app-unfocused] .poracode-provider-icon--finished {
-  animation-play-state: paused;
+  animation-timing-function: steps(9, jump-end);
 }
 
 /* Honour the OS "reduce motion" setting — drop the moving sweep/pulse entirely

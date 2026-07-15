@@ -10,6 +10,15 @@ import {
 } from "./sessionConfig";
 import { setUnstableSessionModel } from "./unstableModelCompat";
 
+const CONFIG_OPTION_UPDATE_TIMEOUT_MS = 5_000;
+
+type ConfigOptionUpdateWaiter = {
+  configId: string;
+  value: string;
+  resolve: (matched: boolean) => void;
+  timer: ReturnType<typeof setTimeout>;
+};
+
 /**
  * Synchronizes Poracode thread configuration with one live ACP session.
  *
@@ -24,6 +33,7 @@ export class AcpSessionConfigSync {
   private modeConfigId: string | undefined;
   private modelConfigValue: string | undefined;
   private thoughtLevelConfigId: string | undefined;
+  private readonly configOptionUpdateWaiters = new Set<ConfigOptionUpdateWaiter>();
 
   constructor(private readonly connection: ClientSideConnection) {}
 
@@ -31,13 +41,18 @@ export class AcpSessionConfigSync {
     return this._availableModeIds;
   }
 
-  rememberOptions(availableModeIds: string[], configOptions: unknown): void {
+  rememberAvailableModes(availableModeIds: string[]): void {
     this._availableModeIds = availableModeIds;
+  }
+
+  rememberOptions(availableModeIds: string[], configOptions: unknown): void {
+    this.rememberAvailableModes(availableModeIds);
     this.currentConfigOptions = Array.isArray(configOptions) ? configOptions : [];
     this.modeConfigId = findSelectConfigOption(configOptions, "mode")?.id;
     const modelConfig = findSelectConfigOption(configOptions, "model");
     this.modelConfigValue = modelConfig?.currentValue;
     this.thoughtLevelConfigId = findThoughtLevelConfig(configOptions)?.id;
+    this.resolveConfigOptionUpdateWaiters();
   }
 
   async applyTurnConfig(
@@ -56,12 +71,7 @@ export class AcpSessionConfigSync {
 
     if (nextModeId && nextModeId !== previousModeId && this.modeConfigId) {
       try {
-        const result = await this.connection.setSessionConfigOption({
-          sessionId,
-          configId: this.modeConfigId,
-          value: nextModeId,
-        });
-        this.rememberOptions(this._availableModeIds, result.configOptions);
+        await this.setConfigOptionAndRefresh(sessionId, this.modeConfigId, nextModeId);
         console.log("[acp] mode config set to:", nextModeId);
       } catch (error) {
         console.log(
@@ -79,18 +89,15 @@ export class AcpSessionConfigSync {
     }
 
     const modelConfig = resolveModelConfigValue(nextConfig, this.currentConfigOptions);
-    if (
+    const modelSelectionChanged =
       nextConfig.model !== previousConfig?.model ||
-      (modelConfig && modelConfig.value !== this.modelConfigValue)
-    ) {
+      Boolean(modelConfig && modelConfig.value !== this.modelConfigValue);
+    let modelChanged = false;
+    if (modelSelectionChanged) {
       if (modelConfig) {
         try {
-          const result = await this.connection.setSessionConfigOption({
-            sessionId,
-            configId: modelConfig.configId,
-            value: modelConfig.value,
-          });
-          this.rememberOptions(this._availableModeIds, result.configOptions);
+          await this.setConfigOptionAndRefresh(sessionId, modelConfig.configId, modelConfig.value);
+          modelChanged = true;
           console.log("[acp] model config set to:", modelConfig.value);
         } catch (error) {
           console.log(
@@ -106,6 +113,7 @@ export class AcpSessionConfigSync {
             sessionId,
             modelId: nextConfig.model,
           });
+          modelChanged = true;
           console.log("[acp] model set to:", nextConfig.model);
         } catch (error) {
           console.log("[acp] live model change rejected, continuing: %s", toErrorMessage(error));
@@ -116,14 +124,14 @@ export class AcpSessionConfigSync {
     if (
       nextConfig.effort &&
       this.thoughtLevelConfigId &&
-      nextConfig.effort !== previousConfig?.effort
+      (modelChanged || nextConfig.effort !== previousConfig?.effort)
     ) {
       try {
-        await this.connection.setSessionConfigOption({
+        await this.setConfigOptionAndRefresh(
           sessionId,
-          configId: this.thoughtLevelConfigId,
-          value: nextConfig.effort,
-        });
+          this.thoughtLevelConfigId,
+          nextConfig.effort,
+        );
         console.log("[acp] effort set to:", nextConfig.effort);
       } catch (error) {
         console.log("[acp] live effort change rejected, continuing: %s", toErrorMessage(error));
@@ -137,6 +145,21 @@ export class AcpSessionConfigSync {
     currentConfig: ThreadConfig | undefined,
     update: SessionUpdate,
   ): ThreadConfig | undefined {
+    if (update.sessionUpdate === "config_option_update") {
+      const configOptions = this.rememberConfigOptionUpdate(update);
+      if (!currentConfig || !configOptions) {
+        return undefined;
+      }
+      const thoughtLevelConfig = findThoughtLevelConfig(configOptions);
+      if (
+        thoughtLevelConfig?.currentValue &&
+        thoughtLevelConfig.currentValue !== currentConfig.effort
+      ) {
+        return { ...currentConfig, effort: thoughtLevelConfig.currentValue };
+      }
+      return undefined;
+    }
+
     if (!currentConfig) {
       return undefined;
     }
@@ -149,20 +172,83 @@ export class AcpSessionConfigSync {
       return isThreadConfigEqual(currentConfig, nextConfig) ? undefined : nextConfig;
     }
 
-    if (update.sessionUpdate === "config_option_update") {
-      if (!("configOptions" in update) || !Array.isArray(update.configOptions)) {
-        return undefined;
-      }
-      this.rememberOptions(this._availableModeIds, update.configOptions);
-      const thoughtLevelConfig = findThoughtLevelConfig(update.configOptions);
-      if (
-        thoughtLevelConfig?.currentValue &&
-        thoughtLevelConfig.currentValue !== currentConfig.effort
-      ) {
-        return { ...currentConfig, effort: thoughtLevelConfig.currentValue };
-      }
+    return undefined;
+  }
+
+  rememberConfigOptionUpdate(update: SessionUpdate): unknown[] | undefined {
+    if (
+      update.sessionUpdate !== "config_option_update" ||
+      !("configOptions" in update) ||
+      !Array.isArray(update.configOptions)
+    ) {
+      return undefined;
+    }
+    this.rememberOptions(this._availableModeIds, update.configOptions);
+    return update.configOptions;
+  }
+
+  private async setConfigOptionAndRefresh(
+    sessionId: string,
+    configId: string,
+    value: string,
+  ): Promise<void> {
+    if (this.configOptionMatches(configId, value)) {
+      return;
     }
 
-    return undefined;
+    const waiter = this.waitForConfigOptionUpdate(configId, value);
+    try {
+      const result = await this.connection.setSessionConfigOption({ sessionId, configId, value });
+      const configOptions = (result as { configOptions?: unknown } | undefined)?.configOptions;
+      if (Array.isArray(configOptions)) {
+        this.rememberOptions(this._availableModeIds, configOptions);
+        return;
+      }
+      if (!(await waiter.promise)) {
+        throw new Error(
+          `Timed out waiting for ACP config option ${JSON.stringify(configId)} to become ${JSON.stringify(value)}`,
+        );
+      }
+    } finally {
+      waiter.cancel();
+    }
+  }
+
+  private waitForConfigOptionUpdate(
+    configId: string,
+    value: string,
+  ): { promise: Promise<boolean>; cancel: () => void } {
+    let waiter: ConfigOptionUpdateWaiter;
+    const promise = new Promise<boolean>((resolve) => {
+      const timer = setTimeout(() => {
+        this.configOptionUpdateWaiters.delete(waiter);
+        resolve(false);
+      }, CONFIG_OPTION_UPDATE_TIMEOUT_MS);
+      if (typeof timer.unref === "function") timer.unref();
+      waiter = { configId, value, resolve, timer };
+      this.configOptionUpdateWaiters.add(waiter);
+    });
+    const cancel = () => {
+      if (!this.configOptionUpdateWaiters.delete(waiter)) return;
+      clearTimeout(waiter.timer);
+    };
+    return { promise, cancel };
+  }
+
+  private resolveConfigOptionUpdateWaiters(): void {
+    for (const waiter of this.configOptionUpdateWaiters) {
+      if (!this.configOptionMatches(waiter.configId, waiter.value)) continue;
+      this.configOptionUpdateWaiters.delete(waiter);
+      clearTimeout(waiter.timer);
+      waiter.resolve(true);
+    }
+  }
+
+  private configOptionMatches(configId: string, value: string): boolean {
+    return this.currentConfigOptions.some((option) => {
+      if (typeof option !== "object" || option === null) return false;
+      const candidate = option as { id?: unknown; currentValue?: unknown };
+      return candidate.id === configId && String(candidate.currentValue ?? "") === value;
+    });
   }
 }

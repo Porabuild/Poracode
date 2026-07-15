@@ -23,7 +23,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
  * Modal for the "Start from scratch" flow: name a project, choose a runtime
  * (Native / WSL when distros exist) and a parent folder, then create the new
  * directory on disk. "Use an existing folder" does not use this modal — it goes
- * straight to the native folder picker.
+ * straight to the system folder picker.
  */
 export function CreateProjectModal() {
   const open = usePanelStore((s) => s.createProjectModalOpen);

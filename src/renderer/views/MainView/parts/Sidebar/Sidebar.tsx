@@ -3,6 +3,7 @@ import {
   CalendarClock,
   ChevronRight,
   Download,
+  GitPullRequest,
   House,
   PanelLeft,
   PanelLeftClose,
@@ -242,6 +243,7 @@ export function Sidebar() {
   const setWorktreeCollapsed = useSidebarUiStore((s) => s.setWorktreeCollapsed);
   const { isCollapsed, collapse, expand } = useSidebar();
   const openHome = useAppStore((s) => s.openHome);
+  const openPullRequests = useAppStore((s) => s.openPullRequests);
   const openSchedules = useAppStore((s) => s.openSchedules);
   const appView = useAppStore((s) => s.view);
   const appNameForHome = getAppName(readBridge().channel, import.meta.env.DEV);
@@ -346,6 +348,13 @@ export function Sidebar() {
             <WhatsNewButton iconOnly />
             <SidebarButton
               iconOnly
+              icon={<GitPullRequest className="size-4" />}
+              label={t`Pull requests`}
+              isActive={appView.kind === "pullRequests"}
+              onPress={() => startTransition(() => openPullRequests())}
+            />
+            <SidebarButton
+              iconOnly
               icon={<CalendarClock className="size-4" />}
               label={t`Schedules`}
               isActive={appView.kind === "schedules"}
@@ -440,6 +449,12 @@ export function Sidebar() {
         <div className={sidebarFooterNavClass}>
           <UpdateButtons />
           <WhatsNewButton />
+          <SidebarButton
+            icon={<GitPullRequest className="size-4" />}
+            label={t`Pull requests`}
+            isActive={appView.kind === "pullRequests"}
+            onPress={() => startTransition(() => openPullRequests())}
+          />
           <SidebarButton
             icon={<CalendarClock className="size-4" />}
             label={t`Schedules`}

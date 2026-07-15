@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
-import type { ThreadContextUsage } from "@/shared/contracts";
+import type { RuntimeEvent, ThreadContextUsage } from "@/shared/contracts";
+import type { PersistedRuntimePage } from "@/shared/ipc/schemas";
 import { getSqlite } from "./connection";
 import { safeParse } from "./rowMappers";
 
@@ -28,6 +29,15 @@ export interface ThreadRuntimeSummary {
 
 const SQLITE_IN_CHUNK_SIZE = 500;
 
+interface PersistedRuntimeItemRow {
+  item_id: string;
+  type: string;
+  state: string;
+  payload: string | null;
+  streams: string | null;
+  parent_item_id: string | null;
+}
+
 interface ThreadRuntimeSummaryStatementRunner {
   all(...values: string[]): unknown[];
 }
@@ -38,6 +48,17 @@ interface ThreadRuntimeSummaryQueryRunner {
 
 function runtimeItemState(state: string): PersistedRuntimeItem["state"] {
   return state === "completed" || state === "updated" ? state : "started";
+}
+
+function mapRuntimeItemRow(row: PersistedRuntimeItemRow): PersistedRuntimeItem {
+  return {
+    id: row.item_id,
+    type: row.type,
+    state: runtimeItemState(row.state),
+    payload: row.payload ? safeParse(row.payload) : undefined,
+    streams: row.streams ? (safeParse(row.streams) as Record<string, string>) : {},
+    ...(row.parent_item_id ? { parentItemId: row.parent_item_id } : {}),
+  };
 }
 
 function chunkValues<T>(values: readonly T[], size: number): T[][] {
@@ -135,22 +156,179 @@ export function dbGetThreadRuntimeItems(threadId: string): PersistedRuntimeItem[
     .prepare(
       "SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items WHERE thread_id = ? ORDER BY position ASC",
     )
-    .all(threadId) as Array<{
-    item_id: string;
-    type: string;
-    state: string;
-    payload: string | null;
-    streams: string | null;
-    parent_item_id: string | null;
-  }>;
-  return rows.map((row) => ({
-    id: row.item_id,
-    type: row.type,
-    state: runtimeItemState(row.state),
-    payload: row.payload ? safeParse(row.payload) : undefined,
-    streams: row.streams ? (safeParse(row.streams) as Record<string, string>) : {},
-    ...(row.parent_item_id ? { parentItemId: row.parent_item_id } : {}),
-  }));
+    .all(threadId) as PersistedRuntimeItemRow[];
+  return rows.map(mapRuntimeItemRow);
+}
+
+export function dbGetThreadRuntimeItemsPage(
+  threadId: string,
+  beforePosition: number | undefined,
+  limit: number,
+): PersistedRuntimePage {
+  const sqlite = getSqlite();
+  const rows = sqlite
+    .prepare(
+      `SELECT item_id, position, type, state, payload, streams, parent_item_id
+       FROM thread_runtime_items
+       WHERE thread_id = ?${beforePosition === undefined ? "" : " AND position < ?"}
+       ORDER BY position DESC
+       LIMIT ?`,
+    )
+    .all(
+      ...(beforePosition === undefined
+        ? [threadId, limit + 1]
+        : [threadId, beforePosition, limit + 1]),
+    ) as Array<PersistedRuntimeItemRow & { position: number }>;
+  const hasMore = rows.length > limit;
+  const pageRows = rows.slice(0, limit);
+  const nextCursor = hasMore ? (pageRows.at(-1)?.position ?? null) : null;
+  return {
+    items: pageRows.reverse().map(mapRuntimeItemRow),
+    nextCursor,
+  };
+}
+
+/**
+ * Applies the supervisor's canonical runtime events directly to SQLite. This
+ * keeps the main process as the durability owner without rewriting a thread's
+ * complete transcript for every streaming batch.
+ */
+export function dbApplyThreadRuntimeEvents(
+  threadId: string,
+  events: readonly RuntimeEvent[],
+): void {
+  if (events.length === 0) return;
+  const sqlite = getSqlite();
+  sqlite.transaction(() => {
+    if (!threadExistsInSqlite(sqlite, threadId)) return;
+
+    const getItem = sqlite.prepare(
+      "SELECT type, state, payload, streams FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
+    );
+    const nextPosition = sqlite.prepare(
+      "SELECT COALESCE(MAX(position), -1) + 1 AS position FROM thread_runtime_items WHERE thread_id = ?",
+    );
+    const insertItem = sqlite.prepare(
+      `INSERT OR IGNORE INTO thread_runtime_items
+         (thread_id, item_id, position, type, state, payload, streams, parent_item_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const updateItem = sqlite.prepare(
+      `UPDATE thread_runtime_items
+       SET state = ?, payload = ?, streams = ?
+       WHERE thread_id = ? AND item_id = ?`,
+    );
+    const deleteItem = sqlite.prepare(
+      "DELETE FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
+    );
+
+    const readItem = (itemId: string) =>
+      getItem.get(threadId, itemId) as
+        | { type: string; state: string; payload: string | null; streams: string | null }
+        | undefined;
+    let nextItemPosition: number | undefined;
+    const appendItem = (item: PersistedRuntimeItem) => {
+      nextItemPosition ??= (nextPosition.get(threadId) as { position: number }).position;
+      insertItem.run(
+        threadId,
+        item.id,
+        nextItemPosition,
+        item.type,
+        item.state,
+        item.payload === undefined ? null : JSON.stringify(item.payload),
+        JSON.stringify(item.streams),
+        item.parentItemId ?? null,
+      );
+      nextItemPosition += 1;
+    };
+
+    for (const event of events) {
+      switch (event.type) {
+        case "item.started":
+          appendItem({
+            id: event.itemId,
+            type: event.itemType,
+            state: "started",
+            streams: {},
+            ...(event.payload !== undefined ? { payload: event.payload } : {}),
+            ...(event.parentItemId ? { parentItemId: event.parentItemId } : {}),
+          });
+          break;
+
+        case "item.updated": {
+          const row = readItem(event.itemId);
+          if (!row) break;
+          updateItem.run(
+            row.state === "completed" ? "completed" : "updated",
+            JSON.stringify(
+              mergePayload(row.payload ? safeParse(row.payload) : undefined, event.payload),
+            ),
+            row.streams ?? "{}",
+            threadId,
+            event.itemId,
+          );
+          break;
+        }
+
+        case "item.completed": {
+          const row = readItem(event.itemId);
+          if (!row) break;
+          const streams = row.streams ? (safeParse(row.streams) as Record<string, string>) : {};
+          if (row.type === "reasoning" && !(streams.reasoning_text ?? "").trim()) {
+            deleteItem.run(threadId, event.itemId);
+            break;
+          }
+          const previousPayload = row.payload ? safeParse(row.payload) : undefined;
+          const payload =
+            event.payload === undefined
+              ? previousPayload
+              : mergePayload(previousPayload, event.payload);
+          updateItem.run(
+            "completed",
+            payload === undefined ? null : JSON.stringify(payload),
+            row.streams ?? "{}",
+            threadId,
+            event.itemId,
+          );
+          break;
+        }
+
+        case "content.delta": {
+          const row = readItem(event.itemId);
+          if (!row) break;
+          const streams = row.streams ? (safeParse(row.streams) as Record<string, string>) : {};
+          streams[event.stream] = `${streams[event.stream] ?? ""}${event.delta}`;
+          updateItem.run(
+            row.state === "completed" ? "completed" : "updated",
+            row.payload,
+            JSON.stringify(streams),
+            threadId,
+            event.itemId,
+          );
+          break;
+        }
+
+        case "context.updated": {
+          const previous = dbGetThreadContextUsageFromSqlite(sqlite, threadId);
+          replaceThreadContextUsageInSqlite(
+            sqlite,
+            threadId,
+            mergeContextUsage(previous, event.usage),
+          );
+          break;
+        }
+
+        case "turn.completed":
+          if (event.state === "interrupted" || event.state === "cancelled") {
+            pruneTrailingInterruptedReasoningItems(sqlite, threadId);
+          }
+          break;
+
+        default:
+          break;
+      }
+    }
+  })();
 }
 
 export function dbReplaceThreadRuntimeItems(threadId: string, items: PersistedRuntimeItem[]): void {
@@ -216,6 +394,31 @@ export function dbClearThreadRuntimeItems(threadId: string): void {
   getSqlite().prepare("DELETE FROM thread_runtime_items WHERE thread_id = ?").run(threadId);
 }
 
+export function dbTruncateThreadRuntimeAfter(threadId: string, itemId: string): void {
+  const sqlite = getSqlite();
+  sqlite.transaction(() => {
+    const checkpoint = sqlite
+      .prepare("SELECT position FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?")
+      .get(threadId, itemId) as { position: number } | undefined;
+    if (!checkpoint) return;
+    sqlite
+      .prepare("DELETE FROM thread_runtime_items WHERE thread_id = ? AND position > ?")
+      .run(threadId, checkpoint.position);
+    sqlite
+      .prepare(
+        `DELETE FROM thread_completed_turns
+         WHERE thread_id = ?
+           AND anchor_item_id IS NOT NULL
+           AND NOT EXISTS (
+             SELECT 1 FROM thread_runtime_items
+             WHERE thread_runtime_items.thread_id = thread_completed_turns.thread_id
+               AND thread_runtime_items.item_id = thread_completed_turns.anchor_item_id
+           )`,
+      )
+      .run(threadId);
+  })();
+}
+
 /**
  * Frozen per-turn timing window. One row per completed turn (first user
  * input → thread settles back to idle). Mirrors the renderer's
@@ -243,6 +446,38 @@ export function dbGetThreadCompletedTurns(threadId: string): PersistedCompletedT
     endedAt: row.ended_at,
     anchorItemId: row.anchor_item_id,
   }));
+}
+
+export function dbAppendThreadCompletedTurn(threadId: string, turn: PersistedCompletedTurn): void {
+  const sqlite = getSqlite();
+  sqlite.transaction(() => {
+    if (!threadExistsInSqlite(sqlite, threadId)) return;
+    const row = sqlite
+      .prepare(
+        "SELECT COALESCE(MAX(idx), -1) + 1 AS idx FROM thread_completed_turns WHERE thread_id = ?",
+      )
+      .get(threadId) as { idx: number };
+    sqlite
+      .prepare(
+        `INSERT INTO thread_completed_turns
+           (thread_id, idx, started_at, ended_at, anchor_item_id)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(threadId, row.idx, turn.startedAt, turn.endedAt, turn.anchorItemId);
+  })();
+}
+
+export function dbGetLatestThreadRuntimeAnchorItemId(threadId: string): string | null {
+  const row = getSqlite()
+    .prepare(
+      `SELECT item_id
+       FROM thread_runtime_items
+       WHERE thread_id = ? AND type NOT IN ('user_message', 'plan', 'error')
+       ORDER BY position DESC
+       LIMIT 1`,
+    )
+    .get(threadId) as { item_id: string } | undefined;
+  return row?.item_id ?? null;
 }
 
 export function dbReplaceThreadCompletedTurns(
@@ -274,13 +509,53 @@ export function dbReplaceThreadRuntimeSnapshot(
 }
 
 export function dbGetThreadContextUsage(threadId: string): ThreadContextUsage | null {
-  const sqlite = getSqlite();
+  return dbGetThreadContextUsageFromSqlite(getSqlite(), threadId);
+}
+
+function dbGetThreadContextUsageFromSqlite(
+  sqlite: InstanceType<typeof Database>,
+  threadId: string,
+): ThreadContextUsage | null {
   const row = sqlite
     .prepare("SELECT usage FROM thread_context_usage WHERE thread_id = ?")
     .get(threadId) as { usage: string } | undefined;
   if (!row) return null;
   const parsed = safeParse(row.usage);
   return parsed && typeof parsed === "object" ? (parsed as ThreadContextUsage) : null;
+}
+
+function mergePayload(prev: unknown, next: unknown): unknown {
+  if (!prev || typeof prev !== "object") return next;
+  if (!next || typeof next !== "object") return next;
+  return { ...(prev as Record<string, unknown>), ...(next as Record<string, unknown>) };
+}
+
+function mergeContextUsage(
+  prev: ThreadContextUsage | null,
+  usage: ThreadContextUsage,
+): ThreadContextUsage {
+  return { ...(prev ?? {}), ...usage };
+}
+
+function pruneTrailingInterruptedReasoningItems(
+  sqlite: InstanceType<typeof Database>,
+  threadId: string,
+): void {
+  sqlite
+    .prepare(
+      `DELETE FROM thread_runtime_items
+       WHERE thread_id = ?
+         AND type = 'reasoning'
+         AND parent_item_id IS NULL
+         AND position > COALESCE((
+           SELECT MAX(position)
+           FROM thread_runtime_items
+           WHERE thread_id = ?
+             AND parent_item_id IS NULL
+             AND type NOT IN ('reasoning', 'plan', 'error')
+         ), -1)`,
+    )
+    .run(threadId, threadId);
 }
 
 function replaceThreadContextUsageInSqlite(

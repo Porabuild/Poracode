@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getReasoningPreview } from "./reasoningPreview";
+import { getReasoningInlinePreview, getReasoningPreview } from "./reasoningPreview";
 
 // @vitest-environment node
 
@@ -7,6 +7,16 @@ describe("getReasoningPreview", () => {
   it("flattens multi-line reasoning into a single-line snippet", () => {
     expect(getReasoningPreview("First I will read the file.\nThen I will edit it.")).toBe(
       "First I will read the file. Then I will edit it.",
+    );
+  });
+
+  it("separates source lines with centered dots for inline Thought rows", () => {
+    expect(
+      getReasoningInlinePreview(
+        "**Designing owner-only retrieval**\n\n**Consolidating worktree candidates**\nPreserving error handling",
+      ),
+    ).toBe(
+      "Designing owner-only retrieval · Consolidating worktree candidates · Preserving error handling",
     );
   });
 

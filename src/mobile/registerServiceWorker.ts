@@ -12,10 +12,17 @@ export function registerServiceWorker(): void {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
   if (typeof window !== "undefined" && window.isSecureContext === false) return;
 
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/service-worker.js", { scope: "/" }).catch(() => {
+  const register = () => {
+    const scope = import.meta.env.BASE_URL;
+    navigator.serviceWorker.register(`${scope}service-worker.js`, { scope }).catch(() => {
       // Registration failing (e.g. worker not served, blocked) must never break
       // the app — it just means no offline shell / install prompt this session.
     });
-  });
+  };
+
+  if (document.readyState === "complete") {
+    register();
+  } else {
+    window.addEventListener("load", register, { once: true });
+  }
 }

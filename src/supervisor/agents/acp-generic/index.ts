@@ -43,6 +43,7 @@ import {
 } from "../base";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
 import { applyAcpRegistryNpxArgsOverride } from "../acpRegistryNpx";
+import { normalizeFactoryModels } from "../factory/detection";
 
 /** First-time `npx` installs can exceed the default probe budget. */
 export const REGISTRY_INSTALL_PROBE_TIMEOUT_MS = 90_000;
@@ -287,19 +288,7 @@ function normalizeProviderModels(
   if (instance.id !== "factory-droid") {
     return models;
   }
-
-  return models.map((model) => {
-    const rawDescription = model.description;
-    const rate = readFactoryDroidTokenRate(rawDescription);
-    return rate && rawDescription
-      ? { ...model, description: rate, tooltipDescription: rawDescription }
-      : model;
-  });
-}
-
-function readFactoryDroidTokenRate(description: string | undefined): string | undefined {
-  const match = /^(\d+(?:\.\d+)?)x\b.*\bFactory token rate\b/iu.exec(description?.trim() ?? "");
-  return match ? `${match[1]}x` : undefined;
+  return normalizeFactoryModels(models);
 }
 
 function buildGenericCommand(

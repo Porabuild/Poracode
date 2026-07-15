@@ -22,6 +22,7 @@ review.diff
 .commandcode/
 mcps/
 .antigravitycli/
+.factory/
 .recovery/
 resources/wsl-helpers/watcher.node
 resources/wsl-helpers/bridge.mjs

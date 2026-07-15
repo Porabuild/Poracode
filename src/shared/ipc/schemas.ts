@@ -142,6 +142,20 @@ export const dbReplaceRuntimeItemsPayloadSchema = z.object({
 export const dbGetRuntimeItemsPayloadSchema = z.object({
   threadId: z.string().min(1),
 });
+export const dbGetRuntimeItemsPagePayloadSchema = z.object({
+  threadId: z.string().min(1),
+  beforePosition: z.number().int().nonnegative().optional(),
+  limit: z.number().int().min(1).max(500),
+});
+export const dbTruncateRuntimeItemsPayloadSchema = z.object({
+  threadId: z.string().min(1),
+  itemId: z.string().min(1),
+});
+export const persistedRuntimePageSchema = z.object({
+  items: z.array(persistedRuntimeItemSchema),
+  nextCursor: z.number().int().nonnegative().nullable(),
+});
+export type PersistedRuntimePage = z.infer<typeof persistedRuntimePageSchema>;
 
 export const persistedCompletedTurnSchema = z.object({
   startedAt: z.string().min(1),

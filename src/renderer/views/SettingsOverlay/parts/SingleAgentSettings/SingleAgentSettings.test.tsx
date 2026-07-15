@@ -264,6 +264,22 @@ vi.mock("@/renderer/components/common", () => ({
   ),
   PixelLoader: () => <span data-testid="pixel-loader" />,
   Select: () => <select aria-label="mock-select" />,
+  ToggleSwitch: (props: {
+    "aria-label": string;
+    isDisabled?: boolean;
+    isSelected?: boolean;
+    onChange?: (selected: boolean) => void;
+  }) => (
+    <input
+      type="checkbox"
+      role="switch"
+      aria-label={props["aria-label"]}
+      aria-checked={props.isSelected}
+      checked={props.isSelected}
+      disabled={props.isDisabled}
+      onChange={(event) => props.onChange?.(event.target.checked)}
+    />
+  ),
 }));
 
 import { SingleAgentSettings } from "./SingleAgentSettings";

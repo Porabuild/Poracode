@@ -35,7 +35,6 @@ import { useDevTerminalStore } from "./state/devTerminalStore";
 import { applyAgentStatusSupervisorEvent, useAgentStatusesStore } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
-import { installRuntimeItemsPersister } from "./state/chatRuntimePersister";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
@@ -73,27 +72,35 @@ const isBrowserExtractWindow = windowKind === "browserExtract";
 const isQuickComposerWindow = windowKind === "quickComposer";
 const isMainWindow = windowKind === "main";
 
-// ── Runtime event rAF batcher ───────────────────────────────────
-// With 6-8 concurrent streaming chats, the supervisor produces ~500
+// ── Runtime event batcher ───────────────────────────────────────
+// With many concurrent streaming chats, the supervisor produces hundreds of
 // `thread-runtime-event(s)` IPC messages per second. Applying each one
 // synchronously triggers a Zustand `set()` and re-evaluates every subscribed
-// selector across all mounted ChatPanes. Coalescing into one apply per
-// animation frame caps store mutation rate to ~60/sec regardless of incoming
-// event rate, while preserving per-thread event order. Non-runtime events
-// (thread-state, reset, exit, …) flush the queue before applying so they
-// observe a consistent state.
+// selector. Visible panes flush once per animation frame; hidden panes flush
+// four times per second. Opening a pane promotes its queued events to the next
+// frame. Non-runtime events flush their own thread first so event ordering is
+// preserved without forcing every background thread through the reducer.
+const BACKGROUND_RUNTIME_EVENT_BATCH_MS = 250;
 const pendingRuntimeEvents = new Map<string, RuntimeEvent[]>();
 let runtimeFlushHandle: number | null = null;
+let backgroundRuntimeFlushHandle: ReturnType<typeof setTimeout> | null = null;
 
-function flushPendingRuntimeEvents(): void {
-  runtimeFlushHandle = null;
-  if (pendingRuntimeEvents.size === 0) return;
+function isForegroundRuntimeThread(threadId: string): boolean {
+  if (document.visibilityState === "hidden") return false;
+  const view = useAppStore.getState().view;
+  return view.kind === "thread" && view.panes.includes(threadId);
+}
+
+function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): void {
   const store = useAppStore.getState();
   const threads = store.threads;
-  const batches = [...pendingRuntimeEvents.entries()].map(([threadId, events]) => ({
-    threadId,
-    events,
-  }));
+  const batches: { threadId: string; events: RuntimeEvent[] }[] = [];
+  for (const [threadId, events] of pendingRuntimeEvents) {
+    if (!shouldFlush(threadId)) continue;
+    batches.push({ threadId, events });
+    pendingRuntimeEvents.delete(threadId);
+  }
+  if (batches.length === 0) return;
   // One Zustand set for all concurrent streams — avoids N selector passes when
   // several chats are working in the background / being switched between.
   store.applyRuntimeEventBatches(batches);
@@ -102,28 +109,64 @@ function flushPendingRuntimeEvents(): void {
     // Thread metadata is resolved lazily inside, so pure-delta frames are free.
     recordRuntimeUsage(threadId, events, threads);
   }
-  pendingRuntimeEvents.clear();
 }
 
-function enqueueRuntimeEvents(threadId: string, events: readonly RuntimeEvent[]): void {
-  if (events.length === 0) return;
+function schedulePendingRuntimeEvents(): void {
+  let hasForeground = false;
+  let hasBackground = false;
+  const view = useAppStore.getState().view;
+  const foregroundThreadIds: readonly string[] =
+    document.visibilityState !== "hidden" && view.kind === "thread" ? view.panes : [];
+  for (const threadId of pendingRuntimeEvents.keys()) {
+    if (foregroundThreadIds.includes(threadId)) hasForeground = true;
+    else hasBackground = true;
+    if (hasForeground && hasBackground) break;
+  }
+
+  if (hasForeground && runtimeFlushHandle === null) {
+    runtimeFlushHandle = requestAnimationFrame(() => {
+      runtimeFlushHandle = null;
+      flushPendingRuntimeEvents(isForegroundRuntimeThread);
+      schedulePendingRuntimeEvents();
+    });
+  } else if (!hasForeground && runtimeFlushHandle !== null) {
+    cancelAnimationFrame(runtimeFlushHandle);
+    runtimeFlushHandle = null;
+  }
+
+  if (hasBackground && backgroundRuntimeFlushHandle === null) {
+    backgroundRuntimeFlushHandle = setTimeout(() => {
+      backgroundRuntimeFlushHandle = null;
+      flushPendingRuntimeEvents((threadId) => !isForegroundRuntimeThread(threadId));
+      schedulePendingRuntimeEvents();
+    }, BACKGROUND_RUNTIME_EVENT_BATCH_MS);
+  } else if (!hasBackground && backgroundRuntimeFlushHandle !== null) {
+    clearTimeout(backgroundRuntimeFlushHandle);
+    backgroundRuntimeFlushHandle = null;
+  }
+}
+
+function appendRuntimeEvents(threadId: string, events: readonly RuntimeEvent[]): void {
   const existing = pendingRuntimeEvents.get(threadId);
   if (existing) {
     for (const evt of events) existing.push(evt);
   } else {
     pendingRuntimeEvents.set(threadId, [...events]);
   }
-  if (runtimeFlushHandle === null) {
-    runtimeFlushHandle = requestAnimationFrame(flushPendingRuntimeEvents);
-  }
 }
 
-function flushPendingRuntimeEventsSync(): void {
-  if (runtimeFlushHandle !== null) {
-    cancelAnimationFrame(runtimeFlushHandle);
-    runtimeFlushHandle = null;
-  }
-  if (pendingRuntimeEvents.size > 0) flushPendingRuntimeEvents();
+function flushPendingRuntimeEventsSync(threadId: string): void {
+  flushPendingRuntimeEvents((pendingThreadId) => pendingThreadId === threadId);
+  schedulePendingRuntimeEvents();
+}
+
+function installRuntimeEventScheduling(): () => void {
+  const unsubscribe = useAppStore.subscribe((state) => state.view, schedulePendingRuntimeEvents);
+  document.addEventListener("visibilitychange", schedulePendingRuntimeEvents);
+  return () => {
+    unsubscribe();
+    document.removeEventListener("visibilitychange", schedulePendingRuntimeEvents);
+  };
 }
 
 function handleSupervisorEvent(event: SupervisorEvent): void {
@@ -135,24 +178,32 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
   }
 
   if (event.type === "thread-runtime-event") {
-    enqueueRuntimeEvents(event.threadId, [event.event]);
+    appendRuntimeEvents(event.threadId, [event.event]);
+    schedulePendingRuntimeEvents();
     return;
   }
   if (event.type === "thread-runtime-events") {
-    enqueueRuntimeEvents(event.threadId, event.events);
+    if (event.events.length > 0) {
+      appendRuntimeEvents(event.threadId, event.events);
+      schedulePendingRuntimeEvents();
+    }
     return;
   }
   if (event.type === "thread-runtime-events-multi") {
+    let hasEvents = false;
     for (const batch of event.batches) {
-      enqueueRuntimeEvents(batch.threadId, batch.events);
+      if (batch.events.length === 0) continue;
+      appendRuntimeEvents(batch.threadId, batch.events);
+      hasEvents = true;
     }
+    if (hasEvents) schedulePendingRuntimeEvents();
     return;
   }
 
   // Non-runtime event: drain pending runtime events first so the handler below
   // observes the same ordering callers expect from the IPC stream.
   if ("threadId" in event && pendingRuntimeEvents.has(event.threadId)) {
-    flushPendingRuntimeEventsSync();
+    flushPendingRuntimeEventsSync(event.threadId);
   }
 
   if (event.type === "thread-state") {
@@ -233,6 +284,7 @@ function handleUpdateStatus(status: UpdateStatus): void {
 const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
       readBridge().onSupervisorEvent(handleSupervisorEvent),
+      installRuntimeEventScheduling(),
       readBridge().onUpdateStatus(handleUpdateStatus),
       // Thread-metadata commands issued from paired remote clients (mobile PWA).
       // They run through the same actions as local edits so persistence and
@@ -351,7 +403,6 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
           await startThreadFromDraft(project, submission.input, { preserveActiveGroup: false });
         })().catch(() => undefined);
       }),
-      installRuntimeItemsPersister(),
       installRemoteGitSummaryPublisher(),
     ]
   : [];
@@ -364,6 +415,10 @@ if (import.meta.hot) {
     if (runtimeFlushHandle !== null) {
       cancelAnimationFrame(runtimeFlushHandle);
       runtimeFlushHandle = null;
+    }
+    if (backgroundRuntimeFlushHandle !== null) {
+      clearTimeout(backgroundRuntimeFlushHandle);
+      backgroundRuntimeFlushHandle = null;
     }
     pendingRuntimeEvents.clear();
     uninstallProductAnalytics?.();

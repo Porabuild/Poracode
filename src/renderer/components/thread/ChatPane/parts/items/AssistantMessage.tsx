@@ -1,4 +1,4 @@
-import { memo, useDeferredValue, useMemo } from "react";
+import { memo, useMemo } from "react";
 import { Surface } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { MessageItemPayload } from "@/shared/contracts";
@@ -12,23 +12,27 @@ import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { CopyTextButton } from "./CopyTextButton";
 import { ImageCard } from "./ImageView";
 import { imageViewSourceFromImageBlock } from "./imageViewSource";
-import { ItemMarkdown } from "./ItemMarkdown";
+import { SmoothItemMarkdown } from "./ItemMarkdown";
 
 interface AssistantMessageProps {
   threadId: string;
   item: RuntimeChatItem;
+  isTurnActive: boolean;
 }
 
 export const AssistantMessage = memo(function AssistantMessage({
   threadId,
   item,
+  isTurnActive,
 }: AssistantMessageProps) {
   const { t } = useLingui();
   // Matching Codex: the copy action only appears under a turn's *final* answer,
   // i.e. the last assistant message before the next user message (or the end of
   // the thread). Every turn keeps its button, not just the most recent one.
   // Sub-agent messages (those nested under a tool call) are ignored so they
-  // neither qualify nor cancel a top-level answer's terminal status.
+  // neither qualify nor cancel a top-level answer's terminal status. A
+  // completed item at the live tail is still an intermediate update until the
+  // turn itself settles, so it must not expose a copy action yet.
   const isFinalAnswer = useAppStore((state) => {
     if (item.parentItemId) return false;
     const ids = state.runtimeItemIdsByThread[threadId];
@@ -42,7 +46,7 @@ export const AssistantMessage = memo(function AssistantMessage({
       if (next.type === "user_message") return true;
       if (next.type === "assistant_message") return false;
     }
-    return true;
+    return !isTurnActive;
   });
   const stream = item.streams.assistant_text ?? "";
   const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
@@ -53,8 +57,6 @@ export const AssistantMessage = memo(function AssistantMessage({
           ?.map((b) => (b.kind === "text" ? b.text : ""))
           .filter(Boolean)
           .join("\n") ?? "");
-  const deferredText = useDeferredValue(rawText);
-  const text = item.state === "completed" ? rawText : deferredText;
   const isStreaming = item.state !== "completed";
   // Agents (e.g. ACP providers) can embed images directly in a message as image
   // content blocks; render them inline beneath any text.
@@ -70,7 +72,9 @@ export const AssistantMessage = memo(function AssistantMessage({
   return (
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="min-w-0 leading-snug">
-        {rawText.length > 0 ? <ItemMarkdown text={text} /> : null}
+        {rawText.length > 0 ? (
+          <SmoothItemMarkdown text={rawText} isStreaming={isStreaming} />
+        ) : null}
         {imageSources.length > 0 ? (
           <div className="mt-1 flex flex-col gap-2">
             {imageSources.map((source, index) => (

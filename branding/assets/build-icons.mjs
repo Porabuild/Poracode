@@ -3,16 +3,31 @@
 // PNG-in-ICO packer for .ico. Outputs to branding/assets/out/. Run from repo root:
 //   node branding/assets/build-icons.mjs
 import sharp from "sharp";
-import { mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { execFile } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 const sh = promisify(execFile);
 
-const HERE = new URL(".", import.meta.url).pathname;
+const HERE = fileURLToPath(new URL(".", import.meta.url));
 const OUT = `${HERE}out`;
 
 async function png(svg, size) {
   return sharp(svg, { density: 512 }).resize(size, size, { fit: "contain" }).png().toBuffer();
+}
+
+async function trayPng(svg, size, accent) {
+  const source = (await readFile(svg, "utf8"))
+    .replace(
+      'viewBox="0 0 1024 1024" width="1024" height="1024"',
+      'viewBox="256 254 522 522" width="522" height="522"',
+    )
+    .replace('fill="currentColor"', 'fill="#EAF0FB"')
+    .replace("#8B7BFF", accent);
+  return sharp(Buffer.from(source), { density: 512 })
+    .resize(size, size, { fit: "contain" })
+    .png()
+    .toBuffer();
 }
 
 // Minimal ICO container that embeds PNG frames (Vista+; supported everywhere modern).
@@ -77,11 +92,26 @@ async function buildVariant(name, svg, dir) {
   console.log(`  ✓ ${name}: png ladder + .ico + .icns`);
 }
 
+async function buildTrayVariant(name, svg, dir, accent) {
+  const frames = await Promise.all(
+    [16, 20, 24, 32].map(async (size) => ({ size, buf: await trayPng(svg, size, accent) })),
+  );
+  await writeFile(`${dir}/${name}.ico`, buildIco(frames));
+  console.log(`  ✓ ${name}: 16/20/24/32px .ico`);
+}
+
 async function main() {
   await rm(OUT, { recursive: true, force: true });
   console.log("build/ (app icons):");
   await buildVariant("icon", `${HERE}poracode-icon.svg`, `${OUT}/build`);
   await buildVariant("icon-nightly", `${HERE}poracode-icon-nightly.svg`, `${OUT}/build`);
+  await buildTrayVariant("tray-icon", `${HERE}poracode-glyph.svg`, `${OUT}/build`, "#8B7BFF");
+  await buildTrayVariant(
+    "tray-icon-nightly",
+    `${HERE}poracode-glyph.svg`,
+    `${OUT}/build`,
+    "#5EE6E0",
+  );
 
   console.log("website/public (favicons):");
   const web = `${OUT}/website`;

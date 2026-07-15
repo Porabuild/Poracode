@@ -14,6 +14,7 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { sharedSettingsSchema } from "../settings";
 
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 1;
+export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([
   "session:read",

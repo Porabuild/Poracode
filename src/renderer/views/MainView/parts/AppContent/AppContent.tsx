@@ -50,6 +50,7 @@ import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftCo
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { HomeView } from "@/renderer/views/HomeView";
 import { ExperimentView } from "@/renderer/views/ExperimentView/ExperimentView";
+import { PullRequestsView } from "@/renderer/views/PullRequestsView/PullRequestsView";
 import { SchedulesView } from "@/renderer/views/SchedulesView/SchedulesView";
 import { buildProjectDraftConfig } from "./draftConfig";
 import { ThreadPane } from "./parts/ThreadPane";
@@ -283,6 +284,14 @@ export function AppContent() {
     return (
       <div className="h-full overflow-y-auto px-6 pb-8 pt-4 [scrollbar-gutter:stable]">
         <SchedulesView />
+      </div>
+    );
+  }
+
+  if (view.kind === "pullRequests") {
+    return (
+      <div className="h-full overflow-y-auto px-6 pb-8 pt-4 [scrollbar-gutter:stable]">
+        <PullRequestsView />
       </div>
     );
   }

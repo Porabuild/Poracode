@@ -774,7 +774,7 @@ function createRouterWithChild(): CodexSubAgentRouter {
 describe("CodexStructuredSession", () => {
   type CodexRequestRecord = {
     method: string;
-    params: Record<string, unknown>;
+    params: Record<string, unknown> | null;
     timeoutMs?: number;
   };
 
@@ -789,7 +789,11 @@ describe("CodexStructuredSession", () => {
     session["seenErrorMessages"] = new Set<string>();
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["rpc"] = {
-      request: async (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
+      request: async (
+        method: string,
+        params: Record<string, unknown> | null,
+        timeoutMs?: number,
+      ) => {
         requests.push({
           method,
           params,
@@ -919,15 +923,15 @@ describe("CodexStructuredSession", () => {
     // Off on the first turn → force null rather than preserving a config.toml tier.
     await structuredSession.startTurn("normal", { model: "gpt-5.4", fast: false });
     expect(requests[0]?.method).toBe("turn/start");
-    expect(requests[0]?.params.serviceTier).toBeNull();
+    expect(requests[0]?.params?.serviceTier).toBeNull();
 
     // On → force "fast".
     await structuredSession.startTurn("go fast", { model: "gpt-5.4", fast: true });
-    expect(requests[1]?.params.serviceTier).toBe("fast");
+    expect(requests[1]?.params?.serviceTier).toBe("fast");
 
     // Back off → force null again to clear the sticky server-side override.
     await structuredSession.startTurn("back to normal", { model: "gpt-5.4", fast: false });
-    expect(requests[2]?.params.serviceTier).toBeNull();
+    expect(requests[2]?.params?.serviceTier).toBeNull();
   });
 
   it("keeps /goal <objective> working until the model turn completes", async () => {
@@ -1103,12 +1107,16 @@ describe("CodexStructuredSession", () => {
     );
   });
 
-  it("waits for configured MCP servers before starting the first turn", async () => {
+  it("reloads configured MCP servers at the turn boundary without delaying thread creation", async () => {
     const requests: CodexRequestRecord[] = [];
     const structuredSession = makeStructuredSession(requests);
     (structuredSession as unknown as Record<string, unknown>)["hasUserMcpServers"] = true;
     (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
-      request: async (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
+      request: async (
+        method: string,
+        params: Record<string, unknown> | null,
+        timeoutMs?: number,
+      ) => {
         requests.push({
           method,
           params,
@@ -1124,13 +1132,17 @@ describe("CodexStructuredSession", () => {
 
     await structuredSession.openThread({ model: "gpt-5.5" });
 
+    expect(requests).toEqual([expect.objectContaining({ method: "thread/start" })]);
+
+    await structuredSession.startTurn("hello", { model: "gpt-5.5" });
+
     expect(requests).toEqual([
       expect.objectContaining({ method: "thread/start" }),
       {
-        method: "mcpServerStatus/list",
-        params: { detail: "toolsAndAuthOnly", threadId: "provider-thread" },
-        timeoutMs: 30_000,
+        method: "config/mcpServer/reload",
+        params: null,
       },
+      expect.objectContaining({ method: "turn/start" }),
     ]);
   });
 

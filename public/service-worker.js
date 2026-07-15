@@ -6,8 +6,10 @@
 // and falling back to the cache (and to the app shell for navigations) when
 // offline. Cross-origin requests — notably the paired desktop's /api, /oauth
 // and /ws endpoints, which live on a different host — are never intercepted.
-const CACHE_NAME = "poracode-pwa-v1";
-const SHELL_URLS = ["/", "/app", "/manifest.webmanifest", "/app-icon.svg"];
+const CACHE_NAME = "poracode-pwa-v2";
+const APP_BASE_URL = new URL("./", self.location.href);
+const shellUrl = (path) => new URL(path, APP_BASE_URL).pathname;
+const SHELL_URLS = ["./", "app", "manifest.webmanifest", "app-icon.svg"].map(shellUrl);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -48,7 +50,11 @@ self.addEventListener("fetch", (event) => {
         const cached = await caches.match(request);
         if (cached) return cached;
         if (request.mode === "navigate") {
-          return (await caches.match("/app")) || (await caches.match("/")) || Response.error();
+          return (
+            (await caches.match(shellUrl("app"))) ||
+            (await caches.match(shellUrl("./"))) ||
+            Response.error()
+          );
         }
         return Response.error();
       }),

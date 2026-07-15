@@ -1,5 +1,5 @@
 import { type Thread, type ThreadStatus, isThreadTurnActive } from "@/shared/contracts";
-import { markThreadRuntimeForPersistence, type CompletedTurnRecord } from "./runtimeEventSlice";
+import type { CompletedTurnRecord } from "./runtimeEventSlice";
 import type { AppStoreState } from "./shared";
 
 const isThreadLiveStatus = isThreadTurnActive;
@@ -52,7 +52,6 @@ export function appendCompletedTurnIfClosed(
 
   const record: CompletedTurnRecord = { startedAt, endedAt, anchorItemId };
   const existing = state.runtimeCompletedTurnsByThread[threadId] ?? [];
-  markThreadRuntimeForPersistence(threadId);
   return {
     runtimeCompletedTurnsByThread: {
       ...state.runtimeCompletedTurnsByThread,

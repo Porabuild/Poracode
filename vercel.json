@@ -2,35 +2,38 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "pnpm install --frozen-lockfile --ignore-scripts",
-  "buildCommand": "pnpm run build:mobile",
+  "buildCommand": "pnpm exec cross-env PORACODE_MOBILE_BASE_PATH=/pwa/ pnpm run build:mobile",
   "outputDirectory": "dist/mobile",
   "rewrites": [
-    { "source": "/", "destination": "/mobile.html" },
-    { "source": "/app", "destination": "/mobile.html" },
-    { "source": "/pair", "destination": "/mobile.html" }
+    { "source": "/", "destination": "/pwa/mobile.html" },
+    { "source": "/app", "destination": "/pwa/mobile.html" },
+    { "source": "/pair", "destination": "/pwa/mobile.html" },
+    { "source": "/pwa", "destination": "/pwa/mobile.html" },
+    { "source": "/pwa/app", "destination": "/pwa/mobile.html" },
+    { "source": "/pwa/pair", "destination": "/pwa/mobile.html" }
   ],
   "headers": [
     {
-      "source": "/service-worker.js",
+      "source": "/pwa/service-worker.js",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "Service-Worker-Allowed", "value": "/" }
+        { "key": "Service-Worker-Allowed", "value": "/pwa/" }
       ]
     },
     {
-      "source": "/manifest.webmanifest",
+      "source": "/pwa/manifest.webmanifest",
       "headers": [{ "key": "Content-Type", "value": "application/manifest+json; charset=utf-8" }]
     },
     {
-      "source": "/.well-known/apple-app-site-association",
+      "source": "/pwa/.well-known/apple-app-site-association",
       "headers": [{ "key": "Content-Type", "value": "application/json" }]
     },
     {
-      "source": "/assets/(.*)",
+      "source": "/pwa/assets/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
     },
     {
-      "source": "/icons/(.*)",
+      "source": "/pwa/icons/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800" }]
     },
     {
