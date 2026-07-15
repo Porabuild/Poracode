@@ -68,27 +68,54 @@ export function summarizeToolCalls(items: readonly RuntimeChatItem[]): GroupSect
     });
 }
 
-export function summarizeSameFileEditGroup(
-  items: readonly RuntimeChatItem[],
-): SameFileEditGroupSummary | null {
-  if (items.length <= 1) return null;
+export type EditToolGroupAnalysis = {
+  /** Every non-thought item is an edit (live tail should stay collapsed). */
+  editOnly: boolean;
+  /**
+   * Compact "N edits: path" summary when those edits all share one path.
+   * Thoughts are ignored so interleaved reasoning does not break the header.
+   */
+  sameFile: SameFileEditGroupSummary | null;
+};
 
+/**
+ * One pass over a tool-call group: classify edit-only vs mixed, and detect the
+ * same-file multi-edit case used for the compact path header.
+ */
+export function analyzeEditToolGroup(items: readonly RuntimeChatItem[]): EditToolGroupAnalysis {
   let sharedPath: string | undefined;
+  let editCount = 0;
   let added = 0;
   let removed = 0;
   let hasDiffSummary = false;
   let missingDiffSummary = false;
+  let hasEdit = false;
+  let sameFileOk = true;
 
   for (const item of items) {
-    if (categorizeItem(item) !== "edited") return null;
+    const category = categorizeItem(item);
+    // Thoughts often interleave a multi-patch run; they are noise for both the
+    // edit-only auto-expand rule and the same-file path header.
+    if (category === "thought") continue;
+    if (category !== "edited") {
+      return { editOnly: false, sameFile: null };
+    }
+    hasEdit = true;
+    if (!sameFileOk) continue;
+
     const path = readEditGroupPath(item);
-    if (!path) return null;
+    if (!path) {
+      sameFileOk = false;
+      continue;
+    }
     if (sharedPath === undefined) {
       sharedPath = path;
     } else if (normalizeEditGroupPath(sharedPath) !== normalizeEditGroupPath(path)) {
-      return null;
+      sameFileOk = false;
+      continue;
     }
 
+    editCount += 1;
     const diffSummary = readEditDiffSummary(item);
     if (diffSummary) {
       hasDiffSummary = true;
@@ -99,12 +126,29 @@ export function summarizeSameFileEditGroup(
     }
   }
 
-  if (!sharedPath) return null;
-  return {
-    count: items.length,
-    path: sharedPath,
-    ...(hasDiffSummary && !missingDiffSummary ? { diffSummary: { added, removed } } : {}),
-  };
+  if (!hasEdit) return { editOnly: false, sameFile: null };
+
+  // Compact same-file treatment only once 2+ patches share a path.
+  const sameFile =
+    sameFileOk && sharedPath && editCount > 1
+      ? {
+          count: editCount,
+          path: sharedPath,
+          ...(hasDiffSummary && !missingDiffSummary ? { diffSummary: { added, removed } } : {}),
+        }
+      : null;
+
+  return { editOnly: true, sameFile };
+}
+
+export function summarizeSameFileEditGroup(
+  items: readonly RuntimeChatItem[],
+): SameFileEditGroupSummary | null {
+  return analyzeEditToolGroup(items).sameFile;
+}
+
+export function isEditOnlyToolGroup(items: readonly RuntimeChatItem[]): boolean {
+  return analyzeEditToolGroup(items).editOnly;
 }
 
 export function readEditGroupPath(item: RuntimeChatItem): string | undefined {
