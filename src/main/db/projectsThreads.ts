@@ -2,6 +2,7 @@ import { asc, eq, notInArray } from "drizzle-orm";
 import type { Project, Thread } from "@/shared/contracts";
 import * as schema from "../db.schema";
 import { getDb } from "./connection";
+import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { locationToRow, rowToProject, rowToThread } from "./rowMappers";
 
 // ── Public query functions (called from IPC handlers) ───────────────
@@ -81,6 +82,7 @@ export function dbUpsertProject(project: Project, sortOrder: number): void {
       },
     })
     .run();
+  notifyProjectThreadDataChanged();
 }
 
 export function dbUpsertThread(thread: Thread, sortOrder: number): void {
@@ -146,6 +148,7 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
       },
     })
     .run();
+  notifyProjectThreadDataChanged();
 }
 
 /**
@@ -160,15 +163,18 @@ export function dbMarkLiveThreadsInactive(): void {
     .set({ status: "inactive", attention: "none", activeTurnStartedAt: null })
     .where(notInArray(schema.threads.status, ["inactive", "error"]))
     .run();
+  notifyProjectThreadDataChanged();
 }
 
 export function dbDeleteThread(threadId: string): void {
   const db = getDb();
   db.delete(schema.threads).where(eq(schema.threads.id, threadId)).run();
+  notifyProjectThreadDataChanged();
 }
 
 export function dbDeleteProject(projectId: string): void {
   const db = getDb();
   db.delete(schema.projects).where(eq(schema.projects.id, projectId)).run();
   db.delete(schema.projectNotes).where(eq(schema.projectNotes.projectId, projectId)).run();
+  notifyProjectThreadDataChanged();
 }

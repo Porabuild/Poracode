@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import type { Project, Thread } from "@/shared/contracts";
 import { getSqlite } from "./connection";
+import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { locationToRow } from "./rowMappers";
 
 /**
@@ -51,6 +52,7 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
       )
       .run(viewJson);
   })();
+  notifyProjectThreadDataChanged();
 }
 
 type SqliteStatement = ReturnType<InstanceType<typeof Database>["prepare"]>;

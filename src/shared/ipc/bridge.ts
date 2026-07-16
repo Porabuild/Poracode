@@ -10,7 +10,12 @@ import {
   type MainLocalProcedureName,
   type SupervisorProcedureName,
 } from "./procedureMap";
-import type { BrowserEvent, NotificationClickEvent, SupervisorEvent, UpdateStatus } from "./events";
+import type {
+  BrowserEvent,
+  SupervisorEvent,
+  ThreadOpenRequestedEvent,
+  UpdateStatus,
+} from "./events";
 import type { QuickComposerSubmission } from "./schemas";
 
 export const PORACODE_WINDOW_KINDS = ["main", "browserExtract", "quickComposer"] as const;
@@ -46,7 +51,7 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   onRemoteThreadCommand(listener: (command: RemoteThreadCommand) => void): () => void;
   /** Shared settings rewritten outside this renderer (e.g. by a remote client). */
   onSharedSettingsChanged(listener: (settings: SharedSettings) => void): () => void;
-  onNotificationClick(listener: (event: NotificationClickEvent) => void): () => void;
+  onThreadOpenRequested(listener: (event: ThreadOpenRequestedEvent) => void): () => void;
   submitQuickComposer(submission: QuickComposerSubmission): Promise<void>;
   dismissQuickComposer(): Promise<void>;
   pickQuickComposerFiles(): Promise<string[] | null>;
@@ -106,7 +111,7 @@ export const IPC_EVENT_CHANNELS = {
   browserEvent: createChannel("browserEvent"),
   remoteThreadCommand: createChannel("remoteThreadCommand"),
   sharedSettingsChanged: createChannel("sharedSettingsChanged"),
-  notificationClick: createChannel("notificationClick"),
+  threadOpenRequested: createChannel("threadOpenRequested"),
   quickComposerSubmit: createChannel("quickComposerSubmit"),
   quickComposerDismissRequested: createChannel("quickComposerDismissRequested"),
 } as const;

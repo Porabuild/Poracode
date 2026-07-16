@@ -80,14 +80,14 @@ describe("showOsNotification", () => {
     expect(notification.show).toHaveBeenCalledOnce();
   });
 
-  it("focuses the window and forwards a notificationClick event when clicked", () => {
+  it("focuses the window and requests opening the notification thread when clicked", () => {
     const win = createFakeWindow();
     showOsNotification({ title: "Project", body: "Body", threadId: "t1" }, () => win as never);
 
     notificationState.instances[0]!.emit("click");
 
     expect(win.focus).toHaveBeenCalledOnce();
-    expect(win.webContents.send).toHaveBeenCalledWith(IPC_EVENT_CHANNELS.notificationClick, {
+    expect(win.webContents.send).toHaveBeenCalledWith(IPC_EVENT_CHANNELS.threadOpenRequested, {
       threadId: "t1",
     });
   });

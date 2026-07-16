@@ -147,8 +147,8 @@ export type BrowserEvent =
   // when it goes idle the renderer unmounts them to free resources.
   | { type: "automation-active"; active: boolean };
 
-/** Emitted by the main process when the user clicks an OS notification. */
-export type NotificationClickEvent = {
+/** Emitted by the main process when a native app surface requests opening a thread. */
+export type ThreadOpenRequestedEvent = {
   threadId: string;
 };
 

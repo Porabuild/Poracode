@@ -1,7 +1,6 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type { Thread, ThreadAttention, ThreadStatus } from "@/shared/contracts";
-import type { NotificationClickEvent } from "@/shared/ipc";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -191,7 +190,7 @@ function showBrowserNotification(
 // src/main/browser/permissions.ts), which denies "notifications" and would force
 // Notification.permission to "denied"; the main-process API bypasses that layer
 // entirely. The renderer still owns the decision and the localized strings, and
-// reacts to clicks via onNotificationClick (handleNotificationClick below).
+// reacts to clicks through the source-neutral thread-open request event.
 function showElectronNotification(
   threadId: string,
   projectName: string,
@@ -222,10 +221,6 @@ function showNativeNotification(
     return;
   }
   showElectronNotification(threadId, projectName, threadTitle, category, status);
-}
-
-export function handleNotificationClick(event: NotificationClickEvent): void {
-  openThread(event.threadId, { focusComposer: true });
 }
 
 export function handleThreadStateNotification(

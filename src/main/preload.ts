@@ -10,9 +10,9 @@ import {
   type BrowserEvent,
   type PoracodeBridge,
   type PoracodeWindowKind,
-  type NotificationClickEvent,
   type QuickComposerSubmission,
   type SupervisorEvent,
+  type ThreadOpenRequestedEvent,
   type UpdateStatus,
 } from "@/shared/ipc";
 
@@ -150,13 +150,13 @@ const bridge: PoracodeBridge = {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.sharedSettingsChanged, handler);
     };
   },
-  onNotificationClick(listener) {
-    const handler = (_event: Electron.IpcRendererEvent, payload: NotificationClickEvent) => {
+  onThreadOpenRequested(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, payload: ThreadOpenRequestedEvent) => {
       listener(payload);
     };
-    ipcRenderer.on(IPC_EVENT_CHANNELS.notificationClick, handler);
+    ipcRenderer.on(IPC_EVENT_CHANNELS.threadOpenRequested, handler);
     return () => {
-      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.notificationClick, handler);
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.threadOpenRequested, handler);
     };
   },
   submitQuickComposer(submission) {

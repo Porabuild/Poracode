@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { closeDatabase, initDatabase } from "./connection";
 import {
+  dbDeleteThread,
   dbGetThread,
   dbGetProject,
   dbGetThreads,
@@ -13,11 +14,13 @@ import {
   dbUpsertProject,
   dbUpsertThread,
 } from "./projectsThreads";
+import { onProjectThreadDataChanged } from "./projectThreadChanges";
 import {
   dbClaimRemoteCommand,
   dbCompleteRemoteCommand,
   dbFailRemoteCommand,
 } from "./remoteCommandReceipts";
+import { dbSyncAll } from "./sync";
 
 // node_modules/better-sqlite3 may be compiled for Electron's ABI; fall back to
 // the Node-ABI binding `pnpm run prepare:server-native` places in dist (the
@@ -117,6 +120,27 @@ describe.skipIf(!sqliteAvailable)("projectsThreads (real sqlite round-trip)", ()
       id: "memory-id",
       name: "memory",
     });
+  });
+
+  it("notifies subscribers after single and bulk project or thread writes", () => {
+    let notificationCount = 0;
+    const unsubscribe = onProjectThreadDataChanged(() => {
+      notificationCount += 1;
+    });
+
+    dbUpsertThread(testThread(), 0);
+    expect(notificationCount).toBe(1);
+
+    dbSyncAll(
+      [dbGetProject("project-1")!],
+      [testThread({ title: "Synced thread" })],
+      JSON.stringify({ kind: "home" }),
+    );
+    expect(notificationCount).toBe(2);
+
+    unsubscribe();
+    dbDeleteThread("thread-1");
+    expect(notificationCount).toBe(2);
   });
 
   it("replays durable remote command receipts without reclaiming them", () => {
