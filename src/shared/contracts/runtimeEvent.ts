@@ -106,6 +106,10 @@ export const goalItemPayloadSchema = z.object({
   tokenBudget: z.number().int().nonnegative().nullable().optional(),
   tokensUsed: z.number().int().nonnegative().optional(),
   timeUsedSeconds: z.number().nonnegative().optional(),
+  /** Number of completed goal evaluations that reported "not yet met". */
+  iterations: z.number().int().nonnegative().optional(),
+  /** The goal evaluator's most recent reason for its met / not-met verdict. */
+  lastReason: z.string().optional(),
   providerThreadId: z.string().optional(),
   updatedAt: z.number().optional(),
 });

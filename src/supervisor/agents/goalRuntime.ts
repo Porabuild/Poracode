@@ -7,6 +7,8 @@ export interface ProviderGoalState {
   tokenBudget?: number | null;
   tokensUsed?: number;
   timeUsedSeconds?: number;
+  iterations?: number;
+  lastReason?: string;
   createdAt?: number;
   updatedAt?: number;
 }
@@ -37,6 +39,8 @@ export function goalPayloadFromProviderState(
     ...(goal.tokenBudget !== undefined ? { tokenBudget: goal.tokenBudget } : {}),
     ...(goal.tokensUsed !== undefined ? { tokensUsed: goal.tokensUsed } : {}),
     ...(goal.timeUsedSeconds !== undefined ? { timeUsedSeconds: goal.timeUsedSeconds } : {}),
+    ...(goal.iterations !== undefined ? { iterations: goal.iterations } : {}),
+    ...(goal.lastReason ? { lastReason: goal.lastReason } : {}),
     ...(goal.providerThreadId ? { providerThreadId: goal.providerThreadId } : {}),
     ...(goal.updatedAt !== undefined ? { updatedAt: goal.updatedAt } : {}),
   };

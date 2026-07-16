@@ -14,6 +14,8 @@ export interface ThreadGoalDockState {
   tokenBudget?: number | null;
   tokensUsed?: number;
   timeUsedSeconds?: number;
+  iterations?: number;
+  lastReason?: string;
   updatedAt?: number;
 }
 
@@ -80,6 +82,8 @@ export function getThreadGoalDockStateFromThreadItems(
     ...(payload.tokenBudget !== undefined ? { tokenBudget: payload.tokenBudget } : {}),
     ...(payload.tokensUsed !== undefined ? { tokensUsed: payload.tokensUsed } : {}),
     ...(payload.timeUsedSeconds !== undefined ? { timeUsedSeconds: payload.timeUsedSeconds } : {}),
+    ...(payload.iterations !== undefined ? { iterations: payload.iterations } : {}),
+    ...(payload.lastReason ? { lastReason: payload.lastReason } : {}),
     ...(payload.updatedAt !== undefined ? { updatedAt: payload.updatedAt } : {}),
   };
 }

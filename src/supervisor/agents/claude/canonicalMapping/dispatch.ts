@@ -2,7 +2,7 @@ import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { RuntimeEvent, ToolCallProgress, TurnState } from "@/shared/contracts";
 import { readFileChangePath, readStringField } from "../../fileChangeSummary";
 import type { ClaudeMapperState } from "../sdkCanonicalMappingState";
-import { completeActiveGoalEvents } from "./goal";
+import { applyActiveGoalMessage, completeActiveGoalEvents, isActiveGoalMessage } from "./goal";
 import {
   extractCompletedStringFields,
   extractText,
@@ -213,6 +213,11 @@ function mapClaudeSdkMessageInner(
   options?: ClaudeSdkMessageMappingOptions,
 ): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
+  // Native /goal Stop-hook verdicts. Typed outside the SDKMessage union but
+  // yielded on the same stream.
+  if (isActiveGoalMessage(message)) {
+    return applyActiveGoalMessage(state, message);
+  }
   if (message.type === "stream_event") {
     // Sub-agent partial streams (parent_tool_use_id set) interleave with the
     // main-thread stream but share the same per-block-index lane maps. Their

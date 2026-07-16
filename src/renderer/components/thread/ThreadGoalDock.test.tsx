@@ -1,7 +1,19 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { ThreadGoalDock } from "./ThreadGoalDock";
+
+// Render tooltip content inline — React Aria's hover machinery does not open
+// tooltips under jsdom.
+vi.mock("@heroui/react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@heroui/react")>();
+  const Tooltip = Object.assign((props: { children: ReactNode }) => <>{props.children}</>, {
+    Trigger: (props: { children: ReactNode }) => <>{props.children}</>,
+    Content: (props: { children: ReactNode }) => <div>{props.children}</div>,
+  });
+  return { ...actual, Tooltip };
+});
 
 describe("ThreadGoalDock", () => {
   afterEach(() => {
@@ -67,6 +79,35 @@ describe("ThreadGoalDock", () => {
 
     expect(screen.getByText("Complete · 11K tokens")).toBeInTheDocument();
     expect(screen.getByText("10m 21s")).toBeInTheDocument();
+  });
+
+  it("shows evaluator turn count and surfaces the last evaluation reason in the objective tooltip", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-12T10:00:10Z"));
+
+    render(
+      <AppProvider>
+        <ThreadGoalDock
+          state={{
+            sourceItemId: "goal-1",
+            itemState: "completed",
+            objective: "All auth tests pass",
+            status: "active",
+            action: "updated",
+            tokensUsed: 5000,
+            timeUsedSeconds: 60,
+            iterations: 3,
+            lastReason: "login.test.ts still failing",
+            updatedAt: Date.parse("2026-05-12T10:00:10Z") / 1000,
+          }}
+          onDismiss={() => undefined}
+        />
+      </AppProvider>,
+    );
+
+    expect(screen.getByText("3 turns")).toBeInTheDocument();
+
+    expect(screen.getByText(/login\.test\.ts still failing/)).toBeInTheDocument();
   });
 
   it("swaps the dock icon to the achieved indicator when the goal completes", () => {

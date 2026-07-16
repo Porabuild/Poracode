@@ -61,6 +61,22 @@ export interface ClaudeMapperState {
   activeGoalItemId?: string;
   activeGoalObjective?: string;
   activeGoalStartedAtMs?: number;
+  activeGoalIterations?: number;
+  activeGoalLastReason?: string;
+  /**
+   * True once the SDK has emitted any `active_goal` message this session —
+   * i.e. the CLI's native /goal Stop-hook evaluator is live. While true, goal
+   * completion is driven exclusively by `active_goal` with `value: null` (the
+   * evaluator's "met" verdict); a turn `result` no longer completes the goal.
+   */
+  sawActiveGoalMessage?: boolean;
+  /**
+   * Legacy (no native `active_goal` frames) only: a clean turn `result`
+   * arrived while background subagent tasks were still live, so the goal was
+   * held active instead of completed. The goal completes when the last live
+   * task drains (applyTaskNotification) — unless a new turn starts first.
+   */
+  pendingGoalCompletionOnTaskDrain?: boolean;
   activeGoalCompletedTurnTokensUsed?: number;
   activeGoalLiveApiTokensUsed?: number;
   activeGoalTaskTokensByKey?: Map<string, number>;

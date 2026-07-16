@@ -84,6 +84,11 @@ msgstr "{0, plural, one {# навык} other {# навыков}}"
 msgid "{0, plural, one {# tool} other {# tools}}"
 msgstr "{0, plural, one {# инструмент} few {# инструмента} many {# инструментов} other {# инструмента}}"
 
+#. placeholder {0}: state.iterations ?? 0
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "{0, plural, one {# turn} other {# turns}}"
+msgstr "{0, plural, one {# ход} few {# хода} many {# ходов} other {# хода}}"
+
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
@@ -4832,6 +4837,10 @@ msgstr "Язык сообщений коммитов и сводок pull reques
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "Язык, который должна ожидать модель распознавания речи при транскрибировании диктовки в поле ввода."
+
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "Last evaluation:"
+msgstr "Последняя оценка:"
 
 #. placeholder {0}: agent.lastToolName
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -10604,8 +10613,8 @@ msgid "Wait for every candidate to finish before comparing them."
 msgstr "Дождитесь завершения работы всех кандидатов перед сравнением."
 
 #: src/renderer/actions/experimentDecisionActions.ts
-msgid "Wait for every candidate to finish before discarding the experiment."
-msgstr "Дождитесь завершения работы всех кандидатов перед отменой эксперимента."
+#~ msgid "Wait for every candidate to finish before discarding the experiment."
+#~ msgstr "Дождитесь завершения работы всех кандидатов перед отменой эксперимента."
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Wait for every candidate to finish before judging."

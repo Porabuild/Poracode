@@ -86,6 +86,14 @@ type CompletedClaudeTurn = {
   resumeSessionAt: string | undefined;
 };
 
+/**
+ * How long a drained deferred completion waits before settling the thread.
+ * Sized to cover the SDK's task_notification → model-wake gap (a
+ * session_state "running" restarts it, so it only needs to reach the wake
+ * signal, not the first streamed token).
+ */
+const DEFERRED_FLUSH_RESUME_GRACE_MS = 2000;
+
 export class ClaudeSdkSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions = { suppressResumeConfigOverrides: true };
 
@@ -121,6 +129,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   // thread finished mid-work. Hold the completion status here until the
   // live-task registry drains; flush it if the stream stops first.
   private readonly deferredCompletion = new DeferredTurnCompletion();
+  // Grace timer between the last task_notification draining the registry and
+  // the deferred completion actually flushing. The SDK usually wakes the model
+  // right after that notification to consume the results; flushing idle in
+  // that gap resets the thread's "Working for" timer and fires a premature
+  // done-notification. See flushDeferredCompletionIfDrained.
+  private deferredFlushTimer: ReturnType<typeof setTimeout> | undefined;
   // openThread() fires `startQuery` as a fire-and-forget IIFE and returns
   // synchronously, but the runtime calls `setListener` only afterwards from
   // `spawnThread`. Anything emitted in that window — early SDK system/stream
@@ -240,6 +254,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.currentTurnAssistantUuid = undefined;
     this.currentTurnInFlight = true;
     this.deferredCompletion.clear();
+    this.clearDeferredFlushTimer();
     this.emitRuntimeEvents(
       startClaudeTurn(this.mapperState, turnId, prompt, segments, options?.userMessageItemId),
     );
@@ -894,6 +909,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.currentTurnInFlight = true;
     this.currentTurnAssistantUuid = undefined;
     this.deferredCompletion.clear();
+    this.clearDeferredFlushTimer();
     // Seed the mapper's turn id so the eventual `result` emits the matching
     // `turn.completed`, re-closing the renderer's turn-open gate.
     this.mapperState.currentTurnId = turnId;
@@ -926,6 +942,18 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // states (working, needs_approval) still pass through.
       if (mapped.status !== "idle" || !this.deferredCompletion.hasPending) {
         this.emitUpdate(mapped);
+      }
+      // A running state while a drained completion sits in its grace window
+      // means the model is waking to consume the task results — restart the
+      // grace so the first assistant activity (beginResumedTurnIfNeeded) can
+      // clear the stale completion instead of it flushing mid-resume.
+      if (
+        mapped.status === "working" &&
+        this.deferredCompletion.hasPending &&
+        this.deferredFlushTimer !== undefined
+      ) {
+        this.clearDeferredFlushTimer();
+        this.scheduleDeferredFlush();
       }
     }
 
@@ -978,9 +1006,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // Stop the 15s goal-tracking poller on every turn end — including
       // interrupts and steers — so it does not keep firing context-usage
       // round-trips while the thread sits idle. The goal itself is NOT cleared
-      // here: it stays active (completeActiveGoalEvents only completes it on a
-      // clean turn end, and `/clear` clears it explicitly), and the next turn
-      // restarts tracking via startGoalTracking().
+      // here: completion is driven by the SDK's `active_goal` Stop-hook
+      // verdict (see applyActiveGoalMessage; clean turn end is only a
+      // fallback for CLIs that never emit it), and the next turn restarts
+      // tracking via startGoalTracking().
       this.stopGoalTracking();
       const completion: StructuredSessionUpdate = {
         status: failed ? "error" : "idle",
@@ -1006,11 +1035,36 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
    * registry has drained. Called after every SDK message so the authoritative
    * `task_notification` that closes the last subagent task flips the thread to
    * its held idle/error state.
+   *
+   * The release is not immediate: the SDK typically wakes the model right
+   * after that notification to consume the task's results. Settling idle in
+   * that gap resets the renderer's "Working for" timer to zero and fires a
+   * premature done-notification, only for the thread to flip back to working
+   * a moment later. A short grace window lets the resume win: assistant
+   * activity clears the held completion (beginResumedTurnIfNeeded) and the
+   * thread stays continuously live. If nothing resumes, the held status
+   * flushes when the grace expires.
    */
   private flushDeferredCompletionIfDrained(): void {
     if (!this.deferredCompletion.hasPending || this.hasLiveSubAgentTasks()) return;
-    const update = this.deferredCompletion.take();
-    if (update) this.emitUpdate(update);
+    this.scheduleDeferredFlush();
+  }
+
+  private scheduleDeferredFlush(): void {
+    if (this.deferredFlushTimer !== undefined) return;
+    this.deferredFlushTimer = setTimeout(() => {
+      this.deferredFlushTimer = undefined;
+      if (this.disposed || this.hasLiveSubAgentTasks()) return;
+      const update = this.deferredCompletion.take();
+      if (update) this.emitUpdate(update);
+    }, DEFERRED_FLUSH_RESUME_GRACE_MS);
+  }
+
+  private clearDeferredFlushTimer(): void {
+    if (this.deferredFlushTimer !== undefined) {
+      clearTimeout(this.deferredFlushTimer);
+      this.deferredFlushTimer = undefined;
+    }
   }
 
   /**
@@ -1019,6 +1073,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
    * live, so the thread never stays stuck `working`.
    */
   private flushDeferredCompletion(): void {
+    this.clearDeferredFlushTimer();
     const update = this.deferredCompletion.take();
     if (update) this.emitUpdate(update);
   }

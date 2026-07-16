@@ -84,6 +84,11 @@ msgstr "{0, plural, one {# beceri} other {# beceri}}"
 msgid "{0, plural, one {# tool} other {# tools}}"
 msgstr "{0, plural, one {# araç} other {# araç}}"
 
+#. placeholder {0}: state.iterations ?? 0
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "{0, plural, one {# turn} other {# turns}}"
+msgstr "{0, plural, one {# tur} other {# tur}}"
+
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
@@ -4832,6 +4837,10 @@ msgstr "Yapay zeka tarafından oluşturulan commit mesajları ve çekme isteği 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "Yazma alanı diktesini yazıya dökerken konuşma modelinin beklemesi gereken dil."
+
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "Last evaluation:"
+msgstr "Son değerlendirme:"
 
 #. placeholder {0}: agent.lastToolName
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -10604,8 +10613,8 @@ msgid "Wait for every candidate to finish before comparing them."
 msgstr "Karşılaştırmadan önce tüm adayların çalışmasını tamamlamasını bekleyin."
 
 #: src/renderer/actions/experimentDecisionActions.ts
-msgid "Wait for every candidate to finish before discarding the experiment."
-msgstr "Deneyi silmeden önce tüm adayların çalışmasını tamamlamasını bekleyin."
+#~ msgid "Wait for every candidate to finish before discarding the experiment."
+#~ msgstr "Deneyi silmeden önce tüm adayların çalışmasını tamamlamasını bekleyin."
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Wait for every candidate to finish before judging."

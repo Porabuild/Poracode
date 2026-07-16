@@ -84,6 +84,11 @@ msgstr "{0, plural, one {# 个技能} other {# 个技能}}"
 msgid "{0, plural, one {# tool} other {# tools}}"
 msgstr "{0, plural, one {# 个工具} other {# 个工具}}"
 
+#. placeholder {0}: state.iterations ?? 0
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "{0, plural, one {# turn} other {# turns}}"
+msgstr "{0, plural, other {# 轮}}"
+
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "{0, plural, one {Candidate (#)} other {Candidates (#)}}"
@@ -4832,6 +4837,10 @@ msgstr "AI 生成的提交信息和拉取请求摘要所使用的语言。线程
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "语音模型在转录编辑器口述输入时应预期的语言。"
+
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "Last evaluation:"
+msgstr "上次评估："
 
 #. placeholder {0}: agent.lastToolName
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -10603,8 +10612,8 @@ msgid "Wait for every candidate to finish before comparing them."
 msgstr "请等待所有候选项完成后再进行比较。"
 
 #: src/renderer/actions/experimentDecisionActions.ts
-msgid "Wait for every candidate to finish before discarding the experiment."
-msgstr "请等待所有候选项完成后再放弃实验。"
+#~ msgid "Wait for every candidate to finish before discarding the experiment."
+#~ msgstr "请等待所有候选项完成后再放弃实验。"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Wait for every candidate to finish before judging."
