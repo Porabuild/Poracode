@@ -48,9 +48,13 @@ describe("createKimiAdapter shape", () => {
   it("provides ACP auth and managed OAuth logout commands", async () => {
     expect(typeof adapter.buildAcpAuthCommand).toBe("function");
     expect(typeof adapter.buildAcpLogoutCommand).toBe("function");
-    const logout = await adapter.buildAcpLogoutCommand?.({ envKind: "windows" });
-    expect(logout?.command).toBe("powershell.exe");
-    expect(logout?.args.join(" ")).toContain("credentials\\kimi-code.json");
+    const isWindows = process.platform === "win32";
+    const envKind = isWindows ? "windows" : "posix";
+    const logout = await adapter.buildAcpLogoutCommand?.({ envKind });
+    expect(logout?.args).toContain(isWindows ? "-NoLogo" : "-c");
+    expect(logout?.args.join(" ")).toContain(
+      isWindows ? "credentials\\kimi-code.json" : "credentials/kimi-code.json",
+    );
   });
 
   it("removes the managed OAuth token inside the selected WSL distro", async () => {
