@@ -258,6 +258,10 @@ describe("judgeExperiment", () => {
   it("keeps the CLI argv small enough for six huge diffs", async () => {
     const largeCandidates = hugeCandidates();
     const response = judgementJson(4, "Solution 4 is the safest.", largeCandidates.length);
+    const nativeLocation: ProjectLocation =
+      process.platform === "win32"
+        ? { kind: "windows", path: process.cwd() }
+        : { kind: "posix", path: process.cwd() };
     const childScript =
       "const fs=require('node:fs');" +
       "const prompt=process.argv[1];" +
@@ -268,14 +272,14 @@ describe("judgeExperiment", () => {
       label: "Argv Judge",
       defaultOneShotModel: "model",
       buildOneShotCommand: (_model: string, _effort?: string, prompt?: string) => ({
-        command: "node",
+        command: process.execPath,
         args: ["-e", childScript, prompt ?? ""],
         stdin: "",
       }),
     } as AgentAdapter;
 
     await expect(
-      judgeExperiment(location, adapter, "Implement everything", largeCandidates),
+      judgeExperiment(nativeLocation, adapter, "Implement everything", largeCandidates),
     ).resolves.toMatchObject({ winnerThreadId: "provider-secret-thread-4" });
   });
 
