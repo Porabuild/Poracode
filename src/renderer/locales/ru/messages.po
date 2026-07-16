@@ -38,8 +38,10 @@ msgid "{0, plural, one {# candidate} other {# candidates}}"
 msgstr "{0, plural, one {# кандидат} few {# кандидата} many {# кандидатов} other {# кандидата}}"
 
 #. placeholder {0}: details.changedFiles
+#. placeholder {0}: entry.files
 #. placeholder {0}: stats.files
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# файл} few {# файла} many {# файлов} other {# файла}}"
@@ -173,6 +175,11 @@ msgstr "Хуки {0} удалены для {envName}."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} is already up to date."
 msgstr "{0} уже обновлён."
+
+#. placeholder {0}: entry.judgeLabel
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "{0} is comparing the anonymized diffs…"
+msgstr "{0} сравнивает анонимизированные различия…"
 
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -357,6 +364,14 @@ msgstr "{hours}ч назад"
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# агент готов} few {# агента готовы} many {# агентов готовы} other {# агента готовы}}"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "{judgeLabel} is comparing the anonymized diffs…"
+#~ msgstr "{judgeLabel} сравнивает анонимизированные диффы…"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "{judgingLabel} is reviewing each candidate's changes to recommend a winner."
+#~ msgstr "{judgingLabel} просматривает изменения каждого кандидата, чтобы порекомендовать победителя."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "{label} API key"
@@ -440,8 +455,12 @@ msgid "{projectName} Settings"
 msgstr "Настройки {projectName}"
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "{provider} does not support text-only one-shot generation"
-msgstr "{provider} не поддерживает однократную генерацию только текста"
+msgid "{provider} does not support one-shot generation"
+msgstr "{provider} не поддерживает одноразовую генерацию"
+
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{provider} does not support text-only one-shot generation"
+#~ msgstr "{provider} не поддерживает однократную генерацию только текста"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -529,7 +548,7 @@ msgstr "30 дн"
 msgid "7d"
 msgstr "7 дн"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 #: src/renderer/actions/experimentWorktreeActions.ts
 msgid "A candidate is no longer on its experiment branch."
 msgstr "Один из кандидатов больше не находится в ветке эксперимента."
@@ -705,7 +724,7 @@ msgstr "Добавить существующую папку"
 msgid "Add attachment or capability"
 msgstr "Добавить вложение или возможность"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Add candidate"
 msgstr "Добавить кандидата"
 
@@ -880,8 +899,8 @@ msgstr "Оркестратор AI-агентов — управление код
 msgid "AI git actions"
 msgstr "Действия ИИ в Git"
 
-#: src/renderer/views/ExperimentView/ExperimentView.tsx
-#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "AI judge"
 msgstr "AI-судья"
 
@@ -1004,6 +1023,10 @@ msgstr "Сервер MCP с таким именем уже существует.
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "Другой чат использует это же дерево. Восстановление файлов может перезаписать изменения этого чата."
+
+#: src/renderer/actions/experimentOperationState.ts
+msgid "Another operation for this experiment is still running."
+msgstr "Другая операция для этого эксперимента ещё выполняется."
 
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
@@ -1554,6 +1577,8 @@ msgstr "Не удалось загрузить порты"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -1596,6 +1621,10 @@ msgstr "отменено"
 #: src/renderer/utils/prStatus.ts
 msgid "Cancelled"
 msgstr "Отменено"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Candidate actions"
+msgstr "Действия кандидата"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot create a default worktree path without a branch name"
@@ -1917,6 +1946,7 @@ msgstr "Клонирование…"
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
@@ -2128,6 +2158,10 @@ msgstr "Свернуть Composer"
 msgid "Collapse error"
 msgstr "Свернуть ошибку"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#~ msgid "Collapse experiment"
+#~ msgstr "Свернуть эксперимент"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Collapse group"
@@ -2238,6 +2272,10 @@ msgstr "Сжатие контекста"
 msgid "Compare this fingerprint with the one shown by your server."
 msgstr "Сравните этот отпечаток с отпечатком на сервере."
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "Comparing candidates…"
+#~ msgstr "Сравнение кандидатов…"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Complete"
 msgstr "Завершено"
@@ -2318,8 +2356,8 @@ msgstr "Computer Use включён — интерактивные действ�
 #~ msgstr "Управление компьютером включено для этого треда"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
-msgid "Computing changes…"
-msgstr "Вычисление изменений…"
+#~ msgid "Computing changes…"
+#~ msgstr "Вычисление изменений…"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -2711,6 +2749,11 @@ msgstr "Не удалось обновить навык."
 msgid "Create"
 msgstr "Создать"
 
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Create a pull request for candidate {0} ({label})"
+msgstr "Создать pull request для кандидата {0} ({label})"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "Создайте полезный распорядок одним щелчком и изменяйте его в любое время."
@@ -2731,6 +2774,7 @@ msgstr "Создать новую ветку"
 msgid "Create new branch..."
 msgstr "Создать новую ветку..."
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create PR"
@@ -2800,6 +2844,7 @@ msgid "Crown"
 msgstr "Назначить победителем"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 msgid "Crown with AI"
 msgstr "Выбрать победителя с помощью AI"
 
@@ -3196,8 +3241,8 @@ msgstr "При отключении навык перемещается из а�
 msgid "Discard"
 msgstr "Отменить"
 
-#. placeholder {0}: entry.group.groupName
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#. placeholder {0}: props.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
 msgid "Discard {0}"
 msgstr "Отменить {0}"
 
@@ -3654,6 +3699,10 @@ msgstr "Развернуть всё"
 msgid "Expand error"
 msgstr "Развернуть ошибку"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#~ msgid "Expand experiment"
+#~ msgstr "Развернуть эксперимент"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Expand group"
@@ -3689,6 +3738,7 @@ msgstr "Ожидался владелец worktree {expected}, но найден
 
 #: src/renderer/actions/experimentActions.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Experiment"
 msgstr "Эксперимент"
 
@@ -3825,8 +3875,8 @@ msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {b
 msgstr "Не удалось записать метаданные принадлежащей приложению ветки: {detail}. После отката осталась ветка {branch}: {rollback}"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
+#: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
-#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Fast"
 msgstr "Быстрый"
 
@@ -4064,11 +4114,11 @@ msgstr "Развилка"
 
 #. placeholder {0}: props.baseBranch
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
-msgid "Fork from <0>{0}</0>"
-msgstr "Ответвить от <0>{0}</0>"
+#~ msgid "Fork from <0>{0}</0>"
+#~ msgstr "Ответвить от <0>{0}</0>"
 
-#. placeholder {0}: exp.baseBranch
-#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#. placeholder {0}: props.baseBranch
+#: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Forked from <0>{0}</0>"
 msgstr "Создано ответвление от <0>{0}</0>"
 
@@ -4468,7 +4518,6 @@ msgstr "Путь к файлу идентификации"
 #. Microphone input level when not testing
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
-#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
 msgstr "Ожидание"
@@ -5248,8 +5297,8 @@ msgstr "Слить и удалить"
 
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
-msgid "Merge candidate {0} ({label}) as experiment winner"
-msgstr "Слить изменения кандидата {0} ({label}) как победителя эксперимента"
+#~ msgid "Merge candidate {0} ({label}) as experiment winner"
+#~ msgstr "Слить изменения кандидата {0} ({label}) как победителя эксперимента"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -5302,6 +5351,10 @@ msgstr "Слить PR: Rebase"
 msgid "Merge PR: Squash"
 msgstr "Слить PR: Squash"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Merge this candidate's changes into the base branch and remove the other candidates' worktrees."
+msgstr "Слить изменения этого кандидата в базовую ветку и удалить worktree других кандидатов."
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Merge this pull request with one squashed commit."
 msgstr "Слить этот pull request одним squash-коммитом."
@@ -5326,7 +5379,7 @@ msgstr "Слить worktree"
 msgid "Merged"
 msgstr "Слито"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Merged the experiment winner into {sourceBranch}."
 msgstr "Изменения победителя эксперимента слиты в {sourceBranch}."
 
@@ -5454,6 +5507,11 @@ msgstr "Режимы"
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "Больше"
+
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "More actions for candidate {0} ({label})"
+msgstr "Дополнительные действия для кандидата {0} ({label})"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/ApprovalActions.tsx
 msgid "More approval options"
@@ -6150,7 +6208,7 @@ msgstr "нет"
 msgid "None"
 msgstr "Нет"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "None of these agents can run the AI comparison."
 msgstr "Ни один из этих агентов не может выполнить сравнение с помощью AI."
@@ -6285,7 +6343,6 @@ msgid "Only when unfocused"
 msgstr "Только когда окно неактивно"
 
 #: src/renderer/notifications.ts
-#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -6315,6 +6372,7 @@ msgid "Open a thread first to attach to it."
 msgstr "Сначала откройте тред, чтобы прикрепить к нему."
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open All"
 msgstr "Открыть всё"
@@ -6369,7 +6427,7 @@ msgstr "Открывать диалог"
 msgid "Open experiment"
 msgstr "Открыть эксперимент"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Open experiment board"
 msgstr "Открыть доску эксперимента"
@@ -6466,6 +6524,10 @@ msgstr "Открыть план"
 msgid "Open PR #{0}"
 msgstr "Открыть PR #{0}"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Open PR #{prNumber}"
+msgstr "Открыть PR #{prNumber}"
+
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Open PR on GitHub"
 msgstr "Открыть PR на GitHub"
@@ -6540,6 +6602,11 @@ msgstr "OpenCode"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Opened {0} (#{1})"
 msgstr "Открыто {0} (№{1})"
+
+#. placeholder {0}: pr.number
+#: src/renderer/actions/experimentDecisionActions.ts
+msgid "Opened pull request #{0} for the candidate."
+msgstr "Открыт pull request #{0} для кандидата."
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "OpenSSH private key"
@@ -7048,7 +7115,7 @@ msgid "Projects live on the connected desktop. Add one before starting a thread.
 msgstr "Проекты находятся на подключенном компьютере. Добавьте проект, прежде чем начать тред."
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
-#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Prompt"
 msgstr "Промпт"
@@ -7242,6 +7309,10 @@ msgstr "Войти снова"
 #: src/mobile/views/PortsView.tsx
 msgid "Re-pair this connection to grant access to port forwarding."
 msgstr "Выполните сопряжение заново, чтобы предоставить доступ к перенаправлению портов."
+
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "Reading each candidate's changes…"
+msgstr "Чтение изменений каждого кандидата…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
@@ -7535,6 +7606,7 @@ msgstr "Переименовать чат"
 msgid "Rename connection"
 msgstr "Переименовать подключение"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename experiment"
 msgstr "Переименовать эксперимент"
@@ -7704,6 +7776,10 @@ msgstr "Восстановить или удалить"
 msgid "Restore thread"
 msgstr "Восстановить тред"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Results"
+msgstr "Результаты"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Resume"
 msgstr "Возобновить"
@@ -7786,6 +7862,11 @@ msgstr "Откатить к этой контрольной точке"
 msgid "Review and track work across your GitHub accounts."
 msgstr "Просматривайте и отслеживайте работу в своих аккаунтах GitHub."
 
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Review candidate {0} ({label}) changes"
+msgstr "Просмотреть изменения кандидата {0} ({label})"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Review Changes"
@@ -7823,6 +7904,10 @@ msgstr "Отображение ревью"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Reviewing"
 msgstr "На ревью"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "Reviewing each candidate's changes to recommend a winner."
+#~ msgstr "Просмотр изменений каждого кандидата, чтобы порекомендовать победителя."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
@@ -7883,7 +7968,7 @@ msgstr "Запустить в"
 msgid "Run command"
 msgstr "Выполнить команду"
 
-#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Run experiment"
 msgstr "Запустить эксперимент"
 
@@ -7901,7 +7986,6 @@ msgid "Run now"
 msgstr "Запустить сейчас"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Run one prompt with multiple agents, then compare their work."
 msgstr "Запустите выполнение одного промпта несколькими агентами, а затем сравните их работу."
 
@@ -8436,6 +8520,7 @@ msgstr "Показать в проводнике"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Show less"
 msgstr "Показать меньше"
 
@@ -8444,6 +8529,7 @@ msgid "Show MCP servers from {providerLabel}"
 msgstr "Показать MCP-серверы из {providerLabel}"
 
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Show more"
 msgstr "Показать больше"
 
@@ -8673,12 +8759,23 @@ msgstr "Пропущено"
 msgid "Slash commands"
 msgstr "Slash-команды"
 
+#. placeholder {0}: index + 1
+#. placeholder {0}: winnerOrdinal + 1
+#: src/renderer/views/ExperimentView/parts/useExperimentJudgeRun.ts
+msgid "Solution {0}"
+msgstr "Решение {0}"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "Solution {ordinal}"
+#~ msgstr "Решение {ordinal}"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "Некоторые проверки не пройдены или ожидают выполнения."
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Some experiment worktrees could not be removed."
 msgstr "Не удалось удалить некоторые worktree эксперимента."
 
@@ -8920,6 +9017,10 @@ msgstr "запуск…"
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "Спрятать и получить (pull)"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Stashed changes pending"
+msgstr "Ожидают изменения из stash"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Status"
@@ -9326,11 +9427,11 @@ msgstr "приложение"
 #~ msgid "the base branch"
 #~ msgstr "базовую ветку"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "The candidates changed after judging. Compare them again."
 msgstr "Кандидаты изменились после оценки. Сравните их снова."
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "Кандидаты пока не внесли изменений."
 
@@ -9347,8 +9448,9 @@ msgstr "Частота фонового обновления по умолчан
 msgid "The desktop server is still coming online."
 msgstr "Сервер рабочего стола все еще запускается."
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 #: src/renderer/actions/experimentWorktreeActions.ts
+#: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/MainView/parts/AppContent/parts/ThreadPane.tsx
 msgid "The experiment candidate worktree is unavailable."
 msgstr "Worktree кандидата эксперимента недоступен."
@@ -9397,6 +9499,14 @@ msgstr "Расположение репозитория на диске. Обн�
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "The selected file does not contain valid MCP server configurations."
 #~ msgstr "Выбранный файл не содержит допустимых конфигураций серверов MCP."
+
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
+#~ msgid "The selected model compares anonymized snapshots of each candidate's changes. It recommends a winner without merging anything."
+#~ msgstr "Выбранная модель сравнивает анонимизированные снимки изменений каждого кандидата. Она рекомендует победителя, ничего не объединяя."
+
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
+msgid "The selected model compares snapshots of each candidate's changes under anonymous labels. It recommends a winner without merging anything."
+msgstr "Выбранная модель сравнивает снимки изменений каждого кандидата под анонимными метками. Она рекомендует победителя, ничего не объединяя."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
@@ -9822,7 +9932,7 @@ msgid "Unable to authenticate {0}."
 msgstr "Не удалось аутентифицировать {0}."
 
 #. placeholder {0}: friendlyError(error)
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to compare candidates: {0}"
 msgstr "Не удалось сравнить кандидатов: {0}"
 
@@ -9846,6 +9956,15 @@ msgstr "Не удалось скопировать токен привязки."
 msgid "Unable to copy Tailscale URL."
 msgstr "Не удалось скопировать URL Tailscale."
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to create the candidate worktree."
+msgstr "Не удалось создать рабочее дерево кандидата."
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentDecisionActions.ts
+msgid "Unable to create the pull request: {0}"
+msgstr "Не удалось создать pull request: {0}"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "Не удалось создать каталог worktree WSL \"{path}\""
@@ -9854,7 +9973,7 @@ msgstr "Не удалось создать каталог worktree WSL \"{path}\
 msgid "Unable to delete the worktree."
 msgstr "Не удалось удалить worktree."
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "Не удалось определить исходную ветку эксперимента."
 
@@ -9886,7 +10005,7 @@ msgid "Unable to merge"
 msgstr "Не удалось выполнить merge"
 
 #. placeholder {0}: friendlyError(error)
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to merge the experiment winner: {0}"
 msgstr "Не удалось слить изменения победителя эксперимента: {0}"
 
@@ -9914,7 +10033,7 @@ msgid "Unable to read experiment candidate status"
 msgstr "Не удалось прочитать статус кандидата эксперимента"
 
 #. placeholder {0}: friendlyError(error)
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to read the candidate changes: {0}"
 msgstr "Не удалось прочитать изменения кандидатов: {0}"
 
@@ -10443,15 +10562,15 @@ msgstr "Язык голосового ввода"
 msgid "Voice input model"
 msgstr "Модель голосового ввода"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before cleaning up."
 msgstr "Дождитесь завершения работы всех кандидатов перед очисткой."
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before comparing them."
 msgstr "Дождитесь завершения работы всех кандидатов перед сравнением."
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before discarding the experiment."
 msgstr "Дождитесь завершения работы всех кандидатов перед отменой эксперимента."
 
@@ -10459,9 +10578,13 @@ msgstr "Дождитесь завершения работы всех канди
 msgid "Wait for every candidate to finish before judging."
 msgstr "Дождитесь завершения работы всех кандидатов перед оценкой."
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before merging a winner."
 msgstr "Дождитесь завершения работы всех кандидатов перед слиянием изменений победителя."
+
+#: src/renderer/actions/experimentDecisionActions.ts
+msgid "Wait for every candidate to finish before opening a pull request."
+msgstr "Дождитесь завершения работы всех кандидатов перед созданием pull request."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Wait for the thread to finish starting."
@@ -10518,6 +10641,10 @@ msgstr "Подготовка окружений оболочки..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "Подготовка окружения оболочки WSL…"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "We have a winner!"
+msgstr "У нас есть победитель!"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -10695,7 +10822,6 @@ msgstr "Рабочие процессы"
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
-#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Working"
 msgstr "Работает"
 
@@ -10824,13 +10950,25 @@ msgstr "Базовая папка WSL"
 #~ msgid "WSL user"
 #~ msgstr "Пользователь WSL"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Your local changes are stashed and will be re-applied when you commit or abort this merge."
+msgstr "Ваши локальные изменения сохранены в stash и будут применены повторно, когда вы закоммитите или прервёте это слияние."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
+msgstr "Ваши локальные изменения были сохранены в stash и будут применены повторно после разрешения слияния."
+
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "Ваше имя"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
-msgid "Your pick"
-msgstr "Ваш выбор"
+#~ msgid "Your pick"
+#~ msgstr "Ваш выбор"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Your stashed local changes were re-applied."
+msgstr "Ваши локальные изменения из stash были применены повторно."
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Zoom in"

@@ -1,5 +1,11 @@
 import Database from "better-sqlite3";
-import type { Project, Thread } from "@/shared/contracts";
+import {
+  EXPERIMENT_STORE_KEY,
+  EXPERIMENT_STORE_VERSION,
+  type Project,
+  type Thread,
+} from "@/shared/contracts";
+import type { DbPersistExperimentStatePayload } from "@/shared/ipc";
 import { getSqlite } from "./connection";
 import { locationToRow } from "./rowMappers";
 
@@ -50,6 +56,31 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
         "INSERT INTO app_state (key, value) VALUES ('view', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
       )
       .run(viewJson);
+  })();
+}
+
+export function dbPersistExperimentState(payload: DbPersistExperimentStatePayload): void {
+  const sqlite = getSqlite();
+  sqlite.transaction(() => {
+    const deleteThread = sqlite.prepare("DELETE FROM threads WHERE id = ?");
+    for (const threadId of payload.deletedThreadIds) deleteThread.run(threadId);
+
+    const upsertThread = prepareThreadSyncStatement(sqlite);
+    for (const { thread, sortOrder } of payload.upsertThreads) {
+      runThreadSync(upsertThread, thread, sortOrder);
+    }
+
+    sqlite
+      .prepare(
+        "INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      )
+      .run(
+        EXPERIMENT_STORE_KEY,
+        JSON.stringify({
+          state: { experiments: payload.experiments },
+          version: EXPERIMENT_STORE_VERSION,
+        }),
+      );
   })();
 }
 

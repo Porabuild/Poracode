@@ -335,7 +335,7 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
             if (command.isNewWorktree) {
               const setupScript = project.scripts?.setupScript;
               if (setupScript) {
-                runWorktreeSetupScript(project, command.worktreePath, setupScript);
+                void runWorktreeSetupScript(project, command.worktreePath, setupScript);
               }
             }
           }
@@ -367,7 +367,9 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
               if (project) {
                 void primeWorktreeGitState(project, command.worktreePath);
                 const setupScript = project.scripts?.setupScript;
-                if (setupScript) runWorktreeSetupScript(project, command.worktreePath, setupScript);
+                if (setupScript) {
+                  void runWorktreeSetupScript(project, command.worktreePath, setupScript);
+                }
               }
             }
             break;

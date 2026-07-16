@@ -33,6 +33,10 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "git.pull.stashPreserved": msg({
     message: "Pull did not complete. Your local changes remain in a Poracode stash.",
   }),
+  "git.pull.reapplyAfterMerge": msg({
+    message: "Your local changes were stashed and will be re-applied once the merge is resolved.",
+  }),
+  "git.pull.stashReapplied": msg({ message: "Your stashed local changes were re-applied." }),
   "git.worktree.noBranch": msg({
     message: "Cannot create a default worktree path without a branch name",
   }),
@@ -127,6 +131,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
     message: "Expected worktree owner {expected}, but found {actual}",
   }),
   "experiment.worktree.noOwner": msg({ message: "none" }),
+  "experiment.worktree.unavailable": msg({
+    message: "The experiment candidate worktree is unavailable.",
+  }),
   "experiment.judge.atLeastTwo": msg({
     message: "Experiment judge requires at least two candidates",
   }),
@@ -140,6 +147,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "experiment.judge.emptyRationale": msg({
     message: "Experiment judge returned an empty rationale",
   }),
+  "experiment.judge.noChanges": msg({
+    message: "The candidates have not made any changes yet.",
+  }),
   "experiment.judge.promptBlank": msg({ message: "Experiment prompt must not be blank" }),
   "experiment.judge.uniqueThreadIds": msg({
     message: "Experiment candidate thread ids must be unique",
@@ -147,8 +157,8 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "experiment.judge.noDefaultModel": msg({
     message: "No default one-shot model configured for {provider}",
   }),
-  "experiment.judge.textOnlyUnsupported": msg({
-    message: "{provider} does not support text-only one-shot generation",
+  "experiment.judge.oneShotUnsupported": msg({
+    message: "{provider} does not support one-shot generation",
   }),
   "git.wsl.homeNotFound": msg({
     message: 'Unable to resolve home directory for WSL distro "{distro}"',

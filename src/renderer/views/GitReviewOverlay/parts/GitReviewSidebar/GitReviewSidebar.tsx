@@ -15,6 +15,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo, GitStatusResult, PrCreateMode, Project } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
+import { gitReviewActionStoreKey } from "@/renderer/state/gitReviewActionStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import {
   buildBranchPrKey,
@@ -98,7 +100,7 @@ export function GitReviewSidebar(props: {
     onLaunchConflictResolverThread,
   } = props;
   const { t } = useLingui();
-  const storeKey = statusKey ?? project.id;
+  const storeKey = gitReviewActionStoreKey(project.id, statusKey);
   const isWorktreeStatus = Boolean(statusKey);
   const { isCollapsed, collapse, expand } = useSidebar();
   const diffTheme = useDiffTheme();
@@ -156,6 +158,7 @@ export function GitReviewSidebar(props: {
     isMerging,
     isPullingFromSource,
     isAbortingMerge,
+    pullStashCommit,
     prTitle,
     setPrTitle,
     prBody,
@@ -221,10 +224,22 @@ export function GitReviewSidebar(props: {
   const behind = gitStatus?.behind ?? 0;
   const needsPush = hasTracking ? ahead > 0 && behind === 0 : hasRemote;
 
-  const showMergeActions = Boolean(
-    worktreeBranch && worktreePath && !hasAnyChanges && sourceBranch && commitsAhead > 0,
+  // Experiment candidate worktrees merge/pull through the experiment crown
+  // flow only — the review surface is view/commit-only for them.
+  const isExperimentWorktree = Boolean(
+    worktreePath && findExperimentByWorktree(project.id, worktreePath),
   );
-  const showPullFromSource = Boolean(effectiveBranch && sourceBranch && sourceAhead > 0);
+  const showMergeActions = Boolean(
+    worktreeBranch &&
+    worktreePath &&
+    !hasAnyChanges &&
+    sourceBranch &&
+    commitsAhead > 0 &&
+    !isExperimentWorktree,
+  );
+  const showPullFromSource = Boolean(
+    effectiveBranch && sourceBranch && sourceAhead > 0 && !isExperimentWorktree,
+  );
   const isPushed = hasTracking && ahead === 0;
   // Shared PR eligibility: a GitHub repo with a target branch and no open PR.
   const prEligible = Boolean(
@@ -471,6 +486,7 @@ export function GitReviewSidebar(props: {
           {(hasAnyChanges || hasRemote) && (
             <CommitSyncPanel
               hasAnyChanges={hasAnyChanges}
+              hasPendingPullStash={Boolean(pullStashCommit)}
               hasStagedChanges={hasStagedChanges}
               hasRemote={hasRemote}
               needsPush={needsPush}

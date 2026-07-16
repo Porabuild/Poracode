@@ -38,8 +38,10 @@ msgid "{0, plural, one {# candidate} other {# candidates}}"
 msgstr "{0, plural, one {# 个候选项} other {# 个候选项}}"
 
 #. placeholder {0}: details.changedFiles
+#. placeholder {0}: entry.files
 #. placeholder {0}: stats.files
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# 个文件} other {# 个文件}}"
@@ -173,6 +175,11 @@ msgstr "删除了{envName}的{0}挂钩。"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} is already up to date."
 msgstr "{0}已经是最新的。"
+
+#. placeholder {0}: entry.judgeLabel
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "{0} is comparing the anonymized diffs…"
+msgstr "{0} 正在比较匿名化的差异…"
 
 #. placeholder {0}: summary.maxLabel
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -357,6 +364,14 @@ msgstr "{hours}小时前"
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 msgstr "{installedCount, plural, one {# 个代理准备就绪} other {# 个代理准备就绪}}"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "{judgeLabel} is comparing the anonymized diffs…"
+#~ msgstr "{judgeLabel} 正在比较匿名化的差异…"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "{judgingLabel} is reviewing each candidate's changes to recommend a winner."
+#~ msgstr "{judgingLabel} 正在查看每个候选的更改以推荐优胜者。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "{label} API key"
@@ -440,8 +455,12 @@ msgid "{projectName} Settings"
 msgstr "{projectName}设置"
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "{provider} does not support text-only one-shot generation"
-msgstr "{provider} 不支持仅文本的单次生成"
+msgid "{provider} does not support one-shot generation"
+msgstr "{provider} 不支持单次生成"
+
+#: src/renderer/i18n/sharedMessages.ts
+#~ msgid "{provider} does not support text-only one-shot generation"
+#~ msgstr "{provider} 不支持仅文本的单次生成"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -529,7 +548,7 @@ msgstr "30天"
 msgid "7d"
 msgstr "7天"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 #: src/renderer/actions/experimentWorktreeActions.ts
 msgid "A candidate is no longer on its experiment branch."
 msgstr "候选项已不在其实验分支上。"
@@ -705,7 +724,7 @@ msgstr "添加现有文件夹"
 msgid "Add attachment or capability"
 msgstr "添加附件或功能"
 
-#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Add candidate"
 msgstr "添加候选项"
 
@@ -880,8 +899,8 @@ msgstr "AI 代理协调器 — 通过终端和本机 ACP 管理编码代理。"
 msgid "AI git actions"
 msgstr "AI git操作"
 
-#: src/renderer/views/ExperimentView/ExperimentView.tsx
-#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "AI judge"
 msgstr "AI 评审"
 
@@ -1004,6 +1023,10 @@ msgstr "已存在同名的 MCP 服务器。"
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Another chat uses this same tree. File restore could overwrite that chat's changes."
 msgstr "另一个聊天使用同一棵树。文件恢复可能会覆盖该聊天的更改。"
+
+#: src/renderer/actions/experimentOperationState.ts
+msgid "Another operation for this experiment is still running."
+msgstr "此实验的另一个操作仍在运行。"
 
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
@@ -1554,6 +1577,8 @@ msgstr "无法加载端口"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/FileGroup.tsx
@@ -1596,6 +1621,10 @@ msgstr "已取消"
 #: src/renderer/utils/prStatus.ts
 msgid "Cancelled"
 msgstr "已取消"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Candidate actions"
+msgstr "候选操作"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Cannot create a default worktree path without a branch name"
@@ -1917,6 +1946,7 @@ msgstr "克隆…"
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
@@ -2128,6 +2158,10 @@ msgstr "折叠输入框"
 msgid "Collapse error"
 msgstr "折叠错误"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#~ msgid "Collapse experiment"
+#~ msgstr "折叠实验"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Collapse group"
@@ -2238,6 +2272,10 @@ msgstr "压缩上下文"
 msgid "Compare this fingerprint with the one shown by your server."
 msgstr "请将此指纹与服务器上显示的指纹进行比较。"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "Comparing candidates…"
+#~ msgstr "正在比较候选…"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "Complete"
 msgstr "完成"
@@ -2318,8 +2356,8 @@ msgstr "已启用 Computer Use — 交互操作会接管桌面；代理控制期
 #~ msgstr "为此线程启用计算机操作"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
-msgid "Computing changes…"
-msgstr "正在计算更改…"
+#~ msgid "Computing changes…"
+#~ msgstr "正在计算更改…"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Config directory"
@@ -2711,6 +2749,11 @@ msgstr "无法更新技能。"
 msgid "Create"
 msgstr "创建"
 
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Create a pull request for candidate {0} ({label})"
+msgstr "为候选 {0}（{label}）创建拉取请求"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "一键创建实用例程，之后可随时调整。"
@@ -2731,6 +2774,7 @@ msgstr "创建新分支"
 msgid "Create new branch..."
 msgstr "创建新分支..."
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create PR"
@@ -2800,6 +2844,7 @@ msgid "Crown"
 msgstr "选为优胜者"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 msgid "Crown with AI"
 msgstr "由 AI 选择优胜者"
 
@@ -3196,8 +3241,8 @@ msgstr "禁用技能会将其移出活动技能文件夹，并删除由 Poracode
 msgid "Discard"
 msgstr "放弃"
 
-#. placeholder {0}: entry.group.groupName
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#. placeholder {0}: props.title
+#: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
 msgid "Discard {0}"
 msgstr "放弃 {0}"
 
@@ -3654,6 +3699,10 @@ msgstr "全部展开"
 msgid "Expand error"
 msgstr "展开错误"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#~ msgid "Expand experiment"
+#~ msgstr "展开实验"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Expand group"
@@ -3689,6 +3738,7 @@ msgstr "预期工作树所有者为 {expected}，但实际为 {actual}"
 
 #: src/renderer/actions/experimentActions.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Experiment"
 msgstr "实验"
 
@@ -3825,8 +3875,8 @@ msgid "Failed to record owned branch metadata: {detail}. Rollback left branch {b
 msgstr "记录已标记所有者的分支元数据失败：{detail}。回滚后仍留下分支 {branch}：{rollback}"
 
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
+#: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
-#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Fast"
 msgstr "快"
 
@@ -4064,11 +4114,11 @@ msgstr "派生"
 
 #. placeholder {0}: props.baseBranch
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
-msgid "Fork from <0>{0}</0>"
-msgstr "从 <0>{0}</0> 分叉"
+#~ msgid "Fork from <0>{0}</0>"
+#~ msgstr "从 <0>{0}</0> 分叉"
 
-#. placeholder {0}: exp.baseBranch
-#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#. placeholder {0}: props.baseBranch
+#: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Forked from <0>{0}</0>"
 msgstr "从 <0>{0}</0> 分叉"
 
@@ -4468,7 +4518,6 @@ msgstr "身份文件路径"
 #. Microphone input level when not testing
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
-#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
 msgstr "空闲"
@@ -5248,8 +5297,8 @@ msgstr "合并和删除"
 
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
-msgid "Merge candidate {0} ({label}) as experiment winner"
-msgstr "将候选项 {0}（{label}）作为实验优胜者合并"
+#~ msgid "Merge candidate {0} ({label}) as experiment winner"
+#~ msgstr "将候选项 {0}（{label}）作为实验优胜者合并"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
@@ -5301,6 +5350,10 @@ msgstr "合并 PR：Rebase"
 msgid "Merge PR: Squash"
 msgstr "合并 PR：Squash"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Merge this candidate's changes into the base branch and remove the other candidates' worktrees."
+msgstr "将此候选的更改合并到基础分支，并移除其他候选的工作树。"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Merge this pull request with one squashed commit."
 msgstr "使用一个 squash 提交合并此 pull request。"
@@ -5325,7 +5378,7 @@ msgstr "合并工作树"
 msgid "Merged"
 msgstr "已合并"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Merged the experiment winner into {sourceBranch}."
 msgstr "已将实验优胜者合并到 {sourceBranch}。"
 
@@ -5453,6 +5506,11 @@ msgstr "模式"
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "More"
 msgstr "多"
+
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "More actions for candidate {0} ({label})"
+msgstr "候选 {0}（{label}）的更多操作"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/ApprovalActions.tsx
 msgid "More approval options"
@@ -6149,7 +6207,7 @@ msgstr "无"
 msgid "None"
 msgstr "无"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "None of these agents can run the AI comparison."
 msgstr "这些智能体均无法执行 AI 比较。"
@@ -6284,7 +6342,6 @@ msgid "Only when unfocused"
 msgstr "仅当窗口失去焦点时"
 
 #: src/renderer/notifications.ts
-#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
@@ -6314,6 +6371,7 @@ msgid "Open a thread first to attach to it."
 msgstr "首先打开一个线程以附加到它。"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Open All"
 msgstr "打开全部"
@@ -6368,7 +6426,7 @@ msgstr "打开对话框"
 msgid "Open experiment"
 msgstr "打开实验"
 
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Open experiment board"
 msgstr "打开实验面板"
@@ -6465,6 +6523,10 @@ msgstr "打开计划"
 msgid "Open PR #{0}"
 msgstr "打开 PR #{0}"
 
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Open PR #{prNumber}"
+msgstr "打开 PR #{prNumber}"
+
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "Open PR on GitHub"
 msgstr "在 GitHub 上打开 PR"
@@ -6539,6 +6601,11 @@ msgstr "OpenCode"
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "Opened {0} (#{1})"
 msgstr "已打开 {0} (#{1})"
+
+#. placeholder {0}: pr.number
+#: src/renderer/actions/experimentDecisionActions.ts
+msgid "Opened pull request #{0} for the candidate."
+msgstr "已为候选打开拉取请求 #{0}。"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "OpenSSH private key"
@@ -7047,7 +7114,7 @@ msgid "Projects live on the connected desktop. Add one before starting a thread.
 msgstr "项目位于已连接的桌面端。开始线程前请先添加一个项目。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
-#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 msgid "Prompt"
 msgstr "提示"
@@ -7241,6 +7308,10 @@ msgstr "重新登录"
 #: src/mobile/views/PortsView.tsx
 msgid "Re-pair this connection to grant access to port forwarding."
 msgstr "重新配对此连接以授予端口转发的访问权限。"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "Reading each candidate's changes…"
+msgstr "正在读取每个候选的更改…"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
@@ -7534,6 +7605,7 @@ msgstr "重命名聊天"
 msgid "Rename connection"
 msgstr "重命名连接"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ExperimentGroupHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename experiment"
 msgstr "重命名实验"
@@ -7703,6 +7775,10 @@ msgstr "恢复或删除"
 msgid "Restore thread"
 msgstr "恢复线程"
 
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+msgid "Results"
+msgstr "结果"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Resume"
 msgstr "继续"
@@ -7785,6 +7861,11 @@ msgstr "恢复到此检查点"
 msgid "Review and track work across your GitHub accounts."
 msgstr "在你的各个 GitHub 账户中审核和跟踪工作。"
 
+#. placeholder {0}: props.candidateNumber
+#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
+msgid "Review candidate {0} ({label}) changes"
+msgstr "查看候选 {0}（{label}）的更改"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Review Changes"
@@ -7822,6 +7903,10 @@ msgstr "评审显示"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Reviewing"
 msgstr "待我审核"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "Reviewing each candidate's changes to recommend a winner."
+#~ msgstr "正在查看每个候选的更改以推荐优胜者。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
@@ -7882,7 +7967,7 @@ msgstr "运行时间"
 msgid "Run command"
 msgstr "运行命令"
 
-#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Run experiment"
 msgstr "运行实验"
 
@@ -7900,7 +7985,6 @@ msgid "Run now"
 msgstr "立即运行"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-#: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 msgid "Run one prompt with multiple agents, then compare their work."
 msgstr "让多个智能体运行同一个提示，然后比较它们的成果。"
 
@@ -8435,6 +8519,7 @@ msgstr "在文件资源管理器中显示"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Show less"
 msgstr "显示较少"
 
@@ -8443,6 +8528,7 @@ msgid "Show MCP servers from {providerLabel}"
 msgstr "显示 {providerLabel} 的 MCP 服务器"
 
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
+#: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Show more"
 msgstr "显示更多"
 
@@ -8672,12 +8758,23 @@ msgstr "已跳过"
 msgid "Slash commands"
 msgstr "斜杠命令"
 
+#. placeholder {0}: index + 1
+#. placeholder {0}: winnerOrdinal + 1
+#: src/renderer/views/ExperimentView/parts/useExperimentJudgeRun.ts
+msgid "Solution {0}"
+msgstr "方案 {0}"
+
+#: src/renderer/views/ExperimentView/ExperimentView.tsx
+#~ msgid "Solution {ordinal}"
+#~ msgstr "方案 {ordinal}"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Some checks are failing or pending."
 msgstr "一些检查失败或待处理。"
 
 #: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Some experiment worktrees could not be removed."
 msgstr "部分实验工作树无法移除。"
 
@@ -8919,6 +9016,10 @@ msgstr "开始…"
 #: src/renderer/views/MainView/parts/PullFromSourceDialog.tsx
 msgid "Stash & Pull"
 msgstr "贮藏并拉取"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Stashed changes pending"
+msgstr "贮藏的更改待应用"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "Status"
@@ -9325,11 +9426,11 @@ msgstr "该应用程序"
 #~ msgid "the base branch"
 #~ msgstr "基准分支"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "The candidates changed after judging. Compare them again."
 msgstr "候选项在评审后发生了更改。请重新比较。"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "候选项尚未进行任何更改。"
 
@@ -9346,8 +9447,9 @@ msgstr "默认的后台刷新频率，适用于下方未单独设置间隔的任
 msgid "The desktop server is still coming online."
 msgstr "桌面服务器仍在启动。"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 #: src/renderer/actions/experimentWorktreeActions.ts
+#: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/MainView/parts/AppContent/parts/ThreadPane.tsx
 msgid "The experiment candidate worktree is unavailable."
 msgstr "实验候选项的工作树不可用。"
@@ -9396,6 +9498,14 @@ msgstr "存储库在磁盘上的位置。如果您移动了该文件夹，请更
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "The selected file does not contain valid MCP server configurations."
 #~ msgstr "所选文件不包含有效的 MCP 服务器配置。"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
+#~ msgid "The selected model compares anonymized snapshots of each candidate's changes. It recommends a winner without merging anything."
+#~ msgstr "所选模型会比较每个候选方案更改的匿名快照，并在不合并任何内容的情况下推荐获胜者。"
+
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
+msgid "The selected model compares snapshots of each candidate's changes under anonymous labels. It recommends a winner without merging anything."
+msgstr "所选模型会使用匿名标签比较每个候选方案的更改快照，并在不合并任何内容的情况下推荐获胜者。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
@@ -9821,7 +9931,7 @@ msgid "Unable to authenticate {0}."
 msgstr "无法验证{0}。"
 
 #. placeholder {0}: friendlyError(error)
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to compare candidates: {0}"
 msgstr "无法比较候选项：{0}"
 
@@ -9845,6 +9955,15 @@ msgstr "无法复制配对令牌。"
 msgid "Unable to copy Tailscale URL."
 msgstr "无法复制 Tailscale URL。"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Unable to create the candidate worktree."
+msgstr "无法创建候选项工作树。"
+
+#. placeholder {0}: friendlyError(error)
+#: src/renderer/actions/experimentDecisionActions.ts
+msgid "Unable to create the pull request: {0}"
+msgstr "无法创建拉取请求：{0}"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to create WSL worktree directory \"{path}\""
 msgstr "无法创建 WSL 工作树目录“{path}”"
@@ -9853,7 +9972,7 @@ msgstr "无法创建 WSL 工作树目录“{path}”"
 msgid "Unable to delete the worktree."
 msgstr "无法删除 worktree。"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "无法确定实验的源分支。"
 
@@ -9885,7 +10004,7 @@ msgid "Unable to merge"
 msgstr "无法合并"
 
 #. placeholder {0}: friendlyError(error)
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to merge the experiment winner: {0}"
 msgstr "无法合并实验优胜者：{0}"
 
@@ -9913,7 +10032,7 @@ msgid "Unable to read experiment candidate status"
 msgstr "无法读取实验候选项状态"
 
 #. placeholder {0}: friendlyError(error)
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to read the candidate changes: {0}"
 msgstr "无法读取候选项的更改：{0}"
 
@@ -10442,15 +10561,15 @@ msgstr "语音输入语言"
 msgid "Voice input model"
 msgstr "语音输入模型"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before cleaning up."
 msgstr "请等待所有候选项完成后再清理。"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before comparing them."
 msgstr "请等待所有候选项完成后再进行比较。"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before discarding the experiment."
 msgstr "请等待所有候选项完成后再放弃实验。"
 
@@ -10458,9 +10577,13 @@ msgstr "请等待所有候选项完成后再放弃实验。"
 msgid "Wait for every candidate to finish before judging."
 msgstr "请等待所有候选项完成后再进行评审。"
 
-#: src/renderer/actions/experimentActions.ts
+#: src/renderer/actions/experimentDecisionActions.ts
 msgid "Wait for every candidate to finish before merging a winner."
 msgstr "请等待所有候选项完成后再合并优胜者。"
+
+#: src/renderer/actions/experimentDecisionActions.ts
+msgid "Wait for every candidate to finish before opening a pull request."
+msgstr "请等待所有候选项完成后再创建拉取请求。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/SortableThreadItem.tsx
 msgid "Wait for the thread to finish starting."
@@ -10517,6 +10640,10 @@ msgstr "正在预热 shell 环境..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "正在预热 WSL shell 环境..."
+
+#: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
+msgid "We have a winner!"
+msgstr "优胜者诞生了！"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -10694,7 +10821,6 @@ msgstr "工作流程"
 
 #: src/mobile/presentation.ts
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
-#: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Working"
 msgstr "工作中"
 
@@ -10823,13 +10949,25 @@ msgstr "WSL 基础文件夹"
 #~ msgid "WSL user"
 #~ msgstr "WSL 用户"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
+msgid "Your local changes are stashed and will be re-applied when you commit or abort this merge."
+msgstr "您的本地更改已贮藏，在您提交或中止此合并时将重新应用。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
+msgstr "您的本地更改已贮藏，合并解决后将重新应用。"
+
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "你的名字"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
-msgid "Your pick"
-msgstr "你的选择"
+#~ msgid "Your pick"
+#~ msgstr "你的选择"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Your stashed local changes were re-applied."
+msgstr "您贮藏的本地更改已重新应用。"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Zoom in"

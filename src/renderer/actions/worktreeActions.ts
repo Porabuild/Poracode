@@ -23,35 +23,7 @@ export async function performWorktreeRemoval(
 ): Promise<boolean> {
   const resolvedWorktreeBranch = resolveWorktreeBranch(project.id, worktreePath, worktreeBranch);
 
-  const cleanupScript = project.scripts?.cleanupScript;
-  if (cleanupScript) {
-    const wtLocation = buildWorktreeLocation(project.location, worktreePath);
-    const cleanupShellId = `shell:${crypto.randomUUID()}`;
-    await runShellScriptToCompletion(cleanupShellId, wtLocation, cleanupScript).catch((error) => {
-      console.warn(`[renderer] cleanup script failed for ${worktreePath}:`, error);
-    });
-  }
-
-  const termStore = useDevTerminalStore.getState();
-  const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
-  await closeThreads(removedTabIds);
-
-  if (termStore.isOpen && termStore.activeWorktreePath === worktreePath) {
-    termStore.closePanel();
-  }
-
-  useGitStore.getState().clearWorktreeStatus(worktreePath);
-
-  const panelStore = usePanelStore.getState();
-  const { gitReviewContext, filesPanelContext } = panelStore;
-  if (gitReviewContext?.worktreePath === worktreePath) {
-    panelStore.setGitOverlayOpen(false);
-    panelStore.setGitReviewContext(null);
-  }
-  if (filesPanelContext?.worktreePath === worktreePath) {
-    panelStore.setFilesPanelContext(null);
-    useFileEditorStore.getState().clearSession();
-  }
+  await prepareWorktreeRemoval(project, worktreePath);
 
   try {
     await readBridge().gitRemoveWorktree({
@@ -110,6 +82,41 @@ export async function performWorktreeRemoval(
       .catch(() => undefined);
   }
   return true;
+}
+
+export async function prepareWorktreeRemoval(
+  project: Project,
+  worktreePath: string,
+): Promise<void> {
+  const cleanupScript = project.scripts?.cleanupScript;
+  if (cleanupScript) {
+    const wtLocation = buildWorktreeLocation(project.location, worktreePath);
+    const cleanupShellId = `shell:${crypto.randomUUID()}`;
+    await runShellScriptToCompletion(cleanupShellId, wtLocation, cleanupScript).catch((error) => {
+      console.warn(`[renderer] cleanup script failed for ${worktreePath}:`, error);
+    });
+  }
+
+  const termStore = useDevTerminalStore.getState();
+  const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
+  await closeThreads(removedTabIds);
+
+  if (termStore.isOpen && termStore.activeWorktreePath === worktreePath) {
+    termStore.closePanel();
+  }
+
+  useGitStore.getState().clearWorktreeStatus(worktreePath);
+
+  const panelStore = usePanelStore.getState();
+  const { gitReviewContext, filesPanelContext } = panelStore;
+  if (gitReviewContext?.worktreePath === worktreePath) {
+    panelStore.setGitOverlayOpen(false);
+    panelStore.setGitReviewContext(null);
+  }
+  if (filesPanelContext?.worktreePath === worktreePath) {
+    panelStore.setFilesPanelContext(null);
+    useFileEditorStore.getState().clearSession();
+  }
 }
 
 export function deleteWorktreeGroup(

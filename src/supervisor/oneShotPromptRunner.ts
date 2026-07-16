@@ -60,6 +60,8 @@ export interface RunOneShotPromptOptions {
   effort: string | undefined;
   /** Opus-only fast-mode flag, forwarded to the adapter when set. */
   fast?: boolean | undefined;
+  /** Let structured runtimes expose read/search/list tools in the isolated workspace. */
+  readOnlyWorkspace?: boolean | undefined;
   timeoutMs: number;
   signal?: AbortSignal;
   /** Tag for log lines, e.g. "commit-gen", "pr-summary-gen". */
@@ -140,6 +142,7 @@ async function runOneShotPromptWithFallbackImpl(
           model: options.model,
           effort: options.effort,
           fast: options.fast,
+          readOnlyWorkspace: options.readOnlyWorkspace,
           prompt,
           signal,
         });
@@ -168,11 +171,17 @@ async function runOneShotPromptWithFallbackImpl(
       prompt,
       options.location,
       options.fast,
+      { readOnlyWorkspace: options.readOnlyWorkspace },
     );
     if (!cmd) {
       throw new Error(`${options.adapter.label} does not support ${generationLabel}`);
     }
-    const { spec: spawnSpec, spawn } = prepareOneShot(options.location, cmd);
+    // The judge workspace is already throwaway and contains the only files the
+    // model may inspect. Preserve it even for adapters that normally move
+    // utility one-shots to the OS temp root for session-cache isolation.
+    const effectiveCommand =
+      options.readOnlyWorkspace && cmd.isolateCwd ? { ...cmd, isolateCwd: false } : cmd;
+    const { spec: spawnSpec, spawn } = prepareOneShot(options.location, effectiveCommand);
 
     if (hasNextAttempt && isArgvLikelyTooLong(spawnSpec)) {
       console.warn(

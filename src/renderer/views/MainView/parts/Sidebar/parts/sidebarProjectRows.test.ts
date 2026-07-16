@@ -124,4 +124,119 @@ describe("buildSidebarProjectRows — See more cap (date sort)", () => {
       ).toBe(true);
     }
   });
+
+  it("hides candidate rows when the experiment group collapse key is set", () => {
+    const groupedThreads = [
+      makeThread({ id: "candidate-1", groupId: "experiment-1", groupName: "Experiment" }),
+      makeThread({ id: "candidate-2", groupId: "experiment-1", groupName: "Experiment" }),
+    ];
+    const expanded = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: groupedThreads,
+      sortMode: "updated",
+      collapsedWorktrees: {},
+      visibleLimit: 10,
+    });
+    expect(expanded.some((r) => r.kind === "thread-group")).toBe(true);
+    expect(threadRows(expanded)).toHaveLength(2);
+
+    const collapsed = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: groupedThreads,
+      sortMode: "updated",
+      collapsedWorktrees: { "group:experiment-1": true },
+      visibleLimit: 10,
+    });
+    expect(collapsed.some((r) => r.kind === "thread-group")).toBe(true);
+    expect(threadRows(collapsed)).toHaveLength(0);
+  });
+
+  it("keeps worktree controls on threads nested in a thread group", () => {
+    const rows = build(
+      [
+        makeThread({
+          id: "candidate-1",
+          groupId: "experiment-1",
+          worktreePath: "/repo/candidate-1",
+          worktreeBranch: "experiment/candidate-1",
+        }),
+        makeThread({
+          id: "candidate-2",
+          groupId: "experiment-1",
+          worktreePath: "/repo/candidate-2",
+          worktreeBranch: "experiment/candidate-2",
+        }),
+      ],
+      10,
+      "updated",
+    );
+
+    expect(threadRows(rows)).toHaveLength(2);
+    expect(threadRows(rows).every((row) => row.showWorktreeFilesButton === true)).toBe(true);
+  });
+
+  it("uses experiment candidate order instead of thread recency inside the group", () => {
+    const rows = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: [
+        makeThread({
+          id: "candidate-3",
+          groupId: "experiment-1",
+          groupName: "Experiment",
+          updatedAt: "2026-07-15T00:03:00.000Z",
+        }),
+        makeThread({
+          id: "candidate-2",
+          groupId: "experiment-1",
+          groupName: "Experiment",
+          updatedAt: "2026-07-15T00:02:00.000Z",
+        }),
+        makeThread({
+          id: "candidate-1",
+          groupId: "experiment-1",
+          groupName: "Experiment",
+          updatedAt: "2026-07-15T00:01:00.000Z",
+        }),
+      ],
+      sortMode: "updated",
+      collapsedWorktrees: {},
+      visibleLimit: 10,
+      experimentCandidateOrder: new Map([
+        ["candidate-1", 0],
+        ["candidate-2", 1],
+        ["candidate-3", 2],
+      ]),
+    });
+
+    expect(threadRows(rows).map((row) => row.thread.id)).toEqual([
+      "candidate-1",
+      "candidate-2",
+      "candidate-3",
+    ]);
+  });
+
+  it("preserves experiment candidate order in manual mode", () => {
+    const rows = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: [
+        makeThread({ id: "candidate-3", groupId: "experiment-1", groupName: "Experiment" }),
+        makeThread({ id: "candidate-2", groupId: "experiment-1", groupName: "Experiment" }),
+        makeThread({ id: "candidate-1", groupId: "experiment-1", groupName: "Experiment" }),
+      ],
+      sortMode: "manual",
+      collapsedWorktrees: {},
+      visibleLimit: 10,
+      experimentCandidateOrder: new Map([
+        ["candidate-1", 0],
+        ["candidate-2", 1],
+        ["candidate-3", 2],
+      ]),
+    });
+
+    expect(threadRows(rows).map((row) => row.thread.id)).toEqual([
+      "candidate-1",
+      "candidate-2",
+      "candidate-3",
+    ]);
+  });
 });

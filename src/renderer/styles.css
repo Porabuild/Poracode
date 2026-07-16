@@ -23,6 +23,36 @@
   border-radius: var(--poracode-modal-radius);
 }
 
+/* Icon + title on the same row for every Modal/AlertDialog header that leads
+   with an icon. HeroUI stacks the header as `flex flex-col`, which drops the
+   icon above the heading. Switch headers that contain an icon to a two-column
+   grid: the icon occupies the first column and spans the full block height
+   (vertically centered), while the heading and any following description stack
+   in the second column. This keeps single-line dialogs (icon + heading)
+   centered and lets multi-line headers (icon + heading + description) read as
+   one left-aligned text block beside the icon. Applied at the base level so all
+   Modal-based dialogs inherit the convention. */
+.modal__header:has(> .modal__icon),
+.alert-dialog__header:has(> .alert-dialog__icon) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+}
+
+.modal__header:has(> .modal__icon) > .modal__icon,
+.alert-dialog__header:has(> .alert-dialog__icon) > .alert-dialog__icon {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  align-self: center;
+}
+
+.modal__header:has(> .modal__icon) > :not(.modal__icon),
+.alert-dialog__header:has(> .alert-dialog__icon) > :not(.alert-dialog__icon) {
+  grid-column: 2;
+}
+
 /* In-content Find highlights (chat, git diff). Painted via the CSS Custom
    Highlight API so matches never mutate React-managed / virtualized DOM. The
    active match (lc-find-current) is registered at higher priority so it paints
@@ -658,9 +688,8 @@
    the panel's own luminance toward black is foreground-independent, so the fill
    lands at a uniform ~1.28:1 across every light preset. Dark keeps HeroUI's stock
    fill, so this is light-only. */
-.dark .button--tertiary,
-[data-theme="dark"] .button--tertiary {
-  --button-fg: #fff;
+.button--tertiary {
+  --button-fg: var(--foreground);
 }
 
 .light .button--tertiary,
@@ -3629,4 +3658,11 @@ html[data-poracode-drag-active="true"] [data-poracode-chat-scroller="true"] {
   float: left;
   height: 0;
   pointer-events: none;
+}
+
+/* HeroUI's tooltip.css sets `word-break: break-all`, which splits words
+   mid-word ("lis t/paragraph"). Break only tokens that cannot fit otherwise. */
+.tooltip__content {
+  word-break: normal;
+  overflow-wrap: anywhere;
 }

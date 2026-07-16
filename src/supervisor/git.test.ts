@@ -1976,6 +1976,61 @@ describe("GitService.pullFromSource", () => {
       conflictFiles: ["src/file.ts"],
     });
   });
+
+  it("returns the preserved stash commit when the pull merge conflicts", async () => {
+    const stashCommit = "b".repeat(40);
+    mockGitCommands((args) => {
+      if (args[0] === "status") return { stdout: " M src/file.ts\n" };
+      if (args[0] === "rev-parse" && args[1] === "refs/stash")
+        return { stdout: `${stashCommit.toUpperCase()}\n` };
+      if (args[0] === "merge-base") return { error: new Error("not ancestor") };
+      if (args[0] === "merge")
+        return {
+          error: new Error("git merge failed: CONFLICT (content): Merge conflict in src/file.ts"),
+        };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().pullFromSource(location, "main", true);
+
+    expect(result).toMatchObject({
+      merged: false,
+      conflicting: true,
+      stashPreserved: true,
+      stashCommit,
+    });
+    expect(
+      execFileMock.mock.calls.some(
+        (c: unknown[]) =>
+          Array.isArray(c[1]) &&
+          gitSubcommandArgs(c[1] as string[])
+            .slice(0, 2)
+            .join(" ") === "stash pop",
+      ),
+    ).toBe(false);
+  });
+
+  it("returns the preserved stash commit when re-applying the stash conflicts", async () => {
+    const stashCommit = "b".repeat(40);
+    mockGitCommands((args) => {
+      if (args[0] === "status") return { stdout: " M src/file.ts\n" };
+      if (args[0] === "rev-parse" && args[1] === "refs/stash")
+        return { stdout: `${stashCommit}\n` };
+      if (args[0] === "stash" && args[1] === "pop") {
+        return { error: new Error("CONFLICT (content): Merge conflict in src/file.ts") };
+      }
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().pullFromSource(location, "main", true);
+
+    expect(result).toMatchObject({
+      merged: false,
+      reapplyConflicting: true,
+      stashPreserved: true,
+      stashCommit,
+    });
+  });
 });
 
 describe("GitService.mergeToSource (non-FF path)", () => {
@@ -2985,6 +3040,232 @@ describe("GitService.abortMerge", () => {
     );
     expect(mergeCall).toBeDefined();
     expect(mergeCall![1]).toContain("--abort");
+  });
+
+  it("re-applies and drops the requested pull stash after aborting", async () => {
+    const stashCommit = "c".repeat(40);
+    mockGitCommands((args) => {
+      if (args[0] === "stash" && args[1] === "list")
+        return { stdout: `${"d".repeat(40)}\n${stashCommit.toUpperCase()}\n` };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().abortMerge(location, stashCommit);
+
+    expect(result).toEqual({ stashReapplied: true });
+    const commands = execFileMock.mock.calls.map((c: unknown[]) =>
+      gitSubcommandArgs(c[1] as string[]).join(" "),
+    );
+    expect(commands).toContain("merge --abort");
+    expect(commands).toContain("stash pop stash@{1}");
+  });
+
+  it("keeps the stash preserved when the stash commit is not in the stash list", async () => {
+    const stashCommit = "c".repeat(40);
+    mockGitCommands((args) => {
+      if (args[0] === "stash" && args[1] === "list") return { stdout: `${"d".repeat(40)}\n` };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().abortMerge(location, stashCommit);
+
+    expect(result).toEqual({ stashPreserved: true });
+    expect(
+      execFileMock.mock.calls.some(
+        (c: unknown[]) =>
+          Array.isArray(c[1]) &&
+          gitSubcommandArgs(c[1] as string[])
+            .slice(0, 2)
+            .join(" ") === "stash pop",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("GitService.finishMerge", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\worktree",
+  };
+  const stashCommit = "c".repeat(40);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("commits the merge and re-applies the requested pull stash", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "stash" && args[1] === "list")
+        return { stdout: `${"d".repeat(40)}\n${stashCommit}\n` };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().finishMerge(location, stashCommit);
+
+    expect(result).toEqual({ success: true, stashReapplied: true });
+    const commands = execFileMock.mock.calls.map((c: unknown[]) =>
+      gitSubcommandArgs(c[1] as string[]).join(" "),
+    );
+    expect(commands).toContain("commit --no-edit");
+    expect(commands).toContain("stash pop stash@{1}");
+  });
+
+  it("reports conflicts and keeps the stash when re-applying it conflicts", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "stash" && args[1] === "list") return { stdout: `${stashCommit}\n` };
+      if (args[0] === "stash" && args[1] === "pop") {
+        return { error: new Error("CONFLICT (content): Merge conflict in src/file.ts") };
+      }
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().finishMerge(location, stashCommit);
+
+    expect(result).toEqual({
+      success: true,
+      reapplyConflicting: true,
+      stashPreserved: true,
+      conflictFiles: ["src/file.ts"],
+    });
+  });
+
+  it("keeps the stash preserved without popping when the stash commit is missing", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "stash" && args[1] === "list") return { stdout: `${"d".repeat(40)}\n` };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().finishMerge(location, stashCommit);
+
+    expect(result).toEqual({ success: true, stashPreserved: true });
+    expect(
+      execFileMock.mock.calls.some(
+        (c: unknown[]) =>
+          Array.isArray(c[1]) &&
+          gitSubcommandArgs(c[1] as string[])
+            .slice(0, 2)
+            .join(" ") === "stash pop",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not touch the stash when the merge commit fails", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "commit") return { error: new Error("commit failed") };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().finishMerge(location, stashCommit);
+
+    expect(result).toMatchObject({ success: false });
+    expect(
+      execFileMock.mock.calls.some(
+        (c: unknown[]) => Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[])[0] === "stash",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("GitService.commit pull-stash re-apply", () => {
+  const location = {
+    kind: "windows" as const,
+    path: "C:\\Users\\demo\\work\\worktree",
+  };
+  const stashCommit = "c".repeat(40);
+  const commitOutput = "[poracode/feature abc1234] merge master\n";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("re-applies the requested pull stash after a successful commit", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "commit") return { stdout: commitOutput };
+      if (args[0] === "stash" && args[1] === "list")
+        return { stdout: `${"d".repeat(40)}\n${stashCommit}\n` };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().commit(location, "merge master", false, stashCommit);
+
+    expect(result).toEqual({ hash: "abc1234", stashReapplied: true });
+    const commands = execFileMock.mock.calls.map((c: unknown[]) =>
+      gitSubcommandArgs(c[1] as string[]).join(" "),
+    );
+    expect(commands).toContain("stash pop stash@{1}");
+  });
+
+  it("reports conflicts and keeps the stash when re-applying it conflicts", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "commit") return { stdout: commitOutput };
+      if (args[0] === "stash" && args[1] === "list") return { stdout: `${stashCommit}\n` };
+      if (args[0] === "stash" && args[1] === "pop") {
+        return { error: new Error("CONFLICT (content): Merge conflict in src/file.ts") };
+      }
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().commit(location, "merge master", false, stashCommit);
+
+    expect(result).toEqual({
+      hash: "abc1234",
+      reapplyConflicting: true,
+      stashPreserved: true,
+      conflictFiles: ["src/file.ts"],
+    });
+  });
+
+  it("keeps the stash preserved without popping when the stash commit is missing", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "commit") return { stdout: commitOutput };
+      if (args[0] === "stash" && args[1] === "list") return { stdout: `${"d".repeat(40)}\n` };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().commit(location, "merge master", false, stashCommit);
+
+    expect(result).toEqual({ hash: "abc1234", stashPreserved: true });
+    expect(
+      execFileMock.mock.calls.some(
+        (c: unknown[]) =>
+          Array.isArray(c[1]) &&
+          gitSubcommandArgs(c[1] as string[])
+            .slice(0, 2)
+            .join(" ") === "stash pop",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not touch the stash when the commit fails", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "commit") return { error: new Error("pre-commit hook failed") };
+      return { stdout: "" };
+    });
+
+    await expect(
+      new GitService().commit(location, "merge master", false, stashCommit),
+    ).rejects.toThrow("pre-commit hook failed");
+    expect(
+      execFileMock.mock.calls.some(
+        (c: unknown[]) => Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[])[0] === "stash",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not touch the stash when no re-apply is requested", async () => {
+    mockGitCommands((args) => {
+      if (args[0] === "commit") return { stdout: commitOutput };
+      return { stdout: "" };
+    });
+
+    const result = await new GitService().commit(location, "merge master", false);
+
+    expect(result).toEqual({ hash: "abc1234" });
+    expect(
+      execFileMock.mock.calls.some(
+        (c: unknown[]) => Array.isArray(c[1]) && gitSubcommandArgs(c[1] as string[])[0] === "stash",
+      ),
+    ).toBe(false);
   });
 });
 

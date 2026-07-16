@@ -43,6 +43,12 @@ interface SharedSettingsState extends SharedSettings {
     effort: string,
     fast: boolean,
   ) => void;
+  setExperimentJudgeConfig: (
+    provider: string,
+    model: string,
+    effort: string,
+    fast: boolean,
+  ) => void;
   setConflictResolverPresentationMode: (mode: ThreadPresentationMode) => void;
   setWslCommitGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
   setWslTitleGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
@@ -261,6 +267,20 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
       conflictResolverModel,
       conflictResolverEffort,
       conflictResolverFast,
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setExperimentJudgeConfig: (
+    experimentJudgeProvider,
+    experimentJudgeModel,
+    experimentJudgeEffort,
+    experimentJudgeFast,
+  ) => {
+    set({
+      experimentJudgeProvider,
+      experimentJudgeModel,
+      experimentJudgeEffort,
+      experimentJudgeFast,
     });
     persistSettings(selectSharedSettings(get()));
   },
@@ -714,6 +734,10 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     conflictResolverModel: state.conflictResolverModel,
     conflictResolverEffort: state.conflictResolverEffort,
     conflictResolverFast: state.conflictResolverFast,
+    experimentJudgeProvider: state.experimentJudgeProvider,
+    experimentJudgeModel: state.experimentJudgeModel,
+    experimentJudgeEffort: state.experimentJudgeEffort,
+    experimentJudgeFast: state.experimentJudgeFast,
     conflictResolverPresentationMode: state.conflictResolverPresentationMode,
     wslCommitGenProvider: state.wslCommitGenProvider,
     wslCommitGenModel: state.wslCommitGenModel,

@@ -1,53 +1,63 @@
 import { useEffect, useState } from "react";
-import { Card } from "@heroui/react";
+import { ButtonGroup, Dropdown, Label } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import { Crown, ExternalLink, GitMerge, Loader2 } from "lucide-react";
+import { ChevronDown, Crown, GitMerge, GitPullRequest, Loader2 } from "lucide-react";
 import type { ExperimentCandidate, GetExperimentCandidateStatsResult } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import { showGitReviewPanel } from "@/renderer/actions/panelActions";
 import { readBridge } from "@/renderer/bridge";
 import { Button } from "@/renderer/components/common/Button";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
-import { threadRuntimeStatusLabel } from "@/renderer/components/thread/ThreadHeaderStatus";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import { useThread } from "@/renderer/state/useThread";
+import { getPrStatusTone, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
 
 type CandidateStatsState = GetExperimentCandidateStatsResult | "loading" | "unavailable";
+
+const candidateStatsCache = new Map<string, GetExperimentCandidateStatsResult | "unavailable">();
 
 export function ExperimentCandidateCard(props: {
   candidate: ExperimentCandidate;
   candidateNumber: number;
   baseCommit: string;
+  configLabel: string;
   isCrowned: boolean;
   isWinner: boolean;
-  crownRationale?: string;
-  crownSource?: "ai" | "user";
   decided: boolean;
   operationLocked: boolean;
   hasActiveCandidate: boolean;
+  isCreatingPr: boolean;
+  isMerging: boolean;
   onOpen: () => void;
   onCrown: () => void;
   onMerge: () => void;
+  onCreatePr: () => void;
 }) {
-  const { candidate, isCrowned, isWinner, crownRationale, crownSource, decided } = props;
+  const { candidate, isCrowned, isWinner, decided } = props;
   const { t } = useLingui();
   const thread = useThread(candidate.threadId);
   const hasLiveWorkflow = useThreadHasLiveWorkflow(candidate.threadId);
-  const statusLabel = hasLiveWorkflow
-    ? t`Working`
-    : thread
-      ? threadRuntimeStatusLabel(thread, t)
-      : t`Idle`;
-  const spinning =
+  const isActive =
     hasLiveWorkflow || thread?.status === "launching" || thread?.status === "working";
+  const projectId = thread?.projectId;
   const projectLocation = useAppStore(
-    (state) => state.projects.find((project) => project.id === thread?.projectId)?.location,
+    (state) => state.projects.find((project) => project.id === projectId)?.location,
   );
   const worktreePath = thread?.worktreePath ?? candidate.worktreePath;
+  // gitStore preserves referential equality when status content is unchanged.
   const worktreeStatus = useGitStore((state) =>
     worktreePath ? state.worktreeStatuses[worktreePath] : undefined,
   );
+  const pullRequest = useGitStore((state) =>
+    worktreePath ? state.prData[worktreePath] : undefined,
+  );
+  const prNumber = pullRequest?.number ?? thread?.prNumber;
+  const hasPullRequest = prNumber !== undefined && pullRequest?.state !== "closed";
+  const prIconClass =
+    PR_TONE_TEXT_CLASS[getPrStatusTone(pullRequest?.state, pullRequest?.checksStatus)];
+  const statsCacheKey = worktreePath ? `${worktreePath}\0${props.baseCommit}` : "";
   const [stats, setStats] = useState<CandidateStatsState>("loading");
   useEffect(() => {
     if (!projectLocation || !worktreePath) {
@@ -55,151 +65,209 @@ export function ExperimentCandidateCard(props: {
       return;
     }
     let cancelled = false;
-    setStats("loading");
+    const cached = candidateStatsCache.get(statsCacheKey);
+    if (cached) setStats(cached);
     void readBridge()
       .getExperimentCandidateStats({
         projectLocation: buildWorktreeLocation(projectLocation, worktreePath),
         baseRef: props.baseCommit,
       })
       .then((nextStats) => {
+        candidateStatsCache.set(statsCacheKey, nextStats);
         if (!cancelled) setStats(nextStats);
       })
       .catch(() => {
-        if (!cancelled) setStats("unavailable");
+        if (!candidateStatsCache.has(statsCacheKey)) {
+          candidateStatsCache.set(statsCacheKey, "unavailable");
+          if (!cancelled) setStats("unavailable");
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [
     candidate.worktreeState,
+    isActive,
     projectLocation,
     props.baseCommit,
-    thread?.status,
+    statsCacheKey,
     worktreePath,
     worktreeStatus,
   ]);
-  const label = candidate.agentLabel ?? candidate.agentKind;
-  const details = [candidate.model, candidate.effort, candidate.fast ? t`Fast` : undefined].filter(
-    (value): value is string => !!value,
-  );
+  const provider = candidate.agentLabel ?? candidate.agentKind;
+  const label = props.configLabel || provider;
+  const details = props.configLabel ? provider : "";
 
+  const crownIcon =
+    isCrowned || isWinner ? (
+      <Crown className="size-3.5 shrink-0 text-warning" aria-label={t`Crowned`} />
+    ) : null;
   return (
-    <Card
-      className={`w-full rounded-lg border p-2.5 shadow-none transition-colors ${
-        isWinner
-          ? "border-success/60 bg-success/5"
-          : isCrowned
-            ? "border-accent/50 bg-accent/5"
-            : "border-border bg-surface-secondary"
+    <div
+      className={`group flex items-center gap-3 px-3 py-3 transition-colors hover:bg-default-100/60 ${
+        isWinner ? "bg-success/5" : ""
       }`}
     >
-      <Card.Header className="flex items-start justify-between gap-3 p-0">
-        <div className="flex min-w-0 items-start gap-2">
-          {thread ? (
-            <ThreadProviderIcon thread={thread} className="mt-0.5 size-4 shrink-0" />
+      {thread ? (
+        <ThreadProviderIcon thread={thread} className="size-4 shrink-0" />
+      ) : (
+        <span className="block size-4 shrink-0" />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <button
+            type="button"
+            className="truncate text-left text-sm font-medium text-foreground outline-none hover:underline focus-visible:underline"
+            aria-label={t`Open candidate ${props.candidateNumber}: ${label}`}
+            onClick={props.onOpen}
+          >
+            {label}
+          </button>
+          {crownIcon}
+        </div>
+        <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+          {details ? (
+            <>
+              <span className="shrink-0 truncate">{details}</span>
+              <span className="text-muted/40">·</span>
+            </>
           ) : null}
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              {isCrowned || isWinner ? (
-                <Crown className="size-3.5 shrink-0 text-accent" aria-label={t`Crowned`} />
-              ) : null}
-              <Card.Title className="truncate text-sm font-medium">{label}</Card.Title>
-            </div>
-            {details.length > 0 ? (
-              <Card.Description className="truncate text-xs text-muted">
-                {details.join(" · ")}
-              </Card.Description>
-            ) : null}
-          </div>
+          <span className="truncate font-mono text-[11px]">{candidate.worktreeBranch}</span>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs text-muted">
-          {spinning ? <Loader2 className="size-3 animate-spin text-warning" /> : null}
-          <span>{statusLabel}</span>
-        </div>
-      </Card.Header>
-
-      <div className="mt-2 flex min-h-5 items-center gap-2 whitespace-nowrap text-xs">
-        {typeof stats === "object" && stats.files > 0 ? (
-          <>
-            <span className="font-mono text-success">+{stats.insertions}</span>
-            <span className="font-mono text-danger">−{stats.deletions}</span>
-            <span className="text-muted">
-              <Plural value={stats.files} one="# file" other="# files" />
-            </span>
-          </>
-        ) : typeof stats === "object" ? (
-          <span className="text-muted">
-            <Trans>No changes yet</Trans>
-          </span>
-        ) : stats === "unavailable" ? (
-          <span className="text-muted">
-            <Trans>Changes unavailable</Trans>
-          </span>
-        ) : (
-          <span className="text-muted">
-            <Trans>Computing changes…</Trans>
-          </span>
-        )}
       </div>
 
-      <div className="mt-0.5 truncate font-mono text-[10px] text-muted/70">
-        {candidate.worktreeBranch}
-      </div>
-
-      {isCrowned && (crownSource === "user" || crownRationale) ? (
-        <div className="mt-2 rounded-md bg-accent/10 px-2 py-1.5 text-xs text-accent-foreground">
-          <span className="font-medium">
-            {crownSource === "user" ? <Trans>Your pick</Trans> : <Trans>AI judge</Trans>}
+      {typeof stats === "object" && stats.files > 0 ? (
+        <button
+          type="button"
+          className="flex shrink-0 cursor-pointer flex-col items-end gap-0.5 rounded px-1.5 py-1 text-right text-[11px] transition-colors hover:bg-[var(--row-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+          aria-label={t`Review candidate ${props.candidateNumber} (${label}) changes`}
+          onClick={() => {
+            if (projectId && worktreePath) showGitReviewPanel(projectId, worktreePath);
+          }}
+        >
+          <span className="flex items-center gap-1 font-medium tabular-nums">
+            <span className="text-success">+{stats.insertions}</span>
+            <span className="text-danger">−{stats.deletions}</span>
           </span>
-          {crownSource === "ai" && crownRationale ? `: ${crownRationale}` : null}
-        </div>
+          <span className="text-muted">
+            <Plural value={stats.files} one="# file" other="# files" />
+          </span>
+        </button>
+      ) : typeof stats === "object" ? (
+        <span className="shrink-0 text-[11px] text-muted">
+          <Trans>No changes yet</Trans>
+        </span>
+      ) : stats === "unavailable" ? (
+        <span className="shrink-0 text-[11px] text-muted">
+          <Trans>Changes unavailable</Trans>
+        </span>
       ) : null}
 
-      <Card.Footer className="mt-2 flex items-center gap-1.5 p-0">
-        <Button
-          size="sm"
-          variant="secondary"
-          className="h-7 px-2 text-xs"
-          aria-label={t`Open candidate ${props.candidateNumber}: ${label}`}
-          isDisabled={props.operationLocked}
-          onPress={props.onOpen}
-        >
-          <ExternalLink className="size-3.5" />
-          <Trans>Open</Trans>
-        </Button>
-        {!decided ? (
+      <div className="flex shrink-0 items-center gap-1.5">
+        {!decided && !isCrowned ? (
           <Button
             size="sm"
-            variant="secondary"
-            className={`h-7 px-2 text-xs ${isCrowned ? "text-accent" : ""}`}
+            variant="tertiary"
+            className="h-7 px-2 text-xs"
             aria-label={t`Select candidate ${props.candidateNumber} (${label}) as winner`}
             isDisabled={props.operationLocked || props.hasActiveCandidate}
             onPress={props.onCrown}
           >
             <Crown className="size-3.5" />
-            {isCrowned ? <Trans>Crowned</Trans> : <Trans>Crown</Trans>}
+            <Trans>Crown</Trans>
           </Button>
         ) : null}
         {!decided && isCrowned ? (
-          <Button
-            size="sm"
-            variant="tertiary"
-            aria-label={t`Merge candidate ${props.candidateNumber} (${label}) as experiment winner`}
-            className="ml-auto h-7 px-2.5 text-xs"
-            isDisabled={props.operationLocked || props.hasActiveCandidate}
-            onPress={props.onMerge}
-          >
-            <GitMerge className="size-3.5" />
-            <Trans>Merge winner</Trans>
-          </Button>
+          <ButtonGroup>
+            {props.isMerging ? (
+              <Button
+                size="sm"
+                variant="primary"
+                className="h-7 px-2.5 text-xs"
+                aria-label={t`Merge winner`}
+                isDisabled
+                isPending
+              >
+                <Loader2 className="size-3.5 animate-spin" />
+                <Trans>Merge winner</Trans>
+              </Button>
+            ) : hasPullRequest ? (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="primary"
+                className="h-7"
+                aria-label={t`Open PR #${prNumber}`}
+                isDisabled={props.operationLocked || !projectId || !worktreePath}
+                onPress={() => {
+                  if (projectId && worktreePath) showGitReviewPanel(projectId, worktreePath);
+                }}
+              >
+                <GitPullRequest className={`size-3.5 ${prIconClass}`} />
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="primary"
+                className="h-7 px-2.5 text-xs"
+                aria-label={t`Create a pull request for candidate ${props.candidateNumber} (${label})`}
+                isDisabled={props.operationLocked || props.hasActiveCandidate}
+                isPending={props.isCreatingPr}
+                onPress={props.onCreatePr}
+              >
+                {props.isCreatingPr ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <GitPullRequest className="size-3.5" />
+                )}
+                <Trans>Create PR</Trans>
+              </Button>
+            )}
+            <Dropdown>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="primary"
+                className="h-7"
+                aria-label={t`More actions for candidate ${props.candidateNumber} (${label})`}
+                isDisabled={props.operationLocked || props.hasActiveCandidate}
+              >
+                <ButtonGroup.Separator />
+                <ChevronDown className="size-3.5" />
+              </Button>
+              <Dropdown.Popover placement="bottom end" className="w-64">
+                <Dropdown.Menu
+                  aria-label={t`Candidate actions`}
+                  onAction={(key) => {
+                    if (key === "merge") props.onMerge();
+                  }}
+                >
+                  <Dropdown.Item id="merge" textValue={t`Merge winner`}>
+                    <GitMerge className="mt-0.5 size-3.5 shrink-0 opacity-60" />
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <Label>
+                        <Trans>Merge winner</Trans>
+                      </Label>
+                      <span className="whitespace-normal text-xs text-muted">
+                        <Trans>
+                          Merge this candidate's changes into the base branch and remove the other
+                          candidates' worktrees.
+                        </Trans>
+                      </span>
+                    </div>
+                  </Dropdown.Item>
+                </Dropdown.Menu>
+              </Dropdown.Popover>
+            </Dropdown>
+          </ButtonGroup>
         ) : null}
         {isWinner ? (
-          <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-success">
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
             <GitMerge className="size-3.5" />
             <Trans>Merged</Trans>
           </span>
         ) : null}
-      </Card.Footer>
-    </Card>
+      </div>
+    </div>
   );
 }

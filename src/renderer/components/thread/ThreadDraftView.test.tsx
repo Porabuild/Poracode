@@ -289,6 +289,24 @@ function collectElementTypeNames(node: ReactNode): string[] {
   return names;
 }
 
+function findElementByTypeName(
+  node: ReactNode,
+  name: string,
+): ReactElement<Record<string, unknown>> | undefined {
+  let match: ReactElement<Record<string, unknown>> | undefined;
+  Children.forEach(node, (child) => {
+    if (match || !isValidElement(child)) return;
+    const type = child.type;
+    if (typeof type === "function" && type.name === name) {
+      match = child as ReactElement<Record<string, unknown>>;
+      return;
+    }
+    const props = child.props as { children?: ReactNode };
+    match = findElementByTypeName(props.children, name);
+  });
+  return match;
+}
+
 function installDraftComposerLayoutMetrics(): () => void {
   const originalClientHeight = Object.getOwnPropertyDescriptor(
     HTMLElement.prototype,
@@ -395,6 +413,58 @@ describe("ThreadDraftView", () => {
       disabledBuiltInMcpServers: {},
       sharedSettingsHydrated: true,
     });
+  });
+
+  it("adds experiment candidates without a prompt and keeps the composer submit button", () => {
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+    });
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />);
+
+    const initialComposer = composerSpy.mock.lastCall?.[0] as {
+      afterControls: ReactElement<{
+        experiment?: { onToggle: (enabled: boolean) => void };
+      }>;
+    };
+    act(() => initialComposer.afterControls.props.experiment?.onToggle(true));
+
+    let composer = composerSpy.mock.lastCall?.[0] as {
+      fixedContent: ReactNode;
+      submitContent?: ReactNode;
+      submitDisabled: boolean;
+      submitLabel: string;
+    };
+    expect(composer.submitLabel).toBe("Run experiment");
+    expect(composer.submitContent).toBeUndefined();
+    expect(screen.getByRole("button", { name: "Worktree mode" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Select branch" })).toBeEnabled();
+    expect(screen.getByText("from")).toBeInTheDocument();
+
+    let targets = findElementByTypeName(composer.fixedContent, "ExperimentDraftTargets");
+    expect(targets?.props.isAddDisabled).toBe(false);
+    if (!targets) throw new Error("Expected experiment targets");
+    const addCandidate = targets.props.onAdd as () => void;
+    act(addCandidate);
+
+    composer = composerSpy.mock.lastCall?.[0] as typeof composer;
+    targets = findElementByTypeName(composer.fixedContent, "ExperimentDraftTargets");
+    expect(targets?.props.candidates).toHaveLength(1);
+    expect(targets?.props.isAddDisabled).toBe(false);
+    expect(composer.submitDisabled).toBe(true);
   });
 
   it("renders the quick-composer surface with new-thread project and worktree controls", () => {

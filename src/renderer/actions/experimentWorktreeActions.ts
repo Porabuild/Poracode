@@ -1,17 +1,11 @@
 import { msg } from "@lingui/core/macro";
-import {
-  EXPERIMENT_STORE_KEY,
-  EXPERIMENT_STORE_VERSION,
-  type ExperimentCandidate,
-  type GitWorktreeInfo,
-  type Project,
-} from "@/shared/contracts";
+import { type ExperimentCandidate, type GitWorktreeInfo, type Project } from "@/shared/contracts";
 import { normalizeWorktreePathForComparison } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
-import { performWorktreeRemoval } from "./worktreeActions";
+import { performWorktreeRemoval, prepareWorktreeRemoval } from "./worktreeActions";
 
 export function detachThreadFromWorktree(threadId: string): void {
   useAppStore.setState((state) => ({
@@ -72,18 +66,17 @@ export async function closeExperimentThread(threadId: string): Promise<boolean> 
 }
 
 export async function persistExperimentOwnershipState(threadIds: readonly string[]): Promise<void> {
-  for (const threadId of threadIds) {
-    const thread = useAppStore.getState().threads.find((item) => item.id === threadId);
-    if (thread) await readBridge().dbUpsertThread(thread);
-    else await readBridge().dbDeleteThread(threadId);
-  }
-  await readBridge().dbSetState(
-    EXPERIMENT_STORE_KEY,
-    JSON.stringify({
-      state: { experiments: useExperimentStore.getState().experiments },
-      version: EXPERIMENT_STORE_VERSION,
-    }),
+  const threads = useAppStore.getState().threads;
+  const targetIds = new Set(threadIds);
+  const upsertThreads = threads.flatMap((thread, sortOrder) =>
+    targetIds.has(thread.id) ? [{ thread, sortOrder }] : [],
   );
+  const persistedIds = new Set(upsertThreads.map(({ thread }) => thread.id));
+  await readBridge().dbPersistExperimentState({
+    upsertThreads,
+    deletedThreadIds: threadIds.filter((threadId) => !persistedIds.has(threadId)),
+    experiments: useExperimentStore.getState().experiments,
+  });
 }
 
 export async function resolveCandidateWorktreePath(
@@ -172,18 +165,21 @@ export async function removeExperimentCandidateWorktree(
       const { worktrees } = await readBridge().gitListWorktrees({
         projectLocation: project.location,
       });
-      const recordedPaths = new Set(
-        [candidate.worktreePath]
-          .filter((path): path is string => path !== undefined)
-          .map((path) =>
-            normalizeWorktreePathForComparison(path, project.location.kind === "windows"),
-          ),
-      );
-      const registeredAtRecordedPath = worktrees.find((worktree) =>
-        recordedPaths.has(
-          normalizeWorktreePathForComparison(worktree.path, project.location.kind === "windows"),
-        ),
-      );
+      const recordedPath = candidate.worktreePath
+        ? normalizeWorktreePathForComparison(
+            candidate.worktreePath,
+            project.location.kind === "windows",
+          )
+        : undefined;
+      const registeredAtRecordedPath = recordedPath
+        ? worktrees.find(
+            (worktree) =>
+              normalizeWorktreePathForComparison(
+                worktree.path,
+                project.location.kind === "windows",
+              ) === recordedPath,
+          )
+        : undefined;
       if (
         registeredAtRecordedPath &&
         registeredAtRecordedPath.branch !== candidate.worktreeBranch
@@ -224,4 +220,62 @@ export async function removeExperimentCandidateWorktree(
     );
   }
   return removeOwnedCandidateBranch(project, candidate);
+}
+
+export async function removeExperimentCandidateWorktrees(
+  project: Project,
+  candidates: readonly ExperimentCandidate[],
+): Promise<boolean[]> {
+  const active = candidates
+    .map((candidate, index) => ({ candidate, index }))
+    .filter(({ candidate }) => candidate.worktreeState !== "removed");
+  if (active.length === 0) return candidates.map(() => true);
+
+  const knownWorktrees = await readBridge()
+    .gitListWorktrees({ projectLocation: project.location })
+    .then(({ worktrees }) => worktrees)
+    .catch((error) => {
+      console.warn("[experiment] failed to verify candidate worktrees before cleanup", error);
+      return undefined;
+    });
+  const preparedResults = await Promise.all(
+    active.map(async ({ candidate, index }) => {
+      if (!knownWorktrees) return { candidate, index, path: undefined };
+      try {
+        return {
+          candidate,
+          index,
+          path: await resolveCandidateWorktreePath(project, candidate, knownWorktrees),
+        };
+      } catch (error) {
+        console.warn("[experiment] refused to prepare an unverified candidate worktree", error);
+        return null;
+      }
+    }),
+  );
+  const prepared = preparedResults.filter(
+    (item): item is NonNullable<(typeof preparedResults)[number]> => item !== null,
+  );
+  await Promise.all(
+    prepared.map(({ path }) => (path ? prepareWorktreeRemoval(project, path) : Promise.resolve())),
+  );
+  const removed = candidates.map((candidate) => candidate.worktreeState === "removed");
+  if (prepared.length === 0) return removed;
+  const result = await readBridge().removeExperimentWorktrees({
+    projectLocation: project.location,
+    candidates: prepared.map(({ candidate, path }) => ({
+      threadId: candidate.threadId,
+      branch: candidate.worktreeBranch,
+      ownerToken: candidate.worktreeOwnerToken,
+      ...(path ? { worktreePath: path } : {}),
+    })),
+  });
+  result.candidates.forEach((candidate, resultIndex) => {
+    const originalIndex = prepared[resultIndex]!.index;
+    removed[originalIndex] = !candidate.error;
+    if (candidate.error) {
+      console.warn("[experiment] failed to remove candidate worktree", candidate.error);
+    }
+  });
+  return removed;
 }

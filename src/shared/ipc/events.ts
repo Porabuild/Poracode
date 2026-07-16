@@ -32,6 +32,19 @@ export type SupervisorReply =
   | { replyTo: string; ok: false; error: string };
 
 export type SupervisorEvent =
+  | {
+      type: "experiment-judge-progress";
+      experimentId: string;
+      progress:
+        | {
+            kind: "captured";
+            threadId: string;
+            files: number;
+            insertions: number;
+            deletions: number;
+          }
+        | { kind: "judging" };
+    }
   | { type: "thread-reset"; threadId: string }
   | { type: "thread-output"; threadId: string; data: string; outputLength: number }
   | { type: "thread-runtime-event"; threadId: string; event: RuntimeEvent }

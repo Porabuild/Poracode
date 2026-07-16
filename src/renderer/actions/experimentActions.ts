@@ -2,41 +2,31 @@ import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type {
   AgentInstanceId,
-  Experiment,
+  AgentStatus,
+  CreateExperimentWorktreesResult,
   ExperimentCandidate,
-  GetExperimentCandidateDiffResult,
-  GitWorktreeInfo,
-  Project,
+  ProjectLocation,
   PromptSegment,
-  Thread,
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import {
-  DEFAULT_TERMINAL_SIZE,
-  MAX_EXPERIMENT_PROMPT_LENGTH,
-  isThreadTurnActive,
-} from "@/shared/contracts";
+import { DEFAULT_TERMINAL_SIZE, MAX_EXPERIMENT_PROMPT_LENGTH } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { friendlyError } from "@/shared/messages";
 import { buildWorktreeLocation, sanitizeWorktreeBranchName } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
+import { formatModelConfigLabel } from "@/renderer/components/providers/modelDisplay";
 import { i18n } from "@/renderer/i18n/i18n";
 import { makeThreadTitle, useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
+import { requestGeneratedTitle } from "@/renderer/utils/titleGen";
 import {
-  closeExperimentThread,
   detachThreadFromWorktree,
   persistExperimentOwnershipState,
   removeExperimentCandidateWorktree,
-  resolveCandidateWorktreePath,
-  updateCandidateWorktree,
 } from "./experimentWorktreeActions";
-import { runGitMergeToSource, showGitOperationFailure } from "./gitCommandRunner";
 import { performInitialThreadLaunch } from "./threadLaunchActions";
 import { primeWorktreeGitState, runWorktreeSetupScript } from "./worktreeLaunchActions";
 import { worktreePlacementPayload } from "./worktreePlacement";
@@ -57,43 +47,40 @@ export interface LaunchExperimentInput {
   candidates: ExperimentCandidateSpec[];
 }
 
-export interface ExperimentJudgeSelection {
-  agentKind: string;
-  threadId?: string;
-}
-
-const pendingOperations = new Set<string>();
-
-function candidateLabel(spec: ExperimentCandidateSpec): string {
+function candidateLabel(spec: ExperimentCandidateSpec, agent: AgentStatus | undefined): string {
   const provider = spec.agentLabel ?? spec.agentKind;
-  return spec.config.model ? `${provider} · ${spec.config.model}` : provider;
+  const detail = formatModelConfigLabel(agent, spec.config);
+  return detail ? `${detail} · ${provider}` : provider;
 }
 
-function experimentThreads(experimentId: string): Thread[] {
+function applyExperimentTitle(experimentId: string, title: string, fallbackTitle: string): void {
   const experiment = useExperimentStore.getState().experiments[experimentId];
-  if (!experiment) return [];
-  const ids = new Set(experiment.candidates.map((candidate) => candidate.threadId));
-  return useAppStore.getState().threads.filter((thread) => ids.has(thread.id));
+  if (!experiment || experiment.title !== fallbackTitle) return;
+  useExperimentStore.getState().renameExperiment(experimentId, title);
+  const trimmed = title.trim();
+  if (!trimmed || trimmed === fallbackTitle) return;
+  const candidateIds = new Set(experiment.candidates.map((candidate) => candidate.threadId));
+  useAppStore.setState((state) => ({
+    threads: state.threads.map((thread) =>
+      candidateIds.has(thread.id) ? { ...thread, groupName: trimmed } : thread,
+    ),
+  }));
 }
 
-function hasActiveCandidate(experimentId: string): boolean {
-  const liveThreadIds = useThreadLiveWorkflowStore.getState().liveThreadIds;
-  return experimentThreads(experimentId).some(
-    (thread) => isThreadTurnActive(thread.status) || liveThreadIds.has(thread.id),
-  );
-}
-
-async function withExperimentOperation(
+function generateExperimentTitleAsync(
   experimentId: string,
-  operation: () => Promise<boolean>,
-): Promise<boolean> {
-  if (pendingOperations.has(experimentId)) return false;
-  pendingOperations.add(experimentId);
-  try {
-    return await operation();
-  } finally {
-    pendingOperations.delete(experimentId);
-  }
+  projectLocation: ProjectLocation,
+  agentStatuses: readonly AgentStatus[],
+  prompt: string,
+  fallbackTitle: string,
+): void {
+  const request = requestGeneratedTitle(projectLocation, agentStatuses, prompt);
+  if (!request) return;
+  void request
+    .then((title) => applyExperimentTitle(experimentId, title, fallbackTitle))
+    .catch((error) => {
+      console.warn("[experiment title-gen] failed, keeping fallback title:", error);
+    });
 }
 
 export async function launchExperiment(input: LaunchExperimentInput): Promise<string | null> {
@@ -127,12 +114,21 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
     return null;
   }
 
+  const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
+  const projectAgentStatuses = getProjectAgentStatuses(
+    project.location,
+    agentStatuses,
+    wslAgentStatuses,
+  );
+  const agentForKind = (agentKind: string) =>
+    projectAgentStatuses.find((agent) => agent.kind === agentKind);
+
   const experimentId = crypto.randomUUID();
   const title = makeThreadTitle(prompt) || i18n._(msg`Experiment`);
   const promptSlug = sanitizeWorktreeBranchName(title).slice(0, 24);
   const shortId = experimentId.slice(0, 6);
   const plans = input.candidates.map((spec, index) => {
-    const label = candidateLabel(spec);
+    const label = candidateLabel(spec, agentForKind(spec.agentKind));
     const agentSlug = sanitizeWorktreeBranchName(label).slice(0, 16);
     return {
       spec,
@@ -185,6 +181,7 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
     projectId: project.id,
     title,
     prompt,
+    ...(input.segments?.length ? { segments: input.segments } : {}),
     baseBranch: base.name,
     baseCommit: base.commit,
     status: "running" as const,
@@ -205,36 +202,82 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
     return null;
   }
   useAppStore.getState().openExperiment(experimentId, project.id);
+  generateExperimentTitleAsync(experimentId, project.location, projectAgentStatuses, prompt, title);
 
-  const prepared: Array<(typeof plans)[number] & { worktreePath: string }> = [];
-  for (const plan of plans) {
-    try {
-      const result = await readBridge().gitAddWorktree({
-        projectLocation: project.location,
+  const batch = await readBridge()
+    .createExperimentWorktrees({
+      projectLocation: project.location,
+      sourceBranch: base.name,
+      baseCommit: base.commit,
+      candidates: plans.map((plan) => ({
+        threadId: plan.threadId,
         branch: plan.worktreeBranch,
-        createBranch: true,
-        startPoint: base.commit,
-        sourceBranch: base.name,
         ownerToken: `${experimentId}:${plan.threadId}`,
-        ...worktreePlacementPayload(project),
-        copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
-        transferUncommitted: false,
-        keepChangesInSource: false,
-      });
-      useAppStore.getState().setThreadWorktree(plan.threadId, result.path, plan.worktreeBranch);
-      updateCandidateWorktree(plan.threadId, "owned", result.path);
-      prepared.push({
+      })),
+      ...worktreePlacementPayload(project),
+      copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
+    })
+    .catch(
+      (error): CreateExperimentWorktreesResult => ({
+        candidates: plans.map((plan) => ({
+          threadId: plan.threadId,
+          branch: plan.worktreeBranch,
+          error: friendlyError(error),
+        })),
+      }),
+    );
+  const preparedResults = plans.map((plan, index) => {
+    const result = batch.candidates[index];
+    if (result?.path) {
+      return {
         ...plan,
         worktreePath: result.path,
-      });
-      await persistExperimentOwnershipState([plan.threadId]).catch((error) => {
-        console.error("[experiment] failed to persist candidate worktree path", error);
-      });
-    } catch (error) {
-      console.error("[experiment] failed to create candidate worktree", error);
-      toast.danger(friendlyError(error));
+      };
     }
-  }
+    console.error("[experiment] failed to create candidate worktree", result?.error);
+    toast.danger(result?.error ?? i18n._(msg`Unable to create the candidate worktree.`));
+    return null;
+  });
+  const prepared = preparedResults.filter(
+    (candidate): candidate is (typeof plans)[number] & { worktreePath: string } =>
+      candidate !== null,
+  );
+  const preparedWorktreeByThreadId = new Map<string, { path: string; branch: string }>(
+    prepared.map(
+      (candidate) =>
+        [
+          candidate.threadId,
+          { path: candidate.worktreePath, branch: candidate.worktreeBranch },
+        ] as const,
+    ),
+  );
+  useAppStore.setState((state) => ({
+    threads: state.threads.map((thread) => {
+      const worktree = preparedWorktreeByThreadId.get(thread.id);
+      return worktree
+        ? { ...thread, worktreePath: worktree.path, worktreeBranch: worktree.branch }
+        : thread;
+    }),
+  }));
+  useExperimentStore.setState((state) => {
+    const experiment = state.experiments[experimentId];
+    if (!experiment) return state;
+    return {
+      experiments: {
+        ...state.experiments,
+        [experimentId]: {
+          ...experiment,
+          candidates: experiment.candidates.map((candidate) => {
+            const worktree = preparedWorktreeByThreadId.get(candidate.threadId);
+            return worktree
+              ? { ...candidate, worktreePath: worktree.path, worktreeState: "owned" as const }
+              : candidate;
+          }),
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    };
+  });
 
   const preparedIds = new Set<string>(prepared.map((candidate) => candidate.threadId));
   const failedPlans = plans.filter((plan) => !preparedIds.has(plan.threadId));
@@ -268,8 +311,9 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
       });
     }
     if (!cleanupComplete) {
+      const currentExperiment = useExperimentStore.getState().experiments[experimentId];
       useExperimentStore.getState().addExperiment({
-        ...experimentBase,
+        ...(currentExperiment ?? experimentBase),
         candidates: plans.map((plan) => {
           const candidate = prepared.find((item) => item.threadId === plan.threadId);
           return candidateRecord(
@@ -305,8 +349,9 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
     (candidate) =>
       useAppStore.getState().threads.find((thread) => thread.id === candidate.threadId)!,
   );
+  const currentExperiment = useExperimentStore.getState().experiments[experimentId];
   useExperimentStore.getState().addExperiment({
-    ...experimentBase,
+    ...(currentExperiment ?? experimentBase),
     candidates: prepared.map((candidate) =>
       candidateRecord(candidate, candidate.worktreePath, "owned"),
     ),
@@ -320,7 +365,6 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
     preparedThreads.map(async (thread, index) => {
       const candidate = prepared[index]!;
       void primeWorktreeGitState(project, candidate.worktreePath);
-      if (setupScript) runWorktreeSetupScript(project, candidate.worktreePath, setupScript);
       await performInitialThreadLaunch({
         thread,
         projectLocation: buildWorktreeLocation(project.location, candidate.worktreePath),
@@ -336,374 +380,26 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
         });
         toast.danger(friendlyError(error));
       });
+      if (setupScript) {
+        void runWorktreeSetupScript(project, candidate.worktreePath, setupScript, {
+          openTerminalPanel: false,
+        });
+      }
     }),
   );
   void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
   return experimentId;
 }
 
-async function candidateDiff(
-  project: Project,
-  candidate: ExperimentCandidate,
-  baseCommit: string,
-  worktrees?: readonly GitWorktreeInfo[],
-) {
-  if (candidate.worktreeState !== "owned") {
-    throw new Error(i18n._(msg`The experiment candidate worktree is unavailable.`));
-  }
-  const worktreePath = await resolveCandidateWorktreePath(project, candidate, worktrees);
-  if (!worktreePath) {
-    throw new Error(i18n._(msg`The experiment candidate worktree is unavailable.`));
-  }
-  const projectLocation = buildWorktreeLocation(project.location, worktreePath);
-  const status = await readBridge().getGitStatus({ projectLocation });
-  if (status.branch !== candidate.worktreeBranch) {
-    throw new Error(i18n._(msg`A candidate is no longer on its experiment branch.`));
-  }
-  return readBridge().getExperimentCandidateDiff({
-    projectLocation,
-    baseRef: baseCommit,
-  });
-}
-
-async function hashText(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function candidateSnapshotText(
-  candidates: readonly ExperimentCandidate[],
-  snapshots: readonly GetExperimentCandidateDiffResult[],
-): string {
-  return candidates
-    .map((candidate, index) => `${candidate.threadId}\0${snapshots[index]?.diff ?? ""}`)
-    .join("\0");
-}
-
-async function captureExperimentSnapshot(
-  project: Project,
-  experiment: Experiment,
-): Promise<{
-  hash: string;
-  candidates: GetExperimentCandidateDiffResult[];
-}> {
-  const { worktrees } = await readBridge().gitListWorktrees({
-    projectLocation: project.location,
-  });
-  const candidates = await Promise.all(
-    experiment.candidates.map((candidate) =>
-      candidateDiff(project, candidate, experiment.baseCommit, worktrees),
-    ),
-  );
-  return {
-    hash: await hashText(candidateSnapshotText(experiment.candidates, candidates)),
-    candidates,
-  };
-}
-
-export async function crownExperiment(
-  experimentId: string,
-  selection?: ExperimentJudgeSelection,
-): Promise<boolean> {
-  return withExperimentOperation(experimentId, async () => {
-    const experiment = useExperimentStore.getState().experiments[experimentId];
-    if (!experiment) return false;
-    const project = useAppStore
-      .getState()
-      .projects.find((item) => item.id === experiment.projectId);
-    if (!project) return false;
-    if (hasActiveCandidate(experimentId)) {
-      toast.warning(i18n._(msg`Wait for every candidate to finish before comparing them.`));
-      return false;
-    }
-
-    let capturedSnapshot: Awaited<ReturnType<typeof captureExperimentSnapshot>>;
-    try {
-      capturedSnapshot = await captureExperimentSnapshot(project, experiment);
-    } catch (error) {
-      toast.danger(i18n._(msg`Unable to read the candidate changes: ${friendlyError(error)}`));
-      return false;
-    }
-    const snapshots = capturedSnapshot.candidates;
-    if (snapshots.every((snapshot) => !snapshot.diff.trim())) {
-      toast.warning(i18n._(msg`The candidates have not made any changes yet.`));
-      return false;
-    }
-
-    const agentState = useAgentStatusesStore.getState();
-    const disabledAgents = useSharedSettings.getState().disabledAgents;
-    const judgeAgents = getProjectAgentStatuses(
-      project.location,
-      agentState.agentStatuses,
-      agentState.wslAgentStatuses,
-    );
-    const eligibleJudgeAgents = judgeAgents.filter(
-      (agent) =>
-        agent.installed &&
-        agent.authState !== "missing" &&
-        !disabledAgents.includes(agent.kind) &&
-        agent.capabilities.supportsTextOnlyOneShot === true,
-    );
-    const judgeAgent = selection
-      ? eligibleJudgeAgents.find((agent) => agent.kind === selection.agentKind)
-      : (eligibleJudgeAgents.find((agent) =>
-          experiment.candidates.some((candidate) => candidate.agentKind === agent.kind),
-        ) ?? eligibleJudgeAgents[0]);
-    const judgeThread = judgeAgent
-      ? selection?.threadId
-        ? experimentThreads(experimentId).find(
-            (thread) => thread.id === selection.threadId && thread.agentKind === judgeAgent.kind,
-          )
-        : experimentThreads(experimentId).find((thread) => thread.agentKind === judgeAgent.kind)
-      : undefined;
-    if (selection?.threadId && !judgeThread) {
-      toast.warning(i18n._(msg`None of these agents can run the AI comparison.`));
-      return false;
-    }
-    if (!judgeAgent) {
-      toast.warning(i18n._(msg`None of these agents can run the AI comparison.`));
-      return false;
-    }
-    try {
-      const result = await readBridge().judgeExperiment({
-        projectLocation: project.location,
-        agentKind: judgeAgent.kind,
-        ...(judgeThread?.config.model ? { model: judgeThread.config.model } : {}),
-        ...(judgeThread?.config.effort ? { effort: judgeThread.config.effort } : {}),
-        ...(judgeThread?.config.fast !== undefined ? { fast: judgeThread.config.fast } : {}),
-        prompt: experiment.prompt,
-        candidates: experiment.candidates.map((candidate, index) => ({
-          threadId: candidate.threadId,
-          diff: snapshots[index]?.diff ?? "",
-        })),
-      });
-      const judgeLabel = judgeThread?.config.model
-        ? `${judgeAgent.label} · ${judgeThread.config.model}`
-        : judgeAgent.label;
-      useExperimentStore.getState().setExperimentCrown(experimentId, {
-        threadId: result.winnerThreadId,
-        rationale: result.rationale,
-        source: "ai",
-        modelLabel: judgeLabel,
-        snapshotHash: capturedSnapshot.hash,
-        createdAt: new Date().toISOString(),
-      });
-      return true;
-    } catch (error) {
-      toast.danger(i18n._(msg`Unable to compare candidates: ${friendlyError(error)}`));
-      return false;
-    }
-  });
-}
-
-export function setManualExperimentCrown(experimentId: string, threadId: string): void {
-  const experiment = useExperimentStore.getState().experiments[experimentId];
-  if (!experiment?.candidates.some((candidate) => candidate.threadId === threadId)) return;
-  useExperimentStore.getState().setExperimentCrown(experimentId, {
-    threadId,
-    source: "user",
-    createdAt: new Date().toISOString(),
-  });
-}
-
-export async function mergeExperimentWinner(experimentId: string): Promise<boolean> {
-  return withExperimentOperation(experimentId, async () => {
-    const experiment = useExperimentStore.getState().experiments[experimentId];
-    if (!experiment?.crown) return false;
-    const project = useAppStore
-      .getState()
-      .projects.find((item) => item.id === experiment.projectId);
-    const winner = experiment.candidates.find(
-      (candidate) => candidate.threadId === experiment.crown?.threadId,
-    );
-    if (!project || !winner) return false;
-    if (hasActiveCandidate(experimentId)) {
-      toast.warning(i18n._(msg`Wait for every candidate to finish before merging a winner.`));
-      return false;
-    }
-
-    let winnerWorktreePath: string | undefined;
-    try {
-      winnerWorktreePath = await resolveCandidateWorktreePath(project, winner);
-    } catch (error) {
-      toast.danger(i18n._(msg`Unable to read the candidate changes: ${friendlyError(error)}`));
-      return false;
-    }
-    if (!winnerWorktreePath) {
-      toast.danger(i18n._(msg`The experiment candidate worktree is unavailable.`));
-      return false;
-    }
-    const worktreeLocation = buildWorktreeLocation(project.location, winnerWorktreePath);
-    if (experiment.crown.source === "ai" && experiment.crown.snapshotHash) {
-      let snapshotHash: string;
-      try {
-        snapshotHash = (await captureExperimentSnapshot(project, experiment)).hash;
-      } catch (error) {
-        toast.danger(i18n._(msg`Unable to read the candidate changes: ${friendlyError(error)}`));
-        return false;
-      }
-      if (snapshotHash !== experiment.crown.snapshotHash) {
-        toast.warning(i18n._(msg`The candidates changed after judging. Compare them again.`));
-        return false;
-      }
-    }
-
-    try {
-      let expectedWorktreeCommit: string;
-      const status = await readBridge().getGitStatus({ projectLocation: worktreeLocation });
-      if (status.branch !== winner.worktreeBranch) {
-        toast.danger(i18n._(msg`A candidate is no longer on its experiment branch.`));
-        return false;
-      }
-      if (status.staged.length > 0 || status.unstaged.length > 0) {
-        await readBridge().gitCommit({
-          projectLocation: worktreeLocation,
-          message: "chore: apply experiment winner",
-          addAll: true,
-        });
-      }
-      if (experiment.crown.source === "ai" && experiment.crown.snapshotHash) {
-        const snapshot = await captureExperimentSnapshot(project, experiment);
-        if (snapshot.hash !== experiment.crown.snapshotHash) {
-          toast.warning(i18n._(msg`The candidates changed after judging. Compare them again.`));
-          return false;
-        }
-        const winnerIndex = experiment.candidates.findIndex(
-          (candidate) => candidate.threadId === winner.threadId,
-        );
-        expectedWorktreeCommit = snapshot.candidates[winnerIndex]!.headCommit;
-      } else {
-        expectedWorktreeCommit = (await candidateDiff(project, winner, experiment.baseCommit))
-          .headCommit;
-      }
-      const { sourceBranch } = await readBridge().gitGetWorktreeSourceBranch({
-        projectLocation: project.location,
-        branch: winner.worktreeBranch,
-      });
-      if (!sourceBranch || sourceBranch !== experiment.baseBranch) {
-        toast.danger(i18n._(msg`Unable to determine the experiment's source branch.`));
-        return false;
-      }
-      const mergeStatus = await readBridge().getGitStatus({ projectLocation: worktreeLocation });
-      if (mergeStatus.branch !== winner.worktreeBranch) {
-        toast.danger(i18n._(msg`A candidate is no longer on its experiment branch.`));
-        return false;
-      }
-      const result = await runGitMergeToSource({
-        projectLocation: project.location,
-        worktreeLocation,
-        worktreeBranch: winner.worktreeBranch,
-        sourceBranch,
-        expectedWorktreeCommit,
-      });
-      if (!result.merged) {
-        showGitOperationFailure(result);
-        return false;
-      }
-
-      let cleanupComplete = true;
-      for (const candidate of experiment.candidates) {
-        if (!(await closeExperimentThread(candidate.threadId))) {
-          cleanupComplete = false;
-          continue;
-        }
-        const removed = await removeExperimentCandidateWorktree(project, candidate);
-        if (!removed) {
-          cleanupComplete = false;
-          continue;
-        }
-        detachThreadFromWorktree(candidate.threadId);
-      }
-      useExperimentStore.getState().decideExperiment(experimentId, winner.threadId);
-      toast.success(i18n._(msg`Merged the experiment winner into ${sourceBranch}.`));
-      if (!cleanupComplete) {
-        toast.warning(i18n._(msg`Some experiment worktrees could not be removed.`));
-      }
-      void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
-      return true;
-    } catch (error) {
-      toast.danger(i18n._(msg`Unable to merge the experiment winner: ${friendlyError(error)}`));
-      return false;
-    }
-  });
-}
-
-export async function retryExperimentCleanup(experimentId: string): Promise<boolean> {
-  return withExperimentOperation(experimentId, async () => {
-    const experiment = useExperimentStore.getState().experiments[experimentId];
-    if (experiment?.status !== "decided" || !experiment.winnerThreadId) return false;
-    const project = useAppStore
-      .getState()
-      .projects.find((item) => item.id === experiment.projectId);
-    if (!project) return false;
-    const pending = experiment.candidates.filter(
-      (candidate) => candidate.worktreeState !== "removed",
-    );
-    if (pending.length === 0) return true;
-    if (hasActiveCandidate(experimentId)) {
-      toast.warning(i18n._(msg`Wait for every candidate to finish before cleaning up.`));
-      return false;
-    }
-
-    let cleanupComplete = true;
-    for (const candidate of pending) {
-      if (!(await closeExperimentThread(candidate.threadId))) {
-        cleanupComplete = false;
-        continue;
-      }
-      const removed = await removeExperimentCandidateWorktree(project, candidate);
-      if (removed) detachThreadFromWorktree(candidate.threadId);
-      else cleanupComplete = false;
-    }
-    if (!cleanupComplete) {
-      toast.warning(i18n._(msg`Some experiment worktrees could not be removed.`));
-    }
-    void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
-    return cleanupComplete;
-  });
-}
-
-export async function discardExperiment(experimentId: string): Promise<boolean> {
-  return withExperimentOperation(experimentId, async () => {
-    const experiment = useExperimentStore.getState().experiments[experimentId];
-    if (!experiment) return false;
-    if (hasActiveCandidate(experimentId)) {
-      toast.warning(
-        i18n._(msg`Wait for every candidate to finish before discarding the experiment.`),
-      );
-      return false;
-    }
-    const appStore = useAppStore.getState();
-    const project = appStore.projects.find((item) => item.id === experiment.projectId);
-    let cleanupComplete = true;
-    for (const candidate of experiment.candidates) {
-      if (!(await closeExperimentThread(candidate.threadId))) cleanupComplete = false;
-    }
-    if (!cleanupComplete) {
-      toast.warning(i18n._(msg`Some experiment worktrees could not be removed.`));
-      return false;
-    }
-    if (project) {
-      for (const candidate of experiment.candidates) {
-        if (!(await removeExperimentCandidateWorktree(project, candidate))) {
-          cleanupComplete = false;
-        }
-      }
-    }
-    if (!cleanupComplete) {
-      toast.warning(i18n._(msg`Some experiment worktrees could not be removed.`));
-      return false;
-    }
-    if (appStore.view.kind === "experiment" && appStore.view.experimentId === experimentId) {
-      appStore.openHome();
-    }
-    for (const candidate of experiment.candidates) {
-      useAppStore.getState().deleteThread(candidate.threadId);
-    }
-    useExperimentStore.getState().removeExperiment(experimentId);
-    if (project) {
-      void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
-    }
-    return true;
-  });
-}
+export {
+  cancelExperimentJudge,
+  createExperimentCandidatePr,
+  crownExperiment,
+  discardExperiment,
+  mergeExperimentWinner,
+  retryExperimentCleanup,
+  setManualExperimentCrown,
+  type ExperimentJudgeProgressEvent,
+  type ExperimentJudgeSelection,
+} from "./experimentDecisionActions";
+export { isEligibleExperimentJudgeAgent } from "./experimentOperationState";

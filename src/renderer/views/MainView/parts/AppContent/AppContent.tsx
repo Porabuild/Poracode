@@ -158,7 +158,9 @@ export async function startThreadFromDraft(
   }
   if (newWorktreeSetupPath) {
     const setupScript = project.scripts?.setupScript;
-    if (setupScript) runWorktreeSetupScript(project, newWorktreeSetupPath, setupScript);
+    if (setupScript) {
+      void runWorktreeSetupScript(project, newWorktreeSetupPath, setupScript);
+    }
   }
 }
 

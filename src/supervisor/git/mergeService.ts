@@ -1,4 +1,5 @@
 import {
+  type GitAbortMergeResult,
   type GitFinishMergeResult,
   type GitMergeToSourceResult,
   type GitPullFromSourceResult,
@@ -200,12 +201,16 @@ export class GitMergeService {
       "-m",
       `Poracode: before pull from ${sourceBranch}`,
     ]);
+    const stashCommit = (await execGit(worktreeLocation, ["rev-parse", "refs/stash"]))
+      .trim()
+      .toLowerCase();
 
     const result = await this.pullFromSourceClean(worktreeLocation, sourceBranch);
     if (!result.merged) {
       return {
         ...result,
         stashPreserved: true,
+        stashCommit,
         error: result.error ?? msg("git.pull.stashPreserved"),
       };
     }
@@ -219,6 +224,7 @@ export class GitMergeService {
         conflicting: true,
         reapplyConflicting: true,
         stashPreserved: true,
+        stashCommit,
         error: msg("git.pull.reapplyConflicts"),
         conflictFiles: this.extractConflictFiles(errorDetail(stashPopError)),
       };
@@ -227,19 +233,71 @@ export class GitMergeService {
     return result;
   }
 
-  async abortMerge(worktreeLocation: ProjectLocation): Promise<void> {
-    await execGit(worktreeLocation, ["merge", "--abort"]);
+  async reapplyPullStash(
+    location: ProjectLocation,
+    stashCommit: string,
+  ): Promise<
+    | { outcome: "reapplied" }
+    | { outcome: "conflict"; conflictFiles: string[] }
+    | { outcome: "missing" }
+    | { outcome: "failed" }
+  > {
+    const stashList = await execGit(location, ["stash", "list", "--format=%H"]);
+    const index = stashList
+      .split("\n")
+      .map((line) => line.trim().toLowerCase())
+      .indexOf(stashCommit.toLowerCase());
+    if (index < 0) return { outcome: "missing" };
+
+    try {
+      await execGit(location, ["stash", "pop", `stash@{${index}}`], { timeout: GIT_HOOK_TIMEOUT });
+    } catch (stashPopError: unknown) {
+      const detail = errorDetail(stashPopError);
+      if (detail.includes("CONFLICT") || detail.includes("Merge conflict")) {
+        return { outcome: "conflict", conflictFiles: this.extractConflictFiles(detail) };
+      }
+      return { outcome: "failed" };
+    }
+    return { outcome: "reapplied" };
   }
 
-  async finishMerge(worktreeLocation: ProjectLocation): Promise<GitFinishMergeResult> {
+  async abortMerge(
+    worktreeLocation: ProjectLocation,
+    reapplyStashCommit?: string,
+  ): Promise<GitAbortMergeResult> {
+    await execGit(worktreeLocation, ["merge", "--abort"]);
+    if (!reapplyStashCommit) return {};
+
+    const reapply = await this.reapplyPullStash(worktreeLocation, reapplyStashCommit);
+    if (reapply.outcome === "reapplied") return { stashReapplied: true };
+    return { stashPreserved: true };
+  }
+
+  async finishMerge(
+    worktreeLocation: ProjectLocation,
+    reapplyStashCommit?: string,
+  ): Promise<GitFinishMergeResult> {
     try {
       await execGit(worktreeLocation, ["commit", "--no-edit"], {
         timeout: GIT_HOOK_TIMEOUT,
       });
-      return { success: true };
     } catch (error: unknown) {
       return { success: false, error: errorDetail(error) };
     }
+
+    if (!reapplyStashCommit) return { success: true };
+
+    const reapply = await this.reapplyPullStash(worktreeLocation, reapplyStashCommit);
+    if (reapply.outcome === "reapplied") return { success: true, stashReapplied: true };
+    if (reapply.outcome === "conflict") {
+      return {
+        success: true,
+        reapplyConflicting: true,
+        stashPreserved: true,
+        conflictFiles: reapply.conflictFiles,
+      };
+    }
+    return { success: true, stashPreserved: true };
   }
 
   private async findWorktreeForBranch(

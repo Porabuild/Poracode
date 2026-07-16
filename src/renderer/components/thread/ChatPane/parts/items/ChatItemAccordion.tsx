@@ -161,7 +161,7 @@ export function ChatItemAccordion({
     <span className="min-w-0" onPointerEnter={measureTitleOverflow} onFocus={measureTitleOverflow}>
       <Tooltip delay={300} isDisabled={!isOverflowing || !titleString}>
         <Tooltip.Trigger className="block min-w-0 w-full">{titleContent}</Tooltip.Trigger>
-        <Tooltip.Content placement="top" className="max-w-[80vw] break-all">
+        <Tooltip.Content placement="top" className="max-w-[80vw]">
           {titleString}
         </Tooltip.Content>
       </Tooltip>

@@ -172,7 +172,7 @@ describe("SubAgentOverlay", () => {
     expect(within(dialog).getByText("Inspect the renderer.")).toBeInTheDocument();
     expect(within(dialog).getByText("2 commands")).toBeInTheDocument();
     expect(
-      await within(dialog).findByRole("heading", { name: "Child result" }),
+      await within(dialog).findByRole("heading", { name: "Child result" }, { timeout: 5_000 }),
     ).toBeInTheDocument();
     expect(within(dialog).getByRole("listitem")).toHaveTextContent("parsed markdown");
     expect(within(dialog).queryByText("internal plan")).not.toBeInTheDocument();

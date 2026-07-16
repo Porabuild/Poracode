@@ -22,7 +22,6 @@ function captureGitActionError(error: unknown): void {
 }
 
 export function openGitReviewForWorktree(projectId: string, worktreePath: string): void {
-  if (findExperimentByWorktree(projectId, worktreePath)) return;
   const mode = useSharedSettings.getState().gitReviewMode;
   const panelStore = usePanelStore.getState();
   panelStore.setGitReviewContext({ projectId, worktreePath });

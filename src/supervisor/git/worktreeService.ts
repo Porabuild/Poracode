@@ -1,5 +1,7 @@
 import { normalize, posix as posixPath, win32 as win32Path } from "node:path";
 import {
+  type CreateExperimentWorktreesPayload,
+  type CreateExperimentWorktreesResult,
   fullCommitOidSchema,
   type GitAddWorktreeResult,
   type GitBranchListResult,
@@ -9,6 +11,8 @@ import {
   type GitWorktreeInfo,
   type GitWorktreeListResult,
   type ProjectLocation,
+  type RemoveExperimentWorktreesPayload,
+  type RemoveExperimentWorktreesResult,
 } from "@/shared/contracts";
 import { errorDetail, msg } from "@/shared/messages";
 import { buildWorktreeLocation } from "@/shared/worktree";
@@ -30,6 +34,7 @@ import { copyIgnoredFilesIntoWorktree } from "./copyIgnoredFiles";
 import { parseStatusPorcelainV2 } from "./statusParsing";
 
 const WORKTREE_OWNER_REFLOG_PREFIX = "poracode experiment owner ";
+const EXPERIMENT_WORKTREE_CREATE_CONCURRENCY = 2;
 
 function trimTrailingSeparators(path: string): string {
   const trimmed = path.replace(/[\\/]+$/, "");
@@ -182,6 +187,258 @@ export class GitWorktreeService {
   async listWorktrees(location: ProjectLocation): Promise<GitWorktreeListResult> {
     const raw = await execGit(location, ["worktree", "list", "--porcelain"]);
     return parseWorktreeListOutput(raw, location.kind);
+  }
+
+  async addOwnedWorktreesBatch(
+    payload: CreateExperimentWorktreesPayload,
+  ): Promise<CreateExperimentWorktreesResult> {
+    const { projectLocation: location } = payload;
+    const sourceBranch = await this.validateFrozenSourceBranch(
+      location,
+      payload.sourceBranch,
+      payload.baseCommit,
+    );
+    const root = payload.worktreeRoot ?? (await resolveBuiltInWorktreeRoot(location));
+    const prepared = await Promise.all(
+      payload.candidates.map(async (candidate) => ({
+        candidate,
+        path: await computeDefaultWorktreePath(location, candidate.branch, {
+          root,
+          ...(payload.worktreeOmitRepoDir ? { omitRepoDir: true } : {}),
+        }),
+      })),
+    );
+    await ensureWorktreeParentExists(location, prepared[0]!.path);
+    const results: CreateExperimentWorktreesResult["candidates"] = payload.candidates.map(
+      (candidate) => ({ threadId: candidate.threadId, branch: candidate.branch }),
+    );
+    const ready: Array<{
+      index: number;
+      candidate: (typeof prepared)[number]["candidate"];
+      path: string;
+    }> = [];
+
+    for (let index = 0; index < prepared.length; index += 1) {
+      const item = prepared[index]!;
+      try {
+        await this.prepareOwnedBranch(
+          location,
+          item.candidate.branch,
+          payload.baseCommit,
+          sourceBranch,
+          item.candidate.ownerToken,
+        );
+        ready.push({ index, candidate: item.candidate, path: item.path });
+      } catch (error) {
+        results[index] = {
+          threadId: item.candidate.threadId,
+          branch: item.candidate.branch,
+          error: errorDetail(error),
+        };
+      }
+    }
+
+    let nextIndex = 0;
+    const failedCreates: Array<{ index: number; branch: string; detail: string }> = [];
+    const successfulCreates: typeof ready = [];
+    const createNext = async () => {
+      while (nextIndex < ready.length) {
+        const item = ready[nextIndex++]!;
+        try {
+          await execGit(location, ["worktree", "add", item.path, item.candidate.branch]);
+          successfulCreates.push(item);
+          results[item.index] = {
+            threadId: item.candidate.threadId,
+            branch: item.candidate.branch,
+            path: item.path,
+          };
+        } catch (error) {
+          failedCreates.push({
+            index: item.index,
+            branch: item.candidate.branch,
+            detail: errorDetail(error),
+          });
+        }
+      }
+    };
+    await Promise.all(
+      Array.from(
+        { length: Math.min(EXPERIMENT_WORKTREE_CREATE_CONCURRENCY, ready.length) },
+        createNext,
+      ),
+    );
+    const copyIgnoredPatterns = payload.copyIgnoredPatterns;
+    if (copyIgnoredPatterns?.length) {
+      let nextCopyIndex = 0;
+      const copyNext = async () => {
+        while (nextCopyIndex < successfulCreates.length) {
+          const item = successfulCreates[nextCopyIndex++]!;
+          await copyIgnoredFilesIntoWorktree(location, item.path, copyIgnoredPatterns).catch(
+            (error) => {
+              console.warn("[supervisor] failed to copy ignored files into worktree:", error);
+            },
+          );
+        }
+      };
+      await Promise.all(
+        Array.from(
+          {
+            length: Math.min(EXPERIMENT_WORKTREE_CREATE_CONCURRENCY, successfulCreates.length),
+          },
+          copyNext,
+        ),
+      );
+    }
+    for (const failure of failedCreates) {
+      let detail = failure.detail;
+      try {
+        await this.deleteBranchWithPruneRetry(location, failure.branch, true);
+      } catch (rollbackError) {
+        detail = msg("experiment.worktree.creationRollbackFailed", {
+          detail,
+          branch: failure.branch,
+          rollback: errorDetail(rollbackError),
+        });
+      }
+      const candidate = payload.candidates[failure.index]!;
+      results[failure.index] = {
+        threadId: candidate.threadId,
+        branch: candidate.branch,
+        error: detail,
+      };
+    }
+    return { candidates: results };
+  }
+
+  async removeOwnedWorktreesBatch(
+    payload: RemoveExperimentWorktreesPayload,
+    onWorktreesResolved?: (
+      worktrees: readonly { threadId: string; path: string }[],
+    ) => Promise<void>,
+  ): Promise<RemoveExperimentWorktreesResult> {
+    const { projectLocation: location } = payload;
+    const { worktrees } = await this.listWorktrees(location);
+    const results: RemoveExperimentWorktreesResult["candidates"] = [];
+    const worktreeByPath = new Map(
+      worktrees.map((worktree) => [normalizeWorktreePath(location, worktree.path), worktree]),
+    );
+    const worktreeByBranch = new Map(worktrees.map((worktree) => [worktree.branch, worktree]));
+    const resolvedCandidates = payload.candidates.map((candidate) => {
+      const atRecordedPath = candidate.worktreePath
+        ? worktreeByPath.get(normalizeWorktreePath(location, candidate.worktreePath))
+        : undefined;
+      const pathBranchMismatch =
+        atRecordedPath !== undefined && atRecordedPath.branch !== candidate.branch;
+      return {
+        candidate,
+        atRecordedPath,
+        pathBranchMismatch,
+        worktree: pathBranchMismatch
+          ? undefined
+          : (atRecordedPath ?? worktreeByBranch.get(candidate.branch)),
+      };
+    });
+    type VerifiedCandidate = (typeof resolvedCandidates)[number] & {
+      branchExists?: boolean;
+      ownerToken?: string | null;
+      error?: string;
+    };
+    const verifiedCandidates = await Promise.all(
+      resolvedCandidates.map(async (resolved): Promise<VerifiedCandidate> => {
+        const { candidate, atRecordedPath, pathBranchMismatch, worktree } = resolved;
+        try {
+          if (atRecordedPath && pathBranchMismatch) {
+            throw new Error(
+              msg("experiment.merge.worktreeBranchMismatch", {
+                expected: candidate.branch,
+                actual: atRecordedPath.branch,
+              }),
+            );
+          }
+          const [branchExists, owner] = await Promise.all([
+            this.branchExists(location, candidate.branch),
+            this.getWorktreeOwner(location, candidate.branch),
+          ]);
+          if (
+            (worktree || branchExists || owner.ownerToken) &&
+            owner.ownerToken !== candidate.ownerToken
+          ) {
+            throw new Error(
+              msg("experiment.worktree.ownerMismatch", {
+                expected: candidate.ownerToken,
+                actual: owner.ownerToken ?? msg("experiment.worktree.noOwner"),
+              }),
+            );
+          }
+          return { ...resolved, branchExists, ownerToken: owner.ownerToken };
+        } catch (error) {
+          return { ...resolved, error: errorDetail(error) };
+        }
+      }),
+    );
+    if (onWorktreesResolved) {
+      const resolved = verifiedCandidates.flatMap((item) => {
+        return !item.error && item.worktree && !item.worktree.isMain
+          ? [{ threadId: item.candidate.threadId, path: item.worktree.path }]
+          : [];
+      });
+      await onWorktreesResolved(resolved);
+    }
+
+    for (const item of verifiedCandidates) {
+      const { candidate, worktree } = item;
+      try {
+        if (item.error) throw new Error(item.error);
+        if (!worktree && !item.branchExists && !item.ownerToken) {
+          results.push({ threadId: candidate.threadId, branch: candidate.branch });
+          continue;
+        }
+        if (worktree) {
+          if (worktree.isMain) throw new Error("Cannot remove the main worktree.");
+          await this.removeVerifiedWorktree(location, worktree);
+        }
+        if (item.branchExists) {
+          await this.deleteBranchWithPruneRetry(location, candidate.branch, true);
+        } else {
+          await this.clearWorktreeBranchMetadata(location, candidate.branch);
+        }
+        results.push({ threadId: candidate.threadId, branch: candidate.branch });
+      } catch (error) {
+        results.push({
+          threadId: candidate.threadId,
+          branch: candidate.branch,
+          ...(candidate.worktreePath ? { path: candidate.worktreePath } : {}),
+          error: errorDetail(error),
+        });
+      }
+    }
+    return { candidates: results };
+  }
+
+  private async removeVerifiedWorktree(
+    location: ProjectLocation,
+    worktree: GitWorktreeInfo,
+  ): Promise<void> {
+    try {
+      await execGit(location, ["worktree", "remove", "--force", "--force", worktree.path], {
+        timeout: GIT_WORKTREE_REMOVE_TIMEOUT,
+      });
+    } catch (error) {
+      if (!(await this.removeWorktreeRegistration(location, worktree))) throw error;
+    }
+  }
+
+  private async removeWorktreeRegistration(
+    location: ProjectLocation,
+    worktree: GitWorktreeInfo,
+  ): Promise<boolean> {
+    await removeWorktreeDirectory(location, worktree.path).catch((error) => {
+      console.warn("[git] failed to delete worktree directory during fallback:", error);
+    });
+    await execGit(location, ["worktree", "prune"]);
+    const targetPath = normalizeWorktreePath(location, worktree.path);
+    const { worktrees } = await this.listWorktrees(location);
+    return !worktrees.some((entry) => normalizeWorktreePath(location, entry.path) === targetPath);
   }
 
   async addWorktree(
@@ -428,16 +685,17 @@ export class GitWorktreeService {
       // so the prune below can drop the registration. Only for paths git
       // actually listed as worktrees; never rm an arbitrary caller path.
       if (registeredWorktree) {
-        await removeWorktreeDirectory(location, registeredWorktree.path).catch((rmError) => {
-          console.warn("[git] failed to delete worktree directory during fallback:", rmError);
-        });
-      }
-      await execGit(location, ["worktree", "prune"]);
-      const { worktrees } = await this.listWorktrees(location);
-      if (
-        worktrees.some((worktree) => normalizeWorktreePath(location, worktree.path) === targetPath)
-      ) {
-        throw error;
+        if (!(await this.removeWorktreeRegistration(location, registeredWorktree))) throw error;
+      } else {
+        await execGit(location, ["worktree", "prune"]);
+        const { worktrees } = await this.listWorktrees(location);
+        if (
+          worktrees.some(
+            (worktree) => normalizeWorktreePath(location, worktree.path) === targetPath,
+          )
+        ) {
+          throw error;
+        }
       }
       if (branchToDelete) {
         await this.deleteBranchAfterWorktreeRemoval(

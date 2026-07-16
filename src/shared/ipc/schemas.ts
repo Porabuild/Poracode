@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { RuntimeEvent, WorkflowRun } from "../contracts";
 import {
   agentKindSchema,
+  experimentSchema,
   promptSegmentSchema,
   projectLocationSchema,
   projectNotesSchema,
@@ -122,6 +123,17 @@ export const dbSyncAllPayloadSchema = z.object({
   threads: z.array(threadSchema),
   viewJson: z.string(),
 });
+export const dbPersistExperimentStatePayloadSchema = z.object({
+  upsertThreads: z.array(
+    z.object({
+      thread: threadSchema,
+      sortOrder: z.number().int().nonnegative(),
+    }),
+  ),
+  deletedThreadIds: z.array(z.string().min(1)),
+  experiments: z.record(z.string(), experimentSchema),
+});
+export type DbPersistExperimentStatePayload = z.infer<typeof dbPersistExperimentStatePayloadSchema>;
 
 export const persistedRuntimeItemSchema = z.object({
   id: z.string().min(1),

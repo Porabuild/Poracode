@@ -184,6 +184,11 @@ export const sharedSettingsSchema = z.object({
   conflictResolverEffort: z.string(),
   /** Launch the conflict-resolver session in fast mode (Opus-only; ignored otherwise). */
   conflictResolverFast: z.boolean(),
+  /** Last model configuration used to judge an experiment. */
+  experimentJudgeProvider: z.string(),
+  experimentJudgeModel: z.string(),
+  experimentJudgeEffort: z.string(),
+  experimentJudgeFast: z.boolean(),
   /**
    * Where "Fix in Agent" opens the conflict-resolver thread: structured chat
    * (`gui`) or terminal-native (`terminal`). Defaults to `gui`. If the resolved
@@ -459,6 +464,10 @@ export const defaultSharedSettings: SharedSettings = {
   conflictResolverModel: "",
   conflictResolverEffort: "",
   conflictResolverFast: false,
+  experimentJudgeProvider: "",
+  experimentJudgeModel: "",
+  experimentJudgeEffort: "",
+  experimentJudgeFast: false,
   conflictResolverPresentationMode: "gui",
   wslCommitGenProvider: "auto",
   wslCommitGenModel: "",

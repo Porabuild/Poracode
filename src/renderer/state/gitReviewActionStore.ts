@@ -70,6 +70,8 @@ export interface GitReviewActionState {
   isFinishingMerge: boolean;
   /** A PR creation is in flight. */
   isCreatingPr: boolean;
+  /** Commit hash of the Poracode pull stash awaiting re-apply after the in-progress merge. */
+  pullStashCommit: string | null;
 }
 
 /** Stable default returned for panels with no state yet — never mutate. */
@@ -90,7 +92,21 @@ const EMPTY_STATE: GitReviewActionState = Object.freeze({
   isAbortingMerge: false,
   isFinishingMerge: false,
   isCreatingPr: false,
+  pullStashCommit: null,
 });
+
+/**
+ * Key of a panel's slice in this store — must stay identical to the key the
+ * git review panel computes (`statusKey ?? project.id`, where `statusKey` is
+ * the worktree path; see GitReviewSidebar), so writers outside the panel
+ * (e.g. PullFromSourceDialog) land state where the panel will read it.
+ */
+export function gitReviewActionStoreKey(
+  projectId: string,
+  worktreePath: string | undefined,
+): string {
+  return worktreePath ?? projectId;
+}
 
 interface GitReviewActionStore {
   panels: Record<string, GitReviewActionState>;

@@ -188,10 +188,17 @@ export const gitRevertAllPayloadSchema = z.object({
 });
 export type GitRevertAllPayload = z.infer<typeof gitRevertAllPayloadSchema>;
 
+export const fullCommitOidSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i);
+
 export const gitCommitPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
   message: z.string().min(1),
   addAll: z.boolean().default(false),
+  /**
+   * Poracode pull stash to re-apply (and drop) after the commit succeeds. Used
+   * when the commit completes a conflicted pull-from-source merge.
+   */
+  reapplyStashCommit: fullCommitOidSchema.optional(),
 });
 export type GitCommitPayload = z.infer<typeof gitCommitPayloadSchema>;
 
@@ -210,6 +217,13 @@ export type GitAddRemotePayload = z.infer<typeof gitAddRemotePayloadSchema>;
 export interface GitCommitResult {
   hash: string;
   message: string;
+  /** The pull stash was found, re-applied cleanly, and dropped. */
+  stashReapplied?: boolean;
+  /** Re-applying the pull stash hit conflicts; the stash entry is kept. */
+  reapplyConflicting?: boolean;
+  /** A stash was requested but remains preserved (re-apply conflicted or stash missing). */
+  stashPreserved?: boolean;
+  conflictFiles?: string[];
 }
 
 export const generateCommitMessagePayloadSchema = z.object({
@@ -332,8 +346,6 @@ export const gitListWorktreesPayloadSchema = z.object({
   projectLocation: projectLocationSchema,
 });
 export type GitListWorktreesPayload = z.infer<typeof gitListWorktreesPayloadSchema>;
-
-export const fullCommitOidSchema = z.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i);
 
 export const gitAddWorktreePayloadSchema = z
   .object({
@@ -561,21 +573,46 @@ export interface GitPullFromSourceResult {
   conflicting?: boolean;
   error?: string;
   conflictFiles?: string[];
+  /**
+   * Commit hash of the stash created for this pull when it remains preserved
+   * (merge conflicted before the stash could be re-applied). Pass it to
+   * `gitFinishMerge`/`gitAbortMerge` as `reapplyStashCommit` so the stashed
+   * changes are restored once the merge is resolved or abandoned.
+   */
+  stashCommit?: string;
 }
 
 export const gitAbortMergePayloadSchema = z.object({
   worktreeLocation: projectLocationSchema,
+  /** Poracode pull stash to re-apply (and drop) after the merge is aborted. */
+  reapplyStashCommit: fullCommitOidSchema.optional(),
 });
 export type GitAbortMergePayload = z.infer<typeof gitAbortMergePayloadSchema>;
 
+export interface GitAbortMergeResult {
+  /** The pull stash was found, re-applied cleanly, and dropped. */
+  stashReapplied?: boolean;
+  /** A stash was requested but could not be re-applied; it remains in the stash list. */
+  stashPreserved?: boolean;
+}
+
 export const gitFinishMergePayloadSchema = z.object({
   worktreeLocation: projectLocationSchema,
+  /** Poracode pull stash to re-apply (and drop) after the merge commit succeeds. */
+  reapplyStashCommit: fullCommitOidSchema.optional(),
 });
 export type GitFinishMergePayload = z.infer<typeof gitFinishMergePayloadSchema>;
 
 export interface GitFinishMergeResult {
   success: boolean;
   error?: string;
+  /** The pull stash was found, re-applied cleanly, and dropped. */
+  stashReapplied?: boolean;
+  /** Re-applying the pull stash hit conflicts; the stash entry is kept. */
+  reapplyConflicting?: boolean;
+  /** A stash was requested but remains preserved (re-apply conflicted or stash missing). */
+  stashPreserved?: boolean;
+  conflictFiles?: string[];
 }
 
 export const gitWatchProjectPayloadSchema = z.object({

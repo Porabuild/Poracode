@@ -395,6 +395,8 @@ export interface RunOneShotInput {
   effort?: string | undefined;
   /** Opus-only fast-mode session flag. Adapters that don't support it ignore it. */
   fast?: boolean | undefined;
+  /** Allow only filesystem read/search/list tools inside the supplied workspace. */
+  readOnlyWorkspace?: boolean | undefined;
   prompt: string;
   signal?: AbortSignal | undefined;
 }
@@ -430,6 +432,11 @@ export interface OneShotGenerationCommand extends OneShotCommand {
   isolateCwd?: boolean;
 }
 
+export interface OneShotGenerationOptions {
+  /** The cwd is an isolated artifact workspace that must remain read-only. */
+  readOnlyWorkspace?: boolean | undefined;
+}
+
 export interface AgentOneShotRunner {
   defaultOneShotModel?: string;
   /**
@@ -447,6 +454,7 @@ export interface AgentOneShotRunner {
     prompt?: string,
     location?: ProjectLocation,
     fast?: boolean,
+    options?: OneShotGenerationOptions,
   ): OneShotGenerationCommand | undefined;
   runOneShot?(input: RunOneShotInput): Promise<string>;
   /**

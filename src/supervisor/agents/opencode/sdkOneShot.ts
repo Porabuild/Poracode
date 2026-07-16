@@ -25,6 +25,15 @@ import { acquireOpenCodeServer, type AcquiredOpenCodeServer } from "./sdkClient"
  */
 const ONE_SHOT_IDLE_TTL_MS = 30_000;
 
+const DENY_ALL_PERMISSIONS = [{ permission: "*", pattern: "*", action: "deny" }] as const;
+const READ_ONLY_WORKSPACE_PERMISSIONS = [
+  ...DENY_ALL_PERMISSIONS,
+  { permission: "read", pattern: "*", action: "allow" },
+  { permission: "list", pattern: "*", action: "allow" },
+  { permission: "glob", pattern: "*", action: "allow" },
+  { permission: "grep", pattern: "*", action: "allow" },
+] as const;
+
 interface AcquireInput {
   location: ProjectLocation;
 }
@@ -114,9 +123,11 @@ export async function runOpenCodeOneShot(input: RunOneShotInput): Promise<string
     try {
       session = await acquired.client.session.create({
         title: `poracode one-shot ${parsedModel.modelID}`,
-        // Deny everything: one-shot generation prompts must not touch the
-        // filesystem or shell. Mirrors t3code's deny-all ruleset.
-        permission: [{ permission: "*", pattern: "*", action: "deny" }],
+        // Generation is deny-all by default. Experiment judging opts into
+        // read/search/list access inside its isolated anonymous diff workspace.
+        permission: input.readOnlyWorkspace
+          ? [...READ_ONLY_WORKSPACE_PERMISSIONS]
+          : [...DENY_ALL_PERMISSIONS],
       });
     } catch (cause) {
       throw new Error(classifyOpenCodeError({ cause, operation: "session.create" }), { cause });

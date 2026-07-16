@@ -15,6 +15,7 @@ import {
   dbGetThreadRuntimeItemsPage,
   dbTruncateThreadRuntimeAfter,
   dbGetThreads,
+  dbPersistExperimentState,
   dbListScheduleRuns,
   dbReplaceThreadCompletedTurns,
   dbReplaceThreadRuntimeSnapshot,
@@ -27,6 +28,7 @@ import {
 } from "../db";
 import {
   deleteThreadAttachments,
+  deleteThreadAttachmentsAsync,
   resolveProjectFsPath,
   saveClipboardImageFile,
   saveHandoffContextFile,
@@ -414,6 +416,13 @@ export function createLocalIpcHandlers(
     },
     dbDeleteProject: ({ projectId }) => dbDeleteProject(projectId),
     dbSyncAll: ({ projects, threads, viewJson }) => dbSyncAll(projects, threads, viewJson),
+    dbPersistExperimentState: async (payload) => {
+      dbPersistExperimentState(payload);
+      const paths = options.requirePoracodePaths();
+      await Promise.all(
+        payload.deletedThreadIds.map((threadId) => deleteThreadAttachmentsAsync(paths, threadId)),
+      );
+    },
     dbGetThreadRuntimeItems: ({ threadId }) => dbGetThreadRuntimeItems(threadId),
     dbGetThreadRuntimeItemsPage: ({ threadId, beforePosition, limit }) =>
       dbGetThreadRuntimeItemsPage(threadId, beforePosition, limit),

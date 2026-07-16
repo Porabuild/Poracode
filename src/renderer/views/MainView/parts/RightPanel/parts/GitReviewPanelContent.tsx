@@ -20,13 +20,15 @@ export function GitReviewPanelContent(props: {
     gitPanelContext ? s.projects.find((p) => p.id === gitPanelContext.projectId) : undefined,
   );
 
-  if (
-    !gitPanelContext ||
-    !project ||
-    findExperimentByWorktree(gitPanelContext.projectId, gitPanelContext.worktreePath)
-  ) {
+  if (!gitPanelContext || !project) {
     return undefined;
   }
+
+  // Experiment candidate worktrees are viewable, but their lifecycle (merge/
+  // remove) is owned by the experiment crown flow — never the review surface.
+  const isExperimentWorktree = Boolean(
+    findExperimentByWorktree(gitPanelContext.projectId, gitPanelContext.worktreePath),
+  );
 
   const gitReviewKey = `${gitPanelContext.projectId}:${gitPanelContext.worktreePath ?? ""}`;
 
@@ -52,6 +54,10 @@ export function GitReviewPanelContent(props: {
               worktreeBranch:
                 resolveWorktreeBranch(gitPanelContext.projectId, gitPanelContext.worktreePath) ??
                 undefined,
+            }
+          : {})}
+        {...(gitPanelContext.worktreePath && !isExperimentWorktree
+          ? {
               onMergeAndRemove: () => {
                 const allThreads = useAppStore.getState().threads;
                 const wtPath = gitPanelContext!.worktreePath;

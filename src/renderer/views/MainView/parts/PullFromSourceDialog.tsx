@@ -7,6 +7,10 @@ import { openGitReviewForWorktree } from "@/renderer/actions/gitActions";
 import { runGitPullFromSource, showGitActionError } from "@/renderer/actions/gitCommandRunner";
 import { Button } from "@/renderer/components/common/Button";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  gitReviewActionStoreKey,
+  useGitReviewActionStore,
+} from "@/renderer/state/gitReviewActionStore";
 import { usePullFromSourceDialogStore } from "@/renderer/state/pullFromSourceDialogStore";
 
 export function PullFromSourceDialog() {
@@ -33,12 +37,21 @@ export function PullFromSourceDialog() {
         sourceBranch: activeDialog.sourceBranch,
         preserveLocalChanges: true,
       });
+      useGitReviewActionStore
+        .getState()
+        .patch(gitReviewActionStoreKey(activeDialog.projectId, activeDialog.worktreePath), {
+          pullStashCommit: result.conflicting ? (result.stashCommit ?? null) : null,
+        });
       closeDialog();
       if (result.conflicting) {
         const detail = result.conflictFiles?.length
           ? `\nConflicts:\n${result.conflictFiles.join("\n")}`
           : "";
-        const stashNote = result.stashPreserved ? `\n${stashPreservedMessage}` : "";
+        const stashNote = result.stashCommit
+          ? `\n${msg("git.pull.reapplyAfterMerge")}`
+          : result.stashPreserved
+            ? `\n${stashPreservedMessage}`
+            : "";
         toast.danger((result.error ?? msg("git.merge.conflicts")) + detail + stashNote);
         openGitReviewForWorktree(activeDialog.projectId, activeDialog.worktreePath);
         activeDialog.onComplete?.();

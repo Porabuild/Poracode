@@ -72,6 +72,19 @@ describe("sharedSettingsStore", () => {
     });
   });
 
+  it("preserves the last experiment judge configuration", () => {
+    useSharedSettings
+      .getState()
+      .setExperimentJudgeConfig("claude", "claude-opus-4-8", "high", true);
+
+    expect(useSharedSettings.getState()).toMatchObject({
+      experimentJudgeProvider: "claude",
+      experimentJudgeModel: "claude-opus-4-8",
+      experimentJudgeEffort: "high",
+      experimentJudgeFast: true,
+    });
+  });
+
   it("records the last-used project directory per runtime key", () => {
     useSharedSettings.getState().setLastUsedProjectDir("native", "/Users/me/code");
     useSharedSettings.getState().setLastUsedProjectDir("Ubuntu", "\\\\wsl.localhost\\Ubuntu\\home");

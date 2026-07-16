@@ -31,22 +31,24 @@ export function runWorktreeSetupScript(
   project: Project,
   worktreePath: string,
   setupScript: string,
-): void {
+  options: { openTerminalPanel?: boolean } = {},
+): Promise<void> {
   // Blank / comments-only scripts have nothing to run — skip the terminal
   // entirely rather than leaving an idle "setup" shell behind.
-  if (!normalizeShellScript(setupScript)) return;
+  if (!normalizeShellScript(setupScript)) return Promise.resolve();
 
   const wtLocation = buildWorktreeLocation(project.location, worktreePath);
   const store = useDevTerminalStore.getState();
   const tab = store.addTab(project.id, "setup", worktreePath);
-  const autoShow = useSharedSettings.getState().autoShowTerminalPanel;
+  const openTerminalPanel = options.openTerminalPanel !== false;
+  const autoShow = openTerminalPanel && useSharedSettings.getState().autoShowTerminalPanel;
   const panelAlreadyOpen = store.isOpen;
   if (autoShow) store.openWorktreePanel(project.id, worktreePath);
-  store.setActiveTab(tab.id);
+  if (openTerminalPanel) store.setActiveTab(tab.id);
 
   // Visible tabs mount an XTerm surface that starts the PTY. Start it eagerly
   // only when no surface will mount, avoiding a second setup process.
-  if (!autoShow && !panelAlreadyOpen) {
+  if (!openTerminalPanel || (!autoShow && !panelAlreadyOpen)) {
     startShellWithToast(
       { shellId: tab.id, projectLocation: wtLocation, worktreePath },
       "setup shell",
@@ -54,14 +56,24 @@ export function runWorktreeSetupScript(
   }
 
   // Successful setup exits and removes its tab; failures stay open for inspection.
-  const detach = writeScriptToShellThenExitOnSuccess(tab.id, setupScript, wtLocation.kind, () =>
-    removeWorktreeSetupTab(tab),
-  );
-  const unsubscribeTabs = useDevTerminalStore.subscribe((state, prev) => {
-    if (state.tabs === prev.tabs) return;
-    if (state.tabs.some((item) => item.id === tab.id)) return;
-    detach();
-    unsubscribeTabs();
+  return new Promise<void>((resolve) => {
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      resolve();
+    };
+    const detach = writeScriptToShellThenExitOnSuccess(tab.id, setupScript, wtLocation.kind, () => {
+      finish();
+      removeWorktreeSetupTab(tab);
+    });
+    const unsubscribeTabs = useDevTerminalStore.subscribe((state, prev) => {
+      if (state.tabs === prev.tabs) return;
+      if (state.tabs.some((item) => item.id === tab.id)) return;
+      detach();
+      unsubscribeTabs();
+      finish();
+    });
   });
 }
 

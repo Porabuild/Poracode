@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { agentKindSchema, projectLocationSchema } from "./common";
 import { fullCommitOidSchema } from "./git";
+import { promptSegmentSchema } from "./thread";
 
 export const EXPERIMENT_STORE_KEY = "poracode-experiments-v1";
 export const EXPERIMENT_STORE_VERSION = 1;
@@ -35,6 +36,12 @@ const experimentCrownCommon = {
   snapshotHash: z.string().min(1).optional(),
 };
 
+export const experimentJudgeAssessmentSchema = z.object({
+  threadId: z.string().min(1),
+  rationale: z.string().min(1),
+});
+export type ExperimentJudgeAssessment = z.infer<typeof experimentJudgeAssessmentSchema>;
+
 export const experimentCrownSchema = z.discriminatedUnion("source", [
   z.object({
     ...experimentCrownCommon,
@@ -43,6 +50,7 @@ export const experimentCrownSchema = z.discriminatedUnion("source", [
       .string()
       .min(1)
       .refine((value) => value.trim().length > 0, "Rationale must not be blank"),
+    assessments: z.array(experimentJudgeAssessmentSchema).min(2).optional(),
     modelLabel: z.string().min(1).optional(),
   }),
   z.object({
@@ -63,6 +71,7 @@ export const experimentSchema = z
     projectId: z.string().min(1),
     title: z.string().min(1),
     prompt: nonBlankPromptSchema,
+    segments: z.array(promptSegmentSchema).optional(),
     baseBranch: z.string().min(1),
     baseCommit: fullCommitOidSchema,
     candidates: z.array(experimentCandidateSchema).min(2).max(MAX_EXPERIMENT_CANDIDATES),
@@ -127,6 +136,23 @@ export const experimentSchema = z
   });
 export type Experiment = z.infer<typeof experimentSchema>;
 
+function uniqueCandidateIds(
+  candidates: readonly { threadId: string }[],
+  ctx: z.RefinementCtx,
+): void {
+  const ids = new Set<string>();
+  candidates.forEach((candidate, index) => {
+    if (ids.has(candidate.threadId)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Candidate thread ids must be unique",
+        path: ["candidates", index, "threadId"],
+      });
+    }
+    ids.add(candidate.threadId);
+  });
+}
+
 export const judgeExperimentCandidateSchema = z.object({
   threadId: z.string().min(1),
   diff: z.string().max(MAX_EXPERIMENT_DIFF_LENGTH),
@@ -135,6 +161,7 @@ export type JudgeExperimentCandidate = z.infer<typeof judgeExperimentCandidateSc
 
 export const judgeExperimentPayloadSchema = z
   .object({
+    experimentId: z.string().min(1),
     projectLocation: projectLocationSchema,
     agentKind: agentKindSchema,
     model: z.string().min(1).optional(),
@@ -143,25 +170,114 @@ export const judgeExperimentPayloadSchema = z
     prompt: nonBlankPromptSchema,
     candidates: z.array(judgeExperimentCandidateSchema).min(2).max(MAX_EXPERIMENT_CANDIDATES),
   })
-  .superRefine((payload, ctx) => {
-    const candidateIds = new Set<string>();
-    payload.candidates.forEach((candidate, index) => {
-      if (candidateIds.has(candidate.threadId)) {
-        ctx.addIssue({
-          code: "custom",
-          message: "Candidate thread ids must be unique",
-          path: ["candidates", index, "threadId"],
-        });
-      }
-      candidateIds.add(candidate.threadId);
-    });
-  });
+  .superRefine(({ candidates }, ctx) => uniqueCandidateIds(candidates, ctx));
 export type JudgeExperimentPayload = z.infer<typeof judgeExperimentPayloadSchema>;
 
 export interface JudgeExperimentResult {
   winnerThreadId: string;
   rationale: string;
+  assessments: ExperimentJudgeAssessment[];
 }
+
+const experimentWorktreeCandidateSchema = z.object({
+  threadId: z.string().min(1),
+  branch: z.string().min(1),
+  ownerToken: z.string().min(1).max(128),
+  worktreePath: z.string().min(1).optional(),
+});
+
+export const createExperimentWorktreesPayloadSchema = z
+  .object({
+    projectLocation: projectLocationSchema,
+    sourceBranch: z.string().min(1).max(255),
+    baseCommit: fullCommitOidSchema,
+    candidates: z
+      .array(experimentWorktreeCandidateSchema.omit({ worktreePath: true }))
+      .min(2)
+      .max(MAX_EXPERIMENT_CANDIDATES),
+    worktreeRoot: z.string().min(1).optional(),
+    worktreeOmitRepoDir: z.boolean().optional(),
+    copyIgnoredPatterns: z.array(z.string()).optional(),
+  })
+  .superRefine(({ candidates }, ctx) => uniqueCandidateIds(candidates, ctx));
+export type CreateExperimentWorktreesPayload = z.infer<
+  typeof createExperimentWorktreesPayloadSchema
+>;
+
+export interface ExperimentWorktreeBatchItemResult {
+  threadId: string;
+  branch: string;
+  path?: string;
+  error?: string;
+}
+
+export interface CreateExperimentWorktreesResult {
+  candidates: ExperimentWorktreeBatchItemResult[];
+}
+
+export const removeExperimentWorktreesPayloadSchema = z
+  .object({
+    projectLocation: projectLocationSchema,
+    candidates: z.array(experimentWorktreeCandidateSchema).min(1).max(MAX_EXPERIMENT_CANDIDATES),
+  })
+  .superRefine(({ candidates }, ctx) => uniqueCandidateIds(candidates, ctx));
+export type RemoveExperimentWorktreesPayload = z.infer<
+  typeof removeExperimentWorktreesPayloadSchema
+>;
+
+export interface RemoveExperimentWorktreesResult {
+  candidates: ExperimentWorktreeBatchItemResult[];
+}
+
+export const experimentSnapshotCandidateSchema = experimentWorktreeCandidateSchema;
+export type ExperimentSnapshotCandidate = z.infer<typeof experimentSnapshotCandidateSchema>;
+
+export const captureExperimentSnapshotPayloadSchema = z
+  .object({
+    experimentId: z.string().min(1),
+    projectLocation: projectLocationSchema,
+    baseCommit: fullCommitOidSchema,
+    candidates: z.array(experimentSnapshotCandidateSchema).min(2).max(MAX_EXPERIMENT_CANDIDATES),
+  })
+  .superRefine(({ candidates }, ctx) => uniqueCandidateIds(candidates, ctx));
+export type CaptureExperimentSnapshotPayload = z.infer<
+  typeof captureExperimentSnapshotPayloadSchema
+>;
+
+export interface ExperimentSnapshotCandidateResult {
+  threadId: string;
+  headCommit: string;
+  files: number;
+  insertions: number;
+  deletions: number;
+}
+
+export interface CaptureExperimentSnapshotResult {
+  hash: string;
+  candidates: ExperimentSnapshotCandidateResult[];
+}
+
+export const judgeExperimentSnapshotPayloadSchema = captureExperimentSnapshotPayloadSchema.and(
+  z.object({
+    agentKind: agentKindSchema,
+    model: z.string().min(1).optional(),
+    effort: z.string().min(1).optional(),
+    fast: z.boolean().optional(),
+    prompt: nonBlankPromptSchema,
+  }),
+);
+export type JudgeExperimentSnapshotPayload = z.infer<typeof judgeExperimentSnapshotPayloadSchema>;
+
+export interface JudgeExperimentSnapshotResult extends CaptureExperimentSnapshotResult {
+  winnerThreadId: string;
+  rationale: string;
+  assessments: ExperimentJudgeAssessment[];
+}
+
+export const cancelJudgeExperimentPayloadSchema = z.object({
+  experimentId: z.string().min(1),
+});
+export type CancelJudgeExperimentPayload = z.infer<typeof cancelJudgeExperimentPayloadSchema>;
 
 export const getExperimentCandidateDiffPayloadSchema = z.object({
   projectLocation: projectLocationSchema,

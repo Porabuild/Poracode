@@ -1,4 +1,11 @@
+import { createHash } from "node:crypto";
 import type {
+  CaptureExperimentSnapshotPayload,
+  CaptureExperimentSnapshotResult,
+  CreateExperimentWorktreesPayload,
+  CreateExperimentWorktreesResult,
+  GitAbortMergeResult,
+  GitCommitResult,
   GitAddWorktreeResult,
   GitBranchListResult,
   GitDiffBatchResult,
@@ -16,7 +23,11 @@ import type {
   GetExperimentCandidateDiffResult,
   GetExperimentCandidateStatsResult,
   ProjectLocation,
+  RemoveExperimentWorktreesPayload,
+  RemoveExperimentWorktreesResult,
 } from "@/shared/contracts";
+import { countUnifiedDiffStats } from "@/shared/lineUnifiedDiff";
+import { msg } from "@/shared/messages";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import {
   computeDefaultWorktreePath,
@@ -27,6 +38,7 @@ import {
   getLocationIdentity,
   ghVersionWslBridge,
   parseRemoteUrl,
+  normalizeWorktreePath,
   resolveBuiltInWorktreeRoot,
   resolveClonedProjectPath,
   setWslGitBridgeClient,
@@ -45,6 +57,11 @@ import {
 import type { WslBridgeClient } from "./wsl/bridge/client";
 
 const GIT_WORKTREE_STATUS_CONCURRENCY = 4;
+const EXPERIMENT_SNAPSHOT_CONCURRENCY = 4;
+
+export interface CapturedExperimentSnapshot extends CaptureExperimentSnapshotResult {
+  candidates: Array<CaptureExperimentSnapshotResult["candidates"][number] & { diff: string }>;
+}
 
 export {
   computeDefaultWorktreePath,
@@ -61,6 +78,30 @@ export class GitService {
   private readonly experimentService = new GitExperimentService(this.statusService);
   private readonly worktreeService = new GitWorktreeService();
   private readonly mergeService = new GitMergeService(this.worktreeService);
+  private readonly repositoryMutationTails = new Map<string, Promise<void>>();
+
+  private async withRepositoryMutation<T>(
+    location: ProjectLocation,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const key = getLocationIdentity(location);
+    const previous = this.repositoryMutationTails.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const tail = previous.catch(() => undefined).then(() => current);
+    this.repositoryMutationTails.set(key, tail);
+    await previous.catch(() => undefined);
+    try {
+      return await operation();
+    } finally {
+      release();
+      if (this.repositoryMutationTails.get(key) === tail) {
+        this.repositoryMutationTails.delete(key);
+      }
+    }
+  }
 
   setWslClient(client: WslBridgeClient | undefined): void {
     setWslGitBridgeClient(client);
@@ -191,6 +232,104 @@ export class GitService {
     return this.experimentService.getCandidateStats(location, baseRef);
   }
 
+  async captureExperimentSnapshot(
+    payload: CaptureExperimentSnapshotPayload,
+    onCandidateCaptured?: (
+      candidate: CaptureExperimentSnapshotResult["candidates"][number],
+    ) => void,
+  ): Promise<CapturedExperimentSnapshot> {
+    const { worktrees } = await this.worktreeService.listWorktrees(payload.projectLocation);
+    const candidates = new Array<CapturedExperimentSnapshot["candidates"][number]>(
+      payload.candidates.length,
+    );
+    let nextIndex = 0;
+    let nextProgressIndex = 0;
+    const emitCompletedCandidatesInOrder = () => {
+      while (candidates[nextProgressIndex]) {
+        onCandidateCaptured?.(candidates[nextProgressIndex]!);
+        nextProgressIndex += 1;
+      }
+    };
+    const captureNext = async () => {
+      while (nextIndex < payload.candidates.length) {
+        const index = nextIndex++;
+        const candidate = payload.candidates[index]!;
+        const recordedPath = candidate.worktreePath
+          ? normalizeWorktreePath(payload.projectLocation, candidate.worktreePath)
+          : undefined;
+        const atRecordedPath = recordedPath
+          ? worktrees.find(
+              (worktree) =>
+                normalizeWorktreePath(payload.projectLocation, worktree.path) === recordedPath,
+            )
+          : undefined;
+        if (atRecordedPath && atRecordedPath.branch !== candidate.branch) {
+          throw new Error(
+            msg("experiment.merge.worktreeBranchMismatch", {
+              expected: candidate.branch,
+              actual: atRecordedPath.branch,
+            }),
+          );
+        }
+        const worktree =
+          atRecordedPath ?? worktrees.find((entry) => entry.branch === candidate.branch);
+        if (!worktree || worktree.isMain) {
+          throw new Error(msg("experiment.worktree.unavailable"));
+        }
+        const owner = await this.worktreeService.getWorktreeOwner(
+          payload.projectLocation,
+          candidate.branch,
+        );
+        if (owner.ownerToken !== candidate.ownerToken) {
+          throw new Error(
+            msg("experiment.worktree.ownerMismatch", {
+              expected: candidate.ownerToken,
+              actual: owner.ownerToken ?? msg("experiment.worktree.noOwner"),
+            }),
+          );
+        }
+        const worktreeLocation = buildWorktreeLocation(payload.projectLocation, worktree.path);
+        const status = await this.statusService.getStatusSummary(worktreeLocation);
+        if (status.branch !== candidate.branch) {
+          throw new Error(
+            msg("experiment.merge.worktreeBranchMismatch", {
+              expected: candidate.branch,
+              actual: status.branch,
+            }),
+          );
+        }
+        const snapshot = await this.experimentService.getCandidateDiff(
+          worktreeLocation,
+          payload.baseCommit,
+        );
+        const result = {
+          threadId: candidate.threadId,
+          headCommit: snapshot.headCommit,
+          ...countUnifiedDiffStats(snapshot.diff),
+          diff: snapshot.diff,
+        };
+        candidates[index] = result;
+        emitCompletedCandidatesInOrder();
+      }
+    };
+    await Promise.all(
+      Array.from(
+        {
+          length: Math.min(EXPERIMENT_SNAPSHOT_CONCURRENCY, payload.candidates.length),
+        },
+        captureNext,
+      ),
+    );
+    const hash = createHash("sha256");
+    for (const candidate of candidates) {
+      hash.update(candidate.threadId);
+      hash.update("\0");
+      hash.update(candidate.diff);
+      hash.update("\0");
+    }
+    return { hash: hash.digest("hex"), candidates };
+  }
+
   async stage(location: ProjectLocation, filePath: string): Promise<void> {
     await execGit(location, ["add", "--", filePath]);
   }
@@ -249,7 +388,8 @@ export class GitService {
     location: ProjectLocation,
     message: string,
     addAll: boolean,
-  ): Promise<{ hash: string }> {
+    reapplyStashCommit?: string,
+  ): Promise<Omit<GitCommitResult, "message">> {
     if (addAll) {
       await execGit(location, ["add", "."]);
     }
@@ -257,7 +397,20 @@ export class GitService {
       timeout: GIT_HOOK_TIMEOUT,
     });
     const hashMatch = output.match(/\[.+?\s+([a-f0-9]+)\]/);
-    return { hash: hashMatch?.[1] ?? "" };
+    const hash = hashMatch?.[1] ?? "";
+    if (!reapplyStashCommit) return { hash };
+
+    const reapply = await this.mergeService.reapplyPullStash(location, reapplyStashCommit);
+    if (reapply.outcome === "reapplied") return { hash, stashReapplied: true };
+    if (reapply.outcome === "conflict") {
+      return {
+        hash,
+        reapplyConflicting: true,
+        stashPreserved: true,
+        conflictFiles: reapply.conflictFiles,
+      };
+    }
+    return { hash, stashPreserved: true };
   }
 
   async getStagedDiff(location: ProjectLocation): Promise<string> {
@@ -343,18 +496,39 @@ export class GitService {
     sourceBranch?: string,
     ownerToken?: string,
   ): Promise<GitAddWorktreeResult> {
-    return this.worktreeService.addWorktree(
-      location,
-      path,
-      branch,
-      createBranch,
-      startPoint,
-      copyIgnoredPatterns,
-      transferUncommitted,
-      keepChangesInSource,
-      worktreePlacement,
-      sourceBranch,
-      ownerToken,
+    return this.withRepositoryMutation(location, () =>
+      this.worktreeService.addWorktree(
+        location,
+        path,
+        branch,
+        createBranch,
+        startPoint,
+        copyIgnoredPatterns,
+        transferUncommitted,
+        keepChangesInSource,
+        worktreePlacement,
+        sourceBranch,
+        ownerToken,
+      ),
+    );
+  }
+
+  async createExperimentWorktrees(
+    payload: CreateExperimentWorktreesPayload,
+  ): Promise<CreateExperimentWorktreesResult> {
+    return this.withRepositoryMutation(payload.projectLocation, () =>
+      this.worktreeService.addOwnedWorktreesBatch(payload),
+    );
+  }
+
+  async removeExperimentWorktrees(
+    payload: RemoveExperimentWorktreesPayload,
+    onWorktreesResolved?: (
+      worktrees: readonly { threadId: string; path: string }[],
+    ) => Promise<void>,
+  ): Promise<RemoveExperimentWorktreesResult> {
+    return this.withRepositoryMutation(payload.projectLocation, () =>
+      this.worktreeService.removeOwnedWorktreesBatch(payload, onWorktreesResolved),
     );
   }
 
@@ -366,13 +540,15 @@ export class GitService {
     expectedBranch?: string,
     expectedOwnerToken?: string,
   ): Promise<void> {
-    return this.worktreeService.removeWorktree(
-      location,
-      path,
-      force,
-      deleteBranch,
-      expectedBranch,
-      expectedOwnerToken,
+    return this.withRepositoryMutation(location, () =>
+      this.worktreeService.removeWorktree(
+        location,
+        path,
+        force,
+        deleteBranch,
+        expectedBranch,
+        expectedOwnerToken,
+      ),
     );
   }
 
@@ -390,7 +566,9 @@ export class GitService {
     force: boolean,
     expectedOwnerToken?: string,
   ): Promise<void> {
-    return this.worktreeService.deleteBranch(location, branch, force, expectedOwnerToken);
+    return this.withRepositoryMutation(location, () =>
+      this.worktreeService.deleteBranch(location, branch, force, expectedOwnerToken),
+    );
   }
 
   async switchBranch(
@@ -440,12 +618,18 @@ export class GitService {
     return this.mergeService.pullFromSource(worktreeLocation, sourceBranch, preserveLocalChanges);
   }
 
-  async abortMerge(worktreeLocation: ProjectLocation): Promise<void> {
-    return this.mergeService.abortMerge(worktreeLocation);
+  async abortMerge(
+    worktreeLocation: ProjectLocation,
+    reapplyStashCommit?: string,
+  ): Promise<GitAbortMergeResult> {
+    return this.mergeService.abortMerge(worktreeLocation, reapplyStashCommit);
   }
 
-  async finishMerge(worktreeLocation: ProjectLocation): Promise<GitFinishMergeResult> {
-    return this.mergeService.finishMerge(worktreeLocation);
+  async finishMerge(
+    worktreeLocation: ProjectLocation,
+    reapplyStashCommit?: string,
+  ): Promise<GitFinishMergeResult> {
+    return this.mergeService.finishMerge(worktreeLocation, reapplyStashCommit);
   }
 
   async pruneWorktrees(

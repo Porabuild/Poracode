@@ -60,6 +60,7 @@ import type {
   GetGitFileContentPayload,
   GetGitStatusPayload,
   GitAbortMergePayload,
+  GitAbortMergeResult,
   GitAddRemotePayload,
   GitAddWorktreePayload,
   GitAddWorktreeResult,
@@ -310,7 +311,7 @@ export const gitProcedures = {
     GitPullFromSourceResult,
     "supervisor"
   >("gitPullFromSource", "supervisor", gitPullFromSourcePayloadSchema),
-  gitAbortMerge: definePayloadProcedure<GitAbortMergePayload, void, "supervisor">(
+  gitAbortMerge: definePayloadProcedure<GitAbortMergePayload, GitAbortMergeResult, "supervisor">(
     "gitAbortMerge",
     "supervisor",
     gitAbortMergePayloadSchema,

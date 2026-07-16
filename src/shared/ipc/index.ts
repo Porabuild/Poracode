@@ -59,6 +59,7 @@ export {
 } from "./procedures/browser";
 export {
   windowChromePayloadSchema,
+  type DbPersistExperimentStatePayload,
   type PersistedCompletedTurn,
   type PersistedRuntimeItem,
   type PersistedRuntimePage,

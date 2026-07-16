@@ -380,8 +380,27 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     oscHintsDeferToHookPlugin: true,
     workingSilenceTimeoutMs: null,
     defaultOneShotModel: "haiku",
-    buildOneShotCommand(model, effort, prompt, location, fast) {
-      return buildClaudeOneShotCommand(model, effort, prompt, location, fast);
+    buildOneShotCommand(model, effort, prompt, location, fast, oneShotOptions) {
+      return buildClaudeOneShotCommand(
+        model,
+        effort,
+        prompt,
+        location,
+        fast,
+        oneShotOptions?.readOnlyWorkspace
+          ? [
+              "--permission-mode",
+              "plan",
+              "--allowedTools",
+              "Read,Glob,Grep",
+              "--disallowedTools",
+              "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill",
+              "--mcp-config",
+              JSON.stringify({ mcpServers: {} }),
+              "--strict-mcp-config",
+            ]
+          : [],
+      );
     },
     buildTextOnlyOneShotCommand(model, effort, prompt, location, fast) {
       return buildClaudeOneShotCommand(model, effort, prompt, location, fast, [

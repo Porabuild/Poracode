@@ -1,4 +1,5 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import { join, normalize, resolve } from "node:path";
 import { net, protocol } from "electron";
 import type { ProjectLocation } from "@/shared/contracts";
@@ -45,6 +46,13 @@ export function saveHandoffContextFile(
 
 export function deleteThreadAttachments(paths: PoracodePaths, threadId: string): void {
   rmSync(getThreadAttachmentDir(paths, threadId), { recursive: true, force: true });
+}
+
+export async function deleteThreadAttachmentsAsync(
+  paths: PoracodePaths,
+  threadId: string,
+): Promise<void> {
+  await rm(getThreadAttachmentDir(paths, threadId), { recursive: true, force: true });
 }
 
 export function resolveProjectFsPath(payload: {

@@ -1,105 +1,127 @@
+import { Tooltip } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import { FlaskConical, Play, X } from "lucide-react";
+import { FlaskConical, Plus, X } from "lucide-react";
 import type { ExperimentCandidateSpec } from "@/renderer/actions/experimentActions";
 import { Button } from "@/renderer/components/common/Button";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import {
+  ThreadDockActionRow,
+  ThreadDockHeader,
+  ThreadDockList,
+  ThreadDockSection,
+} from "@/renderer/components/thread/ThreadDockUI";
+import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
 
 export interface ExperimentDraftCandidate extends ExperimentCandidateSpec {
   id: string;
   icon?: string;
+  modelLabel: string;
 }
 
 export function ExperimentDraftTargets(props: {
   candidates: readonly ExperimentDraftCandidate[];
-  baseBranch: string;
   isSubmitting: boolean;
+  isAddDisabled: boolean;
   onRemove: (id: string) => void;
   onCancel: () => void;
-  onRun: () => void;
+  onAdd: () => void;
 }) {
   const { t } = useLingui();
 
   return (
-    <div className="mt-1.5 flex flex-col gap-1 px-1">
-      {props.candidates.length > 0 ? (
-        props.candidates.map((candidate, index) => {
-          const label = candidate.agentLabel ?? candidate.agentKind;
-          const details = [
-            candidate.config.model,
-            candidate.config.effort,
-            candidate.config.fast ? t`Fast` : undefined,
-            candidate.presentationMode === "terminal" ? t`CLI` : t`Chat`,
-          ].filter((value): value is string => !!value);
-          return (
-            <div
-              key={candidate.id}
-              className="flex h-8 min-w-0 items-center gap-2 rounded-md border border-border/70 bg-surface-secondary/70 px-2"
-            >
-              <ProviderIcon
-                kind={candidate.agentKind}
-                fallbackLabel={label}
-                {...(candidate.icon ? { icon: candidate.icon } : {})}
-                className="size-4 shrink-0"
-              />
-              <span className="shrink-0 text-xs font-medium">{label}</span>
-              {details.length > 0 ? (
-                <span className="min-w-0 flex-1 truncate text-xs text-muted">
-                  {details.join(" · ")}
-                </span>
-              ) : (
-                <span className="min-w-0 flex-1" />
-              )}
-              <Button
-                isIconOnly
-                size="sm"
-                variant="ghost"
-                className="size-6 min-w-0 shrink-0 text-muted hover:text-danger"
-                aria-label={t`Remove candidate ${index + 1}`}
-                isDisabled={props.isSubmitting}
-                onPress={() => props.onRemove(candidate.id)}
-              >
-                <X className="size-3.5" />
-              </Button>
-            </div>
-          );
-        })
-      ) : (
-        <div className="flex h-8 items-center gap-2 px-2 text-xs text-muted">
-          <FlaskConical className="size-3.5 shrink-0" />
-          <Trans>Run one prompt with multiple agents, then compare their work.</Trans>
-        </div>
-      )}
-
-      <div className="flex min-h-8 items-center gap-2 px-1">
-        <span className="text-xs text-muted">
+    <ThreadDockSection ariaLabel={t`Experiment`} placement="composer">
+      <ThreadDockHeader
+        icon={FlaskConical}
+        title={t`Experiment`}
+        countLabel={
           <Plural value={props.candidates.length} one="# candidate" other="# candidates" />
-        </span>
-        <span className="min-w-0 truncate text-xs text-muted">
-          <Trans>
-            Fork from <span className="font-mono">{props.baseBranch}</span>
-          </Trans>
-        </span>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="ml-auto h-7 px-2 text-xs text-muted"
-          isDisabled={props.isSubmitting}
-          onPress={props.onCancel}
-        >
-          <Trans>Cancel</Trans>
-        </Button>
-        <Button
-          size="sm"
-          variant="tertiary"
-          className="h-7 px-2.5 text-xs"
-          isDisabled={props.candidates.length < 2 || props.isSubmitting}
-          isPending={props.isSubmitting}
-          onPress={props.onRun}
-        >
-          <Play className="size-3.5 fill-current" />
-          <Trans>Run experiment</Trans>
-        </Button>
-      </div>
-    </div>
+        }
+        actions={
+          <div className="flex items-center gap-0.5">
+            <Tooltip delay={0}>
+              <Tooltip.Trigger>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  className="size-6 min-w-0 shrink-0 text-muted"
+                  aria-label={t`Add candidate`}
+                  isDisabled={props.isAddDisabled}
+                  onPress={props.onAdd}
+                >
+                  <Plus className="size-3.5" />
+                </Button>
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                <Trans>Add candidate</Trans>
+              </Tooltip.Content>
+            </Tooltip>
+            <Tooltip delay={0}>
+              <Tooltip.Trigger>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="ghost"
+                  className="size-6 min-w-0 shrink-0 text-muted"
+                  aria-label={t`Cancel`}
+                  isDisabled={props.isSubmitting}
+                  onPress={props.onCancel}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </Tooltip.Trigger>
+              <Tooltip.Content>
+                <Trans>Cancel</Trans>
+              </Tooltip.Content>
+            </Tooltip>
+          </div>
+        }
+      />
+      {props.candidates.length > 0 ? (
+        <ThreadDockList placement="composer" gap="1">
+          {props.candidates.map((candidate, index) => {
+            const provider = candidate.agentLabel ?? candidate.agentKind;
+            const label = [
+              candidate.modelLabel,
+              candidate.config.effort ? formatEffortLabel(candidate.config.effort) : undefined,
+              candidate.config.fast ? t`Fast` : undefined,
+            ]
+              .filter((value): value is string => !!value)
+              .join(" · ");
+            const details = [
+              label ? provider : undefined,
+              candidate.presentationMode === "terminal" ? t`CLI` : t`Chat`,
+            ]
+              .filter((value): value is string => !!value)
+              .join(" · ");
+            const title = label || provider;
+            return (
+              <ThreadDockActionRow
+                key={candidate.id}
+                title={details ? `${title} · ${details}` : title}
+                action={<X className="size-3" />}
+                actionLabel={t`Remove candidate ${index + 1}`}
+                actionTitle={t`Remove candidate ${index + 1}`}
+                onAction={() => props.onRemove(candidate.id)}
+                isActionDisabled={props.isSubmitting}
+              >
+                <ProviderIcon
+                  kind={candidate.agentKind}
+                  fallbackLabel={provider}
+                  {...(candidate.icon ? { icon: candidate.icon } : {})}
+                  className="size-3.5 shrink-0"
+                />
+                <span className="min-w-0 flex-1 truncate leading-5 text-foreground">{title}</span>
+                {details ? (
+                  <span className="max-w-[55%] shrink-0 truncate text-foreground-muted opacity-80">
+                    {details}
+                  </span>
+                ) : null}
+              </ThreadDockActionRow>
+            );
+          })}
+        </ThreadDockList>
+      ) : null}
+    </ThreadDockSection>
   );
 }

@@ -17,6 +17,23 @@ const outputFile = join(outputDir, "better_sqlite3.node");
 // and cross-platform, so no `.cmd` vs. bare-name branch is needed.
 const nodeGypJs = require.resolve("node-gyp/bin/node-gyp.js");
 
+function bindingWorks(path) {
+  if (!existsSync(path)) return false;
+  const betterSqliteEntry = require.resolve("better-sqlite3");
+  const probe = spawnSync(
+    process.execPath,
+    [
+      "-e",
+      `const Database = require(${JSON.stringify(betterSqliteEntry)}); const db = new Database(":memory:", { nativeBinding: process.env.PORACODE_NATIVE_BINDING_PROBE }); db.close();`,
+    ],
+    {
+      stdio: "ignore",
+      env: { ...process.env, PORACODE_NATIVE_BINDING_PROBE: path },
+    },
+  );
+  return probe.status === 0;
+}
+
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     stdio: "inherit",
@@ -29,6 +46,11 @@ function run(command, args, options = {}) {
         : `exit code ${result.status}`;
     throw new Error(`${command} ${args.join(" ")} failed with ${reason}`);
   }
+}
+
+if (bindingWorks(outputFile)) {
+  console.log(`[poracode-server] Node-ABI better-sqlite3 binding is current: ${outputFile}`);
+  process.exit(0);
 }
 
 rmSync(stageRoot, { recursive: true, force: true });

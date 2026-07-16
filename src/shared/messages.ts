@@ -35,7 +35,10 @@ const messages = {
   "git.pull.localChanges": "Local changes need to be stashed before pulling from {branch}",
   "git.pull.reapplyConflicts": "Re-applying local changes has conflicts",
   "git.pull.stashPreserved":
-    "Pull did not complete. Your local changes remain in a Lightcode stash.",
+    "Pull did not complete. Your local changes remain in a Poracode stash.",
+  "git.pull.reapplyAfterMerge":
+    "Your local changes were stashed and will be re-applied once the merge is resolved.",
+  "git.pull.stashReapplied": "Your stashed local changes were re-applied.",
 
   // ── Git: worktree ─────────────────────────────────────────
   "git.worktree.noBranch": "Cannot create a default worktree path without a branch name",
@@ -84,16 +87,17 @@ const messages = {
   "experiment.worktree.sourceMoved": "Source branch {branch} moved before the worktree was created",
   "experiment.worktree.ownerMismatch": "Expected worktree owner {expected}, but found {actual}",
   "experiment.worktree.noOwner": "none",
+  "experiment.worktree.unavailable": "The experiment candidate worktree is unavailable.",
   "experiment.judge.atLeastTwo": "Experiment judge requires at least two candidates",
   "experiment.judge.invalidJson": "Experiment judge returned invalid JSON",
   "experiment.judge.invalidShape": "Experiment judge returned an invalid response shape",
   "experiment.judge.winnerRange": "Experiment judge winner must be between 1 and {candidateCount}",
   "experiment.judge.emptyRationale": "Experiment judge returned an empty rationale",
+  "experiment.judge.noChanges": "The candidates have not made any changes yet.",
   "experiment.judge.promptBlank": "Experiment prompt must not be blank",
   "experiment.judge.uniqueThreadIds": "Experiment candidate thread ids must be unique",
   "experiment.judge.noDefaultModel": "No default one-shot model configured for {provider}",
-  "experiment.judge.textOnlyUnsupported":
-    "{provider} does not support text-only one-shot generation",
+  "experiment.judge.oneShotUnsupported": "{provider} does not support one-shot generation",
 
   // ── Git: WSL ──────────────────────────────────────────────
   "git.wsl.homeNotFound": 'Unable to resolve home directory for WSL distro "{distro}"',

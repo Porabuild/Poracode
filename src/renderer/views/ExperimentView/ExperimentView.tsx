@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Tooltip } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
@@ -6,18 +6,18 @@ import { Crown, FlaskConical, LayoutGrid, Loader2, Trash2, X } from "lucide-reac
 import { isThreadTurnActive } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import {
-  crownExperiment,
+  createExperimentCandidatePr,
   discardExperiment,
+  isEligibleExperimentJudgeAgent,
   mergeExperimentWinner,
   retryExperimentCleanup,
   setManualExperimentCrown,
 } from "@/renderer/actions/experimentActions";
+import { formatModelConfigLabel } from "@/renderer/components/providers/modelDisplay";
 import { openThread } from "@/renderer/actions/threadActions";
 import { Button } from "@/renderer/components/common/Button";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
-import { OptionMenu } from "@/renderer/components/common/OptionMenu";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
-import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
@@ -25,8 +25,12 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
 import { HomeView } from "@/renderer/views/HomeView";
 import { ExperimentCandidateCard } from "./parts/ExperimentCandidateCard";
+import { ExperimentPromptSection } from "./parts/ExperimentPromptSection";
+import { ExperimentJudgeDialog } from "./parts/ExperimentJudgeDialog";
+import { ExperimentJudgeRunDialog } from "./parts/ExperimentJudgeRunDialog";
+import { useExperimentJudgeRun } from "./parts/useExperimentJudgeRun";
 
-type Operation = "crown" | "merge" | "cleanup" | "discard";
+type Operation = "crown" | "merge" | "cleanup" | "discard" | "pr";
 type Confirmation = { kind: "merge" } | { kind: "discard" } | null;
 
 export function ExperimentView(props: { experimentId: string }) {
@@ -40,31 +44,15 @@ export function ExperimentView(props: { experimentId: string }) {
       : undefined,
   );
   const disabledAgents = useSharedSettings((state) => state.disabledAgents);
-  const judgeAgents = useAgentStatusesStore(
+  const projectAgents = useAgentStatusesStore(
     useShallow((state) =>
       project
-        ? getProjectAgentStatuses(
-            project.location,
-            state.agentStatuses,
-            state.wslAgentStatuses,
-          ).filter(
-            (agent) =>
-              agent.installed &&
-              agent.authState !== "missing" &&
-              !disabledAgents.includes(agent.kind) &&
-              agent.capabilities.supportsTextOnlyOneShot === true,
-          )
+        ? getProjectAgentStatuses(project.location, state.agentStatuses, state.wslAgentStatuses)
         : [],
     ),
   );
-  const candidateThreads = useAppStore(
-    useShallow((state) =>
-      experiment
-        ? state.threads.filter((thread) =>
-            experiment.candidates.some((candidate) => candidate.threadId === thread.id),
-          )
-        : [],
-    ),
+  const judgeAgents = projectAgents.filter((agent) =>
+    isEligibleExperimentJudgeAgent(agent, disabledAgents),
   );
   const hasActiveTurn = useAppStore((state) =>
     experiment
@@ -85,81 +73,41 @@ export function ExperimentView(props: { experimentId: string }) {
     experiment?.status === "decided" &&
     experiment.candidates.some((candidate) => candidate.worktreeState !== "removed");
 
-  const judgeOptions: Array<{
-    id: string;
-    label: string;
-    agentKind: string;
-    threadId?: string;
-    icon: ReactNode;
-  }> = [];
-  const seenJudgeConfigs = new Set<string>();
-  const candidateAgentKinds = new Set(
-    experiment?.candidates.map((candidate) => candidate.agentKind) ?? [],
-  );
-  for (const agent of judgeAgents) {
-    if (candidateAgentKinds.has(agent.kind)) continue;
-    judgeOptions.push({
-      id: `agent:${agent.kind}`,
-      label: agent.label,
-      agentKind: agent.kind,
-      icon: (
-        <ProviderIcon
-          kind={agent.kind}
-          fallbackLabel={agent.label}
-          {...(agent.icon ? { icon: agent.icon } : {})}
-          className="size-4"
-        />
-      ),
-    });
-  }
-  for (const candidate of experiment?.candidates ?? []) {
-    const agent = judgeAgents.find((item) => item.kind === candidate.agentKind);
-    const thread = candidateThreads.find((item) => item.id === candidate.threadId);
-    if (!agent || !thread) continue;
-    const configKey = [
-      agent.kind,
-      thread.config.model,
-      thread.config.effort,
-      thread.config.fast,
-    ].join("\0");
-    if (seenJudgeConfigs.has(configKey)) continue;
-    seenJudgeConfigs.add(configKey);
-    const details = [thread.config.model, thread.config.effort].filter(Boolean).join(" · ");
-    judgeOptions.push({
-      id: `thread:${thread.id}`,
-      label: details ? `${agent.label} · ${details}` : agent.label,
-      agentKind: agent.kind,
-      threadId: thread.id,
-      icon: (
-        <ProviderIcon
-          kind={agent.kind}
-          fallbackLabel={agent.label}
-          {...(agent.icon ? { icon: agent.icon } : {})}
-          className="size-4"
-        />
-      ),
-    });
-  }
-  for (const agent of judgeAgents) {
-    if (judgeOptions.some((option) => option.agentKind === agent.kind)) continue;
-    judgeOptions.push({
-      id: `agent:${agent.kind}`,
-      label: agent.label,
-      agentKind: agent.kind,
-      icon: (
-        <ProviderIcon
-          kind={agent.kind}
-          fallbackLabel={agent.label}
-          {...(agent.icon ? { icon: agent.icon } : {})}
-          className="size-4"
-        />
-      ),
-    });
-  }
-  const [selectedJudgeId, setSelectedJudgeId] = useState("");
-  const selectedJudge =
-    judgeOptions.find((option) => option.id === selectedJudgeId) ?? judgeOptions[0];
-  const hasAvailableJudge = judgeOptions.length > 0;
+  const hasAvailableJudge = judgeAgents.length > 0;
+  const judge = useExperimentJudgeRun({
+    experiment,
+    judgeAgents,
+    projectAgents,
+    runCrown: (action) => void performOperation("crown", action),
+  });
+
+  useEffect(() => {
+    if (!experiment) return;
+    const threadById = new Map(
+      useAppStore.getState().threads.map((thread) => [thread.id, thread] as const),
+    );
+    const nextTitles = new Map<string, string>();
+    for (const candidate of experiment.candidates) {
+      const thread = threadById.get(candidate.threadId);
+      const provider = candidate.agentLabel ?? candidate.agentKind;
+      const model = formatModelConfigLabel(
+        projectAgents.find((agent) => agent.kind === candidate.agentKind),
+        candidate,
+      );
+      if (model && thread?.title === `${provider} · ${model}`) {
+        nextTitles.set(thread.id, `${model} · ${provider}`);
+      }
+    }
+    if (nextTitles.size > 0) {
+      const updatedAt = new Date().toISOString();
+      useAppStore.setState((state) => ({
+        threads: state.threads.map((thread) => {
+          const title = nextTitles.get(thread.id);
+          return title ? { ...thread, title, updatedAt } : thread;
+        }),
+      }));
+    }
+  }, [experiment, projectAgents]);
 
   if (!experiment) return <HomeView />;
 
@@ -168,6 +116,7 @@ export function ExperimentView(props: { experimentId: string }) {
   const decided = exp.status === "decided";
   const crownThreadId = exp.crown?.threadId;
   const crownedCandidate = candidates.find((candidate) => candidate.threadId === crownThreadId);
+  const hasAiResults = exp.crown?.source === "ai";
   const operationLocked = operation !== null;
 
   async function performOperation(kind: Operation, action: () => void | Promise<void>) {
@@ -196,40 +145,52 @@ export function ExperimentView(props: { experimentId: string }) {
 
   const loserCount = Math.max(candidates.length - 1, 0);
   const mergeTarget = exp.baseBranch;
-  const crownedLabel = crownedCandidate?.agentLabel ?? crownedCandidate?.agentKind ?? t`the winner`;
+  const crownedProvider = crownedCandidate?.agentLabel ?? crownedCandidate?.agentKind;
+  const crownedModel = crownedCandidate
+    ? formatModelConfigLabel(
+        projectAgents.find((agent) => agent.kind === crownedCandidate.agentKind),
+        crownedCandidate,
+      )
+    : "";
+  const crownedLabel = crownedModel
+    ? `${crownedModel} · ${crownedProvider}`
+    : (crownedProvider ?? t`the winner`);
 
   return (
     <div className="flex h-full flex-col">
       <div
-        className={`poracode-content-over-drag-region ${macosTrafficLightPadClass} flex h-[env(titlebar-area-height,32px)] shrink-0 items-center gap-2 border-b border-border px-2`}
+        className={`poracode-content-over-drag-region ${macosTrafficLightPadClass} h-[env(titlebar-area-height,32px)] shrink-0 px-3`}
       >
-        <FlaskConical className="size-3.5 shrink-0 text-muted" />
-        <span className="truncate text-xs font-medium">{exp.title}</span>
-        <span className="shrink-0 rounded-full bg-surface-secondary px-1.5 py-0.5 text-[10px] text-muted">
-          <Plural value={candidates.length} one="# candidate" other="# candidates" />
-        </span>
-        <div className="ml-auto flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-7 px-2 text-xs"
-            isDisabled={candidates.length < 2 || operationLocked}
-            onPress={() => useAppStore.getState().openGroupGrid(exp.id)}
-          >
-            <LayoutGrid className="size-3.5" />
-            <Trans>Open All</Trans>
-          </Button>
-          {!decided ? (
-            <div className="flex items-center gap-1">
-              <OptionMenu
-                value={selectedJudge?.id ?? ""}
-                options={judgeOptions}
-                onChange={setSelectedJudgeId}
-                placeholder={t`AI judge`}
-                buttonVariant="tertiary"
-                className="h-7 max-w-56 px-2 text-xs"
-                isDisabled={operationLocked || hasActiveCandidate || !hasAvailableJudge}
-              />
+        <div className="mx-auto flex h-full max-w-4xl items-center gap-2">
+          <FlaskConical className="size-3.5 shrink-0 text-muted" />
+          <span className="truncate text-xs font-medium">{exp.title}</span>
+          <span className="shrink-0 rounded-full bg-surface-secondary px-1.5 py-0.5 text-[10px] text-muted">
+            <Plural value={candidates.length} one="# candidate" other="# candidates" />
+          </span>
+          <div className="ml-auto flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="tertiary"
+              className="h-7 px-2 text-xs"
+              isDisabled={candidates.length < 2 || operation === "merge" || operation === "discard"}
+              onPress={() => useAppStore.getState().openGroupGrid(exp.id)}
+            >
+              <LayoutGrid className="size-3.5" />
+              <Trans>Open All</Trans>
+            </Button>
+            {hasAiResults ? (
+              <Button
+                size="sm"
+                variant="tertiary"
+                className="h-7 px-2.5 text-xs"
+                isDisabled={operation === "crown"}
+                onPress={judge.openResults}
+              >
+                <Crown className="size-3" />
+                <Trans>Results</Trans>
+              </Button>
+            ) : null}
+            {!decided ? (
               <Tooltip delay={300}>
                 <Tooltip.Trigger>
                   <Button
@@ -243,21 +204,7 @@ export function ExperimentView(props: { experimentId: string }) {
                       !hasAvailableJudge
                     }
                     isPending={operation === "crown"}
-                    onPress={() =>
-                      void performOperation("crown", async () => {
-                        await crownExperiment(
-                          exp.id,
-                          selectedJudge
-                            ? {
-                                agentKind: selectedJudge.agentKind,
-                                ...(selectedJudge.threadId
-                                  ? { threadId: selectedJudge.threadId }
-                                  : {}),
-                              }
-                            : undefined,
-                        );
-                      })
-                    }
+                    onPress={judge.open}
                   >
                     {operation === "crown" ? (
                       <Loader2 className="size-3 animate-spin" />
@@ -277,62 +224,56 @@ export function ExperimentView(props: { experimentId: string }) {
                   )}
                 </Tooltip.Content>
               </Tooltip>
-            </div>
-          ) : null}
-          {decided && hasCleanupPending ? (
+            ) : null}
+            {decided && hasCleanupPending ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-6 px-2 text-xs"
+                isDisabled={operationLocked || hasActiveCandidate}
+                isPending={operation === "cleanup"}
+                onPress={() =>
+                  void performOperation("cleanup", async () => {
+                    await retryExperimentCleanup(exp.id);
+                  })
+                }
+              >
+                <Trans>Retry cleanup</Trans>
+              </Button>
+            ) : null}
             <Button
+              isIconOnly
               size="sm"
-              variant="secondary"
-              className="h-6 px-2 text-xs"
-              isDisabled={operationLocked || hasActiveCandidate}
-              isPending={operation === "cleanup"}
-              onPress={() =>
-                void performOperation("cleanup", async () => {
-                  await retryExperimentCleanup(exp.id);
-                })
-              }
+              variant="ghost"
+              isDisabled={operation === "discard"}
+              aria-label={t`Discard experiment`}
+              className="size-6 min-w-0 text-muted hover:text-danger"
+              onPress={() => setConfirmation({ kind: "discard" })}
             >
-              <Trans>Retry cleanup</Trans>
+              <Trash2 className="size-3.5" />
             </Button>
-          ) : null}
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            isDisabled={operationLocked || hasActiveCandidate}
-            aria-label={t`Discard experiment`}
-            className="size-6 min-w-0 text-muted hover:text-danger"
-            onPress={() => setConfirmation({ kind: "discard" })}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            isDisabled={operationLocked}
-            aria-label={t`Close experiment`}
-            className="size-6 min-w-0 text-muted"
-            onPress={() => useAppStore.getState().openHome()}
-          >
-            <X className="size-3.5" />
-          </Button>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              isDisabled={operation === "merge" || operation === "discard"}
+              aria-label={t`Close experiment`}
+              className="size-6 min-w-0 text-muted"
+              onPress={() => useAppStore.getState().openHome()}
+            >
+              <X className="size-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3">
-          <div className="rounded-lg border border-border bg-surface-secondary px-3 py-2.5">
-            <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-muted">
-              <Trans>Prompt</Trans>
-            </div>
-            <p className="whitespace-pre-wrap text-sm text-foreground/90">{exp.prompt}</p>
-            <div className="mt-1.5 text-xs text-muted">
-              <Trans>
-                Forked from <span className="font-mono">{exp.baseBranch}</span>
-              </Trans>
-            </div>
-          </div>
+        <div className="mx-auto flex max-w-4xl flex-col gap-3">
+          <ExperimentPromptSection
+            prompt={exp.prompt}
+            {...(exp.segments ? { segments: exp.segments } : {})}
+            baseBranch={exp.baseBranch}
+          />
 
           {decided ? (
             <div
@@ -350,32 +291,62 @@ export function ExperimentView(props: { experimentId: string }) {
             </div>
           ) : null}
 
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,18rem),1fr))] gap-2.5">
-            {candidates.map((candidate, index) => (
-              <ExperimentCandidateCard
-                key={candidate.threadId}
-                candidate={candidate}
-                candidateNumber={index + 1}
-                baseCommit={exp.baseCommit}
-                isCrowned={crownThreadId === candidate.threadId}
-                isWinner={exp.winnerThreadId === candidate.threadId}
-                {...(exp.crown?.rationale ? { crownRationale: exp.crown.rationale } : {})}
-                {...(exp.crown?.source ? { crownSource: exp.crown.source } : {})}
-                decided={decided}
-                operationLocked={operationLocked}
-                hasActiveCandidate={hasActiveCandidate}
-                onOpen={() => openThread(candidate.threadId)}
-                onCrown={() =>
-                  void performOperation("crown", () =>
-                    setManualExperimentCrown(exp.id, candidate.threadId),
-                  )
-                }
-                onMerge={() => setConfirmation({ kind: "merge" })}
-              />
-            ))}
+          <div className="divide-y divide-[var(--hairline)] overflow-hidden rounded-xl border border-[var(--hairline)] bg-surface-secondary/30">
+            {candidates.map((candidate, index) => {
+              const candidateAgent = projectAgents.find(
+                (agent) => agent.kind === candidate.agentKind,
+              );
+              const configLabel = formatModelConfigLabel(candidateAgent, candidate);
+              return (
+                <ExperimentCandidateCard
+                  key={candidate.threadId}
+                  candidate={candidate}
+                  candidateNumber={index + 1}
+                  baseCommit={exp.baseCommit}
+                  configLabel={configLabel}
+                  isCrowned={crownThreadId === candidate.threadId}
+                  isWinner={exp.winnerThreadId === candidate.threadId}
+                  decided={decided}
+                  operationLocked={operationLocked}
+                  hasActiveCandidate={hasActiveCandidate}
+                  isCreatingPr={operation === "pr"}
+                  isMerging={operation === "merge"}
+                  onOpen={() => openThread(candidate.threadId)}
+                  onCrown={() =>
+                    void performOperation("crown", () =>
+                      setManualExperimentCrown(exp.id, candidate.threadId),
+                    )
+                  }
+                  onMerge={() => setConfirmation({ kind: "merge" })}
+                  onCreatePr={() =>
+                    void performOperation("pr", async () => {
+                      await createExperimentCandidatePr(exp.id, candidate.threadId);
+                    })
+                  }
+                />
+              );
+            })}
           </div>
         </div>
       </div>
+
+      {judge.config ? (
+        <ExperimentJudgeDialog
+          agents={judgeAgents}
+          config={judge.config}
+          onChange={judge.setConfig}
+          onConfirm={judge.confirm}
+          onClose={() => judge.setConfig(null)}
+        />
+      ) : null}
+
+      {judge.run ? (
+        <ExperimentJudgeRunDialog
+          run={judge.run}
+          onCancel={judge.cancel}
+          onClose={() => judge.setRun(null)}
+        />
+      ) : null}
 
       <ConfirmDialog
         isOpen={confirmation?.kind === "merge"}

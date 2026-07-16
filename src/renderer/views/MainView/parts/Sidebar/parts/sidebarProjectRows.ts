@@ -94,6 +94,17 @@ function selectVisible<T>(
   return { visible, hiddenCount: items.length - visible.size };
 }
 
+function compareExperimentCandidateOrder(
+  candidateOrder: ReadonlyMap<string, number>,
+  a: Thread,
+  b: Thread,
+): number {
+  const aIndex = candidateOrder.get(a.id);
+  const bIndex = candidateOrder.get(b.id);
+  if (aIndex === undefined || bIndex === undefined) return 0;
+  return aIndex - bIndex;
+}
+
 function pushEntryRows(
   rows: SidebarRow[],
   entry: ThreadListEntry,
@@ -104,6 +115,7 @@ function pushEntryRows(
     dndDisabled: boolean;
     isCollapsed: (key: string) => boolean;
     nextUngroupedIndex: () => number;
+    experimentCandidateOrder?: ReadonlyMap<string, number>;
   },
 ) {
   if (entry.kind === "thread") {
@@ -154,7 +166,14 @@ function pushEntryRows(
     entry,
   });
   if (!input.isCollapsed(`group:${groupKey}`)) {
-    entry.group.threads.forEach((thread, threadIndex) => {
+    const candidateOrder = input.experimentCandidateOrder;
+    const threads =
+      candidateOrder?.size && entry.group.threads.some((thread) => candidateOrder.has(thread.id))
+        ? [...entry.group.threads].sort((a, b) =>
+            compareExperimentCandidateOrder(candidateOrder, a, b),
+          )
+        : entry.group.threads;
+    threads.forEach((thread, threadIndex) => {
       rows.push({
         kind: "thread",
         key: `group:${groupKey}:thread:${thread.id}`,
@@ -162,11 +181,41 @@ function pushEntryRows(
         threadIndex,
         group: `group:${groupKey}`,
         showWorktreeBadge: !!thread.worktreePath,
+        showWorktreeFilesButton: !!thread.worktreePath,
         sortDisabled: input.dndDisabled,
         inGroup: true,
       });
     });
   }
+}
+
+function orderManualExperimentCandidates(
+  threads: Thread[],
+  candidateOrder: ReadonlyMap<string, number> | undefined,
+): Thread[] {
+  if (!candidateOrder || candidateOrder.size === 0) return threads;
+  const candidatesByGroup = new Map<string, Thread[]>();
+  for (const thread of threads) {
+    if (!thread.groupId || !candidateOrder.has(thread.id)) continue;
+    const group = candidatesByGroup.get(thread.groupId) ?? [];
+    group.push(thread);
+    candidatesByGroup.set(thread.groupId, group);
+  }
+  for (const group of candidatesByGroup.values()) {
+    group.sort((a, b) => compareExperimentCandidateOrder(candidateOrder, a, b));
+  }
+  const emitted = new Set<string>();
+  const ordered: Thread[] = [];
+  for (const thread of threads) {
+    if (!thread.groupId || !candidateOrder.has(thread.id)) {
+      ordered.push(thread);
+      continue;
+    }
+    if (emitted.has(thread.groupId)) continue;
+    emitted.add(thread.groupId);
+    ordered.push(...(candidatesByGroup.get(thread.groupId) ?? [thread]));
+  }
+  return ordered;
 }
 
 export function buildSidebarProjectRows(input: {
@@ -180,6 +229,8 @@ export function buildSidebarProjectRows(input: {
   visibleLimit: number;
   /** Threads with live background activity — kept visible like working ones. */
   liveBackgroundThreadIds?: ReadonlySet<string>;
+  /** Canonical candidate positions for experiment groups. */
+  experimentCandidateOrder?: ReadonlyMap<string, number>;
 }): SidebarRow[] {
   const rows: SidebarRow[] = [];
   const dndGroup = `project-entries:${input.projectId}`;
@@ -188,8 +239,9 @@ export function buildSidebarProjectRows(input: {
     input.expandAllGroups ? false : isSidebarGroupCollapsed(input.collapsedWorktrees, key);
 
   if (input.sortMode === "manual") {
-    const orderedThreads = [...input.projectThreads].sort(
-      (a, b) => Number(b.starred) - Number(a.starred),
+    const orderedThreads = orderManualExperimentCandidates(
+      [...input.projectThreads].sort((a, b) => Number(b.starred) - Number(a.starred)),
+      input.experimentCandidateOrder,
     );
     const { visible, hiddenCount } = selectVisible(orderedThreads, input.visibleLimit, (t) =>
       threadIsProtected(t, liveBackgroundThreadIds),
@@ -239,6 +291,9 @@ export function buildSidebarProjectRows(input: {
         dndDisabled: true,
         isCollapsed,
         nextUngroupedIndex,
+        ...(input.experimentCandidateOrder
+          ? { experimentCandidateOrder: input.experimentCandidateOrder }
+          : {}),
       });
     });
   };

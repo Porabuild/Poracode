@@ -29,6 +29,10 @@ function runningExperiment() {
     projectId: "project-1",
     title: "Compare implementations",
     prompt: "Implement the feature",
+    segments: [
+      { kind: "text" as const, content: "Implement the feature" },
+      { kind: "attachment" as const, path: "C:\\tmp\\design.png", mimeType: "image/png" },
+    ],
     baseBranch: "main",
     baseCommit: BASE_COMMIT,
     candidates: [candidate("thread-1"), candidate("thread-2")],
@@ -40,6 +44,7 @@ function runningExperiment() {
 
 function judgePayload() {
   return {
+    experimentId: "exp-1",
     projectLocation: { kind: "windows" as const, path: "C:\\repo" },
     agentKind: "codex",
     model: "gpt-5.5",

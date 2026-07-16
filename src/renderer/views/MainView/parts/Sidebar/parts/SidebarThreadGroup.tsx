@@ -22,6 +22,7 @@ import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useIsWorktreeCollapsed, useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { closeThreads } from "@/renderer/utils/shellUtils";
+import { ExperimentGroupHeader } from "./ExperimentGroupHeader";
 import { InlineRenameInput } from "./InlineRenameInput";
 import type { ThreadListEntry } from "./groupThreads";
 
@@ -174,134 +175,120 @@ export function SidebarThreadGroup(props: {
             }
           }}
         >
-          <div className="group flex w-full items-center gap-1 rounded px-2 py-1">
-            <button
-              type="button"
-              className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-xs font-medium text-muted transition-colors hover:text-foreground"
-              onClick={() => {
-                if (experiment) openExperimentBoard();
-                else toggleWorktreeCollapsed(collapseKey);
+          {experiment ? (
+            <ExperimentGroupHeader
+              title={entry.group.groupName}
+              isCollapsed={isGroupCollapsed}
+              isDone={isDone}
+              updatedAt={latestThreadUpdatedAt}
+              canOpenAll={activeThreads.length >= 2}
+              isRenaming={isRenamingGroup}
+              onRenameCommit={(newName) => {
+                useAppStore.setState((state) => ({
+                  threads: state.threads.map((thread) =>
+                    thread.groupId === groupKey ? { ...thread, groupName: newName } : thread,
+                  ),
+                }));
+                renameExperiment(experiment.id, newName);
+                setEditingThreadId(null);
               }}
-            >
-              {!experiment ? (
+              onRenameCancel={() => setEditingThreadId(null)}
+              onToggleCollapse={() => toggleWorktreeCollapsed(collapseKey)}
+              onOpenBoard={openExperimentBoard}
+              onOpenAll={() => useAppStore.getState().openGroupGrid(entry.group.groupId)}
+              onDiscard={removeGroupThreads}
+            />
+          ) : (
+            <div className="group flex w-full items-center gap-1 rounded px-2 py-1">
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-xs font-medium text-muted transition-colors hover:text-foreground"
+                onClick={() => toggleWorktreeCollapsed(collapseKey)}
+              >
                 <ChevronRight
                   className={`size-3 shrink-0 transition-transform ${
                     isGroupCollapsed ? "" : "rotate-90"
                   }`}
                 />
-              ) : null}
-              {isDone && <Check className="size-3.5 shrink-0 text-success" strokeWidth={4} />}
-              {experiment ? <FlaskConical className="size-3.5 shrink-0 text-accent" /> : null}
-              {isRenamingGroup ? (
-                <InlineRenameInput
-                  ariaLabel={experiment ? t`Rename experiment` : t`Rename Group`}
-                  initialValue={entry.group.groupName}
-                  onCommit={(newName) => {
-                    useAppStore.setState((state) => ({
-                      threads: state.threads.map((thread) =>
-                        thread.groupId === groupKey ? { ...thread, groupName: newName } : thread,
-                      ),
-                    }));
-                    if (experiment) renameExperiment(experiment.id, newName);
-                    setEditingThreadId(null);
-                  }}
-                  onCancel={() => setEditingThreadId(null)}
-                />
-              ) : (
-                <>
-                  <span className={`truncate ${isDone ? "opacity-50 line-through" : ""}`}>
-                    {entry.group.groupName}
-                  </span>
-                  <span className={`shrink-0 text-muted/60 ${isDone ? "opacity-50" : ""}`}>
-                    {entry.group.threads.length}
-                  </span>
-                </>
-              )}
-            </button>
-            {!isRenamingGroup && (experiment || activeThreads.length >= 2) && (
-              <Tooltip delay={300}>
-                <Tooltip.Trigger>
-                  <button
-                    type="button"
-                    aria-label={experiment ? t`Open experiment board` : t`Open all in group`}
-                    className={`flex h-[18px] shrink-0 items-center justify-center rounded text-muted/40 transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground ${hiddenGroupActionClass}`}
-                    onClick={() => {
-                      if (experiment) openExperimentBoard();
-                      else useAppStore.getState().openGroupView(entry.group.groupId);
+                {isDone && <Check className="size-3.5 shrink-0 text-success" strokeWidth={4} />}
+                {isRenamingGroup ? (
+                  <InlineRenameInput
+                    ariaLabel={t`Rename Group`}
+                    initialValue={entry.group.groupName}
+                    onCommit={(newName) => {
+                      useAppStore.setState((state) => ({
+                        threads: state.threads.map((thread) =>
+                          thread.groupId === groupKey ? { ...thread, groupName: newName } : thread,
+                        ),
+                      }));
+                      setEditingThreadId(null);
                     }}
-                  >
-                    {experiment ? (
-                      <FlaskConical className="size-3" />
-                    ) : (
+                    onCancel={() => setEditingThreadId(null)}
+                  />
+                ) : (
+                  <>
+                    <span className={`truncate ${isDone ? "opacity-50 line-through" : ""}`}>
+                      {entry.group.groupName}
+                    </span>
+                    <span className={`shrink-0 text-muted/60 ${isDone ? "opacity-50" : ""}`}>
+                      {entry.group.threads.length}
+                    </span>
+                  </>
+                )}
+              </button>
+              {!isRenamingGroup && activeThreads.length >= 2 && (
+                <Tooltip delay={300}>
+                  <Tooltip.Trigger>
+                    <button
+                      type="button"
+                      aria-label={t`Open all in group`}
+                      className={`flex h-[18px] shrink-0 items-center justify-center rounded text-muted/40 transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground ${hiddenGroupActionClass}`}
+                      onClick={() => useAppStore.getState().openGroupView(entry.group.groupId)}
+                    >
                       <Columns2 className="size-3" />
-                    )}
-                  </button>
-                </Tooltip.Trigger>
-                <Tooltip.Content>
-                  {experiment ? (
-                    <Trans>Open experiment board</Trans>
-                  ) : (
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content>
                     <Trans>Open all in group</Trans>
-                  )}
-                </Tooltip.Content>
-              </Tooltip>
-            )}
-            {!isRenamingGroup && experiment && activeThreads.length >= 2 ? (
-              <Tooltip delay={300}>
-                <Tooltip.Trigger>
-                  <button
-                    type="button"
-                    aria-label={t`Open All`}
-                    className={`flex h-[18px] shrink-0 items-center justify-center rounded text-muted/40 transition-[opacity,color,background-color] hover:bg-[var(--row-hover)] hover:text-foreground ${hiddenGroupActionClass}`}
-                    onClick={() => useAppStore.getState().openGroupGrid(entry.group.groupId)}
-                  >
-                    <Columns2 className="size-3" />
-                  </button>
-                </Tooltip.Trigger>
-                <Tooltip.Content>
-                  <Trans>Open All</Trans>
-                </Tooltip.Content>
-              </Tooltip>
-            ) : null}
-            {!isRenamingGroup && (
-              <span className="relative w-[2.4ch] shrink-0">
-                <RelativeTime
-                  iso={latestThreadUpdatedAt}
-                  className="block text-center font-mono text-[10px] tabular-nums text-muted group-hover:invisible"
-                />
-                <div
-                  role="button"
-                  tabIndex={0}
-                  aria-label={
-                    experiment
-                      ? t`Discard ${entry.group.groupName}`
-                      : threadRemoveAction === "archive"
+                  </Tooltip.Content>
+                </Tooltip>
+              )}
+              {!isRenamingGroup && (
+                <span className="relative w-[2.4ch] shrink-0">
+                  <RelativeTime
+                    iso={latestThreadUpdatedAt}
+                    className="block text-center font-mono text-[10px] tabular-nums text-muted group-hover:invisible"
+                  />
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label={
+                      threadRemoveAction === "archive"
                         ? t`Archive ${entry.group.groupName}`
                         : t`Delete ${entry.group.groupName}`
-                  }
-                  className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${experiment ? "hover:text-danger" : threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    removeGroupThreads();
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
+                    }
+                    className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
+                    onClick={(event) => {
                       event.stopPropagation();
                       removeGroupThreads();
-                    }
-                  }}
-                >
-                  {experiment ? (
-                    <Trash2 className="size-3.5" />
-                  ) : threadRemoveAction === "archive" ? (
-                    <Archive className="size-3.5" />
-                  ) : (
-                    <Trash2 className="size-3.5" />
-                  )}
-                </div>
-              </span>
-            )}
-          </div>
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.stopPropagation();
+                        removeGroupThreads();
+                      }
+                    }}
+                  >
+                    {threadRemoveAction === "archive" ? (
+                      <Archive className="size-3.5" />
+                    ) : (
+                      <Trash2 className="size-3.5" />
+                    )}
+                  </div>
+                </span>
+              )}
+            </div>
+          )}
         </ContextMenu>
       </div>
       <ConfirmDialog

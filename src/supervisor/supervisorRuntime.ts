@@ -3,6 +3,8 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import type {
   AgentKind,
+  CaptureExperimentSnapshotPayload,
+  CaptureExperimentSnapshotResult,
   CloneRepoPayload,
   CloneRepoResult,
   DetectSetupScriptPayload,
@@ -13,11 +15,16 @@ import type {
   GitRemoveWorktreePayload,
   GitSyncPayload,
   GitSyncResult,
+  JudgeExperimentSnapshotPayload,
+  JudgeExperimentSnapshotResult,
   ProjectLocation,
+  RemoveExperimentWorktreesPayload,
+  RemoveExperimentWorktreesResult,
   RelocateProjectPayload,
   RelocateProjectResult,
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { msg } from "@/shared/messages";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { joinProjectPosixPath } from "@/shared/wsl";
 import { prefetchNativeNodeRuntime } from "./runtime/prefetchNativeNode";
@@ -28,8 +35,8 @@ import {
 } from "./agents/base";
 import { setWslAttachmentBridgeClient } from "./runtime/threadAttachments";
 import { FileIndexService } from "./fileIndex";
-import { GitService, resolveBuiltInWorktreeRoot } from "./git";
-import { resolveWorktreePlacement } from "@/shared/worktree";
+import { GitService, resolveBuiltInWorktreeRoot, type CapturedExperimentSnapshot } from "./git";
+import { normalizeWorktreePathForComparison, resolveWorktreePlacement } from "@/shared/worktree";
 import { GitCheckpointService } from "./git/checkpointService";
 import { GitHubService } from "./github";
 import { ProjectWatcher } from "./projectWatcher";
@@ -62,6 +69,15 @@ import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
 import { SkillsService } from "./skills/SkillsService";
 
 export { detectWslAgentStatuses, writeSubmittedPrompt };
+
+function toPublicExperimentSnapshot(
+  snapshot: CapturedExperimentSnapshot,
+): CaptureExperimentSnapshotResult {
+  return {
+    hash: snapshot.hash,
+    candidates: snapshot.candidates.map(({ diff: _diff, ...candidate }) => candidate),
+  };
+}
 
 export class SupervisorRuntime {
   private readonly isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
@@ -434,6 +450,7 @@ export class SupervisorRuntime {
       adapters: this.adapters,
       readTerminalScrollback: (threadId) =>
         this.threadSessionManager.readTerminalScrollback(threadId),
+      wslBridgeClient: this.wslBridgeClient,
     });
 
     // One-time-per-machine icon repair: localize any acp-generic icon still on
@@ -455,35 +472,7 @@ export class SupervisorRuntime {
   }
 
   async gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void> {
-    const normalizedTarget = payload.path.replace(/\\/g, "/").toLowerCase();
-
-    for (const [threadId, session] of this.sessions) {
-      const sessionPath =
-        session.projectLocation.kind === "wsl"
-          ? session.projectLocation.uncPath
-          : session.projectLocation.path;
-      if (sessionPath.replace(/\\/g, "/").toLowerCase() === normalizedTarget) {
-        await this.threadSessionManager.closeThread({ threadId }).catch((error) => {
-          console.warn(
-            `[supervisor] failed to close thread ${threadId} during worktree removal:`,
-            error,
-          );
-        });
-      }
-    }
-
-    for (const [threadId, shell] of this.shellSessions) {
-      if (shell.worktreePath?.replace(/\\/g, "/").toLowerCase() === normalizedTarget) {
-        await this.threadSessionManager.closeThread({ threadId }).catch((error) => {
-          console.warn(
-            `[supervisor] failed to close shell thread ${threadId} during worktree removal:`,
-            error,
-          );
-        });
-      }
-    }
-
-    await this.projectWatcher.unwatchWorktree(payload.path);
+    await this.prepareWorktreeRemovals([payload.path]);
     return this.gitService.removeWorktree(
       payload.projectLocation,
       payload.path,
@@ -492,6 +481,96 @@ export class SupervisorRuntime {
       payload.expectedBranch,
       payload.expectedOwnerToken,
     );
+  }
+
+  async removeExperimentWorktrees(
+    payload: RemoveExperimentWorktreesPayload,
+  ): Promise<RemoveExperimentWorktreesResult> {
+    return this.gitService.removeExperimentWorktrees(payload, async (worktrees) => {
+      await this.prepareWorktreeRemovals(worktrees.map((worktree) => worktree.path));
+    });
+  }
+
+  async captureExperimentSnapshot(
+    payload: CaptureExperimentSnapshotPayload,
+  ): Promise<CaptureExperimentSnapshotResult> {
+    const snapshot = await this.gitService.captureExperimentSnapshot(payload);
+    return toPublicExperimentSnapshot(snapshot);
+  }
+
+  async judgeExperimentSnapshot(
+    payload: JudgeExperimentSnapshotPayload,
+  ): Promise<JudgeExperimentSnapshotResult> {
+    const snapshot = await this.gitService.captureExperimentSnapshot(payload, (candidate) => {
+      this.emit({
+        type: "experiment-judge-progress",
+        experimentId: payload.experimentId,
+        progress: {
+          kind: "captured",
+          threadId: candidate.threadId,
+          files: candidate.files,
+          insertions: candidate.insertions,
+          deletions: candidate.deletions,
+        },
+      });
+    });
+    if (snapshot.candidates.every((candidate) => !candidate.diff.trim())) {
+      throw new Error(msg("experiment.judge.noChanges"));
+    }
+    this.emit({
+      type: "experiment-judge-progress",
+      experimentId: payload.experimentId,
+      progress: { kind: "judging" },
+    });
+    const judgement = await this.generationService.judgeExperiment({
+      experimentId: payload.experimentId,
+      projectLocation: payload.projectLocation,
+      agentKind: payload.agentKind,
+      ...(payload.model ? { model: payload.model } : {}),
+      ...(payload.effort ? { effort: payload.effort } : {}),
+      ...(payload.fast !== undefined ? { fast: payload.fast } : {}),
+      prompt: payload.prompt,
+      candidates: snapshot.candidates.map((candidate) => ({
+        threadId: candidate.threadId,
+        diff: candidate.diff,
+      })),
+    });
+    return { ...toPublicExperimentSnapshot(snapshot), ...judgement };
+  }
+
+  private async prepareWorktreeRemovals(paths: readonly string[]): Promise<void> {
+    const normalizePath = (path: string) => normalizeWorktreePathForComparison(path, true);
+    const normalizedTargets = new Set(paths.map(normalizePath));
+    const threadIds = new Set<string>();
+
+    for (const [threadId, session] of this.sessions) {
+      const sessionPath =
+        session.projectLocation.kind === "wsl"
+          ? session.projectLocation.uncPath
+          : session.projectLocation.path;
+      if (normalizedTargets.has(normalizePath(sessionPath))) {
+        threadIds.add(threadId);
+      }
+    }
+
+    for (const [threadId, shell] of this.shellSessions) {
+      const shellPath = shell.worktreePath ? normalizePath(shell.worktreePath) : undefined;
+      if (shellPath && normalizedTargets.has(shellPath)) {
+        threadIds.add(threadId);
+      }
+    }
+
+    await Promise.all(
+      [...threadIds].map((threadId) =>
+        this.threadSessionManager.closeThread({ threadId }).catch((error) => {
+          console.warn(
+            `[supervisor] failed to close thread ${threadId} during worktree removal:`,
+            error,
+          );
+        }),
+      ),
+    );
+    await Promise.all(paths.map((path) => this.projectWatcher.unwatchWorktree(path)));
   }
 
   async gitPruneWorktrees(payload: GitPruneWorktreesPayload): Promise<void> {

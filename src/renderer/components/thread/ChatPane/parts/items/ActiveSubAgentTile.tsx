@@ -18,7 +18,12 @@ import {
 import { deriveToolDisplay, isWorkflowTool } from "./toolDisplay";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
-import { ThreadDockHeader, ThreadDockList, ThreadDockSection } from "../../../ThreadDockUI";
+import {
+  ThreadDockActionRow,
+  ThreadDockHeader,
+  ThreadDockList,
+  ThreadDockSection,
+} from "../../../ThreadDockUI";
 import { parseWorkflowInfo } from "./workflowDisplay";
 import {
   SubAgentProgressMeta,
@@ -221,66 +226,50 @@ function ActiveSubAgentRow({
   const stepCount = progress?.stepCount ?? childCount;
   const liveLabel = readSubAgentLiveLabel(progress, display.title);
 
-  const innerClass = `flex items-center gap-2 rounded px-2 py-1 leading-5 ${
-    isDone ? "opacity-60" : ""
-  } ${!isDone ? "bg-accent/10" : ""}`;
-
   return (
-    <li className="group relative flex">
-      <button
-        type="button"
-        onClick={() => openSubAgent(threadId, item.id)}
-        className={`poracode-subagent-dock-row flex min-w-0 flex-1 text-left transition-[padding,background-color] duration-150 hover:bg-foreground/5 group-hover:pr-8 ${innerClass}`}
-        aria-label={display.title}
-        title={display.title}
-      >
-        {isDone ? (
-          <Check aria-label={t`completed`} className="size-3.5 shrink-0 text-foreground-muted" />
-        ) : (
-          <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
-            <PixelLoader size="xxs" className="text-foreground" />
-          </span>
-        )}
-        <span
-          className={`min-w-0 flex-1 truncate leading-5 ${isDone ? "text-foreground-muted" : "text-foreground"}`}
-        >
-          {display.title}
+    <ThreadDockActionRow
+      title={display.title}
+      onClick={() => openSubAgent(threadId, item.id)}
+      className={`${isDone ? "opacity-60" : ""} ${!isDone ? "bg-accent/10" : ""}`}
+      action={<X className="size-3" />}
+      actionLabel={t`Remove ${display.title} from panel`}
+      actionTitle={t`Remove from panel`}
+      onAction={() => dismiss(threadId, itemId)}
+    >
+      {isDone ? (
+        <Check aria-label={t`completed`} className="size-3.5 shrink-0 text-foreground-muted" />
+      ) : (
+        <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
+          <PixelLoader size="xxs" className="text-foreground" />
         </span>
-        {workflow && workflowRun ? (
-          <WorkflowDockStats run={workflowRun} />
-        ) : workflowIsLive ? (
-          <span className="shrink-0 text-foreground-muted opacity-80">
-            <Trans>starting…</Trans>
-          </span>
-        ) : isRunning ? (
-          <SubAgentProgressMeta
-            progress={progress}
-            liveLabel={liveLabel}
-            stepCount={stepCount}
-            includeStepCount
-            className="max-w-[45%] shrink-0 text-foreground-muted opacity-80"
-            liveMaxClassName="max-w-[20ch]"
-          />
-        ) : hasSubAgentProgressMeta(progress) ? (
-          <SubAgentProgressMeta
-            progress={progress}
-            className="max-w-[45%] shrink-0 text-foreground-muted opacity-80"
-          />
-        ) : null}
-      </button>
-      <button
-        type="button"
-        aria-label={t`Remove ${display.title} from panel`}
-        title={t`Remove from panel`}
-        onClick={(e) => {
-          e.stopPropagation();
-          dismiss(threadId, itemId);
-        }}
-        className="poracode-subagent-dismiss absolute right-1 top-1/2 flex -translate-y-1/2 items-center justify-center rounded p-0.5 text-muted/70 opacity-0 transition-opacity duration-150 hover:bg-danger-500/10 hover:text-danger-500 group-hover:opacity-100 focus:opacity-100"
+      )}
+      <span
+        className={`min-w-0 flex-1 truncate leading-5 ${isDone ? "text-foreground-muted" : "text-foreground"}`}
       >
-        <X className="size-3" />
-      </button>
-    </li>
+        {display.title}
+      </span>
+      {workflow && workflowRun ? (
+        <WorkflowDockStats run={workflowRun} />
+      ) : workflowIsLive ? (
+        <span className="shrink-0 text-foreground-muted opacity-80">
+          <Trans>starting…</Trans>
+        </span>
+      ) : isRunning ? (
+        <SubAgentProgressMeta
+          progress={progress}
+          liveLabel={liveLabel}
+          stepCount={stepCount}
+          includeStepCount
+          className="max-w-[45%] shrink-0 text-foreground-muted opacity-80"
+          liveMaxClassName="max-w-[20ch]"
+        />
+      ) : hasSubAgentProgressMeta(progress) ? (
+        <SubAgentProgressMeta
+          progress={progress}
+          className="max-w-[45%] shrink-0 text-foreground-muted opacity-80"
+        />
+      ) : null}
+    </ThreadDockActionRow>
   );
 }
 

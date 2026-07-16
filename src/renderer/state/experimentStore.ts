@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useShallow } from "zustand/shallow";
 import type { Experiment, ExperimentCrown } from "@/shared/contracts";
 import {
   EXPERIMENT_STORE_KEY,
@@ -133,6 +134,19 @@ export const useExperimentStore = create<ExperimentStore>()(
     },
   ),
 );
+
+export function useProjectExperimentCandidateOrder(projectId: string): ReadonlyMap<string, number> {
+  return useExperimentStore(
+    useShallow((state) => {
+      const order = new Map<string, number>();
+      for (const experiment of Object.values(state.experiments)) {
+        if (experiment.projectId !== projectId) continue;
+        experiment.candidates.forEach((candidate, index) => order.set(candidate.threadId, index));
+      }
+      return order;
+    }),
+  );
+}
 
 export function getRunningExperimentCandidateIds(): Set<string> {
   return new Set(

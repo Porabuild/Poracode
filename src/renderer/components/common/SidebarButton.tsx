@@ -150,7 +150,7 @@ export function SidebarButton(props: {
       <Tooltip.Trigger className="flex w-full min-h-0 flex-col" tabIndex={-1} role="none">
         {row}
       </Tooltip.Trigger>
-      <Tooltip.Content placement="right" showArrow className="max-w-[28rem] break-all text-xs">
+      <Tooltip.Content placement="right" showArrow className="max-w-[28rem] text-xs">
         {tooltip}
       </Tooltip.Content>
     </Tooltip>

@@ -1,38 +1,56 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { Thread } from "@/shared/contracts";
+import { EXPERIMENT_STORE_KEY, type Thread } from "@/shared/contracts";
 import { closeDatabase, initDatabase } from "./connection";
 import {
   dbGetThread,
+  dbGetState,
   dbGetProject,
   dbGetThreads,
   dbMarkLiveThreadsInactive,
   dbUpsertProject,
   dbUpsertThread,
 } from "./projectsThreads";
+import { dbPersistExperimentState } from "./sync";
 import {
   dbClaimRemoteCommand,
   dbCompleteRemoteCommand,
   dbFailRemoteCommand,
 } from "./remoteCommandReceipts";
 
-// node_modules/better-sqlite3 may be compiled for Electron's ABI; fall back to
-// the Node-ABI binding `pnpm run prepare:server-native` places in dist (the
-// same one the headless server uses). Skip only when neither can open.
+// node_modules/better-sqlite3 may be compiled for Electron's ABI. Fall back to
+// the Node-ABI binding used by the headless server, preparing it on demand so
+// these real-database tests never silently skip on Electron development installs.
 const serverNativeBinding = join(process.cwd(), "dist", "server-native", "better_sqlite3.node");
 let nativeBindingEnv: string | undefined;
-let sqliteAvailable = true;
-try {
-  new Database(":memory:").close();
-} catch {
-  if (existsSync(serverNativeBinding)) {
-    nativeBindingEnv = serverNativeBinding;
-  } else {
-    sqliteAvailable = false;
+
+function databaseOpens(nativeBinding?: string): boolean {
+  if (nativeBinding && !existsSync(nativeBinding)) return false;
+  try {
+    const database = nativeBinding
+      ? new Database(":memory:", { nativeBinding })
+      : new Database(":memory:");
+    database.close();
+    return true;
+  } catch {
+    return false;
   }
+}
+
+if (!databaseOpens()) {
+  if (!databaseOpens(serverNativeBinding)) {
+    execFileSync(process.execPath, [join(process.cwd(), "scripts", "prepare-server-native.mjs")], {
+      stdio: "inherit",
+    });
+  }
+  if (!databaseOpens(serverNativeBinding)) {
+    throw new Error("Unable to prepare a Node-compatible better-sqlite3 binding for tests.");
+  }
+  nativeBindingEnv = serverNativeBinding;
 }
 
 function testThread(overrides: Partial<Thread> = {}): Thread {
@@ -55,7 +73,7 @@ function testThread(overrides: Partial<Thread> = {}): Thread {
   };
 }
 
-describe.skipIf(!sqliteAvailable)("projectsThreads (real sqlite round-trip)", () => {
+describe("projectsThreads (real sqlite round-trip)", () => {
   let dir: string;
 
   beforeEach(() => {
@@ -117,6 +135,33 @@ describe.skipIf(!sqliteAvailable)("projectsThreads (real sqlite round-trip)", ()
       id: "memory-id",
       name: "memory",
     });
+  });
+
+  it("persists candidate threads and the experiment record atomically", () => {
+    const existing = testThread({ id: "candidate-existing" });
+    dbPersistExperimentState({
+      upsertThreads: [{ thread: existing, sortOrder: 0 }],
+      deletedThreadIds: [],
+      experiments: {},
+    });
+    const originalState = dbGetState(EXPERIMENT_STORE_KEY);
+
+    expect(() =>
+      dbPersistExperimentState({
+        upsertThreads: [
+          {
+            thread: testThread({ id: "candidate-invalid", projectId: "missing-project" }),
+            sortOrder: 0,
+          },
+        ],
+        deletedThreadIds: [existing.id],
+        experiments: {},
+      }),
+    ).toThrow(/foreign key/i);
+
+    expect(dbGetThread(existing.id)).toBeDefined();
+    expect(dbGetThread("candidate-invalid")).toBeNull();
+    expect(dbGetState(EXPERIMENT_STORE_KEY)).toBe(originalState);
   });
 
   it("replays durable remote command receipts without reclaiming them", () => {

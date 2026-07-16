@@ -11,6 +11,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
 import {
   crownExperiment,
+  createExperimentCandidatePr,
   discardExperiment,
   launchExperiment,
   mergeExperimentWinner,
@@ -23,9 +24,19 @@ const mocks = vi.hoisted(() => ({
     label: string;
     installed: boolean;
     authState: string;
-    capabilities: { supportsOneShot: boolean; supportsTextOnlyOneShot: boolean };
+    capabilities: {
+      models: Array<{ id: string; label: string }>;
+      supportsOneShot: boolean;
+      supportsTextOnlyOneShot: boolean;
+    };
   }>,
   bridge: {
+    createExperimentWorktrees: vi.fn<(payload: any) => Promise<any>>(),
+    removeExperimentWorktrees: vi.fn<(payload: any) => Promise<any>>(),
+    captureExperimentSnapshot: vi.fn<(payload: any) => Promise<any>>(),
+    judgeExperimentSnapshot: vi.fn<(payload: any) => Promise<any>>(),
+    onSupervisorEvent: vi.fn<(listener: (event: any) => void) => () => void>(),
+    supervisorListeners: [] as Array<(event: any) => void>,
     gitListBranches: vi.fn<
       (payload: unknown) => Promise<{
         current: string;
@@ -35,13 +46,22 @@ const mocks = vi.hoisted(() => ({
     gitAddWorktree: vi.fn<(payload: unknown) => Promise<{ path: string }>>(),
     getExperimentCandidateDiff:
       vi.fn<(payload: unknown) => Promise<{ diff: string; headCommit: string }>>(),
-    judgeExperiment:
-      vi.fn<(payload: unknown) => Promise<{ winnerThreadId: string; rationale: string }>>(),
+    judgeExperiment: vi.fn<
+      (payload: unknown) => Promise<{
+        winnerThreadId: string;
+        rationale: string;
+        assessments?: Array<{ threadId: string; rationale: string }>;
+      }>
+    >(),
     getGitStatus:
       vi.fn<
         (payload: unknown) => Promise<{ branch: string; staged: unknown[]; unstaged: unknown[] }>
       >(),
     gitCommit: vi.fn<(payload: unknown) => Promise<{ hash: string; message: string }>>(),
+    gitPush: vi.fn<(payload: unknown) => Promise<void>>(),
+    generatePrSummary:
+      vi.fn<(payload: unknown) => Promise<{ title: string; description: string }>>(),
+    ghCreatePr: vi.fn<(payload: unknown) => Promise<{ number: number }>>(),
     gitGetWorktreeSourceBranch: vi.fn<
       (payload: unknown) => Promise<{
         sourceBranch: string;
@@ -65,22 +85,37 @@ const mocks = vi.hoisted(() => ({
     dbSetState: vi.fn<(key: string, value: string) => Promise<void>>(),
     dbUpsertThread: vi.fn<(thread: Thread) => Promise<void>>(),
     dbDeleteThread: vi.fn<(threadId: string) => Promise<void>>(),
+    dbPersistExperimentState: vi.fn<(payload: any) => Promise<void>>(),
   },
   performInitialThreadLaunch: vi.fn<(input: unknown) => Promise<void>>(),
   performWorktreeRemoval:
     vi.fn<
       (project: unknown, path: string, branch?: string, ownerToken?: string) => Promise<boolean>
     >(),
+  prepareWorktreeRemoval: vi.fn<(project: unknown, path: string) => Promise<void>>(),
   primeWorktreeGitState: vi.fn<(project: unknown, path: string) => Promise<void>>(),
-  runWorktreeSetupScript: vi.fn<(project: unknown, path: string, script: string) => void>(),
+  runWorktreeSetupScript:
+    vi.fn<
+      (
+        project: unknown,
+        path: string,
+        script: string,
+        options?: { openTerminalPanel?: boolean },
+      ) => Promise<void>
+    >(),
   refreshGitProject: vi.fn<(...args: unknown[]) => void>(),
   runGitMergeToSource:
     vi.fn<(payload: unknown) => Promise<{ merged: boolean; fastForward: boolean }>>(),
   showGitOperationFailure: vi.fn<(result: unknown) => void>(),
+  generateTitleWithFallback: vi.fn<(input: unknown) => Promise<string>>(),
+  requestGeneratedTitle: vi.fn<() => Promise<string> | undefined>(),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => mocks.bridge,
+}));
+vi.mock("@/renderer/utils/titleGen", () => ({
+  requestGeneratedTitle: mocks.requestGeneratedTitle,
 }));
 vi.mock("@/shared/agentStatus", () => ({
   getProjectAgentStatuses: () => mocks.judgeAgents,
@@ -90,6 +125,7 @@ vi.mock("./threadLaunchActions", () => ({
 }));
 vi.mock("./worktreeActions", () => ({
   performWorktreeRemoval: mocks.performWorktreeRemoval,
+  prepareWorktreeRemoval: mocks.prepareWorktreeRemoval,
 }));
 vi.mock("./worktreeLaunchActions", () => ({
   primeWorktreeGitState: mocks.primeWorktreeGitState,
@@ -192,7 +228,11 @@ describe("experimentActions", () => {
         label: "Codex",
         installed: true,
         authState: "authenticated",
-        capabilities: { supportsOneShot: true, supportsTextOnlyOneShot: true },
+        capabilities: {
+          models: [{ id: "gpt-5.5", label: "GPT-5.5" }],
+          supportsOneShot: true,
+          supportsTextOnlyOneShot: true,
+        },
       },
     ];
     localStorage.clear();
@@ -203,8 +243,9 @@ describe("experimentActions", () => {
       view: { kind: "home" },
     }));
     useExperimentStore.setState({ experiments: {} });
-    useSharedSettings.setState({ disabledAgents: [] });
+    useSharedSettings.setState({ disabledAgents: [], titleGenProvider: "disabled" });
     useThreadLiveWorkflowStore.setState({ liveThreadIds: new Set<string>() });
+    mocks.runWorktreeSetupScript.mockReset().mockResolvedValue(undefined);
     mocks.bridge.gitListBranches.mockResolvedValue({
       current: "main",
       branches: [{ name: "main", current: true, commit: BASE_COMMIT, isRemote: false }],
@@ -218,10 +259,38 @@ describe("experimentActions", () => {
     mocks.bridge.gitAddWorktree
       .mockResolvedValueOnce({ path: "/repo/one" })
       .mockResolvedValueOnce({ path: "/repo/two" });
+    mocks.bridge.createExperimentWorktrees.mockImplementation(async (payload) => ({
+      candidates: await Promise.all(
+        payload.candidates.map(async (candidate: any) => {
+          try {
+            const result = await mocks.bridge.gitAddWorktree({
+              projectLocation: payload.projectLocation,
+              branch: candidate.branch,
+              startPoint: payload.baseCommit,
+              sourceBranch: payload.sourceBranch,
+              ownerToken: candidate.ownerToken,
+            });
+            return { ...candidate, path: result.path };
+          } catch (error) {
+            return {
+              ...candidate,
+              error: error instanceof Error ? error.message : String(error),
+            };
+          }
+        }),
+      ),
+    }));
     mocks.performInitialThreadLaunch.mockResolvedValue(undefined);
     mocks.performWorktreeRemoval.mockResolvedValue(true);
+    mocks.prepareWorktreeRemoval.mockResolvedValue(undefined);
     mocks.bridge.closeThread.mockResolvedValue(undefined);
     mocks.bridge.gitDeleteBranch.mockResolvedValue(undefined);
+    mocks.bridge.gitPush.mockResolvedValue(undefined);
+    mocks.bridge.generatePrSummary.mockResolvedValue({
+      title: "Candidate pull request",
+      description: "Candidate summary",
+    });
+    mocks.bridge.ghCreatePr.mockResolvedValue({ number: 328 });
     mocks.bridge.gitGetWorktreeSourceBranch.mockReset().mockImplementation(async (payload) => ({
       sourceBranch: "main",
       ownerToken: ownerTokenForBranch((payload as { branch: string }).branch),
@@ -232,6 +301,15 @@ describe("experimentActions", () => {
     mocks.bridge.dbSetState.mockResolvedValue(undefined);
     mocks.bridge.dbUpsertThread.mockResolvedValue(undefined);
     mocks.bridge.dbDeleteThread.mockResolvedValue(undefined);
+    mocks.bridge.dbPersistExperimentState.mockImplementation(async (payload) => {
+      for (const item of payload.upsertThreads) await mocks.bridge.dbUpsertThread(item.thread);
+      for (const threadId of payload.deletedThreadIds) {
+        await mocks.bridge.dbDeleteThread(threadId);
+      }
+      await mocks.bridge.dbSetState("experiments", JSON.stringify(payload.experiments));
+    });
+    mocks.generateTitleWithFallback.mockResolvedValue("AI experiment title");
+    mocks.requestGeneratedTitle.mockResolvedValue("AI experiment title");
     mocks.bridge.getExperimentCandidateDiff.mockResolvedValue({
       diff: "",
       headCommit: CANDIDATE_COMMIT,
@@ -242,6 +320,130 @@ describe("experimentActions", () => {
         branch: path.endsWith("/two") ? "poracode/two" : "poracode/one",
         staged: [],
         unstaged: [],
+      };
+    });
+    const captureSnapshot = async (payload: any, emitProgress: boolean) => {
+      const snapshots = await Promise.all(
+        payload.candidates.map(async (candidate: any) => {
+          const path = candidate.worktreePath;
+          if (!path) throw new Error("candidate worktree unavailable");
+          const status = await mocks.bridge.getGitStatus({
+            projectLocation: { kind: project.location.kind, path },
+          });
+          if (status.branch !== candidate.branch) {
+            throw new Error("candidate branch changed");
+          }
+          const result = await mocks.bridge.getExperimentCandidateDiff({
+            projectLocation: { kind: project.location.kind, path },
+            baseRef: payload.baseCommit,
+          });
+          return {
+            threadId: candidate.threadId,
+            headCommit: result.headCommit,
+            diff: result.diff,
+            files: result.diff ? 1 : 0,
+            insertions: result.diff ? 1 : 0,
+            deletions: 0,
+          };
+        }),
+      );
+      if (emitProgress) {
+        for (const snapshot of snapshots) {
+          for (const listener of mocks.bridge.supervisorListeners) {
+            listener({
+              type: "experiment-judge-progress",
+              experimentId: payload.experimentId,
+              progress: {
+                kind: "captured",
+                threadId: snapshot.threadId,
+                files: snapshot.files,
+                insertions: snapshot.insertions,
+                deletions: snapshot.deletions,
+              },
+            });
+          }
+        }
+      }
+      return {
+        hash: snapshots.map((snapshot) => snapshot.diff).join("|"),
+        candidates: snapshots,
+      };
+    };
+    mocks.bridge.captureExperimentSnapshot.mockImplementation((payload) =>
+      captureSnapshot(payload, false),
+    );
+    mocks.bridge.judgeExperimentSnapshot.mockImplementation(async (payload) => {
+      const snapshot = await captureSnapshot(payload, true);
+      for (const listener of mocks.bridge.supervisorListeners) {
+        listener({
+          type: "experiment-judge-progress",
+          experimentId: payload.experimentId,
+          progress: { kind: "judging" },
+        });
+      }
+      const judgement = await mocks.bridge.judgeExperiment({
+        projectLocation: payload.projectLocation,
+        agentKind: payload.agentKind,
+        ...(payload.model ? { model: payload.model } : {}),
+        ...(payload.effort ? { effort: payload.effort } : {}),
+        ...(payload.fast !== undefined ? { fast: payload.fast } : {}),
+        prompt: payload.prompt,
+        candidates: snapshot.candidates.map((candidate: any) => ({
+          threadId: candidate.threadId,
+          diff: candidate.diff,
+        })),
+      });
+      return {
+        ...snapshot,
+        ...judgement,
+        assessments:
+          judgement.assessments ??
+          snapshot.candidates.map((candidate: any) => ({
+            threadId: candidate.threadId,
+            rationale: `Assessment for ${candidate.threadId}`,
+          })),
+      };
+    });
+    mocks.bridge.supervisorListeners.length = 0;
+    mocks.bridge.onSupervisorEvent.mockImplementation((listener) => {
+      mocks.bridge.supervisorListeners.push(listener);
+      return () => {
+        const index = mocks.bridge.supervisorListeners.indexOf(listener);
+        if (index >= 0) mocks.bridge.supervisorListeners.splice(index, 1);
+      };
+    });
+    mocks.bridge.removeExperimentWorktrees.mockImplementation(async (payload) => {
+      const { worktrees } = await mocks.bridge.gitListWorktrees({
+        projectLocation: payload.projectLocation,
+      });
+      return {
+        candidates: await Promise.all(
+          payload.candidates.map(async (candidate: any) => {
+            const worktree = worktrees.find((item) => item.branch === candidate.branch);
+            const conflicting = worktrees.find(
+              (item) => item.path === candidate.worktreePath && item.branch !== candidate.branch,
+            );
+            if (conflicting) return { ...candidate, error: "candidate branch changed" };
+            if (worktree) {
+              const removed = await mocks.performWorktreeRemoval(
+                project,
+                worktree.path,
+                candidate.branch,
+                candidate.ownerToken,
+              );
+              return removed
+                ? { ...candidate, path: worktree.path }
+                : { ...candidate, path: worktree.path, error: "removal failed" };
+            }
+            await mocks.bridge.gitDeleteBranch({
+              projectLocation: project.location,
+              branch: candidate.branch,
+              force: true,
+              expectedOwnerToken: candidate.ownerToken,
+            });
+            return { ...candidate };
+          }),
+        ),
       };
     });
   });
@@ -295,6 +497,14 @@ describe("experimentActions", () => {
     expect(ownerTokens.every((ownerToken) => ownerToken.startsWith(`${id}:`))).toBe(true);
     expect(new Set(ownerTokens).size).toBe(2);
     expect(useAppStore.getState().threads).toHaveLength(2);
+    expect(
+      Object.fromEntries(
+        useAppStore.getState().threads.map((item) => [item.agentKind, item.title]),
+      ),
+    ).toEqual({
+      codex: "gpt-5 · High · Codex",
+      claude: "opus · Claude",
+    });
     expect(mocks.performInitialThreadLaunch).toHaveBeenCalledTimes(2);
     expect(
       mocks.performInitialThreadLaunch.mock.calls.map(
@@ -302,9 +512,27 @@ describe("experimentActions", () => {
       ),
     ).toEqual(["/repo/one", "/repo/two"]);
     expect(mocks.runWorktreeSetupScript).toHaveBeenCalledTimes(2);
+    expect(mocks.runWorktreeSetupScript).toHaveBeenNthCalledWith(
+      1,
+      project,
+      "/repo/one",
+      "pnpm install",
+      { openTerminalPanel: false },
+    );
+    expect(mocks.runWorktreeSetupScript).toHaveBeenNthCalledWith(
+      2,
+      project,
+      "/repo/two",
+      "pnpm install",
+      { openTerminalPanel: false },
+    );
+    expect(Math.max(...mocks.performInitialThreadLaunch.mock.invocationCallOrder)).toBeLessThan(
+      Math.min(...mocks.runWorktreeSetupScript.mock.invocationCallOrder),
+    );
     expect(useExperimentStore.getState().experiments[id!]).toMatchObject({
       baseBranch: "main",
       baseCommit: BASE_COMMIT,
+      segments: [{ kind: "text", content: "Implement it" }],
       status: "running",
     });
     expect(useAppStore.getState().view).toEqual({
@@ -312,6 +540,85 @@ describe("experimentActions", () => {
       experimentId: id,
       projectId: project.id,
     });
+  });
+
+  it("creates candidate worktrees in parallel without changing candidate order", async () => {
+    const pending: Array<(result: { path: string }) => void> = [];
+    mocks.bridge.gitAddWorktree.mockReset().mockImplementation(
+      () =>
+        new Promise<{ path: string }>((resolve) => {
+          pending.push(resolve);
+        }),
+    );
+
+    const launching = launchExperiment({
+      projectId: project.id,
+      prompt: "Implement it",
+      baseBranch: "main",
+      candidates: [
+        { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+        { agentKind: "claude", config: { model: "opus" }, presentationMode: "terminal" },
+        { agentKind: "grok", config: { model: "grok-4" }, presentationMode: "terminal" },
+      ],
+    });
+
+    await vi.waitFor(() => expect(pending).toHaveLength(3));
+    pending[2]!({ path: "/repo/three" });
+    pending[0]!({ path: "/repo/one" });
+    pending[1]!({ path: "/repo/two" });
+
+    const experimentId = await launching;
+    expect(
+      useExperimentStore
+        .getState()
+        .experiments[experimentId!]!.candidates.map((candidate) => candidate.worktreePath),
+    ).toEqual(["/repo/one", "/repo/two", "/repo/three"]);
+  });
+
+  it("starts candidates without waiting for hidden setup tabs", async () => {
+    mocks.runWorktreeSetupScript.mockImplementation(() => new Promise<void>(() => undefined));
+
+    await expect(
+      launchExperiment({
+        projectId: project.id,
+        prompt: "Implement it",
+        baseBranch: "main",
+        candidates: [
+          { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+          { agentKind: "claude", config: { model: "opus" }, presentationMode: "terminal" },
+        ],
+      }),
+    ).resolves.toBeTruthy();
+
+    expect(mocks.runWorktreeSetupScript).toHaveBeenCalledTimes(2);
+    expect(mocks.performInitialThreadLaunch).toHaveBeenCalledTimes(2);
+  });
+
+  it("replaces the prompt fallback with an AI-generated experiment title", async () => {
+    useSharedSettings.setState({ titleGenProvider: "codex" });
+
+    const experimentId = await launchExperiment({
+      projectId: project.id,
+      prompt: "Implement it",
+      baseBranch: "main",
+      candidates: [
+        { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+        { agentKind: "claude", config: { model: "opus" }, presentationMode: "terminal" },
+      ],
+    });
+
+    expect(mocks.requestGeneratedTitle).toHaveBeenCalledOnce();
+    await vi.waitFor(() =>
+      expect(useExperimentStore.getState().experiments[experimentId!]?.title).toBe(
+        "AI experiment title",
+      ),
+    );
+    expect(
+      useAppStore
+        .getState()
+        .threads.filter((candidateThread) => candidateThread.groupId === experimentId)
+        .every((candidateThread) => candidateThread.groupName === "AI experiment title"),
+    ).toBe(true);
   });
 
   it("rejects an overlong prompt before creating threads or worktrees", async () => {
@@ -477,7 +784,40 @@ describe("experimentActions", () => {
     });
   });
 
-  it("uses an installed text-only judge even when it is not a candidate provider", async () => {
+  it("reports parallel candidate snapshots in experiment order", async () => {
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [
+        thread("thread-1", "/repo/one", "poracode/one"),
+        thread("thread-2", "/repo/two", "poracode/two"),
+      ],
+    }));
+    useExperimentStore.getState().addExperiment(experiment());
+    const pending: Array<(result: { diff: string; headCommit: string }) => void> = [];
+    mocks.bridge.getExperimentCandidateDiff.mockReset().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pending.push(resolve);
+        }),
+    );
+    mocks.bridge.judgeExperiment.mockResolvedValue({
+      winnerThreadId: "thread-1",
+      rationale: "Solution 1 is safer.",
+    });
+    const capturedThreadIds: string[] = [];
+
+    const judging = crownExperiment("experiment-1", undefined, (event) => {
+      if (event.kind === "captured") capturedThreadIds.push(event.threadId);
+    });
+    await vi.waitFor(() => expect(pending).toHaveLength(2));
+    pending[1]!({ diff: "second", headCommit: CANDIDATE_COMMIT });
+    pending[0]!({ diff: "first", headCommit: CANDIDATE_COMMIT });
+
+    await expect(judging).resolves.toBe(true);
+    expect(capturedThreadIds).toEqual(["thread-1", "thread-2"]);
+  });
+
+  it("uses an installed one-shot judge even when it is not a candidate provider", async () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
@@ -492,7 +832,11 @@ describe("experimentActions", () => {
         label: "Claude",
         installed: true,
         authState: "authenticated",
-        capabilities: { supportsOneShot: true, supportsTextOnlyOneShot: true },
+        capabilities: {
+          models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }],
+          supportsOneShot: true,
+          supportsTextOnlyOneShot: false,
+        },
       },
     ];
     mocks.bridge.getExperimentCandidateDiff
@@ -511,7 +855,7 @@ describe("experimentActions", () => {
     expect(mocks.bridge.judgeExperiment.mock.calls[0]?.[0]).not.toHaveProperty("model");
   });
 
-  it("uses the explicitly selected candidate configuration for judging", async () => {
+  it("uses the explicitly selected judge configuration", async () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
@@ -532,7 +876,12 @@ describe("experimentActions", () => {
     });
 
     await expect(
-      crownExperiment("experiment-1", { agentKind: "codex", threadId: "thread-2" }),
+      crownExperiment("experiment-1", {
+        agentKind: "codex",
+        model: "gpt-5-mini",
+        effort: "low",
+        fast: false,
+      }),
     ).resolves.toBe(true);
 
     expect(mocks.bridge.judgeExperiment).toHaveBeenCalledWith(
@@ -545,7 +894,7 @@ describe("experimentActions", () => {
     );
   });
 
-  it("does not invoke an unavailable text-only judge", async () => {
+  it("does not invoke an unavailable one-shot judge", async () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
@@ -560,7 +909,11 @@ describe("experimentActions", () => {
         label: "Codex",
         installed: false,
         authState: "missing",
-        capabilities: { supportsOneShot: true, supportsTextOnlyOneShot: true },
+        capabilities: {
+          models: [{ id: "gpt-5", label: "GPT-5" }],
+          supportsOneShot: true,
+          supportsTextOnlyOneShot: true,
+        },
       },
     ];
     mocks.bridge.getExperimentCandidateDiff
@@ -588,10 +941,13 @@ describe("experimentActions", () => {
         createdAt: "2026-07-13T00:01:00.000Z",
       },
     });
-    mocks.bridge.getGitStatus.mockResolvedValue({
-      branch: "poracode/one",
-      staged: [],
-      unstaged: [{ path: "src/a.ts" }],
+    mocks.bridge.getGitStatus.mockImplementation(async (payload) => {
+      const path = (payload as { projectLocation: { path: string } }).projectLocation.path;
+      return {
+        branch: path.endsWith("/two") ? "poracode/two" : "poracode/one",
+        staged: [],
+        unstaged: path.endsWith("/one") ? [{ path: "src/a.ts" }] : [],
+      };
     });
     mocks.bridge.gitCommit.mockResolvedValue({ hash: "def456", message: "" });
     mocks.bridge.gitGetWorktreeSourceBranch.mockImplementation(async (payload) => ({
@@ -643,6 +999,35 @@ describe("experimentActions", () => {
         .getState()
         .experiments["experiment-1"]?.candidates.map((candidate) => candidate.worktreeState),
     ).toEqual(["removed", "removed"]);
+  });
+
+  it("removes the experiment and ungroups its candidates after opening a pull request", async () => {
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [
+        thread("thread-1", "/repo/one", "poracode/one"),
+        thread("thread-2", "/repo/two", "poracode/two"),
+      ],
+      view: { kind: "experiment", experimentId: "experiment-1", projectId: project.id },
+    }));
+    useExperimentStore.getState().addExperiment(experiment());
+
+    await expect(createExperimentCandidatePr("experiment-1", "thread-1")).resolves.toBe(true);
+
+    expect(mocks.bridge.ghCreatePr).toHaveBeenCalledWith(
+      expect.objectContaining({
+        branch: "poracode/one",
+        baseBranch: "main",
+        title: "Candidate pull request",
+      }),
+    );
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    expect(useAppStore.getState().threads).toEqual([
+      expect.objectContaining({ id: "thread-1", worktreePath: "/repo/one" }),
+      expect.objectContaining({ id: "thread-2", worktreePath: "/repo/two" }),
+    ]);
+    expect(useAppStore.getState().threads.every((item) => item.groupId === undefined)).toBe(true);
   });
 
   it("rejects an AI winner when any candidate changed after judging", async () => {
@@ -707,10 +1092,13 @@ describe("experimentActions", () => {
         createdAt: "2026-07-13T00:01:00.000Z",
       },
     });
-    mocks.bridge.getGitStatus.mockResolvedValue({
-      branch: "poracode/one",
-      staged: [],
-      unstaged: [],
+    mocks.bridge.getGitStatus.mockImplementation(async (payload) => {
+      const path = (payload as { projectLocation: { path: string } }).projectLocation.path;
+      return {
+        branch: path.endsWith("/two") ? "poracode/two" : "poracode/one",
+        staged: [],
+        unstaged: [],
+      };
     });
     mocks.bridge.gitGetWorktreeSourceBranch.mockImplementation(async (payload) => ({
       sourceBranch: "release",
@@ -722,24 +1110,89 @@ describe("experimentActions", () => {
     expect(mocks.runGitMergeToSource).not.toHaveBeenCalled();
   });
 
-  it("does not discard candidates with a live background workflow", async () => {
+  it("stops and discards candidates with a live background workflow", async () => {
+    const runningThread = thread("thread-1", "/repo/one", "poracode/one");
+    runningThread.status = "working";
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [runningThread, thread("thread-2", "/repo/two", "poracode/two")],
+    }));
+    useExperimentStore.getState().addExperiment(experiment());
+    useThreadLiveWorkflowStore.setState({ liveThreadIds: new Set(["thread-1"]) });
+
+    await expect(discardExperiment("experiment-1")).resolves.toBe(true);
+
+    expect(mocks.bridge.closeThread).toHaveBeenCalledTimes(2);
+    expect(mocks.performWorktreeRemoval).toHaveBeenCalledTimes(2);
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
+    expect(useAppStore.getState().threads).toEqual([]);
+  });
+
+  it("removes the experiment before discard cleanup finishes", async () => {
+    const threads = [
+      thread("thread-1", "/repo/one", "poracode/one"),
+      thread("thread-2", "/repo/two", "poracode/two"),
+    ];
+    useAppStore.setState((state) => ({
+      ...state,
+      threads,
+      view: { kind: "experiment", experimentId: "experiment-1", projectId: project.id },
+    }));
+    useExperimentStore.getState().addExperiment(experiment());
+    let finishRemoval!: (removed: boolean) => void;
+    mocks.performWorktreeRemoval.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishRemoval = resolve;
+        }),
+    );
+
+    const discard = discardExperiment("experiment-1");
+
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    expect(useAppStore.getState().threads).toEqual([]);
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
+
+    await vi.waitFor(() => expect(mocks.performWorktreeRemoval).toHaveBeenCalledTimes(2));
+    finishRemoval(true);
+    await expect(discard).resolves.toBe(true);
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
+  });
+
+  it("removes the experiment while an earlier operation finishes", async () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
         thread("thread-1", "/repo/one", "poracode/one"),
         thread("thread-2", "/repo/two", "poracode/two"),
       ],
+      view: { kind: "experiment", experimentId: "experiment-1", projectId: project.id },
     }));
     useExperimentStore.getState().addExperiment(experiment());
-    useThreadLiveWorkflowStore.setState({ liveThreadIds: new Set(["thread-1"]) });
+    let finishPush!: () => void;
+    mocks.bridge.gitPush.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishPush = resolve;
+        }),
+    );
 
-    await expect(discardExperiment("experiment-1")).resolves.toBe(false);
+    const createPr = createExperimentCandidatePr("experiment-1", "thread-1");
+    await vi.waitFor(() => expect(mocks.bridge.gitPush).toHaveBeenCalledOnce());
+    const discard = discardExperiment("experiment-1");
 
-    expect(mocks.bridge.closeThread).not.toHaveBeenCalled();
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    expect(useAppStore.getState().threads).toEqual([]);
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
     expect(mocks.performWorktreeRemoval).not.toHaveBeenCalled();
+
+    finishPush();
+    await expect(createPr).resolves.toBe(true);
+    await expect(discard).resolves.toBe(true);
+    expect(mocks.performWorktreeRemoval).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps the complete experiment record when discard cleanup is partial", async () => {
+  it("keeps the experiment removed when discard cleanup is partial", async () => {
     const threads = [
       thread("thread-1", "/repo/one", "poracode/one"),
       thread("thread-2", "/repo/two", "poracode/two"),
@@ -754,16 +1207,12 @@ describe("experimentActions", () => {
 
     await expect(discardExperiment("experiment-1")).resolves.toBe(false);
 
-    expect(useExperimentStore.getState().experiments["experiment-1"]?.candidates).toHaveLength(2);
-    expect(useAppStore.getState().threads.map((item) => item.id)).toEqual(["thread-1", "thread-2"]);
-    expect(useAppStore.getState().view).toEqual({
-      kind: "experiment",
-      experimentId: "experiment-1",
-      projectId: project.id,
-    });
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
+    expect(useAppStore.getState().threads).toEqual([]);
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
   });
 
-  it("does not remove worktrees when a candidate runtime cannot be stopped", async () => {
+  it("continues parallel cleanup when one candidate runtime cannot be stopped", async () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
@@ -776,8 +1225,13 @@ describe("experimentActions", () => {
 
     await expect(discardExperiment("experiment-1")).resolves.toBe(false);
 
-    expect(mocks.performWorktreeRemoval).not.toHaveBeenCalled();
-    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeDefined();
+    expect(mocks.performWorktreeRemoval).toHaveBeenCalledExactlyOnceWith(
+      project,
+      "/repo/two",
+      "poracode/two",
+      "experiment-1:thread-2",
+    );
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
   });
 
   it("recovers candidate worktree paths from their branches after an interrupted launch", async () => {
@@ -908,7 +1362,7 @@ describe("experimentActions", () => {
     );
   });
 
-  it("retains the experiment when a recorded candidate worktree switched branches", async () => {
+  it("keeps the experiment removed when a recorded candidate worktree switched branches", async () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
@@ -929,7 +1383,8 @@ describe("experimentActions", () => {
     expect(mocks.performWorktreeRemoval.mock.calls.some(([, path]) => path === "/repo/one")).toBe(
       false,
     );
-    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeDefined();
+    expect(mocks.prepareWorktreeRemoval).not.toHaveBeenCalledWith(project, "/repo/one");
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
   });
 
   it("retries cleanup for a winner worktree after the winner was merged", async () => {
@@ -948,10 +1403,13 @@ describe("experimentActions", () => {
         createdAt: "2026-07-13T00:01:00.000Z",
       },
     });
-    mocks.bridge.getGitStatus.mockResolvedValue({
-      branch: "poracode/one",
-      staged: [],
-      unstaged: [],
+    mocks.bridge.getGitStatus.mockImplementation(async (payload) => {
+      const path = (payload as { projectLocation: { path: string } }).projectLocation.path;
+      return {
+        branch: path.endsWith("/two") ? "poracode/two" : "poracode/one",
+        staged: [],
+        unstaged: [],
+      };
     });
     mocks.bridge.gitGetWorktreeSourceBranch.mockImplementation(async (payload) => ({
       sourceBranch: "main",

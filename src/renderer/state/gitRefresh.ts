@@ -282,7 +282,8 @@ export function getProjectActiveWorktreePaths(projectId: string): string[] {
   addPanelContextWorktreePath(
     paths,
     projectId,
-    panelState.rightPanelTab === "git" && panelState.gitReviewAsPanel,
+    (panelState.rightPanelTab === "git" && panelState.gitReviewAsPanel) ||
+      panelState.gitOverlayOpen,
     panelState.gitReviewContext,
   );
   addPanelContextWorktreePath(

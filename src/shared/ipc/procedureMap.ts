@@ -112,6 +112,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "dbDeleteThread",
   "dbDeleteProject",
   "dbSyncAll",
+  "dbPersistExperimentState",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",
   "dbTruncateThreadRuntimeAfter",

@@ -98,23 +98,28 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     gitUnstageAll: (payload) => git.unstageAll(payload.projectLocation),
     gitRevertAll: (payload) => git.revertAll(payload.projectLocation),
     gitCommit: async (payload) => {
-      const { hash } = await git.commit(
+      const result = await git.commit(
         payload.projectLocation,
         payload.message,
         payload.addAll ?? false,
+        payload.reapplyStashCommit,
       );
-      return { hash, message: payload.message };
+      return { ...result, message: payload.message };
     },
     gitInit: (payload) => git.init(payload.projectLocation),
     gitAddRemote: (payload) => git.addRemote(payload.projectLocation, payload.remote, payload.url),
     generateCommitMessage: (payload) => generation.generateCommitMessage(payload),
     generateTitle: (payload) => generation.generateTitle(payload),
     generatePrSummary: (payload) => generation.generatePrSummary(payload),
-    getExperimentCandidateDiff: (payload) =>
-      git.getExperimentCandidateDiff(payload.projectLocation, payload.baseRef),
+    createExperimentWorktrees: (payload) => git.createExperimentWorktrees(payload),
+    removeExperimentWorktrees: (payload) => runtime.removeExperimentWorktrees(payload),
+    captureExperimentSnapshot: (payload) => runtime.captureExperimentSnapshot(payload),
+    judgeExperimentSnapshot: (payload) => runtime.judgeExperimentSnapshot(payload),
     getExperimentCandidateStats: (payload) =>
       git.getExperimentCandidateStats(payload.projectLocation, payload.baseRef),
-    judgeExperiment: (payload) => generation.judgeExperiment(payload),
+    cancelJudgeExperiment: (payload) => {
+      generation.cancelJudgeExperiment(payload.experimentId);
+    },
     gitListBranches: (payload) => git.listBranches(payload.projectLocation, payload.includeRemote),
     gitFetch: (payload) => git.fetch(payload.projectLocation, payload.remote, payload.prune),
     gitListWorktrees: (payload) => git.listWorktrees(payload.projectLocation),
@@ -188,8 +193,10 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
         payload.sourceBranch,
         payload.preserveLocalChanges,
       ),
-    gitAbortMerge: (payload) => git.abortMerge(payload.worktreeLocation),
-    gitFinishMerge: (payload) => git.finishMerge(payload.worktreeLocation),
+    gitAbortMerge: (payload) =>
+      git.abortMerge(payload.worktreeLocation, payload.reapplyStashCommit),
+    gitFinishMerge: (payload) =>
+      git.finishMerge(payload.worktreeLocation, payload.reapplyStashCommit),
     gitWatchProject: async (payload) => {
       runtime.projectWatcher.watch(payload.projectId, payload.projectLocation);
     },

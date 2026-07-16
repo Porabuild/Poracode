@@ -33,6 +33,7 @@ describe("SkillsService", () => {
   let adapters: ReadonlyMap<string, AgentAdapter>;
 
   beforeEach(async () => {
+    vi.stubEnv("PORACODE_BUNDLED_SKILLS_DIR", "");
     root = await mkdtemp(join(tmpdir(), "poracode-skills-"));
     home = join(root, "home");
     projectPath = join(root, "project");
@@ -72,6 +73,7 @@ describe("SkillsService", () => {
 
   afterEach(async () => {
     await rm(root, { recursive: true, force: true });
+    vi.unstubAllEnvs();
   });
 
   it("discovers provider skills and imports a managed copy", async () => {

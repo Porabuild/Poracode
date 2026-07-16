@@ -477,6 +477,42 @@ describe("agent command builders", () => {
     });
   });
 
+  it("restricts Claude judge workspaces to read and search tools", () => {
+    expect(
+      createClaudeAdapter().buildOneShotCommand?.(
+        "claude-sonnet-5",
+        "high",
+        "Judge the anonymous patch files",
+        undefined,
+        undefined,
+        { readOnlyWorkspace: true },
+      ),
+    ).toEqual({
+      command: "claude",
+      args: [
+        "-p",
+        "Judge the anonymous patch files",
+        "--model",
+        "claude-sonnet-5",
+        "--fallback-model",
+        "haiku",
+        "--no-session-persistence",
+        "--permission-mode",
+        "plan",
+        "--allowedTools",
+        "Read,Glob,Grep",
+        "--disallowedTools",
+        "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill",
+        "--mcp-config",
+        '{"mcpServers":{}}',
+        "--strict-mcp-config",
+        "--effort",
+        "high",
+      ],
+      stdin: "",
+    });
+  });
+
   it("forwards effort to Grok one-shots as --reasoning-effort", () => {
     expect(
       createGrokAdapter().buildOneShotCommand?.("grok-4.5", "low", "Summarize this diff"),

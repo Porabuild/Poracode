@@ -71,19 +71,15 @@ export function ThreadItemSuffix(props: {
           >
             <AnimatedTerminalIcon className="size-3.5" isBusy={isTerminalBusy} />
           </SidebarPanelDragButton>
-          {!isExperimentCandidate ? (
-            <>
-              <SyncBadge projectId={thread.projectId} worktreePath={thread.worktreePath} />
-              <GitBadge
-                projectId={thread.projectId}
-                projectName={thread.worktreeBranch ?? ""}
-                worktreePath={thread.worktreePath}
-                onPress={() => openGitReview(thread.projectId, thread.worktreePath)}
-                isActive={isGitActive}
-                fallbackToWorktreeIcon
-              />
-            </>
-          ) : null}
+          <SyncBadge projectId={thread.projectId} worktreePath={thread.worktreePath} />
+          <GitBadge
+            projectId={thread.projectId}
+            projectName={thread.worktreeBranch ?? ""}
+            worktreePath={thread.worktreePath}
+            onPress={() => openGitReview(thread.projectId, thread.worktreePath)}
+            isActive={isGitActive}
+            fallbackToWorktreeIcon
+          />
         </>
       )}
       <span className="relative w-[2.4ch] shrink-0">

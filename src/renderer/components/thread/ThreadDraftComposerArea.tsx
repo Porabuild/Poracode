@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Tooltip, toast } from "@heroui/react";
-import { Download, Monitor, Plus, Webhook, X } from "lucide-react";
+import { Download, Monitor, Webhook, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type {
   AgentHookPluginStatus,
@@ -50,6 +50,7 @@ import {
 } from "@/renderer/components/common/BranchSelector/BranchSelector";
 import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { resolveModelLabel } from "@/renderer/components/providers/modelDisplay";
 import { launchExperiment } from "@/renderer/actions/experimentActions";
 import {
   ExperimentDraftTargets,
@@ -281,6 +282,7 @@ export function ThreadDraftComposerArea(props: {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [experimentMode, setExperimentMode] = useState(false);
   const [experimentCandidates, setExperimentCandidates] = useState<ExperimentDraftCandidate[]>([]);
+  const [experimentBaseBranch, setExperimentBaseBranch] = useState<string | null>(null);
   const isRemote = isRemoteSession();
   const isQuickComposer = window.poracode ? isQuickComposerWindow() : false;
   const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemote;
@@ -555,7 +557,7 @@ export function ThreadDraftComposerArea(props: {
 
   function submitSegments(allSegments: PromptSegment[], fallbackPrompt = "") {
     if (experimentMode) {
-      addExperimentCandidate(allSegments, fallbackPrompt);
+      void runExperiment(allSegments, fallbackPrompt);
       return;
     }
     const boundSegments = bindLeadingSkillUnlessLocalAction(allSegments, availableCommands, {
@@ -667,15 +669,11 @@ export function ThreadDraftComposerArea(props: {
     return experimentPrompt ? { prompt: experimentPrompt, segments } : null;
   }
 
-  function addExperimentCandidate(allSegments: PromptSegment[], fallbackPrompt = "") {
-    if (
-      authRequired ||
-      isSubmitting ||
-      experimentCandidates.length >= MAX_EXPERIMENT_CANDIDATES ||
-      !resolveExperimentInput(allSegments, fallbackPrompt)
-    ) {
+  function addExperimentCandidate() {
+    if (authRequired || isSubmitting || experimentCandidates.length >= MAX_EXPERIMENT_CANDIDATES) {
       return;
     }
+    const modelLabel = resolveModelLabel(props.selectedAgent, props.config.model) ?? "";
     setExperimentCandidates((current) => [
       ...current,
       {
@@ -685,24 +683,24 @@ export function ThreadDraftComposerArea(props: {
         ...(props.selectedAgent.icon ? { icon: props.selectedAgent.icon } : {}),
         config: { ...props.config },
         presentationMode: props.presentationMode,
+        modelLabel,
       },
     ]);
   }
 
-  async function runExperiment() {
-    const allSegments = [
-      ...attachments.toSegments(),
-      ...(mentionRef.current?.serializeSegments() ?? []),
-    ];
-    const input = resolveExperimentInput(allSegments, prompt);
-    if (!input || !props.gitBranch || experimentCandidates.length < 2 || isSubmitting) return;
+  async function runExperiment(allSegments: PromptSegment[], fallbackPrompt = "") {
+    const input = resolveExperimentInput(allSegments, fallbackPrompt);
+    const baseBranch = experimentBaseBranch ?? props.gitBranch;
+    if (!input || !baseBranch || experimentCandidates.length < 2 || isSubmitting) return;
     setIsSubmitting(true);
     const experimentId = await launchExperiment({
       projectId: props.project.id,
-      baseBranch: props.gitBranch,
+      baseBranch,
       prompt: input.prompt,
       segments: input.segments,
-      candidates: experimentCandidates.map(({ id: _id, icon: _icon, ...candidate }) => candidate),
+      candidates: experimentCandidates.map(
+        ({ id: _id, icon: _icon, modelLabel: _modelLabel, ...candidate }) => candidate,
+      ),
     });
     if (experimentId) {
       submittedRef.current = true;
@@ -844,6 +842,29 @@ export function ThreadDraftComposerArea(props: {
                 }}
               />
             ) : null}
+            {experimentMode && props.gitBranch ? (
+              <ExperimentDraftTargets
+                candidates={experimentCandidates}
+                isSubmitting={isSubmitting}
+                isAddDisabled={
+                  authRequired ||
+                  agentUpdating ||
+                  isSubmitting ||
+                  experimentCandidates.length >= MAX_EXPERIMENT_CANDIDATES
+                }
+                onRemove={(id) =>
+                  setExperimentCandidates((current) =>
+                    current.filter((candidate) => candidate.id !== id),
+                  )
+                }
+                onCancel={() => {
+                  setExperimentMode(false);
+                  setExperimentCandidates([]);
+                  setExperimentBaseBranch(null);
+                }}
+                onAdd={addExperimentCandidate}
+              />
+            ) : null}
           </>
         }
         attachmentBar={
@@ -951,21 +972,10 @@ export function ThreadDraftComposerArea(props: {
           agentUpdating ||
           isSubmitting ||
           !(hasContent || attachments.attachments.length > 0) ||
-          (experimentMode && experimentCandidates.length >= MAX_EXPERIMENT_CANDIDATES)
+          (experimentMode && experimentCandidates.length < 2)
         }
-        submitPending={!experimentMode && isSubmitting}
-        submitLabel={experimentMode ? t`Add candidate` : t`Launch thread`}
-        {...(experimentMode
-          ? {
-              submitContent: (
-                <>
-                  <Plus className="size-3.5" />
-                  <Trans>Add candidate</Trans>
-                </>
-              ),
-              submitVariant: "tertiary" as const,
-            }
-          : {})}
+        submitPending={isSubmitting}
+        submitLabel={experimentMode ? t`Run experiment` : t`Launch thread`}
         onPromptChange={setPrompt}
         {...(!isRemote ? { onAttachFiles: attachments.addFiles } : {})}
         onSubmit={() => {
@@ -993,7 +1003,17 @@ export function ThreadDraftComposerArea(props: {
                     disabled: authRequired || agentUpdating || isSubmitting,
                     onToggle: (next: boolean) => {
                       setExperimentMode(next);
-                      if (!next) setExperimentCandidates([]);
+                      if (next) {
+                        setExperimentBaseBranch(
+                          branchSelection?.baseBranch ??
+                            branchSelection?.branch ??
+                            props.gitBranch ??
+                            null,
+                        );
+                      } else {
+                        setExperimentCandidates([]);
+                        setExperimentBaseBranch(null);
+                      }
                     },
                   },
                 }
@@ -1008,43 +1028,41 @@ export function ThreadDraftComposerArea(props: {
           />
         }
       />
-      {experimentMode && props.gitBranch ? (
-        <ExperimentDraftTargets
-          candidates={experimentCandidates}
-          baseBranch={props.gitBranch}
-          isSubmitting={isSubmitting}
-          onRemove={(id) =>
-            setExperimentCandidates((current) => current.filter((candidate) => candidate.id !== id))
-          }
-          onCancel={() => {
-            setExperimentMode(false);
-            setExperimentCandidates([]);
-          }}
-          onRun={() => void runExperiment()}
-        />
-      ) : null}
-      {props.gitBranch && !experimentMode ? (
+      {props.gitBranch ? (
         <div data-draft-worktree-row="" className="mt-1.5 flex flex-wrap items-center gap-1 px-1">
           <WorktreeModeSelect
-            mode={worktreeMode}
-            canBringChanges={canBringChanges}
+            mode={experimentMode ? "new" : worktreeMode}
+            canBringChanges={experimentMode ? false : canBringChanges}
             onChange={handleWorktreeModeChange}
+            isDisabled={experimentMode}
             compact
           />
           <BranchSelector
             projectId={props.project.id}
             currentBranch={props.gitBranch}
-            value={branchSelection?.branch ?? props.gitBranch}
-            isWorktree={branchSelection?.isWorktree}
-            baseBranch={branchSelection?.baseBranch}
-            worktreeMode={props.worktreeMode}
-            onWorktreeModeChange={props.onWorktreeModeChange}
-            onSelect={setBranchSelection}
+            value={
+              experimentMode
+                ? (experimentBaseBranch ?? props.gitBranch)
+                : (branchSelection?.branch ?? props.gitBranch)
+            }
+            isWorktree={experimentMode ? true : branchSelection?.isWorktree}
+            baseBranch={
+              experimentMode
+                ? (experimentBaseBranch ?? props.gitBranch)
+                : branchSelection?.baseBranch
+            }
+            worktreeMode={experimentMode || props.worktreeMode}
+            {...(!experimentMode ? { onWorktreeModeChange: props.onWorktreeModeChange } : {})}
+            onSelect={
+              experimentMode
+                ? (selection) => setExperimentBaseBranch(selection.baseBranch ?? selection.branch)
+                : setBranchSelection
+            }
             onSwitchBranch={props.onSwitchBranch}
             hideWorktreeToggle
             hideTriggerIcon
             compact
-            showMoveBranchAction
+            showMoveBranchAction={!experimentMode}
             {...(props.project.scripts?.worktreeCopyPatterns
               ? {
                   moveBranchCopyIgnoredPatterns: props.project.scripts.worktreeCopyPatterns,
