@@ -3775,6 +3775,10 @@ msgid "First-class Grok Build CLI integration using Poracode's native runtime."
 msgstr "Erstklassige Grok Build CLI-Integration mit der nativen Laufzeit von Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
+msgstr "Erstklassige Kimi Code CLI-Integration mit der nativen Laufzeit von Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Erstklassige OpenCode-Integration mithilfe der nativen SDK-Laufzeitumgebung von Poracode."
 
@@ -4526,6 +4530,10 @@ msgstr "Halten Sie das System wach, während ein Thread aktiv arbeitet."
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Kill bash"
 msgstr "Bash beenden"
+
+#: src/renderer/components/providers/kimi/manifest.ts
+msgid "Kimi Code"
+msgstr "Kimi Code"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

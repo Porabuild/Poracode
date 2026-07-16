@@ -52,6 +52,19 @@ export const MINIMAX_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   { key: "CLAUDE_CODE_AUTO_COMPACT_WINDOW", value: "512000", sensitive: false },
 ];
 
+/** Canonical Kimi K3 environment, per https://platform.kimi.ai/docs/guide/claude-code-kimi. */
+export const KIMI_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
+  { key: "ANTHROPIC_BASE_URL", value: "https://api.moonshot.ai/anthropic", sensitive: false },
+  { key: "ANTHROPIC_AUTH_TOKEN", value: "", sensitive: true },
+  { key: "ANTHROPIC_MODEL", value: "kimi-k3", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "kimi-k3", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "kimi-k3", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "kimi-k3", sensitive: false },
+  { key: "CLAUDE_CODE_SUBAGENT_MODEL", value: "kimi-k3", sensitive: false },
+  { key: "ENABLE_TOOL_SEARCH", value: "false", sensitive: false },
+  { key: "CLAUDE_CODE_AUTO_COMPACT_WINDOW", value: "1048576", sensitive: false },
+];
+
 /**
  * An external-provider preset offered by the profile editor's preset selector.
  * Add more entries to `PROFILE_PRESETS` to offer additional providers — the UI
@@ -93,6 +106,13 @@ export const PROFILE_PRESETS: readonly ProfilePreset[] = [
     envRows: MINIMAX_PRESET_ROWS,
     models: [{ id: "MiniMax-M3", label: "MiniMax M3" }],
     efforts: CLAUDE_EFFORT_TIERS,
+  },
+  {
+    id: "kimi",
+    label: "Kimi",
+    envRows: KIMI_PRESET_ROWS,
+    models: [{ id: "kimi-k3", label: "Kimi K3" }],
+    efforts: ["max"],
   },
 ];
 

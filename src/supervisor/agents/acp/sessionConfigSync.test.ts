@@ -152,6 +152,39 @@ describe("AcpSessionConfigSync", () => {
     expect(connection.setSessionMode).not.toHaveBeenCalled();
   });
 
+  it("uses Kimi mode options when the ACP response has no legacy modes field", async () => {
+    const modeOption = {
+      id: "mode",
+      category: "mode",
+      type: "select",
+      currentValue: "default",
+      options: [
+        { value: "default", name: "Default" },
+        { value: "plan", name: "Plan" },
+        { value: "auto", name: "Auto" },
+        { value: "yolo", name: "YOLO" },
+      ],
+    };
+    const { connection, sync } = makeConfigSync({
+      availableModeIds: [],
+      configOptions: [modeOption],
+    });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, approvalPolicy: "yolo" },
+      previousConfig,
+    );
+
+    expect(sync.availableModeIds).toEqual(["default", "plan", "auto", "yolo"]);
+    expect(connection.setSessionConfigOption).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      configId: "mode",
+      value: "yolo",
+    });
+    expect(connection.setSessionMode).not.toHaveBeenCalled();
+  });
+
   it("uses ACP session config options for Cursor-style model aliases", async () => {
     const modelOption = {
       id: "model",

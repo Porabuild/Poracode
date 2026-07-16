@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Terminal } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentSlashCommand } from "@/shared/contracts";
+import { slashCommandDisplayId } from "./threadSlashCommands";
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 
 interface ThreadCommandPanelProps {
@@ -81,7 +82,9 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => onSelect(cmd)}
                       >
-                        <span className="shrink-0 font-bold text-foreground">/{cmd.id}</span>
+                        <span className="shrink-0 font-bold text-foreground">
+                          /{slashCommandDisplayId(cmd)}
+                        </span>
                         {cmd.description && (
                           <span className="min-w-0 flex-1 truncate font-normal text-[color:var(--muted)]">
                             {cmd.description}

@@ -3775,6 +3775,10 @@ msgid "First-class Grok Build CLI integration using Poracode's native runtime."
 msgstr "Першокласна інтеграція Grok Build CLI з використанням нативного середовища виконання Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
+msgstr "Першокласна інтеграція Kimi Code CLI з використанням нативного середовища виконання Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Першокласна інтеграція OpenCode з використанням нативного середовища виконання SDK Poracode."
 
@@ -4526,6 +4530,10 @@ msgstr "Не давати системі засинати, поки будь-я�
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Kill bash"
 msgstr "Завершити bash"
+
+#: src/renderer/components/providers/kimi/manifest.ts
+msgid "Kimi Code"
+msgstr "Kimi Code"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

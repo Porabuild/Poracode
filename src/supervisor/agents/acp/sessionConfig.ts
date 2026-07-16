@@ -111,6 +111,14 @@ function flattenSelectOptions(options: unknown): AcpConfigSelectOptionLike[] {
   });
 }
 
+export function listSelectConfigOptionValues(configOptions: unknown, category: string): string[] {
+  const option = findSelectConfigOption(configOptions, category);
+  if (!option) return [];
+  return flattenSelectOptions(option.options).flatMap((entry) =>
+    typeof entry.value === "string" && entry.value.length > 0 ? [entry.value] : [],
+  );
+}
+
 function normalizeConfigOptionAlias(value: string): string {
   return value
     .trim()

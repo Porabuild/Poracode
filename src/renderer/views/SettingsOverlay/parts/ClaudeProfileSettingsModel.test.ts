@@ -5,6 +5,7 @@ import {
   cleanModels,
   DEEPSEEK_PRESET_ROWS,
   environmentFromRows,
+  KIMI_PRESET_ROWS,
   MINIMAX_PRESET_ROWS,
   profileUsesExternalProvider,
   rowsFromEnvironment,
@@ -94,6 +95,20 @@ describe("ClaudeProfileSettingsModel", () => {
       expect(byKey.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("MiniMax-M3");
       expect(byKey.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC).toBe("1");
       expect(byKey.CLAUDE_CODE_AUTO_COMPACT_WINDOW).toBe("512000");
+    });
+
+    it("adds the canonical Kimi env with K3 for every Claude Code model tier", () => {
+      const byKey = Object.fromEntries(
+        applyPresetEnvRows(KIMI_PRESET_ROWS, [], nextRowId).map((row) => [row.key, row.value]),
+      );
+      expect(byKey.ANTHROPIC_BASE_URL).toBe("https://api.moonshot.ai/anthropic");
+      expect(byKey.ANTHROPIC_MODEL).toBe("kimi-k3");
+      expect(byKey.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe("kimi-k3");
+      expect(byKey.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("kimi-k3");
+      expect(byKey.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("kimi-k3");
+      expect(byKey.CLAUDE_CODE_SUBAGENT_MODEL).toBe("kimi-k3");
+      expect(byKey.ENABLE_TOOL_SEARCH).toBe("false");
+      expect(byKey.CLAUDE_CODE_AUTO_COMPACT_WINDOW).toBe("1048576");
     });
 
     it("corrects stale preset values but keeps an existing token and extra rows", () => {

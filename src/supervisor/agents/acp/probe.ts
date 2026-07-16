@@ -192,6 +192,19 @@ export function mapAcpModels(
   });
 }
 
+/** Map the standard ACP model config option to Poracode model options. */
+export function mapAcpConfigModels(configOptions: unknown): Array<{ id: string; label: string }> {
+  const option = findSelectConfigOption(configOptions, "model");
+  if (!option) return [];
+
+  return flattenSelectOptions(option.options).flatMap((entry) => {
+    const id = typeof entry.value === "string" ? entry.value.trim() : "";
+    if (!id) return [];
+    const name = typeof entry.name === "string" ? entry.name.trim() : "";
+    return [{ id, label: name && name !== id ? name : humanizeModelId(id) }];
+  });
+}
+
 function mapAcpModelMetadata(
   availableModels: UnstableModelInfo[],
 ): Record<string, Record<string, unknown>> {
@@ -210,12 +223,16 @@ export function mapAcpSlashCommands(commands: AcpAvailableCommandLike[]): AgentS
     if (!name) {
       return [];
     }
+    const skillName = name.toLowerCase().startsWith("skill:")
+      ? name.slice("skill:".length).trim()
+      : undefined;
     return [
       {
         id: name,
         label: command.description?.trim() ? `${name} — ${command.description}` : name,
         ...(command.description?.trim() ? { description: command.description } : {}),
         ...(command.input?.hint?.trim() ? { argumentHint: command.input.hint } : {}),
+        ...(skillName ? { section: "skills" as const, skillName } : {}),
       },
     ];
   });
@@ -522,6 +539,10 @@ export async function probeAcpCapabilities(
       }
     }
     if (result.configOptions?.length) {
+      const configModels = mapAcpConfigModels(result.configOptions);
+      if (configModels.length > 0) {
+        probeResult.models = configModels;
+      }
       const thoughtLevels = mapAcpThoughtLevels(result.configOptions);
       if (thoughtLevels.efforts.length > 0) {
         probeResult.efforts = thoughtLevels.efforts;

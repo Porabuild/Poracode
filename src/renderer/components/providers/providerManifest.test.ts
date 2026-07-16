@@ -21,6 +21,7 @@ const EXPECTED_PROVIDER_ORDER = [
   "codex",
   "gemini",
   "grok",
+  "kimi",
   "antigravity",
   "commandcode",
   "opencode",

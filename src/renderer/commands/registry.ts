@@ -454,12 +454,13 @@ function activeChatCommands(): AppCommand[] {
 }
 
 function chatCommand(command: AgentSlashCommand, thread: Thread): AppCommand {
+  const displayId = command.section === "skills" ? (command.skillName ?? command.id) : command.id;
   return {
     id: `chat.command.${command.id}`,
-    title: `/${command.id}`,
+    title: `/${displayId}`,
     group: msg`Chat Commands`,
     subtitle: command.description ?? command.label,
-    keywords: [command.label, command.description ?? ""],
+    keywords: [displayId, command.id, command.label, command.description ?? ""],
     when: "hasThread",
     showInShortcuts: false,
     run: async () => {

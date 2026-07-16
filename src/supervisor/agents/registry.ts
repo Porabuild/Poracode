@@ -23,6 +23,7 @@ import { createCursorAdapter } from "./cursor";
 import { createFactoryAdapter } from "./factory";
 import { createGeminiAdapter } from "./gemini";
 import { createGrokAdapter } from "./grok";
+import { createKimiAdapter } from "./kimi";
 import { createOpenCodeAdapter } from "./opencode";
 
 export function createAgentRegistry(): AgentAdapter[] {
@@ -41,6 +42,7 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
     createCodexAdapter(),
     createGeminiAdapter(),
     createGrokAdapter(),
+    createKimiAdapter(),
     createAntigravityAdapter(),
     createCommandCodeAdapter(),
     createCursorAdapter(),

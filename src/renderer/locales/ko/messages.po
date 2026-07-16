@@ -3775,6 +3775,10 @@ msgid "First-class Grok Build CLI integration using Poracode's native runtime."
 msgstr "Poracode의 기본 런타임을 사용하는 최고 수준의 Grok Build CLI 통합."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
+msgstr "Poracode의 기본 런타임을 사용하는 최고 수준의 Kimi Code CLI 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Poracode의 기본 SDK 런타임을 사용한 최고 수준의 OpenCode 통합."
 
@@ -4526,6 +4530,10 @@ msgstr "스레드가 활발하게 작동하는 동안 시스템을 활성 상태
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Kill bash"
 msgstr "bash 종료"
+
+#: src/renderer/components/providers/kimi/manifest.ts
+msgid "Kimi Code"
+msgstr "Kimi Code"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

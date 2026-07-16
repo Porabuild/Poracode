@@ -106,19 +106,27 @@ describe("detectAgentInstall WSL interop guard", () => {
   // (batchWslCommandsAsync -> processBatch), not a direct wsl.exe spawn, so the
   // test wires a fake bridge client rather than mocking execFile.
   let commandVStdout = "";
+  let binaryHomeStdout = "";
 
   beforeEach(() => {
     Object.defineProperty(process, "platform", { value: "win32", configurable: true });
     clearExecutablePathCache();
     execFileAsyncMock.mockReset();
+    commandVStdout = "";
+    binaryHomeStdout = "";
     setWslProcessBridgeClient({
-      processBatch: async (_location: unknown, input: { commands: unknown[] }) => ({
-        results: input.commands.map(() => ({
-          ok: commandVStdout.length > 0,
-          stdout: commandVStdout,
-          stderr: "",
-          exitCode: commandVStdout.length > 0 ? 0 : 1,
-        })),
+      processBatch: async (_location: unknown, input: { commands: { args: string[] }[] }) => ({
+        results: input.commands.map((command) => {
+          const stdout = command.args.at(-1)?.includes("command -v")
+            ? commandVStdout
+            : binaryHomeStdout;
+          return {
+            ok: stdout.length > 0,
+            stdout,
+            stderr: "",
+            exitCode: stdout.length > 0 ? 0 : 1,
+          };
+        }),
       }),
       processExec: async () => ({
         ok: true,
@@ -154,5 +162,24 @@ describe("detectAgentInstall WSL interop guard", () => {
 
     expect(status.installed).toBe(true);
     expect(status.executablePath).toBe("/home/x/.local/bin/grok");
+  });
+
+  it("detects a provider binary in its documented WSL home when PATH is stale", async () => {
+    binaryHomeStdout = "/home/x/.kimi-code/bin/kimi";
+    const kimiSpec: DetectionSpec = {
+      ...spec,
+      kind: "kimi",
+      label: "Kimi Code",
+      binary: "kimi",
+      wslBinaryHome: {
+        env: "KIMI_CODE_HOME",
+        defaultSubpath: ".kimi-code",
+      },
+    };
+
+    const status = await detectAgentInstall({ envKind: "wsl", wslDistro: "Kimi-Test" }, kimiSpec);
+
+    expect(status.installed).toBe(true);
+    expect(status.executablePath).toBe("/home/x/.kimi-code/bin/kimi");
   });
 });

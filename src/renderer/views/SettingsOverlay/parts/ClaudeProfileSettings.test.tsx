@@ -363,6 +363,27 @@ describe("ClaudeProfileProviderSettings", () => {
     expect(screen.getByLabelText("Model id")).toHaveValue("MiniMax-M3");
   });
 
+  it("fills the editor from the Kimi preset", () => {
+    render(<ClaudeProfileProviderSettings instanceId="glm" />);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Kimi" }));
+
+    expect(screen.getByDisplayValue("https://api.moonshot.ai/anthropic")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("ENABLE_TOOL_SEARCH")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("CLAUDE_CODE_AUTO_COMPACT_WINDOW")).toBeInTheDocument();
+    expect(screen.getByLabelText("Model id")).toHaveValue("kimi-k3");
+    expect(settingsState.setAgentInstance).toHaveBeenCalledWith({
+      id: "glm",
+      driver: "claude",
+      displayName: "GLM",
+      config: {
+        configDir: "~/.poracode/claude-profiles/glm",
+        models: [{ id: "kimi-k3", label: "Kimi K3" }],
+        efforts: ["max"],
+      },
+    });
+  });
+
   it("masks an already-sealed secret value", () => {
     settingsState.agentInstances = {
       glm: claudeProfile({

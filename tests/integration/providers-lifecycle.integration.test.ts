@@ -40,6 +40,7 @@ const PREFERRED_MODEL: Record<string, string> = {
   antigravity: "auto",
   commandcode: "google/gemini-3.1-flash-lite",
   opencode: "opencode/big-pickle",
+  kimi: "kimi-code/kimi-for-coding",
 };
 
 const CHEAP_NAME_HINTS = ["haiku", "mini", "flash-lite", "flash", "lite", "small", "fast", "nano"];

@@ -241,6 +241,15 @@ export interface DetectionSpec {
   kind: AgentKind;
   label: string;
   binary: string;
+  /**
+   * Optional WSL home used by providers whose official installer does not put
+   * the binary on PATH. Detection checks `<home>/bin/<binary>` after
+   * `command -v`, honoring the provider's distro-side home override.
+   */
+  wslBinaryHome?: {
+    env: string;
+    defaultSubpath: string;
+  };
   loginCommand?: string | ((ctx: DetectProbeCtx) => string | undefined);
   capabilities: AgentCapability;
   update?: AgentUpdateInfo;

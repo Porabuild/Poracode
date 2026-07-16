@@ -131,6 +131,17 @@ describe("serializeComposerContent", () => {
     expect(serializeComposerContent(container)).toBe("$review-code");
   });
 
+  it("displays a short skill name while serializing the ACP-native command id", () => {
+    const chip = createSlashCommandChipElement({
+      id: "skill:simplify",
+      skillName: "simplify",
+    });
+    container.appendChild(chip);
+
+    expect(chip.textContent).toBe("/simplify");
+    expect(serializeComposerContent(container)).toBe("/skill:simplify");
+  });
+
   it("excludes attachment segments from serialization", () => {
     // Note: serializeComposerContent uses serializeToSegments which walks DOM nodes.
     // The AttachmentBar logic is what puts attachments in the segments array.

@@ -1,11 +1,44 @@
 import { describe, expect, it } from "vitest";
 import {
   humanizeModelId,
+  mapAcpConfigModels,
   mapAcpModels,
   mapAcpModes,
+  mapAcpSlashCommands,
   mapAcpThoughtLevels,
   normalizeAcpModeId,
 } from "./probe";
+
+describe("mapAcpSlashCommands", () => {
+  it("maps ACP skill commands into the Skills section without changing their native id", () => {
+    expect(
+      mapAcpSlashCommands([
+        {
+          name: "skill:simplify",
+          description: "Review changed code",
+        },
+      ]),
+    ).toEqual([
+      {
+        id: "skill:simplify",
+        label: "skill:simplify — Review changed code",
+        description: "Review changed code",
+        section: "skills",
+        skillName: "simplify",
+      },
+    ]);
+  });
+
+  it("keeps non-skill ACP commands in the command section", () => {
+    expect(mapAcpSlashCommands([{ name: "status", description: "Show status" }])).toEqual([
+      {
+        id: "status",
+        label: "status — Show status",
+        description: "Show status",
+      },
+    ]);
+  });
+});
 
 describe("humanizeModelId", () => {
   it("strips gemini- prefix and title-cases segments", () => {
@@ -21,6 +54,43 @@ describe("humanizeModelId", () => {
 
   it("handles ids without gemini- prefix", () => {
     expect(humanizeModelId("some-model")).toBe("Some Model");
+  });
+});
+
+describe("mapAcpConfigModels", () => {
+  it("extracts the models Kimi advertises through configOptions", () => {
+    const result = mapAcpConfigModels([
+      {
+        type: "select",
+        id: "model",
+        name: "Model",
+        category: "model",
+        currentValue: "kimi-code/kimi-for-coding",
+        options: [
+          { value: "kimi-code/kimi-for-coding", name: "K2.7 Coding" },
+          {
+            value: "kimi-code/kimi-for-coding-highspeed",
+            name: "K2.7 Coding Highspeed",
+          },
+          { value: "kimi-code/k3", name: "K3" },
+        ],
+      },
+    ]);
+
+    expect(result).toEqual([
+      { id: "kimi-code/kimi-for-coding", label: "K2.7 Coding" },
+      { id: "kimi-code/kimi-for-coding-highspeed", label: "K2.7 Coding Highspeed" },
+      { id: "kimi-code/k3", label: "K3" },
+    ]);
+  });
+
+  it("ignores malformed and unrelated config options", () => {
+    expect(
+      mapAcpConfigModels([
+        { type: "select", category: "mode", options: [{ value: "default" }] },
+        { type: "select", category: "model", options: [{ value: "" }, {}] },
+      ]),
+    ).toEqual([]);
   });
 });
 

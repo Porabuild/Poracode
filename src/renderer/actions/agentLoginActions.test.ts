@@ -147,7 +147,9 @@ describe("runAgentLoginCommand", () => {
     const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
     const innerScript = unwrapBashScript(script);
     expect(script).not.toContain("cmd.exe /c start");
-    expect(innerScript).toContain("clear; BROWSER='/bin/true' grok login");
+    expect(innerScript).toContain(
+      "clear; BROWSER='/bin/true' DISPLAY='' WAYLAND_DISPLAY='' grok login",
+    );
 
     emit({
       type: "thread-output",
@@ -183,7 +185,7 @@ describe("runAgentLoginCommand", () => {
       "https://auth.x.ai/oauth2/authorize?response_type=code&client_id=b1a00492-073a-47ea-816f-4c329264a828&redirect_uri=http%3A%2F%2F127.0.0.1%3A45417%2Fcallback&scope=openid%20profile%20email%20offline_access%20grok-cli%3Aaccess%20api%3Aaccess&code_challenge=MDPixKrsA5K4QIgvDtSEPlQniofqpd2Rr8wT5HEzo5I&code_challenge_method=S256&state=019e5ddb-3198-7542-8504-714899198f01&nonce=019e5ddb-3198-7542-8504-7154a7bf6c98";
 
     expect(unwrapBashScript(writeScriptToShellMock.mock.calls[0]?.[1] ?? "")).toContain(
-      "clear; BROWSER='/bin/true' grok login",
+      "clear; BROWSER='/bin/true' DISPLAY='' WAYLAND_DISPLAY='' grok login",
     );
 
     emit({
@@ -223,7 +225,7 @@ describe("runAgentLoginCommand", () => {
 
     const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
     expect(unwrapBashScript(script)).toContain(
-      "clear; BROWSER='/bin/true' CLAUDE_CONFIG_DIR='/home/demo/.claude-profiles/home' claude auth login",
+      "clear; CLAUDE_CONFIG_DIR='/home/demo/.claude-profiles/home' BROWSER='/bin/true' DISPLAY='' WAYLAND_DISPLAY='' claude auth login",
     );
   });
 
@@ -344,6 +346,38 @@ describe("runAgentLoginCommand", () => {
     expect(bridge.openExternalNative).toHaveBeenCalledWith(url);
   });
 
+  it("keeps Kimi WSL login to one native browser launch", () => {
+    runAgentLoginCommand({
+      label: "Kimi Code",
+      command: "'/home/demo/.kimi-code/bin/kimi' login",
+      project: wslProject,
+    });
+
+    const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+    expect(unwrapBashScript(writeScriptToShellMock.mock.calls[0]?.[1] ?? "")).toContain(
+      "clear; BROWSER='/bin/true' DISPLAY='' WAYLAND_DISPLAY='' '/home/demo/.kimi-code/bin/kimi' login",
+    );
+
+    const url = "https://www.kimi.com/code/authorize_device?user_code=ABCD-EFGH";
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: `Opening browser for Kimi device login: ${url}\n`,
+      outputLength: 0,
+    });
+    vi.advanceTimersByTime(250);
+    emit({
+      type: "thread-output",
+      threadId: shellId!,
+      data: `If the browser did not open, paste this URL: ${url}\n`,
+      outputLength: 0,
+    });
+    vi.advanceTimersByTime(250);
+
+    expect(bridge.openExternalNative).toHaveBeenCalledTimes(1);
+    expect(bridge.openExternalNative).toHaveBeenCalledWith(url);
+  });
+
   it("does not auto-open Gemini WSL login links", () => {
     runAgentLoginCommand({
       label: "Gemini",
@@ -353,7 +387,7 @@ describe("runAgentLoginCommand", () => {
 
     const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
     expect(unwrapBashScript(writeScriptToShellMock.mock.calls[0]?.[1] ?? "")).toContain(
-      "clear; BROWSER='/bin/true' gemini /auth",
+      "clear; BROWSER='/bin/true' DISPLAY='' WAYLAND_DISPLAY='' gemini /auth",
     );
 
     emit({

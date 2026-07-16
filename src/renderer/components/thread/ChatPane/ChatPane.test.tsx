@@ -1103,6 +1103,17 @@ describe("ChatPane", () => {
     expect(screen.getByRole("link", { name: url })).toHaveAttribute("href", url);
   });
 
+  it("renders ACP skill commands with their short display name", async () => {
+    const thread = makeThread();
+    seedUserMessage(thread.id, "/skill:simplify review these changes");
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    expect(screen.getByText("simplify").parentElement).toHaveClass("poracode-slash-chip");
+    expect(screen.queryByText("skill:simplify")).not.toBeInTheDocument();
+  });
+
   it("reports failed user message link opens", async () => {
     const thread = makeThread();
     const url = "https://tanstack.com/blog/tanstack-virtual-chat";

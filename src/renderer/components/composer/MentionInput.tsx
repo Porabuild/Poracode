@@ -476,7 +476,11 @@ export const MentionInput = forwardRef<
       const chip = createSlashCommandChipElement(
         typeof command === "string"
           ? command
-          : { id: command.id, ...(skill ? skillChipDataset(skill) : {}) },
+          : {
+              id: command.id,
+              ...(command.skillName ? { skillName: command.skillName } : {}),
+              ...(skill ? skillChipDataset(skill) : {}),
+            },
       );
       range.insertNode(chip);
 

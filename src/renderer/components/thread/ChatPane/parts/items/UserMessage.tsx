@@ -65,6 +65,9 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
   const content = payload?.content ?? [];
   const rawText = buildUserPromptText(content);
   const { slashCommand, body } = extractLeadingSlashCommand(rawText);
+  const displaySlashCommand = slashCommand?.startsWith("skill:")
+    ? slashCommand.slice("skill:".length)
+    : slashCommand;
   const text = body;
   const commandPrefixLength = slashCommand ? rawText.length - body.length : 0;
   const hasInlineContent = content.some(
@@ -206,7 +209,7 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
     bodyClass = inlineBodyClass;
     bodyContent = (
       <>
-        <UserMessageSlashChip icon="/" label={slashCommand} />
+        <UserMessageSlashChip icon="/" label={displaySlashCommand ?? slashCommand} />
         {renderUserMessageInlineContent(content, commandPrefixLength, actions)}
       </>
     );
@@ -279,7 +282,7 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
   );
 });
 
-const LEADING_SLASH_COMMAND_RE = /^\/([A-Za-z][A-Za-z0-9_-]*)(\s+|$)/;
+const LEADING_SLASH_COMMAND_RE = /^\/([A-Za-z][A-Za-z0-9_.:-]*)(\s+|$)/;
 
 function extractLeadingSlashCommand(text: string): { slashCommand: string | null; body: string } {
   const match = text.match(LEADING_SLASH_COMMAND_RE);

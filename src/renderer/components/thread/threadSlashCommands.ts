@@ -21,6 +21,16 @@ function isSkillCommand(command: AgentSlashCommand): boolean {
   return command.section === "skills";
 }
 
+export function slashCommandDisplayId(command: AgentSlashCommand): string {
+  return isSkillCommand(command) ? (command.skillName ?? command.id) : command.id;
+}
+
+function slashCommandMatches(command: AgentSlashCommand, query: string): boolean {
+  const displayId = slashCommandDisplayId(command).toLowerCase();
+  const wireId = command.id.toLowerCase();
+  return displayId.startsWith(query) || wireId.startsWith(query);
+}
+
 function withoutSkillCommands(
   commands: readonly AgentSlashCommand[] | undefined,
 ): AgentSlashCommand[] {
@@ -245,7 +255,7 @@ export function filterSlashCommands(
   }
 
   const normalizedQuery = query.toLowerCase();
-  return commands.filter((command) => command.id.toLowerCase().startsWith(normalizedQuery));
+  return commands.filter((command) => slashCommandMatches(command, normalizedQuery));
 }
 
 export interface SlashCommandPanelKeyDownContext {
@@ -283,7 +293,11 @@ export function handleSlashCommandPanelKeyDown(
   }
   if (e.key === " " && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const typed = (ctx.slashQuery ?? "").toLowerCase();
-    const exact = filteredCommands.find((cmd) => cmd.id.toLowerCase() === typed);
+    const exact = filteredCommands.find(
+      (command) =>
+        slashCommandDisplayId(command).toLowerCase() === typed ||
+        command.id.toLowerCase() === typed,
+    );
     if (exact) {
       e.preventDefault();
       mentionRef.current?.insertSlashCommand(exact);

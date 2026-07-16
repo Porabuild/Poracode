@@ -1511,6 +1511,61 @@ describe("mapAcpSessionUpdate", () => {
 });
 
 describe("mapAcpPermissionRequest", () => {
+  it("extracts Kimi Bash commands from sparse approval content", () => {
+    const state = createAcpMapperState("t-perm-kimi");
+
+    const event = mapAcpPermissionRequest(
+      {
+        sessionId: "s1",
+        toolCall: {
+          toolCallId: "tool-kimi-1",
+          title: "Bash",
+          content: [
+            {
+              type: "content",
+              content: { type: "text", text: "Requesting approval to Running: pwd" },
+            },
+          ],
+        },
+        options: [
+          { optionId: "approve_once", name: "Approve once", kind: "allow_once" },
+          {
+            optionId: "approve_always",
+            name: "Approve for this session",
+            kind: "allow_always",
+          },
+          { optionId: "reject", name: "Reject", kind: "reject_once" },
+        ],
+      } as Parameters<typeof mapAcpPermissionRequest>[0],
+      state,
+      "acp-perm-kimi-0",
+    );
+
+    expect(event).toEqual({
+      type: "request.opened",
+      threadId: "t-perm-kimi",
+      requestId: "acp-perm-kimi-0",
+      requestType: "command_execution_approval",
+      payload: {
+        summary: "Bash",
+        details: {
+          toolName: "Bash",
+          displayName: "command",
+          input: { command: "pwd" },
+        },
+        options: [
+          { optionId: "approve_once", label: "Approve once", description: undefined },
+          {
+            optionId: "approve_always",
+            label: "Approve for this session",
+            description: undefined,
+          },
+          { optionId: "reject", label: "Reject", description: undefined },
+        ],
+      },
+    });
+  });
+
   it("unwraps command approval input instead of surfacing raw JSON details", () => {
     const state = createAcpMapperState("t-perm-command");
 

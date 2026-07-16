@@ -170,6 +170,18 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
       }),
   },
   {
+    id: "kimi",
+    description: msg`First-class Kimi Code CLI integration using Poracode's native runtime.`,
+    docsUrl: "https://www.kimi.com/code/docs/en/",
+    installCommand: (project) =>
+      posixOrWindows(
+        project,
+        "if command -v curl >/dev/null 2>&1; then curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash; " +
+          "else printf 'curl is required to install Kimi Code. Install curl, then refresh detected agents.\\n'; fi",
+        "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://code.kimi.com/kimi-code/install.ps1 | iex } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod first, then refresh detected agents.' }",
+      ),
+  },
+  {
     id: "factory",
     acpRegistryAliases: [{ id: "factory-droid", nativeSupport: true }],
     description: msg`First-class Factory Droid integration using Poracode's ACP runtime.`,

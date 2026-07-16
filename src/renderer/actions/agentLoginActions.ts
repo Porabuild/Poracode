@@ -62,9 +62,11 @@ export function runAgentLoginCommand(input: {
 
   const shellId = `login:${crypto.randomUUID()}`;
   // On WSL the agent CLI can't reach the Windows browser on its own, so we
-  // suppress its opener (BROWSER=/bin/true) and watch stdout for auth URLs to
-  // hand off via the Windows shell. Native macOS / Windows CLIs already open
-  // their own browser, so a renderer-side watcher would just double-launch.
+  // suppress its opener and watch stdout for auth URLs to hand off via the
+  // Windows shell. Clearing the WSLg display variables matters for CLIs such
+  // as Kimi that call xdg-open directly instead of honoring BROWSER. Native
+  // macOS / Windows CLIs already open their own browser, so a renderer-side
+  // watcher would just double-launch.
   const suppressWslBrowser = project.location.kind === "wsl";
   const interceptWslUrls = suppressWslBrowser && !isGeminiLoginCommand(input);
   // Wipe the bash prompt + echoed script line that briefly appear before the
@@ -72,7 +74,14 @@ export function runAgentLoginCommand(input: {
   // overlay a clean canvas so the user only sees the agent's own UI.
   const loginCommand = buildTerminalCommand({
     command: input.command,
-    env: suppressWslBrowser ? { BROWSER: "/bin/true", ...(input.env ?? {}) } : input.env,
+    env: suppressWslBrowser
+      ? {
+          ...(input.env ?? {}),
+          BROWSER: "/bin/true",
+          DISPLAY: "",
+          WAYLAND_DISPLAY: "",
+        }
+      : input.env,
     locationKind: project.location.kind,
   });
   const command =
