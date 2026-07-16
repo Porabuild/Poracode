@@ -2660,6 +2660,10 @@ msgstr "无法生成提交消息：{detail}"
 msgid "Could not load pull requests for {0}."
 msgstr "无法加载 {0} 的拉取请求。"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "无法打开此 PDF。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
 msgstr "无法读取文件。"
@@ -4043,6 +4047,10 @@ msgstr "使用 Poracode 的本机运行时进行一流的 Grok Build CLI 集成�
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "使用 Poracode 的本机 SDK 运行时进行一流的 OpenCode 集成。"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Fit width"
+#~ msgstr "适合宽度"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "在代理中修复"
@@ -4948,6 +4956,11 @@ msgstr "正在加载市场…"
 msgid "Loading notes…"
 msgstr "正在加载笔记..."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "Loading PDF…"
+#~ msgstr "正在加载 PDF…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "正在加载 PR…"
@@ -5809,6 +5822,10 @@ msgstr "下一张图片"
 msgid "Next match"
 msgstr "下一个匹配项"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Next page"
+#~ msgstr "下一页"
+
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "下一个最近查看的聊天"
@@ -6468,6 +6485,10 @@ msgstr "将 git review 作为右侧面板或整页打开。"
 msgid "Open image preview"
 msgstr "打开图片预览"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "在浏览器中打开"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -6809,6 +6830,14 @@ msgstr "暂停"
 msgid "Paused"
 msgstr "已暂停"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "PDF 预览会在浏览器面板中打开。"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "PDF 预览会在浏览器中打开。"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "最活跃日"
@@ -7018,6 +7047,10 @@ msgstr "上一张图片"
 #: src/renderer/components/find/FindBar.tsx
 msgid "Previous match"
 msgstr "上一个匹配项"
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Previous page"
+#~ msgstr "上一页"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"

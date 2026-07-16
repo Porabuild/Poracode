@@ -199,6 +199,34 @@ describe("ItemMarkdownInner", () => {
     expect(src).toContain("01-collapsed-same-file-edits.png");
   });
 
+  it("renders Grok session-relative images/ markdown via the local file protocol", () => {
+    const sessionDir =
+      "C:\\Users\\sdsle\\.grok\\sessions\\E%3A%5Cwork%5Clightcode%5C.poracode%5Cworktrees%5Cporacode-warm-yak-d27ed350\\019f6789-4fd1-7740-a828-9a42918d42e8";
+    const actions = makeActions({
+      projectLocation: {
+        kind: "windows",
+        path: "E:\\work\\lightcode\\.poracode\\worktrees\\poracode-warm-yak-d27ed350",
+      },
+      markdownImageRoots: [sessionDir],
+    });
+
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner text={"![Modal PDF preview](images/4.jpg)"} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    const src = screen.getByAltText("Modal PDF preview").getAttribute("src") ?? "";
+    expect(src.startsWith("poracode-local://local/")).toBe(true);
+    expect(src).toContain("images");
+    expect(src).toContain("4.jpg");
+    // Must land under the Grok session dir, not the project root.
+    expect(src).toContain(".grok");
+    expect(src).toContain("E%253A%255Cwork");
+  });
+
   it("normalizes absolute markdown link hrefs to project file chips", () => {
     const actions = makeActions();
 

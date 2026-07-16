@@ -2660,6 +2660,10 @@ msgstr "Nie można wygenerować komunikatu zatwierdzenia: {detail}"
 msgid "Could not load pull requests for {0}."
 msgstr "Nie udało się załadować żądań ściągnięcia dla {0}."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "Nie udało się otworzyć tego pliku PDF."
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
 msgstr "Nie można odczytać pliku."
@@ -4043,6 +4047,10 @@ msgstr "Pierwszorzędna integracja Grok Build CLI przy użyciu natywnego środow
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Pierwszorzędna integracja OpenCode z wykorzystaniem natywnego środowiska wykonawczego SDK Poracode."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Fit width"
+#~ msgstr "Dopasuj do szerokości"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Napraw w Agencie"
@@ -4948,6 +4956,11 @@ msgstr "Ładowanie marketplace…"
 msgid "Loading notes…"
 msgstr "Ładowanie notatek…"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "Loading PDF…"
+#~ msgstr "Wczytywanie pliku PDF…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "Ładowanie PR…"
@@ -5810,6 +5823,10 @@ msgstr "Następny obraz"
 msgid "Next match"
 msgstr "Następne dopasowanie"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Next page"
+#~ msgstr "Następna strona"
+
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "Następny ostatnio wyświetlany czat"
@@ -6469,6 +6486,10 @@ msgstr "Otwórz przegląd git jako panel po prawej stronie lub całą stronę."
 msgid "Open image preview"
 msgstr "Otwórz podgląd obrazu"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "Otwórz w przeglądarce"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -6810,6 +6831,14 @@ msgstr "Wstrzymaj"
 msgid "Paused"
 msgstr "Wstrzymano"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "Podgląd PDF otwiera się w panelu przeglądarki."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "Podgląd PDF otwiera się w przeglądarce."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "szczytowy dzień"
@@ -7019,6 +7048,10 @@ msgstr "Poprzedni obraz"
 #: src/renderer/components/find/FindBar.tsx
 msgid "Previous match"
 msgstr "Poprzednie dopasowanie"
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Previous page"
+#~ msgstr "Poprzednia strona"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"

@@ -2,11 +2,17 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { rewriteSegmentsForWorkspace } from "./threadAttachments";
+import type { WslBridgeClient } from "../wsl/bridge/client";
+import {
+  rewriteSegmentsForWorkspace,
+  rewriteSegmentsForWsl,
+  setWslAttachmentBridgeClient,
+} from "./threadAttachments";
 
 const dirs: string[] = [];
 
 afterEach(() => {
+  setWslAttachmentBridgeClient(undefined);
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -65,5 +71,25 @@ describe("rewriteSegmentsForWorkspace", () => {
       { kind: "text", content: "hi" },
       { kind: "attachment", path: "rel.png", mimeType: "image/png" },
     ]);
+  });
+});
+
+describe("rewriteSegmentsForWsl", () => {
+  it("preserves host PDF attachment paths when the structured adapter reads their bytes", async () => {
+    setWslAttachmentBridgeClient({} as WslBridgeClient);
+    const path = "C:\\Users\\test\\document.pdf";
+
+    const segments = await rewriteSegmentsForWsl(
+      [{ kind: "attachment", path, mimeType: "application/pdf" }],
+      {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/workspace",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\workspace",
+      },
+      { preservePdfAttachments: true },
+    );
+
+    expect(segments).toEqual([{ kind: "attachment", path, mimeType: "application/pdf" }]);
   });
 });

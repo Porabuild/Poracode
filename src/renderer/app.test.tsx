@@ -2,8 +2,12 @@ import { Fragment, type ReactNode } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RemoteThreadCommand } from "@/shared/contracts";
-import type { QuickComposerSubmission, SupervisorEvent } from "@/shared/ipc";
+import type { RemoteThreadCommand, Thread } from "@/shared/contracts";
+import type {
+  QuickComposerSubmission,
+  SupervisorEvent,
+  ThreadOpenRequestedEvent,
+} from "@/shared/ipc";
 import { useAppStore } from "./state/appStore";
 import { useGitStore } from "./state/gitStore";
 import { usePanelStore } from "./state/panelStore";
@@ -17,14 +21,17 @@ const {
   quickComposerSubmitListeners,
   remoteThreadCommandListeners,
   supervisorEventListeners,
+  threadOpenRequestedListeners,
 } = vi.hoisted(() => {
   const listeners: Array<(command: RemoteThreadCommand) => void> = [];
   const quickListeners: Array<(submission: QuickComposerSubmission) => void> = [];
   const supervisorListeners: Array<(event: SupervisorEvent) => void> = [];
+  const threadOpenListeners: Array<(event: ThreadOpenRequestedEvent) => void> = [];
   return {
     remoteThreadCommandListeners: listeners,
     quickComposerSubmitListeners: quickListeners,
     supervisorEventListeners: supervisorListeners,
+    threadOpenRequestedListeners: threadOpenListeners,
     bridge: {
       windowKind: "main",
       pickFolder: vi.fn<() => Promise<null>>().mockResolvedValue(null),
@@ -168,7 +175,12 @@ const {
         return () => undefined;
       }),
       onSharedSettingsChanged: vi.fn<() => () => void>(() => () => undefined),
-      onNotificationClick: vi.fn<() => () => void>(() => () => undefined),
+      onThreadOpenRequested: vi.fn<
+        (listener: (event: ThreadOpenRequestedEvent) => void) => () => void
+      >((listener) => {
+        threadOpenListeners.push(listener);
+        return () => undefined;
+      }),
       notifyQuickComposerMainReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       onQuickComposerSubmit: vi.fn<
         (listener: (submission: QuickComposerSubmission) => void) => () => void
@@ -390,6 +402,7 @@ describe("App", () => {
       threads: [],
       pendingThreadLaunches: {},
       pendingLaunchSegments: {},
+      pendingComposerFocusThreadId: null,
       lastViewedAtByThreadId: {},
       view: { kind: "home" },
     }));
@@ -419,6 +432,33 @@ describe("App", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("opens a thread requested by a native app surface", async () => {
+    vi.useFakeTimers();
+    mockAnimationFrameWithFakeTimers();
+    const thread: Thread = {
+      id: "thread-from-native-surface",
+      projectId: "project-1",
+      title: "Requested thread",
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-07-16T00:00:00.000Z",
+      updatedAt: "2026-07-16T00:00:00.000Z",
+    };
+    useAppStore.setState({ threads: [thread] });
+
+    threadOpenRequestedListeners.at(-1)?.({ threadId: thread.id });
+    await vi.advanceTimersByTimeAsync(16);
+
+    expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+    expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
   });
 
   it("keeps visible runtime streams frame-paced and throttles hidden threads", () => {

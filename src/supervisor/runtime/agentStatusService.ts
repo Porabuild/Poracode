@@ -7,6 +7,8 @@ import {
   agentProviderMetadataSchema,
   agentSettingDefSchema,
   agentStatusSchema,
+  type AgentCapability,
+  type AgentKind,
   type AgentStatus,
   type AgentStatusesResponse,
   type GetAgentStatusesPayload,
@@ -270,6 +272,26 @@ export class AgentStatusService {
     const cached = this.readCachedStatuses(wslDistros);
     this.detectStartupAgentStatusesBackground(wslDistros);
     return cached;
+  }
+
+  /**
+   * Synchronous view of one provider's native capabilities as the last
+   * detection sweep persisted them — the same source `getAgentStatuses` serves
+   * the renderer composer and the subagents MCP roster from. The subagent
+   * spawn/create_thread paths validate against this so a selection accepted by
+   * `list_agents`/`get_agent` is accepted by the executor too, instead of
+   * racing the adapter's in-memory capabilities (which stay at their empty
+   * defaults until this session's probe completes). Returns `undefined` when
+   * there is no cache entry or the provider isn't installed + authenticated in
+   * it — callers fall back to the live adapter capabilities.
+   */
+  getCachedCapabilities(kind: AgentKind): AgentCapability | undefined {
+    const { windows, fromCache } = this.readCachedStatuses([]);
+    if (!fromCache) return undefined;
+    const status = windows.find(
+      (s) => s.kind === kind && s.installed && s.authState === "authenticated",
+    );
+    return status?.capabilities;
   }
 
   async refreshAgentStatuses(payload: GetAgentStatusesPayload): Promise<AgentStatusesResponse> {

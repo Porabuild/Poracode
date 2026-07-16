@@ -270,6 +270,11 @@ describe("ComposerAddMenu", () => {
       screen.getByText("Set when this session started — start a new thread to change servers"),
     ).toBeInTheDocument();
 
+    // Read-only bindings render as a static list, not interactive menu items.
+    expect(screen.getByRole("list", { name: "MCP servers" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: /Browser/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitemcheckbox", { name: /Browser/i })).not.toBeInTheDocument();
+
     act(() => {
       fireEvent.click(screen.getByText("Browser"));
     });

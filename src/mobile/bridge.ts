@@ -286,6 +286,7 @@ const remoteBridge = {
   onBrowserEvent: () => () => undefined,
   onRemoteThreadCommand: () => () => undefined,
   onSharedSettingsChanged: () => () => undefined,
+  onThreadOpenRequested: () => () => undefined,
 };
 
 export function installRemoteBridge(): void {

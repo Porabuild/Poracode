@@ -252,6 +252,11 @@ export const agentCapabilitySchema = z.object({
    * referenced there before being handed to the terminal.
    */
   requiresWorkspaceLocalAttachments: z.boolean().optional(),
+  /**
+   * When true, structured turns read PDF attachment bytes in the host
+   * supervisor, so WSL path rewriting must preserve their native host paths.
+   */
+  readsPdfAttachmentsFromHost: z.boolean().optional(),
   liveInputMode: liveInputModeSchema.default("terminal"),
   presentationMode: threadPresentationModeSchema.default("terminal"),
   /**

@@ -2660,6 +2660,10 @@ msgstr "Commit mesajı oluşturulamadı: {detail}"
 msgid "Could not load pull requests for {0}."
 msgstr "{0} için çekme istekleri yüklenemedi."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "Bu PDF açılamadı."
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
 msgstr "Dosya okunamadı."
@@ -4043,6 +4047,10 @@ msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Grok Bu
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Poracode'un yerel SDK çalışma zamanını kullanan birinci sınıf OpenCode entegrasyonu."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Fit width"
+#~ msgstr "Genişliğe sığdır"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Aracıda Düzelt"
@@ -4948,6 +4956,11 @@ msgstr "Marketplace yükleniyor…"
 msgid "Loading notes…"
 msgstr "Notlar yükleniyor…"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "Loading PDF…"
+#~ msgstr "PDF yükleniyor…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "PR yükleniyor…"
@@ -5810,6 +5823,10 @@ msgstr "Sonraki resim"
 msgid "Next match"
 msgstr "Sonraki eşleşme"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Next page"
+#~ msgstr "Sonraki sayfa"
+
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "Sonraki son görüntülenen sohbet"
@@ -6469,6 +6486,10 @@ msgstr "Git incelemesini sağ taraftaki panel veya tam sayfa olarak açın."
 msgid "Open image preview"
 msgstr "Görsel önizlemesini aç"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "Tarayıcıda aç"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -6810,6 +6831,14 @@ msgstr "Duraklat"
 msgid "Paused"
 msgstr "Duraklatıldı"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "PDF önizlemesi tarayıcı panelinde açılır."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "PDF önizlemesi tarayıcıda açılır."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "en yoğun gün"
@@ -7019,6 +7048,10 @@ msgstr "Önceki resim"
 #: src/renderer/components/find/FindBar.tsx
 msgid "Previous match"
 msgstr "Önceki eşleşme"
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Previous page"
+#~ msgstr "Önceki sayfa"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"

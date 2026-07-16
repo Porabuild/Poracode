@@ -7,6 +7,7 @@ import {
 } from "@/shared/contracts";
 import type { DbPersistExperimentStatePayload } from "@/shared/ipc";
 import { getSqlite } from "./connection";
+import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { locationToRow } from "./rowMappers";
 
 /**
@@ -57,6 +58,7 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
       )
       .run(viewJson);
   })();
+  notifyProjectThreadDataChanged();
 }
 
 export function dbPersistExperimentState(payload: DbPersistExperimentStatePayload): void {

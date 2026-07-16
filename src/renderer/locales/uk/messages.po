@@ -2660,6 +2660,10 @@ msgstr "Не вдалося згенерувати повідомлення ко
 msgid "Could not load pull requests for {0}."
 msgstr "Не вдалося завантажити pull request для {0}."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "Не вдалося відкрити цей PDF-файл."
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
 msgstr "Не вдалося прочитати файл."
@@ -4043,6 +4047,10 @@ msgstr "Першокласна інтеграція Grok Build CLI з викор
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Першокласна інтеграція OpenCode з використанням нативного середовища виконання SDK Poracode."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Fit width"
+#~ msgstr "За шириною"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Виправити в агенті"
@@ -4948,6 +4956,11 @@ msgstr "Завантаження маркетплейсу…"
 msgid "Loading notes…"
 msgstr "Завантаження нотаток…"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "Loading PDF…"
+#~ msgstr "Завантаження PDF…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "Завантаження PR…"
@@ -5810,6 +5823,10 @@ msgstr "Наступне зображення"
 msgid "Next match"
 msgstr "Наступний збіг"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Next page"
+#~ msgstr "Наступна сторінка"
+
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "Наступний нещодавно переглянутий чат"
@@ -6469,6 +6486,10 @@ msgstr "Відкривати перегляд Git як праву панель �
 msgid "Open image preview"
 msgstr "Відкрити перегляд зображення"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "Відкрити в браузері"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -6810,6 +6831,14 @@ msgstr "Призупинити"
 msgid "Paused"
 msgstr "Призупинено"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "Попередній перегляд PDF відкривається в панелі браузера."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "Попередній перегляд PDF відкривається в браузері."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "пік активності"
@@ -7019,6 +7048,10 @@ msgstr "Попереднє зображення"
 #: src/renderer/components/find/FindBar.tsx
 msgid "Previous match"
 msgstr "Попередній збіг"
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Previous page"
+#~ msgstr "Попередня сторінка"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"

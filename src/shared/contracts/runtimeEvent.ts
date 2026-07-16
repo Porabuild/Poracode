@@ -64,6 +64,7 @@ export const canonicalContentBlockSchema = z.discriminatedUnion("kind", [
     kind: z.literal("file"),
     path: z.string(),
     name: z.string().optional(),
+    mimeType: z.string().optional(),
     source: z.enum(["attachment", "mention"]).optional(),
   }),
 ]);

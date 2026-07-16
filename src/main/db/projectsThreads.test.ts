@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EXPERIMENT_STORE_KEY, type Thread } from "@/shared/contracts";
 import { closeDatabase, initDatabase } from "./connection";
 import {
+  dbDeleteThread,
   dbGetThread,
   dbGetState,
   dbGetProject,
@@ -15,12 +16,13 @@ import {
   dbUpsertProject,
   dbUpsertThread,
 } from "./projectsThreads";
-import { dbPersistExperimentState } from "./sync";
+import { onProjectThreadDataChanged } from "./projectThreadChanges";
 import {
   dbClaimRemoteCommand,
   dbCompleteRemoteCommand,
   dbFailRemoteCommand,
 } from "./remoteCommandReceipts";
+import { dbPersistExperimentState, dbSyncAll } from "./sync";
 
 // node_modules/better-sqlite3 may be compiled for Electron's ABI. Fall back to
 // the Node-ABI binding used by the headless server, preparing it on demand so
@@ -162,6 +164,27 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(dbGetThread(existing.id)).toBeDefined();
     expect(dbGetThread("candidate-invalid")).toBeNull();
     expect(dbGetState(EXPERIMENT_STORE_KEY)).toBe(originalState);
+  });
+
+  it("notifies subscribers after single and bulk project or thread writes", () => {
+    let notificationCount = 0;
+    const unsubscribe = onProjectThreadDataChanged(() => {
+      notificationCount += 1;
+    });
+
+    dbUpsertThread(testThread(), 0);
+    expect(notificationCount).toBe(1);
+
+    dbSyncAll(
+      [dbGetProject("project-1")!],
+      [testThread({ title: "Synced thread" })],
+      JSON.stringify({ kind: "home" }),
+    );
+    expect(notificationCount).toBe(2);
+
+    unsubscribe();
+    dbDeleteThread("thread-1");
+    expect(notificationCount).toBe(2);
   });
 
   it("replays durable remote command receipts without reclaiming them", () => {

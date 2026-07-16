@@ -34,6 +34,26 @@ describe("resolveMarkdownImageUrl", () => {
   it("does not promote non-image relative paths", () => {
     expect(resolveMarkdownImageUrl("notes.md", { projectRoot: "E:\\work\\repo" })).toBeNull();
   });
+
+  it("resolves Grok session-relative images/ paths via extraRoots first", () => {
+    const sessionDir =
+      "C:\\Users\\me\\.grok\\sessions\\E%3A%5Cwork%5Crepo\\019f6789-4fd1-7740-a828-9a42918d42e8";
+    expect(
+      resolveMarkdownImageUrl("images/4.jpg", {
+        projectRoot: "E:\\work\\repo",
+        extraRoots: [sessionDir],
+      }),
+    ).toBe(toLocalFileUrl(`${sessionDir.replaceAll("\\", "/")}/images/4.jpg`));
+  });
+
+  it("falls back to projectRoot for non-session relative images", () => {
+    expect(
+      resolveMarkdownImageUrl("verification-shots/01.png", {
+        projectRoot: "E:\\work\\repo",
+        extraRoots: ["C:\\Users\\me\\.grok\\sessions\\x\\y"],
+      }),
+    ).toBe(toLocalFileUrl("E:/work/repo/verification-shots/01.png"));
+  });
 });
 
 describe("rewriteMarkdownLocalImageUrls", () => {
@@ -89,6 +109,26 @@ describe("rewriteMarkdownLocalImageUrls", () => {
     expect(resolveLocalFileUrlPath(urls[0]!, "win32")).toBe(sessionAsset.replaceAll("\\", "/"));
     expect(resolveLocalFileUrlPath(urls[1]!, "win32")).toBe(
       `${projectRoot.replaceAll("\\", "/")}/verification-shots/01-collapsed-same-file-edits.png`,
+    );
+  });
+
+  it("rewrites Grok image_gen relative paths against the session media root", () => {
+    const sessionDir =
+      "C:\\Users\\sdsle\\.grok\\sessions\\E%3A%5Cwork%5Clightcode%5C.poracode%5Cworktrees%5Cporacode-warm-yak-d27ed350\\019f6789-4fd1-7740-a828-9a42918d42e8";
+    const out = rewriteMarkdownLocalImageUrls(
+      "![Modal PDF preview](images/4.jpg)\n\n![Editor mockup](images/1.jpg)",
+      {
+        projectRoot: "E:\\work\\lightcode\\.poracode\\worktrees\\poracode-warm-yak-d27ed350",
+        extraRoots: [sessionDir],
+      },
+    );
+    const urls = [...out.matchAll(/!\[[^\]]*\]\(<([^>]+)>\)/g)].map((m) => m[1]!);
+    expect(urls).toHaveLength(2);
+    expect(resolveLocalFileUrlPath(urls[0]!, "win32")).toBe(
+      `${sessionDir.replaceAll("\\", "/")}/images/4.jpg`,
+    );
+    expect(resolveLocalFileUrlPath(urls[1]!, "win32")).toBe(
+      `${sessionDir.replaceAll("\\", "/")}/images/1.jpg`,
     );
   });
 });

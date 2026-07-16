@@ -18,12 +18,9 @@ import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMe
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
 import { ComposerVoiceInput } from "../composer/ComposerVoiceInput";
-import {
-  composerMcpServers,
-  COMPUTER_USE_MCP_ID,
-  mcpTogglePatch,
-} from "../composer/composerMcpServers";
+import { composerMcpServers, COMPUTER_USE_MCP_ID } from "../composer/composerMcpServers";
 import { openAttachmentLightbox } from "../composer/ImageLightbox";
+import { openPdfPreview } from "../pdf/openPdfPreview";
 import {
   MentionInput,
   type McpMentionItem,
@@ -188,15 +185,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // built-ins (from thread config), the custom servers recorded at launch,
   // and Computer Use. Users change servers in the draft composer or settings
   // before launching a new thread.
+  // Bindings are display-only for an active session; toggles are no-ops.
   const mcpServers = composerMcpServers.map((descriptor) => ({
     descriptor,
     enabled: thread.config[descriptor.configKey] === true,
     visible: thread.config[descriptor.configKey] === true,
-    onToggle: (next: boolean) =>
-      changeThreadConfig(thread.id, {
-        ...thread.config,
-        ...mcpTogglePatch(descriptor.configKey, next),
-      }),
+    onToggle: () => {},
   }));
   const launchCustomMcpNames = useAppStore(
     (s) => s.mcpLaunchCustomServerNamesByThreadId[thread.id],
@@ -654,6 +648,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         const idx = imageAttachments.findIndex((a) => a.id === att.id);
                         if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
                       }}
+                      onPreviewPdf={(att) => openPdfPreview(att.path)}
                     />
                   }
                   inputContent={

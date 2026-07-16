@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, isAbsolute, join, relative } from "node:path";
 import type { PromptSegment, ProjectLocation } from "@/shared/contracts";
+import { isPdfPath } from "@/shared/promptContent";
 import type { WslBridgeClient, WslLocation } from "../wsl/bridge/client";
 
 const wslAttachmentDirCache = new Map<string, { home: string; linuxDir: string }>();
@@ -68,7 +69,7 @@ function isRewritableFileSegment(
 export async function rewriteSegmentsForWsl(
   segments: PromptSegment[],
   location: ProjectLocation,
-  options?: { preserveImageAttachments?: boolean },
+  options?: { preserveImageAttachments?: boolean; preservePdfAttachments?: boolean },
 ): Promise<PromptSegment[]> {
   if (location.kind !== "wsl") {
     return segments;
@@ -85,6 +86,14 @@ export async function rewriteSegmentsForWsl(
       continue;
     }
     if (options?.preserveImageAttachments && isImageAttachmentSegment(segment)) {
+      rewritten.push(segment);
+      continue;
+    }
+    if (
+      options?.preservePdfAttachments &&
+      segment.kind === "attachment" &&
+      isPdfPath(segment.path, segment.mimeType)
+    ) {
       rewritten.push(segment);
       continue;
     }

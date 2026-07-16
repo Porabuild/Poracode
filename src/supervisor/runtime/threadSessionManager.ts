@@ -462,6 +462,8 @@ export class ThreadSessionManager {
     const effectiveSegments = payload.segments
       ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
           preserveImageAttachments: usesStructuredFlow,
+          preservePdfAttachments:
+            usesStructuredFlow && session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
         })
       : undefined;
     const prompt = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);

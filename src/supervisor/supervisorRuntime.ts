@@ -294,6 +294,10 @@ export class SupervisorRuntime {
     // closures resolve it lazily at call time).
     this.subagentRunManager = new SubagentRunManager({
       adapters: this.adapters,
+      // Validate spawn selections against the persisted status pipeline — the
+      // same source list_agents/get_agent (and the composer) are served from —
+      // so the executor never disagrees with the roster it advertised.
+      getStatusCapabilities: (kind) => this.agentStatusService.getCachedCapabilities(kind),
       host: {
         getParentContext: (threadId) =>
           this.threadSessionManager.getSubagentParentContext(threadId),
@@ -311,6 +315,7 @@ export class SupervisorRuntime {
     // as the run manager above.
     this.orchestratorThreadManager = new OrchestratorThreadManager({
       adapters: this.adapters,
+      getStatusCapabilities: (kind) => this.agentStatusService.getCachedCapabilities(kind),
       emit: (event) => this.emit(event),
       host: {
         getParentContext: (threadId) =>

@@ -83,6 +83,7 @@ export const claudeCapabilities: AgentCapability = {
   supportsOneShot: true,
   supportsTextOnlyOneShot: true,
   supportsDirectInput: true,
+  readsPdfAttachmentsFromHost: true,
   slashCommands: CLAUDE_BUILT_IN_SLASH_COMMANDS,
   liveInputMode: "terminal",
   presentationMode: "terminal",

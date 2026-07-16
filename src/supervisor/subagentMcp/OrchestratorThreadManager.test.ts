@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { ProjectLocation, SendThreadInputPayload, ThreadConfig } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  ProjectLocation,
+  SendThreadInputPayload,
+  ThreadConfig,
+} from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc/events";
 import type { AgentAdapter, ThreadHistory } from "@/supervisor/agents/base";
 import {
@@ -46,6 +51,8 @@ function makeHarness(options?: {
   failEmit?: boolean;
   /** Simulate git failing to create the worktree (e.g. branch collision). */
   createWorktreeError?: Error;
+  /** Status-pipeline capabilities preferred over the adapter's in-memory ones. */
+  statusCapabilities?: AgentCapability;
 }): Harness {
   const emitted: SupervisorEvent[] = [];
   const states = new Map<string, OrchestratorThreadState>();
@@ -100,11 +107,13 @@ function makeHarness(options?: {
     chromeMcp: true,
   };
 
+  const statusCapabilities = options?.statusCapabilities;
   const manager = new OrchestratorThreadManager({
     adapters: new Map([
       ["codex" as never, structured],
       ["commandcode" as never, oneShot],
     ]),
+    ...(statusCapabilities ? { getStatusCapabilities: () => statusCapabilities } : {}),
     ...(options?.launchTimeoutMs !== undefined ? { launchTimeoutMs: options.launchTimeoutMs } : {}),
     emit: (event) => {
       emitted.push(event);
@@ -247,6 +256,29 @@ describe("OrchestratorThreadManager.createThread", () => {
     expect(h.worktrees).toEqual([
       { location: PROJECT, branch: "feature/PROJ-42", baseBranch: "develop" },
     ]);
+  });
+
+  it("validates against status-pipeline capabilities, not the adapter's in-memory ones", async () => {
+    // Live adapter capabilities would reject this model (only gpt-5.5 there);
+    // the status pipeline — the source the roster advertised from — wins.
+    const h = makeHarness({
+      statusCapabilities: {
+        models: [{ id: "gpt-6", label: "GPT-6" }],
+        efforts: ["high"],
+        modelEfforts: {},
+        modes: [],
+        approvalPolicies: [{ id: "never", label: "Full Access" }],
+        sandboxModes: [],
+        supportsResume: false,
+        supportsDirectInput: true,
+        bypassPermissions: { approvalPolicy: "never" },
+      } as unknown as AgentCapability,
+    });
+    await createChild(h, { model: "gpt-6", effort: "high" });
+    expect(h.lastCreated().start.config.model).toBe("gpt-6");
+    await expect(
+      h.manager.createThread(PARENT, { agent: "codex", model: "gpt-5.5", prompt: "x" }),
+    ).rejects.toThrow("Unknown model: gpt-5.5");
   });
 
   it("rejects unknown agents, one-shot-only agents, and empty prompts", async () => {

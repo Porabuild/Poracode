@@ -69,6 +69,9 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
   }) => (
     <div>
       <span>{props.project.name}</span>
+      <div data-composer-input-anchor="">
+        <div role="textbox" contentEditable aria-label="Composer input" />
+      </div>
       <button type="button" onClick={() => props.onProjectChange?.("project-2")}>
         Switch test project
       </button>
@@ -102,6 +105,7 @@ describe("QuickComposerOverlay", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     useAppStore.setState((state) => ({
       ...state,
       projects: [project, otherProject],
@@ -114,6 +118,21 @@ describe("QuickComposerOverlay", () => {
       windowsLoaded: true,
       wslLoaded: true,
     });
+  });
+
+  it("focuses the composer input whenever the native overlay appears", () => {
+    render(<QuickComposerOverlay />);
+
+    const input = screen.getByRole("textbox", { name: "Composer input" });
+    expect(input).toHaveFocus();
+
+    screen.getByRole("button", { name: "Switch test project" }).focus();
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    fireEvent(document, new Event("visibilitychange"));
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+    fireEvent.focus(window);
+
+    expect(input).toHaveFocus();
   });
 
   it("animates the send state before dismissing the native overlay", async () => {

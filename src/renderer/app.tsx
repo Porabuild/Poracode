@@ -12,7 +12,6 @@ import {
 } from "@/shared/ipc";
 import { readBridge } from "./bridge";
 import {
-  handleNotificationClick,
   handleThreadStateNotification,
   shouldInspectThreadStateForNotification,
 } from "./notifications";
@@ -21,6 +20,7 @@ import { useAppStore } from "./state/appStore";
 import {
   archiveThread,
   deleteThread,
+  openThread,
   renameThread,
   toggleMarkThreadDone,
   toggleStarThread,
@@ -391,7 +391,9 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       readBridge().onSharedSettingsChanged((settings) => {
         applyExternalSharedSettings(normalizeSharedSettings(settings));
       }),
-      readBridge().onNotificationClick(handleNotificationClick),
+      readBridge().onThreadOpenRequested(({ threadId }) => {
+        openThread(threadId, { focusComposer: true });
+      }),
       readBridge().onQuickComposerSubmit((submission) => {
         void (async () => {
           if (!useAppStore.persist.hasHydrated()) await useAppStore.persist.rehydrate();

@@ -244,43 +244,65 @@ function SameFileEditGroupTitle({ summary }: { summary: SameFileEditGroupSummary
 }
 
 /**
- * Flattened body for a group where every item edits the same file: renders
- * each edit's diff directly, in order, without nesting each edit behind its
- * own disclosure row. Edits without a renderable diff (e.g. still running)
- * fall back to the regular inline row.
+ * Flattened body for a consecutive same-file multi-edit group: one merged file
+ * diff, without nesting each patch behind its own disclosure row. Edits without
+ * a renderable patch (e.g. still running) fall back to the regular inline row.
  */
 function SameFileEditGroupBody({ items }: { items: readonly RuntimeChatItem[] }) {
   const { t } = useLingui();
+  const diffRows: InlineRow[] = [];
+  const nonDiffBodies: InlineRow[] = [];
+  const fallbackItems: RuntimeChatItem[] = [];
+
+  for (const item of items) {
+    const row = getInlineRow(item, true, t);
+    if (row?.bodyText && row.bodyKind === "diff") {
+      diffRows.push(row);
+      continue;
+    }
+    if (row?.bodyText) {
+      nonDiffBodies.push(row);
+      continue;
+    }
+    fallbackItems.push(item);
+  }
+
+  const filePath = diffRows.find((row) => row.bodyFilePath)?.bodyFilePath ?? "";
+  const mergedDiffText =
+    diffRows.length > 0 ? diffRows.map((row) => row.bodyText).join("\n") : undefined;
+  // Content-backed rendering is only valid for a single patch: multi-edit merges
+  // share one unified path but intermediate old/new strings are per-step.
+  const singleContent =
+    diffRows.length === 1 &&
+    diffRows[0]!.bodyOldText !== undefined &&
+    diffRows[0]!.bodyNewText !== undefined
+      ? { oldText: diffRows[0]!.bodyOldText, newText: diffRows[0]!.bodyNewText }
+      : null;
+
   return (
     <>
-      {items.map((item) => {
-        const row = getInlineRow(item, true, t);
-        if (!row?.bodyText) {
-          return (
-            <div key={item.id} className="animate-tool-call-enter">
-              <GroupRowInline item={item} />
-            </div>
-          );
-        }
-        return (
-          <div key={item.id} className="animate-tool-call-enter">
-            {row.bodyKind === "diff" ? (
-              <LazyInlineDiffView
-                diffText={row.bodyText}
-                filePath={row.bodyFilePath ?? ""}
-                {...(row.bodyOldText !== undefined && row.bodyNewText !== undefined
-                  ? { oldText: row.bodyOldText, newText: row.bodyNewText }
-                  : {})}
-              />
-            ) : (
-              <CommandOutputViewport
-                text={row.bodyText}
-                {...(row.bodyLanguage ? { language: row.bodyLanguage } : {})}
-              />
-            )}
-          </div>
-        );
-      })}
+      {mergedDiffText ? (
+        <div className="animate-tool-call-enter">
+          <LazyInlineDiffView
+            diffText={mergedDiffText}
+            filePath={filePath}
+            {...(singleContent ?? {})}
+          />
+        </div>
+      ) : null}
+      {nonDiffBodies.map((row, index) => (
+        <div key={`same-file-body-${index}`} className="animate-tool-call-enter">
+          <CommandOutputViewport
+            text={row.bodyText!}
+            {...(row.bodyLanguage ? { language: row.bodyLanguage } : {})}
+          />
+        </div>
+      ))}
+      {fallbackItems.map((item) => (
+        <div key={item.id} className="animate-tool-call-enter">
+          <GroupRowInline item={item} />
+        </div>
+      ))}
     </>
   );
 }

@@ -49,25 +49,38 @@ const CUSTOM_KEY_PREFIX = "custom:";
 /**
  * Presentational switch used inside the MCP rows. The desktop rows are a
  * multi-selection menu, so the accessible checked state comes from selection;
- * this visual is aria-hidden.
+ * this visual is aria-hidden. In `readOnly` mode the track is muted so it
+ * does not read as an interactive control.
  */
-function MenuSwitch(props: { checked: boolean }) {
-  const { checked } = props;
+function MenuSwitch(props: { checked: boolean; readOnly?: boolean }) {
+  const { checked, readOnly = false } = props;
   return (
     <span
       aria-hidden
-      className={`relative ms-auto h-5 w-9 shrink-0 rounded-full transition-colors ${
-        checked ? "bg-success" : "bg-surface-tertiary"
+      className={`relative ms-auto h-5 w-9 shrink-0 rounded-full ${
+        readOnly ? "" : "transition-colors"
+      } ${
+        checked
+          ? readOnly
+            ? "bg-success/45"
+            : "bg-success"
+          : readOnly
+            ? "bg-surface-tertiary/70"
+            : "bg-surface-tertiary"
       }`}
     >
       <span
-        className={`absolute top-0.5 size-4 rounded-full bg-white transition-transform ${
-          checked ? "translate-x-[18px]" : "translate-x-0.5"
-        }`}
+        className={`absolute top-0.5 size-4 rounded-full bg-white ${
+          readOnly ? "opacity-90" : "transition-transform"
+        } ${checked ? "translate-x-[18px]" : "translate-x-0.5"}`}
       />
     </span>
   );
 }
+
+/** Static row chrome for session-bound MCP entries (no hover/press affordance). */
+const readOnlyRowClassName =
+  "flex min-h-7 cursor-default items-center gap-2 rounded px-2 py-0.5 text-xs text-foreground";
 
 export function ComposerAddMenu(props: {
   mcpServers: readonly ComposerMcpMenuItem[];
@@ -245,10 +258,15 @@ export function ComposerAddMenu(props: {
         const Icon = server.descriptor.icon;
         const label = t(server.descriptor.label);
         return readOnly ? (
-          <div key={server.descriptor.id} className="m-sheet-action">
+          <div
+            key={server.descriptor.id}
+            className="m-sheet-action"
+            data-static="true"
+            aria-disabled="true"
+          >
             <Icon className="size-4 text-muted" />
             <span className="flex-1 truncate">{label}</span>
-            <MenuSwitch checked={server.enabled} />
+            <MenuSwitch checked={server.enabled} readOnly />
           </div>
         ) : (
           <button
@@ -266,10 +284,15 @@ export function ComposerAddMenu(props: {
       })}
       {customMcpServers.map((server) =>
         readOnly ? (
-          <div key={`${CUSTOM_KEY_PREFIX}${server.id}`} className="m-sheet-action">
+          <div
+            key={`${CUSTOM_KEY_PREFIX}${server.id}`}
+            className="m-sheet-action"
+            data-static="true"
+            aria-disabled="true"
+          >
             <Settings2 className="size-4 text-muted" />
             <span className="flex-1 truncate">{server.name}</span>
-            <MenuSwitch checked={server.enabled} />
+            <MenuSwitch checked={server.enabled} readOnly />
           </div>
         ) : (
           <button
@@ -289,7 +312,7 @@ export function ComposerAddMenu(props: {
         <p className="px-2 py-1 text-sm text-muted">{emptyReadOnlyNote}</p>
       ) : null}
       {showComputerUse && readOnly ? (
-        <div className="m-sheet-action">
+        <div className="m-sheet-action" data-static="true" aria-disabled="true">
           <Monitor className="size-4 shrink-0 text-muted" />
           <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
             <span className="truncate">
@@ -297,7 +320,7 @@ export function ComposerAddMenu(props: {
             </span>
             <span className="text-[11px] leading-snug text-muted">{computerUseSubtitle}</span>
           </span>
-          <MenuSwitch checked={computerUse.enabled} />
+          <MenuSwitch checked={computerUse.enabled} readOnly />
         </div>
       ) : null}
       {showComputerUse && !readOnly ? (
@@ -397,67 +420,114 @@ export function ComposerAddMenu(props: {
               </Dropdown.Item>
               <Dropdown.Popover>
                 <div className="flex flex-col">
-                  <Dropdown.Menu
-                    aria-label={t`MCP servers`}
-                    {...(readOnly
-                      ? { selectionMode: "none" as const }
-                      : {
-                          selectionMode: "multiple" as const,
-                          selectedKeys: submenuSelectedKeys,
-                          onSelectionChange: handleSubmenuSelection,
-                        })}
-                    className="poracode-menu max-h-72 min-w-56 overflow-y-auto"
-                  >
-                    {visibleMcpServers.map((server) => {
-                      const Icon = server.descriptor.icon;
-                      const label = t(server.descriptor.label);
-                      return (
+                  {readOnly ? (
+                    // Session bindings are fixed at launch — render a static list
+                    // (not menu items) so rows do not look or act clickable.
+                    <div
+                      role="list"
+                      aria-label={t`MCP servers`}
+                      className="poracode-menu max-h-72 min-w-56 overflow-y-auto p-1"
+                    >
+                      {visibleMcpServers.map((server) => {
+                        const Icon = server.descriptor.icon;
+                        const label = t(server.descriptor.label);
+                        return (
+                          <div
+                            key={server.descriptor.id}
+                            role="listitem"
+                            className={readOnlyRowClassName}
+                          >
+                            <Icon className="size-4 shrink-0 text-muted" />
+                            <span className="min-w-0 flex-1 truncate">{label}</span>
+                            <MenuSwitch checked={server.enabled} readOnly />
+                          </div>
+                        );
+                      })}
+                      {customMcpServers.map((server) => (
+                        <div
+                          key={`${CUSTOM_KEY_PREFIX}${server.id}`}
+                          role="listitem"
+                          className={readOnlyRowClassName}
+                        >
+                          <Settings2 className="size-4 shrink-0 text-muted" />
+                          <span className="min-w-0 flex-1 truncate">{server.name}</span>
+                          <MenuSwitch checked={server.enabled} readOnly />
+                        </div>
+                      ))}
+                      {showComputerUse ? (
+                        <div role="listitem" className={readOnlyRowClassName}>
+                          <Monitor className="size-4 shrink-0 self-start text-muted" />
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span className="truncate">
+                              <Trans>Computer Use</Trans>
+                            </span>
+                            <span className="text-[11px] leading-snug text-muted">
+                              {computerUseSubtitle}
+                            </span>
+                          </div>
+                          <MenuSwitch checked={computerUse.enabled} readOnly />
+                        </div>
+                      ) : null}
+                      {!hasMcpRows ? (
+                        <p className="px-2 py-1.5 text-sm text-muted">{emptyReadOnlyNote}</p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <Dropdown.Menu
+                      aria-label={t`MCP servers`}
+                      selectionMode="multiple"
+                      selectedKeys={submenuSelectedKeys}
+                      onSelectionChange={handleSubmenuSelection}
+                      className="poracode-menu max-h-72 min-w-56 overflow-y-auto"
+                    >
+                      {visibleMcpServers.map((server) => {
+                        const Icon = server.descriptor.icon;
+                        const label = t(server.descriptor.label);
+                        return (
+                          <Dropdown.Item
+                            key={server.descriptor.id}
+                            id={server.descriptor.id}
+                            textValue={label}
+                            className="data-[selected=true]:bg-transparent"
+                          >
+                            <Icon className="size-4 text-muted" />
+                            <Label className="flex-1 truncate">{label}</Label>
+                            <MenuSwitch checked={server.enabled} />
+                          </Dropdown.Item>
+                        );
+                      })}
+                      {customMcpServers.map((server) => (
                         <Dropdown.Item
-                          key={server.descriptor.id}
-                          id={server.descriptor.id}
-                          textValue={label}
+                          key={`${CUSTOM_KEY_PREFIX}${server.id}`}
+                          id={`${CUSTOM_KEY_PREFIX}${server.id}`}
+                          textValue={server.name}
                           className="data-[selected=true]:bg-transparent"
                         >
-                          <Icon className="size-4 text-muted" />
-                          <Label className="flex-1 truncate">{label}</Label>
+                          <Settings2 className="size-4 text-muted" />
+                          <Label className="flex-1 truncate">{server.name}</Label>
                           <MenuSwitch checked={server.enabled} />
                         </Dropdown.Item>
-                      );
-                    })}
-                    {customMcpServers.map((server) => (
-                      <Dropdown.Item
-                        key={`${CUSTOM_KEY_PREFIX}${server.id}`}
-                        id={`${CUSTOM_KEY_PREFIX}${server.id}`}
-                        textValue={server.name}
-                        className="data-[selected=true]:bg-transparent"
-                      >
-                        <Settings2 className="size-4 text-muted" />
-                        <Label className="flex-1 truncate">{server.name}</Label>
-                        <MenuSwitch checked={server.enabled} />
-                      </Dropdown.Item>
-                    ))}
-                    {showComputerUse ? (
-                      <Dropdown.Item
-                        id={COMPUTER_USE_KEY}
-                        textValue={t`Computer Use`}
-                        className="data-[selected=true]:bg-transparent"
-                      >
-                        <Monitor className="size-4 shrink-0 self-start text-muted" />
-                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <Label className="truncate">
-                            <Trans>Computer Use</Trans>
-                          </Label>
-                          <span className="text-[11px] leading-snug text-muted">
-                            {computerUseSubtitle}
-                          </span>
-                        </div>
-                        <MenuSwitch checked={computerUse.enabled} />
-                      </Dropdown.Item>
-                    ) : null}
-                  </Dropdown.Menu>
-                  {readOnly && !hasMcpRows ? (
-                    <p className="px-3 py-2 text-sm text-muted">{emptyReadOnlyNote}</p>
-                  ) : null}
+                      ))}
+                      {showComputerUse ? (
+                        <Dropdown.Item
+                          id={COMPUTER_USE_KEY}
+                          textValue={t`Computer Use`}
+                          className="data-[selected=true]:bg-transparent"
+                        >
+                          <Monitor className="size-4 shrink-0 self-start text-muted" />
+                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <Label className="truncate">
+                              <Trans>Computer Use</Trans>
+                            </Label>
+                            <span className="text-[11px] leading-snug text-muted">
+                              {computerUseSubtitle}
+                            </span>
+                          </div>
+                          <MenuSwitch checked={computerUse.enabled} />
+                        </Dropdown.Item>
+                      ) : null}
+                    </Dropdown.Menu>
+                  )}
                   <p className="border-t border-border px-3 py-1.5 text-[11px] leading-snug text-muted">
                     {persistenceCaption}
                   </p>

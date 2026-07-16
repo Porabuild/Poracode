@@ -2660,6 +2660,10 @@ msgstr "Could not generate commit message: {detail}"
 msgid "Could not load pull requests for {0}."
 msgstr "Could not load pull requests for {0}."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "Could not open this PDF."
+
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
 msgstr "Could not read file."
@@ -4043,6 +4047,10 @@ msgstr "First-class Grok Build CLI integration using Poracode's native runtime."
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "First-class OpenCode integration using Poracode's native SDK runtime."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Fit width"
+#~ msgstr "Fit width"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Fix in Agent"
@@ -4948,6 +4956,11 @@ msgstr "Loading marketplace…"
 msgid "Loading notes…"
 msgstr "Loading notes…"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "Loading PDF…"
+#~ msgstr "Loading PDF…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "Loading PR…"
@@ -5810,6 +5823,10 @@ msgstr "Next image"
 msgid "Next match"
 msgstr "Next match"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Next page"
+#~ msgstr "Next page"
+
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "Next recently viewed chat"
@@ -6469,6 +6486,10 @@ msgstr "Open git review as a right-side panel or a full page."
 msgid "Open image preview"
 msgstr "Open image preview"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "Open in browser"
+
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -6810,6 +6831,14 @@ msgstr "Pause"
 msgid "Paused"
 msgstr "Paused"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "PDF preview opens in the browser panel."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "PDF preview opens in the browser."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "peak day"
@@ -7019,6 +7048,10 @@ msgstr "Previous image"
 #: src/renderer/components/find/FindBar.tsx
 msgid "Previous match"
 msgstr "Previous match"
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Previous page"
+#~ msgstr "Previous page"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"

@@ -98,11 +98,15 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
   const projectRoot = actions?.projectLocation
     ? getProjectFsPath(actions.projectLocation)
     : undefined;
+  const extraRoots = actions?.markdownImageRoots;
   const markdownText = rewriteMarkdownLocalImageUrls(
     normalizeIncompleteProjectLinkTail(
       normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(text)),
     ),
-    { ...(projectRoot ? { projectRoot } : {}) },
+    {
+      ...(projectRoot ? { projectRoot } : {}),
+      ...(extraRoots?.length ? { extraRoots } : {}),
+    },
   );
   return (
     <div className="lc-chat-markdown prose max-w-none text-[length:var(--lc-chat-font-size)] leading-snug text-foreground prose-headings:text-[length:var(--lc-chat-font-size)] prose-p:text-[length:var(--lc-chat-font-size)] prose-p:whitespace-pre-wrap prose-li:text-[length:var(--lc-chat-font-size)] prose-pre:my-2 prose-pre:rounded prose-pre:border-0 prose-pre:bg-foreground/10 prose-pre:px-[0.5em] prose-pre:py-[0.25em] prose-pre:font-mono prose-pre:text-[0.875em] prose-pre:leading-snug prose-pre:whitespace-pre-wrap prose-pre:break-words prose-pre:overflow-x-hidden prose-code:before:content-none prose-code:after:content-none prose-a:text-foreground prose-a:no-underline prose-a:text-[length:inherit] hover:prose-a:underline hover:prose-a:decoration-1 prose-a:underline-offset-2">

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildPromptContentBlocks, resolveLocalFileUrlPath, toLocalFileUrl } from "./promptContent";
+import {
+  buildPromptContentBlocks,
+  isPdfPath,
+  resolveLocalFileUrlPath,
+  toFileUrl,
+  toLocalFileUrl,
+} from "./promptContent";
 
 describe("buildPromptContentBlocks", () => {
   it("keeps text-only prompts as a text block", () => {
@@ -20,6 +26,7 @@ describe("buildPromptContentBlocks", () => {
         kind: "file",
         path: "C:\\tmp\\notes.pdf",
         name: "notes.pdf",
+        mimeType: "application/pdf",
         source: "attachment",
       },
     ]);
@@ -61,6 +68,26 @@ describe("buildPromptContentBlocks", () => {
         invocation: "Use the review-code skill.",
       },
     ]);
+  });
+});
+
+describe("toFileUrl", () => {
+  it("builds a file URL for a POSIX absolute path", () => {
+    expect(toFileUrl("/Users/me/Biometric Reuse.pdf")).toBe(
+      "file:///Users/me/Biometric%20Reuse.pdf",
+    );
+  });
+
+  it("builds a file URL for a Windows drive path", () => {
+    expect(toFileUrl("C:\\Users\\me\\Biometric Reuse.pdf")).toBe(
+      "file:///C:/Users/me/Biometric%20Reuse.pdf",
+    );
+  });
+
+  it("builds a file URL for a WSL UNC path", () => {
+    expect(toFileUrl("\\\\wsl.localhost\\Ubuntu\\home\\me\\doc.pdf")).toBe(
+      "file://wsl.localhost/Ubuntu/home/me/doc.pdf",
+    );
   });
 });
 
@@ -121,5 +148,13 @@ describe("toLocalFileUrl", () => {
     const path =
       "C:/Users/me/.grok/sessions/E%3A%5Cwork%5C.poracode%5Cworktrees%5Crepo/assets/img.png";
     expect(resolveLikeProtocolHandler(toLocalFileUrl(path), "win32")).toBe(path);
+  });
+});
+
+describe("isPdfPath", () => {
+  it("recognizes PDF MIME types and file extensions", () => {
+    expect(isPdfPath("C:\\tmp\\document.PDF")).toBe(true);
+    expect(isPdfPath("C:\\tmp\\document.bin", "application/pdf")).toBe(true);
+    expect(isPdfPath("C:\\tmp\\document.txt", "text/plain")).toBe(false);
   });
 });

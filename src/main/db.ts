@@ -29,6 +29,7 @@ export {
 export { dbGetProjectNotes, dbSetProjectNotes } from "./db/notes";
 
 export { dbPersistExperimentState, dbSyncAll } from "./db/sync";
+export { onProjectThreadDataChanged } from "./db/projectThreadChanges";
 
 export {
   dbReadThreadRuntimeSummaries,

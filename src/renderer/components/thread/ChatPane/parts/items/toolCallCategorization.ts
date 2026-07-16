@@ -69,11 +69,11 @@ export function summarizeToolCalls(items: readonly RuntimeChatItem[]): GroupSect
 }
 
 export type EditToolGroupAnalysis = {
-  /** Every non-thought item is an edit (live tail should stay collapsed). */
+  /** Every item is an edit (live tail should stay collapsed). */
   editOnly: boolean;
   /**
-   * Compact "N edits: path" summary when those edits all share one path.
-   * Thoughts are ignored so interleaved reasoning does not break the header.
+   * Compact "N edits: path" summary when consecutive group members all edit
+   * the same path. Reasoning is not groupable, so this only sees true runs.
    */
   sameFile: SameFileEditGroupSummary | null;
 };
@@ -94,8 +94,7 @@ export function analyzeEditToolGroup(items: readonly RuntimeChatItem[]): EditToo
 
   for (const item of items) {
     const category = categorizeItem(item);
-    // Thoughts often interleave a multi-patch run; they are noise for both the
-    // edit-only auto-expand rule and the same-file path header.
+    // Defensive: thoughts are not groupable on the timeline, but skip if present.
     if (category === "thought") continue;
     if (category !== "edited") {
       return { editOnly: false, sameFile: null };
@@ -183,9 +182,11 @@ export function normalizeEditGroupPath(path: string): string {
 export function isToolGroupItem(item: RuntimeChatItem): boolean {
   if (isContextCompactionToolCall(item)) return false;
   if (isPlanProposalToolCall(item)) return false;
+  // Reasoning is intentionally not groupable: a Thought between two edits is
+  // another timeline item, not glue. Grouping only consecutive tool rows keeps
+  // `edit → thought → edit` as three rows instead of one false "2 edits" group.
   return (
     isToolLikeItem(item) ||
-    item.type === "reasoning" ||
     item.type === "command_execution" ||
     item.type === "file_change" ||
     item.type === "web_search"

@@ -52,7 +52,6 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
 }));
 
 import {
-  handleNotificationClick,
   handleThreadStateNotification,
   shouldInspectThreadStateForNotification,
 } from "./notifications";
@@ -338,17 +337,5 @@ describe("handleThreadStateNotification PWA path", () => {
     await Promise.resolve();
 
     expect(notifications).toHaveLength(1);
-  });
-});
-
-describe("handleNotificationClick", () => {
-  beforeEach(() => {
-    openThreadMock.mockClear();
-  });
-
-  it("opens the originating thread focused on the composer", () => {
-    handleNotificationClick({ threadId: "thread-42" });
-
-    expect(openThreadMock).toHaveBeenCalledWith("thread-42", { focusComposer: true });
   });
 });

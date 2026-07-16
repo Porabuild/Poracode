@@ -3,6 +3,7 @@ import { Surface } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
+import { resolveGrokSessionDir } from "@/shared/grokSessionMedia";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { chatMessageSurfaceClass } from "./parts/items/chatMessageSurface";
 import { readBridge } from "@/renderer/bridge";
@@ -126,6 +127,18 @@ export function ChatPane(props: ChatPaneProps) {
     isHomeScope ? undefined : targetContext?.projectLocation,
   );
 
+  // Grok image_gen → session `images/N.jpg`; pass the session dir so markdown
+  // can resolve those relative paths via poracode-local://.
+  const markdownImageRoots = useMemo(() => {
+    if (thread.agentKind !== "grok") return undefined;
+    const sessionId = thread.sessionRef?.providerSessionId;
+    const projectLocation = targetContext?.projectLocation;
+    const homeDir = readBridge().homeDir;
+    if (!sessionId || !projectLocation || !homeDir) return undefined;
+    const sessionDir = resolveGrokSessionDir({ projectLocation, sessionId, homeDir });
+    return sessionDir ? [sessionDir] : undefined;
+  }, [thread.agentKind, thread.sessionRef?.providerSessionId, targetContext?.projectLocation]);
+
   const paneActions: ChatPaneActions | null = useMemo(() => {
     if (!project || !targetContext || isHomeScope) return null;
     return {
@@ -180,6 +193,7 @@ export function ChatPane(props: ChatPaneProps) {
       },
       projectLocation: targetContext.projectLocation,
       projectRootNames,
+      ...(markdownImageRoots ? { markdownImageRoots } : {}),
     };
   }, [
     project,
@@ -188,6 +202,7 @@ export function ChatPane(props: ChatPaneProps) {
     branch,
     worktreePath,
     projectRootNames,
+    markdownImageRoots,
     onOpenProjectRelativePath,
     onRevealProjectFolderInTree,
     canShowProjectEntryInExplorer,

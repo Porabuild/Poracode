@@ -11,7 +11,7 @@ import {
 } from "./toolCallCategorization";
 
 describe("categorizeItem", () => {
-  it("maps reasoning items to the thought category and keeps them groupable", () => {
+  it("maps reasoning items to the thought category but keeps them non-groupable", () => {
     const item = {
       id: "reasoning-1",
       type: "reasoning",
@@ -20,7 +20,8 @@ describe("categorizeItem", () => {
     } as unknown as RuntimeChatItem;
 
     expect(categorizeItem(item)).toBe("thought");
-    expect(isToolGroupItem(item)).toBe(true);
+    // Thoughts are standalone timeline rows; they must not glue tool groups.
+    expect(isToolGroupItem(item)).toBe(false);
   });
 });
 

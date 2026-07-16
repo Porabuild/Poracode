@@ -15,6 +15,7 @@ import {
   closeDatabase,
   dbDeleteThread,
   dbGetProject,
+  dbGetProjects,
   dbGetThread,
   dbGetThreads,
   dbInsertScheduleRun,
@@ -22,6 +23,7 @@ import {
   dbUpdateScheduleRun,
   dbUpsertThread,
   initDatabase,
+  onProjectThreadDataChanged,
 } from "./db";
 import { cleanupOrphanedAttachments, preparePoracodeDataRoot } from "./poracodeData";
 import { handleOrchestratorThreadCreated } from "./orchestratorThreadBridge";
@@ -185,6 +187,7 @@ let quickComposerDismissTimer: ReturnType<typeof setTimeout> | null = null;
 let revealMainAfterQuickComposerDismiss = false;
 let mainRendererReady = false;
 const pendingQuickComposerSubmissions: QuickComposerSubmission[] = [];
+let pendingTrayThreadId: string | null = null;
 let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
 let browserMcpIngress: BrowserMcpIngress | null = null;
@@ -295,12 +298,25 @@ function flushQuickComposerSubmissions(): void {
   }
 }
 
+function flushTrayThreadOpen(): void {
+  if (!mainRendererReady || !mainWindow || mainWindow.isDestroyed() || !pendingTrayThreadId) return;
+  const threadId = pendingTrayThreadId;
+  pendingTrayThreadId = null;
+  mainWindow.webContents.send(IPC_EVENT_CHANNELS.threadOpenRequested, { threadId });
+}
+
 function ensureMainWindow(showOnReady = true): BrowserWindow {
   if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
   mainRendererReady = false;
   mainWindow = createMainAppWindow(showOnReady);
   browserPanelManager?.bindHost(mainWindow);
   return mainWindow;
+}
+
+function openThreadFromTray(threadId: string): void {
+  pendingTrayThreadId = threadId;
+  showAndFocusWindow(ensureMainWindow());
+  flushTrayThreadOpen();
 }
 
 function finishQuickComposerDismiss(window: BrowserWindow): void {
@@ -899,6 +915,7 @@ if (!hasSingleInstanceLock) {
         if (!window || window !== mainWindow || window.isDestroyed()) return;
         mainRendererReady = true;
         flushQuickComposerSubmissions();
+        flushTrayThreadOpen();
       });
 
       const initialMainWindow = ensureMainWindow(showMainWindowOnReady);
@@ -906,6 +923,9 @@ if (!hasSingleInstanceLock) {
       tray = createTray({
         channel,
         appName: getAppName(channel, isDev),
+        getProjects: dbGetProjects,
+        getThreads: dbGetThreads,
+        onOpenThread: openThreadFromTray,
         onShow: () => showAndFocusWindow(ensureMainWindow()),
         onQuickComposer: toggleQuickComposerWindow,
         onQuit: () => {
@@ -914,6 +934,7 @@ if (!hasSingleInstanceLock) {
         },
       });
       tray.setQuickComposerShortcut(quickComposerShortcutManager.active[0] ?? null);
+      onProjectThreadDataChanged(() => tray?.refreshMenu());
 
       await jobObjectReady;
 

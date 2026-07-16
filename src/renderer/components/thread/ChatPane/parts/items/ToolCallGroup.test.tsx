@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -193,30 +193,6 @@ describe("ToolCallGroup", () => {
     expect(within(heading).getByText("-5")).toHaveClass("text-danger");
   });
 
-  it("keeps same-file edit summary when thoughts interleave the patches", () => {
-    const threadId = "thread-1";
-    const items = [
-      makeFileChangeItem("file-1", { added: 4, removed: 2 }),
-      makeReasoningItem("reasoning-1", "planning the next hunk"),
-      makeFileChangeItem("file-2", { added: 5, removed: 3 }),
-    ];
-    seedThread(threadId, items);
-
-    renderToolCallGroup(
-      threadId,
-      items.map((item) => item.id),
-      true,
-    );
-
-    // Compact same-file header, not the generic "2 edits · 1 thought" fallback.
-    const heading = screen.getByRole("button", { name: /2 edits:/i });
-    expect(within(heading).getByText("foo.ts")).toBeInTheDocument();
-    expect(within(heading).getByText("+9")).toHaveClass("text-success");
-    // Live edit groups stay collapsed — no per-edit rows auto-expanded.
-    expect(heading).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("button", { name: /^Edit/i })).not.toBeInTheDocument();
-  });
-
   it("does not auto-expand live edit-only groups", () => {
     const threadId = "thread-1";
     const items = [
@@ -255,7 +231,7 @@ describe("ToolCallGroup", () => {
     expect(screen.getByText("Read file one")).toBeInTheDocument();
   });
 
-  it("flattens same-file edit groups into stacked diffs without per-edit rows", async () => {
+  it("flattens same-file edit groups into one merged file diff without per-edit rows", async () => {
     const threadId = "thread-1";
     const items = [
       makeFileChangeItem("file-1", { added: 4, removed: 2 }),
@@ -270,9 +246,10 @@ describe("ToolCallGroup", () => {
 
     expandGroup(/2 edits:/i);
 
-    // No nested per-edit disclosure rows — diffs render directly.
+    // No nested per-edit disclosure rows — one merged file diff renders directly.
     expect(screen.queryByRole("button", { name: /^Edit:/i })).not.toBeInTheDocument();
     const viewport = getViewport(view.container);
+    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(1);
     expect(within(viewport).queryAllByRole("button")).toHaveLength(0);
     await waitFor(() => {
       expect((viewport.textContent?.match(/new/g) ?? []).length).toBeGreaterThanOrEqual(2);
@@ -299,6 +276,7 @@ describe("ToolCallGroup", () => {
 
     expandGroup(/2 edits:/i);
     const viewport = getViewport(view.container);
+    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(1);
     expect(within(viewport).queryAllByRole("button")).toHaveLength(0);
     await waitFor(() => {
       expect((viewport.textContent?.match(/const answer = 42;/g) ?? []).length).toBe(2);
@@ -572,7 +550,9 @@ describe("ToolCallGroup", () => {
     expect(view.container.querySelector(".poracode-pixel-loader")).toBeNull();
   });
 
-  it("renders completed reasoning as a collapsed Thought row with a text preview", () => {
+  it("ignores reasoning ids if they are wrongly passed into a tool group", () => {
+    // Reasoning is not groupable — timeline keeps thoughts as standalone rows.
+    // ToolCallGroup should not invent a "1 thought · 1 view" summary from them.
     const threadId = "thread-1";
     const items = [
       makeReasoningItem(
@@ -588,54 +568,10 @@ describe("ToolCallGroup", () => {
       items.map((item) => item.id),
     );
 
-    expect(screen.getByText("1 thought")).toBeInTheDocument();
-    expect(screen.getByText("Thought")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Weighing the tradeoffs. · Choosing the focused change. · Editing the selector.",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Thought").closest("button")).toHaveClass("overflow-hidden");
-    expect(
-      screen.getByText(
-        "Weighing the tradeoffs. · Choosing the focused change. · Editing the selector.",
-      ),
-    ).toHaveClass("truncate");
-  });
-
-  it("keeps streaming reasoning collapsed with a live last-line preview, then settles on completion", async () => {
-    const threadId = "thread-1";
-    const items: RuntimeChatItem[] = [
-      { ...makeReasoningItem("reasoning-1", "Considering the edge cases"), state: "updated" },
-      makeToolItem("tool-1", "Read file"),
-    ];
-    seedThread(threadId, items);
-
-    renderToolCallGroup(
-      threadId,
-      items.map((item) => item.id),
-    );
-
-    // Streaming: shimmering "Thinking" title, collapsed, with the current line
-    // as trailing meta — not an expanded viewport.
-    expect(screen.getByText("Thinking")).toBeInTheDocument();
-    const thinkingTrigger = screen.getByText("Thinking").closest("button");
-    expect(thinkingTrigger).toHaveAttribute("aria-expanded", "false");
-    expect(await screen.findByText("Considering the edge cases")).toBeInTheDocument();
-
-    act(() => {
-      seedThread(threadId, [
-        makeReasoningItem("reasoning-1", "Considering the edge cases"),
-        items[1]!,
-      ]);
-    });
-
-    // Completion: stays collapsed as a "Thought" row with the preview as meta.
-    await waitFor(() => expect(screen.getByText("Thought")).toBeInTheDocument());
-    const trigger = screen.getByText("Thought").closest("button");
-    expect(trigger).not.toBeNull();
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByText("Considering the edge cases")).toBeInTheDocument();
+    expect(screen.queryByText("1 thought")).not.toBeInTheDocument();
+    expect(screen.queryByText("Thought")).not.toBeInTheDocument();
+    expect(screen.getByText("1 view")).toBeInTheDocument();
+    expect(screen.getByText("Read file")).toBeInTheDocument();
   });
 
   it("categorizes sub-agent tools as commands", () => {

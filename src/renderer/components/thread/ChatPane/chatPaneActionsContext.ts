@@ -27,6 +27,11 @@ export type ChatPaneActions = {
    * Omitted for remote chats where the desktop client has no local tree cache.
    */
   projectRootNames?: ReadonlySet<string> | undefined;
+  /**
+   * Extra filesystem roots for relative markdown images (e.g. Grok session
+   * dir so `images/1.jpg` from image_gen resolves under ~/.grok/sessions/…).
+   */
+  markdownImageRoots?: readonly string[] | undefined;
 };
 
 export const ChatPaneActionsContext = createContext<ChatPaneActions | null>(null);

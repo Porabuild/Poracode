@@ -1,5 +1,15 @@
 import { isImagePath, toLocalFileUrl } from "./promptContent";
 
+export interface MarkdownLocalImageOptions {
+  /** Project / worktree filesystem root for project-relative image paths. */
+  projectRoot?: string;
+  /**
+   * Additional roots for relative image paths (e.g. an agent session media
+   * directory). Paths under `images/` or `videos/` try these before projectRoot.
+   */
+  extraRoots?: readonly string[];
+}
+
 /**
  * Rewrite local filesystem image targets to `poracode-local://` before markdown
  * parse. Required because CommonMark treats `\.` as an escape (mangling Windows
@@ -8,7 +18,7 @@ import { isImagePath, toLocalFileUrl } from "./promptContent";
  */
 export function rewriteMarkdownLocalImageUrls(
   text: string,
-  options?: { projectRoot?: string },
+  options?: MarkdownLocalImageOptions,
 ): string {
   if (!text.includes("![")) return text;
   // Only complete `![…](…)` forms — incomplete streaming tails stay untouched.
@@ -31,7 +41,7 @@ export function rewriteMarkdownLocalImageUrls(
  */
 export function resolveMarkdownImageUrl(
   url: string,
-  options?: { projectRoot?: string },
+  options?: MarkdownLocalImageOptions,
 ): string | null {
   const trimmed = url.trim();
   if (!trimmed) return null;
@@ -51,15 +61,40 @@ export function resolveMarkdownImageUrl(
     return toLocalFileUrl(trimmed);
   }
 
-  const projectRoot = options?.projectRoot?.trim();
-  if (!projectRoot || !isImagePath(trimmed) || trimmed.includes("://")) return null;
+  if (!isImagePath(trimmed) || trimmed.includes("://")) return null;
 
-  const absolute = joinProjectRoot(projectRoot, trimmed);
+  const absolute = resolveRelativeImagePath(trimmed, options);
   return absolute ? toLocalFileUrl(absolute) : null;
 }
 
-function joinProjectRoot(projectRoot: string, relativePath: string): string | null {
-  const root = projectRoot.replaceAll("\\", "/").replace(/\/+$/, "");
+/** Session-media style paths (e.g. Grok image_gen) prefer extraRoots over projectRoot. */
+function prefersExtraRoots(relativePath: string): boolean {
+  const normalized = relativePath.replaceAll("\\", "/").replace(/^\.\//, "");
+  return /^(images|videos)\//i.test(normalized);
+}
+
+function resolveRelativeImagePath(
+  relativePath: string,
+  options?: MarkdownLocalImageOptions,
+): string | null {
+  const projectRoot = options?.projectRoot?.trim();
+  const extraRoots = (options?.extraRoots ?? [])
+    .map((root) => root.trim())
+    .filter((root) => root.length > 0);
+  const projectRoots = projectRoot ? [projectRoot] : [];
+  const roots = prefersExtraRoots(relativePath)
+    ? [...extraRoots, ...projectRoots]
+    : [...projectRoots, ...extraRoots];
+
+  for (const root of roots) {
+    const absolute = joinRoot(root, relativePath);
+    if (absolute) return absolute;
+  }
+  return null;
+}
+
+function joinRoot(rootPath: string, relativePath: string): string | null {
+  const root = rootPath.replaceAll("\\", "/").replace(/\/+$/, "");
   const rel = relativePath.replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "");
   if (!root || !rel) return null;
   const parts = rel.split("/").filter((part) => part.length > 0 && part !== ".");
