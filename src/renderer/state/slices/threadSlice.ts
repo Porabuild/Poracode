@@ -46,6 +46,15 @@ export interface ThreadSlice {
    * sort). Not persisted — recreated as the user navigates after launch.
    */
   lastViewedAtByThreadId: Record<string, number>;
+  /**
+   * Names of the custom (user/project) MCP servers that were enabled when the
+   * thread's current session launched. Written by the launch effect right
+   * before `startThread`; shown read-only in the active composer's MCP menu.
+   * Not persisted — sessions do not survive an app restart, and a resume goes
+   * back through the launch effect which repopulates it.
+   */
+  mcpLaunchCustomServerNamesByThreadId: Record<string, readonly string[]>;
+  setThreadMcpLaunchCustomServerNames: (threadId: string, names: readonly string[]) => void;
   markThreadsInactiveOnLaunch: () => void;
   createThread: (input: {
     threadId?: string;
@@ -105,6 +114,14 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   threads: [],
   lastRuntimeConfigByThreadId: {},
   lastViewedAtByThreadId: {},
+  mcpLaunchCustomServerNamesByThreadId: {},
+  setThreadMcpLaunchCustomServerNames: (threadId, names) =>
+    set((state) => ({
+      mcpLaunchCustomServerNamesByThreadId: {
+        ...state.mcpLaunchCustomServerNamesByThreadId,
+        [threadId]: names,
+      },
+    })),
   markThreadsInactiveOnLaunch: () =>
     set((state) => {
       let changed = false;
@@ -226,10 +243,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         state.lastRuntimeConfigByThreadId;
       const { [threadId]: _droppedLastViewed, ...lastViewedAtByThreadId } =
         state.lastViewedAtByThreadId;
+      const { [threadId]: _droppedMcpLaunch, ...mcpLaunchCustomServerNamesByThreadId } =
+        state.mcpLaunchCustomServerNamesByThreadId;
       const { [threadId]: _droppedThreadDraft, ...threadDraftContents } = state.threadDraftContents;
       return {
         threads: nextThreads,
         threadDraftContents,
+        mcpLaunchCustomServerNamesByThreadId,
         pendingThreadLaunches: Object.fromEntries(
           Object.entries(state.pendingThreadLaunches).filter(([id]) => id !== threadId),
         ),

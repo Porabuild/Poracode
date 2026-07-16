@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type {
+  AgentCapability,
   AgentKind,
   ProjectLocation,
   RuntimeEvent,
@@ -99,6 +100,14 @@ export interface OrchestratorThreadHost {
 export interface OrchestratorThreadManagerDeps {
   adapters: Map<AgentKind, AgentAdapter>;
   host: OrchestratorThreadHost;
+  /**
+   * Resolved provider capabilities from the agent-status pipeline — the same
+   * source the composer and the `list_agents`/`get_agent` roster are served
+   * from. Preferred over the adapter's in-memory capabilities so `create_thread`
+   * accepts exactly the models the roster advertised. `undefined` (no cache
+   * entry / not authenticated) falls back to the live adapter capabilities.
+   */
+  getStatusCapabilities?: (kind: AgentKind) => AgentCapability | undefined;
   /** Supervisor event channel — carries `orchestrator-thread-created` to main. */
   emit(event: SupervisorEvent): void;
   /** Create a git worktree (new branch) in the parent's repo; returns its path. */
@@ -255,7 +264,10 @@ export class OrchestratorThreadManager {
       );
     }
 
-    const capabilities = capabilitiesForPresentation(adapter.capabilities, "gui");
+    const capabilities = capabilitiesForPresentation(
+      this.deps.getStatusCapabilities?.(adapter.kind) ?? adapter.capabilities,
+      "gui",
+    );
     const model = request.model ?? capabilities.models[0]?.id;
     if (!model) {
       throw new OrchestratorThreadError(`Provider ${request.agent} has no available models`);

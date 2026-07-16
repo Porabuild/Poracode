@@ -1313,6 +1313,10 @@ msgstr "Yer imleri"
 msgid "Bottom"
 msgstr "Alt"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "Şube"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "'{branch}' şubesinde '{path}'de kaydedilmemiş değişiklikler var — birleştirmeden önce bunları kaydedin veya saklayın"
@@ -2524,6 +2528,10 @@ msgstr "Commit mesajı oluşturulamadı: {detail}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
 msgstr "{0} için çekme istekleri yüklenemedi."
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "Bu PDF açılamadı."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3770,6 +3778,10 @@ msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Grok Bu
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Poracode'un yerel SDK çalışma zamanını kullanan birinci sınıf OpenCode entegrasyonu."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Fit width"
+#~ msgstr "Genişliğe sığdır"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Aracıda Düzelt"
@@ -4649,6 +4661,11 @@ msgstr "Marketplace yükleniyor…"
 msgid "Loading notes…"
 msgstr "Notlar yükleniyor…"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "Loading PDF…"
+#~ msgstr "PDF yükleniyor…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "PR yükleniyor…"
@@ -5466,6 +5483,10 @@ msgstr "Sonraki resim"
 msgid "Next match"
 msgstr "Sonraki eşleşme"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Next page"
+#~ msgstr "Sonraki sayfa"
+
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "Sonraki son görüntülenen sohbet"
@@ -5671,6 +5692,10 @@ msgstr "Eşleşen zamanlama yok."
 msgid "No matching threads"
 msgstr "Eşleşen konu yok"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "Bu çalıştırma için etkin MCP sunucusu yok"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "Bu kapsamda MCP sunucusu bulunamadı."
@@ -5833,8 +5858,8 @@ msgid "No windows reported"
 msgstr "Hiçbir pencere bildirilmedi"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "Çalışma ağacı yok"
+#~ msgid "No worktree"
+#~ msgstr "Çalışma ağacı yok"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"
@@ -6083,6 +6108,10 @@ msgstr "Git incelemesini sağ taraftaki panel veya tam sayfa olarak açın."
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 msgid "Open image preview"
 msgstr "Görsel önizlemesini aç"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "Tarayıcıda aç"
 
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
@@ -6416,6 +6445,14 @@ msgstr "Duraklat"
 msgid "Paused"
 msgstr "Duraklatıldı"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "PDF önizlemesi tarayıcı panelinde açılır."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "PDF önizlemesi tarayıcıda açılır."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "en yoğun gün"
@@ -6626,6 +6663,10 @@ msgstr "Önceki resim"
 msgid "Previous match"
 msgstr "Önceki eşleşme"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Previous page"
+#~ msgstr "Önceki sayfa"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
 msgstr "Önceki son görüntülenen sohbet"
@@ -6642,6 +6683,10 @@ msgstr "Önceki çalıştırmalar"
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "Önceki sekme"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Privacy Policy"
+msgstr "Gizlilik Politikası"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Private key"
@@ -7976,6 +8021,10 @@ msgstr "Deneysel bir hedef belirleyin veya görüntüleyin"
 msgid "Set shortcut"
 msgstr "Kısayol belirle"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "Bu oturum başlatıldığında sabitlendi — sunucuları değiştirmek için yeni bir konu başlatın"
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/WideShell.tsx
@@ -8681,6 +8730,10 @@ msgstr "Bu haftanın ilerlemesini, tamamlanmamış işleri ve gelecek haftanın 
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "Denetlenen"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Support"
+msgstr "Destek"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Support mode appears once the session connects."

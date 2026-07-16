@@ -35,6 +35,7 @@ Universal AI agent orchestrator — Electron desktop app managing Claude, Codex,
 - **Prevent God Files:** Do not allow files to grow indefinitely. If a file becomes complex or violates single-responsibility principles during your work, refactor it by extracting related logic into new modules or sub-components. Splitting files is preferred over extending existing ones.
 - Use `pnpm exec vitest run ...` for targeted Vitest runs; do not use Jest-only flags like `--runInBand`.
 - With `exactOptionalPropertyTypes`, avoid passing explicit `undefined` for optional props; use conditional spreads when needed.
+- Put investigation dumps, screenshots, and other temporary files under `tmp/` or `.tmp/` (both gitignored). Never write scratch artifacts into the repo root or tracked paths like `verification-shots/`.
 
 ## Internationalization (i18n)
 

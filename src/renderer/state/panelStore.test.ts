@@ -74,6 +74,11 @@ describe("selectAnyObstructingOverlayOpen", () => {
     expect(selectAnyObstructingOverlayOpen()).toBe(true);
   });
 
+  it("returns true when the file editor overlay is modal", () => {
+    useFileEditorStore.setState({ overlayMode: "modal" });
+    expect(selectAnyObstructingOverlayOpen()).toBe(true);
+  });
+
   it("does not treat gitReviewAsPanel as obstructing on its own", () => {
     usePanelStore.setState({ gitReviewAsPanel: true });
     expect(selectAnyObstructingOverlayOpen()).toBe(false);

@@ -322,7 +322,7 @@ describe("chatPaneSelectors", () => {
     ]);
   });
 
-  it("folds reasoning items into adjacent tool-call groups", () => {
+  it("does not fold reasoning into tool-call groups (thoughts break contiguity)", () => {
     const state = {
       runtimeItemIdsByThread: {
         t1: ["reasoning-1", "tool-1", "command-1", "assistant-1", "reasoning-2"],
@@ -366,13 +366,148 @@ describe("chatPaneSelectors", () => {
     } as unknown as AppStoreState;
 
     expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
+      { kind: "item", id: "reasoning-1" },
       {
         kind: "tool_call_group",
-        id: "tool-call-group:reasoning-1",
-        itemIds: ["reasoning-1", "tool-1", "command-1"],
+        id: "tool-call-group:tool-1",
+        itemIds: ["tool-1", "command-1"],
       },
       { kind: "item", id: "assistant-1" },
       { kind: "item", id: "reasoning-2" },
+    ]);
+  });
+
+  it("does not group same-file edits when thoughts sit between them", () => {
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: ["edit-1", "reasoning-1", "edit-2", "reasoning-2", "edit-3", "assistant-1"],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "edit-1": {
+            id: "edit-1",
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: "src/ComposerAddMenu.tsx",
+              changeKind: "edit",
+              diffSummary: { added: 10, removed: 2 },
+            },
+            streams: {},
+          },
+          "reasoning-1": {
+            id: "reasoning-1",
+            type: "reasoning",
+            state: "completed",
+            streams: { reasoning_text: "Now update the mobile section." },
+          },
+          "edit-2": {
+            id: "edit-2",
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: "src/ComposerAddMenu.tsx",
+              changeKind: "edit",
+              diffSummary: { added: 20, removed: 4 },
+            },
+            streams: {},
+          },
+          "reasoning-2": {
+            id: "reasoning-2",
+            type: "reasoning",
+            state: "completed",
+            streams: { reasoning_text: "Now update the desktop submenu." },
+          },
+          "edit-3": {
+            id: "edit-3",
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: "src/ComposerAddMenu.tsx",
+              changeKind: "edit",
+              diffSummary: { added: 5, removed: 1 },
+            },
+            streams: {},
+          },
+          "assistant-1": {
+            id: "assistant-1",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "done" },
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    // A thought between edits is another timeline item — not glue for a
+    // synthetic "3 edits" group. Each edit stays its own row.
+    expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
+      { kind: "item", id: "edit-1" },
+      { kind: "item", id: "reasoning-1" },
+      { kind: "item", id: "edit-2" },
+      { kind: "item", id: "reasoning-2" },
+      { kind: "item", id: "edit-3" },
+      { kind: "item", id: "assistant-1" },
+    ]);
+  });
+
+  it("still groups consecutive same-file edits with no intervening items", () => {
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: ["edit-1", "edit-2", "edit-3", "assistant-1"],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "edit-1": {
+            id: "edit-1",
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: "src/ComposerAddMenu.tsx",
+              changeKind: "edit",
+              diffSummary: { added: 10, removed: 2 },
+            },
+            streams: {},
+          },
+          "edit-2": {
+            id: "edit-2",
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: "src/ComposerAddMenu.tsx",
+              changeKind: "edit",
+              diffSummary: { added: 20, removed: 4 },
+            },
+            streams: {},
+          },
+          "edit-3": {
+            id: "edit-3",
+            type: "file_change",
+            state: "completed",
+            payload: {
+              path: "src/ComposerAddMenu.tsx",
+              changeKind: "edit",
+              diffSummary: { added: 5, removed: 1 },
+            },
+            streams: {},
+          },
+          "assistant-1": {
+            id: "assistant-1",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "done" },
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    expect(selectVisibleThreadTimelineEntries(state, "t1")).toEqual([
+      {
+        kind: "tool_call_group",
+        id: "tool-call-group:edit-1",
+        itemIds: ["edit-1", "edit-2", "edit-3"],
+      },
+      { kind: "item", id: "assistant-1" },
     ]);
   });
 

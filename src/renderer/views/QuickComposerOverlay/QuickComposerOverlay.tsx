@@ -31,6 +31,7 @@ export function QuickComposerOverlay() {
   // Mirrors `phase` so timer callbacks and reentrancy guards read the latest
   // value; write both only through `transitionPhase`.
   const phaseRef = useRef<OverlayPhase>("opening");
+  const frameRef = useRef<HTMLElement>(null);
   const transitionPhase = (next: OverlayPhase) => {
     phaseRef.current = next;
     setPhase(next);
@@ -87,6 +88,9 @@ export function QuickComposerOverlay() {
     const onFocus = () => {
       if (!wasHiddenSinceRefresh) return;
       wasHiddenSinceRefresh = false;
+      frameRef.current
+        ?.querySelector<HTMLElement>('[data-composer-input-anchor] [contenteditable="true"]')
+        ?.focus();
       if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
       transitionPhase("opening");
       animationTimerRef.current = setTimeout(() => {
@@ -159,7 +163,7 @@ export function QuickComposerOverlay() {
         className="quick-composer-dismiss-backdrop"
         onClick={() => dismiss()}
       />
-      <section className="quick-composer-frame" data-overlay-surface="">
+      <section ref={frameRef} className="quick-composer-frame" data-overlay-surface="">
         {!project ? (
           <QuickComposerUnavailable onOpenMainWindow={() => dismiss(true)}>
             <Trans>Add a project to start</Trans>

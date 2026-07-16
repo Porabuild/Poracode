@@ -192,8 +192,8 @@ function isToolGroupItem(item: RuntimeChatItem): boolean {
   if (isToolLikeItem(item) && imageViewRendersInline(item.payload)) {
     return false;
   }
-  // The groupable type set (tools, reasoning, commands, edits, searches) lives
-  // in toolCallCategorization so it is maintained in one place.
+  // The groupable type set (tools, commands, edits, searches — not reasoning)
+  // lives in toolCallCategorization so it is maintained in one place.
   return isGroupableItemType(item);
 }
 

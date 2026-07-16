@@ -8,6 +8,7 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { useShimmer } from "@/renderer/thinkingAnimator";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ChatFilePath } from "./ChatFilePath";
 import { ChatItemAccordion } from "./ChatItemAccordion";
@@ -40,6 +41,11 @@ export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
   const hasStream = !!stream && stream.length > 0;
   const header = payload ? getFileChangeCollapsedHeader(item, payload) : null;
   const paneActions = useChatPaneActions();
+  const isRunning = item.state !== "completed";
+  // The title is a custom node, so shimmer the stable kind label ("Edit",
+  // "Create") here — never the path, which can change while running (see
+  // .poracode-thinking-text in styles.css). Matches grouped tool rows.
+  const kindLabelRef = useShimmer<HTMLSpanElement>(isRunning);
 
   // Some SDKs (e.g. Claude `Write`) don't surface the new file contents on
   // `args.content`; fall back to an on-demand disk read when expanded.
@@ -81,7 +87,19 @@ export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
   const right = formatRightLabel(header.payloadStatus, header.diffSummary, t);
   const titleNode = (
     <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
-      <span className="shrink-0 !text-[color:var(--muted)]">
+      <span
+        ref={kindLabelRef}
+        className={`shrink-0 !text-[color:var(--muted)] ${isRunning ? "poracode-thinking-text" : ""}`}
+        {...(isRunning
+          ? {
+              "data-poracode-shimmer-text": localizeKindLabel(
+                header.changeKind,
+                header.withPath,
+                t,
+              ),
+            }
+          : {})}
+      >
         {localizeKindLabel(header.changeKind, header.withPath, t)}
       </span>
       {header.withPath ? <ChatRowMetaSeparator /> : null}

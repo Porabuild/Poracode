@@ -5,7 +5,7 @@ import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { isRemoteSession } from "@/renderer/bridge";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
-import { toLocalFileUrl } from "@/shared/promptContent";
+import { isPdfPath, toLocalFileUrl } from "@/shared/promptContent";
 import type { ComposerMcpServerDescriptor } from "./composerMcpServers";
 import type { Attachment } from "./useAttachments";
 
@@ -118,10 +118,11 @@ function AttachmentChip(props: {
   attachment: Attachment;
   onRemove?: ((id: string) => void) | undefined;
   onPreviewImage?: ((attachment: Attachment) => void) | undefined;
+  onPreviewPdf?: ((attachment: Attachment) => void) | undefined;
   hideImageName?: boolean;
 }) {
   const { t } = useLingui();
-  const { attachment: att, onRemove, onPreviewImage, hideImageName } = props;
+  const { attachment: att, onRemove, onPreviewImage, onPreviewPdf, hideImageName } = props;
   const isPicked = !!att.selector;
   const labelText = isPicked ? att.selector! : att.name;
   const showLabel = isPicked || !att.isImage || !hideImageName;
@@ -174,17 +175,23 @@ function AttachmentChip(props: {
     </>
   );
 
-  if (att.isImage && onPreviewImage) {
+  const onPreview = att.isImage
+    ? onPreviewImage
+    : isPdfPath(att.path, att.mimeType)
+      ? onPreviewPdf
+      : undefined;
+  if (onPreview) {
     return (
       <div
         className="poracode-attachment-chip"
         role="button"
         tabIndex={0}
-        onClick={() => onPreviewImage(att)}
+        aria-label={t`Preview ${att.name}`}
+        onClick={() => onPreview(att)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onPreviewImage(att);
+            onPreview(att);
           }
         }}
       >
@@ -232,6 +239,7 @@ export function AttachmentBar(props: {
   attachments: Attachment[];
   onRemove?: ((id: string) => void) | undefined;
   onPreviewImage?: (attachment: Attachment) => void;
+  onPreviewPdf?: (attachment: Attachment) => void;
   layout?: "inset" | "flush";
   hideImageNames?: boolean;
   imagesAsPreview?: boolean;
@@ -241,6 +249,7 @@ export function AttachmentBar(props: {
     attachments,
     onRemove,
     onPreviewImage,
+    onPreviewPdf,
     layout = "inset",
     hideImageNames,
     imagesAsPreview,
@@ -265,6 +274,7 @@ export function AttachmentBar(props: {
             attachment={att}
             onRemove={onRemove}
             onPreviewImage={onPreviewImage}
+            onPreviewPdf={onPreviewPdf}
             {...(hideImageNames === undefined ? {} : { hideImageName: hideImageNames })}
           />
         ),

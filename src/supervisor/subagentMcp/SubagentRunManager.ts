@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type {
+  AgentCapability,
   AgentKind,
   ProjectLocation,
   RuntimeEvent,
@@ -37,6 +38,14 @@ export const MAX_CONCURRENT_CHILDREN_PER_PARENT = 4;
 export interface SubagentRunManagerDeps {
   adapters: Map<AgentKind, AgentAdapter>;
   host: SubagentRunHost;
+  /**
+   * Resolved provider capabilities from the agent-status pipeline — the same
+   * source the composer and the `list_agents`/`get_agent` roster are served
+   * from. Preferred over the adapter's in-memory capabilities so the executor
+   * accepts exactly the models the roster advertised. `undefined` (no cache
+   * entry / not authenticated) falls back to the live adapter capabilities.
+   */
+  getStatusCapabilities?: (kind: AgentKind) => AgentCapability | undefined;
 }
 
 interface RunRecord {
@@ -148,10 +157,12 @@ export class SubagentRunManager {
       );
     }
 
+    const baseCapabilities =
+      this.deps.getStatusCapabilities?.(adapter.kind) ?? adapter.capabilities;
     const capabilities =
       execution === "structured"
-        ? capabilitiesForPresentation(adapter.capabilities, "gui")
-        : adapter.capabilities;
+        ? capabilitiesForPresentation(baseCapabilities, "gui")
+        : baseCapabilities;
     const model = request.model ?? capabilities.models[0]?.id;
     if (!model) {
       throw new SubagentSpawnError(`Provider ${request.agent} has no available models`);

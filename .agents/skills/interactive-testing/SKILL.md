@@ -32,30 +32,39 @@ Never claim “all functionality passed.” Report automated, manual, skipped, a
 
 ## Boot an isolated app
 
-The one-command runner below checks that ports are free and refuses to touch an existing app.
+The one-command runner below allocates its own free ports, so each invocation spawns a fully isolated dev app. Runs from multiple worktrees can execute side by side without colliding on the Vite or CDP port.
 
 ```sh
 pnpm run smoke:integration -- --scope changed --mode mock
 ```
 
-This creates and commits a disposable fixture project, seeds an isolated database, starts Electron with an isolated profile, dismisses and verifies the first-launch welcome screen, runs the integration suite, writes screenshots/report artifacts under `~/.poracode-smoke`, and tears down the process automatically. No provider credentials, PTY input, git mutations, MCP server, mobile device, or native update flow is required for the default mock run.
+This allocates a free dev-server port and a free CDP port (override with `--vitePort`/`--port`; explicit values are verified free), creates and commits a disposable fixture project, seeds an isolated database, starts Electron with an isolated profile, dismisses and verifies the first-launch welcome screen, runs the integration suite, writes screenshots/report artifacts under `~/.poracode-smoke`, and tears down the process automatically. No provider credentials, PTY input, git mutations, MCP server, mobile device, or native update flow is required for the default mock run.
 
-The committed dev hooks in `src/main/main.ts` must honor `PORACODE_CDP_PORT` and `PORACODE_BASE_DIR`. Never rename or delete `~/.poracode-dev` as a workaround.
+The runner prints the chosen ports and writes them to `<smoke root>/ports.json` (`{ appUrl, cdpPort, devServerPort }`). Every follow-up command in this skill must target that run's ports — export them before driving manual gates:
+
+```sh
+export PORACODE_CDP_PORT=<cdpPort from ports.json>
+export PORACODE_APP_URL=<appUrl from ports.json>
+```
+
+All helper scripts default to `$PORACODE_CDP_PORT` / `$PORACODE_APP_URL`, falling back to `9222` / `http://127.0.0.1:3100/` only for a manually booted default app.
+
+The committed dev hooks must honor `PORACODE_CDP_PORT` and `PORACODE_BASE_DIR` (`src/main/main.ts`) and `PORACODE_DEV_SERVER_PORT` (`vite.config.ts`, `scripts/dev-server-port.mjs`). Never rename or delete `~/.poracode-dev` as a workaround. To boot an isolated app manually instead of through the runner, set `PORACODE_DEV_SERVER_PORT`, `PORACODE_CDP_PORT`, and `PORACODE_BASE_DIR` before `pnpm run dev`.
 
 ## Run the deterministic suite
 
-Changed-surface run:
+Changed-surface run (with `PORACODE_CDP_PORT`/`PORACODE_APP_URL` exported from the run's `ports.json`):
 
 ```sh
 node .agents/skills/interactive-testing/scripts/poracode-integration-smoke.mjs run \
-  --scope changed --mode mock --port 9222 --outDir "$SMOKE_ROOT/artifacts"
+  --scope changed --mode mock --outDir "$SMOKE_ROOT/artifacts"
 ```
 
 Full functional inventory run:
 
 ```sh
 node .agents/skills/interactive-testing/scripts/poracode-integration-smoke.mjs run \
-  --scope full --mode mock --port 9222 --outDir "$SMOKE_ROOT/artifacts"
+  --scope full --mode mock --outDir "$SMOKE_ROOT/artifacts"
 ```
 
 Exit meanings:
@@ -70,7 +79,7 @@ Do not acknowledge a real gate before exercising it. After completing real gates
 
 ```sh
 node .agents/skills/interactive-testing/scripts/poracode-integration-smoke.mjs run \
-  --scope changed --mode real --port 9222 --outDir "$SMOKE_ROOT/artifacts" \
+  --scope changed --mode real --outDir "$SMOKE_ROOT/artifacts" \
   --ack-manual provider-live,runtime-requests
 ```
 
@@ -89,8 +98,8 @@ node "$H" reset
 Use `agent-browser` only when a real control must be clicked or typed into:
 
 ```sh
-npx --no-install agent-browser --cdp 9222 --color-scheme dark snapshot -i
-npx --no-install agent-browser --cdp 9222 click '@e12'
+npx --no-install agent-browser --cdp "$PORACODE_CDP_PORT" --color-scheme dark snapshot -i
+npx --no-install agent-browser --cdp "$PORACODE_CDP_PORT" click '@e12'
 ```
 
 Re-snapshot after every navigation, portal opening, or hot reload; element references become stale. HeroUI menus and dialogs render in portals, so take a new snapshot while they are open.
@@ -103,7 +112,7 @@ The integration runner invokes this automatically when Browser-related paths cha
 
 ```sh
 node .agents/skills/interactive-testing/scripts/poracode-browser-smoke.mjs \
-  --port 9222 --outDir "$SMOKE_ROOT/artifacts/browser"
+  --outDir "$SMOKE_ROOT/artifacts/browser"
 ```
 
 It verifies embedded page creation, DOM access, navigation history, toolbar state, Browser settings, screenshots, and zero renderer console errors.

@@ -1,6 +1,11 @@
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
-import type { ProjectLocation, RuntimeEvent, ThreadConfig } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  ProjectLocation,
+  RuntimeEvent,
+  ThreadConfig,
+} from "@/shared/contracts";
 import type {
   AgentAdapter,
   CreateStructuredSessionInput,
@@ -67,7 +72,10 @@ interface Harness {
   appended: Array<{ threadId: string; event: RuntimeEvent }>;
 }
 
-function makeHarness(options?: { models?: Array<{ id: string; label: string }> }): Harness {
+function makeHarness(options?: {
+  models?: Array<{ id: string; label: string }>;
+  statusCapabilities?: AgentCapability;
+}): Harness {
   const handles: FakeHandle[] = [];
   const inputs: CreateStructuredSessionInput[] = [];
   const appended: Array<{ threadId: string; event: RuntimeEvent }> = [];
@@ -135,8 +143,10 @@ function makeHarness(options?: { models?: Array<{ id: string; label: string }> }
     appendRuntimeEvent: (threadId, event) => appended.push({ threadId, event }),
   };
 
+  const statusCapabilities = options?.statusCapabilities;
   const manager = new SubagentRunManager({
     adapters: new Map([["codex" as never, adapter]]),
+    ...(statusCapabilities ? { getStatusCapabilities: () => statusCapabilities } : {}),
     host,
   });
   return { manager, handles, inputs, appended };
@@ -428,6 +438,34 @@ describe("SubagentRunManager", () => {
         prompt: "go",
       }),
     ).toThrow("Unknown model: unknown");
+  });
+
+  it("validates against status-pipeline capabilities, not the adapter's in-memory ones", async () => {
+    // Live adapter has no models yet (probe not finished / failed this
+    // session), but the status cache — the source the roster advertised from —
+    // does. The spawn must accept exactly what the roster offered.
+    const h = makeHarness({
+      models: [],
+      statusCapabilities: {
+        models: [{ id: "gpt-5.5", label: "GPT-5.5" }],
+        efforts: ["low", "high"],
+        modelEfforts: {},
+        modes: [],
+        approvalPolicies: [{ id: "never", label: "Full Access" }],
+        sandboxModes: [],
+        supportsResume: false,
+        supportsDirectInput: true,
+        bypassPermissions: { approvalPolicy: "never" },
+      } as unknown as AgentCapability,
+    });
+    h.manager.spawn(PARENT, { agent: "codex", model: "gpt-5.5", effort: "high", prompt: "go" });
+    await flush();
+    expect(h.inputs[0]!.config.model).toBe("gpt-5.5");
+    expect(h.inputs[0]!.config.approvalPolicy).toBe("never");
+    // A model outside the status capabilities is still rejected.
+    expect(() => h.manager.spawn(PARENT, { agent: "codex", model: "nope", prompt: "go" })).toThrow(
+      "Unknown model: nope",
+    );
   });
 
   it("drives a CLI-only agent as a one-shot child, streaming stdout into the tile", async () => {

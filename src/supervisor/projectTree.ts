@@ -27,6 +27,7 @@ import type {
   WriteProjectFilePayload,
   WriteProjectFileResult,
 } from "@/shared/contracts";
+import { isPdfPath } from "@/shared/promptContent";
 import { getProjectFsPath, joinProjectPosixPath } from "@/shared/wsl";
 import { ProjectSearchIndex } from "./ProjectSearchIndex";
 import type { WslBridgeClient } from "./wsl/bridge/client";
@@ -286,6 +287,14 @@ export class ProjectTreeService {
 
   async readProjectFile(payload: ReadProjectFilePayload): Promise<ReadProjectFileResult> {
     const path = normalizeRelativePath(payload.path);
+    // PDFs open in the in-app browser — only metadata is needed for the editor tab.
+    if (isPdfPath(path)) {
+      return {
+        path,
+        status: "binary",
+        modifiedAtMs: await this.statProjectRelativeMtimeMs(payload.projectLocation, path),
+      };
+    }
 
     const raw =
       payload.projectLocation.kind === "wsl"
@@ -293,8 +302,13 @@ export class ProjectTreeService {
             payload.projectLocation,
             path,
             this.requireWslClient(),
+            MAX_EDITABLE_FILE_SIZE,
           )
-        : await this.readProjectFileBufferNative(payload.projectLocation, path);
+        : await this.readProjectFileBufferNative(
+            payload.projectLocation,
+            path,
+            MAX_EDITABLE_FILE_SIZE,
+          );
 
     if (raw.kind === "tooLarge") {
       return { path, status: "too_large", modifiedAtMs: raw.modifiedAtMs };
@@ -392,6 +406,25 @@ export class ProjectTreeService {
     if (!isAbsolute(payload.absolutePath) && !payload.absolutePath.startsWith("/")) {
       throw new Error("Path must be absolute.");
     }
+
+    if (isPdfPath(payload.absolutePath)) {
+      try {
+        return {
+          path: payload.absolutePath,
+          status: "binary",
+          modifiedAtMs: await this.statAbsoluteMtimeMs(
+            payload.projectLocation,
+            payload.absolutePath,
+          ),
+        };
+      } catch (err: unknown) {
+        if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+          return { path: payload.absolutePath, status: "missing", modifiedAtMs: 0 };
+        }
+        throw err;
+      }
+    }
+
     let raw: RawFileRead;
     try {
       raw =
@@ -400,8 +433,9 @@ export class ProjectTreeService {
               this.externalWslLocation(payload.projectLocation, payload.absolutePath),
               payload.absolutePath,
               this.requireWslClient(),
+              MAX_EDITABLE_FILE_SIZE,
             )
-          : await this.readAbsoluteFileBufferNative(payload.absolutePath);
+          : await this.readAbsoluteFileBufferNative(payload.absolutePath, MAX_EDITABLE_FILE_SIZE);
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") {
         return { path: payload.absolutePath, status: "missing", modifiedAtMs: 0 };
@@ -541,11 +575,40 @@ export class ProjectTreeService {
     return path.startsWith("/") ? posix.resolve(path) : posix.resolve(root, path);
   }
 
-  private async readAbsoluteFileBufferNative(absolutePath: string): Promise<RawFileRead> {
+  /** mtime only — used when PDFs skip body load for browser preview. */
+  private async statProjectRelativeMtimeMs(
+    location: ProjectLocation,
+    relativePath: string,
+  ): Promise<number> {
+    if (location.kind === "wsl") {
+      const { stats } = await this.requireWslClient().stat(location, [
+        joinProjectPosixPath(location, relativePath),
+      ]);
+      return stats[0]?.mtimeMs ?? 0;
+    }
+    return (await this.statFollowingWslSymlinks(location, relativePath)).fileStat.mtimeMs;
+  }
+
+  private async statAbsoluteMtimeMs(
+    location: ProjectLocation,
+    absolutePath: string,
+  ): Promise<number> {
+    if (location.kind === "wsl") {
+      const wslLocation = this.externalWslLocation(location, absolutePath);
+      const { stats } = await this.requireWslClient().stat(wslLocation, [absolutePath]);
+      return stats[0]?.mtimeMs ?? 0;
+    }
+    return (await stat(absolutePath)).mtimeMs;
+  }
+
+  private async readAbsoluteFileBufferNative(
+    absolutePath: string,
+    maxBytes = MAX_EDITABLE_FILE_SIZE,
+  ): Promise<RawFileRead> {
     if (!isAbsolute(absolutePath)) throw new Error("Path must be absolute.");
     const fileStat = await stat(absolutePath);
     if (!fileStat.isFile()) throw new Error("Only files can be read.");
-    if (fileStat.size > MAX_EDITABLE_FILE_SIZE) {
+    if (fileStat.size > maxBytes) {
       return { kind: "tooLarge", modifiedAtMs: fileStat.mtimeMs };
     }
     const buffer = await readFile(absolutePath);
@@ -556,9 +619,10 @@ export class ProjectTreeService {
     location: Extract<ProjectLocation, { kind: "wsl" }>,
     absolutePath: string,
     wslClient: WslBridgeClient,
+    maxBytes = MAX_EDITABLE_FILE_SIZE,
   ): Promise<RawFileRead> {
     const result = await wslClient.readFile(location, absolutePath, {
-      maxBytes: MAX_EDITABLE_FILE_SIZE,
+      maxBytes,
     });
     if (result.tooLarge) {
       return { kind: "tooLarge", modifiedAtMs: result.mtimeMs };
@@ -573,10 +637,11 @@ export class ProjectTreeService {
   private async readProjectFileBufferNative(
     location: ProjectLocation,
     relativePath: string,
+    maxBytes = MAX_EDITABLE_FILE_SIZE,
   ): Promise<RawFileRead> {
     const { fullPath, fileStat } = await this.statFollowingWslSymlinks(location, relativePath);
     if (!fileStat.isFile()) throw new Error("Only files can be opened in the editor.");
-    if (fileStat.size > MAX_EDITABLE_FILE_SIZE) {
+    if (fileStat.size > maxBytes) {
       return { kind: "tooLarge", modifiedAtMs: fileStat.mtimeMs };
     }
     const buffer = await readFile(fullPath);
@@ -587,10 +652,11 @@ export class ProjectTreeService {
     location: Extract<ProjectLocation, { kind: "wsl" }>,
     relativePath: string,
     wslClient: WslBridgeClient,
+    maxBytes = MAX_EDITABLE_FILE_SIZE,
   ): Promise<RawFileRead> {
     const absolute = joinProjectPosixPath(location, relativePath);
     const result = await wslClient.readFile(location, absolute, {
-      maxBytes: MAX_EDITABLE_FILE_SIZE,
+      maxBytes,
     });
     if (result.tooLarge) {
       return { kind: "tooLarge", modifiedAtMs: result.mtimeMs };

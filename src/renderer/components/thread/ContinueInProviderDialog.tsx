@@ -26,6 +26,7 @@ import {
 } from "./buildModelPickerControls";
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { openAttachmentLightbox } from "../composer/ImageLightbox";
+import { openPdfPreview } from "../pdf/openPdfPreview";
 import { MentionInput, type MentionInputHandle } from "../composer/MentionInput";
 import { useAttachments } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
@@ -584,6 +585,7 @@ export function ContinueInProviderDialog(props: {
                             const idx = imageAttachments.findIndex((a) => a.id === att.id);
                             if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
                           }}
+                          onPreviewPdf={(att) => openPdfPreview(att.path)}
                         />
                       }
                       inputContent={

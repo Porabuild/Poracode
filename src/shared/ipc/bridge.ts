@@ -36,6 +36,12 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   isDev: boolean;
   windowKind: PoracodeWindowKind;
   channel: PoracodeChannel;
+  /**
+   * Host user home directory (`os.homedir()`). Used to resolve Grok session
+   * media paths (`~/.grok/sessions/…`) for chat markdown images. Optional so
+   * remote/mobile bridge shims can omit it.
+   */
+  homeDir?: string;
   electronVersion: string;
   nodeVersion: string;
   posthogEnableDev: boolean;

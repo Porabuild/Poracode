@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildPromptContentBlocks, toLocalFileUrl } from "./promptContent";
+import {
+  buildPromptContentBlocks,
+  isPdfPath,
+  resolveLocalFileUrlPath,
+  toFileUrl,
+  toLocalFileUrl,
+} from "./promptContent";
 
 describe("buildPromptContentBlocks", () => {
   it("keeps text-only prompts as a text block", () => {
@@ -20,6 +26,7 @@ describe("buildPromptContentBlocks", () => {
         kind: "file",
         path: "C:\\tmp\\notes.pdf",
         name: "notes.pdf",
+        mimeType: "application/pdf",
         source: "attachment",
       },
     ]);
@@ -64,6 +71,26 @@ describe("buildPromptContentBlocks", () => {
   });
 });
 
+describe("toFileUrl", () => {
+  it("builds a file URL for a POSIX absolute path", () => {
+    expect(toFileUrl("/Users/me/Biometric Reuse.pdf")).toBe(
+      "file:///Users/me/Biometric%20Reuse.pdf",
+    );
+  });
+
+  it("builds a file URL for a Windows drive path", () => {
+    expect(toFileUrl("C:\\Users\\me\\Biometric Reuse.pdf")).toBe(
+      "file:///C:/Users/me/Biometric%20Reuse.pdf",
+    );
+  });
+
+  it("builds a file URL for a WSL UNC path", () => {
+    expect(toFileUrl("\\\\wsl.localhost\\Ubuntu\\home\\me\\doc.pdf")).toBe(
+      "file://wsl.localhost/Ubuntu/home/me/doc.pdf",
+    );
+  });
+});
+
 describe("toLocalFileUrl", () => {
   it("builds a constant-host URL for a POSIX absolute path", () => {
     expect(toLocalFileUrl("/Users/me/img.png")).toBe("poracode-local://local/Users/me/img.png");
@@ -75,6 +102,14 @@ describe("toLocalFileUrl", () => {
     );
   });
 
+  it("percent-encodes path segments that contain literal percent signs", () => {
+    // Grok session dirs are named with URL-encoded worktree paths on disk.
+    const path = "C:\\Users\\me\\.grok\\sessions\\E%3A%5Cwork%5Crepo\\assets\\shot.png";
+    expect(toLocalFileUrl(path)).toBe(
+      "poracode-local://local/C:/Users/me/.grok/sessions/E%253A%255Cwork%255Crepo/assets/shot.png",
+    );
+  });
+
   // Regression guard for the `standard: true` scheme privilege (commit bd0faf73).
   // Standard/special schemes parse with WHATWG "special authority ignore
   // slashes": leading slashes collapse and the first path segment is consumed
@@ -82,14 +117,12 @@ describe("toLocalFileUrl", () => {
   // therefore lost its first path segment — `/Users` on macOS, the drive
   // letter on Windows — so the protocol handler resolved the wrong file and
   // pasted images failed to render. The constant `local` host absorbs that
-  // parsing so the real path survives intact in `pathname`. This helper mirrors
-  // the resolution in src/main/attachments/localFiles.ts.
+  // parsing so the real path survives intact in `pathname`.
   function resolveLikeProtocolHandler(url: string, platform: "darwin" | "win32"): string {
     // poracode-local is non-special in Node; swap to a special scheme to
     // reproduce Chromium's standard-scheme canonicalization (host extraction).
     const asSpecial = url.replace(/^poracode-local:/, "https:");
-    const raw = decodeURIComponent(new URL(asSpecial).pathname);
-    return platform === "win32" && /^\/[A-Za-z]:/.test(raw) ? raw.slice(1) : raw;
+    return resolveLocalFileUrlPath(asSpecial, platform);
   }
 
   it("round-trips a POSIX path through standard-scheme parsing", () => {
@@ -107,5 +140,21 @@ describe("toLocalFileUrl", () => {
     expect(resolveLikeProtocolHandler(toLocalFileUrl("C:\\Users\\me\\img.png"), "win32")).toBe(
       "C:/Users/me/img.png",
     );
+  });
+
+  it("round-trips a Windows path with literal percent-encoded folder names", () => {
+    // Without segment encoding, decodeURIComponent would turn E%3A into E:
+    // and the protocol handler would look up a non-existent path.
+    const path =
+      "C:/Users/me/.grok/sessions/E%3A%5Cwork%5C.poracode%5Cworktrees%5Crepo/assets/img.png";
+    expect(resolveLikeProtocolHandler(toLocalFileUrl(path), "win32")).toBe(path);
+  });
+});
+
+describe("isPdfPath", () => {
+  it("recognizes PDF MIME types and file extensions", () => {
+    expect(isPdfPath("C:\\tmp\\document.PDF")).toBe(true);
+    expect(isPdfPath("C:\\tmp\\document.bin", "application/pdf")).toBe(true);
+    expect(isPdfPath("C:\\tmp\\document.txt", "text/plain")).toBe(false);
   });
 });

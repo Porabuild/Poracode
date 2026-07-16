@@ -16,6 +16,22 @@ import {
   type UpdateStatus,
 } from "@/shared/ipc";
 
+/**
+ * Host home dir without `node:os` — sandboxed preload must not import Node
+ * built-ins that can fail and drop `window.poracode` (index.html then redirects
+ * to mobile.html).
+ */
+function resolveHomeDir(): string | undefined {
+  const env = process.env;
+  const userProfile = env.USERPROFILE?.trim();
+  if (userProfile) return userProfile;
+  const home = env.HOME?.trim();
+  if (home) return home;
+  // Windows often has HOMEDRIVE+HOMEPATH when USERPROFILE is unset.
+  const combined = `${env.HOMEDRIVE ?? ""}${env.HOMEPATH ?? ""}`.trim();
+  return combined.length > 0 ? combined : undefined;
+}
+
 function resolveAppVersion(): string {
   const prefix = "--lc-app-version=";
   for (const arg of process.argv) {
@@ -86,6 +102,8 @@ function resolveArgBoolean(prefix: string): boolean {
   return resolveArgValue(prefix) === "1";
 }
 
+const homeDir = resolveHomeDir();
+
 const bridge: PoracodeBridge = {
   platform: process.platform,
   appVersion: resolveAppVersion(),
@@ -94,6 +112,7 @@ const bridge: PoracodeBridge = {
   isDev: resolveIsDev(),
   windowKind: resolveWindowKind(),
   channel: resolveChannel(),
+  ...(homeDir ? { homeDir } : {}),
   electronVersion: process.versions.electron ?? "unknown",
   nodeVersion: process.versions.node,
   posthogEnableDev: resolveArgBoolean("--lc-posthog-enable-dev="),

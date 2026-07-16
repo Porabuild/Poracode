@@ -1313,6 +1313,10 @@ msgstr "Закладки"
 msgid "Bottom"
 msgstr "Знизу"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "Гілка"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "У гілці '{branch}' є незакомічені зміни в '{path}' — закомітьте їх або помістіть у stash перед злиттям"
@@ -2524,6 +2528,10 @@ msgstr "Не вдалося згенерувати повідомлення ко
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
 msgstr "Не вдалося завантажити pull request для {0}."
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "Не вдалося відкрити цей PDF-файл."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3770,6 +3778,10 @@ msgstr "Першокласна інтеграція Grok Build CLI з викор
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Першокласна інтеграція OpenCode з використанням нативного середовища виконання SDK Poracode."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Fit width"
+#~ msgstr "За шириною"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Виправити в агенті"
@@ -4649,6 +4661,11 @@ msgstr "Завантаження маркетплейсу…"
 msgid "Loading notes…"
 msgstr "Завантаження нотаток…"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "Loading PDF…"
+#~ msgstr "Завантаження PDF…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "Завантаження PR…"
@@ -5466,6 +5483,10 @@ msgstr "Наступне зображення"
 msgid "Next match"
 msgstr "Наступний збіг"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Next page"
+#~ msgstr "Наступна сторінка"
+
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "Наступний нещодавно переглянутий чат"
@@ -5671,6 +5692,10 @@ msgstr "Відповідних розкладів немає."
 msgid "No matching threads"
 msgstr "Відповідних тредів немає"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "Для цього запуску не ввімкнено жодного MCP-сервера"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "У цій області MCP-серверів не знайдено."
@@ -5833,8 +5858,8 @@ msgid "No windows reported"
 msgstr "Вікна не повідомлені"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "Немає worktree"
+#~ msgid "No worktree"
+#~ msgstr "Немає worktree"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"
@@ -6083,6 +6108,10 @@ msgstr "Відкривати перегляд Git як праву панель �
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 msgid "Open image preview"
 msgstr "Відкрити перегляд зображення"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "Відкрити в браузері"
 
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
@@ -6416,6 +6445,14 @@ msgstr "Призупинити"
 msgid "Paused"
 msgstr "Призупинено"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "Попередній перегляд PDF відкривається в панелі браузера."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "Попередній перегляд PDF відкривається в браузері."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "пік активності"
@@ -6626,6 +6663,10 @@ msgstr "Попереднє зображення"
 msgid "Previous match"
 msgstr "Попередній збіг"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Previous page"
+#~ msgstr "Попередня сторінка"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
 msgstr "Попередній нещодавно переглянутий чат"
@@ -6642,6 +6683,10 @@ msgstr "Попередні запуски"
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "Попередня вкладка"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Privacy Policy"
+msgstr "Політика конфіденційності"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Private key"
@@ -7976,6 +8021,10 @@ msgstr "Задати або переглянути експерименталь�
 msgid "Set shortcut"
 msgstr "Призначити комбінацію клавіш"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "Зафіксовано під час запуску цієї сесії — щоб змінити сервери, почніть новий тред"
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/WideShell.tsx
@@ -8681,6 +8730,10 @@ msgstr "Підсумуй прогрес цього тижня, незаверш�
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "Під наглядом"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Support"
+msgstr "Підтримка"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Support mode appears once the session connects."

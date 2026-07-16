@@ -56,6 +56,8 @@ export const SITEMAP_ROUTES = [
   { path: "/download", changeFrequency: "daily", priority: 0.9, localized: true },
   { path: "/changelog", changeFrequency: "weekly", priority: 0.7, localized: false },
   { path: "/nightly", changeFrequency: "daily", priority: 0.5, localized: true },
+  { path: "/support", changeFrequency: "monthly", priority: 0.4, localized: false },
+  { path: "/privacy", changeFrequency: "yearly", priority: 0.2, localized: false },
 ] as const;
 
 export function absoluteUrl(path: string): string {

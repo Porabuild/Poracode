@@ -5,11 +5,12 @@
 delete process.env.ELECTRON_RUN_AS_NODE;
 
 import { execSync } from "node:child_process";
+import { resolveDevServerPort } from "./dev-server-port.mjs";
 
 execSync("electronmon .", {
   stdio: "inherit",
   env: {
     ...process.env,
-    VITE_DEV_SERVER_URL: "http://127.0.0.1:3100",
+    VITE_DEV_SERVER_URL: `http://127.0.0.1:${resolveDevServerPort()}`,
   },
 });

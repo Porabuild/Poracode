@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import type { CommandExecutionPayload } from "@/shared/contracts";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
-import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
@@ -59,6 +58,7 @@ export const CommandExecution = memo(function CommandExecution({ item }: Command
       icon={<Icon className="size-3" />}
       title={display.title}
       {...(display.parts ? { titleParts: display.parts } : {})}
+      isRunning={isRunning}
       rightLabel={status.rightLabel}
       rightLabelClassName={status.textClass}
       isExpanded={isExpanded}
@@ -97,11 +97,10 @@ function resolveCommandStatus(
   durationMs: number | undefined,
   isPayloadError = false,
 ): CommandStatus {
+  // Running state is signalled by the shimmering title (ChatItemAccordion's
+  // `isRunning`), matching grouped tool rows — no spinner on the right.
   if (isRunning) {
-    return {
-      textClass: "!text-[color:var(--muted)]",
-      rightLabel: <PixelLoader size="xxs" className="text-[color:var(--muted)]" />,
-    };
+    return { textClass: "!text-[color:var(--muted)]", rightLabel: null };
   }
   const dur = durationMs != null ? formatDuration(durationMs) : "";
   if (!isPayloadError && (exitCode === undefined || exitCode === 0)) {

@@ -116,7 +116,7 @@ function SidebarThreadRow(props: {
     // header's icon; no left padding keeps the child hugging the rail so the
     // nesting reads without a wide indent.
     if (row.inGroup) {
-      return <div className={`ml-3.5 ${chatRowRailClass}`}>{item}</div>;
+      return <div className={`ml-3.5 pl-1 ${chatRowRailClass}`}>{item}</div>;
     }
     return item;
   }

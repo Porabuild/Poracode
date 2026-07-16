@@ -1313,6 +1313,10 @@ msgstr "书签"
 msgid "Bottom"
 msgstr "底部"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "分支"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "分支“{branch}”在“{path}”中有未提交的更改 - 在合并之前提交或隐藏它们"
@@ -2524,6 +2528,10 @@ msgstr "无法生成提交消息：{detail}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
 msgstr "无法加载 {0} 的拉取请求。"
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "无法打开此 PDF。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3770,6 +3778,10 @@ msgstr "使用 Poracode 的本机运行时进行一流的 Grok Build CLI 集成�
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "使用 Poracode 的本机 SDK 运行时进行一流的 OpenCode 集成。"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Fit width"
+#~ msgstr "适合宽度"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "在代理中修复"
@@ -4649,6 +4661,11 @@ msgstr "正在加载市场…"
 msgid "Loading notes…"
 msgstr "正在加载笔记..."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "Loading PDF…"
+#~ msgstr "正在加载 PDF…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "正在加载 PR…"
@@ -5465,6 +5482,10 @@ msgstr "下一张图片"
 msgid "Next match"
 msgstr "下一个匹配项"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Next page"
+#~ msgstr "下一页"
+
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "下一个最近查看的聊天"
@@ -5670,6 +5691,10 @@ msgstr "没有匹配的计划。"
 msgid "No matching threads"
 msgstr "没有匹配的线程"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "本次运行未启用任何 MCP 服务器"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "在此范围内未找到 MCP 服务器。"
@@ -5832,8 +5857,8 @@ msgid "No windows reported"
 msgstr "没有报告窗口"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "无工作树"
+#~ msgid "No worktree"
+#~ msgstr "无工作树"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"
@@ -6082,6 +6107,10 @@ msgstr "将 git review 作为右侧面板或整页打开。"
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 msgid "Open image preview"
 msgstr "打开图片预览"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "在浏览器中打开"
 
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
@@ -6415,6 +6444,14 @@ msgstr "暂停"
 msgid "Paused"
 msgstr "已暂停"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "PDF 预览会在浏览器面板中打开。"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "PDF 预览会在浏览器中打开。"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "最活跃日"
@@ -6625,6 +6662,10 @@ msgstr "上一张图片"
 msgid "Previous match"
 msgstr "上一个匹配项"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Previous page"
+#~ msgstr "上一页"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
 msgstr "上一个最近查看的聊天"
@@ -6641,6 +6682,10 @@ msgstr "历史运行"
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "上一个选项卡"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Privacy Policy"
+msgstr "隐私政策"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Private key"
@@ -7975,6 +8020,10 @@ msgstr "设置或查看实验目标"
 msgid "Set shortcut"
 msgstr "设置快捷键"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "在本会话启动时已固定 — 如需更改服务器，请开始新线程"
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/WideShell.tsx
@@ -8680,6 +8729,10 @@ msgstr "总结本周进展、未完成的工作以及下周最重要的风险。
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "监督"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Support"
+msgstr "支持"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Support mode appears once the session connects."

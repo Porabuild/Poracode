@@ -242,12 +242,20 @@ export class BrowserPanelManager {
     this.emitState();
   }
 
-  revealPanel(): void {
+  revealPanel(mode?: BrowserLinkPresentationMode): void {
     if (this.options.isExtracted?.()) {
       this.options.focusExtractedWindow?.();
       return;
     }
-    this.emit({ type: "open-panel" });
+    this.emit({
+      type: "open-panel",
+      ...(mode !== undefined ? { mode } : {}),
+    });
+  }
+
+  /** Reveal using the user's Browser "Show opened links in" preference. */
+  revealForUserOpen(): void {
+    this.revealPanel(this.readLinkSettings().linkPresentationMode);
   }
 
   /**
@@ -337,12 +345,7 @@ export class BrowserPanelManager {
       return this.openSystemBrowser(url.toString());
     }
 
-    if (this.options.isExtracted?.()) {
-      this.options.focusExtractedWindow?.();
-    } else {
-      this.emit({ type: "open-panel", mode: settings.linkPresentationMode });
-    }
-    void this.createTab({ url: url.toString(), activate: true }).catch(() => {});
+    void this.createTab({ url: url.toString(), activate: true, reveal: true }).catch(() => {});
     return true;
   }
 
@@ -452,7 +455,7 @@ export class BrowserPanelManager {
   }
 
   async createTab(
-    payload: { url?: string; activate?: boolean },
+    payload: { url?: string; activate?: boolean; reveal?: boolean },
     opts: {
       markActivity?: boolean;
       awaitAttach?: boolean;
@@ -464,6 +467,12 @@ export class BrowserPanelManager {
     // Creating a tab is agent activity (mounts the headless host). Restore
     // passes markActivity:false so reopening the app doesn't wake dormant tabs.
     if (opts.markActivity !== false) this.markAutomationActivity();
+    // Same presentation path as openLink / openExternal: emit open-panel so
+    // useBrowserSync places the browser in panel or overlay (and above the
+    // file editor when that is open).
+    if (payload.reveal) {
+      this.revealForUserOpen();
+    }
     const tabId = `tab-${randomUUID()}`;
     const tab = new BrowserTab({
       tabId,

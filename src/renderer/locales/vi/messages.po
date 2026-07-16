@@ -1313,6 +1313,10 @@ msgstr "Dấu trang"
 msgid "Bottom"
 msgstr "Dưới cùng"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "Nhánh"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "Nhánh '{branch}' có những thay đổi chưa được cam kết trong '{path}' — cam kết hoặc lưu trữ chúng trước khi hợp nhất"
@@ -2524,6 +2528,10 @@ msgstr "Không thể tạo thông báo commit: {detail}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
 msgstr "Không thể tải pull request cho {0}."
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "Không thể mở tệp PDF này."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3770,6 +3778,10 @@ msgstr "Tích hợp Grok Build CLI hạng nhất bằng cách sử dụng thời
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Tích hợp OpenCode hạng nhất bằng thời gian chạy SDK gốc của Poracode."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Fit width"
+#~ msgstr "Vừa chiều rộng"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Sửa trong Tác nhân"
@@ -4649,6 +4661,11 @@ msgstr "Đang tải marketplace…"
 msgid "Loading notes…"
 msgstr "Đang tải ghi chú…"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "Loading PDF…"
+#~ msgstr "Đang tải PDF…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "Đang tải PR…"
@@ -5466,6 +5483,10 @@ msgstr "Hình ảnh tiếp theo"
 msgid "Next match"
 msgstr "Kết quả tiếp theo"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Next page"
+#~ msgstr "Trang tiếp theo"
+
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "Cuộc trò chuyện đã xem gần đây tiếp theo"
@@ -5671,6 +5692,10 @@ msgstr "Không có lịch phù hợp."
 msgid "No matching threads"
 msgstr "Không có luồng nào phù hợp"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "Không có máy chủ MCP nào được bật cho lần chạy này"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "Không tìm thấy máy chủ MCP nào trong phạm vi này."
@@ -5833,8 +5858,8 @@ msgid "No windows reported"
 msgstr "Không có cửa sổ nào được báo cáo"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "Không có worktree"
+#~ msgid "No worktree"
+#~ msgstr "Không có worktree"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"
@@ -6083,6 +6108,10 @@ msgstr "Mở đánh giá git dưới dạng bảng điều khiển bên phải h
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 msgid "Open image preview"
 msgstr "Mở xem trước hình ảnh"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "Mở trong trình duyệt"
 
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
@@ -6416,6 +6445,14 @@ msgstr "Tạm dừng"
 msgid "Paused"
 msgstr "Đã tạm dừng"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "Xem trước PDF mở trong bảng trình duyệt."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "Xem trước PDF mở trong trình duyệt."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "ngày cao điểm"
@@ -6626,6 +6663,10 @@ msgstr "Hình ảnh trước đó"
 msgid "Previous match"
 msgstr "Kết quả trước đó"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Previous page"
+#~ msgstr "Trang trước"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
 msgstr "Cuộc trò chuyện đã xem gần đây trước đó"
@@ -6642,6 +6683,10 @@ msgstr "Các lần chạy trước"
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "Tab trước"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Privacy Policy"
+msgstr "Chính sách quyền riêng tư"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Private key"
@@ -7976,6 +8021,10 @@ msgstr "Đặt hoặc xem mục tiêu thử nghiệm"
 msgid "Set shortcut"
 msgstr "Đặt phím tắt"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "Được cố định khi phiên này bắt đầu — hãy tạo luồng mới để thay đổi máy chủ"
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/WideShell.tsx
@@ -8681,6 +8730,10 @@ msgstr "Tóm tắt tiến độ tuần này, công việc chưa hoàn thành và
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "Giám sát"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Support"
+msgstr "Hỗ trợ"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Support mode appears once the session connects."

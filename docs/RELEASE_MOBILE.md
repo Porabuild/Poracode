@@ -1,292 +1,238 @@
-# Poracode Mobile — deploy & release
+# Poracode mobile beta release
 
-The mobile app is the PWA in `src/mobile/` (entry `mobile.html`). It is a remote
-client that pairs to a desktop's embedded remote-access server and reuses the
-desktop renderer's components through a bridge shim.
+Poracode ships one mobile client from `src/mobile` to a hosted PWA, Android via
+Capacitor, and iOS via Capacitor. The native application identifier is locked to
+`com.lightcodeapp.mobile`; the iOS Live Activity extension uses
+`com.lightcodeapp.mobile.PoracodeActivities`.
 
-It ships to **three targets** from the same web build:
+The first beta is an internal TestFlight build and a Google Play internal-test
+release. Public store-listing screenshots and promotional art are not part of
+the internal-beta gate.
 
-| Target          | How it's served                                               | Talks to desktop over                 | Best for                                      |
-| --------------- | ------------------------------------------------------------- | ------------------------------------- | --------------------------------------------- |
-| **LAN PWA**     | The desktop's embedded server at `http://<lan-ip>:<port>/app` | Same-origin HTTP (LAN)                | Zero-setup pairing on the same network        |
-| **Hosted PWA**  | Vercel (`vercel.json` → `dist/mobile`)                        | HTTPS only ⚠️ (see below)             | Install entry, QR landing, app-vs-PWA routing |
-| **Native apps** | App Store / Play, via Capacitor (`capacitor.config.json`)     | HTTP **or** HTTPS (cleartext allowed) | Store presence, native camera/push            |
+## Repository release gates
 
-### ⚠️ The mixed-content constraint
-
-A page served over **HTTPS cannot open HTTP connections to a LAN address** —
-browsers block it as mixed content. The desktop server exposes plain HTTP on the
-LAN, so:
-
-- **LAN PWA** works because it is itself served over HTTP (same origin). ✅
-- **Hosted PWA** (HTTPS) can only reach a desktop that is _also_ reachable over
-  HTTPS (e.g. a tunnel such as Tailscale Funnel / Cloudflare Tunnel, or a reverse
-  proxy). Pairing to a plain-HTTP LAN desktop from the hosted PWA is blocked; the
-  app detects this and shows an explanation (see `isMixedContentEndpoint`). ⚠️
-- **Native apps** load from a local `https://`/`capacitor://` origin but the
-  WebView is configured to allow cleartext to the LAN desktop
-  (`server.cleartext`/`allowMixedContent` on Android; ATS exception on iOS), so
-  they pair to a plain-HTTP LAN desktop just like the LAN PWA. ✅
-
-Net: the **LAN PWA and the native apps are the fully-working LAN experiences**;
-the hosted PWA is the install/landing surface and the HTTPS-desktop path.
-
----
-
-## Build
+Run these before creating a mobile release:
 
 ```bash
-pnpm run build:mobile      # → dist/mobile (mobile-only; emits index.html + mobile.html)
-```
-
-`build:mobile` sets `PORACODE_BUILD_TARGET=mobile`, which makes `vite.config.ts`
-build only the mobile entry into `dist/mobile`, then `scripts/finalize-mobile-build.mjs`
-mirrors `mobile.html` → `index.html` (what Vercel and Capacitor serve at `/`) and
-generates the app-link association files under `dist/mobile/.well-known/`.
-
-PWA assets are static under `public/` (`manifest.webmanifest`, `service-worker.js`,
-`app-icon.svg`, `icons/`) and are copied verbatim into the build. The desktop
-server serves equivalents at runtime (`src/main/remote/pairingPage.ts`) and now
-also serves the PNG icon set from `/icons/*`.
-
----
-
-## 1. Hosted PWA on Vercel
-
-`vercel.json` (repo root) is a ready-to-connect config:
-
-- `installCommand`: `pnpm install --frozen-lockfile --ignore-scripts` (skips the
-  Electron native rebuild, which isn't needed for the web build).
-- `buildCommand`: `pnpm run build:mobile`, `outputDirectory`: `dist/mobile`.
-- Rewrites `/`, `/app`, `/pair` → the app entry; long-cache headers for hashed
-  assets; correct content types for the manifest and the AASA file.
-
-**Setup**
-
-1. Create a Vercel project pointing at this repo, Root Directory = repo root.
-2. Add repo secrets `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`.
-3. On the **desktop**, turn on **Settings → Remote Access**. Packaged builds
-   default to `https://poracode.com`, so the pairing QR encodes
-   `https://poracode.com/pair?host=<desktop>#token=…`. Set
-   `PORACODE_REMOTE_ACCESS_PAIRING_APP_URL=https://<your-host>` only to override
-   the hosted pairing app for staging or a custom deployment.
-
-Deploy: `Actions → Release Mobile` with **Web** ticked (or push a `mobile-v*` tag).
-
----
-
-## 2. Native apps (Capacitor)
-
-`capacitor.config.json` wraps the built PWA (`webDir: dist/mobile`) as native iOS
-and Android apps (`appId: com.lightcodeapp.mobile`). This pre-rebrand identifier is intentionally
-retained so Poracode upgrades preserve the existing Lightcode app sandbox. The native projects
-(`android/`, `ios/`) are generated, not committed yet:
-
-```bash
+pnpm install --frozen-lockfile
+pnpm i18n:extract
+pnpm run typecheck
+pnpm run lint
+pnpm run test
 pnpm run build:mobile
-pnpm exec cap add android      # one-time; generates android/
-pnpm exec cap add ios          # one-time; generates ios/   (macOS + Xcode)
-pnpm run cap:sync              # after every web build; syncs and patches native config
+
+cd android
+./gradlew lintRelease bundleRelease
 ```
 
-Commit `android/` and `ios/` once you customize them (icons, splash, signing,
-store signing/export options). Until then, the release workflow bootstraps them
-in CI with `cap add`. Brand the freshly generated projects (Poracode app icons,
-adaptive-icon layers, dark splash screens) with:
+The signed iOS archive/export gate runs on GitHub's `macos-26` image with Xcode 26. It cannot run on Windows. `.github/workflows/release-mobile.yml` assigns a
+unique store build number from `GITHUB_RUN_NUMBER` and `GITHUB_RUN_ATTEMPT`, and
+reads the three-integer marketing version from `package.json` (or a
+`mobile-vX.Y.Z` tag).
 
-````bash
-node branding/assets/build-native-assets.mjs
-``` `scripts/configure-mobile-native.mjs` applies the native
-pieces Poracode needs after each sync:
+## Public URLs
 
-- Android App Links intent filter for `https://<PORACODE_MOBILE_APP_HOST>/pair`
-  and `/app`.
-- iOS `NSAllowsLocalNetworking` for LAN desktop pairing.
-- iOS Associated Domains entitlements for `applinks:` and `webcredentials:`.
+These URLs are Poracode's hosted-PWA, legal, and verified-link acceptance gates.
+Internal TestFlight and Play installation can work without the association
+endpoints, but the links must be live before testing universal/app links or
+using them as store metadata:
 
-> **Why Capacitor for both stores?** iOS has no Trusted Web Activity equivalent
-> and Apple rejects thin web wrappers (guideline 4.2), so a native shell is
-> required there regardless; using Capacitor for Android too keeps one toolchain
-> and a real camera for QR scanning. If you'd rather ship Android as a
-> lightweight **TWA**, use Bubblewrap against the hosted PWA + `assetlinks.json`
-> and drop the Android job from the workflow.
+- App entry: `https://poracode.com/pwa/`
+- Privacy policy: `https://poracode.com/privacy`
+- Support: `https://poracode.com/support`
+- Apple association: `https://poracode.com/.well-known/apple-app-site-association`
+- Android association: `https://poracode.com/.well-known/assetlinks.json`
 
----
+The association routes are owned by the marketing website. Configure these in
+the production environment for that Vercel project:
 
-## 3. Deep linking — open the installed app vs the PWA
+| Variable                                           | Value                                                    |
+| -------------------------------------------------- | -------------------------------------------------------- |
+| `PORACODE_MOBILE_APPLE_TEAM_ID`                    | Apple Developer Team ID                                  |
+| `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS` | Play App Signing SHA-256 fingerprint(s), comma separated |
+| `PORACODE_MOBILE_APP_ID`                           | Optional; defaults to `com.lightcodeapp.mobile`          |
 
-This is handled at the OS level by **Universal Links (iOS)** and **App Links
-(Android)**, not by JavaScript guessing. When the desktop QR points at the hosted
-domain (step 1.3 above) and the domain is associated with the native app, then
-scanning the QR:
+Both endpoints intentionally return valid empty associations until the account
+values exist. After configuration, verify a direct 200 response with
+`Content-Type: application/json` and no redirect.
 
-- **App installed** → the OS opens the **native app** at `/pair?host=…#token=…`.
-- **App not installed** → it opens in the browser as the **PWA**.
+The production push gateway runs in the same Vercel project. Configure these as
+encrypted production environment variables before testing notifications:
 
-To enable this, configure the release secrets that `scripts/finalize-mobile-build.mjs`
-uses to generate the hosted association files:
+| Variable           | Value                                                          |
+| ------------------ | -------------------------------------------------------------- |
+| `FCM_PROJECT_ID`   | Firebase project ID                                            |
+| `FCM_CLIENT_EMAIL` | Firebase service-account email                                 |
+| `FCM_PRIVATE_KEY`  | Firebase service-account private key                           |
+| `APNS_KEY_ID`      | Apple Push Notifications key ID                                |
+| `APNS_TEAM_ID`     | Apple Developer Team ID                                        |
+| `APNS_AUTH_KEY`    | Full Apple Push Notifications `.p8` contents                   |
+| `APNS_TOPIC`       | `com.lightcodeapp.mobile`                                      |
+| `APNS_ENV`         | `production` (the default; use `sandbox` only for development) |
 
-- `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS` — one or more **Play app
-  signing** SHA-256 certificate fingerprints, comma- or newline-separated.
-- `PORACODE_MOBILE_APPLE_TEAM_ID` — your Apple Team ID.
-- `PORACODE_MOBILE_APP_HOST` — the hosted PWA domain, for native app-link
-  declarations (for example `app.poracodeapp.com`, without a path).
+## GitHub release configuration
 
-When these values are absent, local/web builds emit valid non-associating files
-instead of shipping placeholders. Android and iOS release jobs set
-`PORACODE_MOBILE_REQUIRE_ANDROID_LINKS=1` / `PORACODE_MOBILE_REQUIRE_IOS_LINKS=1`,
-so a store build fails if the platform's association value or app host is missing.
+The `mobile-web`, `mobile-android`, and `mobile-ios` environments are used by the
+release workflow. Set `PORACODE_MOBILE_APP_HOST=poracode.com` in all three and
+`PLAY_TRACK=internal` in `mobile-android`. Each environment requires approval
+from the repository owner and only accepts deployments from `master` or a
+`mobile-v*` tag. The workflow pins third-party actions to immutable commits and
+scopes publisher credentials to the steps that consume them.
 
-In-browser, the app also offers **Add to Home Screen** when the browser exposes
-an install prompt (`src/mobile/pwaInstall.ts`), and detects standalone/native
-launch so it doesn't nag installed users.
+### `mobile-web`
 
----
+The environment needs `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, and this secret:
 
-## 4. Release workflow & partial releases
+- `VERCEL_TOKEN`
 
-`.github/workflows/release-mobile.yml` releases each target independently.
+### `mobile-android`
 
-- **Manual / partial:** `Actions → Release Mobile → Run workflow`, then tick any
-  combination of **Web / Android / iOS**. Each platform job is gated by its
-  checkbox, so you can ship web-only, or push an iOS-only hotfix.
-- **Full release:** push a tag `mobile-vX.Y.Z` — all three targets release.
+Create one long-lived upload keystore, keep an offline backup, and add:
 
-Builds always upload the **AAB / IPA as artifacts**, so the workflow produces
-installable binaries even before store credentials are configured; the store
-upload steps activate automatically once their secrets are present.
+- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+- `ANDROID_GOOGLE_SERVICES_JSON_BASE64`
+- `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS` after Play processes the
+  first manually uploaded AAB
+- `PLAY_SERVICE_ACCOUNT_JSON` only after the first AAB has been uploaded manually
 
-### Secrets
+PowerShell encodes the binary files without line wrapping:
 
-| Target  | Secrets                                                                                                                                                                                                                                                                                 |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Web     | `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, optional `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS`, optional `PORACODE_MOBILE_APPLE_TEAM_ID`, var `PORACODE_MOBILE_APP_HOST`                                                                                          |
-| Android | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS`, var `PORACODE_MOBILE_APP_HOST`, `PLAY_SERVICE_ACCOUNT_JSON` (optional → auto-publish), var `PLAY_TRACK` (default `internal`) |
-| iOS     | `IOS_DIST_CERT_BASE64`, `IOS_DIST_CERT_PASSWORD`, `PORACODE_MOBILE_APPLE_TEAM_ID`, var `PORACODE_MOBILE_APP_HOST`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_PRIVATE_KEY`                                                                         |
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("poracode-upload.keystore"))
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("google-services.json"))
+```
 
-Each platform job uses a GitHub Environment (`mobile-web` / `mobile-android` /
-`mobile-ios`) so you can add required reviewers for production releases.
+### `mobile-ios`
 
----
+The existing repository `APPLE_TEAM_ID` secret is accepted as the team-ID
+fallback. Add:
 
-## 5. Push notifications, Live Activities (iOS) & Android push
+- `APP_STORE_CONNECT_KEY_ID`
+- `APP_STORE_CONNECT_ISSUER_ID`
+- `APP_STORE_CONNECT_PRIVATE_KEY` (the full `.p8` contents)
 
-Background push (turn complete / needs input) and lock-screen / Dynamic Island
-**Live Activities** are iOS-only. They ride on two Capacitor plugins:
+Use an Admin **team App Store Connect API key**, not an individual API key.
+Individual keys cannot use Apple's provisioning endpoints. Xcode cloud signing
+provisions the app and extension, archives `App.xcodeproj`, exports an IPA, and
+uploads it to TestFlight without a locally imported distribution certificate.
 
-- `@capacitor/push-notifications` — ordinary APNs alert pushes (device token).
-- `@poracode/activity-bridge` — a **local** plugin in `native/activity-bridge/`
-  bridging ActivityKit (start/end activities, push-to-start + per-activity
-  update tokens). No-op on Android/web. Linked from the root `package.json` as
-  `"@poracode/activity-bridge": "file:native/activity-bridge"`.
+Keep a durable copy of the one-time-download App Store Connect `.p8` outside the
+repository. GitHub secrets are deployment copies and cannot be retrieved as
+backups.
 
-The desktop never talks to APNs directly (the `.p8` auth key can't ship in the
-app); it posts to a small hosted **push gateway** that holds the key and signs
-the APNs JWT. See `docs/superpowers/specs/2026-07-02-live-activities-design.md`.
+## Apple one-time setup
 
-### iOS floor
+1. In Certificates, Identifiers & Profiles, register
+   `com.lightcodeapp.mobile` with Push Notifications and Associated Domains.
+2. Register `com.lightcodeapp.mobile.PoracodeActivities` as the extension ID.
+3. Create an Admin team App Store Connect API key and add the GitHub secrets
+   above. Do not use an individual API key because Xcode automatic provisioning
+   cannot use it.
+4. Create the App Store Connect app record: platform iOS, name `Poracode`, bundle
+   ID `com.lightcodeapp.mobile`, primary language English (U.S.), and a unique
+   SKU such as `poracode-ios`.
+5. Set Privacy Policy URL to `https://poracode.com/privacy` and Support URL to
+   `https://poracode.com/support`.
+6. Complete App Privacy, age rating, content-rights, and export-compliance
+   questions. Do not automatically answer “no encryption”: Poracode includes an
+   SSH client and SwiftCrypto, so the encryption/export answer must be reviewed
+   in App Store Connect.
+7. Add an internal tester group and enable automatic distribution if uploaded
+   builds should appear there without a manual assignment. External TestFlight
+   testing additionally requires Beta App Review and a stable review pairing
+   path.
 
-- Live Activities: **iOS 16.2+**.
-- Push-to-start (remote activity start with the phone's app never opened):
-  **iOS 17.2+**.
+### TestFlight copy
 
-Everything is runtime-gated with `#available`, so the app still builds and runs
-on the Capacitor 8 default deployment target and simply reports Live Activities
-as unavailable below the floor.
+Beta description:
 
-### What `scripts/configure-mobile-native.mjs` does automatically
+> Poracode for iPhone and iPad is the mobile companion for the Poracode desktop
+> app. Pair with a desktop to monitor coding agents, reply when they need input,
+> review work, and receive optional status notifications away from your desk.
 
-Run after every `cap sync` (via `pnpm run cap:sync`). When `ios/` is present it:
+What to Test:
 
-- Sets `NSSupportsLiveActivities` and `NSSupportsLiveActivitiesFrequentUpdates`
-  to `YES` in the **app** target's `Info.plist`.
-- Adds `aps-environment` to `ios/App/App/App.entitlements` (default
-  `production`; override with `PORACODE_IOS_APS_ENVIRONMENT=development` for
-  debug/TestFlight sandbox builds) and wires `CODE_SIGN_ENTITLEMENTS`.
-- Copies the widget-extension sources from `native/ios/PoracodeActivities/`
-  into `ios/App/PoracodeActivities/` (idempotent), so the manual Xcode step is
-  just "add existing folder as a target".
+> Pair with a Poracode desktop by scanning its QR code or entering the endpoint
+> and token. Verify project/thread navigation, terminal and native-chat updates,
+> sending a reply, camera and local-network permission prompts, background
+> notifications, universal links, and Live Activity status. Report the desktop
+> and mobile versions, device model, iOS version, and exact reproduction steps.
 
-### One-time manual Xcode steps
+Feedback email: `SDSLeon999@gmail.com`
 
-Target injection into `project.pbxproj` is **not** scripted (too fragile).
-After the first `cap add ios` + `pnpm run cap:sync`:
+Review note:
 
-1. **Push Notifications capability.** Select the `App` target →
-   Signing & Capabilities → **+ Capability → Push Notifications**. (The script
-   already added `aps-environment`; this registers the capability in Xcode.)
-2. **Create the widget extension target.** File → New → Target →
-   **Widget Extension**, name it `PoracodeActivities`, and tick "Include Live
-   Activity". Delete Xcode's boilerplate sources.
-3. **Add the copied sources.** Right-click the new target group → Add Files →
-   select `ios/App/PoracodeActivities/` (`PoracodeActivitiesBundle.swift`,
-   `DesktopSessionLiveActivity.swift`, `ThreadStatusDisplay.swift`, `Info.plist`),
-   added to the `PoracodeActivities` target.
-4. **Share the ActivityAttributes file.** Add
-   `native/activity-bridge/ios/Sources/ActivityBridgePlugin/DesktopSessionAttributes.swift`
-   to the `PoracodeActivities` target's membership as well (it is already
-   compiled into the app plugin target). ActivityKit requires the **exact same**
-   `ActivityAttributes` type in both targets — use one shared file reference,
-   do not copy it.
-5. **Bundle id & signing.** Set the extension's bundle id to
-   `com.lightcodeapp.mobile.PoracodeActivities` (must be prefixed by the app id
-   `com.lightcodeapp.mobile`), select the team, and let Xcode manage the
-   extension's provisioning profile.
+> Poracode is a companion client and requires a reachable Poracode desktop.
+> Provide Beta App Review with a dedicated reachable desktop endpoint and
+> pairing token; do not submit a short-lived QR code as static credentials.
 
-Commit `ios/` once these are done (per the existing "commit once customized"
-convention); CI's fresh `cap add ios` won't recreate the target.
+## Google Play one-time setup
 
-### APNs key / gateway secrets
+1. Complete Play Console developer enrollment and create an app named
+   `Poracode`, default language English (United States), package
+   `com.lightcodeapp.mobile`, app/game = App, free.
+2. Generate one upload key, back it up, and add its encoded
+   keystore/password/alias values to the GitHub environment. Select Play App
+   Signing with a Google-generated app-signing key for the first release.
+3. Add `com.lightcodeapp.mobile` to Firebase, download `google-services.json`,
+   encode it, and add `ANDROID_GOOGLE_SERVICES_JSON_BASE64`.
+4. Complete App access, Ads, Content rating, Target audience, Privacy policy,
+   and the Data safety form applicable to the selected testing track.
+5. Run the workflow with Android selected, download the signed AAB artifact,
+   and upload that first AAB manually to Internal testing. Google Play does not
+   allow the publishing API action to create the app's first release. The first
+   build intentionally allows an empty `assetlinks.json` because Play has not
+   exposed its app-signing certificate yet.
+6. After Play processes the first AAB, copy the **App signing key certificate**
+   SHA-256 fingerprint to the GitHub secret and the marketing website production
+   variable, then redeploy the website. Do not use the upload or debug
+   certificate fingerprint.
+7. Create a Google Play Android Developer API
+   service account, grant it release access to this app, and add its complete
+   JSON key as `PLAY_SERVICE_ACCOUNT_JSON`. Later workflow runs publish to the
+   configured track automatically.
 
-The push gateway (hosted alongside the PWA — same Vercel project) needs the
-team's APNs auth key. These live in the **website deployment** environment, not
-the app build:
+Store listing name: `Poracode`
 
-| Var             | Meaning                                                                                             |
-| --------------- | --------------------------------------------------------------------------------------------------- |
-| `APNS_KEY_ID`   | Key ID of the `.p8` APNs auth key.                                                                  |
-| `APNS_TEAM_ID`  | Apple Team ID.                                                                                      |
-| `APNS_AUTH_KEY` | The `.p8` private key contents (PEM).                                                               |
-| `APNS_TOPIC`    | App bundle id `com.lightcodeapp.mobile` (activity pushes use the `.push-type.liveactivity` suffix). |
+Short description:
 
-Use the APNs **sandbox** host + `aps-environment=development` for
-debug/TestFlight-sandbox device tokens, and the production host + `production`
-for App Store / TestFlight-production builds.
+> Run, monitor, and steer desktop coding agents securely from your phone.
 
-### Android push (FCM)
+Full description:
 
-Android gets **no native code and no Live Activities**. The desktop sends FCM
-**notification** messages, which Android auto-renders — Capacitor's push plugin
-still receives them in-app when foregrounded (so no double-notify). Each thread's
-status pushes share `collapse_key`/`tag = threadId`, so successive updates
-(`Running` → `Needs your input` → `Finished`) **replace** each other in the tray,
-approximating a status card. There is **no live card**: Android 16 Live Updates is
-a future increment.
+> Poracode is the mobile companion for the Poracode desktop app. Pair your phone
+> with a desktop you control to follow active coding sessions, read terminal and
+> native chat output, respond when an agent needs input, inspect project work,
+> and receive optional status notifications. Poracode supports local-network and
+> HTTPS desktop connections. A running Poracode desktop is required; the mobile
+> app does not provide a hosted coding-agent account.
 
-The same hosted push gateway (`/api/push`) also fronts FCM: the desktop POSTs
-`{ platform: "android", token, pushType: "alert", payload: { title, body,
-threadId, silent? }, priority, collapseId }`, and the gateway forwards it to FCM
-HTTP v1 with a service-account OAuth2 bearer.
+Initial release note:
 
-**Firebase setup.** Create a Firebase project, add an Android app with id
-`com.lightcodeapp.mobile`, and download its `google-services.json`. Point
-`PORACODE_ANDROID_GOOGLE_SERVICES_JSON` at that file (a path, relative to the
-repo root or absolute). Generate a **service-account** key (Project settings →
-Service accounts → Generate new private key) for the gateway env below.
+> First beta: pair with Poracode desktop, monitor and steer agent threads, scan
+> pairing QR codes, and receive optional status notifications.
 
-**What `scripts/configure-mobile-native.mjs` does automatically** (when `android/`
-is present): copies `google-services.json` into `android/app/`, adds the
-`com.google.gms:google-services` classpath to `android/build.gradle`, and ensures
-the plugin is applied in `android/app/build.gradle` (Capacitor's template already
-guards this, so it's usually a no-op). All steps are idempotent and warn (never
-fail) when the env var or `android/` is absent.
+Privacy policy: `https://poracode.com/privacy`
 
-**Gateway env vars** (website deployment, alongside the APNs vars — an iOS-only or
-Android-only deployment works without the other's env being present):
+Support: `https://poracode.com/support`
 
-| Var                | Meaning                                                         |
-| ------------------ | --------------------------------------------------------------- |
-| `FCM_PROJECT_ID`   | Firebase project id (the `{project}` in the v1 send URL).       |
-| `FCM_CLIENT_EMAIL` | Service-account client email (the OAuth2 JWT `iss`).            |
-| `FCM_PRIVATE_KEY`  | Service-account private key (PEM; `\n`-escapes are normalized). |
-````
+## First release
+
+1. Finish the account setup above and configure the secrets.
+2. Deploy the website changes and verify all five public URLs.
+3. In GitHub Actions, run **Release Mobile** with iOS and Android selected.
+   TestFlight upload is automatic. Leave `PLAY_SERVICE_ACCOUNT_JSON` unset for
+   the first run so the workflow produces the signed AAB without attempting the
+   unsupported first API upload.
+4. Download `poracode-android-<version>-<build>.zip` from the workflow and upload
+   its AAB to the Play Internal testing release.
+5. Select the processed TestFlight build for the internal tester group and roll
+   out the Play internal release.
+
+After both first uploads exist, a `mobile-vX.Y.Z` tag builds and uploads all
+configured targets with monotonically increasing build numbers. TestFlight
+distribution is automatic only for groups where **Enable automatic
+distribution** is turned on.

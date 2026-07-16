@@ -32,6 +32,7 @@ import {
   mcpTogglePatch,
 } from "@/renderer/components/composer/composerMcpServers";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
+import { openPdfPreview } from "@/renderer/components/pdf/openPdfPreview";
 import {
   MentionInput,
   type McpMentionItem,
@@ -776,6 +777,7 @@ export function ThreadDraftComposerArea(props: {
               const idx = imageAttachments.findIndex((a) => a.id === att.id);
               if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
             }}
+            onPreviewPdf={(att) => openPdfPreview(att.path)}
             leading={
               mentionedMcpServers.length > 0 || showComputerUseChip ? (
                 <>

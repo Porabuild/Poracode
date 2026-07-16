@@ -41,18 +41,71 @@ export function isImagePath(path: string, mimeType?: string): boolean {
   return mimeType?.startsWith("image/") === true || IMAGE_EXTENSIONS.has(getExtension(path));
 }
 
-export function toLocalFileUrl(absolutePath: string): string {
+export function isPdfPath(path: string, mimeType?: string): boolean {
+  return mimeType === "application/pdf" || getExtension(path) === "pdf";
+}
+
+/**
+ * Encode an absolute filesystem path for use in a URL path (file:// or
+ * poracode-local://). Segments are percent-encoded so spaces and literal `%`
+ * in folder names survive `decodeURIComponent`. Windows drive letters stay
+ * unencoded (`/C:/Users/…`).
+ */
+function encodeAbsolutePathForUrl(absolutePath: string): string {
   const normalized = absolutePath.replaceAll("\\", "/");
-  // The `poracode-local` scheme is registered as `standard: true` (so cached
-  // ACP registry icons can load as CSS mask-image sources). Standard/special
-  // schemes parse with WHATWG "special authority ignore slashes": leading
-  // slashes collapse and the first path segment becomes the host. Anchoring the
-  // path to a constant `local` host keeps the real path intact in the URL's
-  // `pathname` — without it, `/Users/…` (macOS) or the drive letter (Windows)
-  // would be eaten as the host and the protocol handler would resolve the wrong
-  // file. See src/main/attachments/localFiles.ts.
   const path = normalized.startsWith("/") ? normalized : `/${normalized}`;
-  return `poracode-local://local${path}`;
+  return path
+    .split("/")
+    .map((segment, index) => {
+      if (segment.length === 0) return segment;
+      // Leave `C:` unencoded so pathname stays `/C:/Users/…`.
+      if (index === 1 && /^[A-Za-z]:$/.test(segment)) return segment;
+      return encodeURIComponent(segment);
+    })
+    .join("/");
+}
+
+/**
+ * Build a `file://` URL for an absolute filesystem path.
+ *
+ * Used when Chromium's built-in PDF viewer should load a local PDF (in-app
+ * browser tabs). Handles Windows drive paths, POSIX paths, and UNC paths
+ * (including `\\wsl.localhost\…`).
+ */
+export function toFileUrl(absolutePath: string): string {
+  const normalized = absolutePath.replaceAll("\\", "/");
+  // UNC: //server/share/path → file://server/share/path
+  if (normalized.startsWith("//")) {
+    const parts = normalized.slice(2).split("/");
+    const host = parts[0] ?? "";
+    const rest = parts
+      .slice(1)
+      .map((segment) => (segment.length === 0 ? segment : encodeURIComponent(segment)))
+      .join("/");
+    return rest.length > 0 ? `file://${host}/${rest}` : `file://${host}`;
+  }
+  return `file://${encodeAbsolutePathForUrl(absolutePath)}`;
+}
+
+/**
+ * Build a `poracode-local://` URL for an absolute filesystem path.
+ *
+ * Anchors the path under a constant `local` host so standard-scheme parsing
+ * does not eat `/Users` or the Windows drive letter as the host (see
+ * `localFiles.ts`). Segments are percent-encoded so literal `%` in folder
+ * names (e.g. Grok session dirs `E%3A%5Cwork…`) survives `decodeURIComponent`.
+ */
+export function toLocalFileUrl(absolutePath: string): string {
+  return `poracode-local://local${encodeAbsolutePathForUrl(absolutePath)}`;
+}
+
+/** Inverse of {@link toLocalFileUrl} — same rules as the main-process protocol handler. */
+export function resolveLocalFileUrlPath(
+  url: string,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  const raw = decodeURIComponent(new URL(url).pathname);
+  return platform === "win32" && /^\/[A-Za-z]:/.test(raw) ? raw.slice(1) : raw;
 }
 
 /**
@@ -130,7 +183,13 @@ export function buildPromptContentBlocks(
           source: "attachment",
         });
       } else {
-        content.push({ kind: "file", path: segment.path, name, source: "attachment" });
+        content.push({
+          kind: "file",
+          path: segment.path,
+          name,
+          source: "attachment",
+          ...(segment.mimeType ? { mimeType: segment.mimeType } : {}),
+        });
       }
       continue;
     }

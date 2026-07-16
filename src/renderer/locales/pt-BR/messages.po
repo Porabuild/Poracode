@@ -1313,6 +1313,10 @@ msgstr "Favoritos"
 msgid "Bottom"
 msgstr "Inferior"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "Branch"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "Branch '{branch}' tem alterações não confirmadas em '{path}' - confirme ou guarde-as antes de mesclar"
@@ -2524,6 +2528,10 @@ msgstr "Não foi possível gerar mensagem de commit: {detail}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
 msgstr "Não foi possível carregar os pull requests de {0}."
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "Não foi possível abrir este PDF."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3770,6 +3778,10 @@ msgstr "Integração Grok Build CLI de primeira classe usando o tempo de execuç
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Integração OpenCode de primeira classe usando o tempo de execução SDK nativo do Poracode."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Fit width"
+#~ msgstr "Ajustar à largura"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "Correção no agente"
@@ -4649,6 +4661,11 @@ msgstr "Carregando marketplace…"
 msgid "Loading notes…"
 msgstr "Carregando notas…"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "Loading PDF…"
+#~ msgstr "Carregando PDF…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "Carregando PR…"
@@ -5466,6 +5483,10 @@ msgstr "Próxima imagem"
 msgid "Next match"
 msgstr "Próxima ocorrência"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Next page"
+#~ msgstr "Próxima página"
+
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "Próximo chat visualizado recentemente"
@@ -5671,6 +5692,10 @@ msgstr "Nenhum agendamento correspondente."
 msgid "No matching threads"
 msgstr "Não há tópicos correspondentes"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "Nenhum servidor MCP está habilitado para esta execução"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "Nenhum servidor MCP encontrado neste escopo."
@@ -5833,8 +5858,8 @@ msgid "No windows reported"
 msgstr "Nenhuma janela relatada"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "Sem árvore de trabalho"
+#~ msgid "No worktree"
+#~ msgstr "Sem árvore de trabalho"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"
@@ -6083,6 +6108,10 @@ msgstr "Abra a revisão do Git como um painel do lado direito ou uma página int
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 msgid "Open image preview"
 msgstr "Abrir prévia da imagem"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "Abrir no navegador"
 
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
@@ -6416,6 +6445,14 @@ msgstr "Pausar"
 msgid "Paused"
 msgstr "Pausado"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "A pré-visualização do PDF abre no painel do navegador."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "A pré-visualização do PDF abre no navegador."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "dia de pico"
@@ -6626,6 +6663,10 @@ msgstr "Imagem anterior"
 msgid "Previous match"
 msgstr "Ocorrência anterior"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Previous page"
+#~ msgstr "Página anterior"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
 msgstr "Chat visualizado recentemente anterior"
@@ -6642,6 +6683,10 @@ msgstr "Execuções anteriores"
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "Guia anterior"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Privacy Policy"
+msgstr "Política de Privacidade"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Private key"
@@ -7976,6 +8021,10 @@ msgstr "Definir ou visualizar uma meta experimental"
 msgid "Set shortcut"
 msgstr "Definir atalho"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "Definido quando esta sessão começou — inicie uma nova thread para mudar os servidores"
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/WideShell.tsx
@@ -8681,6 +8730,10 @@ msgstr "Resuma o progresso desta semana, o trabalho inacabado e os riscos mais i
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "Supervisionado"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Support"
+msgstr "Suporte"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Support mode appears once the session connects."

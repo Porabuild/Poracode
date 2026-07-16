@@ -1313,6 +1313,10 @@ msgstr "북마크"
 msgid "Bottom"
 msgstr "아래쪽"
 
+#: src/renderer/components/thread/WorktreeModeSelect.tsx
+msgid "Branch"
+msgstr "브랜치"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Branch '{branch}' has uncommitted changes in '{path}' — commit or stash them before merging"
 msgstr "'{branch}' 브랜치에는 '{path}'에 커밋되지 않은 변경 사항이 있습니다. 병합하기 전에 커밋하거나 스태시하세요."
@@ -2524,6 +2528,10 @@ msgstr "커밋 메시지를 생성할 수 없습니다: {detail}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
 msgstr "{0}의 풀 리퀘스트를 불러올 수 없습니다."
+
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Could not open this PDF."
+#~ msgstr "이 PDF를 열 수 없습니다."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -3770,6 +3778,10 @@ msgstr "Poracode의 기본 런타임을 사용하는 최고 수준의 Grok Build
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Poracode의 기본 SDK 런타임을 사용한 최고 수준의 OpenCode 통합."
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Fit width"
+#~ msgstr "너비에 맞추기"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictResolutionActions.tsx
 msgid "Fix in Agent"
 msgstr "에이전트에서 수정"
@@ -4649,6 +4661,11 @@ msgstr "마켓플레이스 로드 중…"
 msgid "Loading notes…"
 msgstr "메모 로드 중…"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "Loading PDF…"
+#~ msgstr "PDF 불러오는 중…"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Loading PR…"
 msgstr "PR 로드 중…"
@@ -5466,6 +5483,10 @@ msgstr "다음 이미지"
 msgid "Next match"
 msgstr "다음 일치 항목"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Next page"
+#~ msgstr "다음 페이지"
+
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
 msgstr "최근 본 다음 채팅"
@@ -5671,6 +5692,10 @@ msgstr "일치하는 일정이 없습니다."
 msgid "No matching threads"
 msgstr "일치하는 스레드 없음"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "No MCP servers are enabled for this run"
+msgstr "이 실행에 활성화된 MCP 서버가 없습니다"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "No MCP servers found in this scope."
 msgstr "이 범위에서 MCP 서버를 찾을 수 없습니다."
@@ -5833,8 +5858,8 @@ msgid "No windows reported"
 msgstr "보고된 창 없음"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
-msgid "No worktree"
-msgstr "작업 트리 없음"
+#~ msgid "No worktree"
+#~ msgstr "작업 트리 없음"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
 msgid "No wrap"
@@ -6083,6 +6108,10 @@ msgstr "Git 검토를 오른쪽 패널이나 전체 페이지로 엽니다."
 #: src/renderer/components/thread/ChatPane/parts/items/ImageView.tsx
 msgid "Open image preview"
 msgstr "이미지 미리보기 열기"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "Open in browser"
+msgstr "브라우저에서 열기"
 
 #: src/mobile/views/GitActionSheet.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
@@ -6416,6 +6445,14 @@ msgstr "일시 중지"
 msgid "Paused"
 msgstr "일시중지됨"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#~ msgid "PDF preview opens in the browser panel."
+#~ msgstr "PDF 미리보기는 브라우저 패널에서 열립니다."
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+msgid "PDF preview opens in the browser."
+msgstr "PDF 미리보기는 브라우저에서 열립니다."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
 msgstr "최고 활동일"
@@ -6626,6 +6663,10 @@ msgstr "이전 이미지"
 msgid "Previous match"
 msgstr "이전 일치 항목"
 
+#: src/renderer/components/pdf/PdfViewer.tsx
+#~ msgid "Previous page"
+#~ msgstr "이전 페이지"
+
 #: src/renderer/commands/registry.ts
 msgid "Previous recently viewed chat"
 msgstr "최근 본 이전 채팅"
@@ -6642,6 +6683,10 @@ msgstr "이전 실행"
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
 msgstr "이전 탭"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Privacy Policy"
+msgstr "개인정보 처리방침"
 
 #: src/mobile/views/DesktopsView.tsx
 msgid "Private key"
@@ -7976,6 +8021,10 @@ msgstr "실험 목표 설정 또는 보기"
 msgid "Set shortcut"
 msgstr "단축키 설정"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Set when this session started — start a new thread to change servers"
+msgstr "이 세션 시작 시 확정됨 — 서버를 변경하려면 새 스레드를 시작하세요"
+
 #: src/mobile/chrome.ts
 #: src/mobile/NarrowShell.tsx
 #: src/mobile/WideShell.tsx
@@ -8681,6 +8730,10 @@ msgstr "이번 주의 진행 상황, 미완료 작업, 다음 주의 가장 중�
 #: src/renderer/components/providers/composerControlBuilders.tsx
 msgid "Supervised"
 msgstr "감독됨"
+
+#: src/mobile/views/MoreView.tsx
+msgid "Support"
+msgstr "지원"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Support mode appears once the session connects."
