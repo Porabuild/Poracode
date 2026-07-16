@@ -33,6 +33,7 @@ resources/agent-plugins/
 resources/mobile-ssh-runtime/
 .envrc
 .envrc.local
+/Microsoft/Windows/PowerShell/ModuleAnalysisCache
 
 # Next.js (website)
 website/.next/
