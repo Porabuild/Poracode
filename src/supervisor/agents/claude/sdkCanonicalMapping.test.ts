@@ -393,7 +393,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
     }
   });
 
-  it("holds a legacy goal open across a clean turn end while background subagents run, completing on drain", () => {
+  it("holds a legacy goal open after background subagents drain for the session grace", () => {
     const state = createClaudeMapperState("thread-1");
     vi.useFakeTimers();
     try {
@@ -431,7 +431,6 @@ describe("sdkCanonicalMapping — prompt content", () => {
       });
       expect(state.activeGoalItemId).toBe("goal-turn-goal");
 
-      vi.setSystemTime(new Date("2026-05-12T10:05:00Z"));
       const drainEvents = mapClaudeSdkMessage(
         {
           type: "system",
@@ -444,14 +443,15 @@ describe("sdkCanonicalMapping — prompt content", () => {
         state,
       );
 
-      // Elapsed time spans the background window — no reset at the turn end.
-      const completion = drainEvents.find(
-        (event) => event.type === "item.updated" && event.itemId === "goal-turn-goal",
+      expect(drainEvents).not.toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: "goal-turn-goal",
+          payload: expect.objectContaining({ status: "complete" }),
+        }),
       );
-      expect(completion).toMatchObject({
-        payload: { status: "complete", timeUsedSeconds: 300 },
-      });
-      expect(state.activeGoalItemId).toBeUndefined();
+      expect(state.activeGoalItemId).toBe("goal-turn-goal");
+      expect(state.pendingGoalCompletionOnTaskDrain).toBe(true);
     } finally {
       vi.useRealTimers();
     }
@@ -495,6 +495,27 @@ describe("sdkCanonicalMapping — prompt content", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("resets evaluator metadata when a new goal replaces the active goal", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-first", "/goal first objective", undefined, "user-first");
+    mapClaudeSdkMessage(
+      activeGoalMessage({
+        condition: "first objective",
+        iterations: 4,
+        set_at: Date.now() / 1000,
+        tokens_at_start: 0,
+        last_reason: "first objective is not met",
+      }),
+      state,
+    );
+
+    startClaudeTurn(state, "turn-second", "/goal second objective", undefined, "user-second");
+
+    expect(state.activeGoalObjective).toBe("second objective");
+    expect(state.activeGoalIterations).toBeUndefined();
+    expect(state.activeGoalLastReason).toBeUndefined();
   });
 
   it("keeps the goal active on a clean turn result while native goal evaluation is live", () => {

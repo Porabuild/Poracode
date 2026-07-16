@@ -52,6 +52,7 @@ import {
   buildClaudeQuestionAnswerEvents,
   buildPromptContentBlocks,
   closeClaudeOpenItems,
+  completeActiveGoalOnTaskDrainEvents,
   createClaudeMapperState,
   emitActiveGoalTokenUpdate,
   extractResultErrorMessage,
@@ -910,6 +911,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.currentTurnAssistantUuid = undefined;
     this.deferredCompletion.clear();
     this.clearDeferredFlushTimer();
+    delete this.mapperState.pendingGoalCompletionOnTaskDrain;
     // Seed the mapper's turn id so the eventual `result` emits the matching
     // `turn.completed`, re-closing the renderer's turn-open gate.
     this.mapperState.currentTurnId = turnId;
@@ -1055,6 +1057,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.deferredFlushTimer = setTimeout(() => {
       this.deferredFlushTimer = undefined;
       if (this.disposed || this.hasLiveSubAgentTasks()) return;
+      this.emitRuntimeEvents(completeActiveGoalOnTaskDrainEvents(this.mapperState));
       const update = this.deferredCompletion.take();
       if (update) this.emitUpdate(update);
     }, DEFERRED_FLUSH_RESUME_GRACE_MS);
@@ -1074,6 +1077,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
    */
   private flushDeferredCompletion(): void {
     this.clearDeferredFlushTimer();
+    this.emitRuntimeEvents(completeActiveGoalOnTaskDrainEvents(this.mapperState));
     const update = this.deferredCompletion.take();
     if (update) this.emitUpdate(update);
   }

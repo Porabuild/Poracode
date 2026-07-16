@@ -1,7 +1,7 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { RuntimeEvent, ToolCallProgress } from "@/shared/contracts";
 import type { ClaudeMapperState, ToolItemState } from "../sdkCanonicalMappingState";
-import { completeActiveGoalOnTaskDrainEvents, emitActiveGoalTaskUsageUpdate } from "./goal";
+import { emitActiveGoalTaskUsageUpdate } from "./goal";
 import { classifyToolItemType, isSubAgentToolName } from "./toolClassification";
 import { syncSubAgentModelProgress } from "./toolItems";
 import { toolPayload } from "./toolPayload";
@@ -168,7 +168,6 @@ export function applyTaskNotification(
   const tool = state.toolItemsById.get(registeredToolUseId);
   if (!tool) {
     unregisterSubAgentTask(state, taskId, registeredToolUseId);
-    events.push(...completeActiveGoalOnTaskDrainEvents(state));
     return events;
   }
 
@@ -197,7 +196,6 @@ export function applyTaskNotification(
     if (value.itemId === registeredToolUseId) state.toolItemsByIndex.delete(idx);
   }
   unregisterSubAgentTask(state, taskId, registeredToolUseId);
-  events.push(...completeActiveGoalOnTaskDrainEvents(state));
   return events;
 }
 

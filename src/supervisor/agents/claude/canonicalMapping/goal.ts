@@ -145,8 +145,8 @@ export function completeActiveGoalEvents(
 
 /**
  * Legacy fallback continuation: a clean turn end deferred goal completion
- * because background subagent tasks were still live. Called after each task
- * unregisters; completes the goal once the registry is empty.
+ * because background subagent tasks were still live. The session calls this
+ * after its post-drain resume grace expires.
  */
 export function completeActiveGoalOnTaskDrainEvents(state: ClaudeMapperState): RuntimeEvent[] {
   if (!state.pendingGoalCompletionOnTaskDrain) return [];

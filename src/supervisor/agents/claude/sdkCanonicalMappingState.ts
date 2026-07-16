@@ -73,8 +73,9 @@ export interface ClaudeMapperState {
   /**
    * Legacy (no native `active_goal` frames) only: a clean turn `result`
    * arrived while background subagent tasks were still live, so the goal was
-   * held active instead of completed. The goal completes when the last live
-   * task drains (applyTaskNotification) — unless a new turn starts first.
+   * held active instead of completed. The goal completes after the last live
+   * task drains and the session's resume grace expires — unless a new turn
+   * starts first.
    */
   pendingGoalCompletionOnTaskDrain?: boolean;
   activeGoalCompletedTurnTokensUsed?: number;

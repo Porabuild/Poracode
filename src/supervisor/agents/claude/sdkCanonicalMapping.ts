@@ -14,7 +14,10 @@ export {
   parseClaudeQuestions,
   type ClaudeQuestion,
 } from "./canonicalMapping/questions";
-export { emitActiveGoalTokenUpdate } from "./canonicalMapping/goal";
+export {
+  completeActiveGoalOnTaskDrainEvents,
+  emitActiveGoalTokenUpdate,
+} from "./canonicalMapping/goal";
 export {
   extractResultErrorMessage,
   isApiErrorResult,

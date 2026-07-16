@@ -82,6 +82,8 @@ export function startClaudeTurn(
       state.activeGoalItemId = goalItemId;
       state.activeGoalObjective = goalPayload.objective;
       state.activeGoalStartedAtMs = Date.now();
+      delete state.activeGoalIterations;
+      delete state.activeGoalLastReason;
       resetActiveGoalTokenAccounting(state);
     } else {
       clearActiveGoal(state);

@@ -1388,6 +1388,7 @@ describe("ClaudeSdkSession", () => {
       const fake = createFakeQuery();
       mockSdk.query.mockReturnValue(fake.runtime);
       const updates: StructuredSessionUpdate[] = [];
+      const runtimeEvents: RuntimeEvent[] = [];
       const session = await ClaudeSdkSession.create({
         threadId: "thread-claude-bg-drain",
         projectLocation,
@@ -1395,15 +1396,20 @@ describe("ClaudeSdkSession", () => {
         presentationMode: "gui",
       });
       session.setListener({
-        onRuntimeEvent: () => {},
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
         onUpdate: (update) => updates.push(update),
         onError: () => {},
         onClose: () => {},
       });
 
       const openedSessionId = await session.openThread(config);
-      await session.startTurn("launch a background subagent", config);
+      await session.startTurn("/goal launch a background subagent", config);
       await vi.advanceTimersByTimeAsync(0);
+      const goalItemId = runtimeEvents.find(
+        (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+          event.type === "item.started" && event.itemType === "goal",
+      )?.itemId;
+      expect(goalItemId).toBeDefined();
       fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
       fake.emitMessage(sdkSuccessResult(openedSessionId));
       await vi.advanceTimersByTimeAsync(0);
@@ -1415,9 +1421,23 @@ describe("ClaudeSdkSession", () => {
       // Held through the resume grace window — the SDK usually wakes the
       // model right after the notification.
       expect(updates.at(-1)).toMatchObject({ status: "working" });
+      expect(runtimeEvents).not.toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: goalItemId,
+          payload: expect.objectContaining({ status: "complete" }),
+        }),
+      );
 
       await vi.advanceTimersByTimeAsync(2_000);
       expect(updates.at(-1)).toMatchObject({ status: "idle", attention: "none" });
+      expect(runtimeEvents).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: goalItemId,
+          payload: expect.objectContaining({ status: "complete" }),
+        }),
+      );
 
       await session.dispose();
     } finally {
@@ -1431,6 +1451,7 @@ describe("ClaudeSdkSession", () => {
       const fake = createFakeQuery();
       mockSdk.query.mockReturnValue(fake.runtime);
       const updates: StructuredSessionUpdate[] = [];
+      const runtimeEvents: RuntimeEvent[] = [];
       const session = await ClaudeSdkSession.create({
         threadId: "thread-claude-bg-drain-resume",
         projectLocation,
@@ -1438,15 +1459,20 @@ describe("ClaudeSdkSession", () => {
         presentationMode: "gui",
       });
       session.setListener({
-        onRuntimeEvent: () => {},
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
         onUpdate: (update) => updates.push(update),
         onError: () => {},
         onClose: () => {},
       });
 
       const openedSessionId = await session.openThread(config);
-      await session.startTurn("launch a background subagent", config);
+      await session.startTurn("/goal launch a background subagent", config);
       await vi.advanceTimersByTimeAsync(0);
+      const goalItemId = runtimeEvents.find(
+        (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+          event.type === "item.started" && event.itemType === "goal",
+      )?.itemId;
+      expect(goalItemId).toBeDefined();
       fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg1"));
       fake.emitMessage(sdkSuccessResult(openedSessionId));
       await vi.advanceTimersByTimeAsync(0);
@@ -1470,6 +1496,13 @@ describe("ClaudeSdkSession", () => {
       // so the renderer's working timer and done-notification stay untouched.
       expect(updates.some((update) => update.status === "idle")).toBe(false);
       expect(updates.at(-1)).toMatchObject({ status: "working" });
+      expect(runtimeEvents).not.toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: goalItemId,
+          payload: expect.objectContaining({ status: "complete" }),
+        }),
+      );
 
       await session.dispose();
     } finally {
