@@ -482,9 +482,12 @@ function applyWorkflowPlan(run: WorkflowRun, workflow: WorkflowInfo): WorkflowRu
   const phases = phasesFromInfo(workflow);
   const phaseByTitle = new Map(phases.map((phase) => [phase.title, phase]));
   const unphasedAgents: WorkflowAgent[] = [];
-  const agents = run.unphasedAgents.map((agent, index) => {
+  for (const [index, agent] of run.unphasedAgents.entries()) {
     const planned = plan[index];
-    if (!planned) return agent;
+    if (!planned) {
+      unphasedAgents.push(agent);
+      continue;
+    }
     const merged: WorkflowAgent = {
       ...agent,
       // A synthesized in-flight agent is labeled with its raw id; only then is
@@ -499,14 +502,10 @@ function applyWorkflowPlan(run: WorkflowRun, workflow: WorkflowInfo): WorkflowRu
       const target = phaseByTitle.get(targetTitle);
       if (target) {
         target.agents.push(merged);
-        return null;
+        continue;
       }
     }
-    return merged;
-  });
-
-  for (const agent of agents) {
-    if (agent) unphasedAgents.push(agent);
+    unphasedAgents.push(merged);
   }
 
   return { ...run, phases, unphasedAgents };

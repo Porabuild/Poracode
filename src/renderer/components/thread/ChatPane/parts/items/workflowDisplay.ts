@@ -209,7 +209,8 @@ export function parseWorkflowInfo(payload: ToolCallPayload): WorkflowInfo {
     transcriptDir && runId ? deriveManifestPath(transcriptDir, runId) : undefined;
   const phases = parsePhases(script);
   const plannedAgents = parsePlannedAgents(script);
-  const liveAgents = parseLiveAgents(structured?.liveDescriptions, phases);
+  const liveAgents =
+    plannedAgents.length > 0 ? [] : parseLiveAgents(structured?.liveDescriptions, phases);
 
   return {
     phases,
@@ -237,12 +238,14 @@ function parseLiveAgents(
   if (!liveDescriptions?.length || phases.length === 0) return [];
   const titles = new Map(phases.map((phase) => [phase.title.toLowerCase(), phase.title]));
   const agents: WorkflowPlannedAgent[] = [];
+  const seenLabels = new Set<string>();
   for (const description of liveDescriptions) {
     const match = /^([^:]+):\s*(.+)$/.exec(description);
     const phaseTitle = match?.[1] ? titles.get(match[1].trim().toLowerCase()) : undefined;
     const label = match?.[2]?.trim();
     if (!phaseTitle || !label) continue;
-    if (agents.some((agent) => agent.label === label)) continue;
+    if (seenLabels.has(label)) continue;
+    seenLabels.add(label);
     agents.push({ label, phaseTitle });
   }
   return agents;
