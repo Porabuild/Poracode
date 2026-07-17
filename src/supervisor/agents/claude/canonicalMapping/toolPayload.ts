@@ -64,5 +64,6 @@ export function toolPayload(
     status,
     ...(tool.progress ? { progress: tool.progress } : {}),
     ...(isSubAgentToolName(tool.toolName) ? { isSubAgent: true } : {}),
+    ...(tool.workflow ? { workflow: tool.workflow } : {}),
   };
 }

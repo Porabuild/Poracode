@@ -1,4 +1,4 @@
-import type { CanonicalItemType, ToolCallProgress } from "@/shared/contracts";
+import type { CanonicalItemType, ToolCallProgress, ToolCallWorkflow } from "@/shared/contracts";
 import type { PlanAggregatorState } from "../planAggregator";
 
 export interface TextItemState {
@@ -46,6 +46,14 @@ export interface ToolItemState {
    * line numbers instead of a synthetic `@@ -1 +1 @@` header.
    */
   fileChangeMetadata?: FileChangeMetadata;
+  /**
+   * Structured launch metadata from a `Workflow` tool's `tool_use_result`
+   * (SDK `WorkflowOutput`). Kept on the tool state so every later payload —
+   * task_progress updates and the closing task_notification — still carries
+   * the run's manifest/transcript location after the launch tool_result
+   * (which is otherwise swallowed by the subagent keepalive) is gone.
+   */
+  workflow?: ToolCallWorkflow;
 }
 
 export interface ClaudeMapperState {

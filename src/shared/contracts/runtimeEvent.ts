@@ -185,6 +185,34 @@ export const acpToolLocationSchema = z.object({
 });
 export type AcpToolLocation = z.infer<typeof acpToolLocationSchema>;
 
+/**
+ * Structured launch metadata for an orchestration workflow (e.g. Claude Code's
+ * `Workflow` tool). Normalized at the provider boundary from the provider's
+ * structured tool result so the renderer can locate the run manifest and
+ * transcripts without parsing free-form result text.
+ */
+export const toolCallWorkflowSchema = z.object({
+  /** Workflow name from the script's meta block. */
+  name: z.string().optional(),
+  /** Run identifier (e.g. `wf_<hash>`), also the manifest file stem. */
+  runId: z.string().optional(),
+  /** Human summary/description of what the workflow does. */
+  summary: z.string().optional(),
+  /** Directory holding the per-agent transcript files for this run. */
+  transcriptDir: z.string().optional(),
+  /** Path to the persisted workflow script for this invocation. */
+  scriptPath: z.string().optional(),
+  /**
+   * Ordered distinct live progress descriptions observed while the run is in
+   * flight (e.g. "Verify: verify:file.ts"). The run manifest is only written
+   * at completion, so these are the sole live source of agent labels/phases —
+   * the renderer pairs them with journal-ordered agents until the manifest
+   * takes over.
+   */
+  liveDescriptions: z.array(z.string()).optional(),
+});
+export type ToolCallWorkflow = z.infer<typeof toolCallWorkflowSchema>;
+
 export const toolCallPayloadSchema = z.object({
   name: z.string(),
   title: z.string().optional(),
@@ -204,6 +232,7 @@ export const toolCallPayloadSchema = z.object({
   status: toolCallStatusSchema,
   progress: toolCallProgressSchema.optional(),
   isSubAgent: z.boolean().optional(),
+  workflow: toolCallWorkflowSchema.optional(),
 });
 export type ToolCallPayload = z.infer<typeof toolCallPayloadSchema>;
 

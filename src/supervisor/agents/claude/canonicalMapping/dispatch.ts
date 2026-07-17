@@ -30,6 +30,7 @@ import { completeTextItem, ensureTextItem, closeClaudeOpenItems } from "./textIt
 import { createToolItemState, hasToolCallPayload, isSubAgentToolName } from "./toolClassification";
 import { startToolItem, syncSubAgentModelProgress } from "./toolItems";
 import { toolPayload } from "./toolPayload";
+import { workflowFromToolUseResult } from "./workflowOutput";
 
 export function readParentToolUseId(message: SDKMessage): string | undefined {
   const value = (message as { parent_tool_use_id?: unknown }).parent_tool_use_id;
@@ -450,6 +451,12 @@ function mapClaudeSdkMessageInner(
       if (!tool) continue;
       const text = extractText(obj.content);
       const images = extractToolResultImages(obj.content);
+      if (tool.toolName === "Workflow") {
+        const workflow = workflowFromToolUseResult(
+          (message as { tool_use_result?: unknown }).tool_use_result,
+        );
+        if (workflow) tool.workflow = workflow;
+      }
       if (tool.planAggregatorRole) {
         if (tool.planAggregatorRole === "TaskCreate" && text.length > 0) {
           bindTaskCreateResult(state, tool, text);

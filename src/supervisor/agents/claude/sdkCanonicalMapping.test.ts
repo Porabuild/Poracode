@@ -2580,6 +2580,100 @@ describe("sdkCanonicalMapping — background sub-agents", () => {
     expect(state.activeSubAgentToolToTask?.has("toolu_parent") ?? false).toBe(false);
   });
 
+  it("preserves structured Workflow launch metadata through the task lifecycle", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_wf", "Workflow");
+    mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_started",
+        session_id: "claude-session",
+        task_id: "task-WF",
+        tool_use_id: "toolu_wf",
+        description: "simplify review",
+        task_type: "local_workflow",
+        workflow_name: "simplify-review",
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    // The launch tool_result carries the SDK's structured WorkflowOutput in
+    // tool_use_result. The keepalive swallows the result text, but the
+    // normalized workflow metadata must survive on the running payload.
+    const launchEvents = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        tool_use_result: {
+          status: "async_launched",
+          taskId: "task-WF",
+          taskType: "local_workflow",
+          workflowName: "simplify-review",
+          runId: "wf_abc123",
+          summary: "Four-angle simplify review",
+          transcriptDir: "C:\\sess\\subagents\\workflows\\wf_abc123",
+          scriptPath: "C:\\sess\\workflows\\scripts\\simplify-review-wf_abc123.js",
+        },
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_wf",
+              content: "Workflow launched in background. Task ID: task-WF",
+            },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(launchEvents).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_wf",
+        payload: {
+          status: "running",
+          workflow: {
+            name: "simplify-review",
+            runId: "wf_abc123",
+            summary: "Four-angle simplify review",
+            transcriptDir: "C:\\sess\\subagents\\workflows\\wf_abc123",
+            scriptPath: "C:\\sess\\workflows\\scripts\\simplify-review-wf_abc123.js",
+          },
+        },
+      },
+    ]);
+    expect(state.toolItemsById.has("toolu_wf")).toBe(true);
+
+    // The authoritative task_notification close still carries the workflow
+    // metadata so the overlay can locate the manifest after completion.
+    const closeEvents = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_notification",
+        session_id: "claude-session",
+        task_id: "task-WF",
+        tool_use_id: "toolu_wf",
+        status: "completed",
+        summary: "12 findings confirmed",
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(closeEvents).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_wf",
+        payload: { status: "success", workflow: { runId: "wf_abc123" } },
+      },
+      {
+        type: "item.completed",
+        itemId: "toolu_wf",
+        payload: { status: "success", workflow: { runId: "wf_abc123" } },
+      },
+    ]);
+    expect(state.toolItemsById.has("toolu_wf")).toBe(false);
+  });
+
   it("closes the parent as error on task_notification stopped (interrupt)", () => {
     const state = createClaudeMapperState("thread-1");
     startAgentTool(state, "toolu_parent");

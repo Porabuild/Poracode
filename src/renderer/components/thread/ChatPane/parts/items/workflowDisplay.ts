@@ -15,6 +15,12 @@ export interface WorkflowInfo {
   description?: string;
   phases: WorkflowPhase[];
   plannedAgents: WorkflowPlannedAgent[];
+  /**
+   * Agents observed live via the run's progress descriptions ("Phase: label"),
+   * in first-seen (start) order. Used to name journal-synthesized agents while
+   * the run is in flight; the completed manifest supersedes them.
+   */
+  liveAgents: WorkflowPlannedAgent[];
   runId?: string;
   /** Directory holding the per-agent jsonl transcripts. */
   transcriptDir?: string;
@@ -174,37 +180,72 @@ function evaluateLabelPart(part: string, alias: string, item: ScriptArrayItem): 
 }
 
 /**
- * Derive a human-readable view of a `Workflow` tool call. The provider payload
- * carries the orchestration script in `args.script`, a live description in
- * `progress.description`, and a launch-confirmation blob in `result`. We surface
- * the description and the planned phases, and drop the launch plumbing.
+ * Derive a human-readable view of a `Workflow` tool call. The provider mapper
+ * normalizes the SDK's structured `WorkflowOutput` onto `payload.workflow`
+ * (runId, transcriptDir, summary) — the durable source, since the launch
+ * tool_result text is swallowed by the background-task keepalive. The
+ * result-text regexes remain as a fallback for threads persisted before the
+ * structured field existed. The stable workflow summary wins over the live
+ * `progress.description` (the currently running agent's label) so the title
+ * doesn't end up as the last agent that happened to run.
  */
 export function parseWorkflowInfo(payload: ToolCallPayload): WorkflowInfo {
   const script = readScript(payload);
   const result = readResultText(payload);
+  const structured = payload.workflow;
 
   const description =
+    structured?.summary?.trim() ||
     payload.progress?.description?.trim() ||
     /(?:^|\n)Summary:\s*(.+)/.exec(result)?.[1]?.trim() ||
     matchMetaString(script, "description") ||
     readArgString(payload, "description") ||
     undefined;
 
-  const runId = /(?:^|\n)Run ID:\s*(\S+)/.exec(result)?.[1]?.trim();
-  const transcriptDir = /(?:^|\n)Transcript dir:\s*(.+)/.exec(result)?.[1]?.trim();
+  const runId = structured?.runId ?? /(?:^|\n)Run ID:\s*(\S+)/.exec(result)?.[1]?.trim();
+  const transcriptDir =
+    structured?.transcriptDir ?? /(?:^|\n)Transcript dir:\s*(.+)/.exec(result)?.[1]?.trim();
   const manifestPath =
     transcriptDir && runId ? deriveManifestPath(transcriptDir, runId) : undefined;
   const phases = parsePhases(script);
   const plannedAgents = parsePlannedAgents(script);
+  const liveAgents = parseLiveAgents(structured?.liveDescriptions, phases);
 
   return {
     phases,
     plannedAgents,
+    liveAgents,
     ...(description ? { description } : {}),
     ...(runId ? { runId } : {}),
     ...(transcriptDir ? { transcriptDir } : {}),
     ...(manifestPath ? { manifestPath } : {}),
   };
+}
+
+/**
+ * Parse live agent observations out of the run's progress descriptions. The
+ * workflow runtime updates the task description to "<phase>: <agent label>"
+ * as each agent starts, so a description whose prefix (before the first colon)
+ * matches a declared phase title is an agent-start observation. Anything else
+ * (overall task description, log() narration) is ignored — mislabeling an
+ * agent is worse than showing its id.
+ */
+function parseLiveAgents(
+  liveDescriptions: readonly string[] | undefined,
+  phases: readonly WorkflowPhase[],
+): WorkflowPlannedAgent[] {
+  if (!liveDescriptions?.length || phases.length === 0) return [];
+  const titles = new Map(phases.map((phase) => [phase.title.toLowerCase(), phase.title]));
+  const agents: WorkflowPlannedAgent[] = [];
+  for (const description of liveDescriptions) {
+    const match = /^([^:]+):\s*(.+)$/.exec(description);
+    const phaseTitle = match?.[1] ? titles.get(match[1].trim().toLowerCase()) : undefined;
+    const label = match?.[2]?.trim();
+    if (!phaseTitle || !label) continue;
+    if (agents.some((agent) => agent.label === label)) continue;
+    agents.push({ label, phaseTitle });
+  }
+  return agents;
 }
 
 /**

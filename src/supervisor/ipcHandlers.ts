@@ -76,6 +76,10 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       });
       return { run };
     },
+    workflowAgentChat: async (payload) => {
+      const { readWorkflowAgentChatEvents } = await import("./workflows/agentChatEvents");
+      return { events: await readWorkflowAgentChatEvents(payload) };
+    },
     createFileCheckpoint: async (payload) => ({
       checkpoint: await checkpoints.create(payload),
     }),

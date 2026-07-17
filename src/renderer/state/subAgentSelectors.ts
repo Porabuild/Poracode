@@ -11,8 +11,13 @@ function classifyActiveSubAgent(item: RuntimeChatItem): "workflow" | "native" | 
   // launched (background), but the real work continues for minutes. Keep
   // them in the active list as long as the SDK didn't reject the launch —
   // ActiveSubAgentTile subscribes to the manifest and auto-dismisses once
-  // it sees a terminal status.
-  if (isWorkflowTool(payload)) return payload.status === "error" ? null : "workflow";
+  // it sees a terminal status. Only for items streamed live THIS session:
+  // a workflow replayed from history on thread reopen belongs to a process
+  // that is gone (or long finished) and must not resurrect the composer dock.
+  if (isWorkflowTool(payload)) {
+    if (payload.status === "error" || item.observedLive !== true) return null;
+    return "workflow";
+  }
   if (item.state === "completed" && payload.status !== "running") return null;
   return "native";
 }

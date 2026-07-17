@@ -580,6 +580,7 @@ describe("chatPaneSelectors", () => {
             state: "started",
             payload: { name: "Workflow", status: "running" },
             streams: {},
+            observedLive: true,
           },
           "tool-2": {
             id: "tool-2",
@@ -599,6 +600,28 @@ describe("chatPaneSelectors", () => {
       { kind: "item", id: "workflow-1" },
       { kind: "item", id: "tool-2" },
     ]);
+  });
+
+  it("drops workflows hydrated from history (not observed live this session)", () => {
+    const state = {
+      runtimeItemIdsByThread: { t1: ["workflow-replayed"] },
+      runtimeItemsByIdByThread: {
+        t1: {
+          "workflow-replayed": {
+            id: "workflow-replayed",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "Workflow", status: "success" },
+            streams: {},
+            // No observedLive — seeded from the DB on thread reopen. The
+            // launching process is gone; the composer dock must stay empty.
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { t1: 1 },
+    } as unknown as AppStoreState;
+
+    expect(selectActiveSubAgentParentItemIds(state, "t1")).toEqual([]);
   });
 
   it("tracks running native Agent calls without retaining completed ones", () => {
@@ -632,6 +655,7 @@ describe("chatPaneSelectors", () => {
         state: "completed",
         payload: { name: "Workflow", status: "success" },
         streams: {},
+        observedLive: true,
       },
     };
     const activeState = {

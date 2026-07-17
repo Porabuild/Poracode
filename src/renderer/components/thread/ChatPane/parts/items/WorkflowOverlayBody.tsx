@@ -14,6 +14,7 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { ThreadDockRow } from "@/renderer/components/thread/ThreadDockUI";
 import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount";
 import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
+import { WorkflowAgentChat } from "./WorkflowAgentChat";
 import type { WorkflowInfo } from "./workflowDisplay";
 
 /**
@@ -94,7 +95,12 @@ export function WorkflowOverlayBody({
                 : t`No agents in this phase.`
           }
         />
-        <AgentDetail agent={selectedAgent} phaseTitle={selectedAgent?.phaseTitle ?? phase.title} />
+        <AgentDetail
+          agent={selectedAgent}
+          phaseTitle={selectedAgent?.phaseTitle ?? phase.title}
+          transcriptDir={workflow.transcriptDir}
+          location={projectLocation}
+        />
       </div>
       {unphased.length > 0 && phases.length > 0 ? (
         <UnphasedAgents agents={unphased} onSelect={setActiveAgentId} />
@@ -266,7 +272,17 @@ function AgentRow({
   );
 }
 
-function AgentDetail({ agent, phaseTitle }: { agent: WorkflowAgent | null; phaseTitle: string }) {
+function AgentDetail({
+  agent,
+  phaseTitle,
+  transcriptDir,
+  location,
+}: {
+  agent: WorkflowAgent | null;
+  phaseTitle: string;
+  transcriptDir: string | undefined;
+  location: ProjectLocation | undefined;
+}) {
   if (!agent) {
     return (
       <div className="hidden min-h-0 overflow-y-auto px-3 py-3 sm:block">
@@ -303,6 +319,31 @@ function AgentDetail({ agent, phaseTitle }: { agent: WorkflowAgent | null; phase
           </Trans>
         </p>
       ) : null}
+      {transcriptDir && location ? (
+        <div className="pt-3">
+          <WorkflowAgentChat
+            transcriptDir={transcriptDir}
+            agentId={agent.agentId}
+            agentFinished={isAgentDone(agent)}
+            location={location}
+            fallback={<AgentDetailFallback agent={agent} />}
+          />
+        </div>
+      ) : (
+        <AgentDetailFallback agent={agent} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Pre-transcript rendering of an agent's prompt/outcome/chat from the manifest
+ * previews. Shown until the transcript-backed chat timeline has entries (or
+ * when the transcript location isn't available at all).
+ */
+function AgentDetailFallback({ agent }: { agent: WorkflowAgent }) {
+  return (
+    <>
       {agent.promptPreview ? (
         <section className="pt-3">
           <h3 className="pb-1 text-[length:var(--lc-chat-font-size-meta)] font-medium text-foreground">
@@ -355,7 +396,7 @@ function AgentDetail({ agent, phaseTitle }: { agent: WorkflowAgent | null; phase
           </ol>
         </section>
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -432,22 +473,30 @@ function phasesFromInfo(info: WorkflowInfo): WorkflowPhase[] {
 }
 
 function applyWorkflowPlan(run: WorkflowRun, workflow: WorkflowInfo): WorkflowRun {
-  if (run.phases.length > 0 || workflow.plannedAgents.length === 0) return run;
+  // Statically planned agents (parsed from the script) win; otherwise fall
+  // back to live observations from the run's progress descriptions. Both are
+  // in agent-start order, matching the journal order of `unphasedAgents`.
+  const plan = workflow.plannedAgents.length > 0 ? workflow.plannedAgents : workflow.liveAgents;
+  if (run.phases.length > 0 || plan.length === 0) return run;
 
   const phases = phasesFromInfo(workflow);
   const phaseByTitle = new Map(phases.map((phase) => [phase.title, phase]));
   const unphasedAgents: WorkflowAgent[] = [];
   const agents = run.unphasedAgents.map((agent, index) => {
-    const planned = workflow.plannedAgents[index];
+    const planned = plan[index];
     if (!planned) return agent;
     const merged: WorkflowAgent = {
       ...agent,
-      label: planned.label,
-      ...(planned.phaseTitle ? { phaseTitle: planned.phaseTitle } : {}),
+      // A synthesized in-flight agent is labeled with its raw id; only then is
+      // the positional pairing an improvement. A real label (from the manifest
+      // or transcript inference) is more trustworthy than order-based pairing.
+      label: agent.label === agent.agentId ? planned.label : agent.label,
+      ...(planned.phaseTitle && !agent.phaseTitle ? { phaseTitle: planned.phaseTitle } : {}),
       ...(planned.model && !agent.model ? { model: planned.model } : {}),
     };
-    if (planned.phaseTitle) {
-      const target = phaseByTitle.get(planned.phaseTitle);
+    const targetTitle = merged.phaseTitle;
+    if (targetTitle) {
+      const target = phaseByTitle.get(targetTitle);
       if (target) {
         target.agents.push(merged);
         return null;

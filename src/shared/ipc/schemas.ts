@@ -107,6 +107,20 @@ export interface WorkflowGetRunResult {
   mtimeMs?: number;
 }
 
+export const workflowAgentChatPayloadSchema = z.object({
+  /** Synthetic renderer-side thread id the returned events are keyed under. */
+  threadId: z.string().min(1),
+  transcriptDir: z.string().min(1),
+  agentId: z.string().min(1),
+  /** When true, dangling open items are flushed to completed. */
+  agentFinished: z.boolean(),
+  location: projectLocationSchema,
+});
+export type WorkflowAgentChatPayload = z.infer<typeof workflowAgentChatPayloadSchema>;
+export interface WorkflowAgentChatResult {
+  events: RuntimeEvent[];
+}
+
 export const dbStateKeySchema = z.string().min(1);
 export const dbStatePayloadSchema = z.object({
   key: z.string().min(1),

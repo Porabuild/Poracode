@@ -71,6 +71,9 @@ import {
   subAgentSubscribePayloadSchema,
   type SubAgentSubscribePayload,
   type SubAgentSubscribeResult,
+  workflowAgentChatPayloadSchema,
+  type WorkflowAgentChatPayload,
+  type WorkflowAgentChatResult,
   workflowGetRunPayloadSchema,
   type WorkflowGetRunPayload,
   type WorkflowGetRunResult,
@@ -259,4 +262,9 @@ export const threadProcedures = {
     "supervisor",
     workflowGetRunPayloadSchema,
   ),
+  workflowAgentChat: definePayloadProcedure<
+    WorkflowAgentChatPayload,
+    WorkflowAgentChatResult,
+    "supervisor"
+  >("workflowAgentChat", "supervisor", workflowAgentChatPayloadSchema),
 } as const;

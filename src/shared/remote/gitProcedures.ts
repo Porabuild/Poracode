@@ -22,6 +22,7 @@ export const GIT_REMOTE_PROCEDURE_SCOPES = {
   subagentSubscribe: "session:read",
   subagentUnsubscribe: "session:read",
   workflowGetRun: "session:read",
+  workflowAgentChat: "session:read",
 
   // Project files
   searchProjectFiles: "session:read",
