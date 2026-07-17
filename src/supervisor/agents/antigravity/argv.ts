@@ -25,6 +25,11 @@ export function buildAntigravityArgs(
     args.push("--conversation", resumeConversationId);
   }
   args.push("--model", resolveAntigravityModel(config.model, config.effort));
+  if (config.mode === "plan") {
+    args.push("--mode", "plan");
+  } else if (config.approvalPolicy === "accept-edits") {
+    args.push("--mode", "accept-edits");
+  }
   if (config.approvalPolicy === "never" || config.approvalPolicy === "yolo") {
     args.push("--dangerously-skip-permissions");
   }

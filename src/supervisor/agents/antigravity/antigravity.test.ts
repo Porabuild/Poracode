@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { McpServer, ProjectLocation, ThreadConfig } from "@/shared/contracts";
+import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import { createAntigravityAdapter } from ".";
 import { buildAntigravityArgs } from "./argv";
 import { ANTIGRAVITY_DEFAULT_MODEL_ID, antigravityDetectionSpec } from "./detection";
@@ -67,6 +68,21 @@ describe("buildAntigravityArgs", () => {
       "--sandbox",
     ]);
   });
+
+  it("maps the latest agy execution modes", () => {
+    expect(buildAntigravityArgs({ ...config, mode: "plan" }, "")).toEqual([
+      "--model",
+      "Gemini 3.5 Flash (Medium)",
+      "--mode",
+      "plan",
+    ]);
+    expect(buildAntigravityArgs({ ...config, approvalPolicy: "accept-edits" }, "")).toEqual([
+      "--model",
+      "Gemini 3.5 Flash (Medium)",
+      "--mode",
+      "accept-edits",
+    ]);
+  });
 });
 
 describe("createAntigravityAdapter", () => {
@@ -103,8 +119,11 @@ describe("createAntigravityAdapter", () => {
     });
     expect(adapter.capabilities.approvalPolicies.map((policy) => policy.id)).toEqual([
       "default",
+      "accept-edits",
       "yolo",
     ]);
+    expect(adapter.capabilities.modes).toEqual(["agent", "plan"]);
+    expect(adapter.capabilities.defaultApprovalPolicy).toBe("default");
     expect(adapter.defaultOneShotModel).toBe(ANTIGRAVITY_DEFAULT_MODEL_ID);
   });
 
@@ -168,7 +187,7 @@ describe("createAntigravityAdapter", () => {
       // Isolate the cwd so the one-shot's last_conversations.json[cwd] write
       // can't be mistaken for the real interactive session (see index.ts).
       isolateCwd: true,
-      // agy print mode emits its answer only when attached to a terminal.
+      // Retain PTY compatibility with older installed agy versions.
       pty: true,
     });
     expect(adapter.buildOneShotCommand?.("Gemini 3.5 Flash", "Low", "summarize")).toEqual({
@@ -177,6 +196,32 @@ describe("createAntigravityAdapter", () => {
       stdin: "",
       isolateCwd: true,
       pty: true,
+    });
+  });
+
+  it("builds direct context extraction for a resumed conversation", () => {
+    const adapter = createAntigravityAdapter();
+
+    expect(
+      adapter.buildContextExtractionCommand?.(
+        {
+          providerSessionId: "conversation-id",
+          discoveredAt: "2026-05-20T00:00:00.000Z",
+        },
+        project,
+        "Gemini 3.1 Pro (High)",
+      ),
+    ).toEqual({
+      command: "agy",
+      args: [
+        "--conversation",
+        "conversation-id",
+        "--model",
+        "Gemini 3.1 Pro (High)",
+        "-p",
+        EXTRACTION_PROMPT,
+      ],
+      stdin: "",
     });
   });
 
@@ -213,7 +258,7 @@ describe("createAntigravityAdapter", () => {
     }
   });
 
-  it("builds a subagent one-shot command that runs in the project cwd (no isolateCwd)", () => {
+  it("builds a subagent one-shot command with the headless permission bypass", () => {
     const adapter = createAntigravityAdapter();
     const cmd = adapter.buildSubagentOneShotCommand?.({
       model: ANTIGRAVITY_DEFAULT_MODEL_ID,
@@ -223,7 +268,13 @@ describe("createAntigravityAdapter", () => {
     });
     expect(cmd).toEqual({
       command: "agy",
-      args: ["--model", "Gemini 3.5 Flash (High)", "-p", "implement it"],
+      args: [
+        "--model",
+        "Gemini 3.5 Flash (High)",
+        "--dangerously-skip-permissions",
+        "-p",
+        "implement it",
+      ],
       stdin: "",
       pty: true,
     });

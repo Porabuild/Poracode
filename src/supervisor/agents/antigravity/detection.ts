@@ -18,9 +18,10 @@ export const defaultAntigravityCapabilities: AgentCapability = {
   efforts: defaultModelCapabilities.efforts,
   defaultEffort: defaultModelCapabilities.defaultEffort,
   modelEfforts: defaultModelCapabilities.modelEfforts,
-  modes: [],
+  modes: ["agent", "plan"],
   approvalPolicies: [
-    { id: "default", label: "Default" },
+    { id: "default", label: "Request Review" },
+    { id: "accept-edits", label: "Accept Edits" },
     { id: "yolo", label: "Bypass Permissions" },
   ],
   sandboxModes: [],
@@ -30,7 +31,7 @@ export const defaultAntigravityCapabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal"],
-  defaultApprovalPolicy: "yolo",
+  defaultApprovalPolicy: "default",
   bypassPermissions: { approvalPolicy: "yolo" },
   // No dedicated-server hosting path in any presentation.
   mcpScope: { terminal: "none", gui: "none" },

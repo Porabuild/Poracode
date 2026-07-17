@@ -1,5 +1,6 @@
 import type { AgentCapability, PromptSegment, ProjectLocation } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
+import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
   createKnownSessionRef,
   detectAgentInstall,
@@ -220,15 +221,37 @@ export function createAntigravityAdapter(): AgentAdapter {
       };
     },
 
+    buildContextExtractionCommand(sessionRef, _location, model) {
+      return {
+        command: "agy",
+        args: [
+          "--conversation",
+          sessionRef.providerSessionId,
+          "--model",
+          resolveAntigravityModel(model),
+          "-p",
+          EXTRACTION_PROMPT,
+        ],
+        stdin: "",
+      };
+    },
+
     // Antigravity has no structured (GUI) runtime, so it joins the subagent
     // roster via the one-shot child lane. Unlike title/commit generation this
     // does NOT isolate the cwd — a child runs in the parent's project directory
-    // so it can actually read/edit the repo. `agy -p` print mode is fully
-    // non-interactive (no approval prompts), so there is no extra bypass flag.
+    // so it can actually read/edit the repo. Since agy 1.1.3, headless mode
+    // soft-denies tools requiring confirmation, so subagents need the explicit
+    // bypass to perform their assigned project work.
     buildSubagentOneShotCommand({ model, effort, prompt }) {
       return {
         command: "agy",
-        args: ["--model", resolveAntigravityModel(model, effort), "-p", prompt],
+        args: [
+          "--model",
+          resolveAntigravityModel(model, effort),
+          "--dangerously-skip-permissions",
+          "-p",
+          prompt,
+        ],
         stdin: "",
         pty: true,
       };
