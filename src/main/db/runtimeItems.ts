@@ -1,6 +1,8 @@
 import Database from "better-sqlite3";
-import type { RuntimeEvent, ThreadContextUsage } from "@/shared/contracts";
+import type { RuntimeEvent, ThreadContextUsage, ToolCallPayload } from "@/shared/contracts";
+import { inlineImagePayloadRenders } from "@/shared/inlineImagePayload";
 import type { PersistedRuntimePage } from "@/shared/ipc/schemas";
+import { isSubAgentTool } from "@/shared/toolCallClassification";
 import { getSqlite } from "./connection";
 import { safeParse } from "./rowMappers";
 
@@ -37,6 +39,30 @@ interface PersistedRuntimeItemRow {
   streams: string | null;
   parent_item_id: string | null;
 }
+
+interface PositionedPersistedRuntimeItemRow extends PersistedRuntimeItemRow {
+  position: number;
+}
+
+const RUNTIME_PAGE_BOUNDARY_SCAN_SIZE = 200;
+const RUNTIME_PAGE_MAX_RAW_ITEMS = 5_000;
+const RUNTIME_PAGE_HIDDEN_TYPES = new Set(["plan", "goal", "error"]);
+const RUNTIME_PAGE_NAMED_TOOL_TYPES = new Set([
+  "tool_call",
+  "mcp_tool_call",
+  "image_view",
+  "dynamic_tool_call",
+]);
+const RUNTIME_PAGE_GROUP_TYPES = new Set([
+  "tool_call",
+  "mcp_tool_call",
+  "image_view",
+  "dynamic_tool_call",
+  "command_execution",
+  "file_change",
+  "web_search",
+  "reasoning",
+]);
 
 interface ThreadRuntimeSummaryStatementRunner {
   all(...values: string[]): unknown[];
@@ -164,28 +190,176 @@ export function dbGetThreadRuntimeItemsPage(
   threadId: string,
   beforePosition: number | undefined,
   limit: number,
+  targetTimelineEntryCount?: number,
 ): PersistedRuntimePage {
   const sqlite = getSqlite();
-  const rows = sqlite
-    .prepare(
-      `SELECT item_id, position, type, state, payload, streams, parent_item_id
-       FROM thread_runtime_items
-       WHERE thread_id = ?${beforePosition === undefined ? "" : " AND position < ?"}
-       ORDER BY position DESC
-       LIMIT ?`,
-    )
-    .all(
-      ...(beforePosition === undefined
-        ? [threadId, limit + 1]
-        : [threadId, beforePosition, limit + 1]),
-    ) as Array<PersistedRuntimeItemRow & { position: number }>;
-  const hasMore = rows.length > limit;
-  const pageRows = rows.slice(0, limit);
+  const childParentIds = new Set(
+    (
+      sqlite
+        .prepare(
+          "SELECT DISTINCT parent_item_id FROM thread_runtime_items WHERE thread_id = ? AND parent_item_id IS NOT NULL",
+        )
+        .all(threadId) as Array<{ parent_item_id: string }>
+    ).map((row) => row.parent_item_id),
+  );
+  const readTailRows = sqlite.prepare(
+    `SELECT item_id, position, type, state, payload, streams, parent_item_id
+     FROM thread_runtime_items
+     WHERE thread_id = ?
+     ORDER BY position DESC
+     LIMIT ?`,
+  );
+  const readOlderRows = sqlite.prepare(
+    `SELECT item_id, position, type, state, payload, streams, parent_item_id
+     FROM thread_runtime_items
+     WHERE thread_id = ? AND position < ?
+     ORDER BY position DESC
+     LIMIT ?`,
+  );
+  const readRows = (cursor: number | undefined, rowLimit: number) =>
+    (cursor === undefined
+      ? readTailRows.all(threadId, rowLimit)
+      : readOlderRows.all(threadId, cursor, rowLimit)) as PositionedPersistedRuntimeItemRow[];
+
+  const readPageRows = (cursor: number | undefined) => {
+    const rows = readRows(cursor, limit + 1);
+    const segmentRows = rows.slice(0, limit);
+    let lookaheadRows = rows.slice(limit);
+
+    // LegendList preserves the visible item by key when data is prepended. Keep
+    // any groupable run whole so loading an older page cannot change the key or
+    // contents of the first already-visible tool/reasoning group.
+    while (
+      segmentRows.length > 0 &&
+      isRuntimePageGroupItem(segmentRows.at(-1)!, childParentIds) &&
+      lookaheadRows[0] &&
+      isRuntimePageGroupItem(lookaheadRows[0], childParentIds)
+    ) {
+      const boundaryIndex = lookaheadRows.findIndex(
+        (row) => !isRuntimePageGroupItem(row, childParentIds),
+      );
+      if (boundaryIndex >= 0) {
+        segmentRows.push(...lookaheadRows.slice(0, boundaryIndex));
+        lookaheadRows = lookaheadRows.slice(boundaryIndex);
+        break;
+      }
+      segmentRows.push(...lookaheadRows);
+      lookaheadRows = readRows(segmentRows.at(-1)!.position, RUNTIME_PAGE_BOUNDARY_SCAN_SIZE);
+    }
+
+    return { rows: segmentRows, hasMore: lookaheadRows.length > 0 };
+  };
+
+  if (targetTimelineEntryCount === undefined) {
+    const page = readPageRows(beforePosition);
+    return {
+      items: page.rows.reverse().map(mapRuntimeItemRow),
+      nextCursor: page.hasMore ? (page.rows[0]?.position ?? null) : null,
+    };
+  }
+
+  const pageRows: PositionedPersistedRuntimeItemRow[] = [];
+  const timelineCount = { entries: 0, insideGroup: false };
+  let cursor = beforePosition;
+  let hasMore = false;
+  let completingTargetGroup = false;
+
+  pageScan: for (;;) {
+    const scanLimit = completingTargetGroup ? RUNTIME_PAGE_BOUNDARY_SCAN_SIZE : limit;
+    const rows = readRows(cursor, scanLimit + 1);
+    const scanRows = rows.slice(0, scanLimit);
+    const hasLookahead = rows.length > scanLimit;
+    if (scanRows.length === 0) break;
+
+    for (let index = 0; index < scanRows.length; index += 1) {
+      const row = scanRows[index]!;
+      if (completingTargetGroup && !isRuntimePageGroupItem(row, childParentIds)) {
+        hasMore = true;
+        break pageScan;
+      }
+
+      pageRows.push(row);
+      cursor = row.position;
+      if (!completingTargetGroup) {
+        accumulateRuntimeTimelineEntryCount(row, childParentIds, timelineCount);
+        if (timelineCount.entries >= targetTimelineEntryCount) {
+          completingTargetGroup = timelineCount.insideGroup;
+          if (!completingTargetGroup) {
+            hasMore = index < scanRows.length - 1 || hasLookahead;
+            break pageScan;
+          }
+        }
+      }
+    }
+
+    hasMore = hasLookahead;
+    if (!hasMore) break;
+    if (pageRows.length >= RUNTIME_PAGE_MAX_RAW_ITEMS && !completingTargetGroup) break;
+  }
+
   const nextCursor = hasMore ? (pageRows.at(-1)?.position ?? null) : null;
   return {
     items: pageRows.reverse().map(mapRuntimeItemRow),
     nextCursor,
   };
+}
+
+function isRuntimePageGroupItem(
+  row: PositionedPersistedRuntimeItemRow,
+  childParentIds: ReadonlySet<string>,
+): boolean {
+  // Rows omitted from the top-level timeline do not break a visible tool run.
+  return classifyRuntimeTimelineRow(row, childParentIds) !== "item";
+}
+
+function accumulateRuntimeTimelineEntryCount(
+  row: PositionedPersistedRuntimeItemRow,
+  childParentIds: ReadonlySet<string>,
+  state: { entries: number; insideGroup: boolean },
+): void {
+  const kind = classifyRuntimeTimelineRow(row, childParentIds);
+  if (kind === "hidden") return;
+  if (kind === "group") {
+    if (!state.insideGroup) state.entries += 1;
+    state.insideGroup = true;
+    return;
+  }
+  state.entries += 1;
+  state.insideGroup = false;
+}
+
+function classifyRuntimeTimelineRow(
+  row: PositionedPersistedRuntimeItemRow,
+  childParentIds: ReadonlySet<string>,
+): "hidden" | "group" | "item" {
+  if (row.parent_item_id !== null || RUNTIME_PAGE_HIDDEN_TYPES.has(row.type)) return "hidden";
+  if (row.type === "reasoning" && row.state === "completed") {
+    const streams = row.streams ? safeParse(row.streams) : undefined;
+    const reasoningText =
+      streams && typeof streams === "object"
+        ? (streams as Record<string, unknown>).reasoning_text
+        : undefined;
+    if (typeof reasoningText !== "string" || reasoningText.trim().length === 0) return "hidden";
+  }
+  let payload: Record<string, unknown> | undefined;
+  if (RUNTIME_PAGE_NAMED_TOOL_TYPES.has(row.type)) {
+    const parsedPayload = row.payload ? safeParse(row.payload) : undefined;
+    payload =
+      parsedPayload && typeof parsedPayload === "object"
+        ? (parsedPayload as Record<string, unknown>)
+        : undefined;
+    const name = payload && typeof payload.name === "string" ? payload.name : undefined;
+    if (!name?.trim()) return "hidden";
+  }
+  if (!RUNTIME_PAGE_GROUP_TYPES.has(row.type)) return "item";
+  if (childParentIds.has(row.item_id)) return "item";
+  if (
+    payload &&
+    (isSubAgentTool(payload as unknown as ToolCallPayload) || inlineImagePayloadRenders(payload))
+  ) {
+    return "item";
+  }
+  return "group";
 }
 
 /**

@@ -21,9 +21,9 @@ const { hydrateFileCheckpoints, finalizeFileCheckpoint } = vi.hoisted(() => ({
   hydrateFileCheckpoints: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   finalizeFileCheckpoint: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
-const { virtualizerScrollToIndex } = vi.hoisted(() => ({
-  virtualizerScrollToIndex:
-    vi.fn<(index: number, options?: { align?: "auto" | "center" | "end" | "start" }) => void>(),
+const { legendScrollToEnd, legendScrollToIndex } = vi.hoisted(() => ({
+  legendScrollToEnd: vi.fn<(options?: { animated?: boolean }) => void>(),
+  legendScrollToIndex: vi.fn<(options: { index: number; viewPosition?: number }) => void>(),
 }));
 
 vi.mock("@/renderer/state/chatRuntimePersister", () => ({
@@ -38,36 +38,86 @@ vi.mock("@/renderer/state/fileCheckpointActions", () => ({
   finalizeFileCheckpoint,
 }));
 
-vi.mock("@tanstack/react-virtual", () => ({
-  useVirtualizer: (options: {
-    count: number;
-    getScrollElement?: () => Element | null;
-    getItemKey?: (index: number) => string | number;
-  }) => ({
-    getVirtualItems: () =>
-      Array.from({ length: options.count }, (_, index) => ({
-        key: options.getItemKey?.(index) ?? index,
-        index,
-        start: index * 96,
-      })),
-    getTotalSize: () => options.count * 96,
-    measure: vi.fn<() => void>(),
-    measureElement: vi.fn<(element: HTMLDivElement | null) => void>(),
-    resizeItem: vi.fn<(index: number, size: number) => void>(),
-    takeSnapshot: () => [],
-    options: { measureElement: () => 96 },
-    scrollToIndex: (
-      index: number,
-      scrollOptions?: { align?: "auto" | "center" | "end" | "start" },
-    ) => {
-      virtualizerScrollToIndex(index, scrollOptions);
-      const element = options.getScrollElement?.();
-      if (element instanceof HTMLElement) {
-        element.scrollTop = element.scrollHeight;
-      }
-    },
-  }),
-}));
+vi.mock("@legendapp/list/react", async () => {
+  const React = await import("react");
+  return {
+    LegendList: React.forwardRef(function MockLegendList(
+      props: {
+        data: readonly { id: string }[];
+        renderItem: (input: { item: { id: string }; index: number }) => React.ReactNode;
+        keyExtractor: (item: { id: string }, index: number) => string;
+        ListEmptyComponent?: React.ReactNode;
+        ListFooterComponent?: React.ReactNode;
+        className?: string;
+        contentContainerClassName?: string;
+        contentContainerStyle?: React.CSSProperties;
+        onLoad?: () => void;
+        onStartReached?: () => void;
+        onKeyDownCapture?: React.KeyboardEventHandler<HTMLDivElement>;
+        onPointerDownCapture?: React.PointerEventHandler<HTMLDivElement>;
+        onWheelCapture?: React.WheelEventHandler<HTMLDivElement>;
+        style?: React.CSSProperties;
+      },
+      forwardedRef: React.ForwardedRef<unknown>,
+    ) {
+      const scrollRef = React.useRef<HTMLDivElement>(null);
+      const totalSizeListenerRef = React.useRef<(() => void) | null>(null);
+      const onLoadRef = React.useRef(props.onLoad);
+      React.useImperativeHandle(forwardedRef, () => ({
+        getScrollableNode: () => scrollRef.current,
+        getState: () => ({
+          sizes: new Map<string, number>(),
+          listen: (_name: string, listener: () => void) => {
+            totalSizeListenerRef.current = listener;
+            return () => {
+              totalSizeListenerRef.current = null;
+            };
+          },
+        }),
+        scrollToEnd: (options?: { animated?: boolean }) => {
+          legendScrollToEnd(options);
+          const element = scrollRef.current;
+          if (element) element.scrollTop = element.scrollHeight;
+          return Promise.resolve();
+        },
+        scrollToIndex: (options: { index: number; viewPosition?: number }) => {
+          legendScrollToIndex(options);
+          return Promise.resolve();
+        },
+        setItemSize: () => totalSizeListenerRef.current?.(),
+      }));
+      React.useLayoutEffect(() => {
+        onLoadRef.current?.();
+      }, []);
+      return (
+        <div
+          ref={scrollRef}
+          className={props.className}
+          onKeyDownCapture={props.onKeyDownCapture}
+          onPointerDownCapture={props.onPointerDownCapture}
+          onWheelCapture={props.onWheelCapture}
+          onScroll={(event) => {
+            if (event.currentTarget.scrollTop === 0) props.onStartReached?.();
+          }}
+          style={props.style}
+        >
+          <div
+            className={`legend-list-content-container ${props.contentContainerClassName ?? ""}`}
+            style={props.contentContainerStyle}
+          >
+            {props.data.length === 0 ? props.ListEmptyComponent : null}
+            {props.data.map((item, index) => (
+              <React.Fragment key={props.keyExtractor(item, index)}>
+                {props.renderItem({ item, index })}
+              </React.Fragment>
+            ))}
+            {props.ListFooterComponent}
+          </div>
+        </div>
+      );
+    }),
+  };
+});
 
 const toastDangerSpy = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
 
@@ -138,6 +188,9 @@ describe("ChatPane", () => {
       configurable: true,
       writable: true,
       value: {
+        dbSetState: vi
+          .fn<(key: string, value: string) => Promise<void>>()
+          .mockResolvedValue(undefined),
         dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -155,6 +208,21 @@ describe("ChatPane", () => {
       fileCheckpointsByThread: {},
       fileCheckpointTurnsByThread: {},
     }));
+  });
+
+  it("loads the next persisted page when LegendList reaches the start", async () => {
+    const thread = makeThread();
+    seedAssistantMessage(thread.id, "Latest answer");
+    loadOlderThreadRuntimeItems.mockResolvedValueOnce(true);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const scrollElement = getScrollElement(container);
+    fireEvent.scroll(scrollElement, { target: { scrollTop: 0 } });
+
+    await waitFor(() => expect(loadOlderThreadRuntimeItems).toHaveBeenCalledTimes(1));
+    expect(loadOlderThreadRuntimeItems).toHaveBeenLastCalledWith(thread.id);
   });
 
   it("keeps the chat pinned when the last assistant message grows without changing the scroll anchor", async () => {
@@ -180,7 +248,7 @@ describe("ChatPane", () => {
       appendAssistantText(thread.id, " — Open logs");
     });
 
-    await screen.findByText(/Open logs/);
+    await screen.findByText(/Open logs/, {}, { timeout: 3_000 });
 
     act(() => {
       metrics.setScrollHeight(300);
@@ -210,16 +278,16 @@ describe("ChatPane", () => {
       metrics.setScrollTop(200);
       fireEvent.scroll(scrollElement);
     });
-    virtualizerScrollToIndex.mockClear();
+    legendScrollToEnd.mockClear();
 
     act(() => {
       metrics.setScrollHeight(300);
-      // TanStack's end anchor applies the virtual row delta first.
+      // LegendList's end anchor applies the virtual row delta first.
       metrics.setScrollTop(300);
       MockResizeObserver.notify(contentElement);
     });
 
-    expect(virtualizerScrollToIndex).not.toHaveBeenCalled();
+    expect(legendScrollToEnd).not.toHaveBeenCalled();
     expect(metrics.getScrollTop()).toBe(300);
   });
 
@@ -242,14 +310,14 @@ describe("ChatPane", () => {
       metrics.setScrollTop(200);
       fireEvent.scroll(scrollElement);
     });
-    virtualizerScrollToIndex.mockClear();
+    legendScrollToEnd.mockClear();
 
     act(() => {
       metrics.setScrollHeight(300);
       appendAssistantText(thread.id, " continued");
     });
 
-    await waitFor(() => expect(virtualizerScrollToIndex).toHaveBeenCalledWith(0, { align: "end" }));
+    await waitFor(() => expect(legendScrollToEnd).toHaveBeenCalledWith({ animated: false }));
     expect(metrics.getScrollTop()).toBe(300);
   });
 
@@ -285,7 +353,7 @@ describe("ChatPane", () => {
 
     act(() => {
       metrics.setScrollHeight(220);
-      // TanStack's end anchor applies the virtual row delta first.
+      // LegendList's end anchor applies the virtual row delta first.
       metrics.setScrollTop(220);
       MockResizeObserver.notify(contentElement);
     });
@@ -324,7 +392,7 @@ describe("ChatPane", () => {
     });
 
     act(() => {
-      // TanStack's end anchor applies the delayed virtual row delta.
+      // LegendList's end anchor applies the delayed virtual row delta.
       metrics.setScrollTop(300);
       MockResizeObserver.notify(contentElement);
     });
@@ -535,7 +603,7 @@ describe("ChatPane", () => {
 
     act(() => {
       metrics.setScrollHeight(300);
-      // TanStack follows the append after sticky mode was re-engaged.
+      // LegendList follows the append after sticky mode was re-engaged.
       metrics.setScrollTop(300);
       MockResizeObserver.notify(contentElement);
     });

@@ -158,6 +158,7 @@ export const dbGetRuntimeItemsPagePayloadSchema = z.object({
   threadId: z.string().min(1),
   beforePosition: z.number().int().nonnegative().optional(),
   limit: z.number().int().min(1).max(500),
+  targetTimelineEntryCount: z.number().int().min(1).max(100).optional(),
 });
 export const dbTruncateRuntimeItemsPayloadSchema = z.object({
   threadId: z.string().min(1),

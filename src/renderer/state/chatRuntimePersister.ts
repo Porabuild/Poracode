@@ -10,7 +10,8 @@ import {
   type RuntimeChatItem,
 } from "./slices/runtimeEventSlice";
 
-const RUNTIME_PAGE_SIZE = 200;
+const RUNTIME_PAGE_SCAN_SIZE = 500;
+const RUNTIME_TIMELINE_PAGE_SIZE = 40;
 const MAX_CACHED_THREAD_TRANSCRIPTS = 40;
 const hydratedThreadRuntimeIds = new Set<string>();
 const pendingThreadRuntimeHydrations = new Map<string, Promise<boolean>>();
@@ -53,11 +54,14 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
     const page = await readBridge().dbGetThreadRuntimeItemsPage({
       threadId,
       beforePosition: cursor,
-      limit: RUNTIME_PAGE_SIZE,
+      limit: RUNTIME_PAGE_SCAN_SIZE,
+      targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
     });
     olderRuntimePageCursorByThread.set(threadId, page.nextCursor);
     if (page.items.length === 0) return false;
-    useAppStore.getState().prependThreadRuntimeItems(threadId, page.items.map(toRuntimeChatItem));
+    const items = compactRuntimeItemsForHydration(page.items.map(toRuntimeChatItem));
+    useAppStore.getState().prependThreadRuntimeItems(threadId, items);
+    useAppStore.getState().reconcileStaleSubAgents(threadId);
     return true;
   })().catch((error: unknown) => {
     console.warn("[chat] failed to load older runtime items for thread %s", threadId, error);
@@ -101,7 +105,11 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
   const bridge = readBridge();
   const [itemsResult, turnsResult, contextResult] = await Promise.allSettled([
     Promise.resolve().then(() =>
-      bridge.dbGetThreadRuntimeItemsPage({ threadId, limit: RUNTIME_PAGE_SIZE }),
+      bridge.dbGetThreadRuntimeItemsPage({
+        threadId,
+        limit: RUNTIME_PAGE_SCAN_SIZE,
+        targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
+      }),
     ),
     Promise.resolve().then(() => bridge.dbGetThreadCompletedTurns(threadId)),
     Promise.resolve().then(() => bridge.dbGetThreadContextUsage(threadId)),

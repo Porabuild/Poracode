@@ -623,6 +623,39 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(store.getState().runtimeItemsByIdByThread["t1"]?.["i1"]?.observedLive).toBeUndefined();
   });
 
+  it("prepends an older page without replacing newer or live items", () => {
+    const newer: RuntimeChatItem = {
+      id: "newer",
+      type: "assistant_message",
+      state: "completed",
+      streams: { assistant_text: "newer" },
+    };
+    store.getState().hydrateThreadRuntimeItems("t1", [newer]);
+    apply("t1", {
+      type: "item.started",
+      threadId: "t1",
+      itemId: "live",
+      itemType: "assistant_message",
+    });
+
+    store.getState().prependThreadRuntimeItems("t1", [
+      {
+        id: "older",
+        type: "user_message",
+        state: "completed",
+        streams: {},
+      },
+      {
+        ...newer,
+        streams: { assistant_text: "stale duplicate" },
+      },
+    ]);
+
+    expect(store.getState().runtimeItemIdsByThread["t1"]).toEqual(["older", "newer", "live"]);
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["newer"]).toBe(newer);
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["live"]?.observedLive).toBe(true);
+  });
+
   it("applies concurrent thread batches in a single store update", () => {
     apply("t1", {
       type: "item.started",

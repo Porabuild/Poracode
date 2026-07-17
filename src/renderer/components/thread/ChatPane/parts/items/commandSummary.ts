@@ -23,8 +23,25 @@ export interface CommandIntentDisplay {
   parts?: { prefix: string; path: string; filePath?: boolean };
 }
 
+const MAX_COMMAND_CACHE_ENTRIES = 512;
+const extractedCommandCache = new Map<string, string>();
+const commandDisplayCache = new Map<string, { locale: string; display: CommandIntentDisplay }>();
+
 export function summarizeShellCommand(full: string): string {
-  return finalizeTitle(extractShellCommand(full));
+  return finalizeTitle(readCachedExtractedCommand(full));
+}
+
+function readCachedExtractedCommand(full: string): string {
+  const cached = extractedCommandCache.get(full);
+  if (cached !== undefined) {
+    extractedCommandCache.delete(full);
+    extractedCommandCache.set(full, cached);
+    return cached;
+  }
+  const command = extractShellCommand(full);
+  extractedCommandCache.set(full, command);
+  trimCommandCache(extractedCommandCache);
+  return command;
 }
 
 function extractShellCommand(full: string): string {
@@ -141,14 +158,30 @@ export function humanIntentTitle(fullCommandLine: string): string {
 }
 
 export function commandIntentDisplay(fullCommandLine: string): CommandIntentDisplay {
-  const command = extractShellCommand(fullCommandLine);
+  const locale = i18n.locale;
+  const cached = commandDisplayCache.get(fullCommandLine);
+  if (cached?.locale === locale) {
+    commandDisplayCache.delete(fullCommandLine);
+    commandDisplayCache.set(fullCommandLine, cached);
+    return cached.display;
+  }
+  const command = readCachedExtractedCommand(fullCommandLine);
   const short = finalizeTitle(command);
-  return (
-    intentFromSummarizedCommand(command) ?? {
-      title: `${i18n._(msg`Run`)}: ${short}`,
-      kind: "command",
-    }
-  );
+  const display = intentFromSummarizedCommand(command) ?? {
+    title: `${i18n._(msg`Run`)}: ${short}`,
+    kind: "command",
+  };
+  commandDisplayCache.set(fullCommandLine, { locale, display });
+  trimCommandCache(commandDisplayCache);
+  return display;
+}
+
+function trimCommandCache<T>(cache: Map<string, T>): void {
+  while (cache.size > MAX_COMMAND_CACHE_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) return;
+    cache.delete(oldest);
+  }
 }
 
 /** Localized "View" / "View <line-range>" display prefix (line range is data). */

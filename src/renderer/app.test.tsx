@@ -832,6 +832,7 @@ describe("App", () => {
         limit: 200,
       });
     });
+    expect(bridge.dbGetThreadRuntimeItems).not.toHaveBeenCalled();
     expect(screen.queryByTestId("thread-view-thread-visible-gui")).not.toBeInTheDocument();
 
     resolveRuntimeItems({ items: [], nextCursor: null });

@@ -34,14 +34,6 @@ import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/Chat
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
 import { selectVisibleThreadTimelineEntries, type ChatTimelineEntry } from "./chatPaneSelectors";
-import {
-  capturePrependAnchors,
-  measurePrependAnchorDelta,
-  PREPEND_ANCHOR_EPSILON_PX,
-  PREPEND_ANCHOR_MAX_FRAMES,
-  PREPEND_ANCHOR_STABLE_FRAMES,
-  type PrependAnchor,
-} from "./chatPrependAnchor";
 import { shouldMarkUserScrollIntentFromPointerTarget } from "./chatScrollGeometry";
 import { normalizeChatProjectPath } from "./chatPathUtils";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
@@ -98,12 +90,8 @@ export function ChatPane(props: ChatPaneProps) {
   const registerScrollToIndex = (handler: ScrollToIndex | null) => {
     scrollToIndexRef.current = handler;
   };
-  // `scrollEl` mirrors `scrollRef.current` as React state so the virtualizer
-  // in `MessageList` sees the element transition from `null` to mounted across
-  // a real React render. Without this, after a drag-drop pane move the
-  // virtualizer's internal observer-driven rerender can be lost and the chat
-  // renders empty (with a scrollbar from `getTotalSize`) until the next state
-  // change forces a recompute.
+  // `scrollEl` mirrors the LegendList-owned scroll node as React state for the
+  // find controller and the shared scroll controls.
   const { setScrollContainer, scrollRef, scrollEl, scrollFadeStyle } =
     useScrollFade<HTMLDivElement>({ contentRef });
   const [initialScrollSettledThreadId, setInitialScrollSettledThreadId] = useState<string | null>(
@@ -213,98 +201,6 @@ export function ChatPane(props: ChatPaneProps) {
     void hydrateThreadRuntimeItems(threadId);
     return () => releaseThreadRuntimeItems(threadId);
   }, [threadId]);
-
-  // Upward pagination. The virtualizer's `anchorTo: "end"` prepend handling
-  // applies the primary key-anchored scroll correction in the prepend commit;
-  // the anchor settle loop below (see chatPrependAnchor.ts) absorbs the
-  // residual estimate→measure drift of the freshly mounted page with absolute
-  // corrections against a row captured before the fetch.
-  useEffect(() => {
-    if (!scrollEl || !isInitialScrollSettled) return;
-    let loading = false;
-    let cancelled = false;
-    let anchors: PrependAnchor[] = [];
-    let settleRafId: number | null = null;
-
-    const stopSettleLoop = () => {
-      if (settleRafId !== null) {
-        cancelAnimationFrame(settleRafId);
-        settleRafId = null;
-      }
-    };
-    const restoreAnchors = () => {
-      stopSettleLoop();
-      let stableFrames = 0;
-      let totalFrames = 0;
-      const step = () => {
-        settleRafId = null;
-        if (cancelled || anchors.length === 0) return;
-        const delta = measurePrependAnchorDelta(scrollEl, anchors);
-        if (delta !== null && Math.abs(delta) > PREPEND_ANCHOR_EPSILON_PX) {
-          scrollControlsRef.current?.noteProgrammaticScroll(scrollEl.scrollTop + delta);
-          scrollEl.scrollTop += delta;
-          stableFrames = 0;
-        } else {
-          stableFrames += 1;
-        }
-        totalFrames += 1;
-        if (
-          stableFrames >= PREPEND_ANCHOR_STABLE_FRAMES ||
-          totalFrames >= PREPEND_ANCHOR_MAX_FRAMES
-        ) {
-          if (!loading) anchors = [];
-          return;
-        }
-        settleRafId = requestAnimationFrame(step);
-      };
-      settleRafId = requestAnimationFrame(step);
-    };
-
-    const onScroll = () => {
-      if (loading) {
-        // Keep the anchor matched to wherever the user actually is when the
-        // page lands — they usually keep scrolling while the fetch is in flight.
-        anchors = capturePrependAnchors(scrollEl);
-        return;
-      }
-      if (scrollEl.scrollTop > 160) return;
-      loading = true;
-      anchors = capturePrependAnchors(scrollEl);
-      void loadOlderThreadRuntimeItems(threadId)
-        .then((loaded) => {
-          if (cancelled) return;
-          if (loaded) restoreAnchors();
-        })
-        .finally(() => {
-          loading = false;
-        });
-    };
-    // A real gesture takes ownership of the scroll position — never fight it
-    // with anchor corrections. While a fetch is in flight the scroll handler
-    // above re-captures instead, so the landed page still restores correctly.
-    const onUserGesture = () => {
-      if (loading) return;
-      anchors = [];
-      stopSettleLoop();
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (isScrollNavigationKey(event.key)) onUserGesture();
-    };
-    scrollEl.addEventListener("scroll", onScroll, { passive: true });
-    scrollEl.addEventListener("wheel", onUserGesture, { passive: true });
-    scrollEl.addEventListener("pointerdown", onUserGesture, { passive: true });
-    scrollEl.addEventListener("touchstart", onUserGesture, { passive: true });
-    scrollEl.addEventListener("keydown", onKeyDown);
-    return () => {
-      cancelled = true;
-      stopSettleLoop();
-      scrollEl.removeEventListener("scroll", onScroll);
-      scrollEl.removeEventListener("wheel", onUserGesture);
-      scrollEl.removeEventListener("pointerdown", onUserGesture);
-      scrollEl.removeEventListener("touchstart", onUserGesture);
-      scrollEl.removeEventListener("keydown", onKeyDown);
-    };
-  }, [isInitialScrollSettled, scrollEl, threadId]);
 
   useEffect(() => {
     if (!targetContext || isHomeScope) return;
@@ -429,11 +325,30 @@ export function ChatPane(props: ChatPaneProps) {
     <ChatPaneActionsContext.Provider value={paneActionsOverride ?? paneActions}>
       <div className="flex h-full min-h-0 flex-col">
         <div className="relative min-h-0 flex-1">
-          <div
-            ref={setScrollContainer}
-            data-poracode-chat-scroller="true"
-            className="min-h-0 h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
-            style={scrollFadeStyle}
+          <MessageList
+            key={threadId}
+            threadId={threadId}
+            entries={timelineEntries}
+            isTurnActive={isLive}
+            setScrollContainer={setScrollContainer}
+            scrollContentRef={contentRef}
+            scrollClassName="min-h-0 h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
+            scrollStyle={scrollFadeStyle}
+            contentClassName={`min-h-full pb-2 ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
+            emptyContent={
+              isEmpty && !showTailLoader && showEmptyHint ? (
+                <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
+                  <span>
+                    <Trans>No messages yet</Trans>
+                  </span>
+                </div>
+              ) : null
+            }
+            footer={
+              showTailLoader && tailTurn ? (
+                <ChatTailLoader turn={tailTurn} isPaused={isTurnPaused} />
+              ) : null
+            }
             onWheelCapture={(event) => {
               if (event.deltaY < 0) {
                 scrollControlsRef.current?.markUserScrollIntent();
@@ -460,44 +375,19 @@ export function ChatPane(props: ChatPaneProps) {
                 scrollControlsRef.current?.markUserScrollIntent();
               }
             }}
-          >
-            <div
-              ref={contentRef}
-              className={`min-h-full pb-2 ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
-            >
-              {isEmpty && !showTailLoader ? (
-                showEmptyHint ? (
-                  <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
-                    <span>
-                      <Trans>No messages yet</Trans>
-                    </span>
-                  </div>
-                ) : null
-              ) : (
-                <>
-                  <MessageList
-                    key={threadId}
-                    threadId={threadId}
-                    entries={timelineEntries}
-                    isTurnActive={isLive}
-                    scrollElement={scrollEl}
-                    registerScrollToIndex={registerScrollToIndex}
-                    suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
-                    canRevertCheckpoints={!isLive && !isHomeScope}
-                    checkpointGuard={checkpointGuard}
-                    checkpointActions={checkpointActions}
-                    projectLocation={
-                      checkpointProjectLocation ??
-                      (isHomeScope ? undefined : targetContext?.projectLocation)
-                    }
-                  />
-                  {showTailLoader && tailTurn ? (
-                    <ChatTailLoader turn={tailTurn} isPaused={isTurnPaused} />
-                  ) : null}
-                </>
-              )}
-            </div>
-          </div>
+            onStartReached={() => {
+              void loadOlderThreadRuntimeItems(threadId);
+            }}
+            registerScrollToIndex={registerScrollToIndex}
+            suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
+            canRevertCheckpoints={!isLive && !isHomeScope}
+            checkpointGuard={checkpointGuard}
+            checkpointActions={checkpointActions}
+            projectLocation={
+              checkpointProjectLocation ??
+              (isHomeScope ? undefined : targetContext?.projectLocation)
+            }
+          />
           <ChatScrollControls
             key={`scroll:${threadId}`}
             ref={scrollControlsRef}

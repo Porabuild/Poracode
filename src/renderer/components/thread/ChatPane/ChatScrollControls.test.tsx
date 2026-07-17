@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act } from "@testing-library/react";
+import { act, fireEvent } from "@testing-library/react";
 import { createRef, useRef } from "react";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
@@ -112,7 +112,7 @@ describe("ChatScrollControls", () => {
     expect(controlsRef.current?.isThreadOpenSettling()).toBe(false);
   });
 
-  it("writes scrollTop when content grows past the bottom pin", () => {
+  it("delegates to LegendList when content grows past the bottom pin", () => {
     let scrollTop = 100;
     const scrollEl = document.createElement("div");
     Object.defineProperties(scrollEl, {
@@ -141,7 +141,8 @@ describe("ChatScrollControls", () => {
       controlsRef.current?.onContentHeightChange();
     });
 
-    expect(scrollTop).toBe(1000);
+    expect(virtualScrollToBottom).toHaveBeenCalled();
+    expect(scrollTop).toBe(100);
   });
 
   it("resumes sticking to the bottom when a message is submitted", () => {
@@ -178,7 +179,45 @@ describe("ChatScrollControls", () => {
     scrollToBottomToken += 1;
     rerender(renderHarness());
 
-    expect(scrollTop).toBe(1000);
+    expect(virtualScrollToBottom).toHaveBeenCalled();
+    expect(scrollTop).toBe(400);
+    expect(controlsRef.current?.isStickToBottom()).toBe(true);
+  });
+
+  it("scrolls on the first button press during the scroll-away intent window", () => {
+    let scrollTop = 800;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = value;
+        },
+      },
+    });
+    const controlsRef = createRef<ChatScrollControlsHandle>();
+    const virtualScrollToBottom = vi.fn<() => void>();
+    const { getByRole } = renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={controlsRef}
+        virtualScrollToBottom={virtualScrollToBottom}
+      />,
+    );
+
+    virtualScrollToBottom.mockClear();
+    act(() => {
+      controlsRef.current?.markUserScrollIntent();
+      controlsRef.current?.disableStickToBottom();
+      scrollTop = 400;
+    });
+
+    fireEvent.click(getByRole("button", { name: "Scroll to bottom" }));
+
+    expect(virtualScrollToBottom).toHaveBeenCalledOnce();
     expect(controlsRef.current?.isStickToBottom()).toBe(true);
   });
 
@@ -210,8 +249,9 @@ describe("ChatScrollControls", () => {
       />,
     );
 
-    // Mount open path pins at the short estimated height (scrollTop -> 400).
-    expect(scrollTop).toBe(400);
+    // Mount open path delegates the short estimated-height pin to LegendList.
+    expect(virtualScrollToBottom).toHaveBeenCalled();
+    virtualScrollToBottom.mockClear();
 
     // Virtualizer measures taller rows; leave scrollTop where the short pin left it.
     scrollHeight = 1200;
@@ -227,7 +267,8 @@ describe("ChatScrollControls", () => {
       });
     });
 
-    expect(scrollTop).toBe(1200);
+    expect(virtualScrollToBottom).toHaveBeenCalled();
+    expect(scrollTop).toBe(200);
   });
 
   it("re-pins when content shrinks while sticky (tool collapse)", async () => {
@@ -259,8 +300,9 @@ describe("ChatScrollControls", () => {
       />,
     );
 
-    // Mount pins at bottom of the tall content.
-    expect(scrollTop).toBe(1000);
+    // Mount delegates the tall-content pin to LegendList.
+    expect(virtualScrollToBottom).toHaveBeenCalled();
+    virtualScrollToBottom.mockClear();
 
     // Tool collapse: content shrinks; scrollTop left where it was (or partially
     // compensated), so we are no longer at the new bottom without a pin write.
@@ -277,6 +319,7 @@ describe("ChatScrollControls", () => {
       });
     });
 
-    expect(scrollTop).toBe(700);
+    expect(virtualScrollToBottom).toHaveBeenCalled();
+    expect(scrollTop).toBe(600);
   });
 });

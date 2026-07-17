@@ -89,6 +89,7 @@
     "@heroui/react": "^3.2.2",
     "@heroui/styles": "^3.2.2",
     "@huggingface/transformers": "^4.2.0",
+    "@legendapp/list": "3.3.3",
     "@lingui/core": "6.4.0",
     "@lingui/react": "6.4.0",
     "@modelcontextprotocol/sdk": "^1.29.0",

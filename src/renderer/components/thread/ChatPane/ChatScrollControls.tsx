@@ -226,8 +226,14 @@ export const ChatScrollControls = forwardRef<
     }
     atBottomCachedUntilRef.current = 0;
     const virtualScrollToBottom = virtualScrollToBottomRef.current;
-    if (reconcileVirtualizer && virtualScrollToBottom) {
+    if (virtualScrollToBottom) {
+      const targetScrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
+      noteProgrammaticScroll(targetScrollTop);
       virtualScrollToBottom();
+      lastPinnedScrollHeightRef.current = el.scrollHeight;
+      stickToBottomRef.current = true;
+      setShowScrollDown(false);
+      return;
     }
     writeScrollTop(el, el.scrollHeight);
     lastPinnedScrollHeightRef.current = el.scrollHeight;
@@ -505,6 +511,9 @@ export const ChatScrollControls = forwardRef<
   useEffect(() => cancelScheduledInitialSettle, []);
 
   function handleScrollButtonPress() {
+    // The button is an explicit request to resume following the tail. Do not
+    // let the short scroll-away intent window discard the first press.
+    userScrollIntentUntilRef.current = 0;
     scrollToBottom({ reconcileVirtualizer: true });
   }
 

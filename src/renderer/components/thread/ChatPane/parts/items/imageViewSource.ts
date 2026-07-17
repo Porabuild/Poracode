@@ -17,7 +17,7 @@
  * file on the user's machine simply because the user viewed the thread. Such
  * payloads fall back to the inert tool-call accordion.
  *
- * `imageViewHasRenderableImage` is the cheap O(1) probe used on the hot timeline
+ * `imageViewRendersInline` is the cheap O(1) probe used on the hot timeline
  * selector path (grouping): it never allocates the multi-MB data URL — it only
  * inspects a short prefix. `resolveImageViewSource` does the full build and is
  * memoized per item by the component.
@@ -25,6 +25,12 @@
 
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
+import {
+  classifyInlineImageCandidate,
+  findRenderableInlineImageCandidate,
+  inlineImagePayloadRenders,
+  type InlineImageClassification,
+} from "@/shared/inlineImagePayload";
 
 export interface ImageViewSource {
   /** Renderable inline image URL: a `data:` URL (base64) or an svg `data:` URL. */
@@ -52,64 +58,18 @@ const EXTENSION_BY_MIME: Record<string, string> = {
 };
 
 /**
- * Base64 magic prefixes → MIME. Prefixes are long enough to be unambiguous so a
- * prefix match is a reliable "this string is an encoded image" signal without
- * decoding the (potentially multi-MB) body.
- */
-const BASE64_IMAGE_SIGNATURES: ReadonlyArray<readonly [string, string]> = [
-  ["iVBORw0KGgo", "image/png"],
-  ["/9j/", "image/jpeg"],
-  ["R0lGOD", "image/gif"],
-  ["UklGR", "image/webp"], // RIFF container
-  ["PHN2Zw", "image/svg+xml"], // "<svg"
-  ["PD94bWwg", "image/svg+xml"], // "<?xml "
-];
-
-/** Object keys that may carry an inline image string on a tool result, in priority order. */
-const RESULT_STRING_KEYS = [
-  "dataUrl",
-  "data_url",
-  "image",
-  "b64_json",
-  "base64",
-  "png",
-  "data",
-  "src",
-  "content",
-  "text",
-] as const;
-
-/** Object keys that may carry an array of image entries on a tool result. */
-const RESULT_ARRAY_KEYS = ["images", "data", "content", "output"] as const;
-
-interface Classification {
-  /** How `src` should be built from the candidate string. */
-  kind: "dataUrl" | "rawSvg" | "base64";
-  mime: string;
-}
-
-/**
- * Cheap probe: does this payload resolve to a renderable image? Inspects only
- * short prefixes, never building a data URL — safe to call on the hot grouping
- * selector path.
- */
-export function imageViewHasRenderableImage(payload: unknown): boolean {
-  return findClassifiedCandidate(payload) !== null;
-}
-
-/**
  * Will this `image_view` row render as a standalone inline image card (vs. fall
  * back to the generic tool-call accordion)? Mirrors {@link ImageView}'s render
  * decision so the grouping selector and the component never disagree: an image
  * is shown only when the payload carries a renderable image AND did not error.
  */
 export function imageViewRendersInline(payload: unknown): boolean {
-  return readStatus(payload) !== "error" && imageViewHasRenderableImage(payload);
+  return inlineImagePayloadRenders(payload);
 }
 
 /** Full resolution: returns the `<img>`-ready source, or `null` when there's no image. */
 export function resolveImageViewSource(payload: unknown): ImageViewSource | null {
-  const found = findClassifiedCandidate(payload);
+  const found = findRenderableInlineImageCandidate(payload);
   if (!found) return null;
   const { value, classification } = found;
   const src = buildSrc(value, classification);
@@ -129,28 +89,6 @@ export function resolveImageViewSource(payload: unknown): ImageViewSource | null
   };
 }
 
-function findClassifiedCandidate(
-  payload: unknown,
-): { value: string; classification: Classification } | null {
-  if (!payload || typeof payload !== "object") return null;
-  const record = payload as Record<string, unknown>;
-  // `payload.images` is the explicit, provider-agnostic channel the agent
-  // mappers populate with renderable `data:` URLs (ACP/Claude image content
-  // blocks). Prefer it over sniffing `result`.
-  if (Array.isArray(record.images)) {
-    for (const value of record.images) {
-      if (typeof value !== "string" || value.length === 0) continue;
-      const classification = classifyCandidate(value);
-      if (classification) return { value, classification };
-    }
-  }
-  for (const value of collectResultCandidates(record.result)) {
-    const classification = classifyCandidate(value);
-    if (classification) return { value, classification };
-  }
-  return null;
-}
-
 /**
  * Build an {@link ImageViewSource} from a canonical assistant-message image
  * content block (`{ kind: "image", dataUrl, mimeType?, name? }`). Returns null
@@ -162,7 +100,7 @@ export function imageViewSourceFromImageBlock(block: {
   name?: unknown;
 }): ImageViewSource | null {
   if (typeof block.dataUrl !== "string" || block.dataUrl.length === 0) return null;
-  const classification = classifyCandidate(block.dataUrl);
+  const classification = classifyInlineImageCandidate(block.dataUrl);
   if (!classification) return null;
   const src = buildSrc(block.dataUrl, classification);
   if (!src) return null;
@@ -185,47 +123,7 @@ export function imageViewSourceFromImageBlock(block: {
   };
 }
 
-function collectResultCandidates(result: unknown): string[] {
-  if (typeof result === "string") return result.length > 0 ? [result] : [];
-  if (!result || typeof result !== "object") return [];
-  const record = result as Record<string, unknown>;
-  const out: string[] = [];
-  for (const key of RESULT_STRING_KEYS) {
-    const value = record[key];
-    if (typeof value === "string" && value.length > 0) out.push(value);
-  }
-  for (const key of RESULT_ARRAY_KEYS) {
-    const value = record[key];
-    if (!Array.isArray(value)) continue;
-    for (const entry of value) {
-      if (typeof entry === "string" && entry.length > 0) out.push(entry);
-      else if (entry && typeof entry === "object") {
-        const inner = entry as Record<string, unknown>;
-        for (const innerKey of RESULT_STRING_KEYS) {
-          const candidate = inner[innerKey];
-          if (typeof candidate === "string" && candidate.length > 0) out.push(candidate);
-        }
-      }
-    }
-  }
-  return out;
-}
-
-function classifyCandidate(value: string): Classification | null {
-  const trimmedHead = value.slice(0, 16).trimStart();
-  if (/^data:image\//i.test(trimmedHead)) {
-    return { kind: "dataUrl", mime: parseDataUrlMime(value) };
-  }
-  if (/^<svg[\s>]/i.test(trimmedHead) || /^<\?xml/i.test(trimmedHead)) {
-    return { kind: "rawSvg", mime: "image/svg+xml" };
-  }
-  for (const [prefix, mime] of BASE64_IMAGE_SIGNATURES) {
-    if (value.startsWith(prefix)) return { kind: "base64", mime };
-  }
-  return null;
-}
-
-function buildSrc(value: string, classification: Classification): string | null {
+function buildSrc(value: string, classification: InlineImageClassification): string | null {
   switch (classification.kind) {
     case "dataUrl":
       return value;
@@ -240,7 +138,7 @@ function buildSrc(value: string, classification: Classification): string | null 
 
 function readImageDimensions(
   value: string,
-  classification: Classification,
+  classification: InlineImageClassification,
 ): { width: number; height: number } | undefined {
   if (classification.mime === "image/svg+xml") return readSvgDimensions(value, classification);
   const bytes = readBase64BytesPrefix(value, classification, 8192);
@@ -261,7 +159,7 @@ function readImageDimensions(
 
 function readBase64BytesPrefix(
   value: string,
-  classification: Classification,
+  classification: InlineImageClassification,
   byteCount: number,
 ): Uint8Array | undefined {
   const base64 =
@@ -383,7 +281,7 @@ function readWebpDimensions(bytes: Uint8Array) {
   return undefined;
 }
 
-function readSvgDimensions(value: string, classification: Classification) {
+function readSvgDimensions(value: string, classification: InlineImageClassification) {
   const svg =
     classification.kind === "rawSvg"
       ? value
@@ -461,18 +359,6 @@ function readUint32BE(bytes: Uint8Array, offset: number) {
     bytes[offset]! * 0x1000000 +
     ((bytes[offset + 1]! << 16) | (bytes[offset + 2]! << 8) | bytes[offset + 3]!)
   );
-}
-
-function parseDataUrlMime(value: string): string {
-  const match = /^\s*data:([^;,]+)[;,]/i.exec(value);
-  const mime = match?.[1]?.toLowerCase();
-  return mime && mime.startsWith("image/") ? mime : "image/png";
-}
-
-function readStatus(payload: unknown): string | undefined {
-  if (!payload || typeof payload !== "object") return undefined;
-  const status = (payload as Record<string, unknown>).status;
-  return typeof status === "string" ? status : undefined;
 }
 
 function readPromptText(payload: unknown): string | undefined {

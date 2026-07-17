@@ -424,8 +424,8 @@ export function createLocalIpcHandlers(
       );
     },
     dbGetThreadRuntimeItems: ({ threadId }) => dbGetThreadRuntimeItems(threadId),
-    dbGetThreadRuntimeItemsPage: ({ threadId, beforePosition, limit }) =>
-      dbGetThreadRuntimeItemsPage(threadId, beforePosition, limit),
+    dbGetThreadRuntimeItemsPage: ({ threadId, beforePosition, limit, targetTimelineEntryCount }) =>
+      dbGetThreadRuntimeItemsPage(threadId, beforePosition, limit, targetTimelineEntryCount),
     dbTruncateThreadRuntimeAfter: ({ threadId, itemId }) =>
       dbTruncateThreadRuntimeAfter(threadId, itemId),
     dbReplaceThreadRuntimeItems: ({ threadId, items }) =>

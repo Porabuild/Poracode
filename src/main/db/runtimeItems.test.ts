@@ -209,4 +209,134 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(dbGetThreadRuntimeItems("thread-1")).toHaveLength(125);
     expect(dbGetThreadRuntimeItems("thread-1").at(-1)?.id).toBe("item-124");
   });
+
+  it("keeps a groupable run intact when a page boundary lands inside it", () => {
+    dbReplaceThreadRuntimeItems(
+      "thread-1",
+      Array.from({ length: 250 }, (_, index) => ({
+        id: `item-${index}`,
+        type:
+          index === 50
+            ? "assistant_message"
+            : index >= 30 && index <= 69
+              ? index % 2 === 0
+                ? "tool_call"
+                : "reasoning"
+              : "assistant_message",
+        state: "completed" as const,
+        streams: {},
+        ...(index === 50 ? { parentItemId: "tool-parent" } : {}),
+      })),
+    );
+
+    const tail = dbGetThreadRuntimeItemsPage("thread-1", undefined, 200);
+    expect(tail.items).toHaveLength(220);
+    expect(tail.items[0]?.id).toBe("item-30");
+    expect(tail.items.at(-1)?.id).toBe("item-249");
+    expect(tail.nextCursor).toBe(30);
+
+    const older = dbGetThreadRuntimeItemsPage("thread-1", tail.nextCursor ?? undefined, 200);
+    expect(older.items).toHaveLength(30);
+    expect(older.items[0]?.id).toBe("item-0");
+    expect(older.items.at(-1)?.id).toBe("item-29");
+    expect(older.nextCursor).toBeNull();
+  });
+
+  it("fills one page by projected timeline entries across dense tool runs", () => {
+    dbReplaceThreadRuntimeItems("thread-1", [
+      { id: "assistant-0", type: "assistant_message", state: "completed", streams: {} },
+      ...Array.from({ length: 30 }, (_, index) => ({
+        id: `group-a-${index}`,
+        type: "command_execution" as const,
+        state: "completed" as const,
+        streams: {},
+      })),
+      { id: "assistant-1", type: "assistant_message", state: "completed", streams: {} },
+      ...Array.from({ length: 30 }, (_, index) => ({
+        id: `group-b-${index}`,
+        type: "command_execution" as const,
+        state: "completed" as const,
+        streams: {},
+      })),
+      { id: "assistant-2", type: "assistant_message", state: "completed", streams: {} },
+      ...Array.from({ length: 30 }, (_, index) => ({
+        id: `group-c-${index}`,
+        type: "command_execution" as const,
+        state: "completed" as const,
+        streams: {},
+      })),
+      { id: "assistant-3", type: "assistant_message", state: "completed", streams: {} },
+    ]);
+
+    const page = dbGetThreadRuntimeItemsPage("thread-1", undefined, 10, 4);
+    expect(page.items).toHaveLength(62);
+    expect(page.items[0]?.id).toBe("group-b-0");
+    expect(page.items.at(-1)?.id).toBe("assistant-3");
+    expect(page.nextCursor).toBe(32);
+  });
+
+  it("returns exact 40-row timeline pages instead of the full raw scan batch", () => {
+    dbReplaceThreadRuntimeItems(
+      "thread-1",
+      Array.from({ length: 90 }, (_, index) => ({
+        id: `assistant-${index}`,
+        type: "assistant_message" as const,
+        state: "completed" as const,
+        streams: {},
+      })),
+    );
+
+    const tail = dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
+    expect(tail.items).toHaveLength(40);
+    expect(tail.items[0]?.id).toBe("assistant-50");
+    expect(tail.items.at(-1)?.id).toBe("assistant-89");
+    expect(tail.nextCursor).toBe(50);
+
+    const older = dbGetThreadRuntimeItemsPage("thread-1", tail.nextCursor ?? undefined, 500, 40);
+    expect(older.items).toHaveLength(40);
+    expect(older.items[0]?.id).toBe("assistant-10");
+    expect(older.items.at(-1)?.id).toBe("assistant-49");
+    expect(older.nextCursor).toBe(10);
+  });
+
+  it("counts subagent parents and inline images as standalone rendered rows", () => {
+    dbReplaceThreadRuntimeItems("thread-1", [
+      { id: "assistant-0", type: "assistant_message", state: "completed", streams: {} },
+      { id: "command-0", type: "command_execution", state: "completed", streams: {} },
+      { id: "command-1", type: "command_execution", state: "completed", streams: {} },
+      {
+        id: "subagent",
+        type: "tool_call",
+        state: "completed",
+        payload: { name: "spawnAgent", isSubAgent: true },
+        streams: {},
+      },
+      {
+        id: "subagent-child",
+        type: "assistant_message",
+        state: "completed",
+        streams: {},
+        parentItemId: "subagent",
+      },
+      {
+        id: "image",
+        type: "image_view",
+        state: "completed",
+        payload: { name: "imageView", images: ["data:image/png;base64,iVBORw0KGgo="] },
+        streams: {},
+      },
+      { id: "assistant-1", type: "assistant_message", state: "completed", streams: {} },
+    ]);
+
+    const page = dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 4);
+    expect(page.items.map((item) => item.id)).toEqual([
+      "command-0",
+      "command-1",
+      "subagent",
+      "subagent-child",
+      "image",
+      "assistant-1",
+    ]);
+    expect(page.nextCursor).toBe(1);
+  });
 });

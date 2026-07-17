@@ -49,6 +49,9 @@ publicHoistPattern:
 nodeLinker: hoisted
 
 minimumReleaseAgeExclude:
+  # LegendList 3.3.3 contains the web anchoring and batched measurement fixes
+  # required by the chat transcript virtualizer migration.
+  - "@legendapp/list@3.3.3"
   # Already present in the lockfile when the supply-chain guard was added.
   - "react@19.2.7"
   - "react-dom@19.2.7"

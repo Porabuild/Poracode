@@ -2,7 +2,6 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  imageViewHasRenderableImage,
   imageViewRendersInline,
   imageViewSourceFromImageBlock,
   resolveImageViewSource,
@@ -118,16 +117,6 @@ describe("resolveImageViewSource", () => {
     const source = resolveImageViewSource({ name: "imageGeneration", result: PNG_BASE64 });
     expect(source?.alt).toBe("Generated image");
     expect(source?.fileName).toBe("generated-image.png");
-  });
-});
-
-describe("imageViewHasRenderableImage", () => {
-  it("agrees with resolveImageViewSource on image presence", () => {
-    expect(imageViewHasRenderableImage({ name: "imageGeneration", result: PNG_BASE64 })).toBe(true);
-    expect(imageViewHasRenderableImage({ name: "imageGeneration", result: "just text" })).toBe(
-      false,
-    );
-    expect(imageViewHasRenderableImage(undefined)).toBe(false);
   });
 });
 
