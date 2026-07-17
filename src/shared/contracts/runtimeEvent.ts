@@ -52,6 +52,7 @@ export type RuntimeContentStreamKind = z.infer<typeof runtimeContentStreamKindSc
 export const canonicalContentBlockSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), text: z.string() }),
   z.object({ kind: z.literal("skill"), name: z.string(), invocation: z.string() }),
+  z.object({ kind: z.literal("mcp"), name: z.string() }),
   z.object({
     kind: z.literal("image"),
     mimeType: z.string(),

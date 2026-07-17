@@ -69,6 +69,18 @@ describe("buildPromptContentBlocks", () => {
       },
     ]);
   });
+
+  it("preserves MCP mention segments as mcp blocks for badge rendering", () => {
+    expect(
+      buildPromptContentBlocks("@Browser open the page", [
+        { kind: "mcp", id: "browser", name: "Browser" },
+        { kind: "text", content: " open the page" },
+      ]),
+    ).toEqual([
+      { kind: "mcp", name: "Browser" },
+      { kind: "text", text: " open the page" },
+    ]);
+  });
 });
 
 describe("toFileUrl", () => {

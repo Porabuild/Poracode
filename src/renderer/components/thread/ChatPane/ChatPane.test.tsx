@@ -1129,6 +1129,20 @@ describe("ChatPane", () => {
     expect(screen.queryByText("$simplify")).not.toBeInTheDocument();
   });
 
+  it("renders MCP mentions in user messages as badges", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [{ kind: "mcp", name: "Browser" }]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = container.querySelector('[data-mcp-name="Browser"]');
+    expect(badge).toHaveTextContent("Browser");
+    expect(badge?.querySelector("svg")).toBeInTheDocument();
+    // The raw `@Browser` directive text is replaced by the badge.
+    expect(screen.queryByText("@Browser")).not.toBeInTheDocument();
+  });
+
   it("copies user message text from the inline action", async () => {
     const thread = makeThread();
     seedUserMessage(thread.id, "Copy this prompt");

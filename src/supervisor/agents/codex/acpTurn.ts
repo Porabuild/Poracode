@@ -60,9 +60,19 @@ export function buildCodexTurnInput(
     }
   }
 
+  // When a skill segment is present the outgoing text is rebuilt from segments
+  // (skills/files/attachments already went into `input` structurally). MCP
+  // mentions have no Codex input type, so their `@Name` directive must ride
+  // along here as text — otherwise it would be silently dropped.
   const text = hasSkillSegment
     ? (segments ?? [])
-        .flatMap((segment) => (segment.kind === "text" ? [segment.content] : []))
+        .flatMap((segment) =>
+          segment.kind === "text"
+            ? [segment.content]
+            : segment.kind === "mcp"
+              ? [`@${segment.name}`]
+              : [],
+        )
         .join("")
         .trim()
     : prompt;

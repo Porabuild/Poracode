@@ -168,11 +168,13 @@ describe("MCP mention selection", () => {
     onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
   };
 
-  it("keeps an enabled MCP mention in the prompt for the agent", () => {
+  it("inserts an enabled MCP mention as a badge that flattens to the agent directive", () => {
     const onMcpMentionSelect = vi.fn<(id: string) => void>();
+    const ref = createRef<MentionInputHandle>();
     render(
       createElement(MentionInput, {
         ...baseProps,
+        ref,
         mcpMentions: [
           {
             id: "browser",
@@ -189,7 +191,12 @@ describe("MCP mention selection", () => {
     const editor = typeMention("bro");
     fireEvent.keyDown(editor, { key: "Enter" });
 
-    expect(editor).toHaveTextContent("@Browser");
+    const chip = editor.querySelector("[data-mcp-name]");
+    expect(chip).not.toBeNull();
+    expect(chip).toHaveAttribute("data-mcp-id", "browser");
+    expect(chip).toHaveAttribute("data-mcp-name", "Browser");
+    // The badge still flattens to the `@Browser` directive the agent reads.
+    expect(ref.current?.serialize()).toBe("@Browser");
     expect(onMcpMentionSelect).not.toHaveBeenCalled();
   });
 

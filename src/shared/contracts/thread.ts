@@ -98,6 +98,7 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
     provider: z.string().min(1),
     scope: z.enum(["global", "project"]),
   }),
+  z.object({ kind: z.literal("mcp"), id: z.string().min(1), name: z.string().min(1) }),
 ]);
 export type PromptSegment = z.infer<typeof promptSegmentSchema>;
 

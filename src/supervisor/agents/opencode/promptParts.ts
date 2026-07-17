@@ -200,6 +200,11 @@ export function buildOpenCodePromptParts(
         if (segment.content.length > 0) parts.push({ type: "text", text: segment.content });
         continue;
       }
+      if (segment.kind === "mcp") {
+        // MCP mentions are a plain-text directive for the turn, not a file ref.
+        parts.push({ type: "text", text: `@${segment.name}` });
+        continue;
+      }
       const absolute = resolveAbsolutePath(location, segment.path);
       const url = fileUrlForPath(location, absolute);
       const mime = mimeForSegment(segment, absolute);

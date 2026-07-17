@@ -2571,7 +2571,8 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   cursor: default;
 }
 
-.poracode-slash-chip[data-skill-name] {
+.poracode-slash-chip[data-skill-name],
+.poracode-slash-chip[data-mcp-name] {
   gap: 0.25em;
 }
 

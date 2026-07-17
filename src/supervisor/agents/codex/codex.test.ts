@@ -1795,6 +1795,31 @@ describe("Codex skills", () => {
       { type: "text", text: "focus on security", text_elements: [] },
     ]);
   });
+
+  it("keeps an MCP mention directive in the text when a skill segment is also present", () => {
+    expect(
+      buildCodexTurnInput("$review-code @Browser check the page", [
+        {
+          kind: "skill",
+          name: "review-code",
+          path: "/home/me/.agents/skills/review-code/SKILL.md",
+          invocation: "$review-code",
+          provider: "Codex",
+          scope: "global",
+        },
+        { kind: "text", content: " " },
+        { kind: "mcp", id: "browser", name: "Browser" },
+        { kind: "text", content: " check the page" },
+      ]),
+    ).toEqual([
+      {
+        type: "skill",
+        name: "review-code",
+        path: "/home/me/.agents/skills/review-code/SKILL.md",
+      },
+      { type: "text", text: "@Browser check the page", text_elements: [] },
+    ]);
+  });
 });
 
 describe("mapCodexRequirements", () => {

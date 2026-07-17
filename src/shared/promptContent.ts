@@ -122,6 +122,8 @@ export function inlinePromptSegmentText(segment: PromptSegment): string {
       return `@${segment.path}`;
     case "skill":
       return segment.invocation;
+    case "mcp":
+      return `@${segment.name}`;
     case "text":
       return segment.content;
   }
@@ -168,6 +170,11 @@ export function buildPromptContentBlocks(
 
     if (segment.kind === "skill") {
       content.push({ kind: "skill", name: segment.name, invocation: segment.invocation });
+      continue;
+    }
+
+    if (segment.kind === "mcp") {
+      content.push({ kind: "mcp", name: segment.name });
       continue;
     }
 

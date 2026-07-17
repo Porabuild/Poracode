@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { PromptSegment } from "@/shared/contracts";
+import { createMcpMentionChipElement } from "./McpMentionChip";
 import { createSlashCommandChipElement } from "./SlashCommandChip";
 import {
   rebuildEditedPromptSegments,
@@ -64,6 +65,17 @@ describe("serializeComposerContent", () => {
     container.appendChild(document.createTextNode(" please"));
 
     expect(serializeComposerContent(container)).toBe("check @src/main.ts please");
+  });
+
+  it("serializes an MCP mention chip as an mcp segment that flattens to @name", () => {
+    container.appendChild(createMcpMentionChipElement({ id: "browser", name: "Browser" }));
+    container.appendChild(document.createTextNode(" open the page"));
+
+    expect(serializeToSegments(container)).toEqual([
+      { kind: "mcp", id: "browser", name: "Browser" },
+      { kind: "text", content: " open the page" },
+    ]);
+    expect(serializeComposerContent(container)).toBe("@Browser open the page");
   });
 
   it("serializes BR as newline", () => {

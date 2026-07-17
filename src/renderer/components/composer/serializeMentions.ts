@@ -92,6 +92,12 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
       return;
     }
 
+    if (el.dataset.mcpId && el.dataset.mcpName) {
+      flushText();
+      segments.push({ kind: "mcp", id: el.dataset.mcpId, name: el.dataset.mcpName });
+      return;
+    }
+
     if (el.dataset.slashCommand) {
       if (
         el.dataset.skillName &&

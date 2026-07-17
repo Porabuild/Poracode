@@ -8,6 +8,7 @@ import type {
 } from "@/shared/contracts";
 import { fileNameFromPath, skillSegmentFromSlashCommand } from "@/shared/promptContent";
 import { createChipElement, type FileMentionData } from "./FileMentionChip";
+import { createMcpMentionChipElement } from "./McpMentionChip";
 import { createSlashCommandChipElement } from "./SlashCommandChip";
 import { MentionPopover, type MentionEntry } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
@@ -153,7 +154,7 @@ function detectTriggerRange(triggerChar: string): Range | null {
 }
 
 function hasEditorContent(editor: HTMLDivElement): boolean {
-  if (editor.querySelector("[data-mention-path], [data-slash-command]")) return true;
+  if (editor.querySelector("[data-mention-path], [data-slash-command], [data-mcp-id]")) return true;
   return (editor.textContent ?? "").trim().length > 0;
 }
 
@@ -212,6 +213,8 @@ function appendPromptSegments(parent: Node, segments: PromptSegment[]): void {
       parent.appendChild(
         createSlashCommandChipElement({ id: segment.name, ...skillChipDataset(segment) }),
       );
+    } else if (segment.kind === "mcp") {
+      parent.appendChild(createMcpMentionChipElement({ id: segment.id, name: segment.name }));
     }
   }
 }
@@ -566,10 +569,14 @@ export const MentionInput = forwardRef<
       range.deleteContents();
 
       if (entry.enabled) {
-        const mentionText = document.createTextNode(`@${entry.name} `);
-        range.insertNode(mentionText);
+        const chip = createMcpMentionChipElement({ id: entry.path, name: entry.name });
+        range.insertNode(chip);
+        // Trailing nbsp keeps the caret visually separate from the chip, matching
+        // the file mention chip.
+        const space = document.createTextNode(" ");
+        chip.after(space);
         const nextRange = document.createRange();
-        nextRange.setStartAfter(mentionText);
+        nextRange.setStartAfter(space);
         nextRange.collapse(true);
         sel.removeAllRanges();
         sel.addRange(nextRange);
@@ -666,7 +673,7 @@ export const MentionInput = forwardRef<
 
         if (node.nodeType === Node.TEXT_NODE && offset === 0) {
           const prev = node.previousSibling as HTMLElement | null;
-          if (prev?.dataset?.mentionPath || prev?.dataset?.slashCommand) {
+          if (prev?.dataset?.mentionPath || prev?.dataset?.slashCommand || prev?.dataset?.mcpId) {
             e.preventDefault();
             prev.remove();
             notifyTextChange();
@@ -676,7 +683,11 @@ export const MentionInput = forwardRef<
 
         if (node.nodeType === Node.ELEMENT_NODE && offset > 0) {
           const child = node.childNodes[offset - 1] as HTMLElement | undefined;
-          if (child?.dataset?.mentionPath || child?.dataset?.slashCommand) {
+          if (
+            child?.dataset?.mentionPath ||
+            child?.dataset?.slashCommand ||
+            child?.dataset?.mcpId
+          ) {
             e.preventDefault();
             child.remove();
             notifyTextChange();

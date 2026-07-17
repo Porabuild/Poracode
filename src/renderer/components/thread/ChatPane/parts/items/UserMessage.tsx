@@ -1,7 +1,7 @@
 import { memo, type ReactNode, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { Link, Surface, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, Plug, Sparkles } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
 import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
@@ -71,7 +71,10 @@ export const UserMessage = memo(function UserMessage({ item, checkpointRevert }:
   const text = body;
   const commandPrefixLength = slashCommand ? rawText.length - body.length : 0;
   const hasInlineContent = content.some(
-    (block) => block.kind === "skill" || (block.kind === "file" && block.source !== "attachment"),
+    (block) =>
+      block.kind === "skill" ||
+      block.kind === "mcp" ||
+      (block.kind === "file" && block.source !== "attachment"),
   );
   const attachments = enrichWithSelectorPayloads(
     buildUserPromptAttachments(content),
@@ -295,6 +298,7 @@ function buildUserPromptText(content: CanonicalContentBlock[]): string {
     .map((block) => {
       if (block.kind === "text") return block.text;
       if (block.kind === "skill") return block.invocation;
+      if (block.kind === "mcp") return `@${block.name}`;
       if (block.kind === "file" && block.source !== "attachment") return block.path;
       return "";
     })
@@ -338,6 +342,21 @@ function renderUserMessageInlineContent(
       return;
     }
 
+    if (block.kind === "mcp") {
+      // An @-mention is never part of a leading /slash-command prefix, so —
+      // unlike the skill/file branches — an mcp block can never fall inside the
+      // skipped region and needs no remainingSkip handling.
+      nodes.push(
+        <UserMessageSlashChip
+          key={`mcp-${index}-${block.name}`}
+          icon={<Plug aria-hidden="true" />}
+          label={block.name}
+          mcpName={block.name}
+        />,
+      );
+      return;
+    }
+
     if (block.kind === "file") {
       if (block.source === "attachment") return;
       if (remainingSkip >= block.path.length) {
@@ -365,15 +384,18 @@ function UserMessageSlashChip({
   icon,
   label,
   skillName,
+  mcpName,
 }: {
   icon: ReactNode;
   label: string;
   skillName?: string;
+  mcpName?: string;
 }) {
   return (
     <span
       className="poracode-slash-chip mr-1.5"
       {...(skillName ? { "data-skill-name": skillName } : {})}
+      {...(mcpName ? { "data-mcp-name": mcpName } : {})}
     >
       <span className="poracode-slash-chip__slash">{icon}</span>
       <span className="poracode-slash-chip__name">{label}</span>
