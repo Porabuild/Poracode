@@ -58,9 +58,10 @@ interface LocalStorageLoginConfig {
 
 /**
  * The provider authenticates its usage API with a long-lived key the user pastes
- * in (z.ai). There is no browser/OAuth step — the key is sealed via
- * {@link submitApiKey} and read back by the collector — but the provider still
- * lives in `PROVIDER_CONFIGS` so its stored-secret state surfaces like any login.
+ * in (for example, z.ai or Kimi). There is no browser/OAuth step — the key is
+ * sealed via {@link submitApiKey} and read back by the collector — but the
+ * provider still lives in `PROVIDER_CONFIGS` so its stored-secret state surfaces
+ * like any login.
  */
 interface ApiKeyLoginConfig {
   kind: "api-key";
@@ -131,11 +132,13 @@ const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
     // actually authenticates before prompting.
     validateSession: isOpenCodeLoginCookieLive,
   },
-  // z.ai's GLM Coding Plan quota API takes a Bearer API key, not a web cookie.
-  // The user pastes it in (see `submitApiKey`); the env/config key is resolved
-  // host-side instead and needs no entry here.
-  zai: { kind: "api-key" },
 };
+
+for (const descriptor of USAGE_PROVIDER_BY_ID.values()) {
+  if (descriptor.needsLogin && descriptor.mechanism === "api-key") {
+    PROVIDER_CONFIGS[descriptor.id] = { kind: "api-key" };
+  }
+}
 
 for (const providerId of Object.keys(PROVIDER_CONFIGS)) {
   if (!USAGE_PROVIDER_BY_ID.has(providerId)) {

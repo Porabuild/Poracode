@@ -5,6 +5,7 @@ import {
   isClaudeUsageProvider,
   pickUsageRings,
   resolveDisplayedProviders,
+  supportsApiKeyLogin,
   usageProvidersForAgentInstances,
   usageRingGroups,
 } from "./usageProviders";
@@ -36,6 +37,12 @@ describe("usageProviders", () => {
     expect(isClaudeUsageProvider("claude")).toBe(true);
     expect(isClaudeUsageProvider("claude:work")).toBe(true);
     expect(isClaudeUsageProvider("codex")).toBe(false);
+  });
+
+  it("derives API-key login support from provider descriptors", () => {
+    expect(supportsApiKeyLogin("zai")).toBe(true);
+    expect(supportsApiKeyLogin("kimi")).toBe(true);
+    expect(supportsApiKeyLogin("grok")).toBe(false);
   });
 
   it("adds Claude profile providers after the base Claude provider", () => {
@@ -97,6 +104,16 @@ describe("usageProviders", () => {
       { id: "monthly", label: "MCP", usedPercent: 22 },
     ];
     const rings = pickUsageRings("zai", windows);
+    expect(rings.outer?.id).toBe("session-5h");
+    expect(rings.inner?.id).toBe("weekly");
+  });
+
+  it("rings Kimi with the 5h rate limit outside and the weekly quota inside", () => {
+    const windows: UsageWindow[] = [
+      { id: "weekly", label: "Weekly", usedPercent: 10 },
+      { id: "session-5h", label: "Session (5h)", usedPercent: 70 },
+    ];
+    const rings = pickUsageRings("kimi", windows);
     expect(rings.outer?.id).toBe("session-5h");
     expect(rings.inner?.id).toBe("weekly");
   });

@@ -7,6 +7,7 @@ import { resolveCursorToken } from "./cursorCredentials";
 import { resolveFactoryCliToken } from "./factoryCredentials";
 import { resolveGeminiToken } from "./geminiCredentials";
 import { resolveGrokToken } from "./grokCredentials";
+import { resolveKimiToken } from "./kimiCredentials";
 import { resolveZaiToken } from "./zaiCredentials";
 
 /**
@@ -37,6 +38,7 @@ const tokenResolvers: Record<string, () => Promise<OAuthToken | undefined>> = {
   // wrap it so every entry shares the () => Promise<OAuthToken | undefined> shape.
   factory: async () => resolveFactoryCliToken(),
   zai: resolveZaiToken,
+  kimi: resolveKimiToken,
 };
 
 /** Per-provider refreshers (currently only Claude rejects/expired tokens). */

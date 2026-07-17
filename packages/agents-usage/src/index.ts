@@ -96,6 +96,14 @@ export {
 } from "./collectors/zai";
 export type { ZaiQuotaResponse } from "./collectors/zai";
 export {
+  collectKimi,
+  parseKimiUsage,
+  resolveKimiUsagesUrl,
+  KIMI_PROVIDER_ID,
+  KIMI_USAGES_ENDPOINT,
+} from "./collectors/kimi";
+export type { KimiUsagesResponse } from "./collectors/kimi";
+export {
   antigravityPool,
   antigravityPoolWindows,
   antigravityQuotaSummaryWindows,

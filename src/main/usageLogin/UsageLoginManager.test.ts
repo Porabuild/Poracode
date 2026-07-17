@@ -165,6 +165,12 @@ describe("UsageLoginManager API-key flow", () => {
     expect(hasUsageSecret(cacheDir, "zai")).toBe(true);
   });
 
+  it("seals a pasted Kimi Code key and reports it stored", async () => {
+    const manager = newManager(makePanel());
+    await expect(manager.submitApiKey("kimi", "kimi-secret")).resolves.toEqual({ ok: true });
+    expect(hasUsageSecret(cacheDir, "kimi")).toBe(true);
+  });
+
   it("rejects an empty key without storing anything", async () => {
     const manager = newManager(makePanel());
     await expect(manager.submitApiKey("zai", "   ")).resolves.toMatchObject({ ok: false });

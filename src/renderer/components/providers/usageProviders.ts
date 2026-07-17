@@ -34,8 +34,6 @@ export type UsageProvider = {
   label: string;
   /** Offers an in-app browser login (web-session cookie or OAuth device flow). */
   supportsBrowserLogin?: boolean;
-  /** Offers an in-app API-key paste sign-in (no browser step, e.g. z.ai). */
-  supportsApiKeyLogin?: boolean;
   /**
    * All windows reset on one shared clock, so the UI shows a single reset
    * countdown in the header instead of one per window (e.g. Cursor).
@@ -55,6 +53,11 @@ export type UsageProvider = {
    */
   ringGroups?: readonly UsageRingGroup[];
 };
+
+const USAGE_PROVIDER_DESCRIPTORS = allUsageProviderDescriptors();
+const USAGE_PROVIDER_BY_ID = new Map(
+  USAGE_PROVIDER_DESCRIPTORS.map((descriptor) => [descriptor.id, descriptor]),
+);
 
 /** Renderer-only presentation, keyed by provider id; merged onto the catalog. */
 const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
@@ -108,12 +111,18 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   // when the plan returns one. The monthly MCP-tools quota is a different kind of
   // limit, so it's deliberately omitted from the ring (it still shows as a card bar).
   zai: {
-    supportsApiKeyLogin: true,
+    rings: { outer: ["session-5h"], inner: ["weekly"] },
+  },
+  // Kimi For Coding reads the Kimi Code CLI credential automatically; the
+  // API-key paste is the fallback for users without a CLI sign-in. The 5h
+  // request rate limit is the fast outer ring, the weekly membership quota the
+  // slower inner one.
+  kimi: {
     rings: { outer: ["session-5h"], inner: ["weekly"] },
   },
 };
 
-const STATIC_USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = allUsageProviderDescriptors().map(
+const STATIC_USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = USAGE_PROVIDER_DESCRIPTORS.map(
   (d) => ({ id: d.id, label: d.label, ...RENDERER_META[d.id] }),
 );
 
@@ -172,7 +181,8 @@ export function supportsBrowserLogin(providerId: string): boolean {
 
 /** Providers that sign in by pasting an API key (no browser step, e.g. z.ai). */
 export function supportsApiKeyLogin(providerId: string): boolean {
-  return rendererMeta(providerId)?.supportsApiKeyLogin === true;
+  const descriptor = USAGE_PROVIDER_BY_ID.get(baseAgentKind(providerId));
+  return descriptor?.needsLogin === true && descriptor.mechanism === "api-key";
 }
 
 /** Providers whose windows share one reset clock (one header countdown, no per-window resets). */

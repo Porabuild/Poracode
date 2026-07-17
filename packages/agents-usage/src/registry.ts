@@ -6,6 +6,7 @@ import { collectCursor } from "./collectors/cursor";
 import { collectFactory } from "./collectors/factory";
 import { collectGemini } from "./collectors/gemini";
 import { collectGrok } from "./collectors/grok";
+import { collectKimi } from "./collectors/kimi";
 import { collectZai } from "./collectors/zai";
 import type { CollectOptions, HostPort } from "./host";
 import { BUILT_IN_USAGE_PROVIDER_DESCRIPTORS } from "./providers";
@@ -66,6 +67,11 @@ const ZAI_COLLECTOR: UsageCollector = {
   collect: collectZai,
 };
 
+const KIMI_COLLECTOR: UsageCollector = {
+  descriptor: BUILT_IN_USAGE_PROVIDER_DESCRIPTORS.kimi,
+  collect: collectKimi,
+};
+
 // Antigravity is collected supervisor-side from its local language server
 // (LS-only), not here; see src/supervisor/runtime/antigravityUsageScanner.ts.
 
@@ -79,6 +85,7 @@ const BUILT_IN: UsageCollector[] = [
   COMMANDCODE_COLLECTOR,
   FACTORY_COLLECTOR,
   ZAI_COLLECTOR,
+  KIMI_COLLECTOR,
 ];
 
 export interface UsageCollectorRegistry {
