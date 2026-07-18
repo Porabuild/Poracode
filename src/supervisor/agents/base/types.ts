@@ -96,6 +96,8 @@ export interface ThreadHistory {
 
 export interface StructuredSessionHandle {
   launchOptions: AgentLaunchOptions;
+  /** Whether a provider-native root or child session belongs to this thread. */
+  ownsProviderSession?(providerSessionId: string): boolean;
   activate?(): Promise<void>;
   openThread?(config: ThreadConfig, sessionRef?: SessionRef): Promise<string>;
   ensureResumeArtifacts?(): Promise<void>;
@@ -122,6 +124,12 @@ export interface StructuredSessionHandle {
   ): Promise<void>;
   interruptTurn?(): Promise<void>;
   resolveServerRequest?(requestId: ThreadServerRequestId, response: unknown): Promise<void>;
+  /**
+   * Swap the live session onto a new resolved MCP set (provider-level MCP
+   * settings changed). Implementations restart or re-sync their backing
+   * server; sessions without this hook pick the new set up on next launch.
+   */
+  updateMcpServers?(mcpServers: readonly ResolvedMcpServer[]): Promise<void>;
   readThread?(): Promise<ThreadHistory>;
   rollbackThread?(numTurns: number): Promise<ThreadHistory>;
   setListener(listener: StructuredSessionListener): void;

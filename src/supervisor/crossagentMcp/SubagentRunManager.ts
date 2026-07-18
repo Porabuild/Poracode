@@ -68,6 +68,7 @@ interface RunRecord {
    */
   pendingRequestIds: Set<string>;
   cancelRequested: boolean;
+  turnStarted: boolean;
   settled: boolean;
   settledPromise: Promise<void>;
   resolveSettled: () => void;
@@ -212,6 +213,7 @@ export class SubagentRunManager {
       oneShot: undefined,
       pendingRequestIds: new Set<string>(),
       cancelRequested: false,
+      turnStarted: false,
       settled: false,
       settledPromise,
       resolveSettled,
@@ -327,10 +329,14 @@ export class SubagentRunManager {
       return;
     }
     try {
-      const mcpAccess = await this.deps.host.resolveParentMcpAccess?.(record.parentThreadId, {
-        threadId: record.childThreadId,
-        title: record.label,
-      });
+      const mcpAccess = await this.deps.host.resolveParentMcpAccess?.(
+        record.parentThreadId,
+        {
+          threadId: record.childThreadId,
+          title: record.label,
+        },
+        adapter.kind,
+      );
       const handle = await adapter.createStructuredSession?.({
         threadId: record.childThreadId,
         projectLocation,
@@ -350,7 +356,11 @@ export class SubagentRunManager {
       handle.setListener({
         onClose: () => this.settle(record, "completed"),
         onError: (message) => this.settle(record, "failed", message),
-        onUpdate: () => {},
+        onUpdate: (update) => {
+          if (record.turnStarted && update.status === "idle") {
+            this.settle(record, "completed");
+          }
+        },
         onRuntimeEvent: (event) => this.onChildEvent(record, event),
       });
 
@@ -358,7 +368,10 @@ export class SubagentRunManager {
       if (record.cancelRequested) return void this.settle(record, "cancelled");
       if (handle.openThread) await handle.openThread(childConfig);
       if (record.cancelRequested) return void this.settle(record, "cancelled");
-      if (handle.startTurn) await handle.startTurn(prompt, childConfig);
+      if (handle.startTurn) {
+        record.turnStarted = true;
+        await handle.startTurn(prompt, childConfig);
+      }
     } catch (error) {
       this.settle(
         record,

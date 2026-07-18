@@ -59,9 +59,17 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
-  // Browser MCP: no per-thread gating point in either presentation — the TUI
-  // Both presentations receive the same launch-resolved MCP collection.
-  mcpScope: { terminal: "launch", gui: "launch" },
+  // MCP is provider-level for OpenCode: the composer shows no MCP controls;
+  // built-in server flags come from the OpenCode settings page
+  // (`agentSettings.opencode`) at launch. OpenCode applies that set to each
+  // project directory inside the shared runtime server instead of hosting
+  // per-thread MCP credentials.
+  mcpScope: { terminal: "none", gui: "none" },
+  mcpConfigSource: "agentSettings",
+  // The installed OpenCode plugin injects the trusted provider session id
+  // into Crossagents calls, allowing every directory/session in the pooled
+  // server to share one MCP credential without losing parent-thread routing.
+  crossagentMcpRouting: "provider-session",
   settingDefs: [],
 };
 
@@ -424,16 +432,14 @@ export const opencodeDetectionSpec: DetectionSpec = {
     // `opencode serve`). If the server fails to come up — corporate firewall,
     // sandboxed binary, missing libc — fall back to the CLI `models --verbose`
     // parser so the user still sees a usable model list.
-    const sdkInventory = await probeOpenCodeInventoryViaSdk(ctx.location, ctx.executablePath).catch(
-      (cause) => {
-        console.warn(
-          `[opencode] SDK capabilities probe failed, falling back to CLI parser: ${
-            cause instanceof Error ? cause.message : String(cause)
-          }`,
-        );
-        return undefined;
-      },
-    );
+    const sdkInventory = await probeOpenCodeInventoryViaSdk(ctx.location).catch((cause) => {
+      console.warn(
+        `[opencode] SDK capabilities probe failed, falling back to CLI parser: ${
+          cause instanceof Error ? cause.message : String(cause)
+        }`,
+      );
+      return undefined;
+    });
 
     if (sdkInventory) {
       return buildCapabilityPartialFromSdkInventory(sdkInventory);

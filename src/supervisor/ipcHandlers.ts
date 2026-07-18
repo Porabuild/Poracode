@@ -53,6 +53,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     stageThreadInput: (payload) => threads.stageThreadInput(payload),
     resizeTerminal: (payload) => threads.resizeTerminal(payload),
     resolveThreadServerRequest: (payload) => threads.resolveThreadServerRequest(payload),
+    reloadAgentMcpServers: (payload) => threads.reloadAgentMcpServers(payload),
     closeThread: (payload) => threads.closeThread(payload),
     startShell: (payload) => threads.startShell(payload),
     extractContext: (payload) => generation.extractContext(payload),

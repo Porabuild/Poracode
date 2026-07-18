@@ -671,7 +671,7 @@ describe("chatPaneSelectors", () => {
           "agent-running": {
             ...items["agent-running"],
             state: "completed",
-            payload: { ...items["agent-running"].payload, status: "success" },
+            payload: { ...items["agent-running"].payload },
           },
         },
       },

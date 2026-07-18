@@ -119,6 +119,32 @@ export function effectiveLaunchConfig(
   return next;
 }
 
+/**
+ * Launch config for providers that declare `mcpConfigSource: "agentSettings"`:
+ * the built-in MCP flags come from the provider's saved settings
+ * (`sharedSettings.agentSettings[kind]`) instead of the per-thread composer
+ * flags. Crossagents remains off unless the provider explicitly supports
+ * trusted provider-session routing, which lets a pooled runtime share one MCP
+ * credential without losing the calling parent thread.
+ */
+export function applyAgentSettingsMcpFlags(
+  config: ThreadConfig,
+  agentSettings: Record<string, boolean | string>,
+  disabledBuiltInMcpServerIds: readonly BuiltInMcpServerId[],
+  providerSessionCrossagents: boolean,
+): ThreadConfig {
+  return effectiveLaunchConfig(
+    {
+      ...config,
+      browserMcp: agentSettings.browserMcp === true,
+      chromeMcp: agentSettings.chromeMcp === true,
+      computerUse: agentSettings.computerUse === true,
+      crossagentMcp: providerSessionCrossagents && agentSettings.crossagentMcp === true,
+    },
+    disabledBuiltInMcpServerIds,
+  );
+}
+
 export function composeResolvedMcpServers(
   snapshot: McpLaunchSnapshot,
   browserMcp: BrowserMcpHttpConfig | undefined,
@@ -129,7 +155,13 @@ export function composeResolvedMcpServers(
 ): ResolvedMcpServer[] {
   const http = (
     id: BuiltInMcpServerId,
-    config: { url: string; headers: Record<string, string> } | undefined,
+    config:
+      | {
+          url: string;
+          headers: Record<string, string>;
+          disabledTools?: readonly string[];
+        }
+      | undefined,
     timeoutMs = DEFAULT_MCP_SERVER_TIMEOUT_MS,
     approvalMode?: "approve",
   ): ResolvedMcpServer | undefined =>
@@ -139,6 +171,9 @@ export function composeResolvedMcpServers(
           name: BUILT_IN_MCP_SERVER_NAMES[id],
           timeoutMs,
           transport: { type: "http", url: config.url, headers: config.headers },
+          ...(config.disabledTools && config.disabledTools.length > 0
+            ? { disabledTools: [...config.disabledTools] }
+            : {}),
           ...(approvalMode ? { approvalMode } : {}),
         }
       : undefined;
@@ -297,6 +332,7 @@ export class SpawnPipeline {
       mcpLaunchSnapshot,
       identity: mcpIdentity,
       crossagentThreadId: payload.threadId,
+      adapter,
     });
     const structuredSession = await this.createStructuredSession(
       adapter,
@@ -591,6 +627,7 @@ export class SpawnPipeline {
       mcpLaunchSnapshot,
       identity: mcpIdentity,
       crossagentThreadId: session.threadId,
+      adapter: session.adapter,
     });
     const structuredSession = await this.createStructuredSession(
       session.adapter,
@@ -872,13 +909,32 @@ export class SpawnPipeline {
     mcpLaunchSnapshot,
     identity,
     crossagentThreadId,
+    adapter,
   }: {
     location: ProjectLocation;
     config: ThreadConfig;
     mcpLaunchSnapshot: McpLaunchSnapshot;
     identity?: McpThreadIdentity;
     crossagentThreadId?: string;
+    adapter?: AgentAdapter;
   }): Promise<ResolvedMcpServer[]> {
+    const providerSessionCrossagents =
+      adapter?.capabilities.crossagentMcpRouting === "provider-session" &&
+      crossagentThreadId !== undefined;
+    if (adapter?.capabilities.mcpConfigSource === "agentSettings") {
+      // Provider-level MCP: flags come from the provider's settings page. Drop
+      // the thread identity so a shared provider runtime never retains
+      // per-thread bearer credentials; project-specific config is routed by
+      // the provider's directory-scoped client.
+      config = applyAgentSettingsMcpFlags(
+        config,
+        this.ctx.resolveAgentSettings(adapter),
+        mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+        providerSessionCrossagents,
+      );
+      identity = undefined;
+      if (!providerSessionCrossagents) crossagentThreadId = undefined;
+    }
     const browserMcp = await this.resolveBrowserMcpForLaunch(
       location,
       config,
@@ -891,6 +947,7 @@ export class SpawnPipeline {
           location,
           config,
           mcpLaunchSnapshot,
+          providerSessionCrossagents,
         )
       : undefined;
     const computerUseMcp = this.resolveComputerUseMcpForLaunch(
@@ -1004,12 +1061,16 @@ export class SpawnPipeline {
     location: ProjectLocation,
     config: ThreadConfig,
     mcpLaunchSnapshot: McpLaunchSnapshot,
+    providerSessionRouting = false,
   ): Promise<CrossagentMcpHttpConfig | undefined> {
-    if (config.crossagentMcp !== true) return undefined;
-    const native = this.ctx.options.crossagentMcp?.register(
-      threadId,
-      mcpLaunchSnapshot.disabledBuiltInMcpTools?.crossagents ?? [],
-    );
+    if (config.crossagentMcp !== true) {
+      this.ctx.options.crossagentMcp?.unregister(threadId);
+      return undefined;
+    }
+    const disabledTools = mcpLaunchSnapshot.disabledBuiltInMcpTools?.crossagents ?? [];
+    const native = providerSessionRouting
+      ? this.ctx.options.crossagentMcp?.registerProviderSession(threadId, disabledTools)
+      : this.ctx.options.crossagentMcp?.register(threadId, disabledTools);
     return resolveCrossagentMcpHttpConfigForLaunch(
       native,
       location,
@@ -1070,7 +1131,9 @@ export class SpawnPipeline {
         config,
         agentSettings: this.ctx.resolveAgentSettings(adapter),
         ...(mcpIdentity ? { mcpIdentity } : {}),
-        ...(mcpServers.length > 0 ? { mcpServers } : {}),
+        ...(mcpServers.length > 0 || adapter.capabilities.mcpConfigSource === "agentSettings"
+          ? { mcpServers }
+          : {}),
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),
       });

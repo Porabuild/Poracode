@@ -269,6 +269,28 @@ export const agentCapabilitySchema = z.object({
   bypassPermissions: bypassPermissionsSchema.optional(),
   /** Composer MCP toggle gating for every server. */
   mcpScope: composerMcpScopesSchema.optional(),
+  /**
+   * Where the provider's MCP launch flags come from:
+   *
+   * - absent / "thread": per-thread `ThreadConfig` flags set by the composer
+   *   MCP controls (the default for every provider).
+   * - "agentSettings": provider-level — flags are read from
+   *   `sharedSettings.agentSettings[kind]` at launch, the composer shows no
+   *   MCP controls at all, and the MCP set is identical across the provider's
+   *   threads (letting pooled servers stay stable). Configured from the
+   *   provider's settings page.
+   */
+  mcpConfigSource: z.enum(["thread", "agentSettings"]).optional(),
+  /**
+   * How Crossagents identifies the calling parent thread:
+   *
+   * - absent / "thread-token": the MCP bearer token maps directly to one
+   *   Poracode thread (the default for provider processes launched per thread).
+   * - "provider-session": one provider-runtime credential is shared, and a
+   *   trusted provider hook adds the native session id to every tool call so
+   *   the supervisor can resolve the live parent thread at call time.
+   */
+  crossagentMcpRouting: z.enum(["thread-token", "provider-session"]).optional(),
   settingDefs: z.array(agentSettingDefSchema).default([]),
   /** Populated when the Claude Agent SDK init probe succeeds (install detection). */
   slashCommands: z.array(agentSlashCommandSchema).optional(),

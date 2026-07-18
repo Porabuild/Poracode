@@ -14,6 +14,8 @@ import {
   mcpProbePayloadSchema,
   type McpProbePayload,
   type McpProbeResult,
+  reloadAgentMcpServersPayloadSchema,
+  type ReloadAgentMcpServersPayload,
 } from "../../contracts";
 import { defineNoArgProcedure, definePayloadProcedure } from "../core";
 
@@ -27,6 +29,11 @@ export const mcpProcedures = {
     "probeMcpServer",
     "supervisor",
     mcpProbePayloadSchema,
+  ),
+  reloadAgentMcpServers: definePayloadProcedure<ReloadAgentMcpServersPayload, void, "supervisor">(
+    "reloadAgentMcpServers",
+    "supervisor",
+    reloadAgentMcpServersPayloadSchema,
   ),
   beginMcpServerOauth: definePayloadProcedure<
     McpOauthBeginPayload,

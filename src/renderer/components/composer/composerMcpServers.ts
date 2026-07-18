@@ -41,6 +41,19 @@ export function resolveMcpScope(
   return scopes?.terminal ?? "none";
 }
 
+/**
+ * Providers that declare `mcpConfigSource: "agentSettings"` configure MCP on
+ * their settings page instead of the composer: the "+" menu shows no MCP rows
+ * at all for their threads (built-ins are hidden by their `"none"` scopes;
+ * callers use this to suppress the custom-server rows and read-only fallbacks
+ * too).
+ */
+export function providerOwnsMcpConfig(
+  capabilities: Pick<AgentCapability, "mcpConfigSource">,
+): boolean {
+  return capabilities.mcpConfigSource === "agentSettings";
+}
+
 export interface ComposerMcpServerDescriptor {
   id: "browser" | "crossagents" | "chrome";
   configKey: ComposerMcpConfigKey;

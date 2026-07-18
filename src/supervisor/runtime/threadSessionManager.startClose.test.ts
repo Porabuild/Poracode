@@ -171,7 +171,49 @@ afterEach(async () => {
   }
 });
 
+describe("ThreadSessionManager provider-session routing", () => {
+  it("resolves both root and provider-owned child sessions to the live thread", () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    structuredSession.ownsProviderSession = (sessionId) => sessionId === "ses_child";
+    const adapter = createAdapter("opencode", structuredSession);
+    adapter.capabilities.crossagentMcpRouting = "provider-session";
+    const manager = createManager("opencode", adapter);
+    const runtime = createInactiveRuntime("opencode", adapter, structuredSession);
+    manager.sessions.set(runtime.threadId, runtime);
+    manager.sessionsBySessionId.set("ses_existing", runtime);
+
+    expect(manager.getThreadIdByProviderSessionId("ses_existing")).toBe(runtime.threadId);
+    expect(manager.getThreadIdByProviderSessionId("ses_child")).toBe(runtime.threadId);
+    expect(manager.getThreadIdByProviderSessionId("ses_unknown")).toBeUndefined();
+
+    delete adapter.capabilities.crossagentMcpRouting;
+    expect(manager.getThreadIdByProviderSessionId("ses_existing")).toBeUndefined();
+  });
+});
+
 describe("ThreadSessionManager start guards", () => {
+  it("passes an empty MCP set to provider-owned structured sessions", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("opencode", structuredSession);
+    adapter.capabilities.mcpConfigSource = "agentSettings";
+    const manager = createManager("opencode", adapter);
+
+    await manager.startThread({
+      threadId: "thread-opencode-empty-mcp",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      agentKind: "opencode",
+      config: { model: "opencode/model" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+      disabledBuiltInMcpServerIds: ["app-controls"],
+    });
+
+    expect(adapter.createStructuredSession).toHaveBeenCalledWith(
+      expect.objectContaining({ mcpServers: [] }),
+    );
+  });
+
   it.each(guardedStructuredProviders)(
     "disposes a %s structured GUI session that is closed before activation completes",
     async (agentKind) => {

@@ -94,7 +94,7 @@
     "@lingui/react": "6.4.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@monaco-editor/react": "^4.7.0",
-    "@opencode-ai/sdk": "^1.17.13",
+    "@opencode-ai/sdk": "^1.18.3",
     "@poracode/activity-bridge": "file:native/activity-bridge",
     "@poracode/agents-usage": "workspace:*",
     "@poracode/ssh-bridge": "file:native/ssh-bridge",

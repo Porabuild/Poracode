@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   getOpenCodePluginPaths,
@@ -95,8 +96,50 @@ describe("installOpenCodePlugin", () => {
 
     expect(isOpenCodePluginInstalled({ envKind: "posix", baseDir })).toMatchObject({
       installed: true,
-      version: "1.7.1",
+      version: "1.8.0",
     });
+  });
+
+  it("overwrites private Crossagents routing metadata from the trusted tool context", async () => {
+    const baseDir = makeBaseDir();
+    const opencodeDir = makeBaseDir();
+    process.env.OPENCODE_CONFIG_DIR = opencodeDir;
+    const result = installOpenCodePlugin({ envKind: "posix", baseDir });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const pluginUrl = `${pathToFileURL(result.paths.opencodePluginFile).href}?routing-test=${Date.now()}`;
+    const pluginModule = (await import(pluginUrl)) as {
+      default: {
+        server(): Promise<{
+          "tool.execute.before"?: (
+            input: { tool: string; sessionID: string },
+            output: { args: Record<string, unknown> },
+          ) => Promise<void>;
+        }>;
+      };
+    };
+    const hooks = await pluginModule.default.server();
+    const originalRouting = process.env.PORACODE_OPENCODE_SESSION_ROUTING;
+    process.env.PORACODE_OPENCODE_SESSION_ROUTING = "1";
+    try {
+      const output = { args: { __poracode_provider_session_id: "forged", prompt: "review" } };
+      await hooks["tool.execute.before"]?.(
+        { tool: "crossagents_run_agent", sessionID: "session-trusted" },
+        output,
+      );
+      expect(output.args.__poracode_provider_session_id).toBe("session-trusted");
+
+      const unrelated = { args: { prompt: "leave alone" } };
+      await hooks["tool.execute.before"]?.(
+        { tool: "custom_run_agent", sessionID: "session-trusted" },
+        unrelated,
+      );
+      expect(unrelated.args).toEqual({ prompt: "leave alone" });
+    } finally {
+      if (originalRouting === undefined) delete process.env.PORACODE_OPENCODE_SESSION_ROUTING;
+      else process.env.PORACODE_OPENCODE_SESSION_ROUTING = originalRouting;
+    }
   });
 
   it("scrubs a stale `file://` plugin entry that older builds left in opencode.json", () => {
@@ -143,6 +186,55 @@ describe("installOpenCodePlugin", () => {
 
     const config = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>;
     expect(config.plugin).toBeUndefined();
+  });
+
+  it("preserves user MCP entries whose names match Poracode built-ins", () => {
+    const baseDir = makeBaseDir();
+    const opencodeDir = makeBaseDir();
+    process.env.OPENCODE_CONFIG_DIR = opencodeDir;
+    const configPath = join(opencodeDir, "opencode.json");
+    const userMcp = Object.fromEntries(
+      ["browser", "crossagents", "chrome", "computer_use", "poracode"].map((name) => [
+        name,
+        { type: "local", command: [`user-${name}`] },
+      ]),
+    );
+    writeFileSync(configPath, JSON.stringify({ mcp: userMcp }), "utf8");
+
+    expect(installOpenCodePlugin({ envKind: "posix", baseDir }).ok).toBe(true);
+
+    const config = JSON.parse(readFileSync(configPath, "utf8")) as { mcp: unknown };
+    expect(config.mcp).toEqual(userMcp);
+  });
+
+  it("restores entries shadowed by the retired MCP config projection", () => {
+    const baseDir = makeBaseDir();
+    const opencodeDir = makeBaseDir();
+    process.env.OPENCODE_CONFIG_DIR = opencodeDir;
+    const configPath = join(opencodeDir, "opencode.json");
+    const sidecarPath = join(opencodeDir, ".poracode-managed-mcp.json");
+    const originalBrowser = { type: "local", command: ["user-browser"] };
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        mcp: {
+          browser: { type: "remote", url: "http://poracode/browser" },
+          poracode_only: { type: "remote", url: "http://poracode/only" },
+        },
+      }),
+      "utf8",
+    );
+    writeFileSync(
+      sidecarPath,
+      JSON.stringify({ browser: originalBrowser, poracode_only: null }),
+      "utf8",
+    );
+
+    expect(installOpenCodePlugin({ envKind: "posix", baseDir }).ok).toBe(true);
+
+    const config = JSON.parse(readFileSync(configPath, "utf8")) as { mcp: unknown };
+    expect(config.mcp).toEqual({ browser: originalBrowser });
+    expect(existsSync(sidecarPath)).toBe(false);
   });
 
   it("is idempotent — restaging produces the same end state", () => {
@@ -238,6 +330,7 @@ describe("uninstallOpenCodePlugin", () => {
           "@user/other-plugin",
           `file://${result.paths.pluginDir.replace(/\\/g, "/")}/poracode-status.mjs`,
         ],
+        mcp: { browser: { type: "local", command: ["user-browser"] } },
       }),
       "utf8",
     );
@@ -250,5 +343,6 @@ describe("uninstallOpenCodePlugin", () => {
 
     const config = JSON.parse(readFileSync(configPath, "utf8")) as Record<string, unknown>;
     expect(config.plugin).toEqual(["@user/other-plugin"]);
+    expect(config.mcp).toEqual({ browser: { type: "local", command: ["user-browser"] } });
   });
 });

@@ -48,6 +48,10 @@ export interface ThreadSessionManagerOptions {
       threadId: string,
       disabledTools?: readonly string[],
     ): CrossagentMcpHttpConfig | undefined;
+    registerProviderSession(
+      threadId: string,
+      disabledTools?: readonly string[],
+    ): CrossagentMcpHttpConfig | undefined;
     unregister(threadId: string): void;
     cancelAll(threadId: string): void;
     /**

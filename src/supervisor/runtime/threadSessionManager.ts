@@ -8,10 +8,12 @@ import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import {
   type ClearPendingSteerPayload,
   type AgentEventEnvelope,
+  type AgentKind,
   type CloseThreadPayload,
   type PromptSegment,
   type ProjectLocation,
   type ResizeTerminalPayload,
+  type ReloadAgentMcpServersPayload,
   type ResolveThreadServerRequestPayload,
   type RollbackThreadConversationPayload,
   type SendThreadInputPayload,
@@ -181,6 +183,30 @@ export class ThreadSessionManager {
     });
   }
 
+  /**
+   * Resolve a provider-native root or child session to its live Poracode
+   * thread. Root ids use the reverse index; provider-owned child sessions can
+   * opt into the fallback through `ownsProviderSession`.
+   */
+  getThreadIdByProviderSessionId(providerSessionId: string): string | undefined {
+    const indexed = this.sessionsBySessionId.get(providerSessionId);
+    if (indexed?.adapter.capabilities.crossagentMcpRouting === "provider-session") {
+      return indexed.threadId;
+    }
+
+    for (const session of this.sessions.values()) {
+      if (session.adapter.capabilities.crossagentMcpRouting !== "provider-session") continue;
+      if (session.sessionRef?.providerSessionId === providerSessionId) {
+        this.sessionsBySessionId.set(providerSessionId, session);
+        return session.threadId;
+      }
+      if (session.structuredSession?.ownsProviderSession?.(providerSessionId)) {
+        return session.threadId;
+      }
+    }
+    return undefined;
+  }
+
   getThreadSnapshots(): ThreadRuntimeSnapshot[] {
     return [...this.sessions.values()].map((session) => ({
       threadId: session.threadId,
@@ -247,9 +273,12 @@ export class ThreadSessionManager {
   async resolveSubagentParentMcpAccess(
     threadId: string,
     identity: McpThreadIdentity,
+    targetAgentKind: AgentKind,
   ): Promise<{ mcpServers?: ResolvedMcpServer[] }> {
     const session = this.sessions.get(threadId);
     if (!session) return {};
+    const targetAdapter = this.options.adapters.get(targetAgentKind);
+    if (!targetAdapter) return {};
     const mcpLaunchSnapshot = session.mcpLaunchSnapshot;
     const launchConfig = effectiveLaunchConfig(
       session.config,
@@ -260,8 +289,55 @@ export class ThreadSessionManager {
       config: launchConfig,
       mcpLaunchSnapshot,
       identity,
+      adapter: targetAdapter,
     });
-    return mcpServers.length > 0 ? { mcpServers } : {};
+    return mcpServers.length > 0 || targetAdapter.capabilities.mcpConfigSource === "agentSettings"
+      ? { mcpServers }
+      : {};
+  }
+
+  /**
+   * Apply a provider-level MCP settings change (the provider settings page's
+   * Save) to the provider's live sessions. Only meaningful for adapters that
+   * declare `mcpConfigSource: "agentSettings"` — their MCP set is re-resolved
+   * from the freshly saved settings and each structured session that exposes
+   * `updateMcpServers` applies the new set to its directory instance. Terminal
+   * threads and sessions without the hook pick the change up on next launch.
+   * Per-session failures are logged, never fatal: one broken directory update
+   * must not strand the remaining sessions on the old set.
+   */
+  async reloadAgentMcpServers(payload: ReloadAgentMcpServersPayload): Promise<void> {
+    const reloads: Promise<void>[] = [];
+    for (const session of this.sessions.values()) {
+      if (session.agentKind !== payload.agentKind) continue;
+      if (session.adapter.capabilities.mcpConfigSource !== "agentSettings") continue;
+      const update = session.structuredSession?.updateMcpServers?.bind(session.structuredSession);
+      if (!update) continue;
+      reloads.push(
+        (async () => {
+          try {
+            const launchConfig = effectiveLaunchConfig(
+              session.config,
+              session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds,
+            );
+            const mcpServers = await this.spawnPipeline.resolveMcpServersForLaunch({
+              location: session.projectLocation,
+              config: launchConfig,
+              mcpLaunchSnapshot: session.mcpLaunchSnapshot,
+              crossagentThreadId: session.threadId,
+              adapter: session.adapter,
+            });
+            await update(mcpServers);
+          } catch (error) {
+            console.warn(
+              `[supervisor] failed to reload MCP servers for thread ${session.threadId}:`,
+              error,
+            );
+          }
+        })(),
+      );
+    }
+    await Promise.all(reloads);
   }
 
   /**

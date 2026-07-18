@@ -63,6 +63,9 @@ class FakeHandle implements StructuredSessionHandle {
   completeTurn(state: "completed" | "failed" | "interrupted" | "cancelled"): void {
     this.emit({ type: "turn.completed", threadId: "child", turnId: "turn-1", state });
   }
+  update(status: "idle" | "working"): void {
+    this.listener?.onUpdate({ status, attention: "none" });
+  }
 }
 
 interface Harness {
@@ -70,6 +73,7 @@ interface Harness {
   handles: FakeHandle[];
   inputs: CreateStructuredSessionInput[];
   appended: Array<{ threadId: string; event: RuntimeEvent }>;
+  mcpTargets: string[];
 }
 
 function makeHarness(options?: {
@@ -79,6 +83,7 @@ function makeHarness(options?: {
   const handles: FakeHandle[] = [];
   const inputs: CreateStructuredSessionInput[] = [];
   const appended: Array<{ threadId: string; event: RuntimeEvent }> = [];
+  const mcpTargets: string[] = [];
 
   const adapter = {
     kind: "codex",
@@ -123,18 +128,21 @@ function makeHarness(options?: {
             },
           }
         : undefined,
-    resolveParentMcpAccess: async () => ({
-      mcpServers: ["browser", "computer_use", "chrome"].map((name) => ({
-        id: name,
-        name,
-        timeoutMs: 30_000,
-        transport: {
-          type: "http" as const,
-          url: `http://${name}/mcp`,
-          headers: { Authorization: `Bearer ${name}-token` },
-        },
-      })),
-    }),
+    resolveParentMcpAccess: async (_threadId, _identity, targetAgentKind) => {
+      mcpTargets.push(targetAgentKind);
+      return {
+        mcpServers: ["browser", "computer_use", "chrome"].map((name) => ({
+          id: name,
+          name,
+          timeoutMs: 30_000,
+          transport: {
+            type: "http" as const,
+            url: `http://${name}/mcp`,
+            headers: { Authorization: `Bearer ${name}-token` },
+          },
+        })),
+      };
+    },
     appendRuntimeEvent: (threadId, event) => appended.push({ threadId, event }),
   };
 
@@ -144,7 +152,7 @@ function makeHarness(options?: {
     ...(statusCapabilities ? { getStatusCapabilities: () => statusCapabilities } : {}),
     host,
   });
-  return { manager, handles, inputs, appended };
+  return { manager, handles, inputs, appended, mcpTargets };
 }
 
 describe("SubagentRunManager", () => {
@@ -338,6 +346,19 @@ describe("SubagentRunManager", () => {
     });
   });
 
+  it("settles on an idle update after the child turn starts", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+
+    h.handles[0]!.update("idle");
+
+    await expect(h.manager.waitFor(runId, 1000)).resolves.toEqual({
+      status: "completed",
+      output: "",
+    });
+  });
+
   it("does NOT forward child turn.completed onto the parent stream", async () => {
     const h = makeHarness();
     h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
@@ -408,6 +429,7 @@ describe("SubagentRunManager", () => {
     expect(childInput.config.approvalPolicy).toBe("never");
     expect(childInput.config.sandboxMode).toBe("danger-full-access");
     expect(childInput.presentationMode).toBe("gui");
+    expect(h.mcpTargets).toEqual(["codex"]);
     expect(childInput).not.toHaveProperty("crossagentMcp");
     expect(childInput.mcpServers).toEqual(
       expect.arrayContaining([

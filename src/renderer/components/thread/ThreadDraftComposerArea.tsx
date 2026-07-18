@@ -31,6 +31,7 @@ import {
   composerMcpServers,
   COMPUTER_USE_MCP_ID,
   mcpTogglePatch,
+  providerOwnsMcpConfig,
 } from "@/renderer/components/composer/composerMcpServers";
 import { openAttachmentLightbox } from "@/renderer/components/composer/ImageLightbox";
 import { openPdfPreview } from "@/renderer/components/pdf/openPdfPreview";
@@ -386,13 +387,15 @@ export function ThreadDraftComposerArea(props: {
   // the MCP Servers settings page — because custom servers bind at launch from
   // settings, not from per-thread config. The launch-time merge helper decides
   // which workspace entries override global ones, so the menu can't drift from
-  // what actually launches.
+  // what actually launches. Providers whose MCP set lives on their settings
+  // page show no rows here at all.
+  const hideCustomMcpRows = providerOwnsMcpConfig(props.selectedAgent.capabilities);
   const projectCustomMcpServers = props.project.mcpServers ?? [];
   const projectCustomMcpIds = new Set(projectCustomMcpServers.map((server) => server.id));
-  const customMcpServers: ComposerCustomMcpItem[] = mergeMcpServers(
-    userCustomMcpServers,
-    projectCustomMcpServers,
-  ).map((server) => {
+  const mergedCustomMcpServers = hideCustomMcpRows
+    ? []
+    : mergeMcpServers(userCustomMcpServers, projectCustomMcpServers);
+  const customMcpServers: ComposerCustomMcpItem[] = mergedCustomMcpServers.map((server) => {
     const isProject = projectCustomMcpIds.has(server.id);
     const scopedServers = isProject ? projectCustomMcpServers : userCustomMcpServers;
     return {

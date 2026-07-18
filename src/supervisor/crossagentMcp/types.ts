@@ -1,4 +1,5 @@
 import type {
+  AgentKind,
   AgentCapability,
   ProjectLocation,
   RuntimeEvent,
@@ -137,6 +138,7 @@ export interface SubagentRunHost {
   resolveParentMcpAccess?(
     threadId: string,
     identity: McpThreadIdentity,
+    targetAgentKind: AgentKind,
   ): Promise<{ mcpServers?: ResolvedMcpServer[] }>;
   /** Append a (re-tagged) runtime event into the parent thread's event stream. */
   appendRuntimeEvent(parentThreadId: string, event: RuntimeEvent): void;

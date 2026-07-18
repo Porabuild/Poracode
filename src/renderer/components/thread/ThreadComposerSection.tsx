@@ -18,7 +18,11 @@ import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMe
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
 import { ComposerVoiceInput } from "../composer/ComposerVoiceInput";
-import { composerMcpServers, COMPUTER_USE_MCP_ID } from "../composer/composerMcpServers";
+import {
+  composerMcpServers,
+  COMPUTER_USE_MCP_ID,
+  providerOwnsMcpConfig,
+} from "../composer/composerMcpServers";
 import { openAttachmentLightbox } from "../composer/ImageLightbox";
 import { openPdfPreview } from "../pdf/openPdfPreview";
 import {
@@ -186,20 +190,27 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // and Computer Use. Users change servers in the draft composer or settings
   // before launching a new thread.
   // Bindings are display-only for an active session; toggles are no-ops.
+  // Providers with `mcpConfigSource: "agentSettings"` configure MCP on their
+  // settings page instead of per-thread, so their composer carries no MCP
+  // display at all — no built-in rows, no custom servers, and no read-only
+  // "none for this run" fallback.
+  const providerOwnsMcp = agentStatus ? providerOwnsMcpConfig(agentStatus.capabilities) : false;
   const mcpServers = composerMcpServers.map((descriptor) => ({
     descriptor,
     enabled: thread.config[descriptor.configKey] === true,
-    visible: thread.config[descriptor.configKey] === true,
+    visible: !providerOwnsMcp && thread.config[descriptor.configKey] === true,
     onToggle: () => {},
   }));
   const launchCustomMcpNames = useAppStore(
     (s) => s.mcpLaunchCustomServerNamesByThreadId[thread.id],
   );
-  const customMcpServers = (launchCustomMcpNames ?? []).map((name) => ({
-    id: name,
-    name,
-    enabled: true,
-  }));
+  const customMcpServers = providerOwnsMcp
+    ? []
+    : (launchCustomMcpNames ?? []).map((name) => ({
+        id: name,
+        name,
+        enabled: true,
+      }));
   const mcpMentions: McpMentionItem[] = [
     ...composerMcpServers
       .filter((descriptor) => thread.config[descriptor.configKey] === true)
@@ -775,10 +786,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         <ComposerAddMenu
                           mcpServers={mcpServers}
                           customMcpServers={customMcpServers}
-                          readOnly
+                          readOnly={!providerOwnsMcp}
                           computerUse={{
                             enabled: thread.config.computerUse === true,
-                            visible: thread.config.computerUse === true,
+                            visible: !providerOwnsMcp && thread.config.computerUse === true,
                             onToggle: () => {},
                           }}
                           showFileOption={!isRemote}

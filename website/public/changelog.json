@@ -1,6 +1,86 @@
 {
   "releases": [
     {
+      "version": "1.5.0",
+      "date": "2026-07-17",
+      "title": "Poracode arrives with mobile access & cross-provider agents",
+      "summary": "A big feature release, and the first under the Poracode name: Lightcode graduates into Poracode with a brand-new identity, your threads follow you to any phone or browser through the Poracode PWA, and your agents can now hand work to one another across providers. New agents, a full MCP toolkit, multi-agent worktree experiments, and a chat rebuilt for long, tool-heavy sessions round it out.",
+      "changes": [
+        {
+          "kind": "added",
+          "text": "Lightcode becomes Poracode — a new name and a fresh visual identity with the indigo Pora-dot wordmark, Geist type, and refreshed dark and moonlight themes, all with a new home at poracode.com; your projects, settings, and automatic updates carry over."
+        },
+        {
+          "kind": "added",
+          "text": "Take your work anywhere with the Poracode PWA at poracode.com/pwa — pair it with your desktop over your local network or an SSH connection to follow live threads, read terminal output, and send messages from a phone or any browser, with dynamic port forwarding and native iOS and Android betas on the way."
+        },
+        {
+          "kind": "added",
+          "text": "Your agents can now delegate to one another: a thread can spawn subagents on any agent you have installed — Claude, Codex, Grok, Kimi Code, Cursor, OpenCode, and more — through a built-in orchestration layer, and you can watch every subagent and workflow chat unfold live from the parent thread, approving child actions when they need it."
+        },
+        {
+          "kind": "added",
+          "text": "Run Kimi Code as a new built-in agent with sign-in and usage tracking, add Factory Droid through a new ACP integration, drive Antigravity in plan or accept-edits mode, and pick Codex's Fast mode straight from the model menu."
+        },
+        {
+          "kind": "added",
+          "text": "A full MCP toolkit lands: manage MCP servers globally and toggle them per thread, give agents computer-use control of your desktop, connect an external Chrome browser, and let scheduled tasks run agents automatically or drive Poracode itself through app-control tools."
+        },
+        {
+          "kind": "added",
+          "text": "Create a skill once and inject it into any provider, then see the skills you attach rendered as badges on your message."
+        },
+        {
+          "kind": "added",
+          "text": "Race the same task across competing agents in separate Git worktrees, compare each candidate's diff and stats, have Claude judge the results, and merge the winner with safeguards."
+        },
+        {
+          "kind": "added",
+          "text": "Review pull requests from every project in one global view, complete with check statuses and how long each run took, and start merges from a prefilled commit message."
+        },
+        {
+          "kind": "added",
+          "text": "Summon a quick composer from anywhere with a global shortcut, and reopen recent threads straight from the system tray."
+        },
+        {
+          "kind": "added",
+          "text": "Preview PDFs inline, drop files into the composer to attach them, render local images directly in Markdown, and include media attachments in Grok sessions."
+        },
+        {
+          "kind": "added",
+          "text": "Open an existing WSL folder as a project straight from the project picker, and spot threads that hold unsent drafts right in the sidebar."
+        },
+        {
+          "kind": "improved",
+          "text": "Long conversations stay fast: transcripts are virtualized with paged loading, streamed Markdown renders smoothly, background events are batched, and animations ease off while the window sits in the background."
+        },
+        {
+          "kind": "improved",
+          "text": "Reasoning now groups with its tool calls into collapsible runs with live previews, repeated edits to the same file merge into a single diff, Claude goals show their iterations and completion reasons, and every message gains copy controls."
+        },
+        {
+          "kind": "improved",
+          "text": "Switching threads keeps your pane, composer text, and scroll position intact."
+        },
+        {
+          "kind": "fixed",
+          "text": "Claude now applies a model change before a steered turn and reports its usage limits correctly again."
+        },
+        {
+          "kind": "fixed",
+          "text": "Codex identifies rate-limit windows by their real duration, keeps reasoning-summary boundaries intact, and holds goal commands active through model turns."
+        },
+        {
+          "kind": "fixed",
+          "text": "Cursor usage dollars stay aligned with your plan limit and percentage, unnamed ACP tool calls keep their labels, and Grok reconnects with its current session and model ID formats."
+        },
+        {
+          "kind": "fixed",
+          "text": "The Git panel preserves staging state and decodes quoted paths, pulls follow an explicit strategy, and agent updates keep npm shims and version-prefixed releases intact across every profile that shares a binary."
+        }
+      ]
+    },
+    {
       "version": "1.4.3",
       "date": "2026-07-02",
       "title": "Fable 5 weekly usage tracking",

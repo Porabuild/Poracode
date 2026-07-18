@@ -2,8 +2,10 @@
  * Shared helper for injecting the Poracode Crossagents MCP server
  * into agent runtimes. The supervisor hosts a single in-process Streamable-HTTP
  * MCP endpoint (`CrossagentMcpIngress`); each thread that opts in receives a URL +
- * per-thread bearer token at launch so the agent can discover and spawn the
- * other connected agents as subagents.
+ * bearer credential at launch so the agent can discover and spawn the other
+ * connected agents as subagents. Most providers receive a per-thread token;
+ * pooled runtimes can share one credential and route calls by a trusted native
+ * session id.
  *
  * Mirrors the `browserMcp` module shape. The runtime resolves this endpoint
  * into the same provider-neutral MCP descriptor used for every server.
@@ -28,10 +30,12 @@ import type { WslHostAccessResolver } from "@/supervisor/wsl/hostAccess";
 export interface CrossagentMcpHttpConfig {
   /** MCP endpoint URL (already suffixed with `/mcp`). */
   url: string;
-  /** Per-thread authorization bearer token. */
+  /** In-memory authorization bearer token. */
   token: string;
   /** Headers map (always includes `Authorization`). */
   headers: Record<string, string>;
+  /** Per-thread discovery/permission filter retained outside provider config. */
+  disabledTools?: string[];
 }
 
 /** Minimal shape needed to pick native-vs-WSL — accepts a `ProjectLocation` or

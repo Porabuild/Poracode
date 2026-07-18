@@ -10,7 +10,6 @@ import {
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BUILT_IN_MCP_SERVER_NAMES } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 import { getCachedWslHomeDirectory, type AgentEnvContext } from "../../base";
 import {
@@ -98,12 +97,7 @@ const OPENCODE_LEGACY_DROP_FILES = [
 const PORACODE_PLUGIN_SPEC_MARKER = "agent-plugins/opencode/";
 
 const OPENCODE_CONFIG_FILE_NAME = "opencode.json";
-
-/**
- * All `mcp` server keys Poracode owns in `opencode.json`. Scrubbed together at
- * install/uninstall so no stale poracode-managed entry survives a reinstall.
- */
-const PORACODE_MANAGED_MCP_KEYS = Object.values(BUILT_IN_MCP_SERVER_NAMES);
+const LEGACY_MANAGED_MCP_FILE_NAME = ".poracode-managed-mcp.json";
 
 export interface OpenCodePluginPaths {
   pluginDir: string;
@@ -242,11 +236,16 @@ export function installOpenCodePlugin(
     };
   }
 
-  // Best-effort: scrub the dead `file://...` entry older poracode versions
-  // wrote into opencode.json. Browser MCP is synced at OpenCode launch time so
-  // it can honor the user's provider setting.
-  const nativeConfigPath = join(resolveOpenCodeNativeConfigDir(), OPENCODE_CONFIG_FILE_NAME);
-  updateOpenCodeConfigFile(nativeConfigPath, { remove: PORACODE_MANAGED_MCP_KEYS });
+  // Best-effort: restore any user MCP entries shadowed by the retired config
+  // projection, then scrub the dead `file://...` plugin entry. Runtime MCP is
+  // now injected at launch, so entries without a legacy sidecar are user-owned.
+  const nativeConfigDir = resolveOpenCodeNativeConfigDir();
+  const nativeConfigPath = join(nativeConfigDir, OPENCODE_CONFIG_FILE_NAME);
+  scrubLegacyOpenCodeMcpProjection(
+    nativeConfigPath,
+    join(nativeConfigDir, LEGACY_MANAGED_MCP_FILE_NAME),
+  );
+  updateOpenCodeConfigFile(nativeConfigPath, { remove: [] });
 
   console.log(
     `[supervisor] OpenCode hook plugin staged v${manifest.version} at ${pluginDir} ` +
@@ -300,7 +299,11 @@ function installOpenCodePluginWsl(
   const cfgDir = resolveOpenCodeWslConfigDir(distro);
   if (cfgDir) {
     const wslConfigPath = `${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`;
-    updateOpenCodeConfigFile(wslConfigPath, { remove: PORACODE_MANAGED_MCP_KEYS });
+    scrubLegacyOpenCodeMcpProjection(
+      wslConfigPath,
+      `${cfgDir.uncDir}\\${LEGACY_MANAGED_MCP_FILE_NAME}`,
+    );
+    updateOpenCodeConfigFile(wslConfigPath, { remove: [] });
   }
 
   console.log(
@@ -484,6 +487,38 @@ function updateOpenCodeConfigFile(configPath: string, update: OpenCodeMcpConfigU
   }
 }
 
+function readManagedMcpOriginals(path: string): Record<string, unknown | null> {
+  const read = readJsonFileOrEmpty(path);
+  if (!read.ok) return {};
+  if (Array.isArray(read.value)) {
+    return Object.fromEntries(
+      read.value
+        .filter((name): name is string => typeof name === "string")
+        .map((name) => [name, null]),
+    );
+  }
+  return read.value && typeof read.value === "object"
+    ? (read.value as Record<string, unknown | null>)
+    : {};
+}
+
+function scrubLegacyOpenCodeMcpProjection(configPath: string, managedNamesPath: string): void {
+  const originals = readManagedMcpOriginals(managedNamesPath);
+  const names = Object.keys(originals);
+  const restored = Object.fromEntries(
+    Object.entries(originals).filter(
+      (entry): entry is [string, Exclude<unknown, null>] => entry[1] !== null,
+    ),
+  );
+  if (names.length > 0) {
+    updateOpenCodeConfigFile(configPath, {
+      remove: names,
+      ...(Object.keys(restored).length > 0 ? { add: restored } : {}),
+    });
+  }
+  removeIfPresent(managedNamesPath);
+}
+
 /**
  * Removes the dropped plugin file from OpenCode's plugins/ directory and any
  * legacy drops, plus scrubs the poracode entry from opencode.json. Staging
@@ -500,9 +535,12 @@ export function uninstallOpenCodePlugin(ctx?: AgentEnvContext): void {
     }
     const cfgDir = resolveOpenCodeWslConfigDir(ctx.wslDistro);
     if (cfgDir) {
-      updateOpenCodeConfigFile(`${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`, {
-        remove: PORACODE_MANAGED_MCP_KEYS,
-      });
+      const configPath = `${cfgDir.uncDir}\\${OPENCODE_CONFIG_FILE_NAME}`;
+      scrubLegacyOpenCodeMcpProjection(
+        configPath,
+        `${cfgDir.uncDir}\\${LEGACY_MANAGED_MCP_FILE_NAME}`,
+      );
+      updateOpenCodeConfigFile(configPath, { remove: [] });
     }
     removeStagedPluginDir("opencode", ctx);
     return;
@@ -511,9 +549,10 @@ export function uninstallOpenCodePlugin(ctx?: AgentEnvContext): void {
   removeIfPresent(join(pluginsDir, OPENCODE_PLUGIN_DROP_FILE_NAME));
   removeIfPresent(join(pluginsDir, OPENCODE_PLUGIN_DROP_MANIFEST_NAME));
   cleanupLegacyDrops(pluginsDir);
-  updateOpenCodeConfigFile(join(resolveOpenCodeNativeConfigDir(), OPENCODE_CONFIG_FILE_NAME), {
-    remove: PORACODE_MANAGED_MCP_KEYS,
-  });
+  const configDir = resolveOpenCodeNativeConfigDir();
+  const configPath = join(configDir, OPENCODE_CONFIG_FILE_NAME);
+  scrubLegacyOpenCodeMcpProjection(configPath, join(configDir, LEGACY_MANAGED_MCP_FILE_NAME));
+  updateOpenCodeConfigFile(configPath, { remove: [] });
   removeStagedPluginDir("opencode", ctx);
 }
 

@@ -1,10 +1,9 @@
 /**
  * SDK-backed one-shot text generation (commit / PR / title gen).
  *
- * Reuses the per-project `opencode serve` pool from `sdkClient.ts`, but
- * acquires with an idle TTL so consecutive calls (commit-msg then PR title,
- * etc.) share the same warm server. After the TTL elapses with no callers,
- * the server is torn down by the pool.
+ * Reuses the app-lifetime runtime `opencode serve` pool from `sdkClient.ts`,
+ * so consecutive calls (commit-msg then PR title, etc.) share the same warm
+ * server with interactive project sessions.
  *
  * Each call creates a throwaway session with a deny-all permission ruleset
  * (the prompt is informational; we never want one-shot generation to touch
@@ -16,14 +15,6 @@ import type { ProjectLocation } from "@/shared/contracts";
 import type { RunOneShotInput } from "../base";
 import { classifyOpenCodeError } from "./opencodeErrors";
 import { acquireOpenCodeServer, type AcquiredOpenCodeServer } from "./sdkClient";
-
-/**
- * Keep the shared server warm for 30s after the last one-shot completes,
- * matching t3code's TTL. Long enough to cover the chain of `commit-msg →
- * branch-name → PR title` calls a typical commit triggers; short enough that
- * the server doesn't linger if the user closes the app.
- */
-const ONE_SHOT_IDLE_TTL_MS = 30_000;
 
 const DENY_ALL_PERMISSIONS = [{ permission: "*", pattern: "*", action: "deny" }] as const;
 const READ_ONLY_WORKSPACE_PERMISSIONS = [
@@ -41,7 +32,6 @@ interface AcquireInput {
 async function acquireOneShotServer(input: AcquireInput): Promise<AcquiredOpenCodeServer> {
   return acquireOpenCodeServer({
     projectLocation: input.location,
-    idleCloseDelayMs: ONE_SHOT_IDLE_TTL_MS,
   });
 }
 
@@ -172,7 +162,7 @@ export async function runOpenCodeOneShot(input: RunOneShotInput): Promise<string
       input.signal.removeEventListener("abort", onAbort);
     }
     await acquired.dispose().catch(() => {
-      /* idle close + dispose are best-effort; the pool tears down on next acquire if needed */
+      /* acquisition release is best-effort; supervisor shutdown owns the sidecar */
     });
   }
 }

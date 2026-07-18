@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { dirname as posixDirname } from "node:path/posix";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { buildAgentCommand, DEFAULT_WSL_EXEC_PATH, getWslCommand, type CommandSpec } from "../base";
@@ -39,11 +40,14 @@ export function buildOpenCodeArgs(
 // so we mirror Codex's `buildCodexAppServerCommand`: bypass `bash -l -i` and
 // invoke the binary under `/usr/bin/env PATH=<segments>` instead. The TUI
 // launch keeps its login-shell wrapping (via `buildAgentCommand` in the
-// adapter's `buildLaunchArgv`). Native Windows may also pass an already-resolved
-// absolute executable path so packaged apps are not hostage to an ambient PATH.
+// adapter's `buildLaunchArgv`). The pooled server starts from the runtime home,
+// never the first acquired project; directory-scoped SDK requests select the
+// actual project. Native Windows may also pass an already-resolved absolute
+// executable path so packaged apps are not hostage to an ambient PATH.
 export function buildOpenCodeServerCommand(
   location: ProjectLocation,
   resolvedExecPath?: string,
+  env: Record<string, string> = {},
 ): CommandSpec {
   const args = ["serve", "--hostname=127.0.0.1", "--port=0", "--print-logs"];
   if (location.kind === "wsl") {
@@ -57,14 +61,16 @@ export function buildOpenCodeServerCommand(
         "-d",
         location.distro,
         "--cd",
-        location.linuxPath,
+        "~",
         "--",
         "/usr/bin/env",
         `PATH=${pathSegments.join(":")}`,
+        ...Object.entries(env).map(([key, value]) => `${key}=${value}`),
         resolvedExecPath ?? "opencode",
         ...args,
       ],
     };
   }
-  return buildAgentCommand(location, "opencode", args, resolvedExecPath);
+  const runtimeLocation = { ...location, path: homedir() };
+  return buildAgentCommand(runtimeLocation, "opencode", args, resolvedExecPath, env);
 }

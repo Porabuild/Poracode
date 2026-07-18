@@ -18,6 +18,7 @@ import type { Event, PermissionRule } from "@opencode-ai/sdk/v2";
 import type {
   AgentSlashCommand,
   PromptSegment,
+  ResolvedMcpServer,
   RuntimeEvent,
   SessionRef,
   ThreadAttention,
@@ -50,6 +51,7 @@ import {
   type AcquiredOpenCodeServer,
   type AcquireOpenCodeServerInput,
 } from "./sdkClient";
+import { subscribeOpenCodeServerEvents } from "./sdkEventHub";
 import {
   closeOpenItems,
   createOpenCodeMapperState,
@@ -114,15 +116,6 @@ function mapStatusUpdate(properties: { sessionID: string; status: { type: string
   }
 }
 
-function unwrapGlobalOpenCodeEvent(raw: unknown): Event | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
-  const payload = (raw as { payload?: unknown }).payload;
-  const event = payload && typeof payload === "object" ? payload : raw;
-  const type = (event as { type?: unknown }).type;
-  if (typeof type !== "string" || type === "sync") return undefined;
-  return event as Event;
-}
-
 export class OpencodeSdkSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions;
 
@@ -133,7 +126,9 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
   private listener: StructuredSessionListener | undefined;
   private acquired: AcquiredOpenCodeServer | undefined;
   private sessionId: string | undefined;
-  private sseAbort: AbortController | undefined;
+  private unsubscribeEvents: (() => void) | undefined;
+  private unsubscribeServerExit: (() => void) | undefined;
+  private reacquirePromise: Promise<void> | undefined;
   private mapperState: OpenCodeMapperState | undefined;
   private bufferedRuntimeEvents: RuntimeEvent[] = [];
   private currentConfig: ThreadConfig | undefined;
@@ -143,6 +138,8 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
   private disposed = false;
   private pendingRequests = new Map<ThreadServerRequestId, PendingRequest>();
   private currentSlashCommands: AgentSlashCommand[] | undefined;
+  /** Live MCP set; starts from the launch input, replaced by settings saves. */
+  private mcpServers: readonly ResolvedMcpServer[] | undefined;
 
   private constructor(input: CreateStructuredSessionInput) {
     this.input = input;
@@ -150,11 +147,19 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     this.isGui = input.presentationMode === "gui";
     this.sdkDirectory = resolveOpenCodeSessionDirectory(input.projectLocation);
     this.currentConfig = input.config;
+    this.mcpServers = input.mcpServers;
     this.launchOptions = { suppressResumeConfigOverrides: true };
   }
 
   static create(input: CreateStructuredSessionInput): Promise<OpencodeSdkSession> {
     return Promise.resolve(new OpencodeSdkSession(input));
+  }
+
+  ownsProviderSession(providerSessionId: string): boolean {
+    return (
+      providerSessionId === this.sessionId ||
+      this.mapperState?.subAgentSessions.has(providerSessionId) === true
+    );
   }
 
   private rememberSessionId(id: string): void {
@@ -210,6 +215,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     if (this.isGui) {
       this.mapperState = createOpenCodeMapperState(this.threadId);
       this.startEventStream();
+      this.startServerExitRecovery();
     }
   }
 
@@ -240,13 +246,15 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
 
     const permission = buildOpenCodePermissionRules(config.approvalPolicy);
-    let created: Awaited<ReturnType<typeof acquired.client.session.create>>;
-    try {
-      created = await acquired.client.session.create({
+    const createSession = (server: typeof acquired) =>
+      server.client.session.create({
         directory: this.sdkDirectory,
         title: `poracode/${this.threadId.slice(0, 8)}`,
         ...(permission ? { permission } : {}),
       });
+    let created: Awaited<ReturnType<typeof acquired.client.session.create>>;
+    try {
+      created = await createSession(acquired);
     } catch (cause) {
       if (!isOpenCodeConnectionLoss(cause)) {
         throw new Error(this.classifyOpenCodeError(cause, "session.create"), { cause });
@@ -254,11 +262,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       await this.reacquireOpenCodeServer();
       const retryAcquired = this.requireAcquired();
       try {
-        created = await retryAcquired.client.session.create({
-          directory: this.sdkDirectory,
-          title: `poracode/${this.threadId.slice(0, 8)}`,
-          ...(permission ? { permission } : {}),
-        });
+        created = await createSession(retryAcquired);
       } catch (retryCause) {
         throw new Error(this.classifyOpenCodeError(retryCause, "session.create"), {
           cause: retryCause,
@@ -269,7 +273,10 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     if (!id) throw new Error("opencode session.create returned no id");
     this.rememberSessionId(id);
     this.sessionHasPermissionOverride = permission !== undefined;
-    this.appliedPermissionSyncKey = this.permissionSyncKey(config);
+    this.appliedPermissionSyncKey =
+      this.crossagentDeniedPermissionRules().length === 0
+        ? this.permissionSyncKey(config)
+        : undefined;
     if (this.mapperState) setOpenCodeMainSessionId(this.mapperState, id);
     await this.refreshSlashCommands();
     return id;
@@ -492,8 +499,10 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     if (this.disposed) return;
     this.disposed = true;
 
-    this.sseAbort?.abort();
-    this.sseAbort = undefined;
+    this.unsubscribeEvents?.();
+    this.unsubscribeEvents = undefined;
+    this.unsubscribeServerExit?.();
+    this.unsubscribeServerExit = undefined;
 
     if (this.mapperState && this.listener?.onRuntimeEvent) {
       const closing = closeOpenItems(this.mapperState);
@@ -529,8 +538,24 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
 
   private permissionSyncKey(config: ThreadConfig): string {
     const permission = buildOpenCodePermissionRules(config.approvalPolicy);
-    if (permission) return "full-access";
-    return `supervised:${config.mode === "plan" ? "plan" : "build"}`;
+    const base = permission
+      ? "full-access"
+      : `supervised:${config.mode === "plan" ? "plan" : "build"}`;
+    const deniedCrossagentTools = this.crossagentDeniedPermissionRules()
+      .map((rule) => rule.permission)
+      .sort()
+      .join(",");
+    return `${base}:crossagents-denied=${deniedCrossagentTools}`;
+  }
+
+  private crossagentDeniedPermissionRules(): PermissionRule[] {
+    const server = this.mcpServers?.find((candidate) => candidate.id === "crossagents");
+    if (!server?.disabledTools || server.disabledTools.length === 0) return [];
+    return server.disabledTools.map((toolName) => ({
+      permission: `${server.name}_${toolName}`,
+      pattern: "*",
+      action: "deny",
+    }));
   }
 
   private async syncSessionPermissions(config: ThreadConfig): Promise<void> {
@@ -540,15 +565,19 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     const acquired = this.requireAcquired();
     const sessionID = this.requireSessionId();
     const fullAccessPermission = buildOpenCodePermissionRules(config.approvalPolicy);
+    const deniedCrossagentTools = this.crossagentDeniedPermissionRules();
 
     if (fullAccessPermission) {
-      await this.updateSessionPermission(sessionID, fullAccessPermission);
+      await this.updateSessionPermission(sessionID, [
+        ...fullAccessPermission,
+        ...deniedCrossagentTools,
+      ]);
       this.sessionHasPermissionOverride = true;
       this.appliedPermissionSyncKey = syncKey;
       return;
     }
 
-    if (!this.sessionHasPermissionOverride) {
+    if (!this.sessionHasPermissionOverride && deniedCrossagentTools.length === 0) {
       // Fresh supervised sessions have no session-level permission override;
       // OpenCode already resolves permissions from its loaded config stack.
       this.appliedPermissionSyncKey = syncKey;
@@ -567,7 +596,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       throw new Error(classifyOpenCodeError({ cause, operation: "app.agents" }), { cause });
     }
 
-    await this.updateSessionPermission(sessionID, rules);
+    await this.updateSessionPermission(sessionID, [...rules, ...deniedCrossagentTools]);
     this.sessionHasPermissionOverride = true;
     this.appliedPermissionSyncKey = syncKey;
   }
@@ -646,50 +675,88 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
 
   private startEventStream(): void {
     const acquired = this.requireAcquired();
-    const ctrl = new AbortController();
-    this.sseAbort = ctrl;
-
-    void (async () => {
-      try {
-        const sub = await acquired.client.global.event({
-          signal: ctrl.signal,
-        });
-        for await (const ev of sub.stream) {
-          if (this.disposed) break;
-          const event = unwrapGlobalOpenCodeEvent(ev);
-          if (event) this.handleSseEvent(event);
-        }
-      } catch (err) {
-        if (this.disposed) return;
-        const message = err instanceof Error ? err.message : String(err);
-        this.emitRuntimeEvents([
-          { type: "error", threadId: this.threadId, message: `event stream: ${message}` },
-        ]);
-      }
-    })();
+    this.unsubscribeEvents = subscribeOpenCodeServerEvents({
+      eventClient: acquired.eventClient,
+      directory: this.sdkDirectory,
+      onEvent: (event) => {
+        if (!this.disposed) this.handleSseEvent(event);
+      },
+    });
   }
 
-  private async reacquireOpenCodeServer(): Promise<void> {
+  private startServerExitRecovery(): void {
+    const acquired = this.requireAcquired();
+    this.unsubscribeServerExit = acquired.onServerExit?.(() => {
+      if (this.disposed || this.acquired !== acquired) return;
+      void this.reacquireOpenCodeServer().catch((cause) => {
+        if (this.disposed) return;
+        const message = classifyOpenCodeError({ cause, operation: "restart opencode serve" });
+        this.emitRuntimeEvents([{ type: "error", threadId: this.threadId, message }]);
+      });
+    });
+  }
+
+  private reacquireOpenCodeServer(): Promise<void> {
+    if (this.reacquirePromise) return this.reacquirePromise;
+    let tracked: Promise<void>;
+    tracked = this.replaceOpenCodeServer().finally(() => {
+      if (this.reacquirePromise === tracked) this.reacquirePromise = undefined;
+    });
+    this.reacquirePromise = tracked;
+    return tracked;
+  }
+
+  private async replaceOpenCodeServer(): Promise<void> {
     const previous = this.acquired;
-    this.sseAbort?.abort();
-    this.sseAbort = undefined;
+    this.unsubscribeEvents?.();
+    this.unsubscribeEvents = undefined;
+    this.unsubscribeServerExit?.();
+    this.unsubscribeServerExit = undefined;
     this.acquired = undefined;
     await previous?.dispose().catch((error) => {
       console.warn("[opencode] failed to dispose previous session:", error);
     });
-    this.acquired = await acquireOpenCodeServer(this.buildAcquireInput());
-    if (this.isGui) this.startEventStream();
+    if (this.disposed) return;
+
+    const acquired = await acquireOpenCodeServer(this.buildAcquireInput());
+    if (this.disposed) {
+      await acquired.dispose();
+      return;
+    }
+    this.acquired = acquired;
+    if (this.isGui) {
+      this.startEventStream();
+      this.startServerExitRecovery();
+    }
   }
 
-  /** Assemble a provider-neutral MCP acquisition for this session. */
+  /**
+   * Assemble a provider-neutral acquisition for this session. OpenCode routes
+   * the directory-scoped client and MCP state inside the shared runtime server.
+   */
   private buildAcquireInput(): AcquireOpenCodeServerInput {
-    const { mcpServers } = this.input;
-    const needsDedicatedServer = (mcpServers?.length ?? 0) > 0;
+    const { mcpServers } = this;
     return {
       projectLocation: this.input.projectLocation,
       ...(mcpServers !== undefined ? { mcpServers } : {}),
-      ...(needsDedicatedServer ? { dedicatedKey: this.threadId } : {}),
     };
+  }
+
+  /**
+   * Apply a new provider-level MCP set to this directory instance (OpenCode
+   * settings "Save") without replacing the acquisition or shared SSE stream.
+   * No-op before activation — the launch path already uses the latest set.
+   */
+  async updateMcpServers(mcpServers: readonly ResolvedMcpServer[]): Promise<void> {
+    this.mcpServers = mcpServers;
+    this.appliedPermissionSyncKey = undefined;
+    if (!this.activated || this.disposed || !this.acquired) return;
+    try {
+      await this.acquired.updateMcpServers(mcpServers);
+    } catch (cause) {
+      if (!isOpenCodeConnectionLoss(cause)) throw cause;
+      await this.reacquireOpenCodeServer();
+    }
   }
 
   private classifyOpenCodeError(cause: unknown, operation: string): string {

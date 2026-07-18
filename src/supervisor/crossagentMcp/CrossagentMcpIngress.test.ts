@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { OrchestratorThreadManager } from "./OrchestratorThreadManager";
-import { CrossagentMcpIngress } from "./CrossagentMcpIngress";
+import { CROSSAGENT_PROVIDER_SESSION_ID_ARG, CrossagentMcpIngress } from "./CrossagentMcpIngress";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { CROSSAGENT_MCP_INSTRUCTIONS_BASE } from "./toolRegistry";
 import type { SpawnableAgent, SpawnAgentRequest } from "./types";
@@ -50,6 +50,12 @@ const AGENTS: SpawnableAgent[] = [
   },
 ];
 
+const PROVIDER_SESSION_THREADS: Record<string, string> = {
+  "session-1": "thread-1",
+  "session-2": "thread-2",
+  "child-1": "thread-1",
+};
+
 function makeRunManager(): {
   runManager: SubagentRunManager;
   spawned: Array<{ parentThreadId: string } & SpawnAgentRequest>;
@@ -72,6 +78,8 @@ describe("CrossagentMcpIngress", () => {
   let ingress: CrossagentMcpIngress;
   let token: string;
   let mcpUrl: string;
+  let providerToken: string;
+  let providerMcpUrl: string;
   let spawned: Array<{ parentThreadId: string } & SpawnAgentRequest>;
 
   beforeEach(async () => {
@@ -81,6 +89,7 @@ describe("CrossagentMcpIngress", () => {
       runManager: rm.runManager,
       orchestrator: makeInertOrchestrator(),
       getSpawnableAgents: async () => AGENTS,
+      resolveProviderSessionThreadId: (sessionId) => PROVIDER_SESSION_THREADS[sessionId],
       getRoutingGuide: () => "PREFER codex for search.",
     });
     await ingress.start();
@@ -88,6 +97,10 @@ describe("CrossagentMcpIngress", () => {
     if (!config) throw new Error("registerThread returned undefined");
     token = config.token;
     mcpUrl = config.url;
+    const providerConfig = ingress.registerProviderSessionThread("thread-1");
+    if (!providerConfig) throw new Error("registerProviderSessionThread returned undefined");
+    providerToken = providerConfig.token;
+    providerMcpUrl = providerConfig.url;
   });
 
   afterEach(() => {
@@ -102,6 +115,17 @@ describe("CrossagentMcpIngress", () => {
     });
   }
 
+  async function providerRpc(method: string, params?: unknown): Promise<Response> {
+    return await fetch(providerMcpUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${providerToken}`,
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, ...(params ? { params } : {}) }),
+    });
+  }
+
   it("mints a per-thread token and a /mcp endpoint url", () => {
     expect(mcpUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp$/);
     expect(token).toHaveLength(64);
@@ -112,6 +136,116 @@ describe("CrossagentMcpIngress", () => {
   it("rejects unknown tokens with 401", async () => {
     const res = await rpc("tools/list", undefined, "deadbeef");
     expect(res.status).toBe(401);
+  });
+
+  it("shares one provider credential while routing concurrent sessions independently", async () => {
+    const secondConfig = ingress.registerProviderSessionThread("thread-2");
+    expect(secondConfig?.token).toBe(providerToken);
+    expect(providerToken).not.toBe(token);
+
+    await Promise.all([
+      providerRpc("tools/call", {
+        name: "spawn_agent",
+        arguments: {
+          provider: "codex",
+          prompt: "first",
+          [CROSSAGENT_PROVIDER_SESSION_ID_ARG]: "session-1",
+        },
+      }),
+      providerRpc("tools/call", {
+        name: "spawn_agent",
+        arguments: {
+          provider: "codex",
+          prompt: "second",
+          [CROSSAGENT_PROVIDER_SESSION_ID_ARG]: "session-2",
+        },
+      }),
+    ]);
+
+    expect(spawned).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ parentThreadId: "thread-1", prompt: "first" }),
+        expect.objectContaining({ parentThreadId: "thread-2", prompt: "second" }),
+      ]),
+    );
+  });
+
+  it("invalidates the shared provider credential when the ingress restarts", async () => {
+    const rm = makeRunManager();
+    const restarted = new CrossagentMcpIngress({
+      runManager: rm.runManager,
+      orchestrator: makeInertOrchestrator(),
+      getSpawnableAgents: async () => AGENTS,
+      resolveProviderSessionThreadId: (sessionId) => PROVIDER_SESSION_THREADS[sessionId],
+    });
+    await restarted.start();
+    try {
+      const restartedConfig = restarted.registerProviderSessionThread("thread-1");
+      expect(restartedConfig?.token).not.toBe(providerToken);
+    } finally {
+      restarted.dispose();
+    }
+  });
+
+  it("fails closed when provider-session routing metadata is missing or stale", async () => {
+    const missing = await providerRpc("tools/call", {
+      name: "list_agents",
+      arguments: {},
+    });
+    expect((await missing.json()).result).toMatchObject({ isError: true });
+
+    const stale = await providerRpc("tools/call", {
+      name: "list_agents",
+      arguments: { [CROSSAGENT_PROVIDER_SESSION_ID_ARG]: "unknown" },
+    });
+    expect((await stale.json()).result).toMatchObject({ isError: true });
+  });
+
+  it("maps child provider sessions to the registered parent thread", async () => {
+    const response = await providerRpc("tools/call", {
+      name: "spawn_agent",
+      arguments: {
+        provider: "codex",
+        prompt: "from child",
+        [CROSSAGENT_PROVIDER_SESSION_ID_ARG]: "child-1",
+      },
+    });
+    expect((await response.json()).result.isError).not.toBe(true);
+    expect(spawned.at(-1)?.parentThreadId).toBe("thread-1");
+  });
+
+  it("enforces disabled tools per resolved provider session", async () => {
+    ingress.registerProviderSessionThread("thread-1", ["spawn_agent"]);
+    ingress.registerProviderSessionThread("thread-2");
+
+    const blocked = await providerRpc("tools/call", {
+      name: "spawn_agent",
+      arguments: {
+        provider: "codex",
+        prompt: "blocked",
+        [CROSSAGENT_PROVIDER_SESSION_ID_ARG]: "session-1",
+      },
+    });
+    expect((await blocked.json()).result).toMatchObject({ isError: true });
+
+    const allowed = await providerRpc("tools/call", {
+      name: "spawn_agent",
+      arguments: {
+        provider: "codex",
+        prompt: "allowed",
+        [CROSSAGENT_PROVIDER_SESSION_ID_ARG]: "session-2",
+      },
+    });
+    expect((await allowed.json()).result.isError).not.toBe(true);
+  });
+
+  it("rejects provider-session calls after the parent thread unregisters", async () => {
+    ingress.unregisterThread("thread-1");
+    const response = await providerRpc("tools/call", {
+      name: "list_agents",
+      arguments: { [CROSSAGENT_PROVIDER_SESSION_ID_ARG]: "session-1" },
+    });
+    expect((await response.json()).result).toMatchObject({ isError: true });
   });
 
   it("returns instructions with the routing guide on initialize", async () => {

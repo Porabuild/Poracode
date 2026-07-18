@@ -49,6 +49,8 @@ publicHoistPattern:
 nodeLinker: hoisted
 
 minimumReleaseAgeExclude:
+  # OpenCode v2 runtime-pooling integration requires the current official SDK.
+  - "@opencode-ai/sdk@1.18.3"
   # LegendList 3.3.3 contains the web anchoring and batched measurement fixes
   # required by the chat transcript virtualizer migration.
   - "@legendapp/list@3.3.3"

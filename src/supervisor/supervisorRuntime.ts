@@ -301,8 +301,12 @@ export class SupervisorRuntime {
       host: {
         getParentContext: (threadId) =>
           this.threadSessionManager.getSubagentParentContext(threadId),
-        resolveParentMcpAccess: (threadId, identity) =>
-          this.threadSessionManager.resolveSubagentParentMcpAccess(threadId, identity),
+        resolveParentMcpAccess: (threadId, identity, targetAgentKind) =>
+          this.threadSessionManager.resolveSubagentParentMcpAccess(
+            threadId,
+            identity,
+            targetAgentKind,
+          ),
         appendRuntimeEvent: (parentThreadId, event) =>
           this.threadSessionManager.appendSubagentRuntimeEvent(parentThreadId, event),
       },
@@ -370,6 +374,8 @@ export class SupervisorRuntime {
         const { windows } = await this.agentStatusService.getAgentStatuses({ wslDistros: [] });
         return buildSpawnableAgents(this.adapters, windows);
       },
+      resolveProviderSessionThreadId: (sessionId) =>
+        this.threadSessionManager.getThreadIdByProviderSessionId(sessionId),
       // User-configured routing guidance, read live from shared settings (the
       // cache invalidates on file change) so edits take effect on the next turn
       // without a supervisor restart. Empty/whitespace-only = no guidance.
@@ -401,6 +407,8 @@ export class SupervisorRuntime {
       crossagentMcp: {
         register: (threadId, disabledTools) =>
           this.crossagentMcpIngress.registerThread(threadId, disabledTools),
+        registerProviderSession: (threadId, disabledTools) =>
+          this.crossagentMcpIngress.registerProviderSessionThread(threadId, disabledTools),
         unregister: (threadId) => this.crossagentMcpIngress.unregisterThread(threadId),
         cancelAll: (threadId) => this.subagentRunManager.cancelAllForThread(threadId),
         resolveChildRequest: (requestId, response) =>

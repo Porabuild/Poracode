@@ -18,12 +18,15 @@ export interface CrossagentMcpIngressDeps {
   orchestrator: OrchestratorThreadManager;
   /** Catalog of installed + authenticated agents the caller may spawn. */
   getSpawnableAgents: () => Promise<SpawnableAgent[]>;
+  /** Resolve a trusted provider-native session id to its live Poracode parent. */
+  resolveProviderSessionThreadId?: (sessionId: string) => string | undefined;
   /** Optional user-provided routing guide appended to the MCP instructions (phase 3). */
   getRoutingGuide?: () => string | undefined;
 }
 
 const MAX_BODY = 1024 * 1024;
 const MCP_PROTOCOL_VERSION = "2025-03-26";
+export const CROSSAGENT_PROVIDER_SESSION_ID_ARG = "__poracode_provider_session_id";
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
@@ -46,20 +49,25 @@ interface JsonRpcResponseErr {
 
 type JsonRpcResponse = JsonRpcResponseOk | JsonRpcResponseErr;
 
+type CrossagentAuthContext = { mode: "thread"; threadId: string } | { mode: "provider-session" };
+
 /**
  * Single in-process MCP server hosted in the supervisor. Speaks Streamable-HTTP
  * MCP at `POST /mcp` (JSON-RPC body, single JSON response). Unlike the browser
- * ingress, auth is PER-THREAD: each thread that opts into Crossagents mints its
- * own 256-bit bearer token, and `tools/call` resolves the caller's parent
- * thread from that token so spawned children attach to the right parent.
+ * ingress, direct provider processes use a per-thread 256-bit bearer token, so
+ * `tools/call` can resolve the caller's parent from the credential alone.
+ * Pooled provider runtimes instead share one in-memory credential and attach a
+ * trusted provider session id to each call. The ingress resolves that id back
+ * to a registered live thread at call time, so concurrent sessions never rely
+ * on shared mutable "active thread" state.
  *
  * Bind address: `127.0.0.1` everywhere except Windows, where we bind `0.0.0.0`
  * so an agent launched inside a WSL distro can reach this host ingress over the
  * WSL2 NAT gateway IP (a distro's loopback can't hit the host's `127.0.0.1`).
  * This mirrors `BrowserMcpIngress`'s posture. Tradeoff: on Windows the port is
- * reachable from any interface, so the per-thread 256-bit bearer token is the
- * security boundary — every request must present a token that maps to a
- * registered parent thread (see `resolveThreadId`). We keep the tighter
+ * reachable from any interface, so the 256-bit bearer credential is the
+ * security boundary. Provider-session calls additionally require a trusted
+ * session id that resolves to a registered live thread. We keep the tighter
  * loopback bind on macOS/Linux since WSL only exists on Windows.
  */
 export class CrossagentMcpIngress {
@@ -67,6 +75,8 @@ export class CrossagentMcpIngress {
   private info: CrossagentMcpIngressInfo | null = null;
   private readonly tokenToThread = new Map<string, string>();
   private readonly threadToToken = new Map<string, string>();
+  private readonly providerSessionToken = randomBytes(32).toString("hex");
+  private readonly providerSessionThreads = new Set<string>();
   private readonly disabledToolsByThread = new Map<string, Set<string>>();
 
   constructor(private readonly deps: CrossagentMcpIngressDeps) {}
@@ -116,6 +126,28 @@ export class CrossagentMcpIngress {
       url: `${this.info.url.replace(/\/$/, "")}/mcp`,
       token,
       headers: { Authorization: `Bearer ${token}` },
+      disabledTools: [...disabledTools],
+    };
+  }
+
+  /**
+   * Register a thread whose provider runtime shares one MCP connection.
+   * Authentication proves the caller is the Poracode-launched provider
+   * process; the trusted provider session id on each tools/call selects the
+   * parent thread. The token is memory-only and shared by every such thread.
+   */
+  registerProviderSessionThread(
+    threadId: string,
+    disabledTools: readonly string[] = [],
+  ): CrossagentMcpHttpConfig | undefined {
+    if (!this.info) return undefined;
+    this.providerSessionThreads.add(threadId);
+    this.disabledToolsByThread.set(threadId, new Set(disabledTools));
+    return {
+      url: `${this.info.url.replace(/\/$/, "")}/mcp`,
+      token: this.providerSessionToken,
+      headers: { Authorization: `Bearer ${this.providerSessionToken}` },
+      disabledTools: [...disabledTools],
     };
   }
 
@@ -123,12 +155,14 @@ export class CrossagentMcpIngress {
     const token = this.threadToToken.get(threadId);
     if (token) this.tokenToThread.delete(token);
     this.threadToToken.delete(threadId);
+    this.providerSessionThreads.delete(threadId);
     this.disabledToolsByThread.delete(threadId);
   }
 
   dispose(): void {
     this.tokenToThread.clear();
     this.threadToToken.clear();
+    this.providerSessionThreads.clear();
     this.disabledToolsByThread.clear();
     try {
       this.server?.closeAllConnections?.();
@@ -139,7 +173,7 @@ export class CrossagentMcpIngress {
     this.server = null;
   }
 
-  private resolveThreadId(req: IncomingMessage): string | null {
+  private resolveAuth(req: IncomingMessage): CrossagentAuthContext | null {
     const auth = req.headers.authorization;
     let token: string | undefined;
     if (auth && auth.startsWith("Bearer ")) {
@@ -149,7 +183,19 @@ export class CrossagentMcpIngress {
       if (typeof xToken === "string") token = xToken;
     }
     if (!token) return null;
-    return this.tokenToThread.get(token) ?? null;
+    const threadId = this.tokenToThread.get(token);
+    if (threadId) return { mode: "thread", threadId };
+    if (token === this.providerSessionToken) return { mode: "provider-session" };
+    return null;
+  }
+
+  private resolveProviderSessionThreadId(args: Record<string, unknown>): string | undefined {
+    const sessionId = args[CROSSAGENT_PROVIDER_SESSION_ID_ARG];
+    delete args[CROSSAGENT_PROVIDER_SESSION_ID_ARG];
+    if (typeof sessionId !== "string" || sessionId.length === 0) return undefined;
+    const threadId = this.deps.resolveProviderSessionThreadId?.(sessionId);
+    if (!threadId || !this.providerSessionThreads.has(threadId)) return undefined;
+    return threadId;
   }
 
   private async readBody(req: IncomingMessage): Promise<string> {
@@ -191,8 +237,8 @@ export class CrossagentMcpIngress {
         return;
       }
 
-      const threadId = this.resolveThreadId(req);
-      if (!threadId) {
+      const auth = this.resolveAuth(req);
+      if (!auth) {
         this.sendJson(res, 401, { error: "unauthorized" });
         return;
       }
@@ -204,7 +250,7 @@ export class CrossagentMcpIngress {
           res.end();
           return;
         }
-        await this.handleMcp(req, res, threadId);
+        await this.handleMcp(req, res, auth);
         return;
       }
 
@@ -217,7 +263,7 @@ export class CrossagentMcpIngress {
   private async handleMcp(
     req: IncomingMessage,
     res: ServerResponse,
-    threadId: string,
+    auth: CrossagentAuthContext,
   ): Promise<void> {
     const raw = await this.readBody(req);
     let body: unknown;
@@ -240,13 +286,13 @@ export class CrossagentMcpIngress {
     if (Array.isArray(body)) {
       const out: JsonRpcResponse[] = [];
       for (const message of body) {
-        const reply = await this.handleSingle(message, threadId);
+        const reply = await this.handleSingle(message, auth);
         if (reply) out.push(reply);
       }
       this.sendJson(res, 200, out);
       return;
     }
-    const reply = await this.handleSingle(body, threadId);
+    const reply = await this.handleSingle(body, auth);
     if (!reply) {
       res.statusCode = 202;
       res.end();
@@ -255,7 +301,10 @@ export class CrossagentMcpIngress {
     this.sendJson(res, 200, reply);
   }
 
-  private async handleSingle(message: unknown, threadId: string): Promise<JsonRpcResponse | null> {
+  private async handleSingle(
+    message: unknown,
+    auth: CrossagentAuthContext,
+  ): Promise<JsonRpcResponse | null> {
     if (!isJsonRpcRequest(message)) return null;
     const { id = null, method, params } = message;
     try {
@@ -278,7 +327,14 @@ export class CrossagentMcpIngress {
         return { jsonrpc: "2.0", id, result: {} };
       }
       if (method === "tools/list") {
-        const disabled = this.disabledToolsByThread.get(threadId) ?? new Set<string>();
+        // A provider-session connection is shared by concurrent sessions, so
+        // discovery cannot safely apply one thread's filter. OpenCode applies
+        // per-session deny rules; tools/call below still enforces the resolved
+        // thread's policy authoritatively.
+        const disabled =
+          auth.mode === "thread"
+            ? (this.disabledToolsByThread.get(auth.threadId) ?? new Set<string>())
+            : new Set<string>();
         return {
           jsonrpc: "2.0",
           id,
@@ -288,7 +344,18 @@ export class CrossagentMcpIngress {
       if (method === "tools/call") {
         const p = (params ?? {}) as { name?: string; arguments?: Record<string, unknown> };
         const name = String(p.name ?? "");
-        const args = (p.arguments ?? {}) as Record<string, unknown>;
+        const rawArgs = p.arguments;
+        const args =
+          rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs) ? { ...rawArgs } : {};
+        const threadId =
+          auth.mode === "thread" ? auth.threadId : this.resolveProviderSessionThreadId(args);
+        if (!threadId) {
+          return {
+            jsonrpc: "2.0",
+            id,
+            result: errorResult("Unable to route Crossagents call to a live parent thread."),
+          };
+        }
         if (this.disabledToolsByThread.get(threadId)?.has(name)) {
           return { jsonrpc: "2.0", id, result: errorResult(`Tool disabled by Poracode: ${name}`) };
         }

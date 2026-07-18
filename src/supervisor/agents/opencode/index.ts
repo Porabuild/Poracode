@@ -52,7 +52,13 @@ function buildOpenCodeMcpEnv(
 ): Record<string, string> | undefined {
   if (mcpServers.length === 0) return undefined;
   const launch = buildOpenCodeMcpLaunchConfig(mcpServers);
-  return { ...launch.env, OPENCODE_CONFIG_CONTENT: launch.configContent };
+  return {
+    ...launch.env,
+    OPENCODE_CONFIG_CONTENT: launch.configContent,
+    ...(mcpServers.some((server) => server.id === "crossagents")
+      ? { PORACODE_OPENCODE_SESSION_ROUTING: "1" }
+      : {}),
+  };
 }
 
 export function createOpenCodeAdapter(): AgentAdapter {
@@ -145,10 +151,10 @@ export function createOpenCodeAdapter(): AgentAdapter {
     // ── Launch / resume ──────────────────────────────────────────────────
     //
     // Session ID allocation: see `createStructuredSession` below. On a fresh
-    // launch the runtime spins up `opencode serve`, calls `session.create`,
-    // captures the resulting `ses_xxx` id, sets `launchOptions.resumeThreadId`,
-    // and then disposes the SDK connection (because `liveInputMode ===
-    // "terminal"`).
+    // launch the runtime acquires the shared `opencode serve`, calls
+    // `session.create`, captures the resulting `ses_xxx` id, sets
+    // `launchOptions.resumeThreadId`, and then disposes the SDK connection
+    // (because `liveInputMode === "terminal"`).
     // The TUI process below picks up the pre-allocated id via `--session <id>`,
     // so the supervisor knows the providerSessionId synchronously instead of
     // polling `opencode session list` after spawn.
@@ -181,11 +187,11 @@ export function createOpenCodeAdapter(): AgentAdapter {
     //
     // Terminal mode (default): runtime calls `activate()` + `openThread()`,
     // captures the returned session id into `launchOptions.resumeThreadId`,
-    // then disposes immediately because `liveInputMode === "terminal"`. The
-    // ephemeral `opencode serve` process exits; the TUI launches with
-    // `--session <id>` and resumes from SQLite. Same observable behaviour as
-    // the previous `opencode acp` allocation, just over HTTP+SDK so we share
-    // infrastructure with the GUI flow.
+    // then releases its SDK acquisition because `liveInputMode === "terminal"`.
+    // The shared runtime server stays warm; the TUI launches with `--session
+    // <id>` and resumes from SQLite. Same observable behaviour as the previous
+    // `opencode acp` allocation, just over HTTP+SDK so GUI projects share the
+    // runtime sidecar.
     //
     // GUI mode: same handle stays alive for the thread's lifetime; SSE
     // events stream through `sdkCanonicalMapping` into chat items.
@@ -250,9 +256,8 @@ export function createOpenCodeAdapter(): AgentAdapter {
     //
     // Two paths:
     //   - `runOneShot` (preferred): goes through `opencode serve` over SDK,
-    //     reusing the per-project server pool with a 30s idle TTL. Mirrors
-    //     t3code's text-generation flow and avoids one CLI cold-start per
-    //     generated commit/title/PR.
+    //     reusing the app-lifetime runtime server pool. Avoids one CLI
+    //     cold-start per generated commit/title/PR.
     //   - `buildOneShotCommand` (fallback): legacy `opencode run --format
     //     json` path. Kept so orchestrators that haven't migrated to the
     //     SDK-first runner still work, and so we have a CLI fallback for

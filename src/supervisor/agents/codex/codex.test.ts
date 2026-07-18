@@ -551,6 +551,29 @@ describe("CodexSubAgentRouter", () => {
       itemId: "parent-item",
       payload: { status: "success", result: "Child result" },
     });
+
+    const lateEvents = router.routeChildNotification(
+      "item/started",
+      {
+        threadId: "child-thread",
+        turnId: "late-child-turn",
+        item: { id: "late-child-message", type: "agentMessage", text: "Late output" },
+      },
+      "provider-thread",
+    );
+    expect(lateEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: "parent-item",
+        payload: expect.objectContaining({ status: "success", result: "Child result" }),
+      }),
+    );
+    expect(lateEvents).not.toContainEqual(
+      expect.objectContaining({
+        itemId: "parent-item",
+        payload: expect.objectContaining({ status: "running" }),
+      }),
+    );
   });
 
   it("suppresses notifications from unrelated app-server threads", () => {

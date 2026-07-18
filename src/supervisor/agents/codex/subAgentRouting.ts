@@ -33,6 +33,7 @@ export class CodexSubAgentRouter {
   private mainThreadId: string | undefined;
   private readonly children = new Map<string, CodexChildThread>();
   private readonly parentPayloads = new Map<string, ToolCallPayload>();
+  private readonly completedParentItemIds = new Set<string>();
   private readonly collabItems = new Map<string, string>();
   private readonly activityItems = new Map<string, string>();
   private readonly pendingChildNotifications = new Map<
@@ -128,15 +129,10 @@ export class CodexSubAgentRouter {
       const result = this.readParentResult(child);
       return [
         ...childCompletionEvents,
-        {
-          type: "item.completed",
-          threadId: this.localThreadId,
-          itemId: child.parentItemId,
-          payload: {
-            status: this.hasFailedSiblingOrSelf(child) ? "error" : "success",
-            ...(result ? { result } : {}),
-          },
-        },
+        this.completeParent(child, {
+          status: this.hasFailedSiblingOrSelf(child) ? "error" : "success",
+          ...(result ? { result } : {}),
+        }),
       ];
     }
 
@@ -145,15 +141,10 @@ export class CodexSubAgentRouter {
       child.failed = true;
       if (this.hasActiveSibling(child)) return [];
       return [
-        {
-          type: "item.completed",
-          threadId: this.localThreadId,
-          itemId: child.parentItemId,
-          payload: {
-            status: "error",
-            result: readCodexErrorMessage(params) ?? "Codex child thread error",
-          },
-        },
+        this.completeParent(child, {
+          status: "error",
+          result: readCodexErrorMessage(params) ?? "Codex child thread error",
+        }),
       ];
     }
 
@@ -253,15 +244,9 @@ export class CodexSubAgentRouter {
         child.active = false;
         return this.hasActiveSibling(child)
           ? []
-          : [
-              {
-                type: "item.completed",
-                threadId: this.localThreadId,
-                itemId: child.parentItemId,
-                payload: { status: "error" },
-              },
-            ];
+          : [this.completeParent(child, { status: "error" })];
       }
+      if (this.completedParentItemIds.has(child.parentItemId)) return [];
       child.active = true;
       return [this.updateParent(child, { status: "running" })];
     }
@@ -323,6 +308,13 @@ export class CodexSubAgentRouter {
       }
     }
     if (!receiverThreadIds.some((threadId) => this.children.get(threadId)?.active)) {
+      const parentCompletion = events.find(
+        (event): event is Extract<RuntimeEvent, { type: "item.completed" }> =>
+          event.type === "item.completed" && event.itemId === parentItemId,
+      );
+      if (parentCompletion) {
+        this.recordParentCompletion(parentCompletion.itemId, parentCompletion.payload);
+      }
       return [...routed, ...events];
     }
 
@@ -422,7 +414,12 @@ export class CodexSubAgentRouter {
       status: "running",
       isSubAgent: true,
     };
-    const payload = mergeParentPayload(current, patch);
+    const payload = mergeParentPayload(current, {
+      ...(!this.completedParentItemIds.has(child.parentItemId) && patch.status
+        ? { status: patch.status }
+        : {}),
+      ...(patch.progress ? { progress: patch.progress } : {}),
+    });
     this.parentPayloads.set(child.parentItemId, payload);
     return {
       type: "item.updated",
@@ -430,6 +427,33 @@ export class CodexSubAgentRouter {
       itemId: child.parentItemId,
       payload,
     };
+  }
+
+  private completeParent(
+    child: CodexChildThread,
+    payload: Pick<ToolCallPayload, "status"> & { result?: unknown },
+  ): Extract<RuntimeEvent, { type: "item.completed" }> {
+    this.recordParentCompletion(child.parentItemId, payload);
+    return {
+      type: "item.completed",
+      threadId: this.localThreadId,
+      itemId: child.parentItemId,
+      payload,
+    };
+  }
+
+  private recordParentCompletion(itemId: string, payload: unknown): void {
+    const current = this.parentPayloads.get(itemId) ?? {
+      name: "spawnAgent",
+      status: "running",
+      isSubAgent: true,
+    };
+    const completedPayload =
+      payload && typeof payload === "object"
+        ? ({ ...current, ...(payload as Partial<ToolCallPayload>) } as ToolCallPayload)
+        : current;
+    this.parentPayloads.set(itemId, completedPayload);
+    this.completedParentItemIds.add(itemId);
   }
 }
 

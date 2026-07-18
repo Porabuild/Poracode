@@ -83,6 +83,7 @@ export class InvalidSessionRecoveryCoordinator {
       mcpLaunchSnapshot,
       identity: { threadId: session.threadId },
       crossagentThreadId: session.threadId,
+      adapter: session.adapter,
     });
     const cliHookExtras = await context.cliHookPlugin.resolveCliHookPluginExtras(
       session.threadId,

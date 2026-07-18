@@ -1,9 +1,14 @@
+import { randomUUID } from "node:crypto";
+import { resolve as resolvePosixPath } from "node:path/posix";
+import { resolve as resolveWindowsPath } from "node:path/win32";
 import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
+import { resolveWslHomeDirectoryAsync, type AgentEnvContext } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { buildOpenCodeServerCommand } from "./argv";
 import { buildOpenCodeMcp } from "../userMcp";
 import { classifyOpenCodeError, isOpenCodeConnectionLoss } from "./opencodeErrors";
+import { installOpenCodePlugin } from "./plugin/install";
 import {
   disposeSpawnedOpenCodeServerHandles,
   spawnOpenCodeServer,
@@ -14,71 +19,83 @@ import {
 export function resolveOpenCodeSessionDirectory(location: ProjectLocation): string {
   switch (location.kind) {
     case "windows":
-      return location.path;
+      return resolveWindowsPath(location.path);
     case "wsl":
-      return location.linuxPath;
+      return resolvePosixPath(location.linuxPath);
     case "posix":
-      return location.path;
+      return resolvePosixPath(location.path);
   }
 }
 
-function poolKey(location: ProjectLocation, dedicatedKey?: string): string {
-  const base = ((): string => {
-    switch (location.kind) {
-      case "windows":
-        return `windows:${location.path}`;
-      case "wsl":
-        return `wsl:${location.distro}:${location.linuxPath}`;
-      case "posix":
-        return `posix:${location.path}`;
-    }
-  })();
-  // A `dedicatedKey` (the thread id) carves this acquisition out of the shared
-  // per-project pool into its own single-tenant entry. Used when a thread hosts
-  // the per-thread Crossagents MCP: its bearer token identifies exactly one parent
-  // thread, so it must not be registered on a server shared by sibling threads
-  // (which would misattribute their spawns). The entry still refcounts and tears
-  // down through the same machinery — with one acquirer it dies when that thread
-  // disposes.
-  return dedicatedKey ? `${base}::dedicated:${dedicatedKey}` : base;
+function poolKey(location: ProjectLocation): string {
+  switch (location.kind) {
+    case "windows":
+      return "windows";
+    case "wsl":
+      return `wsl:${location.distro}`;
+    case "posix":
+      return "posix";
+  }
 }
 
 export interface AcquiredOpenCodeServer {
+  /** Directory-scoped SDK client for this acquisition's project. */
   client: OpencodeClient;
+  /** Shared directoryless SDK client for the runtime-wide global event stream. */
+  eventClient: OpencodeClient;
   baseUrl: string;
   handle: OpenCodeServerHandle;
+  onServerExit?(callback: () => void): () => void;
+  updateMcpServers(servers: readonly ResolvedMcpServer[]): Promise<void>;
   dispose(): Promise<void>;
 }
 
 interface ServerSnapshot {
-  client: OpencodeClient;
+  eventClient: OpencodeClient;
   baseUrl: string;
   handle: OpenCodeServerHandle;
+  authorization: string;
+}
+
+interface DirectoryMcpState {
+  managedMcpServers?: ReturnType<typeof buildOpenCodeMcp>;
+  managedMcpFingerprint?: string;
+  sync: Promise<void>;
 }
 
 interface PoolEntry {
-  key: string;
   ready: Promise<ServerSnapshot>;
-  refCount: number;
-  /**
-   * When set, the entry is currently waiting out an idle-grace window. A new
-   * `acquire` cancels the timer and reuses the entry; if it fires, the server
-   * is torn down. Mirrors t3code's `scheduleIdleClose`.
-   */
-  idleCloseTimer?: NodeJS.Timeout | undefined;
-  /** Caller-requested idle TTL on the current grace timer (informational). */
-  pendingIdleTtlMs?: number | undefined;
-  managedMcpNames: Set<string>;
-  managedMcpFingerprint?: string;
-  /** Replaced by a fresh generation after its dynamic MCP config changed. */
-  retired?: boolean;
+  /** Dynamic MCP state is isolated by OpenCode directory instance. */
+  directoryMcp: Map<string, DirectoryMcpState>;
 }
 
-// Per-project pool. The OpenCode HTTP server can host any number of sessions
-// in the same SQLite store, so multiple GUI threads in the same project share
-// one `opencode serve` process. Refcounted: the last release tears the server
-// down; if a release races with a fresh acquire, the in-flight `ready` promise
-// is reused.
+async function installSharedServerPlugin(projectLocation: ProjectLocation): Promise<void> {
+  try {
+    const baseDir = process.env.PORACODE_DATA_DIR?.trim();
+    const ctx: AgentEnvContext =
+      projectLocation.kind === "wsl"
+        ? {
+            envKind: "wsl",
+            wslDistro: projectLocation.distro,
+            ...(baseDir ? { baseDir } : {}),
+          }
+        : { envKind: projectLocation.kind, ...(baseDir ? { baseDir } : {}) };
+    if (projectLocation.kind === "wsl") {
+      await resolveWslHomeDirectoryAsync(projectLocation.distro);
+    }
+    const result = installOpenCodePlugin(ctx);
+    if (!result.ok) {
+      console.warn(`[opencode] failed to install shared-server plugin: ${result.reason}`);
+    }
+  } catch (error) {
+    console.warn("[opencode] failed to install shared-server plugin:", error);
+  }
+}
+
+// One app-lifetime server per execution runtime: one native process for the
+// host platform, plus one process per WSL distro. OpenCode routes each SDK
+// request to a lazily-created directory instance via x-opencode-directory,
+// matching the v2 desktop app.
 const pool = new Map<string, PoolEntry>();
 
 // Total budget for confirming the server is reachable once it has announced
@@ -100,13 +117,14 @@ const REACHABLE_ATTEMPT_TIMEOUT_MS = 1_000;
  * We poll the root route — any HTTP response, including a 404, proves the
  * round-trip works — backing off until it answers or the budget expires.
  */
-async function waitForOpenCodeReachable(baseUrl: string): Promise<void> {
+async function waitForOpenCodeReachable(baseUrl: string, authorization: string): Promise<void> {
   const deadline = Date.now() + REACHABLE_TIMEOUT_MS;
   let backoffMs = 50;
   for (;;) {
     try {
       await fetch(baseUrl, {
         method: "GET",
+        headers: { Authorization: authorization },
         signal: AbortSignal.timeout(REACHABLE_ATTEMPT_TIMEOUT_MS),
       });
       return;
@@ -127,78 +145,127 @@ async function waitForOpenCodeReachable(baseUrl: string): Promise<void> {
   }
 }
 
+async function createSdkClient(
+  baseUrl: string,
+  authorization: string,
+  directory?: string,
+): Promise<OpencodeClient> {
+  const { createOpencodeClient } = await import("@opencode-ai/sdk/v2/client");
+  return createOpencodeClient({
+    baseUrl,
+    headers: { Authorization: authorization },
+    throwOnError: true,
+    ...(directory !== undefined ? { directory } : {}),
+  });
+}
+
 async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSnapshot> {
+  // The shared process must load the Poracode plugin before it starts. Besides
+  // lifecycle hooks for terminal launches, the plugin injects the trusted
+  // provider session id used to route Crossagents calls from pooled GUI
+  // sessions. Installing after `opencode serve` starts is too late because its
+  // plugin set is fixed for the lifetime of the shared process.
+  await installSharedServerPlugin(projectLocation);
   const resolvedExecPath = resolveAgentBinaryPath(projectLocation, "opencode");
-  const command = buildOpenCodeServerCommand(projectLocation, resolvedExecPath);
+  const username = "opencode";
+  const password = randomUUID();
+  const authorization = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
+  const command = buildOpenCodeServerCommand(projectLocation, resolvedExecPath, {
+    OPENCODE_SERVER_USERNAME: username,
+    OPENCODE_SERVER_PASSWORD: password,
+    PORACODE_OPENCODE_SESSION_ROUTING: "1",
+  });
   const handle = spawnOpenCodeServer(command);
 
-  let baseUrl: string;
   try {
-    baseUrl = await handle.baseUrl;
+    const baseUrl = await handle.baseUrl;
     if (projectLocation.kind === "wsl") {
-      await waitForOpenCodeReachable(baseUrl);
+      await waitForOpenCodeReachable(baseUrl, authorization);
     }
+
+    const eventClient = await createSdkClient(baseUrl, authorization);
+    return { eventClient, baseUrl, handle, authorization };
   } catch (err) {
     await handle.dispose();
     throw err;
   }
-
-  const { createOpencodeClient } = await import("@opencode-ai/sdk/v2/client");
-  const client = createOpencodeClient({
-    baseUrl,
-    directory: resolveOpenCodeSessionDirectory(projectLocation),
-    throwOnError: true,
-  });
-
-  return { client, baseUrl, handle };
 }
 
 /**
- * Spawn (or reuse) an `opencode serve` for the given project, wait for the
- * ready URL, and return a wired-up SDK client. The local loopback server is
- * unauthenticated by design (no `OPENCODE_SERVER_PASSWORD` is set), matching
- * OpenCode's local app-server usage.
+ * Spawn (or reuse) an authenticated `opencode serve` for the given execution
+ * runtime, wait for the ready URL, and return a project-directory SDK client.
  *
- * Disposal is per-acquisition: each acquire returns its own `dispose()` that
- * decrements the refcount. The underlying server stays alive until the last
- * acquirer releases it. TUI flow calls `dispose()` immediately after
- * `session.create`; GUI flow keeps its acquisition for the thread's lifetime.
+ * Each acquisition keeps the existing `dispose()` contract, but normal
+ * releases leave the app-lifetime sidecar warm. Only a crash, a connection-loss
+ * replacement, or supervisor shutdown tears it down.
  */
 export interface AcquireOpenCodeServerInput {
   projectLocation: ProjectLocation;
   mcpServers?: readonly ResolvedMcpServer[];
-  /**
-   * When set, this acquisition gets its own single-tenant pool entry keyed by
-   * this value (the thread id) instead of joining the shared per-project pool.
-   * Callers that need per-thread MCP isolation pass their thread id here.
-   */
-  dedicatedKey?: string;
-  /**
-   * If set, the server stays alive for this many milliseconds after the last
-   * release before being torn down. A re-acquire within the window reuses the
-   * same server and cancels the pending teardown. Callers that want
-   * immediate teardown (the TUI and GUI thread flows) leave this unset.
-   */
-  idleCloseDelayMs?: number;
 }
 
-// No disconnect diffing is needed here: any change to the MCP set
-// changes the fingerprint, which retires the server before this runs.
-async function syncMcpServers(
-  input: Pick<AcquireOpenCodeServerInput, "projectLocation">,
+async function addMcpServers(
+  directory: string,
   servers: ReturnType<typeof buildOpenCodeMcp>,
   client: OpencodeClient,
-): Promise<Set<string>> {
-  const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
+): Promise<void> {
   await Promise.all(
-    Object.entries(servers).map(async ([name, config]) => {
-      await client.mcp.add({ directory, name, config }).catch((error) => {
-        if (isOpenCodeConnectionLoss(error)) throw error;
-      });
-      await client.mcp.connect({ directory, name });
-    }),
+    Object.entries(servers).map(([name, config]) => client.mcp.add({ directory, name, config })),
   );
-  return new Set(Object.keys(servers));
+}
+
+async function syncDirectoryMcpServers(
+  entry: PoolEntry,
+  directory: string,
+  servers: ReturnType<typeof buildOpenCodeMcp>,
+  client: OpencodeClient,
+): Promise<void> {
+  const existing = entry.directoryMcp.get(directory);
+  const state = existing ?? { sync: Promise.resolve() };
+  if (!existing) entry.directoryMcp.set(directory, state);
+
+  const nextFingerprint = JSON.stringify(
+    Object.entries(servers).sort(([left], [right]) => left.localeCompare(right)),
+  );
+  const nextNames = new Set(Object.keys(servers));
+  const operation = state.sync.then(async () => {
+    if (state.managedMcpFingerprint === nextFingerprint) return;
+
+    let serversToAdd = servers;
+    if (state.managedMcpFingerprint !== undefined) {
+      const previousServers = state.managedMcpServers ?? {};
+      const removedNames = Object.keys(previousServers).filter((name) => !nextNames.has(name));
+      if (removedNames.length > 0) {
+        await Promise.all(
+          removedNames.map((name) =>
+            client.mcp.disconnect({ directory, name }).catch((error) => {
+              if (isOpenCodeConnectionLoss(error)) throw error;
+            }),
+          ),
+        );
+
+        // The v2 SDK has no dynamic mcp.remove endpoint. Dispose only this
+        // directory instance to clear removed runtime config, then rebuild
+        // the current set. Other project instances and the server stay live.
+        await client.instance.dispose({ directory });
+      } else {
+        serversToAdd = Object.fromEntries(
+          Object.entries(servers).filter(
+            ([name, config]) => JSON.stringify(previousServers[name]) !== JSON.stringify(config),
+          ),
+        );
+      }
+    }
+
+    await addMcpServers(directory, serversToAdd, client);
+    state.managedMcpServers = servers;
+    state.managedMcpFingerprint = nextFingerprint;
+  });
+
+  // Serialize concurrent settings reloads for this directory without leaving
+  // a rejected promise that would poison later retries.
+  state.sync = operation.catch(() => undefined);
+  await operation;
 }
 
 export async function acquireOpenCodeServer(
@@ -211,12 +278,12 @@ async function acquireOpenCodeServerInner(
   input: AcquireOpenCodeServerInput,
   retryMcpConnectionLoss: boolean,
 ): Promise<AcquiredOpenCodeServer> {
-  const key = poolKey(input.projectLocation, input.dedicatedKey);
+  const key = poolKey(input.projectLocation);
   let entry = pool.get(key);
 
   if (!entry) {
     const ready = spawnAndWire(input.projectLocation);
-    entry = { key, ready, refCount: 0, managedMcpNames: new Set() };
+    entry = { ready, directoryMcp: new Map() };
     pool.set(key, entry);
 
     // If spawn fails, evict so the next acquire respawns instead of resolving
@@ -236,99 +303,47 @@ async function acquireOpenCodeServerInner(
   }
 
   const acquiringEntry = entry;
-  acquiringEntry.refCount += 1;
 
-  // Cancel any pending idle-teardown: this acquire reuses the same server.
-  if (acquiringEntry.idleCloseTimer) {
-    clearTimeout(acquiringEntry.idleCloseTimer);
-    acquiringEntry.idleCloseTimer = undefined;
-    acquiringEntry.pendingIdleTtlMs = undefined;
-  }
+  const snapshot = await acquiringEntry.ready;
 
-  let snapshot: ServerSnapshot;
+  const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
+  const client = await createSdkClient(snapshot.baseUrl, snapshot.authorization, directory);
   try {
-    snapshot = await acquiringEntry.ready;
-  } catch (err) {
-    acquiringEntry.refCount -= 1;
-    throw err;
-  }
-
-  let released = false;
-  const idleCloseDelayMs = input.idleCloseDelayMs;
-  try {
-    const nextMcp = buildOpenCodeMcp(input.mcpServers ?? []);
-    const nextMcpFingerprint = JSON.stringify(nextMcp);
-    if (
-      acquiringEntry.managedMcpFingerprint !== undefined &&
-      acquiringEntry.managedMcpFingerprint !== nextMcpFingerprint
-    ) {
-      const directory = resolveOpenCodeSessionDirectory(input.projectLocation);
-      await Promise.all(
-        [...acquiringEntry.managedMcpNames].map((name) =>
-          snapshot.client.mcp.disconnect({ directory, name }).catch(() => undefined),
-        ),
-      );
-      released = true;
-      acquiringEntry.refCount -= 1;
-      acquiringEntry.retired = true;
-      if (pool.get(key) === acquiringEntry) pool.delete(key);
-      if (acquiringEntry.refCount === 0) {
-        await snapshot.handle.dispose().catch((error) => {
-          console.warn("[opencode] failed to dispose retired MCP server:", error);
-        });
-      }
-      return acquireOpenCodeServerInner(input, retryMcpConnectionLoss);
+    // Omitted MCP config means this caller (notably one-shot generation) does
+    // not own provider settings and must leave the directory instance alone.
+    // An explicit empty array is the settings-level request to clear the set.
+    if (input.mcpServers !== undefined) {
+      const nextMcp = buildOpenCodeMcp(input.mcpServers);
+      await syncDirectoryMcpServers(acquiringEntry, directory, nextMcp, client);
     }
-
-    acquiringEntry.managedMcpNames = await syncMcpServers(input, nextMcp, snapshot.client);
-    acquiringEntry.managedMcpFingerprint = nextMcpFingerprint;
   } catch (error) {
     if (!retryMcpConnectionLoss || !isOpenCodeConnectionLoss(error)) {
-      console.warn("[opencode] failed to sync managed MCP servers:", error);
-    } else {
-      released = true;
-      acquiringEntry.refCount -= 1;
-      if (pool.get(key) === acquiringEntry) pool.delete(key);
-      await snapshot.handle.dispose().catch((disposeErr) => {
-        console.warn("[opencode] failed to dispose handle during retry:", disposeErr);
-      });
-      return acquireOpenCodeServerInner(input, false);
+      throw error;
     }
+    if (pool.get(key) === acquiringEntry) pool.delete(key);
+    await snapshot.handle.dispose().catch((disposeErr) => {
+      console.warn("[opencode] failed to dispose handle during retry:", disposeErr);
+    });
+    return acquireOpenCodeServerInner(input, false);
   }
 
   return {
-    client: snapshot.client,
+    client,
+    eventClient: snapshot.eventClient,
     baseUrl: snapshot.baseUrl,
     handle: snapshot.handle,
-    dispose: async () => {
-      if (released) return;
-      released = true;
-      acquiringEntry.refCount -= 1;
-      if (acquiringEntry.refCount > 0) return;
-
-      // No idle window requested → tear down immediately, matching prior
-      // behaviour for the TUI/GUI flows.
-      if (acquiringEntry.retired || idleCloseDelayMs === undefined || idleCloseDelayMs <= 0) {
-        if (pool.get(key) === acquiringEntry) pool.delete(key);
-        await snapshot.handle.dispose();
-        return;
+    onServerExit: (callback) => {
+      if (snapshot.handle.child.exitCode !== null) {
+        queueMicrotask(callback);
+        return () => {};
       }
-
-      // Hold the entry open for `idleCloseDelayMs`. The next `acquire`
-      // cancels the timer above; if no acquire comes, the timer tears the
-      // server down and evicts the entry.
-      acquiringEntry.pendingIdleTtlMs = idleCloseDelayMs;
-      acquiringEntry.idleCloseTimer = setTimeout(() => {
-        if (acquiringEntry.refCount > 0) return;
-        if (pool.get(key) !== acquiringEntry) return;
-        pool.delete(key);
-        void snapshot.handle.dispose();
-      }, idleCloseDelayMs);
-      // Don't keep the process alive just to honour an idle-close timer.
-      if (typeof acquiringEntry.idleCloseTimer.unref === "function") {
-        acquiringEntry.idleCloseTimer.unref();
-      }
+      snapshot.handle.child.once("exit", callback);
+      return () => snapshot.handle.child.off("exit", callback);
     },
+    updateMcpServers: async (servers) => {
+      await syncDirectoryMcpServers(acquiringEntry, directory, buildOpenCodeMcp(servers), client);
+    },
+    dispose: () => Promise.resolve(),
   };
 }
 
@@ -339,12 +354,6 @@ async function acquireOpenCodeServerInner(
  * `opencode.exe` processes the user started outside the app.
  */
 export function shutdownSpawnedOpenCodeServers(): void {
-  for (const entry of pool.values()) {
-    if (entry.idleCloseTimer) {
-      clearTimeout(entry.idleCloseTimer);
-      entry.idleCloseTimer = undefined;
-    }
-  }
   pool.clear();
   disposeSpawnedOpenCodeServerHandles();
 }

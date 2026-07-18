@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Event } from "@opencode-ai/sdk/v2";
 import type { ProjectLocation, RuntimeEvent, ThreadConfig } from "@/shared/contracts";
 import type { StructuredSessionUpdate } from "../base";
+import { subscribeOpenCodeServerEvents } from "./sdkEventHub";
 import { OpencodeSdkSession, parseOpenCodeQuestionAnswers } from "./sdkSession";
 
 const mocks = vi.hoisted(() => ({
@@ -32,6 +33,16 @@ function serverConnectedEvent(): Event {
   };
 }
 
+function emptyEventClient() {
+  return {
+    global: {
+      event: vi.fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>().mockResolvedValue({
+        stream: streamOf(),
+      }),
+    },
+  };
+}
+
 describe("OpencodeSdkSession", () => {
   const projectLocation: ProjectLocation = { kind: "posix", path: "/repo" };
   const config: ThreadConfig = { model: "opencode/big-pickle" };
@@ -42,15 +53,15 @@ describe("OpencodeSdkSession", () => {
 
   it("starts the GUI event stream on activation", async () => {
     const globalEvent = vi
-      .fn<() => Promise<{ stream: AsyncGenerator<Event> }>>()
+      .fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>()
       .mockResolvedValue({
-        stream: streamOf(serverConnectedEvent()),
+        stream: streamOf({ payload: serverConnectedEvent() }),
       });
     const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
     mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: { global: { event: globalEvent } },
       client: {
-        global: { event: globalEvent },
         command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
         session: {
           create: vi
@@ -82,17 +93,148 @@ describe("OpencodeSdkSession", () => {
     await session.openThread(config);
 
     expect(globalEvent).toHaveBeenCalledTimes(1);
-    expect(globalEvent).toHaveBeenCalledWith({ signal: expect.any(AbortSignal) });
+    expect(globalEvent).toHaveBeenCalledWith({
+      signal: expect.any(AbortSignal),
+      onSseError: expect.any(Function),
+    });
 
     await session.dispose();
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
-  it("requests a dedicated server and forwards the Crossagents MCP when hosting", async () => {
+  it("shares one server event stream across GUI sessions", async () => {
+    const globalEvent = vi
+      .fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>()
+      .mockResolvedValue({ stream: streamOf() });
+    const eventClient = { global: { event: globalEvent } };
+    const handle = {};
+    mocks.acquireOpenCodeServer.mockImplementation(() =>
+      Promise.resolve({
+        eventClient,
+        client: {},
+        baseUrl: "http://127.0.0.1:0",
+        handle,
+        dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      }),
+    );
+
+    const first = await OpencodeSdkSession.create({
+      threadId: "thread-first",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    const second = await OpencodeSdkSession.create({
+      threadId: "thread-second",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+
+    await first.activate();
+    await second.activate();
+
+    expect(globalEvent).toHaveBeenCalledTimes(1);
+
+    await first.dispose();
+    await second.dispose();
+  });
+
+  it("isolates a throwing event subscriber from sibling sessions", async () => {
+    const eventClient = {
+      global: {
+        event: vi.fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>().mockResolvedValue({
+          stream: streamOf({ directory: "/repo", payload: serverConnectedEvent() }),
+        }),
+      },
+    };
+    const sibling = vi.fn<(event: Event) => void>();
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const unsubscribeThrowing = subscribeOpenCodeServerEvents({
+      eventClient: eventClient as never,
+      directory: "/repo",
+      onEvent: () => {
+        throw new Error("listener failed");
+      },
+    });
+    const unsubscribeSibling = subscribeOpenCodeServerEvents({
+      eventClient: eventClient as never,
+      directory: "/repo",
+      onEvent: sibling,
+    });
+
+    await vi.waitFor(() => expect(sibling).toHaveBeenCalledWith(serverConnectedEvent()));
+    expect(error).toHaveBeenCalledWith(
+      "[opencode] event subscriber failed:",
+      expect.objectContaining({ message: "listener failed" }),
+    );
+
+    unsubscribeThrowing();
+    unsubscribeSibling();
+    error.mockRestore();
+  });
+
+  it("reacquires the shared server when its process exits", async () => {
+    let notifyServerExit!: () => void;
+    const firstDispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const secondDispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const firstEvent = emptyEventClient();
+    const secondEvent = emptyEventClient();
+    const promptAsync = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    mocks.acquireOpenCodeServer
+      .mockResolvedValueOnce({
+        eventClient: firstEvent,
+        client: {
+          command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+          session: {
+            create: vi
+              .fn<() => Promise<{ data: { id: string } }>>()
+              .mockResolvedValue({ data: { id: "ses_recover" } }),
+          },
+        },
+        baseUrl: "http://127.0.0.1:1",
+        handle: {},
+        onServerExit: (callback: () => void) => {
+          notifyServerExit = callback;
+          return vi.fn<() => void>();
+        },
+        dispose: firstDispose,
+      })
+      .mockResolvedValueOnce({
+        eventClient: secondEvent,
+        client: { session: { promptAsync } },
+        baseUrl: "http://127.0.0.1:2",
+        handle: {},
+        onServerExit: () => vi.fn<() => void>(),
+        dispose: secondDispose,
+      });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-recover",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+
+    await session.activate();
+    await session.openThread(config);
+    notifyServerExit();
+    await vi.waitFor(() => expect(mocks.acquireOpenCodeServer).toHaveBeenCalledTimes(2));
+
+    expect(firstDispose).toHaveBeenCalledTimes(1);
+    expect(secondEvent.global.event).toHaveBeenCalledTimes(1);
+    await session.startTurn("after restart", config);
+    expect(promptAsync).toHaveBeenCalledWith(expect.objectContaining({ sessionID: "ses_recover" }));
+
+    await session.dispose();
+    expect(secondDispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("joins the shared pool and forwards the MCP set", async () => {
     const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: emptyEventClient(),
       client: {
-        global: { event: vi.fn<() => Promise<{ stream: AsyncGenerator<Event> }>>() },
         command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
         session: {
           create: vi
@@ -105,44 +247,40 @@ describe("OpencodeSdkSession", () => {
       dispose,
     });
 
-    const crossagentMcp = {
-      url: "http://127.0.0.1:9500/mcp",
-      token: "tok-parent",
-      headers: { Authorization: "Bearer tok-parent" },
-    };
+    const mcpServers = [
+      {
+        id: "browser",
+        name: "browser",
+        timeoutMs: 30_000,
+        transport: {
+          type: "http" as const,
+          url: "http://127.0.0.1:9500/mcp",
+          headers: {},
+        },
+      },
+    ];
     const session = await OpencodeSdkSession.create({
       threadId: "thread-host-42",
       projectLocation,
       config,
       presentationMode: "gui",
-      mcpServers: [
-        {
-          id: "crossagents",
-          name: "crossagents",
-          timeoutMs: 300_000,
-          transport: {
-            type: "http",
-            url: crossagentMcp.url,
-            headers: crossagentMcp.headers,
-          },
-        },
-      ],
+      mcpServers,
     });
 
     await session.activate();
 
     expect(mocks.acquireOpenCodeServer).toHaveBeenCalledWith(
-      expect.objectContaining({ dedicatedKey: "thread-host-42" }),
+      expect.objectContaining({ projectLocation, mcpServers }),
     );
 
     await session.dispose();
   });
 
-  it("does not request a dedicated server when not hosting the Crossagents MCP", async () => {
+  it("joins the shared pool with no MCP set when none is provided", async () => {
     const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: emptyEventClient(),
       client: {
-        global: { event: vi.fn<() => Promise<{ stream: AsyncGenerator<Event> }>>() },
         command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
         session: {
           create: vi
@@ -165,10 +303,87 @@ describe("OpencodeSdkSession", () => {
     await session.activate();
 
     const input = mocks.acquireOpenCodeServer.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(input.dedicatedKey).toBeUndefined();
-    expect(input.crossagentMcp).toBeUndefined();
+    expect(input.mcpServers).toBeUndefined();
 
     await session.dispose();
+  });
+
+  it("stores a new MCP set via updateMcpServers without acquiring before activation", async () => {
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-lazy-mcp",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+
+    const newMcpServers = [
+      {
+        id: "browser",
+        name: "browser",
+        timeoutMs: 300_000,
+        transport: { type: "http" as const, url: "http://127.0.0.1:9501/mcp", headers: {} },
+      },
+    ];
+
+    await session.updateMcpServers(newMcpServers);
+
+    expect(mocks.acquireOpenCodeServer).not.toHaveBeenCalled();
+  });
+
+  it("updates the active directory MCP set without re-acquiring", async () => {
+    const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const updateMcpServers = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: emptyEventClient(),
+      client: {
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<() => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_first" } }),
+        },
+      },
+      baseUrl: "http://127.0.0.1:1",
+      handle: {},
+      updateMcpServers,
+      dispose,
+    });
+
+    const initialMcpServers = [
+      {
+        id: "browser",
+        name: "browser",
+        timeoutMs: 300_000,
+        transport: { type: "http" as const, url: "http://127.0.0.1:9501/mcp", headers: {} },
+      },
+    ];
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-reacquire-mcp",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+      mcpServers: initialMcpServers,
+    });
+
+    await session.activate();
+    expect(mocks.acquireOpenCodeServer).toHaveBeenCalledTimes(1);
+
+    const newMcpServers = [
+      {
+        id: "chrome",
+        name: "chrome",
+        timeoutMs: 300_000,
+        transport: { type: "http" as const, url: "http://127.0.0.1:9502/mcp", headers: {} },
+      },
+    ];
+    await session.updateMcpServers(newMcpServers);
+
+    expect(updateMcpServers).toHaveBeenCalledWith(newMcpServers);
+    expect(mocks.acquireOpenCodeServer).toHaveBeenCalledTimes(1);
+    expect(dispose).not.toHaveBeenCalled();
+
+    await session.dispose();
+    expect(dispose).toHaveBeenCalledTimes(1);
   });
 
   it("stores the created session id in launch options for terminal TUI handoff", async () => {
@@ -261,12 +476,28 @@ describe("OpencodeSdkSession", () => {
     expect(secondDispose).toHaveBeenCalledTimes(1);
   });
 
-  it("unwraps global payload events and ignores sync duplicates", async () => {
+  it("routes directory events and drops server-wide and sync envelopes", async () => {
     const updates: StructuredSessionUpdate[] = [];
     const runtimeEvents: RuntimeEvent[] = [];
     const wrappedEvents = [
       { payload: serverConnectedEvent() },
       {
+        payload: {
+          id: "evt-heartbeat",
+          type: "server.heartbeat",
+          properties: {},
+        },
+      },
+      {
+        directory: "/other-repo",
+        payload: {
+          id: "evt-wrong-directory",
+          type: "session.status",
+          properties: { sessionID: "ses_test", status: { type: "busy" } },
+        },
+      },
+      {
+        directory: "/repo",
         payload: {
           id: "evt-other",
           type: "session.status",
@@ -274,6 +505,7 @@ describe("OpencodeSdkSession", () => {
         },
       },
       {
+        directory: "/repo",
         payload: {
           id: "evt-busy",
           type: "session.status",
@@ -281,6 +513,7 @@ describe("OpencodeSdkSession", () => {
         },
       },
       {
+        directory: "/repo",
         payload: {
           type: "sync",
           syncEvent: {
@@ -315,6 +548,7 @@ describe("OpencodeSdkSession", () => {
         },
       },
       {
+        directory: "/repo",
         payload: {
           id: "evt-msg",
           type: "message.updated",
@@ -343,6 +577,7 @@ describe("OpencodeSdkSession", () => {
         },
       },
       {
+        directory: "/repo",
         payload: {
           id: "evt-part",
           type: "message.part.updated",
@@ -360,6 +595,7 @@ describe("OpencodeSdkSession", () => {
         },
       },
       {
+        directory: "/repo",
         payload: {
           id: "evt-idle",
           type: "session.idle",
@@ -374,8 +610,8 @@ describe("OpencodeSdkSession", () => {
       });
 
     mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: { global: { event: globalEvent } },
       client: {
-        global: { event: globalEvent },
         command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
         session: {
           create: vi
@@ -501,32 +737,35 @@ describe("OpencodeSdkSession", () => {
       releaseQuestionEvent = resolve;
     });
     const globalEvent = vi
-      .fn<() => Promise<{ stream: AsyncGenerator<Event> }>>()
+      .fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>()
       .mockResolvedValue({
         stream: (async function* () {
-          yield serverConnectedEvent();
+          yield { payload: serverConnectedEvent() };
           await waitForSession;
           yield {
-            id: "evt-question",
-            type: "question.asked",
-            properties: {
-              id: "req1",
-              sessionID: "ses_test",
-              questions: [
-                {
-                  header: "Scope",
-                  question: "Which scope should I use?",
-                  options: [{ label: "Scope A" }, { label: "Scope B" }],
-                },
-              ],
+            directory: "/repo",
+            payload: {
+              id: "evt-question",
+              type: "question.asked",
+              properties: {
+                id: "req1",
+                sessionID: "ses_test",
+                questions: [
+                  {
+                    header: "Scope",
+                    question: "Which scope should I use?",
+                    options: [{ label: "Scope A" }, { label: "Scope B" }],
+                  },
+                ],
+              },
             },
-          } as Event;
+          };
         })(),
       });
 
     mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: { global: { event: globalEvent } },
       client: {
-        global: { event: globalEvent },
         command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
         question: {
           reply: questionReply,
@@ -590,6 +829,8 @@ describe("OpencodeSdkSession", () => {
       },
     });
     expect(updates.at(-1)).toMatchObject({ status: "working", attention: "working" });
+
+    await session.dispose();
   });
 
   it("omits a session permission override in supervised mode", async () => {
@@ -701,6 +942,61 @@ describe("OpencodeSdkSession", () => {
         parts: [{ type: "text", text: "ship it" }],
       }),
     );
+  });
+
+  it("keeps disabled Crossagents tools denied in full access mode", async () => {
+    const update = vi
+      .fn<(input: unknown) => Promise<{ data: unknown }>>()
+      .mockResolvedValue({ data: {} });
+    const promptAsync = vi
+      .fn<(input: unknown) => Promise<{ data: unknown }>>()
+      .mockResolvedValue({ data: {} });
+
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      client: {
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<(input: unknown) => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_test" } }),
+          update,
+          promptAsync,
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode",
+      projectLocation,
+      config: { ...config, approvalPolicy: "yolo" },
+      presentationMode: "terminal",
+      mcpServers: [
+        {
+          id: "crossagents",
+          name: "crossagents",
+          timeoutMs: 30_000,
+          disabledTools: ["spawn_agent"],
+          transport: { type: "http", url: "http://127.0.0.1:4321/mcp", headers: {} },
+        },
+      ],
+    });
+
+    await session.activate();
+    await session.openThread({ ...config, approvalPolicy: "yolo" });
+    await session.startTurn("ship it", { ...config, approvalPolicy: "yolo" });
+
+    expect(update).toHaveBeenCalledWith({
+      directory: "/repo",
+      sessionID: "ses_test",
+      permission: [
+        { permission: "*", pattern: "*", action: "allow" },
+        { permission: "crossagents_spawn_agent", pattern: "*", action: "deny" },
+      ],
+    });
+    expect(promptAsync).toHaveBeenCalledTimes(1);
   });
 
   it("resolves WSL relative file mentions to Linux file URLs", async () => {

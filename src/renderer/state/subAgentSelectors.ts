@@ -18,7 +18,7 @@ function classifyActiveSubAgent(item: RuntimeChatItem): "workflow" | "native" | 
     if (payload.status === "error" || item.observedLive !== true) return null;
     return "workflow";
   }
-  if (item.state === "completed" && payload.status !== "running") return null;
+  if (item.state === "completed") return null;
   return "native";
 }
 

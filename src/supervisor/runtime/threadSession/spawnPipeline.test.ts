@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { ThreadConfig } from "@/shared/contracts";
-import { composeResolvedMcpServers, effectiveLaunchConfig } from "./spawnPipeline";
+import {
+  applyAgentSettingsMcpFlags,
+  composeResolvedMcpServers,
+  effectiveLaunchConfig,
+} from "./spawnPipeline";
 
 const baseConfig: ThreadConfig = {
   model: "test-model",
@@ -44,6 +48,40 @@ describe("effectiveLaunchConfig — single gate for built-in MCP disables", () =
   it("does not mutate the original config", () => {
     effectiveLaunchConfig(baseConfig, ["browser"]);
     expect(baseConfig.browserMcp).toBe(true);
+  });
+});
+
+describe("applyAgentSettingsMcpFlags", () => {
+  it("maps agentSettings booleans and keeps Crossagents off without provider-session routing", () => {
+    const result = applyAgentSettingsMcpFlags(baseConfig, { browserMcp: true }, [], false);
+    expect(result).toEqual({
+      ...baseConfig,
+      browserMcp: true,
+      chromeMcp: false,
+      computerUse: false,
+      crossagentMcp: false,
+    });
+  });
+
+  it("enables provider-level Crossagents when trusted provider-session routing is available", () => {
+    const result = applyAgentSettingsMcpFlags(baseConfig, { crossagentMcp: true }, [], true);
+    expect(result.crossagentMcp).toBe(true);
+  });
+
+  it("keeps globally disabled servers off when provider settings enable them", () => {
+    const result = applyAgentSettingsMcpFlags(
+      baseConfig,
+      { browserMcp: true, crossagentMcp: true, chromeMcp: true, computerUse: true },
+      ["browser", "crossagents", "chrome", "computer-use"],
+      true,
+    );
+    expect(result).toEqual({
+      ...baseConfig,
+      browserMcp: false,
+      chromeMcp: false,
+      computerUse: false,
+      crossagentMcp: false,
+    });
   });
 });
 

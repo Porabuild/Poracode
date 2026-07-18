@@ -27,6 +27,7 @@ describe("Crossagents MCP (live)", () => {
   let runManager: SubagentRunManager;
   let mcp: CrossagentMcpHttpConfig;
   let claude: AgentAdapter | undefined;
+  let opencode: AgentAdapter | undefined;
   const parentEvents: RuntimeEvent[] = [];
 
   const projectLocation = (): ProjectLocation =>
@@ -43,6 +44,7 @@ describe("Crossagents MCP (live)", () => {
       createAgentRegistry().map((a) => [a.kind, a]),
     );
     claude = adapters.get("claude" as AgentKind);
+    opencode = adapters.get("opencode" as AgentKind);
 
     runManager = new SubagentRunManager({
       adapters,
@@ -57,25 +59,25 @@ describe("Crossagents MCP (live)", () => {
       },
     });
 
-    const spawnable: SpawnableAgent[] = claude
-      ? [
-          {
-            provider: { value: claude.kind, label: claude.label },
-            models: claude.capabilities.models.map((m) => ({
-              value: m.id,
-              label: m.label,
-              reasoning: { values: [] },
-            })),
-            reasoningOptions: [],
-            defaultModel: claude.capabilities.models[0]?.id ?? "haiku",
-            permissions: {
-              options: [{ value: "full-access", label: "Full access" }],
-              default: "full-access",
-            },
-            execution: "structured",
-          },
-        ]
-      : [];
+    const spawnable: SpawnableAgent[] = [];
+    for (const adapter of [claude, opencode]) {
+      if (!adapter) continue;
+      spawnable.push({
+        provider: { value: adapter.kind, label: adapter.label },
+        models: adapter.capabilities.models.map((m) => ({
+          value: m.id,
+          label: m.label,
+          reasoning: { values: [] },
+        })),
+        reasoningOptions: [],
+        defaultModel: adapter.capabilities.models[0]?.id ?? "haiku",
+        permissions: {
+          options: [{ value: "full-access", label: "Full access" }],
+          default: "full-access",
+        },
+        execution: "structured",
+      });
+    }
 
     ingress = new CrossagentMcpIngress({
       runManager,
@@ -194,7 +196,7 @@ describe("Crossagents MCP (live)", () => {
       (e) => e.type === "item.started" && e.itemId === `sub:${parsed.run_id}`,
     );
     expect(started).toBeDefined();
-    expect((started as { payload?: { isSubAgent?: boolean } }).payload?.isSubAgent).toBe(true);
+    expect((started as { payload?: { isCrossagent?: boolean } }).payload?.isCrossagent).toBe(true);
     const completed = parentEvents.find(
       (e) => e.type === "item.completed" && e.itemId === `sub:${parsed.run_id}`,
     );
@@ -214,6 +216,39 @@ describe("Crossagents MCP (live)", () => {
           parentItemId?.startsWith(`${parsed.run_id}:`) === true,
       ).toBe(true);
     }
+  }, 240_000);
+
+  it("run_agent completes a real OpenCode child turn", async () => {
+    if (!opencode) return;
+    const status = await opencode.detectInstall().catch(() => undefined);
+    if (!status?.installed || status.authState !== "authenticated") {
+      console.log(
+        `[subagent-int] SKIPPED OpenCode run: installed=${status?.installed} auth=${status?.authState}`,
+      );
+      return;
+    }
+
+    parentEvents.length = 0;
+    const result = await callTool("run_agent", {
+      provider: "opencode",
+      model: "opencode/big-pickle",
+      name: "opencode-dogfood",
+      prompt:
+        "Reply with exactly the single word OPENCODE_CROSSAGENT_OK and nothing else. Do not use any tools.",
+    });
+    expect(result.isError).toBeFalsy();
+    const parsed = JSON.parse(result.content[0]!.text) as {
+      run_id: string;
+      status: string;
+      output: string;
+    };
+    expect(parsed.status).toBe("completed");
+    expect(parsed.output).toContain("OPENCODE_CROSSAGENT_OK");
+    expect(
+      parentEvents.some(
+        (event) => event.type === "item.completed" && event.itemId === `sub:${parsed.run_id}`,
+      ),
+    ).toBe(true);
   }, 240_000);
 
   it("wait_for_agent on an unknown run id fails cleanly", async () => {

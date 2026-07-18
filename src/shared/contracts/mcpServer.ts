@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { projectLocationSchema } from "./common";
+import { agentKindSchema, projectLocationSchema } from "./common";
 
 export const DEFAULT_MCP_SERVER_TIMEOUT_MS = 30_000;
 
@@ -312,6 +312,16 @@ export const mcpOauthStatusResultSchema = z.object({
   authenticatedUrls: z.array(z.string()),
 });
 export type McpOauthStatusResult = z.infer<typeof mcpOauthStatusResultSchema>;
+
+/**
+ * Re-resolve and apply the MCP set of a provider's live sessions after its
+ * provider-level MCP settings changed (`mcpConfigSource: "agentSettings"`).
+ * Sessions without a live update hook pick the new set up on next launch.
+ */
+export const reloadAgentMcpServersPayloadSchema = z.object({
+  agentKind: agentKindSchema,
+});
+export type ReloadAgentMcpServersPayload = z.infer<typeof reloadAgentMcpServersPayloadSchema>;
 
 export const mcpProbePayloadSchema = z.object({
   server: mcpServerSchema,

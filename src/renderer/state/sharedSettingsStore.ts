@@ -194,6 +194,20 @@ function persistSettings(settings: SharedSettingsInput): void {
   }
 }
 
+/**
+ * Awaitable counterpart to `persistSettings`'s fire-and-forget bridge write.
+ * Callers that need a guarantee the settings file reflects the latest store
+ * state before triggering IPC that re-reads it from disk (e.g. reloading a
+ * provider's live MCP servers) should `await` this first — otherwise a fast
+ * follow-up call can race the write above and observe stale settings.
+ */
+export async function flushSharedSettings(): Promise<void> {
+  if (!hasBridge() || !initialLoadDone) {
+    return;
+  }
+  await readBridge().setSharedSettings(selectSharedSettings(useSharedSettings.getState()));
+}
+
 function cacheSettingsSnapshot(settings: SharedSettingsInput): void {
   if (typeof window === "undefined") {
     return;
