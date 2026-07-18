@@ -1532,6 +1532,18 @@ describe("mapCodexNotification — streaming deltas", () => {
       ),
     ).toEqual([{ type: "error", threadId: "t-codex", message: "Tool failed" }]);
     expect(
+      mapCodexNotification(
+        "error",
+        {
+          threadId: "x",
+          turnId: "turn-1",
+          error: { message: "Stream disconnected" },
+          willRetry: true,
+        },
+        state,
+      ),
+    ).toEqual([{ type: "warning", threadId: "t-codex", message: "Stream disconnected" }]);
+    expect(
       mapCodexNotification("serverRequest/resolved", { threadId: "x", requestId: 42 }, state),
     ).toEqual([
       { type: "request.resolved", threadId: "t-codex", requestId: "42", outcome: "answered" },

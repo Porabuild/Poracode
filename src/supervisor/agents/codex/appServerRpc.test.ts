@@ -2,6 +2,8 @@ import type { RuntimeEvent } from "@/shared/contracts";
 import { describe, expect, it, vi } from "vitest";
 import {
   CodexAppServerRpc,
+  CodexRpcResponseError,
+  isUnsupportedCodexRequestError,
   type CodexAppServerRpcTransport,
   type CodexRpcDebugDirection,
 } from "./appServerRpc";
@@ -124,6 +126,22 @@ describe("CodexAppServerRpc", () => {
     });
 
     await expect(pending).rejects.toThrow("turn rejected");
+  });
+
+  it("only treats missing methods and unknown parameters as unsupported", () => {
+    expect(
+      isUnsupportedCodexRequestError(new CodexRpcResponseError("Method not found", -32601)),
+    ).toBe(true);
+    expect(
+      isUnsupportedCodexRequestError(
+        new CodexRpcResponseError("Invalid params: unknown field `lastTurnId`", -32602),
+      ),
+    ).toBe(true);
+    expect(
+      isUnsupportedCodexRequestError(
+        new CodexRpcResponseError("Invalid params: lastTurnId is in progress", -32602),
+      ),
+    ).toBe(false);
   });
 
   it("retries overloaded requests with exponential backoff", async () => {

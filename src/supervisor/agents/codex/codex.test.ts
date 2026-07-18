@@ -1048,6 +1048,29 @@ describe("CodexStructuredSession", () => {
     expect(history).toEqual({ providerSessionId: "provider-thread", messages: [] });
   });
 
+  it("does not fall back to thread/rollback when thread/fork rejects its parameters", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read") {
+          return { thread: { turns: [{ id: "turn-1" }, { id: "turn-2" }] } };
+        }
+        if (method === "thread/fork") {
+          throw new CodexRpcResponseError("Invalid params: lastTurnId is in progress", -32602);
+        }
+        return { thread: { status: { type: "idle" } } };
+      },
+    };
+
+    await expect(structuredSession.rollbackThread(1)).rejects.toThrow(
+      "Invalid params: lastTurnId is in progress",
+    );
+
+    expect(requests.map((request) => request.method)).toEqual(["thread/read", "thread/fork"]);
+  });
+
   it("clears buffered notifications when thread/fork fails", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);

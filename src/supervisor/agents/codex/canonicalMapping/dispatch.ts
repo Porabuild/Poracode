@@ -105,7 +105,9 @@ export function mapCodexNotification(
   // `thread/error` is legacy-only; current app-server errors use `error`.
   if (method === "thread/error" || method === "error") {
     const message = readCodexErrorMessage(params) ?? "Codex thread error";
-    return [{ type: "error", threadId, message }];
+    return method === "error" && params?.willRetry === true
+      ? [{ type: "warning", threadId, message }]
+      : [{ type: "error", threadId, message }];
   }
 
   if (method === "serverRequest/resolved") {

@@ -48,7 +48,7 @@ export function isUnsupportedCodexRequestError(error: unknown): boolean {
   return (
     error instanceof CodexRpcResponseError &&
     (error.code === -32601 ||
-      (error.code === -32602 && /invalid params|unknown (?:field|parameter)/iu.test(error.message)))
+      (error.code === -32602 && /unknown (?:field|parameter)/iu.test(error.message)))
   );
 }
 
