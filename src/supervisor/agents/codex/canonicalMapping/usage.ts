@@ -8,6 +8,7 @@ import {
   readNonNegativeInteger,
   usageFromTokenCounts,
 } from "../../contextUsage";
+import type { ThreadTokenUsage } from "../protocol";
 import { readRecord } from "./readers";
 
 export function createCodexContextUsageEvent(
@@ -26,20 +27,29 @@ export function createCodexTokenUsageEvent(
   threadId: string,
   params: Record<string, unknown> | undefined,
 ): RuntimeEvent | undefined {
-  const tokenUsage = readRecord(params?.tokenUsage) ?? readRecord(params?.token_usage);
-  if (tokenUsage) {
+  const currentTokenUsageRecord = readRecord(params?.tokenUsage);
+  const currentLastUsage = readRecord(currentTokenUsageRecord?.last);
+  if (currentTokenUsageRecord && currentLastUsage) {
+    const currentTokenUsage = currentTokenUsageRecord as ThreadTokenUsage;
+    return createCodexUsageEvent(threadId, currentLastUsage, {
+      maxTokens: readNonNegativeInteger(currentTokenUsage.modelContextWindow),
+    });
+  }
+
+  const legacyTokenUsage = readRecord(params?.token_usage) ?? currentTokenUsageRecord;
+  if (legacyTokenUsage) {
     const usage =
-      readRecord(tokenUsage.last) ??
-      readRecord(tokenUsage.lastTokenUsage) ??
-      readRecord(tokenUsage.last_token_usage) ??
-      readRecord(tokenUsage.total) ??
-      readRecord(tokenUsage.totalTokenUsage) ??
-      readRecord(tokenUsage.total_token_usage);
+      readRecord(legacyTokenUsage.last) ??
+      readRecord(legacyTokenUsage.lastTokenUsage) ??
+      readRecord(legacyTokenUsage.last_token_usage) ??
+      readRecord(legacyTokenUsage.total) ??
+      readRecord(legacyTokenUsage.totalTokenUsage) ??
+      readRecord(legacyTokenUsage.total_token_usage);
     if (!usage) return undefined;
     return createCodexUsageEvent(threadId, usage, {
       maxTokens:
-        readNonNegativeInteger(tokenUsage.modelContextWindow) ??
-        readNonNegativeInteger(tokenUsage.model_context_window),
+        readNonNegativeInteger(legacyTokenUsage.modelContextWindow) ??
+        readNonNegativeInteger(legacyTokenUsage.model_context_window),
     });
   }
 

@@ -14,7 +14,8 @@ import {
   parseCodexLoginStatusOutput,
 } from "./detection";
 import { CodexStructuredSession } from "./acp";
-import type { CodexAppServerRpcListener } from "./appServerRpc";
+import { CodexRpcResponseError, type CodexAppServerRpcListener } from "./appServerRpc";
+import type { CodexThreadStatus } from "./acpProtocol";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { RuntimeEvent, ToolCallPayload } from "@/shared/contracts";
 import { codexIntentFor } from "./plugin/intentMap";
@@ -67,6 +68,18 @@ describe("deriveCodexStructuredState", () => {
     });
   });
 
+  it("ignores unknown active flags from newer app-server versions", () => {
+    const status = {
+      type: "active",
+      activeFlags: ["newerUnknownFlag"],
+    } as unknown as CodexThreadStatus;
+
+    expect(deriveCodexStructuredState(status)).toEqual({
+      status: "working",
+      attention: "working",
+    });
+  });
+
   it("maps idle state to idle", () => {
     expect(deriveCodexStructuredState({ type: "idle" })).toEqual({
       status: "idle",
@@ -88,7 +101,11 @@ describe("deriveCodexStructuredState", () => {
         id: "req-1",
         method: "item/tool/requestUserInput",
         params: {
+          threadId: "provider-thread",
+          turnId: "turn-1",
+          itemId: "item-1",
           questions: [],
+          autoResolutionMs: null,
         },
       }),
     ).toEqual({
@@ -96,7 +113,11 @@ describe("deriveCodexStructuredState", () => {
       id: "req-1",
       method: "item/tool/requestUserInput",
       params: {
+        threadId: "provider-thread",
+        turnId: "turn-1",
+        itemId: "item-1",
         questions: [],
+        autoResolutionMs: null,
       },
     });
   });
@@ -806,6 +827,7 @@ describe("CodexStructuredSession", () => {
 
     session["threadId"] = "local-thread";
     session["remoteThreadId"] = "provider-thread";
+    session["launchOptions"] = {};
     session["bufferedRuntimeEvents"] = [];
     session["isDisposed"] = false;
     session["currentThreadStatus"] = { type: "idle" };
@@ -877,19 +899,193 @@ describe("CodexStructuredSession", () => {
     });
   });
 
-  it("rolls back Codex app-server threads with thread/rollback", async () => {
+  it("forks Codex app-server threads through the retained turn", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
+    const runtimeEvents: RuntimeEvent[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+    };
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read" && params.includeTurns === true) {
+          return Promise.resolve({
+            thread: {
+              turns: ["turn-1", "turn-2", "turn-3", "turn-4"].map((id) => ({ id })),
+            },
+          });
+        }
+        if (method === "thread/fork") {
+          const response = Promise.resolve({ thread: { id: "forked-thread" } });
+          dispatchNotification(structuredSession, {
+            jsonrpc: "2.0",
+            method: "thread/tokenUsage/updated",
+            params: {
+              threadId: "forked-thread",
+              turnId: "turn-2",
+              tokenUsage: {
+                total: {
+                  inputTokens: 100,
+                  cachedInputTokens: 0,
+                  outputTokens: 20,
+                  reasoningOutputTokens: 5,
+                  totalTokens: 120,
+                },
+                last: {
+                  inputTokens: 80,
+                  cachedInputTokens: 0,
+                  outputTokens: 15,
+                  reasoningOutputTokens: 5,
+                  totalTokens: 100,
+                },
+                modelContextWindow: 258_400,
+              },
+            },
+          });
+          return response;
+        }
+        return Promise.resolve({ thread: { status: { type: "idle" } } });
+      },
+    };
 
-    await structuredSession.rollbackThread(2);
+    const history = await structuredSession.rollbackThread(2);
 
-    expect(requests[0]).toEqual({
+    expect(requests.slice(0, 2)).toEqual([
+      {
+        method: "thread/read",
+        params: {
+          threadId: "provider-thread",
+          includeTurns: true,
+        },
+      },
+      {
+        method: "thread/fork",
+        params: {
+          threadId: "provider-thread",
+          lastTurnId: "turn-2",
+        },
+      },
+    ]);
+    expect(requests[2]).toEqual({
+      method: "thread/unsubscribe",
+      params: { threadId: "provider-thread" },
+    });
+    expect(history).toEqual({ providerSessionId: "forked-thread", messages: [] });
+    expect((structuredSession as unknown as { remoteThreadId: string }).remoteThreadId).toBe(
+      "forked-thread",
+    );
+    expect(structuredSession.launchOptions.resumeThreadId).toBe("forked-thread");
+    expect(runtimeEvents).toContainEqual({
+      type: "context.updated",
+      threadId: "local-thread",
+      usage: {
+        usedTokens: 100,
+        maxTokens: 258_400,
+        breakdown: [
+          { id: "input", label: "Input", tokens: 80 },
+          { id: "output", label: "Output", tokens: 15 },
+          { id: "reasoning", label: "Reasoning", tokens: 5 },
+        ],
+      },
+    });
+  });
+
+  it("falls back to thread/rollback when thread/fork is unavailable", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read" && params.includeTurns === true) {
+          return { thread: { turns: [{ id: "turn-1" }, { id: "turn-2" }] } };
+        }
+        if (method === "thread/fork") {
+          throw new CodexRpcResponseError("Method not found", -32601);
+        }
+        return { thread: { status: { type: "idle" } } };
+      },
+    };
+
+    const history = await structuredSession.rollbackThread(1);
+
+    expect(requests.map((request) => request.method)).toEqual([
+      "thread/read",
+      "thread/fork",
+      "thread/rollback",
+      "thread/read",
+    ]);
+    expect(requests[2]).toEqual({
       method: "thread/rollback",
       params: {
         threadId: "provider-thread",
-        numTurns: 2,
+        numTurns: 1,
       },
     });
+    expect(requests.map((request) => request.method)).not.toContain("thread/unsubscribe");
+    expect(history).toEqual({ providerSessionId: "provider-thread", messages: [] });
+  });
+
+  it("clears buffered notifications when thread/fork fails", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const runtimeEvents: RuntimeEvent[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+    };
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read") {
+          return { thread: { turns: [{ id: "turn-1" }, { id: "turn-2" }] } };
+        }
+        dispatchNotification(structuredSession, {
+          jsonrpc: "2.0",
+          method: "thread/tokenUsage/updated",
+          params: {
+            threadId: "failed-fork-thread",
+            turnId: "turn-1",
+            tokenUsage: {
+              total: {},
+              last: { totalTokens: 25 },
+              modelContextWindow: 258_400,
+            },
+          },
+        });
+        throw new Error("fork failed");
+      },
+    };
+
+    await expect(structuredSession.rollbackThread(1)).rejects.toThrow("fork failed");
+
+    expect(
+      (structuredSession as unknown as { forkNotificationBuffer?: unknown }).forkNotificationBuffer,
+    ).toBeUndefined();
+    expect(runtimeEvents).toEqual([]);
+    expect(requests.map((request) => request.method)).not.toContain("thread/unsubscribe");
+  });
+
+  it("uses legacy rollback when dropping every turn leaves nothing to fork through", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read" && params.includeTurns === true) {
+          return { thread: { turns: [{ id: "turn-1" }, { id: "turn-2" }] } };
+        }
+        return { thread: { status: { type: "idle" } } };
+      },
+    };
+
+    const history = await structuredSession.rollbackThread(2);
+
+    expect(requests.map((request) => request.method)).toEqual([
+      "thread/read",
+      "thread/rollback",
+      "thread/read",
+    ]);
+    expect(history).toEqual({ providerSessionId: "provider-thread", messages: [] });
   });
 
   it("requests Codex reasoning summaries for GUI turns", async () => {
@@ -1163,7 +1359,7 @@ describe("CodexStructuredSession", () => {
       expect.objectContaining({ method: "thread/start" }),
       {
         method: "config/mcpServer/reload",
-        params: null,
+        params: undefined,
       },
       expect.objectContaining({ method: "turn/start" }),
     ]);

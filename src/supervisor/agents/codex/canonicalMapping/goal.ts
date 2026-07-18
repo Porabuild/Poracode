@@ -4,6 +4,16 @@
 
 import type { ProviderGoalState } from "../../goalRuntime";
 import type { CodexMapperState } from "../canonicalMappingState";
+import type { ThreadGoalStatus } from "../protocol";
+
+const CODEX_GOAL_STATUS_MAP = {
+  active: "active",
+  paused: "paused",
+  blocked: "paused",
+  usageLimited: "budget_limited",
+  budgetLimited: "budget_limited",
+  complete: "complete",
+} as const satisfies Record<ThreadGoalStatus, NonNullable<ProviderGoalState["status"]>>;
 
 export function readCodexGoal(
   params: Record<string, unknown> | undefined,
@@ -30,16 +40,9 @@ export function readCodexGoal(
 }
 
 export function readCodexGoalStatus(status: unknown): ProviderGoalState["status"] | undefined {
-  switch (status) {
-    case "active":
-    case "paused":
-    case "complete":
-      return status;
-    case "budgetLimited":
-      return "budget_limited";
-    default:
-      return undefined;
-  }
+  return typeof status === "string" && status in CODEX_GOAL_STATUS_MAP
+    ? CODEX_GOAL_STATUS_MAP[status as ThreadGoalStatus]
+    : undefined;
 }
 
 export function isNewCodexGoal(goal: ProviderGoalState, state: CodexMapperState): boolean {

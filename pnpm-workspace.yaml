@@ -2,6 +2,7 @@ packages:
   - "."
   - "website"
   - "packages/agents-usage"
+  - "packages/codex-protocol"
 
 # Share the virtual store across worktrees/checkouts via symlinks instead of
 # hardlinking every package into each node_modules/.pnpm (see pnpm.io/git-worktrees).
@@ -199,6 +200,8 @@ minimumReleaseAgeExclude:
   - "yuku-ast@0.1.7"
   - "yuku-codegen@0.5.44"
   - "yuku-parser@0.5.44"
+  # The platform aliases are prerelease versions of this same package name.
+  - "@openai/codex"
 
 # Supply-chain guard: refuse to install any package version published less
 # than this many minutes ago. 7 days catches the typical window in which

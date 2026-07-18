@@ -2,6 +2,7 @@ import type { RuntimeEvent, ThreadServerRequestId } from "@/shared/contracts";
 import { mapCodexServerRequest, translateCodexCanonicalResponse } from "./canonicalMapping";
 import { parseCodexSocketMessage } from "./acpProtocol";
 import { buildCodexQuestionAnswerEvents } from "./acpQuestionAnswer";
+import type { CodexClientRequestMap } from "./protocol";
 import type { CodexStdioTransport } from "./stdioTransport";
 
 export type CodexRpcDebugDirection = "codex->poracode" | "poracode->codex" | "transport";
@@ -34,13 +35,21 @@ type InboundRequest = {
 const SERVER_OVERLOADED_ERROR_CODE = -32001;
 const MAX_OVERLOAD_RETRIES = 2;
 
-class CodexRpcResponseError extends Error {
+export class CodexRpcResponseError extends Error {
   constructor(
     message: string,
     readonly code: number | undefined,
   ) {
     super(message);
   }
+}
+
+export function isUnsupportedCodexRequestError(error: unknown): boolean {
+  return (
+    error instanceof CodexRpcResponseError &&
+    (error.code === -32601 ||
+      (error.code === -32602 && /invalid params|unknown (?:field|parameter)/iu.test(error.message)))
+  );
 }
 
 /** Owns JSON-RPC correlation and server-request bookkeeping above stdio framing. */
@@ -64,7 +73,17 @@ export class CodexAppServerRpc {
     });
   }
 
-  request(
+  request<M extends keyof CodexClientRequestMap>(
+    method: M,
+    params: CodexClientRequestMap[M]["params"],
+    timeoutMs = 30_000,
+  ): Promise<CodexClientRequestMap[M]["result"]> {
+    return this.requestWithRetry(method, params, timeoutMs) as Promise<
+      CodexClientRequestMap[M]["result"]
+    >;
+  }
+
+  requestUnmapped(
     method: string,
     params: Record<string, unknown> | null,
     timeoutMs = 30_000,
@@ -74,7 +93,7 @@ export class CodexAppServerRpc {
 
   private async requestWithRetry(
     method: string,
-    params: Record<string, unknown> | null,
+    params: unknown,
     timeoutMs: number,
   ): Promise<unknown> {
     for (let attempt = 0; ; attempt += 1) {
@@ -95,11 +114,7 @@ export class CodexAppServerRpc {
     }
   }
 
-  private requestOnce(
-    method: string,
-    params: Record<string, unknown> | null,
-    timeoutMs: number,
-  ): Promise<unknown> {
+  private requestOnce(method: string, params: unknown, timeoutMs: number): Promise<unknown> {
     const id = `poracode-${this.requestSequence++}`;
 
     const pending = new Promise<unknown>((resolve, reject) => {
@@ -214,6 +229,8 @@ export class CodexAppServerRpc {
         console.warn(
           `[codex] no canonical mapping for app-server request method "${message.method}"; replying method not found.`,
         );
+        // Rejecting account/chatgptAuthTokens/refresh here is intentional: external-auth mode
+        // alone sends it, and Poracode never enables that mode (codex-rs app-server/src/external_auth.rs).
         this.write({
           id: message.id,
           error: {

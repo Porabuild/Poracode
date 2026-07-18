@@ -115,7 +115,7 @@ describe("CodexAppServerRpc", () => {
 
   it("rejects error responses with the app-server message", async () => {
     const { listener, rpc } = createRpcHarness();
-    const pending = rpc.request("turn/start", { threadId: "provider-thread" });
+    const pending = rpc.request("turn/start", { threadId: "provider-thread", input: [] });
 
     listener().onMessage({
       jsonrpc: "2.0",
@@ -210,12 +210,25 @@ describe("CodexAppServerRpc", () => {
       id: "question-1",
       method: "item/tool/requestUserInput",
       params: {
-        questions: [{ id: "scope", header: "Scope", question: "Which scope?" }],
+        threadId: "provider-thread",
+        turnId: "turn-1",
+        itemId: "item-1",
+        autoResolutionMs: null,
+        questions: [
+          {
+            id: "scope",
+            header: "Scope",
+            question: "Which scope?",
+            isOther: false,
+            isSecret: false,
+            options: [{ label: "Workspace", description: "Current workspace" }],
+          },
+        ],
       },
     });
     runtimeEvents.splice(0);
 
-    const response = { answers: { scope: { answers: ["workspace"] } } };
+    const response = { answers: { scope: { answers: ["Workspace"] } } };
     rpc.resolveServerRequest("question-1", response);
 
     expect(writes.at(-1)).toEqual({
@@ -223,12 +236,24 @@ describe("CodexAppServerRpc", () => {
       result: response,
     });
     expect(runtimeEvents).toEqual([
-      expect.objectContaining({ type: "item.started", threadId: "local-thread" }),
+      expect.objectContaining({
+        type: "item.started",
+        threadId: "local-thread",
+        payload: {
+          questions: [
+            {
+              header: "Scope",
+              question: "Which scope?",
+              selected: [{ label: "Workspace", description: "Current workspace" }],
+            },
+          ],
+        },
+      }),
       expect.objectContaining({ type: "item.completed", threadId: "local-thread" }),
     ]);
   });
 
-  it("answers unsupported inbound requests with method-not-found", () => {
+  it("returns method-not-found for unimplemented ChatGPT auth-token refresh", () => {
     const { listener, runtimeEvents, writes } = createRpcHarness();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
