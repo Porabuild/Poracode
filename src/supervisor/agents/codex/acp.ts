@@ -51,6 +51,7 @@ import {
 import { CodexAppServerRpc, isUnsupportedCodexRequestError } from "./appServerRpc";
 import type { CodexClientRequestMap } from "./protocol";
 import { CodexStdioTransport } from "./stdioTransport";
+import { buildCodexThreadOverrides } from "./threadOverrides";
 import {
   mapCodexSkillsToSlashCommands,
   mapCodexSlashCommands,
@@ -61,7 +62,6 @@ import { CodexSubAgentRouter } from "./subAgentRouting";
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
 export type { CodexThreadStatus } from "./acpProtocol";
 
-type ThreadStartParams = CodexClientRequestMap["thread/start"]["params"];
 type TurnStartParams = CodexClientRequestMap["turn/start"]["params"];
 
 function sleep(ms: number): Promise<void> {
@@ -185,6 +185,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private rolloutModelProvider: string | undefined;
   private wslDistro: string | undefined;
   private currentThreadStatus: CodexThreadStatus = { type: "idle" };
+  private currentConfig: ThreadConfig | undefined;
   private activeTurnId: string | undefined;
   private currentSlashCommands: AgentSlashCommand[] | undefined;
   private currentBaseSlashCommands: AgentSlashCommand[] = [];
@@ -494,30 +495,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<string> {
     // `mode` does not exist on `thread/start` or `thread/resume`; plan mode is
     // a per-turn override sent via `collaborationMode` on `turn/start`.
-    const threadOverrides: ThreadStartParams = {
-      model: config.model,
-      ...(config.approvalPolicy
-        ? {
-            approvalPolicy: config.approvalPolicy as NonNullable<
-              ThreadStartParams["approvalPolicy"]
-            >,
-          }
-        : {}),
-      ...(config.approvalsReviewer
-        ? {
-            approvalsReviewer: config.approvalsReviewer as NonNullable<
-              ThreadStartParams["approvalsReviewer"]
-            >,
-          }
-        : {}),
-      ...(config.sandboxMode
-        ? { sandbox: config.sandboxMode as NonNullable<ThreadStartParams["sandbox"]> }
-        : {}),
-      config: {
-        ...(config.effort ? { model_reasoning_effort: config.effort } : {}),
-        model_reasoning_summary: "auto",
-      },
-    };
+    this.currentConfig = config;
+    const threadOverrides = buildCodexThreadOverrides(config);
 
     let threadId: string;
 
@@ -643,6 +622,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
+    this.currentConfig = config;
     // New user turn clears any sticky error from a previous failed turn, along
     // with the per-turn error dedupe state and any pending fallback timer.
     this.errorSticky = false;
@@ -772,7 +752,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     });
   }
 
-  async rollbackThread(numTurns: number): Promise<ThreadHistory> {
+  async rollbackThread(numTurns: number, config?: ThreadConfig): Promise<ThreadHistory> {
     if (!Number.isInteger(numTurns) || numTurns <= 0) {
       throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
     }
@@ -823,9 +803,16 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     }
 
     let forkResult: CodexClientRequestMap["thread/fork"]["result"];
+    const rollbackConfig = config ?? this.currentConfig;
+    if (!rollbackConfig) {
+      throw new Error("Cannot roll back a Codex thread before its configuration is initialized.");
+    }
+    this.currentConfig = rollbackConfig;
+    const threadOverrides = buildCodexThreadOverrides(rollbackConfig);
     this.forkNotificationBuffer = [];
     try {
       forkResult = await this.rpc.request("thread/fork", {
+        ...threadOverrides,
         threadId,
         lastTurnId: retainedTurn.id,
       });

@@ -484,6 +484,11 @@ describe("useRemoteServersStore", () => {
       desktopId: "d1",
       threadId: "thread-7",
       numTurns: 2,
+      config: {
+        model: "gpt-5.6-terra",
+        approvalPolicy: "on-request",
+        sandboxMode: "workspace-write",
+      },
     });
     await useRemoteServersStore.getState().restoreFileCheckpoint({
       desktopId: "d1",
@@ -495,6 +500,11 @@ describe("useRemoteServersStore", () => {
     expect(gitCall).toHaveBeenCalledWith("rollbackThreadConversation", {
       threadId: "thread-7",
       numTurns: 2,
+      config: {
+        model: "gpt-5.6-terra",
+        approvalPolicy: "on-request",
+        sandboxMode: "workspace-write",
+      },
     });
     expect(gitCall).toHaveBeenCalledWith("restoreFileCheckpoint", {
       threadId: "thread-7",

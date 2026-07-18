@@ -14,7 +14,12 @@ import {
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
 import { Surface } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
-import type { MessageItemPayload, ProjectLocation, ToolCallPayload } from "@/shared/contracts";
+import type {
+  MessageItemPayload,
+  ProjectLocation,
+  ThreadConfig,
+  ToolCallPayload,
+} from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -47,7 +52,11 @@ import {
 } from "./timelineMeasurementCache";
 
 export interface CheckpointRevertActions {
-  rollbackThreadConversation(input: { threadId: string; numTurns: number }): Promise<void>;
+  rollbackThreadConversation(input: {
+    threadId: string;
+    numTurns: number;
+    config?: ThreadConfig;
+  }): Promise<void>;
   restoreFileCheckpoint(input: {
     threadId: string;
     checkpointItemId: string;
@@ -57,6 +66,7 @@ export interface CheckpointRevertActions {
 
 interface MessageListProps {
   threadId: string;
+  threadConfig?: ThreadConfig;
   entries: readonly ChatTimelineEntry[];
   isTurnActive?: boolean;
   setScrollContainer?: (element: HTMLDivElement | null) => void;
@@ -108,6 +118,7 @@ const SKIP_REVERT_CONFIRM_PREF_KEY = "poracode-chat-checkpoint-revert-skip-confi
 // while moving the DOM, so the virtualizer must re-render to re-measure.
 export function MessageList({
   threadId,
+  threadConfig,
   entries,
   isTurnActive = false,
   setScrollContainer,
@@ -285,7 +296,11 @@ export function MessageList({
       const revert = checkpointActions ?? readBridge();
       if (rollbackTurns > 0) {
         try {
-          await revert.rollbackThreadConversation({ threadId, numTurns: rollbackTurns });
+          await revert.rollbackThreadConversation({
+            threadId,
+            numTurns: rollbackTurns,
+            ...(threadConfig ? { config: threadConfig } : {}),
+          });
         } catch (error) {
           console.warn(
             "[checkpoint] provider rollback failed; continuing with local revert",
@@ -304,7 +319,7 @@ export function MessageList({
       await readBridge().dbTruncateThreadRuntimeAfter({ threadId, itemId });
       parentActions?.onContentHeightChange();
     },
-    [checkpointActions, parentActions, projectLocation, threadId],
+    [checkpointActions, parentActions, projectLocation, threadConfig, threadId],
   );
 
   const requestRevert = useCallback(

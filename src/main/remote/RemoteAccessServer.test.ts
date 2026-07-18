@@ -3444,7 +3444,15 @@ describe("RemoteAccessServer", () => {
     const checkpointCalls = [
       {
         procedure: "rollbackThreadConversation",
-        payload: { threadId: "thread-1", numTurns: 1 },
+        payload: {
+          threadId: "thread-1",
+          numTurns: 1,
+          config: {
+            model: "gpt-5.6-terra",
+            approvalPolicy: "on-request",
+            sandboxMode: "workspace-write",
+          },
+        },
       },
       {
         procedure: "listFileCheckpoints",

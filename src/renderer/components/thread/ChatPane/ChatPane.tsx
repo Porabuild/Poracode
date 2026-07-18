@@ -328,6 +328,7 @@ export function ChatPane(props: ChatPaneProps) {
           <MessageList
             key={threadId}
             threadId={threadId}
+            threadConfig={thread.config}
             entries={timelineEntries}
             isTurnActive={isLive}
             setScrollContainer={setScrollContainer}

@@ -626,7 +626,9 @@ export class ThreadSessionManager {
     }
 
     const previousSessionId = session.sessionRef?.providerSessionId;
-    const history = await session.structuredSession.rollbackThread(payload.numTurns);
+    const history = payload.config
+      ? await session.structuredSession.rollbackThread(payload.numTurns, payload.config)
+      : await session.structuredSession.rollbackThread(payload.numTurns);
     if (
       history.providerSessionId &&
       history.providerSessionId !== session.sessionRef?.providerSessionId

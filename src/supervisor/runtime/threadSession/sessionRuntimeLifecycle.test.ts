@@ -302,6 +302,39 @@ describe("SessionRuntimeLifecycle", () => {
     expect(harness.mocks.emitState).toHaveBeenCalledExactlyOnceWith(harness.session);
   });
 
+  it("emits state when an idle structured session changes its provider session id", () => {
+    const harness = createHarness({
+      session: {
+        status: "idle",
+        attention: "none",
+        sessionRef: {
+          providerSessionId: "old-session",
+          discoveredAt: "2026-01-01T00:00:00.000Z",
+        },
+      },
+    });
+    harness.lifecycle.attach(harness.session);
+    harness.mocks.emitState.mockClear();
+    const emittedSessionIds: Array<string | undefined> = [];
+    harness.mocks.emitState.mockImplementation((session) => {
+      emittedSessionIds.push(session.sessionRef?.providerSessionId);
+    });
+
+    harness.structuredListener?.onUpdate({
+      status: "idle",
+      attention: "none",
+      sessionRef: {
+        providerSessionId: "forked-session",
+        discoveredAt: "2026-01-02T00:00:00.000Z",
+      },
+    });
+
+    expect(harness.session.sessionRef?.providerSessionId).toBe("forked-session");
+    expect(harness.mocks.indexSessionRef).toHaveBeenCalledWith(harness.session, "old-session");
+    expect(harness.mocks.emitState).toHaveBeenCalledExactlyOnceWith(harness.session);
+    expect(emittedSessionIds).toEqual(["forked-session"]);
+  });
+
   it("ignores structured events for stale and ignored sessions", () => {
     const harness = createHarness();
     harness.lifecycle.attach(harness.session);

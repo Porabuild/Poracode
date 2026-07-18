@@ -831,6 +831,7 @@ describe("CodexStructuredSession", () => {
     session["bufferedRuntimeEvents"] = [];
     session["isDisposed"] = false;
     session["currentThreadStatus"] = { type: "idle" };
+    session["currentConfig"] = { model: "gpt-5.4" };
     session["seenErrorMessages"] = new Set<string>();
     session["resumeActiveStatusSuppressionUntil"] = new Map();
     session["rpc"] = {
@@ -899,9 +900,22 @@ describe("CodexStructuredSession", () => {
     });
   });
 
-  it("forks Codex app-server threads through the retained turn", async () => {
+  it("forks Codex app-server threads with the current rollback config", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["currentConfig"] = {
+      model: "gpt-5.4",
+      effort: "low",
+      approvalPolicy: "never",
+      sandboxMode: "danger-full-access",
+    };
+    const rollbackConfig = {
+      model: "gpt-5.6-terra",
+      effort: "high",
+      approvalPolicy: "on-request",
+      approvalsReviewer: "user",
+      sandboxMode: "workspace-write",
+    };
     const runtimeEvents: RuntimeEvent[] = [];
     (structuredSession as unknown as Record<string, unknown>)["listener"] = {
       onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
@@ -949,7 +963,7 @@ describe("CodexStructuredSession", () => {
       },
     };
 
-    const history = await structuredSession.rollbackThread(2);
+    const history = await structuredSession.rollbackThread(2, rollbackConfig);
 
     expect(requests.slice(0, 2)).toEqual([
       {
@@ -962,6 +976,14 @@ describe("CodexStructuredSession", () => {
       {
         method: "thread/fork",
         params: {
+          model: "gpt-5.6-terra",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "user",
+          sandbox: "workspace-write",
+          config: {
+            model_reasoning_effort: "high",
+            model_reasoning_summary: "auto",
+          },
           threadId: "provider-thread",
           lastTurnId: "turn-2",
         },

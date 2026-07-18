@@ -92,8 +92,10 @@ export class SessionRuntimeLifecycle {
     const context = this.context;
     const wasWorking = session.status === "working";
     const hadInterruptRequest = session.structuredTurnInterruptRequested === true;
+    let sessionRefChanged = false;
     if (update.sessionRef) {
       const prevId = session.sessionRef?.providerSessionId;
+      sessionRefChanged = prevId !== update.sessionRef.providerSessionId;
       session.sessionRef = update.sessionRef;
       session.canResumeWithConfig = true;
       context.indexSessionRef(session, prevId);
@@ -157,7 +159,7 @@ export class SessionRuntimeLifecycle {
       context.steerCoordinator.maybeDrainPendingSteer(session);
     }
     if (
-      (configChanged || slashCommandsChanged) &&
+      (sessionRefChanged || configChanged || slashCommandsChanged) &&
       !stateChanged &&
       update.errorMessage === undefined
     ) {

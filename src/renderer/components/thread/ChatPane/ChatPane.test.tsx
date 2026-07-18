@@ -1581,7 +1581,16 @@ describe("ChatPane", () => {
   });
 
   it("shows checkpoint buttons on later user messages and reverts to before that prompt", async () => {
-    const thread = { ...makeThread(), status: "idle" as const };
+    const thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      config: {
+        model: "gpt-5.6-terra",
+        effort: "high",
+        approvalPolicy: "on-request",
+        sandboxMode: "workspace-write",
+      },
+    };
     const rollbackThreadConversation = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     Object.assign(window, {
       poracode: {
@@ -1616,6 +1625,7 @@ describe("ChatPane", () => {
       expect(rollbackThreadConversation).toHaveBeenCalledWith({
         threadId: thread.id,
         numTurns: 1,
+        config: thread.config,
       }),
     );
     await waitFor(() => expect(screen.queryByText("Follow-up prompt")).not.toBeInTheDocument());
@@ -1663,6 +1673,7 @@ describe("ChatPane", () => {
       expect(rollbackThreadConversation).toHaveBeenCalledWith({
         threadId: thread.id,
         numTurns: 1,
+        config: thread.config,
       }),
     );
   });

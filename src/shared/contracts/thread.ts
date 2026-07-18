@@ -150,6 +150,7 @@ export type InterruptThreadPayload = z.infer<typeof interruptThreadPayloadSchema
 export const rollbackThreadConversationPayloadSchema = z.object({
   threadId: z.string().min(1),
   numTurns: z.number().int().min(0),
+  config: threadConfigSchema.optional(),
 });
 export type RollbackThreadConversationPayload = z.infer<
   typeof rollbackThreadConversationPayloadSchema

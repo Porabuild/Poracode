@@ -131,7 +131,7 @@ export interface StructuredSessionHandle {
    */
   updateMcpServers?(mcpServers: readonly ResolvedMcpServer[]): Promise<void>;
   readThread?(): Promise<ThreadHistory>;
-  rollbackThread?(numTurns: number): Promise<ThreadHistory>;
+  rollbackThread?(numTurns: number, config?: ThreadConfig): Promise<ThreadHistory>;
   setListener(listener: StructuredSessionListener): void;
   dispose(): Promise<void>;
 }

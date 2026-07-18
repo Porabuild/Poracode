@@ -380,6 +380,7 @@ interface RemoteServersState {
     readonly desktopId: string;
     readonly threadId: string;
     readonly numTurns: number;
+    readonly config?: ThreadConfig;
   }): Promise<void>;
   /** Restore files on the remote server for a checkpoint revert. */
   restoreFileCheckpoint(input: {
@@ -874,6 +875,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           await requireClient(input.desktopId).gitCall("rollbackThreadConversation", {
             threadId: input.threadId,
             numTurns: input.numTurns,
+            ...(input.config ? { config: input.config } : {}),
           });
         },
 
