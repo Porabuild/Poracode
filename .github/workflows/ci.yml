@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Generate Codex protocol types
+        run: pnpm run codex-protocol:gen
+
       - name: Typecheck
         run: pnpm run typecheck
 
