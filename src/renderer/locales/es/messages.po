@@ -6296,6 +6296,7 @@ msgstr "No hay agentes compatibles instalados en esta máquina remota. Instala u
 msgid "No supported agents detected"
 msgstr "No se detectaron agentes compatibles"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "No thread selected"
 msgstr "No hay hilo seleccionado"
@@ -6984,6 +6985,7 @@ msgstr "Dirección pendiente"
 msgid "permission"
 msgstr "permiso"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Pick a thread from the list to follow the agent from here."
 msgstr "Elige un hilo de la lista para seguir al agente desde aquí."

@@ -6295,6 +6295,7 @@ msgstr "Aucun agent compatible n’est installé sur cette machine distante. Ins
 msgid "No supported agents detected"
 msgstr "Aucun agent pris en charge détecté"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "No thread selected"
 msgstr "Aucun fil sélectionné"
@@ -6983,6 +6984,7 @@ msgstr "En attente de direction"
 msgid "permission"
 msgstr "autorisation"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Pick a thread from the list to follow the agent from here."
 msgstr "Choisissez un fil dans la liste pour suivre l'agent depuis ici."

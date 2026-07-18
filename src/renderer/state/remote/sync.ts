@@ -73,7 +73,16 @@ export function applyThreadSnapshot(
     if (pendingRuntimeEvents.has(threadId)) {
       flushPendingRuntimeEventsSync();
     }
-    const items = snapshot.runtimeItems.map(toRuntimeChatItem);
+    const snapshotItems = snapshot.runtimeItems.map(toRuntimeChatItem);
+    const firstSnapshotItemId = snapshotItems[0]?.id;
+    const overlapIndex = firstSnapshotItemId ? existingIds.indexOf(firstSnapshotItemId) : -1;
+    const preservedOlderItems =
+      snapshot.runtimeNextCursor !== undefined && overlapIndex > 0
+        ? existingIds
+            .slice(0, overlapIndex)
+            .flatMap((itemId) => (existingItems?.[itemId] ? [existingItems[itemId]] : []))
+        : [];
+    const items = [...preservedOlderItems, ...snapshotItems];
     useAppStore.setState((current) => ({
       runtimeItemIdsByThread: {
         ...current.runtimeItemIdsByThread,

@@ -24,6 +24,7 @@ import {
 } from "@/shared/remote";
 import { performThreadInputSubmit } from "@/renderer/actions/threadRuntimeActions";
 import { useAppStore } from "@/renderer/state/appStore";
+import { seedOlderThreadRuntimeItemsCursor } from "@/renderer/state/chatRuntimePersister";
 import { readBridge } from "@/renderer/bridge";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -38,6 +39,7 @@ import { RemoteDesktopClient } from "./remoteClient";
 import {
   createRemoteSocketCoordinator,
   isUnauthorizedRemoteError,
+  type RemoteSocketCoordinator,
 } from "./remoteSocketCoordinator";
 import { applyDesktopSettings, resetDesktopSettings } from "./settingsSync";
 import { sortThreadsByRecency } from "./presentation";
@@ -187,6 +189,14 @@ export function useRemoteDesktop() {
   // on every session change so the first refresh after boot/switch always
   // persists (bumping lastConnectedAt/updatedAt for list ordering).
   const persistedShellSeqRef = useRef<Map<string, number>>(new Map());
+  // Latest event cursor applied by each live socket. A coordinator rebuild
+  // (manual reconnect or desktop switch) must resume from this cursor rather
+  // than replaying from the older sequence last persisted with a shell snapshot.
+  const liveSocketSeqRef = useRef<Map<string, number>>(new Map());
+  const socketCoordinatorRef = useRef<{
+    readonly desktopId: string;
+    readonly coordinator: RemoteSocketCoordinator;
+  } | null>(null);
   // Last transcript-snapshot save time per `desktopId:threadId`, used to throttle
   // full-blob writes while a thread is actively streaming.
   const threadSnapshotSavedAtRef = useRef<Map<string, number>>(new Map());
@@ -293,9 +303,14 @@ export function useRemoteDesktop() {
     const desktopCandidate = activeDesktop;
     if (!desktopCandidate) return;
     const desktop: StoredDesktop = desktopCandidate;
+    const liveSocketSeq = liveSocketSeqRef.current;
+    const initialLastSeenSeq = Math.max(
+      desktop.lastSeenSeq,
+      liveSocketSeq.get(desktop.desktopId) ?? 0,
+    );
     const coordinator = createRemoteSocketCoordinator({
       createClient: () => clientFor(desktop),
-      initialLastSeenSeq: desktop.lastSeenSeq,
+      initialLastSeenSeq,
       getSelectedThreadId: () => selectedThreadIdRef.current,
       requestRefresh: (options) => {
         void refresh(desktop, options);
@@ -307,8 +322,15 @@ export function useRemoteDesktop() {
       },
       getPairingExpiredMessage: () => i18n._(msg`Pairing expired — pair again to reconnect.`),
     });
+    socketCoordinatorRef.current = { desktopId: desktop.desktopId, coordinator };
     coordinator.start();
-    return () => coordinator.dispose();
+    return () => {
+      if (socketCoordinatorRef.current?.coordinator === coordinator) {
+        socketCoordinatorRef.current = null;
+      }
+      liveSocketSeq.set(desktop.desktopId, coordinator.getLastSeenSeq());
+      coordinator.dispose();
+    };
     // The socket is keyed on the connection identity (not the desktop object,
     // which is replaced after every refresh) so refreshes don't tear it down.
     // reconnectNonce forces a fresh connect when the user taps Reconnect.
@@ -461,6 +483,13 @@ export function useRemoteDesktop() {
       if (desktop.desktopId !== activeDesktopIdRef.current) return null;
       applyShellSnapshot(next);
       setSnapshot(next);
+      liveSocketSeqRef.current.set(
+        desktop.desktopId,
+        Math.max(liveSocketSeqRef.current.get(desktop.desktopId) ?? 0, next.snapshotSeq),
+      );
+      if (socketCoordinatorRef.current?.desktopId === desktop.desktopId) {
+        socketCoordinatorRef.current.coordinator.advanceLastSeenSeq(next.snapshotSeq);
+      }
       // Auxiliary data (agent statuses + remote-editable AI settings) is
       // independent of the thread list and streams as live events, so only
       // re-poll it on explicit/initial/reconnect refreshes. Never let either
@@ -606,6 +635,7 @@ export function useRemoteDesktop() {
       // Bail if the active desktop changed while the fetch was in flight.
       if (desktop.desktopId !== activeDesktopIdRef.current) return latest;
       latest = { snapshot: next, fromServer: true };
+      seedOlderThreadRuntimeItemsCursor(threadId, next.runtimeNextCursor ?? null);
       setThreadSnapshot(next);
       // A fresh server history IS authoritative (fromServer defaults to true).
       applyThreadSnapshot(next, { fromServer: true });
@@ -909,7 +939,7 @@ export function useRemoteDesktop() {
    * connection banner/pill so the user is never stuck waiting out a backoff.
    */
   function reconnect() {
-    setConnection((current) => (current === "online" ? current : "reconnecting"));
+    setConnection("reconnecting");
     setMessage("");
     void (async () => {
       try {

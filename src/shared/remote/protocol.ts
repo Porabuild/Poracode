@@ -442,6 +442,8 @@ export const remoteThreadSnapshotSchema = z.object({
   snapshotSeq: z.number().int().nonnegative(),
   thread: threadSchema,
   runtimeItems: z.array(persistedRuntimeItemSchema),
+  /** Cursor for older runtime items when the server returned a tail page. */
+  runtimeNextCursor: z.number().int().nonnegative().nullable().optional(),
   completedTurns: z.array(persistedCompletedTurnSchema),
   contextUsage: threadContextUsageSchema.nullable(),
   terminalScrollback: z.string().optional(),
@@ -449,6 +451,20 @@ export const remoteThreadSnapshotSchema = z.object({
   updatedAt: z.string().min(1),
 });
 export type RemoteThreadSnapshot = z.infer<typeof remoteThreadSnapshotSchema>;
+
+export const remoteRuntimeItemsPageRequestSchema = z.object({
+  threadId: z.string().min(1),
+  beforePosition: z.number().int().nonnegative().optional(),
+  limit: z.number().int().min(1).max(500),
+  targetTimelineEntryCount: z.number().int().min(1).max(100).optional(),
+});
+export type RemoteRuntimeItemsPageRequest = z.infer<typeof remoteRuntimeItemsPageRequestSchema>;
+
+export const remoteRuntimeItemsPageSchema = z.object({
+  items: z.array(persistedRuntimeItemSchema),
+  nextCursor: z.number().int().nonnegative().nullable(),
+});
+export type RemoteRuntimeItemsPage = z.infer<typeof remoteRuntimeItemsPageSchema>;
 
 /**
  * Desktop settings editable from a remote client ("Remote settings" in the

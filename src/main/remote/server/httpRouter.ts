@@ -10,6 +10,7 @@ import {
   remoteProjectCommandSchema,
   remotePushRegistrationSchema,
   remotePushUnregisterSchema,
+  remoteRuntimeItemsPageRequestSchema,
   remoteSettingsPatchSchema,
   remoteScheduleCommandSchema,
   remoteTokenExchangePayloadSchema,
@@ -70,6 +71,7 @@ import {
   buildAgentStatuses,
   buildShellSnapshot,
   buildThreadSnapshot,
+  buildThreadRuntimeItemsPage,
   descriptor,
 } from "./snapshots";
 import { applyRemoteThreadCommand, runGitCall, runProjectCommand } from "./threadCommands";
@@ -294,7 +296,7 @@ export async function handleHttp(
       writeText(
         res,
         200,
-        buildLocalPairingServiceWorkerJs(),
+        buildLocalPairingServiceWorkerJs(ctx.options.appVersion),
         "application/javascript; charset=utf-8",
       );
       return;
@@ -513,10 +515,32 @@ export async function handleHttp(
       writeJson(res, 200, { ok: true });
       return;
     }
+    const historyItemsThreadId = threadIdFromPath(url.pathname, "/history/items");
+    if (req.method === "GET" && historyItemsThreadId) {
+      ctx.security.requireBearer(req, ["session:read"]);
+      const beforePosition = url.searchParams.get("beforePosition");
+      const targetTimelineEntryCount = url.searchParams.get("targetTimelineEntryCount");
+      const input = remoteRuntimeItemsPageRequestSchema.parse({
+        threadId: historyItemsThreadId,
+        limit: Number(url.searchParams.get("limit")),
+        ...(beforePosition !== null ? { beforePosition: Number(beforePosition) } : {}),
+        ...(targetTimelineEntryCount !== null
+          ? { targetTimelineEntryCount: Number(targetTimelineEntryCount) }
+          : {}),
+      });
+      writeJson(res, 200, buildThreadRuntimeItemsPage(input));
+      return;
+    }
     const historyThreadId = threadIdFromPath(url.pathname, "/history");
     if (req.method === "GET" && historyThreadId) {
       ctx.security.requireBearer(req, ["session:read"]);
-      writeJson(res, 200, await buildThreadSnapshot(ctx, historyThreadId));
+      writeJson(
+        res,
+        200,
+        await buildThreadSnapshot(ctx, historyThreadId, {
+          runtimePage: url.searchParams.get("runtimePage") === "1",
+        }),
+      );
       return;
     }
     if (req.method === "POST" && url.pathname === "/api/threads/start") {

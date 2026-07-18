@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { legacyBrowserRouteUrl, mobileRouterBasePath } from "./routing";
+import { legacyBrowserRouteUrl, mobileRouterBasePath, mobileServiceWorkerScope } from "./routing";
 
 describe("mobileRouterBasePath", () => {
   it("resolves hosted, desktop-served, and development bases", () => {
     expect(mobileRouterBasePath("/pwa/settings/appearance", "/pwa/")).toBe("/pwa");
     expect(mobileRouterBasePath("/app/settings/appearance", "/")).toBe("/app");
     expect(mobileRouterBasePath("/settings/appearance", "/")).toBe("/");
+  });
+});
+
+describe("mobileServiceWorkerScope", () => {
+  it("controls exact entry URLs and their canonical descendants", () => {
+    expect(mobileServiceWorkerScope()).toBe("/");
   });
 });
 

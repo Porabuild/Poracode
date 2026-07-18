@@ -259,10 +259,10 @@ describe("mobile route components", () => {
     expect(fixtures.navigate).toHaveBeenCalledWith({ to: "/projects" });
   });
 
-  it("renders the home composer only after a connected desktop has projects", () => {
+  it("renders the home composer only after a connected desktop has projects", async () => {
     render(<ThreadsRoute />);
 
-    expect(screen.getByTestId("quick-compose")).toBeTruthy();
+    expect(await screen.findByTestId("quick-compose")).toBeTruthy();
   });
 
   it("redirects stale Usage settings when no desktop is paired", async () => {
@@ -305,14 +305,14 @@ describe("mobile route components", () => {
 
     render(<ThreadRoute />);
 
-    expect(screen.getByTestId("thread-title")).toHaveTextContent("No thread");
+    expect(screen.getByText("No thread selected")).toBeTruthy();
     expect(fixtures.remote.openThread).not.toHaveBeenCalled();
   });
 
-  it("opens a project terminal with the routed thread as the close target", () => {
+  it("opens a project terminal with the routed thread as the close target", async () => {
     render(<ThreadRoute />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Open terminal" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Open terminal" }));
 
     expect(fixtures.navigate).toHaveBeenCalledWith({
       to: "/terminal/$projectId",

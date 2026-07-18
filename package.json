@@ -63,6 +63,7 @@
     "fmt:check": "oxfmt --check .",
     "test": "vitest run --configLoader runner",
     "test:perf:cli-hook": "vitest run --configLoader runner src/supervisor/runtime/cliHookEventChain.perf.test.ts",
+    "test:perf:remote": "vitest run --configLoader runner src/mobile/remoteProtocol.perf.test.ts",
     "test:integration:providers": "vitest run --configLoader runner --config vitest.integration.config.ts",
     "smoke:integration": "node .agents/skills/interactive-testing/scripts/run-poracode-smoke.mjs",
     "update-server": "node scripts/update-server.mjs",

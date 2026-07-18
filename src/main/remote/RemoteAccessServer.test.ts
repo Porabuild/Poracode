@@ -33,6 +33,7 @@ import {
   dbGetThreadContextUsage,
   dbGetLatestThreadRuntimeAnchorItemId,
   dbGetThreadRuntimeItems,
+  dbGetThreadRuntimeItemsPage,
   dbGetThreadRuntimeSummaries,
   dbGetThreads,
   dbReplaceThreadRuntimeSnapshot,
@@ -70,6 +71,9 @@ vi.mock("../db", () => {
     dbGetThreadContextUsage: vi.fn<() => null>(() => null),
     dbGetLatestThreadRuntimeAnchorItemId: vi.fn<() => null>(() => null),
     dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
+    dbGetThreadRuntimeItemsPage: vi.fn<() => { items: unknown[]; nextCursor: number | null }>(
+      () => ({ items: [], nextCursor: null }),
+    ),
     dbGetThreadRuntimeSummaries: vi.fn<() => Record<string, unknown>>(() => ({})),
     dbGetThread: vi.fn<(threadId: string) => unknown>(() => null),
     dbGetThreads: vi.fn<() => unknown[]>(() => []),
@@ -119,6 +123,9 @@ afterEach(async () => {
   vi.mocked(dbGetThreadContextUsage).mockReset().mockReturnValue(null);
   vi.mocked(dbGetLatestThreadRuntimeAnchorItemId).mockReset().mockReturnValue(null);
   vi.mocked(dbGetThreadRuntimeItems).mockReset().mockReturnValue([]);
+  vi.mocked(dbGetThreadRuntimeItemsPage)
+    .mockReset()
+    .mockReturnValue({ items: [], nextCursor: null });
   vi.mocked(dbGetThreadRuntimeSummaries).mockReset().mockReturnValue({});
   vi.mocked(dbGetThread).mockReset().mockReturnValue(null);
   vi.mocked(dbGetThreads).mockReset().mockReturnValue([]);
@@ -720,8 +727,14 @@ describe("RemoteAccessServer", () => {
     const serviceWorkerResponse = await fetch(new URL("/service-worker.js", info.httpBaseUrl));
     expect(serviceWorkerResponse.status).toBe(200);
     const serviceWorker = await serviceWorkerResponse.text();
-    expect(serviceWorker).toContain("poracode-remote-local");
+    expect(serviceWorker).toContain("poracode-remote-local-1.0.0");
     expect(serviceWorker).toContain("caches.delete(LEGACY_CACHE_NAME)");
+    expect(serviceWorker).toContain("if (response.ok)");
+    expect(serviceWorker).toContain('url.pathname.startsWith("/assets/")');
+    expect(serviceWorker).toContain("NAVIGATION_FALLBACK_DELAY_MS = 500");
+    expect(serviceWorker).toContain('if (request.mode === "navigate")');
+    expect(serviceWorker).toContain("if (!isAppRequest && !isPwaStaticRequest) return");
+    expect(serviceWorker).toContain('request.mode === "navigate" ? "/app" : request');
 
     const { ws, ready } = await openPairedSocket(info);
     expect(ready).toMatchObject({ type: "ready", seq: 0 });
@@ -741,6 +754,70 @@ describe("RemoteAccessServer", () => {
       event,
     });
     ws.close();
+  });
+
+  it("pages remote thread runtime history while preserving the legacy full response", async () => {
+    const thread = createTestThread({ id: "thread-paged", presentationMode: "gui" });
+    const fullItems = [
+      {
+        id: "old",
+        type: "assistant_message",
+        state: "completed" as const,
+        payload: {},
+        streams: {},
+      },
+      {
+        id: "tail",
+        type: "assistant_message",
+        state: "completed" as const,
+        payload: {},
+        streams: {},
+      },
+    ];
+    const tailPage = { items: [fullItems[1]!], nextCursor: 41 };
+    vi.mocked(dbGetThread).mockReturnValue(thread);
+    vi.mocked(dbGetThreadRuntimeItems).mockReturnValue(fullItems);
+    vi.mocked(dbGetThreadRuntimeItemsPage).mockReturnValue(tailPage);
+
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: async () => null as never,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+    const headers = { authorization: `Bearer ${token}` };
+
+    const legacyResponse = await fetch(
+      new URL("/api/threads/thread-paged/history", info.httpBaseUrl),
+      { headers },
+    );
+    expect(legacyResponse.status).toBe(200);
+    await expect(legacyResponse.json()).resolves.toMatchObject({ runtimeItems: fullItems });
+
+    const tailResponse = await fetch(
+      new URL("/api/threads/thread-paged/history?runtimePage=1", info.httpBaseUrl),
+      { headers },
+    );
+    expect(tailResponse.status).toBe(200);
+    await expect(tailResponse.json()).resolves.toMatchObject({
+      runtimeItems: tailPage.items,
+      runtimeNextCursor: 41,
+    });
+
+    const olderResponse = await fetch(
+      new URL(
+        "/api/threads/thread-paged/history/items?beforePosition=41&limit=500&targetTimelineEntryCount=40",
+        info.httpBaseUrl,
+      ),
+      { headers },
+    );
+    expect(olderResponse.status).toBe(200);
+    await expect(olderResponse.json()).resolves.toEqual(tailPage);
+    expect(dbGetThreadRuntimeItemsPage).toHaveBeenLastCalledWith("thread-paged", 41, 500, 40);
   });
 
   it("builds shell snapshots from aggregated runtime summaries", async () => {

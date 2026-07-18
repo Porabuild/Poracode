@@ -3,10 +3,13 @@ import {
   REMOTE_STANDARD_SCOPES,
   remoteAgentStatusesSchema,
   remoteEnvironmentDescriptorSchema,
+  remoteRuntimeItemsPageSchema,
   remoteShellSnapshotSchema,
   remoteThreadSnapshotSchema,
   type RemoteAgentStatuses,
   type RemoteEnvironmentDescriptor,
+  type RemoteRuntimeItemsPage,
+  type RemoteRuntimeItemsPageRequest,
   type RemoteShellSnapshot,
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
@@ -17,6 +20,7 @@ import {
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
   dbGetThreadRuntimeItems,
+  dbGetThreadRuntimeItemsPage,
   dbGetThreadRuntimeSummaries,
   dbGetThreads,
 } from "../../db";
@@ -99,6 +103,7 @@ export async function buildAgentStatuses(ctx: RemoteServerContext): Promise<Remo
 export async function buildThreadSnapshot(
   ctx: RemoteServerContext,
   threadId: string,
+  options: { readonly runtimePage?: boolean } = {},
 ): Promise<RemoteThreadSnapshot> {
   const thread = dbGetThread(threadId);
   if (!thread) {
@@ -119,14 +124,34 @@ export async function buildThreadSnapshot(
     terminalSize = undefined;
   }
 
+  const runtimePage = options.runtimePage
+    ? dbGetThreadRuntimeItemsPage(threadId, undefined, 500, 40)
+    : null;
   return remoteThreadSnapshotSchema.parse({
     snapshotSeq: ctx.seq,
     thread,
-    runtimeItems: dbGetThreadRuntimeItems(threadId),
+    runtimeItems: runtimePage?.items ?? dbGetThreadRuntimeItems(threadId),
+    ...(runtimePage ? { runtimeNextCursor: runtimePage.nextCursor } : {}),
     completedTurns: dbGetThreadCompletedTurns(threadId),
     contextUsage: dbGetThreadContextUsage(threadId),
     ...(terminalScrollback ? { terminalScrollback } : {}),
     ...(terminalSize ? { terminalSize } : {}),
     updatedAt: new Date().toISOString(),
   });
+}
+
+export function buildThreadRuntimeItemsPage(
+  input: RemoteRuntimeItemsPageRequest,
+): RemoteRuntimeItemsPage {
+  if (!dbGetThread(input.threadId)) {
+    throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+  }
+  return remoteRuntimeItemsPageSchema.parse(
+    dbGetThreadRuntimeItemsPage(
+      input.threadId,
+      input.beforePosition,
+      input.limit,
+      input.targetTimelineEntryCount,
+    ),
+  );
 }

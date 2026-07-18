@@ -21,6 +21,7 @@ import {
   isGitRemoteNoopProcedure,
   isGitRemoteProcedure,
   type RemoteBrowserCommand,
+  type RemoteRuntimeItemsPageRequest,
 } from "@/shared/remote";
 import type { SharedSettingsInput } from "@/shared/settings";
 import { useBrowserMirrorStore } from "./browserMirror";
@@ -218,9 +219,13 @@ const remoteBridge = {
   getAgentHookPluginStatuses: () => Promise.resolve([]),
 
   // Runtime history hydration is fed by the remote sync layer instead of the
-  // local DB; empty results keep `hydrateThreadRuntimeItems` a no-op.
+  // local DB. The selected thread's tail arrives with its snapshot; older
+  // pages are fetched lazily when ChatPane reaches the start.
   dbGetThreadRuntimeItems: () => Promise.resolve([]),
-  dbGetThreadRuntimeItemsPage: () => Promise.resolve({ items: [], nextCursor: null }),
+  dbGetThreadRuntimeItemsPage: (payload: RemoteRuntimeItemsPageRequest) =>
+    payload.beforePosition === undefined
+      ? Promise.resolve({ items: [], nextCursor: null })
+      : requireClient().threadRuntimeItemsPage(payload),
   dbTruncateThreadRuntimeAfter: () => Promise.resolve(),
   dbGetThreadCompletedTurns: () => Promise.resolve([]),
   dbGetThreadContextUsage: () => Promise.resolve(null),

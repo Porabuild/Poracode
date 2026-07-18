@@ -9,6 +9,7 @@ import {
 } from "react";
 import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { MessageCircle } from "lucide-react";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { Thread } from "@/shared/contracts";
@@ -31,6 +32,7 @@ import {
   subscribePairingLaunch,
 } from "./pairing";
 import { MobileSetupEmptyState, type MobileSetupKind } from "./setupEmptyState";
+import { EmptyState } from "./components";
 import { isDesktopSettingsSection } from "./settingsSections";
 import type { MobileSshPairRequest } from "./views/DesktopsView";
 import { useGitSummaryHydration } from "./useGitSummaryHydration";
@@ -38,10 +40,17 @@ import { useMediaQuery, WIDE_SHELL_QUERY } from "./useMediaQuery";
 import { DesktopsView } from "./views/DesktopsView";
 import { ManageProjectsView } from "./views/ManageProjectsView";
 import { MoreView } from "./views/MoreView";
-import { NewThreadFlow } from "./views/NewThreadFlow";
-import { QuickCompose } from "./views/QuickCompose";
 import { ThreadsView } from "./views/ThreadsView";
-import { ThreadView } from "./views/ThreadView";
+
+const NewThreadFlow = lazy(() =>
+  import("./views/NewThreadFlow").then((module) => ({ default: module.NewThreadFlow })),
+);
+const QuickCompose = lazy(() =>
+  import("./views/QuickCompose").then((module) => ({ default: module.QuickCompose })),
+);
+const ThreadView = lazy(() =>
+  import("./views/ThreadView").then((module) => ({ default: module.ThreadView })),
+);
 
 const BrowserView = lazy(() =>
   import("./views/BrowserView").then((module) => ({ default: module.BrowserView })),
@@ -96,8 +105,8 @@ function LazyRoute(props: { readonly children: ReactNode }) {
  * on a cold chunk that's the fallback, so the fallback itself must be a
  * fullscreen, `m-screen`-named surface or the slide has nothing to animate
  * (the old page then just dissolves via the root cross-fade, and the late-
- * arriving screen paints with no coherent entry). The idle warmup below makes
- * this fallback a rare slow-network sight.
+ * arriving screen paints with no coherent entry). Connected sessions warm
+ * these chunks after the first paint, keeping the fallback a rare sight.
  */
 function FullscreenLazyRoute(props: { readonly children: ReactNode }) {
   return (
@@ -115,21 +124,6 @@ function FullscreenLazyRoute(props: { readonly children: ReactNode }) {
   );
 }
 
-// Warm the fullscreen screens' chunks once the first paint has settled, so the
-// first push into workspace/terminal captures real content for its slide
-// instead of the cold Suspense fallback.
-if (typeof window !== "undefined") {
-  const warmFullscreenChunks = () => {
-    void import("./views/WorkspaceView");
-    void import("./views/TerminalView");
-  };
-  if (typeof window.requestIdleCallback === "function") {
-    window.requestIdleCallback(warmFullscreenChunks, { timeout: 4_000 });
-  } else {
-    window.setTimeout(warmFullscreenChunks, 2_000);
-  }
-}
-
 /**
  * Shared thread detail pane. Used by the /thread/:id route and, in the wide
  * layout, by the /threads route (where the list lives in the sidebar and the
@@ -139,30 +133,39 @@ function ThreadDetail(props: { readonly thread: Thread | null; readonly hideHead
   const remote = useRemote();
   const navigate = useNavigate();
   const thread = props.thread;
+  if (!thread) {
+    return (
+      <section className="m-thread">
+        <EmptyState
+          icon={<MessageCircle className="size-5" />}
+          title={<Trans>No thread selected</Trans>}
+          hint={<Trans>Pick a thread from the list to follow the agent from here.</Trans>}
+        />
+      </section>
+    );
+  }
   // Still fetching this thread's history when no snapshot matches it yet.
-  const loading = Boolean(thread) && remote.selectedThreadSnapshot?.thread.id !== thread?.id;
+  const loading = remote.selectedThreadSnapshot?.thread.id !== thread.id;
   return (
-    <ThreadView
-      thread={thread}
-      terminalScrollback={remote.selectedThreadSnapshot?.terminalScrollback}
-      terminalSize={remote.selectedThreadSnapshot?.terminalSize}
-      hideHeader={props.hideHeader}
-      loading={loading}
-      onThreadAction={(action) =>
-        runThreadAction(remote, thread, action, () => void navigate({ to: "/threads" }))
-      }
-      onSubmitInput={(prompt, segments) => remote.sendPrompt(prompt, segments)}
-      onOpenWorkspace={(tab) => {
-        if (thread) {
+    <LazyRoute>
+      <ThreadView
+        thread={thread}
+        terminalScrollback={remote.selectedThreadSnapshot?.terminalScrollback}
+        terminalSize={remote.selectedThreadSnapshot?.terminalSize}
+        hideHeader={props.hideHeader}
+        loading={loading}
+        onThreadAction={(action) =>
+          runThreadAction(remote, thread, action, () => void navigate({ to: "/threads" }))
+        }
+        onSubmitInput={(prompt, segments) => remote.sendPrompt(prompt, segments)}
+        onOpenWorkspace={(tab) => {
           void navigate({
             to: "/workspace/$threadId",
             params: { threadId: thread.id },
             search: { tab },
           });
-        }
-      }}
-      onOpenWorkspaceFile={(path, lineNumber) => {
-        if (thread) {
+        }}
+        onOpenWorkspaceFile={(path, lineNumber) => {
           void navigate({
             to: "/workspace/$threadId",
             params: { threadId: thread.id },
@@ -172,19 +175,15 @@ function ThreadDetail(props: { readonly thread: Thread | null; readonly hideHead
               ...(lineNumber !== undefined ? { line: lineNumber } : {}),
             },
           });
-        }
-      }}
-      onOpenWorkspaceFolder={(path) => {
-        if (thread) {
+        }}
+        onOpenWorkspaceFolder={(path) => {
           void navigate({
             to: "/workspace/$threadId",
             params: { threadId: thread.id },
             search: { tab: "files", folder: path },
           });
-        }
-      }}
-      onOpenTerminal={() => {
-        if (thread) {
+        }}
+        onOpenTerminal={() => {
           void navigate({
             to: "/terminal/$projectId",
             params: { projectId: thread.projectId },
@@ -193,17 +192,17 @@ function ThreadDetail(props: { readonly thread: Thread | null; readonly hideHead
               ...(thread.worktreePath ? { worktree: thread.worktreePath } : {}),
             },
           });
-        }
-      }}
-      onNewThreadInWorktree={(input) => {
-        preselectWorktreeDraft(input);
-        void navigate({ to: "/new" });
-      }}
-      onDeleteWorktreeGroup={(input) => {
-        void remote.deleteWorktreeGroup(input);
-        void navigate({ to: "/threads" });
-      }}
-    />
+        }}
+        onNewThreadInWorktree={(input) => {
+          preselectWorktreeDraft(input);
+          void navigate({ to: "/new" });
+        }}
+        onDeleteWorktreeGroup={(input) => {
+          void remote.deleteWorktreeGroup(input);
+          void navigate({ to: "/threads" });
+        }}
+      />
+    </LazyRoute>
   );
 }
 
@@ -247,6 +246,24 @@ export function ThreadsRoute() {
   useEffect(() => {
     if (!isWide) useAppStore.getState().openHome();
   }, [isWide]);
+
+  // Once a desktop is connected, warm the fullscreen chunks after first paint
+  // so their push transition normally captures real content. Disconnected
+  // startup keeps them off the network entirely.
+  const activeDesktopId = remote.activeDesktop?.desktopId;
+  useEffect(() => {
+    if (!activeDesktopId) return;
+    const warmFullscreenChunks = () => {
+      void import("./views/WorkspaceView");
+      void import("./views/TerminalView");
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(warmFullscreenChunks, { timeout: 4_000 });
+      return () => window.cancelIdleCallback(handle);
+    }
+    const handle = window.setTimeout(warmFullscreenChunks, 2_000);
+    return () => window.clearTimeout(handle);
+  }, [activeDesktopId]);
 
   // Wide: the sidebar owns the list; this pane shows the selected thread.
   if (isWide) {
@@ -305,14 +322,16 @@ export function ThreadsRoute() {
         {...(setupEmptyState ? { emptyStateOverride: setupEmptyState } : {})}
       />
       {readyToCompose ? (
-        <QuickCompose
-          expanded={composeExpanded}
-          onExpandedChange={setComposeExpanded}
-          onStarted={(threadId) => {
-            setComposeExpanded(false);
-            void navigate({ to: "/thread/$threadId", params: { threadId } });
-          }}
-        />
+        <Suspense fallback={null}>
+          <QuickCompose
+            expanded={composeExpanded}
+            onExpandedChange={setComposeExpanded}
+            onStarted={(threadId) => {
+              setComposeExpanded(false);
+              void navigate({ to: "/thread/$threadId", params: { threadId } });
+            }}
+          />
+        </Suspense>
       ) : null}
     </>
   );
@@ -343,12 +362,14 @@ export function ThreadRoute() {
 export function NewThreadRoute() {
   const navigate = useNavigate();
   return (
-    <NewThreadFlow
-      onStarted={(threadId) => void navigate({ to: "/thread/$threadId", params: { threadId } })}
-      onSetupAction={(kind) =>
-        void navigate(kind === "desktop" ? { to: "/desktops" } : { to: "/projects" })
-      }
-    />
+    <LazyRoute>
+      <NewThreadFlow
+        onStarted={(threadId) => void navigate({ to: "/thread/$threadId", params: { threadId } })}
+        onSetupAction={(kind) =>
+          void navigate(kind === "desktop" ? { to: "/desktops" } : { to: "/projects" })
+        }
+      />
+    </LazyRoute>
   );
 }
 

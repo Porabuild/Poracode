@@ -5,6 +5,7 @@ import {
   createRoute,
   createRouteMask,
   createRouter,
+  lazyRouteComponent,
   Navigate,
   redirect,
 } from "@tanstack/react-router";
@@ -29,12 +30,19 @@ import {
   UsageRoute,
   WorkspaceRoute,
 } from "./routeComponents";
-import { PrChangesPage } from "./views/pr/PrChangesPage";
-import { PrChecksPage } from "./views/pr/PrChecksPage";
-import { PrCommitsPage } from "./views/pr/PrCommitsPage";
-import { PrConversationPage } from "./views/pr/PrConversationPage";
-import { PrLayout } from "./views/pr/PrLayout";
-import { PrOverviewPage } from "./views/pr/PrOverviewPage";
+
+const PrLayout = lazyRouteComponent(() => import("./views/pr/PrLayout"), "PrLayout");
+const PrOverviewPage = lazyRouteComponent(
+  () => import("./views/pr/PrOverviewPage"),
+  "PrOverviewPage",
+);
+const PrChangesPage = lazyRouteComponent(() => import("./views/pr/PrChangesPage"), "PrChangesPage");
+const PrCommitsPage = lazyRouteComponent(() => import("./views/pr/PrCommitsPage"), "PrCommitsPage");
+const PrChecksPage = lazyRouteComponent(() => import("./views/pr/PrChecksPage"), "PrChecksPage");
+const PrConversationPage = lazyRouteComponent(
+  () => import("./views/pr/PrConversationPage"),
+  "PrConversationPage",
+);
 
 // Snapshot pairing credentials before history reads the launch URL, then
 // migrate bookmarks from the former hash/state-backed routers.

@@ -1,10 +1,10 @@
 {
-  "id": "./",
+  "id": "/pwa/",
   "name": "Poracode",
   "short_name": "Poracode",
   "description": "Follow and steer your Poracode AI agents from your phone — threads, git review, and live browser, paired to your desktop.",
-  "start_url": "./app",
-  "scope": "./",
+  "start_url": "/app/threads",
+  "scope": "/app/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "background_color": "#070709",

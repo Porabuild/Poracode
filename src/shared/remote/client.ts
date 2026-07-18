@@ -17,6 +17,7 @@ import {
   remoteSettingsSchema,
   remoteSchedulesResponseSchema,
   remoteProjectCommandResultSchema,
+  remoteRuntimeItemsPageSchema,
   remoteShellSnapshotSchema,
   remoteThreadSnapshotSchema,
   remoteWebSocketServerMessageSchema,
@@ -35,6 +36,8 @@ import {
   type RemoteProjectCommand,
   type RemoteProjectCommandResult,
   type RemotePushRegistration,
+  type RemoteRuntimeItemsPage,
+  type RemoteRuntimeItemsPageRequest,
   type RemoteSettings,
   type RemoteSettingsPatch,
   type RemoteScheduleCommand,
@@ -448,7 +451,26 @@ export class RemoteDesktopClient {
 
   async threadHistory(threadId: string): Promise<RemoteThreadSnapshot> {
     return remoteThreadSnapshotSchema.parse(
-      await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/history`),
+      await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/history?runtimePage=1`),
+    );
+  }
+
+  async threadRuntimeItemsPage(
+    input: RemoteRuntimeItemsPageRequest,
+  ): Promise<RemoteRuntimeItemsPage> {
+    const search = new URLSearchParams({
+      limit: String(input.limit),
+      ...(input.beforePosition !== undefined
+        ? { beforePosition: String(input.beforePosition) }
+        : {}),
+      ...(input.targetTimelineEntryCount !== undefined
+        ? { targetTimelineEntryCount: String(input.targetTimelineEntryCount) }
+        : {}),
+    });
+    return remoteRuntimeItemsPageSchema.parse(
+      await this.requestJson(
+        `/api/threads/${encodeURIComponent(input.threadId)}/history/items?${search}`,
+      ),
     );
   }
 
@@ -686,9 +708,12 @@ export class RemoteDesktopClient {
     await this.requestJson("/api/push/unregister", { method: "POST", body: { deviceId } });
   }
 
-  async websocketTicket(): Promise<string> {
+  async websocketTicket(timeoutMs?: number): Promise<string> {
     const result = remoteWebSocketTicketResultSchema.parse(
-      await this.requestJson("/api/auth/websocket-ticket", { method: "POST" }),
+      await this.requestJson("/api/auth/websocket-ticket", {
+        method: "POST",
+        ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+      }),
     );
     return result.ticket;
   }

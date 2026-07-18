@@ -85,6 +85,14 @@ interface LocalWsChannel {
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 const WEB_SOCKET_OPEN = 1;
+const DROPPABLE_STREAM_SOFT_BUFFER_BYTES = 1_500_000;
+
+function isDroppableStreamFrame(data: string): boolean {
+  const parsed = safeJsonParse(data);
+  if (!parsed || typeof parsed !== "object") return false;
+  const type = (parsed as { type?: unknown }).type;
+  return type === "terminal-output" || type === "browser-frame";
+}
 
 /**
  * Build the synthetic `x-forwarded-for` value the host forwards to its own
@@ -111,6 +119,10 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     options.maxWebSocketPayloadBytes ?? relayWebSocketPayloadLimit(maxBodyBytes);
   const maxWebSocketOutboundBufferBytes =
     options.maxWebSocketOutboundBufferBytes ?? relayWebSocketPayloadLimit(maxBodyBytes);
+  const droppableStreamSoftBufferBytes = Math.min(
+    DROPPABLE_STREAM_SOFT_BUFFER_BYTES,
+    Math.floor(maxWebSocketOutboundBufferBytes / 2),
+  );
 
   let disposed = false;
   let control: RelaySocket | null = null;
@@ -325,7 +337,14 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     };
     local.onmessage = (event) => {
       if (control === sourceControl) {
-        if (!sendOn(sourceControl, { t: "ws-data", id: frame.id, data: String(event.data) })) {
+        const data = String(event.data);
+        if (
+          (sourceControl.bufferedAmount ?? 0) > droppableStreamSoftBufferBytes &&
+          isDroppableStreamFrame(data)
+        ) {
+          return;
+        }
+        if (!sendOn(sourceControl, { t: "ws-data", id: frame.id, data })) {
           if (wsChannels.delete(frame.id)) closeSocket(local);
         }
       }

@@ -20,6 +20,11 @@ const pendingOlderRuntimePages = new Map<string, Promise<boolean>>();
 const retainedThreadRuntimeCounts = new Map<string, number>();
 const inactiveThreadRuntimeLru = new Set<string>();
 
+/** Seed the older-page cursor when a remote thread snapshot supplies its tail. */
+export function seedOlderThreadRuntimeItemsCursor(threadId: string, cursor: number | null): void {
+  olderRuntimePageCursorByThread.set(threadId, cursor);
+}
+
 export function hasHydratedThreadRuntimeItems(threadId: string): boolean {
   return (
     hydratedThreadRuntimeIds.has(threadId) ||

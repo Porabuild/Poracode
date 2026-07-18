@@ -6296,6 +6296,7 @@ msgstr "No supported agents are installed on this remote machine. Install and si
 msgid "No supported agents detected"
 msgstr "No supported agents detected"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "No thread selected"
 msgstr "No thread selected"
@@ -6984,6 +6985,7 @@ msgstr "Pending steer"
 msgid "permission"
 msgstr "permission"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Pick a thread from the list to follow the agent from here."
 msgstr "Pick a thread from the list to follow the agent from here."

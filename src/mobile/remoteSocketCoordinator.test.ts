@@ -39,7 +39,7 @@ import {
 } from "./remoteSocketCoordinator";
 
 interface ClientMock {
-  readonly websocketTicket: Mock<() => Promise<string>>;
+  readonly websocketTicket: Mock<(timeoutMs?: number) => Promise<string>>;
   readonly websocketUrl: Mock<(ticket: string, lastSeenSeq: number | null | undefined) => string>;
   readonly parseSocketMessage: Mock<(raw: string) => RemoteWebSocketServerMessage>;
 }
@@ -114,7 +114,7 @@ interface Harness {
 
 function createClient(): ClientMock {
   return {
-    websocketTicket: vi.fn<() => Promise<string>>(async () => "ticket-1"),
+    websocketTicket: vi.fn<(timeoutMs?: number) => Promise<string>>(async () => "ticket-1"),
     websocketUrl: vi.fn<(ticket: string, lastSeenSeq: number | null | undefined) => string>(
       (ticket, lastSeenSeq) => `ws://desktop/ws?ticket=${ticket}&lastSeenSeq=${lastSeenSeq}`,
     ),
@@ -213,7 +213,7 @@ describe("remoteSocketCoordinator", () => {
     const harness = track(createHarness({ initialLastSeenSeq: 7 }));
     const socket = await start(harness);
 
-    expect(harness.client.websocketTicket).toHaveBeenCalledTimes(1);
+    expect(harness.client.websocketTicket).toHaveBeenCalledWith(15000);
     expect(harness.client.websocketUrl).toHaveBeenCalledWith("ticket-1", 7);
     harness.coordinator.start();
     expect(FakeWebSocket.instances).toHaveLength(1);
@@ -230,6 +230,31 @@ describe("remoteSocketCoordinator", () => {
       refreshSelectedThread: true,
       includeAuxiliary: true,
     });
+  });
+
+  it("advances to an authoritative snapshot sequence and ignores covered replay events", async () => {
+    const harness = track(createHarness({ initialLastSeenSeq: 2 }));
+    const socket = await start(harness);
+    socket.open();
+
+    harness.coordinator.advanceLastSeenSeq(8);
+    socket.message({
+      type: "event",
+      seq: 8,
+      event: { type: "thread-runtime-event", threadId: "covered" },
+    });
+    socket.message({
+      type: "event",
+      seq: 9,
+      event: { type: "thread-runtime-event", threadId: "new" },
+    });
+
+    expect(h.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(1);
+    expect(h.dispatchRemoteSupervisorEvent).toHaveBeenCalledWith({
+      type: "thread-runtime-event",
+      threadId: "new",
+    });
+    expect(harness.coordinator.getLastSeenSeq()).toBe(9);
   });
 
   it("does not let an event refresh downgrade a pending recovery refresh", async () => {
@@ -267,6 +292,7 @@ describe("remoteSocketCoordinator", () => {
       seq: 8,
       event: { type: "thread-state", threadId: "selected" },
     });
+    expect(harness.coordinator.getLastSeenSeq()).toBe(8);
     await vi.advanceTimersByTimeAsync(600);
     expect(harness.requestRefresh).toHaveBeenCalledWith({
       refreshSelectedThread: true,

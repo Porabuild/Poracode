@@ -425,7 +425,7 @@ export default defineConfig(({ mode }) => ({
                 !/[\\/]@shikijs[\\/](?:langs|themes)[\\/]/.test(id),
               priority: 10,
             },
-          ],
+          ].filter((group) => !mobileOnly || group.name === "ui" || group.name === "framework"),
         },
       },
     },

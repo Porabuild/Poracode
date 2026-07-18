@@ -6296,6 +6296,7 @@ msgstr "На этом удалённом компьютере не устано�
 msgid "No supported agents detected"
 msgstr "Поддерживаемые агенты не обнаружены"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "No thread selected"
 msgstr "Поток не выбран"
@@ -6984,6 +6985,7 @@ msgstr "Ожидающее направление"
 msgid "permission"
 msgstr "разрешение"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Pick a thread from the list to follow the agent from here."
 msgstr "Выберите поток из списка, чтобы отслеживать агента отсюда."

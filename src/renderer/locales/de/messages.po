@@ -6296,6 +6296,7 @@ msgstr "Auf diesem Remotecomputer sind keine unterstützten Agenten installiert.
 msgid "No supported agents detected"
 msgstr "Keine unterstützten Agenten erkannt"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "No thread selected"
 msgstr "Kein Thread ausgewählt"
@@ -6984,6 +6985,7 @@ msgstr "Ausstehende Lenkung"
 msgid "permission"
 msgstr "Berechtigung"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Pick a thread from the list to follow the agent from here."
 msgstr "Wähle einen Thread aus der Liste, um dem Agenten von hier aus zu folgen."

@@ -6295,6 +6295,7 @@ msgstr "此远程计算机上未安装受支持的代理。请先在远程安装
 msgid "No supported agents detected"
 msgstr "未检测到支持的代理"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "No thread selected"
 msgstr "未选择线程"
@@ -6983,6 +6984,7 @@ msgstr "等待引导"
 msgid "permission"
 msgstr "权限"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Pick a thread from the list to follow the agent from here."
 msgstr "从列表中选择一个线程，即可在此跟进代理。"

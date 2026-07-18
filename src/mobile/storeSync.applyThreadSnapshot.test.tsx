@@ -43,11 +43,15 @@ function makeItem(input: { id: string; assistantText?: string }): PersistedRunti
 function makeSnapshot(input: {
   status: Thread["status"];
   items: PersistedRuntimeItem[];
+  runtimeNextCursor?: number | null;
 }): RemoteThreadSnapshot {
   return {
     snapshotSeq: 1,
     thread: makeThread(input.status),
     runtimeItems: input.items,
+    ...(input.runtimeNextCursor !== undefined
+      ? { runtimeNextCursor: input.runtimeNextCursor }
+      : {}),
     completedTurns: [],
     contextUsage: null,
     updatedAt: "2026-03-21T10:00:00.000Z",
@@ -142,6 +146,42 @@ describe("applyThreadSnapshot", () => {
     applyThreadSnapshot(makeSnapshot({ status: "idle", items: [makeItem({ id: "a" })] }));
 
     expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual(["a"]);
+  });
+
+  it("refreshes a paged tail without discarding older pages already loaded", () => {
+    const store = useAppStore.getState();
+    store.applyRuntimeEvents(THREAD_ID, [
+      { type: "item.started", threadId: THREAD_ID, itemId: "old-a", itemType: "assistant_message" },
+      { type: "item.started", threadId: THREAD_ID, itemId: "old-b", itemType: "assistant_message" },
+      {
+        type: "item.started",
+        threadId: THREAD_ID,
+        itemId: "tail-a",
+        itemType: "assistant_message",
+      },
+      {
+        type: "item.started",
+        threadId: THREAD_ID,
+        itemId: "tail-b",
+        itemType: "assistant_message",
+      },
+    ]);
+
+    applyThreadSnapshot(
+      makeSnapshot({
+        status: "idle",
+        items: [makeItem({ id: "tail-a", assistantText: "updated" }), makeItem({ id: "tail-b" })],
+        runtimeNextCursor: 10,
+      }),
+    );
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[THREAD_ID]).toEqual([
+      "old-a",
+      "old-b",
+      "tail-a",
+      "tail-b",
+    ]);
+    expect(assistantStreamText("tail-a")).toBe("updated");
   });
 
   it("does not let an empty fresh server snapshot erase a streamed transcript", () => {

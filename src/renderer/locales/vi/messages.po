@@ -6296,6 +6296,7 @@ msgstr "Không có tác tử được hỗ trợ nào được cài đặt trên
 msgid "No supported agents detected"
 msgstr "Không phát hiện thấy tác nhân được hỗ trợ nào"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "No thread selected"
 msgstr "Chưa chọn luồng"
@@ -6984,6 +6985,7 @@ msgstr "Đang chờ chỉ đạo"
 msgid "permission"
 msgstr "sự cho phép"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Pick a thread from the list to follow the agent from here."
 msgstr "Chọn một luồng trong danh sách để theo dõi agent từ đây."

@@ -97,6 +97,38 @@ describe("RemoteDesktopClient", () => {
     expect(authorization).toBe("Bearer lc_access_test");
   });
 
+  it("requests a tail snapshot and encodes older runtime page cursors", async () => {
+    const requestedUrls: string[] = [];
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url) => {
+        requestedUrls.push(String(url));
+        return new Response(JSON.stringify({ items: [], nextCursor: null }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(
+      client.threadRuntimeItemsPage({
+        threadId: "thread one",
+        beforePosition: 42,
+        limit: 500,
+        targetTimelineEntryCount: 40,
+      }),
+    ).resolves.toEqual({ items: [], nextCursor: null });
+    await client.threadHistory("thread one").catch(() => undefined);
+
+    expect(requestedUrls[0]).toBe(
+      "https://relay.example.test/s/server-1/api/threads/thread%20one/history/items?limit=500&beforePosition=42&targetTimelineEntryCount=40",
+    );
+    expect(requestedUrls[1]).toBe(
+      "https://relay.example.test/s/server-1/api/threads/thread%20one/history?runtimePage=1",
+    );
+  });
+
   it("passes an abort signal to remote fetches", async () => {
     let signal: AbortSignal | undefined;
     const client = new RemoteDesktopClient(
@@ -172,6 +204,23 @@ describe("RemoteDesktopClient", () => {
       code: "timeout",
       status: 0,
       message: "Remote request timed out after 10ms.",
+    });
+  });
+
+  it("allows WebSocket ticket requests to use the connection deadline", async () => {
+    vi.useFakeTimers();
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      undefined,
+      () => new Promise<Response>(() => {}),
+    );
+
+    const request = client.websocketTicket(15).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(15);
+
+    await expect(request).resolves.toMatchObject({
+      code: "timeout",
+      message: "Remote request timed out after 15ms.",
     });
   });
 

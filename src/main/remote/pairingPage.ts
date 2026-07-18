@@ -195,8 +195,9 @@ export function buildLocalPairingManifestJson(): string {
   return LOCAL_PAIRING_MANIFEST_JSON;
 }
 
-const LOCAL_PAIRING_SERVICE_WORKER_JS = `const CACHE_NAME = "poracode-remote-local-v1";
+const LOCAL_PAIRING_SERVICE_WORKER_JS = `const CACHE_NAME = "poracode-remote-local-__PORACODE_LOCAL_BUILD_VERSION__";
 const LEGACY_CACHE_NAME = "lightcode-remote-local-v1";
+const NAVIGATION_FALLBACK_DELAY_MS = 500;
 const SHELL_URLS = ["/app", "/manifest.webmanifest", "/app-icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -205,7 +206,18 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(caches.delete(LEGACY_CACHE_NAME).then(() => self.clients.claim()));
+  event.waitUntil(
+    Promise.all([
+      caches.delete(LEGACY_CACHE_NAME),
+      caches.keys().then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith("poracode-remote-local-") && key !== CACHE_NAME)
+            .map((key) => caches.delete(key)),
+        ),
+      ),
+    ]).then(() => self.clients.claim()),
+  );
 });
 
 self.addEventListener("fetch", (event) => {
@@ -213,12 +225,63 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/oauth/") || url.pathname === "/ws") return;
+  const isAppRequest = url.pathname === "/app" || url.pathname.startsWith("/app/");
+  const isPwaStaticRequest =
+    url.pathname.startsWith("/assets/") ||
+    url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith("/poracode-ssh-runtime/") ||
+    url.pathname === "/manifest.webmanifest" ||
+    url.pathname === "/app-icon.svg" ||
+    url.pathname === "/notification.mp3";
+  if (!isAppRequest && !isPwaStaticRequest) return;
+
+  if (url.pathname.startsWith("/assets/")) {
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ||
+          fetch(request).then((response) => {
+            if (response.ok) {
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            }
+            return response;
+          }),
+      ),
+    );
+    return;
+  }
+
+  if (request.mode === "navigate") {
+    const networkResponse = fetch(request).then(async (response) => {
+      if (response.ok) {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put("/app", response.clone());
+      }
+      return response;
+    });
+    const cachedResponse = new Promise((resolve) => {
+      setTimeout(() => {
+        caches.match("/app").then(resolve);
+      }, NAVIGATION_FALLBACK_DELAY_MS);
+    });
+    event.waitUntil(networkResponse.then(() => undefined, () => undefined));
+    event.respondWith(
+      Promise.race([networkResponse, cachedResponse])
+        .then((response) => response || networkResponse)
+        .catch(() => caches.match("/app").then((cached) => cached || Response.error())),
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(request)
       .then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        if (response.ok) {
+          const clone = response.clone();
+          const cacheKey = request.mode === "navigate" ? "/app" : request;
+          caches.open(CACHE_NAME).then((cache) => cache.put(cacheKey, clone));
+        }
         return response;
       })
       .catch(() => caches.match(request).then((cached) => cached || caches.match("/app"))),
@@ -226,8 +289,9 @@ self.addEventListener("fetch", (event) => {
 });
 `;
 
-export function buildLocalPairingServiceWorkerJs(): string {
-  return LOCAL_PAIRING_SERVICE_WORKER_JS;
+export function buildLocalPairingServiceWorkerJs(appVersion: string): string {
+  const buildVersion = appVersion.replace(/[^a-zA-Z0-9._-]/g, "-");
+  return LOCAL_PAIRING_SERVICE_WORKER_JS.replace("__PORACODE_LOCAL_BUILD_VERSION__", buildVersion);
 }
 
 // Kept in sync with public/app-icon.svg (the static/standalone icon).

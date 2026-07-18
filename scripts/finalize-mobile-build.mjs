@@ -3,7 +3,8 @@
 // Capacitor native shells both default to serving `index.html` from the web
 // root, so mirror the entry to `index.html`. Asset URLs use a relative base
 // ("./"), so the copy resolves identically at the new filename.
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const mobileBasePath = readEnv("PORACODE_MOBILE_BASE_PATH");
@@ -14,6 +15,7 @@ const outDir = resolve(
 );
 const source = join(outDir, "mobile.html");
 const target = join(outDir, "index.html");
+const serviceWorkerPath = join(outDir, "service-worker.js");
 const wellKnownDir = join(outDir, ".well-known");
 const sshRuntimeSourceDir = resolve(process.cwd(), "resources/mobile-ssh-runtime");
 const sshRuntimeTargetDir = join(outDir, "poracode-ssh-runtime");
@@ -44,6 +46,14 @@ if (requireIosLinks && !appleTeamId) {
 }
 
 copyFileSync(source, target);
+const serviceWorker = readFileSync(serviceWorkerPath, "utf8");
+const buildVersion = createHash("sha256").update(readFileSync(source)).digest("hex").slice(0, 12);
+const versionToken = "__PORACODE_BUILD_VERSION__";
+if (!serviceWorker.includes(versionToken)) {
+  console.error(`[finalize-mobile-build] missing build-version token in ${serviceWorkerPath}`);
+  process.exit(1);
+}
+writeFileSync(serviceWorkerPath, serviceWorker.replaceAll(versionToken, buildVersion), "utf8");
 mkdirSync(sshRuntimeTargetDir, { recursive: true });
 copyFileSync(
   join(sshRuntimeSourceDir, "manifest.json"),
@@ -54,6 +64,7 @@ mkdirSync(wellKnownDir, { recursive: true });
 writeJson(join(wellKnownDir, "assetlinks.json"), buildAssetLinks());
 writeJson(join(wellKnownDir, "apple-app-site-association"), buildAppleAppSiteAssociation());
 console.log(`[finalize-mobile-build] wrote ${target}`);
+console.log(`[finalize-mobile-build] versioned the service worker as ${buildVersion}`);
 console.log("[finalize-mobile-build] embedded the SSH runtime");
 console.log("[finalize-mobile-build] wrote .well-known association files");
 

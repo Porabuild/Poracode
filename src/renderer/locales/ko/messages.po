@@ -6296,6 +6296,7 @@ msgstr "이 원격 머신에 지원되는 에이전트가 설치되어 있지 �
 msgid "No supported agents detected"
 msgstr "지원되는 에이전트가 감지되지 않았습니다."
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "No thread selected"
 msgstr "선택된 스레드 없음"
@@ -6984,6 +6985,7 @@ msgstr "조정 대기 중"
 msgid "permission"
 msgstr "권한"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Pick a thread from the list to follow the agent from here."
 msgstr "여기에서 에이전트를 따라가려면 목록에서 스레드를 선택하세요."

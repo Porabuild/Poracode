@@ -250,6 +250,39 @@ describe("startRelayHost", () => {
     handle.dispose();
   });
 
+  it("drops high-volume stream frames before they disconnect every relay channel", () => {
+    const control = fakeSocket();
+    const terminalLocal = fakeSocket();
+    const otherLocal = fakeSocket();
+    const locals = [terminalLocal, otherLocal];
+    const handle = startRelayHost({
+      relayUrl: "ws://relay.test/host",
+      serverId: "srv-1",
+      secret: "secret",
+      localHttpUrl: "http://127.0.0.1:38987",
+      maxWebSocketOutboundBufferBytes: 512,
+      socketFactory: () => control,
+      wsFactory: () => locals.shift()!,
+    });
+
+    control.onopen?.();
+    control.onmessage?.(frame({ t: "ws-open", id: "terminal", path: "/ws?ticket=t1" }));
+    control.onmessage?.(frame({ t: "ws-open", id: "other", path: "/ws?ticket=t2" }));
+    control.bufferedAmount = 300;
+    terminalLocal.onmessage?.({
+      data: JSON.stringify({ type: "terminal-output", id: "thread-1", data: "noisy" }),
+    });
+    otherLocal.onmessage?.({ data: JSON.stringify({ type: "ready", seq: 1 }) });
+
+    const sent = control.sent.map((data) => JSON.parse(data) as { t: string; id?: string });
+    expect(sent).not.toContainEqual(expect.objectContaining({ t: "ws-data", id: "terminal" }));
+    expect(sent).toContainEqual(expect.objectContaining({ t: "ws-data", id: "other" }));
+    expect(control.closed).toBe(false);
+    expect(terminalLocal.closed).toBe(false);
+    expect(otherLocal.closed).toBe(false);
+    handle.dispose();
+  });
+
   it("closes the relay channel when opening the local websocket fails", () => {
     const error = new Error("local open failed");
     const control = fakeSocket();

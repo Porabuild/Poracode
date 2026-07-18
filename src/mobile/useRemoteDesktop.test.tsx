@@ -288,6 +288,11 @@ class FakeWebSocket {
     this.readyState = 3;
     for (const cb of this.listeners.get("close") ?? []) cb({});
   }
+  message(message: unknown) {
+    for (const cb of this.listeners.get("message") ?? []) {
+      cb({ data: JSON.stringify(message) });
+    }
+  }
 }
 
 import { useRemoteDesktop } from "./useRemoteDesktop";
@@ -336,6 +341,27 @@ describe("useRemoteDesktop", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("rebuilds a manually reconnected socket from the latest applied event sequence", async () => {
+    const desktop = makeDesktop("A");
+    const client = clientFor("A");
+    client.parseSocketMessage.mockImplementation((raw) => JSON.parse(raw) as unknown);
+    const view = await mountWith([desktop], "A");
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(1));
+
+    act(() => {
+      FakeWebSocket.instances[0]?.message({
+        type: "event",
+        seq: 8,
+        event: { type: "thread-runtime-event", threadId: "t", event: { type: "noop" } },
+      });
+      view.result.current.reconnect();
+    });
+
+    expect(view.result.current.connection).toBe("reconnecting");
+    await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(2));
+    expect(client.websocketUrl).toHaveBeenLastCalledWith("ticket", 8);
   });
 
   it("[#1] ignores a late refresh that resolves after the user switched desktops", async () => {

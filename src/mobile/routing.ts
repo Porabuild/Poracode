@@ -13,6 +13,11 @@ export function mobileRouterBasePath(pathname: string, buildBasePath: string): s
   return "/";
 }
 
+/** Own every public PWA alias; the worker itself ignores unrelated site routes. */
+export function mobileServiceWorkerScope(): string {
+  return "/";
+}
+
 function validInternalRoute(value: unknown): string | null {
   return typeof value === "string" && value.startsWith("/") && !value.startsWith("//")
     ? value

@@ -50,6 +50,10 @@ const nextConfig = {
         destination: "https://poracode-pwa.vercel.app/pwa/app",
       },
       {
+        source: "/app/:path*",
+        destination: "https://poracode-pwa.vercel.app/pwa/:path*",
+      },
+      {
         source: "/pwa/:path*",
         destination: "https://poracode-pwa.vercel.app/pwa/:path*",
       },

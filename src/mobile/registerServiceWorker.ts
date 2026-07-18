@@ -1,3 +1,52 @@
+import { mobileServiceWorkerScope } from "./routing";
+
+function loadedBuildAssetUrls(buildBasePath: string): string[] {
+  if (typeof performance === "undefined") return [];
+  const assetPrefix = new URL(`${buildBasePath}assets/`, window.location.href).href;
+  return performance
+    .getEntriesByType("resource")
+    .map((entry) => entry.name)
+    .filter((url) => url.startsWith(assetPrefix));
+}
+
+function cacheLoadedBuildAssets(
+  registration: ServiceWorkerRegistration,
+  buildBasePath: string,
+): void {
+  const watchedWorkers = new WeakSet<ServiceWorker>();
+  const notifyWorker = (worker: ServiceWorker | null | undefined) => {
+    if (!worker) return;
+    worker.postMessage({ type: "cache-build-assets", urls: loadedBuildAssetUrls(buildBasePath) });
+  };
+  const watchInstallingWorker = (worker: ServiceWorker | null | undefined) => {
+    if (!worker || watchedWorkers.has(worker)) return;
+    watchedWorkers.add(worker);
+    notifyWorker(worker);
+    const handleStateChange = () => {
+      if (worker.state === "activated") notifyWorker(worker);
+      if (worker.state === "activated" || worker.state === "redundant") {
+        worker.removeEventListener("statechange", handleStateChange);
+      }
+    };
+    worker.addEventListener("statechange", handleStateChange);
+  };
+
+  notifyWorker(registration.active);
+  notifyWorker(registration.waiting);
+  watchInstallingWorker(registration.installing);
+  registration.addEventListener("updatefound", () => {
+    watchInstallingWorker(registration.installing);
+  });
+  navigator.serviceWorker.addEventListener(
+    "controllerchange",
+    () => notifyWorker(navigator.serviceWorker.controller),
+    { once: true },
+  );
+  void navigator.serviceWorker.ready.then((readyRegistration) => {
+    notifyWorker(readyRegistration.active);
+  });
+}
+
 /**
  * Register the PWA service worker so the app is installable and the shell is
  * available offline. Best-effort and non-blocking:
@@ -13,11 +62,18 @@ export function registerServiceWorker(): void {
   if (typeof window !== "undefined" && window.isSecureContext === false) return;
 
   const register = () => {
-    const scope = import.meta.env.BASE_URL;
-    navigator.serviceWorker.register(`${scope}service-worker.js`, { scope }).catch(() => {
-      // Registration failing (e.g. worker not served, blocked) must never break
-      // the app — it just means no offline shell / install prompt this session.
-    });
+    const buildBasePath = import.meta.env.BASE_URL;
+    const scriptUrl = buildBasePath.startsWith("/")
+      ? `${buildBasePath}service-worker.js`
+      : "/service-worker.js";
+    const scope = mobileServiceWorkerScope();
+    navigator.serviceWorker
+      .register(scriptUrl, { scope })
+      .then((registration) => cacheLoadedBuildAssets(registration, buildBasePath))
+      .catch(() => {
+        // Registration failing (e.g. worker not served, blocked) must never break
+        // the app — it just means no offline shell / install prompt this session.
+      });
   };
 
   if (document.readyState === "complete") {

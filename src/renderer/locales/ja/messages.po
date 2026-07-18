@@ -6294,6 +6294,7 @@ msgstr "このリモートマシンには対応エージェントがインスト
 msgid "No supported agents detected"
 msgstr "サポートされているエージェントが検出されませんでした"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "No thread selected"
 msgstr "スレッドが選択されていません"
@@ -6982,6 +6983,7 @@ msgstr "保留中のステアリング"
 msgid "permission"
 msgstr "許可"
 
+#: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Pick a thread from the list to follow the agent from here."
 msgstr "ここからエージェントを追うには、一覧からスレッドを選択してください。"

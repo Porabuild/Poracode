@@ -5,6 +5,7 @@ import {
   compactRuntimeItemsForHydration,
   hydrateThreadRuntimeItems,
   loadOlderThreadRuntimeItems,
+  seedOlderThreadRuntimeItemsCursor,
 } from "./chatRuntimePersister";
 
 const { bridge } = vi.hoisted(() => ({
@@ -208,5 +209,25 @@ describe("paged runtime hydration", () => {
     ]);
     await expect(loadOlderThreadRuntimeItems("paged-thread")).resolves.toBe(false);
     expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledTimes(2);
+  });
+
+  it("loads older items from a cursor supplied by a remote tail snapshot", async () => {
+    seedOlderThreadRuntimeItemsCursor("remote-paged-thread", 77);
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "remote-older", type: "assistant_message" })],
+      nextCursor: null,
+    });
+
+    await expect(loadOlderThreadRuntimeItems("remote-paged-thread")).resolves.toBe(true);
+
+    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledWith({
+      threadId: "remote-paged-thread",
+      beforePosition: 77,
+      limit: 500,
+      targetTimelineEntryCount: 40,
+    });
+    expect(useAppStore.getState().runtimeItemIdsByThread["remote-paged-thread"]).toEqual([
+      "remote-older",
+    ]);
   });
 });

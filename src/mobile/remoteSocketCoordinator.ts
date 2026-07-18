@@ -44,6 +44,8 @@ export interface RemoteSocketCoordinatorOptions {
 
 export interface RemoteSocketCoordinator {
   start(): void;
+  getLastSeenSeq(): number;
+  advanceLastSeenSeq(seq: number): void;
   dispose(): void;
 }
 
@@ -138,7 +140,7 @@ export function createRemoteSocketCoordinator(
     void (async () => {
       try {
         const client = options.createClient();
-        const ticket = await client.websocketTicket();
+        const ticket = await client.websocketTicket(CONNECT_TIMEOUT_MS);
         if (closed) {
           connecting = false;
           return;
@@ -186,7 +188,8 @@ export function createRemoteSocketCoordinator(
             if (handleBrowserServerMessage(parsed)) return;
             if (handleTerminalServerMessage(parsed)) return;
             if (parsed.type === "event") {
-              lastSeenSeq = Math.max(lastSeenSeq, parsed.seq);
+              if (parsed.seq <= lastSeenSeq) return;
+              lastSeenSeq = parsed.seq;
               dispatchRemoteSupervisorEvent(parsed.event);
               if (shouldRefreshAfterSupervisorEvent(parsed.event)) {
                 const triggerThreadId =
@@ -295,6 +298,12 @@ export function createRemoteSocketCoordinator(
         if (document.visibilityState === "visible") sendHealthPing();
       }, HEALTH_PING_INTERVAL_MS);
       connect();
+    },
+    getLastSeenSeq() {
+      return lastSeenSeq;
+    },
+    advanceLastSeenSeq(seq) {
+      if (Number.isInteger(seq) && seq >= 0) lastSeenSeq = Math.max(lastSeenSeq, seq);
     },
     dispose() {
       if (closed) return;
