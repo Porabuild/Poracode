@@ -1,4 +1,7 @@
 import type { PromptSegment, ThreadConfig } from "@/shared/contracts";
+import type { CodexClientRequestMap } from "./protocol";
+
+type TurnStartParams = CodexClientRequestMap["turn/start"]["params"];
 
 // Codex's `turn/start` requires a non-empty `developer_instructions` string
 // inside `collaborationMode.settings`. We send these on every turn so that
@@ -34,8 +37,8 @@ export function buildCodexTurnInput(
   prompt: string,
   segments: PromptSegment[] | undefined,
   inlineInstructions?: string,
-): Record<string, unknown>[] {
-  const input: Record<string, unknown>[] = [];
+): TurnStartParams["input"] {
+  const input: TurnStartParams["input"] = [];
   const hasSkillSegment = segments?.some((segment) => segment.kind === "skill") === true;
 
   for (const seg of segments ?? []) {
@@ -83,7 +86,9 @@ export function buildCodexTurnInput(
   return input;
 }
 
-export function buildCodexCollaborationMode(config: ThreadConfig): Record<string, unknown> {
+export function buildCodexCollaborationMode(
+  config: ThreadConfig,
+): NonNullable<TurnStartParams["collaborationMode"]> {
   return {
     mode: config.mode === "plan" ? "plan" : "default",
     settings: {

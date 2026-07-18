@@ -48,7 +48,8 @@ import {
   parseCodexGoalCommand,
   type CodexGoalCommand,
 } from "./acpTurn";
-import { CodexAppServerRpc } from "./appServerRpc";
+import { CodexAppServerRpc, isUnsupportedCodexRequestError } from "./appServerRpc";
+import type { CodexClientRequestMap } from "./protocol";
 import { CodexStdioTransport } from "./stdioTransport";
 import {
   mapCodexSkillsToSlashCommands,
@@ -60,6 +61,9 @@ import { CodexSubAgentRouter } from "./subAgentRouting";
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
 export type { CodexThreadStatus } from "./acpProtocol";
 
+type ThreadStartParams = CodexClientRequestMap["thread/start"]["params"];
+type TurnStartParams = CodexClientRequestMap["turn/start"]["params"];
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -68,13 +72,15 @@ function sleep(ms: number): Promise<void> {
 
 // A `thread/status/changed → systemError` notification carries no message, so
 // we surface a generic fallback. But Codex often follows it with a specific
-// error (a `turn/completed(failed)` or `thread/error` notification carrying the
-// real reason, e.g. a usage-limit / "remote compact task" failure). Defer the
-// generic fallback briefly so a specific error can preempt it — otherwise the
+// error (a `turn/completed(failed)`, `error`, or legacy `thread/error`
+// notification carrying the real reason, e.g. a usage-limit / "remote compact
+// task" failure). Defer the generic fallback briefly so a specific error can
+// preempt it — otherwise the
 // user sees the generic notice *plus* the real error. The delay only postpones
 // an error message; the error status icon updates synchronously.
 const CODEX_SYSTEM_ERROR_FALLBACK_DELAY_MS = 250;
 const CODEX_RESUME_STATUS_REPLAY_SUPPRESSION_MS = 500;
+const CODEX_FORK_NOTIFICATION_BUFFER_LIMIT = 100;
 const CODEX_EVENT_DEBUG_ENV = "PORACODE_DEBUG_CODEX_EVENTS";
 
 type CodexEventDebugDirection =
@@ -191,7 +197,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   // Error messages already surfaced for the current turn. Codex can report one
   // underlying failure (e.g. a usage limit) through several channels — the
   // turn/start rejection, a `turn/completed(failed)` notification, and a
-  // `thread/error` notification — each carrying the same text. Deduping here
+  // `error` notification — each carrying the same text. Deduping here
   // keeps the user from seeing the same error two or three times. Cleared on
   // the next user turn.
   private readonly seenErrorMessages = new Set<string>();
@@ -201,6 +207,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private pendingSystemErrorFallback: ReturnType<typeof setTimeout> | undefined;
   private mapperState: CodexMapperState | undefined;
   private subAgentRouter: CodexSubAgentRouter | undefined;
+  private forkNotificationBuffer:
+    | Array<{
+        method: string;
+        params: Record<string, unknown> | undefined;
+        threadId: string;
+      }>
+    | undefined;
   private readonly hasUserMcpServers: boolean;
   /**
    * Codex can report a plain `active` status while `thread/resume` is only
@@ -481,11 +494,25 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<string> {
     // `mode` does not exist on `thread/start` or `thread/resume`; plan mode is
     // a per-turn override sent via `collaborationMode` on `turn/start`.
-    const threadOverrides = {
+    const threadOverrides: ThreadStartParams = {
       model: config.model,
-      ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
-      ...(config.approvalsReviewer ? { approvalsReviewer: config.approvalsReviewer } : {}),
-      ...(config.sandboxMode ? { sandbox: config.sandboxMode } : {}),
+      ...(config.approvalPolicy
+        ? {
+            approvalPolicy: config.approvalPolicy as NonNullable<
+              ThreadStartParams["approvalPolicy"]
+            >,
+          }
+        : {}),
+      ...(config.approvalsReviewer
+        ? {
+            approvalsReviewer: config.approvalsReviewer as NonNullable<
+              ThreadStartParams["approvalsReviewer"]
+            >,
+          }
+        : {}),
+      ...(config.sandboxMode
+        ? { sandbox: config.sandboxMode as NonNullable<ThreadStartParams["sandbox"]> }
+        : {}),
       config: {
         ...(config.effort ? { model_reasoning_effort: config.effort } : {}),
         model_reasoning_summary: "auto",
@@ -680,7 +707,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     const collaborationMode = buildCodexCollaborationMode(config);
     try {
       if (this.hasUserMcpServers) {
-        await this.rpc.request("config/mcpServer/reload", null);
+        await this.rpc.request("config/mcpServer/reload", undefined);
       }
       const result = await this.rpc.request("turn/start", {
         threadId,
@@ -688,9 +715,23 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         model: config.model,
         ...(config.effort ? { effort: config.effort } : {}),
         summary: "auto",
-        ...(config.approvalPolicy ? { approvalPolicy: config.approvalPolicy } : {}),
-        ...(config.approvalsReviewer ? { approvalsReviewer: config.approvalsReviewer } : {}),
-        ...(sandboxPolicy ? { sandboxPolicy } : {}),
+        ...(config.approvalPolicy
+          ? {
+              approvalPolicy: config.approvalPolicy as NonNullable<
+                TurnStartParams["approvalPolicy"]
+              >,
+            }
+          : {}),
+        ...(config.approvalsReviewer
+          ? {
+              approvalsReviewer: config.approvalsReviewer as NonNullable<
+                TurnStartParams["approvalsReviewer"]
+              >,
+            }
+          : {}),
+        ...(sandboxPolicy
+          ? { sandboxPolicy: sandboxPolicy as NonNullable<TurnStartParams["sandboxPolicy"]> }
+          : {}),
         collaborationMode,
         // Fast toggle is authoritative and the server tier is sticky, so force it
         // every turn: "fast" selects the Fast lane, null clears it to the default.
@@ -736,15 +777,84 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
     }
     const threadId = await this.waitForRemoteThreadId();
-    await this.rpc.request("thread/rollback", {
+    this.forkNotificationBuffer = undefined;
+
+    const rollbackLegacy = async (reason: string): Promise<ThreadHistory> => {
+      this.forkNotificationBuffer = undefined;
+      console.log(`[codex] ${reason}; falling back to thread/rollback.`);
+      try {
+        await this.rpc.request("thread/rollback", {
+          threadId,
+          numTurns,
+        });
+      } catch (error) {
+        if (isUnsupportedCodexRequestError(error)) {
+          throw new Error(
+            "Codex cannot roll back this thread because neither thread/fork nor thread/rollback is supported.",
+            { cause: error },
+          );
+        }
+        throw error;
+      }
+      this.pendingTurnInterrupt = false;
+      this.activeTurnId = undefined;
+      await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
+      return {
+        providerSessionId: threadId,
+        messages: [],
+      };
+    };
+
+    const readResult = await this.rpc.request("thread/read", {
       threadId,
-      numTurns,
+      includeTurns: true,
+    });
+    const turns = readResult.thread?.turns;
+    if (!Array.isArray(turns)) {
+      return rollbackLegacy("thread/read omitted turn history");
+    }
+    if (turns.length <= numTurns) {
+      return rollbackLegacy("thread/fork has no retained turn");
+    }
+
+    const retainedTurn = turns.at(turns.length - numTurns - 1);
+    if (!retainedTurn || typeof retainedTurn.id !== "string") {
+      return rollbackLegacy("thread/read omitted the retained turn id");
+    }
+
+    let forkResult: CodexClientRequestMap["thread/fork"]["result"];
+    this.forkNotificationBuffer = [];
+    try {
+      forkResult = await this.rpc.request("thread/fork", {
+        threadId,
+        lastTurnId: retainedTurn.id,
+      });
+    } catch (error) {
+      this.forkNotificationBuffer = undefined;
+      if (!isUnsupportedCodexRequestError(error)) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      return rollbackLegacy(`thread/fork is unsupported (${message})`);
+    }
+
+    const newThreadId = forkResult.thread?.id;
+    if (!newThreadId) {
+      this.forkNotificationBuffer = undefined;
+      throw new Error("thread/fork response did not contain a thread id.");
+    }
+
+    this.remoteThreadId = newThreadId;
+    this.launchOptions = { ...this.launchOptions, resumeThreadId: newThreadId };
+    this.replayForkNotifications(newThreadId);
+    void this.rpc.request("thread/unsubscribe", { threadId }).catch((error) => {
+      console.log("[codex] failed to unsubscribe old thread after fork:", error);
     });
     this.pendingTurnInterrupt = false;
     this.activeTurnId = undefined;
-    await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
+    await this.syncRemoteThreadState(newThreadId, toSessionRef(newThreadId));
     return {
-      providerSessionId: threadId,
+      providerSessionId: newThreadId,
       messages: [],
     };
   }
@@ -793,6 +903,17 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
     const notificationThreadId = readNotificationThreadId(params, this.remoteThreadId);
+    if (
+      this.forkNotificationBuffer &&
+      notificationThreadId &&
+      this.remoteThreadId !== undefined &&
+      notificationThreadId !== this.remoteThreadId
+    ) {
+      if (this.forkNotificationBuffer.length < CODEX_FORK_NOTIFICATION_BUFFER_LIMIT) {
+        this.forkNotificationBuffer.push({ method, params, threadId: notificationThreadId });
+      }
+      return;
+    }
     const suppressResumeReplay = this.isResumeReplaySuppressed(notificationThreadId);
     const childEvents = this.ensureSubAgentRouter().routeChildNotification(
       method,
@@ -857,7 +978,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       }
       const nextStatus = params.status as CodexThreadStatus;
       // A systemError status alone gives the renderer a red icon but no
-      // message. If Codex didn't already send a paired `thread/error`
+      // message. If Codex didn't already send a paired `error`
       // notification or a turn/start rejection (which set `errorSticky`),
       // surface a fallback runtime error event so `ThreadErrorDock`
       // renders something instead of leaving the user with an empty dock.
@@ -903,6 +1024,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
 
+    // `turn/aborted` is retained only for older app-server compatibility.
     if (method === "turn/completed" || method === "turn/aborted") {
       if (suppressResumeReplay) {
         return;
@@ -963,6 +1085,16 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
   private isCurrentThreadNotification(threadId: string): boolean {
     return this.remoteThreadId === undefined || this.remoteThreadId === threadId;
+  }
+
+  private replayForkNotifications(threadId: string): void {
+    const notifications = this.forkNotificationBuffer ?? [];
+    this.forkNotificationBuffer = undefined;
+    for (const notification of notifications) {
+      if (notification.threadId === threadId) {
+        this.handleNotification(notification.method, notification.params);
+      }
+    }
   }
 
   private async waitForRemoteThreadId(): Promise<string> {

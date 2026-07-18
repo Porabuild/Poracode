@@ -7,6 +7,13 @@
  */
 
 import { readStringField } from "../../fileChangeSummary";
+import type { TurnPlanStepStatus } from "../protocol";
+
+const CODEX_PLAN_STATUS_MAP = {
+  pending: "pending",
+  inProgress: "in_progress",
+  completed: "completed",
+} as const satisfies Record<TurnPlanStepStatus, "pending" | "in_progress" | "completed">;
 
 export interface CodexItemPayload {
   id?: string;
@@ -97,6 +104,7 @@ export function readTurnState(
   method: string,
   params: Record<string, unknown> | undefined,
 ): "completed" | "failed" | "interrupted" | "cancelled" {
+  // Legacy-only; current app-server sends `turn/completed` with an interrupted status.
   if (method === "turn/aborted") return "interrupted";
   const turn = params?.turn;
   const status = turn && typeof turn === "object" ? (turn as Record<string, unknown>).status : null;
@@ -117,14 +125,18 @@ export function readCodexErrorMessage(
 ): string | undefined {
   const direct = readStringField(params, "message", "errorMessage");
   if (direct) return direct;
-  const message = readStringField(params?.error, "message");
+  const message = readTurnErrorMessage(params?.error);
   if (message) return message;
   const turn = params?.turn;
   if (turn && typeof turn === "object") {
-    const turnMessage = readStringField((turn as Record<string, unknown>).error, "message");
+    const turnMessage = readTurnErrorMessage((turn as Record<string, unknown>).error);
     if (turnMessage) return turnMessage;
   }
   return undefined;
+}
+
+function readTurnErrorMessage(value: unknown): string | undefined {
+  return readStringField(value, "message");
 }
 
 export function readCodexPlanSteps(
@@ -147,15 +159,10 @@ export function readCodexPlanSteps(
 }
 
 function codexPlanStepStatus(raw: unknown): "pending" | "in_progress" | "completed" {
-  switch (raw) {
-    case "completed":
-      return "completed";
-    case "inProgress":
-    case "in_progress":
-      return "in_progress";
-    default:
-      return "pending";
-  }
+  if (raw === "in_progress") return "in_progress";
+  return typeof raw === "string" && raw in CODEX_PLAN_STATUS_MAP
+    ? CODEX_PLAN_STATUS_MAP[raw as TurnPlanStepStatus]
+    : "pending";
 }
 
 export function readRecord(value: unknown): Record<string, unknown> | undefined {

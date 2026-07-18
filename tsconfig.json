@@ -28,6 +28,7 @@
     "src",
     "tests",
     "packages/agents-usage/src",
+    "packages/codex-protocol",
     "native/activity-bridge/src",
     "native/ssh-bridge/src",
     "vite.config.ts",

@@ -49,7 +49,7 @@ describe("mapCodexNotification — turn lifecycle", () => {
     expect(state.currentTurnId).toBeUndefined();
   });
 
-  it("treats turn/aborted as turn.completed with state=interrupted", () => {
+  it("treats legacy turn/aborted as turn.completed with state=interrupted", () => {
     const state = createCodexMapperState("t-codex");
     mapCodexNotification("turn/started", { turnId: "t-1", threadId: "x" }, state);
     const events = mapCodexNotification("turn/aborted", { threadId: "x" }, state);
@@ -84,6 +84,14 @@ describe("mapCodexNotification — turn lifecycle", () => {
     expect(events).toEqual([
       { type: "error", threadId: "t-codex", message: "Rate limit exceeded" },
       { type: "turn.completed", threadId: "t-codex", turnId: "t-1", state: "failed" },
+    ]);
+  });
+
+  it("falls back from whitespace-only Codex error messages", () => {
+    const state = createCodexMapperState("t-codex");
+
+    expect(mapCodexNotification("error", { error: { message: "   " } }, state)).toEqual([
+      { type: "error", threadId: "t-codex", message: "Codex thread error" },
     ]);
   });
 
@@ -242,6 +250,36 @@ describe("mapCodexNotification — goals", () => {
         itemId: events[0]?.type === "item.started" ? events[0].itemId : "",
       },
     ]);
+  });
+
+  it.each([
+    ["blocked", "paused"],
+    ["usageLimited", "budget_limited"],
+  ] as const)("maps Codex %s goals to canonical %s goals", (status, expectedStatus) => {
+    const state = createCodexMapperState("t-codex");
+    const events = mapCodexNotification(
+      "thread/goal/updated",
+      {
+        threadId: "provider-thread",
+        turnId: null,
+        goal: {
+          threadId: "provider-thread",
+          objective: "finish protocol integration",
+          status,
+          tokenBudget: null,
+          tokensUsed: 0,
+          timeUsedSeconds: 0,
+          createdAt: 1778570000,
+          updatedAt: 1778570000,
+        },
+      },
+      state,
+    );
+
+    expect(events[0]).toMatchObject({
+      type: "item.started",
+      payload: { status: expectedStatus },
+    });
   });
 
   it("updates the existing Codex goal item when the goal is cleared", () => {
@@ -1538,7 +1576,7 @@ describe("mapCodexNotification — streaming deltas", () => {
     });
   });
 
-  it("maps file-read approval requests", () => {
+  it("maps legacy file-read approval requests", () => {
     const event = mapCodexServerRequest("thread-1", "read-1", "item/fileRead/requestApproval", {
       path: "src/index.ts",
       reason: "Read outside workspace",
@@ -1588,6 +1626,28 @@ describe("mapCodexServerRequest — approvals", () => {
         options: [
           { optionId: "accept", label: "Allow" },
           { optionId: "acceptForSession", label: "Allow always" },
+          { optionId: "decline", label: "Deny" },
+        ],
+      },
+    });
+  });
+
+  it("skips structured command approval decisions when building options", () => {
+    const event = mapCodexServerRequest("thread-1", "0", "item/commandExecution/requestApproval", {
+      command: "pnpm test",
+      availableDecisions: [
+        "accept",
+        { acceptWithExecpolicyAmendment: { execpolicy_amendment: {} } },
+        { applyNetworkPolicyAmendment: { network_policy_amendment: {} } },
+        "decline",
+      ],
+    });
+
+    expect(event).toMatchObject({
+      type: "request.opened",
+      payload: {
+        options: [
+          { optionId: "accept", label: "Allow" },
           { optionId: "decline", label: "Deny" },
         ],
       },
@@ -1655,17 +1715,25 @@ describe("mapCodexServerRequest — approvals", () => {
 describe("mapCodexServerRequest — user input", () => {
   it("carries multi-question requestUserInput payloads as structured form details", () => {
     const event = mapCodexServerRequest("thread-1", "req-1", "item/tool/requestUserInput", {
+      threadId: "provider-thread",
+      turnId: "turn-1",
+      itemId: "item-1",
+      autoResolutionMs: null,
       questions: [
         {
           id: "scope",
           header: "Scope",
           question: "Which scope?",
+          isOther: false,
+          isSecret: false,
           options: [{ label: "Scope A", description: "Minimal" }],
         },
         {
           id: "validation",
           header: "Validation",
           question: "Which validation?",
+          isOther: false,
+          isSecret: false,
           options: [{ label: "After each phase", description: "Incremental" }],
         },
       ],
@@ -1684,11 +1752,25 @@ describe("mapCodexServerRequest — user input", () => {
                 id: "scope",
                 header: "Scope",
                 question: "Which scope?",
+                options: [
+                  {
+                    optionId: "Scope A",
+                    label: "Scope A",
+                    description: "Minimal",
+                  },
+                ],
               },
               {
                 id: "validation",
                 header: "Validation",
                 question: "Which validation?",
+                options: [
+                  {
+                    optionId: "After each phase",
+                    label: "After each phase",
+                    description: "Incremental",
+                  },
+                ],
               },
             ],
           },
