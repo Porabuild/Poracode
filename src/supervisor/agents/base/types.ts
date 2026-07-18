@@ -150,6 +150,11 @@ export interface CreateStructuredSessionInput {
   presentationMode?: ThreadPresentationMode;
   loadSessionErrorRewriter?: (error: unknown, sessionId: string) => Error;
   /**
+   * Provider-boundary guard for ACP agents that can incorrectly return a
+   * successful `end_turn` without emitting any agent activity.
+   */
+  acpEmptyResponseErrorResolver?: AcpEmptyResponseErrorResolver;
+  /**
    * Per-adapter hook to normalize a provider's ACP `session/update` wire
    * payload before the shared generic mapper consumes it. Use only to bridge
    * provider-specific quirks (e.g. Cursor's near-empty tool_call payloads) —
@@ -162,6 +167,11 @@ export interface CreateStructuredSessionInput {
    */
   acpExtensionNotificationHandler?: AcpExtensionNotificationHandler;
 }
+
+export type AcpEmptyResponseErrorResolver = (input: {
+  stopReason: string;
+  stderr: readonly string[];
+}) => Error | undefined;
 
 export type AcpSessionUpdateTransform = (
   notification: import("@agentclientprotocol/sdk").SessionNotification,

@@ -116,6 +116,12 @@ const messages = {
   "supervisor.exited": "Background process exited unexpectedly",
   "supervisor.notRunning": "Background process is not running",
 
+  // ── Kimi Code ─────────────────────────────────────────────
+  "kimi.credentialsLocked":
+    "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry.",
+  "kimi.emptyResponse":
+    "Kimi Code ended the turn without returning a response. Restart the thread and try again.",
+
   // ── App update ────────────────────────────────────────────
   "update.error": "Update error: {detail}",
 } as const;

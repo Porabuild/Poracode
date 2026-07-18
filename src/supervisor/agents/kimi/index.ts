@@ -1,4 +1,5 @@
 import type { PromptSegment } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
@@ -27,6 +28,21 @@ import { detectKimiTerminalStatus } from "./terminal";
 // Kimi Code provider implementation (Moonshot AI).
 // Docs: https://www.kimi.com/code/docs/en/
 // npm:  @moonshot-ai/kimi-code
+
+export function resolveKimiEmptyResponseError(input: {
+  stopReason: string;
+  stderr: readonly string[];
+}): Error {
+  const stderr = input.stderr.join("\n").toLowerCase();
+  const credentialRenameBlocked =
+    stderr.includes("kimi-code.json") &&
+    stderr.includes("rename") &&
+    (stderr.includes("eperm") ||
+      stderr.includes("ebusy") ||
+      stderr.includes("operation not permitted") ||
+      stderr.includes("access is denied"));
+  return new Error(msg(credentialRenameBlocked ? "kimi.credentialsLocked" : "kimi.emptyResponse"));
+}
 
 export function createKimiAdapter(): AgentAdapter {
   let capabilities = kimiDefaultCapabilities;
@@ -109,7 +125,10 @@ export function createKimiAdapter(): AgentAdapter {
         [...acpArgs, "acp"],
         resolveAgentBinaryPath(input.projectLocation, "kimi"),
       );
-      return createAcpStructuredSession(command, input);
+      return createAcpStructuredSession(command, {
+        ...input,
+        acpEmptyResponseErrorResolver: resolveKimiEmptyResponseError,
+      });
     },
 
     // Kimi ACP advertises a single "login" auth method; the auth command is the

@@ -46,6 +46,9 @@ export function createAcpStructuredSession(
     ...(input.loadSessionErrorRewriter
       ? { loadSessionErrorRewriter: input.loadSessionErrorRewriter }
       : {}),
+    ...(input.acpEmptyResponseErrorResolver
+      ? { emptyResponseErrorResolver: input.acpEmptyResponseErrorResolver }
+      : {}),
     ...(input.acpSessionUpdateTransform
       ? { sessionUpdateTransform: input.acpSessionUpdateTransform }
       : {}),

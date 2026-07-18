@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { createKnownSessionRef } from "../base";
-import { createKimiAdapter } from "./index";
+import { createKimiAdapter, resolveKimiEmptyResponseError } from "./index";
 
 const location = { kind: "windows", path: "C:\\repo" } as ProjectLocation;
 const config = { mode: "agent" } as ThreadConfig;
@@ -153,5 +153,24 @@ describe("createKimiAdapter terminal heuristics", () => {
     expect(adapter.detectTerminalStatus?.("⠋ working...")?.status).toBe("working");
     expect(adapter.detectTerminalStatus?.("? for shortcuts")?.status).toBe("idle");
     expect(adapter.detectTerminalStatus?.("context: 10% (23.2k/256k)")?.status).toBe("idle");
+  });
+});
+
+describe("resolveKimiEmptyResponseError", () => {
+  it("explains the Windows credential rename lock", () => {
+    expect(
+      resolveKimiEmptyResponseError({
+        stopReason: "end_turn",
+        stderr: [
+          "EPERM: operation not permitted, rename 'C:\\\\Users\\\\demo\\\\.kimi-code\\\\credentials\\\\kimi-code.json.tmp' -> 'C:\\\\Users\\\\demo\\\\.kimi-code\\\\credentials\\\\kimi-code.json'",
+        ],
+      }).message,
+    ).toContain("another process is using the credential file");
+  });
+
+  it("reports an actionable error for any other empty Kimi turn", () => {
+    expect(resolveKimiEmptyResponseError({ stopReason: "end_turn", stderr: [] }).message).toContain(
+      "without returning a response",
+    );
   });
 });

@@ -154,6 +154,9 @@ function makeConfigSyncSession(
   session["pendingPromptInterrupt"] = false;
   session["currentTurnInterruptRequested"] = false;
   session["recentInterruptAckTextTail"] = "";
+  session["currentTurnHadAgentActivity"] = false;
+  session["stderrChunks"] = [];
+  session["emptyResponseErrorResolver"] = undefined;
   session["mapperState"] = undefined;
   session["acpTerminals"] = new Map();
   session["acpTerminalSeq"] = 0;
@@ -236,6 +239,63 @@ describe("resolveAcpPromptFailureMessage — prompt rejection after agent-surfac
   it("still emits the RPC error row when no agent-surfaced message exists", () => {
     const transport = RequestError.internalError({ details: "Agent error" });
     expect(shouldEmitAcpPromptRpcErrorItem(transport, undefined)).toBe(true);
+  });
+});
+
+describe("ACP empty-response provider guard", () => {
+  it("turns a provider-diagnosed empty end_turn into a visible failed turn", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    const resolver = vi.fn<(input: { stopReason: string; stderr: readonly string[] }) => Error>(
+      () => new Error("credential file is locked"),
+    );
+    (session as unknown as Record<string, unknown>)["emptyResponseErrorResolver"] = resolver;
+    connection.prompt.mockImplementationOnce(async () => {
+      (session as unknown as Record<string, string[]>)["stderrChunks"]!.push(
+        "EPERM rename kimi-code.json",
+      );
+      return { stopReason: "end_turn" };
+    });
+
+    await session.startTurn("hello", { model: "model-a" });
+
+    expect(resolver).toHaveBeenCalledWith({
+      stopReason: "end_turn",
+      stderr: ["EPERM rename kimi-code.json"],
+    });
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({
+      status: "error",
+      attention: "error",
+      errorMessage: "credential file is locked",
+    });
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith({
+      type: "error",
+      threadId: "thread-1",
+      message: "credential file is locked",
+    });
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "turn.completed", state: "failed" }),
+    );
+  });
+
+  it("does not invoke the guard after agent activity", async () => {
+    const { connection, session } = makeConfigSyncSession();
+    const resolver = vi.fn<(input: { stopReason: string; stderr: readonly string[] }) => Error>(
+      () => new Error("unexpected"),
+    );
+    (session as unknown as Record<string, unknown>)["emptyResponseErrorResolver"] = resolver;
+    connection.prompt.mockImplementationOnce(async () => {
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "hello" },
+        },
+      });
+      return { stopReason: "end_turn" };
+    });
+
+    await session.startTurn("hello", { model: "model-a" });
+
+    expect(resolver).not.toHaveBeenCalled();
   });
 });
 

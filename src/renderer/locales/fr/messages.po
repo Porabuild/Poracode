@@ -4920,6 +4920,14 @@ msgstr "Arrêter bash"
 msgid "Kimi Code"
 msgstr "Kimi Code"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry."
+msgstr "Kimi Code n’a pas pu mettre à jour ses identifiants, car un autre processus utilise le fichier d’identifiants. Fermez les autres processus Poracode ou Kimi Code, puis réessayez."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Kimi Code ended the turn without returning a response. Restart the thread and try again."
+msgstr "Kimi Code a terminé le tour sans renvoyer de réponse. Redémarrez le fil et réessayez."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language"

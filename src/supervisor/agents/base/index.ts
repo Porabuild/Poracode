@@ -42,6 +42,7 @@ import type {
 } from "./types";
 
 export type {
+  AcpEmptyResponseErrorResolver,
   AcpSessionUpdateTransform,
   AgentAcpAuth,
   AgentAdapter,

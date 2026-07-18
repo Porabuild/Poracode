@@ -67,6 +67,7 @@ import { terminateChildProcessTree } from "@/shared/processTree";
 import {
   createKnownSessionRef,
   type AgentLaunchOptions,
+  type AcpEmptyResponseErrorResolver,
   type CommandSpec,
   type StartTurnOptions,
   type StructuredSessionHandle,
@@ -117,6 +118,7 @@ export interface AcpStructuredSessionOptions {
    * sessionId that was being loaded; must return the Error to throw.
    */
   loadSessionErrorRewriter?: (error: unknown, sessionId: string) => Error;
+  emptyResponseErrorResolver?: AcpEmptyResponseErrorResolver;
   /**
    * Per-adapter notification preprocessor. When set, every `session/update`
    * is run through it before the shared canonical mapper consumes it. Use to
@@ -138,6 +140,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private loadSessionErrorRewriter: (error: unknown, sessionId: string) => Error =
     rewriteLoadSessionError;
 
+  private emptyResponseErrorResolver?: AcpEmptyResponseErrorResolver;
+
   private sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
 
   private extensionNotificationHandler?: import("../base/types").AcpExtensionNotificationHandler;
@@ -150,7 +154,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly mcpServers: readonly ResolvedMcpServer[];
   /** Poracode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
-  private readonly stderrChunks: string[] = [];
+  private readonly stderrChunks: string[];
   private listener: StructuredSessionListener | undefined;
   private sessionId: string | undefined;
   private isDisposed = false;
@@ -175,6 +179,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private recentInterruptAckTextTail = "";
   /** User-visible error text from an `agent_message_chunk` before `prompt()` settles. */
   private agentSurfacedErrorMessage: string | undefined;
+  private currentTurnHadAgentActivity = false;
   private agentPromptCapabilities: PromptCapabilities | undefined;
   private agentSessionCapabilities: SessionCapabilities | undefined;
   private agentMcpCapabilities: McpCapabilities | undefined;
@@ -250,6 +255,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     projectLocation: ProjectLocation,
     cwd: string,
     threadId: string,
+    stderrChunks: string[],
     options?: AcpStructuredSessionOptions,
   ) {
     this.child = child;
@@ -257,9 +263,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.projectLocation = projectLocation;
     this.cwd = cwd;
     this.threadId = threadId;
+    this.stderrChunks = stderrChunks;
     this.launchOptions = { suppressResumeConfigOverrides: true };
     if (options?.loadSessionErrorRewriter) {
       this.loadSessionErrorRewriter = options.loadSessionErrorRewriter;
+    }
+    if (options?.emptyResponseErrorResolver) {
+      this.emptyResponseErrorResolver = options.emptyResponseErrorResolver;
     }
     if (options?.sessionUpdateTransform) {
       this.sessionUpdateTransform = options.sessionUpdateTransform;
@@ -450,10 +460,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       projectLocation,
       sessionCwd,
       threadId,
+      stderrChunks,
       options,
     );
     session.spawnReady = spawnReady;
-    session.stderrChunks.push(...stderrChunks);
 
     // Handle connection close
     void connection.closed.then(() => {
@@ -652,6 +662,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.currentTurnInterruptRequested = false;
     this.recentInterruptAckTextTail = "";
     this.agentSurfacedErrorMessage = undefined;
+    this.currentTurnHadAgentActivity = false;
+    this.stderrChunks.length = 0;
 
     this.currentConfig = await this.sessionConfigSync.applyTurnConfig(
       this.sessionId,
@@ -717,6 +729,17 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         interruptRequested: this.currentTurnInterruptRequested,
         recentAgentText: this.recentInterruptAckTextTail,
       });
+      if (
+        result.stopReason === "end_turn" &&
+        !this.currentTurnInterruptRequested &&
+        !this.currentTurnHadAgentActivity
+      ) {
+        const emptyResponseError = this.emptyResponseErrorResolver?.({
+          stopReason: result.stopReason,
+          stderr: this.stderrChunks,
+        });
+        if (emptyResponseError) throw emptyResponseError;
+      }
       this.emitTurnStatusAfterPrompt(normalizedStopReason);
       this.completeTurn(
         this.ensureMapperState(),
@@ -963,6 +986,16 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
     const params = this.applySessionUpdateTransform(rawParams);
     const update: SessionUpdate = params.update;
+
+    if (
+      update.sessionUpdate === "agent_message_chunk" ||
+      update.sessionUpdate === "agent_thought_chunk" ||
+      update.sessionUpdate === "tool_call" ||
+      update.sessionUpdate === "tool_call_update" ||
+      update.sessionUpdate === "plan"
+    ) {
+      this.currentTurnHadAgentActivity = true;
+    }
 
     if (update.sessionUpdate === "available_commands_update") {
       this.updateSlashCommands(mapAcpSlashCommands(update.availableCommands));
