@@ -166,7 +166,7 @@ function PresetMenu(props: { onApply: (preset: ProfilePreset) => void }) {
                   setIsOpen(false);
                 }}
               >
-                {preset.label}
+                {t(preset.label)}
               </button>
             ))}
           </div>

@@ -226,7 +226,15 @@ describe("resolveAcpPromptFailureMessage — prompt rejection after agent-surfac
   it("falls back to the JSON-RPC error when no agent-surfaced message exists", () => {
     expect(
       resolveAcpPromptFailureMessage(RequestError.internalError({ details: "Agent error" })),
-    ).toBe("Internal error");
+    ).toBe("Agent error");
+  });
+
+  it("uses provider details for a generic internal error", () => {
+    expect(
+      resolveAcpPromptFailureMessage(
+        RequestError.internalError({ details: "401 invalid access token or token expired" }),
+      ),
+    ).toBe("401 invalid access token or token expired");
   });
 
   it("suppresses a generic Internal error row when usage detail was already streamed", () => {

@@ -8,6 +8,7 @@ import { resolveFactoryCliToken } from "./factoryCredentials";
 import { resolveGeminiToken } from "./geminiCredentials";
 import { resolveGrokToken } from "./grokCredentials";
 import { resolveKimiToken } from "./kimiCredentials";
+import { resolveQwenUsageToken } from "./qwenCredentials";
 import { resolveZaiToken } from "./zaiCredentials";
 
 /**
@@ -27,19 +28,24 @@ type OAuthToken = NonNullable<Awaited<ReturnType<typeof resolveClaudeToken>>>;
  * because usage credentials are independent from chat adapter authentication —
  * adding a usage-tracked provider is a one-line entry rather than a switch case.
  */
-const tokenResolvers: Record<string, () => Promise<OAuthToken | undefined>> = {
-  claude: resolveClaudeToken,
-  codex: resolveCodexToken,
-  copilot: resolveCopilotToken,
-  cursor: resolveCursorToken,
-  grok: resolveGrokToken,
-  gemini: resolveGeminiToken,
-  // resolveFactoryCliToken is sync (returns the token directly, not a Promise);
-  // wrap it so every entry shares the () => Promise<OAuthToken | undefined> shape.
-  factory: async () => resolveFactoryCliToken(),
-  zai: resolveZaiToken,
-  kimi: resolveKimiToken,
-};
+function tokenResolvers(
+  settingsPath?: string,
+): Record<string, () => Promise<OAuthToken | undefined>> {
+  return {
+    claude: resolveClaudeToken,
+    codex: resolveCodexToken,
+    copilot: resolveCopilotToken,
+    cursor: resolveCursorToken,
+    grok: resolveGrokToken,
+    gemini: resolveGeminiToken,
+    // resolveFactoryCliToken is sync (returns the token directly, not a Promise);
+    // wrap it so every entry shares the () => Promise<OAuthToken | undefined> shape.
+    factory: async () => resolveFactoryCliToken(),
+    zai: resolveZaiToken,
+    kimi: resolveKimiToken,
+    qwen: () => resolveQwenUsageToken(settingsPath),
+  };
+}
 
 /** Per-provider refreshers (currently only Claude rejects/expired tokens). */
 const tokenRefreshers: Record<string, (token: OAuthToken) => Promise<OAuthToken | undefined>> = {
@@ -47,9 +53,13 @@ const tokenRefreshers: Record<string, (token: OAuthToken) => Promise<OAuthToken 
 };
 
 /** Build the native credential store consumed by the usage HostPort. */
-export function createNativeCredentialStore(cacheDir?: string): CredentialStore {
+export function createNativeCredentialStore(
+  cacheDir?: string,
+  settingsPath?: string,
+): CredentialStore {
+  const resolvers = tokenResolvers(settingsPath);
   return {
-    getOAuthToken: async (providerId) => tokenResolvers[providerId]?.(),
+    getOAuthToken: async (providerId) => resolvers[providerId]?.(),
     refreshOAuthToken: async (providerId, token) => tokenRefreshers[providerId]?.(token),
     // Captured session secrets (e.g. a browser-login cookie) live in the
     // safeStorage-sealed store written by main; decrypt and return on demand.

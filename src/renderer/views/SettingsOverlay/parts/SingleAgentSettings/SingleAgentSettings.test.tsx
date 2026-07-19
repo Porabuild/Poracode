@@ -1272,6 +1272,44 @@ describe("SingleAgentSettings", () => {
     );
   });
 
+  it("refreshes terminal authentication after the login console is manually closed", async () => {
+    const windowsProject = makeProject({
+      id: "windows-project",
+      name: "Windows Project",
+      location: { kind: "windows", path: "C:\\project" },
+    });
+    appState.projects = [windowsProject];
+    runAgentLoginCommandMock.mockReturnValue(true);
+    statusesState.agentStatuses = [
+      makeStatus("qwen", {
+        label: "Qwen Code",
+        authState: "missing",
+        loginCommand: "qwen -i /auth",
+        authMethods: [
+          {
+            type: "terminal",
+            id: "qwen-terminal-login",
+            name: "Login",
+          },
+        ],
+        envKind: "windows",
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="qwen" />);
+    fireEvent.click(within(envRow("Windows")).getByRole("button", { name: /login/i }));
+    const loginInput = runAgentLoginCommandMock.mock.calls[0]?.[0];
+
+    await act(async () => {
+      loginInput?.onCommandComplete?.(-1);
+    });
+
+    expect(refreshAgentStatusesMock).toHaveBeenCalledWith([], {
+      agentKinds: ["qwen"],
+      envs: [{ kind: "native" }],
+    });
+  });
+
   it("runs native ACP agent-owned auth in the selected environment", async () => {
     statusesState.agentStatuses = [
       makeStatus("gemini", {

@@ -1503,6 +1503,11 @@ msgstr "Browser pick target (CLI threads)"
 msgid "Browser pick target for CLI threads"
 msgstr "Browser pick target for CLI threads"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Browser sign-in"
+msgstr "Browser sign-in"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Browser tabs"
 msgstr "Browser tabs"
@@ -3017,6 +3022,10 @@ msgstr "Dark"
 msgid "Decline"
 msgstr "Decline"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "DeepSeek"
+msgstr "DeepSeek"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Default"
 msgstr "Default"
@@ -4155,6 +4164,10 @@ msgstr "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "First-class OpenCode integration using Poracode's native SDK runtime."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
+msgstr "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "Fit width"
@@ -4931,6 +4944,10 @@ msgstr "Keep the system awake while any thread is actively working."
 msgid "Kill bash"
 msgstr "Kill bash"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "Kimi"
+msgstr "Kimi"
+
 #: src/renderer/components/providers/kimi/manifest.ts
 msgid "Kimi Code"
 msgstr "Kimi Code"
@@ -5576,6 +5593,10 @@ msgstr "Microphone testing is not available in this environment."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "min"
 msgstr "min"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "MiniMax"
+msgstr "MiniMax"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize browser to right panel"
@@ -7455,6 +7476,14 @@ msgstr "Questions"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Quota reached"
 msgstr "Quota reached"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "Qwen"
+msgstr "Qwen"
+
+#: src/renderer/components/providers/qwen/manifest.ts
+msgid "Qwen Code"
+msgstr "Qwen Code"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Ran out"
@@ -9508,6 +9537,10 @@ msgstr "Target branch"
 msgid "Target provider"
 msgstr "Target provider"
 
+#: src/renderer/components/providers/qwen/index.tsx
+msgid "Task"
+msgstr "Task"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "Task output"
@@ -11156,6 +11189,10 @@ msgstr "Your name"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "Your stashed local changes were re-applied."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "z.ai"
+msgstr "z.ai"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Zoom in"

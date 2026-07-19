@@ -384,6 +384,28 @@ describe("ClaudeProfileProviderSettings", () => {
     });
   });
 
+  it("fills the editor from the Qwen preset", () => {
+    render(<ClaudeProfileProviderSettings instanceId="glm" />);
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Qwen" }));
+
+    expect(
+      screen.getByDisplayValue("https://coding-intl.dashscope.aliyuncs.com/apps/anthropic"),
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("ANTHROPIC_MODEL")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("CLAUDE_CODE_SUBAGENT_MODEL")).toBeInTheDocument();
+    expect(screen.getByLabelText("Model id")).toHaveValue("qwen3.8-max-preview");
+    expect(settingsState.setAgentInstance).toHaveBeenCalledWith({
+      id: "glm",
+      driver: "claude",
+      displayName: "GLM",
+      config: {
+        configDir: "~/.poracode/claude-profiles/glm",
+        models: [{ id: "qwen3.8-max-preview", label: "Qwen3.8 Max Preview" }],
+      },
+    });
+  });
+
   it("masks an already-sealed secret value", () => {
     settingsState.agentInstances = {
       glm: claudeProfile({

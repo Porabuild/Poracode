@@ -20,6 +20,7 @@ describe("createUsageCollectorRegistry", () => {
       "gemini",
       "grok",
       "kimi",
+      "qwen",
       "zai",
     ]);
     expect(reg.has("claude")).toBe(true);

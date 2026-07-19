@@ -214,6 +214,36 @@ describe("AcpSessionConfigSync", () => {
     expect(connection.request).not.toHaveBeenCalled();
   });
 
+  it("maps Qwen's public model id to its provider-tagged ACP value", async () => {
+    const modelOption = {
+      id: "model",
+      category: "model",
+      type: "select",
+      currentValue: "coder-model(qwen-oauth)",
+      options: [
+        { value: "coder-model(qwen-oauth)", name: "coder-model" },
+        {
+          value: "qwen3.8-max-preview(openai)",
+          name: "[ModelStudio Coding Plan] qwen3.8-max-preview",
+        },
+      ],
+    };
+    const { connection, sync } = makeConfigSync({ configOptions: [modelOption] });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, model: "qwen3.8-max-preview" },
+      previousConfig,
+    );
+
+    expect(connection.setSessionConfigOption).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      configId: "model",
+      value: "qwen3.8-max-preview(openai)",
+    });
+    expect(connection.request).not.toHaveBeenCalled();
+  });
+
   it("prioritizes Cursor-style effort aliases over the base ACP model alias", async () => {
     const modelOption = {
       id: "model",

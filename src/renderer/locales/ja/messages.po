@@ -1502,6 +1502,11 @@ msgstr "ブラウザ選択ターゲット (CLI スレッド)"
 msgid "Browser pick target for CLI threads"
 msgstr "ブラウザによる CLI スレッドのターゲットの選択"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Browser sign-in"
+msgstr "ブラウザーでサインイン"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Browser tabs"
 msgstr "ブラウザタブ"
@@ -3016,6 +3021,10 @@ msgstr "ダーク"
 msgid "Decline"
 msgstr "辞退"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "DeepSeek"
+msgstr "DeepSeek"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Default"
 msgstr "デフォルト"
@@ -4154,6 +4163,10 @@ msgstr "Poracode のネイティブ ランタイムを使用したファース�
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Poracode のネイティブ SDK ランタイムを使用したファーストクラスの OpenCode 統合。"
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
+msgstr "Poracode のネイティブなターミナルおよび ACP ランタイムを使用する、Qwen Code のファーストクラス統合です。"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "幅に合わせる"
@@ -4930,6 +4943,10 @@ msgstr "スレッドがアクティブに動作している間は、システム
 msgid "Kill bash"
 msgstr "bash を終了"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "Kimi"
+msgstr "Kimi"
+
 #: src/renderer/components/providers/kimi/manifest.ts
 msgid "Kimi Code"
 msgstr "Kimi Code"
@@ -5574,6 +5591,10 @@ msgstr "この環境ではマイクテストは利用できません。"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "min"
 msgstr "分"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "MiniMax"
+msgstr "MiniMax"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize browser to right panel"
@@ -7453,6 +7474,14 @@ msgstr "質問"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Quota reached"
 msgstr "クォータに達しました"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "Qwen"
+msgstr "Qwen"
+
+#: src/renderer/components/providers/qwen/manifest.ts
+msgid "Qwen Code"
+msgstr "Qwen Code"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Ran out"
@@ -9506,6 +9535,10 @@ msgstr "対象ブランチ"
 msgid "Target provider"
 msgstr "対象プロバイダー"
 
+#: src/renderer/components/providers/qwen/index.tsx
+msgid "Task"
+msgstr "タスク"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "タスクの出力"
@@ -11154,6 +11187,10 @@ msgstr "あなたの名前"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "スタッシュされていたローカルの変更が再適用されました。"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "z.ai"
+msgstr "z.ai"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Zoom in"

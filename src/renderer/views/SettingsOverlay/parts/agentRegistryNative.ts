@@ -258,6 +258,27 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
       ),
   },
   {
+    id: "qwen",
+    description: msg`First-class Qwen Code integration using Poracode's native terminal and ACP runtimes.`,
+    docsUrl: "https://qwenlm.github.io/qwen-code-docs/en/users/quickstart/",
+    installCommand: (project) =>
+      nativeInstallCommand(project, {
+        mac:
+          "if command -v curl >/dev/null 2>&1; then curl -fsSL https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.sh | bash; " +
+          "elif command -v brew >/dev/null 2>&1; then brew install qwen-code; " +
+          "elif command -v npm >/dev/null 2>&1; then npm install -g @qwen-code/qwen-code@latest; else " +
+          MAC_MISSING_CURL_BREW_NPM_MESSAGE +
+          "; fi",
+        posix:
+          "if command -v curl >/dev/null 2>&1; then curl -fsSL https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.sh | bash; " +
+          "elif command -v npm >/dev/null 2>&1; then npm install -g @qwen-code/qwen-code@latest; else " +
+          POSIX_MISSING_CURL_NPM_MESSAGE +
+          "; fi",
+        windows:
+          "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.ps1 | iex } elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @qwen-code/qwen-code@latest } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod or Node.js/npm first, then refresh detected agents.' }",
+      }),
+  },
+  {
     id: "copilot",
     acpRegistryAliases: [
       { id: "github-copilot", nativeSupport: true },

@@ -39,6 +39,15 @@ describe("useUsageProviderLogin", () => {
     expect(result.current.canSignIn).toBe(true);
   });
 
+  it("offers browser-session and API-key paths for Alibaba Token Plan", () => {
+    useProviderUsageStore.getState().mergeSnapshot(authMissingSnapshot("qwen"));
+
+    const { result } = renderHook(() => useUsageProviderLogin("qwen"));
+
+    expect(result.current.canBrowserSignIn).toBe(true);
+    expect(result.current.canApiKeySignIn).toBe(true);
+  });
+
   it("hides usage login and sign-out controls in remote sessions", () => {
     bridgeMock.isRemoteSession.mockReturnValue(true);
     useProviderUsageStore.getState().mergeSnapshot(authMissingSnapshot("grok"));

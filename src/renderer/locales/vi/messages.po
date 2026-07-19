@@ -1503,6 +1503,11 @@ msgstr "Mục tiêu chọn trình duyệt (chủ đề CLI)"
 msgid "Browser pick target for CLI threads"
 msgstr "Mục tiêu chọn trình duyệt cho các chủ đề CLI"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Browser sign-in"
+msgstr "Đăng nhập bằng trình duyệt"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Browser tabs"
 msgstr "Thẻ trình duyệt"
@@ -3017,6 +3022,10 @@ msgstr "Tối"
 msgid "Decline"
 msgstr "Từ chối"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "DeepSeek"
+msgstr "DeepSeek"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Default"
 msgstr "Mặc định"
@@ -4155,6 +4164,10 @@ msgstr "Tích hợp Kimi Code CLI hạng nhất bằng cách sử dụng thời 
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Tích hợp OpenCode hạng nhất bằng thời gian chạy SDK gốc của Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
+msgstr "Tích hợp Qwen Code hạng nhất bằng các môi trường chạy terminal và ACP gốc của Poracode."
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "Vừa chiều rộng"
@@ -4931,6 +4944,10 @@ msgstr "Giữ cho hệ thống luôn hoạt động trong khi bất kỳ luồng
 msgid "Kill bash"
 msgstr "Dừng bash"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "Kimi"
+msgstr "Kimi"
+
 #: src/renderer/components/providers/kimi/manifest.ts
 msgid "Kimi Code"
 msgstr "Kimi Code"
@@ -5576,6 +5593,10 @@ msgstr "Kiểm tra micrô không có sẵn trong môi trường này."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "min"
 msgstr "phút"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "MiniMax"
+msgstr "MiniMax"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize browser to right panel"
@@ -7455,6 +7476,14 @@ msgstr "Câu hỏi"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Quota reached"
 msgstr "Đã đạt hạn ngạch"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "Qwen"
+msgstr "Qwen"
+
+#: src/renderer/components/providers/qwen/manifest.ts
+msgid "Qwen Code"
+msgstr "Qwen Code"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Ran out"
@@ -9508,6 +9537,10 @@ msgstr "Nhánh mục tiêu"
 msgid "Target provider"
 msgstr "Nhà cung cấp mục tiêu"
 
+#: src/renderer/components/providers/qwen/index.tsx
+msgid "Task"
+msgstr "Tác vụ"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "Đầu ra nhiệm vụ"
@@ -11156,6 +11189,10 @@ msgstr "Tên của bạn"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "Các thay đổi cục bộ trong stash của bạn đã được áp dụng lại."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "z.ai"
+msgstr "z.ai"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Zoom in"

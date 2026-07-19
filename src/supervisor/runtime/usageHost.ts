@@ -26,12 +26,12 @@ function createDevFileLogger(cacheDir: string): Logger {
   };
 }
 
-export function createNodeUsageHost(cacheDir?: string): HostPort {
+export function createNodeUsageHost(cacheDir?: string, settingsPath?: string): HostPort {
   const devLog =
     process.env.PORACODE_IS_DEV === "1" && cacheDir ? createDevFileLogger(cacheDir) : undefined;
   return {
     http: createNodeHttpClient(),
-    credentials: createNativeCredentialStore(cacheDir),
+    credentials: createNativeCredentialStore(cacheDir, settingsPath),
     now: () => Date.now(),
     ...(devLog ? { log: devLog } : {}),
   };

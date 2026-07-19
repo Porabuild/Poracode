@@ -8,6 +8,7 @@ import {
   KIMI_PRESET_ROWS,
   MINIMAX_PRESET_ROWS,
   profileUsesExternalProvider,
+  QWEN_PRESET_ROWS,
   rowsFromEnvironment,
   ZAI_PRESET_ROWS,
   type EnvRow,
@@ -109,6 +110,20 @@ describe("ClaudeProfileSettingsModel", () => {
       expect(byKey.CLAUDE_CODE_SUBAGENT_MODEL).toBe("kimi-k3");
       expect(byKey.ENABLE_TOOL_SEARCH).toBe("false");
       expect(byKey.CLAUDE_CODE_AUTO_COMPACT_WINDOW).toBe("1048576");
+    });
+
+    it("adds the current Alibaba Cloud Coding Plan endpoint and Qwen model mapping", () => {
+      const byKey = Object.fromEntries(
+        applyPresetEnvRows(QWEN_PRESET_ROWS, [], nextRowId).map((row) => [row.key, row.value]),
+      );
+      expect(byKey.ANTHROPIC_BASE_URL).toBe(
+        "https://coding-intl.dashscope.aliyuncs.com/apps/anthropic",
+      );
+      expect(byKey.ANTHROPIC_MODEL).toBe("qwen3.8-max-preview");
+      expect(byKey.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe("qwen3.8-max-preview");
+      expect(byKey.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("qwen3.8-max-preview");
+      expect(byKey.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("qwen3.8-max-preview");
+      expect(byKey.CLAUDE_CODE_SUBAGENT_MODEL).toBe("qwen3.8-max-preview");
     });
 
     it("corrects stale preset values but keeps an existing token and extra rows", () => {

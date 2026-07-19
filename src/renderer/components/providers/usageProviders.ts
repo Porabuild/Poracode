@@ -120,6 +120,10 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   kimi: {
     rings: { outer: ["session-5h"], inner: ["weekly"] },
   },
+  qwen: {
+    supportsBrowserLogin: true,
+    rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
+  },
 };
 
 const STATIC_USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = USAGE_PROVIDER_DESCRIPTORS.map(
@@ -179,10 +183,13 @@ export function supportsBrowserLogin(providerId: string): boolean {
   return rendererMeta(providerId)?.supportsBrowserLogin === true;
 }
 
-/** Providers that sign in by pasting an API key (no browser step, e.g. z.ai). */
+/** Providers that accept a pasted API key, including hybrid browser providers. */
 export function supportsApiKeyLogin(providerId: string): boolean {
   const descriptor = USAGE_PROVIDER_BY_ID.get(baseAgentKind(providerId));
-  return descriptor?.needsLogin === true && descriptor.mechanism === "api-key";
+  return (
+    descriptor?.needsLogin === true &&
+    (descriptor.mechanism === "api-key" || descriptor.apiKeyFallback === true)
+  );
 }
 
 /** Providers whose windows share one reset clock (one header countdown, no per-window resets). */

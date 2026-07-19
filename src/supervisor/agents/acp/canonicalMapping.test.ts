@@ -46,6 +46,32 @@ describe("mapAcpSessionUpdate", () => {
     expect((second[0] as { delta: string }).delta).toBe(" world");
   });
 
+  it("drops empty agent text chunks without opening or updating an assistant item", () => {
+    const state = createAcpMapperState("t-empty-agent-chunk");
+
+    expect(
+      mapAcpSessionUpdate(
+        note({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "" } }),
+        state,
+      ),
+    ).toEqual([]);
+    expect(state.openAssistantItemId).toBeUndefined();
+
+    mapAcpSessionUpdate(
+      note({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "answer" } }),
+      state,
+    );
+    const itemId = state.openAssistantItemId;
+
+    expect(
+      mapAcpSessionUpdate(
+        note({ sessionUpdate: "agent_message_chunk", content: { type: "text", text: "" } }),
+        state,
+      ),
+    ).toEqual([]);
+    expect(state.openAssistantItemId).toBe(itemId);
+  });
+
   it("maps Factory Droid API failures in agent_message_chunk to runtime errors", () => {
     const state = createAcpMapperState("t-droid-limit");
     const text =

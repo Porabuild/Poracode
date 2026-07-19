@@ -68,6 +68,12 @@ export function mapAcpSessionUpdate(
   switch (update.sessionUpdate) {
     case "agent_message_chunk": {
       const content = (update as { content?: ContentBlock }).content;
+      // Some ACP agents emit an empty text chunk after every tool call. It is
+      // only a stream boundary, not an assistant message; opening an item for
+      // it leaves a completed blank row between the tool and the next thought.
+      if (content?.type === "text" && content.text.length === 0) {
+        break;
+      }
       // Gemini echoes `[MODE_UPDATE] <mode>` as an agent text chunk whenever the
       // session is launched (or switched) into a specific approval mode. The
       // user already chose the mode in the launcher; surfacing the echo as

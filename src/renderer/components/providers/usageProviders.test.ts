@@ -6,6 +6,7 @@ import {
   pickUsageRings,
   resolveDisplayedProviders,
   supportsApiKeyLogin,
+  supportsBrowserLogin,
   usageProvidersForAgentInstances,
   usageRingGroups,
 } from "./usageProviders";
@@ -42,7 +43,9 @@ describe("usageProviders", () => {
   it("derives API-key login support from provider descriptors", () => {
     expect(supportsApiKeyLogin("zai")).toBe(true);
     expect(supportsApiKeyLogin("kimi")).toBe(true);
+    expect(supportsApiKeyLogin("qwen")).toBe(true);
     expect(supportsApiKeyLogin("grok")).toBe(false);
+    expect(supportsBrowserLogin("qwen")).toBe(true);
   });
 
   it("adds Claude profile providers after the base Claude provider", () => {
@@ -114,6 +117,17 @@ describe("usageProviders", () => {
       { id: "session-5h", label: "Session (5h)", usedPercent: 70 },
     ];
     const rings = pickUsageRings("kimi", windows);
+    expect(rings.outer?.id).toBe("session-5h");
+    expect(rings.inner?.id).toBe("weekly");
+  });
+
+  it("rings Alibaba Token Plan with the 5h quota outside and weekly quota inside", () => {
+    const windows: UsageWindow[] = [
+      { id: "monthly", label: "Monthly", usedPercent: 5 },
+      { id: "weekly", label: "Weekly", usedPercent: 10 },
+      { id: "session-5h", label: "Session (5h)", usedPercent: 70 },
+    ];
+    const rings = pickUsageRings("qwen", windows);
     expect(rings.outer?.id).toBe("session-5h");
     expect(rings.inner?.id).toBe("weekly");
   });

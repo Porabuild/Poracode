@@ -1503,6 +1503,11 @@ msgstr "浏览器选择目标（CLI 线程）"
 msgid "Browser pick target for CLI threads"
 msgstr "为 CLI 线程在浏览器中选取目标"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Browser sign-in"
+msgstr "浏览器登录"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Browser tabs"
 msgstr "浏览器标签页"
@@ -3017,6 +3022,10 @@ msgstr "深色"
 msgid "Decline"
 msgstr "拒绝"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "DeepSeek"
+msgstr "DeepSeek"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Default"
 msgstr "默认"
@@ -4155,6 +4164,10 @@ msgstr "使用 Poracode 的本机运行时进行一流的 Kimi Code CLI 集成�
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "使用 Poracode 的本机 SDK 运行时进行一流的 OpenCode 集成。"
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
+msgstr "使用 Poracode 原生终端和 ACP 运行时的一流 Qwen Code 集成。"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "适合宽度"
@@ -4931,6 +4944,10 @@ msgstr "当任何线程正在工作时保持系统唤醒状态（不休眠）。
 msgid "Kill bash"
 msgstr "终止 bash"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "Kimi"
+msgstr "Kimi"
+
 #: src/renderer/components/providers/kimi/manifest.ts
 msgid "Kimi Code"
 msgstr "Kimi Code"
@@ -5575,6 +5592,10 @@ msgstr "在此环境中无法进行麦克风测试。"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "min"
 msgstr "分钟"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "MiniMax"
+msgstr "MiniMax"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize browser to right panel"
@@ -7454,6 +7475,14 @@ msgstr "问题"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Quota reached"
 msgstr "已达到配额"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "Qwen"
+msgstr "Qwen"
+
+#: src/renderer/components/providers/qwen/manifest.ts
+msgid "Qwen Code"
+msgstr "Qwen Code"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Ran out"
@@ -9507,6 +9536,10 @@ msgstr "目标分支"
 msgid "Target provider"
 msgstr "目标提供商"
 
+#: src/renderer/components/providers/qwen/index.tsx
+msgid "Task"
+msgstr "任务"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "任务输出"
@@ -11155,6 +11188,10 @@ msgstr "你的名字"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "您贮藏的本地更改已重新应用。"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "z.ai"
+msgstr "z.ai"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Zoom in"

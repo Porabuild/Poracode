@@ -34,8 +34,8 @@ function UsageProviderControls(props: { id: string; label: string }) {
   const showInSidebar = useSharedSettings((s) => s.usage.showInSidebar);
 
   const {
-    isApiKeyLogin,
-    canSignIn,
+    canBrowserSignIn,
+    canApiKeySignIn,
     canSignOut,
     signingIn,
     signingOut,
@@ -73,38 +73,43 @@ function UsageProviderControls(props: { id: string; label: string }) {
   };
 
   const signInForm =
-    canSignIn && isApiKeyLogin ? (
-      <form onSubmit={onSubmitApiKey} className="flex items-center gap-1.5">
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder={t`Paste ${label} API key`}
-          aria-label={t`${label} API key`}
-          autoComplete="off"
-          spellCheck={false}
-          className="min-w-0 flex-1 rounded-lg border border-[color:var(--separator)] bg-background px-2 py-1 text-xs text-foreground outline-none focus-visible:focus-ring sm:w-[200px] sm:flex-none"
-        />
-        <Button
-          size="sm"
-          variant="ghost"
-          type="submit"
-          className="text-foreground"
-          isDisabled={signingIn || apiKey.trim().length === 0}
-        >
-          {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
-        </Button>
-      </form>
-    ) : canSignIn ? (
-      <Button
-        size="sm"
-        variant="ghost"
-        className="text-foreground"
-        isDisabled={signingIn}
-        onPress={() => void handleSignIn()}
-      >
-        {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
-      </Button>
+    canBrowserSignIn || canApiKeySignIn ? (
+      <>
+        {canBrowserSignIn ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-foreground"
+            isDisabled={signingIn}
+            onPress={() => void handleSignIn()}
+          >
+            {signingIn ? <Trans>Signing in…</Trans> : <Trans>Browser sign-in</Trans>}
+          </Button>
+        ) : null}
+        {canApiKeySignIn ? (
+          <form onSubmit={onSubmitApiKey} className="flex items-center gap-1.5">
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={t`Paste ${label} API key`}
+              aria-label={t`${label} API key`}
+              autoComplete="off"
+              spellCheck={false}
+              className="min-w-0 flex-1 rounded-lg border border-[color:var(--separator)] bg-background px-2 py-1 text-xs text-foreground outline-none focus-visible:focus-ring sm:w-[200px] sm:flex-none"
+            />
+            <Button
+              size="sm"
+              variant="ghost"
+              type="submit"
+              className="text-foreground"
+              isDisabled={signingIn || apiKey.trim().length === 0}
+            >
+              {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
+            </Button>
+          </form>
+        ) : null}
+      </>
     ) : canSignOut ? (
       <Button
         size="sm"

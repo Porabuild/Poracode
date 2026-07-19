@@ -364,13 +364,7 @@ export function SingleAgentSettings(props: {
       command: status.loginCommand,
       ...(method?.env ? { env: method.env } : {}),
       ...(project ? { project } : {}),
-      onCommandComplete: (exitCode) => {
-        if (exitCode !== 0) {
-          setAuthPending(false);
-          setAuthPendingMessage(undefined);
-          setAuthPendingEnvKey(undefined);
-          return;
-        }
+      onCommandComplete: () => {
         setAuthPendingMessage(
           env
             ? t`Refreshing ${env} ${status.label} authentication status.`

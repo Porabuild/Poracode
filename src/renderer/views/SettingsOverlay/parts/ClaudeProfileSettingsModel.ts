@@ -1,3 +1,5 @@
+import type { MessageDescriptor } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
 import type {
   AgentInstanceConfig,
@@ -65,6 +67,23 @@ export const KIMI_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   { key: "CLAUDE_CODE_AUTO_COMPACT_WINDOW", value: "1048576", sensitive: false },
 ];
 
+/** Canonical Alibaba Cloud Coding Plan environment for Claude Code. */
+const QWEN_MODEL_ID = "qwen3.8-max-preview";
+
+export const QWEN_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
+  {
+    key: "ANTHROPIC_BASE_URL",
+    value: "https://coding-intl.dashscope.aliyuncs.com/apps/anthropic",
+    sensitive: false,
+  },
+  { key: "ANTHROPIC_AUTH_TOKEN", value: "", sensitive: true },
+  { key: "ANTHROPIC_MODEL", value: QWEN_MODEL_ID, sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: QWEN_MODEL_ID, sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: QWEN_MODEL_ID, sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: QWEN_MODEL_ID, sensitive: false },
+  { key: "CLAUDE_CODE_SUBAGENT_MODEL", value: QWEN_MODEL_ID, sensitive: false },
+];
+
 /**
  * An external-provider preset offered by the profile editor's preset selector.
  * Add more entries to `PROFILE_PRESETS` to offer additional providers — the UI
@@ -73,7 +92,7 @@ export const KIMI_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
  */
 export interface ProfilePreset {
   id: string;
-  label: string;
+  label: MessageDescriptor;
   envRows: ReadonlyArray<PresetEnvRow>;
   /** Custom picker models the preset adds. */
   models: readonly { id: string; label: string }[];
@@ -84,7 +103,7 @@ export interface ProfilePreset {
 export const PROFILE_PRESETS: readonly ProfilePreset[] = [
   {
     id: "zai",
-    label: "z.ai",
+    label: msg`z.ai`,
     envRows: ZAI_PRESET_ROWS,
     // glm-5.2[1m] is z.ai's 1M-context GLM 5.2 (the `[1m]` is part of the id).
     models: [{ id: "glm-5.2[1m]", label: "GLM 5.2" }],
@@ -92,7 +111,7 @@ export const PROFILE_PRESETS: readonly ProfilePreset[] = [
   },
   {
     id: "deepseek",
-    label: "DeepSeek",
+    label: msg`DeepSeek`,
     envRows: DEEPSEEK_PRESET_ROWS,
     models: [
       { id: "deepseek-v4-pro[1m]", label: "DeepSeek V4 Pro" },
@@ -102,17 +121,24 @@ export const PROFILE_PRESETS: readonly ProfilePreset[] = [
   },
   {
     id: "minimax",
-    label: "MiniMax",
+    label: msg`MiniMax`,
     envRows: MINIMAX_PRESET_ROWS,
     models: [{ id: "MiniMax-M3", label: "MiniMax M3" }],
     efforts: CLAUDE_EFFORT_TIERS,
   },
   {
     id: "kimi",
-    label: "Kimi",
+    label: msg`Kimi`,
     envRows: KIMI_PRESET_ROWS,
     models: [{ id: "kimi-k3", label: "Kimi K3" }],
     efforts: ["max"],
+  },
+  {
+    id: "qwen",
+    label: msg`Qwen`,
+    envRows: QWEN_PRESET_ROWS,
+    models: [{ id: QWEN_MODEL_ID, label: "Qwen3.8 Max Preview" }],
+    efforts: CLAUDE_EFFORT_TIERS,
   },
 ];
 

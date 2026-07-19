@@ -159,6 +159,61 @@ describe("chatPaneSelectors", () => {
     ]);
   });
 
+  it("hides completed assistant messages with no renderable content", () => {
+    const state = {
+      runtimeItemIdsByThread: {
+        t1: ["empty", "streaming", "stream-text", "payload-text", "payload-image"],
+      },
+      runtimeItemsByIdByThread: {
+        t1: {
+          empty: {
+            id: "empty",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "" },
+          },
+          streaming: {
+            id: "streaming",
+            type: "assistant_message",
+            state: "started",
+            streams: {},
+          },
+          "stream-text": {
+            id: "stream-text",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "answer" },
+          },
+          "payload-text": {
+            id: "payload-text",
+            type: "assistant_message",
+            state: "completed",
+            payload: { content: [{ kind: "text", text: "payload answer" }] },
+            streams: {},
+          },
+          "payload-image": {
+            id: "payload-image",
+            type: "assistant_message",
+            state: "completed",
+            payload: {
+              content: [
+                { kind: "image", mimeType: "image/png", dataUrl: "data:image/png;base64,eA==" },
+              ],
+            },
+            streams: {},
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+
+    expect(selectVisibleThreadRuntimeItemIds(state, "t1")).toEqual([
+      "streaming",
+      "stream-text",
+      "payload-text",
+      "payload-image",
+    ]);
+  });
+
   it("keeps plan and goal runtime items out of the inline transcript", () => {
     const state = {
       runtimeItemIdsByThread: {

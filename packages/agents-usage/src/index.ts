@@ -104,6 +104,15 @@ export {
 } from "./collectors/kimi";
 export type { KimiUsagesResponse } from "./collectors/kimi";
 export {
+  collectQwen,
+  parseQwenCodingPlanUsage,
+  QWEN_PROVIDER_ID,
+  ALIBABA_CODING_PLAN_INTL_QUOTA_URL,
+  ALIBABA_CODING_PLAN_CN_QUOTA_URL,
+  ALIBABA_TOKEN_PLAN_INTL_DASHBOARD_URL,
+} from "./collectors/qwen";
+export type { AlibabaCodingPlanRegion } from "./collectors/qwen";
+export {
   antigravityPool,
   antigravityPoolWindows,
   antigravityQuotaSummaryWindows,

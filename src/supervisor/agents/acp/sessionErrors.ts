@@ -108,14 +108,17 @@ function isGenericAcpPromptRpcErrorMessage(message: string): boolean {
 /** JSON-RPC error from `session/prompt` — may follow a separate agent_message_chunk. */
 export function resolveAcpPromptRpcErrorMessage(error: unknown): string {
   if (error instanceof RequestError) {
-    if (error.message.trim().length > 0) return error.message;
     const data = error.data as { details?: unknown; detail?: unknown } | undefined;
-    if (typeof data?.details === "string" && data.details.trim().length > 0) {
-      return data.details.trim();
-    }
-    if (typeof data?.detail === "string" && data.detail.trim().length > 0) {
-      return data.detail.trim();
-    }
+    const detail =
+      typeof data?.details === "string" && data.details.trim().length > 0
+        ? data.details.trim()
+        : typeof data?.detail === "string" && data.detail.trim().length > 0
+          ? data.detail.trim()
+          : undefined;
+    const message = error.message.trim();
+    if (detail && isGenericAcpPromptRpcErrorMessage(message)) return detail;
+    if (message.length > 0) return message;
+    if (detail) return detail;
   }
   return error instanceof Error ? error.message : String(error);
 }

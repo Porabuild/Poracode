@@ -73,6 +73,14 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
     needsLogin: true,
     windowIds: ["session-5h", "weekly"],
   },
+  qwen: {
+    id: "qwen",
+    label: "Alibaba Token Plan",
+    mechanism: "cookie",
+    needsLogin: true,
+    apiKeyFallback: true,
+    windowIds: ["session-5h", "weekly", "monthly"],
+  },
 } satisfies Record<string, UsageProviderDescriptor>;
 
 /** Descriptors for the built-in HTTP collectors, in registration order. */

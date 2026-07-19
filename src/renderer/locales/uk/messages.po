@@ -1503,6 +1503,11 @@ msgstr "Ціль вибору в браузері (треди CLI)"
 msgid "Browser pick target for CLI threads"
 msgstr "Ціль вибору в браузері для тредів CLI"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Browser sign-in"
+msgstr "Вхід через браузер"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Browser tabs"
 msgstr "Вкладки браузера"
@@ -3017,6 +3022,10 @@ msgstr "Темна"
 msgid "Decline"
 msgstr "Відхилити"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "DeepSeek"
+msgstr "DeepSeek"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Default"
 msgstr "За замовчуванням"
@@ -4155,6 +4164,10 @@ msgstr "Першокласна інтеграція Kimi Code CLI з викор�
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Першокласна інтеграція OpenCode з використанням нативного середовища виконання SDK Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
+msgstr "Повноцінна інтеграція Qwen Code із використанням вбудованих середовищ термінала та ACP у Poracode."
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "За шириною"
@@ -4931,6 +4944,10 @@ msgstr "Не давати системі засинати, поки будь-я�
 msgid "Kill bash"
 msgstr "Завершити bash"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "Kimi"
+msgstr "Kimi"
+
 #: src/renderer/components/providers/kimi/manifest.ts
 msgid "Kimi Code"
 msgstr "Kimi Code"
@@ -5576,6 +5593,10 @@ msgstr "Перевірка мікрофона недоступна в цьому
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "min"
 msgstr "хв"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "MiniMax"
+msgstr "MiniMax"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize browser to right panel"
@@ -7455,6 +7476,14 @@ msgstr "Питання"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Quota reached"
 msgstr "Квоту вичерпано"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "Qwen"
+msgstr "Qwen"
+
+#: src/renderer/components/providers/qwen/manifest.ts
+msgid "Qwen Code"
+msgstr "Qwen Code"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Ran out"
@@ -9508,6 +9537,10 @@ msgstr "Цільова гілка"
 msgid "Target provider"
 msgstr "Цільовий провайдер"
 
+#: src/renderer/components/providers/qwen/index.tsx
+msgid "Task"
+msgstr "Завдання"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "Вивід завдання"
@@ -11156,6 +11189,10 @@ msgstr "Ваше ім'я"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "Ваші локальні зміни зі stash було повторно застосовано."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "z.ai"
+msgstr "z.ai"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Zoom in"

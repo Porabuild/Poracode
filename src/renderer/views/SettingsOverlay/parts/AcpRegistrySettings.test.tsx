@@ -507,6 +507,10 @@ describe("AcpRegistrySettings", () => {
     expect(entries.get("gemini")?.installCommand(wslProject)).toContain(
       "npm install -g @google/gemini-cli",
     );
+    expect(entries.get("qwen")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.sh | bash",
+    );
+    expect(entries.get("qwen")?.installCommand(wslProject)).not.toContain("brew install");
     expect(entries.get("copilot")?.installCommand(wslProject)).toContain(
       "curl -fsSL https://gh.io/copilot-install | bash",
     );
@@ -523,6 +527,7 @@ describe("AcpRegistrySettings", () => {
         "brew install anomalyco/tap/opencode",
       );
       expect(entries.get("gemini")?.installCommand(macProject)).not.toContain("brew install");
+      expect(entries.get("qwen")?.installCommand(macProject)).toContain("brew install qwen-code");
       expect(entries.get("copilot")?.installCommand(macProject)).toContain(
         "brew install --cask copilot-cli",
       );
@@ -546,6 +551,9 @@ describe("AcpRegistrySettings", () => {
       );
       expect(entries.get("gemini")?.installCommand(windowsProject)).toContain(
         "npm install -g @google/gemini-cli",
+      );
+      expect(entries.get("qwen")?.installCommand(windowsProject)).toContain(
+        "irm https://qwen-code-assets.oss-cn-hangzhou.aliyuncs.com/installation/install-qwen-standalone.ps1 | iex",
       );
       expect(entries.get("copilot")?.installCommand(windowsProject)).toContain(
         "winget install GitHub.Copilot",

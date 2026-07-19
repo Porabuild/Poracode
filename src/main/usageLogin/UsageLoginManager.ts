@@ -1,5 +1,8 @@
 import { clipboard } from "electron";
-import { allUsageProviderDescriptors } from "@poracode/agents-usage";
+import {
+  ALIBABA_TOKEN_PLAN_INTL_DASHBOARD_URL,
+  allUsageProviderDescriptors,
+} from "@poracode/agents-usage";
 import type { BrowserPanelManager } from "../browser";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { UsageLoginStateResponse } from "@/shared/contracts";
@@ -81,6 +84,19 @@ function usageProviderLabel(providerId: string): string {
   return USAGE_PROVIDER_BY_ID.get(providerId)?.label ?? providerId;
 }
 
+function isAlibabaConsoleSessionCandidate(cookieHeader: string): boolean {
+  const names = new Set(
+    cookieHeader
+      .split(";")
+      .map((part) => part.slice(0, Math.max(0, part.indexOf("="))).trim())
+      .filter(Boolean),
+  );
+  return (
+    names.has("login_aliyunid_ticket") &&
+    (names.has("login_aliyunid_pk") || names.has("login_current_pk") || names.has("login_aliyunid"))
+  );
+}
+
 const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
   commandcode: {
     kind: "cookie",
@@ -131,6 +147,13 @@ const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
     // user signs in, and stale values linger in the jar — so confirm the cookie
     // actually authenticates before prompting.
     validateSession: isOpenCodeLoginCookieLive,
+  },
+  qwen: {
+    kind: "cookie",
+    loginUrl: ALIBABA_TOKEN_PLAN_INTL_DASHBOARD_URL,
+    cookieUrl: "https://modelstudio.console.alibabacloud.com/",
+    authCookiePattern: /^login_(?:aliyunid_ticket|aliyunid_pk|current_pk|aliyunid)$/i,
+    validateSession: async (cookieHeader) => isAlibabaConsoleSessionCandidate(cookieHeader),
   },
 };
 
@@ -208,13 +231,17 @@ export class UsageLoginManager {
   }
 
   /**
-   * Seal a user-pasted API key for an `api-key` provider (z.ai). The stored
+   * Seal a user-pasted API key for an API-key or hybrid provider. The stored
    * secret is the persistent "signed in" signal; the collector validates the key
    * itself on the next fetch, so a bad key simply re-prompts via `auth-missing`.
    */
   submitApiKey(providerId: string, apiKey: string): Promise<UsageLoginResult> {
     const config = PROVIDER_CONFIGS[providerId];
-    if (config?.kind !== "api-key") {
+    const descriptor = USAGE_PROVIDER_BY_ID.get(providerId);
+    if (
+      config?.kind !== "api-key" &&
+      !(config?.kind === "cookie" && descriptor?.apiKeyFallback === true)
+    ) {
       return Promise.resolve({ ok: false, error: `No API-key login for ${providerId}` });
     }
     const trimmed = apiKey.trim();

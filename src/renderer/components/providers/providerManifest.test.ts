@@ -20,6 +20,7 @@ const EXPECTED_PROVIDER_ORDER = [
   "claude",
   "codex",
   "gemini",
+  "qwen",
   "grok",
   "kimi",
   "antigravity",

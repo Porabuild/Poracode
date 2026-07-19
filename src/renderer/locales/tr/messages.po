@@ -1503,6 +1503,11 @@ msgstr "Tarayıcı seçim hedefi (CLI konuları)"
 msgid "Browser pick target for CLI threads"
 msgstr "CLI konuları için tarayıcı seçim hedefi"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Browser sign-in"
+msgstr "Tarayıcıyla oturum aç"
+
 #: src/mobile/views/BrowserView.tsx
 msgid "Browser tabs"
 msgstr "Tarayıcı sekmeleri"
@@ -3017,6 +3022,10 @@ msgstr "Karanlık"
 msgid "Decline"
 msgstr "Reddet"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "DeepSeek"
+msgstr "DeepSeek"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Default"
 msgstr "Varsayılan"
@@ -4155,6 +4164,10 @@ msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Kimi Co
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Poracode'un yerel SDK çalışma zamanını kullanan birinci sınıf OpenCode entegrasyonu."
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
+msgstr "Poracode'un yerel terminal ve ACP çalışma zamanlarını kullanan birinci sınıf Qwen Code entegrasyonu."
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Fit width"
 #~ msgstr "Genişliğe sığdır"
@@ -4931,6 +4944,10 @@ msgstr "Herhangi bir konu aktif olarak çalışırken sistemi uyanık tutun."
 msgid "Kill bash"
 msgstr "Bash'ı öldür"
 
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "Kimi"
+msgstr "Kimi"
+
 #: src/renderer/components/providers/kimi/manifest.ts
 msgid "Kimi Code"
 msgstr "Kimi Code"
@@ -5576,6 +5593,10 @@ msgstr "Bu ortamda mikrofon testi yapılamaz."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "min"
 msgstr "dk"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "MiniMax"
+msgstr "MiniMax"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize browser to right panel"
@@ -7455,6 +7476,14 @@ msgstr "Sorular"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Quota reached"
 msgstr "Kotaya ulaşıldı"
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "Qwen"
+msgstr "Qwen"
+
+#: src/renderer/components/providers/qwen/manifest.ts
+msgid "Qwen Code"
+msgstr "Qwen Code"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Ran out"
@@ -9508,6 +9537,10 @@ msgstr "Hedef şube"
 msgid "Target provider"
 msgstr "Hedef sağlayıcı"
 
+#: src/renderer/components/providers/qwen/index.tsx
+msgid "Task"
+msgstr "Görev"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Task output"
 msgstr "Görev çıkışı"
@@ -11156,6 +11189,10 @@ msgstr "Adınız"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "Zuladaki (stash) yerel değişiklikleriniz yeniden uygulandı."
+
+#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+msgid "z.ai"
+msgstr "z.ai"
 
 #: src/renderer/components/composer/ImageLightbox.tsx
 msgid "Zoom in"

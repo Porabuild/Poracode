@@ -153,7 +153,11 @@ function modelOptionAliases(option: AcpConfigSelectOptionLike): string[] {
   }
 
   if (value) {
-    const base = value.replace(/\[[^\]]*\]/g, "");
+    // Some agents append a transport/provider tag to the wire value while the
+    // configured model keeps the public id (Qwen: `model(openai)`). Treat that
+    // final tag like bracket metadata so the public id resolves to the exact
+    // raw option value sent back through ACP.
+    const base = value.replace(/\[[^\]]*\]/g, "").replace(/\([a-z0-9_-]+\)$/i, "");
     if (base) aliases.add(base);
     const params = parseBracketParams(value);
     const thinking = params.thinking === "true";

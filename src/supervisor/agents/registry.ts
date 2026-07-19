@@ -25,6 +25,7 @@ import { createGeminiAdapter } from "./gemini";
 import { createGrokAdapter } from "./grok";
 import { createKimiAdapter } from "./kimi";
 import { createOpenCodeAdapter } from "./opencode";
+import { createQwenAdapter } from "./qwen";
 
 export function createAgentRegistry(): AgentAdapter[] {
   return buildAgentRegistry([]);
@@ -41,6 +42,7 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
     createCopilotAdapter(),
     createCodexAdapter(),
     createGeminiAdapter(),
+    createQwenAdapter(),
     createGrokAdapter(),
     createKimiAdapter(),
     createAntigravityAdapter(),
