@@ -4,7 +4,7 @@ import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { getLocaleMessages } from "@/lib/i18n/messages";
 import { getLatestRelease } from "@/lib/releases";
 import { createPageMetadata } from "@/lib/seo";
-import { DownloadContent } from "./download-content";
+import { DownloadContent } from "@/app/download/download-content";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Download Poracode",

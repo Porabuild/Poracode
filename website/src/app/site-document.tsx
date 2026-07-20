@@ -23,7 +23,7 @@ const geistMono = Geist_Mono({
 // the <meta name="google-site-verification"> tag is emitted only when present.
 const googleSiteVerification = process.env.GOOGLE_SITE_VERIFICATION;
 
-export const metadata: Metadata = {
+export const ROOT_METADATA: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: SITE_NAME,
   ...createPageMetadata({
@@ -63,14 +63,13 @@ export const metadata: Metadata = {
   ...(googleSiteVerification ? { verification: { google: googleSiteVerification } } : {}),
 };
 
-export default function RootLayout({
+export function SiteDocument({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+  lang,
+}: Readonly<{ children: React.ReactNode; lang: string }>) {
   return (
     <html
-      lang="en"
+      lang={lang}
       className={`dark ${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >

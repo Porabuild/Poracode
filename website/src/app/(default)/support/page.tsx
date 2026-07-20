@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ArrowLeft, ExternalLink, Mail } from "lucide-react";
 import Link from "next/link";
 
-import contact from "../../../../branding/contact.json";
+import contact from "../../../../../branding/contact.json";
 import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({

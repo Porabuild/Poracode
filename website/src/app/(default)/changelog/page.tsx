@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { getLocaleMessages } from "@/lib/i18n/messages";
 import { createPageMetadata } from "@/lib/seo";
-import { ChangelogContent } from "./changelog-content";
+import { ChangelogContent } from "@/app/changelog/changelog-content";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Poracode Changelog",

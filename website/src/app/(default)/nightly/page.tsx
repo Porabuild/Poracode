@@ -3,7 +3,7 @@ import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { getLocaleMessages } from "@/lib/i18n/messages";
 import { getLatestNightlyRelease } from "@/lib/releases";
 import { createPageMetadata } from "@/lib/seo";
-import { NightlyContent } from "./nightly-content";
+import { NightlyContent } from "@/app/nightly/nightly-content";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Poracode Nightly — Latest pre-release builds",

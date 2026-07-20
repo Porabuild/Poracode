@@ -10,7 +10,7 @@ import {
   SITE_TITLE,
   stringifyJsonLd,
 } from "@/lib/seo";
-import { HomeContent } from "./home-content";
+import { HomeContent } from "@/app/home-content";
 
 export const metadata: Metadata = createPageMetadata({
   title: SITE_TITLE,
