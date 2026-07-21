@@ -46,6 +46,23 @@ const TOKEN_PLAN_BODY = JSON.stringify({
   httpStatusCode: 200,
 });
 
+const TOKEN_PLAN_SUBSCRIPTION_BODY = JSON.stringify({
+  data: {
+    DataV2: {
+      data: JSON.stringify({
+        code: 0,
+        data: {
+          instanceCode: "token-plan-instance",
+          specCode: "standard",
+          status: "VALID",
+        },
+        success: true,
+      }),
+    },
+  },
+  httpStatusCode: 200,
+});
+
 describe("parseQwenCodingPlanUsage", () => {
   it("normalizes the current Token Plan percentage windows", () => {
     const snapshot = parseQwenCodingPlanUsage(JSON.parse(TOKEN_PLAN_BODY), FAKE_NOW_MS);
@@ -139,6 +156,7 @@ describe("parseQwenCodingPlanUsage", () => {
 describe("collectQwen", () => {
   it("prefers a captured Alibaba console session and sends the console RPC form", async () => {
     const requests: HttpRequest[] = [];
+    const rpcRoute = { body: TOKEN_PLAN_BODY };
     const host = createFakeHost({
       secrets: {
         qwen: {
@@ -151,14 +169,24 @@ describe("collectQwen", () => {
         [ALIBABA_TOKEN_PLAN_INTL_DASHBOARD_URL]: {
           body: '<html><script>window.config={SEC_TOKEN:"sec-from-page"}</script></html>',
         },
-        [ALIBABA_CODING_PLAN_INTL_CONSOLE_RPC_URL]: { body: TOKEN_PLAN_BODY },
+        [ALIBABA_CODING_PLAN_INTL_CONSOLE_RPC_URL]: rpcRoute,
       },
-      onRequest: (request) => requests.push(request),
+      onRequest: (request) => {
+        requests.push(request);
+        if (request.url !== ALIBABA_CODING_PLAN_INTL_CONSOLE_RPC_URL) return;
+        const form = new URLSearchParams(request.body);
+        const api = JSON.parse(form.get("params") ?? "{}").Api;
+        rpcRoute.body =
+          api === "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/subscription"
+            ? TOKEN_PLAN_SUBSCRIPTION_BODY
+            : TOKEN_PLAN_BODY;
+      },
     });
 
-    expect((await collectQwen(host)).status).toBe("ok");
+    expect(await collectQwen(host)).toMatchObject({ status: "ok", plan: "Standard" });
     expect(requests.map((request) => request.url)).toEqual([
       ALIBABA_TOKEN_PLAN_INTL_DASHBOARD_URL,
+      ALIBABA_CODING_PLAN_INTL_CONSOLE_RPC_URL,
       ALIBABA_CODING_PLAN_INTL_CONSOLE_RPC_URL,
     ]);
     const rpc = requests[1];
@@ -172,6 +200,13 @@ describe("collectQwen", () => {
       Api: "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage",
       Data: {
         cornerstoneParam: { "X-Anonymous-Id": "anon" },
+      },
+    });
+    const subscriptionForm = new URLSearchParams(requests[2]?.body);
+    expect(JSON.parse(subscriptionForm.get("params") ?? "{}")).toMatchObject({
+      Api: "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/subscription",
+      Data: {
+        queryInstanceInfoRequest: { commodityCode: "sfm_tokenplansolo_public_intl" },
       },
     });
   });
