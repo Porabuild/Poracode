@@ -48,6 +48,7 @@ import {
 } from "../profile";
 import {
   applyClaudeProfileEnvironment,
+  mergeManagedSharedSettings,
   readSharedSettingsFile,
   writeSharedSettingsFile,
 } from "../sharedSettingsFile";
@@ -66,7 +67,6 @@ import {
   type WindowChromeResult,
 } from "@/shared/ipc";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
-import type { AgentInstanceConfig } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import type { PoracodePaths } from "@/shared/poracodePaths";
@@ -334,40 +334,11 @@ export function createLocalIpcHandlers(
     getSharedSettings: () => readSharedSettingsFile(options.requirePoracodePaths().settingsPath),
     setSharedSettings: (settings) => {
       const settingsPath = options.requirePoracodePaths().settingsPath;
-      // Preserve supervisor-managed fields so the renderer's persist cycle
-      // doesn't clobber writes made out-of-band by the supervisor.
-      const onDisk = readSharedSettingsFile(settingsPath);
-      const rendererManagedInstances = Object.fromEntries(
-        Object.entries(settings.agentInstances)
-          .filter(([, instance]) => instance.driver !== "acp-generic")
-          .map(([id, instance]): [string, AgentInstanceConfig] => {
-            // A Claude profile's `environment` is owned by the encrypting
-            // `setClaudeProfileEnvironment` path. Pin it to disk so the
-            // renderer's plaintext-capable persist cycle can never write a
-            // secret in the clear or clear a saved one. Other drivers keep
-            // their existing renderer-managed behavior.
-            if (instance.driver !== "claude") return [id, instance];
-            const onDiskEnv = onDisk.agentInstances[id]?.environment;
-            const next: AgentInstanceConfig = { ...instance };
-            if (onDiskEnv) next.environment = onDiskEnv;
-            else delete next.environment;
-            return [id, next];
-          }),
-      );
-      const supervisorManagedInstances = Object.fromEntries(
-        Object.entries(onDisk.agentInstances).filter(
-          ([, instance]) => instance.driver === "acp-generic",
-        ),
-      );
-      const merged: SharedSettings = {
-        ...settings,
-        acpRegistryInstalledAgents: onDisk.acpRegistryInstalledAgents,
-        agentInstances: {
-          ...rendererManagedInstances,
-          ...supervisorManagedInstances,
-        },
-        agentHookSupport: onDisk.agentHookSupport,
-      };
+      // Preserve supervisor-managed fields and encrypted Claude-profile
+      // environments so the renderer's persist cycle doesn't clobber writes
+      // made out-of-band by the supervisor. (Shared with the app-controls MCP
+      // `update_settings` tool via `mergeManagedSharedSettings`.)
+      const merged = mergeManagedSharedSettings(readSharedSettingsFile(settingsPath), settings);
       writeSharedSettingsFile(settingsPath, merged);
       options.updatePowerSaveBlocker();
       options.onSharedSettingsChanged?.(merged);

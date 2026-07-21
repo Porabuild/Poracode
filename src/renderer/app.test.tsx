@@ -19,6 +19,7 @@ import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 const {
   bridge,
   quickComposerSubmitListeners,
+  projectStateChangedListeners,
   remoteThreadCommandListeners,
   supervisorEventListeners,
   threadOpenRequestedListeners,
@@ -27,11 +28,13 @@ const {
   const quickListeners: Array<(submission: QuickComposerSubmission) => void> = [];
   const supervisorListeners: Array<(event: SupervisorEvent) => void> = [];
   const threadOpenListeners: Array<(event: ThreadOpenRequestedEvent) => void> = [];
+  const projectListeners: Array<(event: { projects: unknown[] }) => void> = [];
   return {
     remoteThreadCommandListeners: listeners,
     quickComposerSubmitListeners: quickListeners,
     supervisorEventListeners: supervisorListeners,
     threadOpenRequestedListeners: threadOpenListeners,
+    projectStateChangedListeners: projectListeners,
     bridge: {
       windowKind: "main",
       pickFolder: vi.fn<() => Promise<null>>().mockResolvedValue(null),
@@ -175,6 +178,12 @@ const {
         return () => undefined;
       }),
       onSharedSettingsChanged: vi.fn<() => () => void>(() => () => undefined),
+      onProjectStateChanged: vi.fn<
+        (listener: (event: { projects: unknown[] }) => void) => () => void
+      >((listener) => {
+        projectListeners.push(listener);
+        return () => undefined;
+      }),
       onThreadOpenRequested: vi.fn<
         (listener: (event: ThreadOpenRequestedEvent) => void) => () => void
       >((listener) => {
@@ -651,6 +660,23 @@ describe("App", () => {
       { kind: "text", content: "start from phone" },
     ]);
     expect(bridge.startThread).not.toHaveBeenCalled();
+  });
+
+  it("adopts project changes made outside the renderer before the next store sync", () => {
+    const project = {
+      id: "mcp-project-1",
+      name: "MCP project",
+      location: { kind: "windows" as const, path: "C:\\mcp-project" },
+      createdAt: "2026-07-21T00:00:00.000Z",
+    };
+    useAppStore.setState({ projects: [] });
+    render(<App />);
+
+    act(() => {
+      projectStateChangedListeners.at(-1)?.({ projects: [project] });
+    });
+
+    expect(useAppStore.getState().projects).toEqual([project]);
   });
 
   it("creates and queues the thread submitted by the quick composer", async () => {

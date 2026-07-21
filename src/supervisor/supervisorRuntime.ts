@@ -22,7 +22,6 @@ import type {
   RemoveExperimentWorktreesResult,
   RelocateProjectPayload,
   RelocateProjectResult,
-  SeedOrchestratorChildrenPayload,
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { msg } from "@/shared/messages";
@@ -52,7 +51,6 @@ import { GenerationService } from "./runtime/generationService";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
 import { CliHookPluginCoordinator } from "./runtime/cliHookPluginCoordinator";
-import { OrchestratorThreadManager } from "./crossagentMcp/OrchestratorThreadManager";
 import { CrossagentMcpIngress } from "./crossagentMcp/CrossagentMcpIngress";
 import { SubagentRunManager } from "./crossagentMcp/SubagentRunManager";
 import { buildSpawnableAgents } from "./crossagentMcp/toolRegistry";
@@ -111,7 +109,6 @@ export class SupervisorRuntime {
   readonly skillsService: SkillsService;
   private readonly crossagentMcpIngress: CrossagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
-  private readonly orchestratorThreadManager: OrchestratorThreadManager;
   private wslHookBridge: WslBridgeServer | undefined;
 
   readonly sessions: Map<string, SessionRuntime>;
@@ -312,65 +309,8 @@ export class SupervisorRuntime {
           this.threadSessionManager.appendSubagentRuntimeEvent(parentThreadId, event),
       },
     });
-    // Orchestrator lane of the Crossagents MCP: creates first-class child
-    // threads. Creation is main-orchestrated — the manager emits an
-    // `orchestrator-thread-created` supervisor event; main upserts the DB row,
-    // mirrors it to the renderer, and calls startThread back into this
-    // process. Host closures resolve the thread session manager lazily, same
-    // as the run manager above.
-    this.orchestratorThreadManager = new OrchestratorThreadManager({
-      adapters: this.adapters,
-      getStatusCapabilities: (kind) => this.agentStatusService.getCachedCapabilities(kind),
-      emit: (event) => this.emit(event),
-      host: {
-        getParentContext: (threadId) =>
-          this.threadSessionManager.getSubagentParentContext(threadId),
-        getThreadState: (threadId) =>
-          this.threadSessionManager.getOrchestratorThreadState(threadId),
-        readThreadHistory: (threadId) => this.threadSessionManager.readThreadHistory(threadId),
-        sendThreadInput: (payload) => this.threadSessionManager.sendThreadInput(payload),
-        interruptThread: (threadId) => this.threadSessionManager.interruptThread({ threadId }),
-        // Tear down the child's runtime session to free a cap slot. Reuses the
-        // same closeThread that removes the session from the TSM map (which is
-        // what makes getOrchestratorThreadState — and thus the live-child count
-        // — drop the child). The persisted thread row + worktree remain.
-        closeThread: (threadId) => this.threadSessionManager.closeThread({ threadId }),
-      },
-      // Same worktree pipeline the renderer-driven `gitAddWorktree` procedure
-      // uses, with placement resolved from global settings (per-project
-      // overrides live in the renderer DB and aren't visible here).
-      createWorktree: async ({ location, branch, baseBranch }) => {
-        const placement = resolveWorktreePlacement(
-          this.sharedSettingsCache.read(),
-          undefined,
-          location,
-        );
-        const result = await this.gitService.addWorktree(
-          location,
-          undefined,
-          branch,
-          true,
-          baseBranch,
-          undefined,
-          false,
-          false,
-          {
-            ...(placement.root ? { root: placement.root } : {}),
-            ...(placement.omitRepoDir ? { omitRepoDir: true } : {}),
-          },
-        );
-        return { path: result.path };
-      },
-      // Roll back a worktree created by a create_thread call that then failed to
-      // launch (force removal + branch delete), so a ticket-keyed retry isn't
-      // poisoned by a leftover branch.
-      removeWorktree: async ({ location, path }) => {
-        await this.gitService.removeWorktree(location, path, true, true);
-      },
-    });
     this.crossagentMcpIngress = new CrossagentMcpIngress({
       runManager: this.subagentRunManager,
-      orchestrator: this.orchestratorThreadManager,
       getSpawnableAgents: async () => {
         const { windows } = await this.agentStatusService.getAgentStatuses({ wslDistros: [] });
         return buildSpawnableAgents(this.adapters, windows);
@@ -390,12 +330,7 @@ export class SupervisorRuntime {
     });
 
     this.threadSessionManager = new ThreadSessionManager({
-      // Tap the outbound stream so the orchestrator lane can track child
-      // thread-state transitions (wait_for_thread) without polling.
-      emit: (event) => {
-        this.orchestratorThreadManager.observeSupervisorEvent(event);
-        emit(event);
-      },
+      emit,
       isDev: this.isDev,
       logsDir: this.logsDir,
       settingsPath: this.settingsPath,
@@ -735,15 +670,6 @@ export class SupervisorRuntime {
       }
     }
     return {};
-  }
-
-  /**
-   * Re-register persisted orchestrator child threads after a supervisor
-   * restart (main pushes them at every supervisor start) so the Crossagents
-   * orchestrator lane can keep addressing children created before the restart.
-   */
-  seedOrchestratorChildren(payload: SeedOrchestratorChildrenPayload): void {
-    this.orchestratorThreadManager.rehydrateChildren(payload.children);
   }
 
   dispose(): void {

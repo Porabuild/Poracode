@@ -131,6 +131,17 @@ interface RunGhOptions {
   timeoutMs?: number;
 }
 
+/**
+ * `gh` gives GH_REPO precedence over the repository at cwd. Project-scoped
+ * operations must never inherit that process-wide override, or a command can
+ * be sent to an unrelated repository.
+ */
+function projectGhEnvironment(overrides?: Record<string, string>): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env, ...overrides };
+  delete env.GH_REPO;
+  return env;
+}
+
 async function runGh(
   location: ProjectLocation,
   args: string[],
@@ -148,7 +159,9 @@ async function runGh(
       args,
       loginEnv: true,
       timeoutMs,
-      ...(options?.env ? { env: options.env } : {}),
+      // The bridge cannot delete a forwarded variable, so explicitly clear it
+      // inside the WSL process. Local invocations remove it below.
+      env: { ...options?.env, GH_REPO: "" },
     });
     if (result.ok) return result.stdout;
     throw processResultToError(result);
@@ -160,7 +173,7 @@ async function runGh(
     windowsHide: true,
     timeout: timeoutMs,
     ...(cwd ? { cwd } : {}),
-    env: spec.env ? { ...process.env, ...spec.env } : process.env,
+    env: projectGhEnvironment({ ...spec.env, ...options?.env }),
   });
   return stdout;
 }
@@ -180,6 +193,8 @@ async function runGhBatch(
       cwd: location.linuxPath,
       args,
       loginEnv: true,
+      // Keep batched read calls scoped to the project just like processExec.
+      env: { GH_REPO: "" },
     })),
   });
   return result.results;

@@ -138,6 +138,8 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
   private disposed = false;
   private pendingRequests = new Map<ThreadServerRequestId, PendingRequest>();
   private currentSlashCommands: AgentSlashCommand[] | undefined;
+  /** True between `startTurn`'s promptAsync and the next SSE idle signal. */
+  private turnActive = false;
   /** Live MCP set; starts from the launch input, replaced by settings saves. */
   private mcpServers: readonly ResolvedMcpServer[] | undefined;
 
@@ -334,6 +336,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         if (!shouldRetryOpenCodePromptWithTextFallback(cause, parts)) throw cause;
         await sendParts(await buildOpenCodeTextFallbackParts(parts));
       }
+      this.turnActive = true;
     } catch (cause) {
       throw new Error(classifyOpenCodeError({ cause, operation: "session.promptAsync" }), {
         cause,
@@ -816,6 +819,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         ...(this.pendingRequestStatus() ?? upd),
         ...this.sessionRefUpdate(),
       });
+      if (upd.status === "idle") this.emitTurnCompletedIfActive();
       return;
     }
 
@@ -824,6 +828,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         ...(this.pendingRequestStatus() ?? { status: "idle", attention: "none" }),
         ...this.sessionRefUpdate(),
       });
+      this.emitTurnCompletedIfActive();
       return;
     }
 
@@ -874,6 +879,26 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       const canonical = mapOpenCodeEvent(event, this.mapperState);
       if (canonical.length > 0) this.emitRuntimeEvents(canonical);
     }
+  }
+
+  /**
+   * Emit a `turn.completed` runtime event when a turn is active and the
+   * session transitions to idle. Provides a redundant settling signal for
+   * the SubagentRunManager (which also settles on the `onUpdate` idle
+   * callback) and aligns OpenCode with Codex/ACP, which always emit
+   * `turn.completed` from their canonical mappers.
+   */
+  private emitTurnCompletedIfActive(): void {
+    if (!this.turnActive) return;
+    this.turnActive = false;
+    this.emitRuntimeEvents([
+      {
+        type: "turn.completed",
+        threadId: this.threadId,
+        turnId: `opencode-${this.sessionId ?? "unknown"}`,
+        state: "completed",
+      },
+    ]);
   }
 
   private emitRuntimeEvents(events: RuntimeEvent[]): void {
