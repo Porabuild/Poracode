@@ -4173,6 +4173,10 @@ msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Першокласна інтеграція OpenCode з використанням нативного середовища виконання SDK Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Qoder CLI integration using Poracode's native terminal and ACP runtimes."
+msgstr "Повноцінна інтеграція Qoder CLI із використанням вбудованих середовищ термінала та ACP у Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Повноцінна інтеграція Qwen Code із використанням вбудованих середовищ термінала та ACP у Poracode."
 
@@ -7488,6 +7492,10 @@ msgstr "Збій push: {detail}"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
 msgstr "Надсилайте оновлення на спарені мобільні пристрої, коли треди завершуються або потребують вашої уваги, навіть коли застосунок закрито."
+
+#: src/renderer/components/providers/qoder/manifest.ts
+msgid "Qoder CLI"
+msgstr "Qoder CLI"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"

@@ -279,6 +279,21 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
       }),
   },
   {
+    id: "qoder",
+    acpRegistryAliases: [{ id: "qoder", nativeSupport: true }],
+    description: msg`First-class Qoder CLI integration using Poracode's native terminal and ACP runtimes.`,
+    docsUrl: "https://docs.qoder.com/en/cli/quick-start",
+    installCommand: (project) =>
+      posixOrWindows(
+        project,
+        "if command -v curl >/dev/null 2>&1; then curl -fsSL https://qoder.com/install | bash; " +
+          "elif command -v npm >/dev/null 2>&1; then npm install -g @qoder-ai/qodercli@latest; else " +
+          POSIX_MISSING_CURL_NPM_MESSAGE +
+          "; fi",
+        "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://qoder.com/install.ps1 | iex } elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @qoder-ai/qodercli@latest } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod or Node.js/npm first, then refresh detected agents.' }",
+      ),
+  },
+  {
     id: "copilot",
     acpRegistryAliases: [
       { id: "github-copilot", nativeSupport: true },

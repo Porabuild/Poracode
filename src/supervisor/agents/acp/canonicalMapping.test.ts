@@ -439,6 +439,46 @@ describe("mapAcpSessionUpdate", () => {
     });
   });
 
+  it("preserves Qoder ACP MCP tool calls and their results", () => {
+    const state = createAcpMapperState("t-qoder-mcp");
+    const started = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-qoder-mcp",
+        title: "echo_marker (poracode_smoke MCP Server)",
+        kind: "other",
+        status: "in_progress",
+        rawInput: { text: "MCP_QODER_OK" },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(started[0]).toMatchObject({
+      type: "item.started",
+      itemType: "tool_call",
+      payload: {
+        name: "echo_marker (poracode_smoke MCP Server)",
+        args: { text: "MCP_QODER_OK" },
+        status: "running",
+      },
+    });
+
+    const completed = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-qoder-mcp",
+        status: "completed",
+        rawOutput: "MCP_QODER_OK",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(completed).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        payload: expect.objectContaining({ status: "success", result: "MCP_QODER_OK" }),
+      }),
+    );
+  });
+
   it("preserves inline image content from a tool result onto payload.images", () => {
     const state = createAcpMapperState("t-image");
     mapAcpSessionUpdate(
@@ -1066,6 +1106,50 @@ describe("mapAcpSessionUpdate", () => {
         },
       },
     ]);
+  });
+
+  it("infers Qoder Agent tool calls as subagents and nests child output", () => {
+    const state = createAcpMapperState("t-qoder-subagent");
+    const started = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-qoder-agent",
+        title: "Agent",
+        kind: "think",
+        status: "in_progress",
+        rawInput: {
+          description: "Use poracode-marker-agent",
+          prompt: "Please run your deterministic marker response.",
+          subagent_type: "poracode-marker-agent",
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const parentItemId = (started[0] as { itemId: string }).itemId;
+    expect(started[0]).toMatchObject({
+      type: "item.started",
+      itemType: "tool_call",
+      payload: {
+        name: "Agent",
+        isSubAgent: true,
+        args: { subagent_type: "poracode-marker-agent" },
+      },
+    });
+
+    const child = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "SUBAGENT_CHILD_OK" },
+      }),
+      state,
+    );
+    expect(child).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "assistant_message",
+        parentItemId,
+      }),
+    );
   });
 
   it("surfaces ACP subagent tool_call_update progress as title metadata and child markdown", () => {

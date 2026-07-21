@@ -324,6 +324,37 @@ describe("mapAcpThoughtLevels", () => {
     });
   });
 
+  it("extracts efforts from a reasoning_effort selector filed under the model category", () => {
+    // Qoder files its effort selector as { category: "model", id: "reasoning_effort" }.
+    const result = mapAcpThoughtLevels([
+      {
+        id: "model",
+        name: "Model",
+        category: "model",
+        type: "select",
+        currentValue: "auto",
+        options: [{ value: "auto", name: "Auto" }],
+      },
+      {
+        id: "reasoning_effort",
+        name: "Reasoning Effort",
+        category: "model",
+        type: "select",
+        currentValue: "xhigh",
+        options: [
+          { value: "xhigh", name: "Extra High" },
+          { value: "high", name: "High" },
+          { value: "low", name: "Low" },
+        ],
+      },
+    ]);
+
+    expect(result).toEqual({
+      efforts: ["xhigh", "high", "low"],
+      defaultEffort: "xhigh",
+    });
+  });
+
   it("returns empty efforts when no thought_level config exists", () => {
     expect(
       mapAcpThoughtLevels([

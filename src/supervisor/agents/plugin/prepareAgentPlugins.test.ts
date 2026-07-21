@@ -25,6 +25,7 @@ const EXPECTED_PLUGIN_KINDS = [
   "gemini",
   "grok",
   "opencode",
+  "qoder",
 ] as const;
 
 const repoRoot = resolve(import.meta.dirname, "../../../..");

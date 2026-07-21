@@ -22,6 +22,8 @@ import {
 } from "@agentclientprotocol/sdk";
 import type { AgentSlashCommand, AuthState, ThreadMode } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
+import { findThoughtLevelConfigOption } from "./thoughtLevel";
+import { filterAcpStdoutNonJsonLines } from "./sessionStreamFilter";
 import { readUnstableSessionModels, type UnstableModelInfo } from "./unstableModelCompat";
 
 const ACP_AUTH_REQUIRED_ERROR = RequestError.authRequired();
@@ -103,6 +105,12 @@ type AcpAvailableCommandLike = {
 
 const MODEL_THOUGHT_LEVEL_PROBE_TIMEOUT_MS = 300;
 const MAX_MODEL_THOUGHT_LEVEL_PROBES = 40;
+/**
+ * Grace period for the agent to push `available_commands_update` after
+ * `newSession` resolves. Some agents (qoder) deliver the initial command list
+ * a few hundred ms after the response instead of before it.
+ */
+const INITIAL_SLASH_COMMANDS_TIMEOUT_MS = 2_000;
 
 // ── Mode mapping ─────────────────────────────────────────────────
 
@@ -279,7 +287,7 @@ export function mapAcpThoughtLevels(configOptions: unknown): {
   efforts: string[];
   defaultEffort?: string;
 } {
-  const option = findSelectConfigOption(configOptions, "thought_level");
+  const option = findThoughtLevelConfigOption(configOptions);
 
   if (!option) {
     return { efforts: [] };
@@ -331,19 +339,29 @@ function readConfigOptions(value: unknown): unknown[] | undefined {
 function nextConfigOptionsUpdate(
   waiters: Array<(configOptions: unknown[] | undefined) => void>,
   timeoutMs: number,
-): Promise<unknown[] | undefined> {
-  return new Promise((resolve) => {
-    const waiter = (configOptions: unknown[] | undefined) => {
-      clearTimeout(timer);
+): { promise: Promise<unknown[] | undefined>; cancel: () => void } {
+  let waiter: ((configOptions: unknown[] | undefined) => void) | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const promise = new Promise<unknown[] | undefined>((resolve) => {
+    waiter = (configOptions: unknown[] | undefined) => {
+      if (timer) clearTimeout(timer);
       resolve(configOptions);
     };
-    const timer = setTimeout(() => {
-      const index = waiters.indexOf(waiter);
+    timer = setTimeout(() => {
+      const index = waiter ? waiters.indexOf(waiter) : -1;
       if (index >= 0) waiters.splice(index, 1);
       resolve(undefined);
     }, timeoutMs);
     waiters.push(waiter);
   });
+  return {
+    promise,
+    cancel: () => {
+      if (timer) clearTimeout(timer);
+      const index = waiter ? waiters.indexOf(waiter) : -1;
+      if (index >= 0) waiters.splice(index, 1);
+    },
+  };
 }
 
 // ── Probe ────────────────────────────────────────────────────────
@@ -375,6 +393,7 @@ export async function probeAcpCapabilities(
   },
 ): Promise<AcpProbeResult | undefined> {
   const timeoutMs = options?.timeoutMs ?? 15_000;
+  const deadline = Date.now() + timeoutMs;
   const tag = options?.label ? `[acp-probe:${options.label}]` : "[acp-probe]";
   let child: ReturnType<typeof spawn> | undefined;
   const probeResult: AcpProbeResult = {};
@@ -382,19 +401,8 @@ export async function probeAcpCapabilities(
   try {
     const configOptionsWaiters: Array<(configOptions: unknown[] | undefined) => void> = [];
     let latestSlashCommands: AgentSlashCommand[] | undefined;
-    let resolveInitialSlashCommands:
-      | ((commands: AgentSlashCommand[] | undefined) => void)
-      | undefined;
-    let initialSlashCommandsResolved = false;
-    const initialSlashCommands = new Promise<AgentSlashCommand[] | undefined>((resolve) => {
-      resolveInitialSlashCommands = resolve;
-    });
     const rememberSlashCommands = (commands: AgentSlashCommand[] | undefined) => {
       latestSlashCommands = commands;
-      if (!initialSlashCommandsResolved) {
-        initialSlashCommandsResolved = true;
-        resolveInitialSlashCommands?.(commands);
-      }
     };
 
     child = spawn(command, args, {
@@ -404,6 +412,51 @@ export async function probeAcpCapabilities(
       shell: false,
       windowsHide: true,
     });
+
+    let childExited = false;
+    const childClosed = new Promise<void>((resolve) => {
+      const markClosed = () => {
+        childExited = true;
+        resolve();
+      };
+      child!.once("error", markClosed);
+      child!.once("exit", markClosed);
+    });
+    const remainingBudgetMs = () => Math.max(0, deadline - Date.now());
+    const waitForProbeWindow = async (maxMs: number): Promise<void> => {
+      const waitMs = Math.min(maxMs, remainingBudgetMs());
+      if (waitMs <= 0 || childExited) return;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          new Promise<void>((resolve) => {
+            timer = setTimeout(resolve, waitMs);
+          }),
+          childClosed,
+        ]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    };
+    const runWithinProbeBudget = async <T>(operation: Promise<T>, maxMs?: number): Promise<T> => {
+      const budgetMs = Math.min(maxMs ?? Number.POSITIVE_INFINITY, remainingBudgetMs());
+      if (budgetMs <= 0) throw new Error("ACP probe timed out");
+      if (childExited) throw new Error("ACP agent exited during capability probe");
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        return await Promise.race([
+          operation,
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error("ACP probe timed out")), budgetMs);
+          }),
+          childClosed.then<never>(() => {
+            throw new Error("ACP agent exited during capability probe");
+          }),
+        ]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    };
 
     // Bail early if the process fails to start
     const spawnError = await new Promise<Error | undefined>((resolve) => {
@@ -418,7 +471,7 @@ export async function probeAcpCapabilities(
 
     const toAgent = Writable.toWeb(child.stdin!) as WritableStream<Uint8Array>;
     const fromAgent = Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>;
-    const stream = ndJsonStream(toAgent, fromAgent);
+    const stream = ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent));
 
     const connection = new ClientSideConnection(
       () => ({
@@ -441,7 +494,7 @@ export async function probeAcpCapabilities(
       stream,
     );
 
-    const result = await Promise.race([
+    const result = await runWithinProbeBudget(
       (async () => {
         const initResult = await connection.initialize({
           protocolVersion: PROTOCOL_VERSION,
@@ -503,19 +556,13 @@ export async function probeAcpCapabilities(
           throw err;
         }
       })(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("ACP probe timed out")), timeoutMs),
-      ),
-    ]);
-    const initialCommandUpdate = await Promise.race([
-      initialSlashCommands,
-      new Promise<undefined>((resolve) => {
-        setTimeout(() => resolve(undefined), 250);
-      }),
-    ]);
-    const resolvedSlashCommands = initialCommandUpdate ?? latestSlashCommands;
-    if (resolvedSlashCommands !== undefined) {
-      probeResult.slashCommands = resolvedSlashCommands;
+    );
+    // An available-commands update is a full snapshot. Keep the latest one
+    // throughout the grace window because agents may publish built-ins first
+    // and append skills after their async discovery completes.
+    await waitForProbeWindow(INITIAL_SLASH_COMMANDS_TIMEOUT_MS);
+    if (latestSlashCommands !== undefined) {
+      probeResult.slashCommands = latestSlashCommands;
     }
 
     probeResult.sessionEstablished = true;
@@ -550,50 +597,83 @@ export async function probeAcpCapabilities(
       if (thoughtLevels.defaultEffort) {
         probeResult.defaultEffort = thoughtLevels.defaultEffort;
       }
-      if (probeResult.models?.length && probeResult.efforts?.length && result.sessionId) {
-        const modelConfig = findSelectConfigOption(result.configOptions, "model");
+      const modelConfig = findSelectConfigOption(result.configOptions, "model");
+      // Probe per-model thought levels even when the default model exposes
+      // none — some agents (qoder) only advertise a reasoning-effort selector
+      // after switching to a reasoning-capable model.
+      if (probeResult.models?.length && result.sessionId && modelConfig?.id) {
         const currentModel =
           typeof modelConfig?.currentValue === "string" ? modelConfig.currentValue : undefined;
-        if (modelConfig?.id) {
-          const modelEfforts: Record<string, string[]> = {};
-          if (currentModel) {
-            rememberModelThoughtLevels(
-              currentModel,
-              result.configOptions,
-              probeResult.efforts,
-              modelEfforts,
-            );
-          }
-          const modelIds = probeResult.models
-            .map((model) => model.id)
-            .filter((modelId) => modelId !== currentModel)
-            .slice(0, MAX_MODEL_THOUGHT_LEVEL_PROBES);
-          for (const modelId of modelIds) {
-            const configOptionsUpdate = nextConfigOptionsUpdate(
-              configOptionsWaiters,
-              MODEL_THOUGHT_LEVEL_PROBE_TIMEOUT_MS,
-            );
-            let returnedConfigOptions: unknown[] | undefined;
-            try {
-              const setResult = await connection.setSessionConfigOption({
+        const modelEfforts: Record<string, string[]> = {};
+        if (currentModel) {
+          rememberModelThoughtLevels(
+            currentModel,
+            result.configOptions,
+            probeResult.efforts ?? [],
+            modelEfforts,
+          );
+        }
+        const modelIds = probeResult.models
+          .map((model) => model.id)
+          .filter((modelId) => modelId !== currentModel)
+          .slice(0, MAX_MODEL_THOUGHT_LEVEL_PROBES);
+        for (const modelId of modelIds) {
+          if (remainingBudgetMs() <= 0 || childExited) break;
+          const configOptionsUpdate = nextConfigOptionsUpdate(
+            configOptionsWaiters,
+            Math.min(MODEL_THOUGHT_LEVEL_PROBE_TIMEOUT_MS, remainingBudgetMs()),
+          );
+          let returnedConfigOptions: unknown[] | undefined;
+          try {
+            const setResult = await runWithinProbeBudget(
+              connection.setSessionConfigOption({
                 sessionId: result.sessionId,
                 configId: modelConfig.id,
                 value: modelId,
-              });
-              returnedConfigOptions = readConfigOptions(setResult);
-            } catch {
-              await configOptionsUpdate;
-              continue;
-            }
-            const configOptions = returnedConfigOptions ?? (await configOptionsUpdate);
-            if (!configOptions) {
+              }),
+              MODEL_THOUGHT_LEVEL_PROBE_TIMEOUT_MS,
+            );
+            returnedConfigOptions = readConfigOptions(setResult);
+          } catch {
+            if (remainingBudgetMs() <= 0 || childExited) {
+              configOptionsUpdate.cancel();
               break;
             }
-            rememberModelThoughtLevels(modelId, configOptions, probeResult.efforts, modelEfforts);
+            const notifiedConfigOptions = await configOptionsUpdate.promise;
+            if (notifiedConfigOptions) {
+              returnedConfigOptions = notifiedConfigOptions;
+            }
+            // No baseline yet means the method is likely unsupported — retrying
+            // per model would just stall the probe.
+            if (!returnedConfigOptions && !probeResult.efforts?.length) {
+              break;
+            }
+            if (!returnedConfigOptions) continue;
           }
-          if (Object.keys(modelEfforts).length > 0) {
-            probeResult.modelEfforts = modelEfforts;
+          const configOptions = returnedConfigOptions ?? (await configOptionsUpdate.promise);
+          configOptionsUpdate.cancel();
+          if (!configOptions) {
+            break;
           }
+          // Adopt the first discovered thought-level selector as the baseline.
+          if (!probeResult.efforts?.length) {
+            const discovered = mapAcpThoughtLevels(configOptions);
+            if (discovered.efforts.length > 0) {
+              probeResult.efforts = discovered.efforts;
+              if (discovered.defaultEffort) {
+                probeResult.defaultEffort = discovered.defaultEffort;
+              }
+            }
+          }
+          rememberModelThoughtLevels(
+            modelId,
+            configOptions,
+            probeResult.efforts ?? [],
+            modelEfforts,
+          );
+        }
+        if (Object.keys(modelEfforts).length > 0) {
+          probeResult.modelEfforts = modelEfforts;
         }
       }
     }
@@ -673,7 +753,7 @@ export async function authenticateAcpAgent(
               return Promise.resolve();
             },
           }),
-          ndJsonStream(toAgent, fromAgent),
+          ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent)),
         );
         const initResult = await connection.initialize({
           protocolVersion: PROTOCOL_VERSION,
@@ -750,7 +830,7 @@ export async function logoutAcpAgent(
               return Promise.resolve();
             },
           }),
-          ndJsonStream(toAgent, fromAgent),
+          ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent)),
         );
         const initResult = await connection.initialize({
           protocolVersion: PROTOCOL_VERSION,

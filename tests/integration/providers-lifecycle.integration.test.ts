@@ -42,6 +42,7 @@ const PREFERRED_MODEL: Record<string, string> = {
   opencode: "opencode/big-pickle",
   kimi: "kimi-code/kimi-for-coding",
   qwen: "qwen3.8-max-preview",
+  qoder: "lite",
 };
 
 const CHEAP_NAME_HINTS = ["haiku", "mini", "flash-lite", "flash", "lite", "small", "fast", "nano"];

@@ -583,4 +583,63 @@ describe("AcpSessionConfigSync", () => {
       value: "high",
     });
   });
+
+  // Qoder files its effort selector as { category: "model", id: "reasoning_effort" }
+  // and only advertises it for reasoning-capable models, so a model switch can
+  // make the selector appear or disappear. These pin both transitions.
+  function qoderEffortOption(currentValue = "xhigh") {
+    return {
+      id: "reasoning_effort",
+      name: "Reasoning Effort",
+      category: "model",
+      type: "select",
+      currentValue,
+      options: [
+        { value: "xhigh", name: "Extra High" },
+        { value: "high", name: "High" },
+      ],
+    };
+  }
+
+  it("skips the effort update when the reasoning_effort selector disappears after a model change", async () => {
+    const initialOptions = [modelSelectOption(), qoderEffortOption()];
+    // model-b is not a reasoning model — its config options drop the selector.
+    const afterModelOptions = [modelSelectOption("model-b")];
+    const { connection, sync } = makeConfigSync({ configOptions: initialOptions });
+    connection.setSessionConfigOption.mockResolvedValueOnce({ configOptions: afterModelOptions });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, model: "model-b", effort: "high" },
+      previousConfig,
+    );
+
+    // Only the model update is sent; the effort update is skipped rather than
+    // firing at a now-nonexistent "reasoning_effort" configId.
+    expect(connection.setSessionConfigOption.mock.calls.map(([call]) => call.configId)).toEqual([
+      "model",
+    ]);
+  });
+
+  it("applies effort through the reasoning_effort selector that appears after a model change", async () => {
+    // The initial model exposes no effort selector...
+    const initialOptions = [modelSelectOption()];
+    // ...switching to model-b reveals Qoder's reasoning-effort selector.
+    const afterModelOptions = [modelSelectOption("model-b"), qoderEffortOption("xhigh")];
+    const { connection, sync } = makeConfigSync({ configOptions: initialOptions });
+    connection.setSessionConfigOption.mockResolvedValueOnce({ configOptions: afterModelOptions });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, model: "model-b", effort: "high" },
+      { ...previousConfig, model: "model-a" },
+    );
+
+    expect(
+      connection.setSessionConfigOption.mock.calls.map(([call]) => [call.configId, call.value]),
+    ).toEqual([
+      ["model", "model-b"],
+      ["reasoning_effort", "high"],
+    ]);
+  });
 });

@@ -4173,6 +4173,10 @@ msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Intégration OpenCode de première classe à l'aide du runtime SDK natif de Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Qoder CLI integration using Poracode's native terminal and ACP runtimes."
+msgstr "Intégration de premier ordre de Qoder CLI utilisant les environnements d’exécution natifs de terminal et ACP de Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Qwen Code integration using Poracode's native terminal and ACP runtimes."
 msgstr "Intégration de premier ordre de Qwen Code utilisant les environnements d’exécution natifs de terminal et ACP de Poracode."
 
@@ -7487,6 +7491,10 @@ msgstr "Échec du push : {detail}"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Push updates to paired mobile devices when threads finish or need you, even when the app is closed."
 msgstr "Envoyez des mises à jour aux appareils mobiles appairés lorsque les fils de discussion se terminent ou ont besoin de vous, même lorsque l’application est fermée."
+
+#: src/renderer/components/providers/qoder/manifest.ts
+msgid "Qoder CLI"
+msgstr "Qoder CLI"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionSwitcher.tsx
 msgid "Questions"

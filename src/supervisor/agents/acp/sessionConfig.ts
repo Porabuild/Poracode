@@ -1,5 +1,6 @@
 import type { ThreadConfig } from "@/shared/contracts";
 import { normalizeAcpModeId } from "./probe";
+import { findThoughtLevelConfigOption } from "./thoughtLevel";
 
 /**
  * Resolve the ACP mode ID from Poracode's ThreadConfig.
@@ -88,7 +89,7 @@ export function findSelectConfigOption(
 }
 
 export function findThoughtLevelConfig(configOptions: unknown): AcpConfigOptionLike | undefined {
-  return findSelectConfigOption(configOptions, "thought_level");
+  return findThoughtLevelConfigOption(configOptions);
 }
 
 function isSelectOption(value: unknown): value is AcpConfigSelectOptionLike {

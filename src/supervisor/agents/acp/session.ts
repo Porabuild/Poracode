@@ -92,7 +92,11 @@ import {
 export { resolveAcpReadableHostFsPath, resolveAcpResourcePath, toAcpResourceUri };
 
 import { segmentsToContentBlocks } from "./sessionContentBlocks";
-import { filterAcpInboundNoise, looksLikeAcpSessionNotification } from "./sessionStreamFilter";
+import {
+  filterAcpInboundNoise,
+  filterAcpStdoutNonJsonLines,
+  looksLikeAcpSessionNotification,
+} from "./sessionStreamFilter";
 import { maybeCaptureAcpUpdate } from "./sessionDiagnostics";
 import { AcpTerminalManager } from "./terminalManager";
 import {
@@ -400,7 +404,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // tsgo's strict generics require explicit casts.
     const toAgent = Writable.toWeb(child.stdin!) as WritableStream<Uint8Array>;
     const fromAgent = Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>;
-    const stream = filterAcpInboundNoise(ndJsonStream(toAgent, fromAgent));
+    const stream = filterAcpInboundNoise(
+      ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent)),
+    );
 
     let session: AcpStructuredSession;
 
