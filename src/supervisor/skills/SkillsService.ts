@@ -1294,6 +1294,10 @@ export class SkillsService {
     enabled: boolean,
   ): Promise<LinkedImportMove[]> {
     const moves: LinkedImportMove[] = [];
+    // macOS commonly exposes the temporary directory through `/var` while
+    // `realpath()` canonicalizes it to `/private/var`. Compare canonical paths
+    // on both sides so linked imports still follow their provider source.
+    const resolvedSourcePath = await realpath(sourcePath).catch(() => sourcePath);
     for (const availability of ["shared", "poracode"] as const) {
       const managedRoot = this.managedRoot(environment, "global", availability);
       const sourceRoot = enabled ? disabledRoot(managedRoot.fsPath) : managedRoot.fsPath;
@@ -1314,7 +1318,7 @@ export class SkillsService {
       } catch {
         continue;
       }
-      if (normalizePath(targetPath) !== normalizePath(sourcePath)) continue;
+      if (normalizePath(targetPath) !== normalizePath(resolvedSourcePath)) continue;
       const destinationPath = join(destinationRoot, linkName);
       if (await pathExists(destinationPath)) {
         throw new Error(`A linked skill named ${linkName} already exists in the destination.`);

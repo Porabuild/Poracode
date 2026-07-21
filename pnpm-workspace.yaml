@@ -9,6 +9,7 @@ packages:
 enableGlobalVirtualStore: true
 
 allowBuilds:
+  "@google/genai": false
   "@sentry/cli": true
   better-sqlite3: true
   electron: true

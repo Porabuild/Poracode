@@ -565,7 +565,8 @@ export interface AgentSkillSupport {
   readonly roots: readonly AgentSkillRootSpec[];
   /** Provider roots that need a Poracode-owned copy of canonical skills. */
   readonly projectionRoots?: readonly AgentSkillRootSpec[];
-  readonly invocation: "slash" | "dollar" | "prompt";
+  /** How the provider invokes a named skill from its composer. */
+  readonly invocation: "slash" | "dollar" | "prompt" | "skill";
   /** Provider-native duplicate resolution, using root ids plus canonical `agents`. */
   readonly precedence?: {
     readonly scopeOrder?: readonly ("global" | "project")[];

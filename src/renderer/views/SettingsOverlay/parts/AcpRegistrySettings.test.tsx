@@ -126,6 +126,7 @@ describe("native ACP registry aliases", () => {
       "github-copilot-cli": "copilot",
       "grok-build": "grok",
       opencode: "opencode",
+      "pi-acp": "pi",
     });
   });
 

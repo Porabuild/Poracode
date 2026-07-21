@@ -30,7 +30,7 @@ const TURN_COMPLETE_TIMEOUT_MS = 180_000;
 const SCROLLBACK_WAIT_TIMEOUT_MS = 120_000;
 
 // Hand-picked cheapest model per provider. For dynamic-model providers
-// (Codex / Copilot / Qwen / Grok / OpenCode), we fall back to scanning the detected
+// (Codex / Copilot / Qwen / Grok / OpenCode / Pi), we fall back to scanning the detected
 // capabilities for a "mini/flash/lite/haiku/small/fast" name, then the first
 // model. None of these defaults are guaranteed to exist on every host — the
 // test will surface a clear error if the chosen model is rejected by the CLI.

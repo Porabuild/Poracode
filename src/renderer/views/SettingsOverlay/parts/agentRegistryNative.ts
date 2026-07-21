@@ -153,6 +153,27 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     ownsAuthUi: true,
   },
   {
+    id: "pi",
+    acpRegistryAliases: [{ id: "pi-acp" }],
+    description: msg`First-class Pi integration using a real terminal and Pi's native SDK runtime.`,
+    docsUrl: "https://pi.dev/docs/latest",
+    installCommand: (project) =>
+      nativeInstallCommand(project, {
+        mac:
+          "if command -v curl >/dev/null 2>&1; then curl -fsSL https://pi.dev/install.sh | sh; " +
+          "elif command -v npm >/dev/null 2>&1; then npm install -g @earendil-works/pi-coding-agent; else " +
+          POSIX_MISSING_CURL_NPM_MESSAGE +
+          "; fi",
+        posix:
+          "if command -v curl >/dev/null 2>&1; then curl -fsSL https://pi.dev/install.sh | sh; " +
+          "elif command -v npm >/dev/null 2>&1; then npm install -g @earendil-works/pi-coding-agent; else " +
+          POSIX_MISSING_CURL_NPM_MESSAGE +
+          "; fi",
+        windows:
+          "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://pi.dev/install.ps1 | iex } elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @earendil-works/pi-coding-agent } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod or Node.js/npm first, then refresh detected agents.' }",
+      }),
+  },
+  {
     id: "grok",
     acpRegistryAliases: [{ id: "grok-build" }],
     description: msg`First-class Grok Build CLI integration using Poracode's native runtime.`,

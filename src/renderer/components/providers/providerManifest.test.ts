@@ -26,6 +26,7 @@ const EXPECTED_PROVIDER_ORDER = [
   "antigravity",
   "commandcode",
   "opencode",
+  "pi",
   "cursor",
   "copilot",
   "factory",
@@ -47,6 +48,7 @@ describe("renderer provider manifests", () => {
     expect(getProviderManifest("zai")).toBeUndefined();
     expect(i18n._(getProviderManifest("copilot")!.label)).toBe("GitHub Copilot");
     expect(i18n._(getProviderManifest("factory")!.label)).toBe("Factory Droid");
+    expect(i18n._(getProviderManifest("pi")!.label)).toBe("Pi");
   });
 
   it("inherits base-provider ranks for scoped kinds and leaves unknown providers at the tail", () => {
