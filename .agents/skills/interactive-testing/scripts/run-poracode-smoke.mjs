@@ -44,6 +44,21 @@ try {
     `Smoke ports: CDP ${port}, dev server ${vitePort}. For manual gates: PORACODE_CDP_PORT=${port} PORACODE_APP_URL=${appUrl}`,
   );
 
+  // Mock mode sandboxes the OS identity (HOME/APPDATA + a mock keychain) so
+  // nothing touches the real user profile. Real mode intentionally keeps the
+  // real home so provider credentials that live under it (e.g. ~/.kimi-code)
+  // resolve — only Poracode's own state stays isolated via PORACODE_BASE_DIR.
+  const identityEnv =
+    mode === "real"
+      ? {}
+      : {
+          ...(process.platform === "darwin" ? { PORACODE_USE_MOCK_KEYCHAIN: "1" } : {}),
+          HOME: homeDir,
+          USERPROFILE: homeDir,
+          LOCALAPPDATA: localAppDataDir,
+          APPDATA: roamingAppDataDir,
+          PSModuleAnalysisCachePath: join(root, "powershell", "ModuleAnalysisCache"),
+        };
   const pnpm = pnpmSpawnCommand();
   appProcess = spawn(pnpm.command, pnpm.args, {
     cwd: repoRoot,
@@ -53,12 +68,7 @@ try {
       PORACODE_CDP_PORT: String(port),
       PORACODE_BASE_DIR: dataDir,
       PORACODE_SMOKE_OUT_DIR: outDir,
-      ...(process.platform === "darwin" ? { PORACODE_USE_MOCK_KEYCHAIN: "1" } : {}),
-      HOME: homeDir,
-      USERPROFILE: homeDir,
-      LOCALAPPDATA: localAppDataDir,
-      APPDATA: roamingAppDataDir,
-      PSModuleAnalysisCachePath: join(root, "powershell", "ModuleAnalysisCache"),
+      ...identityEnv,
     },
     detached: process.platform !== "win32",
     stdio: "inherit",

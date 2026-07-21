@@ -252,6 +252,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           formId={formId}
           controller={userInputFormController}
           isDisabled={resolving}
+          {...(summary !== undefined ? { summary } : {})}
           onSubmit={(response, outcome) => submitRaw(response, outcome)}
         />
       ) : isQuestion ? (

@@ -56,6 +56,24 @@ function questionPermissionRequest(): RequestPermissionRequest {
   };
 }
 
+function kimiQuestionPermissionRequest(): RequestPermissionRequest {
+  return {
+    sessionId: "session-1",
+    toolCall: {
+      toolCallId: "0:tool-kimi",
+      title: "AskUserQuestion",
+      content: [
+        { type: "content", content: { type: "text", text: "Which authentication method?" } },
+      ],
+    },
+    options: [
+      { optionId: "q0_opt_0", name: "Paste a token", kind: "allow_once" },
+      { optionId: "q0_opt_1", name: "Log in via browser", kind: "allow_once" },
+      { optionId: "q0_skip", name: "Skip", kind: "reject_once" },
+    ],
+  };
+}
+
 function formElicitation(): CreateElicitationRequest {
   return {
     mode: "form",
@@ -231,6 +249,58 @@ describe("AcpSessionRequests permissions", () => {
         outcome: "answered",
       },
     ]);
+  });
+
+  it("maps Kimi AskUserQuestion (content + options) to a reply form and returns the picked option", async () => {
+    const { emitRuntimeEvents, requests, setRequestAttention } = makeRequests({
+      config: { model: "model-a", mode: "agent", approvalPolicy: "never" },
+      availableModeIds: ["agent"],
+    });
+
+    const response = requests.requestPermission(kimiQuestionPermissionRequest());
+
+    expect(setRequestAttention).toHaveBeenCalledExactlyOnceWith("needs_reply");
+    expect(emitRuntimeEvents).toHaveBeenCalledWith([
+      {
+        type: "request.opened",
+        threadId: "thread-1",
+        requestId: "acp-perm-0",
+        requestType: "tool_user_input",
+        payload: {
+          summary: "Which authentication method?",
+          details: {
+            userInputForm: {
+              questions: [
+                {
+                  id: "0",
+                  header: "Which authentication method?",
+                  question: "Which authentication method?",
+                  options: [
+                    { optionId: "q0_opt_0", label: "Paste a token" },
+                    { optionId: "q0_opt_1", label: "Log in via browser" },
+                  ],
+                  multiSelect: false,
+                },
+              ],
+            },
+          },
+          options: [
+            { optionId: "q0_opt_0", label: "Paste a token" },
+            { optionId: "q0_opt_1", label: "Log in via browser" },
+          ],
+          multiSelect: false,
+        },
+      },
+    ]);
+
+    // The form submits the picked choice inside the answers map; it must be
+    // promoted to the outcome optionId Kimi expects (not the first allow_once).
+    requests.resolve("acp-perm-0", { answers: { "0": "q0_opt_1" } });
+
+    await expect(response).resolves.toEqual({
+      outcome: { outcome: "selected", optionId: "q0_opt_1" },
+      answers: { "0": "Log in via browser" },
+    });
   });
 
   it("reports when a permission request is no longer pending", () => {
