@@ -24,11 +24,13 @@ function Harness(props: {
   onInitialScrollSettled?: () => void;
 }) {
   const scrollRef = useRef(props.scrollEl);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const virtualScrollToBottomRef = useRef(props.virtualScrollToBottom);
   return (
     <ChatScrollControls
       ref={props.controlsRef}
       scrollRef={scrollRef}
+      contentRef={contentRef}
       layoutChangeToken={null}
       threadId="thread-1"
       tailLoaderVisible={false}
@@ -208,7 +210,7 @@ describe("ChatScrollControls", () => {
     expect(scrollTop).toBe(1025);
   });
 
-  it("keeps sticky while LegendList adjusts its anchor before scrollHeight changes", () => {
+  it("keeps sticky while LegendList adjusts its anchor before scrollHeight changes", async () => {
     let scrollHeight = 1000;
     let scrollTop = 800;
     const scrollEl = document.createElement("div");
@@ -243,9 +245,15 @@ describe("ChatScrollControls", () => {
 
     expect(controlsRef.current?.isStickToBottom()).toBe(true);
 
+    // The untagged upward move could equally be a native scrollbar-thumb drag
+    // (no pointer events), so pins pause for a short holdoff before the next
+    // content-growth pin reattaches the transcript.
     scrollHeight = 1200;
     act(() => controlsRef.current?.onContentHeightChange());
+    expect(scrollTop).toBe(500);
 
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    act(() => controlsRef.current?.onContentHeightChange());
     expect(scrollTop).toBe(1200);
   });
 
