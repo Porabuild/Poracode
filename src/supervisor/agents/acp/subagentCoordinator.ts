@@ -13,6 +13,7 @@ import {
   PORACODE_ACP_DETACHED_SUBAGENT_META_KEY,
   PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
   PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY,
+  PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "./canonicalMapping/subagents";
 
 export interface AcpSubagentDescriptorPatch {
@@ -227,6 +228,10 @@ export function withAcpSubagentParent(
   return withMeta(notification, PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY, toolCallId);
 }
 
+export function withAcpTopLevelToolCall(notification: SessionNotification): SessionNotification {
+  return withMeta(notification, PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY, true);
+}
+
 export function withAcpDetachedSubagentActivity(
   notification: SessionNotification,
   toolCallId: string,
@@ -285,7 +290,7 @@ function createAcpSubagentCompletionNotifications(input: {
 function withMeta(
   notification: SessionNotification,
   key: string,
-  value: string,
+  value: string | boolean,
 ): SessionNotification {
   const update = notification.update as Record<string, unknown>;
   return withUpdate(notification, {

@@ -13,6 +13,12 @@ import type { ActiveAcpSubAgent, AcpMapperState, AcpToolCallItemState } from "./
 import { newItemId } from "./state";
 
 export const PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY = "poracodeParentToolCallId";
+/**
+ * Provider-boundary assertion that this tool call belongs to the foreground
+ * agent. Without it, the generic ACP fallback may infer that a newly-started
+ * subagent is nested under the most recently active subagent.
+ */
+export const PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY = "poracodeTopLevelToolCall";
 export const PORACODE_ACP_DETACHED_SUBAGENT_META_KEY = "poracodeDetachedSubAgent";
 export const PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY = "poracodeDetachedSubAgentActivity";
 export const PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY = "poracodeNewAssistantItem";
@@ -111,6 +117,7 @@ export function getActiveSubAgentForNotification(
     update._meta && typeof update._meta === "object" && !Array.isArray(update._meta)
       ? (update._meta as Record<string, unknown>)
       : undefined;
+  if (meta?.[PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY] === true) return undefined;
   const explicitToolCallId = meta?.[PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY];
   if (typeof explicitToolCallId === "string") {
     return state.activeSubAgents.find((active) => active.toolCallId === explicitToolCallId);

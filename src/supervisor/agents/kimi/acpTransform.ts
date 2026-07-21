@@ -19,6 +19,7 @@ import type { SessionNotification } from "@agentclientprotocol/sdk";
 import {
   createAcpSubagentCoordinator,
   normalizeAcpSubagentToolCall,
+  withAcpTopLevelToolCall,
   type AcpBackgroundSubagentLaunch,
   type AcpSubagentCoordinator,
 } from "../acp/subagentCoordinator";
@@ -107,7 +108,10 @@ export function createKimiAcpSessionUpdateTransform(
         : {}),
     });
     if (terminal && !backgroundLaunchReceipt) subagents.forgetCall(toolCallId);
-    return normalized;
+    // Kimi only streams Agent calls from the main ACP session. Child-agent
+    // internals stay in Kimi's session files, so concurrent Agent calls are
+    // siblings even while an earlier foreground call is still active.
+    return update.sessionUpdate === "tool_call" ? withAcpTopLevelToolCall(normalized) : normalized;
   };
 }
 

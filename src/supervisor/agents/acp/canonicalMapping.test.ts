@@ -8,6 +8,7 @@ import {
   PORACODE_ACP_GOAL_META_KEY,
   PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY,
   PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
+  PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "./canonicalMapping";
 
 /**
@@ -1338,6 +1339,36 @@ describe("mapAcpSessionUpdate", () => {
         event.type === "item.started",
     );
     expect(outerStart?.parentItemId).toBe(outerItemId);
+  });
+
+  it("keeps explicitly top-level concurrent subagents as siblings", () => {
+    const state = createAcpMapperState("t-sibling-subagents");
+    const first = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-sibling-a",
+        title: "Sibling A",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore" },
+        _meta: { [PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY]: true },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const second = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-sibling-b",
+        title: "Sibling B",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore" },
+        _meta: { [PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY]: true },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    expect(first[0]).not.toHaveProperty("parentItemId");
+    expect(second[0]).not.toHaveProperty("parentItemId");
+    expect(state.activeSubAgents).toHaveLength(2);
   });
 
   it("clears inferred ACP subagent parents at turn end", () => {

@@ -20,6 +20,7 @@ interface KimiTaskRecord {
 
 export interface KimiCompletedWireTurn {
   turnId: string;
+  completionId: string;
   firstTime: number;
   lastTime: number;
   text: string;
@@ -113,14 +114,16 @@ async function monitorBackgroundLaunch(input: MonitorBackgroundLaunchInput): Pro
       await input.readText(input.location, `${taskPath}/output.log`, 4_000_000)
     )?.trim();
     const automaticTurn = await waitForAutomaticTurn(input, wirePath, launchTurnId, task.endedAt);
-    if (automaticTurn) input.claimedAutomaticTurns.add(automaticTurn.turnId);
+    const emitAutomaticReply =
+      automaticTurn !== undefined && !input.claimedAutomaticTurns.has(automaticTurn.completionId);
+    if (automaticTurn) input.claimedAutomaticTurns.add(automaticTurn.completionId);
     emitBackgroundCompletion(
       input.emit,
       input.subagents,
       input.launch,
       task.status,
       output,
-      automaticTurn?.text,
+      emitAutomaticReply ? automaticTurn.text : undefined,
     );
     return;
   }
@@ -151,7 +154,6 @@ async function waitForAutomaticTurn(
       .filter(
         (turn) =>
           turn.turnId !== launchTurnId &&
-          !input.claimedAutomaticTurns.has(turn.turnId) &&
           turn.taskIds.includes(input.launch.taskId) &&
           (taskEndedAt === undefined || turn.lastTime >= taskEndedAt),
       )
@@ -198,16 +200,16 @@ export function parseKimiTaskRecord(text: string | undefined): KimiTaskRecord | 
 
 export function parseCompletedKimiWireTurns(text: string | undefined): KimiCompletedWireTurn[] {
   if (!text) return [];
-  const turns = new Map<
+  const activeTurns = new Map<
     string,
     {
       firstTime: number;
       lastTime: number;
       textParts: string[];
       taskIds: Set<string>;
-      completed: boolean;
     }
   >();
+  const completedTurns: KimiCompletedWireTurn[] = [];
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
     let record: unknown;
@@ -220,12 +222,11 @@ export function parseCompletedKimiWireTurns(text: string | undefined): KimiCompl
     const event = record.event;
     if (!isPlainRecord(event) || typeof event.turnId !== "string") continue;
     const time = typeof record.time === "number" ? record.time : 0;
-    const turn = turns.get(event.turnId) ?? {
+    const turn = activeTurns.get(event.turnId) ?? {
       firstTime: time,
       lastTime: time,
       textParts: [],
       taskIds: new Set<string>(),
-      completed: false,
     };
     turn.firstTime = Math.min(turn.firstTime, time);
     turn.lastTime = Math.max(turn.lastTime, time);
@@ -245,23 +246,20 @@ export function parseCompletedKimiWireTurns(text: string | undefined): KimiCompl
       }
     }
     if (event.type === "step.end" && event.finishReason === "end_turn") {
-      turn.completed = true;
+      completedTurns.push({
+        turnId: event.turnId,
+        completionId: `${event.turnId}:${turn.firstTime}:${turn.lastTime}`,
+        firstTime: turn.firstTime,
+        lastTime: turn.lastTime,
+        text: turn.textParts.join("").trim(),
+        taskIds: [...turn.taskIds],
+      });
+      activeTurns.delete(event.turnId);
+    } else {
+      activeTurns.set(event.turnId, turn);
     }
-    turns.set(event.turnId, turn);
   }
-  return [...turns.entries()].flatMap(([turnId, turn]) =>
-    turn.completed
-      ? [
-          {
-            turnId,
-            firstTime: turn.firstTime,
-            lastTime: turn.lastTime,
-            text: turn.textParts.join("").trim(),
-            taskIds: [...turn.taskIds],
-          },
-        ]
-      : [],
-  );
+  return completedTurns;
 }
 
 function findLatestKimiWireTurnId(text: string | undefined): string | undefined {

@@ -4,8 +4,9 @@ import {
   PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY,
   PORACODE_ACP_GOAL_META_KEY,
   PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY,
+  PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "../acp/canonicalMapping";
-import { createQwenAcpSessionUpdateTransform } from "./acpTransform";
+import { createQwenAcpSessionBridge, createQwenAcpSessionUpdateTransform } from "./acpTransform";
 
 function note(update: Record<string, unknown>): SessionNotification {
   return { sessionId: "qwen-session", update: update as SessionNotification["update"] };
@@ -123,6 +124,26 @@ describe("createQwenAcpSessionUpdateTransform", () => {
       _meta: { toolName: "agent", provenance: "builtin" },
     });
     expect(parent.rawInput).toEqual({ _toolName: "task", subagent_type: "agent" });
+    expect(parent._meta).toMatchObject({
+      [PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY]: true,
+    });
+
+    const nestedAgent = transformedUpdate(transform, {
+      sessionUpdate: "tool_call",
+      toolCallId: "agent-2",
+      title: "Agent",
+      status: "pending",
+      rawInput: {},
+      _meta: {
+        toolName: "agent",
+        provenance: "subagent",
+        parentToolCallId: "agent-1",
+      },
+    });
+    expect(nestedAgent._meta).toMatchObject({
+      [PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY]: "agent-1",
+    });
+    expect(nestedAgent._meta).not.toHaveProperty(PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY);
 
     const child = transformedUpdate(transform, {
       sessionUpdate: "tool_call",
@@ -249,6 +270,102 @@ describe("createQwenAcpSessionUpdateTransform", () => {
       _meta: {
         usage: { totalTokens: 42 },
         [PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY]: "agent-bg",
+      },
+    });
+  });
+
+  it("uses Qwen's real background end-turn extension as the terminal boundary", () => {
+    const bridge = createQwenAcpSessionBridge();
+    const transform = bridge.sessionUpdateTransform;
+    transformedUpdate(transform, {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "" },
+      _meta: { goalStatus: { kind: "set", condition: "Finish the background work" } },
+    });
+    transformedUpdate(transform, {
+      sessionUpdate: "tool_call",
+      toolCallId: "agent-real-boundary",
+      title: "Agent",
+      status: "pending",
+      _meta: { toolName: "agent" },
+    });
+    transformedUpdate(transform, {
+      sessionUpdate: "tool_call_update",
+      toolCallId: "agent-real-boundary",
+      status: "completed",
+      content: [
+        {
+          type: "content",
+          content: { type: "text", text: "agentId: Explore-real123 (internal ID)" },
+        },
+      ],
+      rawOutput: { status: "background", subagentName: "Explore" },
+      _meta: { toolName: "agent" },
+    });
+    transformedUpdate(transform, {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "Background completed." },
+      _meta: {
+        source: "background_notification",
+        backgroundTask: { taskId: "Explore-real123", status: "completed" },
+      },
+    });
+    transformedUpdate(transform, {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "Result from child." },
+      _meta: {
+        source: "background_notification_response",
+        backgroundTask: { taskId: "Explore-real123", status: "completed" },
+      },
+    });
+
+    const boundary = bridge.extensionSessionUpdateTransform("_qwencode/end_turn", {
+      sessionId: "qwen-session",
+      reason: "end_turn",
+      source: "background_notification",
+    });
+    expect(boundary).toBeDefined();
+    const completedBoundary = bridge.sessionUpdateTransform(boundary!);
+    expect(completedBoundary.update).toMatchObject({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "agent-real-boundary",
+      status: "completed",
+      rawOutput: "Result from child.",
+      _meta: {
+        [PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY]: "agent-real-boundary",
+        [PORACODE_ACP_GOAL_META_KEY]: {
+          action: "updated",
+          objective: "Finish the background work",
+          status: "paused",
+          timeUsedSeconds: expect.any(Number),
+          updatedAt: expect.any(Number),
+        },
+      },
+    });
+  });
+
+  it("marks the goal paused when Qwen reports that its judge loop stopped", () => {
+    const transform = createQwenAcpSessionUpdateTransform();
+    transformedUpdate(transform, {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "" },
+      _meta: { goalStatus: { kind: "set", condition: "Finish validation" } },
+    });
+
+    const paused = transformedUpdate(transform, {
+      sessionUpdate: "agent_message_chunk",
+      content: {
+        type: "text",
+        text: "Goal judge unavailable; the automatic /goal loop paused. The goal remains active.",
+      },
+    });
+    expect(paused._meta).toMatchObject({
+      [PORACODE_ACP_GOAL_META_KEY]: {
+        action: "updated",
+        objective: "Finish validation",
+        status: "paused",
+        timeUsedSeconds: expect.any(Number),
+        updatedAt: expect.any(Number),
       },
     });
   });

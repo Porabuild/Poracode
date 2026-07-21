@@ -45,7 +45,7 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
   const elapsedSeconds = resolveGoalElapsedSeconds(state, nowSeconds, localAnchorSeconds);
   const meta = goalMeta(state, t);
   const elapsedLabel = elapsedSeconds > 0 ? formatElapsed(elapsedSeconds) : null;
-  const evaluatedTurns = state.iterations !== undefined && state.iterations > 0;
+  const evaluationChecks = state.iterations !== undefined && state.iterations > 0;
   const hasMeta = meta.length > 0;
   const StatusIcon = isComplete
     ? CircleCheckBig
@@ -76,16 +76,18 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
         <span className="shrink-0 font-semibold text-foreground">
           <Trans>Goal</Trans>
         </span>
-        {hasMeta || evaluatedTurns || elapsedLabel ? (
+        {hasMeta || evaluationChecks || elapsedLabel ? (
           <span className="flex min-w-0 shrink items-center gap-1 text-[0.85em] text-[color:var(--muted)] [font-variant-numeric:tabular-nums]">
             {hasMeta ? <span className="truncate">{meta.join(" · ")}</span> : null}
-            {hasMeta && evaluatedTurns ? <span aria-hidden="true">·</span> : null}
-            {evaluatedTurns ? (
+            {hasMeta && evaluationChecks ? <span aria-hidden="true">·</span> : null}
+            {evaluationChecks ? (
               <span className="shrink-0">
-                <Plural value={state.iterations ?? 0} one="# turn" other="# turns" />
+                <Plural value={state.iterations ?? 0} one="# check" other="# checks" />
               </span>
             ) : null}
-            {(hasMeta || evaluatedTurns) && elapsedLabel ? <span aria-hidden="true">·</span> : null}
+            {(hasMeta || evaluationChecks) && elapsedLabel ? (
+              <span aria-hidden="true">·</span>
+            ) : null}
             {elapsedLabel ? (
               <span className="inline-block shrink-0 text-center" style={{ minWidth: "7ch" }}>
                 {elapsedLabel}

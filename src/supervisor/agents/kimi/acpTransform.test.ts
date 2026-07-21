@@ -6,6 +6,7 @@ import {
   PORACODE_ACP_DETACHED_SUBAGENT_META_KEY,
   PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
   PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY,
+  PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "../acp/canonicalMapping";
 import { isAcpSubAgentToolCall } from "../acp/canonicalMapping/subagents";
 import {
@@ -129,6 +130,7 @@ describe("transformKimiAcpSessionUpdate", () => {
     };
     expect(initialUpdate.rawInput).toMatchObject({ subagent_type: "agent" });
     expect(initialUpdate._meta?.[PORACODE_ACP_DETACHED_SUBAGENT_META_KEY]).toBeUndefined();
+    expect(initialUpdate._meta?.[PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY]).toBe(true);
     expect(initialUpdate).not.toHaveProperty("content");
 
     const streamed = transform(
@@ -152,6 +154,25 @@ describe("transformKimiAcpSessionUpdate", () => {
       subagent_type: "explore",
     });
     expect(streamed.update).not.toHaveProperty("content");
+  });
+
+  it("keeps concurrent foreground Agent calls as top-level siblings", () => {
+    const transform = createKimiAcpSessionUpdateTransform();
+    const state = createAcpMapperState("thread-1");
+
+    const first = mapAcpSessionUpdate(
+      transform(toolCall({ toolCallId: "agent-a", title: "Agent" })),
+      state,
+    );
+    const second = mapAcpSessionUpdate(
+      transform(toolCall({ toolCallId: "agent-b", title: "Agent" })),
+      state,
+    );
+
+    expect(first.find((event) => event.type === "item.started")).not.toHaveProperty("parentItemId");
+    expect(second.find((event) => event.type === "item.started")).not.toHaveProperty(
+      "parentItemId",
+    );
   });
 
   it("keeps a background launch running and reports its task to the bridge", () => {

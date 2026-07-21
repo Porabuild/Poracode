@@ -18,15 +18,71 @@ import {
   normalizeAcpSubagentToolCall,
   withAcpDetachedSubagentActivity,
   withAcpSubagentParent,
+  withAcpTopLevelToolCall,
 } from "../acp/subagentCoordinator";
 import type { AcpSessionUpdateTransform } from "../base";
 
 const BACKGROUND_AGENT_ID_RE = /\bagentId:\s*([^\s(]+)/iu;
+const QWEN_BACKGROUND_END_TURN_METHOD = "_qwencode/end_turn";
+
+export interface QwenAcpSessionBridge {
+  sessionUpdateTransform: AcpSessionUpdateTransform;
+  extensionSessionUpdateTransform: (
+    method: string,
+    params: Record<string, unknown>,
+  ) => SessionNotification | undefined;
+}
+
+export function createQwenAcpSessionBridge(): QwenAcpSessionBridge {
+  const sessionUpdateTransform = createQwenAcpSessionUpdateTransform();
+  return {
+    sessionUpdateTransform,
+    extensionSessionUpdateTransform(method, params) {
+      if (
+        method !== QWEN_BACKGROUND_END_TURN_METHOD ||
+        readString(params, "source") !== "background_notification"
+      ) {
+        return undefined;
+      }
+      const sessionId = readString(params, "sessionId");
+      if (!sessionId) return undefined;
+      const reason = readString(params, "reason");
+      return {
+        sessionId,
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "" },
+          _meta: {
+            source: "background_notification",
+            ...(reason ? { reason } : {}),
+          },
+        },
+      };
+    },
+  };
+}
 
 export function createQwenAcpSessionUpdateTransform(): AcpSessionUpdateTransform {
   const subagents = createAcpSubagentCoordinator();
   const parentReplyByToolCallId = new Map<string, string>();
+  const backgroundToolCallIds = new Set<string>();
   let pendingBoundaryToolCallId: string | undefined;
+  let activeGoalObjective: string | undefined;
+  let activeGoalStartedAtSeconds: number | undefined;
+
+  const pausedGoalUpdate = (): AcpCanonicalGoalUpdate | undefined => {
+    if (!activeGoalObjective) return undefined;
+    const nowSeconds = Date.now() / 1000;
+    return {
+      action: "updated",
+      objective: activeGoalObjective,
+      status: "paused",
+      ...(activeGoalStartedAtSeconds !== undefined
+        ? { timeUsedSeconds: Math.max(0, nowSeconds - activeGoalStartedAtSeconds) }
+        : {}),
+      updatedAt: nowSeconds,
+    };
+  };
 
   return (notification) => {
     const update = notification.update as Record<string, unknown>;
@@ -37,10 +93,33 @@ export function createQwenAcpSessionUpdateTransform(): AcpSessionUpdateTransform
     const goal = readQwenGoalUpdate(meta);
 
     if (goal) {
+      if (
+        goal.action === "cleared" ||
+        goal.status === "complete" ||
+        goal.status === "failed" ||
+        goal.status === "cancelled"
+      ) {
+        activeGoalObjective = undefined;
+        activeGoalStartedAtSeconds = undefined;
+      } else if (goal.objective) {
+        activeGoalObjective = goal.objective;
+        if (goal.action === "set" || activeGoalStartedAtSeconds === undefined) {
+          activeGoalStartedAtSeconds =
+            goal.updatedAt ?? Date.now() / 1000 - (goal.timeUsedSeconds ?? 0);
+        }
+      }
       return withUpdate(notification, {
         ...update,
         _meta: { ...meta, [PORACODE_ACP_GOAL_META_KEY]: goal },
       });
+    }
+
+    if (
+      activeGoalObjective &&
+      sessionUpdate === "agent_message_chunk" &&
+      isQwenGoalLoopPausedMessage(readTextContent(update.content))
+    ) {
+      return withPausedGoalMeta(notification, pausedGoalUpdate());
     }
 
     if (
@@ -64,6 +143,7 @@ export function createQwenAcpSessionUpdateTransform(): AcpSessionUpdateTransform
       if (isBackground) {
         const taskId = extractBackgroundTaskId(update.content);
         if (taskId) {
+          backgroundToolCallIds.add(toolCallId);
           subagents.registerBackgroundLaunch({
             sessionId: notification.sessionId,
             toolCallId,
@@ -83,7 +163,11 @@ export function createQwenAcpSessionUpdateTransform(): AcpSessionUpdateTransform
       if (!isBackground && (update.status === "completed" || update.status === "failed")) {
         subagents.forgetCall(toolCallId);
       }
-      return normalized;
+      if (sessionUpdate !== "tool_call") return normalized;
+      const parentToolCallId = readString(meta, "parentToolCallId");
+      return parentToolCallId
+        ? withAcpSubagentParent(normalized, parentToolCallId)
+        : withAcpTopLevelToolCall(normalized);
     }
 
     const explicitParentToolCallId = readString(meta, "parentToolCallId");
@@ -110,7 +194,8 @@ export function createQwenAcpSessionUpdateTransform(): AcpSessionUpdateTransform
       pendingBoundaryToolCallId = undefined;
       const result = parentReplyByToolCallId.get(completingToolCallId);
       parentReplyByToolCallId.delete(completingToolCallId);
-      return (
+      backgroundToolCallIds.delete(completingToolCallId);
+      const completed =
         subagents
           .complete({
             sessionId: notification.sessionId,
@@ -119,8 +204,10 @@ export function createQwenAcpSessionUpdateTransform(): AcpSessionUpdateTransform
             ...(result ? { result } : {}),
             terminalMeta: plainRecord(update._meta),
           })
-          .at(-1) ?? notification
-      );
+          .at(-1) ?? notification;
+      const pausedGoal = pausedGoalUpdate();
+      if (!pausedGoal || backgroundToolCallIds.size > 0) return completed;
+      return withPausedGoalMeta(completed, pausedGoal);
     }
 
     if (pendingBoundaryToolCallId && isAgentContentUpdate(sessionUpdate)) {
@@ -138,6 +225,20 @@ function withUpdate(
   return { ...notification, update: update as SessionNotification["update"] };
 }
 
+function withPausedGoalMeta(
+  notification: SessionNotification,
+  pausedGoal: AcpCanonicalGoalUpdate | undefined,
+): SessionNotification {
+  const update = notification.update as Record<string, unknown>;
+  return withUpdate(notification, {
+    ...update,
+    _meta: {
+      ...plainRecord(update._meta),
+      ...(pausedGoal ? { [PORACODE_ACP_GOAL_META_KEY]: pausedGoal } : {}),
+    },
+  });
+}
+
 function extractBackgroundTaskId(content: unknown): string | undefined {
   if (!Array.isArray(content)) return undefined;
   for (const entry of content) {
@@ -151,6 +252,11 @@ function extractBackgroundTaskId(content: unknown): string | undefined {
 
 function isAgentContentUpdate(sessionUpdate: string | undefined): boolean {
   return sessionUpdate === "agent_message_chunk" || sessionUpdate === "agent_thought_chunk";
+}
+
+function isQwenGoalLoopPausedMessage(text: string | undefined): boolean {
+  const normalized = text?.toLowerCase();
+  return normalized?.includes("automatic /goal loop paused") === true;
 }
 
 function readTextContent(content: unknown): string | undefined {

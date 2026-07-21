@@ -81,7 +81,7 @@ describe("ThreadGoalDock", () => {
     expect(screen.getByText("10m 21s")).toBeInTheDocument();
   });
 
-  it("shows evaluator turn count and surfaces the last evaluation reason in the objective tooltip", () => {
+  it("shows evaluator check count and surfaces the last evaluation reason in the objective tooltip", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-12T10:00:10Z"));
 
@@ -105,7 +105,7 @@ describe("ThreadGoalDock", () => {
       </AppProvider>,
     );
 
-    expect(screen.getByText("3 turns")).toBeInTheDocument();
+    expect(screen.getByText("3 checks")).toBeInTheDocument();
 
     expect(screen.getByText(/login\.test\.ts still failing/)).toBeInTheDocument();
   });

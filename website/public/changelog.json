@@ -1,6 +1,60 @@
 {
   "releases": [
     {
+      "version": "1.5.2",
+      "date": "2026-07-21",
+      "title": "Web push, richer ACP agents & smoother chat",
+      "summary": "Installed Poracode web apps can now notify you when remote agents need attention, Qwen exposes its live goals, and Kimi and Qwen show background subagent work as it happens. A broad set of provider, chat, mobile, and browser refinements makes everyday sessions more reliable.",
+      "changes": [
+        {
+          "kind": "added",
+          "label": "Remote",
+          "text": "Installed Poracode web apps can now receive push notifications from a paired desktop—even while suspended—when an agent finishes or needs input."
+        },
+        {
+          "kind": "added",
+          "label": "Qwen Code",
+          "text": "Qwen Code now shows live goal progress with elapsed time, iterations, and completed, failed, or cancelled outcomes, and identifies regional Token Plan tiers so usage labels are accurate."
+        },
+        {
+          "kind": "added",
+          "label": "ACP agents",
+          "text": "ACP subagent runs now appear as nested agent activity, and Kimi Code and Qwen Code background agents keep streaming progress and results after the foreground turn ends."
+        },
+        {
+          "kind": "added",
+          "label": "Claude",
+          "text": "Claude profiles can now choose the effort levels exposed by each custom model, so external-provider models only offer tiers they actually support."
+        },
+        {
+          "kind": "improved",
+          "text": "Provider integrations better match their current CLIs: Antigravity discovers available models and effort levels dynamically, keeps terminal choices in sync, and Kimi updates through its official non-interactive installer."
+        },
+        {
+          "kind": "improved",
+          "text": "Markdown images now share preview, copy, and download controls—including local project images—while long chats stay anchored during streaming and iOS can leave a long thread without stalling on a history snapshot."
+        },
+        {
+          "kind": "improved",
+          "label": "Poracode",
+          "text": "Poracode's icon set is refreshed across desktop, tray, mobile, web, and browser surfaces, while the website gains a dedicated About page and clearer remote-pairing presentation."
+        },
+        {
+          "kind": "fixed",
+          "text": "Structured chats preserve a queued steer if an unresponsive provider must restart; Kimi questions select the intended answer, Qwen resumes work immediately after a reply, and late or duplicate ACP updates no longer corrupt settled turns."
+        },
+        {
+          "kind": "fixed",
+          "text": "Browser screenshots no longer include Poracode's presence cursor or click ripple, and Codex can use Poracode's Browser MCP without a conflicting browser skill overriding it."
+        },
+        {
+          "kind": "fixed",
+          "label": "Security",
+          "text": "Known-vulnerable transitive versions of adm-zip, brace-expansion, protobufjs, and shell-quote are overridden with patched releases."
+        }
+      ]
+    },
+    {
       "version": "1.5.1",
       "date": "2026-07-19",
       "title": "Smoother macOS rebrand upgrades",

@@ -1078,7 +1078,7 @@ describe("ACP turn config sync", () => {
     });
   });
 
-  it("opens and completes a runtime turn for a detached subagent report", async () => {
+  it("keeps the foreground runtime turn open until its background subagent finishes", async () => {
     const { connection, listener, session } = makeConfigSyncSession();
     let resolvePrompt!: (result: { stopReason: string }) => void;
     connection.prompt.mockReturnValueOnce(
@@ -1119,6 +1119,10 @@ describe("ACP turn config sync", () => {
     expect(listener.onRuntimeEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: "item.completed", itemId: parentStart?.itemId }),
     );
+    expect(listener.onRuntimeEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "turn.completed" }),
+    );
+    expect(listener.onUpdate).not.toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
 
     listener.onRuntimeEvent.mockClear();
     listener.onUpdate.mockClear();
@@ -1130,20 +1134,17 @@ describe("ACP turn config sync", () => {
       },
     });
 
-    expect(listener.onRuntimeEvent.mock.calls.map(([event]) => event)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ type: "turn.started" }),
-        expect.objectContaining({
-          type: "item.started",
-          itemType: "assistant_message",
-          parentItemId: parentStart?.itemId,
-        }),
-      ]),
+    expect(listener.onRuntimeEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "turn.started" }),
     );
-    expect(listener.onUpdate).toHaveBeenCalledWith({
-      status: "working",
-      attention: "working",
-    });
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "assistant_message",
+        parentItemId: parentStart?.itemId,
+      }),
+    );
+    expect(listener.onUpdate).not.toHaveBeenCalledWith({ status: "idle", attention: "none" });
 
     listener.onRuntimeEvent.mockClear();
     listener.onUpdate.mockClear();
@@ -1173,6 +1174,58 @@ describe("ACP turn config sync", () => {
       status: "idle",
       attention: "none",
     });
+  });
+
+  it("keeps one continuous foreground turn across concurrent background completions", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("launch two background agents", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+    for (const toolCallId of ["foreground-bg-a", "foreground-bg-b"]) {
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId,
+          title: "Agent",
+          status: "in_progress",
+          rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+        },
+      });
+    }
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+
+    for (const toolCallId of ["foreground-bg-a", "foreground-bg-b"]) {
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId,
+          status: "completed",
+          rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+          _meta: { poracodeDetachedSubAgentActivity: toolCallId },
+        },
+      });
+    }
+
+    const events = listener.onRuntimeEvent.mock.calls.map(([event]) => event as { type?: string });
+    expect(events.filter((event) => event.type === "turn.started")).toHaveLength(1);
+    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+    const updates = listener.onUpdate.mock.calls.map(([update]) => update);
+    expect(
+      updates.filter((update) => JSON.stringify(update).includes('"status":"idle"')),
+    ).toHaveLength(1);
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
   });
 
   it("stays working until all concurrently reporting detached subagents complete", () => {

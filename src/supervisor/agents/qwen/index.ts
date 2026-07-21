@@ -14,7 +14,7 @@ import {
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { buildQwenArgs, QWEN_DEFAULT_MODEL_ID } from "./argv";
-import { createQwenAcpSessionUpdateTransform } from "./acpTransform";
+import { createQwenAcpSessionBridge } from "./acpTransform";
 import { buildQwenCommand, qwenDefaultCapabilities, qwenDetectionSpec } from "./detection";
 import { detectQwenInvalidSessionRef } from "./session";
 
@@ -78,6 +78,7 @@ export function createQwenAdapter(): AgentAdapter {
     },
 
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      const acpBridge = createQwenAcpSessionBridge();
       const command = buildQwenCommand(
         input.projectLocation,
         ["--acp"],
@@ -85,7 +86,8 @@ export function createQwenAdapter(): AgentAdapter {
       );
       return createAcpStructuredSession(command, {
         ...input,
-        acpSessionUpdateTransform: createQwenAcpSessionUpdateTransform(),
+        acpSessionUpdateTransform: acpBridge.sessionUpdateTransform,
+        acpExtensionSessionUpdateTransform: acpBridge.extensionSessionUpdateTransform,
       });
     },
 
