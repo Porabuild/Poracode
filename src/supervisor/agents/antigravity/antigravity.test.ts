@@ -4,17 +4,23 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { McpServer, ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
-import { createAntigravityAdapter } from ".";
+import { createAntigravityAdapter, shouldUseAntigravityPrintPty } from ".";
 import { buildAntigravityArgs } from "./argv";
 import { ANTIGRAVITY_DEFAULT_MODEL_ID, antigravityDetectionSpec } from "./detection";
 import {
   ANTIGRAVITY_KNOWN_MODEL_VARIANTS,
   buildAntigravityModelCapabilities,
+  detectAntigravityLaunchDialect,
+  parseAntigravityEffortsHelp,
   parseAntigravityModelVariantsOutput,
   parseAntigravityModelsOutput,
 } from "./models";
 import { detectAntigravityInvalidSessionRef } from "./session";
-import { detectAntigravityTerminalStatus } from "./terminal";
+import {
+  detectAntigravityStatusLineState,
+  detectAntigravityTerminalStatus,
+  syncAntigravityConfigFromTerminalState,
+} from "./terminal";
 
 describe("buildAntigravityArgs", () => {
   const config: ThreadConfig = { model: ANTIGRAVITY_DEFAULT_MODEL_ID };
@@ -22,28 +28,78 @@ describe("buildAntigravityArgs", () => {
   it("uses Gemini 3.5 Flash Medium by default", () => {
     const args = buildAntigravityArgs(config, "hello");
 
-    expect(args).toEqual(["--model", "Gemini 3.5 Flash (Medium)", "--prompt-interactive", "hello"]);
-  });
-
-  it("composes selected efforts into exact agy model strings", () => {
-    expect(
-      buildAntigravityArgs({ model: ANTIGRAVITY_DEFAULT_MODEL_ID, effort: "High" }, "hello"),
-    ).toEqual(["--model", "Gemini 3.5 Flash (High)", "--prompt-interactive", "hello"]);
-  });
-
-  it("maps legacy auto configs to Gemini 3.5 Flash Medium", () => {
-    expect(buildAntigravityArgs({ model: "auto" }, "hello")).toEqual([
+    expect(args).toEqual([
       "--model",
-      "Gemini 3.5 Flash (Medium)",
+      "gemini-3.5-flash",
+      "--effort",
+      "medium",
       "--prompt-interactive",
       "hello",
     ]);
   });
 
-  it("passes exact agy model display strings", () => {
+  it("passes stable model slugs and efforts as separate agy 1.1.5 flags", () => {
+    expect(
+      buildAntigravityArgs({ model: ANTIGRAVITY_DEFAULT_MODEL_ID, effort: "High" }, "hello"),
+    ).toEqual(["--model", "gemini-3.5-flash", "--effort", "high", "--prompt-interactive", "hello"]);
+
+    expect(buildAntigravityArgs({ model: "Gemini 3.6 Flash", effort: "High" }, "hello")).toEqual([
+      "--model",
+      "gemini-3.6-flash",
+      "--effort",
+      "high",
+      "--prompt-interactive",
+      "hello",
+    ]);
+    expect(buildAntigravityArgs({ model: "Gemini 3.6 Flash" }, "hello")).toEqual([
+      "--model",
+      "gemini-3.6-flash",
+      "--effort",
+      "medium",
+      "--prompt-interactive",
+      "hello",
+    ]);
+    expect(buildAntigravityArgs({ model: "nova-code", effort: "Extra High" }, "hello")).toEqual([
+      "--model",
+      "nova-code",
+      "--effort",
+      "extra-high",
+      "--prompt-interactive",
+      "hello",
+    ]);
+    expect(buildAntigravityArgs({ model: "Gemini 3.6 Flash", effort: "Ultra" }, "hello")).toEqual([
+      "--model",
+      "gemini-3.6-flash",
+      "--effort",
+      "ultra",
+      "--prompt-interactive",
+      "hello",
+    ]);
+    expect(buildAntigravityArgs({ model: "Claude Opus 4.6", effort: "Thinking" }, "hello")).toEqual(
+      ["--model", "claude-opus-4-6-thinking", "--prompt-interactive", "hello"],
+    );
+    expect(buildAntigravityArgs({ model: "future-reasoner", effort: "Thinking" }, "hello")).toEqual(
+      ["--model", "future-reasoner", "--effort", "thinking", "--prompt-interactive", "hello"],
+    );
+  });
+
+  it("maps legacy auto configs to Gemini 3.5 Flash Medium", () => {
+    expect(buildAntigravityArgs({ model: "auto" }, "hello")).toEqual([
+      "--model",
+      "gemini-3.5-flash",
+      "--effort",
+      "medium",
+      "--prompt-interactive",
+      "hello",
+    ]);
+  });
+
+  it("normalizes legacy display-string configs to the new flags", () => {
     expect(buildAntigravityArgs({ model: "Gemini 3.5 Flash (Low)" }, "hello")).toEqual([
       "--model",
-      "Gemini 3.5 Flash (Low)",
+      "gemini-3.5-flash",
+      "--effort",
+      "low",
       "--prompt-interactive",
       "hello",
     ]);
@@ -54,7 +110,9 @@ describe("buildAntigravityArgs", () => {
       "--conversation",
       "conversation-id",
       "--model",
-      "Gemini 3.5 Flash (Medium)",
+      "gemini-3.5-flash",
+      "--effort",
+      "medium",
     ]);
   });
 
@@ -63,7 +121,9 @@ describe("buildAntigravityArgs", () => {
       buildAntigravityArgs({ ...config, approvalPolicy: "yolo", sandboxMode: "sandbox" }, ""),
     ).toEqual([
       "--model",
-      "Gemini 3.5 Flash (Medium)",
+      "gemini-3.5-flash",
+      "--effort",
+      "medium",
       "--dangerously-skip-permissions",
       "--sandbox",
     ]);
@@ -72,13 +132,17 @@ describe("buildAntigravityArgs", () => {
   it("maps the latest agy execution modes", () => {
     expect(buildAntigravityArgs({ ...config, mode: "plan" }, "")).toEqual([
       "--model",
-      "Gemini 3.5 Flash (Medium)",
+      "gemini-3.5-flash",
+      "--effort",
+      "medium",
       "--mode",
       "plan",
     ]);
     expect(buildAntigravityArgs({ ...config, approvalPolicy: "accept-edits" }, "")).toEqual([
       "--model",
-      "Gemini 3.5 Flash (Medium)",
+      "gemini-3.5-flash",
+      "--effort",
+      "medium",
       "--mode",
       "accept-edits",
     ]);
@@ -103,6 +167,7 @@ describe("createAntigravityAdapter", () => {
       ],
     });
     expect(adapter.capabilities.models).toEqual([
+      { id: "Gemini 3.6 Flash", label: "Gemini 3.6 Flash", description: "Google DeepMind" },
       { id: "Gemini 3.5 Flash", label: "Gemini 3.5 Flash", description: "Google DeepMind" },
       { id: "Gemini 3.1 Pro", label: "Gemini 3.1 Pro", description: "Google DeepMind" },
       { id: "Claude Sonnet 4.6", label: "Claude Sonnet 4.6", description: "Anthropic" },
@@ -111,6 +176,7 @@ describe("createAntigravityAdapter", () => {
     ]);
     expect(adapter.capabilities.defaultEffort).toBe("Medium");
     expect(adapter.capabilities.modelEfforts).toEqual({
+      "Gemini 3.6 Flash": ["Low", "Medium", "High"],
       "Gemini 3.5 Flash": ["Low", "Medium", "High"],
       "Gemini 3.1 Pro": ["Low", "High"],
       "Claude Sonnet 4.6": ["Thinking"],
@@ -283,6 +349,141 @@ describe("createAntigravityAdapter", () => {
   });
 });
 
+describe("Agy launch feature detection", () => {
+  it("uses the probed 1.1.5 flag dialect instead of relying only on semver", () => {
+    expect(
+      detectAntigravityLaunchDialect(
+        [
+          "  --effort  Reasoning effort (low|medium|high)",
+          "  --model   Model for the current CLI session",
+          "  --print-timeout  Timeout for print mode wait",
+        ].join("\n"),
+        "gemini-3.6-flash-high\ngemini-3.6-flash-medium",
+      ),
+    ).toEqual({ separateModelEffort: true });
+
+    expect(
+      detectAntigravityLaunchDialect(
+        "  --model  Model for the current CLI session",
+        "Gemini 3.5 Flash (Medium)",
+      ),
+    ).toEqual({ separateModelEffort: false });
+  });
+
+  it("keeps PTY compatibility only for pre-1.1.1 or unknown versions", () => {
+    expect(shouldUseAntigravityPrintPty(undefined)).toBe(true);
+    expect(shouldUseAntigravityPrintPty("1.1.0")).toBe(true);
+    expect(shouldUseAntigravityPrintPty("1.1.1")).toBe(false);
+    expect(shouldUseAntigravityPrintPty("1.1.5")).toBe(false);
+  });
+});
+
+describe("Agy terminal config synchronization", () => {
+  const capabilities = {
+    models: [
+      { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
+      { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6" },
+    ],
+    modelEfforts: {
+      "gemini-3.6-flash": ["Low", "Medium", "High"],
+      "claude-sonnet-4-6": [],
+    },
+  };
+
+  it("parses the built-in model, effort, and mode status segments", () => {
+    expect(
+      detectAntigravityStatusLineState("\t plan · Gemini 3.6 Flash · medium\r", capabilities),
+    ).toEqual({ model: "gemini-3.6-flash", effort: "Medium", mode: "plan" });
+    expect(
+      detectAntigravityStatusLineState(" accept-edits · Gemini 3.6 Flash · low\r", capabilities),
+    ).toEqual({ model: "gemini-3.6-flash", effort: "Low", mode: "accept-edits" });
+    expect(detectAntigravityStatusLineState(" Gemini 3.6 Flash · high\r", capabilities)).toEqual({
+      model: "gemini-3.6-flash",
+      effort: "High",
+      mode: "default",
+    });
+  });
+
+  it("does not infer a mode from an ambiguous customized status line", () => {
+    expect(
+      detectAntigravityStatusLineState("main · Gemini 3.6 Flash · high", capabilities),
+    ).toEqual({ model: "gemini-3.6-flash", effort: "High" });
+  });
+
+  it("adds config fields to corroborated terminal hints", () => {
+    expect(
+      detectAntigravityTerminalStatus("◇ Ready\n plan · Gemini 3.6 Flash · medium", capabilities),
+    ).toMatchObject({
+      status: "idle",
+      model: "gemini-3.6-flash",
+      effort: "Medium",
+      planMode: true,
+      approvalPolicy: "default",
+    });
+  });
+
+  it("updates model, effort, and execution mode without acting on absent mode data", () => {
+    expect(
+      syncAntigravityConfigFromTerminalState(
+        {
+          config: {
+            model: "gemini-3.6-flash",
+            effort: "High",
+            mode: "plan",
+            approvalPolicy: "default",
+          },
+          previousStatus: "idle",
+          previousAttention: "none",
+          hint: {
+            status: "idle",
+            attention: "none",
+            model: "gemini-3.6-flash",
+            effort: "Low",
+            planMode: false,
+            approvalPolicy: "accept-edits",
+          },
+        },
+        capabilities,
+      ),
+    ).toEqual({
+      model: "gemini-3.6-flash",
+      effort: "Low",
+      mode: undefined,
+      approvalPolicy: "accept-edits",
+    });
+
+    expect(
+      syncAntigravityConfigFromTerminalState(
+        {
+          config: { model: "gemini-3.6-flash", effort: "High", mode: "plan" },
+          previousStatus: "idle",
+          previousAttention: "none",
+          hint: { status: "idle", attention: "none", effort: "Medium" },
+        },
+        capabilities,
+      ),
+    ).toEqual({ model: "gemini-3.6-flash", effort: "Medium", mode: "plan" });
+  });
+
+  it("clears an incompatible effort when switching to a model without efforts", () => {
+    expect(
+      syncAntigravityConfigFromTerminalState(
+        {
+          config: { model: "gemini-3.6-flash", effort: "High" },
+          previousStatus: "idle",
+          previousAttention: "none",
+          hint: {
+            status: "idle",
+            attention: "none",
+            model: "claude-sonnet-4-6",
+          },
+        },
+        capabilities,
+      ),
+    ).toEqual({ model: "claude-sonnet-4-6", effort: undefined });
+  });
+});
+
 describe("parseAntigravityModelsOutput", () => {
   it("parses JSON model objects into variants", () => {
     expect(
@@ -309,10 +510,11 @@ describe("parseAntigravityModelsOutput", () => {
     ]);
   });
 
-  it("parses agy 1.0.5 display-name model output into base models", () => {
+  it("parses legacy display-name model output into base models", () => {
     const raw = ANTIGRAVITY_KNOWN_MODEL_VARIANTS.map((variant) => variant.cliModel).join("\n");
 
     expect(parseAntigravityModelsOutput(raw)).toEqual([
+      { id: "Gemini 3.6 Flash", label: "Gemini 3.6 Flash" },
       { id: "Gemini 3.5 Flash", label: "Gemini 3.5 Flash" },
       { id: "Gemini 3.1 Pro", label: "Gemini 3.1 Pro" },
       { id: "Claude Sonnet 4.6", label: "Claude Sonnet 4.6" },
@@ -323,12 +525,86 @@ describe("parseAntigravityModelsOutput", () => {
     expect(
       buildAntigravityModelCapabilities(parseAntigravityModelVariantsOutput(raw)).modelEfforts,
     ).toEqual({
+      "Gemini 3.6 Flash": ["Low", "Medium", "High"],
       "Gemini 3.5 Flash": ["Low", "Medium", "High"],
       "Gemini 3.1 Pro": ["Low", "High"],
       "Claude Sonnet 4.6": ["Thinking"],
       "Claude Opus 4.6": ["Thinking"],
       "GPT-OSS 120B": ["Medium"],
     });
+  });
+
+  it("parses agy 1.1.5 slug model output into base models and efforts", () => {
+    const raw = [
+      "⠋ Fetching available models...\rgemini-3.6-flash-high     Gemini 3.6 Flash (High)",
+      "gemini-3.6-flash-medium",
+      "gemini-3.6-flash-low",
+      "gemini-3.5-flash-medium",
+      "gemini-3.5-flash-high",
+      "gemini-3.5-flash-low",
+      "gemini-3.1-pro-low",
+      "gemini-3.1-pro-high",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium",
+    ].join("\n");
+
+    const capabilities = buildAntigravityModelCapabilities(
+      parseAntigravityModelVariantsOutput(raw),
+    );
+
+    expect(capabilities.models).toEqual([
+      { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash", description: "Google DeepMind" },
+      { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash", description: "Google DeepMind" },
+      { id: "gemini-3.1-pro", label: "Gemini 3.1 Pro", description: "Google DeepMind" },
+      { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", description: "Anthropic" },
+      {
+        id: "claude-opus-4-6-thinking",
+        label: "Claude Opus 4.6",
+        description: "Anthropic",
+      },
+      { id: "gpt-oss-120b", label: "GPT-OSS 120B", description: "OpenAI" },
+    ]);
+    expect(capabilities.modelEfforts).toEqual({
+      "gemini-3.6-flash": ["Low", "Medium", "High"],
+      "gemini-3.5-flash": ["Low", "Medium", "High"],
+      "gemini-3.1-pro": ["Low", "High"],
+      "claude-sonnet-4-6": [],
+      "claude-opus-4-6-thinking": [],
+      "gpt-oss-120b": ["Medium"],
+    });
+  });
+
+  it("discovers unknown model families and effort names dynamically", () => {
+    expect(
+      parseAntigravityEffortsHelp(
+        "  --effort  Reasoning effort for the current CLI session (balanced|extra-high)",
+      ),
+    ).toEqual(["balanced", "extra-high"]);
+
+    const capabilities = buildAntigravityModelCapabilities(
+      parseAntigravityModelVariantsOutput(
+        [
+          "nova-code-balanced",
+          "nova-code-extra-high",
+          "mistral-codestral-25-08",
+          "future-model-ultra",
+        ].join("\n"),
+        ["balanced", "extra-high"],
+      ),
+    );
+
+    expect(capabilities.models).toEqual([
+      { id: "nova-code", label: "Nova Code" },
+      { id: "mistral-codestral-25-08", label: "Mistral Codestral 25 08" },
+      { id: "future-model-ultra", label: "Future Model Ultra" },
+    ]);
+    expect(capabilities.modelEfforts).toEqual({
+      "nova-code": ["Balanced", "Extra High"],
+      "mistral-codestral-25-08": [],
+      "future-model-ultra": [],
+    });
+    expect(capabilities.defaultEffort).toBe("Balanced");
   });
 
   it("parses table model output", () => {

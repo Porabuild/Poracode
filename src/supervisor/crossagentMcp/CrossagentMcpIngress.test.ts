@@ -1,27 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { OrchestratorThreadManager } from "./OrchestratorThreadManager";
 import { CROSSAGENT_PROVIDER_SESSION_ID_ARG, CrossagentMcpIngress } from "./CrossagentMcpIngress";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { CROSSAGENT_MCP_INSTRUCTIONS_BASE } from "./toolRegistry";
 import type { SpawnableAgent, SpawnAgentRequest } from "./types";
-
-/** Inert orchestrator lane — these tests only exercise the ephemeral-run tools. */
-function makeInertOrchestrator(): OrchestratorThreadManager {
-  return new OrchestratorThreadManager({
-    adapters: new Map(),
-    emit: () => {},
-    host: {
-      getParentContext: () => undefined,
-      getThreadState: () => undefined,
-      readThreadHistory: async () => undefined,
-      sendThreadInput: async () => {},
-      interruptThread: async () => {},
-      closeThread: async () => {},
-    },
-    createWorktree: async () => ({ path: "/unused" }),
-    removeWorktree: async () => {},
-  });
-}
 
 const AGENTS: SpawnableAgent[] = [
   {
@@ -87,7 +68,6 @@ describe("CrossagentMcpIngress", () => {
     spawned = rm.spawned;
     ingress = new CrossagentMcpIngress({
       runManager: rm.runManager,
-      orchestrator: makeInertOrchestrator(),
       getSpawnableAgents: async () => AGENTS,
       resolveProviderSessionThreadId: (sessionId) => PROVIDER_SESSION_THREADS[sessionId],
       getRoutingGuide: () => "PREFER codex for search.",
@@ -174,7 +154,6 @@ describe("CrossagentMcpIngress", () => {
     const rm = makeRunManager();
     const restarted = new CrossagentMcpIngress({
       runManager: rm.runManager,
-      orchestrator: makeInertOrchestrator(),
       getSpawnableAgents: async () => AGENTS,
       resolveProviderSessionThreadId: (sessionId) => PROVIDER_SESSION_THREADS[sessionId],
     });
@@ -262,20 +241,12 @@ describe("CrossagentMcpIngress", () => {
     const names = (body.result.tools as Array<{ name: string }>).map((t) => t.name).sort();
     expect(names).toEqual([
       "cancel",
-      "close_thread",
-      "create_thread",
       "get_agent",
       "get_status",
-      "get_thread",
-      "interrupt_thread",
       "list_agents",
-      "list_threads",
-      "read_thread",
       "run_agent",
-      "send_to_thread",
       "spawn_agent",
       "wait_for_agent",
-      "wait_for_thread",
     ]);
   });
 

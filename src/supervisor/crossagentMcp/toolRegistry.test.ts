@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgentKind, AgentStatus } from "@/shared/contracts";
 import type { AgentAdapter } from "@/supervisor/agents/base";
-import type { OrchestratorThreadManager } from "./OrchestratorThreadManager";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { buildSpawnableAgents, classifyModelTier, dispatchTool, TOOLS } from "./toolRegistry";
 import type { SubagentToolContext } from "./toolRegistry";
@@ -154,25 +153,13 @@ describe("buildSpawnableAgents", () => {
   });
 });
 
-const ORCHESTRATOR_TOOL_NAMES = [
-  "create_thread",
-  "list_threads",
-  "get_thread",
-  "read_thread",
-  "send_to_thread",
-  "wait_for_thread",
-  "interrupt_thread",
-  "close_thread",
-] as const;
-
-function makeToolContext(orchestrator: Partial<OrchestratorThreadManager>): {
+function makeToolContext(): {
   ctx: SubagentToolContext;
 } {
   return {
     ctx: {
       parentThreadId: "parent-1",
       runManager: {} as unknown as SubagentRunManager,
-      orchestrator: orchestrator as unknown as OrchestratorThreadManager,
       listSpawnableAgents: async () => [],
     },
   };
@@ -202,7 +189,7 @@ describe("provider discovery", () => {
   };
 
   it("lists compact summaries and resolves full options by id", async () => {
-    const { ctx } = makeToolContext({});
+    const { ctx } = makeToolContext();
     ctx.listSpawnableAgents = async () => [provider];
 
     const listed = await dispatchTool("list_agents", {}, ctx);
@@ -221,7 +208,7 @@ describe("provider discovery", () => {
   });
 
   it("returns a tool error for an unknown provider id", async () => {
-    const { ctx } = makeToolContext({});
+    const { ctx } = makeToolContext();
     ctx.listSpawnableAgents = async () => [provider];
     const result = await dispatchTool("get_agent", { id: "missing" }, ctx);
     expect(result.isError).toBe(true);
@@ -229,10 +216,9 @@ describe("provider discovery", () => {
   });
 });
 
-describe("orchestrator tool registration", () => {
-  it("registers all orchestrator tools alongside the existing run tools", () => {
+describe("subagent tool registration", () => {
+  it("registers the ephemeral subagent-run tools and no full-thread tools", () => {
     const names = new Set(TOOLS.map((tool) => tool.name));
-    for (const name of ORCHESTRATOR_TOOL_NAMES) expect(names.has(name)).toBe(true);
     for (const name of [
       "list_agents",
       "get_agent",
@@ -244,165 +230,39 @@ describe("orchestrator tool registration", () => {
     ]) {
       expect(names.has(name)).toBe(true);
     }
-  });
-
-  it("declares required fields on the new tool schemas", () => {
-    const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
-    expect(byName.get("create_thread")!.inputSchema).toMatchObject({
-      required: ["provider", "prompt"],
-    });
-    expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
-      required: ["provider", "prompt"],
-    });
-    expect(byName.get("get_agent")!.inputSchema).toMatchObject({ required: ["id"] });
-    expect(byName.get("get_thread")!.inputSchema).toMatchObject({ required: ["thread_id"] });
-    expect(byName.get("read_thread")!.inputSchema).toMatchObject({ required: ["thread_id"] });
-    expect(byName.get("send_to_thread")!.inputSchema).toMatchObject({
-      required: ["thread_id", "message"],
-    });
-    expect(byName.get("wait_for_thread")!.inputSchema).toMatchObject({
-      required: ["thread_ids"],
-    });
-    expect(byName.get("interrupt_thread")!.inputSchema).toMatchObject({
-      required: ["thread_id"],
-    });
-  });
-});
-
-describe("orchestrator tool dispatch", () => {
-  it("routes create_thread to the manager and returns snake_case fields", async () => {
-    const calls: Array<{ parent: string; request: unknown }> = [];
-    const { ctx } = makeToolContext({
-      createThread: async (parent: string, request: unknown) => {
-        calls.push({ parent, request });
-        return {
-          threadId: "child-1",
-          title: "Ticket",
-          worktreePath: "/tmp/wt/x",
-          branch: "poracode/x",
-        };
-      },
-    } as Partial<OrchestratorThreadManager>);
-    const result = await dispatchTool(
+    // Full-thread orchestration moved to the `poracode` (app-controls) MCP.
+    for (const name of [
       "create_thread",
-      {
-        provider: "codex",
-        model: "gpt-5.5",
-        reasoning: "high",
-        fast: true,
-        permissions: "full-access",
-        prompt: "do it",
-        worktree: true,
-      },
-      ctx,
-    );
-    expect(result.isError).toBeUndefined();
-    expect(JSON.parse(resultText(result))).toEqual({
-      thread_id: "child-1",
-      title: "Ticket",
-      worktree_path: "/tmp/wt/x",
-      branch: "poracode/x",
-    });
-    expect(calls).toEqual([
-      {
-        parent: "parent-1",
-        request: {
-          agent: "codex",
-          model: "gpt-5.5",
-          effort: "high",
-          fast: true,
-          prompt: "do it",
-          worktree: true,
-        },
-      },
-    ]);
-  });
-
-  it("returns tool errors (not throws) for missing required arguments", async () => {
-    const { ctx } = makeToolContext({});
-    for (const [name, args] of [
-      ["create_thread", { prompt: "x" }],
-      ["create_thread", { provider: "codex" }],
-      ["get_thread", {}],
-      ["read_thread", {}],
-      ["send_to_thread", { thread_id: "t" }],
-      ["interrupt_thread", {}],
-    ] as const) {
-      const result = await dispatchTool(name, args as Record<string, unknown>, ctx);
-      expect(result.isError).toBe(true);
+      "list_threads",
+      "get_thread",
+      "read_thread",
+      "send_to_thread",
+      "wait_for_thread",
+      "interrupt_thread",
+      "close_thread",
+    ]) {
+      expect(names.has(name)).toBe(false);
     }
   });
 
-  it("maps wait_for_thread args (id filtering + timeout clamp) onto the manager", async () => {
-    const calls: Array<{ ids: string[]; timeoutMs: number }> = [];
-    const { ctx } = makeToolContext({
-      waitForThreads: async (_parent: string, ids: string[], timeoutMs: number) => {
-        calls.push({ ids, timeoutMs });
-        return {
-          statuses: { a: { status: "idle" as const, attention: "none" as const } },
-          settled: ["a"],
-          timedOut: false,
-        };
-      },
-    } as Partial<OrchestratorThreadManager>);
-    const result = await dispatchTool(
-      "wait_for_thread",
-      { thread_ids: ["a", 42, "", "b"], timeout_s: 9_999 },
-      ctx,
-    );
-    expect(JSON.parse(resultText(result))).toEqual({
-      statuses: { a: { status: "idle", attention: "none" } },
-      settled: ["a"],
-      timed_out: false,
+  it("declares required fields on the subagent tool schemas", () => {
+    const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
+    expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
+      required: ["provider", "prompt"],
     });
-    expect(calls).toEqual([{ ids: ["a", "b"], timeoutMs: 240_000 }]);
+    expect(byName.get("run_agent")!.inputSchema).toMatchObject({
+      required: ["provider", "prompt"],
+    });
+    expect(byName.get("get_agent")!.inputSchema).toMatchObject({ required: ["id"] });
+    expect(byName.get("wait_for_agent")!.inputSchema).toMatchObject({ required: ["run_id"] });
+    expect(byName.get("get_status")!.inputSchema).toMatchObject({ required: ["run_id"] });
+    expect(byName.get("cancel")!.inputSchema).toMatchObject({ required: ["run_id"] });
   });
 
-  it("surfaces manager errors as MCP tool errors", async () => {
-    const { ctx } = makeToolContext({
-      getThread: () => {
-        throw new Error("Unknown thread_id: nope");
-      },
-    } as Partial<OrchestratorThreadManager>);
-    const result = await dispatchTool("get_thread", { thread_id: "nope" }, ctx);
+  it("returns an isError result (not a throw) for removed full-thread tools", async () => {
+    const { ctx } = makeToolContext();
+    const result = await dispatchTool("create_thread", { prompt: "x" }, ctx);
     expect(result.isError).toBe(true);
-    expect(resultText(result)).toContain("Unknown thread_id");
-  });
-
-  it("routes send_to_thread and interrupt_thread with the caller's parent id", async () => {
-    const sends: unknown[] = [];
-    const interrupts: unknown[] = [];
-    const { ctx } = makeToolContext({
-      sendToThread: async (...args: unknown[]) => {
-        sends.push(args);
-        return { delivery: "steered" as const };
-      },
-      interruptThread: async (...args: unknown[]) => {
-        interrupts.push(args);
-      },
-    } as Partial<OrchestratorThreadManager>);
-    const sendResult = await dispatchTool(
-      "send_to_thread",
-      { thread_id: "child-1", message: "hi", interrupt: true },
-      ctx,
-    );
-    expect(JSON.parse(resultText(sendResult))).toEqual({ ok: true, delivery: "steered" });
-    expect(sends).toEqual([["parent-1", "child-1", "hi", true]]);
-
-    const interruptResult = await dispatchTool("interrupt_thread", { thread_id: "child-1" }, ctx);
-    expect(JSON.parse(resultText(interruptResult))).toEqual({ ok: true });
-    expect(interrupts).toEqual([["parent-1", "child-1"]]);
-  });
-
-  it("routes close_thread with the caller's parent id", async () => {
-    const closes: unknown[] = [];
-    const { ctx } = makeToolContext({
-      closeThread: async (...args: unknown[]) => {
-        closes.push(args);
-      },
-    } as Partial<OrchestratorThreadManager>);
-    const result = await dispatchTool("close_thread", { thread_id: "child-1" }, ctx);
-    expect(JSON.parse(resultText(result))).toEqual({ ok: true });
-    expect(closes).toEqual([["parent-1", "child-1"]]);
+    expect(resultText(result)).toContain("Unknown tool");
   });
 });

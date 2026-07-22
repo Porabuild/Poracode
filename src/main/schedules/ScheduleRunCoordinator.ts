@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import type {
-  AgentKind,
   AgentStatusesResponse,
   Project,
   ProjectLocation,
@@ -14,13 +13,9 @@ import type {
 } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
 import { DEFAULT_TERMINAL_SIZE, resolveMcpLaunchSnapshot } from "@/shared/contracts";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
-import {
-  resolveUnrestrictedPermissionConfig,
-  type UnrestrictedPermissionConfig,
-} from "@/shared/agents/unrestrictedPermissions";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { ScheduleRunPatch } from "../db/scheduleRuns";
+import { resolveUnrestrictedThreadPermissions } from "../threads/threadLaunchConfig";
 
 /**
  * A `thread-state` transition ends the run only once the turn fully settles.
@@ -70,7 +65,7 @@ interface PendingRun {
  * instead of a headless one-shot prompt, and records a run-history row linked
  * to that thread.
  *
- * Start ordering mirrors {@link handleOrchestratorThreadCreated}: persist the
+ * Start ordering mirrors the proven remote-start path: persist the
  * thread row first, mirror it to the renderer (`launchRuntime: false`,
  * `focus: false`), then call the supervisor's `startThread`. The returned
  * promise settles when the thread's turn ends (observed via `thread-state`),
@@ -231,33 +226,12 @@ export class ScheduleRunCoordinator {
       model: task.config.model,
       ...(task.config.effort !== undefined ? { effort: task.config.effort } : {}),
       ...(task.config.fast !== undefined ? { fast: task.config.fast } : {}),
-      ...(await this.resolveUnrestrictedPermissions(task.agentKind, location)),
+      ...(await resolveUnrestrictedThreadPermissions(
+        this.deps.getAgentStatuses,
+        task.agentKind,
+        location,
+      )),
     };
-  }
-
-  /**
-   * Scheduled runs execute unattended — nobody is around to answer approval
-   * prompts — so every run launches with the provider's most-permissive
-   * advertised policy (same capabilities-driven resolution the subagent lane
-   * uses; no provider-specific branching here). If the capability lookup
-   * fails or the agent is unknown, fall back to provider defaults rather
-   * than failing the run.
-   */
-  private async resolveUnrestrictedPermissions(
-    agentKind: AgentKind,
-    location: ProjectLocation,
-  ): Promise<UnrestrictedPermissionConfig> {
-    try {
-      const statuses = await this.deps.getAgentStatuses(
-        location.kind === "wsl" ? [location.distro] : [],
-      );
-      const agents = getProjectAgentStatuses(location, statuses.windows, statuses.wsl);
-      const agent = agents.find((status) => status.kind === agentKind);
-      if (!agent) return {};
-      return resolveUnrestrictedPermissionConfig(agent.capabilities);
-    } catch {
-      return {};
-    }
   }
 
   private nowIso(): string {

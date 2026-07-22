@@ -63,6 +63,7 @@ import type { ThreadTodoDockState } from "./threadTodoState";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerDocks } from "./ThreadComposerDocks";
 import { useSkillSlashCommands } from "@/renderer/components/skills/useSkills";
+import { useDelayedPendingSteer } from "./useDelayedPendingSteer";
 
 type ThreadComposerSectionProps = {
   threadId: string;
@@ -364,6 +365,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     (canSubmitServerInput || canSubmitTerminalInput) && !isSubmitting && !authRequired;
   const canInterruptStructuredTurn = canShowRuntimeChrome && thread.status === "working";
   const pendingSteer = useAppStore((s) => s.pendingSteerByThreadId[thread.id]);
+  const visiblePendingSteer = useDelayedPendingSteer(pendingSteer);
   const usesPendingSteerPath = !usesTerminalPresentation && thread.status === "working";
   const runtimeRequests = useAppStore((s) => s.runtimeRequestsByThread[thread.id]);
   const activeRuntimeRequest = canShowRuntimeChrome ? runtimeRequests?.[0] : undefined;
@@ -636,7 +638,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     showGoalInComposer ||
                     showTodoInComposer ||
                     authRequired ||
-                    pendingSteer ||
+                    visiblePendingSteer ||
                     activeRuntimeRequest ||
                     showCommandPanel ? (
                       <ThreadComposerDocks
@@ -660,7 +662,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         todoDockState={todoDockState}
                         todoDockCollapsed={todoDockCollapsed}
                         todoDockPlacement={todoDockPlacement}
-                        pendingSteer={pendingSteer}
+                        pendingSteer={visiblePendingSteer}
                         activeRuntimeRequest={activeRuntimeRequest}
                         filteredCommands={filteredCommands}
                         slashActiveIndex={slashActiveIndex}

@@ -6,6 +6,7 @@ import type { ProjectLocation } from "@/shared/contracts";
 import {
   discoverKimiSessionRef,
   makeKimiWatchSessionRef,
+  resolveKimiSessionDir,
   resolveKimiSessionsWatchPaths,
   snapshotKimiPreSpawnSessions,
 } from "./sessionFiles";
@@ -63,6 +64,12 @@ describe("kimi session discovery (native)", () => {
 
     const ref = await discoverKimiSessionRef(location);
     expect(ref?.providerSessionId).toBe("fresh-session");
+  });
+
+  it("resolves an ACP session id across opaque workDirKey dirs", async () => {
+    const dir = makeSession("workB", "session-from-acp");
+    expect(await resolveKimiSessionDir(location, "session-from-acp")).toBe(dir);
+    expect(await resolveKimiSessionDir(location, "missing-session")).toBeUndefined();
   });
 
   it("disambiguates multiple new candidates by the state.json cwd", async () => {

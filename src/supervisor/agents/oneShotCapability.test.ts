@@ -42,7 +42,7 @@ describe("supportsOneShot capability", () => {
       .filter((adapter) => adapter.capabilities.supportsTextOnlyOneShot === true)
       .map((adapter) => adapter.kind)
       .sort();
-    expect(supported).toEqual(["claude"]);
+    expect(supported).toEqual(["claude", "pi"]);
   });
 
   it("marks every first-class adapter as one-shot capable (they are all CLIs)", () => {

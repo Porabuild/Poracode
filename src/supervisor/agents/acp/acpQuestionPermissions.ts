@@ -1,10 +1,12 @@
 import type { RequestPermissionRequest, RequestPermissionResponse } from "@agentclientprotocol/sdk";
 import type { RuntimeEvent } from "@/shared/contracts";
+import { isAskUserQuestionToolName } from "@/shared/toolCallClassification";
 import { chosenOptionIds } from "../questionAnswers";
 import {
   buildQuestionAnswerEvents,
   type QuestionAnswerSourceQuestion,
 } from "../questionAnswerEvents";
+import { extractToolCallContentText } from "./canonicalMapping/contentExtraction";
 import type { AcpMapperState } from "./canonicalMapping/state";
 
 interface AcpPermissionQuestion {
@@ -20,18 +22,29 @@ type AcpQuestionPermissionResponse = RequestPermissionResponse & {
 };
 
 /**
- * Qwen Code carries AskUserQuestion through ACP's requestPermission method.
- * The extension is deliberately detected from its semantic payload rather
- * than the provider kind: a non-empty `rawInput.questions` array is the same
- * signal Qwen's own ACP clients use.
+ * AskUserQuestion is carried over ACP's requestPermission method in two
+ * provider-native shapes, both normalized to the same AcpPermissionQuestion
+ * contract so shared runtime and renderer code stays provider-agnostic:
+ *  - Qwen Code sends a structured `rawInput.questions` array (header, question,
+ *    options) — the same signal Qwen's own ACP clients use.
+ *  - Kimi Code sends no rawInput at all: the question text arrives in
+ *    `toolCall.content` and the answer choices are the standard requestPermission
+ *    `options`. Detection stays semantic (tool identity + payload shape) rather
+ *    than keyed on the provider kind.
  */
 export function parseAcpPermissionQuestions(
   request: RequestPermissionRequest,
 ): AcpPermissionQuestion[] {
   const rawInput = request.toolCall?.rawInput;
-  if (!isRecord(rawInput) || !Array.isArray(rawInput.questions)) return [];
+  if (isRecord(rawInput) && Array.isArray(rawInput.questions)) {
+    return parseRawInputQuestions(rawInput.questions);
+  }
+  return parseContentPermissionQuestion(request);
+}
 
-  return rawInput.questions.flatMap((entry, index) => {
+/** Qwen shape: structured questions embedded in the tool call's rawInput. */
+function parseRawInputQuestions(rawQuestions: readonly unknown[]): AcpPermissionQuestion[] {
+  return rawQuestions.flatMap((entry, index) => {
     if (!isRecord(entry) || typeof entry.question !== "string" || entry.question.length === 0) {
       return [];
     }
@@ -73,6 +86,29 @@ export function parseAcpPermissionQuestions(
       },
     ];
   });
+}
+
+/**
+ * Kimi shape: no structured rawInput. The question text is carried in
+ * `toolCall.content` and the answer choices are the standard requestPermission
+ * `options` (the rejection option becomes the form's Cancel affordance rather
+ * than a selectable choice). Gated on the AskUserQuestion tool identity so
+ * ordinary approval requests are never reinterpreted as questions.
+ */
+function parseContentPermissionQuestion(
+  request: RequestPermissionRequest,
+): AcpPermissionQuestion[] {
+  if (!isAcpAskUserQuestionToolCall(request.toolCall ?? {})) return [];
+  const question = extractToolCallContentText(request.toolCall?.content)?.trim();
+  if (!question) return [];
+  const options = request.options.flatMap((option) => {
+    if (isRejectionOptionKind(option.kind)) return [];
+    const label =
+      typeof option.name === "string" && option.name.length > 0 ? option.name : option.optionId;
+    return [{ optionId: option.optionId, label }];
+  });
+  if (options.length === 0) return [];
+  return [{ id: "0", header: question, question, options, multiSelect: false }];
 }
 
 export function mapAcpQuestionPermissionRequest(
@@ -146,20 +182,19 @@ export function buildAcpQuestionPermissionAnswerEvents(input: {
   });
 }
 
-/** Suppress the redundant tool row once the same call is presented as a form. */
+/**
+ * Detect an AskUserQuestion tool call by its identity (tool name / title), used
+ * both to gate the Kimi content-shape parser and to suppress the redundant tool
+ * row once the same call is presented as a form. Kept independent of `rawInput`
+ * so it recognizes providers (Kimi Code) that omit structured input.
+ */
 export function isAcpAskUserQuestionToolCall(toolCall: {
   title?: unknown;
   rawInput?: unknown;
   _meta?: unknown;
 }): boolean {
-  if (!isRecord(toolCall.rawInput) || !Array.isArray(toolCall.rawInput.questions)) return false;
   const metaName = isRecord(toolCall._meta) ? toolCall._meta.toolName : undefined;
-  const candidates = [metaName, toolCall.title];
-  return candidates.some(
-    (candidate) =>
-      typeof candidate === "string" &&
-      /^(?:ask[_ ]?user[_ ]?question|ask user \d+ questions?)(?::|\b)/iu.test(candidate.trim()),
-  );
+  return [metaName, toolCall.title].some(isAskUserQuestionToolName);
 }
 
 function normalizeQuestionAnswers(
@@ -196,10 +231,35 @@ function selectedPermissionOptionId(
     isRecord(response) && typeof response.optionId === "string" ? response.optionId : undefined;
   if (requested && request.options.some((option) => option.optionId === requested))
     return requested;
+  const answered = answerSelectedOptionId(request, response);
+  if (answered) return answered;
   return (
     request.options.find((option) => option.kind === "allow_once") ??
-    request.options.find((option) => !option.kind.startsWith("reject"))
+    request.options.find((option) => !isRejectionOptionKind(option.kind))
   )?.optionId;
+}
+
+/**
+ * Providers whose ACP options ARE the answer choices (Kimi Code) submit the
+ * picked choice inside the answers map rather than a top-level `optionId`.
+ * Promote a chosen value that matches a real (non-reject) option so the correct
+ * outcome optionId reaches the agent. Qwen's answers reference its own rawInput
+ * option ids (never the ACP proceed/cancel options), so this is a no-op there.
+ */
+function answerSelectedOptionId(
+  request: RequestPermissionRequest,
+  response: unknown,
+): string | undefined {
+  const selectable = new Set(
+    request.options.filter((option) => !isRejectionOptionKind(option.kind)).map((o) => o.optionId),
+  );
+  if (selectable.size === 0) return undefined;
+  for (const value of Object.values(responseAnswers(response))) {
+    for (const optionId of chosenOptionIds(value)) {
+      if (selectable.has(optionId)) return optionId;
+    }
+  }
+  return undefined;
 }
 
 const REJECTION_OPTION_ID_PATTERN = /(?:cancel|decline|deny|reject|abort)/iu;
@@ -207,6 +267,11 @@ const REJECTION_OPTION_ID_PATTERN = /(?:cancel|decline|deny|reject|abort)/iu;
 /** True when an ACP option id names a decline/cancel/reject/abort choice. */
 export function isRejectionOptionId(optionId: unknown): boolean {
   return typeof optionId === "string" && REJECTION_OPTION_ID_PATTERN.test(optionId);
+}
+
+/** True for ACP permission option kinds that reject rather than approve. */
+function isRejectionOptionKind(kind: unknown): boolean {
+  return typeof kind === "string" && kind.startsWith("reject");
 }
 
 function isCancelledResponse(response: unknown): boolean {

@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { toast } from "@heroui/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ThemeMode } from "@/shared/contracts";
 
@@ -45,6 +46,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  toast.clear();
   // Restore the testSetup default matchMedia stub so other tests behave.
   setMatchMedia(true);
 });
@@ -57,6 +59,24 @@ describe("AppProvider", () => {
       </AppProvider>,
     );
     expect(screen.getByText("provider works")).toBeInTheDocument();
+  });
+
+  it("uses the wider responsive toast width", async () => {
+    render(
+      <AppProvider>
+        <span />
+      </AppProvider>,
+    );
+
+    act(() => {
+      toast("Width test");
+    });
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-slot="toast-region"]')).toHaveStyle({
+        "--toast-width": "min(32rem, calc(100vw - 2rem))",
+      });
+    });
   });
 
   it("applies dark class + data-theme when themeMode is explicit 'dark'", () => {

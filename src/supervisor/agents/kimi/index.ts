@@ -2,6 +2,7 @@ import type { PromptSegment } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
+import { createAcpSubagentCoordinator } from "../acp/subagentCoordinator";
 import {
   detectAgentInstall,
   detectProbeLocation,
@@ -11,8 +12,9 @@ import {
   quotePowerShellLiteral,
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
-import { transformKimiAcpSessionUpdate } from "./acpTransform";
+import { createKimiAcpSessionUpdateTransform } from "./acpTransform";
 import { buildKimiAcpArgs, buildKimiArgs, buildKimiContinueArgs } from "./argv";
+import { createKimiBackgroundBridge } from "./backgroundBridge";
 import {
   buildKimiCommand,
   kimiDefaultCapabilities,
@@ -123,11 +125,31 @@ export function createKimiAdapter(): AgentAdapter {
         [...acpArgs, "acp"],
         resolveAgentBinaryPath(input.projectLocation, "kimi"),
       );
-      return createAcpStructuredSession(command, {
+      let session: ReturnType<typeof createAcpStructuredSession>;
+      const subagents = createAcpSubagentCoordinator();
+      const backgroundBridge = createKimiBackgroundBridge(
+        input.projectLocation,
+        (notification) => session?.ingestExternalSessionUpdate(notification),
+        { subagents },
+      );
+      session = createAcpStructuredSession(command, {
         ...input,
         acpEmptyResponseErrorResolver: resolveKimiEmptyResponseError,
-        acpSessionUpdateTransform: transformKimiAcpSessionUpdate,
+        acpSessionUpdateTransform: createKimiAcpSessionUpdateTransform({
+          subagents,
+          onBackgroundLaunch: backgroundBridge.onBackgroundLaunch,
+        }),
       });
+      if (!session) {
+        backgroundBridge.dispose();
+        return undefined;
+      }
+      const disposeAcpSession = session.dispose.bind(session);
+      session.dispose = async () => {
+        backgroundBridge.dispose();
+        await disposeAcpSession();
+      };
+      return session;
     },
 
     // Kimi ACP advertises a single "login" auth method; the auth command is the

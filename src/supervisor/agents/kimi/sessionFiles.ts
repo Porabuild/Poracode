@@ -232,6 +232,26 @@ export async function discoverKimiSessionRef(
   return createKnownSessionRef(winner.id);
 }
 
+/** Resolve an ACP session id to Kimi's opaque workdir-scoped session path. */
+export async function resolveKimiSessionDir(
+  location: ProjectLocation,
+  sessionId: string,
+): Promise<string | undefined> {
+  const root = await getKimiSessionsRootAsync(location);
+  if (!root) return undefined;
+  const workDirs = await listSessionDir(location, root);
+  if (!workDirs) return undefined;
+  for (const workDir of workDirs) {
+    if (workDir.type !== "directory") continue;
+    const workDirPath = `${root}/${workDir.name}`;
+    const sessions = await listSessionDir(location, workDirPath);
+    if (sessions?.some((session) => session.type === "directory" && session.name === sessionId)) {
+      return `${workDirPath}/${sessionId}`;
+    }
+  }
+  return undefined;
+}
+
 export function makeKimiDiscoverSessionRef() {
   return async (location: ProjectLocation): Promise<SessionRef | undefined> => {
     return discoverKimiSessionRef(location);

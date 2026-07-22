@@ -16,6 +16,19 @@
 
 export { createAcpMapperState, type AcpMapperState } from "./canonicalMapping/state";
 export { closeOpenTurnItems } from "./canonicalMapping/toolCallPayloads";
+export {
+  mapAcpCanonicalGoalUpdate,
+  PORACODE_ACP_GOAL_META_KEY,
+  type AcpCanonicalGoalUpdate,
+} from "./canonicalMapping/goals";
+export {
+  PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY,
+  PORACODE_ACP_DETACHED_SUBAGENT_META_KEY,
+  getDetachedSubAgentToolCallIdForNotification,
+  PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
+  PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY,
+  PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
+} from "./canonicalMapping/subagents";
 export { mapAcpSessionUpdate } from "./canonicalMapping/dispatch";
 export { mapAcpGoalSlashCommand } from "./canonicalMapping/goal";
 export { mapAcpElicitationRequest, mapAcpPermissionRequest } from "./canonicalMapping/permissions";

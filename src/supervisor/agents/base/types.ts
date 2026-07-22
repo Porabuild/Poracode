@@ -174,6 +174,12 @@ export interface CreateStructuredSessionInput {
    */
   acpGoalCommands?: boolean;
   /**
+   * Translate a vendor ACP extension notification into a standard
+   * `session/update` before canonical mapping. This is for providers that put
+   * lifecycle boundaries on an extension method instead of the ACP stream.
+   */
+  acpExtensionSessionUpdateTransform?: AcpExtensionSessionUpdateTransform;
+  /**
    * Handle vendor ACP extension notifications (e.g. Cursor's `cursor/task`)
    * that carry metadata absent from the standard `session/update` stream.
    */
@@ -188,6 +194,11 @@ export type AcpEmptyResponseErrorResolver = (input: {
 export type AcpSessionUpdateTransform = (
   notification: import("@agentclientprotocol/sdk").SessionNotification,
 ) => import("@agentclientprotocol/sdk").SessionNotification;
+
+export type AcpExtensionSessionUpdateTransform = (
+  method: string,
+  params: Record<string, unknown>,
+) => import("@agentclientprotocol/sdk").SessionNotification | undefined;
 
 export type AcpExtensionNotificationHandler = (
   method: string,
@@ -571,7 +582,8 @@ export interface AgentSkillSupport {
   readonly roots: readonly AgentSkillRootSpec[];
   /** Provider roots that need a Poracode-owned copy of canonical skills. */
   readonly projectionRoots?: readonly AgentSkillRootSpec[];
-  readonly invocation: "slash" | "dollar" | "prompt";
+  /** How the provider invokes a named skill from its composer. */
+  readonly invocation: "slash" | "dollar" | "prompt" | "skill";
   /** Provider-native duplicate resolution, using root ids plus canonical `agents`. */
   readonly precedence?: {
     readonly scopeOrder?: readonly ("global" | "project")[];

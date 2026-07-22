@@ -14,6 +14,7 @@ const REGION_CONFIG = {
     consoleSite: "MODELSTUDIO_ALBABACLOUD",
     currentRegionId: "ap-southeast-1",
     commodityCode: "sfm_codingplan_public_intl",
+    tokenPlanCommodityCode: "sfm_tokenplansolo_public_intl",
     dashboardUrl:
       "https://modelstudio.console.alibabacloud.com/ap-southeast-1/?tab=plan#/efm/subscription/token-plan/personal",
     consoleRefererUrl: "https://modelstudio.console.alibabacloud.com/ap-southeast-1/?tab=plan",
@@ -26,12 +27,15 @@ const REGION_CONFIG = {
     consoleSite: "BAILIAN_ALIYUN",
     currentRegionId: "cn-beijing",
     commodityCode: "sfm_codingplan_public_cn",
+    tokenPlanCommodityCode: "sfm_tokenplansolo_public_cn",
     dashboardUrl: "https://bailian.console.aliyun.com/cn-beijing/?tab=model#/efm/coding_plan",
     consoleRefererUrl: "https://bailian.console.aliyun.com/cn-beijing/?tab=model",
   },
 } as const;
 
 const QUOTA_ACTION = "zeldaEasy.broadscope-bailian.codingPlan.queryCodingPlanInstanceInfoV2";
+const TOKEN_PLAN_SUBSCRIPTION_ACTION =
+  "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/subscription";
 const TOKEN_PLAN_USAGE_ACTION = "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage";
 const BROWSER_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -148,6 +152,37 @@ function firstString(value: unknown, keys: readonly string[]): string | undefine
     if (found) return found;
   }
   return undefined;
+}
+
+function planName(value: unknown): string | undefined {
+  const explicit = firstString(value, [
+    "planName",
+    "plan_name",
+    "instanceName",
+    "instance_name",
+    "packageName",
+    "package_name",
+  ]);
+  if (explicit) return explicit;
+
+  // Alibaba's current personal Token Plan subscription endpoint calls the
+  // tier `specCode`; the older Coding Plan endpoint calls it `instanceType`.
+  // Keep the provider-native field names at this boundary and expose one
+  // display-ready plan value to shared consumers.
+  const tier = firstString(value, ["specCode", "spec_code", "instanceType", "instance_type"]);
+  if (!tier) return undefined;
+  switch (tier.toLowerCase()) {
+    case "lite":
+      return "Lite";
+    case "standard":
+      return "Standard";
+    case "pro":
+      return "Pro";
+    case "max":
+      return "Max";
+    default:
+      return undefined;
+  }
 }
 
 function cookieValue(cookieHeader: string, name: string): string | undefined {
@@ -351,6 +386,8 @@ export function parseQwenCodingPlanUsage(payload: unknown, now: number): UsageSn
     };
   }
 
+  const instance = selectInstance(expanded, now);
+  const plan = planName(instance) ?? planName(expanded);
   const tokenPlanQuota = findObjectWithKey(expanded, ["per5HourPercentage", "per1WeekPercentage"]);
   if (tokenPlanQuota) {
     const windows = [
@@ -370,21 +407,17 @@ export function parseQwenCodingPlanUsage(payload: unknown, now: number): UsageSn
       ),
     ].filter((window): window is UsageWindow => window !== undefined);
     if (windows.length > 0) {
-      return { providerId: QWEN_PROVIDER_ID, status: "ok", windows, fetchedAt: now };
+      return {
+        providerId: QWEN_PROVIDER_ID,
+        status: "ok",
+        ...(plan ? { plan } : {}),
+        windows,
+        fetchedAt: now,
+      };
     }
   }
 
-  const instance = selectInstance(expanded, now);
   const quota = nestedQuotaObject(instance) ?? nestedQuotaObject(expanded);
-  const plan =
-    firstString(instance, [
-      "planName",
-      "plan_name",
-      "instanceName",
-      "instance_name",
-      "packageName",
-      "package_name",
-    ]) ?? firstString(expanded, ["planName", "plan_name", "packageName", "package_name"]);
   if (!quota) {
     if (instance && activeScore(instance, now) > 0 && plan) {
       return { providerId: QWEN_PROVIDER_ID, status: "ok", plan, windows: [], fetchedAt: now };
@@ -570,7 +603,13 @@ function consoleRequestBody(
               onlyLatestOne: true,
             },
           }
-        : {}),
+        : api === TOKEN_PLAN_SUBSCRIPTION_ACTION
+          ? {
+              queryInstanceInfoRequest: {
+                commodityCode: config.tokenPlanCommodityCode,
+              },
+            }
+          : {}),
       cornerstoneParam,
     },
   });
@@ -581,14 +620,13 @@ function consoleRequestBody(
   }).toString();
 }
 
-async function requestConsoleUsage(
+function requestConsoleApi(
   host: HostPort,
   cookieHeader: string,
   region: AlibabaCodingPlanRegion,
+  secToken: string,
   api = QUOTA_ACTION,
-): Promise<HttpResponse | undefined> {
-  const secToken = await resolveConsoleSecToken(host, cookieHeader, region);
-  if (!secToken) return undefined;
+): Promise<HttpResponse> {
   const config = REGION_CONFIG[region];
   const csrf =
     cookieValue(cookieHeader, "login_aliyunid_csrf") ?? cookieValue(cookieHeader, "csrf");
@@ -608,6 +646,15 @@ async function requestConsoleUsage(
     body: consoleRequestBody(region, secToken, cookieValue(cookieHeader, "cna"), api),
     timeoutMs: 15_000,
   });
+}
+
+function planFromResponse(response: HttpResponse | undefined): string | undefined {
+  if (!response || response.status < 200 || response.status >= 300) return undefined;
+  try {
+    return planName(expandEmbeddedJson(JSON.parse(response.body)));
+  } catch {
+    return undefined;
+  }
 }
 
 function responseSnapshot(
@@ -670,12 +717,15 @@ export async function collectQwen(host: HostPort, _opts?: CollectOptions): Promi
     // The in-app login captures cookies scoped to the international console.
     // Never replay those cookies to the China-mainland domain; API-key fallback
     // below may still try both official regions when no region is configured.
-    const tokenPlanResponse = await requestConsoleUsage(
-      host,
-      cookie,
-      "intl",
-      TOKEN_PLAN_USAGE_ACTION,
-    );
+    const secToken = await resolveConsoleSecToken(host, cookie, "intl");
+    const [tokenPlanResponse, tokenPlanSubscriptionResponse] = secToken
+      ? await Promise.all([
+          requestConsoleApi(host, cookie, "intl", secToken, TOKEN_PLAN_USAGE_ACTION),
+          requestConsoleApi(host, cookie, "intl", secToken, TOKEN_PLAN_SUBSCRIPTION_ACTION).catch(
+            () => undefined,
+          ),
+        ])
+      : [undefined, undefined];
     const tokenPlanSnapshot = tokenPlanResponse
       ? responseSnapshot(tokenPlanResponse, now, "web-session")
       : {
@@ -686,10 +736,11 @@ export async function collectQwen(host: HostPort, _opts?: CollectOptions): Promi
           error: "Alibaba console session expired",
         };
     if (tokenPlanSnapshot.status === "ok" || tokenPlanSnapshot.status === "rate-limited") {
-      return tokenPlanSnapshot;
+      const plan = tokenPlanSnapshot.plan ?? planFromResponse(tokenPlanSubscriptionResponse);
+      return plan ? { ...tokenPlanSnapshot, plan } : tokenPlanSnapshot;
     }
 
-    const response = await requestConsoleUsage(host, cookie, "intl");
+    const response = secToken ? await requestConsoleApi(host, cookie, "intl", secToken) : undefined;
     cookieSnapshot = response ? responseSnapshot(response, now, "web-session") : tokenPlanSnapshot;
     if (cookieSnapshot.status === "ok" || cookieSnapshot.status === "rate-limited")
       return cookieSnapshot;

@@ -2,12 +2,6 @@ import type { AgentKind, AgentStatus } from "@/shared/contracts";
 import { capabilitiesForPresentation, modelSelectionFor } from "@/shared/agentSelection";
 import { formatReasoningLabel } from "@/shared/modelLabels";
 import type { AgentAdapter } from "@/supervisor/agents/base";
-import type { OrchestratorThreadManager } from "./OrchestratorThreadManager";
-import {
-  dispatchOrchestratorTool,
-  isOrchestratorToolName,
-  ORCHESTRATOR_TOOLS,
-} from "./orchestratorTools";
 import { SubagentSpawnError } from "./SubagentRunManager";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { errorResult, jsonResult, parseWaitTimeoutMs, TIMEOUT_S_DESCRIPTION } from "./toolResult";
@@ -48,16 +42,13 @@ export function classifyModelTier(modelId: string, modelLabel: string): ModelTie
 
 /** Base routing guidance always included in the MCP `initialize` instructions. */
 export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
-  "Use the Crossagents MCP server to delegate work to the other AI agents connected to this Poracode session.",
+  "Use the Crossagents MCP server to delegate lightweight, ephemeral work to the other AI agents connected to this Poracode session.",
   "Call list_agents first for the compact provider roster, then call get_agent with the chosen provider id for its models, reasoning options, Fast availability, and permissions preset.",
-  "There are two delegation lanes.",
-  "Lightweight subagent runs (spawn_agent, run_agent, wait_for_agent, get_status, cancel): quick, ephemeral helpers whose output streams into your own thread and disappears afterwards — best for search, summarization, bulk edits, and one-off checks.",
-  "Full threads (create_thread, list_threads, get_thread, read_thread, send_to_thread, wait_for_thread, interrupt_thread): long-lived first-class app threads the user sees in the sidebar, each optionally in its own git worktree — best for parallel work items (e.g. one ticket or feature per thread) that need isolation, review, or follow-up conversation.",
+  "This server hosts one delegation lane: ephemeral subagent runs (spawn_agent, run_agent, wait_for_agent, get_status, cancel) — quick helpers whose output streams into your own thread and disappears afterwards, best for search, summarization, bulk edits, and one-off checks.",
+  "Use run_agent for a single blocking delegation; use spawn_agent + wait_for_agent for long tasks or to fan out several agents in parallel, then collect them with wait_for_agent.",
+  "Give each subagent a self-contained prompt — it does not share your conversation context.",
   "Routing: prefer fast/cheap agents+models for search, bulk edits, and summarization; reserve the strongest agents for implementation and review.",
-  "Run independent tasks concurrently as parallel spawn_agent or create_thread calls, then collect them with wait_for_agent / wait_for_thread.",
-  "Use run_agent for a single blocking delegation; use spawn_agent + wait_for_agent for long tasks or fan-out.",
-  "Give each subagent or child thread a self-contained prompt — it does not share your conversation context.",
-  "The human can watch child threads live in the app UI, so do not poll read_thread/get_thread aggressively; rely on wait_for_thread and read transcripts only when you need the details.",
+  "For long-lived, first-class app threads the user sees in the sidebar (optionally in their own git worktree) — e.g. one ticket or feature per thread — use the always-on `poracode` MCP server's thread tools (create_thread, list_threads, get_thread, read_thread, send_to_thread, wait_for_thread, interrupt_thread, stop_thread) instead.",
 ].join(" ");
 
 export function buildSubagentInstructions(routingGuide?: string): string {
@@ -179,8 +170,9 @@ const BASE_TOOLS: ToolSpec[] = [
   },
 ];
 
-/** Full catalog: ephemeral subagent runs + the orchestrator thread lane. */
-export const TOOLS: ToolSpec[] = [...BASE_TOOLS, ...ORCHESTRATOR_TOOLS];
+/** Catalog: the ephemeral subagent-run lane. Full-thread orchestration lives
+ *  in the always-on `poracode` (app-controls) MCP server's thread tools. */
+export const TOOLS: ToolSpec[] = BASE_TOOLS;
 
 export const TOOL_NAMES = new Set(TOOLS.map((t) => t.name));
 
@@ -269,7 +261,6 @@ function summarizeAgent(agent: SpawnableAgent): SpawnableAgentSummary {
 export interface SubagentToolContext {
   parentThreadId: string;
   runManager: SubagentRunManager;
-  orchestrator: OrchestratorThreadManager;
   listSpawnableAgents: () => Promise<SpawnableAgent[]>;
 }
 
@@ -338,12 +329,6 @@ export async function dispatchTool(
         return jsonResult({ ok: true });
       }
       default:
-        if (isOrchestratorToolName(name)) {
-          return await dispatchOrchestratorTool(name, args, {
-            parentThreadId: ctx.parentThreadId,
-            orchestrator: ctx.orchestrator,
-          });
-        }
         return errorResult(`Unknown tool: ${name}`);
     }
   } catch (error) {

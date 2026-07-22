@@ -81,7 +81,7 @@ describe("ThreadGoalDock", () => {
     expect(screen.getByText("10m 21s")).toBeInTheDocument();
   });
 
-  it("shows evaluator turn count and surfaces the last evaluation reason in the objective tooltip", () => {
+  it("shows evaluator check count and surfaces the last evaluation reason in the objective tooltip", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-12T10:00:10Z"));
 
@@ -105,7 +105,7 @@ describe("ThreadGoalDock", () => {
       </AppProvider>,
     );
 
-    expect(screen.getByText("3 turns")).toBeInTheDocument();
+    expect(screen.getByText("3 checks")).toBeInTheDocument();
 
     expect(screen.getByText(/login\.test\.ts still failing/)).toBeInTheDocument();
   });
@@ -155,6 +155,31 @@ describe("ThreadGoalDock", () => {
     expect(completeIcon).not.toBeNull();
     expect(completeIcon?.classList.contains("text-success")).toBe(true);
     expect(container.querySelector("svg.lucide-target")).toBeNull();
+  });
+
+  it.each([
+    ["failed", "Failed", "lucide-circle-x"],
+    ["cancelled", "Cancelled", "lucide-circle-stop"],
+  ] as const)("renders a %s terminal goal outcome", (status, label, iconClass) => {
+    render(
+      <AppProvider>
+        <ThreadGoalDock
+          state={{
+            sourceItemId: `goal-${status}`,
+            itemState: "completed",
+            objective: "Ship goal dock",
+            status,
+            action: "updated",
+            lastReason: `${label} by provider`,
+          }}
+          onDismiss={() => undefined}
+        />
+      </AppProvider>,
+    );
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(document.querySelector(`svg.${iconClass}`)).not.toBeNull();
+    expect(screen.getByText(new RegExp(`${label} by provider`))).toBeInTheDocument();
   });
 
   it("advances active goal elapsed time locally between server updates", () => {

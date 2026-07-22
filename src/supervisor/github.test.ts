@@ -101,6 +101,19 @@ describe("GitHubService", () => {
 
       expect(result).toEqual({ available: false });
     });
+
+    it("does not inherit GH_REPO when running a project-scoped gh command", async () => {
+      const prior = process.env.GH_REPO;
+      process.env.GH_REPO = "ambient/override";
+      execFileAsyncMock.mockResolvedValue({ stdout: "gh version 2.50.0\n" });
+
+      await new GitHubService().checkGhAvailable(location);
+
+      const options = execFileAsyncMock.mock.calls[0]?.[2] as { env?: NodeJS.ProcessEnv };
+      expect(options.env?.GH_REPO).toBeUndefined();
+      if (prior === undefined) delete process.env.GH_REPO;
+      else process.env.GH_REPO = prior;
+    });
   });
 
   describe("getPrForBranch", () => {
@@ -289,12 +302,14 @@ describe("GitHubService", () => {
               expect.stringContaining("statusCheckRollup"),
             ],
             loginEnv: true,
+            env: { GH_REPO: "" },
           },
           {
             command: "gh",
             cwd: "/home/demo/repo",
             args: ["api", "user", "--jq", ".login"],
             loginEnv: true,
+            env: { GH_REPO: "" },
           },
         ],
       });
@@ -561,12 +576,14 @@ describe("GitHubService", () => {
             cwd: "/home/demo/repo",
             args: expect.arrayContaining(["pr", "list", "open"]),
             loginEnv: true,
+            env: { GH_REPO: "" },
           }),
           {
             command: "gh",
             cwd: "/home/demo/repo",
             args: ["api", "user", "--jq", ".login"],
             loginEnv: true,
+            env: { GH_REPO: "" },
           },
         ],
       });

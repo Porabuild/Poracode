@@ -597,6 +597,7 @@ export function SingleAgentSettings(props: {
             agentKinds: [props.agentKind],
             envs: [scopeEnvForStatus(status)],
           })
+          .catch(() => undefined)
           .finally(clearPending);
       },
     });

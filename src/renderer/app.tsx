@@ -408,6 +408,11 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       readBridge().onSharedSettingsChanged((settings) => {
         applyExternalSharedSettings(normalizeSharedSettings(settings));
       }),
+      // Main-process project mutations must reach this whole-store snapshot
+      // before its next dbSyncAll persistence write.
+      readBridge().onProjectStateChanged(({ projects }) => {
+        useAppStore.setState({ projects });
+      }),
       readBridge().onThreadOpenRequested(({ threadId }) => {
         openThread(threadId, { focusComposer: true });
       }),

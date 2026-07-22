@@ -116,9 +116,11 @@ export function buildSkillSlashCommands(scan: SkillScanResult | null): AgentSlas
     const invocation =
       scan.invocation === "dollar"
         ? `$${skill.name}`
-        : scan.invocation === "prompt"
-          ? `Use the ${skill.name} skill.`
-          : `/${skill.name}`;
+        : scan.invocation === "skill"
+          ? `/skill:${skill.name}`
+          : scan.invocation === "prompt"
+            ? `Use the ${skill.name} skill.`
+            : `/${skill.name}`;
     return [
       {
         id: skill.name,

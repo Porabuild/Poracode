@@ -208,7 +208,11 @@ export function AppProvider(props: {
   return (
     <I18nProvider i18n={i18n}>
       <AppearanceContext.Provider value={appearance}>
-        <Toast.Provider placement="bottom end" maxVisibleToasts={5}>
+        <Toast.Provider
+          placement="bottom end"
+          maxVisibleToasts={5}
+          width="min(32rem, calc(100vw - 2rem))"
+        >
           {({ toast: toastItem }) => {
             const content = toastItem.content;
             const isObject = typeof content === "object" && content !== null;
@@ -239,7 +243,7 @@ export function AppProvider(props: {
               <Toast
                 toast={toastItem}
                 variant={variant}
-                className={`lc-toast relative w-[min(24rem,calc(100vw-2rem))] border border-border/40 ${isToastPressable ? "cursor-pointer" : ""}`}
+                className={`lc-toast relative w-full border border-border/40 ${isToastPressable ? "cursor-pointer" : ""}`}
               >
                 {isToastPressable ? (
                   <div

@@ -9,6 +9,7 @@ packages:
 enableGlobalVirtualStore: true
 
 allowBuilds:
+  "@google/genai": false
   "@sentry/cli": true
   better-sqlite3: true
   electron: true
@@ -218,14 +219,14 @@ overrides:
   "tmp@<0.2.6": "^0.2.6"
   "brace-expansion@>=5.0.0 <5.0.6": "^5.0.6"
   "esbuild@<0.28.1": "0.28.1"
-  "shell-quote@<1.8.4": "^1.8.4"
+  "shell-quote@<1.9.0": "^1.9.0"
   "cross-spawn@<6.0.6": "6.0.6"
   "@xmldom/xmldom@<0.8.13": "0.8.13"
   # 2026-06-18 advisory batch.
   "dompurify@>=3.0.0 <3.4.11": "3.4.11"
   # 2026-06-15 advisory batch (alerts #88-#102).
   "@opentelemetry/core@>=2.0.0 <2.8.0": "2.8.0"
-  "protobufjs@>=7.0.0 <7.6.4": "7.6.4"
+  "protobufjs@>=7.0.0 <7.6.5": "7.6.5"
   "form-data@>=4.0.0 <4.0.6": "4.0.6"
   "tar@>=7.0.0 <7.5.16": "^7.5.16"
   "vite@>=8.0.0 <8.0.16": "^8.0.16"
@@ -248,3 +249,10 @@ overrides:
   # comes only from react-devtools (dev-only standalone inspector); 23.x has no
   # in-line patch (#104), so dedupe it onto the app's own electron major.
   "electron@>=23.0.0 <39.8.5": "43.1.0"
+  # 2026-07-21 advisory batch (#132-#136).
+  # adm-zip crafted-ZIP 4GB allocation; only used by onnxruntime-node's install
+  # script to extract trusted NuGet archives.
+  "adm-zip@<0.6.0": "^0.6.0"
+  # brace-expansion exponential-time expansion DoS, 1.x/2.x lines.
+  "brace-expansion@<1.1.16": "^1.1.16"
+  "brace-expansion@>=2.0.0 <2.1.2": "^2.1.2"

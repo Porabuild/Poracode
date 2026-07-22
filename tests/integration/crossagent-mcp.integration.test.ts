@@ -5,7 +5,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AgentKind, ProjectLocation, RuntimeEvent } from "@/shared/contracts";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import { createAgentRegistry } from "@/supervisor/agents/registry";
-import { OrchestratorThreadManager } from "@/supervisor/crossagentMcp/OrchestratorThreadManager";
 import { CrossagentMcpIngress } from "@/supervisor/crossagentMcp/CrossagentMcpIngress";
 import { SubagentRunManager } from "@/supervisor/crossagentMcp/SubagentRunManager";
 import type { SpawnableAgent } from "@/supervisor/crossagentMcp/types";
@@ -81,20 +80,6 @@ describe("Crossagents MCP (live)", () => {
 
     ingress = new CrossagentMcpIngress({
       runManager,
-      orchestrator: new OrchestratorThreadManager({
-        adapters: new Map(),
-        emit: () => {},
-        host: {
-          getParentContext: () => undefined,
-          getThreadState: () => undefined,
-          readThreadHistory: async () => undefined,
-          sendThreadInput: async () => {},
-          interruptThread: async () => {},
-          closeThread: async () => {},
-        },
-        createWorktree: async () => ({ path: "/unused" }),
-        removeWorktree: async () => {},
-      }),
       getSpawnableAgents: async () => spawnable,
       getRoutingGuide: () => ROUTING_GUIDE,
     });

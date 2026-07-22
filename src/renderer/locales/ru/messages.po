@@ -37,6 +37,11 @@ msgstr "(нет сообщения)"
 msgid "{0, plural, one {# candidate} other {# candidates}}"
 msgstr "{0, plural, one {# кандидат} few {# кандидата} many {# кандидатов} other {# кандидата}}"
 
+#. placeholder {0}: state.iterations ?? 0
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "{0, plural, one {# check} other {# checks}}"
+msgstr "{0, plural, one {# проверка} few {# проверки} many {# проверок} other {# проверки}}"
+
 #. placeholder {0}: details.changedFiles
 #. placeholder {0}: entry.files
 #. placeholder {0}: stats.files
@@ -86,8 +91,8 @@ msgstr "{0, plural, one {# инструмент} few {# инструмента} 
 
 #. placeholder {0}: state.iterations ?? 0
 #: src/renderer/components/thread/ThreadGoalDock.tsx
-msgid "{0, plural, one {# turn} other {# turns}}"
-msgstr "{0, plural, one {# ход} few {# хода} many {# ходов} other {# хода}}"
+#~ msgid "{0, plural, one {# turn} other {# turns}}"
+#~ msgstr "{0, plural, one {# ход} few {# хода} many {# ходов} other {# хода}}"
 
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
@@ -1632,6 +1637,7 @@ msgstr "Отменить удаление проекта"
 msgid "cancelled"
 msgstr "отменено"
 
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 msgid "Cancelled"
 msgstr "Отменено"
@@ -3954,6 +3960,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "не удалось"
 
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
@@ -4171,6 +4178,10 @@ msgstr "Первоклассная интеграция Kimi Code CLI с исп�
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Первоклассная интеграция OpenCode с использованием нативной среды выполнения SDK Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Pi integration using a real terminal and Pi's native SDK runtime."
+msgstr "Полноценная интеграция Pi с настоящим терминалом и нативной средой выполнения SDK Pi."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Qoder CLI integration using Poracode's native terminal and ACP runtimes."
@@ -7053,6 +7064,10 @@ msgstr "Ожидающее направление"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "permission"
 msgstr "разрешение"
+
+#: src/renderer/components/providers/pi/manifest.ts
+msgid "Pi"
+msgstr "Pi"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx

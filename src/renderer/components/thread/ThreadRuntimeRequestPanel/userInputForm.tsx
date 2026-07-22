@@ -230,13 +230,23 @@ export function UserInputForm(props: {
   formId: string;
   controller: UserInputFormController;
   isDisabled: boolean;
+  summary?: string;
   onSubmit: (response: unknown, outcome: RequestOutcome) => void;
 }) {
-  const { formId, controller, isDisabled, onSubmit } = props;
+  const { formId, controller, isDisabled, summary, onSubmit } = props;
   const { t } = useLingui();
   const activeQuestion = controller.questions[controller.activeIndex] ?? controller.questions[0];
   if (!activeQuestion) return null;
   const customAnswer = controller.customAnswers[activeQuestion.id] ?? "";
+  // The panel already renders the question as the bold summary/title. Skip a
+  // header/question line here when it only repeats that title or the other line
+  // — e.g. providers (Kimi) that carry a single question with no distinct header
+  // would otherwise show the same sentence three times.
+  const showQuestion = activeQuestion.question !== summary;
+  const showHeader =
+    activeQuestion.header.length > 0 &&
+    activeQuestion.header !== activeQuestion.question &&
+    activeQuestion.header !== summary;
 
   return (
     <form
@@ -248,10 +258,16 @@ export function UserInputForm(props: {
       }}
     >
       <div className="space-y-1">
-        <div>
-          <p className="text-[11px] font-medium text-foreground">{activeQuestion.header}</p>
-          <p className="text-[11px] text-[color:var(--muted)]">{activeQuestion.question}</p>
-        </div>
+        {showHeader || showQuestion ? (
+          <div>
+            {showHeader ? (
+              <p className="text-[11px] font-medium text-foreground">{activeQuestion.header}</p>
+            ) : null}
+            {showQuestion ? (
+              <p className="text-[11px] text-[color:var(--muted)]">{activeQuestion.question}</p>
+            ) : null}
+          </div>
+        ) : null}
         {activeQuestion.options ? (
           <div className="space-y-1">
             <div

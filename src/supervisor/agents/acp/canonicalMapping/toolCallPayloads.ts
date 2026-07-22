@@ -281,6 +281,7 @@ export function applyTerminalToolCallName(
 export function closeOpenTurnItems(state: AcpMapperState): RuntimeEvent[] {
   const events = closeOpenContentItems(state);
   for (const item of state.toolCallItems.values()) {
+    if (item.detached) continue;
     events.push({
       type: "item.completed",
       threadId: state.threadId,

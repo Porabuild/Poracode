@@ -1,4 +1,5 @@
 import type { AgentCapability, PromptSegment, ProjectLocation } from "@/shared/contracts";
+import { compareVersions } from "@/shared/changelog";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
@@ -8,10 +9,10 @@ import {
   type AgentAdapter,
 } from "../base";
 import { probeAntigravityAccount } from "./antigravityAccountProbe";
-import { buildAntigravityArgs, resolveAntigravityModel } from "./argv";
+import { buildAntigravityArgs, buildAntigravityModelArgs } from "./argv";
 import {
   ANTIGRAVITY_DEFAULT_MODEL_ID,
-  antigravityDetectionSpec,
+  createAntigravityDetectionSpec,
   defaultAntigravityCapabilities,
 } from "./detection";
 import {
@@ -25,25 +26,39 @@ import {
   readNewestAntigravityConversationIdAsync,
   resolveAntigravityWatchPaths,
 } from "./session";
-import { detectAntigravityTerminalStatus } from "./terminal";
+import {
+  detectAntigravityTerminalStatus,
+  syncAntigravityConfigFromTerminalState,
+} from "./terminal";
 
 export { detectAntigravityInvalidSessionRef } from "./session";
+
+export function shouldUseAntigravityPrintPty(version: string | undefined): boolean {
+  return !version || compareVersions(version, "1.1.1") < 0;
+}
 
 export function createAntigravityAdapter(): AgentAdapter {
   let capabilities: AgentCapability = defaultAntigravityCapabilities;
   let preSpawnConversationIds = new Set<string>();
   let preSpawnLastConversationForCwd: string | undefined;
   let preSpawnStartedAt = 0;
+  let supportsSeparateModelEffort = false;
+  let usePtyForPrint = true;
+  let defaultModel = ANTIGRAVITY_DEFAULT_MODEL_ID;
+  const detectionSpec = createAntigravityDetectionSpec((probe) => {
+    supportsSeparateModelEffort = probe.dialect.separateModelEffort;
+    defaultModel = probe.capabilities?.models[0]?.id ?? ANTIGRAVITY_DEFAULT_MODEL_ID;
+  });
 
   return {
-    kind: antigravityDetectionSpec.kind,
-    label: antigravityDetectionSpec.label,
-    binary: antigravityDetectionSpec.binary,
+    kind: detectionSpec.kind,
+    label: detectionSpec.label,
+    binary: detectionSpec.binary,
     skillSupport: {
       roots: [
         {
           id: "antigravity",
-          label: antigravityDetectionSpec.label,
+          label: detectionSpec.label,
           globalPath: ".gemini/config/skills",
           projectPath: ".agent/skills",
         },
@@ -58,7 +73,7 @@ export function createAntigravityAdapter(): AgentAdapter {
       projectionRoots: [
         {
           id: "antigravity",
-          label: antigravityDetectionSpec.label,
+          label: detectionSpec.label,
           globalPath: ".gemini/config/skills",
         },
       ],
@@ -68,7 +83,7 @@ export function createAntigravityAdapter(): AgentAdapter {
         project: ["agents", "antigravity"],
       },
     },
-    ...(antigravityDetectionSpec.update ? { update: antigravityDetectionSpec.update } : {}),
+    ...(detectionSpec.update ? { update: detectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
     },
@@ -79,8 +94,12 @@ export function createAntigravityAdapter(): AgentAdapter {
     },
 
     async detectInstall(ctx) {
-      const status = await detectAgentInstall(ctx, antigravityDetectionSpec);
+      const status = await detectAgentInstall(ctx, detectionSpec);
       capabilities = status.capabilities;
+      supportsSeparateModelEffort ||= Boolean(
+        status.version && compareVersions(status.version, "1.1.5") >= 0,
+      );
+      usePtyForPrint = shouldUseAntigravityPrintPty(status.version);
       return status;
     },
 
@@ -113,12 +132,24 @@ export function createAntigravityAdapter(): AgentAdapter {
           locationCwd(location),
         );
       }
-      const args = buildAntigravityArgs(config, prompt);
+      const args = buildAntigravityArgs(
+        config,
+        prompt,
+        undefined,
+        supportsSeparateModelEffort,
+        defaultModel,
+      );
       return { binary: "agy", args };
     },
 
     buildResumeArgv(_location, config, prompt, sessionRef) {
-      const args = buildAntigravityArgs(config, prompt, sessionRef.providerSessionId);
+      const args = buildAntigravityArgs(
+        config,
+        prompt,
+        sessionRef.providerSessionId,
+        supportsSeparateModelEffort,
+        defaultModel,
+      );
       return { binary: "agy", args };
     },
 
@@ -198,10 +229,17 @@ export function createAntigravityAdapter(): AgentAdapter {
       const restStr = rest.map(inlinePromptSegmentText).join("");
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
-    detectTerminalStatus: detectAntigravityTerminalStatus,
+    detectTerminalStatus(text) {
+      return detectAntigravityTerminalStatus(text, capabilities);
+    },
+    syncConfigFromTerminalState(input) {
+      return syncAntigravityConfigFromTerminalState(input, capabilities);
+    },
     detectInvalidSessionRef: detectAntigravityInvalidSessionRef,
 
-    defaultOneShotModel: ANTIGRAVITY_DEFAULT_MODEL_ID,
+    get defaultOneShotModel() {
+      return defaultModel;
+    },
 
     buildOneShotCommand(model, effort, prompt) {
       if (!prompt) return undefined;
@@ -214,10 +252,14 @@ export function createAntigravityAdapter(): AgentAdapter {
       // self-contained, so the working directory is irrelevant to the output.
       return {
         command: "agy",
-        args: ["--model", resolveAntigravityModel(model, effort), "-p", prompt],
+        args: [
+          ...buildAntigravityModelArgs(model, effort, supportsSeparateModelEffort, defaultModel),
+          "-p",
+          prompt,
+        ],
         stdin: "",
         isolateCwd: true,
-        pty: true,
+        ...(usePtyForPrint ? { pty: true } : {}),
       };
     },
 
@@ -227,8 +269,7 @@ export function createAntigravityAdapter(): AgentAdapter {
         args: [
           "--conversation",
           sessionRef.providerSessionId,
-          "--model",
-          resolveAntigravityModel(model),
+          ...buildAntigravityModelArgs(model, undefined, supportsSeparateModelEffort, defaultModel),
           "-p",
           EXTRACTION_PROMPT,
         ],
@@ -246,14 +287,13 @@ export function createAntigravityAdapter(): AgentAdapter {
       return {
         command: "agy",
         args: [
-          "--model",
-          resolveAntigravityModel(model, effort),
+          ...buildAntigravityModelArgs(model, effort, supportsSeparateModelEffort, defaultModel),
           "--dangerously-skip-permissions",
           "-p",
           prompt,
         ],
         stdin: "",
-        pty: true,
+        ...(usePtyForPrint ? { pty: true } : {}),
       };
     },
   };

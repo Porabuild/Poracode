@@ -49,7 +49,7 @@ Every provider is a folder under `src/supervisor/agents/<kind>/` with the same i
 
 Opening two provider folders side-by-side answers "what does this provider do differently" by file-name alignment alone.
 
-Model/effort lists below are the **statically declared defaults**. Several providers ship `models: []` / `efforts: []` and fill them at runtime from a capabilities probe (Codex/Gemini/Copilot/Grok/OpenCode, and Cursor via its CLI `--list-models`) — the listed values are illustrative, not authoritative. Read the provider's `detection.ts` for the live source of truth.
+Model/effort lists below are the **statically declared defaults**. Several providers ship `models: []` / `efforts: []` and fill them at runtime from a capabilities probe (Codex/Gemini/Copilot/Grok/OpenCode/Pi, and Cursor via its CLI `--list-models`) — the listed values are illustrative, not authoritative. Read the provider's `detection.ts` for the live source of truth.
 
 The **Structured Session** column reflects whether the adapter implements `createStructuredSession` (i.e. supports a `"gui"` presentation mode); it is not a model-list default and is authoritative.
 
@@ -62,6 +62,7 @@ The **Structured Session** column reflects whether the adapter implements `creat
 | Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants (probed via `--list-models`) | (embedded in model name)                 | terminal              | Yes (ACP)              |
 | Grok         | grok-build (probed via ACP)                                              | (none)                                   | terminal              | Yes (ACP)              |
 | OpenCode     | (probed dynamically via SDK)                                             | (probed dynamically)                     | terminal / GUI server | Yes (SDK server)       |
+| Pi           | (authenticated models probed via SDK)                                    | off…max, per model                       | terminal              | Yes (native SDK)       |
 | Antigravity  | auto (managed by `agy`)                                                  | (none)                                   | terminal              | No                     |
 | Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                   | (none)                                   | terminal              | No                     |
 
@@ -147,7 +148,9 @@ most often forgotten.
 ### 5. Tests & verification
 
 - [ ] `tests/integration/providers-lifecycle.integration.test.ts` — add a
-      `PREFERRED_MODEL` entry (auto-skips when the CLI is not installed).
+      `PREFERRED_MODEL` entry, or explicitly use its detected-model fallback when
+      the provider has no universally available model (auto-skips when the CLI is
+      not installed).
 - [ ] Run green: `pnpm run typecheck`, `pnpm run lint`, targeted `pnpm exec vitest run`,
       and `pnpm exec oxfmt --check <changed paths>`.
 

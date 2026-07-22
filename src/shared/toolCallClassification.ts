@@ -20,6 +20,19 @@ export function isWorkflowTool(payload: ToolCallPayload | undefined): boolean {
   return payload?.name === "Workflow";
 }
 
+/**
+ * Question tools are interaction plumbing: the canonical request form and the
+ * resulting question_answer item are their user-facing surfaces. Some ACP
+ * agents name the tool only in a later update, so this check also protects
+ * persisted transcripts that already contain the redundant tool row.
+ */
+export function isAskUserQuestionToolName(candidate: unknown): boolean {
+  return (
+    typeof candidate === "string" &&
+    /^(?:ask[_ ]?user[_ ]?question|ask user \d+ questions?)(?::|\b)/iu.test(candidate.trim())
+  );
+}
+
 export function isSubAgentTool(payload: ToolCallPayload | undefined): boolean {
   if (!payload || parseMcpName(payload)) return false;
   if (payload.isCrossagent === true) return false;

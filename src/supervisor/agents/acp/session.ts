@@ -60,6 +60,7 @@ import { buildPromptContentBlocks } from "@/shared/promptContent";
 import {
   closeOpenTurnItems,
   createAcpMapperState,
+  getDetachedSubAgentToolCallIdForNotification,
   mapAcpGoalSlashCommand,
   mapAcpSessionUpdate,
   type AcpMapperState,
@@ -134,6 +135,7 @@ export interface AcpStructuredSessionOptions {
   sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
   /** Paint canonical state for this provider's `/goal` command family. */
   goalCommands?: boolean;
+  extensionSessionUpdateTransform?: import("../base/types").AcpExtensionSessionUpdateTransform;
   /**
    * Vendor ACP extension notifications (e.g. Cursor `cursor/task`) that are
    * not surfaced as standard `session/update` messages.
@@ -151,6 +153,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private emptyResponseErrorResolver?: AcpEmptyResponseErrorResolver;
 
   private sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
+  private extensionSessionUpdateTransform?: import("../base/types").AcpExtensionSessionUpdateTransform;
 
   private readonly goalCommands: boolean;
 
@@ -174,6 +177,16 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private currentAttention: ThreadAttention = "none";
   private spawnReady: Promise<void> = Promise.resolve();
   private currentTurnId: string | undefined;
+  /**
+   * The foreground ACP prompt has returned `end_turn`, but one or more
+   * background subagents launched by that prompt are still active. Keep the
+   * original runtime turn open until their terminal updates arrive so the
+   * renderer does not flash idle and manufacture extra Working/Worked turns.
+   */
+  private foregroundTurnAwaitingSubagents = false;
+  /** Synthetic turn used while a detached subagent reports out of band. */
+  private detachedTurnId: string | undefined;
+  private readonly detachedTurnParentToolCallIds = new Set<string>();
   private stableSessionRef: SessionRef | undefined;
   /**
    * True while a `connection.prompt()` call is in flight (between issue and
@@ -285,6 +298,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.sessionUpdateTransform = options.sessionUpdateTransform;
     }
     this.goalCommands = options?.goalCommands === true;
+    if (options?.extensionSessionUpdateTransform) {
+      this.extensionSessionUpdateTransform = options.extensionSessionUpdateTransform;
+    }
     if (options?.extensionNotificationHandler) {
       this.extensionNotificationHandler = options.extensionNotificationHandler;
     }
@@ -757,15 +773,25 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         });
         if (emptyResponseError) throw emptyResponseError;
       }
-      this.emitTurnStatusAfterPrompt(normalizedStopReason);
-      this.completeTurn(
-        this.ensureMapperState(),
-        this.agentSurfacedErrorMessage
-          ? "failed"
-          : normalizedStopReason === "cancelled"
-            ? "cancelled"
-            : "completed",
-      );
+      const mapperState = this.ensureMapperState();
+      const turnState = this.agentSurfacedErrorMessage
+        ? "failed"
+        : normalizedStopReason === "cancelled"
+          ? "cancelled"
+          : "completed";
+      if (
+        normalizedStopReason === "end_turn" &&
+        turnState === "completed" &&
+        mapperState.activeSubAgents.length > 0
+      ) {
+        this.foregroundTurnAwaitingSubagents = true;
+        // Close the foreground response now, while deliberately preserving
+        // detached subagent tool calls in the mapper until their reports land.
+        this.emitRuntimeEvents(closeOpenTurnItems(mapperState));
+      } else {
+        this.emitTurnStatusAfterPrompt(normalizedStopReason);
+        this.completeTurn(mapperState, turnState);
+      }
     } catch (error) {
       if (this.isDisposed) return;
       if (isAcpPromptCancellationError(error, this.currentTurnInterruptRequested)) {
@@ -784,8 +810,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       // `closeOpenTurnItems`, so any output snapshots from terminals that
       // belonged to this turn are no longer reachable. Drop them so the cache
       // can't grow across a long-lived session.
-      this._terminalManager?.clearReleasedTerminalOutput();
-      this.clearAcpToolCallItemIdMap();
+      if (!this.foregroundTurnAwaitingSubagents) {
+        this.clearCompletedTurnCaches();
+      }
     }
   }
 
@@ -811,7 +838,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // The cancel would land on an idle session and be silently ignored;
     // `startTurn` checks the flag right before awaiting `prompt()` and fires
     // the cancel from there. Mirrors codex/acp.ts:584-599.
-    if (!this.promptInFlight) {
+    if (!this.promptInFlight && !this.foregroundTurnAwaitingSubagents) {
       this.pendingPromptInterrupt = true;
       return;
     }
@@ -820,7 +847,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   forceCompleteTurn(): void {
     if (!this.currentTurnId) return;
+    this.foregroundTurnAwaitingSubagents = false;
     this.completeTurn(this.ensureMapperState(), "cancelled");
+    this.clearCompletedTurnCaches();
   }
 
   async dispose(): Promise<void> {
@@ -962,6 +991,17 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       return;
     }
     if (
+      this.extensionSessionUpdateTransform &&
+      !this.isReplayingHistory &&
+      Date.now() >= (this.replayHistoryUntil || 0)
+    ) {
+      const recovered = this.extensionSessionUpdateTransform(method, params);
+      if (recovered) {
+        this.handleSessionUpdate(recovered);
+        return;
+      }
+    }
+    if (
       this.extensionNotificationHandler &&
       !this.isReplayingHistory &&
       Date.now() >= (this.replayHistoryUntil || 0)
@@ -1048,11 +1088,29 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // in its own DB, so we skip canonical mapping for the replay window to
     // avoid duplicating every message in the chat pane.
     if (!suppressReplayUpdate) {
-      const events = mapAcpSessionUpdate(params, this.ensureMapperState());
+      const mapperState = this.ensureMapperState();
+      const detachedParentToolCallId =
+        !this.promptInFlight && !this.foregroundTurnAwaitingSubagents
+          ? getDetachedSubAgentToolCallIdForNotification(mapperState, update)
+          : undefined;
+      if (detachedParentToolCallId) {
+        this.startDetachedTurn(detachedParentToolCallId);
+      }
+      const events = mapAcpSessionUpdate(params, mapperState);
       this.rememberAcpToolCallItemId(params, events);
       if (events.length > 0) {
         this.recordAgentSurfacedError(events);
         this.emitRuntimeEvents(events);
+      }
+      for (const toolCallId of this.detachedTurnParentToolCallIds) {
+        if (!mapperState.activeSubAgents.some((active) => active.toolCallId === toolCallId)) {
+          this.detachedTurnParentToolCallIds.delete(toolCallId);
+        }
+      }
+      if (this.foregroundTurnAwaitingSubagents && mapperState.activeSubAgents.length === 0) {
+        this.completeForegroundTurnAfterSubagents(mapperState);
+      } else if (this.detachedTurnId && this.detachedTurnParentToolCallIds.size === 0) {
+        this.completeDetachedTurn();
       }
     } else {
       return;
@@ -1129,6 +1187,16 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
   }
 
+  /**
+   * Feed a provider-recovered update through the normal ACP mapping path.
+   * Some ACP adapters can reconstruct notifications that their server omits
+   * from an auxiliary provider-native event log.
+   */
+  ingestExternalSessionUpdate(notification: SessionNotification): void {
+    if (this.isDisposed) return;
+    this.handleSessionUpdate(notification);
+  }
+
   private recordAgentSurfacedError(events: RuntimeEvent[]): void {
     for (const event of events) {
       if (event.type !== "error") continue;
@@ -1153,6 +1221,44 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
     const { status, attention } = this.mapStopReason(normalizedStopReason);
     this.emitListenerUpdate({ status, attention });
+  }
+
+  private startDetachedTurn(parentToolCallId: string): void {
+    this.detachedTurnParentToolCallIds.add(parentToolCallId);
+    if (this.detachedTurnId) return;
+    this.detachedTurnId = `turn-${randomUUID()}`;
+    this.emitRuntimeEvents([
+      { type: "turn.started", threadId: this.threadId, turnId: this.detachedTurnId },
+    ]);
+    this.emitListenerUpdate({ status: "working", attention: "working" });
+  }
+
+  private completeDetachedTurn(): void {
+    if (!this.detachedTurnId) return;
+    this.emitRuntimeEvents([
+      {
+        type: "turn.completed",
+        threadId: this.threadId,
+        turnId: this.detachedTurnId,
+        state: "completed",
+      },
+    ]);
+    this.detachedTurnId = undefined;
+    this.detachedTurnParentToolCallIds.clear();
+    this.emitListenerUpdate({ status: "idle", attention: "none" });
+  }
+
+  private completeForegroundTurnAfterSubagents(mapperState: AcpMapperState): void {
+    if (!this.foregroundTurnAwaitingSubagents) return;
+    this.foregroundTurnAwaitingSubagents = false;
+    this.completeTurn(mapperState, "completed");
+    this.emitListenerUpdate({ status: "idle", attention: "none" });
+    this.clearCompletedTurnCaches();
+  }
+
+  private clearCompletedTurnCaches(): void {
+    this._terminalManager?.clearReleasedTerminalOutput();
+    this.clearAcpToolCallItemIdMap();
   }
 
   private completeTurn(

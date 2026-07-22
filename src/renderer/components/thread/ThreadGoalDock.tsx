@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Tooltip } from "@heroui/react";
-import { CircleCheckBig, Target, X } from "lucide-react";
+import { CircleCheckBig, CircleStop, CircleX, Target, X } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadGoalDockState } from "./threadGoalState";
@@ -27,6 +27,8 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
   const [nowSeconds, setNowSeconds] = useState(() => Date.now() / 1000);
   const isActive = state.status === "active";
   const isComplete = state.status === "complete";
+  const isFailed = state.status === "failed";
+  const isCancelled = state.status === "cancelled";
 
   useEffect(() => {
     const now = Date.now() / 1000;
@@ -43,14 +45,22 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
   const elapsedSeconds = resolveGoalElapsedSeconds(state, nowSeconds, localAnchorSeconds);
   const meta = goalMeta(state, t);
   const elapsedLabel = elapsedSeconds > 0 ? formatElapsed(elapsedSeconds) : null;
-  const evaluatedTurns = state.iterations !== undefined && state.iterations > 0;
+  const evaluationChecks = state.iterations !== undefined && state.iterations > 0;
   const hasMeta = meta.length > 0;
-  const StatusIcon = isComplete ? CircleCheckBig : Target;
+  const StatusIcon = isComplete
+    ? CircleCheckBig
+    : isFailed
+      ? CircleX
+      : isCancelled
+        ? CircleStop
+        : Target;
   const statusIconClass = isComplete
     ? "text-success"
-    : isActive
-      ? "text-white"
-      : "text-foreground-muted";
+    : isFailed
+      ? "text-danger"
+      : isActive
+        ? "text-white"
+        : "text-foreground-muted";
 
   return (
     <ThreadDockSection ariaLabel={t`Thread goal dock`} className="px-2 py-1">
@@ -66,16 +76,18 @@ export function ThreadGoalDock({ state, onDismiss }: ThreadGoalDockProps) {
         <span className="shrink-0 font-semibold text-foreground">
           <Trans>Goal</Trans>
         </span>
-        {hasMeta || evaluatedTurns || elapsedLabel ? (
+        {hasMeta || evaluationChecks || elapsedLabel ? (
           <span className="flex min-w-0 shrink items-center gap-1 text-[0.85em] text-[color:var(--muted)] [font-variant-numeric:tabular-nums]">
             {hasMeta ? <span className="truncate">{meta.join(" · ")}</span> : null}
-            {hasMeta && evaluatedTurns ? <span aria-hidden="true">·</span> : null}
-            {evaluatedTurns ? (
+            {hasMeta && evaluationChecks ? <span aria-hidden="true">·</span> : null}
+            {evaluationChecks ? (
               <span className="shrink-0">
-                <Plural value={state.iterations ?? 0} one="# turn" other="# turns" />
+                <Plural value={state.iterations ?? 0} one="# check" other="# checks" />
               </span>
             ) : null}
-            {(hasMeta || evaluatedTurns) && elapsedLabel ? <span aria-hidden="true">·</span> : null}
+            {(hasMeta || evaluationChecks) && elapsedLabel ? (
+              <span aria-hidden="true">·</span>
+            ) : null}
             {elapsedLabel ? (
               <span className="inline-block shrink-0 text-center" style={{ minWidth: "7ch" }}>
                 {elapsedLabel}
@@ -178,6 +190,10 @@ function goalStatusLabel(status: ThreadGoalDockState["status"], t: TranslateFn):
       return t(msg`Budget limit reached`);
     case "complete":
       return t(msg`Complete`);
+    case "failed":
+      return t(msg`Failed`);
+    case "cancelled":
+      return t(msg`Cancelled`);
   }
 }
 

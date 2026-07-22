@@ -406,6 +406,7 @@ export function ChatPane(props: ChatPaneProps) {
             key={`scroll:${threadId}`}
             ref={scrollControlsRef}
             scrollRef={scrollRef}
+            contentRef={contentRef}
             layoutChangeToken={layoutChangeToken}
             threadId={threadId}
             tailLoaderVisible={showTailLoader}

@@ -37,6 +37,11 @@ msgstr "(keine Nachricht)"
 msgid "{0, plural, one {# candidate} other {# candidates}}"
 msgstr "{0, plural, one {# Kandidat} other {# Kandidaten}}"
 
+#. placeholder {0}: state.iterations ?? 0
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "{0, plural, one {# check} other {# checks}}"
+msgstr "{0, plural, one {# Prüfung} other {# Prüfungen}}"
+
 #. placeholder {0}: details.changedFiles
 #. placeholder {0}: entry.files
 #. placeholder {0}: stats.files
@@ -86,8 +91,8 @@ msgstr "{0, plural, one {# Tool} other {# Tools}}"
 
 #. placeholder {0}: state.iterations ?? 0
 #: src/renderer/components/thread/ThreadGoalDock.tsx
-msgid "{0, plural, one {# turn} other {# turns}}"
-msgstr "{0, plural, one {# Runde} other {# Runden}}"
+#~ msgid "{0, plural, one {# turn} other {# turns}}"
+#~ msgstr "{0, plural, one {# Runde} other {# Runden}}"
 
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
@@ -1632,6 +1637,7 @@ msgstr "Entfernen des Projekts abbrechen"
 msgid "cancelled"
 msgstr "abgebrochen"
 
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 msgid "Cancelled"
 msgstr "Abgebrochen"
@@ -3954,6 +3960,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "fehlgeschlagen"
 
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
@@ -4171,6 +4178,10 @@ msgstr "Erstklassige Kimi Code CLI-Integration mit der nativen Laufzeit von Pora
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "Erstklassige OpenCode-Integration mithilfe der nativen SDK-Laufzeitumgebung von Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Pi integration using a real terminal and Pi's native SDK runtime."
+msgstr "Erstklassige Pi-Integration mit einem echten Terminal und Pis nativer SDK-Laufzeit."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Qoder CLI integration using Poracode's native terminal and ACP runtimes."
@@ -7053,6 +7064,10 @@ msgstr "Ausstehende Lenkung"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "permission"
 msgstr "Berechtigung"
+
+#: src/renderer/components/providers/pi/manifest.ts
+msgid "Pi"
+msgstr "Pi"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx

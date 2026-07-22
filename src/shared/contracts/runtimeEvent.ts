@@ -97,7 +97,14 @@ export const planItemPayloadSchema = z.object({
 });
 export type PlanItemPayload = z.infer<typeof planItemPayloadSchema>;
 
-export const goalStatusSchema = z.enum(["active", "paused", "budget_limited", "complete"]);
+export const goalStatusSchema = z.enum([
+  "active",
+  "paused",
+  "budget_limited",
+  "complete",
+  "failed",
+  "cancelled",
+]);
 export type GoalStatus = z.infer<typeof goalStatusSchema>;
 
 export const goalItemPayloadSchema = z.object({

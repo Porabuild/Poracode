@@ -886,7 +886,7 @@ describe("ThreadComposerSection", () => {
         [guiThread.id]: {
           id: "pending-1",
           prompt: "Actually inspect the diff first",
-          stagedAt: Date.now(),
+          stagedAt: Date.now() - 2_000,
         },
       },
     });

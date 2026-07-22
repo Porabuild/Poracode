@@ -2,6 +2,7 @@ import {
   closeDatabase,
   dbDeleteThread,
   dbGetProject,
+  dbGetProjectNotes,
   dbGetProjects,
   dbGetThread,
   dbGetThreads,
@@ -13,7 +14,11 @@ import {
   initDatabase,
 } from "@/main/db";
 import { preparePoracodeDataRoot } from "@/main/poracodeData";
-import { patchSharedSettingsFile, readSharedSettingsFile } from "@/main/sharedSettingsFile";
+import {
+  patchSharedSettingsFile,
+  readSharedSettingsFile,
+  writeSharedSettingsFile,
+} from "@/main/sharedSettingsFile";
 import { SupervisorClient } from "@/main/supervisor/SupervisorClient";
 import {
   createPersistentRemoteAuthStore,
@@ -34,14 +39,18 @@ import {
 } from "@/main/remote/config";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
-import { pickRemoteSettings } from "@/shared/remote";
+import { pickRemoteSettings, remoteProjectCommandResultSchema } from "@/shared/remote";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import {
   createDeviceScheduleService,
   ensureHomeProjectRow,
   ScheduleRunCoordinator,
 } from "@/main/schedules";
-import { AppControlsMcpIngress } from "@/main/app-controls";
+import {
+  AppControlsMcpIngress,
+  buildSharedAppControlsIngressDeps,
+  createAppControlsSupervisorCaller,
+} from "@/main/app-controls";
 import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
 
 /**
@@ -191,6 +200,7 @@ export async function createHeadlessRemoteHost(
     ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
     onEvent: (event) => {
       options.onSupervisorEvent?.(event);
+      appControlsMcpIngress?.observeSupervisorEvent(event);
       scheduleRunCoordinator?.observeSupervisorEvent(event);
       serverRef?.publishSupervisorEvent(event);
       pushCoordinator.handleSupervisorEvent(event);
@@ -222,7 +232,61 @@ export async function createHeadlessRemoteHost(
     onStartupInterrupted: (scheduleId) =>
       dbInterruptScheduleRuns(scheduleId, new Date().toISOString()),
   });
-  appControlsMcpIngress = new AppControlsMcpIngress(scheduleService, dbGetThread);
+  const publishHeadlessProjectsChanged = (): void => {
+    serverRef?.publishSupervisorEvent({
+      type: "remote-projects-changed",
+      projects: remoteProjectCommandResultSchema.parse({ projects: dbGetProjects() }).projects,
+    });
+  };
+  appControlsMcpIngress = new AppControlsMcpIngress({
+    scheduleService,
+    getThread: dbGetThread,
+    getThreads: () => dbGetThreads(),
+    getProjects: () => dbGetProjects(),
+    getProject: dbGetProject,
+    getProjectNotes: dbGetProjectNotes,
+    ...buildSharedAppControlsIngressDeps({
+      call: (name, payload) => supervisorClient.call(name, payload),
+      // Headless has no desktop renderer to mirror to; the DB thread row is the
+      // source of truth and connected remote clients pick it up.
+      sendThreadCommand: () => false,
+      getSharedSettings,
+      publishProjectsChanged: publishHeadlessProjectsChanged,
+    }),
+    settings: {
+      read: () => readSharedSettingsFile(paths.settingsPath),
+      // Headless has no desktop renderer to notify; connected remote clients
+      // re-read settings on their next request. The DB/settings file is the
+      // source of truth.
+      write: (next) => writeSharedSettingsFile(paths.settingsPath, next),
+    },
+    getAppInfo: () => ({
+      version: options.appVersion,
+      platform: process.platform,
+      hasRendererWindow: false,
+    }),
+    supervisor: createAppControlsSupervisorCaller((name, payload) =>
+      supervisorClient.call(name, payload),
+    ),
+    // No renderer headless: metadata mutations and UI focus route through the
+    // desktop store, which isn't present here. `emitRemoteThreadCommand` reports
+    // `false` so the tool falls back to writing the DB row directly (the
+    // headless source of truth); `openThreadInUi` reports `false` (nothing to
+    // focus). Connected remote clients pick up the DB change on their next poll.
+    emitRemoteThreadCommand: () => false,
+    openThreadInUi: () => false,
+    // The headless host has no display and no auto-updater, so both report an
+    // honest not-available result instead of silently succeeding.
+    notifyUser: () => ({
+      delivered: false,
+      note: "No Poracode desktop app is connected, so no OS notification could be shown.",
+    }),
+    checkForUpdate: async () => ({
+      supported: false,
+      currentVersion: options.appVersion,
+      note: "Update checks are not available on the headless server; update the host from the desktop app.",
+    }),
+  });
 
   // In dev, advertise loopback by default so the iOS simulator's WebView can
   // reach the server (iOS ATS `NSAllowsLocalNetworking` permits loopback but not

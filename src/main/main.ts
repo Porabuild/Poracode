@@ -15,6 +15,7 @@ import {
   closeDatabase,
   dbDeleteThread,
   dbGetProject,
+  dbGetProjectNotes,
   dbGetProjects,
   dbGetThread,
   dbGetThreads,
@@ -26,7 +27,6 @@ import {
   onProjectThreadDataChanged,
 } from "./db";
 import { cleanupOrphanedAttachments, preparePoracodeDataRoot } from "./poracodeData";
-import { handleOrchestratorThreadCreated } from "./orchestratorThreadBridge";
 import { createLocalIpcHandlers, showAddFilesDialog } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
 import { createSleepInhibitor } from "./sleepInhibitor";
@@ -50,6 +50,7 @@ import {
 } from "./computer-use";
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
+import { showOsNotification } from "./osNotifications";
 import { createMainWindow } from "./window/createMainWindow";
 import {
   createQuickComposerWindow,
@@ -70,9 +71,12 @@ import {
   quickComposerSubmissionSchema,
   type QuickComposerSubmission,
   type SupervisorEvent,
+  type UpdateStatus,
 } from "@/shared/ipc";
 import type { SharedSettings } from "@/shared/settings";
-import { readSharedSettingsFile } from "./sharedSettingsFile";
+import type { RemoteThreadCommand } from "@/shared/contracts";
+import { readSharedSettingsFile, writeSharedSettingsFile } from "./sharedSettingsFile";
+import { remoteProjectCommandResultSchema } from "@/shared/remote";
 import { WindowsJobObjectManager } from "./windowsJobObject";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
@@ -84,7 +88,11 @@ import {
   ensureHomeProjectRow,
   ScheduleRunCoordinator,
 } from "./schedules";
-import { AppControlsMcpIngress } from "./app-controls";
+import {
+  AppControlsMcpIngress,
+  buildSharedAppControlsIngressDeps,
+  createAppControlsSupervisorCaller,
+} from "./app-controls";
 import { legacyProductNameFor, resolveLegacyElectronUserDataDir } from "./legacyDataMigration";
 import { refreshMacDockIcon } from "./macDockIcon";
 import { repairLegacyMacAppPath } from "./macAppPathMigration";
@@ -689,21 +697,9 @@ if (!hasSingleInstanceLock) {
           captureMainException(error, tags);
         },
         onEvent: (event) => {
-          // Orchestrator create_thread requests are consumed here (DB upsert,
-          // renderer mirror, startThread call-back) and never fanned out.
-          if (event.type === "orchestrator-thread-created") {
-            void handleOrchestratorThreadCreated(event, {
-              startThread: (payload) => supervisorClient.call("startThread", payload),
-              sendThreadCommand: (command) => {
-                if (!mainWindow) return false;
-                mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
-                return true;
-              },
-            });
-            return;
-          }
           persistSupervisorEvent(event);
           handleSupervisorEventForSleep(event);
+          appControlsMcpIngress?.observeSupervisorEvent(event);
           scheduleRunCoordinator?.observeSupervisorEvent(event);
           remoteAccessController?.handleSupervisorEvent(event);
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
@@ -712,30 +708,6 @@ if (!hasSingleInstanceLock) {
         onReset: () => {
           workingThreads.clear();
           updatePowerSaveBlocker();
-        },
-        // A fresh supervisor process has an empty orchestrator child registry;
-        // push the persisted child rows back so Crossagents `get_thread` /
-        // `list_threads` keep resolving children created before the restart.
-        onStarted: () => {
-          const children = dbGetThreads().filter(
-            (thread) => thread.parentThreadId && !thread.archived,
-          );
-          if (children.length === 0) return;
-          void supervisorClient
-            .call("seedOrchestratorChildren", {
-              children: children.map((thread) => ({
-                threadId: thread.id,
-                parentThreadId: thread.parentThreadId!,
-                agentKind: thread.agentKind,
-                title: thread.title,
-                ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-                ...(thread.worktreeBranch ? { worktreeBranch: thread.worktreeBranch } : {}),
-                createdAt: thread.createdAt,
-              })),
-            })
-            .catch((error) => {
-              console.warn("[main] failed to seed orchestrator child threads:", error);
-            });
         },
       });
       const scheduleCoordinator = new ScheduleRunCoordinator({
@@ -761,10 +733,89 @@ if (!hasSingleInstanceLock) {
         onStartupInterrupted: (scheduleId) =>
           dbInterruptScheduleRuns(scheduleId, new Date().toISOString()),
       });
-      appControlsMcpIngress = new AppControlsMcpIngress(scheduleService, dbGetThread);
+      const emitRemoteThreadCommand = (command: RemoteThreadCommand): boolean => {
+        if (!mainWindow) return false;
+        mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
+        return true;
+      };
+      const publishProjectsChanged = (): void => {
+        const projects = dbGetProjects();
+        remoteAccessController?.getServer()?.publishSupervisorEvent({
+          type: "remote-projects-changed",
+          projects: remoteProjectCommandResultSchema.parse({ projects }).projects,
+        });
+        mainWindow?.webContents.send(IPC_EVENT_CHANNELS.projectStateChanged, { projects });
+      };
+      // Latest updater status, captured from the auto-updater's status stream so
+      // the app-controls `check_for_update` tool can report the most recent
+      // result (the check itself is fire-and-forget and event-driven).
+      let lastUpdateStatus: UpdateStatus | null = null;
+      appControlsMcpIngress = new AppControlsMcpIngress({
+        scheduleService,
+        getThread: dbGetThread,
+        getThreads: dbGetThreads,
+        getProjects: dbGetProjects,
+        getProject: dbGetProject,
+        getProjectNotes: dbGetProjectNotes,
+        ...buildSharedAppControlsIngressDeps({
+          call: (name, payload) => supervisorClient.call(name, payload),
+          // The desktop mirrors thread commands to its renderer store.
+          sendThreadCommand: emitRemoteThreadCommand,
+          getSharedSettings: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
+          publishProjectsChanged,
+        }),
+        settings: {
+          read: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
+          write: (next) => {
+            writeSharedSettingsFile(requirePoracodePaths().settingsPath, next);
+            updatePowerSaveBlocker();
+            handleSharedSettingsChanged(next);
+            mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, next);
+          },
+        },
+        getAppInfo: () => ({
+          version: app.getVersion(),
+          platform: process.platform,
+          hasRendererWindow: mainWindow !== null && !mainWindow.isDestroyed(),
+        }),
+        supervisor: createAppControlsSupervisorCaller((name, payload) =>
+          supervisorClient.call(name, payload),
+        ),
+        emitRemoteThreadCommand,
+        // The desktop always has (or ensures) a main window to open into.
+        openThreadInUi: (threadId) => {
+          openThreadFromTray(threadId);
+          return true;
+        },
+        notifyUser: ({ title, body, threadId }) => {
+          const delivered = showOsNotification({ title, body, threadId }, () => mainWindow);
+          return delivered
+            ? { delivered: true }
+            : {
+                delivered: false,
+                note: "The operating system did not show the notification (notifications may be unsupported or disabled).",
+              };
+        },
+        checkForUpdate: async () => {
+          await autoUpdaterController.checkForUpdate();
+          const status = lastUpdateStatus;
+          const availableVersion =
+            status && (status.type === "update-available" || status.type === "downloaded")
+              ? status.version
+              : undefined;
+          return {
+            supported: true,
+            currentVersion: app.getVersion(),
+            ...(status ? { status: status.type } : {}),
+            ...(availableVersion ? { availableVersion } : {}),
+            note: "A background update check was triggered; its result surfaces in the app's update UI. status/availableVersion reflect the most recent known check, which may predate this call.",
+          };
+        },
+      });
 
       const autoUpdaterController = createAutoUpdaterController(
         (status) => {
+          lastUpdateStatus = status;
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.updateStatus, status);
         },
         channel,

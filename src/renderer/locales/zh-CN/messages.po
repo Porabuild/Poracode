@@ -37,6 +37,11 @@ msgstr "（没有消息）"
 msgid "{0, plural, one {# candidate} other {# candidates}}"
 msgstr "{0, plural, one {# 个候选项} other {# 个候选项}}"
 
+#. placeholder {0}: state.iterations ?? 0
+#: src/renderer/components/thread/ThreadGoalDock.tsx
+msgid "{0, plural, one {# check} other {# checks}}"
+msgstr "{0, plural, other {# 次检查}}"
+
 #. placeholder {0}: details.changedFiles
 #. placeholder {0}: entry.files
 #. placeholder {0}: stats.files
@@ -86,8 +91,8 @@ msgstr "{0, plural, one {# 个工具} other {# 个工具}}"
 
 #. placeholder {0}: state.iterations ?? 0
 #: src/renderer/components/thread/ThreadGoalDock.tsx
-msgid "{0, plural, one {# turn} other {# turns}}"
-msgstr "{0, plural, other {# 轮}}"
+#~ msgid "{0, plural, one {# turn} other {# turns}}"
+#~ msgstr "{0, plural, other {# 轮}}"
 
 #. placeholder {0}: candidates.length
 #: src/renderer/components/experiment/NewExperimentModal.tsx
@@ -1632,6 +1637,7 @@ msgstr "取消移除项目"
 msgid "cancelled"
 msgstr "已取消"
 
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 msgid "Cancelled"
 msgstr "已取消"
@@ -3954,6 +3960,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "失败了"
 
+#: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Failed"
@@ -4171,6 +4178,10 @@ msgstr "使用 Poracode 的本机运行时进行一流的 Kimi Code CLI 集成�
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
 msgstr "使用 Poracode 的本机 SDK 运行时进行一流的 OpenCode 集成。"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Pi integration using a real terminal and Pi's native SDK runtime."
+msgstr "使用真实终端和 Pi 原生 SDK 运行时的完整 Pi 集成。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Qoder CLI integration using Poracode's native terminal and ACP runtimes."
@@ -7052,6 +7063,10 @@ msgstr "等待引导"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PermissionDetailsLine.tsx
 msgid "permission"
 msgstr "权限"
+
+#: src/renderer/components/providers/pi/manifest.ts
+msgid "Pi"
+msgstr "Pi"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/views/ThreadView.tsx

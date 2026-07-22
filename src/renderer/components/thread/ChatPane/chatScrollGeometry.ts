@@ -120,7 +120,9 @@ export function shouldIgnoreProgrammaticPinScroll(input: {
  * not release sticky — those are filtered via `scrollHeightShrunk`. Height
  * growth can also make the virtualizer adjust scrollTop upward while it
  * preserves its visible-content anchor. Treat that as layout-driven unless a
- * wheel/touch/pointer gesture already established user intent. A native
+ * wheel/touch/pointer gesture already established user intent. The same is true
+ * when a growing composer shrinks the viewport and the virtualizer compensates
+ * its anchor before ResizeObserver re-pins the tail. A native
  * scrollbar drag that emits no pointer event still releases on its next
  * stable-height scroll event. LegendList can also move scrollTop before the
  * browser exposes the corresponding scrollHeight change, so its explicit
@@ -134,11 +136,13 @@ export function shouldReleaseStickToBottom(input: {
   isProgrammaticScroll: boolean;
   scrollHeightShrunk: boolean;
   scrollHeightGrew: boolean;
+  viewportHeightChanged: boolean;
   isVirtualizerLayoutChange: boolean;
   hasRecentUserScrollIntent: boolean;
 }): boolean {
   if (input.isProgrammaticScroll) return false;
   if (input.scrollHeightShrunk) return false;
+  if (input.viewportHeightChanged && !input.hasRecentUserScrollIntent) return false;
   if (input.isVirtualizerLayoutChange && !input.hasRecentUserScrollIntent) return false;
   if (input.scrollHeightGrew && !input.hasRecentUserScrollIntent) return false;
   return input.nextScrollTop < input.prevScrollTop && !input.isAtBottom;

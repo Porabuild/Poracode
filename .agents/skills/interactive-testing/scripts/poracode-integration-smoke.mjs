@@ -1344,6 +1344,7 @@ async function runMockGate(client, gate, fixture) {
         cursor: "slash",
         grok: "slash",
         antigravity: "prompt",
+        pi: "skill",
       };
       for (const [agentKind, invocation] of Object.entries(expected)) {
         const result = await bridgeInvoke(client, "scanSkills", {

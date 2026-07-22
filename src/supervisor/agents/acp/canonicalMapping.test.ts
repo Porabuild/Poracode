@@ -6,6 +6,10 @@ import {
   mapAcpGoalSlashCommand,
   mapAcpPermissionRequest,
   mapAcpSessionUpdate,
+  PORACODE_ACP_GOAL_META_KEY,
+  PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY,
+  PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
+  PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "./canonicalMapping";
 
 /**
@@ -21,6 +25,127 @@ function note(update: SessionNotification["update"]): SessionNotification {
 }
 
 describe("mapAcpSessionUpdate", () => {
+  it("maps provider-normalized ACP goal metadata independently from empty text boundaries", () => {
+    const state = createAcpMapperState("t-goal");
+    const set = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "" },
+        _meta: {
+          [PORACODE_ACP_GOAL_META_KEY]: {
+            action: "set",
+            objective: "Ship ACP goal support",
+            status: "active",
+            timeUsedSeconds: 0,
+            updatedAt: 1_784_627_753.997,
+          },
+        },
+      } as SessionNotification["update"]),
+      state,
+    );
+    expect(set).toEqual([
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "goal",
+        payload: expect.objectContaining({
+          action: "set",
+          objective: "Ship ACP goal support",
+          status: "active",
+        }),
+      }),
+      expect.objectContaining({ type: "item.completed" }),
+    ]);
+    expect(state.openAssistantItemId).toBeUndefined();
+    const goalItemId = state.goalItemId;
+    expect(goalItemId).toBeDefined();
+
+    const checking = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "" },
+        _meta: {
+          [PORACODE_ACP_GOAL_META_KEY]: {
+            action: "updated",
+            objective: "Ship ACP goal support",
+            status: "active",
+            iterations: 2,
+            lastReason: "One test remains",
+          },
+        },
+      } as SessionNotification["update"]),
+      state,
+    );
+    expect(checking).toEqual([
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: goalItemId,
+        payload: expect.objectContaining({ iterations: 2, lastReason: "One test remains" }),
+      }),
+      expect.objectContaining({ type: "item.completed", itemId: goalItemId }),
+    ]);
+
+    const terminal = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "" },
+        _meta: {
+          [PORACODE_ACP_GOAL_META_KEY]: {
+            action: "updated",
+            objective: "Ship ACP goal support",
+            status: "failed",
+            lastReason: "The provider stopped the goal",
+          },
+        },
+      } as SessionNotification["update"]),
+      state,
+    );
+    expect(terminal[0]).toMatchObject({
+      type: "item.updated",
+      itemId: goalItemId,
+      payload: { status: "failed" },
+    });
+    expect(state.goalItemId).toBeUndefined();
+  });
+
+  it("clears an active canonical ACP goal item", () => {
+    const state = createAcpMapperState("t-goal-clear");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "" },
+        _meta: {
+          [PORACODE_ACP_GOAL_META_KEY]: {
+            action: "set",
+            objective: "Temporary goal",
+            status: "active",
+          },
+        },
+      } as SessionNotification["update"]),
+      state,
+    );
+    const goalItemId = state.goalItemId;
+
+    const cleared = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "" },
+        _meta: {
+          [PORACODE_ACP_GOAL_META_KEY]: {
+            action: "cleared",
+            objective: "Temporary goal",
+          },
+        },
+      } as SessionNotification["update"]),
+      state,
+    );
+    expect(cleared[0]).toMatchObject({
+      type: "item.updated",
+      itemId: goalItemId,
+      payload: { action: "cleared" },
+    });
+    expect(state.goalItemId).toBeUndefined();
+  });
+
   it("opens an assistant_message on first agent_message_chunk and streams deltas", () => {
     const state = createAcpMapperState("t-1");
 
@@ -1441,6 +1566,36 @@ describe("mapAcpSessionUpdate", () => {
     expect(outerStart?.parentItemId).toBe(outerItemId);
   });
 
+  it("keeps explicitly top-level concurrent subagents as siblings", () => {
+    const state = createAcpMapperState("t-sibling-subagents");
+    const first = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-sibling-a",
+        title: "Sibling A",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore" },
+        _meta: { [PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY]: true },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const second = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-sibling-b",
+        title: "Sibling B",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore" },
+        _meta: { [PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY]: true },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    expect(first[0]).not.toHaveProperty("parentItemId");
+    expect(second[0]).not.toHaveProperty("parentItemId");
+    expect(state.activeSubAgents).toHaveLength(2);
+  });
+
   it("clears inferred ACP subagent parents at turn end", () => {
     const state = createAcpMapperState("t-subagent-reset");
     mapAcpSessionUpdate(
@@ -1527,6 +1682,127 @@ describe("mapAcpSessionUpdate", () => {
       itemId: goalItemId,
       payload: { action: "cleared" },
     });
+  });
+
+  it("preserves detached subagents across a foreground turn boundary", () => {
+    const state = createAcpMapperState("t-detached-subagent");
+    const started = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-detached",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: {
+          _toolName: "task",
+          subagent_type: "Explore",
+          description: "Inspect mapping",
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const parentItemId = (started[0] as { itemId: string }).itemId;
+
+    const detachedProgress = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-detached",
+        title: "Launching background Explore agent: Inspect mapping",
+        status: "in_progress",
+        rawInput: {
+          _toolName: "task",
+          subagent_type: "Explore",
+          description: "Inspect mapping",
+          background: true,
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(detachedProgress).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "assistant_message",
+        parentItemId,
+      }),
+    );
+
+    expect(closeOpenTurnItems(state)).toEqual([]);
+    expect(state.toolCallItems.get("tc-detached")?.itemId).toBe(parentItemId);
+    expect(state.activeSubAgents).toEqual([
+      { toolCallId: "tc-detached", itemId: parentItemId, hasChildActivity: true },
+    ]);
+
+    const nextForegroundTurn = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "A separate foreground reply" },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(nextForegroundTurn[0]).not.toHaveProperty("parentItemId");
+    closeOpenTurnItems(state);
+
+    const child = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "Detached result" },
+        _meta: { poracodeParentToolCallId: "tc-detached" },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(child[0]).toMatchObject({
+      type: "item.started",
+      itemType: "assistant_message",
+      parentItemId,
+    });
+
+    const parentReply = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "Main agent summary" },
+        _meta: {
+          [PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY]: true,
+          [PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY]: "tc-detached",
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const parentReplyStart = parentReply.find((event) => event.type === "item.started");
+    expect(parentReplyStart).toMatchObject({
+      type: "item.started",
+      itemType: "assistant_message",
+    });
+    expect(parentReplyStart).not.toHaveProperty("parentItemId");
+
+    const completed = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-detached",
+        status: "completed",
+        rawInput: {
+          _toolName: "task",
+          subagent_type: "Explore",
+          description: "Inspect mapping",
+          background: true,
+        },
+        rawOutput: "Detached result",
+        _meta: {
+          [PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY]: "tc-detached",
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(completed.map((event) => event.type)).toEqual([
+      "item.completed",
+      "item.completed",
+      "item.completed",
+    ]);
+    expect(
+      completed.find((event) => "itemId" in event && event.itemId === parentItemId),
+    ).toMatchObject({
+      itemId: parentItemId,
+      payload: { result: "Detached result" },
+    });
+    expect(state.activeSubAgents).toEqual([]);
   });
 
   it("uses update metadata to heal a missing file_change path", () => {

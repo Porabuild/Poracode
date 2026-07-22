@@ -12,6 +12,7 @@ import {
 } from "./procedureMap";
 import type {
   BrowserEvent,
+  ProjectStateChangedEvent,
   SupervisorEvent,
   ThreadOpenRequestedEvent,
   UpdateStatus,
@@ -57,6 +58,7 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   onRemoteThreadCommand(listener: (command: RemoteThreadCommand) => void): () => void;
   /** Shared settings rewritten outside this renderer (e.g. by a remote client). */
   onSharedSettingsChanged(listener: (settings: SharedSettings) => void): () => void;
+  onProjectStateChanged(listener: (event: ProjectStateChangedEvent) => void): () => void;
   onThreadOpenRequested(listener: (event: ThreadOpenRequestedEvent) => void): () => void;
   submitQuickComposer(submission: QuickComposerSubmission): Promise<void>;
   dismissQuickComposer(): Promise<void>;
@@ -117,6 +119,7 @@ export const IPC_EVENT_CHANNELS = {
   browserEvent: createChannel("browserEvent"),
   remoteThreadCommand: createChannel("remoteThreadCommand"),
   sharedSettingsChanged: createChannel("sharedSettingsChanged"),
+  projectStateChanged: createChannel("projectStateChanged"),
   threadOpenRequested: createChannel("threadOpenRequested"),
   quickComposerSubmit: createChannel("quickComposerSubmit"),
   quickComposerDismissRequested: createChannel("quickComposerDismissRequested"),

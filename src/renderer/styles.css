@@ -642,8 +642,8 @@
 
 .toast__title,
 .toast__description {
-  overflow-wrap: anywhere;
-  word-break: break-all;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .lc-toast__title {
@@ -1341,6 +1341,13 @@ html[data-native-material="on"] .poracode-shell {
 }
 html[data-native-material="on"] .poracode-shell main {
   background: var(--content-background);
+}
+html[data-sidebar-glass="on"][data-theme="dark"]
+  .poracode-sidebar-aside:not(.poracode-sidebar-aside--overlay) {
+  /* The regular dark-theme active wash is intentionally strong on opaque
+     lists. On glass it reads as a bright solid slab, so let more of the
+     sidebar material show through while retaining separation from hover. */
+  --row-active: color-mix(in oklab, var(--foreground) 12%, transparent);
 }
 /* Faint tint so sidebar text/icons stay legible over the live OS blur. The
    sidebar header (shared .poracode-overlay-header class) is forced transparent
@@ -3402,12 +3409,12 @@ html[data-platform="darwin"] .poracode-sidebar-project-nudge {
 .lc-chat-markdown ol {
   list-style: decimal outside;
   padding-left: 1.5em;
-  margin: 0.25em 0;
+  margin: 0.1em 0 0.75em;
 }
 .lc-chat-markdown ul {
   list-style: disc outside;
   padding-left: 1.5em;
-  margin: 0.25em 0;
+  margin: 0.1em 0 0.75em;
 }
 .lc-chat-markdown li {
   /* Streamdown's default <li> ships a `py-1` utility; margins alone don't
@@ -3436,7 +3443,7 @@ html[data-platform="darwin"] .poracode-sidebar-project-nudge {
 }
 .lc-chat-markdown p + ol,
 .lc-chat-markdown p + ul {
-  margin-top: 0.15em;
+  margin-top: 0.1em;
 }
 .lc-chat-markdown > :first-child,
 .lc-chat-markdown > :first-child > :first-child {
@@ -3679,9 +3686,9 @@ html[data-poracode-drag-active="true"] [data-poracode-chat-scroller="true"] {
   pointer-events: none;
 }
 
-/* HeroUI's tooltip.css sets `word-break: break-all`, which splits words
+/* HeroUI's `.tooltip` base sets `word-break: break-all`, which splits words
    mid-word ("lis t/paragraph"). Break only tokens that cannot fit otherwise. */
-.tooltip__content {
+.tooltip {
   word-break: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }

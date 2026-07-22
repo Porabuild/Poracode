@@ -5,7 +5,11 @@ import {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import type { MessageItemPayload, ToolCallPayload } from "@/shared/contracts";
-import { isCrossagentRunAgentTool, isDelegatedAgentTool } from "@/shared/toolCallClassification";
+import {
+  isAskUserQuestionToolName,
+  isCrossagentRunAgentTool,
+  isDelegatedAgentTool,
+} from "@/shared/toolCallClassification";
 import { imageViewRendersInline } from "./parts/items/imageViewSource";
 import {
   getToolLikePayload,
@@ -267,6 +271,13 @@ function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
   }
   if (isToolLikeItem(item)) {
     const payload = getToolLikePayload(item);
+    // AskUserQuestion is rendered as the blocking request form while open and
+    // as a question_answer row after submission. ACP providers may reveal the
+    // tool name only on a later update, so filter it here as a final defense
+    // against both live races and already-persisted redundant rows.
+    if (isAskUserQuestionToolName(payload?.name) || isAskUserQuestionToolName(payload?.title)) {
+      return false;
+    }
     // Successful Crossagents runs render as the richer delegated-agent row.
     // Keep failed transport calls visible because they may have no delegated row.
     if (payload?.status !== "error" && isCrossagentRunAgentTool(payload)) return false;

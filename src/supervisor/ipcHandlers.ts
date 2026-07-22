@@ -45,9 +45,6 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     getThreadSnapshots: () => threads.getThreadSnapshots(),
     startThread: (payload) => threads.startThread(payload),
     sendThreadInput: (payload) => threads.sendThreadInput(payload),
-    seedOrchestratorChildren: async (payload) => {
-      runtime.seedOrchestratorChildren(payload);
-    },
     interruptThread: (payload) => threads.interruptThread(payload),
     rollbackThreadConversation: (payload) => threads.rollbackThreadConversation(payload),
     setPendingSteer: (payload) => threads.setPendingSteer(payload),

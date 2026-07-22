@@ -307,6 +307,47 @@ describe("chatPaneSelectors", () => {
     ]);
   });
 
+  it("hides AskUserQuestion tool rows after a late ACP name update", () => {
+    const itemIds = ["assistant-1", "tool-question", "answer-1"];
+    const state = {
+      runtimeItemIdsByThread: { question: itemIds },
+      runtimeItemsByIdByThread: {
+        question: {
+          "assistant-1": {
+            id: "assistant-1",
+            type: "assistant_message",
+            state: "completed",
+            streams: { assistant_text: "Choose one" },
+          },
+          "tool-question": {
+            id: "tool-question",
+            type: "tool_call",
+            state: "completed",
+            payload: { name: "AskUserQuestion", title: "AskUserQuestion", status: "success" },
+            streams: {},
+          },
+          "answer-1": {
+            id: "answer-1",
+            type: "question_answer",
+            state: "completed",
+            payload: { questions: [] },
+            streams: {},
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { question: 1 },
+    } as unknown as AppStoreState;
+
+    expect(selectVisibleThreadRuntimeItemIds(state, "question")).toEqual([
+      "assistant-1",
+      "answer-1",
+    ]);
+    expect(selectVisibleThreadTimelineEntries(state, "question")).toEqual([
+      { kind: "item", id: "assistant-1" },
+      { kind: "item", id: "answer-1" },
+    ]);
+  });
+
   it("groups adjacent tool calls into one timeline entry", () => {
     const state = {
       runtimeItemIdsByThread: {

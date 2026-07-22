@@ -6,7 +6,12 @@ import {
   type RequestPermissionRequest,
   type RequestPermissionResponse,
 } from "@agentclientprotocol/sdk";
-import type { RuntimeEvent, ThreadConfig, ThreadServerRequestId } from "@/shared/contracts";
+import type {
+  RequestOutcome,
+  RuntimeEvent,
+  ThreadConfig,
+  ThreadServerRequestId,
+} from "@/shared/contracts";
 import {
   mapAcpElicitationRequest,
   mapAcpPermissionRequest,
@@ -28,7 +33,7 @@ import {
   parseAcpPermissionQuestions,
 } from "./acpQuestionPermissions";
 
-type RequestAttention = "needs_approval" | "needs_reply";
+type RequestAttention = "needs_approval" | "needs_reply" | "working";
 
 interface AcpSessionRequestsOptions {
   threadId: string;
@@ -146,14 +151,7 @@ export class AcpSessionRequests {
     const requestId = this.pendingElicitationRequestIdsByElicitationId.get(params.elicitationId);
     if (!requestId) return;
     if (this.resolvePendingElicitationRequest(requestId, { action: "accept" })) {
-      this.options.emitRuntimeEvents([
-        {
-          type: "request.resolved",
-          threadId: this.options.threadId,
-          requestId: String(requestId),
-          outcome: "answered",
-        },
-      ]);
+      this.emitResolvedAndResume(requestId, "answered");
     }
   }
 
@@ -162,26 +160,15 @@ export class AcpSessionRequests {
     if (permissionResolver) {
       this.pendingPermissionResolvers.delete(requestId);
       permissionResolver.resolve(response);
-      this.options.emitRuntimeEvents([
-        {
-          type: "request.resolved",
-          threadId: this.options.threadId,
-          requestId: String(requestId),
-          outcome: permissionResolver.isQuestion ? "answered" : permissionOutcome(response),
-        },
-      ]);
+      this.emitResolvedAndResume(
+        requestId,
+        permissionResolver.isQuestion ? "answered" : permissionOutcome(response),
+      );
       return true;
     }
     const resolved = this.resolvePendingElicitationRequest(requestId, response);
     if (resolved) {
-      this.options.emitRuntimeEvents([
-        {
-          type: "request.resolved",
-          threadId: this.options.threadId,
-          requestId: String(requestId),
-          outcome: "answered",
-        },
-      ]);
+      this.emitResolvedAndResume(requestId, "answered");
     }
     return resolved;
   }
@@ -221,6 +208,25 @@ export class AcpSessionRequests {
     if (!config || config.mode === "plan" || !policy) return false;
     if (policy !== "never" && policy !== "yolo" && policy !== "bypassPermissions") return false;
     return !hasNativeAcpPermissionMode(policy, availableModeIds);
+  }
+
+  private emitResolvedAndResume(requestId: ThreadServerRequestId, outcome: RequestOutcome): void {
+    this.options.emitRuntimeEvents([
+      {
+        type: "request.resolved",
+        threadId: this.options.threadId,
+        requestId: String(requestId),
+        outcome,
+      },
+    ]);
+    this.resumeAfterLastRequest();
+  }
+
+  /** Clear the yellow request state immediately once the agent is unblocked. */
+  private resumeAfterLastRequest(): void {
+    if (this.pendingPermissionResolvers.size === 0 && this.pendingElicitationResolvers.size === 0) {
+      this.options.setRequestAttention("working");
+    }
   }
 
   private resolvePendingElicitationRequest(

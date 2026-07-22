@@ -131,6 +131,7 @@ function makeConfigSyncSession(
   session["child"] = { killed: true };
   session["connection"] = connection;
   session["acpToolCallIdToItemId"] = new Map();
+  session["detachedTurnParentToolCallIds"] = new Set();
   session["sessionId"] = "session-1";
   session["threadId"] = "thread-1";
   session["projectLocation"] = { kind: "windows", path: "C:\\repo" };
@@ -1077,6 +1078,229 @@ describe("ACP turn config sync", () => {
     });
   });
 
+  it("keeps the foreground runtime turn open until its background subagent finishes", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("launch background research", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "detached-agent",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: {
+          _toolName: "task",
+          subagent_type: "Explore",
+          description: "Inspect mapping",
+          background: true,
+        },
+      },
+    });
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+
+    const parentStart = listener.onRuntimeEvent.mock.calls
+      .map(([event]) => event as { type?: string; itemType?: string; itemId?: string })
+      .find((event) => event.type === "item.started" && event.itemType === "tool_call");
+    expect(parentStart?.itemId).toBeTruthy();
+    expect(listener.onRuntimeEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "item.completed", itemId: parentStart?.itemId }),
+    );
+    expect(listener.onRuntimeEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "turn.completed" }),
+    );
+    expect(listener.onUpdate).not.toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+
+    listener.onRuntimeEvent.mockClear();
+    listener.onUpdate.mockClear();
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "The detached child completed." },
+        _meta: { poracodeParentToolCallId: "detached-agent" },
+      },
+    });
+
+    expect(listener.onRuntimeEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "turn.started" }),
+    );
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "assistant_message",
+        parentItemId: parentStart?.itemId,
+      }),
+    );
+    expect(listener.onUpdate).not.toHaveBeenCalledWith({ status: "idle", attention: "none" });
+
+    listener.onRuntimeEvent.mockClear();
+    listener.onUpdate.mockClear();
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId: "detached-agent",
+        status: "completed",
+        rawInput: {
+          _toolName: "task",
+          subagent_type: "Explore",
+          description: "Inspect mapping",
+          background: true,
+        },
+        _meta: { poracodeDetachedSubAgentActivity: "detached-agent" },
+      },
+    });
+
+    const terminalEvents = listener.onRuntimeEvent.mock.calls.map(([event]) => event);
+    expect(terminalEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "item.completed", itemId: parentStart?.itemId }),
+        expect.objectContaining({ type: "turn.completed", state: "completed" }),
+      ]),
+    );
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({
+      status: "idle",
+      attention: "none",
+    });
+  });
+
+  it("keeps one continuous foreground turn across concurrent background completions", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    let resolvePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePrompt = resolve;
+      }),
+    );
+
+    const turn = session.startTurn("launch two background agents", {
+      model: "model-a",
+      effort: "low",
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
+    for (const toolCallId of ["foreground-bg-a", "foreground-bg-b"]) {
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId,
+          title: "Agent",
+          status: "in_progress",
+          rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+        },
+      });
+    }
+    resolvePrompt({ stopReason: "end_turn" });
+    await turn;
+
+    for (const toolCallId of ["foreground-bg-a", "foreground-bg-b"]) {
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId,
+          status: "completed",
+          rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+          _meta: { poracodeDetachedSubAgentActivity: toolCallId },
+        },
+      });
+    }
+
+    const events = listener.onRuntimeEvent.mock.calls.map(([event]) => event as { type?: string });
+    expect(events.filter((event) => event.type === "turn.started")).toHaveLength(1);
+    expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
+    const updates = listener.onUpdate.mock.calls.map(([update]) => update);
+    expect(
+      updates.filter((update) => JSON.stringify(update).includes('"status":"idle"')),
+    ).toHaveLength(1);
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+  });
+
+  it("stays working until all concurrently reporting detached subagents complete", () => {
+    const { listener, session } = makeConfigSyncSession();
+    for (const toolCallId of ["detached-a", "detached-b"]) {
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId,
+          title: "Agent",
+          status: "in_progress",
+          rawInput: {
+            _toolName: "task",
+            subagent_type: "Explore",
+            background: true,
+          },
+        },
+      });
+    }
+    listener.onRuntimeEvent.mockClear();
+    listener.onUpdate.mockClear();
+
+    for (const toolCallId of ["detached-a", "detached-b"]) {
+      session.handleSessionUpdate({
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: `${toolCallId} reporting` },
+          _meta: {
+            poracodeNewAssistantItem: true,
+            poracodeDetachedSubAgentActivity: toolCallId,
+          },
+        },
+      });
+    }
+    expect(
+      listener.onRuntimeEvent.mock.calls
+        .map(([event]) => event as { type?: string })
+        .filter((event) => event.type === "turn.started"),
+    ).toHaveLength(1);
+    expect(listener.onUpdate).toHaveBeenCalledWith({
+      status: "working",
+      attention: "working",
+    });
+
+    listener.onRuntimeEvent.mockClear();
+    listener.onUpdate.mockClear();
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId: "detached-a",
+        status: "completed",
+        rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+        _meta: { poracodeDetachedSubAgentActivity: "detached-a" },
+      },
+    });
+    expect(listener.onRuntimeEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: "turn.completed" }),
+    );
+    expect(listener.onUpdate).not.toHaveBeenCalledWith({ status: "idle", attention: "none" });
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId: "detached-b",
+        status: "completed",
+        rawInput: { _toolName: "task", subagent_type: "Explore", background: true },
+        _meta: { poracodeDetachedSubAgentActivity: "detached-b" },
+      },
+    });
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "turn.completed", state: "completed" }),
+    );
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({ status: "idle", attention: "none" });
+  });
+
   it("keeps an in-flight turn working when its ACP tool call starts", () => {
     const { listener, session } = makeConfigSyncSession();
     (session as unknown as Record<string, unknown>)["promptInFlight"] = true;
@@ -1261,6 +1485,10 @@ describe("ACP turn config sync", () => {
     await session.resolveServerRequest("acp-perm-0", { optionId: "once" });
     await expect(selected).resolves.toEqual({
       outcome: { outcome: "selected", optionId: "once" },
+    });
+    expect(listener.onUpdate).toHaveBeenLastCalledWith({
+      status: "working",
+      attention: "working",
     });
 
     const cancelled = session.handlePermissionRequest(request);
