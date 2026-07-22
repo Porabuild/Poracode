@@ -52,6 +52,7 @@ export function createAcpStructuredSession(
     ...(input.acpSessionUpdateTransform
       ? { sessionUpdateTransform: input.acpSessionUpdateTransform }
       : {}),
+    ...(input.acpGoalCommands ? { goalCommands: true } : {}),
     ...(input.acpExtensionNotificationHandler
       ? { extensionNotificationHandler: input.acpExtensionNotificationHandler }
       : {}),

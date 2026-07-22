@@ -17,4 +17,5 @@
 export { createAcpMapperState, type AcpMapperState } from "./canonicalMapping/state";
 export { closeOpenTurnItems } from "./canonicalMapping/toolCallPayloads";
 export { mapAcpSessionUpdate } from "./canonicalMapping/dispatch";
+export { mapAcpGoalSlashCommand } from "./canonicalMapping/goal";
 export { mapAcpElicitationRequest, mapAcpPermissionRequest } from "./canonicalMapping/permissions";

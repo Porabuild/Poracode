@@ -50,6 +50,7 @@ export function buildSubAgentProgressEvents(
       threadId: state.threadId,
       itemId: item.subAgentProgressItemId,
       itemType: "assistant_message",
+      parentItemId: item.itemId,
     });
   }
   const previous = item.subAgentProgressText ?? "";
@@ -102,6 +103,46 @@ export function getActiveSubAgent(state: AcpMapperState): ActiveAcpSubAgent | un
   return state.activeSubAgents.at(-1);
 }
 
+/**
+ * When sibling ACP subagents run concurrently, a child tool call can arrive
+ * while both lifetimes are active. ACP has no parent id, but providers usually
+ * repeat the relevant file, command, or subject from the launch prompt in the
+ * child tool input. Prefer the one sibling with uniquely matching terms;
+ * retain stack order when the payload carries no useful identity.
+ */
+export function selectActiveSubAgentForToolCall(
+  state: AcpMapperState,
+  toolCall: {
+    title?: string | null;
+    rawInput?: unknown;
+    locations?: Array<{ path?: string | null }> | null;
+  },
+): ActiveAcpSubAgent | undefined {
+  const fallback = getActiveSubAgent(state);
+  if (state.activeSubAgents.length < 2) return fallback;
+  const childTerms = extractIdentityTerms({
+    title: toolCall.title,
+    rawInput: toolCall.rawInput,
+    locations: toolCall.locations,
+  });
+  if (childTerms.size === 0) return fallback;
+
+  const candidates = state.activeSubAgents.map((active) => ({
+    active,
+    terms: extractIdentityTerms(state.toolCallItems.get(active.toolCallId)?.payload.args),
+    score: 0,
+  }));
+  for (const term of childTerms) {
+    const matches = candidates.filter((candidate) => candidate.terms.has(term));
+    if (matches.length === 1) matches[0]!.score += 1;
+  }
+  const ranked = candidates.toSorted((left, right) => right.score - left.score);
+  const best = ranked[0];
+  const runnerUp = ranked[1];
+  if (!best || best.score === 0 || best.score === runnerUp?.score) return fallback;
+  return best.active;
+}
+
 export function removeActiveSubAgent(state: AcpMapperState, toolCallId: string): void {
   for (let index = state.activeSubAgents.length - 1; index >= 0; index -= 1) {
     if (state.activeSubAgents[index]?.toolCallId !== toolCallId) continue;
@@ -115,24 +156,33 @@ export function tagSubAgentChildStarts(
   parent: ActiveAcpSubAgent,
   state: AcpMapperState,
 ): void {
-  let taggedStarts = 0;
+  const childStartsByParent = new Map<string, number>();
   for (let index = 0; index < events.length; index += 1) {
     const event = events[index];
     if (!event || event.type !== "item.started") continue;
-    if ("parentItemId" in event && typeof event.parentItemId === "string") continue;
-    events[index] = { ...event, parentItemId: parent.itemId };
-    taggedStarts += 1;
+    const explicitParent = "parentItemId" in event ? event.parentItemId : undefined;
+    const parentItemId = typeof explicitParent === "string" ? explicitParent : parent.itemId;
+    if (typeof explicitParent !== "string") {
+      events[index] = { ...event, parentItemId };
+    }
+    childStartsByParent.set(parentItemId, (childStartsByParent.get(parentItemId) ?? 0) + 1);
   }
-  if (taggedStarts === 0) return;
-  const parentTool = state.toolCallItems.get(parent.toolCallId);
-  if (!parentTool) return;
-  parentTool.payload = withBumpedSubAgentStepCount(parentTool.payload, taggedStarts);
-  events.push({
-    type: "item.updated",
-    threadId: state.threadId,
-    itemId: parent.itemId,
-    payload: parentTool.payload,
-  });
+  for (const [parentItemId, taggedStarts] of childStartsByParent) {
+    const activeParent = state.activeSubAgents.find(
+      (candidate) => candidate.itemId === parentItemId,
+    );
+    if (!activeParent) continue;
+    activeParent.hasChildActivity = true;
+    const parentTool = state.toolCallItems.get(activeParent.toolCallId);
+    if (!parentTool) continue;
+    parentTool.payload = withBumpedSubAgentStepCount(parentTool.payload, taggedStarts);
+    events.push({
+      type: "item.updated",
+      threadId: state.threadId,
+      itemId: parentItemId,
+      payload: parentTool.payload,
+    });
+  }
 }
 
 function withBumpedSubAgentStepCount(
@@ -149,6 +199,34 @@ function withBumpedSubAgentStepCount(
       : 0;
   progress.stepCount = prevCount + stepDelta;
   return { ...payload, status: "running", progress };
+}
+
+const SUBAGENT_IDENTITY_STOP_WORDS = new Set([
+  "agent",
+  "current",
+  "directory",
+  "file",
+  "files",
+  "inspect",
+  "modify",
+  "read",
+  "return",
+  "task",
+  "tool",
+]);
+
+function extractIdentityTerms(value: unknown): Set<string> {
+  let text: string;
+  try {
+    text = typeof value === "string" ? value : JSON.stringify(value);
+  } catch {
+    return new Set();
+  }
+  return new Set(
+    (text.toLowerCase().match(/[a-z0-9][a-z0-9._-]{2,}/gu) ?? []).filter(
+      (term) => !SUBAGENT_IDENTITY_STOP_WORDS.has(term),
+    ),
+  );
 }
 
 /**

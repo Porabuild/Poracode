@@ -60,6 +60,7 @@ import { buildPromptContentBlocks } from "@/shared/promptContent";
 import {
   closeOpenTurnItems,
   createAcpMapperState,
+  mapAcpGoalSlashCommand,
   mapAcpSessionUpdate,
   type AcpMapperState,
 } from "./canonicalMapping";
@@ -131,6 +132,8 @@ export interface AcpStructuredSessionOptions {
    * provider-agnostic.
    */
   sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
+  /** Paint canonical state for this provider's `/goal` command family. */
+  goalCommands?: boolean;
   /**
    * Vendor ACP extension notifications (e.g. Cursor `cursor/task`) that are
    * not surfaced as standard `session/update` messages.
@@ -148,6 +151,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private emptyResponseErrorResolver?: AcpEmptyResponseErrorResolver;
 
   private sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
+
+  private readonly goalCommands: boolean;
 
   private extensionNotificationHandler?: import("../base/types").AcpExtensionNotificationHandler;
 
@@ -279,6 +284,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (options?.sessionUpdateTransform) {
       this.sessionUpdateTransform = options.sessionUpdateTransform;
     }
+    this.goalCommands = options?.goalCommands === true;
     if (options?.extensionNotificationHandler) {
       this.extensionNotificationHandler = options.extensionNotificationHandler;
     }
@@ -698,6 +704,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       },
       { type: "item.completed", threadId: this.threadId, itemId: userItemId },
     ]);
+    if (this.goalCommands) {
+      const goalEvents = mapAcpGoalSlashCommand(prompt, this.ensureMapperState());
+      if (goalEvents.length > 0) this.emitRuntimeEvents(goalEvents);
+    }
 
     // Signal working state immediately
     this.emitListenerUpdate({ status: "working", attention: "working" });

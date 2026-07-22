@@ -23,6 +23,7 @@ import {
   uninstallQoderPlugin,
 } from "./plugin/install";
 import { detectQoderInvalidSessionRef } from "./session";
+import { transformQoderAcpSessionUpdate } from "./acpTransform";
 
 export { detectQoderInvalidSessionRef } from "./session";
 
@@ -123,7 +124,11 @@ export function createQoderAdapter(): AgentAdapter {
         ["--acp"],
         resolveAgentBinaryPath(input.projectLocation, "qodercli"),
       );
-      return createAcpStructuredSession(command, input);
+      return createAcpStructuredSession(command, {
+        ...input,
+        acpGoalCommands: true,
+        acpSessionUpdateTransform: transformQoderAcpSessionUpdate,
+      });
     },
 
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {

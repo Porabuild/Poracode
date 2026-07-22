@@ -24,6 +24,8 @@ export interface AcpToolCallItemState {
 export interface ActiveAcpSubAgent {
   toolCallId: string;
   itemId: string;
+  /** Whether this agent has emitted at least one inferred or explicit child. */
+  hasChildActivity: boolean;
 }
 
 /** Per-session state — tracks open items so deltas land on the right item id. */
@@ -42,6 +44,12 @@ export interface AcpMapperState {
    * we conservatively infer nesting from active sub-agent tool-call lifetimes.
    */
   activeSubAgents: ActiveAcpSubAgent[];
+  /** Stable canonical item for an ACP provider's persistent goal lifecycle. */
+  activeGoalItemId?: string;
+  /** Objective retained across `/goal pause`, resume, status, and completion. */
+  activeGoalObjective?: string;
+  /** Most recently observed provider goal status. */
+  activeGoalStatus?: "active" | "paused" | "budget_limited" | "complete";
   /** Item id of the most recent plan, if open. */
   openPlanItemId?: string;
   /** Last plan steps emitted for the open plan item. */
