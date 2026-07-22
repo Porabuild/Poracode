@@ -19,6 +19,33 @@ rl.on("line", (line) => {
   if (type === "prompt") {
     send({ type: "response", id, command: "prompt", success: true });
     const text = req.message || "";
+    if (text.includes("GOAL_PLUGIN") && !text.includes("CODEX_GOAL_PLUGIN")) {
+      const goal = { id: "pi-goal-1", text: "Finish the goal smoke", status: "active", startedAt: 1700000000000, updatedAt: 1700000000000, iteration: 0, tokenBudget: 10000, tokensUsed: 0, timeUsedSeconds: 0 };
+      send({ type: "entry_appended", entry: { type: "custom", customType: "goal-state", data: { goal } } });
+      send({ type: "entry_appended", entry: { type: "custom", customType: "goal-state", data: { goal: { ...goal, status: "paused", updatedAt: 1700000001000, iteration: 1, tokensUsed: 4000, timeUsedSeconds: 1 } } } });
+      send({ type: "entry_appended", entry: { type: "custom", customType: "goal-state", data: { goal: { ...goal, status: "complete", updatedAt: 1700000002000, iteration: 1, tokensUsed: 5000, timeUsedSeconds: 2 } } } });
+      send({ type: "entry_appended", entry: { type: "custom", customType: "goal-state", data: { goal: null } } });
+      send({ type: "agent_start" });
+      send({ type: "agent_settled" });
+      return;
+    }
+    if (text.includes("GENERIC_PLUGIN")) {
+      send({ type: "extension_ui_request", id: "status-1", method: "setStatus", statusKey: "plugin-progress", statusText: "halfway" });
+      send({ type: "entry_appended", entry: { type: "custom", customType: "plugin-progress", data: { current: 1, total: 2 } } });
+      send({ type: "agent_start" });
+      send({ type: "agent_settled" });
+      return;
+    }
+    if (text.includes("CODEX_GOAL_PLUGIN")) {
+      const goal = { goalId: "codex-goal-1", objective: "Finish the Codex-style goal", status: "active", tokenBudget: 10000, usage: { tokensUsed: 0, activeSeconds: 0 }, createdAt: 1700000000000, updatedAt: 1700000000000 };
+      send({ type: "entry_appended", entry: { type: "custom", customType: "pi-codex-goal", data: { version: 1, kind: "set", source: "tool", goal, at: 1700000000000 } } });
+      send({ type: "entry_appended", entry: { type: "custom", customType: "pi-codex-goal", data: { version: 1, kind: "usage", source: "runtime", goalId: "codex-goal-1", status: "budgetLimited", usage: { tokensUsed: 10000, activeSeconds: 7 }, updatedAt: 1700000001000, at: 1700000001000 } } });
+      send({ type: "entry_appended", entry: { type: "custom", customType: "pi-codex-goal", data: { version: 1, kind: "set", source: "tool", goal: { ...goal, status: "complete", usage: { tokensUsed: 12000, activeSeconds: 9 }, updatedAt: 1700000002000 }, at: 1700000002000 } } });
+      send({ type: "entry_appended", entry: { type: "custom", customType: "pi-codex-goal", data: { version: 1, kind: "clear", source: "tool", clearedGoalId: "codex-goal-1", at: 1700000003000 } } });
+      send({ type: "agent_start" });
+      send({ type: "agent_settled" });
+      return;
+    }
     if (text.includes("DIALOG")) {
       send({ type: "extension_ui_request", id: "dlg-1", method: "select", title: "Pick one", options: ["alpha", "beta"] });
       return;
@@ -154,6 +181,7 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     await waitFor(events, () =>
       updates.some((u) => u.sessionRef?.providerSessionId === "mock-session-1"),
     );
+    expect(updates.every((update) => update.sessionRef?.providerSessionId !== "")).toBe(true);
     expect(updates.at(-1)?.sessionRef?.providerSessionId).toBe("mock-session-1");
     await session.dispose();
   });
@@ -165,6 +193,110 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
       expect.arrayContaining([
         expect.objectContaining({ type: "error", message: "MOCK_PROVIDER_ERROR" }),
         expect.objectContaining({ type: "turn.completed", state: "failed" }),
+      ]),
+    );
+    await session.dispose();
+  });
+
+  it("maps persisted pi-goal lifecycle entries into a canonical goal item", async () => {
+    const { session, events } = await createSession();
+    await session.startTurn?.("GOAL_PLUGIN", { model: "mock/model", effort: "off" });
+
+    const goalEvents = events.filter(
+      (event): event is Extract<RuntimeEvent, { type: "item.started" | "item.updated" }> =>
+        (event.type === "item.started" && event.itemType === "goal") ||
+        event.type === "item.updated",
+    );
+    expect(goalEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "item.started",
+          itemType: "goal",
+          payload: expect.objectContaining({
+            action: "set",
+            objective: "Finish the goal smoke",
+            status: "active",
+            tokenBudget: 10000,
+          }),
+        }),
+        expect.objectContaining({
+          type: "item.updated",
+          payload: expect.objectContaining({ status: "paused", tokensUsed: 4000 }),
+        }),
+        expect.objectContaining({
+          type: "item.updated",
+          payload: expect.objectContaining({ status: "complete", tokensUsed: 5000 }),
+        }),
+      ]),
+    );
+    expect(
+      goalEvents.some(
+        (event) =>
+          event.type === "item.updated" &&
+          (event.payload as { action?: string }).action === "cleared",
+      ),
+    ).toBe(false);
+    await session.dispose();
+  });
+
+  it("maps pi-codex-goal session entries into the native goal lifecycle", async () => {
+    const { session, events } = await createSession();
+    await session.startTurn?.("CODEX_GOAL_PLUGIN", { model: "mock/model", effort: "off" });
+
+    const goalEvents = events.filter(
+      (event): event is Extract<RuntimeEvent, { type: "item.started" | "item.updated" }> =>
+        (event.type === "item.started" && event.itemType === "goal") ||
+        event.type === "item.updated",
+    );
+    expect(goalEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "item.started",
+          itemType: "goal",
+          payload: expect.objectContaining({
+            objective: "Finish the Codex-style goal",
+            status: "active",
+          }),
+        }),
+        expect.objectContaining({
+          type: "item.updated",
+          payload: expect.objectContaining({ status: "budget_limited", tokensUsed: 10000 }),
+        }),
+        expect.objectContaining({
+          type: "item.updated",
+          payload: expect.objectContaining({ status: "complete", tokensUsed: 12000 }),
+        }),
+      ]),
+    );
+    expect(
+      goalEvents.some(
+        (event) =>
+          event.type === "item.updated" &&
+          (event.payload as { action?: string }).action === "cleared",
+      ),
+    ).toBe(false);
+    await session.dispose();
+  });
+
+  it("preserves unknown Pi plugin status and custom entries as generic activity", async () => {
+    const { session, events } = await createSession();
+    await session.startTurn?.("GENERIC_PLUGIN", { model: "mock/model", effort: "off" });
+
+    const activities = events.filter(
+      (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+        event.type === "item.started" && event.itemType === "dynamic_tool_call",
+    );
+    expect(activities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          payload: expect.objectContaining({ name: "plugin-progress", result: "halfway" }),
+        }),
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            name: "plugin-progress",
+            result: { current: 1, total: 2 },
+          }),
+        }),
       ]),
     );
     await session.dispose();

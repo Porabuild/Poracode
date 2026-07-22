@@ -12,6 +12,12 @@ import {
   type StructuredSessionHandle,
   type StructuredSessionListener,
 } from "../base";
+import {
+  goalPayloadFromProviderState,
+  startGoalItemEvents,
+  updateGoalItemEvents,
+  type ProviderGoalState,
+} from "../goalRuntime";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { buildQuestionAnswerEvents } from "../questionAnswerEvents";
 import { splitPiModelId, type PiThinkingLevel, PI_THINKING_LEVELS } from "./argv";
@@ -114,9 +120,17 @@ export class PiRpcSession implements StructuredSessionHandle {
   private agentStarted = false;
   private assistantItemId: string | undefined;
   private reasoningItemId: string | undefined;
+  /** Canonical item mirroring the installed pi-goal extension's session state. */
+  private goalItemId: string | undefined;
+  private goalStartedAt: number | undefined;
+  private lastPiGoalStatus: ProviderGoalState["status"] | undefined;
+  private piCodexGoal: ProviderGoalState | undefined;
+  /** Latest visible extension status item for each Pi plugin-defined status key. */
+  private readonly extensionStatusItemIds = new Map<string, string>();
   private turnErrorMessage: string | undefined;
   private currentConfig: ThreadConfig;
-  private sessionRef = createKnownSessionRef("");
+  /** Pi assigns its session id asynchronously; do not publish a placeholder. */
+  private sessionRef: ReturnType<typeof createKnownSessionRef> | undefined;
   private disposed = false;
   private interruptRequested = false;
 
@@ -173,7 +187,7 @@ export class PiRpcSession implements StructuredSessionHandle {
   }
 
   ownsProviderSession(providerSessionId: string): boolean {
-    return providerSessionId === this.sessionRef.providerSessionId;
+    return providerSessionId === this.sessionRef?.providerSessionId;
   }
 
   setListener(listener: StructuredSessionListener): void {
@@ -420,6 +434,9 @@ export class PiRpcSession implements StructuredSessionHandle {
       case "extension_ui_request":
         this.handleExtensionUiRequest(event);
         break;
+      case "entry_appended":
+        this.handleSessionEntry(event);
+        break;
     }
   }
 
@@ -534,6 +551,10 @@ export class PiRpcSession implements StructuredSessionHandle {
   private handleExtensionUiRequest(event: PiRpcEvent): void {
     const id = String(event.id ?? "");
     const method = String(event.method ?? "");
+    if (method === "setStatus") {
+      this.handleExtensionStatus(event);
+      return;
+    }
     if (method === "notify") {
       const message = typeof event.message === "string" ? event.message : "";
       this.emit(
@@ -544,7 +565,7 @@ export class PiRpcSession implements StructuredSessionHandle {
       return;
     }
     if (method !== "select" && method !== "confirm" && method !== "input" && method !== "editor") {
-      return; // fire-and-forget UI methods (setStatus/setWidget/setTitle/...) are no-ops here
+      return; // Unknown plugin widgets cannot be safely rendered by the host.
     }
     const title = typeof event.title === "string" ? event.title : method;
     const message = typeof event.message === "string" ? event.message : undefined;
@@ -580,6 +601,165 @@ export class PiRpcSession implements StructuredSessionHandle {
       },
     });
     this.publishUpdate("needs_reply", "needs_reply");
+  }
+
+  /** Preserve visible extension status without assigning plugin-specific semantics. */
+  private handleExtensionStatus(event: PiRpcEvent): void {
+    const key = typeof event.statusKey === "string" ? event.statusKey.trim() : "";
+    const text = typeof event.statusText === "string" ? event.statusText.trim() : "";
+    // pi-goal is normalized from its durable session entry, avoiding a duplicate generic row.
+    if (!key || !text || key === "goal") return;
+    const payload = {
+      name: key,
+      title: key,
+      kind: "other" as const,
+      result: text,
+      status: "success" as const,
+    };
+    const existingItemId = this.extensionStatusItemIds.get(key);
+    if (existingItemId) {
+      this.emit({
+        type: "item.updated",
+        threadId: this.input.threadId,
+        itemId: existingItemId,
+        payload,
+      });
+      return;
+    }
+    const itemId = this.nextItemId("plugin-status");
+    this.extensionStatusItemIds.set(key, itemId);
+    this.emit({
+      type: "item.started",
+      threadId: this.input.threadId,
+      itemId,
+      itemType: "dynamic_tool_call",
+      payload,
+    });
+    this.emit({ type: "item.completed", threadId: this.input.threadId, itemId });
+  }
+
+  /**
+   * pi-goal writes durable state through `appendEntry` rather than a dedicated
+   * RPC method. Normalize those provider-native entries at the Pi boundary so
+   * the shared goal dock can remain provider-agnostic.
+   */
+  private handleSessionEntry(event: PiRpcEvent): void {
+    const entry = recordOf(event.entry);
+    if (entry?.type !== "custom" || typeof entry.customType !== "string") return;
+    if (entry.customType === "goal-state") {
+      this.handleNarumitwGoalEntry(entry.data);
+      return;
+    }
+    if (entry.customType === "pi-codex-goal") {
+      this.handleCodexGoalEntry(entry.data);
+      return;
+    }
+    this.emitPluginActivity(entry.customType, entry.data);
+  }
+
+  private handleNarumitwGoalEntry(rawData: unknown): void {
+    const data = recordOf(rawData);
+    if (!data || !("goal" in data)) return;
+    const rawGoal = data.goal;
+    if (rawGoal === null) {
+      this.clearGoalItem();
+      return;
+    }
+    const goal = readNarumitwGoal(rawGoal);
+    if (goal) this.upsertGoalItem(goal);
+  }
+
+  private handleCodexGoalEntry(rawData: unknown): void {
+    const entry = recordOf(rawData);
+    const kind = typeof entry?.kind === "string" ? entry.kind : "";
+    if (kind === "set") {
+      const goal = readCodexGoal(entry?.goal);
+      if (!goal) return;
+      this.piCodexGoal = goal;
+      this.upsertGoalItem(goal);
+      return;
+    }
+    if (kind === "usage" && this.piCodexGoal) {
+      const usage = recordOf(entry?.usage);
+      const status = codexGoalStatus(entry?.status);
+      const updatedAt = toEpochSeconds(entry?.updatedAt);
+      this.piCodexGoal = {
+        ...this.piCodexGoal,
+        ...(status ? { status } : {}),
+        ...(typeof usage?.tokensUsed === "number" ? { tokensUsed: usage.tokensUsed } : {}),
+        ...(typeof usage?.activeSeconds === "number"
+          ? { timeUsedSeconds: usage.activeSeconds }
+          : {}),
+        ...(updatedAt !== undefined ? { updatedAt } : {}),
+      };
+      this.upsertGoalItem(this.piCodexGoal);
+      return;
+    }
+    if (kind === "clear") {
+      this.clearGoalItem();
+      this.piCodexGoal = undefined;
+    }
+  }
+
+  private upsertGoalItem(goal: ProviderGoalState): void {
+    const isNewGoal = this.goalStartedAt !== undefined && goal.createdAt !== this.goalStartedAt;
+    if (!this.goalItemId || isNewGoal) {
+      this.goalItemId = this.nextItemId("goal");
+      this.goalStartedAt = goal.createdAt;
+      const payload = goalPayloadFromProviderState(
+        goal,
+        goal.status === "active" ? "set" : "updated",
+      );
+      for (const runtimeEvent of startGoalItemEvents(
+        this.input.threadId,
+        this.goalItemId,
+        payload,
+      )) {
+        this.emit(runtimeEvent);
+      }
+    } else {
+      for (const runtimeEvent of updateGoalItemEvents(
+        this.input.threadId,
+        this.goalItemId,
+        goalPayloadFromProviderState(goal, "updated"),
+      )) {
+        this.emit(runtimeEvent);
+      }
+    }
+    this.lastPiGoalStatus = goal.status;
+  }
+
+  private clearGoalItem(): void {
+    // Completion is persisted before clear; retain it, but dismiss manual clears.
+    if (this.goalItemId && this.lastPiGoalStatus !== "complete") {
+      for (const runtimeEvent of updateGoalItemEvents(this.input.threadId, this.goalItemId, {
+        action: "cleared",
+      })) {
+        this.emit(runtimeEvent);
+      }
+    }
+    this.goalItemId = undefined;
+    this.goalStartedAt = undefined;
+    this.lastPiGoalStatus = undefined;
+  }
+
+  /** Render arbitrary Pi plugin session entries with their raw data intact. */
+  private emitPluginActivity(customType: string, data: unknown): void {
+    const itemId = this.nextItemId("plugin-entry");
+    this.emit({
+      type: "item.started",
+      threadId: this.input.threadId,
+      itemId,
+      itemType: "dynamic_tool_call",
+      payload: {
+        name: customType,
+        title: customType,
+        kind: "other",
+        result: data,
+        status: "success",
+      },
+    });
+    this.emit({ type: "item.completed", threadId: this.input.threadId, itemId });
   }
 
   private handleExit(): void {
@@ -681,8 +861,9 @@ export class PiRpcSession implements StructuredSessionHandle {
     const response = await this.client.request("get_session_stats").catch(() => undefined);
     const stats = recordOf(response?.data);
     const usage = recordOf(stats?.contextUsage);
-    if (stats?.sessionId && typeof stats.sessionId === "string") {
-      this.sessionRef = createKnownSessionRef(stats.sessionId);
+    const sessionId = typeof stats?.sessionId === "string" ? stats.sessionId : "";
+    if (sessionId) {
+      this.sessionRef = createKnownSessionRef(sessionId);
     }
     if (!usage) return;
     const tokens = typeof usage.tokens === "number" ? usage.tokens : null;
@@ -719,7 +900,7 @@ export class PiRpcSession implements StructuredSessionHandle {
       status: this.currentTurnId ? "working" : "idle",
       attention: this.pendingDialogs.size > 0 ? "needs_reply" : "none",
       config: this.currentConfig,
-      sessionRef: this.sessionRef,
+      ...(this.sessionRef ? { sessionRef: this.sessionRef } : {}),
       slashCommands: commands,
     });
   }
@@ -733,7 +914,7 @@ export class PiRpcSession implements StructuredSessionHandle {
       status,
       attention,
       config: this.currentConfig,
-      sessionRef: this.sessionRef,
+      ...(this.sessionRef ? { sessionRef: this.sessionRef } : {}),
       ...(error ? { errorMessage: error } : {}),
     });
   }
@@ -758,4 +939,82 @@ export class PiRpcSession implements StructuredSessionHandle {
   private emit(event: RuntimeEvent): void {
     this.listener.onRuntimeEvent?.(event);
   }
+}
+
+function readNarumitwGoal(value: unknown): ProviderGoalState | undefined {
+  const goal = recordOf(value);
+  if (!goal) return undefined;
+  const objective = typeof goal.text === "string" ? goal.text.trim() : "";
+  const status = narumitwGoalStatus(goal.status);
+  if (!objective || !status) return undefined;
+  const createdAt = toEpochSeconds(goal.startedAt);
+  const updatedAt = toEpochSeconds(goal.updatedAt);
+  return {
+    objective,
+    status,
+    ...(typeof goal.id === "string" ? { providerThreadId: goal.id } : {}),
+    ...(typeof goal.tokenBudget === "number" ? { tokenBudget: goal.tokenBudget } : {}),
+    ...(typeof goal.tokensUsed === "number" ? { tokensUsed: goal.tokensUsed } : {}),
+    ...(typeof goal.timeUsedSeconds === "number" ? { timeUsedSeconds: goal.timeUsedSeconds } : {}),
+    ...(typeof goal.iteration === "number" ? { iterations: goal.iteration } : {}),
+    ...(createdAt !== undefined ? { createdAt } : {}),
+    ...(updatedAt !== undefined ? { updatedAt } : {}),
+  };
+}
+
+function narumitwGoalStatus(value: unknown): ProviderGoalState["status"] | undefined {
+  switch (value) {
+    case "active":
+    case "paused":
+    case "complete":
+      return value;
+    case "blocked":
+      return "paused";
+    case "usage_limited":
+    case "budget_limited":
+      return "budget_limited";
+    default:
+      return undefined;
+  }
+}
+
+function readCodexGoal(value: unknown): ProviderGoalState | undefined {
+  const goal = recordOf(value);
+  if (!goal) return undefined;
+  const objective = typeof goal.objective === "string" ? goal.objective.trim() : "";
+  const status = codexGoalStatus(goal.status);
+  const usage = recordOf(goal.usage);
+  if (!objective || !status) return undefined;
+  const createdAt = toEpochSeconds(goal.createdAt);
+  const updatedAt = toEpochSeconds(goal.updatedAt);
+  return {
+    objective,
+    status,
+    ...(typeof goal.goalId === "string" ? { providerThreadId: goal.goalId } : {}),
+    ...(typeof goal.tokenBudget === "number" || goal.tokenBudget === null
+      ? { tokenBudget: goal.tokenBudget }
+      : {}),
+    ...(typeof usage?.tokensUsed === "number" ? { tokensUsed: usage.tokensUsed } : {}),
+    ...(typeof usage?.activeSeconds === "number" ? { timeUsedSeconds: usage.activeSeconds } : {}),
+    ...(createdAt !== undefined ? { createdAt } : {}),
+    ...(updatedAt !== undefined ? { updatedAt } : {}),
+  };
+}
+
+function codexGoalStatus(value: unknown): ProviderGoalState["status"] | undefined {
+  switch (value) {
+    case "active":
+    case "paused":
+    case "complete":
+      return value;
+    case "budgetLimited":
+      return "budget_limited";
+    default:
+      return undefined;
+  }
+}
+
+function toEpochSeconds(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return undefined;
+  return value > 1_000_000_000_000 ? value / 1_000 : value;
 }
