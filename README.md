@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>One window for all your AI coding agents.</strong><br />
-  Run Claude, Codex, OpenCode, Gemini, Grok, Antigravity, Cursor, Command Code, and Copilot side-by-side. Terminal and chat, any layout.
+  Run Claude, Codex, OpenCode, Gemini, Grok, Kimi Code, Qwen Code, Factory Droid, Antigravity, Cursor, Command Code, and Copilot side-by-side. Terminal and chat, any layout.
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
 
 ## Supported Agents
 
-**Claude** · **Codex** · **OpenCode** · **Gemini** · **Grok** · **Antigravity** · **Cursor** · **Command Code** · **Copilot** and any agent from the [ACP registry](https://agentclientprotocol.com).
+**Claude** · **Codex** · **OpenCode** · **Gemini** · **Grok** · **Kimi Code** · **Qwen Code** · **Factory Droid** · **Antigravity** · **Cursor** · **Command Code** · **Copilot** and any agent from the [ACP registry](https://agentclientprotocol.com).
 
 ## Why Poracode?
 
@@ -38,6 +38,10 @@ Open as many agent threads as you need and arrange them in horizontal and vertic
 ### Unified Protocol GUI
 
 Agents that support structured APIs (like ACP or provider SDKs) get a proper chat interface with markdown, syntax highlighting, and tool call displays.
+
+### Cross-Agent Orchestration
+
+Let agents delegate work to other installed agents across providers, while you follow their live progress and approve actions from the parent thread.
 
 ### Terminal Fidelity
 
@@ -54,6 +58,10 @@ Sessions are saved automatically, so you can close Poracode and pick up right wh
 ### Built-in Browser
 
 Open web pages, attach browser context to agents, and keep research in the same workspace.
+
+### Remote Access
+
+Pair the Poracode web app with your desktop to follow live threads, read terminal output, send messages, and receive notifications from your phone or browser.
 
 ### In-App GitHub PRs
 
@@ -79,11 +87,11 @@ Install and run any agent from the [Agent Client Protocol](https://agentclientpr
 
 Download the latest release for your platform from the [releases page](https://github.com/SDSLeon/lightcode/releases) or visit [poracode.com](https://poracode.com).
 
-| Platform | Format           |
-| -------- | ---------------- |
-| macOS    | DMG (Universal)  |
-| Windows  | NSIS installer   |
-| Linux    | AppImage, `.deb` |
+| Platform | Format                        |
+| -------- | ----------------------------- |
+| macOS    | DMG (Apple silicon or Intel)  |
+| Windows  | NSIS installer (x64 or Arm64) |
+| Linux    | AppImage or `.deb` (x64)      |
 
 ### Getting Started
 
