@@ -27,6 +27,7 @@ export {
   getDetachedSubAgentToolCallIdForNotification,
   PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
   PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY,
+  PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY,
   PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "./canonicalMapping/subagents";
 export { mapAcpSessionUpdate } from "./canonicalMapping/dispatch";

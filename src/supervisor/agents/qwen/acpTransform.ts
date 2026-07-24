@@ -22,7 +22,9 @@ import {
 } from "../acp/subagentCoordinator";
 import type { AcpSessionUpdateTransform } from "../base";
 
-const BACKGROUND_AGENT_ID_RE = /\bagentId:\s*([^\s(]+)/iu;
+// Qwen 0.21 renamed the launch result field from `agentId` to `task_id`.
+// Accept both so resumed sessions created by older CLIs still correlate.
+const BACKGROUND_TASK_ID_RE = /\b(?:agentId|task_id):\s*([^\s(]+)/iu;
 const QWEN_BACKGROUND_END_TURN_METHOD = "_qwencode/end_turn";
 
 export interface QwenAcpSessionBridge {
@@ -203,6 +205,7 @@ export function createQwenAcpSessionUpdateTransform(): AcpSessionUpdateTransform
             status: "completed",
             ...(result ? { result } : {}),
             terminalMeta: plainRecord(update._meta),
+            synthesizeResultProgress: true,
           })
           .at(-1) ?? notification;
       const pausedGoal = pausedGoalUpdate();
@@ -244,7 +247,7 @@ function extractBackgroundTaskId(content: unknown): string | undefined {
   for (const entry of content) {
     const contentRecord = plainRecord(plainRecord(entry).content);
     const text = readString(contentRecord, "text");
-    const taskId = text ? BACKGROUND_AGENT_ID_RE.exec(text)?.[1] : undefined;
+    const taskId = text ? BACKGROUND_TASK_ID_RE.exec(text)?.[1] : undefined;
     if (taskId) return taskId;
   }
   return undefined;
