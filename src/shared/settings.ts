@@ -491,7 +491,7 @@ export const defaultSharedSettings: SharedSettings = {
   collapseTerminalComposer: false,
   cliPickerTarget: "ask",
   staleThreadUnloadMinutes: 60,
-  autoArchiveDoneAfterDays: 7,
+  autoArchiveDoneAfterDays: 3,
   scrollSpeed: 2,
   agentTerminalFontSize: 12,
   guiChatFontSize: 13,

@@ -885,6 +885,16 @@
   min-width: 0;
 }
 
+/* Italic ink leans past the text advance on the inline-end side; `truncate`'s
+   hidden overflow clips at the padding box and shaves the last glyph's edge
+   (model-visibility sub-headers, file-editor preview tabs, reasoning previews,
+   agent pending messages). Keep a hair of inline-end padding wherever italic
+   text is or sits inside a truncate box so the overhang stays painted. */
+.italic.truncate,
+.italic .truncate {
+  padding-inline-end: 0.2em;
+}
+
 /* HeroUI Disclosure: drop the default expand/collapse height/opacity
    transition and indicator rotation easing. Long chat threads can host
    hundreds of disclosures (one per tool_call, file_change, web_search,
