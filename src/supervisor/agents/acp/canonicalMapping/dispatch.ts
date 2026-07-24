@@ -10,7 +10,12 @@ import {
   usageFromTokenCounts,
 } from "../../contextUsage";
 import { parseAcpAgentMessageApiError } from "../acpUserVisibleErrors";
-import { classifyToolCallItemType } from "./contentExtraction";
+import {
+  classifyToolCallItemType,
+  extractAcpTodoWriteSteps,
+  isAcpTodoWriteTool,
+  parsePlanMarkdownSteps,
+} from "./contentExtraction";
 import {
   applyTerminalToolCallName,
   buildAcpToolCallPayload,
@@ -199,6 +204,8 @@ export function mapAcpSessionUpdate(
         toolCallId: string;
         title?: string | null;
         kind?: string | null;
+        /** ACP SDK ≥1.3 programmatic tool name (UNSTABLE). */
+        name?: string | null;
         status?: "pending" | "in_progress" | "completed" | "failed";
         rawInput?: unknown;
         _meta?: unknown;
@@ -247,6 +254,21 @@ export function mapAcpSessionUpdate(
       if (goalUpdate) {
         state.suppressedToolCallIds.add(toolCall.toolCallId);
         events.push(...mapAcpCommandGoalUpdate(state, goalUpdate));
+        break;
+      }
+      // `todo_write` / `todowrite` tool calls carry the same plan data that
+      // Claude and OpenCode surface through their plan aggregators. Some ACP
+      // agents (Kimi Code) emit these tool calls without a matching `plan`
+      // session update, so we extract the steps here to keep the plan dock
+      // in sync. The tool row itself is suppressed — the plan item is the
+      // visible surface.
+      if (isAcpTodoWriteTool(toolCall.title, toolCall.kind, toolCall.name)) {
+        state.suppressedToolCallIds.add(toolCall.toolCallId);
+        state.suppressedTodoWriteIds.add(toolCall.toolCallId);
+        const steps = extractAcpTodoWriteSteps(toolCall.rawInput);
+        if (steps.length > 0) {
+          events.push(...emitAcpPlanSteps(state, steps));
+        }
         break;
       }
       const itemId = newItemId("tool");
@@ -327,6 +349,8 @@ export function mapAcpSessionUpdate(
         toolCallId: string;
         title?: string | null;
         kind?: string | null;
+        /** ACP SDK ≥1.3 programmatic tool name (UNSTABLE). */
+        name?: string | null;
         status?: "pending" | "in_progress" | "completed" | "failed";
         rawInput?: unknown;
         rawOutput?: unknown;
@@ -335,8 +359,18 @@ export function mapAcpSessionUpdate(
         locations?: Array<{ path?: string | null; line?: number | null }> | null;
       };
       if (state.suppressedToolCallIds.has(toolCall.toolCallId)) {
+        // `todo_write` tool calls may carry a more complete `rawInput` on the
+        // update notification (e.g. after the tool finishes executing). Re-
+        // extract plan steps so the dock reflects the final state.
+        if (state.suppressedTodoWriteIds.has(toolCall.toolCallId)) {
+          const steps = extractAcpTodoWriteSteps(toolCall.rawInput);
+          if (steps.length > 0) {
+            events.push(...emitAcpPlanSteps(state, steps));
+          }
+        }
         if (toolCall.status === "completed" || toolCall.status === "failed") {
           state.suppressedToolCallIds.delete(toolCall.toolCallId);
+          state.suppressedTodoWriteIds.delete(toolCall.toolCallId);
         }
         break;
       }
@@ -445,32 +479,55 @@ export function mapAcpSessionUpdate(
       };
       const rawEntries = plan.entries ?? plan.content?.entries ?? [];
       const steps = rawEntries.map((entry) => ({ step: entry.content, status: entry.status }));
-      state.openPlanSteps = steps;
-      if (!state.openPlanItemId) {
-        events.push(...closeOpenContentItems(state));
-        state.openPlanItemId = newItemId("plan");
-        events.push({
-          type: "item.started",
-          threadId,
-          itemId: state.openPlanItemId,
-          itemType: "plan",
-          payload: { steps },
-        });
-      } else {
-        events.push({
-          type: "item.updated",
-          threadId,
-          itemId: state.openPlanItemId,
-          payload: { steps },
-        });
+      events.push(...emitAcpPlanSteps(state, steps));
+      break;
+    }
+
+    // --- UNSTABLE / experimental plan variants (ACP SDK ≥1.2) ---
+
+    case "plan_update": {
+      const planUpdate = update as {
+        plan?:
+          | {
+              type: "items";
+              planId?: string;
+              entries?: Array<{
+                content: string;
+                status: "pending" | "in_progress" | "completed";
+              }>;
+            }
+          | { type: "file"; planId?: string; uri?: string }
+          | { type: "markdown"; planId?: string; content?: string };
+      };
+      const content = planUpdate.plan;
+      if (!content) break;
+      if (content.type === "items") {
+        const rawEntries = content.entries ?? [];
+        const steps = rawEntries.map((entry) => ({
+          step: entry.content,
+          status: entry.status,
+        }));
+        events.push(...emitAcpPlanSteps(state, steps));
+      } else if (content.type === "markdown" && typeof content.content === "string") {
+        const steps = parsePlanMarkdownSteps(content.content);
+        if (steps.length > 0) {
+          events.push(...emitAcpPlanSteps(state, steps));
+        }
       }
-      // If every step is completed, close the plan.
-      if (steps.length > 0 && steps.every((s) => s.status === "completed")) {
+      // `file` variant: the plan lives in a file referenced by URI. The pure
+      // mapper has no filesystem access; the session layer would need to
+      // resolve the URI and re-emit as `items`. Skipped until a provider
+      // actually uses this variant.
+      break;
+    }
+
+    case "plan_removed": {
+      // Complete and clear the open plan item, if any.
+      if (state.openPlanItemId) {
         events.push({
           type: "item.completed",
           threadId,
           itemId: state.openPlanItemId,
-          payload: { steps },
         });
         delete state.openPlanItemId;
         delete state.openPlanSteps;
@@ -504,9 +561,9 @@ export function mapAcpSessionUpdate(
     }
 
     default:
-      // Other update kinds (`session_info_update`, `config_option_update`, etc.)
-      // don't produce chat items in v1. They flow through the existing
-      // status/text channels untouched.
+      // `session_info_update`, `config_option_update`, and
+      // `available_commands_update` don't produce chat items — they flow
+      // through the session layer's status/config/slash-command channels.
       break;
   }
 
@@ -518,6 +575,49 @@ export function mapAcpSessionUpdate(
   }
   if (pendingSubAgent) {
     state.activeSubAgents.push(pendingSubAgent);
+  }
+  return events;
+}
+
+/**
+ * Create or update the open plan item from a set of steps. Shared between the
+ * ACP `plan` session-update handler and the `todo_write` tool-call handler so
+ * both paths produce identical plan lifecycle events.
+ */
+function emitAcpPlanSteps(
+  state: AcpMapperState,
+  steps: Array<{ step: string; status: "pending" | "in_progress" | "completed" }>,
+): RuntimeEvent[] {
+  const events: RuntimeEvent[] = [];
+  const { threadId } = state;
+  state.openPlanSteps = steps;
+  if (!state.openPlanItemId) {
+    events.push(...closeOpenContentItems(state));
+    state.openPlanItemId = newItemId("plan");
+    events.push({
+      type: "item.started",
+      threadId,
+      itemId: state.openPlanItemId,
+      itemType: "plan",
+      payload: { steps },
+    });
+  } else {
+    events.push({
+      type: "item.updated",
+      threadId,
+      itemId: state.openPlanItemId,
+      payload: { steps },
+    });
+  }
+  if (steps.length > 0 && steps.every((s) => s.status === "completed")) {
+    events.push({
+      type: "item.completed",
+      threadId,
+      itemId: state.openPlanItemId,
+      payload: { steps },
+    });
+    delete state.openPlanItemId;
+    delete state.openPlanSteps;
   }
   return events;
 }

@@ -63,6 +63,13 @@ export interface AcpMapperState {
    * dropped so we don't emit ghost updates against the wrong item. */
   suppressedToolCallIds: Set<string>;
   /**
+   * Subset of `suppressedToolCallIds` that are `todo_write` / `todowrite`
+   * tool calls. Their `tool_call_update` notifications may carry a more
+   * complete `rawInput` with updated plan steps, so we keep tracking them
+   * separately to re-extract plan state on completion.
+   */
+  suppressedTodoWriteIds: Set<string>;
+  /**
    * Resolve the live output of a client-hosted ACP terminal by its
    * `terminalId`. Gemini's shell tool surfaces output via `createTerminal`
    * (separate JSON-RPC channel) and references the terminal from
@@ -85,6 +92,7 @@ export function createAcpMapperState(threadId: string): AcpMapperState {
     toolCallItems: new Map(),
     activeSubAgents: [],
     suppressedToolCallIds: new Set(),
+    suppressedTodoWriteIds: new Set(),
   };
 }
 
@@ -122,6 +130,7 @@ export function resetMapperForTurnEnd(state: AcpMapperState): void {
     state.toolCallItems.has(active.toolCallId),
   );
   state.suppressedToolCallIds.clear();
+  state.suppressedTodoWriteIds.clear();
   delete state.openPlanItemId;
   delete state.openPlanSteps;
 }

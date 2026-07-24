@@ -171,3 +171,89 @@ export function extractToolCallContentImages(content: unknown): string[] {
   }
   return images;
 }
+
+/**
+ * Detect ACP tool calls that represent a todo/plan write operation.
+ *
+ * ACP agents that expose a `todo_write` / `todowrite` / `TodoWrite` tool
+ * (the same shape Claude and OpenCode use) may not emit a separate `plan`
+ * session update. Without this detection the plan dock would never reflect
+ * status changes made through the tool call path.
+ */
+export function isAcpTodoWriteTool(
+  title: string | null | undefined,
+  kind: string | null | undefined,
+  name?: string | null,
+): boolean {
+  const t = (title ?? "").toLowerCase().trim();
+  const k = (kind ?? "").toLowerCase().trim();
+  const n = (name ?? "").toLowerCase().trim();
+  return (
+    t === "todo_write" ||
+    t === "todowrite" ||
+    k === "todo_write" ||
+    k === "todowrite" ||
+    n === "todo_write" ||
+    n === "todowrite"
+  );
+}
+
+/**
+ * Extract canonical plan steps from a `todo_write` tool's `rawInput`.
+ *
+ * The input shape mirrors Claude's `TodoWrite`: `{ todos: [{ content, status }] }`.
+ * Returns an empty array when the input is unrecognisable so callers can
+ * fall through to the default tool-call rendering.
+ */
+export function extractAcpTodoWriteSteps(
+  rawInput: unknown,
+): Array<{ step: string; status: "pending" | "in_progress" | "completed" }> {
+  if (!rawInput || typeof rawInput !== "object" || Array.isArray(rawInput)) return [];
+  const input = rawInput as Record<string, unknown>;
+  const todos = input.todos;
+  if (!Array.isArray(todos)) return [];
+  return todos.flatMap((todo) => {
+    if (!todo || typeof todo !== "object") return [];
+    const obj = todo as Record<string, unknown>;
+    const step =
+      typeof obj.content === "string" && obj.content.trim().length > 0
+        ? obj.content.trim()
+        : "Task";
+    const status =
+      obj.status === "completed"
+        ? "completed"
+        : obj.status === "in_progress"
+          ? "in_progress"
+          : "pending";
+    return [{ step, status }];
+  });
+}
+
+const BULLET_TASK_RE = /^\s*(?:[-*+]|\d+[.)])\s+(?:\[(?<marker>[ xX~>])\]\s+)?(?<text>.+?)\s*$/;
+
+/**
+ * Parse plan steps from a markdown string (the `plan_update` `markdown`
+ * content variant). Recognises bullet/numbered lists with optional checkbox
+ * markers: `- [x] done`, `- [ ] todo`, `- plain`.
+ */
+export function parsePlanMarkdownSteps(
+  markdown: string,
+): Array<{ step: string; status: "pending" | "in_progress" | "completed" }> {
+  if (!markdown.trim()) return [];
+  const steps: Array<{ step: string; status: "pending" | "in_progress" | "completed" }> = [];
+  for (const rawLine of markdown.split(/\r?\n/g)) {
+    const match = BULLET_TASK_RE.exec(rawLine);
+    if (!match?.groups?.text) continue;
+    const text = match.groups.text.replace(/\s+/g, " ").trim();
+    if (!text) continue;
+    const marker = match.groups.marker;
+    const status =
+      marker?.toLowerCase() === "x"
+        ? "completed"
+        : marker === "~" || marker === ">"
+          ? "in_progress"
+          : "pending";
+    steps.push({ step: text, status });
+  }
+  return steps;
+}

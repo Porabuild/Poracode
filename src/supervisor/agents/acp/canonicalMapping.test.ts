@@ -900,6 +900,218 @@ describe("mapAcpSessionUpdate", () => {
     expect(state.openPlanSteps).toBeUndefined();
   });
 
+  it("extracts plan steps from todo_write tool_call and suppresses the tool row", () => {
+    const state = createAcpMapperState("t-todo-write");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-todo-1",
+        title: "todo_write",
+        kind: "other",
+        status: "in_progress",
+        rawInput: {
+          todos: [
+            { content: "Read files", status: "completed" },
+            { content: "Write code", status: "in_progress" },
+            { content: "Run tests", status: "pending" },
+          ],
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    // The tool row must NOT appear — only plan lifecycle events.
+    expect(
+      events.every(
+        (e) => e.type !== "item.started" || (e as { itemType?: string }).itemType === "plan",
+      ),
+    ).toBe(true);
+    const planStarted = events.find(
+      (e) => e.type === "item.started" && (e as { itemType?: string }).itemType === "plan",
+    ) as { itemId: string; payload: { steps: Array<{ step: string; status: string }> } };
+    expect(planStarted).toBeDefined();
+    expect(planStarted.payload.steps).toEqual([
+      { step: "Read files", status: "completed" },
+      { step: "Write code", status: "in_progress" },
+      { step: "Run tests", status: "pending" },
+    ]);
+    expect(state.suppressedToolCallIds.has("tc-todo-1")).toBe(true);
+    expect(state.suppressedTodoWriteIds.has("tc-todo-1")).toBe(true);
+  });
+
+  it("updates plan steps from todo_write tool_call_update", () => {
+    const state = createAcpMapperState("t-todo-update");
+    // Initial tool_call with partial input
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-todo-2",
+        title: "todowrite",
+        kind: "other",
+        status: "in_progress",
+        rawInput: {
+          todos: [
+            { content: "Step A", status: "in_progress" },
+            { content: "Step B", status: "pending" },
+          ],
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    // tool_call_update with completed steps
+    const updateEvents = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-todo-2",
+        status: "completed",
+        rawInput: {
+          todos: [
+            { content: "Step A", status: "completed" },
+            { content: "Step B", status: "completed" },
+          ],
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    // All steps completed → plan item should be completed and cleared.
+    const planCompleted = updateEvents.find((e) => e.type === "item.completed");
+    expect(planCompleted).toBeDefined();
+    expect(
+      (planCompleted as { payload: { steps: Array<{ status: string }> } }).payload.steps.every(
+        (s) => s.status === "completed",
+      ),
+    ).toBe(true);
+    expect(state.openPlanItemId).toBeUndefined();
+    expect(state.suppressedToolCallIds.has("tc-todo-2")).toBe(false);
+    expect(state.suppressedTodoWriteIds.has("tc-todo-2")).toBe(false);
+  });
+
+  it("does not suppress non-todo tool calls", () => {
+    const state = createAcpMapperState("t-no-todo");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-regular",
+        title: "read_file",
+        kind: "read",
+        status: "in_progress",
+        rawInput: { path: "foo.ts" },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(
+      events.some(
+        (e) => e.type === "item.started" && (e as { itemType?: string }).itemType === "tool_call",
+      ),
+    ).toBe(true);
+    expect(state.suppressedToolCallIds.has("tc-regular")).toBe(false);
+  });
+
+  it("detects todo_write via the ACP 1.3 name field", () => {
+    const state = createAcpMapperState("t-todo-name");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-todo-name",
+        title: "Update task list",
+        kind: "other",
+        name: "todo_write",
+        status: "in_progress",
+        rawInput: {
+          todos: [
+            { content: "Alpha", status: "completed" },
+            { content: "Beta", status: "pending" },
+          ],
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const planStarted = events.find(
+      (e) => e.type === "item.started" && (e as { itemType?: string }).itemType === "plan",
+    ) as { payload: { steps: Array<{ step: string; status: string }> } };
+    expect(planStarted).toBeDefined();
+    expect(planStarted.payload.steps).toEqual([
+      { step: "Alpha", status: "completed" },
+      { step: "Beta", status: "pending" },
+    ]);
+    expect(state.suppressedTodoWriteIds.has("tc-todo-name")).toBe(true);
+  });
+
+  it("handles plan_update with items content", () => {
+    const state = createAcpMapperState("t-plan-update-items");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "plan_update",
+        plan: {
+          type: "items",
+          planId: "p1",
+          entries: [
+            { content: "Design API", status: "completed" },
+            { content: "Implement", status: "in_progress" },
+            { content: "Test", status: "pending" },
+          ],
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const planStarted = events.find(
+      (e) => e.type === "item.started" && (e as { itemType?: string }).itemType === "plan",
+    ) as { payload: { steps: Array<{ step: string; status: string }> } };
+    expect(planStarted).toBeDefined();
+    expect(planStarted.payload.steps).toEqual([
+      { step: "Design API", status: "completed" },
+      { step: "Implement", status: "in_progress" },
+      { step: "Test", status: "pending" },
+    ]);
+  });
+
+  it("handles plan_update with markdown content", () => {
+    const state = createAcpMapperState("t-plan-update-md");
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "plan_update",
+        plan: {
+          type: "markdown",
+          planId: "p2",
+          content: "# Plan\n- [x] Research\n- [ ] Build\n- [ ] Ship",
+        },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const planStarted = events.find(
+      (e) => e.type === "item.started" && (e as { itemType?: string }).itemType === "plan",
+    ) as { payload: { steps: Array<{ step: string; status: string }> } };
+    expect(planStarted).toBeDefined();
+    expect(planStarted.payload.steps).toEqual([
+      { step: "Research", status: "completed" },
+      { step: "Build", status: "pending" },
+      { step: "Ship", status: "pending" },
+    ]);
+  });
+
+  it("handles plan_removed by completing the open plan", () => {
+    const state = createAcpMapperState("t-plan-removed");
+    // First create a plan
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "plan",
+        entries: [{ content: "Step 1", status: "in_progress" }],
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(state.openPlanItemId).toBeDefined();
+    // Then remove it
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "plan_removed",
+        planId: "p1",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(events.some((e) => e.type === "item.completed")).toBe(true);
+    expect(state.openPlanItemId).toBeUndefined();
+    expect(state.openPlanSteps).toBeUndefined();
+  });
+
   it("extracts file_change path and diff from ACP content diff blocks when rawInput is empty", () => {
     const state = createAcpMapperState("t-fc-content-diff");
     const events = mapAcpSessionUpdate(
