@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { AgentCapability, AgentProviderMetadata, ProjectLocation } from "@/shared/contracts";
+import { formatCursorBaseModelLabel } from "@/shared/modelLabels";
 import {
   batchWslCommandsAsync,
   envVarAuthProbe,
@@ -76,6 +77,14 @@ export interface PiCliModel {
   reasoning: boolean;
 }
 
+/** Display label for a Pi model id ("anthropic/claude-sonnet-4-5" → "Sonnet 4.5"). */
+export function humanizePiModelId(id: string): string {
+  // Take the segment after the last "/" so nested router ids
+  // ("openrouter/anthropic/claude-sonnet-4-5") still hit the canonical rules.
+  const slash = id.lastIndexOf("/");
+  return formatCursorBaseModelLabel(slash >= 0 ? id.slice(slash + 1) : id);
+}
+
 export function parsePiModelList(stdout: string): PiCliModel[] {
   return stdout
     .split(/\r?\n/u)
@@ -104,7 +113,7 @@ async function probePiCapabilities(
   );
   const base: CapabilitiesProbeResult = {
     ...piDefaultCapabilities,
-    models: models.map((model) => ({ id: model.id, label: model.id.split("/", 2)[1]! })),
+    models: models.map((model) => ({ id: model.id, label: humanizePiModelId(model.id) })),
     efforts: [...new Set(Object.values(modelEfforts).flat())],
     modelEfforts,
     ...(models.length > 0 ? { authState: "authenticated" as const } : {}),

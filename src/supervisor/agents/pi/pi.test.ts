@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { createKnownSessionRef } from "../base";
 import { buildPiArgs, buildPiOneShotArgs, splitPiModelId } from "./argv";
-import { parsePiModelList, piDefaultCapabilities, piDetectionSpec } from "./detection";
+import {
+  humanizePiModelId,
+  parsePiModelList,
+  piDefaultCapabilities,
+  piDetectionSpec,
+} from "./detection";
 import { createPiAdapter } from "./index";
 
 const location = { kind: "posix", path: "/tmp/pi-project" } as ProjectLocation;
@@ -162,5 +167,16 @@ openai     gpt-4.1-mini      1M       32K      no        yes`),
       { id: "anthropic/claude-sonnet-4", reasoning: true },
       { id: "openai/gpt-4.1-mini", reasoning: false },
     ]);
+  });
+
+  it("beautifies probed model ids into picker labels", () => {
+    expect(humanizePiModelId("anthropic/claude-sonnet-4-5")).toBe("Sonnet 4.5");
+    expect(humanizePiModelId("anthropic/claude-sonnet-4-5-20250929")).toBe("Sonnet 4.5 (20250929)");
+    expect(humanizePiModelId("openai/gpt-5.4-mini")).toBe("GPT-5.4 Mini");
+    expect(humanizePiModelId("openai-codex/gpt-5.3-codex-spark")).toBe("Codex 5.3 Spark");
+    expect(humanizePiModelId("openai/gpt-5.6-luna")).toBe("GPT-5.6 Luna");
+    expect(humanizePiModelId("google/gemini-3-pro")).toBe("Gemini 3 Pro");
+    expect(humanizePiModelId("openrouter/anthropic/claude-sonnet-4-5")).toBe("Sonnet 4.5");
+    expect(humanizePiModelId("xai/grok-code-fast-1")).toBe("Grok Code Fast 1");
   });
 });
