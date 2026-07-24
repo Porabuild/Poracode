@@ -36,11 +36,11 @@ describe("mobile SettingsView", () => {
       />,
     );
 
-    expect(screen.getByText("AI")).toBeInTheDocument();
+    expect(screen.getByText("AI Helpers")).toBeInTheDocument();
     expect(screen.getByText("Schedules")).toBeInTheDocument();
     expect(screen.getByText("Agents")).toBeInTheDocument();
     expect(screen.getByText("Archived Threads")).toBeInTheDocument();
-    expect(screen.getByText("Usage")).toBeInTheDocument();
+    expect(screen.getByText("Provider Usage")).toBeInTheDocument();
     expect(screen.queryByText("Appearance")).not.toBeInTheDocument();
     expect(screen.queryByText("Notifications")).not.toBeInTheDocument();
   });
@@ -90,7 +90,7 @@ describe("mobile SettingsView", () => {
       />,
     );
 
-    fireEvent.click(screen.getByText("Usage"));
+    fireEvent.click(screen.getByText("Provider Usage"));
 
     expect(onSectionChange).toHaveBeenCalledWith("usage");
   });
