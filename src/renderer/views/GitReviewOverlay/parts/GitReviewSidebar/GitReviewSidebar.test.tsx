@@ -17,6 +17,7 @@ const bridgeMock = vi.hoisted(() => ({
     vi.fn<
       () => Promise<{ sourceBranch: string | null; commitsAhead: number; sourceAhead: number }>
     >(),
+  ghGetPrForBranch: vi.fn<() => Promise<null>>(),
   generateCommitMessage: vi.fn<() => Promise<{ message: string }>>(),
 }));
 
@@ -239,6 +240,7 @@ describe("GitReviewSidebar", () => {
     bridgeMock.gitCommit.mockResolvedValue(undefined);
     bridgeMock.gitFetch.mockResolvedValue(undefined);
     bridgeMock.gitGetWorktreeSourceBranch.mockImplementation(() => new Promise(() => {}));
+    bridgeMock.ghGetPrForBranch.mockResolvedValue(null);
     bridgeMock.generateCommitMessage.mockResolvedValue({ message: "generated" });
     useGitStore.setState({
       ghAvailable: {},
