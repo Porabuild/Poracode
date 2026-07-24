@@ -61,9 +61,7 @@ export const Reasoning = memo(function Reasoning({ item }: ReasoningProps) {
         >
           {isStreaming ? <Trans>Thinking</Trans> : <Trans>Thought</Trans>}
         </span>
-        {/* pr keeps italic ink past the text advance from being clipped by
-            `truncate`'s overflow, same as ReasoningInline's preview. */}
-        {preview ? <span className="min-w-0 truncate pr-[0.2em] opacity-70">{preview}</span> : null}
+        {preview ? <span className="min-w-0 truncate opacity-70">{preview}</span> : null}
         <ChevronDown
           className={`size-3 shrink-0 opacity-100 transition-[transform,opacity] [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-visible:opacity-100 ${isOpen ? "rotate-180" : ""}`}
         />
