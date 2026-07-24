@@ -142,7 +142,6 @@ export function GitReviewSidebar(props: {
     project,
     effectiveBranch,
     effectivePrKey,
-    worktreePath,
     isGitHub,
     ghAvailable,
     preferredSourceBranch: prBaseBranch,

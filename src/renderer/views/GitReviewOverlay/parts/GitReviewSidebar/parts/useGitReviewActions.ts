@@ -235,7 +235,11 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   // callers that chain further work — e.g. the combined "Commit & Create PR"
   // action — only proceed when there's actually something pushed to open a PR
   // against.
-  async function handleCommit(addAll: boolean, pushAfter = false): Promise<boolean> {
+  async function handleCommit(
+    addAll: boolean,
+    pushAfter = false,
+    skipDelayedRefresh = false,
+  ): Promise<boolean> {
     setIsCommitting(true);
     try {
       let message = commitMessage.trim();
@@ -300,7 +304,12 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
           // GitHub takes a beat to register the new commits — refreshing
           // immediately fetches a stale PR snapshot. Delay so the post-push
           // refresh picks up fresh state.
-          setTimeout(() => onRefresh(), 1500);
+          // When the caller chains a PR creation (skipDelayedRefresh), the
+          // delayed refresh would race with handleCreatePr's setPrData and
+          // overwrite it with a stale null from ghGetPrForBranch.
+          if (!skipDelayedRefresh) {
+            setTimeout(() => onRefresh(), 1500);
+          }
         } finally {
           setIsSyncing(false);
         }
@@ -642,6 +651,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         useGitStore.getState().setPrData(effectivePrKey, pr);
       }
       patch(storeKey, { prTitle: "", prBody: "", prGen: null });
+      onRefresh();
     } catch (err) {
       console.error("[git] create PR failed", err);
       toast.danger(friendlyError(err));
@@ -655,9 +665,10 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
   // opens the dialog), so this stays a single uninterrupted action regardless
   // of the prCreateMode setting.
   async function handleCommitAndCreatePr(addAll: boolean): Promise<void> {
-    const committed = await handleCommit(addAll, true);
+    const committed = await handleCommit(addAll, true, true);
     if (!committed) return;
     await handleCreatePr(false);
+    onRefresh();
   }
 
   async function handleGeneratePrSummary(): Promise<void> {
