@@ -100,6 +100,8 @@ type SearchRow =
       primary: string;
     };
 
+type SectionMeta = { id: SettingsSection; icon: ReactNode; label: string };
+
 /**
  * A settings-search result row: a small section "eyebrow" (icon + section name)
  * above the matched setting text (its title, or a description snippet when only
@@ -204,56 +206,116 @@ export function SettingsSidebar(props: {
   const isSectionVisible = (id: SettingsSection) =>
     !remoteSession || !DESKTOP_ONLY_SECTIONS.has(id);
 
-  const sectionsBeforeAgents: { id: SettingsSection; icon: ReactNode; label: string }[] = [
-    { id: "profile", icon: <UserRound className="size-4" />, label: t`Profile` },
-    { id: "general", icon: <Settings2 className="size-4" />, label: t`General` },
-    { id: "audio", icon: <Mic className="size-4" />, label: t`Audio` },
-    { id: "appearance", icon: <Palette className="size-4" />, label: t`Appearance` },
-    { id: "terminal", icon: <TerminalSquare className="size-4" />, label: t`Terminal` },
-    { id: "threads", icon: <MessageSquare className="size-4" />, label: t`Threads` },
-    { id: "git", icon: <GitFork className="size-4" />, label: t`Git` },
-    { id: "worktrees", icon: <FolderGit2 className="size-4" />, label: t`Worktrees` },
-    { id: "notifications", icon: <Bell className="size-4" />, label: t`Notifications` },
+  // Grouped section model — single source of truth for sidebar order in both
+  // the expanded list (with group headers) and the collapsed icon rail. The
+  // "agents" group is special: its first row is the expandable agents tree
+  // (the "Models" stand-in on remote), followed by its plain sections.
+  const sectionGroups: { id: string; label: string; sections: SectionMeta[] }[] = [
     {
-      id: "ai",
-      icon: <Sparkles className="size-4" />,
-      label: t({ message: "AI", comment: "Settings section: AI / assistant configuration" }),
+      id: "personal",
+      label: t`Personal`,
+      sections: [
+        { id: "profile", icon: <UserRound className="size-4" />, label: t`Profile` },
+        { id: "general", icon: <Settings2 className="size-4" />, label: t`General` },
+        { id: "appearance", icon: <Palette className="size-4" />, label: t`Appearance` },
+        { id: "audio", icon: <Mic className="size-4" />, label: t`Audio` },
+        { id: "notifications", icon: <Bell className="size-4" />, label: t`Notifications` },
+        { id: "shortcuts", icon: <Keyboard className="size-4" />, label: t`Shortcuts` },
+      ],
     },
-    { id: "search", icon: <Search className="size-4" />, label: t`Search` },
-    { id: "shortcuts", icon: <Keyboard className="size-4" />, label: t`Shortcuts` },
-    { id: "remoteAccess", icon: <QrCode className="size-4" />, label: t`Remote Access` },
-    { id: "remoteServers", icon: <Server className="size-4" />, label: t`Remote Environments` },
+    {
+      id: "workspace",
+      label: t`Workspace`,
+      sections: [
+        { id: "terminal", icon: <TerminalSquare className="size-4" />, label: t`Terminal` },
+        { id: "threads", icon: <MessageSquare className="size-4" />, label: t`Threads` },
+        { id: "git", icon: <GitFork className="size-4" />, label: t`Git` },
+        { id: "worktrees", icon: <FolderGit2 className="size-4" />, label: t`Worktrees` },
+        { id: "search", icon: <Search className="size-4" />, label: t`Search` },
+        { id: "browser", icon: <Globe className="size-4" />, label: t`Browser` },
+        { id: "archived", icon: <Archive className="size-4" />, label: t`Archived Threads` },
+      ],
+    },
+    {
+      id: "agents",
+      label: t`Agents`,
+      sections: [
+        {
+          id: "ai",
+          icon: <Sparkles className="size-4" />,
+          label: t({
+            message: "AI Helpers",
+            comment:
+              "Settings section: AI helper features (commit messages, thread titles, conflict resolution)",
+          }),
+        },
+        { id: "skills", icon: <Box className="size-4" />, label: t`Skills` },
+        { id: "mcpServers", icon: <Cable className="size-4" />, label: t`MCP Servers` },
+        {
+          id: "usage",
+          icon: <Gauge className="size-4" />,
+          label: t({
+            message: "Provider Usage",
+            comment: "Settings section: provider usage and quota dashboard",
+          }),
+        },
+      ],
+    },
+    {
+      id: "remote",
+      label: t`Remote`,
+      sections: [
+        { id: "remoteAccess", icon: <QrCode className="size-4" />, label: t`Remote Access` },
+        { id: "remoteServers", icon: <Server className="size-4" />, label: t`Remote Environments` },
+      ],
+    },
+    {
+      id: "about",
+      label: t`About`,
+      sections: [
+        { id: "changelog", icon: <Megaphone className="size-4" />, label: t`Changelog` },
+        { id: "about", icon: <Info className="size-4" />, label: t`About` },
+        ...(devMode
+          ? [
+              {
+                id: "dev" as SettingsSection,
+                icon: <FlaskConical className="size-4" />,
+                label: t({ message: "Dev", comment: "Settings section: developer/debug tools" }),
+              },
+            ]
+          : []),
+      ],
+    },
   ];
-  const sectionsAfterAgents: { id: SettingsSection; icon: ReactNode; label: string }[] = [
-    { id: "skills", icon: <Box className="size-4" />, label: t`Skills` },
-    { id: "mcpServers", icon: <Cable className="size-4" />, label: t`MCP Servers` },
-    { id: "browser", icon: <Globe className="size-4" />, label: t`Browser` },
-    { id: "usage", icon: <Gauge className="size-4" />, label: t`Usage` },
-    { id: "archived", icon: <Archive className="size-4" />, label: t`Archived Threads` },
-    { id: "changelog", icon: <Megaphone className="size-4" />, label: t`Changelog` },
-    { id: "about", icon: <Info className="size-4" />, label: t`About` },
-  ];
+
+  // Desktop-only sections drop out of their group on remote sessions; a group
+  // whose rows are all hidden renders nothing at all, header included.
+  const visibleGroups = sectionGroups
+    .map((group) => ({
+      ...group,
+      hasTree: group.id === "agents",
+      sections: group.sections.filter((section) => isSectionVisible(section.id)),
+    }))
+    .filter((group) => group.hasTree || group.sections.length > 0);
 
   // When the filter has a query, the section list is replaced by a flat results
   // list that also surfaces individual settings (see ./settingsSearchIndex). Each
-  // section's label hit and its setting hits are grouped together, in section
-  // order, with the section icon/label reused as the result "eyebrow".
+  // section's label hit and its setting hits are grouped together, in sidebar
+  // group order, with the section icon/label reused as the result "eyebrow".
   const query = sectionFilter.trim();
-  const sectionMetaList: { id: SettingsSection; icon: ReactNode; label: string }[] = [
-    ...sectionsBeforeAgents,
-    { id: "agents", icon: <Bot className="size-4" />, label: t`Agents` },
-    { id: "agentsGeneral", icon: <Bot className="size-4" />, label: t`Agents · General` },
-    ...sectionsAfterAgents,
-    ...(devMode
+  const sectionMetaList: SectionMeta[] = sectionGroups.flatMap((group) =>
+    group.id === "agents"
       ? [
+          { id: "agents" as SettingsSection, icon: <Bot className="size-4" />, label: t`Agents` },
           {
-            id: "dev" as SettingsSection,
-            icon: <FlaskConical className="size-4" />,
-            label: t({ message: "Dev", comment: "Settings section: developer/debug tools" }),
+            id: "agentsGeneral" as SettingsSection,
+            icon: <Bot className="size-4" />,
+            label: t`Agents · General`,
           },
+          ...group.sections,
         ]
-      : []),
-  ];
+      : group.sections,
+  );
   const settingMatches = query === "" ? [] : searchSettings(query, t, { devMode, remoteSession });
   const matchesBySection = new Map<string, typeof settingMatches>();
   for (const match of settingMatches) {
@@ -291,267 +353,121 @@ export function SettingsSidebar(props: {
       {isCollapsed && (
         <div className="absolute inset-0 z-10 flex h-full min-h-0 flex-col items-start gap-3 pl-2 pb-1 pt-0">
           <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
-            <SidebarButton
-              iconOnly
-              icon={<UserRound className="size-4" />}
-              label={t`Profile`}
-              isActive={activeSection === "profile"}
-              onPress={() => onSectionChange("profile")}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<Settings2 className="size-4" />}
-              label={t`General`}
-              isActive={activeSection === "general"}
-              onPress={() => onSectionChange("general")}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<Mic className="size-4" />}
-              label={t`Audio`}
-              isActive={activeSection === "audio"}
-              onPress={() => onSectionChange("audio")}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<Palette className="size-4" />}
-              label={t`Appearance`}
-              isActive={activeSection === "appearance"}
-              onPress={() => onSectionChange("appearance")}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<TerminalSquare className="size-4" />}
-              label={t`Terminal`}
-              isActive={activeSection === "terminal"}
-              onPress={() => onSectionChange("terminal")}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<MessageSquare className="size-4" />}
-              label={t`Threads`}
-              isActive={activeSection === "threads"}
-              onPress={() => onSectionChange("threads")}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<GitFork className="size-4" />}
-              label={t`Git`}
-              isActive={activeSection === "git"}
-              onPress={() => onSectionChange("git")}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<FolderGit2 className="size-4" />}
-              label={t`Worktrees`}
-              isActive={activeSection === "worktrees"}
-              onPress={() => onSectionChange("worktrees")}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<Bell className="size-4" />}
-              label={t`Notifications`}
-              isActive={activeSection === "notifications"}
-              onPress={() => onSectionChange("notifications")}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<Sparkles className="size-4" />}
-              label={t({
-                message: "AI",
-                comment: "Settings section: AI / assistant configuration",
-              })}
-              isActive={activeSection === "ai"}
-              onPress={() => onSectionChange("ai")}
-            />
-            {!remoteSession && (
-              <SidebarButton
-                iconOnly
-                icon={<Box className="size-4" />}
-                label={t`Skills`}
-                isActive={activeSection === "skills"}
-                onPress={() => onSectionChange("skills")}
-              />
-            )}
-            {!remoteSession && (
-              <SidebarButton
-                iconOnly
-                icon={<Search className="size-4" />}
-                label={t`Search`}
-                isActive={activeSection === "search"}
-                onPress={() => onSectionChange("search")}
-              />
-            )}
-            {!remoteSession && (
-              <SidebarButton
-                iconOnly
-                icon={<Keyboard className="size-4" />}
-                label={t`Shortcuts`}
-                isActive={activeSection === "shortcuts"}
-                onPress={() => onSectionChange("shortcuts")}
-              />
-            )}
-            {!remoteSession && (
-              <SidebarButton
-                iconOnly
-                icon={<QrCode className="size-4" />}
-                label={t`Remote Access`}
-                isActive={activeSection === "remoteAccess"}
-                onPress={() => onSectionChange("remoteAccess")}
-              />
-            )}
-            {remoteSession ? (
-              <SidebarButton
-                iconOnly
-                icon={<Bot className="size-4" />}
-                label={t`Models`}
-                isActive={activeSection === "agentsGeneral"}
-                onPress={() => onSectionChange("agentsGeneral")}
-              />
-            ) : (
-              <SidebarButton
-                iconOnly
-                icon={<Bot className="size-4" />}
-                label={t`Agents`}
-                isActive={isAgentsActive}
-                onPress={openAgents}
-              />
-            )}
-            {!remoteSession && isAgentsActive && (
-              <SidebarButton
-                iconOnly
-                icon={
-                  isRefreshingAgents ? <PixelLoader size="sm" /> : <RefreshCw className="size-4" />
-                }
-                label={t`Refresh detected agents`}
-                isDisabled={isRefreshingAgents}
-                onPress={onRefreshAgents}
-              />
-            )}
-            {!remoteSession && isAgentsActive && (
-              <SidebarButton
-                iconOnly
-                icon={<Settings2 className="size-4" />}
-                label={t`Agents · General`}
-                isActive={activeSection === "agentsGeneral"}
-                onPress={() => onSectionChange("agentsGeneral")}
-              />
-            )}
-            {!remoteSession && isAgentsActive && (
-              <SidebarButton
-                iconOnly
-                icon={<Boxes className="size-4" />}
-                label={t`Agent Registry`}
-                isActive={activeSection === "acpRegistry"}
-                onPress={() => onSectionChange("acpRegistry")}
-              />
-            )}
-            {!remoteSession &&
-              isAgentsActive &&
-              primaryAgents.map((agent) => {
-                const needsAttention = attentionAgentKinds.has(agent.kind);
-                return (
-                  <div key={agent.kind} className="space-y-0.5">
+            {visibleGroups.map((group, groupIndex) => (
+              <div key={group.id} className={groupIndex > 0 ? "space-y-0.5 pt-2" : "space-y-0.5"}>
+                {group.hasTree &&
+                  (remoteSession ? (
                     <SidebarButton
                       iconOnly
-                      icon={
-                        <span className="relative flex size-4 items-center justify-center">
-                          {renderAgentIcon(agent, {
-                            disabled: disabledAgents.includes(agent.kind),
-                          })}
-                          {needsAttention ? (
-                            <AlertTriangle className="absolute -right-1 -top-1 size-2.5 text-warning" />
-                          ) : null}
-                        </span>
-                      }
-                      label={agent.label}
-                      isActive={activeSection === `agents:${agent.kind}`}
-                      onPress={() => onSectionChange(`agents:${agent.kind}`)}
+                      icon={<Bot className="size-4" />}
+                      label={t`Models`}
+                      isActive={activeSection === "agentsGeneral"}
+                      onPress={() => onSectionChange("agentsGeneral")}
                     />
-                    {instanceAgentsFor(agent.kind).map((profile) => {
-                      const profileNeedsAttention = attentionAgentKinds.has(profile.kind);
-                      return (
+                  ) : (
+                    <>
+                      <SidebarButton
+                        iconOnly
+                        icon={<Bot className="size-4" />}
+                        label={t`Agents`}
+                        isActive={isAgentsActive}
+                        onPress={openAgents}
+                      />
+                      {isAgentsActive && (
                         <SidebarButton
-                          key={profile.kind}
                           iconOnly
-                          className="ml-3 h-7 w-7"
                           icon={
-                            <span className="relative flex size-3.5 items-center justify-center">
-                              {renderAgentIcon(profile, {
-                                disabled: disabledAgents.includes(profile.kind),
-                                className: "size-3.5",
-                              })}
-                              {profileNeedsAttention ? (
-                                <AlertTriangle className="absolute -right-1 -top-1 size-2.5 text-warning" />
-                              ) : null}
-                            </span>
+                            isRefreshingAgents ? (
+                              <PixelLoader size="sm" />
+                            ) : (
+                              <RefreshCw className="size-4" />
+                            )
                           }
-                          label={profile.label}
-                          isActive={activeSection === `agents:${profile.kind}`}
-                          onPress={() => onSectionChange(`agents:${profile.kind}`)}
+                          label={t`Refresh detected agents`}
+                          isDisabled={isRefreshingAgents}
+                          onPress={onRefreshAgents}
                         />
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            {!remoteSession && (
-              <SidebarButton
-                iconOnly
-                icon={<Cable className="size-4" />}
-                label={t`MCP Servers`}
-                isActive={activeSection === "mcpServers"}
-                onPress={() => onSectionChange("mcpServers")}
-              />
-            )}
-            <SidebarButton
-              iconOnly
-              icon={<Globe className="size-4" />}
-              label={t`Browser`}
-              isActive={activeSection === "browser"}
-              onPress={() => onSectionChange("browser")}
-            />
-            <SidebarButton
-              iconOnly
-              icon={<Gauge className="size-4" />}
-              label={t`Usage`}
-              isActive={activeSection === "usage"}
-              onPress={() => onSectionChange("usage")}
-            />
-            {!remoteSession && (
-              <SidebarButton
-                iconOnly
-                icon={<Archive className="size-4" />}
-                label={t`Archived Threads`}
-                isActive={activeSection === "archived"}
-                onPress={() => onSectionChange("archived")}
-              />
-            )}
-            <SidebarButton
-              iconOnly
-              icon={<Megaphone className="size-4" />}
-              label={t`Changelog`}
-              isActive={activeSection === "changelog"}
-              onPress={() => onSectionChange("changelog")}
-            />
-            {!remoteSession && (
-              <SidebarButton
-                iconOnly
-                icon={<Info className="size-4" />}
-                label={t`About`}
-                isActive={activeSection === "about"}
-                onPress={() => onSectionChange("about")}
-              />
-            )}
-            {devMode && (
-              <SidebarButton
-                iconOnly
-                icon={<FlaskConical className="size-4" />}
-                label={t({ message: "Dev", comment: "Settings section: developer/debug tools" })}
-                isActive={activeSection === "dev"}
-                onPress={() => onSectionChange("dev")}
-              />
-            )}
+                      )}
+                      {isAgentsActive && (
+                        <SidebarButton
+                          iconOnly
+                          icon={<Settings2 className="size-4" />}
+                          label={t`Agents · General`}
+                          isActive={activeSection === "agentsGeneral"}
+                          onPress={() => onSectionChange("agentsGeneral")}
+                        />
+                      )}
+                      {isAgentsActive && (
+                        <SidebarButton
+                          iconOnly
+                          icon={<Boxes className="size-4" />}
+                          label={t`Agent Registry`}
+                          isActive={activeSection === "acpRegistry"}
+                          onPress={() => onSectionChange("acpRegistry")}
+                        />
+                      )}
+                      {isAgentsActive &&
+                        primaryAgents.map((agent) => {
+                          const needsAttention = attentionAgentKinds.has(agent.kind);
+                          return (
+                            <div key={agent.kind} className="space-y-0.5">
+                              <SidebarButton
+                                iconOnly
+                                icon={
+                                  <span className="relative flex size-4 items-center justify-center">
+                                    {renderAgentIcon(agent, {
+                                      disabled: disabledAgents.includes(agent.kind),
+                                    })}
+                                    {needsAttention ? (
+                                      <AlertTriangle className="absolute -right-1 -top-1 size-2.5 text-warning" />
+                                    ) : null}
+                                  </span>
+                                }
+                                label={agent.label}
+                                isActive={activeSection === `agents:${agent.kind}`}
+                                onPress={() => onSectionChange(`agents:${agent.kind}`)}
+                              />
+                              {instanceAgentsFor(agent.kind).map((profile) => {
+                                const profileNeedsAttention = attentionAgentKinds.has(profile.kind);
+                                return (
+                                  <SidebarButton
+                                    key={profile.kind}
+                                    iconOnly
+                                    className="ml-3 h-7 w-7"
+                                    icon={
+                                      <span className="relative flex size-3.5 items-center justify-center">
+                                        {renderAgentIcon(profile, {
+                                          disabled: disabledAgents.includes(profile.kind),
+                                          className: "size-3.5",
+                                        })}
+                                        {profileNeedsAttention ? (
+                                          <AlertTriangle className="absolute -right-1 -top-1 size-2.5 text-warning" />
+                                        ) : null}
+                                      </span>
+                                    }
+                                    label={profile.label}
+                                    isActive={activeSection === `agents:${profile.kind}`}
+                                    onPress={() => onSectionChange(`agents:${profile.kind}`)}
+                                  />
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                    </>
+                  ))}
+                {group.sections.map((section) => (
+                  <SidebarButton
+                    key={section.id}
+                    iconOnly
+                    icon={section.icon}
+                    label={section.label}
+                    isActive={activeSection === section.id}
+                    onPress={() => onSectionChange(section.id)}
+                  />
+                ))}
+              </div>
+            ))}
           </div>
           <div className={sidebarIconRailFooterClass}>
             <SidebarButton
@@ -625,150 +541,134 @@ export function SettingsSidebar(props: {
             </div>
           ) : (
             <div className="space-y-0.5">
-              {sectionsBeforeAgents
-                .filter((section) => isSectionVisible(section.id) && matchesFilter(section.label))
-                .map((section) => (
-                  <SidebarButton
-                    key={section.id}
-                    icon={section.icon}
-                    label={section.label}
-                    isActive={activeSection === section.id}
-                    onPress={() => onSectionChange(section.id)}
-                  />
-                ))}
-              {remoteSession && matchesFilter(t`Models`) && (
-                <SidebarButton
-                  icon={<Bot className="size-4" />}
-                  label={t`Models`}
-                  isActive={activeSection === "agentsGeneral"}
-                  onPress={() => onSectionChange("agentsGeneral")}
-                />
-              )}
-              {!remoteSession && matchesFilter(t`Agents`) && (
-                <>
-                  <SidebarButton
-                    icon={<Bot className="size-4" />}
-                    label={t`Agents`}
-                    isActive={activeSection === "agents"}
-                    onPress={openAgents}
-                    suffix={
-                      <button
-                        type="button"
-                        aria-label={t`Refresh detected agents`}
-                        className="flex size-5 shrink-0 cursor-default items-center justify-center text-muted/70 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:text-muted/40"
-                        disabled={isRefreshingAgents}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRefreshAgents();
-                        }}
-                      >
-                        {isRefreshingAgents ? (
-                          <PixelLoader size="xs" />
-                        ) : (
-                          <RefreshCw className="size-3.5" />
-                        )}
-                      </button>
-                    }
-                  />
-                  {isAgentsActive && (
-                    <div className="space-y-0.5 pl-4">
+              {visibleGroups.map((group, groupIndex) => (
+                <div key={group.id} className={groupIndex > 0 ? "space-y-0.5 pt-3" : "space-y-0.5"}>
+                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
+                    {group.label}
+                  </p>
+                  {group.hasTree &&
+                    (remoteSession ? (
                       <SidebarButton
-                        icon={<Settings2 className="size-4" />}
-                        label={t`General`}
+                        icon={<Bot className="size-4" />}
+                        label={t`Models`}
                         isActive={activeSection === "agentsGeneral"}
                         onPress={() => onSectionChange("agentsGeneral")}
                       />
-                      <SidebarButton
-                        icon={<Boxes className="size-4" />}
-                        label={t`Agent Registry`}
-                        isActive={activeSection === "acpRegistry"}
-                        onPress={() => onSectionChange("acpRegistry")}
-                      />
-                      {primaryAgents.map((agent) => {
-                        const agentDisabled = disabledAgents.includes(agent.kind);
-                        const needsAttention = attentionAgentKinds.has(agent.kind);
-                        return (
-                          <div key={agent.kind} className="space-y-0.5">
+                    ) : (
+                      <>
+                        <SidebarButton
+                          icon={<Bot className="size-4" />}
+                          label={t`Agents`}
+                          isActive={activeSection === "agents"}
+                          onPress={openAgents}
+                          suffix={
+                            <button
+                              type="button"
+                              aria-label={t`Refresh detected agents`}
+                              className="flex size-5 shrink-0 cursor-default items-center justify-center text-muted/70 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:text-muted/40"
+                              disabled={isRefreshingAgents}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRefreshAgents();
+                              }}
+                            >
+                              {isRefreshingAgents ? (
+                                <PixelLoader size="xs" />
+                              ) : (
+                                <RefreshCw className="size-3.5" />
+                              )}
+                            </button>
+                          }
+                        />
+                        {isAgentsActive && (
+                          <div className="space-y-0.5 pl-4">
                             <SidebarButton
-                              icon={renderAgentIcon(agent, {
-                                disabled: agentDisabled,
-                              })}
-                              label={agent.label}
-                              suffix={
-                                needsAttention ? (
-                                  <AlertTriangle
-                                    aria-hidden="true"
-                                    className="size-3.5 text-warning"
-                                  />
-                                ) : null
-                              }
-                              className={agentDisabled ? "opacity-50" : ""}
-                              isActive={activeSection === `agents:${agent.kind}`}
-                              onPress={() => onSectionChange(`agents:${agent.kind}`)}
+                              icon={<Settings2 className="size-4" />}
+                              label={t`General`}
+                              isActive={activeSection === "agentsGeneral"}
+                              onPress={() => onSectionChange("agentsGeneral")}
                             />
-                            {instanceAgentsFor(agent.kind).length > 0 ? (
-                              <div className="space-y-0.5 pl-5">
-                                {instanceAgentsFor(agent.kind).map((profile) => {
-                                  const profileDisabled = disabledAgents.includes(profile.kind);
-                                  const profileNeedsAttention = attentionAgentKinds.has(
-                                    profile.kind,
-                                  );
-                                  return (
-                                    <SidebarButton
-                                      key={profile.kind}
-                                      icon={renderAgentIcon(profile, {
-                                        disabled: profileDisabled,
-                                        className: "size-3.5",
-                                      })}
-                                      label={claudeProfileSidebarLabel(profile)}
-                                      suffix={
-                                        profileNeedsAttention ? (
-                                          <AlertTriangle
-                                            aria-hidden="true"
-                                            className="size-3.5 text-warning"
+                            <SidebarButton
+                              icon={<Boxes className="size-4" />}
+                              label={t`Agent Registry`}
+                              isActive={activeSection === "acpRegistry"}
+                              onPress={() => onSectionChange("acpRegistry")}
+                            />
+                            {primaryAgents.map((agent) => {
+                              const agentDisabled = disabledAgents.includes(agent.kind);
+                              const needsAttention = attentionAgentKinds.has(agent.kind);
+                              return (
+                                <div key={agent.kind} className="space-y-0.5">
+                                  <SidebarButton
+                                    icon={renderAgentIcon(agent, {
+                                      disabled: agentDisabled,
+                                    })}
+                                    label={agent.label}
+                                    suffix={
+                                      needsAttention ? (
+                                        <AlertTriangle
+                                          aria-hidden="true"
+                                          className="size-3.5 text-warning"
+                                        />
+                                      ) : null
+                                    }
+                                    className={agentDisabled ? "opacity-50" : ""}
+                                    isActive={activeSection === `agents:${agent.kind}`}
+                                    onPress={() => onSectionChange(`agents:${agent.kind}`)}
+                                  />
+                                  {instanceAgentsFor(agent.kind).length > 0 ? (
+                                    <div className="space-y-0.5 pl-5">
+                                      {instanceAgentsFor(agent.kind).map((profile) => {
+                                        const profileDisabled = disabledAgents.includes(
+                                          profile.kind,
+                                        );
+                                        const profileNeedsAttention = attentionAgentKinds.has(
+                                          profile.kind,
+                                        );
+                                        return (
+                                          <SidebarButton
+                                            key={profile.kind}
+                                            icon={renderAgentIcon(profile, {
+                                              disabled: profileDisabled,
+                                              className: "size-3.5",
+                                            })}
+                                            label={claudeProfileSidebarLabel(profile)}
+                                            suffix={
+                                              profileNeedsAttention ? (
+                                                <AlertTriangle
+                                                  aria-hidden="true"
+                                                  className="size-3.5 text-warning"
+                                                />
+                                              ) : null
+                                            }
+                                            className={`text-xs ${profileDisabled ? "opacity-50" : ""}`}
+                                            isActive={activeSection === `agents:${profile.kind}`}
+                                            onPress={() =>
+                                              onSectionChange(`agents:${profile.kind}`)
+                                            }
                                           />
-                                        ) : null
-                                      }
-                                      className={`text-xs ${profileDisabled ? "opacity-50" : ""}`}
-                                      isActive={activeSection === `agents:${profile.kind}`}
-                                      onPress={() => onSectionChange(`agents:${profile.kind}`)}
-                                    />
-                                  );
-                                })}
-                              </div>
-                            ) : null}
+                                        );
+                                      })}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
-              )}
-              {sectionsAfterAgents
-                .filter((section) => isSectionVisible(section.id) && matchesFilter(section.label))
-                .map((section) => (
-                  <SidebarButton
-                    key={section.id}
-                    icon={section.icon}
-                    label={section.label}
-                    isActive={activeSection === section.id}
-                    onPress={() => onSectionChange(section.id)}
-                  />
-                ))}
-              {devMode &&
-                matchesFilter(
-                  t({ message: "Dev", comment: "Settings section: developer/debug tools" }),
-                ) && (
-                  <SidebarButton
-                    icon={<FlaskConical className="size-4" />}
-                    label={t({
-                      message: "Dev",
-                      comment: "Settings section: developer/debug tools",
-                    })}
-                    isActive={activeSection === "dev"}
-                    onPress={() => onSectionChange("dev")}
-                  />
-                )}
+                        )}
+                      </>
+                    ))}
+                  {group.sections.map((section) => (
+                    <SidebarButton
+                      key={section.id}
+                      icon={section.icon}
+                      label={section.label}
+                      isActive={activeSection === section.id}
+                      onPress={() => onSectionChange(section.id)}
+                    />
+                  ))}
+                </div>
+              ))}
             </div>
           )}
         </div>

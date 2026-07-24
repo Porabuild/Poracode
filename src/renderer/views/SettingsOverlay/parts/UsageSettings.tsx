@@ -304,7 +304,7 @@ export function UsageSettings() {
 
   return (
     <SettingsPage
-      title={t`Usage`}
+      title={t`Provider Usage`}
       description={t`Track per-provider session, weekly, and monthly usage. Windows are reported by each provider; estimated cost is reconstructed from local logs.`}
       actions={
         <Button
