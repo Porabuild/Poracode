@@ -308,7 +308,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
           // delayed refresh would race with handleCreatePr's setPrData and
           // overwrite it with a stale null from ghGetPrForBranch.
           if (!skipDelayedRefresh) {
-            setTimeout(() => onRefresh(), 1500);
+            setTimeout(() => onRefresh(), 2000);
           }
         } finally {
           setIsSyncing(false);
@@ -399,7 +399,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
         // GitHub takes a beat to register the new commits — refreshing
         // immediately fetches a stale PR snapshot (mergeable/checks not
         // yet updated). Delay so the post-push refresh picks up fresh state.
-        setTimeout(() => onRefresh(), 1500);
+        setTimeout(() => onRefresh(), 2000);
       } else {
         captureProductEvent("git.sync_action", {
           action: "sync",
@@ -434,7 +434,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       if (key === "push") {
         refreshPrAfterPush();
         applyStatusOptimistic((s) => ({ ...s, ahead: 0 }));
-        setTimeout(() => onRefresh(), 1500);
+        setTimeout(() => onRefresh(), 2000);
         return;
       }
       onRefresh();
