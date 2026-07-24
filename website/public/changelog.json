@@ -2,14 +2,29 @@
   "releases": [
     {
       "version": "1.5.3",
-      "date": "2026-07-23",
-      "title": "Pi & Qoder agents, a mobile workspace & synced notes",
-      "summary": "Poracode gains two new coding agents — Pi and Qoder — and turns the mobile web app into a real workspace with a dockable side panel and notes and to-dos that sync with your desktop. Deeper app-orchestration tools, smarter subagent tracking, and a wide round of mobile and notification fixes complete the release.",
+      "date": "2026-07-24",
+      "title": "Pi & Qoder agents, Opus 5, a mobile workspace & synced notes",
+      "summary": "Poracode gains two new coding agents — Pi and Qoder — defaults new Claude threads to Opus 5, and turns the mobile web app into a real workspace with a dockable side panel and notes and to-dos that sync with your desktop. Subagents get their own views, provider token usage finally survives restarts, and a wide round of mobile and notification fixes completes the release.",
       "changes": [
         {
           "kind": "added",
           "label": "Providers",
-          "text": "Two new coding agents join the roster: Pi brings native structured chat with resumable sessions, live model and reasoning-effort discovery, and goal tracking, while Qoder adds plan and approval modes, session resume, and live turn status."
+          "text": "Two new coding agents join the roster: Pi brings native structured chat with resumable sessions, readable model and reasoning-effort discovery, and goal tracking, while Qoder adds plan and approval modes, session resume, and live turn status."
+        },
+        {
+          "kind": "added",
+          "label": "Claude",
+          "text": "Opus 5 is here and becomes the default for new Claude threads, with its effort tiers, 1M context option, and Fast-mode support read straight from the SDK rather than hardcoded."
+        },
+        {
+          "kind": "added",
+          "label": "Subagents",
+          "text": "Delegated work opens in a view of its own — a dedicated panel beside the parent thread on desktop, a full page with real back navigation on mobile — so you can follow a subagent's live transcript without losing your place."
+        },
+        {
+          "kind": "added",
+          "label": "Usage",
+          "text": "Token usage for Claude, Codex, and OpenCode is now written to a durable ledger, so your provider spend carries across app restarts, and providers that never report tokens say so instead of quietly showing zero."
         },
         {
           "kind": "added",
@@ -37,16 +52,26 @@
         },
         {
           "kind": "improved",
+          "label": "ACP agents",
+          "text": "To-do lists that agents like Kimi Code write through tools now feed the plan dock instead of cluttering the transcript as raw tool rows, and the plan follows along as the agent revises or drops it."
+        },
+        {
+          "kind": "improved",
           "text": "Steering a running turn is smoother: in-flight commands hand off to the background before the agent restarts with your message, and the pending-steer indicator only appears when a steer is genuinely waiting."
         },
         {
           "kind": "improved",
           "label": "Remote",
-          "text": "Mobile sessions feel more native with faster thread opening, right-click menus for mouse users, swipe-to-dismiss toasts, real file-type icons, and a pairing QR code that rotates automatically after each device pairs."
+          "text": "Mobile sessions feel more native with faster thread opening, smoother page transitions, fresher Git summaries, right-click menus for mouse users, swipe-to-dismiss toasts, real file-type icons, and a pairing QR code that rotates automatically after each device pairs."
         },
         {
           "kind": "improved",
           "text": "New threads now start in each provider's recommended autonomy preset, so Antigravity, Grok, Kimi Code, and Factory approve more actions automatically by default — switch a thread back to a supervised mode if you prefer to confirm each step."
+        },
+        {
+          "kind": "improved",
+          "label": "Settings",
+          "text": "Settings are easier to navigate: the sidebar is regrouped into clearer sections with plainer labels, and finished threads now tidy themselves away after three days instead of a week."
         },
         {
           "kind": "fixed",
@@ -59,8 +84,17 @@
         },
         {
           "kind": "fixed",
-          "label": "Kimi Code",
-          "text": "Subagent completions that run concurrently or reappear after a session resume are no longer dropped or double-counted."
+          "label": "ACP agents",
+          "text": "Background subagent progress in Kimi Code and Qwen Code survives concurrent runs and session resumes instead of being dropped or double-counted."
+        },
+        {
+          "kind": "fixed",
+          "text": "The Git review panel picks up pull request details right after you commit or open a PR, truncated previews keep their italic text, and collapsing a long message no longer leaves the chat scrolled somewhere unexpected."
+        },
+        {
+          "kind": "fixed",
+          "label": "Security",
+          "text": "Next.js and a batch of vulnerable transitive dependencies are pinned to patched releases."
         }
       ]
     },
