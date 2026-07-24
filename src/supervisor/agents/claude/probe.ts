@@ -1,6 +1,5 @@
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
 import type { AgentCapability, AgentTerminalAuthMethod } from "@/shared/contracts";
 import type { SlashCommand } from "@anthropic-ai/claude-agent-sdk";
 import {
@@ -11,8 +10,11 @@ import {
 import { CLAUDE_FAST_MODE_DISABLED_MESSAGE } from "./detection";
 import { resolveFastModeCachePath } from "./fastModeCache";
 import { resolveFastAvailability } from "./fastModeProbe";
+import { claudeCapabilitiesFromCliVersion, claudeCapabilitiesFromSdkModels } from "./models";
 import { AsyncPromptQueue } from "./promptQueue";
 import { spawnClaudeProbeProcess } from "./sdkProbeProcess";
+
+export { claudeCapabilitiesFromCliVersion } from "./models";
 
 const CLAUDE_TERMINAL_AUTH_METHOD: AgentTerminalAuthMethod = {
   type: "terminal",
@@ -23,93 +25,6 @@ const CLAUDE_TERMINAL_AUTH_METHOD: AgentTerminalAuthMethod = {
 
 export function claudeTerminalAuthMethod(env?: Record<string, string>): AgentTerminalAuthMethod {
   return env ? { ...CLAUDE_TERMINAL_AUTH_METHOD, env } : CLAUDE_TERMINAL_AUTH_METHOD;
-}
-
-const MIN_CLAUDE_OPUS_47_CLI = [2, 1, 111] as const;
-const MIN_CLAUDE_OPUS_48_CLI = [2, 1, 154] as const;
-const MIN_CLAUDE_FABLE_5_CLI = [2, 1, 170] as const;
-const MIN_CLAUDE_SONNET_5_CLI = [2, 1, 197] as const;
-const OPUS_48_MODEL_ID = "claude-opus-4-8";
-const OPUS_47_MODEL_ID = "claude-opus-4-7";
-const FABLE_5_MODEL_ID = "claude-fable-5";
-const SONNET_5_MODEL_ID = "claude-sonnet-5";
-
-const CLAUDE_SEMVER_RE = /(\d+)\.(\d+)\.(\d+)/;
-
-/** Built-in catalog (CLI `--model` ids) merged with semver gate + SDK slash commands. */
-const BUILTIN_MODELS: AgentCapability["models"] = [
-  { id: FABLE_5_MODEL_ID, label: "Fable 5" },
-  { id: OPUS_48_MODEL_ID, label: "Opus 4.8" },
-  { id: OPUS_47_MODEL_ID, label: "Opus 4.7" },
-  { id: "claude-opus-4-6", label: "Opus 4.6" },
-  { id: SONNET_5_MODEL_ID, label: "Sonnet 5" },
-  { id: "haiku", label: "Haiku" },
-];
-
-/** Effort tiers shared by the frontier models (Opus 4.7/4.8 and Fable 5). */
-const PREMIUM_EFFORT_TIERS: string[] = [...CLAUDE_EFFORT_TIERS];
-
-const BUILTIN_MODEL_EFFORTS: AgentCapability["modelEfforts"] = {
-  [FABLE_5_MODEL_ID]: PREMIUM_EFFORT_TIERS,
-  [OPUS_48_MODEL_ID]: PREMIUM_EFFORT_TIERS,
-  [OPUS_47_MODEL_ID]: PREMIUM_EFFORT_TIERS,
-  "claude-opus-4-6": ["low", "medium", "high", "max"],
-  [SONNET_5_MODEL_ID]: PREMIUM_EFFORT_TIERS,
-  haiku: [],
-};
-
-const BUILTIN_MODEL_CONTEXT_SIZES: NonNullable<AgentCapability["modelContextSizes"]> = {
-  [FABLE_5_MODEL_ID]: ["1m"],
-  [OPUS_48_MODEL_ID]: ["1m", "200k"],
-  [OPUS_47_MODEL_ID]: ["1m", "200k"],
-  "claude-opus-4-6": ["1m", "200k"],
-  [SONNET_5_MODEL_ID]: ["1m"],
-  // Legacy `sonnet` alias retained for backward compatibility — see detection.ts.
-  sonnet: ["200k", "1m"],
-};
-
-const BUILTIN_FAST_MODELS: NonNullable<AgentCapability["fastModels"]> = [
-  OPUS_48_MODEL_ID,
-  OPUS_47_MODEL_ID,
-  "claude-opus-4-6",
-];
-
-function parseSemverTriplet(version: string): [number, number, number] | null {
-  const m = CLAUDE_SEMVER_RE.exec(version.trim());
-  if (!m) return null;
-  return [Number(m[1]), Number(m[2]), Number(m[3])];
-}
-
-function semverGte(a: [number, number, number], b: readonly [number, number, number]): boolean {
-  if (a[0] !== b[0]) return a[0] > b[0];
-  if (a[1] !== b[1]) return a[1] > b[1];
-  return a[2] >= b[2];
-}
-
-/** Hide Opus releases when the installed CLI is older than Anthropic's minimum for that model. */
-export function claudeCapabilitiesFromCliVersion(
-  version: string | undefined,
-): Partial<AgentCapability> | undefined {
-  if (!version) return undefined;
-  const triplet = parseSemverTriplet(version);
-  if (!triplet) return undefined;
-
-  const hiddenModelIds = new Set<string>();
-  if (!semverGte(triplet, MIN_CLAUDE_FABLE_5_CLI)) hiddenModelIds.add(FABLE_5_MODEL_ID);
-  if (!semverGte(triplet, MIN_CLAUDE_SONNET_5_CLI)) hiddenModelIds.add(SONNET_5_MODEL_ID);
-  if (!semverGte(triplet, MIN_CLAUDE_OPUS_48_CLI)) hiddenModelIds.add(OPUS_48_MODEL_ID);
-  if (!semverGte(triplet, MIN_CLAUDE_OPUS_47_CLI)) hiddenModelIds.add(OPUS_47_MODEL_ID);
-  if (hiddenModelIds.size === 0) return undefined;
-
-  const models = BUILTIN_MODELS.filter((m) => !hiddenModelIds.has(m.id));
-  const modelEfforts = { ...BUILTIN_MODEL_EFFORTS };
-  const modelContextSizes = { ...BUILTIN_MODEL_CONTEXT_SIZES };
-  for (const modelId of hiddenModelIds) {
-    delete modelEfforts[modelId];
-    delete modelContextSizes[modelId];
-  }
-  const fastModels = BUILTIN_FAST_MODELS.filter((modelId) => !hiddenModelIds.has(modelId));
-  return { models, modelEfforts, modelContextSizes, fastModels };
 }
 
 export function mapClaudeSlashCommands(
@@ -181,6 +96,7 @@ async function probeClaudeSdkPartialNative(
       });
       const init = await q.initializationResult();
       const slashCommands = mapClaudeSlashCommands(init.commands);
+      const modelCapabilities = claudeCapabilitiesFromSdkModels(init.models);
       const fastAvailable = await resolveFastAvailability(
         q,
         queue,
@@ -196,8 +112,9 @@ async function probeClaudeSdkPartialNative(
         // ignore
       }
       abort.abort();
-      if (slashCommands.length === 0 && !fastDisabledReason) return undefined;
+      if (slashCommands.length === 0 && !fastDisabledReason && !modelCapabilities) return undefined;
       return {
+        ...(modelCapabilities ?? {}),
         ...(slashCommands.length > 0 ? { slashCommands } : {}),
         ...(fastDisabledReason ? { fastDisabledReason } : {}),
       };
@@ -252,6 +169,8 @@ async function probeClaudeSdkPartialWsl(
   try {
     const parsed = JSON.parse(result.stdout) as {
       slashCommands?: AgentCapability["slashCommands"];
+      modelEfforts?: AgentCapability["modelEfforts"];
+      fastModels?: AgentCapability["fastModels"];
       fastAvailable?: boolean;
       error?: string;
     };
@@ -261,8 +180,14 @@ async function probeClaudeSdkPartialWsl(
     }
     const fastDisabledReason =
       parsed.fastAvailable === false ? CLAUDE_FAST_MODE_DISABLED_MESSAGE : undefined;
-    if (!parsed.slashCommands?.length && !fastDisabledReason) return undefined;
+    const hasModelCapabilities =
+      parsed.modelEfforts !== undefined || parsed.fastModels !== undefined;
+    if (!parsed.slashCommands?.length && !fastDisabledReason && !hasModelCapabilities) {
+      return undefined;
+    }
     return {
+      ...(parsed.modelEfforts ? { modelEfforts: parsed.modelEfforts } : {}),
+      ...(parsed.fastModels ? { fastModels: parsed.fastModels } : {}),
       ...(parsed.slashCommands?.length ? { slashCommands: parsed.slashCommands } : {}),
       ...(fastDisabledReason ? { fastDisabledReason } : {}),
     };

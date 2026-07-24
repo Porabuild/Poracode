@@ -162,8 +162,19 @@ describe("claudeCapabilities", () => {
     expect(claudeCapabilities.fastModels).not.toContain("claude-fable-5");
   });
 
-  it("lists Fable 5 first so it is the default for new threads", () => {
-    expect(claudeCapabilities.models[0]).toEqual({ id: "claude-fable-5", label: "Fable 5" });
+  it("lists Opus 5 first at high effort so it is the default for new threads", () => {
+    expect(claudeCapabilities.models[0]).toEqual({ id: "claude-opus-5", label: "Opus 5" });
+    expect(claudeCapabilities.defaultEffort).toBe("high");
+    expect(claudeCapabilities.modelEfforts["claude-opus-5"]).toEqual([
+      "low",
+      "medium",
+      "high",
+      "xHigh",
+      "max",
+      "ultracode",
+    ]);
+    expect(claudeCapabilities.modelContextSizes?.["claude-opus-5"]).toEqual(["1m"]);
+    expect(claudeCapabilities.fastModels).toContain("claude-opus-5");
   });
 
   it("surfaces Sonnet 5 with frontier effort tiers", () => {
