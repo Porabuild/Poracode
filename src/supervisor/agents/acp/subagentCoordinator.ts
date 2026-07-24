@@ -13,6 +13,7 @@ import {
   PORACODE_ACP_DETACHED_SUBAGENT_META_KEY,
   PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
   PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY,
+  PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY,
   PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "./canonicalMapping/subagents";
 
@@ -52,6 +53,7 @@ export interface AcpSubagentCompletionInput {
   childOutput?: string;
   parentReply?: string;
   terminalMeta?: Record<string, unknown>;
+  synthesizeResultProgress?: boolean;
 }
 
 export interface AcpSubagentCoordinator {
@@ -170,6 +172,7 @@ export function createAcpSubagentCoordinator(): AcpSubagentCoordinator {
         ...(input.childOutput ? { childOutput: input.childOutput } : {}),
         ...(input.parentReply ? { parentReply: input.parentReply } : {}),
         ...(input.terminalMeta ? { terminalMeta: input.terminalMeta } : {}),
+        ...(input.synthesizeResultProgress ? { synthesizeResultProgress: true } : {}),
       });
       forgetCall(toolCallId);
       return notifications;
@@ -248,6 +251,7 @@ function createAcpSubagentCompletionNotifications(input: {
   childOutput?: string;
   parentReply?: string;
   terminalMeta?: Record<string, unknown>;
+  synthesizeResultProgress?: boolean;
 }): SessionNotification[] {
   const notifications: SessionNotification[] = [];
   if (input.childOutput) {
@@ -281,6 +285,9 @@ function createAcpSubagentCompletionNotifications(input: {
       _meta: {
         ...input.terminalMeta,
         [PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY]: input.toolCallId,
+        ...(input.synthesizeResultProgress
+          ? { [PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY]: true }
+          : {}),
       },
     }),
   );

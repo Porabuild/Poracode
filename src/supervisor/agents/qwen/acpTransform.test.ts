@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { SessionNotification } from "@agentclientprotocol/sdk";
 import {
+  createAcpMapperState,
+  mapAcpSessionUpdate,
   PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY,
   PORACODE_ACP_GOAL_META_KEY,
   PORACODE_ACP_PARENT_TOOL_CALL_ID_META_KEY,
+  PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY,
   PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY,
 } from "../acp/canonicalMapping";
 import { createQwenAcpSessionBridge, createQwenAcpSessionUpdateTransform } from "./acpTransform";
@@ -200,7 +203,7 @@ describe("createQwenAcpSessionUpdateTransform", () => {
           type: "content",
           content: {
             type: "text",
-            text: "Background agent launched successfully.\nagentId: Explore-abcd1234 (internal ID)",
+            text: "Background agent launched successfully.\ntask_id: Explore-abcd1234 (internal ID)",
           },
         },
       ],
@@ -270,8 +273,102 @@ describe("createQwenAcpSessionUpdateTransform", () => {
       _meta: {
         usage: { totalTokens: 42 },
         [PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY]: "agent-bg",
+        [PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY]: true,
       },
     });
+  });
+
+  it("maps the Qwen 0.21 background result into a child transcript before completion", () => {
+    const bridge = createQwenAcpSessionBridge();
+    const state = createAcpMapperState("qwen-thread");
+    const mapUpdate = (update: Record<string, unknown>) =>
+      mapAcpSessionUpdate(bridge.sessionUpdateTransform(note(update)), state);
+
+    const started = mapUpdate({
+      sessionUpdate: "tool_call",
+      toolCallId: "agent-real",
+      title: "Agent: Inspect ACP mapping",
+      status: "pending",
+      _meta: { toolName: "agent" },
+    });
+    const parentItemId = (
+      started.find((event) => event.type === "item.started") as {
+        itemId: string;
+      }
+    ).itemId;
+
+    mapUpdate({
+      sessionUpdate: "tool_call_update",
+      toolCallId: "agent-real",
+      status: "completed",
+      content: [
+        {
+          type: "content",
+          content: {
+            type: "text",
+            text: "Background agent launched successfully.\ntask_id: Explore-real123 (internal ID)",
+          },
+        },
+      ],
+      rawOutput: {
+        status: "background",
+        subagentName: "Explore",
+        taskDescription: "Inspect ACP mapping",
+      },
+      _meta: { toolName: "agent" },
+    });
+    mapUpdate({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: 'Background agent "Explore" completed.' },
+      _meta: {
+        source: "background_notification",
+        backgroundTask: { taskId: "Explore-real123", status: "completed" },
+      },
+    });
+    mapUpdate({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "The background agent found the mapper." },
+      _meta: {
+        source: "background_notification_response",
+        backgroundTask: { taskId: "Explore-real123", status: "completed" },
+      },
+    });
+
+    const boundary = bridge.extensionSessionUpdateTransform("_qwencode/end_turn", {
+      sessionId: "qwen-session",
+      reason: "end_turn",
+      source: "background_notification",
+    });
+    const terminalEvents = mapAcpSessionUpdate(bridge.sessionUpdateTransform(boundary!), state);
+    const childStart = terminalEvents.find(
+      (event) => event.type === "item.started" && event.parentItemId === parentItemId,
+    );
+    expect(childStart).toMatchObject({
+      type: "item.started",
+      itemType: "assistant_message",
+      parentItemId,
+    });
+    expect(terminalEvents).toContainEqual(
+      expect.objectContaining({
+        type: "content.delta",
+        itemId: childStart && "itemId" in childStart ? childStart.itemId : "",
+        stream: "assistant_text",
+        delta: "The background agent found the mapper.",
+      }),
+    );
+    const childCompletedIndex = terminalEvents.findIndex(
+      (event) =>
+        event.type === "item.completed" &&
+        childStart &&
+        "itemId" in childStart &&
+        event.itemId === childStart.itemId,
+    );
+    const parentCompletedIndex = terminalEvents.findIndex(
+      (event) => event.type === "item.completed" && event.itemId === parentItemId,
+    );
+    expect(childCompletedIndex).toBeGreaterThanOrEqual(0);
+    expect(parentCompletedIndex).toBeGreaterThan(childCompletedIndex);
+    expect(state.activeSubAgents).toEqual([]);
   });
 
   it("uses Qwen's real background end-turn extension as the terminal boundary", () => {

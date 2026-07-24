@@ -22,6 +22,7 @@ export const PORACODE_ACP_TOP_LEVEL_TOOL_CALL_META_KEY = "poracodeTopLevelToolCa
 export const PORACODE_ACP_DETACHED_SUBAGENT_META_KEY = "poracodeDetachedSubAgent";
 export const PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY = "poracodeDetachedSubAgentActivity";
 export const PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY = "poracodeNewAssistantItem";
+export const PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY = "poracodeSynthesizeSubAgentResult";
 
 export function buildSubAgentProgress(
   toolCall: {

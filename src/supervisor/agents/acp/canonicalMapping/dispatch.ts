@@ -31,6 +31,7 @@ import {
   isUpdateTopicTool,
   PORACODE_ACP_DETACHED_SUBAGENT_META_KEY,
   PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
+  PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY,
   removeActiveSubAgent,
   selectActiveSubAgentForToolCall,
   tagSubAgentChildStarts,
@@ -377,6 +378,7 @@ export function mapAcpSessionUpdate(
       const hasOpenSubAgentContent =
         item.isSubAgent &&
         isTerminal &&
+        updateMeta?.[PORACODE_ACP_SYNTHESIZE_SUBAGENT_RESULT_META_KEY] !== true &&
         (state.openAssistantItemId !== undefined || state.openReasoningItemId !== undefined);
       const subAgentProgress =
         item.isSubAgent && !hasOpenSubAgentContent
@@ -401,20 +403,29 @@ export function mapAcpSessionUpdate(
       if (isTerminal && item.isSubAgent) {
         events.push(...closeOpenContentItems(state));
       }
-      events.push({
+      const parentEvent: RuntimeEvent = {
         type: isTerminal ? "item.completed" : "item.updated",
         threadId,
         itemId: item.itemId,
         payload: emittedPayload,
-      });
-      if (subAgentProgress?.text) {
-        events.push(...buildSubAgentProgressEvents(state, item, subAgentProgress.text, isTerminal));
-      } else if (isTerminal && item.subAgentProgressItemId) {
-        events.push({
-          type: "item.completed",
-          threadId,
-          itemId: item.subAgentProgressItemId,
-        });
+      };
+      const progressEvents = subAgentProgress?.text
+        ? buildSubAgentProgressEvents(state, item, subAgentProgress.text, isTerminal)
+        : isTerminal && item.subAgentProgressItemId
+          ? [
+              {
+                type: "item.completed" as const,
+                threadId,
+                itemId: item.subAgentProgressItemId,
+              },
+            ]
+          : [];
+      // Child transcript events must precede the terminal parent event. The
+      // runtime router drains buffered children when the parent completes.
+      if (isTerminal) {
+        events.push(...progressEvents, parentEvent);
+      } else {
+        events.push(parentEvent, ...progressEvents);
       }
       if (isTerminal) {
         state.toolCallItems.delete(toolCall.toolCallId);
