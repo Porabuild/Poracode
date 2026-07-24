@@ -15,6 +15,7 @@ import {
 } from "./detection";
 import { CodexStructuredSession } from "./acp";
 import { CodexRpcResponseError, type CodexAppServerRpcListener } from "./appServerRpc";
+import { createCodexMapperState, CodexUsageScopeTracker } from "./canonicalMapping";
 import type { CodexThreadStatus } from "./acpProtocol";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { RuntimeEvent, ToolCallPayload } from "@/shared/contracts";
@@ -794,6 +795,81 @@ describe("CodexSubAgentRouter", () => {
       }),
     );
   });
+
+  it("routes child tokenUsage as usage.spent in the child scope, dropping context.updated", () => {
+    const router = createRouterWithChild();
+
+    const events = router.routeChildNotification(
+      "thread/tokenUsage/updated",
+      {
+        threadId: "child-thread",
+        tokenUsage: {
+          total: {
+            inputTokens: 900,
+            cachedInputTokens: 0,
+            outputTokens: 100,
+            reasoningOutputTokens: 0,
+            totalTokens: 1_000,
+          },
+          last: {
+            inputTokens: 40,
+            cachedInputTokens: 0,
+            outputTokens: 10,
+            reasoningOutputTokens: 0,
+            totalTokens: 50,
+          },
+          modelContextWindow: 258_400,
+        },
+      },
+      "provider-thread",
+    );
+
+    expect(events?.filter((event) => event.type === "usage.spent")).toEqual([
+      {
+        type: "usage.spent",
+        threadId: "local-thread",
+        usage: {
+          counterKind: "cumulative",
+          counter: 1_000,
+          scopeId: "child-thread",
+          epoch: 0,
+          fresh: true,
+          sampleId: "child-thread:0:1000",
+          occurredAt: expect.any(Number),
+        },
+      },
+    ]);
+    // Child context.updated stays dropped — the dock keeps the main thread's occupancy.
+    expect(events?.some((event) => event.type === "context.updated")).toBe(false);
+
+    const next = router.routeChildNotification(
+      "thread/tokenUsage/updated",
+      {
+        threadId: "child-thread",
+        tokenUsage: {
+          total: {
+            inputTokens: 1_400,
+            cachedInputTokens: 0,
+            outputTokens: 100,
+            reasoningOutputTokens: 0,
+            totalTokens: 1_500,
+          },
+          last: {
+            inputTokens: 40,
+            cachedInputTokens: 0,
+            outputTokens: 10,
+            reasoningOutputTokens: 0,
+            totalTokens: 50,
+          },
+          modelContextWindow: 258_400,
+        },
+      },
+      "provider-thread",
+    );
+    expect(next?.find((event) => event.type === "usage.spent")).toMatchObject({
+      usage: { counter: 1_500, scopeId: "child-thread", epoch: 0 },
+    });
+  });
 });
 
 function createRouterWithChild(): CodexSubAgentRouter {
@@ -1018,6 +1094,79 @@ describe("CodexStructuredSession", () => {
           { id: "output", label: "Output", tokens: 15 },
           { id: "reasoning", label: "Reasoning", tokens: 5 },
         ],
+      },
+    });
+  });
+
+  it("starts a new usage scope epoch on fork and replays buffered tokenUsage into it", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    const runtimeEvents: RuntimeEvent[] = [];
+    (structuredSession as unknown as Record<string, unknown>)["listener"] = {
+      onRuntimeEvent: (event: RuntimeEvent) => runtimeEvents.push(event),
+    };
+    const mapperState = createCodexMapperState("local-thread");
+    mapperState.usageScope = new CodexUsageScopeTracker("provider-thread", false);
+    (structuredSession as unknown as Record<string, unknown>)["mapperState"] = mapperState;
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      request: (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read" && params.includeTurns === true) {
+          return Promise.resolve({
+            thread: {
+              turns: ["turn-1", "turn-2", "turn-3"].map((id) => ({ id })),
+            },
+          });
+        }
+        if (method === "thread/fork") {
+          const response = Promise.resolve({ thread: { id: "forked-thread" } });
+          // Arrives mid-fork (buffered), carrying the forked thread's inherited history.
+          dispatchNotification(structuredSession, {
+            jsonrpc: "2.0",
+            method: "thread/tokenUsage/updated",
+            params: {
+              threadId: "forked-thread",
+              turnId: "turn-2",
+              tokenUsage: {
+                total: {
+                  inputTokens: 4_800,
+                  cachedInputTokens: 0,
+                  outputTokens: 200,
+                  reasoningOutputTokens: 0,
+                  totalTokens: 5_000,
+                },
+                last: {
+                  inputTokens: 80,
+                  cachedInputTokens: 0,
+                  outputTokens: 15,
+                  reasoningOutputTokens: 5,
+                  totalTokens: 100,
+                },
+                modelContextWindow: 258_400,
+              },
+            },
+          });
+          return response;
+        }
+        return Promise.resolve({ thread: { status: { type: "idle" } } });
+      },
+    };
+
+    const history = await structuredSession.rollbackThread(1);
+
+    expect(history).toEqual({ providerSessionId: "forked-thread", messages: [] });
+    // The buffered tokenUsage replayed into the new scope: epoch 1, baseline
+    // sample (no fresh — forked threads carry inherited history).
+    expect(runtimeEvents).toContainEqual({
+      type: "usage.spent",
+      threadId: "local-thread",
+      usage: {
+        counterKind: "cumulative",
+        counter: 5_000,
+        scopeId: "forked-thread",
+        epoch: 1,
+        sampleId: "forked-thread:1:5000",
+        occurredAt: expect.any(Number),
       },
     });
   });

@@ -209,6 +209,11 @@ function applyRuntimeEventToRuntimeState(
       // No item state to mutate. Status flows through the existing thread-state channel.
       return {};
 
+    case "usage.spent":
+      // Token consumption is persisted by the main-process usage ledger; the
+      // renderer keeps no token state (the dock reads context.updated only).
+      return {};
+
     case "turn.started":
       // Mark the runtime turn open so live activity may (re)open the GUI turn.
       // No item state to mutate; status flows through the thread-state channel.

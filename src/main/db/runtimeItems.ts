@@ -498,6 +498,11 @@ export function dbApplyThreadRuntimeEvents(
           }
           break;
 
+        case "usage.spent":
+          // Token consumption is not a chat item; the usage ledger persists it
+          // (recordUsageSpentFromRuntimeEvents) alongside this function.
+          break;
+
         default:
           break;
       }

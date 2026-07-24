@@ -104,6 +104,7 @@ import { AcpTerminalManager } from "./terminalManager";
 import {
   appendInterruptAckTextTail,
   createAcpPromptUsageEvent,
+  createAcpPromptUsageSpentEvent,
   isAcpPromptCancellationError,
   normalizeAcpStopReason,
   resolveAcpPromptFailureMessage,
@@ -188,6 +189,14 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private detachedTurnId: string | undefined;
   private readonly detachedTurnParentToolCallIds = new Set<string>();
   private stableSessionRef: SessionRef | undefined;
+  /**
+   * usage.spent ledger scope: the ACP session id plus an epoch that bumps if
+   * the id ever changes, and a `fresh` flag consumed by the first emitted
+   * sample (true only for sessions this handle created via `session/new`).
+   */
+  private usageScopeId: string | undefined;
+  private usageEpoch = 0;
+  private usageScopeFresh = false;
   /**
    * True while a `connection.prompt()` call is in flight (between issue and
    * resolution). Used together with `pendingPromptInterrupt` to close the
@@ -594,6 +603,19 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     return kept;
   }
 
+  /**
+   * Track the usage.spent ledger scope. A changed session id ends the old
+   * counter lineage — bump the epoch rather than inferring a reset from the
+   * cumulative counter. `fresh` marks sessions created via `session/new`
+   * (baseline 0); resumed/loaded sessions get a baseline-only first sample.
+   */
+  private trackUsageScope(sessionId: string, fresh: boolean): void {
+    if (this.usageScopeId === sessionId) return;
+    if (this.usageScopeId !== undefined) this.usageEpoch += 1;
+    this.usageScopeId = sessionId;
+    this.usageScopeFresh = fresh;
+  }
+
   async openThread(config: ThreadConfig, sessionRef?: SessionRef): Promise<string> {
     let availableModeIds: string[] = [];
     let configOptions: unknown[] | null | undefined;
@@ -614,6 +636,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
             mcpServers,
           });
           this.adoptSessionRef(sessionRef);
+          this.trackUsageScope(sessionRef.providerSessionId, false);
           availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
           configOptions = result.configOptions;
         } catch (error) {
@@ -633,6 +656,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
             mcpServers,
           });
           this.adoptSessionRef(sessionRef);
+          this.trackUsageScope(sessionRef.providerSessionId, false);
           availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
           configOptions = result.configOptions;
         } catch (error) {
@@ -650,6 +674,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       });
       this.sessionId = result.sessionId;
       this.stableSessionRef = createKnownSessionRef(result.sessionId);
+      this.trackUsageScope(result.sessionId, true);
       availableModeIds = result.modes?.availableModes?.map((m) => m.id) ?? [];
       configOptions = result.configOptions;
       console.log("[acp] session created:", this.sessionId, "modes:", availableModeIds);
@@ -756,6 +781,20 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       });
       const usageEvent = createAcpPromptUsageEvent(this.threadId, result.usage);
       if (usageEvent) this.emitRuntimeEvents([usageEvent]);
+      // The same prompt response also carries the session-cumulative counter
+      // for the token ledger (absent on most bridges — then nothing is emitted
+      // and the provider lands on the profile's unavailable list).
+      if (this.usageScopeId) {
+        const spentEvent = createAcpPromptUsageSpentEvent(this.threadId, result.usage, {
+          scopeId: this.usageScopeId,
+          epoch: this.usageEpoch,
+          ...(this.usageScopeFresh ? { fresh: true } : {}),
+        });
+        if (spentEvent) {
+          this.emitRuntimeEvents([spentEvent]);
+          this.usageScopeFresh = false;
+        }
+      }
 
       // Map stopReason to Poracode status
       const normalizedStopReason = normalizeAcpStopReason(result.stopReason, {

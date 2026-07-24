@@ -17,6 +17,8 @@
 export {
   createOpenCodeMapperState,
   isOpenCodeChildSession,
+  markOpenCodeUsageScopeSampled,
+  openCodeUsageScopeForSession,
   setOpenCodeMainSessionId,
   type OpenCodeMapperState,
   type OpenCodeSubAgentSessionState,

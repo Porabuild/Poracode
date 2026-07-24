@@ -10150,6 +10150,10 @@ msgstr "Dosya ağacı panelini aç/kapat"
 msgid "Toggle Work or Plan"
 msgstr "İş veya Plan modunu aç/kapat"
 
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Token usage unavailable for: {unavailableLabels}"
+msgstr "Token kullanımı şunlar için kullanılamıyor: {unavailableLabels}"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
 msgstr "Token"

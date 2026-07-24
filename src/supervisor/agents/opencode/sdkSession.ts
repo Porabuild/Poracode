@@ -279,7 +279,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       this.crossagentDeniedPermissionRules().length === 0
         ? this.permissionSyncKey(config)
         : undefined;
-    if (this.mapperState) setOpenCodeMainSessionId(this.mapperState, id);
+    if (this.mapperState) setOpenCodeMainSessionId(this.mapperState, id, { fresh: true });
     await this.refreshSlashCommands();
     return id;
   }

@@ -10150,6 +10150,10 @@ msgstr "Bật/tắt bảng điều khiển cây tập tin"
 msgid "Toggle Work or Plan"
 msgstr "Chuyển đổi công việc hoặc kế hoạch"
 
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Token usage unavailable for: {unavailableLabels}"
+msgstr "Không có dữ liệu sử dụng token cho: {unavailableLabels}"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
 msgstr "Tokens"

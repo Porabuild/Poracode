@@ -1388,3 +1388,246 @@ describe("sdkCanonicalMapping — closeOpenItems", () => {
     expect(closed[0]).toMatchObject({ type: "item.completed", threadId: "thread-1" });
   });
 });
+
+describe("sdkCanonicalMapping — usage.spent", () => {
+  it("emits usage.spent only on the final completed snapshot, preferring tokens.total", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    setOpenCodeMainSessionId(state, "ses_test", { fresh: true });
+
+    // Evolving (not yet completed) snapshot: context.updated for the dock, but
+    // no spend sample yet.
+    const evolving = mapOpenCodeEvent(
+      messageUpdatedEvent(
+        assistantMessage("msg_1", {
+          tokens: { total: 100, input: 90, output: 10, reasoning: 0, cache: { read: 0, write: 0 } },
+        }),
+      ),
+      state,
+    );
+    expect(evolving.find((e) => e.type === "usage.spent")).toBeUndefined();
+    expect(evolving.find((e) => e.type === "context.updated")).toBeDefined();
+
+    // Final completed snapshot: exactly one per-call sample keyed by message id.
+    const completed = mapOpenCodeEvent(
+      messageUpdatedEvent(
+        assistantMessage("msg_1", {
+          time: { created: 0, completed: 5 },
+          tokens: { total: 150, input: 90, output: 60, reasoning: 0, cache: { read: 0, write: 0 } },
+        }),
+      ),
+      state,
+    );
+    const spent = completed.find((e) => e.type === "usage.spent");
+    expect(spent).toMatchObject({
+      type: "usage.spent",
+      threadId: "thread-1",
+      usage: {
+        counterKind: "per-call",
+        counter: 150,
+        scopeId: "ses_test",
+        epoch: 0,
+        fresh: true,
+        sampleId: "msg_1",
+        model: "big-pickle",
+      },
+    });
+
+    // A repeated completed snapshot of the same message does not re-emit.
+    const replay = mapOpenCodeEvent(
+      messageUpdatedEvent(
+        assistantMessage("msg_1", {
+          time: { created: 0, completed: 5 },
+          tokens: { total: 150, input: 90, output: 60, reasoning: 0, cache: { read: 0, write: 0 } },
+        }),
+      ),
+      state,
+    );
+    expect(replay.find((e) => e.type === "usage.spent")).toBeUndefined();
+  });
+
+  it("falls back to summing token buckets when tokens.total is missing", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    setOpenCodeMainSessionId(state, "ses_test");
+
+    const events = mapOpenCodeEvent(
+      messageUpdatedEvent(
+        assistantMessage("msg_1", {
+          time: { created: 0, completed: 5 },
+          tokens: { input: 10, output: 5, reasoning: 2, cache: { read: 3, write: 1 } },
+        }),
+      ),
+      state,
+    );
+    const spent = events.find((e) => e.type === "usage.spent");
+    expect(spent).toMatchObject({
+      usage: { counterKind: "per-call", counter: 21, sampleId: "msg_1" },
+    });
+    // fresh was not requested for this scope.
+    expect(spent && "usage" in spent ? spent.usage : undefined).not.toMatchObject({
+      fresh: true,
+    });
+  });
+
+  it("reports fresh only on the scope's first sample", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    setOpenCodeMainSessionId(state, "ses_test", { fresh: true });
+
+    const tokens = {
+      total: 10,
+      input: 5,
+      output: 5,
+      reasoning: 0,
+      cache: { read: 0, write: 0 },
+    };
+    const first = mapOpenCodeEvent(
+      messageUpdatedEvent(
+        assistantMessage("msg_1", { time: { created: 0, completed: 5 }, tokens }),
+      ),
+      state,
+    );
+    const second = mapOpenCodeEvent(
+      messageUpdatedEvent(
+        assistantMessage("msg_2", { time: { created: 0, completed: 6 }, tokens }),
+      ),
+      state,
+    );
+    expect(first.find((e) => e.type === "usage.spent")).toMatchObject({
+      usage: { fresh: true },
+    });
+    const secondSpent = second.find((e) => e.type === "usage.spent");
+    expect(secondSpent && "usage" in secondSpent ? secondSpent.usage : undefined).toMatchObject({
+      scopeId: "ses_test",
+      epoch: 0,
+    });
+    expect(secondSpent && "usage" in secondSpent ? secondSpent.usage : undefined).not.toMatchObject(
+      { fresh: true },
+    );
+  });
+
+  it("bumps the epoch when the main session id changes", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    setOpenCodeMainSessionId(state, "ses_a", { fresh: true });
+    const tokens = {
+      total: 10,
+      input: 5,
+      output: 5,
+      reasoning: 0,
+      cache: { read: 0, write: 0 },
+    };
+    mapOpenCodeEvent(
+      messageUpdatedEvent(
+        assistantMessage("msg_1", {
+          sessionID: "ses_a",
+          time: { created: 0, completed: 5 },
+          tokens,
+        }),
+      ),
+      state,
+    );
+
+    // Re-opened against a different provider session: new scope lineage, no
+    // fresh flag (not created new by this handle).
+    setOpenCodeMainSessionId(state, "ses_b");
+    const events = mapOpenCodeEvent(
+      messageUpdatedEvent(
+        assistantMessage("msg_2", {
+          sessionID: "ses_b",
+          time: { created: 0, completed: 6 },
+          tokens,
+        }),
+      ),
+      state,
+    );
+    const spent = events.find((e) => e.type === "usage.spent");
+    expect(spent).toMatchObject({
+      usage: { scopeId: "ses_b", epoch: 1, sampleId: "msg_2" },
+    });
+    expect(spent && "usage" in spent ? spent.usage : undefined).not.toMatchObject({ fresh: true });
+  });
+
+  it("emits usage.spent for child-session messages while still suppressing child context.updated", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    setOpenCodeMainSessionId(state, "ses_main", { fresh: true });
+
+    // Parent task tool starts, then its child session is announced.
+    mapOpenCodeEvent(
+      {
+        id: "evt-1",
+        type: "message.part.updated",
+        properties: {
+          sessionID: "ses_main",
+          time: 0,
+          part: {
+            id: "prt_task",
+            sessionID: "ses_main",
+            messageID: "msg_assistant",
+            type: "tool",
+            tool: "task",
+            callID: "call_task",
+            state: {
+              status: "running",
+              input: { description: "Explore code" },
+              time: { start: 0 },
+            },
+          } as ToolPart,
+        },
+      },
+      state,
+    );
+    const childSession: Session = {
+      id: "ses_child",
+      slug: "child",
+      projectID: "proj",
+      directory: "/",
+      parentID: "ses_main",
+      title: "subagent",
+      version: "1.0.0",
+      time: { created: 1, updated: 1 },
+    };
+    mapOpenCodeEvent(
+      {
+        id: "evt-2",
+        type: "session.created",
+        properties: { sessionID: "ses_child", info: childSession },
+      },
+      state,
+    );
+
+    // A completed assistant message in the child session.
+    const events = mapOpenCodeEvent(
+      {
+        id: "evt-3",
+        type: "message.updated",
+        properties: {
+          sessionID: "ses_child",
+          info: assistantMessage("msg_child_1", {
+            sessionID: "ses_child",
+            time: { created: 0, completed: 5 },
+            tokens: {
+              total: 42,
+              input: 40,
+              output: 2,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+          }),
+        },
+      },
+      state,
+    );
+
+    expect(events.find((e) => e.type === "context.updated")).toBeUndefined();
+    expect(events.find((e) => e.type === "usage.spent")).toMatchObject({
+      type: "usage.spent",
+      threadId: "thread-1",
+      usage: {
+        counterKind: "per-call",
+        counter: 42,
+        scopeId: "ses_child",
+        epoch: 0,
+        fresh: true,
+        sampleId: "msg_child_1",
+      },
+    });
+  });
+});

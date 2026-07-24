@@ -29,6 +29,7 @@ import {
 import { buildCodexAppServerCommand } from "./argv";
 import {
   createCodexMapperState,
+  CodexUsageScopeTracker,
   mapCodexNotification,
   type CodexMapperState,
 } from "./canonicalMapping";
@@ -489,6 +490,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     const threadOverrides = buildCodexThreadOverrides(config);
 
     let threadId: string;
+    // `fresh` marks a brand-new provider thread (usage ledger baseline 0). A
+    // resumed thread carries inherited history — its first cumulative sample
+    // is a baseline that counts nothing. A failed resume falling back to
+    // `thread/start` DID create a new thread, so it is fresh again.
+    let createdNewThread = false;
 
     if (sessionRef) {
       this.beginResumeActiveStatusSuppression(sessionRef.providerSessionId);
@@ -513,6 +519,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
             cause: error,
           });
         }
+        createdNewThread = true;
         this.extractRolloutMeta(result);
       }
     } else {
@@ -521,10 +528,12 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       if (!threadId) {
         throw new Error("thread/start response did not contain a thread id.");
       }
+      createdNewThread = true;
       this.extractRolloutMeta(result);
     }
 
     this.remoteThreadId = threadId;
+    this.ensureMapperState().usageScope = new CodexUsageScopeTracker(threadId, createdNewThread);
     this.launchOptions = { ...this.launchOptions, resumeThreadId: threadId };
     if (sessionRef) {
       void this.syncRemoteThreadState(threadId, toSessionRef(threadId));
@@ -820,6 +829,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
     this.remoteThreadId = newThreadId;
     this.launchOptions = { ...this.launchOptions, resumeThreadId: newThreadId };
+    // The fork created a NEW provider thread carrying inherited history: bump
+    // the usage scope epoch so the first sample on it is a baseline, and do it
+    // BEFORE replaying buffered notifications so their samples land in the new
+    // scope.
+    this.mapperState?.usageScope?.replaceScope(newThreadId);
     this.replayForkNotifications(newThreadId);
     void this.rpc.request("thread/unsubscribe", { threadId }).catch((error) => {
       console.log("[codex] failed to unsubscribe old thread after fork:", error);
@@ -1065,7 +1079,14 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     const notifications = this.forkNotificationBuffer ?? [];
     this.forkNotificationBuffer = undefined;
     for (const notification of notifications) {
-      if (notification.threadId === threadId) {
+      // tokenUsage samples are scope-keyed (the mapper resolves scopeId from
+      // the notification's own scope tracker), so replay them even when they
+      // were captured mid-fork for another thread (e.g. a child subagent
+      // thread) — dropping them would punch a gap in that scope's counter.
+      if (
+        notification.threadId === threadId ||
+        notification.method === "thread/tokenUsage/updated"
+      ) {
         this.handleNotification(notification.method, notification.params);
       }
     }

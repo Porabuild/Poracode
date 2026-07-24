@@ -10148,6 +10148,10 @@ msgstr "ファイルツリーパネルを切り替えます"
 msgid "Toggle Work or Plan"
 msgstr "作業と計画を切り替え"
 
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Token usage unavailable for: {unavailableLabels}"
+msgstr "トークン使用量を取得できません: {unavailableLabels}"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
 msgstr "トークン"

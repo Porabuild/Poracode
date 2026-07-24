@@ -26,6 +26,37 @@ export function createAcpPromptUsageEvent(
 }
 
 /**
+ * Cumulative `usage.spent` from the same `session/prompt` response usage the
+ * context event above parses: per the ACP schema, `usage.totalTokens` is the
+ * session-cumulative counter, so the ledger counts increases per
+ * (provider, scopeId, epoch). `sampleId` folds the counter value in, which
+ * makes replays of the same prompt response exact-once. When the agent
+ * returns no prompt-response usage (most bridges today), emit nothing — the
+ * profile honesty list covers those providers.
+ */
+export function createAcpPromptUsageSpentEvent(
+  threadId: string,
+  usage: unknown,
+  scope: { scopeId: string; epoch: number; fresh?: boolean },
+): RuntimeEvent | undefined {
+  if (!usage || typeof usage !== "object") return undefined;
+  const totalTokens = readNonNegativeInteger((usage as Record<string, unknown>).totalTokens);
+  if (totalTokens === undefined) return undefined;
+  return {
+    type: "usage.spent",
+    threadId,
+    usage: {
+      counterKind: "cumulative",
+      counter: totalTokens,
+      scopeId: scope.scopeId,
+      epoch: scope.epoch,
+      ...(scope.fresh ? { fresh: true } : {}),
+      sampleId: `${scope.scopeId}:${scope.epoch}:${totalTokens}`,
+    },
+  };
+}
+
+/**
  * Replace the raw JSON-RPC error from `session/load` with a message the
  * renderer can show verbatim. Provider-agnostic on purpose: the same code
  * path triggers whenever any ACP agent rejects a `session/load` call (lost,

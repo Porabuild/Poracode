@@ -10149,6 +10149,10 @@ msgstr "切换文件树面板"
 msgid "Toggle Work or Plan"
 msgstr "切换工作或计划"
 
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Token usage unavailable for: {unavailableLabels}"
+msgstr "以下提供方的 token 用量不可用：{unavailableLabels}"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
 msgstr "Token"

@@ -179,6 +179,17 @@ export function initDatabase(dbPath: string) {
       value INTEGER NOT NULL DEFAULT 1
     );
     CREATE INDEX IF NOT EXISTS idx_usage_events_kind ON usage_events (kind);
+    CREATE TABLE IF NOT EXISTS usage_token_ledger (
+      provider TEXT NOT NULL,
+      scope_id TEXT NOT NULL,
+      epoch INTEGER NOT NULL,
+      last_counter INTEGER NOT NULL,
+      PRIMARY KEY (provider, scope_id, epoch)
+    );
+    CREATE TABLE IF NOT EXISTS usage_token_samples (
+      sample_id TEXT PRIMARY KEY,
+      ts INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS scheduled_tasks (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -225,7 +236,7 @@ export function initDatabase(dbPath: string) {
 
   // Baseline schema version for future DB migrations.
   // New upgrade steps should live behind this gate when we need them.
-  const SCHEMA_VERSION = 26;
+  const SCHEMA_VERSION = 27;
 
   const storedVersion = Number(
     (
@@ -494,6 +505,25 @@ export function initDatabase(dbPath: string) {
       if (!cols.some((c) => c.name === "parent_thread_id")) {
         sqlite.exec("ALTER TABLE threads ADD COLUMN parent_thread_id TEXT");
       }
+    }
+
+    if (storedVersion < 27) {
+      // Main-process token ledger: cumulative-counter state keyed by provider
+      // scope+epoch, and exact-once dedup of per-call usage samples. Counted
+      // amounts land in usage_events as kind="tokens_v2" rows.
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS usage_token_ledger (
+          provider TEXT NOT NULL,
+          scope_id TEXT NOT NULL,
+          epoch INTEGER NOT NULL,
+          last_counter INTEGER NOT NULL,
+          PRIMARY KEY (provider, scope_id, epoch)
+        );
+        CREATE TABLE IF NOT EXISTS usage_token_samples (
+          sample_id TEXT PRIMARY KEY,
+          ts INTEGER NOT NULL
+        );
+      `);
     }
 
     sqlite

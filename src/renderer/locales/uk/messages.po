@@ -10150,6 +10150,10 @@ msgstr "Перемкнути панель дерева файлів"
 msgid "Toggle Work or Plan"
 msgstr "Перемкнути Робота або План"
 
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Token usage unavailable for: {unavailableLabels}"
+msgstr "Дані про використання токенів недоступні для: {unavailableLabels}"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
 msgstr "Токени"

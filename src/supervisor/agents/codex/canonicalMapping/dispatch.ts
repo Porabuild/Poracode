@@ -32,7 +32,12 @@ import {
 } from "./readers";
 import { readStringField } from "../../fileChangeSummary";
 import { extractCodexFileChangePath, readCommandAggregatedOutput } from "./toolExtraction";
-import { createCodexContextUsageEvent, createCodexTokenUsageEvent } from "./usage";
+import {
+  createCodexContextUsageEvent,
+  createCodexTokenUsageEvent,
+  createCodexUsageSpentEvent,
+  readCodexCumulativeTotalTokens,
+} from "./usage";
 
 export function mapCodexNotification(
   method: string,
@@ -44,7 +49,18 @@ export function mapCodexNotification(
 
   if (method === "thread/tokenUsage/updated") {
     const usageEvent = createCodexTokenUsageEvent(threadId, params);
-    return usageEvent ? [usageEvent] : [];
+    const events: RuntimeEvent[] = usageEvent ? [usageEvent] : [];
+    // Ledger spend sample alongside the dock's context.updated: the dock keeps
+    // the per-call `last` occupancy, the ledger consumes the cumulative total.
+    const scope = state.usageScope;
+    if (scope) {
+      const counter = readCodexCumulativeTotalTokens(params);
+      if (counter !== undefined) {
+        const spentEvent = createCodexUsageSpentEvent(threadId, params, scope.sample(counter));
+        if (spentEvent) events.push(spentEvent);
+      }
+    }
+    return events;
   }
 
   if (method === "turn/started") {

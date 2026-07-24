@@ -245,6 +245,13 @@ export interface ProfileTokenStats {
   /** Token-weighted model mix. */
   models: ProfileBreakdownEntry[];
   tokenHeatmap: ProfileHeatmap;
+  /**
+   * Base-provider keys (e.g. "kimi") with recorded activity (thread_started or
+   * turn rows) but zero exact token rows (kind="tokens_v2") — their token
+   * spend is not measured. Sorted; empty when every active provider reports
+   * exact usage.
+   */
+  unavailableProviders: string[];
 }
 
 // -- IPC payloads -----------------------------------------------------

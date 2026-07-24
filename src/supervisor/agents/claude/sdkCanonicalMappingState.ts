@@ -1,5 +1,6 @@
 import type { CanonicalItemType, ToolCallProgress, ToolCallWorkflow } from "@/shared/contracts";
 import type { PlanAggregatorState } from "../planAggregator";
+import type { ClaudeUsageScopeTracker } from "./canonicalMapping/usageSpent";
 
 export interface TextItemState {
   itemId: string;
@@ -58,6 +59,12 @@ export interface ToolItemState {
 
 export interface ClaudeMapperState {
   threadId: string;
+  /**
+   * Per-call usage scope (SDK session id + epoch) for `usage.spent` emission.
+   * Owned by the session layer (sdkSession.ts); undefined in tests/terminal
+   * mode, where no spend events are emitted.
+   */
+  usageScope?: ClaudeUsageScopeTracker;
   currentTurnId?: string;
   assistantTextItems: Map<number, TextItemState>;
   reasoningItems: Map<number, TextItemState>;

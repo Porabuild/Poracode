@@ -26,3 +26,7 @@ export {
   readClaudeApiUsageSpendTokens,
 } from "./canonicalMapping/result";
 export { mapClaudeSdkMessage, readParentToolUseId } from "./canonicalMapping/dispatch";
+export {
+  ClaudeUsageScopeTracker,
+  createClaudeUsageSpentEvent,
+} from "./canonicalMapping/usageSpent";
