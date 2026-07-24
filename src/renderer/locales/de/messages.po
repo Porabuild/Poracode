@@ -10165,6 +10165,10 @@ msgstr "Das Dateibaum-Panel umschalten"
 msgid "Toggle Work or Plan"
 msgstr "Zwischen Arbeit und Plan umschalten"
 
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Token usage unavailable for: {unavailableLabels}"
+msgstr "Token-Nutzung nicht verfügbar für: {unavailableLabels}"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
 msgstr "Tokens"

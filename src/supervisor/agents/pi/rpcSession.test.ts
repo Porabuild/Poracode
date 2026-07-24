@@ -78,7 +78,7 @@ rl.on("line", (line) => {
     return;
   }
   if (type === "get_session_stats") {
-    send({ type: "response", id, command: "get_session_stats", success: true, data: { sessionId: "mock-session-1", contextUsage: { tokens: 100, contextWindow: 1000, percent: 10 } } });
+    send({ type: "response", id, command: "get_session_stats", success: true, data: { sessionId: "mock-session-1", contextUsage: { tokens: 100, contextWindow: 1000, percent: 10 }, tokens: { input: 60, output: 25, cacheRead: 10, cacheWrite: 5, total: 100 }, cost: 0.01 } });
     return;
   }
   if (type === "get_commands") {
@@ -183,6 +183,29 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     );
     expect(updates.every((update) => update.sessionRef?.providerSessionId !== "")).toBe(true);
     expect(updates.at(-1)?.sessionRef?.providerSessionId).toBe("mock-session-1");
+    await session.dispose();
+  });
+
+  it("publishes cumulative usage.spent from get_session_stats tokens.total", async () => {
+    const { session, events } = await createSession();
+    await session.startTurn?.("hello", { model: "mock/model", effort: "off" });
+
+    // Spend publishes after the turn settles, off the same stats response as
+    // context.updated — tokens.total (billed cumulative), not contextUsage.
+    const spent = await waitFor(events, (e) => e.type === "usage.spent");
+    expect(spent).toMatchObject({
+      type: "usage.spent",
+      threadId: "thread-mock",
+      usage: {
+        counterKind: "cumulative",
+        counter: 100,
+        scopeId: "mock-session-1",
+        epoch: 0,
+        fresh: true,
+        sampleId: "mock-session-1:0:100",
+        model: "mock/model",
+      },
+    });
     await session.dispose();
   });
 

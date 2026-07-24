@@ -10164,6 +10164,10 @@ msgstr "Basculer le panneau d'arborescence de fichiers"
 msgid "Toggle Work or Plan"
 msgstr "Basculer entre Travail et Plan"
 
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Token usage unavailable for: {unavailableLabels}"
+msgstr "Utilisation des tokens indisponible pour : {unavailableLabels}"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
 msgstr "Tokens"

@@ -1,6 +1,7 @@
 import type { RuntimeEvent, ToolCallPayload, ToolCallProgress } from "@/shared/contracts";
 import {
   createCodexMapperState,
+  CodexUsageScopeTracker,
   mapCodexNotification,
   type CodexMapperState,
 } from "./canonicalMapping";
@@ -157,7 +158,11 @@ export class CodexSubAgentRouter {
         event.type === "item.started" ||
         event.type === "item.updated" ||
         event.type === "item.completed" ||
-        event.type === "content.delta",
+        event.type === "content.delta" ||
+        // Child tokenUsage flows to the usage ledger as usage.spent (scoped to
+        // the child codex thread); child context.updated stays dropped so the
+        // dock keeps showing the main thread's occupancy.
+        event.type === "usage.spent",
     );
     const routed: RuntimeEvent[] = [];
     let progressChanged = false;
@@ -342,9 +347,13 @@ export class CodexSubAgentRouter {
       existing.active = active;
       return [];
     }
+    const mapperState = createCodexMapperState(this.localThreadId);
+    // Child threads are brand-new provider threads (counter starts at 0), so
+    // their usage scope is fresh with its own epoch tracking.
+    mapperState.usageScope = new CodexUsageScopeTracker(threadId, true);
     this.children.set(threadId, {
       parentItemId,
-      mapperState: createCodexMapperState(this.localThreadId),
+      mapperState,
       itemIds: new Set(),
       active,
       failed: false,

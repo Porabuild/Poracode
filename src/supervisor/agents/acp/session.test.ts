@@ -168,6 +168,9 @@ function makeConfigSyncSession(
   session["agentSessionCapabilities"] = undefined;
   session["cwd"] = "C:\\repo";
   session["stableSessionRef"] = undefined;
+  session["usageScopeId"] = undefined;
+  session["usageEpoch"] = 0;
+  session["usageScopeFresh"] = false;
   session["launchOptions"] = {};
   session["mcpServers"] = overrides.mcpServers ?? [];
   session["loadSessionErrorRewriter"] = rewriteLoadSessionError;
@@ -306,6 +309,98 @@ describe("ACP empty-response provider guard", () => {
     await session.startTurn("hello", { model: "model-a" });
 
     expect(resolver).not.toHaveBeenCalled();
+  });
+});
+
+describe("ACP prompt-response usage → usage.spent", () => {
+  it("emits cumulative usage.spent from a new session's prompt usage, fresh once", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    await session.openThread({ model: "model-a" });
+
+    connection.prompt.mockResolvedValueOnce({
+      stopReason: "end_turn",
+      usage: { totalTokens: 1200, inputTokens: 1000, outputTokens: 200 },
+    } as { stopReason: string });
+    await session.startTurn("hello", { model: "model-a" });
+
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith({
+      type: "usage.spent",
+      threadId: "thread-1",
+      usage: {
+        counterKind: "cumulative",
+        counter: 1200,
+        scopeId: "session-1",
+        epoch: 0,
+        fresh: true,
+        sampleId: "session-1:0:1200",
+      },
+    });
+    // The dock's context.updated is still emitted from the same payload.
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "context.updated" }),
+    );
+
+    // Second turn: same scope, `fresh` consumed by the first sample.
+    connection.prompt.mockResolvedValueOnce({
+      stopReason: "end_turn",
+      usage: { totalTokens: 1500 },
+    } as { stopReason: string });
+    await session.startTurn("again", { model: "model-a" });
+
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith({
+      type: "usage.spent",
+      threadId: "thread-1",
+      usage: {
+        counterKind: "cumulative",
+        counter: 1500,
+        scopeId: "session-1",
+        epoch: 0,
+        sampleId: "session-1:0:1500",
+      },
+    });
+  });
+
+  it("marks resumed sessions non-fresh and emits nothing without prompt usage", async () => {
+    const { connection, listener, session } = makeConfigSyncSession();
+    await session.openThread(
+      { model: "model-a" },
+      { providerSessionId: "session-resume", discoveredAt: new Date().toISOString() },
+    );
+
+    connection.prompt.mockResolvedValueOnce({
+      stopReason: "end_turn",
+      usage: { totalTokens: 9000 },
+    } as { stopReason: string });
+    await session.startTurn("hello", { model: "model-a" });
+
+    const spentEvents = () =>
+      listener.onRuntimeEvent.mock.calls
+        .map(([event]) => event)
+        .filter((event): event is Record<string, unknown> => {
+          return (
+            typeof event === "object" &&
+            event !== null &&
+            (event as { type?: string }).type === "usage.spent"
+          );
+        });
+    expect(spentEvents()).toHaveLength(1);
+    expect(spentEvents()[0]).toMatchObject({
+      usage: {
+        counterKind: "cumulative",
+        counter: 9000,
+        scopeId: "session-resume",
+        epoch: 0,
+        sampleId: "session-resume:0:9000",
+      },
+    });
+    // Resumed scope: baseline-only first sample, no fresh flag.
+    expect(spentEvents()[0]).not.toMatchObject({ usage: { fresh: true } });
+
+    // Bridges without prompt-response usage emit no spend event at all.
+    listener.onRuntimeEvent.mockClear();
+    connection.prompt.mockResolvedValueOnce({ stopReason: "end_turn" });
+    await session.startTurn("hello again", { model: "model-a" });
+    expect(spentEvents()).toHaveLength(0);
   });
 });
 

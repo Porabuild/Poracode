@@ -10165,6 +10165,10 @@ msgstr "Alternar el panel del árbol de archivos"
 msgid "Toggle Work or Plan"
 msgstr "Alternar Trabajo o Plan"
 
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Token usage unavailable for: {unavailableLabels}"
+msgstr "Uso de tokens no disponible para: {unavailableLabels}"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
 msgstr "Tokens"

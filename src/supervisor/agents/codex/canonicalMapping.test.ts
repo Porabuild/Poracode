@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  CodexUsageScopeTracker,
   createCodexMapperState,
   mapCodexNotification,
   mapCodexServerRequest,
@@ -202,6 +203,177 @@ describe("mapCodexNotification — turn lifecycle", () => {
         },
       },
     ]);
+  });
+});
+
+describe("mapCodexNotification — usage.spent", () => {
+  function tokenUsageParams(totalTokens: number, lastTotalTokens = 130): Record<string, unknown> {
+    return {
+      threadId: "codex-thread-1",
+      turnId: "turn-1",
+      tokenUsage: {
+        total: {
+          inputTokens: totalTokens - 6,
+          cachedInputTokens: 0,
+          outputTokens: 6,
+          reasoningOutputTokens: 0,
+          totalTokens,
+        },
+        last: {
+          inputTokens: lastTotalTokens - 6,
+          cachedInputTokens: 0,
+          outputTokens: 6,
+          reasoningOutputTokens: 0,
+          totalTokens: lastTotalTokens,
+        },
+        modelContextWindow: 258_400,
+      },
+    };
+  }
+
+  function spentEventOf(
+    state: ReturnType<typeof createCodexMapperState>,
+    params: Record<string, unknown>,
+  ) {
+    return mapCodexNotification("thread/tokenUsage/updated", params, state).find(
+      (event) => event.type === "usage.spent",
+    );
+  }
+
+  it("emits a cumulative usage.spent sample from the total (never last) alongside context.updated", () => {
+    const state = createCodexMapperState("t-codex");
+    state.usageScope = new CodexUsageScopeTracker("codex-thread-1", true);
+
+    const events = mapCodexNotification(
+      "thread/tokenUsage/updated",
+      tokenUsageParams(11_839),
+      state,
+    );
+
+    expect(events).toEqual([
+      {
+        type: "context.updated",
+        threadId: "t-codex",
+        usage: {
+          usedTokens: 130,
+          maxTokens: 258_400,
+          breakdown: [
+            { id: "input", label: "Input", tokens: 124 },
+            { id: "output", label: "Output", tokens: 6 },
+          ],
+        },
+      },
+      {
+        type: "usage.spent",
+        threadId: "t-codex",
+        usage: {
+          counterKind: "cumulative",
+          counter: 11_839,
+          scopeId: "codex-thread-1",
+          epoch: 0,
+          fresh: true,
+          sampleId: "codex-thread-1:0:11839",
+          occurredAt: expect.any(Number),
+        },
+      },
+    ]);
+  });
+
+  it("reads the cumulative total from legacy snake_case payloads", () => {
+    const state = createCodexMapperState("t-codex");
+    state.usageScope = new CodexUsageScopeTracker("codex-thread-1", false);
+
+    const spent = spentEventOf(state, {
+      threadId: "codex-thread-1",
+      token_usage: {
+        total_token_usage: { total_tokens: 5_000, input_tokens: 4_000, output_tokens: 1_000 },
+        last_token_usage: { total_tokens: 42 },
+        model_context_window: 200_000,
+      },
+    });
+
+    expect(spent).toEqual({
+      type: "usage.spent",
+      threadId: "t-codex",
+      usage: {
+        counterKind: "cumulative",
+        counter: 5_000,
+        scopeId: "codex-thread-1",
+        epoch: 0,
+        sampleId: "codex-thread-1:0:5000",
+        occurredAt: expect.any(Number),
+      },
+    });
+  });
+
+  it("marks only the first sample of a brand-new thread fresh", () => {
+    const state = createCodexMapperState("t-codex");
+    state.usageScope = new CodexUsageScopeTracker("codex-thread-1", true);
+
+    expect(spentEventOf(state, tokenUsageParams(1_000))).toMatchObject({
+      usage: { fresh: true, epoch: 0 },
+    });
+    const second = spentEventOf(state, tokenUsageParams(1_500));
+    expect(second).toMatchObject({ usage: { counter: 1_500, epoch: 0 } });
+    expect(second?.type === "usage.spent" && second.usage).not.toHaveProperty("fresh");
+  });
+
+  it("emits no usage.spent without a usage scope (terminal mode)", () => {
+    const state = createCodexMapperState("t-codex");
+
+    const events = mapCodexNotification(
+      "thread/tokenUsage/updated",
+      tokenUsageParams(11_839),
+      state,
+    );
+
+    expect(events.every((event) => event.type === "context.updated")).toBe(true);
+  });
+
+  it("bumps the epoch when the cumulative counter resets", () => {
+    const state = createCodexMapperState("t-codex");
+    state.usageScope = new CodexUsageScopeTracker("codex-thread-1", false);
+
+    expect(spentEventOf(state, tokenUsageParams(1_000))).toMatchObject({
+      usage: { counter: 1_000, epoch: 0, sampleId: "codex-thread-1:0:1000" },
+    });
+    expect(spentEventOf(state, tokenUsageParams(1_500))).toMatchObject({
+      usage: { counter: 1_500, epoch: 0, sampleId: "codex-thread-1:0:1500" },
+    });
+    // Upstream reset (e.g. ContextWindowExceeded): a lower total starts a new epoch.
+    expect(spentEventOf(state, tokenUsageParams(300))).toMatchObject({
+      usage: { counter: 300, epoch: 1, sampleId: "codex-thread-1:1:300" },
+    });
+    expect(spentEventOf(state, tokenUsageParams(400))).toMatchObject({
+      usage: { counter: 400, epoch: 1, sampleId: "codex-thread-1:1:400" },
+    });
+  });
+
+  it("starts a new epoch on fork (replaceScope) with a baseline, non-fresh sample", () => {
+    const state = createCodexMapperState("t-codex");
+    state.usageScope = new CodexUsageScopeTracker("codex-thread-1", true);
+
+    expect(spentEventOf(state, tokenUsageParams(1_000))).toMatchObject({
+      usage: { scopeId: "codex-thread-1", epoch: 0, fresh: true },
+    });
+
+    state.usageScope.replaceScope("codex-thread-2");
+
+    // The forked thread's first sample carries inherited history: new epoch,
+    // baseline-only (no fresh), and the lower counter is NOT read as a reset.
+    const forked = spentEventOf(state, {
+      ...tokenUsageParams(500),
+      threadId: "codex-thread-2",
+    });
+    expect(forked).toMatchObject({
+      usage: {
+        counter: 500,
+        scopeId: "codex-thread-2",
+        epoch: 1,
+        sampleId: "codex-thread-2:1:500",
+      },
+    });
+    expect(forked?.type === "usage.spent" && forked.usage).not.toHaveProperty("fresh");
   });
 });
 

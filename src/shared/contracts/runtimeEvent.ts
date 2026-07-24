@@ -295,6 +295,38 @@ export const threadContextUsageSchema = z.object({
 });
 export type ThreadContextUsage = z.infer<typeof threadContextUsageSchema>;
 
+/**
+ * Provider-reported token CONSUMPTION, kept strictly separate from
+ * `context.updated` (which carries context-window occupancy for the dock).
+ * Adapters normalize their native usage payloads into this shape; the
+ * main-process usage ledger is the only consumer that persists it.
+ *
+ * - `counterKind: "cumulative"` — `counter` is an absolute, monotonically
+ *   increasing total for the scope `(provider, scopeId, epoch)` (e.g. Codex
+ *   `total_token_usage.total_tokens`). The ledger counts increases, ignores
+ *   equal/lower values (out-of-order safe); resets are signalled by bumping
+ *   `epoch`, never inferred from a counter decrease.
+ * - `counterKind: "per-call"` — `counter` is one API call's total
+ *   (e.g. Claude assistant-message usage). The ledger sums these; `sampleId`
+ *   gives exact-once dedup across replays.
+ * `scopeId` is the PROVIDER-side scope (session/thread id), not the Poracode
+ * thread id, so resume/fork semantics stay explicit. `fresh: true` marks a
+ * scope the adapter knows was just created (baseline 0); otherwise the first
+ * sample in a scope+epoch establishes the baseline and counts nothing.
+ */
+export const usageSpentSchema = z.object({
+  counterKind: z.enum(["cumulative", "per-call"]),
+  counter: z.number().int().nonnegative(),
+  scopeId: z.string().min(1),
+  epoch: z.number().int().nonnegative(),
+  fresh: z.boolean().optional(),
+  sampleId: z.string().min(1),
+  turnId: z.string().optional(),
+  occurredAt: z.number().int().nonnegative().optional(),
+  model: z.string().optional(),
+});
+export type UsageSpent = z.infer<typeof usageSpentSchema>;
+
 // ── Request payloads ─────────────────────────────────────────────────
 
 export const userInputOptionSchema = z.object({
@@ -464,6 +496,11 @@ export const runtimeEventSchema = z.discriminatedUnion("type", [
     type: z.literal("context.updated"),
     threadId: z.string(),
     usage: threadContextUsageSchema,
+  }),
+  z.object({
+    type: z.literal("usage.spent"),
+    threadId: z.string(),
+    usage: usageSpentSchema,
   }),
   z.object({
     type: z.literal("request.opened"),

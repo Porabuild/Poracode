@@ -10165,6 +10165,10 @@ msgstr "파일 트리 패널 표시 전환"
 msgid "Toggle Work or Plan"
 msgstr "작업 또는 계획 전환"
 
+#: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
+msgid "Token usage unavailable for: {unavailableLabels}"
+msgstr "토큰 사용량을 사용할 수 없음: {unavailableLabels}"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Tokens"
 msgstr "토큰"

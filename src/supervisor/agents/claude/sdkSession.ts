@@ -45,6 +45,7 @@ import { DeferredTurnCompletion } from "./deferredTurnCompletion";
 import { applyClaudeContextSuffix } from "./argv";
 import {
   buildClaudeQuestionAnswerEvents,
+  ClaudeUsageScopeTracker,
   closeClaudeOpenItems,
   completeActiveGoalOnTaskDrainEvents,
   createClaudeMapperState,
@@ -232,6 +233,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.currentConfig = config;
     this.sessionId = sessionRef?.providerSessionId ?? randomUUID();
     this.openedResumeSessionId = sessionRef?.providerSessionId;
+    // Usage scope for per-call spend events: fresh only when the SDK session
+    // starts brand-new (a resumed session's history is not new spend).
+    this.mapperState.usageScope = new ClaudeUsageScopeTracker(
+      this.sessionId,
+      this.openedResumeSessionId === undefined,
+    );
     this.startQuery(sessionRef?.providerSessionId);
     await this.requireQuery();
     return this.sessionId ?? "";
@@ -857,6 +864,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         : undefined;
     if (sessionId && sessionId !== this.sessionId && this.shouldAdoptSessionId(message)) {
       this.sessionId = sessionId;
+      // Same conversation under a new provider session id: new usage scope epoch.
+      this.mapperState.usageScope?.adoptScope(sessionId);
       this.emitUpdate({
         status: this.currentStatus,
         attention: this.currentAttention,

@@ -12,6 +12,7 @@ import {
   type StructuredSessionHandle,
   type StructuredSessionListener,
 } from "../base";
+import { readNonNegativeInteger } from "../contextUsage";
 import {
   goalPayloadFromProviderState,
   startGoalItemEvents,
@@ -133,6 +134,12 @@ export class PiRpcSession implements StructuredSessionHandle {
   private sessionRef: ReturnType<typeof createKnownSessionRef> | undefined;
   private disposed = false;
   private interruptRequested = false;
+  /** True when the CLI was launched with `--session <id>` (resumed, not fresh). */
+  private readonly launchedWithResume: boolean;
+  /** usage.spent ledger scope: pi session id + epoch (bumped if the id changes). */
+  private usageScopeId: string | undefined;
+  private usageEpoch = 0;
+  private usageScopeFresh = false;
 
   private constructor(
     private readonly input: CreateStructuredSessionInput,
@@ -146,6 +153,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.client = client;
     this.mcpExtensionPath = mcpExtensionPath;
     this.currentConfig = input.config;
+    this.launchedWithResume = input.sessionRef?.providerSessionId !== undefined;
     this.unsubscribeEvents = client.onEvent((event) => this.handleEvent(event));
     this.unsubscribeExit = client.onExit(() => this.handleExit());
   }
@@ -864,6 +872,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     const sessionId = typeof stats?.sessionId === "string" ? stats.sessionId : "";
     if (sessionId) {
       this.sessionRef = createKnownSessionRef(sessionId);
+      this.publishUsageSpent(stats, sessionId);
     }
     if (!usage) return;
     const tokens = typeof usage.tokens === "number" ? usage.tokens : null;
@@ -876,6 +885,40 @@ export class PiRpcSession implements StructuredSessionHandle {
         ...(contextWindow > 0 ? { maxTokens: contextWindow } : {}),
       },
     });
+  }
+
+  /**
+   * Cumulative `usage.spent` from `get_session_stats` — `stats.tokens.total`
+   * is pi's billed total for the session and keeps growing across compaction,
+   * unlike `contextUsage.tokens` (context-window occupancy for the dock). The
+   * ledger counts counter increases per (provider, scopeId, epoch); the epoch
+   * bumps if pi ever reports a different session id (session switch/fork), and
+   * `fresh` marks a session this process started new (resumed sessions get a
+   * baseline-only first sample — inherited history is not new spend).
+   */
+  private publishUsageSpent(stats: Record<string, unknown> | undefined, sessionId: string): void {
+    const totalTokens = readNonNegativeInteger(recordOf(stats?.tokens)?.total);
+    if (totalTokens === undefined) return;
+    if (this.usageScopeId !== sessionId) {
+      const firstScope = this.usageScopeId === undefined;
+      if (!firstScope) this.usageEpoch += 1;
+      this.usageScopeId = sessionId;
+      this.usageScopeFresh = firstScope && !this.launchedWithResume;
+    }
+    this.emit({
+      type: "usage.spent",
+      threadId: this.input.threadId,
+      usage: {
+        counterKind: "cumulative",
+        counter: totalTokens,
+        scopeId: sessionId,
+        epoch: this.usageEpoch,
+        ...(this.usageScopeFresh ? { fresh: true } : {}),
+        sampleId: `${sessionId}:${this.usageEpoch}:${totalTokens}`,
+        ...(this.currentConfig.model ? { model: this.currentConfig.model } : {}),
+      },
+    });
+    this.usageScopeFresh = false;
   }
 
   private async publishSlashCommands(): Promise<void> {
