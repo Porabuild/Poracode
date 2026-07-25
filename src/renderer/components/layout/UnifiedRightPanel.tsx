@@ -5,6 +5,8 @@ import {
   FolderOpen,
   Gauge,
   Globe,
+  Lock,
+  LockOpen,
   Maximize2,
   NotebookPen,
   PanelRightClose,
@@ -60,6 +62,9 @@ export function UnifiedRightPanel(props: {
   onOpenUsage?: () => void;
   onOpenNotes?: () => void;
   onOpenPorts?: () => void;
+  /** Whether the panel re-scopes itself to whichever thread is open. */
+  followsThread?: boolean;
+  onToggleFollowsThread?: () => void;
   onClose: () => void;
 }) {
   const {
@@ -97,6 +102,8 @@ export function UnifiedRightPanel(props: {
     onOpenUsage,
     onOpenNotes,
     onOpenPorts,
+    followsThread = false,
+    onToggleFollowsThread,
     onClose,
   } = props;
   const { t } = useLingui();
@@ -258,6 +265,21 @@ export function UnifiedRightPanel(props: {
             </button>
           );
         })}
+        {onToggleFollowsThread ? (
+          <button
+            type="button"
+            className={`${dragCtl} ${panelHeaderTabIconButtonClass(followsThread)}`}
+            title={
+              followsThread
+                ? t`Unlock panel from the open thread`
+                : t`Lock panel to the open thread`
+            }
+            aria-pressed={followsThread}
+            onClick={onToggleFollowsThread}
+          >
+            {followsThread ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
+          </button>
+        ) : null}
         <button
           type="button"
           className={`${dragCtl} ${panelHeaderIconButtonClass}`}

@@ -43,6 +43,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { selectActiveSubAgentParentItemIds } from "@/renderer/state/subAgentSelectors";
 import { useThread } from "@/renderer/state/useThread";
+import { ThreadChangesBubble } from "./ThreadChangesBubble";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { ThreadContextIndicator } from "./ThreadContextIndicator";
@@ -601,7 +602,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   return (
     <>
       {thread.status !== "launching" || !usesTerminalPresentation ? (
-        <div>
+        <div className="relative">
+          <ThreadChangesBubble
+            projectId={thread.projectId}
+            {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+          />
           <div
             className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
             style={{ gridTemplateRows: isComposerCollapsed ? "0fr" : "1fr" }}

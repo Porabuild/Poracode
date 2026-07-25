@@ -26,6 +26,7 @@ import { ContinueInProviderDialog } from "./ContinueInProviderDialog";
 import { GuiThreadContent } from "./ThreadContent";
 import { TerminalThreadContent } from "./TerminalThreadContent";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
+import { ThreadToolRail } from "./ThreadToolRail";
 
 /**
  * Strip Electron's `Error invoking remote method '<channel>': Error: ` prefix
@@ -263,7 +264,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     <>
       <div
         ref={droppableRef}
-        className={`relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
+        className={`group/pane relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
       >
         {/* Header bar — provider icon outside pane drag handle; status tooltip uses HeroUI tooltip (anchored bottom start). */}
         <div className={`px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}>
@@ -463,6 +464,12 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
             )}
           </div>
         </div>
+
+        <ThreadToolRail
+          projectId={thread.projectId}
+          paneCount={paneCount}
+          {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+        />
       </div>
       {onContinueInProvider && installedAgents && continueDialogOpen ? (
         <ContinueInProviderDialog

@@ -2,6 +2,7 @@ import type { ProjectLocation, Thread } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { hasDirtyEditorBuffers } from "@/renderer/state/fileEditorSelectors";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -167,14 +168,15 @@ function applyFilesPanel(
 
   const fileEditor = useFileEditorStore.getState();
   const currentRoot = fileEditor.rootContext;
-  const hasDirtyBuffers = Object.values(fileEditor.buffers).some(
-    (buffer) => buffer.status === "ready" && buffer.isDirty,
-  );
   const isSameContext =
     currentRoot?.projectId === context.projectId &&
     currentRoot?.worktreePath === context.worktreePath;
 
-  if (!isSameContext && hasDirtyBuffers && !window.confirm("Discard unsaved editor changes?")) {
+  if (
+    !isSameContext &&
+    hasDirtyEditorBuffers() &&
+    !window.confirm("Discard unsaved editor changes?")
+  ) {
     return;
   }
 
