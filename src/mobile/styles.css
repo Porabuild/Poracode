@@ -5857,6 +5857,43 @@ html[data-mobile-platform="ios"] .m-shell--lightweight-subagent-pop > :is(.m-top
   }
 }
 
+/* Push into a fullscreen overlay (workspace / PR / terminal / notes) from an
+   ordinary page. iOS Safari stalls snapshotting the outgoing transcript before
+   the View Transition starts, so skip it and slide only the incoming opaque
+   overlay in over the shell on compositor transforms. */
+html[data-mobile-platform="ios"]
+  .m-shell--lightweight-fullscreen-push
+  :is(.m-workspace, .m-git-overlay, .m-notes-screen, .m-screen-loading) {
+  animation: m-lightweight-fullscreen-push 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform;
+}
+
+@keyframes m-lightweight-fullscreen-push {
+  from {
+    transform: translate3d(100%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Back out of a fullscreen overlay to the page beneath. Animate only the
+   incoming shell; the outgoing overlay (diff / terminal / PR) is removed
+   without a Safari snapshot. */
+html[data-mobile-platform="ios"] .m-shell--lightweight-fullscreen-pop > :is(.m-topbar, .m-main) {
+  animation: m-lightweight-fullscreen-pop 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform;
+}
+
+@keyframes m-lightweight-fullscreen-pop {
+  from {
+    transform: translate3d(-25%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 /* ── Native screen transitions (View Transitions API) ──────────────
  *
  * The phone layout navigates like a native app. The router (router.tsx) tags
