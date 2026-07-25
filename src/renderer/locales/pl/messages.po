@@ -243,7 +243,6 @@ msgstr "{0} wątków"
 
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "{0} tokens"
 msgstr "{0} tokenów"
 
@@ -383,11 +382,11 @@ msgstr "{installedCount, plural, one {# agent gotowy} few {# agenci gotowi} many
 #~ msgstr "{judgingLabel} przegląda zmiany każdego kandydata, aby polecić zwycięzcę."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} API key"
 msgstr "Klucz API {label}"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} auto-refresh interval in minutes"
 msgstr "Interwał automatycznego odświeżania {label} w minutach"
 
@@ -533,7 +532,6 @@ msgstr "Zaliczono <0>{passed}</0> z {0} kontroli"
 
 #. placeholder {0}: snapshot.cost.period
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens} · {0} · szac."
 
@@ -1261,8 +1259,8 @@ msgstr "Generuj automatycznie"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Auto-refresh"
-msgstr "Automatyczne odświeżanie"
+#~ msgid "Auto-refresh"
+#~ msgstr "Automatyczne odświeżanie"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Auto-refresh interval in minutes, 0 to turn off"
@@ -1525,7 +1523,7 @@ msgid "Browser pick target for CLI threads"
 msgstr "Cel wyboru przeglądarki dla wątków CLI"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Browser sign-in"
 msgstr "Logowanie przez przeglądarkę"
 
@@ -2922,7 +2920,6 @@ msgstr "Poświadczenia są skonfigurowane."
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Credits"
 msgstr "Kredyty"
 
@@ -4598,7 +4595,7 @@ msgstr "Ukryte wątki, które można wznowić, są czyszczone co 5 minut i rozł
 msgid "Hide"
 msgstr "Ukryj"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Hide {label} circle in sidebar"
 msgstr "Ukryj krąg {label} na pasku bocznym"
 
@@ -5677,7 +5674,7 @@ msgid "Microphone testing is not available in this environment."
 msgstr "Testowanie mikrofonu nie jest dostępne w tym środowisku."
 
 #. Unit suffix: minutes
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "min"
 msgstr "min"
 
@@ -5784,6 +5781,10 @@ msgstr "Więcej działań PR"
 msgid "More PR options"
 msgstr "Więcej opcji PR"
 
+#: src/renderer/components/providers/UsageOverflowChip.tsx
+msgid "More providers"
+msgstr "Więcej dostawców"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "More pull request options"
 msgstr "Więcej opcji żądania ściągnięcia"
@@ -5795,6 +5796,10 @@ msgstr "Więcej opcji harmonogramu"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
 msgstr "Więcej opcji synchronizacji"
+
+#: src/renderer/components/providers/UsageOverflowChip.tsx
+msgid "More usage providers — open usage panel"
+msgstr "Więcej dostawców użycia — otwórz panel użycia"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Most active hour"
@@ -7066,7 +7071,7 @@ msgid "Paste"
 msgstr "Wklej"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Paste {label} API key"
 msgstr "Wklej klucz API {label}"
 
@@ -7709,7 +7714,6 @@ msgstr "Zrekonstruowane z lokalnych dzienników po stawkach publicznego API — 
 msgid "Redact notification content"
 msgstr "Ukryj treść powiadomień"
 
-#. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/PortsView.tsx
@@ -8829,7 +8833,7 @@ msgstr "Skróty klawiszowe"
 msgid "Show {0}"
 msgstr "Pokaż {0}"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "Pokaż krąg {label} na pasku bocznym"
 
@@ -8968,10 +8972,10 @@ msgstr "Wyświetlanie pierwszych 4000 wpisów."
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Sidebar"
-msgstr "Pasek boczny"
+#~ msgid "Sidebar"
+#~ msgstr "Pasek boczny"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
 msgstr "Kręgi na pasku bocznym są wyłączone globalnie powyżej"
 
@@ -8981,7 +8985,7 @@ msgid "Sidebar frosting"
 msgstr "Zmatowienie paska bocznego"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign in"
 msgstr "Zaloguj się"
 
@@ -9003,11 +9007,12 @@ msgid "Sign in with the agent CLI."
 msgstr "Zaloguj się za pomocą interfejsu CLI agenta."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "Wyloguj się"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out {label}"
 msgstr "Wyloguj się z {label}"
 
@@ -9041,7 +9046,7 @@ msgid "Signing in"
 msgstr "Logowanie"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Signing in…"
 msgstr "Logowanie…"
 
@@ -10272,7 +10277,7 @@ msgstr "łączna liczba tokenów"
 msgid "Total tokens"
 msgstr "Łączna liczba tokenów"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Track {label} usage"
 msgstr "Śledź wykorzystanie {label}"
 
@@ -10285,7 +10290,7 @@ msgid "Tracking and display"
 msgstr "Śledzenie i wyświetlanie"
 
 #. Usage status when provider tracking is disabled
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Tracking off"
 msgstr "Śledzenie wyłączone"
 

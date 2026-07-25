@@ -243,7 +243,6 @@ msgstr "{0} 件のスレッド"
 
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "{0} tokens"
 msgstr "{0}トークン"
 
@@ -383,11 +382,11 @@ msgstr "{installedCount, plural, one {#エージェントの準備ができて�
 #~ msgstr "{judgingLabel} が各候補の変更を確認して勝者を推薦します。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} API key"
 msgstr "{label} APIキー"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} の自動更新間隔 (分単位)"
 
@@ -532,7 +531,6 @@ msgstr "<0>{passed}</0> 件の{0}チェックに合格しました"
 
 #. placeholder {0}: snapshot.cost.period
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens}·{0}· 推定。"
 
@@ -1260,8 +1258,8 @@ msgstr "自動生成"
 
 #. Label for the per-provider auto-refresh cadence field
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Auto-refresh"
-msgstr "自動更新"
+#~ msgid "Auto-refresh"
+#~ msgstr "自動更新"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Auto-refresh interval in minutes, 0 to turn off"
@@ -1524,7 +1522,7 @@ msgid "Browser pick target for CLI threads"
 msgstr "ブラウザによる CLI スレッドのターゲットの選択"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Browser sign-in"
 msgstr "ブラウザーでサインイン"
 
@@ -2921,7 +2919,6 @@ msgstr "資格情報が設定されています。"
 
 #: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Credits"
 msgstr "クレジット"
 
@@ -4597,7 +4594,7 @@ msgstr "非表示の再開可能なスレッドは 5 分ごとにスイープさ
 msgid "Hide"
 msgstr "隠す"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Hide {label} circle in sidebar"
 msgstr "サイドバーで {label} のリングを非表示にする"
 
@@ -5675,7 +5672,7 @@ msgid "Microphone testing is not available in this environment."
 msgstr "この環境ではマイクテストは利用できません。"
 
 #. Unit suffix: minutes
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "min"
 msgstr "分"
 
@@ -5782,6 +5779,10 @@ msgstr "その他の PR 操作"
 msgid "More PR options"
 msgstr "その他の PR オプション"
 
+#: src/renderer/components/providers/UsageOverflowChip.tsx
+msgid "More providers"
+msgstr "その他のプロバイダー"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "More pull request options"
 msgstr "その他のプルリクエストオプション"
@@ -5793,6 +5794,10 @@ msgstr "その他のスケジュールオプション"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
 msgstr "その他の同期オプション"
+
+#: src/renderer/components/providers/UsageOverflowChip.tsx
+msgid "More usage providers — open usage panel"
+msgstr "その他の使用量プロバイダー — 使用量パネルを開く"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Most active hour"
@@ -7064,7 +7069,7 @@ msgid "Paste"
 msgstr "ペースト"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Paste {label} API key"
 msgstr "{label} APIキーを貼り付け"
 
@@ -7707,7 +7712,6 @@ msgstr "パブリック API レートでローカル ログから再構築され
 msgid "Redact notification content"
 msgstr "通知内容を伏せる"
 
-#. Button: re-fetch one provider's usage now
 #. Button: re-fetch provider usage now
 #: src/mobile/ThreadUsageIndicator.tsx
 #: src/mobile/views/PortsView.tsx
@@ -8827,7 +8831,7 @@ msgstr "ショートカット"
 msgid "Show {0}"
 msgstr "{0}を表示"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "サイドバーで {label} のリングを表示する"
 
@@ -8966,10 +8970,10 @@ msgstr "最初の4,000件を表示しています。"
 
 #. Toggle: show this provider's usage ring in the sidebar
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
-msgid "Sidebar"
-msgstr "サイドバー"
+#~ msgid "Sidebar"
+#~ msgstr "サイドバー"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
 msgstr "サイドバーのリングは上で全体的にオフになっています"
 
@@ -8979,7 +8983,7 @@ msgid "Sidebar frosting"
 msgstr "サイドバーのすりガラス効果"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign in"
 msgstr "サインイン"
 
@@ -9001,11 +9005,12 @@ msgid "Sign in with the agent CLI."
 msgstr "エージェント CLI を使用してサインインします。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "サインアウト"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out {label}"
 msgstr "サインアウト{label}"
 
@@ -9039,7 +9044,7 @@ msgid "Signing in"
 msgstr "サインインしています"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Signing in…"
 msgstr "サインイン中…"
 
@@ -10270,7 +10275,7 @@ msgstr "合計トークン"
 msgid "Total tokens"
 msgstr "合計トークン"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Track {label} usage"
 msgstr "{label}の使用状況を追跡する"
 
@@ -10283,7 +10288,7 @@ msgid "Tracking and display"
 msgstr "トラッキングと表示"
 
 #. Usage status when provider tracking is disabled
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Tracking off"
 msgstr "追跡オフ"
 

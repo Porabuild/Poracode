@@ -1,4 +1,5 @@
-import { startTransition, useEffect } from "react";
+import { startTransition, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useShallow } from "zustand/shallow";
 import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { DragDropProvider, type DragEndEvent, KeyboardSensor, PointerSensor } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
@@ -15,6 +16,7 @@ import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common
 import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderUsageCircle } from "./ProviderUsageCircle";
+import { UsageOverflowChip } from "./UsageOverflowChip";
 import { PaceLine } from "./UsageWindowBars";
 import {
   formatWindowPace,
@@ -23,11 +25,40 @@ import {
   sharedWindowResetLabel,
 } from "./usageFormat";
 import {
+  hasRailUsage,
   isClaudeUsageProvider,
   resolveDisplayedProviders,
   usageRingGroups,
   usesSharedWindowReset,
+  type UsageProvider,
 } from "./usageProviders";
+import {
+  fitUsageRail,
+  RAIL_CIRCLE_SIZE,
+  RAIL_COLUMN_GAP,
+  RAIL_COLUMN_MAX,
+  RAIL_ROW_GAP,
+  railSlots,
+} from "./usageRailFit";
+
+// A 5px activation distance lets a plain click open the panel while a drag
+// reorders — mirrors the app's global pointer sensor. `configure` returns a
+// plugin descriptor, not a live sensor, so one module-level array is safe to
+// share and keeps a stable identity across renders.
+const RAIL_SENSORS = [
+  PointerSensor.configure({
+    activationConstraints: [new PointerActivationConstraints.Distance({ value: 5 })],
+  }),
+  KeyboardSensor,
+];
+
+const STRIP = {
+  row: { className: "flex flex-row items-center overflow-hidden", gap: RAIL_ROW_GAP },
+  column: {
+    className: "mb-1 flex w-full flex-col items-center border-b border-[var(--hairline)] pb-2",
+    gap: RAIL_COLUMN_GAP,
+  },
+} as const;
 
 function statusText(
   providerId: string,
@@ -146,6 +177,7 @@ function ProviderUsageRailItem(props: { id: string; label: string; index: number
             <ProviderUsageCircle
               kind={id}
               windows={snapshot?.windows}
+              size={RAIL_CIRCLE_SIZE}
               ringGroup={selectedRingGroup}
             />
           </button>
@@ -181,6 +213,100 @@ function ProviderUsageRailItem(props: { id: string; label: string; index: number
   );
 }
 
+type ReorderHandler = (orderedRenderedIds: readonly string[]) => void;
+
+/**
+ * The sortable strip, shared by both orientations: the first `shownCount`
+ * circles, then the "+N" chip for the rest. Only the circles are sortable, so a
+ * drag always reorders within what the user can see.
+ */
+function UsageRailStrip(props: {
+  providers: readonly UsageProvider[];
+  shownCount: number;
+  orientation: "row" | "column";
+  onReorder: ReorderHandler;
+}) {
+  const { providers, shownCount, orientation, onReorder } = props;
+  const shown = providers.slice(0, shownCount);
+  // Namespace the sortable group per orientation so the row + column instances
+  // (one of which may be mounted but hidden) never share registrations.
+  const group = `usage-rail-${orientation}`;
+
+  function handleDragEnd(event: DragEndEvent) {
+    if (event.canceled) return;
+    const src = event.operation.source;
+    if (!src || !isSortable(src)) return;
+    const fromIndex = src.initialIndex;
+    const toIndex = src.index;
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+    const ids = shown.map((p) => p.id);
+    const [moved] = ids.splice(fromIndex, 1);
+    if (!moved) return;
+    ids.splice(toIndex, 0, moved);
+    onReorder(ids);
+  }
+
+  return (
+    <DragDropProvider sensors={RAIL_SENSORS} onDragEnd={handleDragEnd}>
+      <div className={STRIP[orientation].className} style={{ gap: STRIP[orientation].gap }}>
+        {shown.map((p, index) => (
+          <ProviderUsageRailItem key={p.id} id={p.id} label={p.label} index={index} group={group} />
+        ))}
+        <UsageOverflowChip providers={providers.slice(shownCount)} />
+      </div>
+    </DragDropProvider>
+  );
+}
+
+/**
+ * Expanded sidebar rail: as many circles as fit one row, then a "+N" chip whose
+ * tooltip carries the rest. The row is measured rather than wrapped so the rail
+ * keeps a fixed height as the sidebar is resized.
+ */
+function UsageRailRow(props: { providers: readonly UsageProvider[]; onReorder: ReorderHandler }) {
+  const { providers, onReorder } = props;
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const [slots, setSlots] = useState(0);
+
+  // Measured before paint so the first frame is already fitted. Storing the
+  // derived slot count rather than the raw width means a resize drag only
+  // re-renders when a circle actually gains or loses its place. The measured div
+  // is block-level, so its width follows the sidebar and never the circles
+  // inside it — no measure/relayout feedback loop.
+  useLayoutEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    const measure = (width: number) => setSlots(railSlots(width));
+    measure(el.getBoundingClientRect().width);
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (cr) measure(cr.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // A labeled "Usage" section that sits between the thread list and the footer
+  // nav. The column's gap above and the footer's top border below provide the
+  // separation, so no extra dividers here — that avoids the cramped boxed strip.
+  // `px-2` aligns the circles with the footer button icons.
+  return (
+    <div className="px-2">
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
+        <Trans>Usage</Trans>
+      </p>
+      <div ref={rowRef}>
+        <UsageRailStrip
+          providers={providers}
+          shownCount={fitUsageRail(slots, providers.length)}
+          orientation="row"
+          onReorder={onReorder}
+        />
+      </div>
+    </div>
+  );
+}
+
 /**
  * A compact rail of per-provider usage rings for the sidebar footer. Hidden when
  * the user turns off `usage.showInSidebar`. On mount it hydrates the store from
@@ -212,75 +338,44 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
     };
   }, []);
 
-  // A 5px activation distance lets a plain click open the panel while a drag
-  // reorders — mirrors the app's global pointer sensor.
-  const sensors = [
-    PointerSensor.configure({
-      activationConstraints: [new PointerActivationConstraints.Distance({ value: 5 })],
-    }),
-    KeyboardSensor,
-  ];
-
-  // Full set drives the persisted order; the rail only renders the providers
-  // whose circle the user hasn't individually hidden. Hidden providers still
-  // hold their slot in `providerOrder` (the docked panel can still reorder them).
+  // Full set drives the persisted order; the rail only offers the providers the
+  // user hasn't individually hidden and that have usage worth a ring — a
+  // signed-out provider belongs in Settings, not in the rail. Skipped providers
+  // still hold their slot in `providerOrder` (the docked panel can reorder them).
   const allProviders = resolveDisplayedProviders(providerOrder, disabledProviders, agentInstances);
-  const providers = allProviders.filter((p) => !sidebarHiddenProviders.includes(p.id));
+  // Subscribe to rail *eligibility* only. The snapshot map gets a new identity on
+  // every refresh tick, so selecting it whole would re-render the rail (and every
+  // circle) whenever any provider's percentages moved; each circle already reads
+  // its own snapshot through a narrow selector.
+  const eligible = useProviderUsageStore(
+    useShallow((s) => allProviders.map((p) => hasRailUsage(s.snapshots[p.id]))),
+  );
+  const providers = allProviders.filter(
+    (p, i) => !sidebarHiddenProviders.includes(p.id) && eligible[i],
+  );
 
   if (!showInSidebar || providers.length === 0) return null;
 
-  // Namespace the sortable group per orientation so the row + column instances
-  // (one of which may be mounted but hidden) never share registrations.
-  const group = `usage-rail-${orientation}`;
-
-  function handleDragEnd(event: DragEndEvent) {
-    if (event.canceled) return;
-    const src = event.operation.source;
-    if (!src || !isSortable(src)) return;
-    const fromIndex = src.initialIndex;
-    const toIndex = src.index;
-    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
-    // Reorder only the visible ids, then splice the result back into the full
-    // order so hidden providers keep their absolute positions.
-    const visibleIds = providers.map((p) => p.id);
-    const [moved] = visibleIds.splice(fromIndex, 1);
-    if (!moved) return;
-    visibleIds.splice(toIndex, 0, moved);
-    const hidden = new Set(sidebarHiddenProviders);
+  function handleReorder(orderedRenderedIds: readonly string[]) {
+    // Splice the strip's new order back into the full order so hidden and
+    // overflowed providers keep their absolute positions.
+    const rendered = new Set(orderedRenderedIds);
     let v = 0;
-    const next = allProviders.map((p) => (hidden.has(p.id) ? p.id : visibleIds[v++]!));
+    const next = allProviders.map((p) => (rendered.has(p.id) ? orderedRenderedIds[v++]! : p.id));
     startTransition(() => setUsageSetting("providerOrder", next));
   }
 
-  const items = providers
-    .slice(0, 4)
-    .map((p, index) => (
-      <ProviderUsageRailItem key={p.id} id={p.id} label={p.label} index={index} group={group} />
-    ));
-
-  // Collapsed icon rail: a centered column of circles.
+  // The collapsed rail is a fixed cap rather than a measured fit — it is one
+  // narrow column sharing vertical space with the footer nav.
   if (orientation === "column") {
     return (
-      <DragDropProvider sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="mb-1 flex w-full flex-col items-center gap-1.5 border-b border-[var(--hairline)] pb-2">
-          {items}
-        </div>
-      </DragDropProvider>
+      <UsageRailStrip
+        providers={providers}
+        shownCount={RAIL_COLUMN_MAX}
+        orientation="column"
+        onReorder={handleReorder}
+      />
     );
   }
-
-  // Expanded sidebar: a labeled "Usage" section that sits between the thread
-  // list and the footer nav. The column's gap above and the footer's top border
-  // below provide the separation, so no extra dividers here — that avoids the
-  // cramped boxed strip. `px-2` aligns the circles with the footer button icons.
-  return (
-    <div className="px-2">
-      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
-        <Trans>Usage</Trans>
-      </p>
-      <DragDropProvider sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="flex flex-row flex-wrap items-center gap-2.5">{items}</div>
-      </DragDropProvider>
-    </div>
-  );
+  return <UsageRailRow providers={providers} onReorder={handleReorder} />;
 }
