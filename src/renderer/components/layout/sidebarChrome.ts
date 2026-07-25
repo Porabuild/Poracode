@@ -49,10 +49,21 @@ export const panelHeaderTooltipTriggerResetClass =
  * Floating chrome that hovers over a thread's conversation — the per-thread tool
  * rail, the changes bubble above the composer, and the scroll-to-bottom button.
  * One class so the three share a surface; the tint tracks `--sidebar-background`
- * (see styles.css) so they read as app chrome in every theme.
+ * (see styles.css) so they read as app chrome in every theme. The
+ * `poracode-floating-chrome` marker lets styles.css push the blur further on
+ * Windows, which has no OS vibrancy behind these pills.
  */
 export const floatingChromeSurfaceClass =
-  "border border-border/15 bg-[var(--floating-chrome-surface)] shadow-lg backdrop-blur-md";
+  "poracode-floating-chrome border border-border/15 bg-[var(--floating-chrome-surface)] shadow-lg backdrop-blur-md";
+
+/**
+ * Pressed/open state for a floating-chrome pill that toggles a panel. A ring
+ * rather than a border or background so it composes with
+ * {@link floatingChromeSurfaceClass} without fighting its own utilities; matches
+ * the accent ring the sidebar `GitBadge` uses for the same "this panel is open"
+ * signal.
+ */
+export const floatingChromeActiveClass = "ring-1 ring-accent/50";
 
 /** Icon button in panel headers (tab toggles, close, expand). */
 export const panelHeaderIconButtonClass =

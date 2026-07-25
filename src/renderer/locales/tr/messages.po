@@ -2002,6 +2002,10 @@ msgstr "Proje eklemeyi kapat"
 msgid "Close browser"
 msgstr "Tarayıcıyı kapat"
 
+#: src/renderer/components/thread/ThreadChangesBubble.tsx
+msgid "Close changes"
+msgstr "Değişiklikleri kapat"
+
 #: src/mobile/views/QuickCompose.tsx
 #: src/mobile/views/ThreadView.tsx
 msgid "Close composer"
