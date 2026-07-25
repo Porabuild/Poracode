@@ -13,13 +13,17 @@ import { RemoteThreadView } from "./RemoteThreadView";
 vi.mock("@/renderer/components/thread/ChatPane/ChatPane", () => ({
   ChatPane: (props: {
     thread: Thread;
-    paneActionsOverride?: { openProjectRelativePath(path: string, lineNumber?: number): void };
+    paneActionsOverride?: {
+      openProjectRelativePath(path: string, lineNumber?: number): Promise<void>;
+    };
   }) => (
     <div data-testid="chatpane">
       {props.thread.title}
       <button
         type="button"
-        onClick={() => props.paneActionsOverride?.openProjectRelativePath("README.md", 2)}
+        onClick={() => {
+          void props.paneActionsOverride?.openProjectRelativePath("README.md", 2)?.catch(() => {});
+        }}
       >
         open remote file
       </button>

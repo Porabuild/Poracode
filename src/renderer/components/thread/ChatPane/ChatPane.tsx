@@ -137,13 +137,18 @@ export function ChatPane(props: ChatPaneProps) {
   const paneActions: ChatPaneActions | null = useMemo(() => {
     if (!project || !targetContext || isHomeScope) return null;
     return {
-      openProjectRelativePath: (path, lineNumber) => {
+      openProjectRelativePath: async (path, lineNumber) => {
         const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
+        const resolvedPath = await resolveBareBasename(
+          normalized,
+          targetContext.projectLocation,
+          projectRootNames,
+        );
         if (onOpenProjectRelativePath) {
-          onOpenProjectRelativePath(normalized, lineNumber);
+          onOpenProjectRelativePath(resolvedPath, lineNumber);
           return;
         }
-        void openFileInEditor(project, worktreePath, branch, normalized, lineNumber);
+        await openFileInEditor(project, worktreePath, branch, resolvedPath, lineNumber);
       },
       revealProjectFolderInTree: (path) => {
         const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
@@ -671,4 +676,34 @@ function findBaseCheckpointItemId(
     if (itemsById?.[itemId]?.type === "user_message") return itemId;
   }
   return null;
+}
+
+/**
+ * When a chat chip carries a bare basename (no directory separator, not
+ * absolute) that is NOT a top-level project entry, attempt to resolve it to a
+ * real project-relative path via the file search index. Returns the original
+ * path unchanged when it already contains a separator, is absolute, or is a
+ * known root entry (those resolve directly). Throws when the basename cannot
+ * be found so the chip can switch to an inert visual.
+ */
+async function resolveBareBasename(
+  path: string,
+  projectLocation: ProjectLocation,
+  rootNames: ReadonlySet<string> | undefined,
+): Promise<string> {
+  const hasSeparator = path.includes("/") || path.includes("\\");
+  const isAbsolute = path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path);
+  if (hasSeparator || isAbsolute) return path;
+  if (rootNames?.has(path)) return path;
+
+  const result = await readBridge().searchProjectFiles({
+    projectLocation,
+    query: path,
+    limit: 5,
+  });
+  const exact = result.entries.find(
+    (e) => e.type === "file" && e.name.toLowerCase() === path.toLowerCase(),
+  );
+  if (exact) return exact.path;
+  throw new Error(`File not found: ${path}`);
 }

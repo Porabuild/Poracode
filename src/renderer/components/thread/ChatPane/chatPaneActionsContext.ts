@@ -2,7 +2,7 @@ import { createContext, useContext } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
 
 export type ChatPaneActions = {
-  openProjectRelativePath: (path: string, lineNumber?: number) => void;
+  openProjectRelativePath: (path: string, lineNumber?: number) => Promise<void>;
   /** Open the in-app file editor overlay and expand the project tree to the folder. */
   revealProjectFolderInTree: (path: string) => void;
   /** Reveal a file or folder in the OS file explorer (Finder/Explorer/Nautilus). */

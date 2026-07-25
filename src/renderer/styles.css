@@ -2677,6 +2677,10 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   background: color-mix(in oklab, var(--surface-secondary) 86%, var(--foreground) 14%);
 }
 
+.poracode-user-message-inline-content .poracode-inline-path-chip--inert:hover {
+  background: var(--surface-secondary);
+}
+
 /* ── Inline File Path Chip (clickable, in chat markdown) ────── */
 
 .poracode-inline-path-chip {
@@ -2699,6 +2703,15 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 
 .poracode-inline-path-chip:hover {
   background: color-mix(in oklab, var(--accent) 22%, var(--surface));
+}
+
+.poracode-inline-path-chip--inert {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.poracode-inline-path-chip--inert:hover {
+  background: color-mix(in oklab, var(--accent) 12%, var(--surface));
 }
 
 .poracode-inline-path-chip__icon {

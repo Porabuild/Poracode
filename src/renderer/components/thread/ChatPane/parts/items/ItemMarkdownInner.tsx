@@ -414,12 +414,14 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
         <button
           type="button"
           className="inline cursor-pointer rounded border-0 bg-foreground/10 px-[0.35em] py-[0.1em] font-mono text-[0.875em] leading-none align-baseline text-accent underline-offset-2 [overflow-wrap:anywhere] hover:bg-foreground/15 hover:underline"
-          onClick={() =>
-            actions.openProjectRelativePath(
-              normalizeChatProjectPath(ref.path, actions.projectLocation),
-              ref.line,
-            )
-          }
+          onClick={() => {
+            void actions
+              .openProjectRelativePath(
+                normalizeChatProjectPath(ref.path, actions.projectLocation),
+                ref.line,
+              )
+              .catch(() => {});
+          }}
         >
           {props.children}
         </button>

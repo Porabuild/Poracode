@@ -545,7 +545,7 @@ function makeEntries(itemIds: string[]): ChatTimelineEntry[] {
 
 function makeActions(overrides: Partial<ChatPaneActions> = {}): ChatPaneActions {
   return {
-    openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => void>(),
+    openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => Promise<void>>(),
     revealProjectFolderInTree: vi.fn<(path: string) => void>(),
     onContentHeightChange: vi.fn<() => void>(),
     projectLocation: { kind: "windows", path: "C:\\repo" },

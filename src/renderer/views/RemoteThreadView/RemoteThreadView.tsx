@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Button, toast } from "@heroui/react";
+import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Loader2, Send, Square, X } from "lucide-react";
 import { isThreadTurnActive } from "@/shared/contracts";
@@ -100,7 +100,7 @@ export function RemoteThreadView() {
   const remotePaneActions =
     project && checkpointProjectLocation
       ? {
-          openProjectRelativePath: (path: string, lineNumber?: number) => {
+          openProjectRelativePath: async (path: string, lineNumber?: number) => {
             const normalized = normalizeChatProjectPath(path, checkpointProjectLocation);
             if (isAbsoluteFilePath(normalized)) return;
             const fileEditor = useFileEditorStore.getState();
@@ -112,16 +112,12 @@ export function RemoteThreadView() {
               ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
               remoteServerId: open.desktopId,
             });
-            void fileEditor
-              .openFile(
-                normalized,
-                "modal",
-                false,
-                lineNumber !== undefined ? { lineNumber } : undefined,
-              )
-              .catch((error) =>
-                toast.danger(error instanceof Error ? error.message : String(error)),
-              );
+            await fileEditor.openFile(
+              normalized,
+              "modal",
+              false,
+              lineNumber !== undefined ? { lineNumber } : undefined,
+            );
           },
           revealProjectFolderInTree: () => {},
           onContentHeightChange: () => {},
