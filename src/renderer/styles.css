@@ -970,6 +970,11 @@
        wallpaper blur (more glassy, but tinted by whatever's on the desktop). */
     --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 35%, transparent);
     --content-background: var(--background);
+    /* Floating chrome that hovers over the conversation — thread tool rail,
+       changes bubble, scroll-to-bottom. One shared surface so the three read as
+       a set, tinted like the sidebar (side chrome) rather than the pane beneath
+       it. Derived, so it follows --sidebar-background in every theme. */
+    --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 82%, transparent);
     --window-header-background: var(--sidebar-background);
     --window-overlay-background: rgba(0, 0, 0, 0);
     --composer-surface: var(--surface);

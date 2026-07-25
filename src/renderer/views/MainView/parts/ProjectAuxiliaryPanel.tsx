@@ -82,6 +82,8 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
   const subAgentPanelContext = usePanelStore((s) => s.subAgentPanelContext);
   const rightPanelTab = usePanelStore((s) => s.rightPanelTab);
   const setRightPanelTab = usePanelStore((s) => s.setRightPanelTab);
+  const rightPanelFollowsThread = usePanelStore((s) => s.rightPanelFollowsThread);
+  const toggleRightPanelFollowsThread = usePanelStore((s) => s.toggleRightPanelFollowsThread);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const browserExtracted = useBrowserPanelStore((s) => s.extracted);
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
@@ -359,6 +361,8 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean }) {
         setNotesPanelOpen(true);
         setRightPanelTab("notes");
       }}
+      followsThread={rightPanelFollowsThread}
+      onToggleFollowsThread={toggleRightPanelFollowsThread}
       onClose={handleClose}
     />
   );

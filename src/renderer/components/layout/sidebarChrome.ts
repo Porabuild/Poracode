@@ -45,6 +45,15 @@ export const panelHeaderRowClass =
 export const panelHeaderTooltipTriggerResetClass =
   "min-w-0 shrink-0 justify-start rounded border-0 bg-transparent p-0 shadow-none outline-none";
 
+/**
+ * Floating chrome that hovers over a thread's conversation — the per-thread tool
+ * rail, the changes bubble above the composer, and the scroll-to-bottom button.
+ * One class so the three share a surface; the tint tracks `--sidebar-background`
+ * (see styles.css) so they read as app chrome in every theme.
+ */
+export const floatingChromeSurfaceClass =
+  "border border-border/15 bg-[var(--floating-chrome-surface)] shadow-lg backdrop-blur-md";
+
 /** Icon button in panel headers (tab toggles, close, expand). */
 export const panelHeaderIconButtonClass =
   "inline-flex items-center justify-center rounded p-0.5 text-muted hover:text-foreground";
