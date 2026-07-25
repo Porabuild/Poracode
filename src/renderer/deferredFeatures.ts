@@ -101,14 +101,17 @@ export const DeferredInlineDiffView = preloadable(() =>
 );
 
 const prewarmTasks = [
+  // Terminal panels initialize xterm and its addons when they first mount.
+  // Warm both layouts first so that work does not compete with the panel's
+  // first-open animation.
+  DeferredDevTerminalPanel.preload,
+  DeferredProjectAuxiliaryPanel.preload,
   DeferredCommandPalette.preload,
   DeferredItemMarkdownInner.preload,
   DeferredSettingsOverlay.preload,
   DeferredCreateProjectModal.preload,
   DeferredCloneProjectModal.preload,
   DeferredProjectSettingsOverlay.preload,
-  DeferredProjectAuxiliaryPanel.preload,
-  DeferredDevTerminalPanel.preload,
   DeferredBrowserHost.preload,
   DeferredRemoteThreadView.preload,
   DeferredLoginTerminalOverlay.preload,
