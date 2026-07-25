@@ -69,10 +69,10 @@ export const floatingChromeActiveClass = "ring-1 ring-accent/50";
 export const panelHeaderIconButtonClass =
   "inline-flex items-center justify-center rounded p-0.5 text-muted hover:text-foreground";
 
-/** Tab-style icon button: accents when active, muted+hover otherwise. */
+/** Tab-style icon button: foreground when active, muted+hover otherwise. */
 export function panelHeaderTabIconButtonClass(active: boolean) {
   return `inline-flex items-center justify-center rounded p-0.5 transition-colors ${
-    active ? "text-accent" : "text-muted hover:text-foreground"
+    active ? "text-foreground" : "text-muted hover:text-foreground"
   }`;
 }
 
