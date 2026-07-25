@@ -77,9 +77,13 @@ export type { WorkOSRefreshResult } from "./collectors/factory";
 export {
   collectGrok,
   parseGrokUsage,
+  parseGrokRefreshResponse,
+  refreshGrokOAuthToken,
   GROK_BILLING_ENDPOINT,
   GROK_SETTINGS_ENDPOINT,
+  GROK_OAUTH_TOKEN_ENDPOINT,
 } from "./collectors/grok";
+export type { GrokRefreshedToken } from "./collectors/grok";
 export {
   collectGemini,
   parseGeminiUsage,
