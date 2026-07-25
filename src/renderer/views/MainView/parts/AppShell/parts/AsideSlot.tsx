@@ -37,6 +37,10 @@ export function AsideSlot(props: {
 
   const isHorizontal = orientation === "horizontal";
   const showHandle = isOpen && !overlay;
+  // The overlay panel is `position: fixed` and clips its children, so its handle
+  // lives *inside* the aside on the left edge instead of as a flex sibling —
+  // that way it slides with the panel and needs no separate positioning.
+  const showOverlayHandle = isOpen && overlay && !isHorizontal;
 
   // Docked path: width/height animates open <-> closed.
   const dockedDisplayWidth = !isHorizontal ? (isOpen ? targetWidth : 0) : undefined;
@@ -128,6 +132,19 @@ export function AsideSlot(props: {
         />
       )}
       <aside key={asideKey} ref={panelRef} className={asideClassName} style={asideStyle}>
+        {showOverlayHandle && (
+          <div
+            key="overlay-handle"
+            className="poracode-resize-handle-overlay"
+            style={{ top: overlayTop }}
+            onMouseDown={onResizeStart}
+            onKeyDown={onResizeKeyDown}
+            role="separator"
+            tabIndex={0}
+            aria-orientation={orientation}
+            aria-label={ariaLabel}
+          />
+        )}
         <div ref={panelInnerRef} className="h-full w-full" style={innerStyle}>
           {children}
         </div>

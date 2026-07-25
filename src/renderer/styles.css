@@ -1579,6 +1579,35 @@ html[data-platform="darwin"] .poracode-content-over-drag-region--drag {
   flex-shrink: 0;
 }
 
+/* Right / git panel floating as a right-edge overlay: the handle sits inside the
+   fixed aside (which clips its children), so it cannot straddle the shared
+   border with negative margins. Keep the hit area inside the panel's left
+   gutter and draw the hover accent over the border itself. */
+.poracode-resize-handle-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 20;
+}
+
+.poracode-resize-handle-overlay::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.poracode-resize-handle-overlay:hover::after,
+.poracode-resize-handle-overlay:focus-visible::after {
+  background: var(--accent);
+}
+
 /* Right / git / bottom terminal: [handle][aside] or [horizontal handle][aside] */
 .poracode-resize-handle[aria-label="Resize terminal panel"]:hover + aside,
 .poracode-resize-handle[aria-label="Resize git panel"]:hover + aside {
