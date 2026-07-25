@@ -24,6 +24,8 @@ import {
 } from "@/renderer/state/sidebarOverlayStore";
 import {
   CONTENT_MIN_WIDTH,
+  type ResizeLimits,
+  type ResizeTarget,
   SIDEBAR_MIN_WIDTH,
   useResizablePanels,
 } from "./parts/useResizablePanels";
@@ -396,15 +398,20 @@ export function AppShell(props: {
     handlePanelResizeKeyDown,
     handlePanelBottomResizeKeyDown,
     handleGitPanelResizeKeyDown,
-  } = useResizablePanels({
-    sidebarRef,
-    panelRef,
-    panelInnerRef,
-    gitPanelRef,
-    gitPanelInnerRef,
-    mainRef,
-    overlayRef: resizeOverlayRef,
-  });
+  } = useResizablePanels(
+    {
+      sidebarRef,
+      panelRef,
+      panelInnerRef,
+      gitPanelRef,
+      gitPanelInnerRef,
+      mainRef,
+      overlayRef: resizeOverlayRef,
+    },
+    // Hoisted so it can read the overlay geometry computed further down; only
+    // ever called during a drag/nudge, never while rendering.
+    { getResizeLimits },
+  );
 
   const onRequestClosePanels = props.onRequestClosePanels;
   const onDismissRightOverlay = props.onDismissRightOverlay ?? onRequestClosePanels;
@@ -536,6 +543,20 @@ export function AppShell(props: {
   const rightOverlayTop = hasContentHeader ? "env(titlebar-area-height, 32px)" : "0px";
   const rightPanelAsOverlay = rightOverlayDisplayed && displayedRightOverlaySlot === "right";
   const gitPanelAsOverlay = rightOverlayDisplayed && displayedRightOverlaySlot === "git";
+
+  // Overlay panels are resizable too, but with their own bounds: capped by the
+  // gutter (above) and floored just above the width at which the panel would
+  // dock again. Re-docking mid-drag would swap the docked/overlay <aside> under
+  // the cursor and drop the drag, so a resize must never flip the mode. The
+  // floor ignores a second open panel's width, which only makes it stricter.
+  const overlayDockFloor = shellWidth - observedSidebarWidth - CONTENT_MIN_WIDTH + 1;
+  function getResizeLimits(target: ResizeTarget): ResizeLimits | null {
+    if (!rightOverlayActive || overlayMaxWidth === undefined) return null;
+    const isOverlaySlot =
+      (target === "panel" && rightPanelAsOverlay) || (target === "git-panel" && gitPanelAsOverlay);
+    if (!isOverlaySlot) return null;
+    return { min: overlayDockFloor, max: overlayMaxWidth };
+  }
 
   return (
     <div
