@@ -294,6 +294,10 @@ self.addEventListener("fetch", (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
+            const contentType = response.headers.get("content-type") ?? "";
+            if (response.ok && contentType.startsWith("text/html")) {
+              return new Response("Not found", { status: 404, statusText: "Not Found" });
+            }
             if (response.ok) {
               const clone = response.clone();
               caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));

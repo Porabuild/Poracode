@@ -146,6 +146,13 @@ self.addEventListener("fetch", (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
+            // The SPA fallback rewrites missing assets to the HTML shell. A
+            // hashed build asset that returns HTML is stale — the deployment
+            // replaced it. Serve a clean 404 instead of a MIME-type violation.
+            const contentType = response.headers.get("content-type") ?? "";
+            if (response.ok && contentType.startsWith("text/html")) {
+              return new Response("Not found", { status: 404, statusText: "Not Found" });
+            }
             if (response.ok) {
               const clone = response.clone();
               void caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
