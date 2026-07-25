@@ -95,11 +95,7 @@ describe("ThreadView", () => {
     });
   });
 
-  it("renders Browser MCP as a read-only header icon in active threads", () => {
-    // Mid-thread toggles can't re-attach an MCP server to a running session,
-    // so the active-thread chip is informational only. The toggle lives in
-    // the draft composer.
-
+  it("does not render MCP controls in active-thread headers", () => {
     renderThreadView({
       thread: {
         id: "thread-browser-mcp",
@@ -109,6 +105,7 @@ describe("ThreadView", () => {
         config: {
           model: "gpt-5.4",
           browserMcp: true,
+          computerUse: true,
         },
         status: "idle",
         attention: "none",
@@ -144,11 +141,14 @@ describe("ThreadView", () => {
       },
     });
 
-    const browserIcon = screen.getByLabelText("Browser MCP enabled for this thread");
-    expect(hasAncestorWithClassFragment(browserIcon, "poracode-overlay-header__controls")).toBe(
-      true,
-    );
+    expect(screen.queryByLabelText("Browser MCP enabled for this thread")).toBeNull();
+    expect(
+      screen.queryByLabelText(
+        "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it",
+      ),
+    ).toBeNull();
     expect(screen.queryByLabelText("Disable Browser MCP")).toBeNull();
+    expect(screen.queryByLabelText("Disable Computer Use")).toBeNull();
     expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
   });
 
